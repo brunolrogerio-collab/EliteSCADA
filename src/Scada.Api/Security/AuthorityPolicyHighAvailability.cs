@@ -229,13 +229,29 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
         if (!synchronized)
             return new(false, write.Snapshot, "AUTHORITY_POLICY_HA_REPLICATION_PENDING");
 
-        var committed = await _referenceStore.CommitAuthorityPolicyUpdateAsync(
-            _highAvailability.LocalNodeId,
-            reference.LeaseId,
-            readiness.HaEpoch,
-            candidate.Version,
-            digest,
-            cancellationToken);
+        RuntimeHaReferenceMutationResult committed;
+        try
+        {
+            committed = await _referenceStore.CommitAuthorityPolicyUpdateAsync(
+                _highAvailability.LocalNodeId,
+                reference.LeaseId,
+                readiness.HaEpoch,
+                candidate.Version,
+                digest,
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            // The peer has acknowledged, but until the durable reference commit
+            // is confirmed this process must remain fenced and report an
+            // explicit pending outcome instead of leaking an HTTP 500.
+            _logger.LogError(
+                exception,
+                "Authority policy replica acknowledged, but the HA fence commit could not be persisted; version {PolicyVersion} remains pending.",
+                candidate.Version);
+            _executionGate.InvalidateAll();
+            return new(false, write.Snapshot, "AUTHORITY_POLICY_HA_COMMIT_UNCONFIRMED");
+        }
         if (!committed.Accepted)
         {
             _logger.LogWarning("Authority policy replica acknowledged but HA fence commit failed: {ReasonCode}.", committed.ReasonCode);
@@ -300,7 +316,34 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
                 if (!IsCurrentEffectiveActive(reference) ||
                     !string.Equals(fence.PendingNodeId, localNodeId, StringComparison.OrdinalIgnoreCase) ||
                     fence.PendingEpoch != reference.Epoch ||
-                    snapshot.Version != pendingVersion ||
+                    fence.PendingDigest is null)
+                    return;
+
+                // A process can stop after the shared fence records intent but
+                // before the local policy transaction commits. If this node is
+                // still the fenced writer, nobody has acknowledged the pending
+                // version, and its durable store is byte-for-byte at the last
+                // committed policy, the mutation never became durable. Clear
+                // only that provably un-applied intent. Any acknowledged,
+                // divergent, or otherwise ambiguous state remains fail-closed.
+                if (!fence.AcknowledgedVersion.HasValue &&
+                    MatchesCommittedPolicy(fence, snapshot, digest))
+                {
+                    var aborted = await _referenceStore.AbortAuthorityPolicyUpdateAsync(
+                        localNodeId,
+                        reference.LeaseId,
+                        reference.Epoch,
+                        pendingVersion,
+                        fence.PendingDigest,
+                        cancellationToken);
+                    if (!aborted.Accepted)
+                        _logger.LogWarning(
+                            "A provably unapplied Authority policy update could not be aborted during recovery: {ReasonCode}.",
+                            aborted.ReasonCode);
+                    return;
+                }
+
+                if (snapshot.Version != pendingVersion ||
                     !DigestEquals(digest, fence.PendingDigest))
                     return;
 
@@ -342,6 +385,19 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
             _executionGate.InvalidateAll();
             _logger.LogWarning(exception, "Stage 1 Authority HA synchronization failed closed.");
         }
+    }
+
+    private static bool MatchesCommittedPolicy(
+        RuntimeHaAuthorityPolicyFence fence,
+        AuthorityPolicySnapshot snapshot,
+        string digest)
+    {
+        // A missing committed digest represents first-time fence bootstrap, not
+        // a known-good prior state. In particular, version 0 with an empty
+        // policy must still be replicated and committed instead of aborted.
+        if (fence.CommittedDigest is null || snapshot.Version != fence.CommittedVersion)
+            return false;
+        return DigestEquals(digest, fence.CommittedDigest);
     }
 
     public async Task<IResult> ReceivePeerSnapshotAsync(HttpRequest request, CancellationToken cancellationToken)
@@ -489,20 +545,64 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
             body,
             envelope.SourceNodeId));
 
-        using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-            return false;
-        var responseBody = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        if (responseBody.Length > 16 * 1024)
-            return false;
-        var ack = JsonSerializer.Deserialize<AuthorityPolicyPeerSnapshotAck>(responseBody, WireJson);
-        if (ack is not { Accepted: true } ||
-            !string.Equals(ack.LocalNodeId, _peerOptions.PeerNodeId, StringComparison.OrdinalIgnoreCase) ||
-            ack.AppliedVersion != snapshot.Version ||
-            !DigestEquals(ack.AppliedDigest, digest))
-            return false;
+        try
+        {
+            using var response = await _httpClient.SendAsync(
+                message,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return false;
+            var responseBody = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            if (responseBody.Length > 16 * 1024)
+                return false;
+            var ack = JsonSerializer.Deserialize<AuthorityPolicyPeerSnapshotAck>(responseBody, WireJson);
+            if (ack is not { Accepted: true } ||
+                !string.Equals(ack.LocalNodeId, _peerOptions.PeerNodeId, StringComparison.OrdinalIgnoreCase) ||
+                ack.AppliedVersion != snapshot.Version ||
+                !DigestEquals(ack.AppliedDigest, digest))
+                return false;
 
-        return true;
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // HttpClient's peer timeout is a replication-pending outcome, not a
+            // caller cancellation. Keep the durable HA fence pending and let the
+            // policy endpoint return its explicit 503 fail-closed response.
+            _logger.LogWarning(
+                "Authority policy snapshot to peer {PeerNodeId} timed out; version {PolicyVersion} remains pending.",
+                _peerOptions.PeerNodeId,
+                snapshot.Version);
+            return false;
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Authority policy snapshot to peer {PeerNodeId} failed; version {PolicyVersion} remains pending.",
+                _peerOptions.PeerNodeId,
+                snapshot.Version);
+            return false;
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Authority policy acknowledgement from peer {PeerNodeId} was malformed; version {PolicyVersion} remains pending.",
+                _peerOptions.PeerNodeId,
+                snapshot.Version);
+            return false;
+        }
+        catch (IOException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Authority policy acknowledgement body from peer {PeerNodeId} could not be read; version {PolicyVersion} remains pending.",
+                _peerOptions.PeerNodeId,
+                snapshot.Version);
+            return false;
+        }
     }
 
     private bool IsCurrentEffectiveActive(RuntimeHaReferenceAuthority reference) =>

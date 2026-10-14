@@ -220,6 +220,11 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            // Every API process owns its own _gate. Readers must also join the
+            // cross-process lock used by MutateAsync so an open file handle from
+            // ReadAllBytesAsync cannot prevent another node's atomic replacement
+            // on Windows (the reader's default share mode does not include delete).
+            await using var lockHandle = await AcquireCrossProcessLockAsync(cancellationToken);
             return await ReadCurrentAsync(cancellationToken);
         }
         finally

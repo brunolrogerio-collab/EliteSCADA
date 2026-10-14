@@ -14,6 +14,7 @@ using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
+[Collection(Wave15PostgreSqlHaEvidenceCollection.Name)]
 public sealed class AuthorityPolicyPostgreSqlHaTests
 {
     private const string Secret = "postgres-ha-authority-policy-test-secret-32-bytes";
@@ -60,6 +61,330 @@ public sealed class AuthorityPolicyPostgreSqlHaTests
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    [Theory]
+    [InlineData(true, "before-local-commit")]
+    [InlineData(false, "before-local-commit")]
+    [InlineData(true, "after-local-commit")]
+    [InlineData(false, "after-local-commit")]
+    [InlineData(true, "peer-durable-before-ack")]
+    [InlineData(false, "peer-durable-before-ack")]
+    [InlineData(true, "ack-durable-before-finalize")]
+    [InlineData(false, "ack-durable-before-finalize")]
+    [InlineData(true, "after-finalize-before-response")]
+    [InlineData(false, "after-finalize-before-response")]
+    public async Task PendingPolicyIntentRecoversSafelyAfterCoordinatorRestart(
+        bool sharedDatabase,
+        string boundary)
+    {
+        var seed = SeedConnectionString;
+        if (string.IsNullOrWhiteSpace(seed)) return;
+
+        var suffix = Guid.NewGuid().ToString("N")[..12];
+        var databaseA = "w15_policy_restart_a_" + suffix;
+        var databaseB = sharedDatabase ? databaseA : "w15_policy_restart_b_" + suffix;
+        var admin = new NpgsqlConnectionStringBuilder(seed) { Database = "postgres", Pooling = false };
+        var connectionA = new NpgsqlConnectionStringBuilder(seed) { Database = databaseA, Pooling = false };
+        var connectionB = new NpgsqlConnectionStringBuilder(seed) { Database = databaseB, Pooling = false };
+        var created = new List<string>();
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-authority-pg-restart-" + suffix);
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            await CreateDatabaseAsync(admin.ConnectionString, databaseA);
+            created.Add(databaseA);
+            if (!sharedDatabase)
+            {
+                await CreateDatabaseAsync(admin.ConnectionString, databaseB);
+                created.Add(databaseB);
+            }
+
+            await ExerciseRestartBoundaryAsync(
+                connectionA.ConnectionString,
+                connectionB.ConnectionString,
+                Path.Combine(directory, "ha-reference.json"),
+                sharedDatabase,
+                boundary);
+        }
+        finally
+        {
+            foreach (var database in created.AsEnumerable().Reverse())
+                await DropDatabaseAsync(admin.ConnectionString, database);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task IntelligencePendingFenceDoesNotBlockRuntimeHaFailover(bool sharedDatabase)
+    {
+        var seed = SeedConnectionString;
+        if (string.IsNullOrWhiteSpace(seed)) return;
+
+        var suffix = Guid.NewGuid().ToString("N")[..12];
+        var databaseA = "w15_policy_failover_a_" + suffix;
+        var databaseB = sharedDatabase ? databaseA : "w15_policy_failover_b_" + suffix;
+        var admin = new NpgsqlConnectionStringBuilder(seed) { Database = "postgres", Pooling = false };
+        var connectionA = new NpgsqlConnectionStringBuilder(seed) { Database = databaseA, Pooling = false };
+        var connectionB = new NpgsqlConnectionStringBuilder(seed) { Database = databaseB, Pooling = false };
+        var created = new List<string>();
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-authority-pg-failover-" + suffix);
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            await CreateDatabaseAsync(admin.ConnectionString, databaseA);
+            created.Add(databaseA);
+            if (!sharedDatabase)
+            {
+                await CreateDatabaseAsync(admin.ConnectionString, databaseB);
+                created.Add(databaseB);
+            }
+
+            await ExerciseFailoverWhilePolicyPendingAsync(
+                connectionA.ConnectionString,
+                connectionB.ConnectionString,
+                Path.Combine(directory, "ha-reference.json"));
+        }
+        finally
+        {
+            foreach (var database in created.AsEnumerable().Reverse())
+                await DropDatabaseAsync(admin.ConnectionString, database);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static async Task ExerciseRestartBoundaryAsync(
+        string connectionA,
+        string connectionB,
+        string referencePath,
+        bool sharedDatabase,
+        string boundary)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var topologyA = CreateTopology("node-a");
+        var topologyB = CreateTopology("node-b");
+        var haA = CreateReadyService(topologyA, now);
+        var haB = CreateReadyService(topologyB, now);
+        var protection = ProtectionOptions(referencePath);
+        var referenceA = new FileRuntimeHaReferenceAuthorityStore(protection, haA);
+        var referenceB = new FileRuntimeHaReferenceAuthorityStore(protection, haB);
+        Assert.True((await referenceA.InitializeAsync("node-a")).Accepted);
+        var role = RestartTestRole();
+
+        // Establish a fully committed policy with real durable PostgreSQL stores,
+        // then discard those store/coordinator objects before the simulated crash.
+        await using (var storeA = new PostgreSqlAuthorityPolicyStore(connectionA))
+        await using (var storeB = new PostgreSqlAuthorityPolicyStore(connectionB))
+        {
+            await storeA.InitializeAsync();
+            await storeB.InitializeAsync();
+            Assert.True((await storeA.TryReplaceAsync(0, [role], [])).Applied);
+            if (!sharedDatabase)
+                Assert.True((await storeB.TryReplaceAsync(0, [role], [])).Applied);
+
+            var gateA = new AssetProcessIntelligenceExecutionGate();
+            var optionsA = PeerOptions("node-a", "node-b");
+            var optionsB = PeerOptions("node-b", "node-a");
+            using var coordinatorB = CreateCoordinator(storeB, haB, referenceB, optionsB, new AssetProcessIntelligenceExecutionGate());
+            using var peer = new InProcessPeerHandler(coordinatorB);
+            using var coordinatorA = CreateCoordinator(storeA, haA, referenceA, optionsA, gateA, peer);
+            await coordinatorA.SynchronizeOnceAsync();
+            Assert.True((await coordinatorA.CheckAsync()).Allowed);
+            Assert.Equal(1, (await storeB.RefreshAsync()).Version);
+        }
+
+        var candidateRole = role with { Grants = Array.Empty<CapabilityGrantEngineeringDto>() };
+        var pendingSnapshot = new Scada.Engineering.Security.AuthorityPolicySnapshot(2, [candidateRole], []);
+        var pendingDigest = AuthorityPolicySnapshotDigest.Compute(pendingSnapshot);
+        var currentReference = Assert.IsType<RuntimeHaReferenceAuthority>(await referenceA.ReadAsync());
+
+        await using (var stageA = new PostgreSqlAuthorityPolicyStore(connectionA))
+        await using (var stageB = new PostgreSqlAuthorityPolicyStore(connectionB))
+        {
+            await stageA.InitializeAsync();
+            await stageB.InitializeAsync();
+            var began = await referenceA.BeginAuthorityPolicyUpdateAsync(
+                "node-a", currentReference.LeaseId, currentReference.Epoch,
+                expectedCommittedVersion: 1,
+                expectedCommittedDigest: currentReference.AuthorityPolicy!.CommittedDigest,
+                pendingVersion: pendingSnapshot.Version,
+                pendingDigest: pendingDigest);
+            Assert.True(began.Accepted, began.ReasonCode);
+
+            if (boundary != "before-local-commit")
+            {
+                var write = await stageA.TryReplaceAsync(1, [candidateRole], []);
+                Assert.True(write.Applied, write.Error);
+            }
+
+            if (boundary is "peer-durable-before-ack" or "ack-durable-before-finalize" or "after-finalize-before-response")
+            {
+                var replica = await stageB.ApplyReplicatedSnapshotAsync(pendingSnapshot);
+                Assert.True(replica.Applied, replica.Error);
+            }
+
+            if (boundary is "ack-durable-before-finalize" or "after-finalize-before-response")
+            {
+                var acknowledged = await referenceB.AcknowledgeAuthorityPolicyUpdateAsync(
+                    "node-b", currentReference.Epoch, pendingSnapshot.Version, pendingDigest);
+                Assert.True(acknowledged.Accepted, acknowledged.ReasonCode);
+            }
+
+            if (boundary == "after-finalize-before-response")
+            {
+                var committed = await referenceA.CommitAuthorityPolicyUpdateAsync(
+                    "node-a", currentReference.LeaseId, currentReference.Epoch,
+                    pendingSnapshot.Version, pendingDigest);
+                Assert.True(committed.Accepted, committed.ReasonCode);
+            }
+        }
+
+        // New store, HA-reference-store, coordinator and permit-gate instances
+        // read the same persisted DB and reference file state as the lost process.
+        var restartedHaA = CreateReadyService(topologyA, now);
+        var restartedHaB = CreateReadyService(topologyB, now);
+        var restartedReferenceA = new FileRuntimeHaReferenceAuthorityStore(protection, restartedHaA);
+        var restartedReferenceB = new FileRuntimeHaReferenceAuthorityStore(protection, restartedHaB);
+        await using var restartedStoreA = new PostgreSqlAuthorityPolicyStore(connectionA);
+        await using var restartedStoreB = new PostgreSqlAuthorityPolicyStore(connectionB);
+        await restartedStoreA.InitializeAsync();
+        await restartedStoreB.InitializeAsync();
+        var gateAAfterRestart = new AssetProcessIntelligenceExecutionGate();
+        var gateBAfterRestart = new AssetProcessIntelligenceExecutionGate();
+        var restartedOptionsA = PeerOptions("node-a", "node-b");
+        var restartedOptionsB = PeerOptions("node-b", "node-a");
+        using var restartedCoordinatorB = CreateCoordinator(
+            restartedStoreB, restartedHaB, restartedReferenceB, restartedOptionsB, gateBAfterRestart);
+        using var restartedPeer = new InProcessPeerHandler(restartedCoordinatorB);
+        using var restartedCoordinatorA = CreateCoordinator(
+            restartedStoreA, restartedHaA, restartedReferenceA, restartedOptionsA, gateAAfterRestart, restartedPeer);
+
+        await restartedCoordinatorA.SynchronizeOnceAsync();
+        var recoveredReference = Assert.IsType<RuntimeHaReferenceAuthority>(await restartedReferenceA.ReadAsync());
+        var recoveredA = await restartedStoreA.RefreshAsync();
+        var recoveredB = await restartedStoreB.RefreshAsync();
+        var expectedVersion = boundary == "before-local-commit" ? 1 : 2;
+        Assert.Equal(expectedVersion, recoveredReference.AuthorityPolicy!.CommittedVersion);
+        Assert.Null(recoveredReference.AuthorityPolicy.PendingVersion);
+        Assert.Equal(expectedVersion, recoveredA.Version);
+        Assert.Equal(expectedVersion, recoveredB.Version);
+        Assert.Equal(AuthorityPolicySnapshotDigest.Compute(recoveredA), AuthorityPolicySnapshotDigest.Compute(recoveredB));
+
+        var readiness = await restartedCoordinatorA.CheckAsync();
+        Assert.True(readiness.Allowed, $"sharedDatabase={sharedDatabase}, boundary={boundary}, reason={readiness.ReasonCode}");
+        var scopeId = Guid.Parse("b3100000-0000-0000-0000-000000000099");
+        Assert.False(gateAAfterRestart.TryGetToken(
+            "project-a", 7, AssetProcessIntelligenceScopeKind.Equipment, scopeId,
+            out _, readiness.PolicyVersion, readiness.HaEpoch));
+    }
+
+    private static async Task ExerciseFailoverWhilePolicyPendingAsync(
+        string connectionA,
+        string connectionB,
+        string referencePath)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var topologyA = CreateTopology("node-a");
+        var topologyB = CreateTopology("node-b");
+        var haA = CreateReadyService(topologyA, now);
+        var haB = CreateReadyService(topologyB, now);
+        var protection = ProtectionOptions(referencePath);
+        var referenceA = new FileRuntimeHaReferenceAuthorityStore(protection, haA);
+        var referenceB = new FileRuntimeHaReferenceAuthorityStore(protection, haB);
+        Assert.True((await referenceA.InitializeAsync("node-a")).Accepted);
+        var role = RestartTestRole();
+
+        await using var storeA = new PostgreSqlAuthorityPolicyStore(connectionA);
+        await using var storeB = new PostgreSqlAuthorityPolicyStore(connectionB);
+        await storeA.InitializeAsync();
+        await storeB.InitializeAsync();
+        Assert.True((await storeA.TryReplaceAsync(0, [role], [])).Applied);
+        if (!ReferenceEquals(storeA, storeB) && connectionA != connectionB)
+            Assert.True((await storeB.TryReplaceAsync(0, [role], [])).Applied);
+        var optionsA = PeerOptions("node-a", "node-b");
+        var optionsB = PeerOptions("node-b", "node-a");
+        var gateB = new AssetProcessIntelligenceExecutionGate();
+        using var coordinatorB = CreateCoordinator(storeB, haB, referenceB, optionsB, gateB);
+        using var peer = new InProcessPeerHandler(coordinatorB);
+        using var coordinatorA = CreateCoordinator(storeA, haA, referenceA, optionsA, new AssetProcessIntelligenceExecutionGate(), peer);
+        await coordinatorA.SynchronizeOnceAsync();
+        var ready = await coordinatorA.CheckAsync();
+        Assert.True(ready.Allowed, ready.ReasonCode);
+
+        peer.Available = false;
+        var revoked = await coordinatorA.ApplyMutationAsync(
+            1,
+            [role with { Grants = Array.Empty<CapabilityGrantEngineeringDto>() }],
+            []);
+        Assert.False(revoked.Applied);
+        Assert.Equal("AUTHORITY_POLICY_HA_REPLICATION_PENDING", revoked.Error);
+        Assert.True(haA.CanOwnIndustrialEffects());
+
+        var observation = haA.CreatePeerObservation();
+        Assert.True(haB.ApplyPeerObservation(observation).Accepted);
+        var witness = haB.Authority.CaptureStandbyPromotionWitness("node-b");
+        Assert.NotNull(witness);
+        var beforeFence = Assert.IsType<RuntimeHaReferenceAuthority>(await referenceA.ReadAsync());
+        var fenced = await referenceA.FenceAsync(
+            "node-a", beforeFence.LeaseId, beforeFence.Epoch, "pending-intelligence-policy-failover");
+        Assert.True(fenced.Accepted, fenced.ReasonCode);
+        Assert.True(haA.Authority.ApplyReferencedAuthority(
+            null, fenced.Authority!.Epoch, previousAuthorityFenced: true, allowAmbiguityRecovery: true).Accepted);
+        Assert.True(haB.Authority.ApplyReferencedAuthority(
+            null, fenced.Authority.Epoch, previousAuthorityFenced: true, allowAmbiguityRecovery: true).Accepted);
+        var assigned = await referenceA.AssignAfterFenceAsync(
+            "node-b", fenced.Authority.Epoch, "pending-intelligence-policy-failover");
+        Assert.True(assigned.Accepted, assigned.ReasonCode);
+        Assert.True(haB.Authority.ApplyReferencedAuthority(
+            "node-b", assigned.Authority!.Epoch, previousAuthorityFenced: true, standbyWitness: witness).Accepted);
+        Assert.True(haA.Authority.ApplyReferencedAuthority(
+            "node-b", assigned.Authority.Epoch, previousAuthorityFenced: true).Accepted);
+        Assert.False(haA.CanOwnIndustrialEffects());
+        Assert.True(haB.CanOwnIndustrialEffects());
+
+        var readiness = await coordinatorB.CheckAsync();
+        Assert.False(readiness.Allowed);
+        Assert.Equal("authority-policy-update-pending", readiness.ReasonCode);
+        Assert.False(gateB.TryGetToken(
+            "project-a", 7, AssetProcessIntelligenceScopeKind.Equipment,
+            Guid.Parse("b3100000-0000-0000-0000-000000000099"), out _, readiness.PolicyVersion, readiness.HaEpoch));
+    }
+
+    private static SecurityRoleEngineeringDto RestartTestRole() => new(
+        Guid.Parse("b3100000-0000-0000-0000-000000000098"),
+        "operator",
+        "Operator",
+        Grants: [new CapabilityGrantEngineeringDto(SecurityCapability.TrendUse)]);
+
+    private static RuntimeHaProtectionOptions ProtectionOptions(string referencePath) => new(
+        Enabled: true,
+        AutomaticFailoverEnabled: true,
+        ReferencePath: Path.GetFullPath(referencePath),
+        LeaseDuration: TimeSpan.FromMinutes(2),
+        PollInterval: TimeSpan.FromMilliseconds(500),
+        ReadyWitnessMaximumAge: TimeSpan.FromMinutes(1),
+        ClockSkewSafetyMargin: TimeSpan.FromSeconds(1));
+
+    private static AuthorityPolicyHaCoordinator CreateCoordinator(
+        PostgreSqlAuthorityPolicyStore store,
+        RuntimeHighAvailabilityService highAvailability,
+        IRuntimeHaReferenceAuthorityStore reference,
+        RuntimeHaPeerTransportOptions options,
+        AssetProcessIntelligenceExecutionGate gate,
+        HttpMessageHandler? peer = null) => new(
+            store,
+            new AuthorityPolicyReplicationStoreAdapter(store),
+            highAvailability,
+            reference,
+            options,
+            new RuntimeHaPeerAuthenticator(options, TimeProvider.System),
+            gate,
+            TimeProvider.System,
+            NullLogger<AuthorityPolicyHaCoordinator>.Instance,
+            peer);
 
     private static async Task ExercisePolicyLifecycleAsync(
         string connectionA,

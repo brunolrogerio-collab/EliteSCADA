@@ -2,6 +2,11 @@ using Scada.Engineering.Contracts;
 
 namespace Scada.Api.Licensing;
 
+public sealed record AssetProcessIntelligenceExecutionPermitSnapshot(
+    long Revision,
+    long AuthorityPolicyVersion,
+    long HaEpoch);
+
 /// <summary>
 /// Process-local, fail-closed permits for future Intelligence workers. No worker is
 /// registered in Stage 1. Persisted Engineering activation alone never recreates a
@@ -15,6 +20,26 @@ public sealed class AssetProcessIntelligenceExecutionGate
     public int ActivePermitCount
     {
         get { lock (_sync) return _permits.Count; }
+    }
+
+    public AssetProcessIntelligenceExecutionPermitSnapshot? Describe(
+        string projectKey,
+        AssetProcessIntelligenceScopeKind kind,
+        Guid scopeId)
+    {
+        ScopeKey key;
+        try { key = ValidateScopeKey(projectKey, kind, scopeId); }
+        catch (ArgumentException) { return null; }
+
+        lock (_sync)
+        {
+            if (!_permits.TryGetValue(key, out var permit) || permit.Cancellation.IsCancellationRequested)
+                return null;
+            return new AssetProcessIntelligenceExecutionPermitSnapshot(
+                permit.Revision,
+                permit.AuthorityPolicyVersion,
+                permit.HaEpoch);
+        }
     }
 
     public void Activate(
@@ -47,7 +72,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         try { ValidateFence(authorityPolicyVersion, haEpoch); }
         catch (ArgumentOutOfRangeException) { return false; }
         ScopeKey key;
-        try { key = ValidateKey(projectKey, activeRevision, kind, scopeId); }
+        try { key = ValidateScopeKey(projectKey, kind, scopeId); }
         catch (ArgumentException) { return false; }
 
         lock (_sync)
@@ -105,8 +130,16 @@ public sealed class AssetProcessIntelligenceExecutionGate
         AssetProcessIntelligenceScopeKind kind,
         Guid scopeId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
         if (activeRevision <= 0) throw new ArgumentOutOfRangeException(nameof(activeRevision));
+        return ValidateScopeKey(projectKey, kind, scopeId);
+    }
+
+    private static ScopeKey ValidateScopeKey(
+        string projectKey,
+        AssetProcessIntelligenceScopeKind kind,
+        Guid scopeId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
         if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         if (scopeId == Guid.Empty) throw new ArgumentException("Intelligence scope identity is required.", nameof(scopeId));
         return new ScopeKey(projectKey.Trim().ToUpperInvariant(), kind, scopeId);

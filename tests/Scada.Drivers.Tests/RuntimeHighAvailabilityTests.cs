@@ -181,6 +181,42 @@ public sealed class RuntimeHighAvailabilityTests
     }
 
     [Fact]
+    public async Task ReferenceReadWaitsForTheCrossProcessLockUsedByAtomicReplacement()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-reference-read-lock-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var store = CreateReferenceStore(path, new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z")));
+        try
+        {
+            var initialized = await store.InitializeAsync("node-a");
+            Assert.True(initialized.Accepted);
+
+            Task<RuntimeHaReferenceAuthority?> pendingRead;
+            await using (var mutationLock = new FileStream(
+                path + ".lock",
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None,
+                bufferSize: 1,
+                FileOptions.DeleteOnClose))
+            {
+                pendingRead = store.ReadAsync();
+                await Task.Delay(TimeSpan.FromMilliseconds(100));
+                Assert.False(pendingRead.IsCompleted,
+                    "A reference read must honor the same cross-process lock as atomic file replacement.");
+            }
+
+            var reference = await pendingRead.WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.Equal(initialized.Authority, reference);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task AuthorityPolicyReferenceFence_OldEpochCannotCommitAfterFailover()
     {
         var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-epoch-" + Guid.NewGuid().ToString("N"));

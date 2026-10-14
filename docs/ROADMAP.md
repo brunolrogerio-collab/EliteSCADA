@@ -1,4 +1,10 @@
-# CURRENT WAVE 15 IMPORT/EXPORT LANE — 2026-10-13
+# CURRENT WAVE 15 IMPORT/EXPORT CHECKPOINT — 2026-10-13
+
+Issue #597 / PR #598 is integrated into `wave15/corrections-integration` at merge commit `3883b86cdf5cbfff74af92519eaa568aece005b4`. Final pre-merge T1 #38488509219 passed on head `e0512c2f218f0ebbaf909a6650231e53123459a1` (Core 585/585, Drivers 1,374 passed / 1 skipped, Chromium 16/16, Web/Common/classifier/T1 gate green). Exact post-merge EliteSCADA CI #38489137716 passed on the merge SHA: Backend build/test/runtime smoke passed (Core 585, Engineering 126, Drivers 1,374, Security 42), Web build passed, and Chromium merge integration smoke passed 13/13. Full-browser E2E was skipped by workflow conditions; HA and specialized sidecars were skipped by the T1 profile. This completes the bounded #597 delivery only; it does not close Wave 15 or FND/FC0. Next sequenced work is #472 F5/F6, subject to live issue and base revalidation. See root `LAST CHANGE.md` and `docs/CURRENT-COORDINATOR-HANDOFF.md` for implementation/review detail.
+
+---
+
+# HISTORICAL PRE-MERGE WAVE 15 IMPORT/EXPORT LANE — 2026-10-13
 
 Issue #597 authorizes a bounded Engineering tabular-exchange lane on `work/w15-engineering-tabular-import-export`, based on `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. Intended flat CSV/XLSX entities are TAGs, Alarms, Data Sources, Gateway routes and Engineering Operational Event definitions. The lane uses the canonical Preview/Apply authority and all merge modes; complex Engineering dependency graphs remain JSON/Fragments, with Runtime occurrences and audit excluded. Draft PR #598 is open. Exact-head T1 #38473869789 passed on code head `29ff6d114096bfdc0b63dc9b3e18cbcf6567b9cb` with `FOUNDATION_LIFECYCLE`: Core 573/573, Drivers 1,374 passed/1 skipped, Chromium 15/15, Web/Common/classifier/T1 gate passed. HA and specialized sidecars were skipped by profile. This lane is independent of the Home/Building driver roadmap and does not close Wave 15 or advance FND/FC0. See root `LAST CHANGE.md` and `docs/CURRENT-COORDINATOR-HANDOFF.md` for exact evidence and remaining gates.
 
@@ -42,7 +48,9 @@ Protocol-driver fan-out remains blocked.
 
 # EliteSCADA Roadmap — Wave 15
 
-## Engineering tabular exchange checkpoint — 2026-10-13
+## Historical Engineering tabular exchange review checkpoint — 2026-10-13
+
+Issue #597 / PR #598 was integrated at `3883b86cdf5cbfff74af92519eaa568aece005b4`. Exact pre-merge T1 #38488509219 and post-merge EliteSCADA CI #38489137716 passed on their respective SHAs. The current status and evidence are recorded at the top of this roadmap and in root [`LAST CHANGE.md`](../LAST%20CHANGE.md).
 
 Issue #597 is in review on draft PR #598, branch `work/w15-engineering-tabular-import-export`, based on `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. The Main-review follow-up at code head `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd` tightens CSV/XLSX header validation across the five supported flat entities and records invariant numeric, blank/null, default, and no-date-v1 semantics in ADR-004. Local focused/full Core tests passed 50/50 and 585/585, API build passed with 0 warnings/errors, Web production build passed with its existing bundle-size advisory, and the targeted Chromium API no-mutation regression passed 1/1. Exact-head T1 [#38487588418](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418) passed on that code head and [#38488056494](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38488056494) passed on documentation checkpoint `79dd85c251567240f6e565bacaa37ec6a81a35f7`: each reports Core 585/585, Drivers 1,374 passed / 1 skipped, Chromium 16/16, and Web/Common/classifier/T1 gate green; HA and specialized sidecars were skipped by profile. Keep the PR draft/unmerged and do not treat this lane as Wave 15 or FND/FC0 closure; details and caveats are in root [`LAST CHANGE.md`](../LAST%20CHANGE.md) and [`CURRENT-COORDINATOR-HANDOFF.md`](CURRENT-COORDINATOR-HANDOFF.md). GitHub checks remain the authority for later docs-only revisions.
 

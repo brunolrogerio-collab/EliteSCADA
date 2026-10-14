@@ -1,4 +1,14 @@
-# LATEST ENGINEERING TABULAR EXCHANGE CHECKPOINT — 2026-10-13 21:09 BRT
+# LATEST POST-MERGE CHECKPOINT — ENGINEERING TABULAR EXCHANGE #597 — 2026-10-13
+
+> PR #598 is integrated into `wave15/corrections-integration` at merge commit `3883b86cdf5cbfff74af92519eaa568aece005b4`. GitHub is authoritative for the live branch and CI state.
+
+- Main review caught and fixed fail-open handling of unknown CSV/XLSX headers. The parser now rejects unsupported and duplicate columns with named diagnostics; tests cover all five tabular entities, arbitrary known-column order, locale/null/default semantics, and API Preview/Apply rejection without Workspace mutation.
+- Final pre-merge head `e0512c2f218f0ebbaf909a6650231e53123459a1` passed exact-head T1 #38488509219: Core 585/585; Drivers 1,374 passed / 1 skipped / 0 failed; Chromium 16/16; Web semantic build, Common sanity, classifier and T1 gate passed. HA and specialized sidecars were skipped by profile.
+- Exact post-merge EliteSCADA CI #38489137716 passed on merge SHA `3883b86cdf5cbfff74af92519eaa568aece005b4`: Backend build/test/runtime smoke passed (Core 585, Engineering 126, Drivers 1,374, Security 42; no failures); Web build passed; Chromium merge integration smoke 13/13 passed. Full-browser E2E was skipped by workflow conditions.
+- The `--no-deps` local E2E attempt had 7 passes and 1 fixture-dependent failure because it bypassed first-project bootstrap; the complete T1 Chromium profile passed 16/16. The disposable database was removed; stable containers were untouched.
+- Issue #597's implementation and post-merge verification are complete. This integration does not close Wave 15 or FND/FC0 and does not claim HA/sidecar validation. Next in the recorded product sequence is #472 F5/F6, after live issue/base revalidation.
+
+# HISTORICAL PRE-MERGE REVIEW CHECKPOINT — ENGINEERING TABULAR EXCHANGE — 2026-10-13 21:09 BRT
 
 > Main review follow-up is pushed to PR #598. Code head `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd` plus documentation checkpoint `79dd85c251567240f6e565bacaa37ec6a81a35f7` are on the exact base `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. GitHub PR #598 stays draft and unmerged.
 

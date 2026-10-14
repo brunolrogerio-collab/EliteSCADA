@@ -1,4 +1,12 @@
-# ENGINEERING TABULAR EXCHANGE — MAIN REVIEW FOLLOW-UP — 2026-10-13 21:09 BRT
+# CURRENT ENGINEERING TABULAR EXCHANGE — POST-MERGE — 2026-10-13
+
+Issue #597 / PR #598 is integrated into `wave15/corrections-integration` at merge commit `3883b86cdf5cbfff74af92519eaa568aece005b4` (exact pre-merge base `7182eddc10cd6d0958cd5bc51b7a2d61c9331418`). Final pre-merge T1 #38488509219 passed on `e0512c2f218f0ebbaf909a6650231e53123459a1`: Core 585/585, Drivers 1,374 passed / 1 skipped, Chromium 16/16, Web/Common/classifier/T1 gate green. Exact post-merge EliteSCADA CI #38489137716 passed on the merge SHA: Backend build/test/runtime smoke (Core 585, Engineering 126, Drivers 1,374, Security 42), Web build, and Chromium merge integration smoke 13/13 passed. The separate full-browser E2E step was skipped by workflow conditions.
+
+Main review rejected silent dropping of unsupported spreadsheet columns. CSV/XLSX now reject unknown and duplicate headers with named diagnostics; known columns remain case-insensitive and order-independent. API Preview and Apply both reject an unknown TAG column without changing Workspace version or exported TAGs. ADR-004 specifies invariant numbers, blank/null/default and paired-field semantics, and no implicit date contract in v1. HA and specialized sidecar profiles were skipped; this lane does not close Wave 15, FND/FC0 or any device qualification. Next sequence is #472 F5/F6 after live revalidation.
+
+---
+
+# HISTORICAL PRE-MERGE REVIEW CHECKPOINT — ENGINEERING TABULAR EXCHANGE — 2026-10-13 21:09 BRT
 
 PR #598 / issue #597 remains `ACTIVE / DRAFT / NO_MERGE`, branch `work/w15-engineering-tabular-import-export`, exact base `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. Code head `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd` passed exact-head T1 [#38487588418](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418), and documentation checkpoint `79dd85c251567240f6e565bacaa37ec6a81a35f7` passed [#38488056494](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38488056494). Each selected Core 585/585, Drivers 1,374 passed / 1 skipped / 0 failed, Chromium 16/16, Web, Common, classifier and T1 gate. HA and specialized sidecars were skipped by profile.
 
@@ -12,7 +20,7 @@ Both the code change and its documentation checkpoint have green exact-head T1 e
 
 # CURRENT COORDINATOR HANDOFF — WAVE 15 ENGINEERING TABULAR IMPORT/EXPORT — 2026-10-13
 
-> Current work checkpoint; supersedes the 2026-10-06 pointer below. GitHub live remains the coordination authority.
+> Historical pre-merge work checkpoint. Superseded by the post-merge status above; GitHub live remains the coordination authority.
 
 Issue **#597** is implemented on dedicated branch `work/w15-engineering-tabular-import-export`, based exactly on `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`; draft PR #598 is open. Code and the XLSX/API negative-test follow-up are published through `29ff6d114096bfdc0b63dc9b3e18cbcf6567b9cb`. Exact-head T1 #38473869789 passed on that SHA with Foundation/Core selected. This checkpoint update is documentation-only; the branch is not merged and does not close Wave 15, FND/FC0 or any driver qualification.
 

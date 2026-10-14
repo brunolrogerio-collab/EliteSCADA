@@ -76,6 +76,77 @@ public sealed class RuntimeHighAvailabilityTests
     }
 
     [Fact]
+    public async Task AuthorityPolicyReferenceFence_CanBootstrapVersionZeroWithItsDigest()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-zero-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock);
+            var initialized = await store.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string emptyPolicyDigest = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
+            var pending = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch,
+                expectedCommittedVersion: 0, expectedCommittedDigest: null,
+                pendingVersion: 0, pendingDigest: emptyPolicyDigest);
+            Assert.True(pending.Accepted);
+
+            var ack = await store.AcknowledgeAuthorityPolicyUpdateAsync("node-b", reference.Epoch, 0, emptyPolicyDigest);
+            Assert.True(ack.Accepted);
+            var committed = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 0, emptyPolicyDigest);
+
+            Assert.True(committed.Accepted);
+            Assert.Equal(0, committed.Authority!.AuthorityPolicy!.CommittedVersion);
+            Assert.Equal(emptyPolicyDigest, committed.Authority.AuthorityPolicy.CommittedDigest);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_CanBootstrapAnExistingPolicyVersion()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-existing-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock);
+            var initialized = await store.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string existingPolicyDigest = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+            var pending = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch,
+                expectedCommittedVersion: 0, expectedCommittedDigest: null,
+                pendingVersion: 4, pendingDigest: existingPolicyDigest);
+            Assert.True(pending.Accepted);
+
+            var acknowledgement = await store.AcknowledgeAuthorityPolicyUpdateAsync(
+                "node-b", reference.Epoch, 4, existingPolicyDigest);
+            Assert.True(acknowledgement.Accepted);
+            var committed = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 4, existingPolicyDigest);
+
+            Assert.True(committed.Accepted);
+            Assert.Equal(4, committed.Authority!.AuthorityPolicy!.CommittedVersion);
+            Assert.Equal(existingPolicyDigest, committed.Authority.AuthorityPolicy.CommittedDigest);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task AuthorityPolicyReferenceFence_ConcurrentWritersHaveOnePendingCasWinner()
     {
         var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-cas-" + Guid.NewGuid().ToString("N"));

@@ -417,7 +417,11 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
                 if (fence.CommittedVersion != expectedCommittedVersion ||
                     !DigestEquals(fence.CommittedDigest, expectedCommittedDigest))
                     return new(false, "authority-policy-version-stale", current);
-                if (pendingVersion <= fence.CommittedVersion)
+                var initializesFence = fence.CommittedDigest is null &&
+                    fence.CommittedVersion == 0 &&
+                    expectedCommittedDigest is null;
+                if (pendingVersion < fence.CommittedVersion ||
+                    (pendingVersion == fence.CommittedVersion && !initializesFence))
                     return new(false, "authority-policy-version-not-monotonic", current);
 
                 var now = _utcNow();
@@ -751,7 +755,10 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
             var pendingInvalid = hasPendingVersion != hasPendingDetails;
             if (hasPendingVersion)
             {
-                pendingInvalid |= policy.PendingVersion!.Value <= policy.CommittedVersion ||
+                var initializesFence = policy.CommittedDigest is null &&
+                    policy.CommittedVersion == 0;
+                pendingInvalid |= policy.PendingVersion!.Value < policy.CommittedVersion ||
+                    (policy.PendingVersion.Value == policy.CommittedVersion && !initializesFence) ||
                     !IsAuthorityPolicyDigest(policy.PendingDigest) ||
                     policy.PendingEpoch.GetValueOrDefault() < 1 ||
                     !topology.Nodes.Any(node => node.NodeId.Equals(policy.PendingNodeId, StringComparison.OrdinalIgnoreCase));

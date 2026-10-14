@@ -91,6 +91,9 @@ builder.Services.AddSingleton<IAuthorityPolicyStore>(sp =>
         : new PostgreSqlAuthorityPolicyStore(
             authorityConnectionString,
             sp.GetService<IDurableWriteAdmission>()));
+builder.Services.AddSingleton<IAuthorityPolicyReplicationStore, AuthorityPolicyReplicationStoreAdapter>();
+builder.Services.AddSingleton<AuthorityPolicyHaCoordinator>();
+builder.Services.AddHostedService<AuthorityPolicyHaSynchronizationHostedService>();
 builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>();
 builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
 builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(
@@ -245,6 +248,7 @@ app.MapRuntimeEngineeringPackageEndpoints();
 if (localIdentityEnabled) app.MapInstallationDetachEndpoints();
 app.MapRuntimeHighAvailabilityEndpoints();
 app.MapRuntimeHighAvailabilityPeerTransportEndpoints();
+app.MapAuthorityPolicyHaPeerEndpoints();
 if (historicalQueryEnabled)
 {
     app.MapHistoricalQueryEndpoints();

@@ -72,4 +72,27 @@ public sealed class AssetProcessIntelligenceExecutionGateTests
             "project-a", 4, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out _));
     }
 
+    [Fact]
+    public void PermitIsBoundToAuthorityPolicyVersionAndHaEpoch()
+    {
+        var gate = new AssetProcessIntelligenceExecutionGate();
+        var scopeId = Guid.NewGuid();
+        gate.Activate("project-a", 4, AssetProcessIntelligenceScopeKind.Equipment, scopeId, 7, 12);
+
+        Assert.False(gate.TryGetToken(
+            "project-a", 4, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out _, 6, 12));
+        Assert.False(gate.TryGetToken(
+            "project-a", 4, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out _, 7, 11));
+        Assert.True(gate.TryGetToken(
+            "project-a", 4, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out var oldPermit, 7, 12));
+
+        gate.Activate("project-a", 4, AssetProcessIntelligenceScopeKind.Equipment, scopeId, 8, 13);
+
+        Assert.True(oldPermit.IsCancellationRequested);
+        Assert.False(gate.TryGetToken(
+            "project-a", 4, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out _, 7, 12));
+        Assert.True(gate.TryGetToken(
+            "project-a", 4, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out _, 8, 13));
+    }
+
 }

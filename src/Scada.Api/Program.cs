@@ -748,6 +748,40 @@ app.MapPost("/api/engineering/import/datasources.csv/apply", async (
         });
 });
 
+var engineeringTabular = new EngineeringTabularExchange();
+foreach (var tabularEntity in Enum.GetValues<EngineeringTabularEntity>())
+{
+    var selectedEntity = tabularEntity;
+    var stem = EngineeringTabularExchange.FileStem(selectedEntity);
+    app.MapGet($"/api/engineering/export/tabular/{stem}/csv", (IEngineeringExchangeService exchange) =>
+        Results.File(Encoding.UTF8.GetBytes(engineeringTabular.ExportCsv(exchange.ExportPackage(), selectedEntity)),
+            "text/csv; charset=utf-8", $"scada-{stem}.csv"))
+        .RequireWorkspaceEngineeringRead();
+    app.MapGet($"/api/engineering/export/tabular/{stem}/xlsx", (IEngineeringExchangeService exchange) =>
+        Results.File(engineeringTabular.ExportXlsx(exchange.ExportPackage(), selectedEntity),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"scada-{stem}.xlsx"))
+        .RequireWorkspaceEngineeringRead();
+
+    app.MapPost($"/api/engineering/import/tabular/{stem}/csv/preview", async (
+        HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+        await PreviewEngineeringTabularImportAsync(request, mode, exchange, engineeringTabular, selectedEntity, "csv"))
+        .RequireWorkspaceEngineeringRead();
+    app.MapPost($"/api/engineering/import/tabular/{stem}/xlsx/preview", async (
+        HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+        await PreviewEngineeringTabularImportAsync(request, mode, exchange, engineeringTabular, selectedEntity, "xlsx"))
+        .RequireWorkspaceEngineeringRead();
+    app.MapPost($"/api/engineering/import/tabular/{stem}/csv/apply", async (
+        HttpRequest request, HttpContext context, ImportMode? mode, IEngineeringExchangeService exchange,
+        ApiAuthorizationService security, ApiAuditService audit) =>
+        await ApplyEngineeringImportAsync(request, context, mode, exchange, security, audit, $"{stem}.csv",
+            () => ReadEngineeringTabularPackageAsync(request, exchange, engineeringTabular, selectedEntity, "csv", context.RequestAborted)));
+    app.MapPost($"/api/engineering/import/tabular/{stem}/xlsx/apply", async (
+        HttpRequest request, HttpContext context, ImportMode? mode, IEngineeringExchangeService exchange,
+        ApiAuthorizationService security, ApiAuditService audit) =>
+        await ApplyEngineeringImportAsync(request, context, mode, exchange, security, audit, $"{stem}.xlsx",
+            () => ReadEngineeringTabularPackageAsync(request, exchange, engineeringTabular, selectedEntity, "xlsx", context.RequestAborted)));
+}
+
 app.Map("/ws/tags", async (
     HttpContext context,
     TagRealtimeHub hub,
@@ -850,6 +884,57 @@ app.Map("/ws/tags", async (
 
 app.Run();
 
+static async Task<IResult> PreviewEngineeringTabularImportAsync(
+    HttpRequest request,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    EngineeringTabularExchange tabular,
+    EngineeringTabularEntity entity,
+    string format)
+{
+    try
+    {
+        var package = await ReadEngineeringTabularPackageAsync(
+            request, exchange, tabular, entity, format, request.HttpContext.RequestAborted);
+        return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
+    }
+    catch (EngineeringImportBodyTooLargeException exception)
+    {
+        return Results.Json(new { error = "Engineering import payload exceeds its safety limit.", limitBytes = exception.LimitBytes },
+            statusCode: StatusCodes.Status413PayloadTooLarge);
+    }
+    catch (EngineeringImportBodyEncodingException)
+    {
+        return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
+    }
+    catch (InvalidDataException exception)
+    {
+        return Results.BadRequest(new { error = exception.Message });
+    }
+}
+
+static async Task<EngineeringPackage> ReadEngineeringTabularPackageAsync(
+    HttpRequest request,
+    IEngineeringExchangeService exchange,
+    EngineeringTabularExchange tabular,
+    EngineeringTabularEntity entity,
+    string format,
+    CancellationToken cancellationToken)
+{
+    var current = exchange.ExportPackage();
+    if (string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase))
+    {
+        var csv = await EngineeringImportBodyReader.ReadCsvAsync(request, cancellationToken);
+        return tabular.ParseCsv(current, entity, csv);
+    }
+    if (string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase))
+    {
+        var xlsx = await EngineeringImportBodyReader.ReadXlsxAsync(request, cancellationToken);
+        return tabular.ParseXlsx(current, entity, xlsx);
+    }
+    throw new InvalidDataException("Unsupported Engineering tabular format.");
+}
+
 static async Task<IResult> PreviewEngineeringImportAsync(
     HttpRequest request,
     ImportMode? mode,
@@ -876,6 +961,10 @@ static async Task<IResult> PreviewEngineeringImportAsync(
     catch (EngineeringImportBodyEncodingException)
     {
         return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
+    }
+    catch (InvalidDataException exception)
+    {
+        return Results.BadRequest(new { error = exception.Message });
     }
 }
 
@@ -1028,6 +1117,22 @@ static async Task<IResult> ApplyEngineeringImportAsync(
                 ["reason"] = "invalid-utf8"
             });
         return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
+    }
+    catch (InvalidDataException exception)
+    {
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.EngineeringImportApply,
+            AuditOutcome.Failed,
+            "engineering-workspace",
+            "current",
+            new Dictionary<string, string>
+            {
+                ["format"] = format,
+                ["reason"] = "invalid-tabular-input"
+            });
+        return Results.BadRequest(new { error = exception.Message });
     }
     catch (EngineeringWorkspaceVersionConflictException conflict)
     {

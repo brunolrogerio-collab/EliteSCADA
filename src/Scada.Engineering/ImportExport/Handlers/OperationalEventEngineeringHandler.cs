@@ -1,15 +1,18 @@
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Events;
+using Scada.Core.Tags;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
 internal sealed class OperationalEventEngineeringHandler
 {
     private readonly IOperationalEventEngineeringRegistry _registry;
+    private readonly ITagRegistry _tags;
 
-    public OperationalEventEngineeringHandler(IOperationalEventEngineeringRegistry registry)
+    public OperationalEventEngineeringHandler(IOperationalEventEngineeringRegistry registry, ITagRegistry tags)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _tags = tags ?? throw new ArgumentNullException(nameof(tags));
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -71,7 +74,7 @@ internal sealed class OperationalEventEngineeringHandler
         return _registry.FindOperationalEventByKey(definition.Key);
     }
 
-    private static IEnumerable<ImportIssue> Validate(
+    private IEnumerable<ImportIssue> Validate(
         EngineeringPackage package,
         OperationalEventEngineeringDto definition)
     {
@@ -105,10 +108,10 @@ internal sealed class OperationalEventEngineeringHandler
             yield break;
 
         var byId = definition.TagId.HasValue
-            ? package.Tags.FirstOrDefault(tag => tag.Id == definition.TagId.Value)
+            ? ResolveTagById(package, definition.TagId.Value)
             : null;
         var byPath = !string.IsNullOrWhiteSpace(definition.TagPath)
-            ? package.Tags.FirstOrDefault(tag => tag.Path.Equals(definition.TagPath, StringComparison.OrdinalIgnoreCase))
+            ? ResolveTagByPath(package, definition.TagPath)
             : null;
 
         if (byId is not null && byPath is not null &&
@@ -143,4 +146,20 @@ internal sealed class OperationalEventEngineeringHandler
 
     private static ImportIssue Issue(string code, string message, string key) =>
         new(code, message, ImportEntityKind.OperationalEvent, key, true);
+
+    private TagEngineeringDto? ResolveTagById(EngineeringPackage package, Guid id)
+    {
+        var imported = package.Tags.FirstOrDefault(tag => tag.Id == id);
+        if (imported is not null) return imported;
+        var current = _tags.Snapshot().FirstOrDefault(tag => tag.Id == id);
+        return current is null ? null : EngineeringDtoMapper.ToDto(current);
+    }
+
+    private TagEngineeringDto? ResolveTagByPath(EngineeringPackage package, string path)
+    {
+        var imported = package.Tags.FirstOrDefault(tag => tag.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+        if (imported is not null) return imported;
+        var current = _tags.Snapshot().FirstOrDefault(tag => tag.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+        return current is null ? null : EngineeringDtoMapper.ToDto(current);
+    }
 }

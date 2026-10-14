@@ -22,6 +22,7 @@ public static class EngineeringImportBodyReader
 {
     public const int MaximumJsonBytes = ProjectPackageService.MaximumEngineeringBytes;
     public const int MaximumCsvBytes = 16 * 1024 * 1024;
+    public const int MaximumXlsxBytes = 16 * 1024 * 1024;
 
     private const int BufferSize = 64 * 1024;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
@@ -35,6 +36,43 @@ public static class EngineeringImportBodyReader
         HttpRequest request,
         CancellationToken cancellationToken = default) =>
         ReadAsync(request, MaximumCsvBytes, cancellationToken);
+
+    public static Task<byte[]> ReadXlsxAsync(
+        HttpRequest request,
+        CancellationToken cancellationToken = default) =>
+        ReadBytesAsync(request, MaximumXlsxBytes, cancellationToken);
+
+    private static async Task<byte[]> ReadBytesAsync(
+        HttpRequest request,
+        int maximumBytes,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.ContentLength is long contentLength &&
+            (contentLength < 0 || contentLength > maximumBytes))
+            throw new EngineeringImportBodyTooLargeException(maximumBytes);
+
+        using var payload = new MemoryStream(request.ContentLength.HasValue
+            ? checked((int)request.ContentLength.Value)
+            : 0);
+        var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
+        try
+        {
+            while (true)
+            {
+                var read = await request.Body.ReadAsync(buffer.AsMemory(0, BufferSize), cancellationToken);
+                if (read == 0) break;
+                if (payload.Length + read > maximumBytes)
+                    throw new EngineeringImportBodyTooLargeException(maximumBytes);
+                payload.Write(buffer, 0, read);
+            }
+            return payload.ToArray();
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
 
     private static async Task<string> ReadAsync(
         HttpRequest request,

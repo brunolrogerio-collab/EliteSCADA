@@ -1,4 +1,32 @@
-# LATEST MAIN COORDINATOR HANDOFF — 2026-10-06 22:31 BRT
+# ENGINEERING TABULAR EXCHANGE — MAIN REVIEW FOLLOW-UP — 2026-10-13 21:09 BRT
+
+PR #598 / issue #597 remains `ACTIVE / DRAFT / NO_MERGE`, branch `work/w15-engineering-tabular-import-export`, exact base `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. Code head `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd` passed exact-head T1 [#38487588418](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418), and documentation checkpoint `79dd85c251567240f6e565bacaa37ec6a81a35f7` passed [#38488056494](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38488056494). Each selected Core 585/585, Drivers 1,374 passed / 1 skipped / 0 failed, Chromium 16/16, Web, Common, classifier and T1 gate. HA and specialized sidecars were skipped by profile.
+
+Main-review follow-up: unsupported headers are rejected for every CSV/XLSX entity with named `InvalidDataException` diagnostics; known headers remain case-insensitive/order-independent. API regression proves Preview and Apply reject an unsupported CSV header without changing workspace version or exported TAGs. Duplicate columns now have named diagnostics. ADR-004 records invariant numeric syntax, blank/null and default semantics, paired fields, shared CSV/XLSX rules, and the absence of date fields in v1.
+
+Evidence on the pushed code head: focused tabular Core 50/50; full Core 585/585; API build 0 warnings/errors; Web production build passed with existing large-chunk advisory; targeted Chromium Preview/Apply API regression 1/1. The first broader local run used `--no-deps`, so its project-restore case lacked the local-auth first-project fixture; the authoritative CI run executed setup and passed all 16 Chromium tests. The disposable local Postgres test container has been removed; stable containers remain healthy.
+
+Both the code change and its documentation checkpoint have green exact-head T1 evidence. Use live GitHub checks for any later docs-only revision. Keep draft, no merge; this tabular lane remains independent of HOME/BUILDING driver work and does not close Wave 15/FND/FC0.
+
+---
+
+# CURRENT COORDINATOR HANDOFF — WAVE 15 ENGINEERING TABULAR IMPORT/EXPORT — 2026-10-13
+
+> Current work checkpoint; supersedes the 2026-10-06 pointer below. GitHub live remains the coordination authority.
+
+Issue **#597** is implemented on dedicated branch `work/w15-engineering-tabular-import-export`, based exactly on `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`; draft PR #598 is open. Code and the XLSX/API negative-test follow-up are published through `29ff6d114096bfdc0b63dc9b3e18cbcf6567b9cb`. Exact-head T1 #38473869789 passed on that SHA with Foundation/Core selected. This checkpoint update is documentation-only; the branch is not merged and does not close Wave 15, FND/FC0 or any driver qualification.
+
+Scope: CSV/XLSX single-entity tables for TAGs, Alarms, Data Sources, Gateway routes and Engineering Operational Event definitions. Import stays on the canonical exchange Preview/Apply path with all three merge modes, stable IDs/keys, row-level parse diagnostics, workspace-version protection, and no parallel persistence route. Runtime event history/audit and complex screen/template/Dynamo/script dependency graphs stay out of tabular files. Plaintext secret-like settings fail closed on export; credentials are never exported.
+
+Targeted local validation of the follow-up passes: 38 tabular Core tests, 573 Core tests total (re-run after resume: 573/573), API build (0 warnings/errors), Web production build, clean-Postgres browser contract (9/9), and pt-BR/en/es source contract (6/6). The new API test proves invalid Gateway Preview + rejected Apply leave workspace version and exported routes unchanged; the Core test imports an invalid Gateway route from XLSX and proves canonical Preview/Apply does not mutate TAGs/Data Sources/routes. Existing canonical JSON/Fragment closure evidence: `EngineeringFragmentServiceTests.SelectedScript_TransfersItsScriptDependencyClosure` (1/1 passed).
+
+Exact-head T1 [#38473869789](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789) passed on `29ff6d114096bfdc0b63dc9b3e18cbcf6567b9cb`; `FOUNDATION_LIFECYCLE` classified successfully and selected Core 573/573, Drivers 1,374 passed / 1 skipped / 0 failed, Chromium 15/15, plus Web semantic build, Common sanity and T1 gate. HA two-process, Matter, Native Zigbee, KNX and Z-Wave sidecars were skipped by the profile. [Core/Drivers job](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789/job/115559650572), [Chromium](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789/job/115559650533), [Web](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789/job/115559650647), [T1 gate](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789/job/115560991031). The older #38471829832 attempt 1 had a transient Z-Wave RPC fixture timeout; its one authorized selective retry passed on the previous SHA. Initial classifier failure #38471512612 was caused by missing `VALIDATION_PROFILE` in the original PR body, now corrected.
+
+Next coordinator review: review supported templates/limits, XLSX strict references, UI and API behavior on PR #598. Keep draft; no merge without Main authorization. The green T1 is scoped to the declared profile and does not claim HA/sidecar evidence or close Wave 15.
+
+---
+
+# HISTORICAL MAIN COORDINATOR HANDOFF POINTER — 2026-10-06 22:31 BRT
 
 Canonical current handoff:
 `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`

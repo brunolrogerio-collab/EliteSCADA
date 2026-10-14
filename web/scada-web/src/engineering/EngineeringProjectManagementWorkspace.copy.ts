@@ -26,6 +26,10 @@ export function projectManagementCopy(locale: EngineeringLocale) {
     restoreConfirmTitle: 'Restore project backup into Working?', restoreConfirmDescription: 'This mutates the current Engineering Working workspace using the validated package and merge mode. Published and Active remain separate lifecycle operations.', restoreConfirm: 'Restore validated backup',
     cancel: 'Cancel', savedJson: 'Canonical Engineering JSON downloaded.', savedPackage: 'Application file saved.',
     jsonApplied: 'Canonical JSON applied to Working.', packageRestored: 'Project backup restored into Working.', packageInspected: 'Package integrity and manifest validated.',
+    tabularTitle: 'Engineering tables (CSV / XLSX)', tabularDescription: 'Import or export flat TAG, alarm, Data Source, Gateway route, and Engineering operational-event definitions. Runtime event history and complex screens/templates stay in canonical JSON or Fragments.',
+    tabularEntity: 'Table', tabularFormat: 'File format', tabularSource: 'Import file', chooseTabular: 'Choose CSV or XLSX', downloadCsv: 'Export CSV', downloadXlsx: 'Export XLSX', previewTabular: 'Preview table import', applyTabular: 'Apply validated table',
+    tabularApplied: 'Engineering table applied to Working.', tabularExported: 'Engineering table exported.', tabularApplyTitle: 'Apply this Engineering table to Working?', tabularApplyDescription: 'Only the selected flat entity collection will be merged. Preview, server validation, authorization, audit, and workspace-version checks remain active.',
+    tabularEntities: ['TAGs', 'Alarms', 'Data Sources', 'Gateway routes', 'Operational Event definitions'], tabularFormats: ['CSV', 'Excel workbook (.xlsx)'],
     previewReady: 'Preview validated. Apply remains bound to this exact source, mode and Workspace version.',
     authorityTitle: 'Server authority preserved', authorityHint: 'Validation, merge semantics, EngineeringModify authorization, Audit and optimistic-concurrency conflict protection remain server-side. This workspace does not create a private project model or trusted operator identity.'
   };
@@ -54,6 +58,10 @@ export function projectManagementCopy(locale: EngineeringLocale) {
     restoreConfirmTitle: '¿Restaurar el backup en Working?', restoreConfirmDescription: 'Esto modifica el Engineering Working actual usando el paquete y modo validados. Published y Active siguen siendo operaciones separadas del ciclo.', restoreConfirm: 'Restaurar backup validado',
     cancel: 'Cancelar', savedJson: 'JSON canónico de Engineering descargado.', savedPackage: 'Archivo de aplicación guardado.',
     jsonApplied: 'JSON canónico aplicado a Working.', packageRestored: 'Backup restaurado en Working.', packageInspected: 'Integridad y manifiesto del paquete validados.',
+    tabularTitle: 'Tablas de Engineering (CSV / XLSX)', tabularDescription: 'Importe o exporte TAGs, alarmas, fuentes de datos, rutas Gateway y definiciones de eventos operacionales de Engineering. El historial Runtime y pantallas/plantillas complejas permanecen en JSON canónico o Fragments.',
+    tabularEntity: 'Tabla', tabularFormat: 'Formato del archivo', tabularSource: 'Archivo de importación', chooseTabular: 'Elegir CSV o XLSX', downloadCsv: 'Exportar CSV', downloadXlsx: 'Exportar XLSX', previewTabular: 'Previsualizar importación', applyTabular: 'Aplicar tabla validada',
+    tabularApplied: 'Tabla de Engineering aplicada a Working.', tabularExported: 'Tabla de Engineering exportada.', tabularApplyTitle: '¿Aplicar esta tabla de Engineering a Working?', tabularApplyDescription: 'Solo se combinará la colección plana seleccionada. Se mantienen Preview, validación del servidor, autorización, auditoría y control de versión del Workspace.',
+    tabularEntities: ['TAGs', 'Alarmas', 'Fuentes de datos', 'Rutas Gateway', 'Definiciones de eventos operacionales'], tabularFormats: ['CSV', 'Libro Excel (.xlsx)'],
     previewReady: 'Preview validado. Apply permanece vinculado al origen, modo y versión exactos del Workspace.',
     authorityTitle: 'Autoridad del servidor preservada', authorityHint: 'Validación, merge, autorización EngineeringModify, Audit y protección de concurrencia permanecen en el servidor. Este workspace no crea un modelo privado ni identidad confiable del operador.'
   };
@@ -82,6 +90,10 @@ export function projectManagementCopy(locale: EngineeringLocale) {
     restoreConfirmTitle: 'Restaurar o backup no Working?', restoreConfirmDescription: 'Isso altera o Engineering Working atual usando o pacote e modo validados. Published e Active continuam sendo operações separadas do ciclo.', restoreConfirm: 'Restaurar backup validado',
     cancel: 'Cancelar', savedJson: 'JSON canônico do Engineering baixado.', savedPackage: 'Arquivo da aplicação salvo.',
     jsonApplied: 'JSON canônico aplicado ao Working.', packageRestored: 'Backup do projeto restaurado no Working.', packageInspected: 'Integridade e manifesto do pacote validados.',
+    tabularTitle: 'Tabelas do Engineering (CSV / XLSX)', tabularDescription: 'Importe ou exporte TAGs, alarmes, fontes de dados, rotas Gateway e definições de eventos operacionais do Engineering. Histórico do Runtime e telas/templates complexos continuam no JSON canônico ou em Fragments.',
+    tabularEntity: 'Tabela', tabularFormat: 'Formato do arquivo', tabularSource: 'Arquivo para importar', chooseTabular: 'Escolher CSV ou XLSX', downloadCsv: 'Exportar CSV', downloadXlsx: 'Exportar XLSX', previewTabular: 'Validar Preview da tabela', applyTabular: 'Aplicar tabela validada',
+    tabularApplied: 'Tabela do Engineering aplicada ao Working.', tabularExported: 'Tabela do Engineering exportada.', tabularApplyTitle: 'Aplicar esta tabela do Engineering ao Working?', tabularApplyDescription: 'Somente a coleção plana selecionada será mesclada. Preview, validação do servidor, autorização, auditoria e controle de versão do Workspace continuam ativos.',
+    tabularEntities: ['TAGs', 'Alarmes', 'Fontes de dados', 'Rotas Gateway', 'Definições de eventos operacionais'], tabularFormats: ['CSV', 'Planilha Excel (.xlsx)'],
     previewReady: 'Preview validado. O Apply permanece vinculado à origem, modo e versão exatos do Workspace.',
     authorityTitle: 'Autoridade do servidor preservada', authorityHint: 'Validação, merge, autorização EngineeringModify, Audit e proteção de concorrência permanecem no servidor. Este workspace não cria modelo privado do projeto nem identidade confiável do operador.'
   };

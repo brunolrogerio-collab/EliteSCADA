@@ -122,6 +122,10 @@
   background: var(--eng-panel-bg, #151d29);
 }
 
+.eng-project-management__card--tabular {
+  grid-column: 1 / -1;
+}
+
 .eng-project-management__file-field,
 .eng-project-management__mode {
   display: grid;

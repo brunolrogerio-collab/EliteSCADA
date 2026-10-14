@@ -154,7 +154,7 @@ Every relevant Engineering entity must be:
 - validated before application;
 - compatible with the common preview/apply workflow.
 
-Canonical technical representation is versioned JSON (`scada.engineering`). CSV is supported for appropriate bulk entities and XLSX is a future Engineering surface. Tabular formats do not replace the canonical model.
+Canonical technical representation is versioned JSON (`scada.engineering`). CSV and XLSX are supported for appropriate flat bulk entities through the same canonical preview/apply authority; neither format replaces the canonical model. One tabular file/workbook covers one entity collection. Complex screens, popups, templates, Dynamos, nested dependencies and reusable fragments remain in canonical JSON/Engineering Fragments rather than lossy spreadsheets.
 
 Mandatory import flow:
 
@@ -176,9 +176,10 @@ The public model covers or must evolve to cover:
 8. **Python Scripts**: stable ID/path, scope, language/version, source, event/entry-point references, dependencies and metadata.
 9. **Reports**: stable identity, page/layout configuration, typed provider/query definitions, runtime parameters/defaults, ordered sections/groups, report controls, aggregation/formatting rules and dependency metadata.
 10. **Security Roles / Policies**.
-11. **Gateway / TAG Bridge routes**.
-12. **Operational Commands**.
-13. Future trends, shell regions, libraries, Engineering Fragments and plugin-owned configuration.
+11. **Gateway / TAG Bridge routes** with stable TAG endpoint identities and portable paths.
+12. **Operational Event definitions** (Engineering configuration only; not Runtime occurrences, event history or audit records).
+13. **Operational Commands**.
+14. Future trends, shell regions, libraries, Engineering Fragments and plugin-owned configuration.
 
 Plugin-owned driver/Data Source configuration must expose a public versioned schema so it can participate in validation, import/export, backup/restore and migration without becoming opaque private state.
 

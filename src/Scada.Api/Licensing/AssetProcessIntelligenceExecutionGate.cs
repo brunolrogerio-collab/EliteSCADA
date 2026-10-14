@@ -2,6 +2,11 @@ using Scada.Engineering.Contracts;
 
 namespace Scada.Api.Licensing;
 
+public sealed record AssetProcessIntelligenceExecutionPermitSnapshot(
+    long Revision,
+    long AuthorityPolicyVersion,
+    long HaEpoch);
+
 /// <summary>
 /// Process-local, fail-closed permits for future Intelligence workers. No worker is
 /// registered in Stage 1. Persisted Engineering activation alone never recreates a
@@ -17,17 +22,40 @@ public sealed class AssetProcessIntelligenceExecutionGate
         get { lock (_sync) return _permits.Count; }
     }
 
+    public AssetProcessIntelligenceExecutionPermitSnapshot? Describe(
+        string projectKey,
+        AssetProcessIntelligenceScopeKind kind,
+        Guid scopeId)
+    {
+        ScopeKey key;
+        try { key = ValidateScopeKey(projectKey, kind, scopeId); }
+        catch (ArgumentException) { return null; }
+
+        lock (_sync)
+        {
+            if (!_permits.TryGetValue(key, out var permit) || permit.Cancellation.IsCancellationRequested)
+                return null;
+            return new AssetProcessIntelligenceExecutionPermitSnapshot(
+                permit.Revision,
+                permit.AuthorityPolicyVersion,
+                permit.HaEpoch);
+        }
+    }
+
     public void Activate(
         string projectKey,
         long activeRevision,
         AssetProcessIntelligenceScopeKind kind,
-        Guid scopeId)
+        Guid scopeId,
+        long authorityPolicyVersion = 0,
+        long haEpoch = 0)
     {
+        ValidateFence(authorityPolicyVersion, haEpoch);
         var key = ValidateKey(projectKey, activeRevision, kind, scopeId);
         lock (_sync)
         {
             RemoveAndCancel(key);
-            _permits[key] = new Permit(activeRevision, new CancellationTokenSource());
+            _permits[key] = new Permit(activeRevision, authorityPolicyVersion, haEpoch, new CancellationTokenSource());
         }
     }
 
@@ -36,17 +64,24 @@ public sealed class AssetProcessIntelligenceExecutionGate
         long activeRevision,
         AssetProcessIntelligenceScopeKind kind,
         Guid scopeId,
-        out CancellationToken cancellationToken)
+        out CancellationToken cancellationToken,
+        long authorityPolicyVersion = 0,
+        long haEpoch = 0)
     {
         cancellationToken = new CancellationToken(canceled: true);
+        try { ValidateFence(authorityPolicyVersion, haEpoch); }
+        catch (ArgumentOutOfRangeException) { return false; }
         ScopeKey key;
-        try { key = ValidateKey(projectKey, activeRevision, kind, scopeId); }
+        try { key = ValidateScopeKey(projectKey, kind, scopeId); }
         catch (ArgumentException) { return false; }
 
         lock (_sync)
         {
             if (!_permits.TryGetValue(key, out var permit) ||
-                permit.Revision != activeRevision || permit.Cancellation.IsCancellationRequested)
+                permit.Revision != activeRevision ||
+                permit.AuthorityPolicyVersion != authorityPolicyVersion ||
+                permit.HaEpoch != haEpoch ||
+                permit.Cancellation.IsCancellationRequested)
                 return false;
             cancellationToken = permit.Cancellation.Token;
             return true;
@@ -95,11 +130,25 @@ public sealed class AssetProcessIntelligenceExecutionGate
         AssetProcessIntelligenceScopeKind kind,
         Guid scopeId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
         if (activeRevision <= 0) throw new ArgumentOutOfRangeException(nameof(activeRevision));
+        return ValidateScopeKey(projectKey, kind, scopeId);
+    }
+
+    private static ScopeKey ValidateScopeKey(
+        string projectKey,
+        AssetProcessIntelligenceScopeKind kind,
+        Guid scopeId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
         if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         if (scopeId == Guid.Empty) throw new ArgumentException("Intelligence scope identity is required.", nameof(scopeId));
         return new ScopeKey(projectKey.Trim().ToUpperInvariant(), kind, scopeId);
+    }
+
+    private static void ValidateFence(long authorityPolicyVersion, long haEpoch)
+    {
+        if (authorityPolicyVersion < 0) throw new ArgumentOutOfRangeException(nameof(authorityPolicyVersion));
+        if (haEpoch < 0) throw new ArgumentOutOfRangeException(nameof(haEpoch));
     }
 
     private readonly record struct ScopeKey(
@@ -107,5 +156,9 @@ public sealed class AssetProcessIntelligenceExecutionGate
         AssetProcessIntelligenceScopeKind Kind,
         Guid ScopeId);
 
-    private sealed record Permit(long Revision, CancellationTokenSource Cancellation);
+    private sealed record Permit(
+        long Revision,
+        long AuthorityPolicyVersion,
+        long HaEpoch,
+        CancellationTokenSource Cancellation);
 }

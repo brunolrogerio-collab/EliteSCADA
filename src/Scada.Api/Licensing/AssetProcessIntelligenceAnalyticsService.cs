@@ -18,7 +18,8 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
     IProductLicenseService licensing,
     AssetProcessIntelligenceExecutionGate executionGate,
     ApiAuthorizationService security,
-    IHistoricalQueryService historicalQueries)
+    IHistoricalQueryService historicalQueries,
+    AuthorityPolicyHaCoordinator? authorityPolicyHa = null)
 {
     public async Task<IResult> ExecuteAsync(
         HttpContext context,
@@ -173,6 +174,26 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
             return PreparedPlanResult.Fail(Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED"));
 
+        var policyVersion = 0L;
+        var haEpoch = 0L;
+        if (authorityPolicyHa is not null)
+        {
+            var authorityFence = await authorityPolicyHa.CheckAsync(cancellationToken);
+            if (!authorityFence.Allowed)
+                return PreparedPlanResult.Fail(Conflict(authorityFence.ReasonCode.ToUpperInvariant().Replace('-', '_')));
+            policyVersion = authorityFence.PolicyVersion;
+            haEpoch = authorityFence.HaEpoch;
+
+            var refreshedTrendAuthorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.TrendUse,
+                cancellationToken: cancellationToken);
+            var refreshedTrendFailure = refreshedTrendAuthorization.FailureResult();
+            if (refreshedTrendFailure is not null)
+                return PreparedPlanResult.Fail(refreshedTrendFailure);
+        }
+
         var configuration = workspace.AssetProcessIntelligence.Snapshot();
         if (configuration.Version != 2)
             return PreparedPlanResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
@@ -191,7 +212,9 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                 descriptor.BaseRevision!.Value,
                 request.ScopeKind,
                 request.ScopeId,
-                out var permitToken))
+                out var permitToken,
+                policyVersion,
+                haEpoch))
             return PreparedPlanResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
 
         if (!runtime.TryGetTag(request.TagId, out var tag) || tag is null || !IsNumeric(tag.DataType))
@@ -227,7 +250,9 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             scopeResolution.Assignments!,
             permitToken,
             request.ScopeKind,
-            request.ScopeId));
+            request.ScopeId,
+            policyVersion,
+            haEpoch));
     }
 
     private async Task<PeriodReadResult> ReadPeriodAsync(
@@ -316,12 +341,24 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             return Conflict("INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE");
         if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
             return Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED");
+        if (authorityPolicyHa is not null)
+        {
+            var authorityFence = await authorityPolicyHa.CheckAsync(cancellationToken);
+            if (!authorityFence.Allowed ||
+                authorityFence.PolicyVersion != plan.AuthorityPolicyVersion ||
+                authorityFence.HaEpoch != plan.HaEpoch)
+                return Conflict(!authorityFence.Allowed
+                    ? authorityFence.ReasonCode.ToUpperInvariant().Replace('-', '_')
+                    : "INTELLIGENCE_AUTHORITY_POLICY_CHANGED");
+        }
         if (!executionGate.TryGetToken(
                 plan.ProjectKey,
                 plan.Revision,
                 plan.ScopeKind,
                 plan.ScopeId,
-                out var currentPermit) || currentPermit != plan.PermitToken || currentPermit.IsCancellationRequested)
+                out var currentPermit,
+                plan.AuthorityPolicyVersion,
+                plan.HaEpoch) || currentPermit != plan.PermitToken || currentPermit.IsCancellationRequested)
             return Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED");
 
         var trendAuthorization = await security.CheckRuntimeAsync(
@@ -543,7 +580,9 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         IReadOnlyList<AssetProcessIntelligenceAssignmentProvenance> Assignments,
         CancellationToken PermitToken,
         AssetProcessIntelligenceScopeKind ScopeKind,
-        Guid ScopeId);
+        Guid ScopeId,
+        long AuthorityPolicyVersion,
+        long HaEpoch);
 
     private sealed record PreparedPlanResult(PreparedPlan? Plan, IResult? Error)
     {

@@ -53,7 +53,10 @@ PATH_RULES = (
         "web/scada-web/src/engineering/visual-editor/",
         "visual-editor", "screen-editor", "visualeditorworkspace", "popupvisualeditorworkspace",
     )),
-    ("AUTHORITY_UX", ("web/scada-web/src/security/", "effective-capabilities", "user-administration", "security.spec")),
+    ("AUTHORITY_UX", (
+        "web/scada-web/src/security/", "effective-capabilities", "user-administration", "security.spec",
+        "web/scada-web/src/engineering/assetprocessintelligenceworkspace",
+    )),
     ("LICENSING_UX", ("web/scada-web/src/licensing/", "license-generator")),
     ("ELITEGO_RUNTIME", ("elitego",)),
     ("DATABASE_TOPOLOGY", (
@@ -66,7 +69,11 @@ PATH_RULES = (
         "web/scada-web/src/engineering/installationswitchingworkspace",
         "src/scada.api/installation/",
     )),
-    ("HA_DISTRIBUTED", ("highavailability", "high-availability", "/ha/", "distributedruntimefoundation")),
+    ("HA_DISTRIBUTED", (
+        "highavailability", "high-availability", "/ha/", "distributedruntimefoundation",
+        "tests/scada.drivers.tests/authoritypolicypostgresqlhatests.cs",
+        "web/scada-web/src/engineering/assetprocessintelligenceworkspace",
+    )),
     ("EEE_PACKAGE", (".escadapkg", "projectpackage", "eee/", "export")),
     ("DRIVER_PROTOCOL", ("src/scada.drivers/", "driverhost", "gateway", "interop-lab/", "communication/")),
     ("DOCS_I18N_HELP", ("docs/", "readme", "web/scada-web/src/help/", "contextualhelp")),
@@ -119,6 +126,9 @@ E2E_PROFILE_DEFAULTS = {
 E2E_PATH_RULES = (
     (("web/scada-web/src/database-topology/",), ("tests-e2e/database-topology-mounted.spec.ts",)),
     (("web/scada-web/src/engineering/ha/",), ("tests-e2e/ha-admin-workspace.spec.ts",)),
+    (("web/scada-web/src/engineering/assetprocessintelligenceworkspace",), (
+        "tests-e2e/wave-15-intelligence-permit-rearm-mounted.spec.ts",
+    )),
     (("web/scada-web/src/runtime/application/",), (
         "tests-e2e/runtime.spec.ts", "tests-e2e/wave-14-c25-runtime-session.spec.ts",
     )),
@@ -156,6 +166,7 @@ HA_TWO_PROCESS_FRAGMENTS = (
     "src/scada.api/runtime/distributedruntimefoundation",
     "src/scada.security/authorization/runtimesessionleasestore",
     "tests/scada.drivers.tests/runtimehighavailability",
+    "tests/scada.drivers.tests/authoritypolicypostgresqlhatests.cs",
     "scripts/ci/ha_d1_two_process_evidence.py",
 )
 

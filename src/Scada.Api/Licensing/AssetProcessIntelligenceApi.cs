@@ -30,7 +30,7 @@ public static class AssetProcessIntelligenceApi
     {
         var group = endpoints.MapGroup("/api/engineering/asset-process-intelligence");
 
-        group.MapGet("/scopes", (
+        group.MapGet("/scopes", async (
             HttpContext context,
             EngineeringWorkspace workspace,
             IEngineeringAssetRegistry assets,
@@ -46,19 +46,44 @@ public static class AssetProcessIntelligenceApi
 
             var configuration = intelligence.Snapshot();
             var workspaceDescriptor = workspace.Describe();
+            var authorityHa = context.RequestServices.GetService<AuthorityPolicyHaCoordinator>();
+            var fenceAllowed = true;
+            var fenceReason = "standalone";
+            var policyVersion = 0L;
+            var haEpoch = 0L;
+            if (authorityHa is not null)
+            {
+                var fence = await authorityHa.CheckAsync(context.RequestAborted);
+                fenceAllowed = fence.Allowed;
+                fenceReason = fence.ReasonCode;
+                policyVersion = fence.PolicyVersion;
+                haEpoch = fence.HaEpoch;
+            }
             var configuredScopes = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
-                .Select(scope => new
+                .Select(scope =>
                 {
-                    kind = scope.Kind.ToString(),
-                    scopeId = scope.ScopeId,
-                    scope.Active,
-                    executionArmed = workspaceDescriptor.ProjectKey is not null && workspaceDescriptor.BaseRevision.HasValue &&
-                        executionGate.TryGetToken(
-                            workspaceDescriptor.ProjectKey,
-                            workspaceDescriptor.BaseRevision.Value,
-                            scope.Kind,
-                            scope.ScopeId,
-                            out _)
+                    var permit = workspaceDescriptor.ProjectKey is null
+                        ? null
+                        : executionGate.Describe(workspaceDescriptor.ProjectKey, scope.Kind, scope.ScopeId);
+                    return new
+                    {
+                        kind = scope.Kind.ToString(),
+                        scopeId = scope.ScopeId,
+                        scope.Active,
+                        executionArmed = fenceAllowed && workspaceDescriptor.ProjectKey is not null &&
+                            workspaceDescriptor.BaseRevision.HasValue &&
+                            executionGate.TryGetToken(
+                                workspaceDescriptor.ProjectKey,
+                                workspaceDescriptor.BaseRevision.Value,
+                                scope.Kind,
+                                scope.ScopeId,
+                                out _,
+                                policyVersion,
+                                haEpoch),
+                        permitRevision = permit?.Revision,
+                        permitAuthorityPolicyVersion = permit?.AuthorityPolicyVersion,
+                        permitHaEpoch = permit?.HaEpoch
+                    };
                 }).ToArray();
             var equipment = assets.SnapshotEquipment().Where(item => item.Id is { } id && id != Guid.Empty)
                 .Select(item => new { kind = nameof(AssetProcessIntelligenceScopeKind.Equipment), scopeId = item.Id, item.Path, item.Name });
@@ -80,6 +105,13 @@ public static class AssetProcessIntelligenceApi
                 resources = equipment.Cast<object>().Concat(locations).ToArray(),
                 tags,
                 licensed = licensing.CurrentVerification.HasAssetProcessIntelligence,
+                authorityFence = new
+                {
+                    allowed = fenceAllowed,
+                    reasonCode = fenceReason,
+                    policyVersion,
+                    haEpoch
+                },
                 execution = new
                 {
                     stage = "Stage1",
@@ -288,6 +320,14 @@ public static class AssetProcessIntelligenceApi
         };
         if (!resourceKind.HasValue) return Results.NotFound();
 
+        var authorityHa = context.RequestServices.GetService<AuthorityPolicyHaCoordinator>();
+        if (authorityHa is not null)
+        {
+            try { await authorityHa.ReadCurrentSnapshotAsync(context.RequestAborted); }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested) { throw; }
+            catch { return Results.StatusCode(StatusCodes.Status503ServiceUnavailable); }
+        }
+
         var manager = security.CheckWorkspace(
             context,
             SecurityCapability.AssetProcessIntelligenceManage,
@@ -303,6 +343,14 @@ public static class AssetProcessIntelligenceApi
                 "asset-process-intelligence-scope",
                 "scope");
             return denial.FailureResult() ?? Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        AuthorityPolicyHaReadiness? activationFence = null;
+        if (active && authorityHa is not null)
+        {
+            activationFence = await authorityHa.CheckAsync(context.RequestAborted);
+            if (!activationFence.Allowed)
+                return Results.Conflict(new { error = activationFence.ReasonCode.ToUpperInvariant().Replace('-', '_') });
         }
 
         if (active && !licensing.CurrentVerification.HasAssetProcessIntelligence)
@@ -351,7 +399,13 @@ public static class AssetProcessIntelligenceApi
         if (scope.Active == active)
         {
             if (active)
-                executionGate.Activate(descriptor.ProjectKey, descriptor.BaseRevision.Value, kind, scopeId);
+                executionGate.Activate(
+                    descriptor.ProjectKey,
+                    descriptor.BaseRevision.Value,
+                    kind,
+                    scopeId,
+                    activationFence?.PolicyVersion ?? 0,
+                    activationFence?.HaEpoch ?? 0);
             else
                 executionGate.Pause(descriptor.ProjectKey, kind, scopeId);
             await RecordScopeTransitionAsync(context, active, manager.Principal,
@@ -419,7 +473,23 @@ public static class AssetProcessIntelligenceApi
                 snapshot.SavedAtUtc,
                 saveVersion);
             if (active)
-                executionGate.Activate(snapshot.ProjectKey, snapshot.Revision, kind, scopeId);
+            {
+                activationFence = authorityHa is null
+                    ? null
+                    : await authorityHa.CheckAsync(context.RequestAborted);
+                if (activationFence is { Allowed: false })
+                {
+                    executionGate.Pause(snapshot.ProjectKey, kind, scopeId);
+                    return Results.Conflict(new { error = activationFence.ReasonCode.ToUpperInvariant().Replace('-', '_') });
+                }
+                executionGate.Activate(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    kind,
+                    scopeId,
+                    activationFence?.PolicyVersion ?? 0,
+                    activationFence?.HaEpoch ?? 0);
+            }
             else
                 executionGate.Pause(snapshot.ProjectKey, kind, scopeId);
 

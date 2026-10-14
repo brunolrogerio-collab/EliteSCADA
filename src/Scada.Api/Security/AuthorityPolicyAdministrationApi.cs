@@ -31,17 +31,32 @@ public static class AuthorityPolicyAdministrationApi
 
     public static IEndpointRouteBuilder MapAuthorityPolicyAdministrationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/auth/authority-policy", async (HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, IAuthorityPolicyStore store, CancellationToken ct) =>
+        endpoints.MapGet("/api/auth/authority-policy", async (HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, IAuthorityPolicyStore store, AuthorityPolicyHaCoordinator haPolicy, CancellationToken ct) =>
         {
+            try { await haPolicy.ReadCurrentSnapshotAsync(ct); }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                return Results.Json(new { error = "AUTHORITY_POLICY_STORE_UNAVAILABLE" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
             var authorization = await AuthorizeReadAsync(context, runtime, security, audit, ReadAction, ct);
             if (authorization.Failure is not null) return authorization.Failure;
-            var snapshot = store.Snapshot();
+            AuthorityPolicySnapshot snapshot;
+            try { snapshot = await haPolicy.ReadCurrentSnapshotAsync(ct); }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                return Results.Json(new { error = "AUTHORITY_POLICY_STORE_UNAVAILABLE" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
             await audit.RecordAsync(context, authorization.Check!.Principal, ReadAction, AuditOutcome.Succeeded, "authority-policy", snapshot.Version.ToString(), new Dictionary<string, string> { ["roleCount"] = snapshot.Roles.Count.ToString(), ["scopeCount"] = snapshot.Scopes.Count.ToString() });
             return Results.Ok(ToDocument(snapshot));
         });
 
-        endpoints.MapPost("/api/auth/authority-policy/preview", async (AuthorityPolicyMutationRequest request, HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, ILocalIdentityStore identities, IAuthorityPolicyStore store, CancellationToken ct) =>
+        endpoints.MapPost("/api/auth/authority-policy/preview", async (AuthorityPolicyMutationRequest request, HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, ILocalIdentityStore identities, IAuthorityPolicyStore store, AuthorityPolicyHaCoordinator haPolicy, CancellationToken ct) =>
         {
+            try { await haPolicy.ReadCurrentSnapshotAsync(ct); }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                return Results.Json(new { error = "AUTHORITY_POLICY_STORE_UNAVAILABLE" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
             var authorization = await AuthorizeMutationAsync(context, runtime, security, audit, PreviewAction, ct);
             if (authorization.Failure is not null) return authorization.Failure;
             var validation = await ValidateMutationAsync(request, identities, store, ct);
@@ -50,15 +65,26 @@ public static class AuthorityPolicyAdministrationApi
             return Results.Ok(new { schema = WireSchema, schemaVersion = WireSchemaVersion, valid = true, expectedVersion = request.ExpectedVersion, policy = ToDocument(new AuthorityPolicySnapshot(request.ExpectedVersion, validation.Roles!, validation.Scopes!)) });
         });
 
-        endpoints.MapPut("/api/auth/authority-policy", async (AuthorityPolicyMutationRequest request, HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, ILocalIdentityStore identities, IAuthorityPolicyStore store, CancellationToken ct) =>
+        endpoints.MapPut("/api/auth/authority-policy", async (AuthorityPolicyMutationRequest request, HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, ILocalIdentityStore identities, IAuthorityPolicyStore store, AuthorityPolicyHaCoordinator haPolicy, CancellationToken ct) =>
         {
+            try { await haPolicy.ReadCurrentSnapshotAsync(ct); }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                return Results.Json(new { error = "AUTHORITY_POLICY_STORE_UNAVAILABLE" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
             var authorization = await AuthorizeMutationAsync(context, runtime, security, audit, ApplyAction, ct);
             if (authorization.Failure is not null) return authorization.Failure;
             var validation = await ValidateMutationAsync(request, identities, store, ct);
             if (validation.Error is not null) return Results.BadRequest(new { error = validation.Error });
             var before = store.Snapshot();
-            var result = await store.TryReplaceAsync(request.ExpectedVersion, validation.Roles!, validation.Scopes!, ct);
-            if (!result.Applied) return Results.Conflict(new { error = result.Error, currentVersion = result.Snapshot.Version });
+            var result = await haPolicy.ApplyMutationAsync(request.ExpectedVersion, validation.Roles!, validation.Scopes!, ct);
+            if (!result.Applied)
+            {
+                var status = result.Error?.StartsWith("AUTHORITY_POLICY_HA_", StringComparison.Ordinal) == true
+                    ? StatusCodes.Status503ServiceUnavailable
+                    : StatusCodes.Status409Conflict;
+                return Results.Json(new { error = result.Error, currentVersion = result.Snapshot.Version }, statusCode: status);
+            }
             await audit.RecordAsync(context, authorization.Check!.Principal, ApplyAction, AuditOutcome.Succeeded, "authority-policy", result.Snapshot.Version.ToString(), AuditDetails(before, result.Snapshot.Roles, result.Snapshot.Scopes));
             return Results.Ok(ToDocument(result.Snapshot));
         });

@@ -94,6 +94,15 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertFalse(result["run_e2e"])
         self.assertTrue(result["run_ha_two_process"])
 
+    def test_authority_policy_postgres_ha_evidence_runs_postgres_and_two_process_profiles(self):
+        result = self.classify(
+            ["tests/Scada.Drivers.Tests/AuthorityPolicyPostgreSqlHaTests.cs"],
+            "VALIDATION_PROFILE: HA_DISTRIBUTED",
+        )
+        self.assertIn("HA_DISTRIBUTED", result["effective_profiles"])
+        self.assertIn(router.DRIVERS, result["dotnet_projects"])
+        self.assertTrue(result["run_ha_two_process"])
+
     def test_ha_admin_ui_is_not_full_ui_editor_and_skips_two_process(self):
         result = self.classify(
             ["web/scada-web/src/engineering/ha/HighAvailabilityAdminWorkspace.tsx"],
@@ -156,6 +165,21 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertTrue(result["run_web"])
         self.assertTrue(result["run_dotnet"])
         self.assertEqual(result["e2e_specs"], ["tests-e2e/security.spec.ts"])
+
+    def test_intelligence_permit_rearm_ui_runs_authority_ha_and_mounted_browser_evidence(self):
+        result = self.classify(
+            ["web/scada-web/src/engineering/AssetProcessIntelligenceWorkspace.tsx"],
+            "VALIDATION_PROFILE: AUTHORITY_UX, HA_DISTRIBUTED",
+        )
+        self.assertIn("AUTHORITY_UX", result["effective_profiles"])
+        self.assertIn("HA_DISTRIBUTED", result["effective_profiles"])
+        self.assertTrue(result["run_web"])
+        self.assertTrue(result["run_dotnet"])
+        self.assertTrue(result["run_e2e"])
+        self.assertIn(
+            "tests-e2e/wave-15-intelligence-permit-rearm-mounted.spec.ts",
+            result["e2e_specs"],
+        )
 
     def test_changed_browser_spec_runs_itself_not_old_profile_bundle(self):
         result = self.classify(

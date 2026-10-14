@@ -8,7 +8,7 @@ using Scada.Engineering.Security;
 namespace Scada.Persistence.PostgreSql;
 
 /// <summary>PostgreSQL-backed canonical Authority policy with compare-and-swap versioning.</summary>
-public sealed class PostgreSqlAuthorityPolicyStore : IAuthorityPolicyStore, IAsyncDisposable
+public sealed class PostgreSqlAuthorityPolicyStore : IAuthorityPolicyStore, IAuthorityPolicyReplicationStore, IAsyncDisposable
 {
     private const long MutationLock = 4993446713136202564;
     private const string StateKey = "canonical-policy-v1";
@@ -56,6 +56,64 @@ public sealed class PostgreSqlAuthorityPolicyStore : IAuthorityPolicyStore, IAsy
         lock (_sync) _snapshot = loaded;
     }
 
+    public async Task<AuthorityPolicySnapshot> RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        var loaded = await LoadAsync(connection, transaction: null, cancellationToken);
+        lock (_sync) _snapshot = loaded;
+        return InMemoryAuthorityPolicyStore.Copy(loaded.Version, loaded.Roles, loaded.Scopes);
+    }
+
+    public async Task<AuthorityPolicyReplicationApplyResult> ApplyReplicatedSnapshotAsync(
+        AuthorityPolicySnapshot snapshot,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (snapshot.Version < 0)
+            throw new InvalidDataException("Replicated Authority policy version must be non-negative.");
+        InMemoryAuthorityPolicyStore.Validate(snapshot.Roles, snapshot.Scopes);
+        var incoming = InMemoryAuthorityPolicyStore.Copy(snapshot.Version, snapshot.Roles, snapshot.Scopes);
+        var incomingDigest = AuthorityPolicySnapshotDigest.Compute(incoming);
+
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("authority-policy-replication", cancellationToken);
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using (var lockCommand = new NpgsqlCommand("SELECT pg_advisory_xact_lock(@key);", connection, transaction))
+        {
+            lockCommand.Parameters.AddWithValue("key", NpgsqlDbType.Bigint, MutationLock);
+            await lockCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var current = await LoadAsync(connection, transaction, cancellationToken);
+        if (incoming.Version < current.Version)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            lock (_sync) _snapshot = current;
+            return new AuthorityPolicyReplicationApplyResult(
+                false,
+                InMemoryAuthorityPolicyStore.Copy(current.Version, current.Roles, current.Scopes),
+                "AUTHORITY_POLICY_REPLICA_STALE");
+        }
+
+        if (incoming.Version == current.Version)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            lock (_sync) _snapshot = current;
+            var currentDigest = AuthorityPolicySnapshotDigest.Compute(current);
+            return new AuthorityPolicyReplicationApplyResult(
+                incomingDigest == currentDigest,
+                InMemoryAuthorityPolicyStore.Copy(current.Version, current.Roles, current.Scopes),
+                incomingDigest == currentDigest ? null : "AUTHORITY_POLICY_REPLICA_DIGEST_MISMATCH");
+        }
+
+        await SaveAsync(connection, transaction, incoming, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        lock (_sync) _snapshot = incoming;
+        return new AuthorityPolicyReplicationApplyResult(
+            true,
+            InMemoryAuthorityPolicyStore.Copy(incoming.Version, incoming.Roles, incoming.Scopes));
+    }
+
     public async Task<AuthorityPolicyWriteResult> TryReplaceAsync(long expectedVersion, IReadOnlyCollection<SecurityRoleEngineeringDto> roles, IReadOnlyCollection<SecurityScopeEngineeringDto> scopes, CancellationToken cancellationToken = default)
     {
         await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("authority-policy", cancellationToken);
@@ -77,6 +135,18 @@ public sealed class PostgreSqlAuthorityPolicyStore : IAuthorityPolicyStore, IAsy
             return new AuthorityPolicyWriteResult(false, InMemoryAuthorityPolicyStore.Copy(current.Version, current.Roles, current.Scopes), "AUTHORITY_POLICY_CONCURRENCY_CONFLICT");
         }
 
+        await SaveAsync(connection, transaction, candidate, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        lock (_sync) _snapshot = candidate;
+        return new AuthorityPolicyWriteResult(true, InMemoryAuthorityPolicyStore.Copy(candidate.Version, candidate.Roles, candidate.Scopes));
+    }
+
+    private static async Task SaveAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        AuthorityPolicySnapshot candidate,
+        CancellationToken cancellationToken)
+    {
         const string save = """
             INSERT INTO elitescada.authority_policy_state (state_key, version, roles, scopes)
             VALUES (@key, @version, @roles::jsonb, @scopes::jsonb)
@@ -91,9 +161,6 @@ public sealed class PostgreSqlAuthorityPolicyStore : IAuthorityPolicyStore, IAsy
             command.Parameters.AddWithValue("scopes", JsonSerializer.Serialize(candidate.Scopes));
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
-        await transaction.CommitAsync(cancellationToken);
-        lock (_sync) _snapshot = candidate;
-        return new AuthorityPolicyWriteResult(true, InMemoryAuthorityPolicyStore.Copy(candidate.Version, candidate.Roles, candidate.Scopes));
     }
 
     private static async Task<AuthorityPolicySnapshot> LoadAsync(NpgsqlConnection connection, NpgsqlTransaction? transaction, CancellationToken cancellationToken)

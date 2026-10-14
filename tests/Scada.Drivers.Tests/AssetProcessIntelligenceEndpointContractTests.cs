@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Scada.Api.Persistence;
 using Scada.Api.Licensing;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
@@ -18,9 +19,14 @@ using Scada.Core.Commands;
 using Scada.Core.Events;
 using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
+using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Gateways;
+using Scada.Engineering.ImportExport;
 using Scada.Engineering.Intelligence;
+using Scada.Engineering.Persistence;
+using Scada.Engineering.Reports;
 using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
@@ -48,7 +54,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal(0, api.Gate.ActivePermitCount);
-        Assert.Equal(0, api.Runtime.ProcessWriteCalls);
+        Assert.Equal(0, api.ProcessWriteCalls);
     }
 
     [Theory]
@@ -67,7 +73,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal(0, api.Gate.ActivePermitCount);
-        Assert.Equal(0, api.Runtime.ProcessWriteCalls);
+        Assert.Equal(0, api.ProcessWriteCalls);
     }
 
     [Fact]
@@ -89,7 +95,48 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         Assert.DoesNotContain(api.Routes, route => route.Contains("results", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(api.Routes, route => route.Contains("query", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(HttpStatusCode.NotFound, resultsResponse.StatusCode);
-        Assert.Equal(0, api.Runtime.ProcessWriteCalls);
+        Assert.Equal(0, api.ProcessWriteCalls);
+    }
+
+    [Fact]
+    public async Task AuthorizedActivationPersistsScopeAndArmsPermit_ThenPausePersistsAndCancels()
+    {
+        await using var api = await EndpointHarness.StartAsync(
+            CreateVerification("valid"),
+            includeActivationPipeline: true);
+
+        using var activated = await api.Client.PostAsync(api.ActivatePath, content: null);
+        var activation = await activated.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, activated.StatusCode);
+        Assert.True(activation.GetProperty("active").GetBoolean());
+        Assert.True(activation.GetProperty("runtimeActivated").GetBoolean());
+        Assert.True(activation.GetProperty("executionPermit").GetBoolean());
+        var activeRevision = activation.GetProperty("persistedRevision").GetInt64();
+        Assert.True(api.Gate.TryGetToken(
+            EndpointHarness.ProjectKey,
+            activeRevision,
+            AssetProcessIntelligenceScopeKind.Equipment,
+            api.EquipmentId,
+            out var permit));
+        Assert.False(permit.IsCancellationRequested);
+        Assert.True(await api.IsPersistedScopeActiveAsync());
+
+        using var paused = await api.Client.PostAsync(api.PausePath, content: null);
+        var pause = await paused.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, paused.StatusCode);
+        Assert.False(pause.GetProperty("active").GetBoolean());
+        Assert.False(pause.GetProperty("executionPermit").GetBoolean());
+        Assert.True(permit.IsCancellationRequested);
+        Assert.False(api.Gate.TryGetToken(
+            EndpointHarness.ProjectKey,
+            pause.GetProperty("persistedRevision").GetInt64(),
+            AssetProcessIntelligenceScopeKind.Equipment,
+            api.EquipmentId,
+            out _));
+        Assert.False(await api.IsPersistedScopeActiveAsync());
+        Assert.Equal(0, api.Gate.ActivePermitCount);
     }
 
     private static LicenseVerificationResult CreateVerification(string licenseCase)
@@ -128,16 +175,23 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public const string ScopesPath = "/api/engineering/asset-process-intelligence/scopes";
 
         private readonly WebApplication _app;
+        private readonly IEngineeringProjectPersistenceService? _persistence;
+        private readonly IEngineeringExchangeService? _exchange;
         private EndpointHarness(
             WebApplication app,
             HttpClient client,
             Guid equipmentId,
             AssetProcessIntelligenceExecutionGate gate,
-            TestRuntimeCoordinator runtime,
+            IEngineeringRuntimeCoordinator runtime,
+            IEngineeringProjectPersistenceService? persistence,
+            IEngineeringExchangeService? exchange,
             IReadOnlyCollection<string> routes)
         {
             _app = app;
+            _persistence = persistence;
+            _exchange = exchange;
             Client = client;
+            EquipmentId = equipmentId;
             Gate = gate;
             Runtime = runtime;
             Routes = routes;
@@ -145,20 +199,28 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         }
 
         public HttpClient Client { get; }
+        public Guid EquipmentId { get; }
         public AssetProcessIntelligenceExecutionGate Gate { get; }
-        public TestRuntimeCoordinator Runtime { get; }
+        public IEngineeringRuntimeCoordinator Runtime { get; }
+        public int ProcessWriteCalls => (Runtime as TestRuntimeCoordinator)?.ProcessWriteCalls ?? 0;
         public IReadOnlyCollection<string> Routes { get; }
         public string ActivatePath { get; }
+        public string PausePath => $"{ScopesPath}/Equipment/{EquipmentId:D}/pause";
 
         public static async Task<EndpointHarness> StartAsync(
             LicenseVerificationResult verification,
             bool managerGrantOnTargetEquipment = true,
-            bool engineeringModifyGranted = true)
+            bool engineeringModifyGranted = true,
+            bool includeActivationPipeline = false)
         {
             var workspace = new EngineeringWorkspace(seedDemo: false);
-            workspace.SetCheckout(ProjectKey, "Stage 1 contract test", 1, DateTimeOffset.UtcNow);
             var equipmentId = Guid.NewGuid();
             var otherEquipmentId = Guid.NewGuid();
+            workspace.Assets.UpsertEquipment(new EquipmentEngineeringDto(equipmentId, "Plant.Pump", "Pump"));
+            workspace.Assets.UpsertEquipment(new EquipmentEngineeringDto(otherEquipmentId, "Plant.Fan", "Fan"));
+            workspace.AssetProcessIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Scopes:
+            [new(AssetProcessIntelligenceScopeKind.Equipment, equipmentId)]));
+            workspace.SetCheckout(ProjectKey, "Stage 1 contract test", 1, DateTimeOffset.UtcNow);
             var equipmentScopeId = Guid.NewGuid();
             var otherScopeId = Guid.NewGuid();
             var authority = new InMemoryAuthorityPolicyStore(
@@ -172,7 +234,34 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                     new SecurityScopeEngineeringDto(otherScopeId, "equipment-p02", "Fan", SecurityScopeNodeKind.Equipment, ResourceId: otherEquipmentId)
                 ]);
             var gate = new AssetProcessIntelligenceExecutionGate();
-            var runtime = new TestRuntimeCoordinator(ProjectKey, 1);
+            IEngineeringRuntimeCoordinator runtime = new TestRuntimeCoordinator(ProjectKey, 1);
+            IEngineeringProjectPersistenceService? persistence = null;
+            IEngineeringExchangeService? exchange = null;
+            if (includeActivationPipeline)
+            {
+                exchange = CreateExchange(workspace);
+                var seeded = new EngineeringProjectSnapshot(
+                    1,
+                    ProjectKey,
+                    "Stage 1 contract test",
+                    EngineeringExchangeService.CurrentSchema,
+                    EngineeringExchangeService.CurrentSchemaVersion,
+                    DateTimeOffset.UtcNow,
+                    exchange.ExportJson(),
+                    "test");
+                var projectStore = new HarnessEngineeringProjectStore(seeded);
+                persistence = new EngineeringProjectPersistenceService(exchange, projectStore, workspace.VisualAssets);
+                var liveRuntime = new EngineeringRuntimeCoordinator(
+                    new InMemoryScadaEventBus(),
+                    new EngineeringDriverCompiler(),
+                    TimeSpan.FromSeconds(2));
+                var initialRuntime = await liveRuntime.ActivateAsync(
+                    ProjectKey,
+                    seeded.Revision,
+                    exchange.ParseJson(seeded.EngineeringJson));
+                Assert.True(initialRuntime.Activated);
+                runtime = liveRuntime;
+            }
             var sink = new InMemoryAuditSink();
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?> { ["Authentication:Enabled"] = "true" })
@@ -191,6 +280,15 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             builder.Services.AddSingleton(new RuntimeHighAvailabilityService(builder.Configuration));
             builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(runtime);
             builder.Services.AddSingleton(new ScadaRuntimeFacade(runtime));
+            if (persistence is not null && exchange is not null)
+            {
+                builder.Services.AddSingleton(persistence);
+                builder.Services.AddSingleton<IPublishedRuntimeActivationService>(new PublishedRuntimeActivationService(
+                    persistence,
+                    exchange,
+                    runtime,
+                    intelligenceGate: gate));
+            }
             builder.Services.AddSingleton<IAuthorityPolicyStore>(authority);
             builder.Services.AddSingleton<ApiAuthorizationService>(sp => new ApiAuthorizationService(
                 sp,
@@ -219,7 +317,42 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
 
             var address = app.Services.GetRequiredService<IServer>()
                 .Features.Get<IServerAddressesFeature>()!.Addresses.Single();
-            return new EndpointHarness(app, new HttpClient { BaseAddress = new Uri(address) }, equipmentId, gate, runtime, routes);
+            return new EndpointHarness(
+                app,
+                new HttpClient { BaseAddress = new Uri(address) },
+                equipmentId,
+                gate,
+                runtime,
+                persistence,
+                exchange,
+                routes);
+        }
+
+        private static EngineeringExchangeService CreateExchange(EngineeringWorkspace workspace) =>
+            new(
+                workspace.Tags,
+                workspace.Alarms,
+                workspace.DataSources,
+                workspace.Assets,
+                workspace.Views,
+                workspace.SecurityPolicies,
+                workspace.Commands,
+                new InMemoryGatewayEngineeringRegistry(),
+                scripts: workspace.Scripts,
+                visualAssets: workspace.VisualAssets,
+                reports: new InMemoryReportEngineeringRegistry(),
+                operationalEvents: workspace.Scripts,
+                branding: workspace.Branding,
+                mediaSources: workspace.MediaSources,
+                driverInteractions: workspace.Interactions,
+                assetProcessIntelligence: workspace.AssetProcessIntelligence);
+
+        public async Task<bool> IsPersistedScopeActiveAsync()
+        {
+            if (_persistence is null || _exchange is null) return false;
+            var active = await _persistence.LoadActiveAsync(ProjectKey);
+            var scopes = _exchange.ParseJson(active!.EngineeringJson).AssetProcessIntelligence!.Scopes;
+            return Assert.Single(scopes!).Active;
         }
 
         private static IReadOnlyCollection<CapabilityGrantEngineeringDto> CreateGrants(
@@ -244,6 +377,133 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             Client.Dispose();
             await _app.StopAsync();
             await _app.DisposeAsync();
+            if (Runtime is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync();
+        }
+    }
+
+    private sealed class HarnessEngineeringProjectStore(EngineeringProjectSnapshot initial) : IEngineeringProjectStore
+    {
+        private readonly SortedDictionary<long, EngineeringProjectSnapshot> _revisions = new()
+        {
+            [initial.Revision] = initial
+        };
+        private EngineeringProjectPublication? _publication =
+            new(initial.ProjectKey, initial.Revision, initial.SavedAtUtc, "test");
+        private EngineeringProjectActivation? _activation =
+            new(initial.ProjectKey, initial.Revision, initial.SavedAtUtc, "test");
+
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<EngineeringProjectSnapshot> SaveAsync(
+            string projectKey,
+            string projectName,
+            string engineeringSchema,
+            int engineeringSchemaVersion,
+            string engineeringJson,
+            string? savedBy = null,
+            CancellationToken cancellationToken = default) =>
+            SaveDerivedAsync(
+                projectKey,
+                projectName,
+                engineeringSchema,
+                engineeringSchemaVersion,
+                engineeringJson,
+                null,
+                savedBy,
+                cancellationToken);
+
+        public Task<EngineeringProjectSnapshot> SaveDerivedAsync(
+            string projectKey,
+            string projectName,
+            string engineeringSchema,
+            int engineeringSchemaVersion,
+            string engineeringJson,
+            long? basedOnRevision,
+            string? savedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (!string.Equals(projectKey, initial.ProjectKey, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Unexpected project key.");
+            var revision = checked(_revisions.Keys.Max() + 1);
+            var snapshot = new EngineeringProjectSnapshot(
+                revision,
+                projectKey,
+                projectName,
+                engineeringSchema,
+                engineeringSchemaVersion,
+                DateTimeOffset.UtcNow,
+                engineeringJson,
+                savedBy,
+                basedOnRevision);
+            _revisions.Add(revision, snapshot);
+            return Task.FromResult(snapshot);
+        }
+
+        public Task<EngineeringProjectSnapshot?> LoadLatestAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_revisions.Values.LastOrDefault(snapshot =>
+                snapshot.ProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase)));
+
+        public Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+            string projectKey,
+            long revision,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_revisions.TryGetValue(revision, out var snapshot) &&
+                snapshot.ProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase)
+                    ? snapshot
+                    : null);
+
+        public Task<IReadOnlyCollection<EngineeringProjectSnapshot>> ListRevisionsAsync(
+            string projectKey,
+            int limit = 50,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<EngineeringProjectSnapshot>>(_revisions.Values
+                .Where(snapshot => snapshot.ProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(snapshot => snapshot.Revision)
+                .Take(limit)
+                .ToArray());
+
+        public Task<EngineeringProjectPublication?> GetPublicationAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_publication is not null &&
+                _publication.ProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase)
+                    ? _publication
+                    : null);
+
+        public Task<EngineeringProjectPublication?> PublishRevisionAsync(
+            string projectKey,
+            long revision,
+            string? publishedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_revisions.TryGetValue(revision, out var snapshot) ||
+                !snapshot.ProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<EngineeringProjectPublication?>(null);
+            _publication = new EngineeringProjectPublication(projectKey, revision, DateTimeOffset.UtcNow, publishedBy);
+            return Task.FromResult<EngineeringProjectPublication?>(_publication);
+        }
+
+        public Task<EngineeringProjectActivation?> GetActivationAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_activation is not null &&
+                _activation.ProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase)
+                    ? _activation
+                    : null);
+
+        public Task<EngineeringProjectActivation?> RecordActivationAsync(
+            string projectKey,
+            long revision,
+            string? activatedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (_publication?.PublishedRevision != revision || !_revisions.ContainsKey(revision))
+                return Task.FromResult<EngineeringProjectActivation?>(null);
+            _activation = new EngineeringProjectActivation(projectKey, revision, DateTimeOffset.UtcNow, activatedBy);
+            return Task.FromResult<EngineeringProjectActivation?>(_activation);
         }
     }
 

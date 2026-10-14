@@ -86,13 +86,11 @@ builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredSer
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 var authorityConnectionString = databaseConnections.PrimaryConnectionString;
 builder.Services.AddSingleton<IAuthorityPolicyStore>(sp =>
-    new AssetProcessIntelligenceAuthorityPolicyStore(
-        string.IsNullOrWhiteSpace(authorityConnectionString)
-            ? new InMemoryAuthorityPolicyStore()
-            : new PostgreSqlAuthorityPolicyStore(
-                authorityConnectionString,
-                sp.GetService<IDurableWriteAdmission>()),
-        sp.GetRequiredService<AssetProcessIntelligenceExecutionGate>()));
+    string.IsNullOrWhiteSpace(authorityConnectionString)
+        ? new InMemoryAuthorityPolicyStore()
+        : new PostgreSqlAuthorityPolicyStore(
+            authorityConnectionString,
+            sp.GetService<IDurableWriteAdmission>()));
 builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>();
 builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
 builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(

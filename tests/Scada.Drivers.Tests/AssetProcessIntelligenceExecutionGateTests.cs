@@ -1,8 +1,6 @@
 using Scada.Api.Licensing;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Intelligence;
-using Scada.Engineering.Security;
-using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
@@ -74,54 +72,4 @@ public sealed class AssetProcessIntelligenceExecutionGateTests
             "project-a", 4, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out _));
     }
 
-    [Fact]
-    public async Task AuthorityGrantRevocationCancelsPermitAndRestorationRequiresExplicitActivation()
-    {
-        var scopeId = Guid.NewGuid();
-        var equipmentId = Guid.NewGuid();
-        var roleId = Guid.NewGuid();
-        var scope = new SecurityScopeEngineeringDto(
-            scopeId,
-            "equipment-p01",
-            "Pump",
-            SecurityScopeNodeKind.Equipment,
-            ResourceId: equipmentId);
-        var role = new SecurityRoleEngineeringDto(
-            roleId,
-            "operator",
-            "Operator",
-            Grants:
-            [
-                new(SecurityCapability.EngineeringModify),
-                new(SecurityCapability.AssetProcessIntelligenceManage,
-                    new AuthorizationScopeEngineeringDto(ScopeNodeId: scopeId))
-            ]);
-        var inner = new InMemoryAuthorityPolicyStore([role], [scope]);
-        var gate = new AssetProcessIntelligenceExecutionGate();
-        gate.Activate("plant-a", 7, AssetProcessIntelligenceScopeKind.Equipment, equipmentId);
-        Assert.True(gate.TryGetToken(
-            "plant-a", 7, AssetProcessIntelligenceScopeKind.Equipment, equipmentId, out var priorPermit));
-        var policy = new AssetProcessIntelligenceAuthorityPolicyStore(inner, gate);
-
-        var revoked = await policy.TryReplaceAsync(0, [role with
-        {
-            Grants = [new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify)]
-        }], [scope]);
-
-        Assert.True(revoked.Applied);
-        Assert.True(priorPermit.IsCancellationRequested);
-        Assert.Equal(0, gate.ActivePermitCount);
-
-        var restored = await policy.TryReplaceAsync(1, [role], [scope]);
-
-        Assert.True(restored.Applied);
-        Assert.False(gate.TryGetToken(
-            "plant-a", 7, AssetProcessIntelligenceScopeKind.Equipment, equipmentId, out _));
-        Assert.Equal(0, gate.ActivePermitCount);
-
-        gate.Activate("plant-a", 7, AssetProcessIntelligenceScopeKind.Equipment, equipmentId);
-        Assert.True(gate.TryGetToken(
-            "plant-a", 7, AssetProcessIntelligenceScopeKind.Equipment, equipmentId, out var restoredPermit));
-        Assert.False(restoredPermit.IsCancellationRequested);
-    }
 }

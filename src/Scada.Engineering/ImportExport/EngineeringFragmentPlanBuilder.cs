@@ -306,7 +306,8 @@ internal static class EngineeringFragmentPlanBuilder
             RichCommandDefinitions = (package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
                 .Where(item => Included(ImportEntityKind.RichCommandDefinition, item.CommandId)).ToArray(),
             DriverCommandBindings = (package.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>())
-                .Where(item => Included(ImportEntityKind.DriverCommandBinding, item.CommandId)).ToArray()
+                .Where(item => Included(ImportEntityKind.DriverCommandBinding, item.CommandId)).ToArray(),
+            AssetProcessIntelligence = null
         };
     }
 

@@ -6,6 +6,7 @@ import { DynamoAuthoringCatalogProvider } from '../../src/engineering/visual-edi
 import type { EngineeringSnapshot } from '../../src/engineering/types';
 import type { VisualEditorBindingSourceCatalogItem } from '../../src/engineering/visual-editor/visualEditorContracts';
 import { CanonicalVisualRenderer } from '../../src/engineering/visual-editor/CanonicalVisualRenderer';
+import { AssetProcessIntelligenceWorkspace } from '../../src/engineering/AssetProcessIntelligenceWorkspace';
 import type { DynamoEngineering } from '../../src/engineering/types';
 import { normalizeDynamoDefinitionParameterContract } from '../../src/runtime/visual-navigation/dynamoParameterWireContract';
 import { expandRuntimeDynamoVisuals, isExpandedRuntimeDynamo } from '../../src/runtime/visual-navigation/runtimeDynamoVisualProjection';
@@ -70,5 +71,15 @@ function MediaComposition() {
     ]}/>
   </>;
 }
+function IntelligenceWorkspace() {
+  const params = new URLSearchParams(location.search);
+  const language = params.get('locale');
+  const locale = language === 'en' || language === 'es' ? language : 'pt-BR';
+  const tags = params.has('empty') ? [] : [
+    { id: '15000000-0000-0000-0000-000000000101', name: 'Temperature', path: 'Plant.Pump.Temperature', dataType: 'Double', engineeringUnit: '°C', readOnly: true },
+    { id: '15000000-0000-0000-0000-000000000102', name: 'Flow', path: 'Plant.Pump.Flow', dataType: 'Double', engineeringUnit: 'm³/h', readOnly: true }
+  ];
+  return <AssetProcessIntelligenceWorkspace locale={locale} tags={tags}/>;
+}
 const query = new URLSearchParams(location.search);
-createRoot(document.getElementById('root')!).render(query.has('gallery') ? <Gallery/> : query.has('media') ? <MediaComposition/> : <AuthoringContracts/>);
+createRoot(document.getElementById('root')!).render(query.has('intelligence') ? <IntelligenceWorkspace/> : query.has('gallery') ? <Gallery/> : query.has('media') ? <MediaComposition/> : <AuthoringContracts/>);

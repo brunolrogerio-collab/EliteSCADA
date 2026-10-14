@@ -302,7 +302,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   if (section === 'historian') return <HistorianSection model={model} t={t}/>;
   if (section === 'reports') return <ReportDesignerWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale}/>;
-  if (section === 'intelligence') return <AssetProcessIntelligenceWorkspace locale={locale}/>;
+  if (section === 'intelligence') return <AssetProcessIntelligenceWorkspace locale={locale} tags={model.tags} onSaved={onReload}/>;
   if (section === 'highAvailability') return <HighAvailabilityAdminWorkspace locale={locale}/>;
   if (section === 'monitor') return <DevelopmentMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'tagMonitor') return <EngineeringTagMonitorWorkspace snapshot={snapshot} locale={locale}/>;

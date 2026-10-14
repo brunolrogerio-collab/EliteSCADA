@@ -46,7 +46,11 @@ public enum ImportEntityKind
     CapabilityEventReference,
     RichCommandDefinition,
     DriverCommandBinding,
-    AssetProcessIntelligenceScope
+    AssetProcessIntelligenceScope,
+    AssetProcessIntelligenceProfile,
+    AssetProcessIntelligenceAssignment,
+    AssetProcessIntelligenceProcessStage,
+    AssetProcessIntelligenceConfiguration
 }
 
 public enum SecurityScopeNodeKind
@@ -264,13 +268,65 @@ public sealed record AssetProcessIntelligenceScopeEngineeringDto(
     bool Active = false);
 
 /// <summary>
-/// Stage 1 scope selection for consultative Asset & Process Intelligence. Active is
-/// persisted with the canonical Engineering revision; execution still requires a
-/// separate process-local activation lease and a currently valid signed entitlement.
+/// A static reference from a reusable Intelligence profile to one canonical TAG.
+/// SignalRole is domain metadata only; it is not an Authority role/capability.
+/// </summary>
+public sealed record AssetProcessIntelligenceSignalEngineeringDto(
+    Guid Id,
+    string Key,
+    string SignalRole,
+    Guid TagId,
+    bool Required = true);
+
+public sealed record AssetProcessIntelligenceProfileEngineeringDto(
+    Guid Id,
+    string Key,
+    string Name,
+    IReadOnlyCollection<AssetProcessIntelligenceSignalEngineeringDto>? Signals = null);
+
+/// <summary>Stable association between a canonical Equipment and reusable profile.</summary>
+public sealed record AssetProcessIntelligenceAssignmentEngineeringDto(
+    Guid Id,
+    Guid EquipmentId,
+    Guid ProfileId);
+
+public sealed record AssetProcessIntelligenceProcessStageLinkEngineeringDto(
+    Guid AssignmentId,
+    int Order);
+
+public sealed record AssetProcessIntelligenceProcessStageEngineeringDto(
+    Guid Id,
+    string Key,
+    string Name,
+    int Order,
+    IReadOnlyCollection<AssetProcessIntelligenceProcessStageLinkEngineeringDto>? Links = null);
+
+public enum AssetProcessIntelligenceIssueEntity
+{
+    Configuration,
+    Scope,
+    Profile,
+    Assignment,
+    ProcessStage
+}
+
+/// <summary>
+/// Versioned Engineering configuration for Asset & Process Intelligence. Version 1
+/// contains only Stage 1 scopes. Version 2 adds static profiles, signal references,
+/// Equipment assignments and ordered process stages; it never stores sampled values.
 /// </summary>
 public sealed record AssetProcessIntelligenceEngineeringDto(
     int Version = 1,
-    IReadOnlyCollection<AssetProcessIntelligenceScopeEngineeringDto>? Scopes = null);
+    IReadOnlyCollection<AssetProcessIntelligenceScopeEngineeringDto>? Scopes = null,
+    IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto>? Profiles = null,
+    IReadOnlyCollection<AssetProcessIntelligenceAssignmentEngineeringDto>? Assignments = null,
+    IReadOnlyCollection<AssetProcessIntelligenceProcessStageEngineeringDto>? ProcessStages = null);
+
+public sealed record AssetProcessIntelligenceEngineeringIssue(
+    string Code,
+    string Message,
+    AssetProcessIntelligenceIssueEntity Entity = AssetProcessIntelligenceIssueEntity.Configuration,
+    Guid? ResourceId = null);
 
 public sealed record EquipmentSourceBindingEngineeringDto(
     Guid DataSourceId,

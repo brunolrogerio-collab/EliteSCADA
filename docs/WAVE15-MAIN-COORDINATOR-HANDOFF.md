@@ -1,3 +1,16 @@
+# CURRENT WAVE 15 DELTA — INTELLIGENCE STAGE 2 — 2026-10-14
+
+> Current live assignment: issue [#602](https://github.com/brunolrogerio-collab/EliteSCADA/issues/602), released by Main under parent #588. This entry supersedes older Stage 2 `PREPARED / NOT ACTIVE` text below. GitHub issue/PR state remains authoritative.
+
+- DEV-ID `DEV-INTELLIGENCE-STAGE2`; implementation branch `work/w15-intelligence-stage2`, cut exactly from `wave15/corrections-integration@ef009884683e0ed4eb82e65cf52d8722e29358b1`.
+- Stage 1 #601 is integrated. This Stage 2 slice extends the existing Engineering-owned Intelligence configuration to version 2 and package schema 25: reusable profiles, stable TAG-ID signal references, Equipment/profile assignments, and ordered process stages. Changes are configuration-only and are saved to Working through canonical Engineering authorization/audit; no analysis runs.
+- Draft PR [#603](https://github.com/brunolrogerio-collab/EliteSCADA/pull/603) is published from the isolated branch against `wave15/corrections-integration`. Its body carries the validation profile and local evidence; the final exact head/tree and exact-head T1 result will be recorded in the #602 handoff comment after GitHub validation completes. Main owns review and merge; implementer must not merge.
+- Focused .NET, Web, Chromium, compatibility, invalid-reference/no-partial-Apply, TAG rename, and fresh-workspace restore results belong in the #602 handoff. HA/protocol sidecars are not Stage 2 acceptance gates and must not be described as passed.
+- Product Owner selected the Stage 1 policy “resource-grant revocation cancels an active permit; restoring the grant does not renew it and requires explicit reactivation.” This behavior is deliberately not changed in the #602 Stage 2 branch because #602 freezes Stage 1 activation/permit semantics. Main should track/authorize it as a separate bounded correction before implementation.
+- The accepted contract is recorded in [ADR-010](ADR-010-ASSET-PROCESS-INTELLIGENCE-STAGE2.md). No selected-resource Fragment, `.escadalib`, CSV/XLSX, `.escadapkg` sidecar, secret, Authority, runtime-value, or Historian data payload is added.
+
+---
+
 # CURRENT WAVE 15 DELTA — TABULAR ENGINEERING EXCHANGE #597 POST-MERGE — 2026-10-13
 
 > This lane is separate from the Home/Building driver program and from its Matter experimental work. It completes issue #597 but does not close Wave 15.

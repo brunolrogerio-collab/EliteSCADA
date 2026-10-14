@@ -22,14 +22,25 @@ public sealed class InMemoryAssetProcessIntelligenceEngineeringRegistry(
         lock (_sync)
             return _configuration with
             {
-                Scopes = (_configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>()).ToArray()
+                Scopes = (_configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>()).ToArray(),
+                Profiles = (_configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+                    .Select(profile => profile with
+                    {
+                        Signals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>()).ToArray()
+                    }).ToArray(),
+                Assignments = (_configuration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>()).ToArray(),
+                ProcessStages = (_configuration.ProcessStages ?? Array.Empty<AssetProcessIntelligenceProcessStageEngineeringDto>())
+                    .Select(stage => stage with
+                    {
+                        Links = (stage.Links ?? Array.Empty<AssetProcessIntelligenceProcessStageLinkEngineeringDto>()).ToArray()
+                    }).ToArray()
             };
     }
 
     public void Replace(AssetProcessIntelligenceEngineeringDto configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
-        var issues = AssetProcessIntelligenceEngineeringValidator.Validate(configuration, null, null);
+        var issues = AssetProcessIntelligenceEngineeringValidator.Validate(configuration, null, null, null);
         if (issues.Count != 0)
             throw new InvalidDataException(string.Join("; ", issues.Select(issue => issue.Message)));
 
@@ -39,6 +50,34 @@ public sealed class InMemoryAssetProcessIntelligenceEngineeringRegistry(
                 Scopes = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
                     .OrderBy(scope => scope.Kind)
                     .ThenBy(scope => scope.ScopeId)
+                    .ToArray(),
+                Profiles = (configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+                    .Select(profile => profile with
+                    {
+                        Signals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                            .OrderBy(signal => signal.Key, StringComparer.Ordinal)
+                            .ThenBy(signal => signal.Id)
+                            .ToArray()
+                    })
+                    .OrderBy(profile => profile.Key, StringComparer.Ordinal)
+                    .ThenBy(profile => profile.Id)
+                    .ToArray(),
+                Assignments = (configuration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>())
+                    .OrderBy(assignment => assignment.EquipmentId)
+                    .ThenBy(assignment => assignment.ProfileId)
+                    .ThenBy(assignment => assignment.Id)
+                    .ToArray(),
+                ProcessStages = (configuration.ProcessStages ?? Array.Empty<AssetProcessIntelligenceProcessStageEngineeringDto>())
+                    .Select(stage => stage with
+                    {
+                        Links = (stage.Links ?? Array.Empty<AssetProcessIntelligenceProcessStageLinkEngineeringDto>())
+                            .OrderBy(link => link.Order)
+                            .ThenBy(link => link.AssignmentId)
+                            .ToArray()
+                    })
+                    .OrderBy(stage => stage.Order)
+                    .ThenBy(stage => stage.Key, StringComparer.Ordinal)
+                    .ThenBy(stage => stage.Id)
                     .ToArray()
             };
         changed?.Invoke();
@@ -72,23 +111,31 @@ public sealed class InMemoryAssetProcessIntelligenceEngineeringRegistry(
 
 public static class AssetProcessIntelligenceEngineeringValidator
 {
+    private static readonly System.Text.RegularExpressions.Regex StableKey = new(
+        "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Compiled);
+
     public static IReadOnlyCollection<AssetProcessIntelligenceEngineeringIssue> Validate(
         AssetProcessIntelligenceEngineeringDto? configuration,
         IReadOnlyCollection<EquipmentEngineeringDto>? equipment,
-        IReadOnlyCollection<LocationEngineeringDto>? locations)
+        IReadOnlyCollection<LocationEngineeringDto>? locations,
+        IReadOnlyCollection<TagEngineeringDto>? tags = null)
     {
         var issues = new List<AssetProcessIntelligenceEngineeringIssue>();
         if (configuration is null) return issues;
-        if (configuration.Version != 1)
+        if (configuration.Version is not (1 or 2))
         {
-            issues.Add(new("INTELLIGENCE_SCOPE_VERSION_UNSUPPORTED", "Asset & Process Intelligence scope configuration version must be 1."));
+            issues.Add(new("INTELLIGENCE_CONFIGURATION_VERSION_UNSUPPORTED", "Asset & Process Intelligence configuration version must be 1 or 2."));
             return issues;
         }
 
-        var equipmentIds = equipment?.Where(item => item?.Id is { } id && id != Guid.Empty)
-            .Select(item => item!.Id!.Value).ToHashSet();
-        var locationIds = locations?.Where(item => item?.Id is { } id && id != Guid.Empty)
-            .Select(item => item!.Id!.Value).ToHashSet();
+        if (configuration.Version == 1 &&
+            ((configuration.Profiles?.Count ?? 0) != 0 || (configuration.Assignments?.Count ?? 0) != 0 || (configuration.ProcessStages?.Count ?? 0) != 0))
+            issues.Add(new("INTELLIGENCE_V1_EXTENSIONS_NOT_SUPPORTED", "Version 1 Intelligence configuration may contain scopes only.", AssetProcessIntelligenceIssueEntity.Configuration));
+
+        var equipmentIds = UniqueResourceIds(equipment?.Where(item => item is not null).Select(item => item!.Id), "EQUIPMENT", AssetProcessIntelligenceIssueEntity.Assignment, issues);
+        var locationIds = UniqueResourceIds(locations?.Where(item => item is not null).Select(item => item!.Id), "LOCATION", AssetProcessIntelligenceIssueEntity.Scope, issues);
+        var tagIds = UniqueResourceIds(tags?.Where(item => item is not null).Select(item => item!.Id), "TAG", AssetProcessIntelligenceIssueEntity.Profile, issues);
         var seen = new HashSet<(AssetProcessIntelligenceScopeKind Kind, Guid Id)>();
 
         foreach (var scope in configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
@@ -108,11 +155,144 @@ public static class AssetProcessIntelligenceEngineeringValidator
                 _ => false
             };
             if (exists == false)
-                issues.Add(new("INTELLIGENCE_SCOPE_RESOURCE_NOT_FOUND", $"Intelligence scope '{scope.Kind}:{scope.ScopeId:D}' does not resolve to a stable resource in the canonical Engineering project."));
+                issues.Add(new("INTELLIGENCE_SCOPE_RESOURCE_NOT_FOUND", $"Intelligence scope '{scope.Kind}:{scope.ScopeId:D}' does not resolve to a stable resource in the canonical Engineering project.", AssetProcessIntelligenceIssueEntity.Scope, scope.ScopeId));
+        }
+
+        if (configuration.Version == 1) return issues;
+
+        var profiles = configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>();
+        var assignments = configuration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>();
+        var stages = configuration.ProcessStages ?? Array.Empty<AssetProcessIntelligenceProcessStageEngineeringDto>();
+        ValidateIdentitySet(profiles, profile => profile.Id, profile => profile.Key, "PROFILE", AssetProcessIntelligenceIssueEntity.Profile, issues);
+        ValidateIdentitySet(assignments, assignment => assignment.Id, _ => null, "ASSIGNMENT", AssetProcessIntelligenceIssueEntity.Assignment, issues);
+        ValidateIdentitySet(stages, stage => stage.Id, stage => stage.Key, "PROCESS_STAGE", AssetProcessIntelligenceIssueEntity.ProcessStage, issues);
+
+        var profileById = profiles.Where(profile => profile is not null && profile.Id != Guid.Empty).GroupBy(profile => profile.Id).ToDictionary(group => group.Key, group => group.ToArray());
+        var assignmentById = assignments.Where(assignment => assignment is not null && assignment.Id != Guid.Empty).GroupBy(assignment => assignment.Id).ToDictionary(group => group.Key, group => group.ToArray());
+        var profileKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var profile in profiles)
+        {
+            if (profile is null) continue;
+            ValidateStableKey(profile.Key, "PROFILE", AssetProcessIntelligenceIssueEntity.Profile, profile.Id, issues);
+            if (!string.IsNullOrWhiteSpace(profile.Key) && !profileKeys.Add(profile.Key.Trim()))
+                issues.Add(new("INTELLIGENCE_PROFILE_KEY_DUPLICATE", $"Profile key '{profile.Key}' is duplicated.", AssetProcessIntelligenceIssueEntity.Profile, profile.Id));
+            if (string.IsNullOrWhiteSpace(profile.Name) || profile.Name.Trim().Length > 128)
+                issues.Add(new("INTELLIGENCE_PROFILE_NAME_INVALID", "A profile requires a display name of 1 to 128 characters.", AssetProcessIntelligenceIssueEntity.Profile, profile.Id));
+
+            var seenSignalIds = new HashSet<Guid>();
+            var seenSignalKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var signal in profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+            {
+                if (signal is null || signal.Id == Guid.Empty)
+                {
+                    issues.Add(new("INTELLIGENCE_SIGNAL_IDENTITY_INVALID", "Every profile signal requires a stable non-empty identity.", AssetProcessIntelligenceIssueEntity.Profile, profile.Id));
+                    continue;
+                }
+                if (!seenSignalIds.Add(signal.Id))
+                    issues.Add(new("INTELLIGENCE_SIGNAL_ID_DUPLICATE", $"Signal identity '{signal.Id:D}' is duplicated in profile '{profile.Key}'.", AssetProcessIntelligenceIssueEntity.Profile, signal.Id));
+                ValidateStableKey(signal.Key, "SIGNAL", AssetProcessIntelligenceIssueEntity.Profile, signal.Id, issues);
+                if (!string.IsNullOrWhiteSpace(signal.Key) && !seenSignalKeys.Add(signal.Key.Trim()))
+                    issues.Add(new("INTELLIGENCE_SIGNAL_KEY_DUPLICATE", $"Signal key '{signal.Key}' is duplicated in profile '{profile.Key}'.", AssetProcessIntelligenceIssueEntity.Profile, signal.Id));
+                if (string.IsNullOrWhiteSpace(signal.SignalRole) || signal.SignalRole.Trim().Length > 64)
+                    issues.Add(new("INTELLIGENCE_SIGNAL_ROLE_INVALID", "A signal requires domain-role metadata of 1 to 64 characters.", AssetProcessIntelligenceIssueEntity.Profile, signal.Id));
+                if (signal.TagId == Guid.Empty)
+                    issues.Add(new("INTELLIGENCE_SIGNAL_TAG_ID_INVALID", $"Signal '{signal.Key}' requires a stable TAG identity.", AssetProcessIntelligenceIssueEntity.Profile, signal.Id));
+                else if (tagIds?.Contains(signal.TagId) == false)
+                    issues.Add(new("INTELLIGENCE_SIGNAL_TAG_NOT_FOUND", $"Signal '{signal.Key}' references TAG '{signal.TagId:D}', which is missing or ambiguous in the canonical Engineering package.", AssetProcessIntelligenceIssueEntity.Profile, signal.Id));
+            }
+        }
+
+        var assignmentPairs = new HashSet<(Guid EquipmentId, Guid ProfileId)>();
+        foreach (var assignment in assignments)
+        {
+            if (assignment is null) continue;
+            if (assignment.EquipmentId == Guid.Empty || equipmentIds?.Contains(assignment.EquipmentId) == false)
+                issues.Add(new("INTELLIGENCE_ASSIGNMENT_EQUIPMENT_NOT_FOUND", $"Assignment '{assignment.Id:D}' references Equipment '{assignment.EquipmentId:D}', which is missing or ambiguous.", AssetProcessIntelligenceIssueEntity.Assignment, assignment.Id));
+            if (assignment.ProfileId == Guid.Empty || !profileById.ContainsKey(assignment.ProfileId))
+                issues.Add(new("INTELLIGENCE_ASSIGNMENT_PROFILE_NOT_FOUND", $"Assignment '{assignment.Id:D}' references missing or ambiguous profile '{assignment.ProfileId:D}'.", AssetProcessIntelligenceIssueEntity.Assignment, assignment.Id));
+            if (!assignmentPairs.Add((assignment.EquipmentId, assignment.ProfileId)))
+                issues.Add(new("INTELLIGENCE_ASSIGNMENT_DUPLICATE", $"Equipment/profile assignment '{assignment.EquipmentId:D}:{assignment.ProfileId:D}' is duplicated.", AssetProcessIntelligenceIssueEntity.Assignment, assignment.Id));
+        }
+
+        var stageOrders = new HashSet<int>();
+        var stageKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var stage in stages)
+        {
+            if (stage is null) continue;
+            ValidateStableKey(stage.Key, "PROCESS_STAGE", AssetProcessIntelligenceIssueEntity.ProcessStage, stage.Id, issues);
+            if (!string.IsNullOrWhiteSpace(stage.Key) && !stageKeys.Add(stage.Key.Trim()))
+                issues.Add(new("INTELLIGENCE_PROCESS_STAGE_KEY_DUPLICATE", $"Process stage key '{stage.Key}' is duplicated.", AssetProcessIntelligenceIssueEntity.ProcessStage, stage.Id));
+            if (string.IsNullOrWhiteSpace(stage.Name) || stage.Name.Trim().Length > 128)
+                issues.Add(new("INTELLIGENCE_PROCESS_STAGE_NAME_INVALID", "A process stage requires a display name of 1 to 128 characters.", AssetProcessIntelligenceIssueEntity.ProcessStage, stage.Id));
+            if (stage.Order < 0 || !stageOrders.Add(stage.Order))
+                issues.Add(new("INTELLIGENCE_PROCESS_STAGE_ORDER_INVALID", $"Process stage order '{stage.Order}' must be non-negative and unique.", AssetProcessIntelligenceIssueEntity.ProcessStage, stage.Id));
+
+            var linkOrders = new HashSet<int>();
+            var linkedAssignments = new HashSet<Guid>();
+            foreach (var link in stage.Links ?? Array.Empty<AssetProcessIntelligenceProcessStageLinkEngineeringDto>())
+            {
+                if (link is null || link.AssignmentId == Guid.Empty || !assignmentById.ContainsKey(link.AssignmentId))
+                    issues.Add(new("INTELLIGENCE_PROCESS_STAGE_ASSIGNMENT_NOT_FOUND", $"Process stage '{stage.Key}' references missing or ambiguous assignment.", AssetProcessIntelligenceIssueEntity.ProcessStage, stage.Id));
+                else if (!linkedAssignments.Add(link.AssignmentId))
+                    issues.Add(new("INTELLIGENCE_PROCESS_STAGE_ASSIGNMENT_DUPLICATE", $"Assignment '{link.AssignmentId:D}' appears more than once in process stage '{stage.Key}'.", AssetProcessIntelligenceIssueEntity.ProcessStage, stage.Id));
+                if (link is not null && (link.Order < 0 || !linkOrders.Add(link.Order)))
+                    issues.Add(new("INTELLIGENCE_PROCESS_STAGE_LINK_ORDER_INVALID", $"Link order in process stage '{stage.Key}' must be non-negative and unique.", AssetProcessIntelligenceIssueEntity.ProcessStage, stage.Id));
+            }
         }
 
         return issues;
     }
-}
 
-public sealed record AssetProcessIntelligenceEngineeringIssue(string Code, string Message);
+    private static HashSet<Guid>? UniqueResourceIds(
+        IEnumerable<Guid?>? values,
+        string label,
+        AssetProcessIntelligenceIssueEntity entity,
+        List<AssetProcessIntelligenceEngineeringIssue> issues)
+    {
+        if (values is null) return null;
+        var result = new HashSet<Guid>();
+        foreach (var id in values)
+        {
+            if (!id.HasValue || id.Value == Guid.Empty) continue;
+            if (!result.Add(id.Value))
+                issues.Add(new($"INTELLIGENCE_{label}_REFERENCE_AMBIGUOUS", $"Stable {label} identity '{id.Value:D}' resolves to more than one canonical resource.", entity, id.Value));
+        }
+        return result;
+    }
+
+    private static void ValidateIdentitySet<T>(
+        IReadOnlyCollection<T> items,
+        Func<T, Guid> id,
+        Func<T, string?>? key,
+        string label,
+        AssetProcessIntelligenceIssueEntity entity,
+        List<AssetProcessIntelligenceEngineeringIssue> issues)
+    {
+        var seenIds = new HashSet<Guid>();
+        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in items)
+        {
+            if (item is null) continue;
+            var identity = id(item);
+            if (identity == Guid.Empty)
+                issues.Add(new($"INTELLIGENCE_{label}_ID_INVALID", $"Every {label} requires a stable non-empty identity.", entity));
+            else if (!seenIds.Add(identity))
+                issues.Add(new($"INTELLIGENCE_{label}_ID_DUPLICATE", $"{label} identity '{identity:D}' is duplicated.", entity, identity));
+            if (key is null) continue;
+            var itemKey = key(item);
+            if (!string.IsNullOrWhiteSpace(itemKey) && !seenKeys.Add(itemKey.Trim()))
+                issues.Add(new($"INTELLIGENCE_{label}_KEY_DUPLICATE", $"{label} key '{itemKey}' is duplicated.", entity, identity == Guid.Empty ? null : identity));
+        }
+    }
+
+    private static void ValidateStableKey(
+        string? key,
+        string label,
+        AssetProcessIntelligenceIssueEntity entity,
+        Guid resourceId,
+        List<AssetProcessIntelligenceEngineeringIssue> issues)
+    {
+        if (key is null || !StableKey.IsMatch(key) || key != key.Trim())
+            issues.Add(new($"INTELLIGENCE_{label}_KEY_INVALID", $"{label} key must be 1 to 64 ASCII letters, digits, dots, underscores or hyphens, start with a letter or digit, and contain no surrounding whitespace.", entity, resourceId == Guid.Empty ? null : resourceId));
+    }
+}

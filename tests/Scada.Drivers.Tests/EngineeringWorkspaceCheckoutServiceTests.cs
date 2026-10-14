@@ -5,6 +5,7 @@ using Scada.Api.Runtime;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Intelligence;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
 using Scada.Security.Authorization;
@@ -81,6 +82,49 @@ public sealed class EngineeringWorkspaceCheckoutServiceTests
         Assert.Equal(targetTagId, exported.Tags.Single().Id);
         Assert.DoesNotContain(exported.Tags, x => x.Path == "Demo.Tank01.Level");
         Assert.Single(exported.DataSources ?? Array.Empty<DataSourceEngineeringDto>());
+    }
+
+    [Fact]
+    public async Task CheckoutAsync_RestoresVersion2IntelligenceAcrossFreshWorkspaceHydration()
+    {
+        var tagId = Guid.Parse("53000000-0000-0000-0000-000000000001");
+        var equipmentId = Guid.Parse("53000000-0000-0000-0000-000000000002");
+        var profileId = Guid.Parse("53000000-0000-0000-0000-000000000003");
+        var assignmentId = Guid.Parse("53000000-0000-0000-0000-000000000004");
+        var stageId = Guid.Parse("53000000-0000-0000-0000-000000000005");
+        var config = new AssetProcessIntelligenceEngineeringDto(
+            Version: 2,
+            Profiles: [new(profileId, "pump-profile", "Pump", [new(Guid.NewGuid(), "temperature", "process", tagId)])],
+            Assignments: [new(assignmentId, equipmentId, profileId)],
+            ProcessStages: [new(stageId, "treatment", "Treatment", 0, [new(assignmentId, 0)])]);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [new TagEngineeringDto(tagId, "Temperature", "Plant.Pump.Temperature", TagDataType.Double, EngineeringUnit: "°C")],
+            Array.Empty<AlarmEngineeringDto>(),
+            Equipment: [new EquipmentEngineeringDto(equipmentId, "Plant.Pump", "Pump")],
+            AssetProcessIntelligence: config);
+        var revision = Snapshot(19, "intelligence-process", "Intelligence Process", package);
+        var store = new SingleSnapshotStore(revision);
+
+        using var firstWorkspace = new EngineeringWorkspace(seedDemo: false);
+        var firstExchange = CreateExchange(firstWorkspace);
+        var firstCheckout = await new EngineeringWorkspaceCheckoutService(store, firstExchange, firstWorkspace)
+            .CheckoutAsync(revision.ProjectKey, revision.Revision);
+
+        using var restartedWorkspace = new EngineeringWorkspace(seedDemo: false);
+        var restartedExchange = CreateExchange(restartedWorkspace);
+        var restartedCheckout = await new EngineeringWorkspaceCheckoutService(store, restartedExchange, restartedWorkspace)
+            .CheckoutAsync(revision.ProjectKey, revision.Revision);
+
+        Assert.True(firstCheckout!.CheckedOut);
+        Assert.True(restartedCheckout!.CheckedOut);
+        var restored = restartedExchange.ExportPackage().AssetProcessIntelligence!;
+        Assert.Equal(2, restored.Version);
+        Assert.Equal(JsonSerializer.Serialize(config.Profiles), JsonSerializer.Serialize(restored.Profiles));
+        Assert.Equal(JsonSerializer.Serialize(config.Assignments), JsonSerializer.Serialize(restored.Assignments));
+        Assert.Equal(JsonSerializer.Serialize(config.ProcessStages), JsonSerializer.Serialize(restored.ProcessStages));
     }
 
     [Fact]

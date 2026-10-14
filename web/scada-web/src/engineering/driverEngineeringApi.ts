@@ -107,6 +107,58 @@ export type DriverDiscoveryCandidateView = Readonly<{
   suggestedSettings?: Record<string, string> | null;
   metadata?: Record<string, string> | null;
   issues?: readonly DriverEngineeringIssueView[] | null;
+  materialization?: DriverMaterializationCandidateView | null;
+}>;
+
+export type DriverMaterializationRoleBindingView = Readonly<{
+  role: string;
+  tagCandidateId?: string | null;
+  commandCandidateId?: string | null;
+}>;
+
+export type DriverMaterializationCapabilityCandidateView = Readonly<{
+  capabilityId: string;
+  kind: string;
+  bindings?: readonly DriverMaterializationRoleBindingView[] | null;
+  metadata?: Record<string, string> | null;
+  version: number;
+}>;
+
+export type DriverMaterializationTagCandidateView = Readonly<{
+  candidateId: string;
+  name: string;
+  path: string;
+  dataType: string | number;
+  portableAddress?: string | null;
+  readOnly: boolean;
+  engineeringUnit?: string | null;
+  metadata?: Record<string, string> | null;
+}>;
+
+export type DriverMaterializationCommandCandidateView = Readonly<{
+  candidateId: string;
+  key: string;
+  name: string;
+  value: string;
+  targetTagCandidateId?: string | null;
+  metadata?: Record<string, string> | null;
+}>;
+
+export type DriverMaterializationEquipmentCandidateView = Readonly<{
+  candidateId: string;
+  path: string;
+  name: string;
+  stableDeviceIdentity: string;
+  sourceRole?: string | null;
+  locationPlaceholder?: string | null;
+  capabilities?: readonly DriverMaterializationCapabilityCandidateView[] | null;
+  metadata?: Record<string, string> | null;
+}>;
+
+export type DriverMaterializationCandidateView = Readonly<{
+  equipment: DriverMaterializationEquipmentCandidateView;
+  tags?: readonly DriverMaterializationTagCandidateView[] | null;
+  commands?: readonly DriverMaterializationCommandCandidateView[] | null;
 }>;
 
 export type DriverBrowseNodeView = Readonly<{

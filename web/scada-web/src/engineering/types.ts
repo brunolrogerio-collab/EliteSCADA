@@ -725,6 +725,7 @@ export type EquipmentEngineering = {
   locationId?: string | null;
   sourceBindings?: EquipmentSourceBindingEngineering[] | null;
   capabilities?: EquipmentCapabilityEngineering[] | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type DynamoEngineering = {

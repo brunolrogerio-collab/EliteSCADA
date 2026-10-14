@@ -321,6 +321,46 @@ public sealed class HomeCommonS1EngineeringTests
     }
 
     [Fact]
+    public void Apply_RejectsInvalidLocationWithoutMutatingWorkingRegistries()
+    {
+        var dataSourceId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var locationId = Guid.NewGuid();
+        var tags = new InMemoryTagRegistry();
+        var dataSources = new InMemoryDataSourceEngineeringRegistry();
+        var assets = new InMemoryEngineeringAssetRegistry();
+        var commands = new InMemoryCommandEngineeringRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var service = new EngineeringExchangeService(
+            tags,
+            alarms,
+            dataSources,
+            assets,
+            new InMemoryEngineeringViewRegistry(),
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            commands,
+            new InMemoryGatewayEngineeringRegistry());
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [new TagEngineeringDto(tagId, "State", "Home.Device.State", TagDataType.Boolean, DataSourceId: dataSourceId)],
+            [],
+            DataSources: [new DataSourceEngineeringDto(dataSourceId, "home-device", "Home device", "test.driver")],
+            Equipment: [new EquipmentEngineeringDto(Guid.NewGuid(), "Home.Device", "Device", LocationId: locationId)],
+            Locations: [new LocationEngineeringDto(locationId, "Room", ParentLocationId: locationId, Kind: "AreaRoom")]);
+
+        var result = service.Apply(package, ImportMode.CreateAndUpdate);
+
+        Assert.Contains(result.Issues, issue => issue.IsError && issue.Code == "LOCATION_PARENT_SELF");
+        Assert.Empty(dataSources.Snapshot());
+        Assert.Empty(tags.Snapshot());
+        Assert.Empty(assets.SnapshotLocations());
+        Assert.Empty(assets.SnapshotEquipment());
+        Assert.Empty(commands.Snapshot());
+    }
+
+    [Fact]
     public void ProjectPackage_RoundTripsHomeCommonReferences()
     {
         var dataSourceId = Guid.NewGuid();

@@ -99,6 +99,61 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
     }
 
     [Fact]
+    public async Task Stage2ConfigurationEndpointSavesStaticConfigurationAndPreservesStage1Scopes()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"));
+        var profileId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var stageId = Guid.NewGuid();
+        var request = new AssetProcessIntelligenceConfigurationRequest(
+            [new(profileId, "pump-profile", "Pump profile",
+                [new(Guid.NewGuid(), "temperature", "process", api.TagId, Required: true)])],
+            [new(assignmentId, api.EquipmentId, profileId)],
+            [new(stageId, "treatment", "Treatment", 0, [new(assignmentId, 0)])]);
+
+        using var saved = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath, request);
+        using var statusResponse = await api.Client.GetAsync(EndpointHarness.ScopesPath);
+        var status = await statusResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var configuration = api.Workspace.AssetProcessIntelligence.Snapshot();
+
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
+        Assert.Equal(2, configuration.Version);
+        Assert.Single(configuration.Scopes!);
+        Assert.False(Assert.Single(configuration.Scopes!).Active);
+        Assert.Single(configuration.Profiles!);
+        Assert.Equal(api.TagId, Assert.Single(configuration.Profiles!.Single().Signals!).TagId);
+        Assert.Single(configuration.Assignments!);
+        Assert.Equal(0, Assert.Single(configuration.ProcessStages!).Order);
+        Assert.True(api.Workspace.Describe().IsDirty);
+        Assert.Contains(status.GetProperty("tags").EnumerateArray(), tag => tag.GetProperty("id").GetGuid() == api.TagId);
+        Assert.Equal(0, api.ProcessWriteCalls);
+        var reconfiguredScopes = await api.Client.PutAsJsonAsync(EndpointHarness.ScopesPath,
+            new AssetProcessIntelligenceScopeConfigurationRequest(
+                [new AssetProcessIntelligenceScopeSelection(AssetProcessIntelligenceScopeKind.Equipment, api.EquipmentId)]));
+        Assert.Equal(HttpStatusCode.OK, reconfiguredScopes.StatusCode);
+        Assert.Equal(2, api.Workspace.AssetProcessIntelligence.Snapshot().Version);
+        Assert.Single(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!);
+        var audit = await api.Audit.QueryAsync(action: AuditActions.AssetProcessIntelligenceConfigurationConfigure);
+        Assert.Contains(audit, item => item.Outcome == AuditOutcome.Succeeded && item.TargetId == EndpointHarness.ProjectKey);
+    }
+
+    [Fact]
+    public async Task Stage2ConfigurationEndpointRequiresEngineeringModify()
+    {
+        await using var api = await EndpointHarness.StartAsync(
+            CreateVerification("valid"),
+            engineeringModifyGranted: false);
+
+        using var response = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            new AssetProcessIntelligenceConfigurationRequest([], [], []));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(1, api.Workspace.AssetProcessIntelligence.Snapshot().Version);
+        Assert.Empty(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!);
+    }
+
+    [Fact]
     public async Task AuthorizedActivationPersistsScopeAndArmsPermit_ThenPausePersistsAndCancels()
     {
         await using var api = await EndpointHarness.StartAsync(
@@ -173,6 +228,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
     {
         public const string ProjectKey = "intelligence-stage1-test";
         public const string ScopesPath = "/api/engineering/asset-process-intelligence/scopes";
+        public const string ConfigurationPath = "/api/engineering/asset-process-intelligence/configuration";
 
         private readonly WebApplication _app;
         private readonly IEngineeringProjectPersistenceService? _persistence;
@@ -181,8 +237,11 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             WebApplication app,
             HttpClient client,
             Guid equipmentId,
+            Guid tagId,
+            EngineeringWorkspace workspace,
             AssetProcessIntelligenceExecutionGate gate,
             IEngineeringRuntimeCoordinator runtime,
+            InMemoryAuditSink audit,
             IEngineeringProjectPersistenceService? persistence,
             IEngineeringExchangeService? exchange,
             IReadOnlyCollection<string> routes)
@@ -192,16 +251,22 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             _exchange = exchange;
             Client = client;
             EquipmentId = equipmentId;
+            TagId = tagId;
+            Workspace = workspace;
             Gate = gate;
             Runtime = runtime;
+            Audit = audit;
             Routes = routes;
             ActivatePath = $"{ScopesPath}/Equipment/{equipmentId:D}/activate";
         }
 
         public HttpClient Client { get; }
         public Guid EquipmentId { get; }
+        public Guid TagId { get; }
+        public EngineeringWorkspace Workspace { get; }
         public AssetProcessIntelligenceExecutionGate Gate { get; }
         public IEngineeringRuntimeCoordinator Runtime { get; }
+        public InMemoryAuditSink Audit { get; }
         public int ProcessWriteCalls => (Runtime as TestRuntimeCoordinator)?.ProcessWriteCalls ?? 0;
         public IReadOnlyCollection<string> Routes { get; }
         public string ActivatePath { get; }
@@ -215,9 +280,11 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         {
             var workspace = new EngineeringWorkspace(seedDemo: false);
             var equipmentId = Guid.NewGuid();
+            var tagId = Guid.NewGuid();
             var otherEquipmentId = Guid.NewGuid();
             workspace.Assets.UpsertEquipment(new EquipmentEngineeringDto(equipmentId, "Plant.Pump", "Pump"));
             workspace.Assets.UpsertEquipment(new EquipmentEngineeringDto(otherEquipmentId, "Plant.Fan", "Fan"));
+            workspace.Tags.Register(new TagDefinition(tagId, "Temperature", "Plant.Pump.Temperature", TagDataType.Double, null, "°C", null, true));
             workspace.AssetProcessIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Scopes:
             [new(AssetProcessIntelligenceScopeKind.Equipment, equipmentId)]));
             workspace.SetCheckout(ProjectKey, "Stage 1 contract test", 1, DateTimeOffset.UtcNow);
@@ -236,10 +303,9 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             var gate = new AssetProcessIntelligenceExecutionGate();
             IEngineeringRuntimeCoordinator runtime = new TestRuntimeCoordinator(ProjectKey, 1);
             IEngineeringProjectPersistenceService? persistence = null;
-            IEngineeringExchangeService? exchange = null;
+            IEngineeringExchangeService? exchange = CreateExchange(workspace);
             if (includeActivationPipeline)
             {
-                exchange = CreateExchange(workspace);
                 var seeded = new EngineeringProjectSnapshot(
                     1,
                     ProjectKey,
@@ -275,6 +341,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             builder.Services.AddSingleton(workspace);
             builder.Services.AddSingleton<IEngineeringAssetRegistry>(workspace.Assets);
             builder.Services.AddSingleton<IAssetProcessIntelligenceEngineeringRegistry>(workspace.AssetProcessIntelligence);
+            builder.Services.AddSingleton(exchange!);
             builder.Services.AddSingleton<IProductLicenseService>(new TestProductLicenseService(verification));
             builder.Services.AddSingleton(gate);
             builder.Services.AddSingleton(new RuntimeHighAvailabilityService(builder.Configuration));
@@ -321,8 +388,11 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                 app,
                 new HttpClient { BaseAddress = new Uri(address) },
                 equipmentId,
+                tagId,
+                workspace,
                 gate,
                 runtime,
+                sink,
                 persistence,
                 exchange,
                 routes);

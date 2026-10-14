@@ -26,7 +26,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 24;
+    public const int CurrentSchemaVersion = 25;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -315,6 +315,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         if (package.SchemaVersion > CurrentSchemaVersion)
             throw new InvalidDataException(
                 $"Schema version {package.SchemaVersion} is newer than supported version {CurrentSchemaVersion}.");
+        if (package.SchemaVersion < 25 && package.AssetProcessIntelligence?.Version >= 2)
+            throw new InvalidDataException("Asset & Process Intelligence configuration version 2 requires Engineering package schema version 25 or newer.");
 
         var normalized = package with
         {
@@ -370,6 +372,16 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     {
         _ = EngineeringLockContract.Normalize(package.EngineeringLock);
         var items = new List<ImportPreviewItem>();
+        if (package.SchemaVersion < 25 && package.AssetProcessIntelligence?.Version >= 2)
+        {
+            var issue = new ImportIssue(
+                "INTELLIGENCE_SCHEMA_VERSION_MISMATCH",
+                "Asset & Process Intelligence configuration version 2 requires Engineering package schema version 25 or newer.",
+                ImportEntityKind.AssetProcessIntelligenceConfiguration,
+                "asset-process-intelligence",
+                true);
+            items.Add(new ImportPreviewItem(ImportEntityKind.AssetProcessIntelligenceConfiguration, "asset-process-intelligence", ImportOperation.Error, [issue]));
+        }
         if (package.RuntimePresentation is { Version: not 1 })
         {
             items.Add(new ImportPreviewItem(
@@ -435,7 +447,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _reportHandler.Preview(package, mode, items);
         _mediaSourceHandler.Preview(package, mode, items);
         _driverInteractionHandler.Preview(package, mode, items);
-        PreviewAssetProcessIntelligence(package, items);
+        PreviewAssetProcessIntelligence(package, mode, items);
         _securityScopeHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
         PreviewOperationalHmiReferences(package, items);
@@ -580,34 +592,92 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
 
     private void PreviewAssetProcessIntelligence(
         EngineeringPackage package,
+        ImportMode mode,
         List<ImportPreviewItem> items)
     {
         var incoming = package.AssetProcessIntelligence;
         if (incoming is null) return;
 
-        var equipment = _assets.SnapshotEquipment()
-            .Concat(package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
-            .GroupBy(item => item.Id)
-            .Select(group => group.Last())
-            .ToArray();
-        var locations = _assets.SnapshotLocations()
-            .Concat(package.Locations ?? Array.Empty<LocationEngineeringDto>())
-            .GroupBy(item => item.Id)
-            .Select(group => group.Last())
-            .ToArray();
-        var issues = AssetProcessIntelligenceEngineeringValidator.Validate(incoming, equipment, locations)
-            .Select(issue => new ImportIssue(
+        var currentTags = _tags.Snapshot().Select(EngineeringDtoMapper.ToDto).ToArray();
+        var tags = BuildProspectiveResources(
+            currentTags, package.Tags ?? Array.Empty<TagEngineeringDto>(), item => item.Id, mode,
+            ImportEntityKind.Tag, items);
+        var equipment = BuildProspectiveResources(
+            _assets.SnapshotEquipment(), package.Equipment ?? Array.Empty<EquipmentEngineeringDto>(), item => item.Id, mode,
+            ImportEntityKind.Equipment, items);
+        var locations = BuildProspectiveResources(
+            _assets.SnapshotLocations(), package.Locations ?? Array.Empty<LocationEngineeringDto>(), item => item.Id, mode,
+            ImportEntityKind.Location, items);
+        var validationIssues = AssetProcessIntelligenceEngineeringValidator.Validate(incoming, equipment, locations, tags);
+        foreach (var group in validationIssues.GroupBy(issue => ImportKind(issue.Entity)))
+        {
+            var issues = group.Select(issue => new ImportIssue(
                 issue.Code,
                 issue.Message,
-                ImportEntityKind.AssetProcessIntelligenceScope,
-                "asset-process-intelligence",
-                true))
+                group.Key,
+                issue.ResourceId?.ToString("D") ?? "asset-process-intelligence",
+                true)).ToArray();
+            items.Add(new ImportPreviewItem(group.Key, "asset-process-intelligence", ImportOperation.Error, issues));
+        }
+        if (validationIssues.Count == 0)
+            items.Add(new ImportPreviewItem(ImportEntityKind.AssetProcessIntelligenceConfiguration, "asset-process-intelligence", ImportOperation.Update, Array.Empty<ImportIssue>()));
+    }
+
+    private static ImportEntityKind ImportKind(AssetProcessIntelligenceIssueEntity entity) => entity switch
+    {
+        AssetProcessIntelligenceIssueEntity.Scope => ImportEntityKind.AssetProcessIntelligenceScope,
+        AssetProcessIntelligenceIssueEntity.Profile => ImportEntityKind.AssetProcessIntelligenceProfile,
+        AssetProcessIntelligenceIssueEntity.Assignment => ImportEntityKind.AssetProcessIntelligenceAssignment,
+        AssetProcessIntelligenceIssueEntity.ProcessStage => ImportEntityKind.AssetProcessIntelligenceProcessStage,
+        _ => ImportEntityKind.AssetProcessIntelligenceConfiguration
+    };
+
+    private static IReadOnlyCollection<T> BuildProspectiveResources<T>(
+        IReadOnlyCollection<T> current,
+        IReadOnlyCollection<T> incoming,
+        Func<T, Guid?> identity,
+        ImportMode mode,
+        ImportEntityKind entityKind,
+        List<ImportPreviewItem> items)
+    {
+        var result = new Dictionary<Guid, T>();
+        foreach (var item in current)
+        {
+            var id = identity(item);
+            if (id is { } stableId && stableId != Guid.Empty)
+            {
+                if (!result.TryAdd(stableId, item))
+                    items.Add(new ImportPreviewItem(entityKind, stableId.ToString("D"), ImportOperation.Error,
+                        [new ImportIssue("INTELLIGENCE_CANONICAL_RESOURCE_ID_AMBIGUOUS", $"Canonical {entityKind} identity '{stableId:D}' is ambiguous before import.", entityKind, stableId.ToString("D"), true)]));
+            }
+        }
+
+        var incomingById = incoming
+            .Select(item => (Item: item, Id: identity(item)))
+            .Where(entry => entry.Id is { } id && id != Guid.Empty)
+            .GroupBy(entry => entry.Id!.Value)
             .ToArray();
-        items.Add(new ImportPreviewItem(
-            ImportEntityKind.AssetProcessIntelligenceScope,
-            "asset-process-intelligence",
-            issues.Length == 0 ? ImportOperation.Update : ImportOperation.Error,
-            issues));
+        foreach (var group in incomingById)
+        {
+            if (group.Count() > 1)
+            {
+                items.Add(new ImportPreviewItem(entityKind, group.Key.ToString("D"), ImportOperation.Error,
+                    [new ImportIssue("INTELLIGENCE_IMPORTED_RESOURCE_ID_AMBIGUOUS", $"Imported {entityKind} identity '{group.Key:D}' is duplicated.", entityKind, group.Key.ToString("D"), true)]));
+                continue;
+            }
+
+            var exists = result.ContainsKey(group.Key);
+            var operation = mode switch
+            {
+                ImportMode.CreateOnly => exists ? ImportOperation.Skip : ImportOperation.Create,
+                ImportMode.UpdateExisting => exists ? ImportOperation.Update : ImportOperation.Skip,
+                ImportMode.CreateAndUpdate => exists ? ImportOperation.Update : ImportOperation.Create,
+                _ => ImportOperation.Error
+            };
+            if (operation is ImportOperation.Create or ImportOperation.Update)
+                result[group.Key] = group.Single().Item;
+        }
+        return result.Values.ToArray();
     }
 
     private void PreviewOperationalHmiReferences(

@@ -34,6 +34,136 @@
   margin: 0;
 }
 
+.asset-process-intelligence__authoring {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.asset-process-intelligence__authoring-header,
+.asset-process-intelligence__section-heading,
+.asset-process-intelligence__stage-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.asset-process-intelligence__authoring-header h2,
+.asset-process-intelligence__section-heading h3,
+.asset-process-intelligence__section-heading h4 {
+  margin: 0;
+}
+
+.asset-process-intelligence__authoring-header p,
+.asset-process-intelligence__section-heading p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted, #64748b);
+}
+
+.asset-process-intelligence__authoring-section {
+  display: grid;
+  gap: 0.8rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #cbd5e1);
+}
+
+.asset-process-intelligence__split {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.7fr) minmax(0, 2fr);
+  gap: 1rem;
+}
+
+.asset-process-intelligence__choice-list {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+}
+
+.asset-process-intelligence__choice-list > button,
+.asset-process-intelligence__stage-choice > button[role="option"] {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.7rem;
+  text-align: left;
+  color: var(--text, #17212b);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.45rem;
+  background: var(--surface, #fff);
+}
+
+.asset-process-intelligence__choice-list [aria-selected="true"] {
+  outline: 2px solid var(--accent, #1482b5);
+}
+
+.asset-process-intelligence__choice-list small {
+  color: var(--text-muted, #64748b);
+}
+
+.asset-process-intelligence__stage-choice > span,
+.asset-process-intelligence__row > span:last-child {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.asset-process-intelligence__editor {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__field-grid,
+.asset-process-intelligence__signal-form,
+.asset-process-intelligence__assignment-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.asset-process-intelligence__field-grid label,
+.asset-process-intelligence__signal-form label,
+.asset-process-intelligence__assignment-form label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__field-grid input,
+.asset-process-intelligence__signal-form input,
+.asset-process-intelligence__signal-form select,
+.asset-process-intelligence__assignment-form select {
+  min-width: 0;
+  width: 100%;
+}
+
+.asset-process-intelligence__checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem !important;
+  min-height: 2.5rem;
+}
+
+.asset-process-intelligence__danger,
+.asset-process-intelligence__missing {
+  color: var(--danger, #b42318) !important;
+}
+
+.asset-process-intelligence__authoring-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #cbd5e1);
+}
+
+.asset-process-intelligence__authoring-footer > span {
+  color: var(--text-muted, #64748b);
+}
+
 .asset-process-intelligence__list {
   display: grid;
   gap: 0.5rem;
@@ -74,8 +204,15 @@
 @media (max-width: 720px) {
   .asset-process-intelligence__scope-panel > header,
   .asset-process-intelligence__row,
-  .asset-process-intelligence__footer {
+  .asset-process-intelligence__footer,
+  .asset-process-intelligence__authoring-header,
+  .asset-process-intelligence__section-heading,
+  .asset-process-intelligence__authoring-footer {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .asset-process-intelligence__split {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

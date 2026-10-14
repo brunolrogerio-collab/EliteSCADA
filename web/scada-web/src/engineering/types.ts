@@ -286,6 +286,40 @@ export type TagEngineering = {
   historianCaptureProfileId?: string | null;
 };
 
+export type AssetProcessIntelligenceSignalEngineering = {
+  id: string;
+  key: string;
+  signalRole: string;
+  tagId: string;
+  required: boolean;
+};
+
+export type AssetProcessIntelligenceProfileEngineering = {
+  id: string;
+  key: string;
+  name: string;
+  signals: AssetProcessIntelligenceSignalEngineering[];
+};
+
+export type AssetProcessIntelligenceAssignmentEngineering = {
+  id: string;
+  equipmentId: string;
+  profileId: string;
+};
+
+export type AssetProcessIntelligenceProcessStageLinkEngineering = {
+  assignmentId: string;
+  order: number;
+};
+
+export type AssetProcessIntelligenceProcessStageEngineering = {
+  id: string;
+  key: string;
+  name: string;
+  order: number;
+  links: AssetProcessIntelligenceProcessStageLinkEngineering[];
+};
+
 export type AlarmEngineering = {
   id?: string;
   name: string;

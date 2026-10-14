@@ -11,6 +11,214 @@ namespace Scada.Drivers.Tests;
 public sealed class RuntimeHighAvailabilityTests
 {
     [Fact]
+    public async Task AuthorityPolicyReferenceFence_UsesMonotonicPendingAckAndCommitTransitions()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-fence-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock);
+            var initialized = await store.InitializeAsync("node-a");
+            Assert.True(initialized.Accepted);
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string digest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+            var pending = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch,
+                expectedCommittedVersion: 0, expectedCommittedDigest: null,
+                pendingVersion: 1, pendingDigest: digest);
+
+            Assert.True(pending.Accepted);
+            Assert.Equal(1, pending.Authority!.AuthorityPolicy!.PendingVersion);
+            Assert.Equal(digest, pending.Authority.AuthorityPolicy.PendingDigest);
+            Assert.Equal(0, pending.Authority.AuthorityPolicy.CommittedVersion);
+
+            var prematureCommit = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 1, digest);
+            Assert.False(prematureCommit.Accepted);
+            Assert.Equal("authority-policy-peer-ack-required", prematureCommit.ReasonCode);
+
+            var selfAcknowledgement = await store.AcknowledgeAuthorityPolicyUpdateAsync(
+                "node-a", reference.Epoch, 1, digest);
+            Assert.False(selfAcknowledgement.Accepted);
+            Assert.Equal("authority-policy-peer-identity-invalid", selfAcknowledgement.ReasonCode);
+
+            var acknowledgement = await store.AcknowledgeAuthorityPolicyUpdateAsync(
+                "node-b", reference.Epoch, 1, digest);
+            Assert.True(acknowledgement.Accepted);
+
+            var abortAfterPeerApply = await store.AbortAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 1, digest);
+            Assert.False(abortAfterPeerApply.Accepted);
+            Assert.Equal("authority-policy-peer-already-applied", abortAfterPeerApply.ReasonCode);
+
+            var committed = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 1, digest);
+            Assert.True(committed.Accepted);
+            Assert.Equal(1, committed.Authority!.AuthorityPolicy!.CommittedVersion);
+            Assert.Equal(digest, committed.Authority.AuthorityPolicy.CommittedDigest);
+            Assert.Null(committed.Authority.AuthorityPolicy.PendingVersion);
+            Assert.Null(committed.Authority.AuthorityPolicy.AcknowledgedVersion);
+
+            var stale = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch,
+                expectedCommittedVersion: 0, expectedCommittedDigest: null,
+                pendingVersion: 2, pendingDigest: digest);
+            Assert.False(stale.Accepted);
+            Assert.Equal("authority-policy-version-stale", stale.ReasonCode);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_ConcurrentWritersHaveOnePendingCasWinner()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-cas-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var firstStore = CreateReferenceStore(path, clock);
+            var secondStore = CreateReferenceStore(path, clock);
+            var initialized = await firstStore.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string firstDigest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+            const string secondDigest = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+            var results = await Task.WhenAll(
+                firstStore.BeginAuthorityPolicyUpdateAsync(
+                    "node-a", reference.LeaseId, reference.Epoch, 0, null, 1, firstDigest),
+                secondStore.BeginAuthorityPolicyUpdateAsync(
+                    "node-a", reference.LeaseId, reference.Epoch, 0, null, 1, secondDigest));
+
+            Assert.Single(results, result => result.Accepted);
+            Assert.Single(results, result => !result.Accepted && result.ReasonCode == "authority-policy-update-pending");
+            var persisted = await firstStore.ReadAsync();
+            Assert.Equal(1, persisted!.AuthorityPolicy!.PendingVersion);
+            Assert.Contains(persisted.AuthorityPolicy.PendingDigest, new[] { firstDigest, secondDigest });
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_OldEpochCannotCommitAfterFailover()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-epoch-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock);
+            var initialized = await store.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string digest = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+            var pending = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 0, null, 1, digest);
+            Assert.True(pending.Accepted);
+
+            clock.Advance(TimeSpan.FromSeconds(20));
+            var takeover = await store.ClaimExpiredAsync("node-b", reference.Epoch);
+            Assert.True(takeover.Accepted);
+
+            var staleCommit = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 1, digest);
+            Assert.False(staleCommit.Accepted);
+            Assert.Equal("reference-epoch-stale", staleCommit.ReasonCode);
+            var persisted = await store.ReadAsync();
+            Assert.Equal("node-b", persisted!.ActiveNodeId);
+            Assert.Equal(0, persisted.AuthorityPolicy!.CommittedVersion);
+            Assert.Equal(1, persisted.AuthorityPolicy.PendingVersion);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_LockFailureDoesNotPublishPendingState()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-lock-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock, useWallClock: true);
+            var initialized = await store.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string digest = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+            await using var heldLock = new FileStream(path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+
+            await Assert.ThrowsAsync<IOException>(() => store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 0, null, 1, digest));
+
+            await heldLock.DisposeAsync();
+            var persisted = await store.ReadAsync();
+            Assert.Null(persisted!.AuthorityPolicy);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_UpgradesLegacyReferenceOnNextLockedWrite()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-v1-upgrade-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var legacy = new RuntimeHaReferenceAuthority(
+                RuntimeHaReferenceAuthority.SchemaName,
+                SchemaVersion: 1,
+                "cluster-a",
+                TopologyVersion: 3,
+                Epoch: 1,
+                ActiveNodeId: "node-a",
+                LeaseId: Guid.NewGuid(),
+                LeaseUntilUtc: clock.UtcNow.AddMinutes(1),
+                UpdatedAtUtc: clock.UtcNow,
+                PreviousAuthorityFenced: true,
+                ReasonCode: "reference-initialized");
+            await File.WriteAllBytesAsync(path, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
+                legacy,
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
+
+            var store = CreateReferenceStore(path, clock);
+            var inMemoryUpgrade = await store.ReadAsync();
+            Assert.Equal(RuntimeHaReferenceAuthority.CurrentSchemaVersion, inMemoryUpgrade!.SchemaVersion);
+            Assert.Null(inMemoryUpgrade.AuthorityPolicy);
+
+            var renewed = await store.RenewAsync("node-a", legacy.LeaseId, legacy.Epoch);
+
+            Assert.True(renewed.Accepted);
+            var persisted = System.Text.Json.JsonSerializer.Deserialize<RuntimeHaReferenceAuthority>(
+                await File.ReadAllBytesAsync(path),
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            Assert.Equal(RuntimeHaReferenceAuthority.CurrentSchemaVersion, persisted!.SchemaVersion);
+            Assert.Null(persisted.AuthorityPolicy);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void HaOperationHistory_PersistsAcrossRestartAndTerminalizesOrphanedRunningOperation()
     {
         var directory = Path.Combine(
@@ -1047,6 +1255,29 @@ public sealed class RuntimeHighAvailabilityTests
                         new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://b.example.test", 1)
                     })
             });
+
+    private static FileRuntimeHaReferenceAuthorityStore CreateReferenceStore(
+        string referencePath,
+        MutableClock clock,
+        bool useWallClock = false)
+    {
+        var options = new RuntimeHaProtectionOptions(
+            Enabled: true,
+            AutomaticFailoverEnabled: true,
+            ReferencePath: Path.GetFullPath(referencePath),
+            LeaseDuration: TimeSpan.FromSeconds(10),
+            PollInterval: TimeSpan.FromMilliseconds(500),
+            ReadyWitnessMaximumAge: TimeSpan.FromMinutes(1),
+            ClockSkewSafetyMargin: TimeSpan.FromSeconds(1));
+        var service = new RuntimeHighAvailabilityService(
+            CreateTopology("node-a"),
+            () => clock.UtcNow,
+            externalIndustrialFenceRequired: true);
+        return new FileRuntimeHaReferenceAuthorityStore(
+            options,
+            service,
+            useWallClock ? () => DateTimeOffset.UtcNow : () => clock.UtcNow);
+    }
 
     private static RuntimeHaNodeReadinessEvidence Evidence(
         DateTimeOffset observedAtUtc,

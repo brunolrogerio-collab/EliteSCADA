@@ -79,13 +79,31 @@ public sealed record RuntimeHaReferenceAuthority(
     string ReasonCode)
 {
     public const string SchemaName = "elitescada.runtime-ha-reference-authority";
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
+
+    /// <summary>
+    /// Durable high-water mark for the separately fenced Stage 1 Intelligence
+    /// authority policy. Kept in the existing HA reference document so both
+    /// database topologies use the same cross-process CAS boundary.
+    /// </summary>
+    public RuntimeHaAuthorityPolicyFence? AuthorityPolicy { get; init; }
 
     public bool IsLiveAt(DateTimeOffset now) =>
         ActiveNodeId is not null &&
         LeaseId != Guid.Empty &&
         LeaseUntilUtc > now;
 }
+
+public sealed record RuntimeHaAuthorityPolicyFence(
+    long CommittedVersion,
+    string? CommittedDigest,
+    long? PendingVersion = null,
+    string? PendingDigest = null,
+    long? PendingEpoch = null,
+    string? PendingNodeId = null,
+    long? AcknowledgedVersion = null,
+    string? AcknowledgedDigest = null,
+    string? AcknowledgedNodeId = null);
 
 public sealed record RuntimeHaReferenceMutationResult(
     bool Accepted,
@@ -128,6 +146,39 @@ public interface IRuntimeHaReferenceAuthorityStore
         string targetNodeId,
         long expectedBreakEpoch,
         string reasonCode,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeHaReferenceMutationResult> BeginAuthorityPolicyUpdateAsync(
+        string nodeId,
+        Guid leaseId,
+        long expectedEpoch,
+        long expectedCommittedVersion,
+        string? expectedCommittedDigest,
+        long pendingVersion,
+        string pendingDigest,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeHaReferenceMutationResult> AcknowledgeAuthorityPolicyUpdateAsync(
+        string acknowledgingNodeId,
+        long expectedEpoch,
+        long pendingVersion,
+        string pendingDigest,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeHaReferenceMutationResult> CommitAuthorityPolicyUpdateAsync(
+        string nodeId,
+        Guid leaseId,
+        long expectedEpoch,
+        long pendingVersion,
+        string pendingDigest,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeHaReferenceMutationResult> AbortAuthorityPolicyUpdateAsync(
+        string nodeId,
+        Guid leaseId,
+        long expectedEpoch,
+        long pendingVersion,
+        string pendingDigest,
         CancellationToken cancellationToken = default);
 }
 
@@ -335,6 +386,201 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
             },
             cancellationToken);
 
+    public Task<RuntimeHaReferenceMutationResult> BeginAuthorityPolicyUpdateAsync(
+        string nodeId,
+        Guid leaseId,
+        long expectedEpoch,
+        long expectedCommittedVersion,
+        string? expectedCommittedDigest,
+        long pendingVersion,
+        string pendingDigest,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateAuthorityPolicyVersion(expectedCommittedVersion, nameof(expectedCommittedVersion));
+        ValidateAuthorityPolicyDigest(expectedCommittedDigest, allowNull: expectedCommittedVersion == 0, nameof(expectedCommittedDigest));
+        ValidateAuthorityPolicyVersion(pendingVersion, nameof(pendingVersion));
+        ValidateAuthorityPolicyDigest(pendingDigest, allowNull: false, nameof(pendingDigest));
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
+        if (leaseId == Guid.Empty) throw new ArgumentException("A live HA lease is required.", nameof(leaseId));
+
+        return MutateAsync(
+            current =>
+            {
+                if (current is null)
+                    return new(false, "reference-uninitialized", null);
+                var owner = ValidateAuthorityPolicyLease(current, nodeId, leaseId, expectedEpoch);
+                if (owner is not null) return new(false, owner, current);
+
+                var fence = GetAuthorityPolicyFence(current);
+                if (fence.PendingVersion.HasValue)
+                    return new(false, "authority-policy-update-pending", current);
+                if (fence.CommittedVersion != expectedCommittedVersion ||
+                    !DigestEquals(fence.CommittedDigest, expectedCommittedDigest))
+                    return new(false, "authority-policy-version-stale", current);
+                if (pendingVersion <= fence.CommittedVersion)
+                    return new(false, "authority-policy-version-not-monotonic", current);
+
+                var now = _utcNow();
+                var nextFence = fence with
+                {
+                    PendingVersion = pendingVersion,
+                    PendingDigest = pendingDigest.ToLowerInvariant(),
+                    PendingEpoch = expectedEpoch,
+                    PendingNodeId = nodeId.Trim(),
+                    AcknowledgedVersion = null,
+                    AcknowledgedDigest = null,
+                    AcknowledgedNodeId = null
+                };
+                var next = current with
+                {
+                    AuthorityPolicy = nextFence,
+                    UpdatedAtUtc = now,
+                    ReasonCode = "authority-policy-update-pending"
+                };
+                return new(true, "authority-policy-update-pending", next);
+            },
+            cancellationToken);
+    }
+
+    public Task<RuntimeHaReferenceMutationResult> AcknowledgeAuthorityPolicyUpdateAsync(
+        string acknowledgingNodeId,
+        long expectedEpoch,
+        long pendingVersion,
+        string pendingDigest,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(acknowledgingNodeId);
+        ValidateAuthorityPolicyVersion(pendingVersion, nameof(pendingVersion));
+        ValidateAuthorityPolicyDigest(pendingDigest, allowNull: false, nameof(pendingDigest));
+
+        return MutateAsync(
+            current =>
+            {
+                if (current is null)
+                    return new(false, "reference-uninitialized", null);
+                var fence = GetAuthorityPolicyFence(current);
+                if (fence.PendingVersion != pendingVersion ||
+                    !DigestEquals(fence.PendingDigest, pendingDigest) ||
+                    fence.PendingEpoch != expectedEpoch)
+                    return new(false, "authority-policy-pending-mismatch", current);
+                if (fence.PendingNodeId is null ||
+                    acknowledgingNodeId.Trim().Equals(fence.PendingNodeId, StringComparison.OrdinalIgnoreCase) ||
+                    !_highAvailability.Authority.Definition.Nodes.Any(node =>
+                        node.NodeId.Equals(acknowledgingNodeId.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    return new(false, "authority-policy-peer-identity-invalid", current);
+                if (current.Epoch != expectedEpoch ||
+                    !string.Equals(current.ActiveNodeId, fence.PendingNodeId, StringComparison.OrdinalIgnoreCase) ||
+                    current.LeaseUntilUtc <= _utcNow())
+                    return new(false, "authority-policy-writer-fenced", current);
+
+                var next = current with
+                {
+                    AuthorityPolicy = fence with
+                    {
+                        AcknowledgedVersion = pendingVersion,
+                        AcknowledgedDigest = pendingDigest.ToLowerInvariant(),
+                        AcknowledgedNodeId = acknowledgingNodeId.Trim()
+                    },
+                    UpdatedAtUtc = _utcNow(),
+                    ReasonCode = "authority-policy-peer-acknowledged"
+                };
+                return new(true, "authority-policy-peer-acknowledged", next);
+            },
+            cancellationToken);
+    }
+
+    public Task<RuntimeHaReferenceMutationResult> CommitAuthorityPolicyUpdateAsync(
+        string nodeId,
+        Guid leaseId,
+        long expectedEpoch,
+        long pendingVersion,
+        string pendingDigest,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
+        if (leaseId == Guid.Empty) throw new ArgumentException("A live HA lease is required.", nameof(leaseId));
+        ValidateAuthorityPolicyVersion(pendingVersion, nameof(pendingVersion));
+        ValidateAuthorityPolicyDigest(pendingDigest, allowNull: false, nameof(pendingDigest));
+
+        return MutateAsync(
+            current =>
+            {
+                if (current is null)
+                    return new(false, "reference-uninitialized", null);
+                var owner = ValidateAuthorityPolicyLease(current, nodeId, leaseId, expectedEpoch);
+                if (owner is not null) return new(false, owner, current);
+                var fence = GetAuthorityPolicyFence(current);
+                if (fence.PendingVersion != pendingVersion ||
+                    !DigestEquals(fence.PendingDigest, pendingDigest) ||
+                    fence.PendingEpoch != expectedEpoch)
+                    return new(false, "authority-policy-pending-mismatch", current);
+                if (fence.AcknowledgedVersion != pendingVersion ||
+                    !DigestEquals(fence.AcknowledgedDigest, pendingDigest) ||
+                    string.IsNullOrWhiteSpace(fence.AcknowledgedNodeId) ||
+                    fence.AcknowledgedNodeId.Equals(nodeId.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return new(false, "authority-policy-peer-ack-required", current);
+
+                var next = current with
+                {
+                    AuthorityPolicy = new RuntimeHaAuthorityPolicyFence(
+                        pendingVersion,
+                        pendingDigest.ToLowerInvariant()),
+                    UpdatedAtUtc = _utcNow(),
+                    ReasonCode = "authority-policy-update-committed"
+                };
+                return new(true, "authority-policy-update-committed", next);
+            },
+            cancellationToken);
+    }
+
+    public Task<RuntimeHaReferenceMutationResult> AbortAuthorityPolicyUpdateAsync(
+        string nodeId,
+        Guid leaseId,
+        long expectedEpoch,
+        long pendingVersion,
+        string pendingDigest,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
+        if (leaseId == Guid.Empty) throw new ArgumentException("A live HA lease is required.", nameof(leaseId));
+        ValidateAuthorityPolicyVersion(pendingVersion, nameof(pendingVersion));
+        ValidateAuthorityPolicyDigest(pendingDigest, allowNull: false, nameof(pendingDigest));
+
+        return MutateAsync(
+            current =>
+            {
+                if (current is null)
+                    return new(false, "reference-uninitialized", null);
+                var owner = ValidateAuthorityPolicyLease(current, nodeId, leaseId, expectedEpoch);
+                if (owner is not null) return new(false, owner, current);
+                var fence = GetAuthorityPolicyFence(current);
+                if (fence.PendingVersion != pendingVersion ||
+                    !DigestEquals(fence.PendingDigest, pendingDigest) ||
+                    fence.PendingEpoch != expectedEpoch)
+                    return new(false, "authority-policy-pending-mismatch", current);
+                if (fence.AcknowledgedVersion.HasValue)
+                    return new(false, "authority-policy-peer-already-applied", current);
+
+                var next = current with
+                {
+                    AuthorityPolicy = fence with
+                    {
+                        PendingVersion = null,
+                        PendingDigest = null,
+                        PendingEpoch = null,
+                        PendingNodeId = null,
+                        AcknowledgedVersion = null,
+                        AcknowledgedDigest = null,
+                        AcknowledgedNodeId = null
+                    },
+                    UpdatedAtUtc = _utcNow(),
+                    ReasonCode = "authority-policy-update-aborted"
+                };
+                return new(true, "authority-policy-update-aborted", next);
+            },
+            cancellationToken);
+    }
+
     private async Task<RuntimeHaReferenceMutationResult> MutateAsync(
         Func<RuntimeHaReferenceAuthority?, RuntimeHaReferenceMutationResult> mutation,
         CancellationToken cancellationToken)
@@ -351,8 +597,17 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
             if (!result.Accepted || result.Authority is null)
                 return result;
 
-            await PersistAsync(result.Authority, cancellationToken);
-            return result;
+            // HA lease/epoch updates must not erase the independently fenced
+            // Intelligence policy state when constructing a new reference row.
+            var next = result.Authority.AuthorityPolicy is null && current?.AuthorityPolicy is not null
+                ? result.Authority with { AuthorityPolicy = current.AuthorityPolicy }
+                : result.Authority;
+            Validate(next);
+            await PersistAsync(next, cancellationToken);
+            var readBack = await ReadCurrentAsync(cancellationToken);
+            if (readBack != next)
+                throw new IOException("HA reference write did not pass durable read-after-write verification.");
+            return result with { Authority = readBack };
         }
         finally
         {
@@ -372,6 +627,11 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
             var bytes = await File.ReadAllBytesAsync(path, cancellationToken);
             var value = JsonSerializer.Deserialize<RuntimeHaReferenceAuthority>(bytes, Json)
                 ?? throw new InvalidDataException("HA reference file is empty.");
+            // v1 references predate the Stage 1 Intelligence fence. Upgrade in
+            // memory; the next successful locked mutation persists schema v2.
+            if (value.SchemaVersion == 1 &&
+                string.Equals(value.Schema, RuntimeHaReferenceAuthority.SchemaName, StringComparison.Ordinal))
+                value = value with { SchemaVersion = RuntimeHaReferenceAuthority.CurrentSchemaVersion };
             Validate(value);
             return value;
         }
@@ -476,7 +736,79 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
         {
             throw new InvalidDataException("HA reference active node is not present in the configured topology.");
         }
+
+        if (value.AuthorityPolicy is { } policy)
+        {
+            if (policy.CommittedVersion < 0 ||
+                (policy.CommittedVersion > 0 && !IsAuthorityPolicyDigest(policy.CommittedDigest)) ||
+                (policy.CommittedDigest is not null && !IsAuthorityPolicyDigest(policy.CommittedDigest)))
+                throw new InvalidDataException("HA reference Authority policy committed fence is invalid.");
+
+            var hasPendingVersion = policy.PendingVersion.HasValue;
+            var hasPendingDetails = policy.PendingDigest is not null &&
+                policy.PendingEpoch.HasValue &&
+                !string.IsNullOrWhiteSpace(policy.PendingNodeId);
+            var pendingInvalid = hasPendingVersion != hasPendingDetails;
+            if (hasPendingVersion)
+            {
+                pendingInvalid |= policy.PendingVersion!.Value <= policy.CommittedVersion ||
+                    !IsAuthorityPolicyDigest(policy.PendingDigest) ||
+                    policy.PendingEpoch.GetValueOrDefault() < 1 ||
+                    !topology.Nodes.Any(node => node.NodeId.Equals(policy.PendingNodeId, StringComparison.OrdinalIgnoreCase));
+            }
+            if (pendingInvalid)
+                throw new InvalidDataException("HA reference Authority policy pending fence is invalid.");
+
+            var hasAcknowledgedVersion = policy.AcknowledgedVersion.HasValue;
+            var hasAcknowledgedDetails = policy.AcknowledgedDigest is not null &&
+                !string.IsNullOrWhiteSpace(policy.AcknowledgedNodeId);
+            var acknowledgementInvalid = hasAcknowledgedVersion != hasAcknowledgedDetails;
+            if (hasAcknowledgedVersion)
+            {
+                acknowledgementInvalid |= !hasPendingVersion ||
+                    policy.AcknowledgedVersion != policy.PendingVersion ||
+                    !DigestEquals(policy.AcknowledgedDigest, policy.PendingDigest) ||
+                    string.Equals(policy.AcknowledgedNodeId, policy.PendingNodeId, StringComparison.OrdinalIgnoreCase) ||
+                    !topology.Nodes.Any(node => node.NodeId.Equals(policy.AcknowledgedNodeId, StringComparison.OrdinalIgnoreCase));
+            }
+            if (acknowledgementInvalid)
+                throw new InvalidDataException("HA reference Authority policy peer acknowledgement is invalid.");
+        }
     }
+
+    private string? ValidateAuthorityPolicyLease(
+        RuntimeHaReferenceAuthority current,
+        string nodeId,
+        Guid leaseId,
+        long expectedEpoch)
+    {
+        if (current.Epoch != expectedEpoch) return "reference-epoch-stale";
+        if (!string.Equals(current.ActiveNodeId, nodeId.Trim(), StringComparison.OrdinalIgnoreCase) || current.LeaseId != leaseId)
+            return "reference-lease-mismatch";
+        if (current.LeaseUntilUtc <= _utcNow()) return "reference-lease-expired";
+        return null;
+    }
+
+    private static RuntimeHaAuthorityPolicyFence GetAuthorityPolicyFence(RuntimeHaReferenceAuthority current) =>
+        current.AuthorityPolicy ?? new RuntimeHaAuthorityPolicyFence(0, null);
+
+    private static bool DigestEquals(string? left, string? right) =>
+        string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private static void ValidateAuthorityPolicyVersion(long version, string parameterName)
+    {
+        if (version < 0) throw new ArgumentOutOfRangeException(parameterName);
+    }
+
+    private static void ValidateAuthorityPolicyDigest(string? digest, bool allowNull, string parameterName)
+    {
+        if (digest is null && allowNull) return;
+        if (!IsAuthorityPolicyDigest(digest))
+            throw new ArgumentException("Authority policy digest must be a SHA-256 hexadecimal value.", parameterName);
+    }
+
+    private static bool IsAuthorityPolicyDigest(string? digest) =>
+        digest is { Length: 64 } && digest.All(Uri.IsHexDigit);
 }
 
 public sealed record RuntimeHaProtectionDiagnostics(

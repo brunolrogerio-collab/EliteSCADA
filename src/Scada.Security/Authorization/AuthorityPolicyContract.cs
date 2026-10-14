@@ -26,7 +26,8 @@ public static class AuthorityPolicyContract
             [SecurityCapability.EngineeringView] = "EngineeringView",
             [SecurityCapability.HighAvailabilityObserve] = "HighAvailabilityObserve",
             [SecurityCapability.HighAvailabilityTransfer] = "HighAvailabilityTransfer",
-            [SecurityCapability.HighAvailabilityAdmin] = "HighAvailabilityAdmin"
+            [SecurityCapability.HighAvailabilityAdmin] = "HighAvailabilityAdmin",
+            [SecurityCapability.AssetProcessIntelligenceManage] = "AssetProcessIntelligenceManage"
         };
 
     private static readonly IReadOnlyDictionary<string, SecurityCapability> CapabilityById =
@@ -49,7 +50,8 @@ public static class AuthorityPolicyContract
             [SecurityCapability.EngineeringView] = "engineeringView",
             [SecurityCapability.HighAvailabilityObserve] = "highAvailabilityObserve",
             [SecurityCapability.HighAvailabilityTransfer] = "highAvailabilityTransfer",
-            [SecurityCapability.HighAvailabilityAdmin] = "highAvailabilityAdmin"
+            [SecurityCapability.HighAvailabilityAdmin] = "highAvailabilityAdmin",
+            [SecurityCapability.AssetProcessIntelligenceManage] = "assetProcessIntelligenceManage"
         };
 
     public static IReadOnlyCollection<string> CapabilityIds { get; } =

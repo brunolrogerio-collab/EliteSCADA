@@ -135,6 +135,8 @@ public sealed class SecurityScopeGraph
 
     public bool Contains(Guid scopeNodeId) => _byId.ContainsKey(scopeNodeId);
 
+    public SecurityScopeEngineeringDto? Find(Guid scopeNodeId) => _byId.GetValueOrDefault(scopeNodeId);
+
     public IReadOnlyCollection<Guid> Ancestors(Guid scopeNodeId)
     {
         if (!_byId.TryGetValue(scopeNodeId, out var node)) return Array.Empty<Guid>();
@@ -159,10 +161,12 @@ public sealed class SecurityScopeGraph
             SecurityScopeNodeKind.Tag => AuthorizationResourceKind.Tag,
             SecurityScopeNodeKind.Screen => AuthorizationResourceKind.Screen,
             SecurityScopeNodeKind.Command => AuthorizationResourceKind.Command,
+            SecurityScopeNodeKind.Location => AuthorizationResourceKind.Location,
             _ => default
         };
         return kind is SecurityScopeNodeKind.Equipment or SecurityScopeNodeKind.Tag or
-            SecurityScopeNodeKind.Screen or SecurityScopeNodeKind.Command;
+            SecurityScopeNodeKind.Screen or SecurityScopeNodeKind.Command or
+            SecurityScopeNodeKind.Location;
     }
 
     private static AuthorizationResourceKind ToResourceKind(SecurityScopeNodeKind kind)

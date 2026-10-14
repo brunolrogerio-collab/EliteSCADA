@@ -25,7 +25,8 @@ internal static class LicenseGeneratorCli
                 Optional(args, "--key-id") ?? ProductLicenseTrustAnchors.ProductionKeyId,
                 Optional(args, "--out") ?? "EliteSCADA.license",
                 Optional(args, "--license-id") ?? Guid.NewGuid().ToString("D"),
-                LicenseGenerationService.ParseOptionalDate(Optional(args, "--expires")));
+                LicenseGenerationService.ParseOptionalDate(Optional(args, "--expires")),
+                HasFlag(args, "--asset-process-intelligence"));
 
             var result = LicenseGenerationService.Generate(request);
             Console.WriteLine("EliteSCADA license generated successfully.");
@@ -36,6 +37,7 @@ internal static class LicenseGeneratorCli
             Console.WriteLine($"Interactive: {result.InteractiveSeats}");
             Console.WriteLine($"View Only  : {result.ViewOnlySeats}");
             Console.WriteLine($"HA Runtime : {(result.HaRuntime ? "enabled" : "disabled")}");
+            Console.WriteLine($"Asset & Process Intelligence: {(result.AssetProcessIntelligence ? "enabled" : "disabled")}");
             Console.WriteLine($"Key ID     : {result.KeyId}");
             Console.WriteLine($"Expires    : {(result.NotAfterUtc is null ? "never" : result.NotAfterUtc.Value.ToString("O", CultureInfo.InvariantCulture))}");
             Console.WriteLine($"Output     : {result.OutputPath}");
@@ -88,6 +90,7 @@ internal static class LicenseGeneratorCli
         Console.WriteLine("  --interactive <n>     Signed effective Interactive Runtime client total");
         Console.WriteLine("  --view-only <n>       Signed effective View Only Runtime client total");
         Console.WriteLine("  --ha-runtime          Authorize Runtime redundancy/HA on this machine");
+        Console.WriteLine("  --asset-process-intelligence  Authorize Asset & Process Intelligence on this machine (ESLIC3)");
         Console.WriteLine($"  --key-id <id>         Public verification key identifier. Default: {ProductLicenseTrustAnchors.ProductionKeyId}");
         Console.WriteLine("  --out <file>          Output license file. Default: EliteSCADA.license");
         Console.WriteLine("  --license-id <id>     Explicit license ID. Default: generated UUID");

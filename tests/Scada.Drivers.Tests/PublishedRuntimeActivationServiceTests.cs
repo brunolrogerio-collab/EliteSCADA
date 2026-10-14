@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Scada.Api.Licensing;
 using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Core.Alarms;
@@ -212,6 +213,43 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.Equal(snapshot.Revision, runtime.Describe().Revision);
         Assert.True(runtime.TryGetCurrent(tagId, out var value));
         Assert.Equal(456d, Convert.ToDouble(value!.Value));
+    }
+
+    [Fact]
+    public async Task ActivateRevisionAsync_FencesIntelligencePermitFromPreviousRuntimeRevision()
+    {
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>());
+        var snapshot = CreateSnapshot(package) with { Revision = 2, BasedOnRevision = 1 };
+        var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
+        var persistence = CreatePersistence(store, out var exchange);
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+        var intelligenceGate = new AssetProcessIntelligenceExecutionGate();
+        var scopeId = Guid.NewGuid();
+        intelligenceGate.Activate("plant-a", 1, AssetProcessIntelligenceScopeKind.Equipment, scopeId);
+        Assert.True(intelligenceGate.TryGetToken(
+            "plant-a", 1, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out var priorPermit));
+        var activation = new PublishedRuntimeActivationService(
+            persistence,
+            exchange,
+            runtime,
+            intelligenceGate: intelligenceGate);
+
+        var outcome = await activation.ActivateRevisionAsync("plant-a", 2, "revision-switch-test");
+
+        Assert.True(outcome.Activated);
+        Assert.Equal(2, runtime.Describe().Revision);
+        Assert.True(priorPermit.IsCancellationRequested);
+        Assert.Equal(0, intelligenceGate.ActivePermitCount);
+        Assert.False(intelligenceGate.TryGetToken(
+            "plant-a", 2, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out _));
     }
 
     [Fact]

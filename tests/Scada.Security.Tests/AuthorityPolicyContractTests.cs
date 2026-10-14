@@ -14,6 +14,9 @@ public sealed class AuthorityPolicyContractTests
         Assert.Equal("processValueWrite", AuthorityPolicyContract.GetEngineeringWireId(SecurityCapability.ProcessValueWrite));
         Assert.Contains("EngineeringView", AuthorityPolicyContract.CapabilityIds);
         Assert.Contains("HighAvailabilityObserve", AuthorityPolicyContract.CapabilityIds);
+        Assert.Equal("AssetProcessIntelligenceManage", AuthorityPolicyContract.GetCapabilityId(SecurityCapability.AssetProcessIntelligenceManage));
+        Assert.Equal("assetProcessIntelligenceManage", AuthorityPolicyContract.GetEngineeringWireId(SecurityCapability.AssetProcessIntelligenceManage));
+        Assert.Contains("AssetProcessIntelligenceManage", AuthorityPolicyContract.CapabilityIds);
         Assert.Equal(
             Enum.GetValues<SecurityCapability>().Length,
             AuthorityPolicyContract.CapabilityIds.Distinct(StringComparer.Ordinal).Count());
@@ -26,6 +29,8 @@ public sealed class AuthorityPolicyContractTests
         Assert.Equal(8, (int)SecurityCapability.EngineeringModify);
         Assert.Equal(10, (int)SecurityCapability.SystemAdmin);
         Assert.Equal(11, (int)SecurityCapability.EngineeringView);
+        Assert.Equal(14, (int)SecurityCapability.HighAvailabilityAdmin);
+        Assert.Equal(15, (int)SecurityCapability.AssetProcessIntelligenceManage);
 
         Assert.True(AuthorityPolicyContract.TryParseCapabilityId(
             "ProcessValueWrite",

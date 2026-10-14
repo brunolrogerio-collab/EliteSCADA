@@ -463,7 +463,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         {
             if (stored.Count != 0)
                 throw new InvalidDataException("Stored revision contains unexpected visual asset payload links.");
-            return EngineeringImportContext.Empty;
+            return new EngineeringImportContext(PreserveActivatedIntelligenceScopes: true);
         }
 
         var byAssetId = stored.ToDictionary(x => x.AssetId);
@@ -494,7 +494,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
             byHash[payload.Sha256] = payload;
         }
 
-        return new EngineeringImportContext(byHash);
+        return new EngineeringImportContext(byHash, PreserveActivatedIntelligenceScopes: true);
     }
 
     private static void ValidatePayloadAgainstMetadata(

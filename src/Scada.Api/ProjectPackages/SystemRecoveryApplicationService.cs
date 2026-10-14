@@ -201,7 +201,8 @@ public sealed class SystemRecoveryApplicationService(
             .Select(x => x.Sha256)
             .ToArray();
         var backupContext = new EngineeringImportContext(
-            workspace.VisualAssets.SnapshotPayloads(backupHashes));
+            workspace.VisualAssets.SnapshotPayloads(backupHashes),
+            PreserveActivatedIntelligenceScopes: true);
         var backupDescriptor = workspace.Describe();
 
         ClearWorkspace();

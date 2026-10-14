@@ -14,7 +14,8 @@ internal sealed record LicenseGenerationRequest(
     string KeyId,
     string OutputPath,
     string LicenseId,
-    DateTimeOffset? NotAfterUtc);
+    DateTimeOffset? NotAfterUtc,
+    bool AssetProcessIntelligence = false);
 
 internal sealed record LicenseGenerationResult(
     string LicenseId,
@@ -26,7 +27,8 @@ internal sealed record LicenseGenerationResult(
     bool HaRuntime,
     string KeyId,
     DateTimeOffset? NotAfterUtc,
-    string OutputPath);
+    string OutputPath,
+    bool AssetProcessIntelligence = false);
 
 internal static class LicenseGenerationService
 {
@@ -59,31 +61,50 @@ internal static class LicenseGenerationService
         using var privateKey = RSA.Create();
         privateKey.ImportFromPem(File.ReadAllText(privateKeyPath));
 
-        var payload = new EliteScadaLicenseV2Payload(
-            EliteScadaLicenseCodec.LicenseV2SchemaVersion,
-            licenseId,
-            machineRequest.MachineFingerprint,
-            input.Tier,
-            DateTimeOffset.UtcNow,
-            input.NotAfterUtc,
-            keyId,
-            input.ViewOnlySeats,
-            input.InteractiveSeats,
-            input.HaRuntime);
-        var signedLicense = EliteScadaLicenseCodec.CreateSignedLicenseV2(payload, privateKey);
+        var signedLicense = input.AssetProcessIntelligence
+            ? EliteScadaLicenseCodec.CreateSignedLicenseV3(
+                new EliteScadaLicenseV3Payload(
+                    EliteScadaLicenseCodec.LicenseV3SchemaVersion,
+                    licenseId,
+                    machineRequest.MachineFingerprint,
+                    input.Tier,
+                    DateTimeOffset.UtcNow,
+                    input.NotAfterUtc,
+                    keyId,
+                    input.ViewOnlySeats,
+                    input.InteractiveSeats,
+                    input.HaRuntime,
+                    AssetProcessIntelligence: true),
+                privateKey)
+            : EliteScadaLicenseCodec.CreateSignedLicenseV2(
+                new EliteScadaLicenseV2Payload(
+                    EliteScadaLicenseCodec.LicenseV2SchemaVersion,
+                    licenseId,
+                    machineRequest.MachineFingerprint,
+                    input.Tier,
+                    DateTimeOffset.UtcNow,
+                    input.NotAfterUtc,
+                    keyId,
+                    input.ViewOnlySeats,
+                    input.InteractiveSeats,
+                    input.HaRuntime),
+                privateKey);
         File.WriteAllText(fullOutputPath, signedLicense + Environment.NewLine);
 
         return new LicenseGenerationResult(
             licenseId,
             machineRequest.MachineFingerprint,
             input.Tier,
-            payload.SchemaVersion,
+            input.AssetProcessIntelligence
+                ? EliteScadaLicenseCodec.LicenseV3SchemaVersion
+                : EliteScadaLicenseCodec.LicenseV2SchemaVersion,
             input.InteractiveSeats,
             input.ViewOnlySeats,
             input.HaRuntime,
             keyId,
             input.NotAfterUtc,
-            fullOutputPath);
+            fullOutputPath,
+            input.AssetProcessIntelligence);
     }
 
     public static LicenseTier ParseTier(string value) => value.Trim().ToLowerInvariant() switch

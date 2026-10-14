@@ -12,6 +12,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.Historian;
 using Scada.Engineering.Interactions;
+using Scada.Engineering.Intelligence;
 using Scada.Engineering.Media;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
@@ -95,6 +96,7 @@ public sealed class EngineeringWorkspace : IDisposable
         VisualAssets = new InMemoryVisualAssetEngineeringRegistry(MarkDirty);
         Branding = new InMemoryApplicationBrandingEngineeringRegistry(MarkDirty);
         MediaSources = new InMemoryMediaSourceEngineeringRegistry(MarkDirty);
+        AssetProcessIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry(MarkDirty);
         if (seedDemo) SeedDemo();
     }
 
@@ -114,6 +116,7 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryVisualAssetEngineeringRegistry VisualAssets { get; }
     public InMemoryApplicationBrandingEngineeringRegistry Branding { get; }
     public InMemoryMediaSourceEngineeringRegistry MediaSources { get; }
+    public InMemoryAssetProcessIntelligenceEngineeringRegistry AssetProcessIntelligence { get; }
 
     public EngineeringWorkspaceDescriptor Describe()
     {
@@ -254,6 +257,7 @@ public sealed class EngineeringWorkspace : IDisposable
         VisualAssets.Clear();
         Branding.Clear();
         MediaSources.Clear();
+        AssetProcessIntelligence.Clear();
     }
 
     public void ResetToNeutral()

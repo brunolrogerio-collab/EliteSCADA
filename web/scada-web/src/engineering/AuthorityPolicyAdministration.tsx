@@ -138,7 +138,8 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
       trends: 'Trends',
       engineering: 'Engineering',
       users: 'Usuários / Sistema',
-      ha: 'HA'
+      ha: 'HA',
+      intelligence: 'Inteligência'
     }
   },
   en: {
@@ -201,7 +202,8 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
       trends: 'Trends',
       engineering: 'Engineering',
       users: 'Users / System',
-      ha: 'HA'
+      ha: 'HA',
+      intelligence: 'Intelligence'
     }
   },
   es: {
@@ -264,7 +266,8 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
       trends: 'Trends',
       engineering: 'Engineering',
       users: 'Usuarios / Sistema',
-      ha: 'HA'
+      ha: 'HA',
+      intelligence: 'Inteligencia'
     }
   }
 };

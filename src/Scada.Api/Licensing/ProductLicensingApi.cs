@@ -20,7 +20,8 @@ public sealed record ProductLicenseStatusProjection(
     int? ViewOnlySeats,
     int? InteractiveSeats,
     bool? HaRuntime,
-    string? Diagnostic);
+    string? Diagnostic,
+    bool? AssetProcessIntelligence = null);
 
 public static class ProductLicensingApi
 {
@@ -54,6 +55,7 @@ public static class ProductLicensingApi
             HttpContext context,
             ProductLicenseLifecycleCoordinator lifecycle,
             IProductLicenseService licensing,
+            AssetProcessIntelligenceExecutionGate intelligenceGate,
             ApiAuthorizationService security,
             ApiAuditService audit) =>
         {
@@ -71,6 +73,7 @@ public static class ProductLicensingApi
             try
             {
                 var result = await lifecycle.InstallOrReplaceAsync(request.LicenseCode, context.RequestAborted);
+                if (result.Succeeded) intelligenceGate.InvalidateAll();
                 await RecordLifecycleAsync(context, audit, authorization, action, result);
                 return result.Succeeded ? Results.Ok(new
                 {
@@ -93,6 +96,7 @@ public static class ProductLicensingApi
             HttpContext context,
             ProductLicenseLifecycleCoordinator lifecycle,
             IProductLicenseService licensing,
+            AssetProcessIntelligenceExecutionGate intelligenceGate,
             ApiAuthorizationService security,
             ApiAuditService audit) =>
         {
@@ -108,6 +112,7 @@ public static class ProductLicensingApi
             try
             {
                 var result = await lifecycle.RemoveAsync(context.RequestAborted);
+                if (result.Succeeded) intelligenceGate.InvalidateAll();
                 await RecordLifecycleAsync(context, audit, authorization,
                     AuditActions.ProductLicenseRemove, result);
                 return result.Succeeded ? Results.Ok(new
@@ -245,7 +250,8 @@ public static class ProductLicensingApi
             sessionEntitlements?.ViewOnlySeats,
             sessionEntitlements?.InteractiveSeats,
             sessionEntitlements?.HaRuntime,
-            verification.Diagnostic);
+            verification.Diagnostic,
+            verification.V3Entitlements?.AssetProcessIntelligence);
     }
 
     private static object DescribeRuntime(ProductRuntimeEntitlementStatus status) => new

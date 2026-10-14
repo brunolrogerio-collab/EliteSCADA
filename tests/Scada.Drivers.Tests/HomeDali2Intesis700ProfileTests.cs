@@ -31,7 +31,7 @@ public sealed class HomeDali2Intesis700ProfileTests
 
         var firstExportJson = first.Service.ExportJson();
         var firstExport = first.Service.ParseJson(firstExportJson);
-        AssertProfileBindings(firstExport);
+        AssertProfileBindings(firstExport, EngineeringExchangeService.CurrentSchemaVersion);
 
         using var second = CreateExchange();
         var secondPreview = second.Service.Preview(firstExport, ImportMode.CreateAndUpdate);
@@ -41,7 +41,7 @@ public sealed class HomeDali2Intesis700ProfileTests
 
         var secondExportJson = second.Service.ExportJson();
         var secondExport = second.Service.ParseJson(secondExportJson);
-        AssertProfileBindings(secondExport);
+        AssertProfileBindings(secondExport, EngineeringExchangeService.CurrentSchemaVersion);
 
         using var third = CreateExchange();
         var thirdPreview = third.Service.Preview(secondExport, ImportMode.CreateAndUpdate);
@@ -70,7 +70,8 @@ public sealed class HomeDali2Intesis700ProfileTests
         Assert.InRange(int.Parse(source.Settings["scanIntervalMilliseconds"]), 10, 600000);
         Assert.InRange(int.Parse(source.Settings["requestTimeoutMilliseconds"]), 50, 60000);
 
-        AssertProfileBindings(package);
+        Assert.Equal(23, package.SchemaVersion);
+        AssertProfileBindings(package, 23);
 
         var compilation = new EngineeringDriverCompiler().Compile(package);
         Assert.True(compilation.CanActivate, string.Join("\n", compilation.Issues.Select(x => x.Message)));
@@ -119,10 +120,10 @@ public sealed class HomeDali2Intesis700ProfileTests
         Assert.InRange(largestColorPoint, 0, ushort.MaxValue);
     }
 
-    private static void AssertProfileBindings(EngineeringPackage package)
+    private static void AssertProfileBindings(EngineeringPackage package, int expectedSchemaVersion)
     {
         Assert.Equal("scada.engineering", package.Schema);
-        Assert.Equal(23, package.SchemaVersion);
+        Assert.Equal(expectedSchemaVersion, package.SchemaVersion);
         Assert.Equal(13, package.Tags.Count);
         Assert.Empty(package.Alarms);
         Assert.Empty(package.Commands ?? Array.Empty<CommandEngineeringDto>());

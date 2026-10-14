@@ -5,7 +5,8 @@ public enum AuthorizationResourceKind
     Tag,
     Screen,
     Command,
-    Equipment
+    Equipment,
+    Location
 }
 
 public sealed record SecurityPrincipal(

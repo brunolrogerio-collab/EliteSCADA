@@ -76,7 +76,8 @@ public sealed class EngineeringWorkspaceCheckoutService(
                 .Select(x => x.Sha256)
                 .ToArray();
             var backupContext = new EngineeringImportContext(
-                workspace.VisualAssets.SnapshotPayloads(backupHashes));
+                workspace.VisualAssets.SnapshotPayloads(backupHashes),
+                PreserveActivatedIntelligenceScopes: true);
             var backupDescriptor = workspace.Describe();
             ImportResult apply;
 
@@ -142,7 +143,7 @@ public sealed class EngineeringWorkspaceCheckoutService(
         {
             if (stored.Count != 0)
                 throw new InvalidDataException("Stored revision contains unexpected visual asset payload links.");
-            return (package, EngineeringImportContext.Empty);
+            return (package, new EngineeringImportContext(PreserveActivatedIntelligenceScopes: true));
         }
 
         if (stored.Count != metadata.Count)
@@ -172,7 +173,7 @@ public sealed class EngineeringWorkspaceCheckoutService(
             byHash[payload.Sha256] = payload;
         }
 
-        return (package, new EngineeringImportContext(byHash));
+        return (package, new EngineeringImportContext(byHash, PreserveActivatedIntelligenceScopes: true));
     }
 
     private static ImportPreview PreviewInIsolation(

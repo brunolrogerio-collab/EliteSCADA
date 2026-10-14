@@ -16,5 +16,6 @@ public enum SecurityCapability
     EngineeringView = 11,
     HighAvailabilityObserve = 12,
     HighAvailabilityTransfer = 13,
-    HighAvailabilityAdmin = 14
+    HighAvailabilityAdmin = 14,
+    AssetProcessIntelligenceManage = 15
 }

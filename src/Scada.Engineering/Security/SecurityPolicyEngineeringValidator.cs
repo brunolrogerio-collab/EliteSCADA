@@ -1,4 +1,5 @@
 using Scada.Engineering.Contracts;
+using Scada.Security.Authorization;
 
 namespace Scada.Engineering.Security;
 
@@ -38,10 +39,48 @@ public static class SecurityPolicyEngineeringValidator
                     key));
 
             ValidateScope(grant.Scope, key, issues, scopeGraph, requiresStableScopeNode);
+            if (grant.Capability == SecurityCapability.AssetProcessIntelligenceManage)
+                ValidateIntelligenceManagerScope(grant.Scope, key, issues, scopeGraph);
             ValidateMetadata(grant.Metadata, key, $"grant {grant.Capability}", issues);
         }
 
         return issues;
+    }
+
+    private static void ValidateIntelligenceManagerScope(
+        AuthorizationScopeEngineeringDto? scope,
+        string roleKey,
+        List<ImportIssue> issues,
+        SecurityScopeGraph? scopeGraph)
+    {
+        if (scope?.ScopeNodeId is not { } scopeNodeId || scopeNodeId == Guid.Empty)
+        {
+            issues.Add(Error(
+                "INTELLIGENCE_MANAGER_SCOPE_REQUIRED",
+                "AssetProcessIntelligenceManage requires an explicit stable Equipment or Location scope; global grants are forbidden.",
+                roleKey));
+            return;
+        }
+
+        var node = scopeGraph?.Find(scopeNodeId);
+        if (node is null ||
+            node.Kind is not (SecurityScopeNodeKind.Equipment or SecurityScopeNodeKind.Location) ||
+            !node.ResourceId.HasValue || node.ResourceId == Guid.Empty)
+        {
+            issues.Add(Error(
+                "INTELLIGENCE_MANAGER_SCOPE_KIND_INVALID",
+                "AssetProcessIntelligenceManage may be granted only on a stable Equipment or Location Authority node.",
+                roleKey));
+        }
+
+        if (scope.Area is not null || scope.EquipmentPath is not null || scope.ScreenKey is not null ||
+            scope.TagPath is not null || scope.CommandKey is not null)
+        {
+            issues.Add(Error(
+                "INTELLIGENCE_MANAGER_SCOPE_LEGACY_DIMENSION_FORBIDDEN",
+                "AssetProcessIntelligenceManage must use only its stable Authority scope node.",
+                roleKey));
+        }
     }
 
     private static void ValidateScope(

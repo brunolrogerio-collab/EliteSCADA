@@ -1,5 +1,6 @@
 using Scada.Api.Runtime;
 using Scada.Api.Security;
+using Scada.Api.Licensing;
 using Scada.Core.Abstractions;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
@@ -64,7 +65,8 @@ public sealed class PublishedRuntimeActivationService(
     ActiveDriverInteractionRuntimeCatalog? driverInteractions = null,
     IRichCommandRuntime? richCommands = null,
     ApiAuthorizationService? authorization = null,
-    ApiAuditService? audit = null) : IPublishedRuntimeActivationService
+    ApiAuditService? audit = null,
+    AssetProcessIntelligenceExecutionGate? intelligenceGate = null) : IPublishedRuntimeActivationService
 {
     public async Task<PublishedRuntimeActivationOutcome> ActivateAsync(
         string projectKey,
@@ -285,7 +287,12 @@ public sealed class PublishedRuntimeActivationService(
         // successful committed activation may its Engineering Lock state replace the
         // protection state of the currently running application.
         if (runtimeResult.Activated && recordedActivation is not null)
+        {
             EngineeringLockAccess.Replace(exchange, package.EngineeringLock);
+            // A canonical activation replaces the process's only effective project
+            // revision. Fence permits from the previous project as well as old revisions.
+            intelligenceGate?.InvalidateAll();
+        }
 
         var lifecycle = await persistence.GetLifecycleAsync(
             snapshot.ProjectKey,

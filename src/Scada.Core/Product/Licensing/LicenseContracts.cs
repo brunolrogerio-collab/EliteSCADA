@@ -89,18 +89,42 @@ public sealed record EliteScadaLicenseV2Payload(
     int InteractiveSeats,
     bool HaRuntime);
 
+/// <summary>Signed ESLIC3 payload, extending ESLIC2 without changing its strict wire contract.</summary>
+public sealed record EliteScadaLicenseV3Payload(
+    int SchemaVersion,
+    string LicenseId,
+    string MachineFingerprint,
+    LicenseTier Tier,
+    DateTimeOffset IssuedAtUtc,
+    DateTimeOffset? NotAfterUtc,
+    string KeyId,
+    int ViewOnlySeats,
+    int InteractiveSeats,
+    bool HaRuntime,
+    bool AssetProcessIntelligence);
+
+public sealed record MachineLicenseV3Entitlements(
+    int ViewOnlySeats,
+    int InteractiveSeats,
+    bool HaRuntime,
+    bool AssetProcessIntelligence);
+
 public sealed record LicenseVerificationResult(
     LicenseState State,
     EliteScadaLicensePayload? License = null,
     string? Diagnostic = null,
-    MachineLicenseV2Entitlements? SessionEntitlements = null)
+    MachineLicenseV2Entitlements? SessionEntitlements = null,
+    MachineLicenseV3Entitlements? V3Entitlements = null)
 {
     public static LicenseVerificationResult Demo() => new(LicenseState.Demo);
     public static LicenseVerificationResult Invalid(string diagnostic) => new(LicenseState.Invalid, Diagnostic: diagnostic);
     public static LicenseVerificationResult Valid(
         EliteScadaLicensePayload license,
-        MachineLicenseV2Entitlements? sessionEntitlements = null) =>
-        new(LicenseState.Valid, license, SessionEntitlements: sessionEntitlements);
+        MachineLicenseV2Entitlements? sessionEntitlements = null,
+        MachineLicenseV3Entitlements? v3Entitlements = null) =>
+        new(LicenseState.Valid, license, SessionEntitlements: sessionEntitlements, V3Entitlements: v3Entitlements);
+
+    public bool HasAssetProcessIntelligence => V3Entitlements?.AssetProcessIntelligence == true;
 }
 
 public sealed record RunEntitlementDecision(
@@ -220,9 +244,11 @@ public static class EliteScadaLicenseCodec
 {
     public const int CurrentSchemaVersion = 1;
     public const int LicenseV2SchemaVersion = 2;
+    public const int LicenseV3SchemaVersion = 3;
     public const string RequestPrefix = "ESREQ1";
     public const string LicensePrefix = "ESLIC1";
     public const string LicenseV2Prefix = "ESLIC2";
+    public const string LicenseV3Prefix = "ESLIC3";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -245,6 +271,16 @@ public static class EliteScadaLicenseCodec
     };
 
     private static readonly HashSet<string> AllowedV2Properties = new(RequiredV2Properties, StringComparer.Ordinal)
+    {
+        "notAfterUtc"
+    };
+
+    private static readonly HashSet<string> RequiredV3Properties = new(RequiredV2Properties, StringComparer.Ordinal)
+    {
+        "assetProcessIntelligence"
+    };
+
+    private static readonly HashSet<string> AllowedV3Properties = new(RequiredV3Properties, StringComparer.Ordinal)
     {
         "notAfterUtc"
     };
@@ -314,6 +350,18 @@ public static class EliteScadaLicenseCodec
         return $"{LicenseV2Prefix}.{Base64UrlEncode(payloadBytes)}.{Base64UrlEncode(signature)}";
     }
 
+    /// <summary>Creates a signed, machine-bound ESLIC3 license with an explicit Intelligence entitlement.</summary>
+    public static string CreateSignedLicenseV3(EliteScadaLicenseV3Payload payload, RSA privateKey)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        ArgumentNullException.ThrowIfNull(privateKey);
+        ValidatePayload(payload);
+
+        var payloadBytes = JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions);
+        var signature = privateKey.SignData(payloadBytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+        return $"{LicenseV3Prefix}.{Base64UrlEncode(payloadBytes)}.{Base64UrlEncode(signature)}";
+    }
+
     public static LicenseVerificationResult VerifyLicense(
         string? licenseCode,
         string expectedMachineFingerprint,
@@ -338,6 +386,7 @@ public static class EliteScadaLicenseCodec
             {
                 LicensePrefix => VerifyV1(payloadBytes, signature, expectedMachineFingerprint, publicKeys, nowUtc),
                 LicenseV2Prefix => VerifyV2(payloadBytes, signature, expectedMachineFingerprint, publicKeys, nowUtc),
+                LicenseV3Prefix => VerifyV3(payloadBytes, signature, expectedMachineFingerprint, publicKeys, nowUtc),
                 _ => LicenseVerificationResult.Invalid("Installed license format is invalid.")
             };
         }
@@ -376,6 +425,24 @@ public static class EliteScadaLicenseCodec
             throw new ArgumentOutOfRangeException(nameof(payload), "View Only seat count cannot be negative.");
         if (payload.InteractiveSeats < 0)
             throw new ArgumentOutOfRangeException(nameof(payload), "Interactive seat count cannot be negative.");
+        _ = LicensingPolicy.MaximumTags(payload.Tier);
+    }
+
+    private static void ValidatePayload(EliteScadaLicenseV3Payload payload)
+    {
+        if (payload.SchemaVersion != LicenseV3SchemaVersion)
+            throw new ArgumentException("License v3 schema is unsupported.", nameof(payload));
+        if (string.IsNullOrWhiteSpace(payload.LicenseId))
+            throw new ArgumentException("License ID is required.", nameof(payload));
+        ValidateFingerprint(payload.MachineFingerprint);
+        if (string.IsNullOrWhiteSpace(payload.KeyId))
+            throw new ArgumentException("Signing key ID is required.", nameof(payload));
+        if (payload.NotAfterUtc is not null && payload.NotAfterUtc.Value <= payload.IssuedAtUtc)
+            throw new ArgumentException("License expiry must be later than issue time.", nameof(payload));
+        if (payload.ViewOnlySeats < 0)
+            throw new ArgumentOutOfRangeException(nameof(payload), "View Only seat count cannot be negative.");
+        if (payload.InteractiveSeats < 0)
+            throw new ArgumentOutOfRangeException(nameof(payload), "Interactive Runtime client total cannot be negative.");
         _ = LicensingPolicy.MaximumTags(payload.Tier);
     }
 
@@ -442,6 +509,46 @@ public static class EliteScadaLicenseCodec
                 payload.HaRuntime));
     }
 
+    private static LicenseVerificationResult VerifyV3(
+        byte[] payloadBytes,
+        byte[] signature,
+        string expectedMachineFingerprint,
+        IReadOnlyDictionary<string, RSA> publicKeys,
+        DateTimeOffset nowUtc)
+    {
+        var payload = ParseV3PayloadStrict(payloadBytes);
+        ValidatePayload(payload);
+        var invalid = ValidateSignatureMachineAndExpiry(
+            payload.KeyId,
+            payload.MachineFingerprint,
+            payload.NotAfterUtc,
+            payloadBytes,
+            signature,
+            expectedMachineFingerprint,
+            publicKeys,
+            nowUtc);
+        if (invalid is not null)
+            return invalid;
+
+        var canonical = new EliteScadaLicensePayload(
+            payload.SchemaVersion,
+            payload.LicenseId,
+            payload.MachineFingerprint,
+            payload.Tier,
+            payload.IssuedAtUtc,
+            payload.NotAfterUtc,
+            payload.KeyId);
+        var v3 = new MachineLicenseV3Entitlements(
+            payload.ViewOnlySeats,
+            payload.InteractiveSeats,
+            payload.HaRuntime,
+            payload.AssetProcessIntelligence);
+        return LicenseVerificationResult.Valid(
+            canonical,
+            new MachineLicenseV2Entitlements(payload.ViewOnlySeats, payload.InteractiveSeats, payload.HaRuntime),
+            v3);
+    }
+
     /// <summary>
     /// ESLIC2 is a versioned signed contract. Validate its raw JSON before materializing
     /// CLR defaults so omission cannot be mistaken for an explicit zero or false value.
@@ -497,6 +604,66 @@ public static class EliteScadaLicenseCodec
 
         return JsonSerializer.Deserialize<EliteScadaLicenseV2Payload>(payloadBytes, JsonOptions)
             ?? throw new JsonException("Installed license payload is missing.");
+    }
+
+    private static EliteScadaLicenseV3Payload ParseV3PayloadStrict(byte[] payloadBytes)
+    {
+        using var document = JsonDocument.Parse(payloadBytes, new JsonDocumentOptions
+        {
+            AllowTrailingCommas = false,
+            CommentHandling = JsonCommentHandling.Disallow
+        });
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+            throw new JsonException("ESLIC3 payload must be a JSON object.");
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            if (!AllowedV3Properties.Contains(property.Name))
+                throw new JsonException($"ESLIC3 payload contains unrecognized property '{property.Name}'.");
+            if (!seen.Add(property.Name))
+                throw new JsonException($"ESLIC3 payload repeats property '{property.Name}'.");
+
+            switch (property.Name)
+            {
+                case "schemaVersion":
+                case "viewOnlySeats":
+                case "interactiveSeats":
+                    RequireNumber(property);
+                    _ = property.Value.GetInt32();
+                    break;
+                case "licenseId":
+                case "machineFingerprint":
+                case "tier":
+                case "issuedAtUtc":
+                case "keyId":
+                    RequireString(property);
+                    break;
+                case "haRuntime":
+                    RequireBoolean(property, "ESLIC3 haRuntime");
+                    break;
+                case "assetProcessIntelligence":
+                    RequireBoolean(property, "ESLIC3 assetProcessIntelligence");
+                    break;
+                case "notAfterUtc":
+                    if (property.Value.ValueKind is not JsonValueKind.String and not JsonValueKind.Null)
+                        throw new JsonException("ESLIC3 notAfterUtc must be a JSON string or null.");
+                    break;
+            }
+        }
+
+        var missing = RequiredV3Properties.Where(property => !seen.Contains(property)).ToArray();
+        if (missing.Length > 0)
+            throw new JsonException($"ESLIC3 payload is missing required property '{missing[0]}'.");
+
+        return JsonSerializer.Deserialize<EliteScadaLicenseV3Payload>(payloadBytes, JsonOptions)
+            ?? throw new JsonException("Installed license payload is missing.");
+    }
+
+    private static void RequireBoolean(JsonProperty property, string label)
+    {
+        if (property.Value.ValueKind is not JsonValueKind.True and not JsonValueKind.False)
+            throw new JsonException($"{label} must be a JSON boolean.");
     }
 
     private static void RequireNumber(JsonProperty property)

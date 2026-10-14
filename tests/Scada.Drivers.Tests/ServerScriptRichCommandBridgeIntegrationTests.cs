@@ -232,7 +232,7 @@ public sealed class ServerScriptRichCommandBridgeIntegrationTests
                 return declareCommand ? diagnostics.CompletedCount >= 1 : diagnostics.FaultedCount >= 1;
             },
             TimeSpan.FromSeconds(5),
-            () => manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError);
+            () => JsonSerializer.Serialize(manager.Snapshot()));
 
         Assert.Equal(0, commandRuntime.InvocationCount);
         if (!declareCommand)

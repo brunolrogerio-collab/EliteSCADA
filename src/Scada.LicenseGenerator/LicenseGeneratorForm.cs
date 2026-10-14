@@ -9,6 +9,7 @@ internal sealed class LicenseGeneratorForm : Form
     private readonly NumericUpDown _interactiveSeats = new() { Minimum = 0, Maximum = 100000, Value = 2 };
     private readonly NumericUpDown _viewOnlySeats = new() { Minimum = 0, Maximum = 100000, Value = 2 };
     private readonly CheckBox _haRuntime = new() { Text = "Licenciar redundância / HA Runtime", AutoSize = true };
+    private readonly CheckBox _assetProcessIntelligence = new() { Text = "Licenciar Asset & Process Intelligence (ESLIC3)", AutoSize = true };
     private readonly TextBox _privateKeyPath = new();
     private readonly TextBox _keyId = new() { Text = ProductLicenseTrustAnchors.ProductionKeyId };
     private readonly TextBox _licenseId = new() { Text = Guid.NewGuid().ToString("D") };
@@ -80,6 +81,7 @@ internal sealed class LicenseGeneratorForm : Form
         AddField(fields, "Clientes Interactive", _interactiveSeats);
         AddField(fields, "Clientes View Only", _viewOnlySeats);
         AddField(fields, "Redundância", _haRuntime);
+        AddField(fields, "Inteligência", _assetProcessIntelligence);
         AddField(fields, "Chave privada (.pem)", _privateKeyPath, BrowseButton("Procurar…", SelectPrivateKey));
         AddField(fields, "Identificador da chave", _keyId);
         AddField(fields, "Identificador da licença", _licenseId, new Button { Text = "Novo UUID", AutoSize = true });
@@ -184,7 +186,8 @@ internal sealed class LicenseGeneratorForm : Form
                 _keyId.Text,
                 _outputPath.Text,
                 _licenseId.Text,
-                _expires.Checked ? new DateTimeOffset(DateTime.SpecifyKind(_expires.Value, DateTimeKind.Utc)) : null));
+                _expires.Checked ? new DateTimeOffset(DateTime.SpecifyKind(_expires.Value, DateTimeKind.Utc)) : null,
+                _assetProcessIntelligence.Checked));
 
             _status.Text = string.Join(Environment.NewLine,
             [
@@ -196,6 +199,7 @@ internal sealed class LicenseGeneratorForm : Form
                 $"Interactive: {result.InteractiveSeats}",
                 $"View Only: {result.ViewOnlySeats}",
                 $"HA Runtime: {(result.HaRuntime ? "Licenciado" : "Não licenciado")}",
+                $"Asset & Process Intelligence: {(result.AssetProcessIntelligence ? "Licenciado" : "Não licenciado")}",
                 $"Chave: {result.KeyId}",
                 $"Expira: {(result.NotAfterUtc is null ? "Nunca" : result.NotAfterUtc.Value.ToString("u"))}",
                 $"Arquivo: {result.OutputPath}"

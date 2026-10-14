@@ -1,5 +1,7 @@
 using Scada.Engineering.Contracts;
 using Scada.Security.Authorization;
+using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace Scada.Engineering.Security;
 
@@ -22,13 +24,76 @@ public interface IAuthorityPolicyStore
         CancellationToken cancellationToken = default);
 }
 
+public sealed record AuthorityPolicyReplicationApplyResult(
+    bool Applied,
+    AuthorityPolicySnapshot Snapshot,
+    string? Error = null);
+
+/// <summary>
+/// Durable policy operations reserved for HA reconciliation. Applying a replica
+/// is distinct from an authorized local policy mutation and never increments the
+/// version on its own.
+/// </summary>
+public interface IAuthorityPolicyReplicationStore
+{
+    Task<AuthorityPolicySnapshot> RefreshAsync(CancellationToken cancellationToken = default);
+
+    Task<AuthorityPolicyReplicationApplyResult> ApplyReplicatedSnapshotAsync(
+        AuthorityPolicySnapshot snapshot,
+        CancellationToken cancellationToken = default);
+}
+
+public static class AuthorityPolicySnapshotDigest
+{
+    public static string Compute(AuthorityPolicySnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (snapshot.Version < 0) throw new ArgumentOutOfRangeException(nameof(snapshot));
+        InMemoryAuthorityPolicyStore.Validate(snapshot.Roles, snapshot.Scopes);
+
+        var canonicalSnapshot = InMemoryAuthorityPolicyStore.Copy(
+            snapshot.Version,
+            snapshot.Roles,
+            snapshot.Scopes);
+        using var document = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(canonicalSnapshot));
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+            WriteCanonical(writer, document.RootElement);
+        return Convert.ToHexString(SHA256.HashData(stream.ToArray())).ToLowerInvariant();
+    }
+
+    private static void WriteCanonical(Utf8JsonWriter writer, JsonElement value)
+    {
+        switch (value.ValueKind)
+        {
+            case JsonValueKind.Object:
+                writer.WriteStartObject();
+                foreach (var property in value.EnumerateObject().OrderBy(property => property.Name, StringComparer.Ordinal))
+                {
+                    writer.WritePropertyName(property.Name);
+                    WriteCanonical(writer, property.Value);
+                }
+                writer.WriteEndObject();
+                break;
+            case JsonValueKind.Array:
+                writer.WriteStartArray();
+                foreach (var item in value.EnumerateArray()) WriteCanonical(writer, item);
+                writer.WriteEndArray();
+                break;
+            default:
+                value.WriteTo(writer);
+                break;
+        }
+    }
+}
+
 /// <summary>Marks an Engineering registry as a read-only projection of the canonical Authority.</summary>
 public interface IAuthorityPolicyEngineeringRegistryView
 {
     AuthorityPolicySnapshot AuthoritySnapshot();
 }
 
-public sealed class InMemoryAuthorityPolicyStore : IAuthorityPolicyStore
+public sealed class InMemoryAuthorityPolicyStore : IAuthorityPolicyStore, IAuthorityPolicyReplicationStore
 {
     private readonly object _sync = new();
     private AuthorityPolicySnapshot _snapshot;
@@ -49,6 +114,46 @@ public sealed class InMemoryAuthorityPolicyStore : IAuthorityPolicyStore
     }
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public Task<AuthorityPolicySnapshot> RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(Snapshot());
+    }
+
+    public Task<AuthorityPolicyReplicationApplyResult> ApplyReplicatedSnapshotAsync(
+        AuthorityPolicySnapshot snapshot,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (snapshot.Version < 0)
+            throw new InvalidDataException("Replicated Authority policy version must be non-negative.");
+        Validate(snapshot.Roles, snapshot.Scopes);
+        var incoming = Copy(snapshot.Version, snapshot.Roles, snapshot.Scopes);
+        lock (_sync)
+        {
+            if (incoming.Version < _snapshot.Version)
+                return Task.FromResult(new AuthorityPolicyReplicationApplyResult(
+                    false,
+                    Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes),
+                    "AUTHORITY_POLICY_REPLICA_STALE"));
+
+            var incomingDigest = AuthorityPolicySnapshotDigest.Compute(incoming);
+            if (incoming.Version == _snapshot.Version)
+            {
+                var currentDigest = AuthorityPolicySnapshotDigest.Compute(_snapshot);
+                return Task.FromResult(incomingDigest == currentDigest
+                    ? new AuthorityPolicyReplicationApplyResult(true, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes))
+                    : new AuthorityPolicyReplicationApplyResult(false, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes), "AUTHORITY_POLICY_REPLICA_DIGEST_MISMATCH"));
+            }
+
+            _snapshot = incoming;
+            return Task.FromResult(new AuthorityPolicyReplicationApplyResult(
+                true,
+                Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes)));
+        }
+    }
 
     public Task<AuthorityPolicyWriteResult> TryReplaceAsync(
         long expectedVersion,

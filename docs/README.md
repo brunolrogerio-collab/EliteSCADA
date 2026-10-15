@@ -54,6 +54,8 @@ When taking over coordination during Wave 15, read in this order:
 
 GitHub live wins over every snapshot.
 
+Establish this read baseline once per mission or recovery. During continuation, follow `CHAT-COLLABORATION-PROTOCOL.md` section 9: inspect changed authoritative inputs, the active order/issue/PR, and relevant existing runs. Do not reread the full historical handoff chain on every `siga`.
+
 `WAVE15-MAIN-COORDINATOR-HANDOFF.md` is the detailed living handoff for Wave 15. It must not be classified as historical while Wave 15 is active.
 
 `CURRENT-COORDINATOR-HANDOFF.md` is deliberately smaller: it combines/pivots the current exchange by pointing to the active order, the Wave 15 handoff and live ledgers without maintaining a second full copy of the state.
@@ -67,6 +69,8 @@ Current issue numbers and Wave-specific coordination surfaces can change over th
 The detailed current Main -> Codex order and expected Codex -> Main return contract belong in `WAVE15-MAIN-COORDINATOR-HANDOFF.md`. `CURRENT-COORDINATOR-HANDOFF.md` is the short combinator/pointer. Issues remain the durable ledger for binding decisions, scope, evidence, blockers, integration and freeze records.
 
 Read recent comments, not only issue bodies. Creation-time sequencing can be superseded by later binding comments.
+
+Maintain current pointers/orders in place. The files ending in `HANDOFF-ARCHIVE-2026-10-15.md` preserve earlier snapshots and instructions only; they cannot activate an old lane. Open documentation proposals likewise do not supersede the accepted current order. Review and disposition stale proposals instead of merging their old CURRENT sections later.
 
 ## 6. CI authority
 

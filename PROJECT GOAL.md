@@ -4,11 +4,11 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-10-13
+**Last reviewed:** 2026-10-15
 
 ## Mandatory continuity protocol
 
-1. At the beginning of every EliteSCADA task, read `PROJECT GOAL.md` and `LAST CHANGE.md` before planning or changing code.
+1. At mission bootstrap or after context loss, read `PROJECT GOAL.md` and the current `LAST CHANGE.md` entry before planning or changing code. During continuation of that established mission, revalidate changed authoritative inputs under `docs/CHAT-COLLABORATION-PROTOCOL.md` section 9.
 2. The repository, not chat history, is the persistent coordination memory. A fresh ChatGPT conversation must be able to resume safely from repository state alone.
 3. Every material coordination cycle, decision, blocker, fix, validation run or change of next action must review and synchronize **both** `PROJECT GOAL.md` and `LAST CHANGE.md` in the same task when their recorded state is affected.
 4. Stable product goals, architecture and permanent coordination rules belong in `PROJECT GOAL.md`; exact mutable branch/SHA/run/issue/blocker/next-action state belongs in `LAST CHANGE.md`.

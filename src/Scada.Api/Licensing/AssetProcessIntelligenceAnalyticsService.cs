@@ -205,19 +205,22 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                         signalPlan.Plan,
                         linkedCancellation.Token,
                         Math.Max(1, remainingRows),
-                        "INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE");
+                        "INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE",
+                        retainRawObservations: true);
                     if (read.Error is not null) return read.Error;
                     var period = read.Period!;
                     summary = period.Summary;
-                    if (read.RawObservations!.Count > remainingRows)
+                    var rawObservations = read.RawObservations ??
+                        throw new InvalidOperationException("Profile coverage requires retained historian observations.");
+                    if (rawObservations.Count > remainingRows)
                         return ProfileWindowTooDense();
-                    totalRows += read.RawObservations!.Count;
+                    totalRows += rawObservations.Count;
                     status = summary.AcceptedSampleCount > 0
                         ? "descriptive_trend_available"
                         : "insufficient_no_good_numeric_samples";
                     if (signalPlan.Signal.Required)
                     {
-                        requiredTimestampSets.Add(read.RawObservations
+                        requiredTimestampSets.Add(rawObservations
                             .Where(observation => AssetProcessIntelligenceKpiV1.TryGetAcceptedGoodNumericValue(observation, out _))
                             .Select(observation => observation.TimestampUtc)
                             .ToHashSet());
@@ -601,7 +604,8 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         PreparedPlan plan,
         CancellationToken cancellationToken,
         int maximumRows = AssetProcessIntelligenceKpiCatalogV1.MaximumRowsPerWindow,
-        string densityErrorCode = "INTELLIGENCE_ANALYTICS_WINDOW_TOO_DENSE")
+        string densityErrorCode = "INTELLIGENCE_ANALYTICS_WINDOW_TOO_DENSE",
+        bool retainRawObservations = false)
     {
         if (maximumRows < 1 || maximumRows > AssetProcessIntelligenceKpiCatalogV1.MaximumRowsPerWindow)
             throw new ArgumentOutOfRangeException(nameof(maximumRows));
@@ -672,7 +676,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             new AssetProcessIntelligenceAnalyticsPeriodResult(
                 window,
                 AssetProcessIntelligenceKpiV1.Calculate(observations, window, bucketSeconds)),
-            Array.AsReadOnly(observations.ToArray()));
+            retainRawObservations ? observations.AsReadOnly() : null);
     }
 
     private async Task<IResult?> RevalidateAsync(
@@ -973,7 +977,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
 
         public static PeriodReadResult Ready(
             AssetProcessIntelligenceAnalyticsPeriodResult period,
-            IReadOnlyList<AssetProcessIntelligenceRawObservation> observations) =>
+            IReadOnlyList<AssetProcessIntelligenceRawObservation>? observations) =>
             new(period, null) { RawObservations = observations };
         public static PeriodReadResult Fail(IResult error) => new(null, error);
     }

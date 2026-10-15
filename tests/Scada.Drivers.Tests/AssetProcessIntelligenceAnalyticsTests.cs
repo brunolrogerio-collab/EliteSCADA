@@ -89,6 +89,30 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public void KpiV1_PreservesStage3AQualityNormalizationWhenAcceptingGoodNumericSamples()
+    {
+        var window = Window(FromUtc, FromUtc.AddMinutes(15));
+        var rows = new[]
+        {
+            Observation(FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromInt32(1)),
+            Observation(FromUtc.AddMinutes(2), " good ", HistoricalQueryValue.FromInt32(2)),
+            Observation(FromUtc.AddMinutes(3), "gOoD", HistoricalQueryValue.FromInt32(3)),
+            Observation(FromUtc.AddMinutes(4), " Good ", HistoricalQueryValue.FromInt32(4)),
+            Observation(FromUtc.AddMinutes(5), " Goodish ", HistoricalQueryValue.FromInt32(5))
+        };
+
+        var summary = AssetProcessIntelligenceKpiV1.Calculate(rows, window, 900);
+
+        Assert.Equal(4, summary.AcceptedSampleCount);
+        Assert.Equal(1, summary.RejectedSampleCount);
+        Assert.Equal(4, summary.QualityCounts["Good"]);
+        Assert.Equal(1, summary.QualityCounts["Unrecognized"]);
+        Assert.True(AssetProcessIntelligenceKpiV1.TryGetAcceptedGoodNumericValue(rows[1], out var normalizedValue));
+        Assert.Equal(2d, normalizedValue);
+        Assert.False(AssetProcessIntelligenceKpiV1.TryGetAcceptedGoodNumericValue(rows[4], out _));
+    }
+
+    [Fact]
     public void KpiV1_EmptyAndSparseWindowsKeepEmptyBucketsAndUnknownCompleteness()
     {
         var empty = AssetProcessIntelligenceKpiV1.Calculate(

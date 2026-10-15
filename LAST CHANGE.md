@@ -1,3 +1,12 @@
+# LATEST DESIGN CHECKPOINT — INTELLIGENCE ADR-014 TEMPORAL PROVENANCE — 2026-10-15
+
+> Main authorized design-only work in #588/#305. The live integration base remains `wave15/corrections-integration@10ea669ff40a763b6f57d286550074a98c2668bf` (post-merge CI #38675933924 passed on that base). A documentation-only branch `work/w15-adr014-temporal-provenance` now carries `docs/ADR-014-ASSET-PROCESS-INTELLIGENCE-TEMPORAL-PROVENANCE.md`; ADR commit: `ba31c13d5ed4c51c2f2abdcc595500ad8cabb480`.
+
+- ADR-014 is **PROPOSED / MAIN REVIEW REQUIRED / DESIGN ONLY**. It separates SCADA observation time, optional source/acquisition time, optional intermediary/server time, per-sample timestamp evidence, and effective Historian admission-policy identity. It states that capture Period/MaximumInterval does not guarantee source polling or samples, and completeness stays `unknown` without independent cadence and acquisition/liveness evidence.
+- The proposal covers additive nullable raw-history migration, unchanged Historian query v1, legacy unknowns/no inferred backfill, rollback compatibility, retention/downsampling limits, bounded storage/query/resource tests, and shared/independent database deployments as compatibility constraints only.
+- No implementation, DTO/schema/API/UI/driver/Historian or HA change is authorized. ADR-011/012/013 and Stage 3's descriptive-only fence remain unchanged; no physical KPI, simultaneity, freshness, or completeness claim is made. No PR or CI was opened/run. The ADR whitespace check passed; this documentation checkpoint is not a product test result.
+- Next action: Main reviews the decisions listed in ADR-014 and separately authorizes any future implementation. Exact branch publication and handoff are recorded in #588.
+
 # LATEST POST-MERGE CHECKPOINT — ASSET & PROCESS INTELLIGENCE STAGE 3A #604 — 2026-10-14
 
 > PR [#605](https://github.com/brunolrogerio-collab/EliteSCADA/pull/605) merged into `wave15/corrections-integration` at `bbbfb84693d512e5cdc4e1a504b60f492ff88b37`. Required pre-merge base: `49764e5dfd23be2f57bfd8ff87081064a776a182`; PR head: `c35921bbbc2cf979b62441dbfefe3121596f5d1d`. GitHub and exact-SHA Actions evidence are authoritative.

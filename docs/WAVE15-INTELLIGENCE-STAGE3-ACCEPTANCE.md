@@ -18,7 +18,7 @@ Verified product checkpoint: `54c7c9942b57328cabcef740c99f4ab3207cc040`; integra
 ## Remaining work sequence
 
 1. Implement/review/integrate #619 under [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md).
-2. Main specifies PERFORMANCE-V1 once, including S3-05 and S3-06's missing canonical input/time contracts. Reuse the existing v1 contracts unchanged and approve only the additive/versioned delta that real formulas require. The deliverable must define each formula, dimensions, input qualifications, contextual limits, positive test case, and explicit insufficient/unsupported cases.
+2. Main specifies PERFORMANCE-V1 once, including S3-05 and S3-06's missing canonical input/time contracts and any required versioned unit additions (including milliampere, absent from current v1). Reuse the existing v1 contracts unchanged and approve only the additive/versioned delta that real formulas require. The deliverable must define each formula, dimensions, input qualifications, contextual limits, positive test case, and explicit insufficient/unsupported cases. #619 uses the existing ampere/hertz codes and must reject unsupported units rather than adding an independent conversion.
 3. Implement/review/integrate the approved PERFORMANCE-V1 package. Split implementation only for an identified dependency/review risk; do not create a new research cycle for every individual statistic.
 4. Main audits S3-01 through S3-08 on the exact composition and records acceptance or the precise remaining row. No new KPI is added to this V1 closing scope without an identified unmet requirement or a new Product Owner direction.
 

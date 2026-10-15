@@ -1,10 +1,10 @@
 # ADR-014 — Asset & Process Intelligence: temporal provenance and capture semantics
 
-- Status: **PROPOSED — Main review required; design only.**
-- Authorized by Main in [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6183866671) and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6183866724).
-- Design base: `wave15/corrections-integration@10ea669ff40a763b6f57d286550074a98c2668bf` (merged PR #613; post-merge CI #38675933924 passed on this SHA).
+- Status: **APPROVED FOR BOUNDED IMPLEMENTATION; no analytics/KPI claim is authorized.**
+- Main implementation authorization: [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6183952678) and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6183952948).
+- Implementation base: `wave15/corrections-integration@10ea669ff40a763b6f57d286550074a98c2668bf` (merged PR #613; post-merge CI #38675933924 passed on this SHA).
 - Related decisions: [ADR-011 — Stage 3A descriptive KPIs](ADR-011-ASSET-PROCESS-INTELLIGENCE-STAGE3A.md), [ADR-012 — Stage 3B profile coverage](ADR-012-ASSET-PROCESS-INTELLIGENCE-STAGE3B-PROFILE-COVERAGE.md), and [ADR-013 — controlled signal semantics and units](ADR-013-ASSET-PROCESS-INTELLIGENCE-SEMANTIC-UNITS.md).
-- Scope: propose only the minimum temporal-provenance and honest capture/completeness contract needed to assess later cross-signal Stage 3 work. No implementation is authorized.
+- Scope: the approved slice adds per-observation source/server timestamp evidence and effective Historian capture-policy identity, persists it additively, and exposes a separate Historian v2 read surface. Capture/completeness, alignment and KPI semantics remain unchanged and out of scope.
 
 ## Context and observed gap
 
@@ -25,46 +25,49 @@ Any future persisted observation contract should keep these independent facts di
 1. **Observed time:** the current EliteSCADA observation/publication time (`TagValue.Timestamp` / raw Historian `ts`). It remains required and must not be relabeled as device time.
 2. **Source/acquisition time:** optional time actually supplied by the device/application. Absence, invalidity, or lack of clock synchronization must remain explicit; the system must never synthesize it from observed time.
 3. **Intermediary/server time:** optional time supplied by a protocol server, kept separate from source time and observed time.
-4. **Time evidence:** for each optional time, a bounded status and producer/protocol provenance sufficient to distinguish absent, invalid, explicitly unsynchronized, present-but-unverified, and synchronized/verified evidence. Exact enum names and which drivers can assert the strongest status require Main approval. Driver capability is descriptive, not per-sample evidence.
-5. **Effective Historian capture policy:** a stable reference/version (or immutable active-project revision reference) sufficient to identify the strategy/settings that admitted a stored row. This describes storage admission only. It does not represent source polling cadence, device acquisition rate, or completeness.
+4. **Time evidence:** each optional time carries one of `NotRecorded` (legacy row), `NotProvided` (new observation without that timestamp), `PresentUnverified`, `Unsynchronized`, or `Synchronized`. Only the explicit per-measurement DNP3 source-time synchronization evidence may produce `Synchronized` for source time in this slice. Other supplied source times are `PresentUnverified`; supplied server times are `PresentUnverified` and are never promoted by inference. A driver capability is not per-sample evidence.
+5. **Effective Historian capture policy:** persist a stable capture-profile reference when present in the canonical TAG metadata; otherwise persist a deterministic fingerprint of the effective settings evaluated for that observation. This describes storage admission only. It does not represent source polling cadence, device acquisition rate, or completeness.
 
 `Periodic` and `MaximumInterval` remain capture-admission settings evaluated when source observations arrive. A coalesced event is not an acquisition failure; a silent source cannot be made complete by the capture policy. If a future feature needs counts for skipped/coalesced events, it must design bounded diagnostics separately rather than manufacturing Historian observations.
 
-Expected acquisition cadence must be a separately reviewed source/signal contract with explicit provenance and evidence that the selected driver can observe it. It cannot be inferred from `PeriodMilliseconds`, `MaximumIntervalMilliseconds`, an event timestamp, or matching timestamps across tags. Unless both expected cadence and sufficient source-liveness/sequence evidence exist, coverage and completeness remain `unknown`.
+Expected acquisition cadence remains a separately reviewed concept and is not implemented by this slice. It cannot be inferred from `PeriodMilliseconds`, `MaximumIntervalMilliseconds`, an event timestamp, or matching timestamps across tags. Coverage/completeness remains `unknown` regardless of stored provenance.
 
 ## Persistence, query, compatibility, and retention direction
 
-- Prefer an additive, nullable raw-history extension for source time, server time, their evidence statuses/provenance, and effective capture-policy identity. Keep the existing observed `ts` unchanged. Do not make the new columns required for old producers or old rows.
-- Keep `historian.samples` v1 unchanged. A future consumer needing the new fields must use a separately versioned query contract/dataset; v1 readers must never silently receive changed timestamp meaning. `QualifiedSourceSample` already has optional source/server fields, but the durable write/query path and portable package/query contracts must be reviewed together before implementation.
-- Upgrade must be forward-only and non-destructive: add nullable fields without rewriting old values; old rows map to `sourceTime=unknown/not recorded`; old writers that name existing columns continue to work. Rollback to an older application must leave added data intact; do not ship a destructive down-migration that drops populated provenance. Unknown/missing timestamp fields in legacy serialized samples/packages remain unknown, not backfilled.
+- Add nullable raw-history fields for source/server timestamps, their evidence statuses, and effective capture-policy identity/fingerprint. Keep observed `ts` unchanged. Missing timestamps on newly admitted observations are recorded as `NotProvided`; pre-migration rows read as `NotRecorded`. Old writers that name existing columns remain valid.
+- Keep `historian.samples` v1 request, response columns, sorting/filtering and meaning unchanged. Expose a separately versioned v2 surface with the provenance fields, while its range, sort, filters, cursor and tie-break remain based on observed `ts`. V2 must not perform time alignment or claim source acquisition simultaneity.
+- Upgrade is additive and non-destructive: do not rewrite historical values; rollback to an older application leaves new columns/data intact; do not ship a destructive down-migration. No `.escadapkg`, Engineering-profile, or capture-policy semantics change is included.
 - Exact cross-signal alignment, if later approved, must use raw observations with accepted time evidence. Existing rollups do not preserve per-sample source time and cannot prove alignment. Retention-expired or downsampled windows must not be presented as complete; the query must preserve an explicit unknown/insufficient state when raw evidence is unavailable.
 - Shared-database HA and independent-database deployments are compatibility constraints only. This design does not alter replication, authority, fencing, failover, session, or database-topology behavior. Distinct databases may contain different retained observations; no cross-node synchronization claim follows from this ADR.
 
-All timestamps need a documented UTC normalization and precision contract that does not manufacture equality after storage conversion. Main must approve per-driver synchronization evidence, admissible future/past skew handling, and whether a source timestamp outside the requested window is rejected or surfaced as invalid; no numeric skew tolerance is selected here.
+Timestamps retain UTC normalization and each driver's existing malformed/out-of-range/skew handling. This slice adds no clipping, new tolerance, rejection rule, inferred timestamp, or normalization that changes a driver's current behavior. V2's pagination/filter semantics continue to use persisted observed `ts`, not optional source/server time.
 
-## Bounds and future acceptance tests
+## Bounds and implementation acceptance tests
 
 Retain the currently proven query envelope unless separately benchmarked and approved: absolute window up to 31 days, up to 50,000 rows per window, page size 200, profile up to 16 signals, and up to 3,000 trend buckets. Measure nullable-column/index overhead, forward migration time/locks, row and wire-size growth, and bounded query cost on worst-case existing windows before enabling the feature. Do not add an unbounded per-event audit stream.
 
-Before any implementation is proposed for approval, its focused tests must cover:
+This implementation is accepted only if focused tests cover:
 
 - Round-trip of observed/source/server time plus evidence status through supported source-provider serialization, runtime propagation, durable raw write, and versioned historical read; absent fields stay absent.
 - Driver-specific evidence: verified and unsynchronized source time, source time absent, server/source times distinct, repeated/retained values, malformed/out-of-range timestamps, and drivers that do not supply source time. Never treat a driver capability as proof for a sample.
-- Upgrade an old schema and read legacy rows as `unknown/not recorded`; run an older writer/reader against the additive schema; prove rollback leaves added columns/data intact and query v1 semantics unchanged.
-- Capture-policy changes are traceable to the effective revision/profile; configured Period/MaximumInterval do not yield expected counts, a coalesced event does not become a row, and source silence creates no synthetic sample.
-- Exact timestamps at database precision are not overstated as simultaneous acquisition; only Main-approved synchronized source-time evidence and skew rules could qualify for a later alignment result.
+- Upgrade an old schema without backfilling; V2 reports old rows as `NotRecorded`, new absent timestamps as `NotProvided`; old writers/readers work against additive columns, rollback leaves added data intact, and historian.samples v1 remains unchanged.
+- DNP3 explicit source-time evidence produces `Synchronized`/`Unsynchronized` as appropriate; OPC UA and MQTT supplied timestamps remain `PresentUnverified`; absent fields are `NotProvided`; server time is never inferred synchronized.
+- Capture-profile reference (when available) or deterministic fingerprint is stored with admitted observations; settings changes yield distinguishable identity; Period/MaximumInterval remain admission-only and source silence creates no row.
+- V2 returns timestamp/provenance fields while sorting, filtering, paging and cursoring on observed `ts`; v1 contract fields, values, filters, sort, cursors and response meaning stay frozen.
+- Exact old/new schema and storage path round-trips preserve source/server timestamps and statuses, without changing malformed/out-of-range/skew handling in existing drivers.
 - Raw retention and downsampling cannot silently turn missing provenance into completeness; old rollups continue their existing value/quality semantics.
 - Existing row/page/signal/window bounds remain enforced while measuring added storage, migration, and query costs, including maximum-density windows.
 - Shared-DB and independent-DB configurations preserve existing HA and database-topology contracts; tests are compatibility checks only, not a new HA acceptance gate.
 
-## Decisions required from Main before implementation
+## Approved implementation decisions and remaining fences
 
-1. Approve the per-sample time-evidence vocabulary and the exact synchronization evidence each initially supported driver may assert.
-2. Define whether any source cadence is independently knowable, which acquisition/liveness evidence is required, and which states must remain `unknown`; do not use Historian capture settings as expected cadence.
-3. Select the additive SQL and portable serialization shape, versioned historical query surface, and effective capture-policy reference semantics while preserving Historian v1 readers and existing Engineering package behavior.
-4. Set precision, source-vs-observed skew policy, invalid/out-of-window behavior, retention behavior, and resource budgets from measured limits.
-5. Review the migration/rollback and acceptance matrix above. Only a separate explicit authorization after that review may start implementation; physical KPI formulas require their own approval after time, quality, cadence/completeness, semantic role/unit, regime, and measurement-boundary contracts are established.
+1. Main approved the five per-sample evidence states and the restriction that only explicit DNP3 measurement synchronization may set source-time `Synchronized`; non-DNP3 timestamps remain `PresentUnverified`, and server time is never synchronized by inference.
+2. Main approved using the existing canonical capture-profile reference when available and a deterministic effective-settings fingerprint otherwise. This records only the policy that admitted a row; it does not create expected cadence or sample counts.
+3. Main approved nullable additive persistence and a separate `historian.samples` v2 surface that pages/filters by observed `ts`, preserving v1 and existing rollups. Existing driver timestamp validation/skew behavior is unchanged.
+4. Main required the established bounds, migration/read/rollback compatibility, local round-trip/database tests, driver evidence tests, V1/V2 query tests, policy traceability tests, and bounded row/wire-cost evidence before the draft PR review.
+
+Still prohibited: expected counts, freshness/completeness, source-liveness inference, cross-signal alignment/simultaneity, regime equivalence, physical KPIs, UI, .escadapkg/Engineering profile changes, and HA code or test-gate changes. Those remain separate decisions and cannot be inferred from passing this implementation's tests.
 
 ## Non-goals
 
-This ADR does not authorize or change code, DTOs, database schema, API/query behavior, UI, drivers, Historian storage/provider, capture behavior, HA, Authority/licensing, ADR-011/012/013, or Stages 4–6. It does not define a physical KPI or claim acquisition simultaneity, freshness, expected sample counts, or completeness. No PR or CI validation is part of this design-only handoff.
+This ADR authorizes only the bounded persistence/read implementation described above. It does not authorize a physical KPI or claim acquisition simultaneity, freshness, expected sample counts, or completeness. It does not change capture strategy semantics, HA authority/replication, Authority/licensing, UI, .escadapkg/Engineering profile semantics, ADR-011/012/013 decisions, or Stages 4–6. The final product diff and exact-SHA tests require Main review in a draft PR; no merge is authorized by this ADR.

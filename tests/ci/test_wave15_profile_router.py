@@ -102,6 +102,31 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertIn("HA_DISTRIBUTED", result["effective_profiles"])
         self.assertIn(router.DRIVERS, result["dotnet_projects"])
         self.assertTrue(result["run_ha_two_process"])
+        self.assertFalse(result["run_ha_d2_acceptance"])
+
+    def test_ha_d2_acceptance_is_a_separate_selected_gate(self):
+        result = self.classify(
+            ["tests/Scada.Drivers.Tests/AuthorityPolicyTwoApiPostgreSqlEvidenceTests.cs"],
+            "VALIDATION_PROFILE: HA_DISTRIBUTED",
+        )
+        self.assertFalse(result["run_ha_two_process"])
+        self.assertTrue(result["run_ha_d2_acceptance"])
+
+    def test_ha_d2_evidence_path_cannot_be_suppressed_by_cheaper_profile(self):
+        result = self.classify(
+            ["tests/Scada.Drivers.Tests/AuthorityPolicyTwoApiPostgreSqlEvidenceTests.cs"],
+            "VALIDATION_PROFILE: DOCS_I18N_HELP",
+        )
+        self.assertIn("HA_DISTRIBUTED", result["effective_profiles"])
+        self.assertTrue(result["run_ha_d2_acceptance"])
+
+    def test_ha_d1_script_remains_its_own_gate(self):
+        result = self.classify(
+            ["scripts/ci/ha_d1_two_process_evidence.py"],
+            "VALIDATION_PROFILE: HA_DISTRIBUTED",
+        )
+        self.assertTrue(result["run_ha_two_process"])
+        self.assertFalse(result["run_ha_d2_acceptance"])
 
     def test_ha_admin_ui_is_not_full_ui_editor_and_skips_two_process(self):
         result = self.classify(
@@ -113,6 +138,7 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertTrue(result["run_web"])
         self.assertEqual(result["e2e_specs"], ["tests-e2e/ha-admin-workspace.spec.ts"])
         self.assertFalse(result["run_ha_two_process"])
+        self.assertFalse(result["run_ha_d2_acceptance"])
 
     def test_database_core_owns_three_relevant_dotnet_projects_without_browser(self):
         result = self.classify(

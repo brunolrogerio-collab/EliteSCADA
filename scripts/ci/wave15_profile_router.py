@@ -72,6 +72,7 @@ PATH_RULES = (
     ("HA_DISTRIBUTED", (
         "highavailability", "high-availability", "/ha/", "distributedruntimefoundation",
         "tests/scada.drivers.tests/authoritypolicypostgresqlhatests.cs",
+        "tests/scada.drivers.tests/authoritypolicytwoapipostgresqlevidencetests.cs",
         "web/scada-web/src/engineering/assetprocessintelligenceworkspace",
     )),
     ("EEE_PACKAGE", (".escadapkg", "projectpackage", "eee/", "export")),
@@ -170,6 +171,14 @@ HA_TWO_PROCESS_FRAGMENTS = (
     "scripts/ci/ha_d1_two_process_evidence.py",
 )
 
+HA_D2_ACCEPTANCE_FRAGMENTS = (
+    "src/scada.api/runtime/runtimehighavailabilityapi.cs",
+    "src/scada.api/runtime/runtimehighavailabilityprotection.cs",
+    "tests/scada.drivers.tests/authoritypolicytwoapipostgresqlevidencetests.cs",
+    ".github/workflows/wave15-pr.yml",
+    "scripts/ci/wave15_profile_router.py",
+)
+
 
 class ProfileError(ValueError):
     pass
@@ -252,6 +261,18 @@ def needs_ha_two_process(paths: list[str], effective: set[str], mode: str) -> bo
     )
 
 
+def needs_ha_d2_acceptance(paths: list[str], effective: set[str], mode: str) -> bool:
+    if "HA_DISTRIBUTED" not in effective:
+        return False
+    if mode == "dispatch":
+        return True
+    return any(
+        fragment in normalized
+        for normalized in _normalized(paths)
+        for fragment in HA_D2_ACCEPTANCE_FRAGMENTS
+    )
+
+
 def is_coordination_only(paths: list[str]) -> bool:
     return bool(paths) and all(path.replace("\\", "/") in COORDINATION_ONLY for path in paths)
 
@@ -297,6 +318,7 @@ def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr
         "run_e2e": bool(specs),
         "run_driver": driver,
         "run_ha_two_process": needs_ha_two_process(paths, effective, mode),
+        "run_ha_d2_acceptance": needs_ha_d2_acceptance(paths, effective, mode),
         "dotnet_projects": projects,
         "e2e_specs": specs,
         "driver_gate": "DEFERRED TO T2/T3" if driver else "UNCHANGED/TRUSTED",

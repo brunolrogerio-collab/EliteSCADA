@@ -265,6 +265,317 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         }
     }
 
+    [Fact]
+    public Task RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack()
+        => RunHaD2AuthorityLifecycleAsync(sharedDatabase: true);
+
+    [Fact]
+    public Task RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack()
+        => RunHaD2AuthorityLifecycleAsync(sharedDatabase: false);
+
+    private async Task RunHaD2AuthorityLifecycleAsync(bool sharedDatabase)
+    {
+        var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(seed))
+        {
+            if (string.Equals(
+                    Environment.GetEnvironmentVariable("ELITESCADA_REQUIRE_HA_D2_POSTGRES"),
+                    "true",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "HA-D2 acceptance requires ELITESCADA_TEST_POSTGRES; the evidence test must not silently pass without PostgreSQL.");
+            }
+
+            return;
+        }
+
+        var root = FindRepositoryRoot();
+        var apiDll = Path.Combine(AppContext.BaseDirectory, "Scada.Api.dll");
+        if (!File.Exists(apiDll))
+            apiDll = Path.Combine(root, "src", "Scada.Api", "bin", "Release", "net10.0", "Scada.Api.dll");
+        Assert.True(File.Exists(apiDll), $"Scada.Api child process binary was not found: {apiDll}");
+
+        // These authority-lifecycle variants use either one shared disposable database
+        // name or two separate disposable names on the same PostgreSQL server. They do
+        // not simulate independent PostgreSQL server failure or prove database durability.
+        var suffix = Guid.NewGuid().ToString("N")[..10];
+        var databaseA = "w15_ha_d2_a_" + suffix;
+        var databaseB = sharedDatabase ? databaseA : "w15_ha_d2_b_" + suffix;
+        var role = "w15_ha_d2_" + suffix;
+        var password = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+        var adminConnection = new NpgsqlConnectionStringBuilder(seed)
+        {
+            Database = "postgres",
+            Pooling = false
+        };
+        var appConnectionA = new NpgsqlConnectionStringBuilder(seed)
+        {
+            Database = databaseA,
+            Username = role,
+            Password = password,
+            Pooling = true,
+            ApplicationName = "w15-ha-d2-node-a-" + suffix,
+            MaxPoolSize = 32
+        };
+        var appConnectionB = new NpgsqlConnectionStringBuilder(seed)
+        {
+            Database = databaseB,
+            Username = role,
+            Password = password,
+            Pooling = true,
+            ApplicationName = "w15-ha-d2-node-b-" + suffix,
+            MaxPoolSize = 32
+        };
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-w15-ha-d2-" + suffix);
+        Directory.CreateDirectory(directory);
+
+        ApiProcess? nodeA = null;
+        ApiProcess? nodeB = null;
+        var databasesCreated = new List<string>();
+        var roleCreated = false;
+        try
+        {
+            await CreateRoleAsync(adminConnection.ConnectionString, role, password);
+            roleCreated = true;
+            foreach (var database in new[] { databaseA, databaseB }.Distinct(StringComparer.Ordinal))
+            {
+                await CreateDatabaseAsync(adminConnection.ConnectionString, database, role);
+                databasesCreated.Add(database);
+                await InstallTimescaleExtensionAsync(adminConnection.ConnectionString, database);
+            }
+
+            var license = CreateLicense(directory);
+            var portA = ReserveLoopbackPort();
+            var portB = ReserveLoopbackPort();
+            Assert.NotEqual(portA, portB);
+            var urlA = $"http://127.0.0.1:{portA}";
+            var urlB = $"http://127.0.0.1:{portB}";
+            var referencePath = Path.Combine(directory, "ha-reference.json");
+
+            nodeA = ApiProcess.Start(
+                "node-a", urlA, urlB, ProjectKey, referencePath, directory,
+                appConnectionA.ConnectionString, license, apiDll, root, suffix);
+            await nodeA.WaitForHealthAsync();
+            await nodeA.BootstrapAsync();
+
+            nodeB = ApiProcess.Start(
+                "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                appConnectionB.ConnectionString, license, apiDll, root, suffix);
+            await nodeB.WaitForHealthAsync();
+            if (sharedDatabase)
+                await nodeB.LoginAsync();
+            else
+                await nodeB.BootstrapAsync();
+
+            await PrepareProjectAsync(nodeA, activate: true);
+            if (sharedDatabase)
+                await WaitForInitialPolicyCommitAsync(nodeA, nodeB, referencePath);
+            if (!sharedDatabase)
+                await PrepareProjectAsync(nodeB, activate: false);
+            // Node B was started before the first published revision existed. In the
+            // separate-database case, prepare/publish its local copy without activating
+            // it. Restart after provisioning so D2 starts from a loaded standby rather
+            // than an empty-runtime case. Shared-database policy commit is established
+            // before restart; isolated-database policy commit follows standby bootstrap.
+            await nodeB.DisposeAsync();
+            nodeB = null;
+            nodeB = ApiProcess.Start(
+                "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                appConnectionB.ConnectionString, license, apiDll, root, suffix);
+            await nodeB.WaitForHealthAsync();
+            await nodeB.LoginAsync();
+            if (!sharedDatabase)
+            {
+                await WaitForInitialPolicyCommitAsync(nodeA, nodeB, referencePath);
+                await MirrorProjectToStandbyAsync(nodeA, nodeB);
+            }
+
+            var initialA = await WaitForHaTopologyAsync(
+                nodeA,
+                topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                TimeSpan.FromSeconds(75),
+                "the licensed standby never became Ready before the active process stopped");
+            var initialB = await WaitForHaTopologyAsync(
+                nodeB,
+                topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                TimeSpan.FromSeconds(20),
+                "the standby process did not observe the initial single authority");
+            AssertOneActive(initialA, "node-a");
+            AssertOneActive(initialB, "node-a");
+            var initialEpoch = initialA["authorityEpoch"]!.GetValue<long>();
+
+            // OS-process loss: the standby must use the fresh pre-failure witness and
+            // reference fence to claim a strictly newer authority epoch.
+            await nodeA.DisposeAsync();
+            nodeA = null;
+            var promoted = await WaitForHaTopologyAsync(
+                nodeB,
+                topology => IsEffectiveActive(topology, "node-b") &&
+                    topology["authorityEpoch"]!.GetValue<long>() > initialEpoch,
+                TimeSpan.FromSeconds(90),
+                "a Ready standby did not automatically claim authority after active-process loss");
+            AssertOneActive(promoted, "node-b");
+            var promotedEpoch = promoted["authorityEpoch"]!.GetValue<long>();
+
+            // Rejoin the old node with the same NodeId. It must reconcile the newer
+            // persisted epoch as Standby; restart alone must not restore its authority.
+            nodeA = ApiProcess.Start(
+                "node-a", urlA, urlB, ProjectKey, referencePath, directory,
+                appConnectionA.ConnectionString, license, apiDll, root, suffix);
+            await nodeA.WaitForHealthAsync();
+            await nodeA.LoginAsync();
+            var rejoinedA = await WaitForHaTopologyAsync(
+                nodeA,
+                topology => IsEffectiveActive(topology, "node-b") &&
+                    IsReadyStandby(topology, "node-a") &&
+                    !IsActive(topology, "node-a"),
+                TimeSpan.FromSeconds(60),
+                "the restarted old active did not rejoin as a fresh Ready, fenced Standby");
+            var rejoinedB = await WaitForHaTopologyAsync(
+                nodeB,
+                topology => IsEffectiveActive(topology, "node-b") &&
+                    IsReadyStandby(topology, "node-a"),
+                TimeSpan.FromSeconds(20),
+                "the active process did not observe the restarted peer as a fresh Ready Standby");
+            AssertOneActive(rejoinedA, "node-b");
+            AssertOneActive(rejoinedB, "node-b");
+            Assert.Equal(promotedEpoch, rejoinedA["authorityEpoch"]!.GetValue<long>());
+
+            // This request traverses the authenticated API endpoint with the temporary
+            // V3 HaRuntime license installed in both real processes; no security/license
+            // bypass is used for the controlled failback.
+            var failback = await nodeB.PostRawAsync(
+                "/api/runtime/ha/actions/failback",
+                new JsonObject { ["targetNodeId"] = "node-a" });
+            Assert.True(
+                failback.StatusCode == HttpStatusCode.Accepted,
+                $"Expected authenticated licensed failback to be accepted, got {(int)failback.StatusCode}: {failback.Body?.ToJsonString() ?? failback.RawBody}");
+            Assert.Equal("explicit-failback", failback.Body?["kind"]?.GetValue<string>());
+            Assert.Equal("completed", failback.Body?["state"]?.GetValue<string>());
+
+            var failedBackA = await WaitForHaTopologyAsync(
+                nodeA,
+                topology => IsEffectiveActive(topology, "node-a") &&
+                    topology["authorityEpoch"]!.GetValue<long>() > promotedEpoch,
+                TimeSpan.FromSeconds(60),
+                "the authenticated, licensed failback did not return authority to the preferred node");
+            var failedBackB = await WaitForHaTopologyAsync(
+                nodeB,
+                topology => IsEffectiveActive(topology, "node-a"),
+                TimeSpan.FromSeconds(20),
+                "the former active did not observe the completed failback");
+            AssertOneActive(failedBackA, "node-a");
+            AssertOneActive(failedBackB, "node-a");
+
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                evidence = "HA-D2 two-process authority lifecycle",
+                initialActive = "node-a",
+                automaticFailoverActive = "node-b",
+                explicitFailbackActive = "node-a",
+                initialEpoch,
+                promotedEpoch,
+                failedBackEpoch = failedBackA["authorityEpoch"]!.GetValue<long>(),
+                databaseTopology = sharedDatabase
+                    ? "both API processes used one disposable shared database name"
+                    : "each API process used its own disposable database name on the same PostgreSQL server",
+                restartRecovery = "same-NodeId rejoined Ready Standby at the newer persisted epoch",
+                runtimeSessionLeaseEvidence = new[]
+                {
+                    "RuntimeHighAvailabilityTests.RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission",
+                    "RuntimeHighAvailabilityPeerBoundaryTests.SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState"
+                }
+            }, Json));
+        }
+        finally
+        {
+            if (nodeB is not null) await nodeB.DisposeAsync();
+            if (nodeA is not null) await nodeA.DisposeAsync();
+            foreach (var database in databasesCreated.AsEnumerable().Reverse())
+                await DropDatabaseAsync(adminConnection.ConnectionString, database);
+            if (roleCreated)
+                await DropRoleAsync(adminConnection.ConnectionString, role);
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static async Task<JsonObject> WaitForHaTopologyAsync(
+        ApiProcess node,
+        Func<JsonObject, bool> predicate,
+        TimeSpan timeout,
+        string failure)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonObject? last = null;
+        Exception? lastException = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                last = (await node.GetAsync("/api/runtime/ha/topology")).AsObject();
+                if (predicate(last)) return last;
+            }
+            catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException or JsonException)
+            {
+                lastException = exception;
+            }
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        throw new TimeoutException(
+            $"{failure}. Last topology: {last?.ToJsonString() ?? "<unavailable>"}. " +
+            $"Last error: {lastException?.Message ?? "<none>"}");
+    }
+
+    private static bool IsEffectiveActive(JsonObject topology, string nodeId) =>
+        string.Equals(topology["effectiveActiveNodeId"]?.GetValue<string>(), nodeId, StringComparison.OrdinalIgnoreCase);
+
+    private static JsonObject HaNode(JsonObject topology, string nodeId) =>
+        topology["nodes"]!.AsArray()
+            .Select(entry => entry!.AsObject())
+            .Single(entry => string.Equals(entry["nodeId"]?.GetValue<string>(), nodeId, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsReady(JsonObject topology, string nodeId) =>
+        HaNode(topology, nodeId)["ready"]?.GetValue<bool>() == true;
+
+    private static bool IsFresh(JsonObject topology, string nodeId) =>
+        HaNode(topology, nodeId)["fresh"]?.GetValue<bool>() == true;
+
+    private static bool IsActive(JsonObject topology, string nodeId) =>
+        IsInState(HaNode(topology, nodeId), Scada.Api.Runtime.RuntimeHaState.Active);
+
+    private static bool IsReadyStandby(JsonObject topology, string nodeId)
+    {
+        var node = HaNode(topology, nodeId);
+        return IsReady(topology, nodeId) && IsFresh(topology, nodeId) &&
+            IsInState(node, Scada.Api.Runtime.RuntimeHaState.ReadyStandby);
+    }
+
+    private static bool IsInState(JsonObject node, Scada.Api.Runtime.RuntimeHaState expected)
+    {
+        var state = node["state"];
+        if (state is null) return false;
+        if (state.GetValueKind() == JsonValueKind.String)
+        {
+            return Enum.TryParse<Scada.Api.Runtime.RuntimeHaState>(state.GetValue<string>(), true, out var parsed) &&
+                parsed == expected;
+        }
+
+        return state.GetValueKind() == JsonValueKind.Number &&
+            state.GetValue<int>() == (int)expected;
+    }
+
+    private static void AssertOneActive(JsonObject topology, string expectedNodeId)
+    {
+        Assert.True(IsEffectiveActive(topology, expectedNodeId), topology.ToJsonString());
+        var activeNodes = topology["nodes"]!.AsArray()
+            .Count(entry => entry is JsonObject node &&
+                IsInState(node, Scada.Api.Runtime.RuntimeHaState.Active));
+        Assert.Equal(1, activeNodes);
+    }
+
     private static LicenseFiles CreateLicense(string directory)
     {
         using var key = RSA.Create(2048);

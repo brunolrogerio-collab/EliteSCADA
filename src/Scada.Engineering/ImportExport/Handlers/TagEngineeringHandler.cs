@@ -4,6 +4,7 @@ using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Historian;
+using Scada.Engineering.Intelligence;
 using Scada.Engineering.Security;
 using Scada.Engineering.Validation;
 
@@ -35,6 +36,13 @@ internal sealed class TagEngineeringHandler
         foreach (var dto in package.Tags)
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
+            if (dto.ControlledEngineeringUnit is not null)
+            {
+                if (package.SchemaVersion < 26)
+                    issues.Add(new("TAG_CONTROLLED_UNIT_SCHEMA_VERSION_REQUIRED", "Controlled TAG unit references require Engineering package schema version 26 or newer.", ImportEntityKind.Tag, dto.Path, true));
+                issues.AddRange(ControlledEngineeringUnitCatalog.ValidateReference(dto.ControlledEngineeringUnit)
+                    .Select(issue => new ImportIssue(issue.Code, issue.Message, ImportEntityKind.Tag, dto.Path, true)));
+            }
             ValidateAccessPolicy(dto, package, issues);
             issues.AddRange(CommunicationTagBindingEngineeringValidator.Validate(dto, package.SchemaVersion));
 
@@ -51,11 +59,24 @@ internal sealed class TagEngineeringHandler
                     dto.Path,
                     true));
 
+            var existing = ResolveExisting(dto);
+            var operation = EngineeringHandlerSupport.Decide(existing is not null, mode);
+            if (operation == ImportOperation.Update && existing?.ControlledEngineeringUnit is not null &&
+                (package.SchemaVersion < 26 || dto.ControlledEngineeringUnit is null))
+            {
+                issues.Add(new(
+                    "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT",
+                    $"Updating TAG '{dto.Path}' from an import that omits its controlled unit would remove an existing semantic annotation. Use an Engineering schema 26 package with the explicit controlled-unit reference or explicit removal.",
+                    ImportEntityKind.Tag,
+                    dto.Path,
+                    true));
+            }
+
             EngineeringHandlerSupport.AddPreview(
                 items,
                 ImportEntityKind.Tag,
                 dto.Path,
-                ResolveExisting(dto) is not null,
+                existing is not null,
                 mode,
                 issues);
         }
@@ -90,7 +111,8 @@ internal sealed class TagEngineeringHandler
                 BuildAccessPolicy(dto.AccessPolicy),
                 dto.AddressSelector,
                 dto.CommunicationBinding,
-                resolvedDataSource?.Id ?? dto.DataSourceId);
+                resolvedDataSource?.Id ?? dto.DataSourceId,
+                dto.ControlledEngineeringUnit);
 
             if (existing is null)
             {
@@ -133,7 +155,8 @@ internal sealed class TagEngineeringHandler
             BuildAccessPolicy(imported.AccessPolicy),
             imported.AddressSelector,
             imported.CommunicationBinding,
-            imported.DataSourceId);
+            imported.DataSourceId,
+            imported.ControlledEngineeringUnit);
     }
 
     public bool IsClientMemoryAlarmTarget(AlarmEngineeringDto dto, EngineeringPackage package)

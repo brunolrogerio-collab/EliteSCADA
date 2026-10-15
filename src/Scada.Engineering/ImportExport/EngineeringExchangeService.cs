@@ -26,7 +26,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 25;
+    public const int CurrentSchemaVersion = 26;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -315,6 +315,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         if (package.SchemaVersion > CurrentSchemaVersion)
             throw new InvalidDataException(
                 $"Schema version {package.SchemaVersion} is newer than supported version {CurrentSchemaVersion}.");
+        if (package.SchemaVersion < 26 && HasControlledSemantics(package))
+            throw new InvalidDataException("ENGINEERING_CONTROLLED_SEMANTICS_SCHEMA_VERSION_REQUIRED: controlled semantic annotations require Engineering package schema version 26 or newer.");
         if (package.SchemaVersion < 25 && package.AssetProcessIntelligence?.Version >= 2)
             throw new InvalidDataException("Asset & Process Intelligence configuration version 2 requires Engineering package schema version 25 or newer.");
 
@@ -353,8 +355,15 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         return AuthorityScopeEngineeringMigration.Normalize(normalized);
     }
 
-    public EngineeringPackage ParseTagsCsv(string csv) =>
-        EmptyWithCurrentAuthorityReference() with { Tags = _csv.ParseTags(csv) };
+    public EngineeringPackage ParseTagsCsv(string csv)
+    {
+        var hasControlledUnitColumn = _csv.HasControlledEngineeringUnitColumn(csv);
+        return EmptyWithCurrentAuthorityReference() with
+        {
+            SchemaVersion = hasControlledUnitColumn ? CurrentSchemaVersion : 25,
+            Tags = _csv.ParseTags(csv)
+        };
+    }
 
     public EngineeringPackage ParseAlarmsCsv(string csv) =>
         EmptyWithCurrentAuthorityReference() with { Alarms = _csv.ParseAlarms(csv) };
@@ -372,6 +381,16 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     {
         _ = EngineeringLockContract.Normalize(package.EngineeringLock);
         var items = new List<ImportPreviewItem>();
+        if (package.SchemaVersion < 26 && HasControlledSemantics(package))
+        {
+            var issue = new ImportIssue(
+                "ENGINEERING_CONTROLLED_SEMANTICS_SCHEMA_VERSION_REQUIRED",
+                "Controlled semantic annotations require Engineering package schema version 26 or newer.",
+                ImportEntityKind.AssetProcessIntelligenceConfiguration,
+                "semantic-annotations",
+                true);
+            items.Add(new ImportPreviewItem(ImportEntityKind.AssetProcessIntelligenceConfiguration, "semantic-annotations", ImportOperation.Error, [issue]));
+        }
         if (package.SchemaVersion < 25 && package.AssetProcessIntelligence?.Version >= 2)
         {
             var issue = new ImportIssue(
@@ -598,6 +617,18 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         var incoming = package.AssetProcessIntelligence;
         if (incoming is null) return;
 
+        var currentConfiguration = _assetProcessIntelligence.Snapshot();
+        if (package.SchemaVersion < 26 && OmitsPersistedSemanticBindings(currentConfiguration, incoming))
+        {
+            var issue = new ImportIssue(
+                "INTELLIGENCE_SEMANTIC_ANNOTATION_CONFLICT",
+                "This schema-25-or-older package omits persisted typed signal annotations. Re-import with schema 26 and explicitly retain, change, or remove those annotations.",
+                ImportEntityKind.AssetProcessIntelligenceConfiguration,
+                "asset-process-intelligence",
+                true);
+            items.Add(new ImportPreviewItem(ImportEntityKind.AssetProcessIntelligenceConfiguration, "asset-process-intelligence", ImportOperation.Error, [issue]));
+        }
+
         var currentTags = _tags.Snapshot().Select(EngineeringDtoMapper.ToDto).ToArray();
         var tags = BuildProspectiveResources(
             currentTags, package.Tags ?? Array.Empty<TagEngineeringDto>(), item => item.Id, mode,
@@ -621,6 +652,36 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         }
         if (validationIssues.Count == 0)
             items.Add(new ImportPreviewItem(ImportEntityKind.AssetProcessIntelligenceConfiguration, "asset-process-intelligence", ImportOperation.Update, Array.Empty<ImportIssue>()));
+    }
+
+    private static bool HasControlledSemantics(EngineeringPackage package) =>
+        (package.Tags ?? Array.Empty<TagEngineeringDto>()).Any(tag => tag?.ControlledEngineeringUnit is not null) ||
+        (package.AssetProcessIntelligence?.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+            .Where(profile => profile is not null)
+            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+            .Any(signal => signal?.SemanticBinding is not null);
+
+    private static bool OmitsPersistedSemanticBindings(
+        AssetProcessIntelligenceEngineeringDto current,
+        AssetProcessIntelligenceEngineeringDto incoming)
+    {
+        var persisted = (current.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+            .Where(profile => profile is not null)
+            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+            .Where(signal => signal?.SemanticBinding is not null)
+            .GroupBy(signal => signal.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+        if (persisted.Count == 0) return false;
+        var replacement = (incoming.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+            .Where(profile => profile is not null)
+            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+            .Where(signal => signal is not null)
+            .GroupBy(signal => signal.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+        return persisted.Values.Any(signal =>
+            !replacement.TryGetValue(signal.Id, out var candidate) ||
+            candidate.TagId != signal.TagId ||
+            candidate.SemanticBinding != signal.SemanticBinding);
     }
 
     private static ImportEntityKind ImportKind(AssetProcessIntelligenceIssueEntity entity) => entity switch

@@ -50,7 +50,8 @@ internal static class EngineeringDtoMapper
             tag.AddressSelector,
             tag.CommunicationBinding,
             tag.DataSourceId,
-            HistorianCaptureProfileMetadata.ReadProfileId(tag.Metadata));
+            HistorianCaptureProfileMetadata.ReadProfileId(tag.Metadata),
+            tag.ControlledEngineeringUnit);
     }
 
     public static AlarmEngineeringDto ToDto(AlarmDefinition alarm, string? tagPath) =>

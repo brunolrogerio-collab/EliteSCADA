@@ -22,7 +22,8 @@ public sealed record AssetProcessIntelligenceScopeConfigurationRequest(
 public sealed record AssetProcessIntelligenceConfigurationRequest(
     IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto>? Profiles,
     IReadOnlyCollection<AssetProcessIntelligenceAssignmentEngineeringDto>? Assignments,
-    IReadOnlyCollection<AssetProcessIntelligenceProcessStageEngineeringDto>? ProcessStages);
+    IReadOnlyCollection<AssetProcessIntelligenceProcessStageEngineeringDto>? ProcessStages,
+    int? SemanticContractVersion = null);
 
 public static class AssetProcessIntelligenceApi
 {
@@ -218,6 +219,14 @@ public static class AssetProcessIntelligenceApi
                 return Results.BadRequest(new { error = "INTELLIGENCE_CONFIGURATION_LISTS_REQUIRED" });
             if (request.Profiles.Any(item => item is null) || request.Assignments.Any(item => item is null) || request.ProcessStages.Any(item => item is null))
                 return Results.BadRequest(new { error = "INTELLIGENCE_CONFIGURATION_ENTRY_INVALID" });
+            if (request.SemanticContractVersion is not null and not 1)
+                return Results.BadRequest(new { error = "INTELLIGENCE_SEMANTIC_CONTRACT_VERSION_UNSUPPORTED" });
+            var incomingHasSemanticBinding = request.Profiles
+                .Where(profile => profile is not null)
+                .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                .Any(signal => signal?.SemanticBinding is not null);
+            if (incomingHasSemanticBinding && request.SemanticContractVersion is null)
+                return Results.BadRequest(new { error = "INTELLIGENCE_SEMANTIC_CONTRACT_VERSION_REQUIRED" });
             if (workspace.Describe().ProjectKey is null)
                 return Results.Conflict(new { error = "ENGINEERING_PROJECT_NOT_CHECKED_OUT" });
 
@@ -227,6 +236,8 @@ public static class AssetProcessIntelligenceApi
                 return Results.Conflict(new { error = "ENGINEERING_PROJECT_NOT_CHECKED_OUT" });
 
             var current = intelligence.Snapshot();
+            if (request.SemanticContractVersion is null && OmitsPersistedSemanticBindings(current, request.Profiles))
+                return Results.Conflict(new { error = "INTELLIGENCE_SEMANTIC_ANNOTATION_CONFLICT" });
             var configuration = new AssetProcessIntelligenceEngineeringDto(
                 Version: 2,
                 Scopes: current.Scopes,
@@ -292,6 +303,28 @@ public static class AssetProcessIntelligenceApi
                 runtime, highAvailability, executionGate, security, audit));
 
         return endpoints;
+    }
+
+    private static bool OmitsPersistedSemanticBindings(
+        AssetProcessIntelligenceEngineeringDto current,
+        IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto> replacementProfiles)
+    {
+        var persisted = (current.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+            .Where(profile => profile is not null)
+            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+            .Where(signal => signal?.SemanticBinding is not null)
+            .GroupBy(signal => signal.Id)
+            .Select(group => group.First());
+        var replacement = replacementProfiles
+            .Where(profile => profile is not null)
+            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+            .Where(signal => signal is not null)
+            .GroupBy(signal => signal.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+        return persisted.Any(signal =>
+            !replacement.TryGetValue(signal.Id, out var candidate) ||
+            candidate.TagId != signal.TagId ||
+            candidate.SemanticBinding != signal.SemanticBinding);
     }
 
     private static async Task<IResult> SetScopeActivationAsync(

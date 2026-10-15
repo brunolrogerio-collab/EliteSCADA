@@ -199,6 +199,14 @@ public static class AssetProcessIntelligenceEngineeringValidator
                     issues.Add(new("INTELLIGENCE_SIGNAL_TAG_ID_INVALID", $"Signal '{signal.Key}' requires a stable TAG identity.", AssetProcessIntelligenceIssueEntity.Profile, signal.Id));
                 else if (tagIds?.Contains(signal.TagId) == false)
                     issues.Add(new("INTELLIGENCE_SIGNAL_TAG_NOT_FOUND", $"Signal '{signal.Key}' references TAG '{signal.TagId:D}', which is missing or ambiguous in the canonical Engineering package.", AssetProcessIntelligenceIssueEntity.Profile, signal.Id));
+
+                if (signal.SemanticBinding is not null)
+                {
+                    issues.AddRange(AssetProcessIntelligenceSemanticCatalog.ValidateBinding(signal.SemanticBinding, signal.Id));
+                    var tag = tags?.FirstOrDefault(item => item.Id == signal.TagId);
+                    if (tag is not null)
+                        ValidateSemanticTagBinding(signal.SemanticBinding, tag, signal.Id, issues);
+                }
             }
         }
 
@@ -241,6 +249,32 @@ public static class AssetProcessIntelligenceEngineeringValidator
         }
 
         return issues;
+    }
+
+    private static void ValidateSemanticTagBinding(
+        AssetProcessIntelligenceSignalSemanticBindingEngineeringDto binding,
+        TagEngineeringDto tag,
+        Guid signalId,
+        List<AssetProcessIntelligenceEngineeringIssue> issues)
+    {
+        if (tag.DataType is not (Scada.Core.Tags.TagDataType.Int16 or Scada.Core.Tags.TagDataType.Int32 or
+            Scada.Core.Tags.TagDataType.Int64 or Scada.Core.Tags.TagDataType.Float or Scada.Core.Tags.TagDataType.Double))
+        {
+            issues.Add(new("INTELLIGENCE_SEMANTIC_TAG_TYPE_UNSUPPORTED", "A semantic process signal must reference a numeric TAG.", AssetProcessIntelligenceIssueEntity.Profile, signalId));
+            return;
+        }
+
+        var unitIssues = ControlledEngineeringUnitCatalog.ValidateReference(tag.ControlledEngineeringUnit, AssetProcessIntelligenceIssueEntity.Profile, signalId);
+        issues.AddRange(unitIssues);
+        if (!ControlledEngineeringUnitCatalog.TryResolve(tag.ControlledEngineeringUnit, out var unit))
+            return;
+        var roleDimension = AssetProcessIntelligenceSemanticCatalog.DimensionForRole(binding.RoleCode);
+        if (roleDimension is not null && !string.Equals(roleDimension, unit.Dimension, StringComparison.Ordinal))
+            issues.Add(new(
+                "INTELLIGENCE_SEMANTIC_DIMENSION_MISMATCH",
+                $"Signal role '{binding.RoleCode}' expects dimension '{roleDimension}', but TAG '{tag.Path}' declares '{unit.Dimension}'.",
+                AssetProcessIntelligenceIssueEntity.Profile,
+                signalId));
     }
 
     private static HashSet<Guid>? UniqueResourceIds(

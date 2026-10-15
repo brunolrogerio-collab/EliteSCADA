@@ -143,7 +143,8 @@ public sealed record TagEngineeringDto(
     TagValueSelector? AddressSelector = null,
     CommunicationTagBinding? CommunicationBinding = null,
     Guid? DataSourceId = null,
-    Guid? HistorianCaptureProfileId = null);
+    Guid? HistorianCaptureProfileId = null,
+    ControlledEngineeringUnitReference? ControlledEngineeringUnit = null);
 
 public sealed record AlarmEngineeringDto(
     Guid? Id,
@@ -276,7 +277,21 @@ public sealed record AssetProcessIntelligenceSignalEngineeringDto(
     string Key,
     string SignalRole,
     Guid TagId,
-    bool Required = true);
+    bool Required = true,
+    AssetProcessIntelligenceSignalSemanticBindingEngineeringDto? SemanticBinding = null);
+
+/// <summary>
+/// Explicit Stage 3 semantic annotation. SignalRole remains opaque legacy text.
+/// Only the qualifier relevant to RoleCode may be populated.
+/// </summary>
+public sealed record AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+    int CatalogVersion,
+    string RoleCode,
+    string? CurrentBasis = null,
+    string? SignalKind = null,
+    string? FrequencyReference = null,
+    string? PressureReference = null,
+    string? FlowDirection = null);
 
 public sealed record AssetProcessIntelligenceProfileEngineeringDto(
     Guid Id,

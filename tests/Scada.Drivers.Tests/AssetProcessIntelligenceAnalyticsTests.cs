@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -223,6 +224,263 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         Assert.Equal(6d, payload.Period.Summary.Delta);
         Assert.Equal("not_assessed", payload.Provenance.RegimeEquivalence);
         Assert.Equal("unknown", payload.Period.Summary.Completeness);
+    }
+
+    [Fact]
+    public async Task ProfileCoverageReturnsPerSignalDescriptiveTrendsAndExactHistorianTimestampOverlap()
+    {
+        using var fixture = Fixture.Create();
+        var secondTag = fixture.AddProfileSignal("speed", "motor-speed", TagDataType.Double, "rpm");
+        fixture.Historian.Respond = request =>
+        {
+            var tagId = Assert.Single(Assert.Single(request.Filters!).Values).AsGuid();
+            if (tagId == fixture.Tag.Id)
+                return Response(request,
+                [
+                    Row(tagId, FromUtc.AddMinutes(10), "Good", HistoricalQueryValue.FromDouble(1)),
+                    Row(tagId, FromUtc.AddMinutes(20), "BadCommunication", HistoricalQueryValue.FromDouble(99))
+                ]);
+            Assert.Equal(secondTag.Id, tagId);
+            return Response(request,
+            [
+                Row(tagId, FromUtc.AddMinutes(10), "Good", HistoricalQueryValue.FromDouble(1200)),
+                Row(tagId, FromUtc.AddMinutes(30), "Good", HistoricalQueryValue.FromDouble(1300))
+            ]);
+        };
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceProfileCoverageResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(2, fixture.Historian.Calls);
+        Assert.Equal(2, payload.Signals.Count);
+        Assert.Equal("bar", payload.Signals[0].Unit);
+        Assert.Equal("rpm", payload.Signals[1].Unit);
+        Assert.Equal(1, payload.Signals[0].Summary!.AcceptedSampleCount);
+        Assert.Equal(2, payload.Signals[1].Summary!.AcceptedSampleCount);
+        Assert.Equal("metadata only; SignalRole is not interpreted", payload.Provenance.SignalRoleInterpretation);
+        Assert.Equal("exact_historian_timestamp_overlap_observed", payload.TemporalAlignment.Status);
+        Assert.Equal(1, payload.TemporalAlignment.ExactHistorianTimestampIntersectionCount);
+        Assert.Equal("unverified", payload.TemporalAlignment.SourceAcquisitionAlignment);
+        Assert.Equal("unknown", payload.TemporalAlignment.ExpectedCadence);
+        Assert.Equal("unknown", payload.TemporalAlignment.Completeness);
+        Assert.Contains("unsupported", payload.Provenance.ProcessKpiDisposition);
+    }
+
+    [Fact]
+    public async Task ProfileCoverageMarksUnalignedAndPoorQualityRequiredSignalsInsufficient()
+    {
+        using var fixture = Fixture.Create();
+        var secondTag = fixture.AddProfileSignal("speed", "motor-speed", TagDataType.Double, "rpm");
+        fixture.Historian.Respond = request =>
+        {
+            var tagId = Assert.Single(Assert.Single(request.Filters!).Values).AsGuid();
+            var timestamp = tagId == fixture.Tag.Id ? FromUtc.AddMinutes(10) : FromUtc.AddMinutes(11);
+            var quality = tagId == secondTag.Id ? "Uncertain" : "Good";
+            return Response(request,
+                [Row(tagId, timestamp, quality, HistoricalQueryValue.FromDouble(5))]);
+        };
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceProfileCoverageResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("insufficient_required_signal_data", payload.TemporalAlignment.Status);
+        Assert.Equal(1, payload.TemporalAlignment.RequiredSignalsWithGoodSamples);
+        Assert.Equal(0, payload.TemporalAlignment.ExactHistorianTimestampIntersectionCount);
+        Assert.Equal("insufficient_no_good_numeric_samples", payload.Signals.Single(signal => signal.TagId == secondTag.Id).Status);
+        Assert.All(payload.Signals, signal => Assert.Equal("unknown", signal.Summary!.Completeness));
+    }
+
+    [Fact]
+    public async Task ProfileCoverageDoesNotCallDifferentHistorianTimestampsAligned()
+    {
+        using var fixture = Fixture.Create();
+        var secondTag = fixture.AddProfileSignal("speed", "motor-speed", TagDataType.Double, "rpm");
+        fixture.Historian.Respond = request =>
+        {
+            var tagId = Assert.Single(Assert.Single(request.Filters!).Values).AsGuid();
+            var timestamp = tagId == fixture.Tag.Id ? FromUtc.AddMinutes(10) : FromUtc.AddMinutes(11);
+            return Response(request,
+                [Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(5))]);
+        };
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceProfileCoverageResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(2, payload.TemporalAlignment.RequiredSignalsWithGoodSamples);
+        Assert.Equal(0, payload.TemporalAlignment.ExactHistorianTimestampIntersectionCount);
+        Assert.Equal("insufficient_exact_historian_timestamp_overlap", payload.TemporalAlignment.Status);
+        Assert.All(payload.Signals, signal => Assert.Equal("descriptive_trend_available", signal.Status));
+        Assert.Equal(2, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ProfileCoverageReportsNonnumericRequiredSignalAsUnsupportedWithoutQueryingIt()
+    {
+        using var fixture = Fixture.Create();
+        var secondTag = fixture.AddProfileSignal("running", "motor-state", TagDataType.Boolean, null);
+        fixture.Historian.Respond = request =>
+        {
+            var tagId = Assert.Single(Assert.Single(request.Filters!).Values).AsGuid();
+            return Response(request,
+                [Row(tagId, FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(5))]);
+        };
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceProfileCoverageResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        var unsupported = Assert.Single(payload.Signals, signal => signal.TagId == secondTag.Id);
+        Assert.Equal("unsupported_non_numeric_tag_type", unsupported.Status);
+        Assert.Null(unsupported.Summary);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.Equal("insufficient_required_signal_data", payload.TemporalAlignment.Status);
+    }
+
+    [Fact]
+    public async Task ProfileCoverageEnforcesOneTotalRowCapAcrossSignalsWithoutReturningPartialResults()
+    {
+        using var fixture = Fixture.Create();
+        var secondTag = fixture.AddProfileSignal("speed", "motor-speed", TagDataType.Double, "rpm");
+        var firstTagPage = 0;
+        fixture.Historian.Respond = request =>
+        {
+            var tagId = Assert.Single(Assert.Single(request.Filters!).Values).AsGuid();
+            if (tagId == secondTag.Id)
+                return Response(request,
+                    [Row(tagId, FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(6))]);
+
+            var cursor = firstTagPage == 249 ? null : $"first-{firstTagPage + 1}";
+            firstTagPage++;
+            return Response(request, Enumerable.Range(0, 200)
+                .Select(_ => Row(tagId, FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(5)))
+                .ToArray(), cursor);
+        };
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status413PayloadTooLarge, result);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE", error.Code);
+        Assert.Equal(251, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceProfileCoverageResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ProfileCoverageStopsBeforeHistorianWhenTrendUseIsMissing()
+    {
+        using var fixture = Fixture.Create(grantTrendUse: false);
+        fixture.AddProfileSignal("speed", "motor-speed", TagDataType.Double, "rpm");
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public void ProfileCoverageCatalogStatesItsBoundsAndNonPhysicalTimestampRule()
+    {
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(
+            AssetProcessIntelligenceProfileCoverageCatalogV1.Describe()));
+        var root = document.RootElement;
+        Assert.Equal(1, root.GetProperty("catalogVersion").GetInt32());
+        Assert.Equal(16, root.GetProperty("maximumSignals").GetInt32());
+        Assert.Equal(50000, root.GetProperty("maximumRowsPerWindow").GetInt32());
+        Assert.Equal("metadata_only", root.GetProperty("signalRoleInterpretation").GetString());
+        Assert.Equal("none", root.GetProperty("unitConversion").GetString());
+        Assert.Contains("unsupported", root.GetProperty("processKpiDisposition").GetString());
+        Assert.Contains("exact Historian event-time equality only",
+            root.GetProperty("rules")[0].GetProperty("formula").GetString());
+    }
+
+    [Fact]
+    public async Task ProfileCoverageRejectsDuplicateTagReferencesBeforeHistorianAccess()
+    {
+        using var fixture = Fixture.Create();
+        var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+        var profile = Assert.Single(configuration.Profiles!);
+        var original = Assert.Single(profile.Signals!);
+        var duplicate = original with { Id = Guid.NewGuid(), Key = "pressure-alias" };
+        fixture.Workspace.AssetProcessIntelligence.Replace(configuration with
+        {
+            Profiles = [profile with { Signals = [original, duplicate] }]
+        });
+        var descriptor = fixture.Workspace.Describe();
+        fixture.Workspace.SetCheckout(Fixture.ProjectKey, "Stage 3B duplicate reference test",
+            descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_PROFILE_DUPLICATE_TAG_REFERENCE_UNSUPPORTED", error.Code);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ProfileCoveragePreauthorizesEveryTagBeforeTheFirstHistorianQuery()
+    {
+        using var fixture = Fixture.Create(grantTagRead: false);
+        fixture.AddProfileSignal("speed", "motor-speed", TagDataType.Double, "rpm");
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task PausingProfileScopeAfterFirstSignalDiscardsTheWholeProfileResponse()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddProfileSignal("speed", "motor-speed", TagDataType.Double, "rpm");
+        fixture.Historian.Respond = request =>
+        {
+            var tagId = Assert.Single(Assert.Single(request.Filters!).Values).AsGuid();
+            fixture.Gate.Pause(Fixture.ProjectKey, fixture.ScopeKind, fixture.ScopeId);
+            return Response(request,
+                [Row(tagId, FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(5))]);
+        };
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceProfileCoverageResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ProfileCoverageRejectsAProfileOutsideTheRequestedActiveScope()
+    {
+        using var fixture = Fixture.Create();
+
+        var result = await fixture.ExecuteProfileCoverageAsync(scopeId: Guid.NewGuid());
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ProfileCoverageRejectsMissingIntelligenceEntitlementBeforeHistorianAccess()
+    {
+        using var fixture = Fixture.Create(licensed: false);
+        fixture.AddProfileSignal("speed", "motor-speed", TagDataType.Double, "rpm");
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(0, fixture.Historian.Calls);
     }
 
     [Fact]
@@ -468,7 +726,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
-    public async Task EndpointSurfaceContainsOnlyCatalogAndReadOnlyQuery()
+    public async Task EndpointSurfaceContainsOnlyCatalogAndReadOnlyQueries()
     {
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddSingleton<AssetProcessIntelligenceAnalyticsService>(_ => null!);
@@ -485,9 +743,18 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             new[]
             {
                 "/api/engineering/asset-process-intelligence/analytics/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/profile-coverage",
+                "/api/engineering/asset-process-intelligence/analytics/profile-coverage/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/query"
             },
             routes);
+        var methods = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .SelectMany(endpoint => endpoint.Metadata.OfType<HttpMethodMetadata>().Single().HttpMethods)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        Assert.Equal(new[] { "GET", "POST" }, methods);
     }
 
     private static AssetProcessIntelligenceRawObservation Observation(
@@ -576,6 +843,55 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         public Task<IResult> ExecuteAsync(
             AssetProcessIntelligenceAnalyticsQueryRequest? request = null)
         {
+            var context = CreateContext();
+            return Analytics.ExecuteAsync(context, request ?? Request, context.RequestAborted);
+        }
+
+        public Task<IResult> ExecuteProfileCoverageAsync(Guid? scopeId = null)
+        {
+            var profile = Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single();
+            var context = CreateContext();
+            return Analytics.ExecuteProfileCoverageAsync(
+                context,
+                new AssetProcessIntelligenceProfileCoverageQueryRequest(
+                    ScopeKind,
+                    scopeId ?? ScopeId,
+                    profile.Id,
+                    Window(FromUtc, FromUtc.AddHours(1))),
+                context.RequestAborted);
+        }
+
+        public TagDefinition AddProfileSignal(string key, string role, TagDataType dataType, string? unit)
+        {
+            var tag = new TagDefinition(
+                Guid.NewGuid(),
+                key,
+                $"Plant.Pump.{key}",
+                dataType,
+                null,
+                unit,
+                null,
+                true);
+            Workspace.Tags.Register(tag);
+            Runtime.AddTag(tag);
+            var configuration = Workspace.AssetProcessIntelligence.Snapshot();
+            var profile = configuration.Profiles!.Single();
+            var signal = new AssetProcessIntelligenceSignalEngineeringDto(
+                Guid.NewGuid(),
+                key,
+                role,
+                tag.Id);
+            Workspace.AssetProcessIntelligence.Replace(configuration with
+            {
+                Profiles = [profile with { Signals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>()).Append(signal).ToArray() }]
+            });
+            var descriptor = Workspace.Describe();
+            Workspace.SetCheckout(ProjectKey, "Stage 3B test", descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+            return tag;
+        }
+
+        private static DefaultHttpContext CreateContext()
+        {
             var context = new DefaultHttpContext();
             context.User = new ClaimsPrincipal(new ClaimsIdentity(
             [
@@ -583,7 +899,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 new Claim("role", "operator")
             ],
             "analytics-test"));
-            return Analytics.ExecuteAsync(context, request ?? Request, context.RequestAborted);
+            return context;
         }
 
         public static Fixture Create(
@@ -735,12 +1051,14 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     private sealed class TestRuntimeCoordinator(string projectKey, long revision, TagDefinition tag)
         : IEngineeringRuntimeCoordinator
     {
+        private readonly List<TagDefinition> _tags = [tag];
         private RuntimeDescriptor _descriptor = new(
             projectKey, revision, DateTimeOffset.Parse("2026-10-14T00:00:00Z"), [], [], 1, 0);
 
         public RuntimeDescriptor Describe() => _descriptor;
         public void SetRevision(long revision) => _descriptor = _descriptor with { Revision = revision };
-        public IReadOnlyCollection<TagDefinition> Tags() => [tag];
+        public void AddTag(TagDefinition tag) => _tags.Add(tag);
+        public IReadOnlyCollection<TagDefinition> Tags() => _tags.ToArray();
         public IReadOnlyCollection<TagValue> CurrentValues() => [];
         public IReadOnlyCollection<AlarmDefinition> AlarmDefinitions() => [];
         public IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false) => [];
@@ -748,12 +1066,12 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() => [];
         public bool TryGetTag(Guid tagId, out TagDefinition? result)
         {
-            result = tagId == tag.Id ? tag : null;
+            result = _tags.SingleOrDefault(item => item.Id == tagId);
             return result is not null;
         }
         public bool TryGetTagByPath(string path, out TagDefinition? result)
         {
-            result = string.Equals(path, tag.Path, StringComparison.OrdinalIgnoreCase) ? tag : null;
+            result = _tags.SingleOrDefault(item => string.Equals(item.Path, path, StringComparison.OrdinalIgnoreCase));
             return result is not null;
         }
         public bool TryGetCurrent(Guid tagId, out TagValue? value) { value = null; return false; }

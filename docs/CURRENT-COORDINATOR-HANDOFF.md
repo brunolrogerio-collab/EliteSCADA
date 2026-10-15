@@ -10,12 +10,14 @@ Snapshot: 2026-10-15. Replace this snapshot when state changes; keep detailed hi
 | Verified product checkpoint | `54c7c9942b57328cabcef740c99f4ab3207cc040` — PR #617 |
 | Product front | Asset & Process Intelligence, issue #588; Stage 3 partially delivered |
 | Completed slice | `net-observed-rate.v1` — INTEGRATED / VERIFIED |
-| Product executor | Chat CODEX; delivery complete, waiting for Main's next bounded order |
-| Immediate direction | Product Owner requested workflow adjustment before further product work |
-| Next owner/action | Main synchronizes this workflow and CODEX's readback, then scopes the next Stage 3 package |
-| Product authorization in this snapshot | No new implementation lane; Main must publish its next bounded order |
+| Product executor | Chat CODEX; assigned package #619 |
+| Immediate direction | Implement recorded-current comparison under an explicit measured-frequency range |
+| Next owner/action | CODEX implements/tests/publishes the assigned draft PR; Main reviews and integrates |
+| Product authorization in this snapshot | Only #619; exact Main control/start commit is recorded in its activation comment |
 
 Coordination-only commits after the product checkpoint do not invalidate its product evidence. Discover the current coordination HEAD from the live integration ref.
+
+Workflow adjustment #618 is integrated at coordination HEAD `120d93a477924b34994e2a1c2167b873c93c512d`; CODEX acknowledged it. The finite [Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining V1 work. [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md) defines #619. This published Main control branch carries the current assignment until it joins the implementation PR/integration; its immutable commit is linked from #619/#305.
 
 ## Evidence
 

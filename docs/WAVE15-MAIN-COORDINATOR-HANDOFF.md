@@ -2,24 +2,26 @@
 
 Snapshot: 2026-10-15. This is the live Main-to-CODEX order. Replace its current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — workflow alignment before product development
+## Current order — #619 current/frequency observed comparison v1
 
 | Field | Order |
 | --- | --- |
 | Owner | Main Coordinator |
-| Executor | Main for coordination files; chat CODEX for one process readback |
+| Executor | Chat CODEX for implementation and validation; Main for review/integration |
 | Product front | Intelligence #588; no change of front |
 | Integration target | `wave15/corrections-integration` |
 | Verified product checkpoint | `54c7c9942b57328cabcef740c99f4ab3207cc040` |
-| Objective | Remove repeated discovery, stale instructions, duplicate validation, and unnecessary owner relays |
-| Allowed changes | Collaboration protocol, coordinator pointers, continuity/assignment guidance, and relevant coordination ledgers |
-| Validation | Review documentation links, authority consistency, diff hygiene, and normal documentation T1 |
-| Completion | Documentation integrated; live readback confirms it; CODEX acknowledges the process once |
-| Product development | CODEX waits for the next explicit Main work package |
+| Objective | Reproducible current comparison inside an explicit recorded measured-frequency range |
+| Allowed changes | New versioned Intelligence DTO/catalog/calculation; additive service/route; owning tests; Main control docs |
+| Validation | Focused local calculator/service/API cases and build; exact published T1 SESSION_LICENSING plus inference; Main review; required post-merge CI |
+| Completion | #619 acceptance passes, reviewed implementation integrated and verified; CODEX then waits for Main |
+| Implementation branch | `work/w15-intelligence-current-frequency-comparison-v1` |
 
-Main must retain relevant decisions from older proposals while superseding their stale assignments. Old documentation PRs must not later reintroduce old CURRENT sections. Their disposition is recorded in #305; preserve branches and historical evidence.
+Workflow adjustment #618 is complete at coordination HEAD `120d93a477924b34994e2a1c2167b873c93c512d`; CODEX acknowledged the new process. Old documentation proposals #569/#591/#610 are closed with branches/evidence preserved.
 
-After the documentation is integrated, Main sends the authorized CODEX chat one process-only instruction: read this order and the global protocol, confirm the active product checkpoint/current lane state, and wait for the next package. Do not run product tests, CI, or another checkout recovery attempt merely to acknowledge this process change.
+Start at the exact published Main control commit recorded in [#619](https://github.com/brunolrogerio-collab/EliteSCADA/issues/619)'s activation comment. It descends from `120d93a477924b34994e2a1c2167b873c93c512d` and adds only this order, resume pointers, [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md), and the [finite Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md). CODEX uses a fresh isolated implementation branch at that commit; Main-authored docs join its draft PR. This avoids a separate documentation integration/CI cycle merely to release the package. Verify the live integration remains that start base or differs only by coordinated documentation; product divergence requires Main disposition.
+
+The owning issue and ADR fix the formula, source-time join, semantic qualifiers, no-partial/security fences, aggregate 50k-row budget, and test cases. Main's narrow shared-file exception covers additive analytics service/route registration only. No source changes to existing v1 contracts, units/roles, Historian provider/storage, HA/security behavior, licensing, UI, or workflows are authorized.
 
 ## Responsibilities
 
@@ -70,7 +72,7 @@ Main records review separately from the original evidence. An acknowledgement is
 
 PR #617's `net-observed-rate.v1` is integrated and verified at the checkpoint above. Stage 3A descriptive KPIs, the bounded Stage 3B coverage work, controlled semantics, and ADR-014 are existing foundations; they do not establish all of Stage 3 as complete.
 
-After workflow alignment, Main must establish a finite remaining Stage 3 acceptance matrix from #588 and the real code, then release its next useful bounded KPI package. The matrix must distinguish implemented behavior, missing prerequisites, and work belonging to later stages. Do not reopen completed slices or launch open-ended research. Stage 4/5/6 and a renewed HA lane are not active orders in this snapshot.
+The [finite acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) now fixes the remaining scope: #619 first, then Main's PERFORMANCE-V1 prerequisite/formula package, then audit the exact composition against the named rows. Main next reviews the delivered #619 candidate. Stage 4/5/6 and a renewed HA lane are not active orders in this snapshot.
 
 ## Persistent authority
 

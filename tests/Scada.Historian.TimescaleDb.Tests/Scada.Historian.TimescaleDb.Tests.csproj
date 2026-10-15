@@ -11,4 +11,7 @@
     <ProjectReference Include="../../src/Scada.Core/Scada.Core.csproj" />
     <ProjectReference Include="../../src/Scada.Historian.TimescaleDb/Scada.Historian.TimescaleDb.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

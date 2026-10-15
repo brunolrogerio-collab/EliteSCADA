@@ -30,6 +30,7 @@ jobs:
       run_e2e: ${{ steps.router.outputs.run_e2e }}
       run_driver: ${{ steps.router.outputs.run_driver }}
       run_ha_two_process: ${{ steps.router.outputs.run_ha_two_process }}
+      run_ha_d2_acceptance: ${{ steps.router.outputs.run_ha_d2_acceptance }}
       effective_profiles: ${{ steps.router.outputs.effective_profiles }}
       dotnet_projects: ${{ steps.router.outputs.dotnet_projects }}
       e2e_specs: ${{ steps.router.outputs.e2e_specs }}
@@ -335,6 +336,97 @@ jobs:
       - name: Run real two-process HA evidence
         run: python3 scripts/ci/ha_d1_two_process_evidence.py
 
+  ha-d2-acceptance:
+    name: HA D2 real-process lifecycle across shared and separate databases
+    needs: classify
+    if: needs.classify.outputs.run_ha_d2_acceptance == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_ha_d2_seed
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_ha_d2_seed"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ELITESCADA_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=postgres;Pooling=false
+      ELITESCADA_REQUIRE_HA_D2_POSTGRES: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore API used by the child processes
+        run: dotnet restore src/Scada.Api/Scada.Api.csproj
+      - name: Build API used by the child processes
+        run: dotnet build src/Scada.Api/Scada.Api.csproj --no-restore --configuration Release
+      - name: Restore HA acceptance test project
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+      - name: Run explicit HA-D2 and session-lease evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ha-d2-results"
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --no-restore --configuration Release --verbosity minimal \
+            --filter 'FullyQualifiedName~RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack|FullyQualifiedName~RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack|FullyQualifiedName~RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission|FullyQualifiedName~SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState' \
+            --logger 'trx;LogFileName=ha-d2-acceptance.trx' \
+            --results-directory "$RUNNER_TEMP/ha-d2-results"
+      - name: Require all selected test cases to pass (no empty or skipped evidence)
+        env:
+          HA_D2_RESULTS: ${{ runner.temp }}/ha-d2-results
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          expected = {
+              "RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack",
+              "RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack",
+              "RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission",
+              "SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState",
+          }
+          results = []
+          for path in Path(os.environ["HA_D2_RESULTS"]).glob("*.trx"):
+              root = ET.parse(path).getroot()
+              results.extend(element for element in root.iter() if element.tag.endswith("UnitTestResult"))
+          passed = {
+              method
+              for result in results
+              if result.attrib.get("outcome") == "Passed"
+              for method in expected
+              if method in result.attrib.get("testName", "")
+          }
+          missing = sorted(expected - passed)
+          if missing:
+              raise SystemExit("HA-D2 acceptance did not pass every required case: " + ", ".join(missing))
+          print("Passed explicit HA-D2 authority lifecycle plus both runtime session lease continuity cases.")
+          PY
+      - name: Preserve HA-D2 test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave15-ha-d2-acceptance-trx
+          path: ${{ runner.temp }}/ha-d2-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Record D2 scope and database limitation
+        run: |
+          {
+            echo '## HA D2 process-level acceptance'
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo 'Evidence: two real API child processes; automatic Ready-standby promotion; same-NodeId restart reconciliation; authenticated, V3-HaRuntime-licensed explicit failback in both shared and separate database-name topologies.'
+            echo 'Runtime session lease continuity/no-double-seat: exact in-process takeover and stale/resurrection rejection tests also passed in this gate; this is not a client-session reconnection E2E test.'
+            echo 'Database scope: shared-name and separate-name variants use one configured disposable PostgreSQL server; no independent PostgreSQL server-failure/durability claim.'
+            echo 'D1 protocol evidence remains a separate job and is not relabeled as D2.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   native-zigbee-sidecar:
     name: Native Zigbee Node and SBOM evidence (${{ matrix.os }})
     needs: classify
@@ -536,7 +628,7 @@ jobs:
 
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -547,6 +639,7 @@ jobs:
       DOTNET: ${{ needs.dotnet-focused.result }}
       E2E: ${{ needs.chromium-focused.result }}
       HA_TWO_PROCESS: ${{ needs.ha-two-process.result }}
+      HA_D2: ${{ needs.ha-d2-acceptance.result }}
       NATIVE_ZIGBEE: ${{ needs.native-zigbee-sidecar.result }}
       KNX_SIDECAR: ${{ needs.knx-ip-sidecar.result }}
       ZWAVE_SIDECAR: ${{ needs.zwave-js-sidecar.result }}
@@ -556,6 +649,7 @@ jobs:
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
       NEED_E2E: ${{ needs.classify.outputs.run_e2e }}
       NEED_HA_TWO_PROCESS: ${{ needs.classify.outputs.run_ha_two_process }}
+      NEED_HA_D2: ${{ needs.classify.outputs.run_ha_d2_acceptance }}
       NEED_NATIVE_ZIGBEE: ${{ needs.classify.outputs.run_native_zigbee }}
       NEED_KNX_SIDECAR: ${{ needs.classify.outputs.run_knx_sidecar }}
       NEED_ZWAVE_SIDECAR: ${{ needs.classify.outputs.run_zwave_sidecar }}
@@ -573,6 +667,7 @@ jobs:
           if [ "$NEED_DOTNET" = true ]; then test "$DOTNET" = success; fi
           if [ "$NEED_E2E" = true ]; then test "$E2E" = success; fi
           if [ "$NEED_HA_TWO_PROCESS" = true ]; then test "$HA_TWO_PROCESS" = success; fi
+          if [ "$NEED_HA_D2" = true ]; then test "$HA_D2" = success; fi
           if [ "$NEED_NATIVE_ZIGBEE" = true ]; then test "$NATIVE_ZIGBEE" = success; fi
           if [ "$NEED_KNX_SIDECAR" = true ]; then test "$KNX_SIDECAR" = success; fi
           if [ "$NEED_ZWAVE_SIDECAR" = true ]; then test "$ZWAVE_SIDECAR" = success; fi
@@ -580,7 +675,7 @@ jobs:
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
-            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA two-process: $HA_TWO_PROCESS; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR";
+            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 process acceptance: $HA_D2; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR";
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
           } >> "$GITHUB_STEP_SUMMARY"

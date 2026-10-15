@@ -156,6 +156,122 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
+    public async Task<IResult> ExecuteNetObservedRateV1Async(
+        HttpContext context,
+        AssetProcessIntelligenceNetObservedRateV1QueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(request);
+        var requestToken = cancellationToken == default ? context.RequestAborted : cancellationToken;
+        var analyticsRequest = new AssetProcessIntelligenceAnalyticsQueryRequest(
+            request.ScopeKind,
+            request.ScopeId,
+            request.TagId,
+            request.Window);
+        var invalid = ValidateRequest(analyticsRequest);
+        if (invalid is not null) return invalid;
+
+        try
+        {
+            var trendAuthorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.TrendUse,
+                cancellationToken: requestToken);
+            var trendFailure = trendAuthorization.FailureResult();
+            if (trendFailure is not null) return trendFailure;
+
+            if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+                return Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED");
+
+            var planResult = await PrepareAsync(context, analyticsRequest, requestToken);
+            if (planResult.Error is not null) return planResult.Error;
+            var plan = planResult.Plan!;
+
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                requestToken,
+                plan.PermitToken);
+            var read = await ReadObservationsAsync(
+                context,
+                request.Window!,
+                plan,
+                linkedCancellation.Token,
+                densityErrorCode: "INTELLIGENCE_NET_OBSERVED_RATE_WINDOW_TOO_DENSE");
+            if (read.Error is not null) return read.Error;
+
+            await using var finalMutation = await workspace.AcquireMutationAsync(
+                plan.ChangeVersion,
+                linkedCancellation.Token);
+            var finalCheck = await RevalidateAsync(context, plan, linkedCancellation.Token);
+            if (finalCheck is not null) return finalCheck;
+
+            return Results.Ok(new AssetProcessIntelligenceNetObservedRateV1Response(
+                AssetProcessIntelligenceNetObservedRateV1Catalog.ContractVersion,
+                AssetProcessIntelligenceNetObservedRateV1Catalog.CatalogVersion,
+                AssetProcessIntelligenceNetObservedRateV1Catalog.RuleId,
+                AssetProcessIntelligenceNetObservedRateV1Catalog.RuleVersion,
+                plan.ProjectKey,
+                plan.Revision,
+                request.Window!,
+                request.ScopeKind,
+                request.ScopeId,
+                plan.Tag.Id,
+                plan.Tag.Path,
+                plan.Tag.DataType,
+                AssetProcessIntelligenceNetObservedRateV1Calculator.Calculate(
+                    read.Observations!,
+                    plan.Tag.EngineeringUnit),
+                new AssetProcessIntelligenceNetObservedRateV1Provenance(
+                    HistoricalDatasets.HistorianSamples,
+                    HistoricalQueryContract.Version,
+                    "persisted Historian observation/publication timestamp (`timestamp`); source/server timestamps are not used",
+                    "finite numeric observations whose quality is Good, using the Stage 3A acceptance rule")));
+        }
+        catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED");
+        }
+        catch (EngineeringWorkspaceVersionConflictException)
+        {
+            return Conflict("INTELLIGENCE_WORKSPACE_CHANGED");
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Forbidden("HISTORICAL_QUERY_FORBIDDEN");
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_CURSOR_INVALID", "Historical query cursor is invalid."));
+        }
+        catch (HistoricalQueryValidationException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_INVALID", "The bounded Historian query was rejected."));
+        }
+        catch (HistoricalQueryProviderException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_UNAVAILABLE", "Historical data is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_RESPONSE_INVALID", "The Historian response did not match the requested TAG and window."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
     public async Task<IResult> ExecuteProfileCoverageAsync(
         HttpContext context,
         AssetProcessIntelligenceProfileCoverageQueryRequest request,
@@ -607,6 +723,33 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         string densityErrorCode = "INTELLIGENCE_ANALYTICS_WINDOW_TOO_DENSE",
         bool retainRawObservations = false)
     {
+        var read = await ReadObservationsAsync(
+            context,
+            window,
+            plan,
+            cancellationToken,
+            maximumRows,
+            densityErrorCode,
+            ProfileWindowTooDense());
+        if (read.Error is not null) return PeriodReadResult.Fail(read.Error);
+
+        var observations = read.Observations!;
+        return PeriodReadResult.Ready(
+            new AssetProcessIntelligenceAnalyticsPeriodResult(
+                window,
+                AssetProcessIntelligenceKpiV1.Calculate(observations, window, bucketSeconds)),
+            retainRawObservations ? observations : null);
+    }
+
+    private async Task<ObservationReadResult> ReadObservationsAsync(
+        HttpContext context,
+        AssetProcessIntelligenceAnalyticsWindow window,
+        PreparedPlan plan,
+        CancellationToken cancellationToken,
+        int maximumRows = AssetProcessIntelligenceKpiCatalogV1.MaximumRowsPerWindow,
+        string densityErrorCode = "INTELLIGENCE_ANALYTICS_WINDOW_TOO_DENSE",
+        IResult? remainingLimitError = null)
+    {
         if (maximumRows < 1 || maximumRows > AssetProcessIntelligenceKpiCatalogV1.MaximumRowsPerWindow)
             throw new ArgumentOutOfRangeException(nameof(maximumRows));
         var observations = new List<AssetProcessIntelligenceRawObservation>();
@@ -625,11 +768,11 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                 plan.ChangeVersion,
                 cancellationToken);
             var validation = await RevalidateAsync(context, plan, cancellationToken);
-            if (validation is not null) return PeriodReadResult.Fail(validation);
+            if (validation is not null) return ObservationReadResult.Fail(validation);
 
             var remainingRows = maximumRows - observations.Count;
             if (remainingRows <= 0)
-                return PeriodReadResult.Fail(ProfileWindowTooDense());
+                return ObservationReadResult.Fail(remainingLimitError ?? WindowTooDense(densityErrorCode));
             var pageSize = Math.Min(AssetProcessIntelligenceKpiCatalogV1.QueryPageSize, remainingRows);
 
             var request = new HistoricalQueryRequest(
@@ -645,7 +788,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             var response = await historicalQueries.QueryAsync(request, cancellationToken);
             ValidatePage(response, window, plan.Tag.Id, pageSize);
             if (observations.Count + response.Rows.Count > maximumRows)
-                return PeriodReadResult.Fail(Results.Json(
+                return ObservationReadResult.Fail(Results.Json(
                     new AssetProcessIntelligenceAnalyticsApiError(
                         densityErrorCode,
                         "The requested window exceeds the fixed observation limit; no partial result was returned."),
@@ -654,7 +797,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             var countAfterPage = observations.Count + response.Rows.Count;
             if (countAfterPage == maximumRows &&
                 response.NextCursor is not null)
-                return PeriodReadResult.Fail(Results.Json(
+                return ObservationReadResult.Fail(Results.Json(
                     new AssetProcessIntelligenceAnalyticsApiError(
                         densityErrorCode,
                         "The requested window reaches the fixed observation limit while more rows remain; no partial result was returned."),
@@ -664,7 +807,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                 observations.Add(ToObservation(row));
 
             var postQueryValidation = await RevalidateAsync(context, plan, cancellationToken);
-            if (postQueryValidation is not null) return PeriodReadResult.Fail(postQueryValidation);
+            if (postQueryValidation is not null) return ObservationReadResult.Fail(postQueryValidation);
 
             cursor = response.NextCursor;
             if (cursor is not null && !cursors.Add(cursor))
@@ -672,11 +815,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
         while (cursor is not null);
 
-        return PeriodReadResult.Ready(
-            new AssetProcessIntelligenceAnalyticsPeriodResult(
-                window,
-                AssetProcessIntelligenceKpiV1.Calculate(observations, window, bucketSeconds)),
-            retainRawObservations ? observations.AsReadOnly() : null);
+        return ObservationReadResult.Ready(observations.AsReadOnly());
     }
 
     private async Task<IResult?> RevalidateAsync(
@@ -943,6 +1082,12 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             "The profile window exceeds the fixed total observation limit; no partial result was returned."),
         statusCode: StatusCodes.Status413PayloadTooLarge);
 
+    private static IResult WindowTooDense(string code) => Results.Json(
+        new AssetProcessIntelligenceAnalyticsApiError(
+            code,
+            "The requested window exceeds the fixed observation limit; no partial result was returned."),
+        statusCode: StatusCodes.Status413PayloadTooLarge);
+
     private enum AncestryResult { No, Yes, Invalid }
 
     private sealed record PreparedPlan(
@@ -980,6 +1125,15 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             IReadOnlyList<AssetProcessIntelligenceRawObservation>? observations) =>
             new(period, null) { RawObservations = observations };
         public static PeriodReadResult Fail(IResult error) => new(null, error);
+    }
+
+    private sealed record ObservationReadResult(
+        IReadOnlyList<AssetProcessIntelligenceRawObservation>? Observations,
+        IResult? Error)
+    {
+        public static ObservationReadResult Ready(IReadOnlyList<AssetProcessIntelligenceRawObservation> observations) =>
+            new(observations, null);
+        public static ObservationReadResult Fail(IResult error) => new(null, error);
     }
 
     private sealed record ProfileSignalPlan(

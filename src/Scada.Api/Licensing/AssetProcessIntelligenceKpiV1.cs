@@ -113,7 +113,7 @@ public static class AssetProcessIntelligenceKpiV1
                TryNumber(observation.Value, out value);
     }
 
-    private static string NormalizeQuality(string? text)
+    internal static string NormalizeQuality(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return "Missing";
         return Enum.TryParse<TagQuality>(text.Trim(), ignoreCase: true, out var value) && Enum.IsDefined(value)

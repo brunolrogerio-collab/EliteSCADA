@@ -49,6 +49,320 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public void NetObservedRateV1Catalog_IsSeparateVersionedAndImmutable()
+    {
+        Assert.Equal(1, AssetProcessIntelligenceNetObservedRateV1Catalog.ContractVersion);
+        Assert.Equal(1, AssetProcessIntelligenceNetObservedRateV1Catalog.CatalogVersion);
+        Assert.Equal("net-observed-rate.v1", AssetProcessIntelligenceNetObservedRateV1Catalog.RuleId);
+        Assert.Equal("1.0.0", AssetProcessIntelligenceNetObservedRateV1Catalog.RuleVersion);
+        var rule = Assert.Single(AssetProcessIntelligenceNetObservedRateV1Catalog.Rules);
+        Assert.Equal("net-observed-rate.v1", rule.Id);
+        Assert.Contains("Historian observation timestamps", rule.Formula, StringComparison.Ordinal);
+        Assert.Contains("without inference, conversion, or normalization", rule.UnitSemantics, StringComparison.Ordinal);
+        var rules = Assert.IsAssignableFrom<IList<AssetProcessIntelligenceKpiRule>>(
+            AssetProcessIntelligenceNetObservedRateV1Catalog.Rules);
+        Assert.Throws<NotSupportedException>(() => rules.Add(rule));
+
+        var described = JsonSerializer.SerializeToElement(AssetProcessIntelligenceNetObservedRateV1Catalog.Describe());
+        Assert.Equal(1, described.GetProperty("catalogVersion").GetInt32());
+        Assert.Equal("Good", described.GetProperty("acceptedQuality").GetString());
+        Assert.Equal(31, described.GetProperty("maximumWindowDays").GetInt32());
+        Assert.Equal(50000, described.GetProperty("maximumRowsPerWindow").GetInt32());
+        Assert.Equal(200, described.GetProperty("pageSize").GetInt32());
+        Assert.Equal(
+            new[] { "available", "insufficient_data", "unsupported" },
+            described.GetProperty("statuses").EnumerateArray().Select(item => item.GetString()));
+    }
+
+    [Theory]
+    [InlineData(2d, 8d, 3d)]
+    [InlineData(8d, 2d, -3d)]
+    [InlineData(4d, 4d, 0d)]
+    public void NetObservedRateV1_CalculatesOnlyTheNetEndpointRate(double firstValue, double lastValue, double expectedRate)
+    {
+        var metric = AssetProcessIntelligenceNetObservedRateV1Calculator.Calculate(
+        [
+            Observation(FromUtc.AddSeconds(2), "Good", HistoricalQueryValue.FromDouble(lastValue)),
+            Observation(FromUtc, "Good", HistoricalQueryValue.FromDouble(firstValue))
+        ],
+        "bar");
+
+        Assert.Equal("available", metric.Status);
+        Assert.Empty(metric.ReasonCodes);
+        Assert.Equal(expectedRate, metric.Value);
+        Assert.Equal("bar/s", metric.Unit);
+        Assert.Equal(2d, metric.ElapsedSeconds);
+        Assert.Equal(2, metric.RawObservationCount);
+        Assert.Equal(2, metric.AcceptedSampleCount);
+        Assert.Equal(0, metric.RejectedSampleCount);
+        Assert.Equal(FromUtc, metric.FirstAccepted!.TimestampUtc);
+        Assert.Equal(firstValue, metric.FirstAccepted.Value);
+        Assert.Equal(FromUtc.AddSeconds(2), metric.LastAccepted!.TimestampUtc);
+        Assert.Equal(lastValue, metric.LastAccepted.Value);
+    }
+
+    [Fact]
+    public void NetObservedRateV1_RejectsPoorUnknownAndNonnumericObservationsWithoutLosingCounts()
+    {
+        var metric = AssetProcessIntelligenceNetObservedRateV1Calculator.Calculate(
+        [
+            Observation(FromUtc, "Good", HistoricalQueryValue.FromDouble(10)),
+            Observation(FromUtc.AddSeconds(1), "Uncertain", HistoricalQueryValue.FromDouble(500)),
+            Observation(FromUtc.AddSeconds(2), "Goodish", HistoricalQueryValue.FromDouble(500)),
+            Observation(FromUtc.AddSeconds(3), "Good", HistoricalQueryValue.FromString("not numeric")),
+            Observation(FromUtc.AddSeconds(4), "Good", new HistoricalQueryValue(HistoricalValueKind.Number, "NaN")),
+            Observation(FromUtc.AddSeconds(5), "Good", new HistoricalQueryValue(HistoricalValueKind.Number, "Infinity")),
+            Observation(FromUtc.AddSeconds(6), null, HistoricalQueryValue.FromDouble(900))
+        ],
+        "bar");
+
+        Assert.Equal("insufficient_data", metric.Status);
+        Assert.Null(metric.Value);
+        Assert.Contains("fewer_than_two_accepted_good_finite_samples", metric.ReasonCodes);
+        Assert.Equal(7, metric.RawObservationCount);
+        Assert.Equal(1, metric.AcceptedSampleCount);
+        Assert.Equal(6, metric.RejectedSampleCount);
+        Assert.Equal(4, metric.QualityCounts["Good"]);
+        Assert.Equal(1, metric.QualityCounts["Uncertain"]);
+        Assert.Equal(1, metric.QualityCounts["Missing"]);
+        Assert.Equal(1, metric.QualityCounts["Unrecognized"]);
+        Assert.Equal(10d, metric.FirstAccepted!.Value);
+        Assert.Equal(10d, metric.LastAccepted!.Value);
+    }
+
+    [Fact]
+    public void NetObservedRateV1_MissingUnitIsUnsupportedAndNeverFabricatesOne()
+    {
+        var metric = AssetProcessIntelligenceNetObservedRateV1Calculator.Calculate(
+        [
+            Observation(FromUtc, "Good", HistoricalQueryValue.FromDouble(1)),
+            Observation(FromUtc.AddSeconds(2), "Good", HistoricalQueryValue.FromDouble(5))
+        ],
+        " ");
+
+        Assert.Equal("unsupported", metric.Status);
+        Assert.Contains("engineering_unit_missing", metric.ReasonCodes);
+        Assert.Null(metric.Value);
+        Assert.Null(metric.Unit);
+        Assert.Equal(2, metric.AcceptedSampleCount);
+        Assert.Equal(FromUtc, metric.FirstAccepted!.TimestampUtc);
+        Assert.Equal(FromUtc.AddSeconds(2), metric.LastAccepted!.TimestampUtc);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void NetObservedRateV1_NonPositiveEndpointElapsedTimeIsInsufficient(int elapsedSeconds)
+    {
+        var metric = AssetProcessIntelligenceNetObservedRateV1Calculator.CalculateFromEndpoints(
+            2,
+            2,
+            new Dictionary<string, int>(StringComparer.Ordinal) { ["Good"] = 2 },
+            new AssetProcessIntelligenceNetObservedRateV1Endpoint(FromUtc.AddSeconds(10), 1),
+            new AssetProcessIntelligenceNetObservedRateV1Endpoint(FromUtc.AddSeconds(10 + elapsedSeconds), 3),
+            "bar");
+
+        Assert.Equal("insufficient_data", metric.Status);
+        Assert.Contains("non_positive_endpoint_elapsed_seconds", metric.ReasonCodes);
+        Assert.Null(metric.Value);
+        Assert.Equal((double)elapsedSeconds, metric.ElapsedSeconds);
+    }
+
+    [Fact]
+    public void NetObservedRateV1_NonFiniteArithmeticIsInsufficientRatherThanInfinity()
+    {
+        var metric = AssetProcessIntelligenceNetObservedRateV1Calculator.Calculate(
+        [
+            Observation(FromUtc, "Good", HistoricalQueryValue.FromDouble(-double.MaxValue)),
+            Observation(FromUtc.AddSeconds(1), "Good", HistoricalQueryValue.FromDouble(double.MaxValue))
+        ],
+        "bar");
+
+        Assert.Equal("insufficient_data", metric.Status);
+        Assert.Contains("non_finite_calculated_rate", metric.ReasonCodes);
+        Assert.Null(metric.Value);
+    }
+
+    [Fact]
+    public async Task NetObservedRateV1_UsesHistorianTimestampAndPreservesStablePagingTieOrder()
+    {
+        using var fixture = Fixture.Create();
+        var firstTimestamp = FromUtc.AddSeconds(1);
+        var lastTimestamp = FromUtc.AddSeconds(601);
+        fixture.Historian.Respond = request => request.Page!.Cursor is null
+            ? Response(request, Enumerable.Range(0, 200)
+                .Select(index => Row(fixture.Tag.Id, firstTimestamp, "Good",
+                    HistoricalQueryValue.FromInt32(index == 0 ? 2 : index == 199 ? 4 : 3)))
+                .ToArray(), "stable-next")
+            : Response(request,
+            [
+                Row(fixture.Tag.Id, lastTimestamp, "Good", HistoricalQueryValue.FromInt32(20)),
+                Row(fixture.Tag.Id, lastTimestamp, "Good", HistoricalQueryValue.FromInt32(22))
+            ]);
+
+        var result = await fixture.ExecuteNetObservedRateV1Async();
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceNetObservedRateV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(2, fixture.Historian.Calls);
+        Assert.Equal(HistoricalDatasets.HistorianSamples, fixture.Historian.Requests[0].Dataset);
+        Assert.Equal("timestamp", Assert.Single(fixture.Historian.Requests[0].OrderBy!).Field);
+        Assert.Equal(HistoricalSortDirection.Ascending, fixture.Historian.Requests[0].OrderBy![0].Direction);
+        Assert.Equal(200, fixture.Historian.Requests[0].Page!.Size);
+        Assert.Equal("stable-next", fixture.Historian.Requests[1].Page!.Cursor);
+        Assert.Equal("available", payload.Metric.Status);
+        Assert.Equal(fixture.Request.Window, payload.Window);
+        Assert.Equal(Fixture.ProjectKey, payload.ProjectKey);
+        Assert.Equal(fixture.Request.TagId, payload.TagId);
+        Assert.Equal(22d, payload.Metric.LastAccepted!.Value);
+        Assert.Equal(2d, payload.Metric.FirstAccepted!.Value);
+        Assert.Equal(20d / 600d, payload.Metric.Value);
+        Assert.Equal("bar/s", payload.Metric.Unit);
+        Assert.Equal(202, payload.Metric.RawObservationCount);
+        Assert.Equal("timestamp", payload.Provenance.TimestampBasis.Split('`')[1]);
+        Assert.Contains("source/server timestamps are not used", payload.Provenance.TimestampBasis, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false, true, true, true, 403)]
+    [InlineData(true, false, true, true, 403)]
+    [InlineData(true, true, false, true, 409)]
+    [InlineData(true, true, true, false, 409)]
+    public async Task NetObservedRateV1_RequiresEntitlementTrendUseTagReadPermitAndActiveScope(
+        bool licensed,
+        bool grantTagRead,
+        bool grantPermit,
+        bool activeScope,
+        int expectedStatus)
+    {
+        using var fixture = Fixture.Create(licensed: licensed, grantTagRead: grantTagRead,
+            grantPermit: grantPermit, activeScope: activeScope);
+
+        var result = await fixture.ExecuteNetObservedRateV1Async();
+
+        AssertStatus(expectedStatus, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task NetObservedRateV1_RequiresTrendUseAndCoherentSavedWorkspaceRevision()
+    {
+        using (var noTrend = Fixture.Create(grantTrendUse: false))
+        {
+            var denied = await noTrend.ExecuteNetObservedRateV1Async();
+            AssertStatus(StatusCodes.Status403Forbidden, denied);
+            Assert.Equal(0, noTrend.Historian.Calls);
+        }
+
+        using (var mismatch = Fixture.Create(workspaceRevision: 41, runtimeRevision: 42))
+        {
+            var rejected = await mismatch.ExecuteNetObservedRateV1Async();
+            AssertStatus(StatusCodes.Status409Conflict, rejected);
+            Assert.Equal(0, mismatch.Historian.Calls);
+        }
+
+        using (var dirty = Fixture.Create())
+        {
+            dirty.Workspace.Tags.Upsert(dirty.Tag with { Description = "unsaved" });
+            var rejected = await dirty.ExecuteNetObservedRateV1Async();
+            AssertStatus(StatusCodes.Status409Conflict, rejected);
+            Assert.Equal(0, dirty.Historian.Calls);
+        }
+    }
+
+    [Fact]
+    public async Task NetObservedRateV1_PermitCancellationDuringReadReturnsNoPartialMetric()
+    {
+        using var fixture = Fixture.Create();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Historian.RespondAsync = async (request, cancellationToken) =>
+        {
+            started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return Response(request,
+                [Row(fixture.Tag.Id, FromUtc.AddSeconds(1), "Good", HistoricalQueryValue.FromDouble(5))]);
+        };
+
+        var task = fixture.ExecuteNetObservedRateV1Async();
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        fixture.Gate.Pause(Fixture.ProjectKey, fixture.ScopeKind, fixture.ScopeId);
+        var result = await task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceNetObservedRateV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task NetObservedRateV1_TagReadRevocationDuringReadDiscardsRows()
+    {
+        using var fixture = Fixture.Create();
+        fixture.Historian.Respond = request =>
+        {
+            var prior = fixture.Authority.Snapshot();
+            var role = Assert.Single(prior.Roles);
+            fixture.Authority.TryReplaceAsync(
+                prior.Version,
+                [role with { Grants = [new CapabilityGrantEngineeringDto(SecurityCapability.TrendUse)] }],
+                prior.Scopes).GetAwaiter().GetResult();
+            return Response(request,
+            [
+                Row(fixture.Tag.Id, FromUtc.AddSeconds(1), "Good", HistoricalQueryValue.FromDouble(5)),
+                Row(fixture.Tag.Id, FromUtc.AddSeconds(2), "Good", HistoricalQueryValue.FromDouble(6))
+            ]);
+        };
+
+        var result = await fixture.ExecuteNetObservedRateV1Async();
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceNetObservedRateV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task NetObservedRateV1_AtRowLimitReturnsCompleteResultButNoPartialResultWhenMoreRemain()
+    {
+        using var complete = Fixture.Create();
+        complete.Historian.Respond = request =>
+        {
+            var page = complete.Historian.Calls - 1;
+            var cursor = page == 249 ? null : $"page-{page + 1}";
+            return Response(request, Enumerable.Range(0, 200)
+                .Select(_ => Row(complete.Tag.Id, FromUtc.AddSeconds(1), "Good", HistoricalQueryValue.FromInt32(1)))
+                .ToArray(), cursor);
+        };
+
+        var completed = await complete.ExecuteNetObservedRateV1Async();
+
+        AssertStatus(StatusCodes.Status200OK, completed);
+        var completePayload = Assert.IsType<AssetProcessIntelligenceNetObservedRateV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(completed).Value);
+        Assert.Equal(50000, completePayload.Metric.RawObservationCount);
+        Assert.Equal("insufficient_data", completePayload.Metric.Status);
+        Assert.Equal(250, complete.Historian.Calls);
+
+        using var truncated = Fixture.Create();
+        truncated.Historian.Respond = request =>
+        {
+            var page = truncated.Historian.Calls - 1;
+            return Response(request, Enumerable.Range(0, 200)
+                .Select(_ => Row(truncated.Tag.Id, FromUtc.AddSeconds(1), "Good", HistoricalQueryValue.FromInt32(1)))
+                .ToArray(), $"page-{page + 1}");
+        };
+
+        var rejected = await truncated.ExecuteNetObservedRateV1Async();
+
+        AssertStatus(StatusCodes.Status413PayloadTooLarge, rejected);
+        Assert.Equal(250, truncated.Historian.Calls);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(rejected).Value);
+        Assert.Equal("INTELLIGENCE_NET_OBSERVED_RATE_WINDOW_TOO_DENSE", error.Code);
+    }
+
+    [Fact]
     public void KpiV1_FiltersQualityAndNonnumericValuesAndOrdersFirstLastByHistorianTimestamp()
     {
         var window = Window(FromUtc, FromUtc.AddHours(1));
@@ -767,6 +1081,8 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             new[]
             {
                 "/api/engineering/asset-process-intelligence/analytics/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/net-observed-rate/v1/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/net-observed-rate/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/profile-coverage",
                 "/api/engineering/asset-process-intelligence/analytics/profile-coverage/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/query"
@@ -871,6 +1187,20 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             return Analytics.ExecuteAsync(context, request ?? Request, context.RequestAborted);
         }
 
+        public Task<IResult> ExecuteNetObservedRateV1Async(
+            AssetProcessIntelligenceNetObservedRateV1QueryRequest? request = null)
+        {
+            var context = CreateContext();
+            return Analytics.ExecuteNetObservedRateV1Async(
+                context,
+                request ?? new AssetProcessIntelligenceNetObservedRateV1QueryRequest(
+                    ScopeKind,
+                    ScopeId,
+                    Tag.Id,
+                    Request.Window),
+                context.RequestAborted);
+        }
+
         public Task<IResult> ExecuteProfileCoverageAsync(Guid? scopeId = null)
         {
             var profile = Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single();
@@ -936,7 +1266,8 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             long? runtimeRevision = null,
             AssetProcessIntelligenceScopeKind scopeKind = AssetProcessIntelligenceScopeKind.Equipment,
             bool nestedLocation = false,
-            TagDataType tagDataType = TagDataType.Double)
+            TagDataType tagDataType = TagDataType.Double,
+            string? tagUnit = "bar")
         {
             var runtimeVersion = runtimeRevision ?? workspaceRevision;
             var workspace = new EngineeringWorkspace(seedDemo: false);
@@ -947,7 +1278,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 "Plant.Pump.Pressure",
                 tagDataType,
                 null,
-                "bar",
+                tagUnit,
                 null,
                 true);
             workspace.Tags.Register(tag);

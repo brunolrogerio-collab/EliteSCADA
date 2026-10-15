@@ -132,3 +132,51 @@ A new Main Coordinator must read this protocol before supervising Work/DEV chats
 - no chat may rely on conversation history as the sole durable record of project state.
 
 These requirements are global EliteSCADA collaboration rules, not coordinator-specific preferences.
+
+## 9. Bounded execution and incremental continuation
+
+Product Owner direction, 2026-10-15: adjust the coordination flow before resuming product development. This section governs execution cadence wherever older handoffs require repeating full historical discovery. Product goals, frozen contracts, ownership boundaries, and required validation remain governed by their existing authorities.
+
+### Establish once, then check changes
+
+At the start of a mission or after loss of context, establish the baseline from `PROJECT GOAL.md`, this protocol, the latest `LAST CHANGE.md` entry, `CURRENT-COORDINATOR-HANDOFF.md`, the current Main order, relevant frozen contracts, and live GitHub. During Wave 15, read #297 first and #302 next when establishing the product/Authority baseline, then #305 and the active issue/PR.
+
+For continuation of the same mission, check only changed authoritative documents, current refs, latest binding issue/PR comments, outstanding review requests, and the relevant existing run IDs. An unchanged input does not require another full read, test run, handoff, or authorization request. A new dependency, scope change, contradictory evidence, or context loss expands the read set as needed.
+
+Use authenticated GitHub API/CLI and the current checkout for operational state. If a public page or chat summary conflicts with newer evidence, verify the specific live ref/comment/run directly. Do not restart the investigation from an old cached blocker.
+
+### One owner at each transition
+
+Main owns package design, assignment, review, integration, and coordination records. CODEX/DEV owns its assigned implementation, focused local validation, draft PR, and delivery. Each transition states the next owner and one executable action. Main and the executor must not duplicate implementation or CI dispatch for the same candidate.
+
+Existing Product Owner authorization persists within its stated scope and conditions. Main releases a separate bounded order when the work package requires it; that internal Main decision is not a request for repeated Product Owner permission. Escalate a materially new product front, changed frozen contract, or changed acceptance expectation to its proper decision authority.
+
+After delivery, the worker waits for Main. Main reviews and advances the authorized flow, including an already-authorized conditional integration once its gates pass. A worker never self-merges or chooses its next package.
+
+### Send once and observe the existing execution
+
+When the Product Owner has authorized coordination with an existing executor chat and a messaging tool is available, Main sends the order directly once and verifies delivery. Observe that chat with the wait mechanism and its cursor; use a bounded wait that permits user updates. Do not ask the owner to relay routine technical messages or repeatedly wake an already-running executor.
+
+A GitHub issue comment alone does not wake another chat. If direct dispatch is unavailable, name the exact receiving chat and action needed. Do not claim an order was received based only on repository publication.
+
+### Handle failure without repeated attempts
+
+Record a blocker as: failed operation and exact error; affected prerequisite; current base/head; next owner; observable condition that permits resumption. A failed operation proves only that operation failed. Reuse a verified accessible checkout or authorized alternate route when available, preserving user changes and ordinary branch history.
+
+For the same unresolved environment error, use at most one evidenced retry or alternate route. The budget spans `siga` turns and resets only when a relevant input, environment condition, or diagnosis changes. If blocked, continue independent work within the same authorized front when useful; do not switch product fronts to stay busy.
+
+For a failing test/CI, inspect logs and the candidate diff, then reproduce the failing test locally where available. Classify the cause before selecting a fix; a shared file boundary is not itself a root cause, and a local non-reproduction does not prove flakiness. Correct demonstrated in-scope defects with meaningful checks. Any rerun requires the grounds in `CI-USAGE-POLICY.md`, uses the smallest required job set, and retains the exact SHA/attempt evidence. Do not weaken tests or broaden the package to obtain green.
+
+### Validate and close once
+
+Define the validation profile and acceptance evidence in the package before coding. Use focused local checks during implementation; publish one coherent candidate for required T1, review it, integrate under applicable authorization, and inspect the required post-merge gate. Reuse valid unchanged-product evidence after documentation-only movement. Do not dispatch broad product CI for a process-documentation update unless risk or an existing gate requires it.
+
+Local results, CI, and Product Owner Preview each answer their stated acceptance questions. Required local/human evidence is not replaced by green CI. Required CI failures are not overridden by a local pass. Physical driver L4 remains human validation after Wave 16, partner disclosure, and stable installation; record it as `DEFERRED / NOT RUN` until then, independently from applicable software integration gates.
+
+An outstanding Main correction remains open until its named evidence/correction exists and Main accepts the disposition. Returning the same green candidate does not close a later review request.
+
+### Keep the resume point short
+
+Maintain one current snapshot in `CURRENT-COORDINATOR-HANDOFF.md` and one current order in the active Main handoff. Update them in place. Keep the transfer bootstrap independent from current SHAs and assignments. Detailed evidence belongs in the owning issue/PR; preserve older long snapshots in clearly marked archives rather than stacking new CURRENT headings over them.
+
+Publish updates on meaningful transitions: assignment, delivery, diagnosed blocker, review disposition, integration, verification. Unchanged polling results and acknowledgements do not need new issue comments. Each final status states the result, remaining acceptance item if any, next action, and responsible owner.

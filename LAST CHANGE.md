@@ -1,4 +1,17 @@
-# LATEST VERIFIED CHECKPOINT — ADR-014 TEMPORAL PROVENANCE — 2026-10-15
+# CURRENT RESUME POINT — WORKFLOW ALIGNMENT / INTELLIGENCE — 2026-10-15
+
+Read this current entry, [the short coordinator pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), and [Main's current order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md). Earlier entries below are evidence, not current assignments.
+
+- Verified product checkpoint: `wave15/corrections-integration@54c7c9942b57328cabcef740c99f4ab3207cc040`, PR #617. `net-observed-rate.v1` is INTEGRATED / VERIFIED, not all of Intelligence Stage 3. [Owning disposition](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6203170115).
+- Candidate `453430328040daf111031a76ff11279599d880ea`: 73/73 local focused tests; T1 #38811841547 attempt 2 passed with 1,490 .NET passed / 1 skipped. [Post-merge CI #38813353099](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38813353099) passed backend build/test/runtime smoke, Web, and Chromium integration smoke 13/13. Full-browser E2E was skipped. Documentation-only coordination movement does not create a new product checkpoint.
+- Product Owner requested workflow adjustment before further product development. The global protocol now defines incremental reads, one owner/action per transition, direct authorized chat dispatch, shared run IDs, and an evidence-based retry limit that spans `siga` turns. Current/next/Main handoffs are compact; their prior long contents are preserved in dated archives.
+- Main owns workflow synchronization and the next bounded Stage 3 order. CODEX has completed the previous delivery and receives only a process readback until Main releases the next package. Existing Product Owner scope/conditional authorization need not be requested again.
+- The earlier worktree-access blocker is resolved. No new checkout recovery or duplicate KPI test/CI is required. HA owner's local Preview/regression concern remains visible in the short pointer; Intelligence remains the active product front.
+- After workflow alignment: Main prepares a finite remaining Stage 3 acceptance matrix, then publishes the next bounded package and directly dispatches it to the authorized executor. #588 and Wave 15 remain open. No Stage 4/5/6 or renewed HA lane is released by this documentation update.
+
+---
+
+# HISTORICAL VERIFIED CHECKPOINT — ADR-014 TEMPORAL PROVENANCE — 2026-10-15
 
 > The bounded ADR-014 temporal-provenance slice is **INTEGRATED / VERIFIED / FROZEN** at product checkpoint `wave15/corrections-integration@30f1bd4bd285fcaf39b925daf4d77e97d7b61ad1`. The first post-merge run exposed a Timescale assertion failure; the scoped xUnit collection-serialization correction was merged as PR #615 and the exact-head plus broad post-merge gates now pass. This checkpoint does not close Intelligence issue #588, authorize its later stages, or close Wave 15.
 

@@ -36,6 +36,47 @@ public sealed class HistorianCaptureProfileRuntimeTests
     }
 
     [Fact]
+    public void Resolve_PreservesProfileIdentityInRuntimeMetadataForHistorianCapture()
+    {
+        var profileId = Guid.NewGuid();
+        var tag = Tag("Plant.Pressure", TagDataType.Double, profileId);
+        var package = Package(
+            [tag],
+            [Profile(profileId, HistorianCaptureStrategy.OnChangeDeadband, deadband: 0.5d)]);
+
+        var resolved = HistorianCaptureProfileRuntimeResolver.Resolve(package);
+
+        Assert.True(resolved.CanActivate);
+        var runtimeTag = Assert.Single(resolved.Package.Tags);
+        Assert.NotNull(runtimeTag.Metadata);
+        Assert.True(runtimeTag.Metadata!.TryGetValue(
+            HistorianCaptureProfileMetadata.ProfileIdMetadataKey,
+            out var metadataProfileId));
+        Assert.Equal(profileId.ToString("D"), metadataProfileId);
+    }
+
+    [Fact]
+    public void Resolve_RemovesStaleProfileMetadataFromInlinePolicy()
+    {
+        var staleProfileId = Guid.NewGuid();
+        var tag = Tag("Plant.Legacy", TagDataType.Double, profileId: null) with
+        {
+            Historian = new HistorianSettingsDto(true, "change"),
+            Metadata = new Dictionary<string, string>
+            {
+                [HistorianCaptureProfileMetadata.ProfileIdMetadataKey] = staleProfileId.ToString("D")
+            }
+        };
+
+        var resolved = HistorianCaptureProfileRuntimeResolver.Resolve(Package([tag], []));
+
+        Assert.True(resolved.CanActivate);
+        var runtimeTag = Assert.Single(resolved.Package.Tags);
+        Assert.Null(HistorianCaptureProfileMetadata.ReadProfileId(runtimeTag.Metadata));
+        Assert.Equal("change", runtimeTag.Historian!.Strategy);
+    }
+
+    [Fact]
     public void Resolve_TagWithoutProfilePreservesLegacyInlineHistorianSettings()
     {
         var inline = new HistorianSettingsDto(

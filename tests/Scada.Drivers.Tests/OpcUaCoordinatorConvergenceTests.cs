@@ -194,6 +194,8 @@ public sealed class OpcUaCoordinatorConvergenceTests
         Assert.Equal(12.5d, Assert.IsType<double>(current!.Value));
         Assert.Equal(sourceTimestamp, current.SourceTimestamp);
         Assert.Equal(serverTimestamp, current.ServerTimestamp);
+        Assert.Equal(TimestampEvidenceState.PresentUnverified, current.SourceTimestampEvidenceState);
+        Assert.Equal(TimestampEvidenceState.PresentUnverified, current.ServerTimestampEvidenceState);
         Assert.Contains(coordinator.Tags(), tag => tag.Id == tagId && tag.CommunicationBinding == Binding(identity));
 
         await coordinator.WriteAsync(tagId, 21.75d);

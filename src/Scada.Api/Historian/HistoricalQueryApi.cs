@@ -272,6 +272,7 @@ public static class HistoricalQueryApi
     public static SecurityCapability RequiredCapability(string dataset) => dataset switch
     {
         HistoricalDatasets.HistorianSamples => SecurityCapability.TrendUse,
+        HistoricalDatasets.HistorianSamplesV2 => SecurityCapability.TrendUse,
         HistoricalDatasets.AlarmEvents => SecurityCapability.View,
         HistoricalDatasets.OperationalEvents => SecurityCapability.View,
         _ => throw new ArgumentException(

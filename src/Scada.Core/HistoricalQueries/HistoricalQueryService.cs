@@ -128,7 +128,7 @@ public sealed class HistoricalQueryService : IHistoricalQueryService
                 page.NextPosition);
 
         return new HistoricalQueryResponse(
-            HistoricalQueryContract.Version,
+            validated.Version,
             validated.Dataset.Id,
             validated.Dataset.Columns,
             page.Rows,

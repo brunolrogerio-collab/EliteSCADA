@@ -5,6 +5,7 @@ using Npgsql;
 using NpgsqlTypes;
 using Scada.Core.HistoricalQueries;
 using Scada.Core.Tags;
+using Scada.Historian.Policies;
 
 namespace Scada.Historian.TimescaleDb;
 
@@ -49,12 +50,26 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalDatase
 
     public string Dataset => HistoricalDatasets.HistorianSamples;
 
-    public async Task<HistoricalProviderPage> QueryAsync(
+    public Task<HistoricalProviderPage> QueryAsync(
         HistoricalQueryExecution query,
+        CancellationToken cancellationToken = default) =>
+        QueryCoreAsync(query, includeProvenance: false, cancellationToken);
+
+    public Task<HistoricalProviderPage> QueryVersion2Async(
+        HistoricalQueryExecution query,
+        CancellationToken cancellationToken = default) =>
+        QueryCoreAsync(query, includeProvenance: true, cancellationToken);
+
+    private async Task<HistoricalProviderPage> QueryCoreAsync(
+        HistoricalQueryExecution query,
+        bool includeProvenance,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
-        if (!string.Equals(query.Dataset.Id, Dataset, StringComparison.Ordinal))
+        var expectedDataset = includeProvenance
+            ? HistoricalDatasets.HistorianSamplesV2
+            : Dataset;
+        if (!string.Equals(query.Dataset.Id, expectedDataset, StringComparison.Ordinal))
             throw new ArgumentException(
                 "Timescale historical provider received the wrong dataset.",
                 nameof(query));
@@ -65,11 +80,19 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalDatase
 
         await _initializeTask.WaitAsync(cancellationToken);
         var tags = _tagRegistry.Snapshot();
-        var sql = new StringBuilder("""
-            SELECT sample_id, tag_id, ts, quality, value::text, data_type
-            FROM elitescada.tag_history
-            WHERE ts >= @from_utc AND ts <= @to_utc
-            """);
+        var sql = new StringBuilder(includeProvenance
+            ? """
+                SELECT sample_id, tag_id, ts, quality, value::text, data_type,
+                       source_ts, source_ts_evidence, server_ts, server_ts_evidence,
+                       capture_profile_id, capture_policy_state, capture_policy_fingerprint
+                FROM elitescada.tag_history
+                WHERE ts >= @from_utc AND ts <= @to_utc
+                """
+            : """
+                SELECT sample_id, tag_id, ts, quality, value::text, data_type
+                FROM elitescada.tag_history
+                WHERE ts >= @from_utc AND ts <= @to_utc
+                """);
         await using var command = _dataSource.CreateCommand();
         command.Parameters.AddWithValue("from_utc", NpgsqlDbType.TimestampTz, query.Range.FromUtc);
         command.Parameters.AddWithValue("to_utc", NpgsqlDbType.TimestampTz, query.Range.ToUtc);
@@ -128,18 +151,44 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalDatase
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            materialized.Add(new SampleRow(
+            var sample = new SampleRow(
                 reader.GetInt64(0),
                 reader.GetGuid(1),
                 ReadTimestamp(reader, 2),
                 (TagQuality)reader.GetInt32(3),
                 reader.GetString(4),
-                reader.IsDBNull(5) ? null : (TagDataType?)reader.GetInt16(5)));
+                reader.IsDBNull(5) ? null : (TagDataType?)reader.GetInt16(5));
+            if (includeProvenance)
+            {
+                var policyEvidence = ReadCapturePolicyEvidence(
+                    reader,
+                    11,
+                    reader.IsDBNull(10) ? null : reader.GetGuid(10),
+                    ReadFingerprint(reader, 12));
+                sample = sample with
+                {
+                    SourceTimestamp = reader.IsDBNull(6) ? null : ReadTimestamp(reader, 6),
+                    SourceTimestampEvidence = ReadEvidence(
+                        reader,
+                        7,
+                        timestampPresent: !reader.IsDBNull(6)),
+                    ServerTimestamp = reader.IsDBNull(8) ? null : ReadTimestamp(reader, 8),
+                    ServerTimestampEvidence = ReadEvidence(
+                        reader,
+                        9,
+                        timestampPresent: !reader.IsDBNull(8),
+                        server: true),
+                    CapturePolicyState = policyEvidence.State,
+                    CaptureProfileId = policyEvidence.ProfileId,
+                    CapturePolicyFingerprint = policyEvidence.Fingerprint
+                };
+            }
+            materialized.Add(sample);
         }
 
         var hasMore = materialized.Count > query.PageSize;
         if (hasMore) materialized.RemoveAt(materialized.Count - 1);
-        var rows = materialized.Select(sample => ToRow(sample, tags)).ToArray();
+        var rows = materialized.Select(sample => ToRow(sample, tags, includeProvenance)).ToArray();
         var next = hasMore && materialized.Count > 0
             ? Position(materialized[^1])
             : null;
@@ -342,20 +391,103 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalDatase
 
     private static HistoricalQueryRow ToRow(
         SampleRow sample,
-        IReadOnlyCollection<TagDefinition> tags)
+        IReadOnlyCollection<TagDefinition> tags,
+        bool includeProvenance)
     {
         var tag = tags.FirstOrDefault(candidate => candidate.Id == sample.TagId);
-        return new HistoricalQueryRow(
-            new Dictionary<string, HistoricalQueryValue>(StringComparer.Ordinal)
-            {
-                ["tag.id"] = HistoricalQueryValue.FromGuid(sample.TagId),
-                ["tag.path"] = tag is null
-                    ? HistoricalQueryValue.Null()
-                    : HistoricalQueryValue.FromString(tag.Path),
-                ["quality"] = HistoricalQueryValue.FromEnum(sample.Quality.ToString()),
-                ["value"] = ReadValue(sample.ValueJson, sample.DataType),
-                ["timestamp"] = HistoricalQueryValue.FromDateTime(sample.Timestamp)
-            });
+        var cells = new Dictionary<string, HistoricalQueryValue>(StringComparer.Ordinal)
+        {
+            ["tag.id"] = HistoricalQueryValue.FromGuid(sample.TagId),
+            ["tag.path"] = tag is null
+                ? HistoricalQueryValue.Null()
+                : HistoricalQueryValue.FromString(tag.Path),
+            ["quality"] = HistoricalQueryValue.FromEnum(sample.Quality.ToString()),
+            ["value"] = ReadValue(sample.ValueJson, sample.DataType),
+            ["timestamp"] = HistoricalQueryValue.FromDateTime(sample.Timestamp)
+        };
+        if (includeProvenance)
+        {
+            cells["source.timestamp"] = sample.SourceTimestamp is { } sourceTimestamp
+                ? HistoricalQueryValue.FromDateTime(sourceTimestamp)
+                : HistoricalQueryValue.Null();
+            cells["source.timestamp.status"] = HistoricalQueryValue.FromEnum(sample.SourceTimestampEvidence.ToString());
+            cells["server.timestamp"] = sample.ServerTimestamp is { } serverTimestamp
+                ? HistoricalQueryValue.FromDateTime(serverTimestamp)
+                : HistoricalQueryValue.Null();
+            cells["server.timestamp.status"] = HistoricalQueryValue.FromEnum(sample.ServerTimestampEvidence.ToString());
+            cells["capture.policy.profileId"] = sample.CaptureProfileId is { } profileId
+                ? HistoricalQueryValue.FromGuid(profileId)
+                : HistoricalQueryValue.Null();
+            cells["capture.policy.fingerprint"] = sample.CapturePolicyFingerprint is { } fingerprint
+                ? HistoricalQueryValue.FromString(
+                    HistorianCapturePolicySettings.FingerprintTextPrefix +
+                    Convert.ToHexString(fingerprint).ToLowerInvariant())
+                : HistoricalQueryValue.Null();
+            cells["capture.policy.status"] = HistoricalQueryValue.FromEnum(sample.CapturePolicyState.ToString());
+        }
+        return new HistoricalQueryRow(cells);
+    }
+
+    private static TimestampEvidenceState ReadEvidence(
+        NpgsqlDataReader reader,
+        int ordinal,
+        bool timestampPresent,
+        bool server = false)
+    {
+        if (reader.IsDBNull(ordinal))
+            return timestampPresent
+                ? TimestampEvidenceState.PresentUnverified
+                : TimestampEvidenceState.NotRecorded;
+        var raw = reader.GetInt16(ordinal);
+        if (!Enum.IsDefined(typeof(TimestampEvidenceState), raw))
+            return timestampPresent
+                ? TimestampEvidenceState.PresentUnverified
+                : TimestampEvidenceState.NotRecorded;
+        var state = (TimestampEvidenceState)raw;
+        if (state == TimestampEvidenceState.NotRecorded)
+            return state;
+        if (state == TimestampEvidenceState.NotProvided)
+            return timestampPresent ? TimestampEvidenceState.PresentUnverified : state;
+        if (!timestampPresent)
+            return TimestampEvidenceState.NotRecorded;
+        return server && state is TimestampEvidenceState.Synchronized or TimestampEvidenceState.Unsynchronized
+            ? TimestampEvidenceState.PresentUnverified
+            : state;
+    }
+
+    private static byte[]? ReadFingerprint(NpgsqlDataReader reader, int ordinal)
+    {
+        if (reader.IsDBNull(ordinal))
+            return null;
+
+        var fingerprint = reader.GetFieldValue<byte[]>(ordinal);
+        return fingerprint.Length == 16 ? fingerprint : null;
+    }
+
+    private static CapturePolicyEvidence ReadCapturePolicyEvidence(
+        NpgsqlDataReader reader,
+        int ordinal,
+        Guid? profileId,
+        byte[]? fingerprint)
+    {
+        if (reader.IsDBNull(ordinal))
+            return CapturePolicyEvidence.NotRecorded;
+
+        var raw = reader.GetInt16(ordinal);
+        if (!Enum.IsDefined(typeof(HistorianCapturePolicyEvidenceState), raw))
+            return CapturePolicyEvidence.NotRecorded;
+
+        var state = (HistorianCapturePolicyEvidenceState)raw;
+        return state switch
+        {
+            HistorianCapturePolicyEvidenceState.NotRecorded => CapturePolicyEvidence.NotRecorded,
+            HistorianCapturePolicyEvidenceState.LegacyDefault when profileId is null && fingerprint is null =>
+                new(HistorianCapturePolicyEvidenceState.LegacyDefault, null, null),
+            HistorianCapturePolicyEvidenceState.Explicit when
+                fingerprint is not null && (!profileId.HasValue || profileId.Value != Guid.Empty) =>
+                new(HistorianCapturePolicyEvidenceState.Explicit, profileId, fingerprint),
+            _ => CapturePolicyEvidence.NotRecorded
+        };
     }
 
     private static HistoricalQueryValue ReadValue(string json, TagDataType? dataType)
@@ -478,5 +610,21 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalDatase
         DateTimeOffset Timestamp,
         TagQuality Quality,
         string ValueJson,
-        TagDataType? DataType);
+        TagDataType? DataType,
+        DateTimeOffset? SourceTimestamp = null,
+        TimestampEvidenceState SourceTimestampEvidence = TimestampEvidenceState.NotRecorded,
+        DateTimeOffset? ServerTimestamp = null,
+        TimestampEvidenceState ServerTimestampEvidence = TimestampEvidenceState.NotRecorded,
+        HistorianCapturePolicyEvidenceState CapturePolicyState = HistorianCapturePolicyEvidenceState.NotRecorded,
+        Guid? CaptureProfileId = null,
+        byte[]? CapturePolicyFingerprint = null);
+
+    private sealed record CapturePolicyEvidence(
+        HistorianCapturePolicyEvidenceState State,
+        Guid? ProfileId,
+        byte[]? Fingerprint)
+    {
+        public static CapturePolicyEvidence NotRecorded { get; } =
+            new(HistorianCapturePolicyEvidenceState.NotRecorded, null, null);
+    }
 }

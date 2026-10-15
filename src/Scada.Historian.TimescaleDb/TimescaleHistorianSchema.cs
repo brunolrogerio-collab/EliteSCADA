@@ -18,11 +18,32 @@ internal static class TimescaleHistorianSchema
             quality integer NOT NULL,
             source text NULL,
             value jsonb NOT NULL,
-            data_type smallint NULL
+            data_type smallint NULL,
+            source_ts timestamptz NULL,
+            source_ts_evidence smallint NULL,
+            server_ts timestamptz NULL,
+            server_ts_evidence smallint NULL,
+            capture_profile_id uuid NULL,
+            capture_policy_state smallint NULL,
+            capture_policy_fingerprint bytea NULL
         );
 
         ALTER TABLE elitescada.tag_history
             ADD COLUMN IF NOT EXISTS data_type smallint NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS source_ts timestamptz NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS source_ts_evidence smallint NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS server_ts timestamptz NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS server_ts_evidence smallint NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS capture_profile_id uuid NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS capture_policy_state smallint NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS capture_policy_fingerprint bytea NULL;
 
         SELECT create_hypertable(
             'elitescada.tag_history',

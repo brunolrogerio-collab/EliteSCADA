@@ -180,6 +180,57 @@ public sealed class Dnp3CoordinatorConvergenceTests
     }
 
     [Fact]
+    public async Task Coordinator_PreservesSynchronizedSourceTimeEvidenceWhenCommunicationFails()
+    {
+        var dataSource = DataSource("dnp3.timestamp-evidence-retention");
+        var tagId = Guid.NewGuid();
+        var sourceTimestamp = DateTimeOffset.Parse("2026-08-31T05:30:00Z");
+        var package = Package(
+            dataSource,
+            new TagEngineeringDto(
+                tagId,
+                "AnalogInt32",
+                "DNP3.TimestampEvidenceRetention",
+                TagDataType.Int32,
+                Source: dataSource.Key,
+                Address: "dnp3:analogInput:0",
+                ReadOnly: true,
+                CommunicationBinding: Binding(
+                    "dnp3:analogInput:0",
+                    new Dictionary<string, string> { ["staticVariation"] = "G30V1" })));
+        var session = new CaptureDnp3Session(new Dnp3Measurement(
+            Dnp3PointKind.AnalogInput,
+            0,
+            4242,
+            new Dnp3ObjectVariation(30, 1),
+            IsEvent: false,
+            Dnp3PointFlagSet.Nominal,
+            sourceTimestamp,
+            SourceTimestampSynchronized: true));
+        var components = CommunicationDriverRuntimeComposition.BuildForCurrentSchema(
+            dnp3SessionFactory: new CaptureDnp3SessionFactory(session));
+        var compiler = new EngineeringDriverCompiler(components);
+        await using var coordinator = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            compiler,
+            TimeSpan.FromSeconds(2),
+            communicationComponents: components);
+
+        var activation = await coordinator.ActivateAsync("project-dnp3-evidence-retention", 1, package);
+
+        Assert.True(activation.Activated, JoinIssues(activation));
+        Assert.True(coordinator.TryGetCurrent(tagId, out var beforeFailure));
+        Assert.Equal(TimestampEvidenceState.Synchronized, beforeFailure!.SourceTimestampEvidenceState);
+
+        await session.PublishStateAsync(Dnp3SessionState.Reconnecting, CancellationToken.None);
+
+        Assert.True(coordinator.TryGetCurrent(tagId, out var afterFailure));
+        Assert.Equal(TagQuality.BadCommunication, afterFailure!.Quality);
+        Assert.Equal(sourceTimestamp, afterFailure.SourceTimestamp);
+        Assert.Equal(TimestampEvidenceState.Synchronized, afterFailure.SourceTimestampEvidenceState);
+    }
+
+    [Fact]
     public async Task Coordinator_RoutesBinaryOutputWriteThroughActiveDnp3Session()
     {
         var dataSource = DataSource("dnp3.write");
@@ -422,6 +473,7 @@ public sealed class Dnp3CoordinatorConvergenceTests
         private DateTimeOffset _stateChangedAt = DateTimeOffset.UtcNow;
         private long _connections;
         private long _startupIntegrityScans;
+        private Func<Dnp3SessionState, CancellationToken, ValueTask>? _stateHandler;
 
         public Dnp3TcpConnectionOptions? ConnectionOptions { get; set; }
         public Dnp3CommandResult BinaryCommandResult { get; set; } = Dnp3CommandResult.Success();
@@ -444,6 +496,7 @@ public sealed class Dnp3CoordinatorConvergenceTests
         {
             options.Validate();
             cancellationToken.ThrowIfCancellationRequested();
+            _stateHandler = stateHandler;
             SetState(Dnp3SessionState.StartupIntegrity);
             await stateHandler(Dnp3SessionState.StartupIntegrity, cancellationToken);
 
@@ -461,6 +514,16 @@ public sealed class Dnp3CoordinatorConvergenceTests
             cancellationToken.ThrowIfCancellationRequested();
             SetState(Dnp3SessionState.Stopped);
             await ValueTask.CompletedTask;
+        }
+
+        public async ValueTask PublishStateAsync(
+            Dnp3SessionState state,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SetState(state);
+            var handler = _stateHandler ?? throw new InvalidOperationException("DNP3 state callback was not registered.");
+            await handler(state, cancellationToken);
         }
 
         public ValueTask<Dnp3CommandResult> ExecuteBinaryAsync(

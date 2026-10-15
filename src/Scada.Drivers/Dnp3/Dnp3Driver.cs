@@ -372,7 +372,11 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
         if (!variationValid || (inferredType is not null && inferredType != point.Tag.DataType))
         {
             Interlocked.Increment(ref _rejectedMeasurements);
-            await PublishBadConfigurationAsync(point, measurement.SourceTimestamp, cancellationToken);
+            await PublishBadConfigurationAsync(
+                point,
+                measurement.SourceTimestamp,
+                measurement.SourceTimestampSynchronized,
+                cancellationToken);
             return;
         }
 
@@ -384,7 +388,11 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
         catch (ArgumentException)
         {
             Interlocked.Increment(ref _rejectedMeasurements);
-            await PublishBadConfigurationAsync(point, measurement.SourceTimestamp, cancellationToken);
+            await PublishBadConfigurationAsync(
+                point,
+                measurement.SourceTimestamp,
+                measurement.SourceTimestampSynchronized,
+                cancellationToken);
             return;
         }
 
@@ -467,7 +475,9 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
             TagQuality.BadCommunication,
             DriverId)
         {
-            SourceTimestamp = previous?.SourceTimestamp
+            SourceTimestamp = previous?.SourceTimestamp,
+            SourceTimestampEvidenceState = previous?.SourceTimestampEvidenceState ??
+                TimestampEvidenceState.NotProvided
         };
 
         await _cache.UpdateAsync(point.Tag, sample, cancellationToken);
@@ -477,9 +487,14 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
     private async ValueTask PublishBadConfigurationAsync(
         Dnp3Point point,
         DateTimeOffset? sourceTimestamp,
+        bool? sourceTimestampSynchronized,
         CancellationToken cancellationToken)
     {
         _cache.TryGet(point.Tag.Id, out var previous);
+        var retainedSourceTimestamp = sourceTimestamp ?? previous?.SourceTimestamp;
+        var sourceTimestampEvidence = sourceTimestamp.HasValue
+            ? Dnp3MeasurementMapper.MapSourceTimestampEvidence(sourceTimestamp, sourceTimestampSynchronized)
+            : previous?.SourceTimestampEvidenceState ?? TimestampEvidenceState.NotProvided;
         var sample = new TagValue(
             point.Tag.Id,
             previous?.Value,
@@ -487,7 +502,8 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
             TagQuality.BadConfiguration,
             DriverId)
         {
-            SourceTimestamp = sourceTimestamp ?? previous?.SourceTimestamp
+            SourceTimestamp = retainedSourceTimestamp,
+            SourceTimestampEvidenceState = sourceTimestampEvidence
         };
 
         await _cache.UpdateAsync(point.Tag, sample, cancellationToken);

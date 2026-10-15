@@ -228,6 +228,8 @@ public static class TagBitSemantics
         => new(source.TagId, value, source.Timestamp, source.Quality, source.Source)
         {
             SourceTimestamp = source.SourceTimestamp,
-            ServerTimestamp = source.ServerTimestamp
+            ServerTimestamp = source.ServerTimestamp,
+            SourceTimestampEvidenceState = source.SourceTimestampEvidenceState,
+            ServerTimestampEvidenceState = source.ServerTimestampEvidenceState
         };
 }

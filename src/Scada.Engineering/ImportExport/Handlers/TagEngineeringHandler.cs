@@ -62,11 +62,11 @@ internal sealed class TagEngineeringHandler
             var existing = ResolveExisting(dto);
             var operation = EngineeringHandlerSupport.Decide(existing is not null, mode);
             if (operation == ImportOperation.Update && existing?.ControlledEngineeringUnit is not null &&
-                (package.SchemaVersion < 26 || dto.ControlledEngineeringUnit is null))
+                package.SchemaVersion < 26)
             {
                 issues.Add(new(
                     "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT",
-                    $"Updating TAG '{dto.Path}' from an import that omits its controlled unit would remove an existing semantic annotation. Use an Engineering schema 26 package with the explicit controlled-unit reference or explicit removal.",
+                    $"Updating TAG '{dto.Path}' from a schema-25-or-older import would remove an existing semantic annotation. Use an Engineering schema 26 package to explicitly retain, change, or remove the controlled unit.",
                     ImportEntityKind.Tag,
                     dto.Path,
                     true));

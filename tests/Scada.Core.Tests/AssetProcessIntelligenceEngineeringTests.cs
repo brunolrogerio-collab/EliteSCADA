@@ -324,6 +324,82 @@ public sealed class AssetProcessIntelligenceEngineeringTests
         Assert.NotNull(Assert.Single(intelligence.Snapshot().Profiles!.Single().Signals!).SemanticBinding);
     }
 
+    [Fact]
+    public void Schema26UpdateCanExplicitlyClearControlledUnitAnnotation()
+    {
+        var tagId = Guid.Parse("a5250000-0000-0000-0000-000000000001");
+        var controlledUnit = new ControlledEngineeringUnitReference(1, "unit.electric_current.ampere");
+        var tags = new InMemoryTagRegistry();
+        tags.Register(new TagDefinition(tagId, "Current", "Plant.P01.Current", TagDataType.Double, null, "A", null, true,
+            ControlledEngineeringUnit: controlledUnit));
+        var service = CreateExchange(new InMemoryAssetProcessIntelligenceEngineeringRegistry(), tags: tags);
+        var package = Package(new AssetProcessIntelligenceEngineeringDto(),
+            tags: [new TagEngineeringDto(tagId, "Current", "Plant.P01.Current", TagDataType.Double, EngineeringUnit: "A")]);
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        var applied = service.Apply(package, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(26, package.SchemaVersion);
+        Assert.True(preview.CanApply);
+        Assert.DoesNotContain(preview.Items.SelectMany(item => item.Issues), issue => issue.Code == "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT");
+        Assert.Empty(applied.Issues);
+        Assert.Null(Assert.Single(tags.Snapshot()).ControlledEngineeringUnit);
+    }
+
+    [Fact]
+    public void LegacyTagsCsvUpdateWithoutControlledUnitConflictsWithoutMutation()
+    {
+        var tagId = Guid.Parse("a5260000-0000-0000-0000-000000000001");
+        var controlledUnit = new ControlledEngineeringUnitReference(1, "unit.electric_current.ampere");
+        var tags = new InMemoryTagRegistry();
+        tags.Register(new TagDefinition(tagId, "Current", "Plant.P01.Current", TagDataType.Double, null, "A", null, true,
+            ControlledEngineeringUnit: controlledUnit));
+        var service = CreateExchange(new InMemoryAssetProcessIntelligenceEngineeringRegistry(), tags: tags);
+        var package = service.ParseTagsCsv("Id,Path,Name,DataType,Unit\n" +
+            $"{tagId:D},Plant.P01.Current,Current,Double,A\n");
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        var applied = service.Apply(package, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(25, package.SchemaVersion);
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items.SelectMany(item => item.Issues), issue => issue.Code == "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT");
+        Assert.Contains(applied.Issues, issue => issue.Code == "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT");
+        Assert.Equal(controlledUnit, Assert.Single(tags.Snapshot()).ControlledEngineeringUnit);
+    }
+
+    [Fact]
+    public void Schema26TagsCsvBlankControlledUnitColumnExplicitlyClearsAnnotation()
+    {
+        var tagId = Guid.Parse("a5270000-0000-0000-0000-000000000001");
+        var controlledUnit = new ControlledEngineeringUnitReference(1, "unit.electric_current.ampere");
+        var tags = new InMemoryTagRegistry();
+        tags.Register(new TagDefinition(tagId, "Current", "Plant.P01.Current", TagDataType.Double, null, "A", null, true,
+            ControlledEngineeringUnit: controlledUnit));
+        var service = CreateExchange(new InMemoryAssetProcessIntelligenceEngineeringRegistry(), tags: tags);
+        var header = service.ExportTagsCsv().Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)[0];
+        var columns = header.Split(',');
+        var row = new string[columns.Length];
+        var index = columns.Select((name, position) => (name, position))
+            .ToDictionary(item => item.name, item => item.position, StringComparer.OrdinalIgnoreCase);
+        row[index["Id"]] = tagId.ToString("D");
+        row[index["Path"]] = "Plant.P01.Current";
+        row[index["Name"]] = "Current";
+        row[index["DataType"]] = nameof(TagDataType.Double);
+        row[index["Unit"]] = "A";
+        row[index["ReadOnly"]] = bool.TrueString;
+        var package = service.ParseTagsCsv(header + "\r\n" + string.Join(',', row));
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        var applied = service.Apply(package, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(26, package.SchemaVersion);
+        Assert.Null(Assert.Single(package.Tags).ControlledEngineeringUnit);
+        Assert.True(preview.CanApply);
+        Assert.Empty(applied.Issues);
+        Assert.Null(Assert.Single(tags.Snapshot()).ControlledEngineeringUnit);
+    }
+
     [Theory]
     [InlineData(50d, "unit.ratio.percent", 0.5d)]
     [InlineData(3.25d, "unit.electric_current.ampere", 3.25d)]

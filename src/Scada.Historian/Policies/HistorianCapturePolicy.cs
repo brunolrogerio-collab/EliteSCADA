@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 
@@ -20,17 +22,52 @@ public enum HistorianCaptureDisposition
     Coalesced
 }
 
+/// <summary>
+/// Provenance for a newly persisted row's effective capture policy. Null in the
+/// additive database column remains NotRecorded for rows written before this field.
+/// </summary>
+public enum HistorianCapturePolicyEvidenceState : short
+{
+    NotRecorded = 0,
+    LegacyDefault = 1,
+    Explicit = 2
+}
+
 public sealed record HistorianCapturePolicySettings(
     bool Enabled,
     HistorianCaptureMode Mode,
     TimeSpan? Period = null,
     double? Deadband = null,
-    TimeSpan? MaximumInterval = null)
+    TimeSpan? MaximumInterval = null,
+    bool IsExplicit = false)
 {
+    public const string FingerprintTextPrefix = "sha256-128-v1:";
+
     internal string Signature =>
         string.Create(
             CultureInfo.InvariantCulture,
             $"{Enabled}|{Mode}|{Period?.Ticks ?? 0}|{Deadband?.ToString("R", CultureInfo.InvariantCulture) ?? "-"}|{MaximumInterval?.Ticks ?? 0}");
+
+    /// <summary>
+    /// Compact deterministic identity of explicit effective capture settings.
+    /// It is the first 128 bits of SHA-256 over a versioned canonical representation.
+    /// This identifies admission settings only; it does not assert sample cadence.
+    /// </summary>
+    public byte[] StableFingerprintBytes
+    {
+        get
+        {
+            if (!IsExplicit)
+                throw new InvalidOperationException("Legacy/default capture policy has no explicit fingerprint.");
+
+            var canonical = $"historian.capture-policy.v1|{Signature}";
+            var digest = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
+            return digest[..16];
+        }
+    }
+
+    public string StableFingerprint =>
+        FingerprintTextPrefix + Convert.ToHexString(StableFingerprintBytes).ToLowerInvariant();
 }
 
 public sealed record HistorianCaptureDecision(
@@ -78,18 +115,18 @@ public static class HistorianCapturePolicy
         {
             case "periodic":
                 return TryMilliseconds(tag.Metadata, PeriodMetadataKey, out var period)
-                    ? new(true, HistorianCaptureMode.Periodic, Period: period)
+                    ? new(true, HistorianCaptureMode.Periodic, Period: period, IsExplicit: true)
                     : Legacy(enabled: true);
 
             case "onchange":
             case "change":
-                return new(true, HistorianCaptureMode.OnChange);
+                return new(true, HistorianCaptureMode.OnChange, IsExplicit: true);
 
             case "onchangedeadband":
             case "deadband":
                 return IsNumeric(tag.DataType) &&
                        TryDeadband(tag.Metadata, out var deadband)
-                    ? new(true, HistorianCaptureMode.OnChangeDeadband, Deadband: deadband)
+                    ? new(true, HistorianCaptureMode.OnChangeDeadband, Deadband: deadband, IsExplicit: true)
                     : Legacy(enabled: true);
 
             case "onchangedeadbandmaxinterval":
@@ -100,7 +137,8 @@ public static class HistorianCapturePolicy
                         true,
                         HistorianCaptureMode.OnChangeDeadbandMaxInterval,
                         Deadband: boundedDeadband,
-                        MaximumInterval: maximumInterval)
+                        MaximumInterval: maximumInterval,
+                        IsExplicit: true)
                     : Legacy(enabled: true);
 
             default:

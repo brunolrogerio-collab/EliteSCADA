@@ -37,6 +37,58 @@ public sealed class HistoricalQueryCoreTests
     }
 
     [Fact]
+    public void Validator_AllowlistsV2OnlyForHistorianProvenanceDataset()
+    {
+        var v2 = HistoricalQueryValidator.Validate(new HistoricalQueryRequest(
+            HistoricalDatasets.HistorianSamplesV2,
+            HistoricalTimeRange.Relative(3600),
+            Version: 2));
+        Assert.Equal(2, v2.Version);
+        Assert.Contains("source.timestamp.status", v2.Dataset.Fields.Keys);
+        Assert.Contains("capture.policy.fingerprint", v2.Dataset.Fields.Keys);
+        Assert.Contains("capture.policy.status", v2.Dataset.Fields.Keys);
+        Assert.Empty(v2.Dataset.Fields["source.timestamp.status"].Operators);
+        Assert.Empty(v2.Dataset.Fields["capture.policy.fingerprint"].Operators);
+        Assert.Empty(v2.Dataset.Fields["capture.policy.status"].Operators);
+
+        Assert.Throws<ArgumentException>(() => HistoricalQueryValidator.Validate(
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamples,
+                HistoricalTimeRange.Relative(3600),
+                Version: 2)));
+        Assert.Throws<ArgumentException>(() => HistoricalQueryValidator.Validate(
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamplesV2,
+                HistoricalTimeRange.Relative(3600),
+                Version: 1)));
+
+        Assert.Throws<ArgumentException>(() => HistoricalQueryValidator.Validate(
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamplesV2,
+                HistoricalTimeRange.Relative(3600),
+                Version: 2,
+                Filters:
+                [
+                    new HistoricalFilter(
+                        "source.timestamp",
+                        HistoricalFilterOperator.GreaterThan,
+                        [HistoricalQueryValue.FromDateTime(Now.AddMinutes(-1))])
+                ])));
+        Assert.Throws<ArgumentException>(() => HistoricalQueryValidator.Validate(
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamplesV2,
+                HistoricalTimeRange.Relative(3600),
+                Version: 2,
+                Filters:
+                [
+                    new HistoricalFilter(
+                        "source.timestamp.status",
+                        HistoricalFilterOperator.Eq,
+                        [HistoricalQueryValue.FromEnum("Synchronized")])
+                ])));
+    }
+
+    [Fact]
     public void Validator_EnforcesTypedOperatorsBoundedPageAndOrderTerms()
     {
         var wrongType = new HistoricalQueryRequest(
@@ -183,6 +235,25 @@ public sealed class HistoricalQueryCoreTests
                 HistoricalDatasets.HistorianSamples,
                 HistoricalTimeRange.Relative(3600))));
         Assert.Equal(0, provider.CallCount);
+    }
+
+    [Fact]
+    public async Task Service_ReturnsTheValidatedDatasetVersion()
+    {
+        var provider = new RecordingProvider(HistoricalDatasets.HistorianSamplesV2);
+        var service = new HistoricalQueryService(
+            [provider],
+            new FixedAuthorizer(HistoricalAuthorizationDecision.Allow()),
+            new HistoricalQueryCursorCodec(CursorKey),
+            () => Now);
+
+        var response = await service.QueryAsync(new HistoricalQueryRequest(
+            HistoricalDatasets.HistorianSamplesV2,
+            HistoricalTimeRange.Relative(3600),
+            Version: 2));
+
+        Assert.Equal(2, response.Version);
+        Assert.Equal(HistoricalDatasets.HistorianSamplesV2, response.Dataset);
     }
 
     [Fact]

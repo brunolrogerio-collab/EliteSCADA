@@ -20,12 +20,17 @@ public static class HistoricalQueryValidator
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Range);
 
-        if (request.Version != HistoricalQueryContract.Version)
-            throw new ArgumentException(
-                $"Historical Query version '{request.Version}' is unsupported. Expected version {HistoricalQueryContract.Version}.",
-                nameof(request));
-
         var dataset = HistoricalQueryCatalog.Require(request.Dataset);
+        var supportedVersion = request.Version switch
+        {
+            HistoricalQueryContract.Version when dataset.Id != HistoricalDatasets.HistorianSamplesV2 => true,
+            2 when dataset.Id == HistoricalDatasets.HistorianSamplesV2 => true,
+            _ => false
+        };
+        if (!supportedVersion)
+            throw new ArgumentException(
+                $"Historical Query version '{request.Version}' is unsupported for dataset '{dataset.Id}'.",
+                nameof(request));
         ValidateRangeShape(request.Range);
         var filters = NormalizeFilters(dataset, request.Filters ?? Array.Empty<HistoricalFilter>());
         var search = NormalizeSearch(dataset, request.Search);
@@ -53,7 +58,8 @@ public static class HistoricalQueryValidator
             sort,
             pageSize,
             request.Page?.Cursor,
-            fingerprint);
+            fingerprint,
+            request.Version);
     }
 
     public static HistoricalResolvedRange ResolveRange(

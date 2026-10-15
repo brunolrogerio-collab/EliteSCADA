@@ -62,7 +62,10 @@ public static class HistorianCaptureProfileRuntimeResolver
             {
                 // Frozen compatibility rule: inline TAG policy remains authoritative
                 // until a stable profile reference is deliberately attached.
-                resolvedTags.Add(tag);
+                resolvedTags.Add(tag with
+                {
+                    Metadata = WithProfileIdentity(tag.Metadata, profileId: null)
+                });
                 continue;
             }
 
@@ -96,7 +99,12 @@ public static class HistorianCaptureProfileRuntimeResolver
 
             resolvedTags.Add(tag with
             {
-                Historian = ToEffectiveSettings(profile)
+                Historian = ToEffectiveSettings(profile),
+                // The runtime compiler consumes the public metadata map when it builds
+                // TagDefinition. Preserve the canonical profile identity there so the
+                // Historian writer can persist the GUID alongside the effective-policy
+                // fingerprint, even when a package DTO supplied only the typed field.
+                Metadata = WithProfileIdentity(tag.Metadata, profileId)
             });
         }
 
@@ -119,4 +127,20 @@ public static class HistorianCaptureProfileRuntimeResolver
             Deadband: profile.Deadband,
             PeriodMilliseconds: profile.PeriodMilliseconds,
             MaximumPeriodMilliseconds: profile.MaximumIntervalMilliseconds);
+
+    private static Dictionary<string, string>? WithProfileIdentity(
+        IReadOnlyDictionary<string, string>? metadata,
+        Guid? profileId)
+    {
+        var result = metadata is null
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(metadata, StringComparer.OrdinalIgnoreCase);
+
+        if (profileId.HasValue)
+            result[HistorianCaptureProfileMetadata.ProfileIdMetadataKey] = profileId.Value.ToString("D");
+        else
+            result.Remove(HistorianCaptureProfileMetadata.ProfileIdMetadataKey);
+
+        return result.Count == 0 ? null : result;
+    }
 }

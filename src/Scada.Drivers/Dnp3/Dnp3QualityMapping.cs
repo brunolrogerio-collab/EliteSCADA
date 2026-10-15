@@ -62,24 +62,37 @@ public static class Dnp3QualityMapper
 
 public static class Dnp3MeasurementMapper
 {
+    public static TimestampEvidenceState MapSourceTimestampEvidence(
+        DateTimeOffset? sourceTimestamp,
+        bool? sourceTimestampSynchronized) => sourceTimestamp switch
+    {
+        null => TimestampEvidenceState.NotProvided,
+        _ when sourceTimestampSynchronized == true => TimestampEvidenceState.Synchronized,
+        _ when sourceTimestampSynchronized == false => TimestampEvidenceState.Unsynchronized,
+        _ => TimestampEvidenceState.PresentUnverified
+    };
+
     public static TagValue CreateTagValue(
         Guid tagId,
         object? value,
         DateTimeOffset observedAt,
         Dnp3PointFlagSet flags,
         DateTimeOffset? sourceTimestamp = null,
-        bool sourceTimestampSynchronized = true,
+        bool? sourceTimestampSynchronized = null,
         string? source = null,
         Dnp3OverRangePolicy overRangePolicy = Dnp3OverRangePolicy.Uncertain)
     {
         var quality = Dnp3QualityMapper.Map(flags, overRangePolicy);
 
-        if (sourceTimestamp is not null && !sourceTimestampSynchronized && quality == TagQuality.Good)
+        if (sourceTimestamp is not null && sourceTimestampSynchronized == false && quality == TagQuality.Good)
             quality = TagQuality.Uncertain;
 
         return new TagValue(tagId, value, observedAt, quality, source)
         {
-            SourceTimestamp = sourceTimestamp
+            SourceTimestamp = sourceTimestamp,
+            SourceTimestampEvidenceState = MapSourceTimestampEvidence(
+                sourceTimestamp,
+                sourceTimestampSynchronized)
         };
     }
 }

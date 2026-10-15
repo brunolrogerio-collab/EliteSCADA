@@ -20,7 +20,7 @@ public sealed record Dnp3Measurement(
     bool IsEvent,
     Dnp3PointFlagSet Flags,
     DateTimeOffset? SourceTimestamp = null,
-    bool SourceTimestampSynchronized = true);
+    bool? SourceTimestampSynchronized = null);
 
 public sealed record Dnp3CommandResult(
     bool Succeeded,

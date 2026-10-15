@@ -8,6 +8,33 @@ namespace Scada.Historian.TimescaleDb.Tests;
 public sealed class HistorianCapturePolicyTests
 {
     [Fact]
+    public void StableFingerprint_IsRepeatableAndTracksEffectiveSettings()
+    {
+        var tag = CreateTag(
+            enabled: "true",
+            strategy: "periodic",
+            periodMilliseconds: 250);
+        var same = CreateTag(
+            enabled: "true",
+            strategy: "periodic",
+            periodMilliseconds: 250);
+        var changed = CreateTag(
+            enabled: "true",
+            strategy: "periodic",
+            periodMilliseconds: 500);
+
+        var fingerprint = HistorianCapturePolicy.Resolve(tag).StableFingerprint;
+        Assert.StartsWith(HistorianCapturePolicySettings.FingerprintTextPrefix, fingerprint, StringComparison.Ordinal);
+        Assert.Equal(HistorianCapturePolicySettings.FingerprintTextPrefix.Length + 32, fingerprint.Length);
+        Assert.Equal(16, HistorianCapturePolicy.Resolve(tag).StableFingerprintBytes.Length);
+        Assert.Equal(fingerprint, HistorianCapturePolicy.Resolve(same).StableFingerprint);
+        Assert.NotEqual(fingerprint, HistorianCapturePolicy.Resolve(changed).StableFingerprint);
+        var legacy = HistorianCapturePolicy.Resolve(CreateTag(null));
+        Assert.False(legacy.IsExplicit);
+        Assert.Throws<InvalidOperationException>(() => _ = legacy.StableFingerprintBytes);
+    }
+
+    [Fact]
     public void ShouldCapture_PreservesLegacyTagsButHonorsExplicitEngineeringFlag()
     {
         Assert.True(HistorianCapturePolicy.ShouldCapture(CreateTag(null)));

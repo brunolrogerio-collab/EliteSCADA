@@ -11,6 +11,7 @@ public static class HistoricalQueryContract
 public static class HistoricalDatasets
 {
     public const string HistorianSamples = "historian.samples";
+    public const string HistorianSamplesV2 = "historian.samples.v2";
     public const string AlarmEvents = "alarm.events";
     public const string OperationalEvents = "operational.events";
 }
@@ -309,6 +310,20 @@ public static class HistoricalQueryCatalog
                 new("quality", HistoricalFieldType.Enum, IdentityOperators),
                 new("value", HistoricalFieldType.Scalar, IdentityOperators),
                 new("timestamp", HistoricalFieldType.DateTime, OrderedOperators, Sortable: true)),
+            [HistoricalDatasets.HistorianSamplesV2] = Dataset(
+                HistoricalDatasets.HistorianSamplesV2,
+                new("tag.id", HistoricalFieldType.Guid, IdentityOperators),
+                new("tag.path", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("quality", HistoricalFieldType.Enum, IdentityOperators),
+                new("value", HistoricalFieldType.Scalar, IdentityOperators),
+                new("timestamp", HistoricalFieldType.DateTime, OrderedOperators, Sortable: true),
+                new("source.timestamp", HistoricalFieldType.DateTime, Set()),
+                new("source.timestamp.status", HistoricalFieldType.Enum, Set()),
+                new("server.timestamp", HistoricalFieldType.DateTime, Set()),
+                new("server.timestamp.status", HistoricalFieldType.Enum, Set()),
+                new("capture.policy.profileId", HistoricalFieldType.Guid, Set()),
+                new("capture.policy.fingerprint", HistoricalFieldType.String, Set()),
+                new("capture.policy.status", HistoricalFieldType.Enum, Set())),
             [HistoricalDatasets.AlarmEvents] = Dataset(
                 HistoricalDatasets.AlarmEvents,
                 new("alarm.id", HistoricalFieldType.Guid, IdentityOperators),
@@ -368,4 +383,5 @@ public sealed record HistoricalValidatedRequest(
     HistoricalSort Sort,
     int PageSize,
     string? Cursor,
-    string Fingerprint);
+    string Fingerprint,
+    int Version);

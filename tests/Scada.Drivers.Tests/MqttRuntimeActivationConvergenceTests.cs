@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.Channels;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
@@ -18,6 +19,14 @@ public sealed class MqttRuntimeActivationConvergenceTests
         var components = CommunicationDriverRuntimeComposition.BuildForCurrentSchema(() => transport);
         var compiler = new EngineeringDriverCompiler(components);
         var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        var firstSample = new TaskCompletionSource<TagValueChanged>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var sampleSubscription = eventBus.Subscribe<TagValueChanged>(evt =>
+        {
+            if (evt.Current.TagId == tagId)
+                firstSample.TrySetResult(evt);
+            return ValueTask.CompletedTask;
+        });
         await using var coordinator = new EngineeringRuntimeCoordinator(
             eventBus,
             compiler,
@@ -41,8 +50,14 @@ public sealed class MqttRuntimeActivationConvergenceTests
             CommunicationTagBinding.CurrentContractVersion,
             MqttDriverDescriptorProvider.SchemaId,
             1,
-            "plant/runtime/value");
-        var tagId = Guid.NewGuid();
+            "plant/runtime/value",
+            new Dictionary<string, string>
+            {
+                ["mqtt.payloadFormat"] = "json",
+                ["mqtt.jsonPointer"] = "/value",
+                ["mqtt.sourceTimestampJsonPointer"] = "/timestamp",
+                ["mqtt.sourceTimestampRequired"] = "true"
+            });
         var tag = new TagEngineeringDto(
             tagId,
             "RuntimeValue",
@@ -76,6 +91,20 @@ public sealed class MqttRuntimeActivationConvergenceTests
         Assert.False(coordinator.TryGetCurrent(tagId, out _));
         var driver = Assert.Single(coordinator.Describe().Drivers);
         Assert.Equal(dataSource.Name, driver.Name);
+
+        var receivedAt = DateTimeOffset.Parse("2026-10-15T12:00:00.123456Z");
+        var sourceAt = DateTimeOffset.Parse("2026-10-15T11:59:59-03:00");
+        transport.Send(new MqttTransportMessage(
+            "plant/runtime/value",
+            Encoding.UTF8.GetBytes("{\"value\":12.5,\"timestamp\":\"2026-10-15T11:59:59-03:00\"}"),
+            Retained: false,
+            MqttQosLevel.AtLeastOnce,
+            receivedAt));
+        var published = await firstSample.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.Equal(receivedAt, published.Current.Timestamp);
+        Assert.Equal(sourceAt.ToUniversalTime(), published.Current.SourceTimestamp);
+        Assert.Equal(TimestampEvidenceState.PresentUnverified, published.Current.SourceTimestampEvidenceState);
+        Assert.Equal(TimestampEvidenceState.NotProvided, published.Current.ServerTimestampEvidenceState);
     }
 
     [Fact]
@@ -175,6 +204,8 @@ public sealed class MqttRuntimeActivationConvergenceTests
 
     private sealed class CaptureTransport : IMqttClientTransport
     {
+        private readonly Channel<MqttTransportMessage> _messages = Channel.CreateUnbounded<MqttTransportMessage>();
+
         public bool IsConnected { get; private set; }
         public int ConnectCount { get; private set; }
         public int SubscribeCount { get; private set; }
@@ -209,9 +240,10 @@ public sealed class MqttRuntimeActivationConvergenceTests
 
         public async ValueTask<MqttTransportMessage> ReceiveAsync(CancellationToken cancellationToken = default)
         {
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            throw new InvalidOperationException("Unreachable after cancellation.");
+            return await _messages.Reader.ReadAsync(cancellationToken);
         }
+
+        public void Send(MqttTransportMessage message) => _messages.Writer.TryWrite(message);
 
         public ValueTask PublishAsync(
             MqttPublishRequest request,

@@ -25,6 +25,10 @@ public sealed class TagValueTimestampTests
         Assert.Equal(observedAt, value.Timestamp);
         Assert.Equal(sourceAt, value.SourceTimestamp);
         Assert.Equal(serverAt, value.ServerTimestamp);
+        Assert.Equal(TimestampEvidenceState.PresentUnverified, value.SourceTimestampEvidenceState);
+        Assert.Equal(TimestampEvidenceState.PresentUnverified, value.ServerTimestampEvidenceState);
+        Assert.Equal(TimeSpan.Zero, value.SourceTimestamp!.Value.Offset);
+        Assert.Equal(TimeSpan.Zero, value.ServerTimestamp!.Value.Offset);
     }
 
     [Fact]
@@ -34,5 +38,36 @@ public sealed class TagValueTimestampTests
 
         Assert.Null(value.SourceTimestamp);
         Assert.Null(value.ServerTimestamp);
+        Assert.Equal(TimestampEvidenceState.NotProvided, value.SourceTimestampEvidenceState);
+        Assert.Equal(TimestampEvidenceState.NotProvided, value.ServerTimestampEvidenceState);
+    }
+
+    [Fact]
+    public void LegacyPayloadWithProtocolTimestamp_IsNeverPromotedToSynchronized()
+    {
+        var value = new TagValue(
+            Guid.NewGuid(),
+            1,
+            DateTimeOffset.UtcNow,
+            TagQuality.Good)
+        {
+            SourceTimestamp = DateTimeOffset.UtcNow.AddSeconds(-1)
+        };
+
+        Assert.Equal(TimestampEvidenceState.PresentUnverified, value.SourceTimestampEvidenceState);
+    }
+
+    [Fact]
+    public void ServerTimestampCannotClaimSourceClockSynchronization()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TagValue(
+            Guid.NewGuid(),
+            12,
+            DateTimeOffset.UtcNow,
+            TagQuality.Good)
+        {
+            ServerTimestamp = DateTimeOffset.UtcNow,
+            ServerTimestampEvidenceState = TimestampEvidenceState.Synchronized
+        });
     }
 }

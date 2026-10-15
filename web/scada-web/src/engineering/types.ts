@@ -274,6 +274,7 @@ export type TagEngineering = {
   address?: string | null;
   communicationBinding?: CommunicationTagBindingEngineering | null;
   engineeringUnit?: string | null;
+  controlledEngineeringUnit?: { catalogVersion: number; code: string } | null;
   description?: string | null;
   readOnly: boolean;
   scaleMinimum?: number | null;
@@ -286,12 +287,23 @@ export type TagEngineering = {
   historianCaptureProfileId?: string | null;
 };
 
+export type AssetProcessIntelligenceSignalSemanticBinding = {
+  catalogVersion: number;
+  roleCode: string;
+  currentBasis?: string | null;
+  signalKind?: string | null;
+  frequencyReference?: string | null;
+  pressureReference?: string | null;
+  flowDirection?: string | null;
+};
+
 export type AssetProcessIntelligenceSignalEngineering = {
   id: string;
   key: string;
   signalRole: string;
   tagId: string;
   required: boolean;
+  semanticBinding?: AssetProcessIntelligenceSignalSemanticBinding | null;
 };
 
 export type AssetProcessIntelligenceProfileEngineering = {

@@ -36,6 +36,14 @@ import type {
 import './structured-editors.css';
 
 const tagDataTypes = ['boolean', 'int16', 'int32', 'int64', 'float', 'double', 'string', 'dateTime', 'enum'];
+const controlledUnitCodes = [
+  '',
+  'unit.ratio.percent',
+  'unit.electric_current.ampere',
+  'unit.frequency.hertz',
+  'unit.pressure.bar',
+  'unit.volumetric_flow.cubic_metre_per_hour'
+];
 const alarmTypes = ['digital', 'high', 'highHigh', 'low', 'lowLow', 'communication', 'system'];
 const alarmPriorities = ['low', 'medium', 'high', 'critical'];
 const analogAlarmTypes = new Set(['high', 'highHigh', 'low', 'lowLow']);
@@ -253,6 +261,16 @@ export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorPro
                   onChange={next => setDraft(next)}
                 />
                 <TextField label={text('editor.field.unit')} value={draft.engineeringUnit ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, engineeringUnit: emptyToNull(value) }))} />
+                <SelectField
+                  label={text('editor.field.controlledUnit')}
+                  value={draft.controlledEngineeringUnit?.code ?? ''}
+                  options={controlledUnitCodes}
+                  testId="tag-controlled-unit"
+                  onChange={value => updateTag(setDraft, tag => ({
+                    ...tag,
+                    controlledEngineeringUnit: value ? { catalogVersion: 1, code: value } : null
+                  }))}
+                />
                 <NumberField label={text('editor.field.scaleMinimum')} value={draft.scaleMinimum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMinimum: value }))} />
                 <NumberField label={text('editor.field.scaleMaximum')} value={draft.scaleMaximum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMaximum: value }))} />
                 <BooleanField label={text('editor.field.readOnly')} checked={draft.readOnly} onChange={value => updateTag(setDraft, tag => ({ ...tag, readOnly: value }))} />

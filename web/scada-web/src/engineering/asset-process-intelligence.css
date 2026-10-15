@@ -177,6 +177,24 @@
   border-radius: 0.5rem;
 }
 
+.asset-process-intelligence__semantic-fields {
+  display: grid;
+  flex: 1 1 100%;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.65rem;
+}
+
+.asset-process-intelligence__semantic-fields label {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__semantic-fields select {
+  min-width: 0;
+  width: 100%;
+}
+
 .asset-process-intelligence__row > label,
 .asset-process-intelligence__controls {
   display: flex;

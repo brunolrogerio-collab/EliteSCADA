@@ -154,6 +154,72 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
     }
 
     [Fact]
+    public async Task LegacyConfigurationPutCannotSilentlyDropTypedSemanticAnnotations()
+    {
+        await using var api = await EndpointHarness.StartAsync(
+            CreateVerification("valid"),
+            seedControlledSemanticTag: true,
+            seedSemanticAnnotations: true);
+        var original = Assert.Single(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!);
+        var versionBefore = api.Workspace.CaptureChangeVersion();
+
+        using var response = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            new AssetProcessIntelligenceConfigurationRequest([], [], []));
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("INTELLIGENCE_SEMANTIC_ANNOTATION_CONFLICT", body.GetProperty("error").GetString());
+        var retained = Assert.Single(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!);
+        Assert.Equal(original.SemanticBinding, retained.SemanticBinding);
+        Assert.Equal(original.TagId, retained.TagId);
+        Assert.Equal(versionBefore, api.Workspace.CaptureChangeVersion());
+        Assert.False(api.Workspace.Describe().IsDirty);
+    }
+
+    [Fact]
+    public async Task ExplicitSemanticContractAllowsValidatedAnnotationRemoval()
+    {
+        await using var api = await EndpointHarness.StartAsync(
+            CreateVerification("valid"),
+            seedControlledSemanticTag: true,
+            seedSemanticAnnotations: true);
+        var current = api.Workspace.AssetProcessIntelligence.Snapshot();
+        var profile = Assert.Single(current.Profiles!);
+        var clearedProfile = profile with
+        {
+            Signals = profile.Signals!.Select(signal => signal with { SemanticBinding = null }).ToArray()
+        };
+        var request = new AssetProcessIntelligenceConfigurationRequest(
+            [clearedProfile], [], [], SemanticContractVersion: 1);
+
+        using var response = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath, request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(Assert.Single(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!).SemanticBinding);
+    }
+
+    [Fact]
+    public async Task NewTypedSemanticBindingRequiresExplicitSemanticContractMarker()
+    {
+        await using var api = await EndpointHarness.StartAsync(
+            CreateVerification("valid"),
+            seedControlledSemanticTag: true);
+        var profileId = Guid.NewGuid();
+        var request = new AssetProcessIntelligenceConfigurationRequest(
+            [new(profileId, "pump", "Pump", [new(Guid.NewGuid(), "current", "Current", api.TagId,
+                SemanticBinding: new(1, "pump.electrical_current", CurrentBasis: "line_rms"))])],
+            [],
+            []);
+
+        using var response = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath, request);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("INTELLIGENCE_SEMANTIC_CONTRACT_VERSION_REQUIRED", body.GetProperty("error").GetString());
+        Assert.Empty(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!);
+    }
+
+    [Fact]
     public async Task AuthorizedActivationPersistsScopeAndArmsPermit_ThenPausePersistsAndCancels()
     {
         await using var api = await EndpointHarness.StartAsync(
@@ -276,7 +342,9 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             LicenseVerificationResult verification,
             bool managerGrantOnTargetEquipment = true,
             bool engineeringModifyGranted = true,
-            bool includeActivationPipeline = false)
+            bool includeActivationPipeline = false,
+            bool seedControlledSemanticTag = false,
+            bool seedSemanticAnnotations = false)
         {
             var workspace = new EngineeringWorkspace(seedDemo: false);
             var equipmentId = Guid.NewGuid();
@@ -284,9 +352,31 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             var otherEquipmentId = Guid.NewGuid();
             workspace.Assets.UpsertEquipment(new EquipmentEngineeringDto(equipmentId, "Plant.Pump", "Pump"));
             workspace.Assets.UpsertEquipment(new EquipmentEngineeringDto(otherEquipmentId, "Plant.Fan", "Fan"));
-            workspace.Tags.Register(new TagDefinition(tagId, "Temperature", "Plant.Pump.Temperature", TagDataType.Double, null, "°C", null, true));
+            workspace.Tags.Register(new TagDefinition(
+                tagId,
+                seedControlledSemanticTag ? "Current" : "Temperature",
+                seedControlledSemanticTag ? "Plant.Pump.Current" : "Plant.Pump.Temperature",
+                TagDataType.Double,
+                null,
+                seedControlledSemanticTag ? "A" : "°C",
+                null,
+                true,
+                ControlledEngineeringUnit: seedControlledSemanticTag
+                    ? new ControlledEngineeringUnitReference(1, "unit.electric_current.ampere")
+                    : null));
             workspace.AssetProcessIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Scopes:
             [new(AssetProcessIntelligenceScopeKind.Equipment, equipmentId)]));
+            if (seedSemanticAnnotations)
+            {
+                if (!seedControlledSemanticTag)
+                    throw new ArgumentException("Semantic annotations require a controlled-unit TAG.", nameof(seedSemanticAnnotations));
+                workspace.AssetProcessIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(
+                    Version: 2,
+                    Scopes: [new(AssetProcessIntelligenceScopeKind.Equipment, equipmentId)],
+                    Profiles: [new(Guid.NewGuid(), "pump", "Pump",
+                        [new(Guid.NewGuid(), "current", "Current", tagId,
+                            SemanticBinding: new(1, "pump.electrical_current", CurrentBasis: "line_rms"))])]));
+            }
             workspace.SetCheckout(ProjectKey, "Stage 1 contract test", 1, DateTimeOffset.UtcNow);
             var equipmentScopeId = Guid.NewGuid();
             var otherScopeId = Guid.NewGuid();

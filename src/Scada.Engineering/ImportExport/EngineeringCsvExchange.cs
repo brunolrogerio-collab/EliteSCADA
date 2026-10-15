@@ -15,7 +15,8 @@ internal sealed class EngineeringCsvExchange
         "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "AddressSelectorKind", "AddressSelectorIndex", "ReadOnly",
         "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband", "PeriodMilliseconds",
         "MaximumPeriodMilliseconds", "Description", "MetadataJson", "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson",
-        "InitialValueDataType", "InitialValueJson", "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId"
+        "InitialValueDataType", "InitialValueJson", "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId",
+        "ControlledEngineeringUnitJson"
     ];
     private static readonly string[] AlarmColumns =
     [
@@ -50,7 +51,7 @@ internal sealed class EngineeringCsvExchange
                 "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband",
                 "PeriodMilliseconds", "MaximumPeriodMilliseconds", "Description", "MetadataJson",
                 "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson", "InitialValueDataType", "InitialValueJson",
-                "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId"
+                "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId", "ControlledEngineeringUnitJson"
             }
         };
 
@@ -67,7 +68,7 @@ internal sealed class EngineeringCsvExchange
                 JsonMap(tag.Metadata), JsonList(tag.AccessPolicy?.ReadRoles), JsonList(tag.AccessPolicy?.WriteRoles),
                 JsonList(tag.AccessPolicy?.ConfigureRoles), tag.InitialValue?.DataType.ToString(), tag.InitialValue?.Value.GetRawText(),
                 JsonCommunicationBinding(tag.CommunicationBinding), tag.DataSourceId?.ToString("D"),
-                tag.HistorianCaptureProfileId?.ToString("D")
+                tag.HistorianCaptureProfileId?.ToString("D"), JsonControlledUnit(tag.ControlledEngineeringUnit)
             });
         }
 
@@ -175,6 +176,12 @@ internal sealed class EngineeringCsvExchange
         if (table is null) throw new InvalidDataException("TAG CSV import requires a header row.");
         var header = Header(table.Headers, TagColumns, "Id", "Name", "Path", "DataType");
         return ParseRows(table, row => ParseTag(row.Cells, header));
+    }
+
+    public bool HasControlledEngineeringUnitColumn(string csv)
+    {
+        var table = CsvCodec.ReadTable(csv);
+        return table?.Headers.Contains("ControlledEngineeringUnitJson", StringComparer.OrdinalIgnoreCase) == true;
     }
 
     public IReadOnlyCollection<AlarmEngineeringDto> ParseAlarms(string csv)
@@ -295,7 +302,8 @@ internal sealed class EngineeringCsvExchange
             addressSelector,
             communicationBinding,
             GuidOrNull(Get(row, header, "DataSourceId")),
-            GuidOrNull(Get(row, header, "HistorianCaptureProfileId")));
+            GuidOrNull(Get(row, header, "HistorianCaptureProfileId")),
+            ParseControlledUnit(Null(Get(row, header, "ControlledEngineeringUnitJson"))));
     }
 
     private string? JsonMap(IReadOnlyDictionary<string, string>? map) =>
@@ -306,6 +314,23 @@ internal sealed class EngineeringCsvExchange
 
     private string? JsonCommunicationBinding(CommunicationTagBinding? binding) =>
         binding is null ? null : JsonSerializer.Serialize(binding, _json);
+
+    private string? JsonControlledUnit(ControlledEngineeringUnitReference? reference) =>
+        reference is null ? null : JsonSerializer.Serialize(reference, _json);
+
+    private ControlledEngineeringUnitReference? ParseControlledUnit(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<ControlledEngineeringUnitReference>(json, _json)
+                ?? throw new InvalidDataException("Invalid ControlledEngineeringUnit JSON in TAG engineering CSV.");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("Invalid ControlledEngineeringUnit JSON in TAG engineering CSV.", ex);
+        }
+    }
 
     private Dictionary<string, string>? ParseMap(string? json)
     {

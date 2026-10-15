@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 const locales = {
   'pt-BR': {
     createProfile: 'Novo perfil', profileKey: 'Chave estável', profileName: 'Nome de exibição',
-    signalKey: 'Chave do sinal', signalRole: 'Papel de domínio', tagReference: 'Referência do TAG', addSignal: 'Adicionar sinal',
+    signalKey: 'Chave do sinal', signalRole: 'Texto de papel legado', tagReference: 'Referência do TAG', addSignal: 'Adicionar sinal',
     equipment: 'Equipamento', profile: 'Perfil', assignProfile: 'Associar perfil', newStage: 'Nova etapa', stageKey: 'Chave estável',
     stageName: 'Nome de exibição', stageAssignment: 'Associação', addToStage: 'Adicionar à etapa', moveUp: 'Mover para cima', moveDown: 'Mover para baixo',
     save: 'Salvar configuração de processo', noProfiles: 'Nenhum perfil ainda. Crie um para definir referências estáticas de sinais.',
@@ -12,7 +12,7 @@ const locales = {
   },
   en: {
     createProfile: 'New profile', profileKey: 'Stable key', profileName: 'Display name',
-    signalKey: 'Signal key', signalRole: 'Domain role', tagReference: 'TAG reference', addSignal: 'Add signal',
+    signalKey: 'Signal key', signalRole: 'Legacy domain role text', tagReference: 'TAG reference', addSignal: 'Add signal',
     equipment: 'Equipment', profile: 'Profile', assignProfile: 'Assign profile', newStage: 'New stage', stageKey: 'Stable key',
     stageName: 'Display name', stageAssignment: 'Assignment', addToStage: 'Add to stage', moveUp: 'Move up', moveDown: 'Move down',
     save: 'Save process configuration', noProfiles: 'No profiles yet. Create one to define static signal references.',
@@ -21,7 +21,7 @@ const locales = {
   },
   es: {
     createProfile: 'Nuevo perfil', profileKey: 'Clave estable', profileName: 'Nombre',
-    signalKey: 'Clave de señal', signalRole: 'Rol de dominio', tagReference: 'Referencia TAG', addSignal: 'Añadir señal',
+    signalKey: 'Clave de señal', signalRole: 'Texto de rol heredado', tagReference: 'Referencia TAG', addSignal: 'Añadir señal',
     equipment: 'Equipo', profile: 'Perfil', assignProfile: 'Asignar perfil', newStage: 'Nueva etapa', stageKey: 'Clave estable',
     stageName: 'Nombre', stageAssignment: 'Asignación', addToStage: 'Añadir a etapa', moveUp: 'Mover arriba', moveDown: 'Mover abajo',
     save: 'Guardar configuración', noProfiles: 'Aún no hay perfiles. Cree uno para definir referencias estáticas.',
@@ -127,6 +127,52 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
   });
 }
 
+test('controlled signal role authoring keeps legacy text and sends complete typed qualifiers', async ({ page }) => {
+  let saved: Record<string, any> | null = null;
+  const configuration = {
+    version: 2,
+    scopes: [],
+    profiles: [{
+      id: '15000000-0000-0000-0000-000000000401',
+      key: 'pump',
+      name: 'Pump',
+      signals: [{
+        id: '15000000-0000-0000-0000-000000000402',
+        key: 'current',
+        signalRole: 'Legacy current text',
+        tagId: '15000000-0000-0000-0000-000000000103',
+        required: true
+      }]
+    }],
+    assignments: [],
+    processStages: []
+  } as Record<string, any>;
+  await mockWorkspace(page, () => configuration, next => { saved = next; });
+
+  await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
+  const workspace = page.getByTestId('intelligence-stage2-authoring');
+  await expect(workspace.getByText('Legacy current text')).toBeVisible();
+  const saveButton = workspace.locator('.asset-process-intelligence__authoring-footer').getByRole('button', { name: 'Salvar configuração de processo' });
+  await workspace.getByTestId('intelligence-semantic-role-current').selectOption('pump.electrical_current');
+  await expect(workspace.getByText(/Incompleta:/)).toBeVisible();
+  await expect(saveButton).toBeDisabled();
+  await workspace.getByTestId('intelligence-semantic-currentBasis-current').selectOption('line_rms');
+  await expect(workspace.getByText('Anotação controlada completa')).toBeVisible();
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
+  await expect.poll(() => saved).not.toBeNull();
+
+  const payload = saved as unknown as {
+    semanticContractVersion: number;
+    profiles: Array<{ signals: Array<{ signalRole: string; semanticBinding: Record<string, unknown> }> }>;
+  };
+  expect(payload.semanticContractVersion).toBe(1);
+  expect(payload.profiles[0].signals[0]).toMatchObject({
+    signalRole: 'Legacy current text',
+    semanticBinding: { catalogVersion: 1, roleCode: 'pump.electrical_current', currentBasis: 'line_rms' }
+  });
+});
+
 async function selectedStageId(workspace: import('@playwright/test').Locator) {
   const select = workspace.locator('.asset-process-intelligence__stage-choice [role="option"]').last();
   await expect(select).toBeVisible();
@@ -160,7 +206,8 @@ async function mockWorkspace(
       resources,
       tags: options.emptyResources ? [] : [
         { id: '15000000-0000-0000-0000-000000000101', name: 'Temperature', path: 'Plant.Pump.Temperature', dataType: 'Double', engineeringUnit: '°C' },
-        { id: '15000000-0000-0000-0000-000000000102', name: 'Flow', path: 'Plant.Pump.Flow', dataType: 'Double', engineeringUnit: 'm³/h' }
+        { id: '15000000-0000-0000-0000-000000000102', name: 'Flow', path: 'Plant.Pump.Flow', dataType: 'Double', engineeringUnit: 'm³/h' },
+        { id: '15000000-0000-0000-0000-000000000103', name: 'Current', path: 'Plant.Pump.Current', dataType: 'Double', engineeringUnit: 'A', controlledEngineeringUnit: { catalogVersion: 1, code: 'unit.electric_current.ampere' } }
       ],
       licensed: false,
       execution: { stage: 'Stage1', workerRegistered: false, queueDepth: 0, activePermitCount: 0, projectKey: 'test', activeRevision: 1, workspaceDirty: false }

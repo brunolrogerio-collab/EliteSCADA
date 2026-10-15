@@ -124,3 +124,27 @@ test('real TAG editor shares toolbar and context clipboard including multi-selec
   await motor.press('Control+d');
   await expect(page.getByTestId('tag-generated-row')).toHaveCount(1);
 });
+
+test('controlled unit selector preserves the legacy free-text unit in schema-26 preview', async ({ page }) => {
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: { changeVersion: 1 } }));
+  let candidate: Record<string, any> | null = null;
+  await page.route('**/api/engineering/import/json/preview', async route => {
+    candidate = route.request().postDataJSON() as Record<string, any>;
+    await route.fulfill({ json: { canApply: true, createCount: 0, updateCount: 1, skipCount: 0, errorCount: 0, items: [] } });
+  });
+  await page.goto('/tests-e2e/harness/resource-organizer.html?tag-editor');
+  await page.getByTestId('engineering-resource-organizer-tags').getByRole('button', { name: /^Current/ }).click();
+  await page.getByTestId('tag-controlled-unit').selectOption('unit.electric_current.ampere');
+  await page.getByTestId('engineering-preview').click();
+  await expect.poll(() => candidate).not.toBeNull();
+
+  const previewed = candidate as unknown as {
+    schemaVersion: number;
+    tags: Array<{ name: string; engineeringUnit: string; controlledEngineeringUnit: { catalogVersion: number; code: string } }>;
+  };
+  expect(previewed.schemaVersion).toBe(26);
+  expect(previewed.tags.find(tag => tag.name === 'Current')).toMatchObject({
+    engineeringUnit: 'Amps',
+    controlledEngineeringUnit: { catalogVersion: 1, code: 'unit.electric_current.ampere' }
+  });
+});

@@ -5,6 +5,7 @@ using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Intelligence;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.VisualAssets;
 
@@ -102,6 +103,47 @@ public sealed class EngineeringProjectPersistenceServiceTests
         Assert.Equal(1, result!.Created);
         Assert.True(targetTags.TryGetByPath("Plant.P01.Pressure", out var restored));
         Assert.Equal("bar", restored!.EngineeringUnit);
+    }
+
+    [Fact]
+    public async Task SaveAndApplyRevision_PreservesTypedUnitsAndSemanticBindings()
+    {
+        var tagId = Guid.Parse("b4100000-0000-0000-0000-000000000001");
+        var profileId = Guid.Parse("b4100000-0000-0000-0000-000000000002");
+        var signalId = Guid.Parse("b4100000-0000-0000-0000-000000000003");
+        var unit = new ControlledEngineeringUnitReference(1, "unit.pressure.bar");
+        var binding = new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+            1, "pump.discharge_pressure", PressureReference: "gauge");
+        var sourceTags = new InMemoryTagRegistry();
+        sourceTags.Register(new TagDefinition(tagId, "Discharge pressure", "Plant.P01.Pressure", TagDataType.Double,
+            null, "bar", null, true, ControlledEngineeringUnit: unit));
+        var sourceIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        sourceIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Version: 2, Profiles:
+        [new(profileId, "pump", "Pump", [new(signalId, "pressure", "legacy pressure", tagId, SemanticBinding: binding)])]));
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = CreateExchange(sourceTags, sourceAlarms, sourceIntelligence);
+        var store = new FakeEngineeringProjectStore();
+        var sourcePersistence = new EngineeringProjectPersistenceService(sourceExchange, store);
+
+        var saved = await sourcePersistence.SaveCurrentAsync("plant-a", "Plant A", "engineering-user");
+        var persistedPackage = sourceExchange.ParseJson(saved.EngineeringJson);
+        var targetTags = new InMemoryTagRegistry();
+        var targetIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetExchange = CreateExchange(targetTags, targetAlarms, targetIntelligence);
+        var targetPersistence = new EngineeringProjectPersistenceService(targetExchange, store);
+        var preview = await targetPersistence.PreviewRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+        var applied = await targetPersistence.ApplyRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(26, persistedPackage.SchemaVersion);
+        Assert.Equal(unit, Assert.Single(persistedPackage.Tags).ControlledEngineeringUnit);
+        Assert.Equal(binding, Assert.Single(persistedPackage.AssetProcessIntelligence!.Profiles!.Single().Signals!).SemanticBinding);
+        Assert.True(preview!.Preview.CanApply);
+        Assert.Empty(applied!.Issues);
+        Assert.Equal(unit, Assert.Single(targetTags.Snapshot()).ControlledEngineeringUnit);
+        var restoredSignal = Assert.Single(targetIntelligence.Snapshot().Profiles!.Single().Signals!);
+        Assert.Equal("legacy pressure", restoredSignal.SignalRole);
+        Assert.Equal(binding, restoredSignal.SemanticBinding);
     }
 
     [Fact]
@@ -465,6 +507,21 @@ public sealed class EngineeringProjectPersistenceServiceTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }
+
+    private static EngineeringExchangeService CreateExchange(
+        InMemoryTagRegistry tags,
+        IAlarmEngine alarms,
+        IAssetProcessIntelligenceEngineeringRegistry intelligence) =>
+        new(
+            tags,
+            alarms,
+            new Scada.Engineering.DataSources.InMemoryDataSourceEngineeringRegistry(),
+            new Scada.Engineering.Assets.InMemoryEngineeringAssetRegistry(),
+            new Scada.Engineering.Views.InMemoryEngineeringViewRegistry(),
+            new Scada.Engineering.Security.InMemorySecurityPolicyEngineeringRegistry(),
+            new Scada.Engineering.Commands.InMemoryCommandEngineeringRegistry(),
+            new Scada.Engineering.Gateways.InMemoryGatewayEngineeringRegistry(),
+            assetProcessIntelligence: intelligence);
 
     private sealed class FakeEngineeringProjectStore : IEngineeringProjectStore
     {

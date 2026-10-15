@@ -61,7 +61,7 @@ public static class AssetProcessIntelligenceKpiV1
             var bucket = buckets[bucketIndex];
             bucket.RawObservationCount++;
 
-            if (quality != TagQuality.Good.ToString() || !TryNumber(observation.Value, out var value))
+            if (!TryGetAcceptedGoodNumericValue(observation, out var value))
             {
                 bucket.RejectedSampleCount++;
                 continue;
@@ -102,6 +102,16 @@ public static class AssetProcessIntelligenceKpiV1
         current.HasValue && comparison.HasValue
             ? FiniteOrNull(current.Value - comparison.Value)
             : null;
+
+    public static bool TryGetAcceptedGoodNumericValue(
+        AssetProcessIntelligenceRawObservation observation,
+        out double value)
+    {
+        ArgumentNullException.ThrowIfNull(observation);
+        value = 0;
+        return NormalizeQuality(observation.Quality) == TagQuality.Good.ToString() &&
+               TryNumber(observation.Value, out value);
+    }
 
     private static string NormalizeQuality(string? text)
     {

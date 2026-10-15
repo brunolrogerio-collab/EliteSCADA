@@ -156,3 +156,91 @@ public sealed record AssetProcessIntelligenceAnalyticsResponse(
     AssetProcessIntelligenceAnalyticsProvenance Provenance);
 
 public sealed record AssetProcessIntelligenceAnalyticsApiError(string Code, string Error);
+
+public sealed record AssetProcessIntelligenceProfileCoverageQueryRequest(
+    AssetProcessIntelligenceScopeKind ScopeKind,
+    Guid ScopeId,
+    Guid ProfileId,
+    AssetProcessIntelligenceAnalyticsWindow? Window,
+    int BucketSeconds = AssetProcessIntelligenceKpiCatalogV1.DefaultBucketSeconds);
+
+public sealed record AssetProcessIntelligenceProfileSignalCoverage(
+    Guid SignalId,
+    string SignalKey,
+    string SignalRoleMetadata,
+    bool Required,
+    Guid TagId,
+    string TagPath,
+    TagDataType TagDataType,
+    string? Unit,
+    string Status,
+    AssetProcessIntelligenceKpiSummary? Summary,
+    IReadOnlyList<AssetProcessIntelligenceAssignmentProvenance> Assignments);
+
+public sealed record AssetProcessIntelligenceProfileTemporalAlignment(
+    int RequiredSignalCount,
+    int RequiredSignalsWithGoodSamples,
+    int ExactHistorianTimestampIntersectionCount,
+    string Status,
+    string TimestampBasis,
+    string SourceAcquisitionAlignment,
+    string ExpectedCadence,
+    string Completeness);
+
+public sealed record AssetProcessIntelligenceProfileCoverageProvenance(
+    string Dataset,
+    int DatasetContractVersion,
+    string RuleVersion,
+    IReadOnlyList<AssetProcessIntelligenceAssignmentProvenance> Assignments,
+    string SignalRoleInterpretation,
+    string UnitConversion,
+    string ProcessKpiDisposition);
+
+public sealed record AssetProcessIntelligenceProfileCoverageResponse(
+    int ContractVersion,
+    int RuleCatalogVersion,
+    string RuleVersion,
+    string ProjectKey,
+    long ActiveRevision,
+    AssetProcessIntelligenceScopeKind ScopeKind,
+    Guid ScopeId,
+    Guid ProfileId,
+    string ProfileKey,
+    string ProfileName,
+    AssetProcessIntelligenceAnalyticsWindow Window,
+    IReadOnlyList<AssetProcessIntelligenceProfileSignalCoverage> Signals,
+    AssetProcessIntelligenceProfileTemporalAlignment TemporalAlignment,
+    AssetProcessIntelligenceProfileCoverageProvenance Provenance);
+
+public static class AssetProcessIntelligenceProfileCoverageCatalogV1
+{
+    public const int CatalogVersion = 1;
+    public const string RuleVersion = "1.0.0";
+    public const int MaximumSignals = 16;
+    public const int MaximumRowsPerWindow = 50000;
+
+    public static object Describe() => new
+    {
+        catalogVersion = CatalogVersion,
+        ruleVersion = RuleVersion,
+        maximumSignals = MaximumSignals,
+        maximumRowsPerWindow = MaximumRowsPerWindow,
+        maximumWindowDays = 31,
+        rules = new[]
+        {
+            new
+            {
+                id = "profile.required-signals.exact-historian-timestamp-overlap.v1",
+                version = RuleVersion,
+                kind = "coverage",
+                formula = "Count distinct timestamps present as finite-numeric Good samples for every required numeric signal; exact Historian event-time equality only.",
+                unitSemantics = "distinct Historian timestamps; not a physical process unit",
+                completeness = "unknown_without_expected_cadence",
+                sourceAcquisitionAlignment = "unverified"
+            }
+        },
+        signalRoleInterpretation = "metadata_only",
+        unitConversion = "none",
+        processKpiDisposition = "unsupported_without_a_canonical_semantic_and_unit-dimension-contract"
+    };
+}

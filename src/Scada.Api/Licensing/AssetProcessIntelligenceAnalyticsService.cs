@@ -21,6 +21,9 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
     IHistoricalQueryService historicalQueries,
     AuthorityPolicyHaCoordinator? authorityPolicyHa = null)
 {
+    public const int MaximumProfileSignals = AssetProcessIntelligenceProfileCoverageCatalogV1.MaximumSignals;
+    public const int MaximumProfileRowsPerWindow = AssetProcessIntelligenceProfileCoverageCatalogV1.MaximumRowsPerWindow;
+
     public async Task<IResult> ExecuteAsync(
         HttpContext context,
         AssetProcessIntelligenceAnalyticsQueryRequest request,
@@ -153,6 +156,345 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
+    public async Task<IResult> ExecuteProfileCoverageAsync(
+        HttpContext context,
+        AssetProcessIntelligenceProfileCoverageQueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(request);
+        var requestToken = cancellationToken == default ? context.RequestAborted : cancellationToken;
+        var invalid = ValidateProfileCoverageRequest(request);
+        if (invalid is not null) return invalid;
+
+        try
+        {
+            var trendAuthorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.TrendUse,
+                cancellationToken: requestToken);
+            var trendFailure = trendAuthorization.FailureResult();
+            if (trendFailure is not null) return trendFailure;
+            if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+                return Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED");
+
+            var planResult = await PrepareProfileCoverageAsync(context, request, requestToken);
+            if (planResult.Error is not null) return planResult.Error;
+            var plan = planResult.Plan!;
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                requestToken,
+                plan.PermitToken);
+
+            var signalResults = new List<AssetProcessIntelligenceProfileSignalCoverage>(plan.Signals.Count);
+            var requiredTimestampSets = new List<HashSet<DateTimeOffset>>();
+            var allAssignments = new List<AssetProcessIntelligenceAssignmentProvenance>();
+            var totalRows = 0;
+            foreach (var signalPlan in plan.Signals)
+            {
+                allAssignments.AddRange(signalPlan.Assignments);
+                AssetProcessIntelligenceKpiSummary? summary = null;
+                var status = "unsupported_non_numeric_tag_type";
+                if (IsNumeric(signalPlan.Tag.DataType))
+                {
+                    var remainingRows = MaximumProfileRowsPerWindow - totalRows;
+                    var read = await ReadPeriodAsync(
+                        context,
+                        request.Window!,
+                        request.BucketSeconds,
+                        signalPlan.Plan,
+                        linkedCancellation.Token,
+                        Math.Max(1, remainingRows),
+                        "INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE",
+                        retainRawObservations: true);
+                    if (read.Error is not null) return read.Error;
+                    var period = read.Period!;
+                    summary = period.Summary;
+                    var rawObservations = read.RawObservations ??
+                        throw new InvalidOperationException("Profile coverage requires retained historian observations.");
+                    if (rawObservations.Count > remainingRows)
+                        return ProfileWindowTooDense();
+                    totalRows += rawObservations.Count;
+                    status = summary.AcceptedSampleCount > 0
+                        ? "descriptive_trend_available"
+                        : "insufficient_no_good_numeric_samples";
+                    if (signalPlan.Signal.Required)
+                    {
+                        requiredTimestampSets.Add(rawObservations
+                            .Where(observation => AssetProcessIntelligenceKpiV1.TryGetAcceptedGoodNumericValue(observation, out _))
+                            .Select(observation => observation.TimestampUtc)
+                            .ToHashSet());
+                    }
+                    signalResults.Add(new AssetProcessIntelligenceProfileSignalCoverage(
+                        signalPlan.Signal.Id,
+                        signalPlan.Signal.Key,
+                        signalPlan.Signal.SignalRole ?? string.Empty,
+                        signalPlan.Signal.Required,
+                        signalPlan.Tag.Id,
+                        signalPlan.Tag.Path,
+                        signalPlan.Tag.DataType,
+                        signalPlan.Tag.EngineeringUnit,
+                        status,
+                        summary,
+                        signalPlan.Assignments));
+                    continue;
+                }
+
+                signalResults.Add(new AssetProcessIntelligenceProfileSignalCoverage(
+                    signalPlan.Signal.Id,
+                    signalPlan.Signal.Key,
+                    signalPlan.Signal.SignalRole ?? string.Empty,
+                    signalPlan.Signal.Required,
+                    signalPlan.Tag.Id,
+                    signalPlan.Tag.Path,
+                    signalPlan.Tag.DataType,
+                    signalPlan.Tag.EngineeringUnit,
+                    status,
+                    summary,
+                    signalPlan.Assignments));
+            }
+
+            await using var finalMutation = await workspace.AcquireMutationAsync(
+                plan.ChangeVersion,
+                linkedCancellation.Token);
+            foreach (var signalPlan in plan.Signals)
+            {
+                var finalCheck = await RevalidateAsync(context, signalPlan.Plan, linkedCancellation.Token);
+                if (finalCheck is not null) return finalCheck;
+            }
+
+            var requiredSignalCount = plan.Signals.Count(signal => signal.Signal.Required);
+            var requiredSignalsWithSamples = signalResults.Count(signal =>
+                signal.Required && signal.Summary is { AcceptedSampleCount: > 0 });
+            var intersectionCount = requiredTimestampSets.Count == 0 ||
+                                    requiredTimestampSets.Count != requiredSignalCount
+                ? 0
+                : requiredTimestampSets.Skip(1)
+                    .Aggregate(new HashSet<DateTimeOffset>(requiredTimestampSets[0]),
+                        static (intersection, next) =>
+                        {
+                            intersection.IntersectWith(next);
+                            return intersection;
+                        })
+                    .Count;
+            var alignmentStatus = requiredSignalCount == 0
+                ? "insufficient_no_required_signals"
+                : requiredSignalsWithSamples != requiredSignalCount
+                    ? "insufficient_required_signal_data"
+                    : requiredSignalCount == 1
+                        ? "single_required_signal_no_alignment_comparison"
+                        : intersectionCount == 0
+                            ? "insufficient_exact_historian_timestamp_overlap"
+                            : "exact_historian_timestamp_overlap_observed";
+            var assignments = Array.AsReadOnly(allAssignments
+                .DistinctBy(item => (item.AssignmentId, item.SignalId))
+                .OrderBy(item => item.EquipmentId)
+                .ThenBy(item => item.ProfileId)
+                .ThenBy(item => item.SignalId)
+                .ToArray());
+
+            return Results.Ok(new AssetProcessIntelligenceProfileCoverageResponse(
+                ContractVersion: 1,
+                RuleCatalogVersion: AssetProcessIntelligenceProfileCoverageCatalogV1.CatalogVersion,
+                RuleVersion: AssetProcessIntelligenceProfileCoverageCatalogV1.RuleVersion,
+                ProjectKey: plan.ProjectKey,
+                ActiveRevision: plan.Revision,
+                ScopeKind: request.ScopeKind,
+                ScopeId: request.ScopeId,
+                ProfileId: plan.Profile.Id,
+                ProfileKey: plan.Profile.Key,
+                ProfileName: plan.Profile.Name,
+                Window: request.Window!,
+                Signals: Array.AsReadOnly(signalResults.ToArray()),
+                TemporalAlignment: new AssetProcessIntelligenceProfileTemporalAlignment(
+                    requiredSignalCount,
+                    requiredSignalsWithSamples,
+                    intersectionCount,
+                    alignmentStatus,
+                    "distinct exact Historian event timestamps; not source acquisition time",
+                    "unverified",
+                    "unknown",
+                    "unknown"),
+                Provenance: new AssetProcessIntelligenceProfileCoverageProvenance(
+                    HistoricalDatasets.HistorianSamples,
+                    HistoricalQueryContract.Version,
+                    AssetProcessIntelligenceProfileCoverageCatalogV1.RuleVersion,
+                    assignments,
+                    "metadata only; SignalRole is not interpreted",
+                    "none; each descriptive trend retains the canonical TAG unit",
+                    "unsupported_without_a_canonical_semantic_and_unit-dimension_contract")));
+        }
+        catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED");
+        }
+        catch (EngineeringWorkspaceVersionConflictException)
+        {
+            return Conflict("INTELLIGENCE_WORKSPACE_CHANGED");
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Forbidden("HISTORICAL_QUERY_FORBIDDEN");
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_CURSOR_INVALID", "Historical query cursor is invalid."));
+        }
+        catch (HistoricalQueryValidationException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_INVALID", "The bounded Historian query was rejected."));
+        }
+        catch (HistoricalQueryProviderException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_UNAVAILABLE", "Historical data is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_RESPONSE_INVALID", "The Historian response did not match the requested TAG and window."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
+    private async Task<PreparedProfileCoverageResult> PrepareProfileCoverageAsync(
+        HttpContext context,
+        AssetProcessIntelligenceProfileCoverageQueryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var beforeLock = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(beforeLock, runtime.Describe(), out var coherenceError))
+            return PreparedProfileCoverageResult.Fail(coherenceError!);
+
+        await using var mutation = await workspace.AcquireMutationAsync(beforeLock.ChangeVersion, cancellationToken);
+        var descriptor = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(descriptor, runtime.Describe(), out coherenceError))
+            return PreparedProfileCoverageResult.Fail(coherenceError!);
+        if (!highAvailability.CanOwnIndustrialEffects())
+            return PreparedProfileCoverageResult.Fail(Conflict("INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE"));
+        if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+            return PreparedProfileCoverageResult.Fail(Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED"));
+
+        var policyVersion = 0L;
+        var haEpoch = 0L;
+        if (authorityPolicyHa is not null)
+        {
+            var authorityFence = await authorityPolicyHa.CheckAsync(cancellationToken);
+            if (!authorityFence.Allowed)
+                return PreparedProfileCoverageResult.Fail(Conflict(authorityFence.ReasonCode.ToUpperInvariant().Replace('-', '_')));
+            policyVersion = authorityFence.PolicyVersion;
+            haEpoch = authorityFence.HaEpoch;
+            var refreshedTrendAuthorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.TrendUse,
+                cancellationToken: cancellationToken);
+            var refreshedTrendFailure = refreshedTrendAuthorization.FailureResult();
+            if (refreshedTrendFailure is not null)
+                return PreparedProfileCoverageResult.Fail(refreshedTrendFailure);
+        }
+
+        var configuration = workspace.AssetProcessIntelligence.Snapshot();
+        if (configuration.Version != 2)
+            return PreparedProfileCoverageResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
+        var scopeMatches = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
+            .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId)
+            .Take(2)
+            .ToArray();
+        if (scopeMatches.Length != 1 || !scopeMatches[0].Active)
+            return PreparedProfileCoverageResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
+        if (!executionGate.TryGetToken(
+                descriptor.ProjectKey!,
+                descriptor.BaseRevision!.Value,
+                request.ScopeKind,
+                request.ScopeId,
+                out var permitToken,
+                policyVersion,
+                haEpoch))
+            return PreparedProfileCoverageResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
+
+        var profileMatches = (configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+            .Where(profile => profile.Id == request.ProfileId)
+            .Take(2)
+            .ToArray();
+        if (profileMatches.Length != 1)
+            return PreparedProfileCoverageResult.Fail(NotFound("INTELLIGENCE_PROFILE_NOT_AVAILABLE"));
+        var profile = profileMatches[0];
+        var signals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>()).ToArray();
+        if (signals.Length == 0)
+            return PreparedProfileCoverageResult.Fail(BadRequest("INTELLIGENCE_PROFILE_SIGNALS_REQUIRED"));
+        if (signals.Length > MaximumProfileSignals)
+            return PreparedProfileCoverageResult.Fail(BadRequest("INTELLIGENCE_PROFILE_SIGNAL_LIMIT_EXCEEDED"));
+        if (signals.Any(signal => signal is null || signal.Id == Guid.Empty || signal.TagId == Guid.Empty))
+            return PreparedProfileCoverageResult.Fail(Conflict("INTELLIGENCE_PROFILE_SIGNAL_IDENTITY_INVALID"));
+        if (signals.Select(signal => signal.TagId).Distinct().Count() != signals.Length)
+            return PreparedProfileCoverageResult.Fail(BadRequest("INTELLIGENCE_PROFILE_DUPLICATE_TAG_REFERENCE_UNSUPPORTED"));
+
+        var signalPlans = new List<ProfileSignalPlan>(signals.Length);
+        foreach (var signal in signals.OrderBy(signal => signal.Key, StringComparer.Ordinal))
+        {
+            var resolution = ResolveScopeSources(
+                request.ScopeKind,
+                request.ScopeId,
+                signal.TagId,
+                configuration,
+                workspace.Assets);
+            if (resolution.Error is not null)
+                return PreparedProfileCoverageResult.Fail(resolution.Error);
+            var assignments = resolution.Assignments!
+                .Where(item => item.ProfileId == profile.Id && item.SignalId == signal.Id)
+                .ToArray();
+            if (assignments.Length == 0)
+                return PreparedProfileCoverageResult.Fail(NotFound("INTELLIGENCE_PROFILE_NOT_ASSIGNED_TO_SCOPE"));
+            if (!runtime.TryGetTag(signal.TagId, out var tag) || tag is null)
+                return PreparedProfileCoverageResult.Fail(NotFound("INTELLIGENCE_ANALYTICS_SOURCE_NOT_AVAILABLE"));
+
+            var tagAuthorization = await security.CheckRuntimeTagAsync(
+                context,
+                runtime,
+                tag,
+                TagAccessOperation.Read,
+                cancellationToken);
+            var tagFailure = tagAuthorization.FailureResult();
+            if (tagFailure is not null)
+                return PreparedProfileCoverageResult.Fail(tagFailure);
+
+            var plan = new PreparedPlan(
+                descriptor.ProjectKey!,
+                descriptor.BaseRevision!.Value,
+                descriptor.ChangeVersion,
+                tag,
+                Array.AsReadOnly(assignments),
+                permitToken,
+                request.ScopeKind,
+                request.ScopeId,
+                policyVersion,
+                haEpoch);
+            signalPlans.Add(new ProfileSignalPlan(signal, tag, Array.AsReadOnly(assignments), plan));
+        }
+
+        if (permitToken.IsCancellationRequested)
+            return PreparedProfileCoverageResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED"));
+        return PreparedProfileCoverageResult.Ready(new PreparedProfilePlan(
+            descriptor.ProjectKey!,
+            descriptor.BaseRevision!.Value,
+            descriptor.ChangeVersion,
+            profile,
+            Array.AsReadOnly(signalPlans.ToArray()),
+            permitToken));
+    }
+
     private async Task<PreparedPlanResult> PrepareAsync(
         HttpContext context,
         AssetProcessIntelligenceAnalyticsQueryRequest request,
@@ -260,8 +602,13 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         AssetProcessIntelligenceAnalyticsWindow window,
         int bucketSeconds,
         PreparedPlan plan,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int maximumRows = AssetProcessIntelligenceKpiCatalogV1.MaximumRowsPerWindow,
+        string densityErrorCode = "INTELLIGENCE_ANALYTICS_WINDOW_TOO_DENSE",
+        bool retainRawObservations = false)
     {
+        if (maximumRows < 1 || maximumRows > AssetProcessIntelligenceKpiCatalogV1.MaximumRowsPerWindow)
+            throw new ArgumentOutOfRangeException(nameof(maximumRows));
         var observations = new List<AssetProcessIntelligenceRawObservation>();
         var cursors = new HashSet<string>(StringComparer.Ordinal);
         string? cursor = null;
@@ -280,6 +627,11 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             var validation = await RevalidateAsync(context, plan, cancellationToken);
             if (validation is not null) return PeriodReadResult.Fail(validation);
 
+            var remainingRows = maximumRows - observations.Count;
+            if (remainingRows <= 0)
+                return PeriodReadResult.Fail(ProfileWindowTooDense());
+            var pageSize = Math.Min(AssetProcessIntelligenceKpiCatalogV1.QueryPageSize, remainingRows);
+
             var request = new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamples,
                 HistoricalTimeRange.Absolute(window.FromUtc, window.ToUtc),
@@ -289,23 +641,23 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                     HistoricalFilterOperator.Eq,
                     [HistoricalQueryValue.FromGuid(plan.Tag.Id)])],
                 OrderBy: [new HistoricalSort("timestamp", HistoricalSortDirection.Ascending)],
-                Page: new HistoricalPageRequest(AssetProcessIntelligenceKpiCatalogV1.QueryPageSize, cursor));
+                Page: new HistoricalPageRequest(pageSize, cursor));
             var response = await historicalQueries.QueryAsync(request, cancellationToken);
-            ValidatePage(response, window, plan.Tag.Id);
-            if (observations.Count + response.Rows.Count > AssetProcessIntelligenceKpiCatalogV1.MaximumRowsPerWindow)
+            ValidatePage(response, window, plan.Tag.Id, pageSize);
+            if (observations.Count + response.Rows.Count > maximumRows)
                 return PeriodReadResult.Fail(Results.Json(
                     new AssetProcessIntelligenceAnalyticsApiError(
-                        "INTELLIGENCE_ANALYTICS_WINDOW_TOO_DENSE",
-                        "The requested window exceeds the fixed Stage 3A observation limit; no partial result was returned."),
+                        densityErrorCode,
+                        "The requested window exceeds the fixed observation limit; no partial result was returned."),
                     statusCode: StatusCodes.Status413PayloadTooLarge));
 
             var countAfterPage = observations.Count + response.Rows.Count;
-            if (countAfterPage == AssetProcessIntelligenceKpiCatalogV1.MaximumRowsPerWindow &&
+            if (countAfterPage == maximumRows &&
                 response.NextCursor is not null)
                 return PeriodReadResult.Fail(Results.Json(
                     new AssetProcessIntelligenceAnalyticsApiError(
-                        "INTELLIGENCE_ANALYTICS_WINDOW_TOO_DENSE",
-                        "The requested window reaches the fixed Stage 3A observation limit while more rows remain; no partial result was returned."),
+                        densityErrorCode,
+                        "The requested window reaches the fixed observation limit while more rows remain; no partial result was returned."),
                     statusCode: StatusCodes.Status413PayloadTooLarge));
 
             foreach (var row in response.Rows)
@@ -320,9 +672,11 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
         while (cursor is not null);
 
-        return PeriodReadResult.Ready(new AssetProcessIntelligenceAnalyticsPeriodResult(
-            window,
-            AssetProcessIntelligenceKpiV1.Calculate(observations, window, bucketSeconds)));
+        return PeriodReadResult.Ready(
+            new AssetProcessIntelligenceAnalyticsPeriodResult(
+                window,
+                AssetProcessIntelligenceKpiV1.Calculate(observations, window, bucketSeconds)),
+            retainRawObservations ? observations.AsReadOnly() : null);
     }
 
     private async Task<IResult?> RevalidateAsync(
@@ -486,6 +840,18 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         return null;
     }
 
+    private static IResult? ValidateProfileCoverageRequest(
+        AssetProcessIntelligenceProfileCoverageQueryRequest request)
+    {
+        if (!Enum.IsDefined(request.ScopeKind) || request.ScopeId == Guid.Empty || request.ProfileId == Guid.Empty)
+            return BadRequest("INTELLIGENCE_PROFILE_COVERAGE_IDENTITY_INVALID");
+        if (request.Window is null || !ValidWindow(request.Window))
+            return BadRequest("INTELLIGENCE_ANALYTICS_WINDOW_INVALID");
+        if (!AssetProcessIntelligenceKpiCatalogV1.AllowedBucketSizesSeconds.Contains(request.BucketSeconds))
+            return BadRequest("INTELLIGENCE_ANALYTICS_BUCKET_SIZE_INVALID");
+        return null;
+    }
+
     private static bool ValidWindow(AssetProcessIntelligenceAnalyticsWindow window) =>
         window.FromUtc.Offset == TimeSpan.Zero &&
         window.ToUtc.Offset == TimeSpan.Zero &&
@@ -518,15 +884,16 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
     private static void ValidatePage(
         HistoricalQueryResponse response,
         AssetProcessIntelligenceAnalyticsWindow window,
-        Guid expectedTagId)
+        Guid expectedTagId,
+        int expectedPageSize)
     {
         if (response is null ||
             response.Version != HistoricalQueryContract.Version ||
             !string.Equals(response.Dataset, HistoricalDatasets.HistorianSamples, StringComparison.Ordinal) ||
             response.FromUtc != window.FromUtc || response.ToUtc != window.ToUtc ||
             response.FromUtc.Offset != TimeSpan.Zero || response.ToUtc.Offset != TimeSpan.Zero ||
-            response.PageSize != AssetProcessIntelligenceKpiCatalogV1.QueryPageSize ||
-            response.Rows is null || response.Rows.Count > AssetProcessIntelligenceKpiCatalogV1.QueryPageSize)
+            response.PageSize != expectedPageSize ||
+            response.Rows is null || response.Rows.Count > expectedPageSize)
             throw new InvalidDataException("Historical response metadata does not match the request.");
         foreach (var row in response.Rows)
         {
@@ -570,6 +937,12 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
     private static IResult Conflict(string code) => Results.Conflict(
         new AssetProcessIntelligenceAnalyticsApiError(code, "Analytics requires an unchanged, active and coherent runtime configuration."));
 
+    private static IResult ProfileWindowTooDense() => Results.Json(
+        new AssetProcessIntelligenceAnalyticsApiError(
+            "INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE",
+            "The profile window exceeds the fixed total observation limit; no partial result was returned."),
+        statusCode: StatusCodes.Status413PayloadTooLarge);
+
     private enum AncestryResult { No, Yes, Invalid }
 
     private sealed record PreparedPlan(
@@ -600,7 +973,32 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
 
     private sealed record PeriodReadResult(AssetProcessIntelligenceAnalyticsPeriodResult? Period, IResult? Error)
     {
-        public static PeriodReadResult Ready(AssetProcessIntelligenceAnalyticsPeriodResult period) => new(period, null);
+        public IReadOnlyList<AssetProcessIntelligenceRawObservation>? RawObservations { get; init; }
+
+        public static PeriodReadResult Ready(
+            AssetProcessIntelligenceAnalyticsPeriodResult period,
+            IReadOnlyList<AssetProcessIntelligenceRawObservation>? observations) =>
+            new(period, null) { RawObservations = observations };
         public static PeriodReadResult Fail(IResult error) => new(null, error);
+    }
+
+    private sealed record ProfileSignalPlan(
+        AssetProcessIntelligenceSignalEngineeringDto Signal,
+        TagDefinition Tag,
+        IReadOnlyList<AssetProcessIntelligenceAssignmentProvenance> Assignments,
+        PreparedPlan Plan);
+
+    private sealed record PreparedProfilePlan(
+        string ProjectKey,
+        long Revision,
+        long ChangeVersion,
+        AssetProcessIntelligenceProfileEngineeringDto Profile,
+        IReadOnlyList<ProfileSignalPlan> Signals,
+        CancellationToken PermitToken);
+
+    private sealed record PreparedProfileCoverageResult(PreparedProfilePlan? Plan, IResult? Error)
+    {
+        public static PreparedProfileCoverageResult Ready(PreparedProfilePlan plan) => new(plan, null);
+        public static PreparedProfileCoverageResult Fail(IResult error) => new(null, error);
     }
 }

@@ -133,7 +133,11 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 await nodeB.WaitForHealthAsync();
                 await nodeB.LoginAsync();
             }
-            await WaitForInitialPolicyCommitAsync(nodeA, nodeB, referencePath);
+            await WaitForInitialPolicyCommitAsync(
+                nodeA,
+                nodeB,
+                referencePath,
+                sharedDatabase ? null : TimeSpan.FromSeconds(90));
             var grantedPolicy = await GrantIntelligenceManageAsync(nodeA, nodeB);
             await ConfigureAndActivateIntelligenceAsync(nodeA);
             if (!sharedDatabase)
@@ -388,13 +392,13 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             if (!sharedDatabase)
             {
                 // Separate-database D2 restarts the standby before policy replication.
-                // Keep this bounded wait consistent with the 75-second standby-readiness
-                // budget used immediately below; the commit predicate remains unchanged.
+                // Allow cold standby startup plus peer sync to finish under the broad T2
+                // suite; the commit predicate remains unchanged.
                 await WaitForInitialPolicyCommitAsync(
                     nodeA,
                     nodeB,
                     referencePath,
-                    TimeSpan.FromSeconds(75));
+                    TimeSpan.FromSeconds(90));
                 await MirrorProjectToStandbyAsync(nodeA, nodeB);
             }
 
@@ -1237,7 +1241,9 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             Set("HighAvailability__PeerTransport__SharedSecret", PeerSecret);
             Set("HighAvailability__PeerTransport__StatePath", statePath);
             Set("HighAvailability__PeerTransport__PollMilliseconds", "500");
-            Set("HighAvailability__PeerTransport__RequestTimeoutSeconds", "2");
+            // Match the production default instead of imposing a stricter
+            // test-only peer request deadline.
+            Set("HighAvailability__PeerTransport__RequestTimeoutSeconds", "5");
             Set("HighAvailability__PeerTransport__MaximumRetrySeconds", "2");
             Set("HighAvailability__PeerTransport__AuthenticationFreshnessSeconds", "30");
             Set("HighAvailability__Protection__Enabled", "true");

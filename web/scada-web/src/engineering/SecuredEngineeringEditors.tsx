@@ -11,6 +11,7 @@ import { TagAddressEditor } from './TagAddressEditor';
 import { TagCommissioningPanel } from './TagCommissioningPanel';
 import { TagSourceSelector } from './TagSourceSelector';
 import { TagDuplicationPanel, type TagDuplicationPanelHandle } from './TagDuplicationPanel';
+import { loadEngineeringSemanticCatalog, type EngineeringControlledUnit } from './semanticCatalogApi';
 import { EngineeringResourceOrganizer, engineeringCopyName } from './EngineeringResourceOrganizer';
 import { EngineeringEntityActions } from './EngineeringEntityActions';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
@@ -36,13 +37,13 @@ import type {
 import './structured-editors.css';
 
 const tagDataTypes = ['boolean', 'int16', 'int32', 'int64', 'float', 'double', 'string', 'dateTime', 'enum'];
-const controlledUnitCodes = [
-  '',
-  'unit.ratio.percent',
-  'unit.electric_current.ampere',
-  'unit.frequency.hertz',
-  'unit.pressure.bar',
-  'unit.volumetric_flow.cubic_metre_per_hour'
+type ControlledUnitOption = EngineeringControlledUnit & { catalogVersion: number };
+const legacyControlledUnits: ControlledUnitOption[] = [
+  { code: 'unit.ratio.percent', dimension: 'ratio', canonicalUnit: '1', scaleToCanonical: 0.01, catalogVersion: 1 },
+  { code: 'unit.electric_current.ampere', dimension: 'electric_current', canonicalUnit: 'A', scaleToCanonical: 1, catalogVersion: 1 },
+  { code: 'unit.frequency.hertz', dimension: 'frequency', canonicalUnit: 'Hz', scaleToCanonical: 1, catalogVersion: 1 },
+  { code: 'unit.pressure.bar', dimension: 'pressure', canonicalUnit: 'Pa', scaleToCanonical: 100000, catalogVersion: 1 },
+  { code: 'unit.volumetric_flow.cubic_metre_per_hour', dimension: 'volumetric_flow', canonicalUnit: 'm³/s', scaleToCanonical: 1 / 3600, catalogVersion: 1 }
 ];
 const alarmTypes = ['digital', 'high', 'highHigh', 'low', 'lowLow', 'communication', 'system'];
 const alarmPriorities = ['low', 'medium', 'high', 'critical'];
@@ -76,6 +77,20 @@ export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorPro
   const [query, setQuery] = useState('');
   const duplicationRef = useRef<TagDuplicationPanelHandle>(null);
   const [tagClipboardCount, setTagClipboardCount] = useState(0);
+  const [controlledUnits, setControlledUnits] = useState<readonly ControlledUnitOption[]>(legacyControlledUnits);
+  useEffect(() => {
+    let mounted = true;
+    void loadEngineeringSemanticCatalog().then(catalog => {
+      if (mounted) setControlledUnits(catalog.controlledEngineeringUnitCatalogs.flatMap(item =>
+        item.units.map(unit => ({ ...unit, catalogVersion: item.catalogVersion }))));
+    }).catch(() => { /* Keep the known v1 selector; unknown saved values remain visible in SelectField. */ });
+    return () => { mounted = false; };
+  }, []);
+  const controlledUnitByOption = new Map(controlledUnits.map(unit => [controlledUnitOptionValue(unit.catalogVersion, unit.code), unit]));
+  const controlledUnitOptions = [
+    { value: '', label: '' },
+    ...controlledUnits.map(unit => ({ value: controlledUnitOptionValue(unit.catalogVersion, unit.code), label: unit.code }))
+  ];
   useEffect(() => setTagClipboardCount(0), [projectKey]);
   const [duplicationSelectionMode, setDuplicationSelectionMode] = useState(false);
   const [duplicationSelection, setDuplicationSelection] = useState<Set<string>>(() => new Set());
@@ -263,13 +278,20 @@ export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorPro
                 <TextField label={text('editor.field.unit')} value={draft.engineeringUnit ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, engineeringUnit: emptyToNull(value) }))} />
                 <SelectField
                   label={text('editor.field.controlledUnit')}
-                  value={draft.controlledEngineeringUnit?.code ?? ''}
-                  options={controlledUnitCodes}
+                  value={draft.controlledEngineeringUnit
+                    ? controlledUnitOptionValue(draft.controlledEngineeringUnit.catalogVersion, draft.controlledEngineeringUnit.code)
+                    : ''}
+                  options={controlledUnitOptions}
                   testId="tag-controlled-unit"
-                  onChange={value => updateTag(setDraft, tag => ({
-                    ...tag,
-                    controlledEngineeringUnit: value ? { catalogVersion: 1, code: value } : null
-                  }))}
+                  onChange={value => updateTag(setDraft, tag => {
+                    const unit = controlledUnitByOption.get(value);
+                    return {
+                      ...tag,
+                      controlledEngineeringUnit: unit
+                        ? { catalogVersion: unit.catalogVersion, code: unit.code }
+                        : null
+                    };
+                  })}
                 />
                 <NumberField label={text('editor.field.scaleMinimum')} value={draft.scaleMinimum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMinimum: value }))} />
                 <NumberField label={text('editor.field.scaleMaximum')} value={draft.scaleMaximum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMaximum: value }))} />
@@ -823,9 +845,18 @@ function TextAreaField({ label, value, onChange }: { label: string; value: strin
   return <label className="eng-editor-field eng-editor-field-wide"><span>{label}</span><textarea rows={3} value={value} onChange={event => onChange(event.target.value)} /></label>;
 }
 
-function SelectField({ label, value, options, onChange, testId }: { label: string; value: string; options: string[]; onChange: (value: string) => void; testId?: string }) {
-  const effective = options.includes(value) ? options : [value, ...options];
-  return <label className="eng-editor-field"><span>{label}</span><select data-testid={testId} value={value} onChange={event => onChange(event.target.value)}>{effective.map(option => <option key={option} value={option}>{option}</option>)}</select></label>;
+type SelectFieldOption = string | Readonly<{ value: string; label: string }>;
+
+function SelectField({ label, value, options, onChange, testId }: { label: string; value: string; options: SelectFieldOption[]; onChange: (value: string) => void; testId?: string }) {
+  const normalized = options.map(option => typeof option === 'string' ? { value: option, label: option } : option);
+  const effective = normalized.some(option => option.value === value)
+    ? normalized
+    : [{ value, label: value }, ...normalized];
+  return <label className="eng-editor-field"><span>{label}</span><select data-testid={testId} value={value} onChange={event => onChange(event.target.value)}>{effective.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
+}
+
+function controlledUnitOptionValue(catalogVersion: number, code: string): string {
+  return `${catalogVersion}:${code}`;
 }
 
 function NumberField({ label, value, onChange, integer = false, testId }: { label: string; value?: number | null; onChange: (value: number | null) => void; integer?: boolean; testId?: string }) {

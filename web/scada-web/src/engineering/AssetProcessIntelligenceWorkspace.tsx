@@ -9,6 +9,7 @@ import type {
   AssetProcessIntelligenceSignalEngineering,
   TagEngineering
 } from './types';
+import { loadEngineeringSemanticCatalog, type EngineeringSemanticCatalogResponse, type VersionedSemanticCatalog } from './semanticCatalogApi';
 import './asset-process-intelligence.css';
 
 type ScopeKind = 'Equipment' | 'Location';
@@ -39,12 +40,6 @@ type Snapshot = {
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 const EMPTY_CONFIGURATION: Configuration = { version: 1, scopes: [], profiles: [], assignments: [], processStages: [] };
-const semanticRoles = [
-  'pump.electrical_current',
-  'pump.drive_frequency',
-  'pump.discharge_pressure',
-  'pump.discharge_volumetric_flow'
-];
 
 export function AssetProcessIntelligenceWorkspace({
   locale,
@@ -59,6 +54,8 @@ export function AssetProcessIntelligenceWorkspace({
   const canEngineer = hasWorkspaceCapability(capabilities, 'EngineeringModify');
   const canManage = hasWorkspaceCapability(capabilities, 'AssetProcessIntelligenceManage');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [semanticCatalog, setSemanticCatalog] = useState<EngineeringSemanticCatalogResponse | null>(null);
+  const [semanticContractVersion, setSemanticContractVersion] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [profiles, setProfiles] = useState<AssetProcessIntelligenceProfileEngineering[]>([]);
   const [assignments, setAssignments] = useState<AssetProcessIntelligenceAssignmentEngineering[]>([]);
@@ -84,9 +81,9 @@ export function AssetProcessIntelligenceWorkspace({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API}/api/engineering/asset-process-intelligence/scopes`, {
+      const [response, nextSemanticCatalog] = await Promise.all([fetch(`${API}/api/engineering/asset-process-intelligence/scopes`, {
         headers: { accept: 'application/json' }, credentials: 'include'
-      });
+      }), loadEngineeringSemanticCatalog()]);
       if (!response.ok) throw await responseError(response);
       const next = await response.json() as Snapshot;
       next.configuration ??= EMPTY_CONFIGURATION;
@@ -96,9 +93,12 @@ export function AssetProcessIntelligenceWorkspace({
       next.configuration.processStages ??= [];
       next.tags ??= [];
       setSnapshot(next);
+      setSemanticCatalog(nextSemanticCatalog);
       setSelected(new Set(next.configuration.scopes.map(scopeKey)));
       if (adoptConfiguration) {
         setProfiles(next.configuration.profiles);
+        setSemanticContractVersion(next.configuration.profiles.flatMap(profile => profile.signals)
+          .reduce((version, signal) => Math.max(version, signal.semanticBinding?.catalogVersion ?? 1), 1));
         setAssignments(next.configuration.assignments);
         setProcessStages(next.configuration.processStages);
         setSelectedProfileId(current => next.configuration.profiles.some(item => item.id === current) ? current : next.configuration.profiles[0]?.id ?? '');
@@ -146,7 +146,13 @@ export function AssetProcessIntelligenceWorkspace({
       const response = await fetch(`${API}/api/engineering/asset-process-intelligence/configuration`, {
         method: 'PUT', credentials: 'include',
         headers: { 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ semanticContractVersion: 1, profiles, assignments, processStages })
+        body: JSON.stringify({
+          // Keep the highest loaded/selected annotation version for this edit session.
+          // Clearing the last v2 annotation must still declare an explicit v2 write.
+          semanticContractVersion: Math.max(semanticContractVersion, profiles.flatMap(profile => profile.signals)
+            .reduce((version, signal) => Math.max(version, signal.semanticBinding?.catalogVersion ?? 1), 1)),
+          profiles, assignments, processStages
+        })
       });
       if (!response.ok) throw await responseError(response);
       setMessage(copy.configurationSaved);
@@ -188,7 +194,9 @@ export function AssetProcessIntelligenceWorkspace({
     profiles: initialConfig.profiles, assignments: initialConfig.assignments, processStages: initialConfig.processStages
   });
   const semanticAnnotationsComplete = profiles.every(profile => profile.signals.every(signal =>
-    !signal.semanticBinding || isSemanticBindingComplete(signal.semanticBinding)));
+    !signal.semanticBinding || isSemanticBindingComplete(signal.semanticBinding, semanticCatalog?.semanticCatalogs ?? [])));
+  const semanticRoles = (semanticCatalog?.semanticCatalogs ?? []).flatMap(catalog =>
+    catalog.roles.map(role => ({ ...role, catalogVersion: catalog.catalogVersion })));
   const selectedProfile = profiles.find(profile => profile.id === selectedProfileId) ?? null;
   const selectedStage = processStages.find(stage => stage.id === selectedStageId) ?? null;
   const tags = snapshot?.tags?.length ? snapshot.tags : packageTags;
@@ -214,6 +222,7 @@ export function AssetProcessIntelligenceWorkspace({
 
   const updateSignalBinding = (signalId: string, binding: AssetProcessIntelligenceSignalSemanticBinding | null) => {
     if (!selectedProfile) return;
+    if (binding) setSemanticContractVersion(current => Math.max(current, binding.catalogVersion));
     updateProfile({ signals: selectedProfile.signals.map(signal => signal.id === signalId ? { ...signal, semanticBinding: binding } : signal) });
   };
 
@@ -400,22 +409,28 @@ export function AssetProcessIntelligenceWorkspace({
                       <label><span>{copy.semanticRole}</span><select
                         aria-label={`${copy.semanticRole}: ${signal.key}`}
                         data-testid={`intelligence-semantic-role-${signal.key}`}
-                        value={binding?.roleCode ?? ''}
+                        value={binding ? semanticRoleOptionValue(binding.catalogVersion, binding.roleCode) : ''}
                         disabled={!canEngineer}
-                        onChange={event => updateSignalBinding(signal.id, event.currentTarget.value ? emptySemanticBinding(event.currentTarget.value) : null)}
+                        onChange={event => {
+                          const selectedRole = semanticRoles.find(role =>
+                            semanticRoleOptionValue(role.catalogVersion, role.code) === event.currentTarget.value);
+                          updateSignalBinding(signal.id, selectedRole
+                            ? emptySemanticBinding(selectedRole.catalogVersion, selectedRole.code)
+                            : null);
+                        }}
                       >
                         <option value="">{copy.noSemanticRole}</option>
-                        {binding && !semanticRoles.includes(binding.roleCode) ? <option value={binding.roleCode}>{copy.unsupportedSemantic}: {binding.roleCode}</option> : null}
-                        {semanticRoles.map(role => <option key={role} value={role}>{role}</option>)}
+                        {binding && !semanticRoles.some(role => role.code === binding.roleCode && role.catalogVersion === binding.catalogVersion) ? <option value={semanticRoleOptionValue(binding.catalogVersion, binding.roleCode)}>{copy.unsupportedSemantic}: v{binding.catalogVersion} · {binding.roleCode}</option> : null}
+                        {semanticRoles.map(role => <option key={semanticRoleOptionValue(role.catalogVersion, role.code)} value={semanticRoleOptionValue(role.catalogVersion, role.code)}>{role.code} · v{role.catalogVersion}</option>)}
                       </select></label>
-                      {binding ? semanticQualifierFields(binding.roleCode).map(field => <label key={field.key}><span>{copy[field.label]}</span><select
+                      {binding ? semanticQualifierFields(binding, semanticCatalog?.semanticCatalogs ?? []).map(field => <label key={field.key}><span>{copy[field.label]}</span><select
                         aria-label={`${copy[field.label]}: ${signal.key}`}
                         data-testid={`intelligence-semantic-${field.key}-${signal.key}`}
                         value={binding[field.key] ?? ''}
                         disabled={!canEngineer}
                         onChange={event => updateSignalQualifier(signal.id, field.key, event.currentTarget.value)}
                       ><option value="">{copy.chooseQualifier}</option>{field.options.map(option => <option key={option} value={option}>{option}</option>)}</select></label>) : null}
-                      {binding ? <small className={isSemanticBindingComplete(binding) ? '' : 'asset-process-intelligence__missing'}>{isSemanticBindingComplete(binding) ? copy.semanticComplete : copy.semanticIncomplete}</small> : null}
+                      {binding ? <small className={isSemanticBindingComplete(binding, semanticCatalog?.semanticCatalogs ?? []) ? '' : 'asset-process-intelligence__missing'}>{isSemanticBindingComplete(binding, semanticCatalog?.semanticCatalogs ?? []) ? copy.semanticComplete : copy.semanticIncomplete}</small> : null}
                     </div>
                     <button type="button" className="secondary" disabled={!canEngineer} onClick={() => updateProfile({ signals: selectedProfile.signals.filter(item => item.id !== signal.id) })}>{copy.remove}</button>
                   </article>;
@@ -524,30 +539,52 @@ function slug(value: string) {
 
 type SemanticQualifierKey = 'currentBasis' | 'signalKind' | 'frequencyReference' | 'pressureReference' | 'flowDirection';
 type SemanticQualifierLabel = 'currentBasisLabel' | 'signalKindLabel' | 'frequencyReferenceLabel' | 'pressureReferenceLabel' | 'flowDirectionLabel';
-function emptySemanticBinding(roleCode: string): AssetProcessIntelligenceSignalSemanticBinding {
-  return { catalogVersion: 1, roleCode, currentBasis: null, signalKind: null, frequencyReference: null, pressureReference: null, flowDirection: null };
+function semanticRoleOptionValue(catalogVersion: number, roleCode: string): string {
+  return `${catalogVersion}:${roleCode}`;
 }
 
-function semanticQualifierFields(roleCode: string): Array<{ key: SemanticQualifierKey; label: SemanticQualifierLabel; options: string[] }> {
-  switch (roleCode) {
-    case 'pump.electrical_current': return [{ key: 'currentBasis', label: 'currentBasisLabel', options: ['line_rms', 'phase_rms', 'dc_bus'] }];
-    case 'pump.drive_frequency': return [
-      { key: 'signalKind', label: 'signalKindLabel', options: ['measured_output', 'command_setpoint'] },
-      { key: 'frequencyReference', label: 'frequencyReferenceLabel', options: ['drive_electrical', 'shaft_rotational'] }
-    ];
-    case 'pump.discharge_pressure': return [{ key: 'pressureReference', label: 'pressureReferenceLabel', options: ['gauge', 'absolute'] }];
-    case 'pump.discharge_volumetric_flow': return [{ key: 'flowDirection', label: 'flowDirectionLabel', options: ['pump_to_process', 'process_to_pump', 'bidirectional_signed', 'bidirectional_magnitude'] }];
-    default: return [];
-  }
+function emptySemanticBinding(catalogVersion: number, roleCode: string): AssetProcessIntelligenceSignalSemanticBinding {
+  return { catalogVersion, roleCode, currentBasis: null, signalKind: null, frequencyReference: null, pressureReference: null, flowDirection: null };
 }
 
-function isSemanticBindingComplete(binding: AssetProcessIntelligenceSignalSemanticBinding | null | undefined): boolean {
-  if (!binding || binding.catalogVersion !== 1 || !semanticRoles.includes(binding.roleCode)) return false;
-  const fields = semanticQualifierFields(binding.roleCode);
+function semanticQualifierFields(
+  binding: AssetProcessIntelligenceSignalSemanticBinding,
+  catalogs: readonly VersionedSemanticCatalog[]
+): Array<{ key: SemanticQualifierKey; label: SemanticQualifierLabel; options: readonly string[] }> {
+  const role = catalogs.find(catalog => catalog.catalogVersion === binding.catalogVersion)?.roles
+    .find(candidate => candidate.code === binding.roleCode);
+  if (!role) return [];
+  return role.qualifiers.flatMap(qualifier => {
+    const key = qualifier.name as SemanticQualifierKey;
+    const label = qualifierLabel(key);
+    return label ? [{ key, label, options: qualifier.allowedValues }] : [];
+  });
+}
+
+function isSemanticBindingComplete(
+  binding: AssetProcessIntelligenceSignalSemanticBinding | null | undefined,
+  catalogs: readonly VersionedSemanticCatalog[]
+): boolean {
+  if (!binding) return false;
+  const fields = semanticQualifierFields(binding, catalogs);
+  const role = catalogs.find(catalog => catalog.catalogVersion === binding.catalogVersion)?.roles
+    .find(candidate => candidate.code === binding.roleCode);
+  if (!role) return false;
   const applicable = new Set(fields.map(field => field.key));
   const allKeys: SemanticQualifierKey[] = ['currentBasis', 'signalKind', 'frequencyReference', 'pressureReference', 'flowDirection'];
   return fields.every(field => field.options.includes(binding[field.key] ?? '')) &&
     allKeys.every(key => applicable.has(key) || !binding[key]);
+}
+
+function qualifierLabel(key: SemanticQualifierKey): SemanticQualifierLabel | null {
+  switch (key) {
+    case 'currentBasis': return 'currentBasisLabel';
+    case 'signalKind': return 'signalKindLabel';
+    case 'frequencyReference': return 'frequencyReferenceLabel';
+    case 'pressureReference': return 'pressureReferenceLabel';
+    case 'flowDirection': return 'flowDirectionLabel';
+    default: return null;
+  }
 }
 
 async function responseError(response: Response): Promise<Error> {
@@ -569,7 +606,7 @@ function text(locale: EngineeringLocale) {
     noProject: 'No active project', eligibleScopes: 'Eligible scopes', scopeHint: 'Select stable Equipment and Location identities. Saving changes Working only; publish it before activation.',
     noResources: 'No stable Equipment or Location resources are available.', refresh: 'Refresh', notConfigured: 'Not selected', configuredActive: 'Configured active', statusPaused: 'Paused', permitArmed: 'Process permit armed', permitClosed: 'Configured active · process permit closed; explicitly activate after authorization is restored (or after restart, if applicable)', noPermit: 'No process permit', activate: 'Activate', pause: 'Pause', working: 'Applying…', saveScopes: 'Save eligible scopes', saving: 'Saving…', saved: 'Eligible scopes saved.', activated: 'Scope activated for the current revision.', paused: 'Scope paused; pending work was cancelled.', authorizationHint: 'EngineeringModify and a matching resource-scoped AssetProcessIntelligenceManage grant are required.', loading: 'Loading scopes…',
     stage2Title: 'Process configuration', stage2Hint: 'Create reusable profiles from stable TAG identities, assign them to Equipment and order the process stages. These edits are saved to Working.',
-    profiles: 'Reusable profiles', profilesHint: 'A profile can be reused by multiple Equipment assignments.', newProfile: 'New profile', noProfiles: 'No profiles yet. Create one to define static signal references.', defaultProfile: 'Profile', defaultSignal: 'Signal', profileKey: 'Stable key', profileName: 'Display name', signals: 'Signal references', signalsHint: 'References are by TAG ID; legacy role and unit text stay unchanged. Controlled semantics are opt-in.', noSignals: 'No signals in this profile.', signalKey: 'Signal key', signalKeyPlaceholder: 'e.g. temperature', signalRole: 'Legacy domain role text', semanticRole: 'Controlled semantic role', noSemanticRole: 'No controlled role', chooseQualifier: 'Choose a qualifier', currentBasisLabel: 'Current basis', signalKindLabel: 'Frequency signal kind', frequencyReferenceLabel: 'Frequency reference', pressureReferenceLabel: 'Pressure reference', flowDirectionLabel: 'Flow direction', semanticComplete: 'Controlled annotation complete', semanticIncomplete: 'Incomplete: select every required qualifier before saving', unsupportedSemantic: 'Unsupported stored role', tagReference: 'TAG reference', chooseTag: 'Choose a TAG', noTags: 'No stable TAGs available', addSignal: 'Add signal', required: 'Required', optional: 'Optional', missingTag: 'Missing TAG reference', remove: 'Remove', deleteProfile: 'Delete profile and its assignments',
+    profiles: 'Reusable profiles', profilesHint: 'A profile can be reused by multiple Equipment assignments.', newProfile: 'New profile', noProfiles: 'No profiles yet. Create one to define static signal references.', defaultProfile: 'Profile', defaultSignal: 'Signal', profileKey: 'Stable key', profileName: 'Display name', signals: 'Signal references', signalsHint: 'References are by TAG ID; legacy role and unit text stay unchanged. Controlled semantics are opt-in.', noSignals: 'No signals in this profile.', signalKey: 'Signal key', signalKeyPlaceholder: 'e.g. temperature', signalRole: 'Legacy domain role text', semanticRole: 'Controlled semantic role', noSemanticRole: 'No controlled role', chooseQualifier: 'Choose a qualifier', currentBasisLabel: 'Current basis', signalKindLabel: 'Signal kind', frequencyReferenceLabel: 'Frequency reference', pressureReferenceLabel: 'Pressure reference', flowDirectionLabel: 'Flow direction', semanticComplete: 'Controlled annotation complete', semanticIncomplete: 'Incomplete: select every required qualifier before saving', unsupportedSemantic: 'Unsupported stored role', tagReference: 'TAG reference', chooseTag: 'Choose a TAG', noTags: 'No stable TAGs available', addSignal: 'Add signal', required: 'Required', optional: 'Optional', missingTag: 'Missing TAG reference', remove: 'Remove', deleteProfile: 'Delete profile and its assignments',
     assignments: 'Equipment assignments', assignmentsHint: 'Assign a reusable profile to each stable Equipment identity. One Equipment may have multiple profile assignments.', equipment: 'Equipment', profile: 'Profile', chooseEquipment: 'Choose Equipment', chooseProfile: 'Choose a profile', assignProfile: 'Assign profile', noEquipment: 'No stable Equipment is available.', noAssignments: 'No assignments yet.', missingEquipment: 'Missing Equipment', missingProfile: 'Missing profile', referenceMissing: 'Reference is missing',
     processStages: 'Ordered process stages', processStagesHint: 'Arrange assignment links into stages; order is explicit and stable.', newStage: 'New stage', noStages: 'No process stages yet.', defaultStage: 'Stage', stageKey: 'Stable key', stageName: 'Display name', noStageAssignments: 'No assignments in this stage.', stageAssignment: 'Assignment', chooseAssignment: 'Choose an assignment', addToStage: 'Add to stage', moveUp: 'Move up', moveDown: 'Move down', staticOnly: 'Configuration-only: no TAG reads, samples, Historian queries or inferred values are stored.', saveConfiguration: 'Save process configuration', configurationSaved: 'Process configuration saved to Working.'
   } as const;
@@ -582,7 +619,7 @@ function text(locale: EngineeringLocale) {
     noProject: 'Sin proyecto activo', eligibleScopes: 'Alcances elegibles', scopeHint: 'Seleccione identidades estables. Guardar modifica solo Working; publique antes de activar.',
     noResources: 'No hay recursos estables de equipo o ubicación.', refresh: 'Actualizar', notConfigured: 'No seleccionado', configuredActive: 'Activo configurado', statusPaused: 'Pausado', permitArmed: 'Permiso de proceso habilitado', permitClosed: 'Activo configurado · permiso de proceso cerrado; actívelo explícitamente tras restaurar la autorización (o tras reiniciar, si corresponde)', noPermit: 'Sin permiso de proceso', activate: 'Activar', pause: 'Pausar', working: 'Aplicando…', saveScopes: 'Guardar alcances', saving: 'Guardando…', saved: 'Alcances guardados.', activated: 'Alcance activado para la revisión actual.', paused: 'Alcance pausado; se canceló el trabajo pendiente.', authorizationHint: 'Se requiere EngineeringModify y un permiso AssetProcessIntelligenceManage para ese recurso.', loading: 'Cargando alcances…',
     stage2Title: 'Configuración de procesos', stage2Hint: 'Cree perfiles reutilizables con identidades TAG estables, asígnelos a equipos y ordene las etapas. Los cambios se guardan en Working.',
-    profiles: 'Perfiles reutilizables', profilesHint: 'Un perfil puede reutilizarse en varias asignaciones de equipos.', newProfile: 'Nuevo perfil', noProfiles: 'Aún no hay perfiles. Cree uno para definir referencias estáticas.', defaultProfile: 'Perfil', defaultSignal: 'Señal', profileKey: 'Clave estable', profileName: 'Nombre', signals: 'Referencias de señales', signalsHint: 'Las referencias usan el ID TAG; el texto de rol y unidad se conserva. La semántica controlada es opcional.', noSignals: 'Este perfil no tiene señales.', signalKey: 'Clave de señal', signalKeyPlaceholder: 'p. ej. temperatura', signalRole: 'Texto de rol heredado', semanticRole: 'Rol semántico controlado', noSemanticRole: 'Sin rol controlado', chooseQualifier: 'Elija un calificador', currentBasisLabel: 'Base de corriente', signalKindLabel: 'Tipo de señal de frecuencia', frequencyReferenceLabel: 'Referencia de frecuencia', pressureReferenceLabel: 'Referencia de presión', flowDirectionLabel: 'Dirección del flujo', semanticComplete: 'Anotación controlada completa', semanticIncomplete: 'Incompleta: seleccione todos los calificadores requeridos antes de guardar', unsupportedSemantic: 'Rol almacenado no compatible', tagReference: 'Referencia TAG', chooseTag: 'Elija un TAG', noTags: 'No hay TAGs estables', addSignal: 'Añadir señal', required: 'Obligatoria', optional: 'Opcional', missingTag: 'Falta la referencia TAG', remove: 'Eliminar', deleteProfile: 'Eliminar perfil y sus asignaciones',
+    profiles: 'Perfiles reutilizables', profilesHint: 'Un perfil puede reutilizarse en varias asignaciones de equipos.', newProfile: 'Nuevo perfil', noProfiles: 'Aún no hay perfiles. Cree uno para definir referencias estáticas.', defaultProfile: 'Perfil', defaultSignal: 'Señal', profileKey: 'Clave estable', profileName: 'Nombre', signals: 'Referencias de señales', signalsHint: 'Las referencias usan el ID TAG; el texto de rol y unidad se conserva. La semántica controlada es opcional.', noSignals: 'Este perfil no tiene señales.', signalKey: 'Clave de señal', signalKeyPlaceholder: 'p. ej. temperatura', signalRole: 'Texto de rol heredado', semanticRole: 'Rol semántico controlado', noSemanticRole: 'Sin rol controlado', chooseQualifier: 'Elija un calificador', currentBasisLabel: 'Base de corriente', signalKindLabel: 'Tipo de señal', frequencyReferenceLabel: 'Referencia de frecuencia', pressureReferenceLabel: 'Referencia de presión', flowDirectionLabel: 'Dirección del flujo', semanticComplete: 'Anotación controlada completa', semanticIncomplete: 'Incompleta: seleccione todos los calificadores requeridos antes de guardar', unsupportedSemantic: 'Rol almacenado no compatible', tagReference: 'Referencia TAG', chooseTag: 'Elija un TAG', noTags: 'No hay TAGs estables', addSignal: 'Añadir señal', required: 'Obligatoria', optional: 'Opcional', missingTag: 'Falta la referencia TAG', remove: 'Eliminar', deleteProfile: 'Eliminar perfil y sus asignaciones',
     assignments: 'Asignaciones de equipo', assignmentsHint: 'Asigne un perfil reutilizable a cada identidad estable de equipo. Un equipo puede tener varios perfiles.', equipment: 'Equipo', profile: 'Perfil', chooseEquipment: 'Elija un equipo', chooseProfile: 'Elija un perfil', assignProfile: 'Asignar perfil', noEquipment: 'No hay equipos estables.', noAssignments: 'Aún no hay asignaciones.', missingEquipment: 'Equipo inexistente', missingProfile: 'Perfil inexistente', referenceMissing: 'Falta la referencia',
     processStages: 'Etapas ordenadas', processStagesHint: 'Organice los enlaces de asignación; el orden es explícito y estable.', newStage: 'Nueva etapa', noStages: 'Aún no hay etapas.', defaultStage: 'Etapa', stageKey: 'Clave estable', stageName: 'Nombre', noStageAssignments: 'No hay asignaciones en esta etapa.', stageAssignment: 'Asignación', chooseAssignment: 'Elija una asignación', addToStage: 'Añadir a etapa', moveUp: 'Mover arriba', moveDown: 'Mover abajo', staticOnly: 'Solo configuración: no se leen TAGs, valores, Historian ni se guardan inferencias.', saveConfiguration: 'Guardar configuración', configurationSaved: 'Configuración guardada en Working.'
   } as const;
@@ -595,7 +632,7 @@ function text(locale: EngineeringLocale) {
     noProject: 'Nenhum projeto ativo', eligibleScopes: 'Escopos elegíveis', scopeHint: 'Selecione identidades estáveis. Salvar altera apenas o Working; publique antes de ativar.',
     noResources: 'Não há equipamentos ou locais com identidade estável.', refresh: 'Atualizar', notConfigured: 'Não selecionado', configuredActive: 'Ativo na configuração', statusPaused: 'Pausado', permitArmed: 'Permissão de processo armada', permitClosed: 'Ativo configurado · permissão de processo fechada; ative explicitamente após restaurar a autorização (ou após reiniciar, se aplicável)', noPermit: 'Sem permissão de processo', activate: 'Ativar', pause: 'Pausar', working: 'Aplicando…', saveScopes: 'Salvar escopos elegíveis', saving: 'Salvando…', saved: 'Escopos elegíveis salvos.', activated: 'Escopo ativado para a revisão atual.', paused: 'Escopo pausado; o trabalho pendente foi cancelado.', authorizationHint: 'São necessários EngineeringModify e AssetProcessIntelligenceManage com escopo para este recurso.', loading: 'Carregando escopos…',
     stage2Title: 'Configuração de processos', stage2Hint: 'Crie perfis reutilizáveis com referências estáveis de TAG, associe-os a equipamentos e ordene as etapas. As edições são salvas no Working.',
-    profiles: 'Perfis reutilizáveis', profilesHint: 'Um perfil pode ser reutilizado em várias associações de equipamentos.', newProfile: 'Novo perfil', noProfiles: 'Nenhum perfil ainda. Crie um para definir referências estáticas de sinais.', defaultProfile: 'Perfil', defaultSignal: 'Sinal', profileKey: 'Chave estável', profileName: 'Nome de exibição', signals: 'Referências de sinais', signalsHint: 'As referências usam o ID do TAG; textos livres de papel e unidade são preservados. Semântica controlada é opcional.', noSignals: 'Este perfil não possui sinais.', signalKey: 'Chave do sinal', signalKeyPlaceholder: 'ex.: temperatura', signalRole: 'Texto de papel legado', semanticRole: 'Papel semântico controlado', noSemanticRole: 'Sem papel controlado', chooseQualifier: 'Escolha um qualificador', currentBasisLabel: 'Base de corrente', signalKindLabel: 'Tipo do sinal de frequência', frequencyReferenceLabel: 'Referência de frequência', pressureReferenceLabel: 'Referência de pressão', flowDirectionLabel: 'Direção do fluxo', semanticComplete: 'Anotação controlada completa', semanticIncomplete: 'Incompleta: selecione todos os qualificadores obrigatórios antes de salvar', unsupportedSemantic: 'Papel armazenado não compatível', tagReference: 'Referência do TAG', chooseTag: 'Escolha um TAG', noTags: 'Nenhum TAG estável disponível', addSignal: 'Adicionar sinal', required: 'Obrigatório', optional: 'Opcional', missingTag: 'Referência de TAG ausente', remove: 'Remover', deleteProfile: 'Excluir perfil e associações',
+    profiles: 'Perfis reutilizáveis', profilesHint: 'Um perfil pode ser reutilizado em várias associações de equipamentos.', newProfile: 'Novo perfil', noProfiles: 'Nenhum perfil ainda. Crie um para definir referências estáticas de sinais.', defaultProfile: 'Perfil', defaultSignal: 'Sinal', profileKey: 'Chave estável', profileName: 'Nome de exibição', signals: 'Referências de sinais', signalsHint: 'As referências usam o ID do TAG; textos livres de papel e unidade são preservados. Semântica controlada é opcional.', noSignals: 'Este perfil não possui sinais.', signalKey: 'Chave do sinal', signalKeyPlaceholder: 'ex.: temperatura', signalRole: 'Texto de papel legado', semanticRole: 'Papel semântico controlado', noSemanticRole: 'Sem papel controlado', chooseQualifier: 'Escolha um qualificador', currentBasisLabel: 'Base de corrente', signalKindLabel: 'Tipo do sinal', frequencyReferenceLabel: 'Referência de frequência', pressureReferenceLabel: 'Referência de pressão', flowDirectionLabel: 'Direção do fluxo', semanticComplete: 'Anotação controlada completa', semanticIncomplete: 'Incompleta: selecione todos os qualificadores obrigatórios antes de salvar', unsupportedSemantic: 'Papel armazenado não compatível', tagReference: 'Referência do TAG', chooseTag: 'Escolha um TAG', noTags: 'Nenhum TAG estável disponível', addSignal: 'Adicionar sinal', required: 'Obrigatório', optional: 'Opcional', missingTag: 'Referência de TAG ausente', remove: 'Remover', deleteProfile: 'Excluir perfil e associações',
     assignments: 'Associações de equipamentos', assignmentsHint: 'Associe um perfil reutilizável a cada identidade estável de equipamento. Um equipamento pode usar vários perfis.', equipment: 'Equipamento', profile: 'Perfil', chooseEquipment: 'Escolha um equipamento', chooseProfile: 'Escolha um perfil', assignProfile: 'Associar perfil', noEquipment: 'Nenhum equipamento estável disponível.', noAssignments: 'Nenhuma associação ainda.', missingEquipment: 'Equipamento ausente', missingProfile: 'Perfil ausente', referenceMissing: 'Referência ausente',
     processStages: 'Etapas ordenadas do processo', processStagesHint: 'Organize associações nas etapas; a ordem é explícita e estável.', newStage: 'Nova etapa', noStages: 'Nenhuma etapa de processo ainda.', defaultStage: 'Etapa', stageKey: 'Chave estável', stageName: 'Nome de exibição', noStageAssignments: 'Nenhuma associação nesta etapa.', stageAssignment: 'Associação', chooseAssignment: 'Escolha uma associação', addToStage: 'Adicionar à etapa', moveUp: 'Mover para cima', moveDown: 'Mover para baixo', staticOnly: 'Somente configuração: sem leitura de TAG, valores, consultas ao Historian ou inferências.', saveConfiguration: 'Salvar configuração de processo', configurationSaved: 'Configuração de processo salva no Working.'
   } as const;

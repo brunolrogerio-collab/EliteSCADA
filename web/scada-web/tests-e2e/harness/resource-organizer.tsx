@@ -31,7 +31,7 @@ function Harness() {
 }
 
 const tagModel = {
-  schema: 'scada.engineering', schemaVersion: 26, tags: [
+  schema: 'scada.engineering', schemaVersion: 27, tags: [
     { id: '11111111-1111-4111-8111-111111111111', name: 'Motor', path: 'Plant.Motor', dataType: 'boolean', readOnly: false },
     { id: '22222222-2222-4222-8222-222222222222', name: 'Válvula', path: 'Plant.Valve', dataType: 'boolean', readOnly: false },
     { id: '33333333-3333-4333-8333-333333333333', name: 'Current', path: 'Plant.Current', dataType: 'double', engineeringUnit: 'Amps', readOnly: true }

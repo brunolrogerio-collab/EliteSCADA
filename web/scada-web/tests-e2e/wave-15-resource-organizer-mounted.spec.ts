@@ -125,8 +125,16 @@ test('real TAG editor shares toolbar and context clipboard including multi-selec
   await expect(page.getByTestId('tag-generated-row')).toHaveCount(1);
 });
 
-test('controlled unit selector preserves the legacy free-text unit in schema-26 preview', async ({ page }) => {
+test('controlled unit selector offers v2 units and preserves legacy free text in schema-27 preview', async ({ page }) => {
   await page.route('**/api/engineering/workspace', route => route.fulfill({ json: { changeVersion: 1 } }));
+  await page.route('**/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog', route => route.fulfill({ json: {
+    supportedSemanticContractVersions: [1, 2],
+    semanticCatalogs: [{ catalogVersion: 1, roles: [] }, { catalogVersion: 2, roles: [] }],
+    controlledEngineeringUnitCatalogs: [
+      { catalogVersion: 1, units: [{ code: 'unit.electric_current.ampere', dimension: 'electric_current', canonicalUnit: 'A', scaleToCanonical: 1 }] },
+      { catalogVersion: 2, units: [{ code: 'unit.electric_current.milliampere', dimension: 'electric_current', canonicalUnit: 'A', scaleToCanonical: 0.001 }] }
+    ]
+  } }));
   let candidate: Record<string, any> | null = null;
   await page.route('**/api/engineering/import/json/preview', async route => {
     candidate = route.request().postDataJSON() as Record<string, any>;
@@ -134,7 +142,8 @@ test('controlled unit selector preserves the legacy free-text unit in schema-26 
   });
   await page.goto('/tests-e2e/harness/resource-organizer.html?tag-editor');
   await page.getByTestId('engineering-resource-organizer-tags').getByRole('button', { name: /^Current/ }).click();
-  await page.getByTestId('tag-controlled-unit').selectOption('unit.electric_current.ampere');
+  await expect(page.getByTestId('tag-controlled-unit').getByRole('option', { name: 'unit.electric_current.milliampere' })).toBeAttached();
+  await page.getByTestId('tag-controlled-unit').selectOption('2:unit.electric_current.milliampere');
   await page.getByTestId('engineering-preview').click();
   await expect.poll(() => candidate).not.toBeNull();
 
@@ -142,9 +151,9 @@ test('controlled unit selector preserves the legacy free-text unit in schema-26 
     schemaVersion: number;
     tags: Array<{ name: string; engineeringUnit: string; controlledEngineeringUnit: { catalogVersion: number; code: string } }>;
   };
-  expect(previewed.schemaVersion).toBe(26);
+  expect(previewed.schemaVersion).toBe(27);
   expect(previewed.tags.find(tag => tag.name === 'Current')).toMatchObject({
     engineeringUnit: 'Amps',
-    controlledEngineeringUnit: { catalogVersion: 1, code: 'unit.electric_current.ampere' }
+    controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.electric_current.milliampere' }
   });
 });

@@ -1,8 +1,8 @@
 # ADR-016 — Intelligence performance inputs and recorded physical indicators
 
-Status: MAIN APPROVED DESIGN. Only prerequisite package [#621](https://github.com/brunolrogerio-collab/EliteSCADA/issues/621), PERFORMANCE-V1A, is released by its activation record; implementation/verification are not claimed here. PERFORMANCE-V1B requires Main activation after A is verified. Parent: #588; acceptance rows S3-05/S3-06.
+Status: MAIN APPROVED DESIGN; PERFORMANCE-V1A #621 is INTEGRATED / VERIFIED after exact-merge T2 #38943570688 on product checkpoint `257a4ab3c40a023beea91a027e5c3d692c22f72c`. PERFORMANCE-V1B #623 is ACTIVE from that verified product base; Main's exact immutable control commit and direct CODEX dispatch are recorded in #623. Parent: #588; acceptance rows S3-05/S3-06 remain partial until B and Main's finite audit pass.
 
-Product base: `ee0371ffc50113f085dc5fb36cc257931b075e1c`, PR #620 / #619, verified by [post-merge 38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474). The immutable documentation control/start commit is recorded in #621 before dispatch. It must preserve this product tree apart from Main coordination documents.
+Original design evidence base: `ee0371ffc50113f085dc5fb36cc257931b075e1c`, PR #620 / #619, verified by [post-merge 38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474). Current verified PERFORMANCE-V1B implementation base: `257a4ab3c40a023beea91a027e5c3d692c22f72c`, with exact post-merge T2 #38943570688 green. B's immutable Main control/start commit is recorded in #623; implementation preserves this verified product tree apart from Main coordination documents and the bounded B changes below.
 
 ## Actual dependencies and the finite split
 
@@ -64,6 +64,6 @@ Every selected TAG and TrendUse must be authorized before any read, around every
 
 ## Release sequence and permanent limits
 
-Main publishes one immutable control/start commit and activates A in #621, then sends it once to CODEX. CODEX implements small reviewable commits, local evidence and one coherent draft PR/T1, then waits. Main integrates/verifies A and issues B with its exact new base and the formula/acceptance decisions above. B cannot begin from an unverified A or from this design alone. Main then audits S3-01 through S3-08; no new statistic is added without an identified unmet row or Product Owner direction.
+Main verified A only after exact post-merge evidence at `257a4ab3c40a023beea91a027e5c3d692c22f72c`, then published a new immutable control/start commit and activated B in #623. CODEX implements small reviewable commits on the exact assigned branch, provides local evidence and one coherent draft PR/T1, then waits. Main reviews/integrates and verifies exact-merge T2. B cannot move from the accepted formula/acceptance matrix or verified A base. Main then audits S3-01 through S3-08; no new statistic is added without an identified unmet row or Product Owner direction.
 
 No HA, Authority policy, licensing behavior, driver/time-evidence, Historian storage/provider, workflow, background worker/store, baseline or dashboard change is authorized. Windows/Linux and all declared product platforms remain scope. Owner HA local Preview/regression acceptance remains pending and is not replaced by CI. #588 and Wave15 remain open after A or B individually passes.

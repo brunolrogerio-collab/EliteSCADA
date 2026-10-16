@@ -2,7 +2,7 @@
 
 Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — Intelligence Stage 4 bounded architecture audit (read-only)
+## Current order — Intelligence residual Stage 4 gap audit (read-only)
 
 | Field | Order |
 | --- | --- |
@@ -10,18 +10,18 @@ Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current 
 | Executor | Chat CODEX for source audit and findings only; Main owns ADR/design and any later implementation order |
 | Product front | Intelligence #588; no change of front |
 | Integration target | `wave15/corrections-integration` |
-| Current product checkpoint | `b58fd4857ee2c6ed84e40405148294cb910fddbd` — #628 merged; exact T2 #38964817316 attempt 2 green |
-| Completed prerequisite | Stage 3 S3-01–S3-08 re-audited and complete/verified; #623 follow-up resolved by #628 |
-| Objective | Identify the smallest safe, explainable Stage 4 baseline/deviation slice that can reuse existing Intelligence, Historian, profile, entitlement, scope and Authority contracts |
+| Current product checkpoint | `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79` — #633 merge; exact T2 #38975551802 passed |
+| Completed prerequisite | Stage 3 S3-01–S3-08 and bounded Stage 4A/4B accepted; child issues #630 and #632 closed |
+| Objective | Determine the smallest defensible next Stage 4 slice, if one can be supported, from the remaining limits stated in #588: reference representativeness, operating-regime context, and validation for any multivariate deviation |
 | Allowed changes | None. Read-only repository/source audit and a findings comment in #588 only |
-| Audit questions | Existing baseline/anomaly implementations and reusable service/API patterns; exact source symbols; explicit regime/context evidence; minimum data/quality/sufficiency requirements; deterministic unavailable states; cancellation/revocation and inactive-scope behavior; resource and cross-platform constraints; finite local/CI tests |
-| Boundaries | No product edits, schema/store/worker, free-form formula or external model; no Stage 5 UI/gauges, Stage 6 broad qualification, HA or other product front |
-| Completion | CODEX returns cited file/symbol findings and a finite proposal to #588. Main will publish a separate Stage 4 implementation package/ADR before any code changes |
-| Product checkpoint for audit | `b58fd4857ee2c6ed84e40405148294cb910fddbd` |
+| Audit questions | What existing APIs/contracts can safely support more representative reference cohorts or explicit context; whether a multivariate statistic has a defensible evidence/sufficiency contract; exact symbols, failure states, auth/revocation/resource controls, cross-platform constraints, bounded tests and limitations |
+| Boundaries | No source or product edits, schema/store/worker, free-form formula, external model, or implied anomaly/diagnostic claim; no Stage 5 UI/gauges, Stage 6 qualification, HA or other product front |
+| Completion | CODEX returns cited findings and at most one finite proposal to #588. Main will publish a separate ADR/implementation package before any source changes; if no defensible slice exists, report that directly |
+| Product checkpoint for audit | `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79` |
 
-Stage 3 closeout evidence: #628 changed only `tests/Scada.Drivers.Tests/AssetProcessIntelligenceAnalyticsTests.cs`. Local tests passed 59/59 (PerformanceV1B) and 138/138 (full Analytics class). Exact candidate T1 #38963151780 attempt 2 passed at `791fbf9117fef3474ffcb2f2e2c08a95b99df6ed`: focused .NET 1,577 passed / 0 failed / 1 skipped. Exact post-merge T2 #38964817316 attempt 2 passed at `b58fd4857ee2c6ed84e40405148294cb910fddbd`: Core674, PostgreSQL127, Historian41, Drivers1,578 passed/1 skipped, Security42; 2,462 passed/1 skipped/0 failed overall; backend build/test/runtime smoke and Web build passed; Chromium integration smoke13/13 passed; full-browser E2E skipped. The first T2 attempt had one unrelated HA-D2 separate-database timing failure; one failed-backend-job retry passed without source changes.
+Verified Stage 4 delivery evidence: Stage 4A PR #631 merged at `51a4204de926ec2a81bdcbebacba8dbb578dbb71`; exact T1 #38970785957 and T2 #38971337239 passed. Stage 4B PR #633 merged at `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79`; local focused analytics/API tests 198/198, Release API build 0 warnings/errors; exact candidate T1 #38974826487 passed (SESSION_LICENSING, 1,615 passed/1 skipped); exact T2 #38975551802 passed at the merge SHA (backend 2,500 passed/1 skipped, Web passed, Chromium integration smoke 13/13 passed, full-browser E2E skipped). Detailed Stage 3 evidence remains in #588 and the current coordinator pointer.
 
-Workflow adjustment #618 and PERFORMANCE-V1A #621/#625 remain verified. The accepted #619 meanings and ADR-016's three V1B formula families, raw Historian-v2 evidence, exact synchronized source-time pairing, 50,000 combined-row cap, authorization/revision guards and no-partial-result behavior remain frozen. S3-01–S3-08 are accepted on `b58fd485`; Stage 3 is complete, but #588 and Wave 15 remain open. The audit is planning only; it does not authorize Stage 4 implementation or Stage 5/6 work.
+Workflow adjustment #618 and PERFORMANCE-V1A #621/#625 remain verified. Accepted Stage 3 contracts and Stage 4A/4B endpoints are frozen within their stated meanings. Stage 4 is still partial; the current audit is read-only planning, not implementation. Stage 5/6, #588 and Wave 15 remain open.
 
 ## Responsibilities
 
@@ -70,9 +70,9 @@ Main records review separately from the original evidence. An acknowledgement is
 
 ## Current product facts and next Main planning task
 
-PR #620's `current-at-recorded-frequency.compare.v1` is integrated/verified at the checkpoint above, with local 78/78, exact T1 #38832922847 attempt2 and exact post-merge #38834562474. It compares recorded-frequency-conditioned observations, not verified equivalent regimes or efficiency. Earlier descriptive/coverage/temporal/net-rate foundations remain accepted; they do not establish all of Stage 3 as complete.
+Stage 3 S3-01–S3-08 is complete/verified. Stage 4A is integrated/verified at `51a4204de926ec2a81bdcbebacba8dbb578dbb71`; Stage 4B is integrated/verified at `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79`. Stage 4B adds independent per-target contextual differences/scores over one complete synchronized cohort; it does not classify combined anomalies, diagnose faults, claim reference health or establish global regime equivalence. Exact tests and validation runs are recorded above and in #588/#632.
 
-The [finite acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) records S3-01–S3-06 within their explicit meanings, with the global-regime/physical-synchrony limits preserved; S3-07 is the current test-only blocker. S3-08 must include the corrective candidate's exact T1 and exact post-merge T2. After that, Main re-audits the exact composition before setting the Stage 3 disposition. Stage 4/5/6 and a renewed HA lane are not current orders. The Product Owner's HA Preview remains separate and pending.
+Stage 4 remains partial because representative reference selection, operating-regime context, and validation limits for multivariate deviation remain unresolved. The active Main task is the read-only audit in the order table above; CODEX may inspect source and publish findings only. Main will choose or reject a next bounded package after that evidence. Stage 5 dashboards/visuals and Stage 6 broad hardening are not current orders. The Product Owner's local HA Preview remains separate and pending.
 
 ## Persistent authority
 

@@ -2,7 +2,7 @@
 
 Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — #621 PERFORMANCE-V1A canonical compatibility
+## Current order — #623 PERFORMANCE-V1B observed physical indicators
 
 | Field | Order |
 | --- | --- |
@@ -10,18 +10,19 @@ Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current 
 | Executor | Chat CODEX for implementation and validation; Main for review/integration |
 | Product front | Intelligence #588; no change of front |
 | Integration target | `wave15/corrections-integration` |
-| Verified product checkpoint | `ee0371ffc50113f085dc5fb36cc257931b075e1c` |
-| Objective | Versioned physical-input metadata without old-client/editor/package/CSV/XLSX data loss |
-| Allowed changes | Separate v2 semantic/unit support, narrow canonical compatibility guards and existing selectors, owning tests, Main docs; see #621 |
-| Validation | Focused unit/legacy/endpoint/tabular/UI checks; API/Web builds; exact T1 EEE_PACKAGE + SESSION_LICENSING + UI_EDITOR and inference; Main review/post-merge |
-| Completion | #621 acceptance implemented, integrated and verified; CODEX then waits for Main to activate B |
-| Implementation branch | `work/w15-intelligence-performance-v1a-semantic-compatibility` |
+| Verified product checkpoint / B base | `257a4ab3c40a023beea91a027e5c3d692c22f72c` — PR #625 exact T2 green |
+| Main control/start | `coord/w15-intelligence-performance-v1b-activation-20261016`; exact immutable commit is recorded in #623 |
+| Objective | Deliver the three fixed, read-only recorded physical indicator rules with reproducible evidence |
+| Allowed changes | Add versioned performance catalog/calculator/query beneath the existing analytics route; reuse A canonical metadata, historian.samples.v2, existing query/security/scope guards and owning tests; see #623/ADR-016 |
+| Validation | Focused local calculator/service/API tests and API build; exact T1 SESSION_LICENSING plus inferred floor; Main source review and exact broad post-merge CI |
+| Completion | #623 finite acceptance implemented, integrated and verified; Main audits Stage3 S3-01–S3-08; no auto-close of #588/Wave15 |
+| Implementation branch | `work/w15-intelligence-performance-v1b-recorded-physical-indicators` |
 
-Workflow adjustment #618 is complete at coordination HEAD `120d93a477924b34994e2a1c2167b873c93c512d`; CODEX acknowledged the new process. Old documentation proposals #569/#591/#610 are closed with branches/evidence preserved.
+Workflow adjustment #618 is complete at coordination HEAD `120d93a477924b34994e2a1c2167b873c93c512d`; CODEX acknowledged the new process. Old documentation proposals #569/#591/#610 are closed with branches/evidence preserved. PERFORMANCE-V1A #621 is verified after the test-only PR #625 and exact post-merge T2 #38943570688.
 
-Start at the exact published Main control commit recorded in [#621](https://github.com/brunolrogerio-collab/EliteSCADA/issues/621)'s activation comment. It descends from verified `ee0371ffc50113f085dc5fb36cc257931b075e1c` and adds only this order, resume pointers, ADR status, [ADR-016](ADR-016-INTELLIGENCE-PERFORMANCE-V1.md), and the [finite Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md). CODEX uses a clean isolated implementation branch at that commit; Main-authored docs join its draft PR. No separate docs-only PR/CI is required to release A. Verify live integration remains that product base or differs only by coordinated documentation; product divergence requires Main disposition. The owning issue records direct dispatch and actual executor availability separately; a credits failure is not an executing assignment and must not trigger repeated wakes.
+Start at the exact Main control commit recorded in [#623](https://github.com/brunolrogerio-collab/EliteSCADA/issues/623). It descends from verified product base `257a4ab3c40a023beea91a027e5c3d692c22f72c` and adds only this order, resume pointers, ADR status and the finite Stage3 matrix. CODEX uses a clean isolated implementation branch from that exact control commit; Main-authored docs join its draft PR. The owning issue records direct dispatch and actual executor availability separately; a credits failure is not execution and must not trigger repeated wakes.
 
-The owning issue and ADR fix new role/unit codes, schema27 and explicit writer-capability negotiation, old-client loss prevention, one CSV/XLSX path and basic selector support. Main permits only those narrow shared-file prerequisites. Existing v1 definitions/resolvers and #619 semantics remain frozen. No analytics formula, Historian/driver, HA/security/licensing behavior, dependency or workflow change is authorized in A. ADR-016 defines B's finite physical formulas and temporal limits, but B needs Main activation after verified A; no new research cycle or Product Owner permission is required merely to take that internal step.
+The owning issue #623 and ADR-016 fix B's three physical formula families, raw Historian-v2 evidence, exact synchronized source-time pairing, 50,000 combined-row cap, authorization/revision guards and no-partial-result behavior. A's schema27/unit/catalog/import/editor contracts and all #619 v1 meanings are frozen and must be reused, not reopened. No Authority/HA, licensing behavior, Historian storage/provider, driver, workflow, dependency, UI/dashboard, baseline, free-form formula, or Stage4–6 change is authorized. Do not infer total efficiency, global regime equivalence, integrated energy/production, or physical synchrony beyond the explicit evidence contract.
 
 ## Responsibilities
 
@@ -72,7 +73,7 @@ Main records review separately from the original evidence. An acknowledgement is
 
 PR #620's `current-at-recorded-frequency.compare.v1` is integrated/verified at the checkpoint above, with local 78/78, exact T1 #38832922847 attempt2 and exact post-merge #38834562474. It compares recorded-frequency-conditioned observations, not verified equivalent regimes or efficiency. Earlier descriptive/coverage/temporal/net-rate foundations remain accepted; they do not establish all of Stage 3 as complete.
 
-The [finite acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining scope: PERFORMANCE-V1A #621, then B's declared formulas, then exact-composition acceptance audit. The one compatibility split is justified by the observed lower-version writer/import risk, not by an indefinite investigation. Main reviews A's delivery and supplies B's verified base. Stage 4/5/6 and a renewed HA lane are not active orders.
+The [finite acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining scope: A #621 is verified, B #623 is active, then Main performs the exact-composition S3-01–S3-08 audit. The compatibility split is justified by the lower-version writer/import risk, not an indefinite investigation. Stage 4/5/6 and a renewed HA lane are not active orders. The Product Owner's HA Preview remains separate and pending.
 
 ## Persistent authority
 

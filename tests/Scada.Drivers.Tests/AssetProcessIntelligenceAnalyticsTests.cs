@@ -1085,6 +1085,8 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 "/api/engineering/asset-process-intelligence/analytics/current-frequency-comparison/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/net-observed-rate/v1/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/net-observed-rate/v1/query",
+                "/api/engineering/asset-process-intelligence/analytics/performance/v1/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/performance/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/profile-coverage",
                 "/api/engineering/asset-process-intelligence/analytics/profile-coverage/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/query"
@@ -1097,6 +1099,811 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         Assert.Equal(new[] { "GET", "POST" }, methods);
+    }
+
+    [Fact]
+    public void PerformanceV1BCatalog_DeclaresThreeBoundedRecordedIndicators()
+    {
+        var catalog = JsonSerializer.SerializeToElement(AssetProcessIntelligencePerformanceV1BCatalog.Describe());
+
+        Assert.Equal(1, catalog.GetProperty("contractVersion").GetInt32());
+        Assert.Equal(1, catalog.GetProperty("catalogVersion").GetInt32());
+        Assert.Equal("historian.samples.v2", catalog.GetProperty("dataset").GetString());
+        Assert.Equal(50000, catalog.GetProperty("maximumRawRowsAcrossSelectedTags").GetInt32());
+        Assert.Equal(200, catalog.GetProperty("pageSize").GetInt32());
+        Assert.StartsWith("unverified", catalog.GetProperty("physicalSimultaneity").GetString());
+        Assert.Equal(3, catalog.GetProperty("rules").GetArrayLength());
+        var ratioRule = AssetProcessIntelligencePerformanceV1BCatalog.Rules.Single(
+            rule => rule.Id == "recorded-pressure-power-input-ratio.v1");
+        Assert.Equal("derived", ratioRule.Kind);
+        Assert.Equal(2, ratioRule.MinimumQualifiedTuples);
+        Assert.Contains("unit.volumetric_flow.cubic_metre_per_hour",
+            ratioRule.InputUnits.Single(input => input.Role == "pump.discharge_volumetric_flow").AcceptedUnitCodes);
+        Assert.Contains("unit.pressure.kilopascal",
+            ratioRule.InputUnits.Single(input => input.Role == "pump.direct_differential_pressure").AcceptedUnitCodes);
+        var specificEnergyRule = AssetProcessIntelligencePerformanceV1BCatalog.Rules.Single(
+            rule => rule.Id == "specific-active-energy-at-recorded-production-rate.v1");
+        Assert.Equal(3, specificEnergyRule.OutputUnitVariants.Count);
+        Assert.Contains(specificEnergyRule.OutputUnitVariants, variant =>
+            variant.ProductionRole == "process.net_good_production_volume_rate" && variant.OutputUnit == "kWh/m³");
+        Assert.Contains(specificEnergyRule.OutputUnitVariants, variant =>
+            variant.ProductionRole == "process.net_good_production_mass_rate" && variant.OutputUnit == "kWh/kg");
+        Assert.Contains(specificEnergyRule.OutputUnitVariants, variant =>
+            variant.ProductionRole == "process.net_good_production_item_rate" && variant.OutputUnit == "kWh/item");
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_SpecificEnergyUsesCanonicalPowerAndProductionRateAndExactSourceTimes()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals(
+            "specific-active-energy-at-recorded-production-rate.v1", "process.net_good_production_mass_rate");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var signal = tags[tagId];
+            var t1 = FromUtc.AddMinutes(5);
+            var t2 = FromUtc.AddMinutes(10);
+            var values = signal.Path.EndsWith("ActivePower", StringComparison.Ordinal)
+                ? new[] { 3.6d, 7.2d } // kW -> 3600/7200 W
+                : new[] { 3600d, 7200d }; // kg/h -> 1/2 kg/s
+            return ResponseV2(query,
+            [
+                V2Row(tagId, t1, "Good", HistoricalQueryValue.FromDouble(values[0]), t1, "Synchronized"),
+                V2Row(tagId, t2, "Good", HistoricalQueryValue.FromDouble(values[1]), t2, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("available", payload.Summary.Status);
+        Assert.Equal(2, payload.Summary.QualifiedTupleCount);
+        Assert.Equal(0.001d, payload.Summary.Minimum!.Value, 12);
+        Assert.Equal(0.001d, payload.Summary.Maximum!.Value, 12);
+        Assert.Equal(0.001d, payload.Summary.ArithmeticMean!.Value, 12);
+        Assert.Equal("kWh/kg", payload.Summary.Unit);
+        Assert.Equal(4, payload.TotalRawObservationCount);
+        Assert.Contains(payload.Signals, signal => signal.RoleCode == "equipment.active_input_power" &&
+            signal.SignalKind == "measured_total_input");
+        Assert.Contains(payload.Signals, signal => signal.RoleCode == "process.net_good_production_mass_rate" &&
+            signal.SignalKind == "measured_output" && signal.ControlledUnitCode == "unit.mass_flow.kilogram_per_hour");
+        Assert.Equal(HistoricalDatasets.HistorianSamplesV2, fixture.Historian.Requests[0].Dataset);
+        Assert.All(fixture.Historian.Requests, query =>
+        {
+            Assert.Equal(2, query.Version);
+            Assert.Equal(200, query.Page!.Size);
+            Assert.Equal("timestamp", Assert.Single(query.OrderBy!).Field);
+        });
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_SpecificEnergyMatchesDocumentedVolumeRateExample()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("specific-active-energy-at-recorded-production-rate.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var value = tags[tagId].Path.EndsWith("ActivePower", StringComparison.Ordinal)
+                ? 2d
+                : 20d / 3600d; // 2 kW at 20 m³/h = 0.1 kWh/m³.
+            var first = FromUtc.AddMinutes(1);
+            var second = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(value), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(value), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(0.1d, payload.Summary.ArithmeticMean!.Value, 12);
+        Assert.Equal("kWh/m³", payload.Summary.Unit);
+        Assert.Contains(payload.Signals, signal => signal.RoleCode == "process.net_good_production_volume_rate" &&
+            signal.SignalKind == "measured_output" &&
+            signal.CanonicalUnit == "m³/s" &&
+            signal.ControlledUnitCode == "unit.volumetric_flow.cubic_metre_per_second");
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_SpecificEnergyAveragesPointwiseValuesNotRatioOfMeanRates()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("specific-active-energy-at-recorded-production-rate.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var isPower = tags[tagId].Path.EndsWith("ActivePower", StringComparison.Ordinal);
+            var values = isPower ? new[] { 2d, 2d } : new[] { 10d / 3600d, 30d / 3600d };
+            var first = FromUtc.AddMinutes(1);
+            var second = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(values[0]), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(values[1]), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("available", payload.Summary.Status);
+        Assert.Equal("kWh/m³", payload.Summary.Unit);
+        Assert.Equal(0.2d, payload.Tuples[0].Value!.Value, 12);
+        Assert.Equal(0.06666666666666667d, payload.Tuples[1].Value!.Value, 12);
+        Assert.Equal(0.13333333333333333d, payload.Summary.ArithmeticMean!.Value, 12);
+        Assert.NotEqual(0.1d, payload.Summary.ArithmeticMean!.Value);
+        Assert.Equal(2, payload.Summary.QualifiedTupleCount);
+    }
+
+    [Theory]
+    [InlineData("recorded-differential-pressure-power.v1", 1666.6666666666667d)]
+    [InlineData("recorded-pressure-power-input-ratio.v1", 83.33333333333333d)]
+    public async Task PerformanceV1B_MatchesDocumentedPressurePowerExamples(string ruleId, double expectedMean)
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals(ruleId);
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var value = tags[tagId].Path switch
+            {
+                var path when path.EndsWith("Flow", StringComparison.Ordinal) => 20d,
+                var path when path.EndsWith("DifferentialPressure", StringComparison.Ordinal) => 3d,
+                _ => 2000d
+            };
+            var first = FromUtc.AddMinutes(1);
+            var second = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(value), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(value), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(expectedMean, payload.Summary.ArithmeticMean!.Value, 8);
+        Assert.Equal(ruleId == "recorded-pressure-power-input-ratio.v1" ? "% pressure-only power / measured electrical input" : "W",
+            payload.Summary.Unit);
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_RatioRetainsAndFlagsFiniteResultsAboveOneHundredPercent()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-pressure-power-input-ratio.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var signal = tags[tagId];
+            var (value1, value2) = signal.Path switch
+            {
+                var path when path.EndsWith("Flow", StringComparison.Ordinal) => (3600d, 7200d),
+                var path when path.EndsWith("DifferentialPressure", StringComparison.Ordinal) => (1d, 4d),
+                _ => (100d, 400d)
+            };
+            var t1 = FromUtc.AddMinutes(1);
+            var t2 = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, t1, "Good", HistoricalQueryValue.FromDouble(value1), t1, "Synchronized"),
+                V2Row(tagId, t2, "Good", HistoricalQueryValue.FromDouble(value2), t2, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("available", payload.Summary.Status);
+        Assert.Equal(100000d, payload.Summary.Minimum);
+        Assert.Equal(200000d, payload.Summary.Maximum);
+        Assert.Equal(150000d, payload.Summary.ArithmeticMean);
+        Assert.All(payload.Tuples, tuple => Assert.True(tuple.AboveOneHundredPercent));
+        Assert.Contains("result_above_100_percent_observed_not_clipped", payload.Summary.ReasonCodes);
+        Assert.Contains(payload.Signals, signal => signal.RoleCode == "pump.discharge_volumetric_flow" &&
+            signal.FlowDirection == "pump_to_process");
+        Assert.Contains(payload.Signals, signal => signal.RoleCode == "pump.direct_differential_pressure" &&
+            signal.PressureReference == "differential_outlet_minus_inlet");
+        Assert.Contains("not hydraulic, motor, or overall system efficiency", payload.Provenance.MeasurementInterpretation,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_ZeroPressureNumeratorIsAValidQualifiedResult()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var timestamp1 = FromUtc.AddMinutes(1);
+            var timestamp2 = FromUtc.AddMinutes(2);
+            var isPressure = tags[tagId].Path.EndsWith("DifferentialPressure", StringComparison.Ordinal);
+            var value = isPressure ? 0d : 3600d;
+            return ResponseV2(query,
+            [
+                V2Row(tagId, timestamp1, "Good", HistoricalQueryValue.FromDouble(value), timestamp1, "Synchronized"),
+                V2Row(tagId, timestamp2, "Good", HistoricalQueryValue.FromDouble(value), timestamp2, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("available", payload.Summary.Status);
+        Assert.Equal(2, payload.Summary.QualifiedTupleCount);
+        Assert.Equal(0d, payload.Summary.ArithmeticMean);
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_DifferentialPressurePowerConvertsMixedV1InputsToWatts()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var value = tags[tagId].Path.EndsWith("Flow", StringComparison.Ordinal) ? 3600d : 1d;
+            var first = FromUtc.AddMinutes(1);
+            var second = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(value), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(value), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("W", payload.Summary.Unit);
+        Assert.Equal(100000d, payload.Summary.Minimum);
+        Assert.Equal(100000d, payload.Summary.ArithmeticMean);
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_UsesV2FlowAndPressureUnitsThroughControlledResolver()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-pressure-power-input-ratio.v1");
+        var flow = tags.Values.Single(tag => tag.Path.EndsWith("Flow", StringComparison.Ordinal)) with
+        {
+            ControlledEngineeringUnit = new ControlledEngineeringUnitReference(2, "unit.volumetric_flow.cubic_metre_per_second")
+        };
+        var pressure = tags.Values.Single(tag => tag.Path.EndsWith("DifferentialPressure", StringComparison.Ordinal)) with
+        {
+            ControlledEngineeringUnit = new ControlledEngineeringUnitReference(2, "unit.pressure.kilopascal")
+        };
+        fixture.Workspace.Tags.Upsert(flow);
+        fixture.Workspace.Tags.Upsert(pressure);
+        fixture.Runtime.SetTag(flow);
+        fixture.Runtime.SetTag(pressure);
+        var descriptor = fixture.Workspace.Describe();
+        fixture.Workspace.SetCheckout(Fixture.ProjectKey, "V2 unit resolver test", descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var path = tags[tagId].Path;
+            var value = path.EndsWith("Flow", StringComparison.Ordinal) ? 1d
+                : path.EndsWith("DifferentialPressure", StringComparison.Ordinal) ? 100d : 100d;
+            var first = FromUtc.AddMinutes(1);
+            var second = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(value), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(value), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(100000d, payload.Summary.ArithmeticMean);
+        Assert.Contains(payload.Signals, signal => signal.RoleCode == "pump.discharge_volumetric_flow" && signal.UnitCatalogVersion == 2);
+        Assert.Contains(payload.Signals, signal => signal.RoleCode == "pump.direct_differential_pressure" && signal.UnitCatalogVersion == 2);
+    }
+
+    [Theory]
+    [InlineData("reverse-flow", "flow_not_forward_positive")]
+    [InlineData("negative-pressure", "negative_differential_pressure")]
+    public async Task PerformanceV1B_InvalidPhysicalDomainProducesUnavailableStatsNotFabricatedZero(
+        string invalidInput,
+        string expectedReason)
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var isFlow = tags[tagId].Path.EndsWith("Flow", StringComparison.Ordinal);
+            var value = invalidInput == "reverse-flow"
+                ? isFlow ? -3600d : 1d
+                : isFlow ? 3600d : -1d;
+            var timestamp1 = FromUtc.AddMinutes(1);
+            var timestamp2 = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, timestamp1, "Good", HistoricalQueryValue.FromDouble(value), timestamp1, "Synchronized"),
+                V2Row(tagId, timestamp2, "Good", HistoricalQueryValue.FromDouble(value), timestamp2, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("insufficient_data", payload.Summary.Status);
+        Assert.Equal("W", payload.Summary.Unit);
+        Assert.Equal(0, payload.Summary.QualifiedTupleCount);
+        Assert.Null(payload.Summary.Minimum);
+        Assert.Null(payload.Summary.Maximum);
+        Assert.Null(payload.Summary.ArithmeticMean);
+        Assert.All(payload.Tuples, tuple => Assert.Equal(expectedReason, tuple.ReasonCode));
+    }
+
+    [Theory]
+    [InlineData("zero-production-rate", "nonpositive_production_rate")]
+    [InlineData("negative-power", "negative_power")]
+    public async Task PerformanceV1B_SpecificEnergyRejectsInvalidProductionDenominatorAndNegativePower(
+        string invalidInput,
+        string expectedReason)
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals(
+            "specific-active-energy-at-recorded-production-rate.v1", "process.net_good_production_item_rate");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var isPower = tags[tagId].Path.EndsWith("ActivePower", StringComparison.Ordinal);
+            var value = invalidInput == "zero-production-rate"
+                ? isPower ? 3.6d : 0d
+                : isPower ? -1d : 3600d;
+            var first = FromUtc.AddMinutes(1);
+            var second = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(value), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(value), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("insufficient_data", payload.Summary.Status);
+        Assert.Equal("kWh/item", payload.Summary.Unit);
+        Assert.Contains(expectedReason, payload.Summary.ReasonCodes);
+        Assert.All(payload.Tuples, tuple => Assert.Equal(expectedReason, tuple.ReasonCode));
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_RatioRejectsNonpositiveMeasuredInputPower()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-pressure-power-input-ratio.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var path = tags[tagId].Path;
+            var value = path.EndsWith("Flow", StringComparison.Ordinal) ? 3600d
+                : path.EndsWith("DifferentialPressure", StringComparison.Ordinal) ? 1d : 0d;
+            var first = FromUtc.AddMinutes(1);
+            var second = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(value), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(value), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("insufficient_data", payload.Summary.Status);
+        Assert.Contains("nonpositive_input_power", payload.Summary.ReasonCodes);
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_NonFiniteFormulaArithmeticIsRejectedNotClipped()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var path = tags[tagId].Path;
+            var value = path.EndsWith("Flow", StringComparison.Ordinal) ? double.MaxValue : 1e303;
+            var first = FromUtc.AddMinutes(1);
+            var second = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(value), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(value), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("insufficient_data", payload.Summary.Status);
+        Assert.Contains("non_finite_arithmetic", payload.Summary.ReasonCodes);
+        Assert.All(payload.Tuples, tuple => Assert.Null(tuple.Value));
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_DoesNotInterpolateOrJoinNearestSourceTimestamps()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var offset = tags[tagId].Path.EndsWith("DifferentialPressure", StringComparison.Ordinal)
+                ? TimeSpan.FromSeconds(1) : TimeSpan.Zero;
+            var timestamps = new[] { FromUtc.AddMinutes(1), FromUtc.AddMinutes(2) };
+            return ResponseV2(query, timestamps.Select(timestamp =>
+                V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(1), timestamp + offset, "Synchronized")).ToArray());
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("insufficient_data", payload.Summary.Status);
+        Assert.Empty(payload.Tuples);
+        Assert.All(payload.Inputs, input => Assert.Equal(0, input.PairedCount));
+        Assert.All(payload.Inputs, input => Assert.Equal(2, input.RejectionCounts["no_exact_source_timestamp_pair"]));
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_CountsNonnumericBadUnsynchronizedOutOfWindowAndMissingEvidence()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        var times = Enumerable.Range(1, 6).Select(index => FromUtc.AddMinutes(index)).ToArray();
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            if (tags[tagId].Path.EndsWith("DifferentialPressure", StringComparison.Ordinal))
+                return ResponseV2(query,
+                    [V2Row(tagId, times[0], "Good", HistoricalQueryValue.FromDouble(1), times[0], "Synchronized")]);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, times[0], "Good", HistoricalQueryValue.FromDouble(3600), times[0], "Synchronized"),
+                V2Row(tagId, times[1], "Good", HistoricalQueryValue.FromString("not numeric"), times[1], "Synchronized"),
+                V2Row(tagId, times[2], "Good", HistoricalQueryValue.FromDouble(3600), times[2], "PresentUnverified"),
+                V2Row(tagId, times[3], "Good", HistoricalQueryValue.FromDouble(3600), FromUtc.AddDays(32), "Synchronized"),
+                V2Row(tagId, times[4], "BadCommunication", HistoricalQueryValue.FromDouble(3600), times[4], "Synchronized"),
+                V2Row(tagId, times[5], "Good", HistoricalQueryValue.FromDouble(3600), null, "NotRecorded")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        var flowSignal = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!
+            .Single(signal => signal.TagId == tags.Values.Single(tag => tag.Path.EndsWith("Flow", StringComparison.Ordinal)).Id);
+        var evidence = payload.Inputs.Single(input => input.SignalId == flowSignal.Id);
+        Assert.Equal(6, evidence.RawObservationCount);
+        Assert.Equal(1, evidence.EligibleSynchronizedCount);
+        Assert.Equal(1, evidence.PairedCount);
+        Assert.Equal(1, evidence.QualifiedCount);
+        Assert.Equal("insufficient_data", payload.Summary.Status);
+        Assert.Null(payload.Summary.ArithmeticMean);
+        Assert.Contains("value_not_finite_numeric", evidence.RejectionCounts.Keys);
+        Assert.Contains("source_timestamp_not_synchronized", evidence.RejectionCounts.Keys);
+        Assert.Contains("source_timestamp_outside_requested_window", evidence.RejectionCounts.Keys);
+        Assert.Contains("quality_not_good", evidence.RejectionCounts.Keys);
+        Assert.Contains("source_timestamp_missing", evidence.RejectionCounts.Keys);
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_ExcludesDuplicateSourceGroupSplitAcrossHistorianPages()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        var flowTag = tags.Values.Single(tag => tag.Path.EndsWith("Flow", StringComparison.Ordinal));
+        var pressureTag = tags.Values.Single(tag => tag.Path.EndsWith("DifferentialPressure", StringComparison.Ordinal));
+        var duplicateTime = FromUtc.AddSeconds(200);
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            if (tagId == pressureTag.Id)
+                return ResponseV2(query,
+                    [V2Row(tagId, duplicateTime, "Good", HistoricalQueryValue.FromDouble(1), duplicateTime, "Synchronized")]);
+            if (query.Page!.Cursor is null)
+            {
+                var rows = Enumerable.Range(0, 200).Select(index =>
+                {
+                    var observed = FromUtc.AddSeconds(index + 1);
+                    var source = index == 199 ? duplicateTime : observed;
+                    return V2Row(tagId, observed, "Good", HistoricalQueryValue.FromDouble(3600), source, "Synchronized");
+                }).ToArray();
+                return ResponseV2(query, rows, "second-flow-page");
+            }
+            return ResponseV2(query,
+                [V2Row(tagId, FromUtc.AddSeconds(201), "BadCommunication", HistoricalQueryValue.FromDouble(3600), duplicateTime, "PresentUnverified")]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        var flowSignalId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!
+            .Single(signal => signal.TagId == flowTag.Id).Id;
+        var flowEvidence = payload.Inputs.Single(input => input.SignalId == flowSignalId);
+        Assert.Equal(201, flowEvidence.RawObservationCount);
+        Assert.Equal(199, flowEvidence.EligibleSynchronizedCount);
+        Assert.Equal(2, flowEvidence.RejectionCounts["ambiguous_source_timestamp"]);
+        Assert.Equal(0, flowEvidence.PairedCount);
+        Assert.Empty(payload.Tuples);
+        Assert.Equal(202, payload.TotalRawObservationCount);
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_AuthorizesEverySelectedTagBeforeFirstHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+        var selectedFlow = configuration.Profiles!.Single().Signals!.Single(signal => signal.Id == request.SignalIds![0]);
+        var tag = tags[selectedFlow.TagId] with { AccessPolicy = new TagAccessPolicy(ReadRoles: ["other-role"]) };
+        fixture.Workspace.Tags.Upsert(tag);
+        fixture.Runtime.SetTag(tag);
+        var descriptor = fixture.Workspace.Describe();
+        fixture.Workspace.SetCheckout(Fixture.ProjectKey, "tag authorization test", descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Theory]
+    [InlineData(false, 200)]
+    [InlineData(true, 413)]
+    public async Task PerformanceV1B_AggregateRowLimitCountsRejectedRowsAndProbesRemainingInputs(
+        bool extraRejectedRow,
+        int expectedStatus)
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        var firstTagId = tags.Values.OrderBy(tag => tag.Path, StringComparer.Ordinal).First().Id;
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            if (tagId != firstTagId)
+                return ResponseV2(query, extraRejectedRow
+                    ? [V2Row(tagId, FromUtc.AddSeconds(1), "BadCommunication", HistoricalQueryValue.FromString("rejected"), null, "NotRecorded")]
+                    : []);
+            var page = fixture.Historian.Calls - 1;
+            var cursor = page == 249 ? null : $"performance-page-{page + 1}";
+            return ResponseV2(query, Enumerable.Range(0, 200)
+                .Select(_ => V2Row(tagId, FromUtc.AddSeconds(1), "BadCommunication",
+                    HistoricalQueryValue.FromString("rejected raw row"), null, "NotRecorded"))
+                .ToArray(), cursor);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(expectedStatus == 200 ? StatusCodes.Status200OK : StatusCodes.Status413PayloadTooLarge, result);
+        Assert.Equal(251, fixture.Historian.Calls);
+        if (expectedStatus == 200)
+        {
+            var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+            Assert.Equal(50000, payload.TotalRawObservationCount);
+            Assert.Equal("insufficient_data", payload.Summary.Status);
+        }
+        else
+        {
+            Assert.IsNotType<AssetProcessIntelligencePerformanceV1BResponse>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        }
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_PermitRevocationDuringHistorianReadDiscardsAllEvidence()
+    {
+        using var fixture = Fixture.Create();
+        var (request, _) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Historian.RespondAsync = async (query, cancellationToken) =>
+        {
+            started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return ResponseV2(query, []);
+        };
+
+        var task = fixture.ExecutePerformanceV1BAsync(request);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        fixture.Gate.Pause(Fixture.ProjectKey, fixture.ScopeKind, fixture.ScopeId);
+        var result = await task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Theory]
+    [InlineData("tag-read", StatusCodes.Status403Forbidden)]
+    [InlineData("workspace", StatusCodes.Status409Conflict)]
+    [InlineData("scope", StatusCodes.Status409Conflict)]
+    [InlineData("revision", StatusCodes.Status409Conflict)]
+    [InlineData("entitlement", StatusCodes.Status403Forbidden)]
+    public async Task PerformanceV1B_RevocationOrContextChangeBetweenPagesDiscardsTheWholeQuery(
+        string mutationKind,
+        int expectedStatus)
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        var firstSelectedSignal = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!
+            .Single(signal => signal.Id == request.SignalIds![0]);
+        fixture.Historian.Respond = query =>
+        {
+            switch (mutationKind)
+            {
+                case "tag-read":
+                    fixture.Runtime.SetTag(tags[firstSelectedSignal.TagId] with
+                    {
+                        AccessPolicy = new TagAccessPolicy(ReadRoles: ["other-role"])
+                    });
+                    break;
+                case "workspace":
+                case "scope":
+                    var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+                    var scopes = configuration.Scopes!.Select(scope => scope with { Active = mutationKind != "scope" }).ToArray();
+                    fixture.Workspace.AssetProcessIntelligence.Replace(configuration with { Scopes = scopes });
+                    break;
+                case "revision":
+                    fixture.Runtime.SetRevision(42);
+                    break;
+                case "entitlement":
+                    fixture.Licensing.Licensed = false;
+                    break;
+            }
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var timestamp = FromUtc.AddMinutes(1);
+            return ResponseV2(query,
+                [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(1), timestamp, "Synchronized")],
+                "next-page");
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(expectedStatus, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Theory]
+    [InlineData("repeated-cursor")]
+    [InlineData("malformed-row")]
+    [InlineData("out-of-order-rows")]
+    public async Task PerformanceV1B_MalformedOrUnorderedHistorianEvidenceFailsClosed(string failureKind)
+    {
+        using var fixture = Fixture.Create();
+        var (request, _) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            if (failureKind == "repeated-cursor")
+                return ResponseV2(query, [], "same-cursor");
+            if (failureKind == "malformed-row")
+                return ResponseV2(query, [null!]);
+            var first = FromUtc.AddMinutes(2);
+            var second = FromUtc.AddMinutes(1);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(1), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(1), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status503ServiceUnavailable, result);
+        Assert.IsNotType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.True(fixture.Historian.Calls >= 1);
+    }
+
+    [Theory]
+    [InlineData("duplicate-selection")]
+    [InlineData("wrong-role")]
+    [InlineData("unsupported-unit")]
+    [InlineData("unsupported-unit-version")]
+    [InlineData("missing-selected-signal")]
+    public async Task PerformanceV1B_RejectsInvalidInputSelectionAndSemanticsBeforeHistorianRead(string invalidCase)
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        if (invalidCase == "duplicate-selection")
+            request = request with { SignalIds = [request.SignalIds![0], request.SignalIds[0]] };
+        else if (invalidCase == "missing-selected-signal")
+            request = request with { SignalIds = [request.SignalIds![0]] };
+        else
+        {
+            var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+            var profile = configuration.Profiles!.Single();
+            if (invalidCase == "wrong-role")
+            {
+                var invalidSignals = profile.Signals!.Select(signal => signal.Id == request.SignalIds![0]
+                    ? signal with { SemanticBinding = signal.SemanticBinding! with { FlowDirection = "process_to_pump" } }
+                    : signal).ToArray();
+                fixture.Workspace.AssetProcessIntelligence.Replace(configuration with { Profiles = [profile with { Signals = invalidSignals }] });
+            }
+            else
+            {
+                var selectedSignal = profile.Signals!.Single(signal => signal.Id == request.SignalIds![0]);
+                var tagId = selectedSignal.TagId;
+                var tag = fixture.Runtime.Tags().Single(item => item.Id == tagId) with
+                {
+                    ControlledEngineeringUnit = invalidCase == "unsupported-unit-version"
+                        ? new ControlledEngineeringUnitReference(99, "unit.volumetric_flow.cubic_metre_per_second")
+                        : new ControlledEngineeringUnitReference(1, "unit.pressure.bar")
+                };
+                fixture.Workspace.Tags.Upsert(tag);
+                fixture.Runtime.SetTag(tag);
+            }
+            var descriptor = fixture.Workspace.Describe();
+            fixture.Workspace.SetCheckout(Fixture.ProjectKey, "invalid performance input", descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+        }
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public void PerformanceV1B_UnsupportedSemanticCatalogVersionIsRejectedByEngineeringBeforeAnyHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var (request, _) = fixture.AddPerformanceSignals("recorded-differential-pressure-power.v1");
+        var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+        var profile = configuration.Profiles!.Single();
+        var invalidSignals = profile.Signals!.Select(signal => signal.Id == request.SignalIds![0]
+            ? signal with { SemanticBinding = signal.SemanticBinding! with { CatalogVersion = 99 } }
+            : signal).ToArray();
+
+        Assert.Throws<InvalidDataException>(() => fixture.Workspace.AssetProcessIntelligence.Replace(
+            configuration with { Profiles = [profile with { Signals = invalidSignals }] }));
+        Assert.Equal(0, fixture.Historian.Calls);
     }
 
     [Fact]
@@ -1837,6 +2644,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             AssetProcessIntelligenceScopeKind scopeKind,
             AssetProcessIntelligenceExecutionGate gate,
             RuntimeHighAvailabilityService highAvailability,
+            TestLicenseService licensing,
             TestRuntimeCoordinator runtime,
             InMemoryAuthorityPolicyStore authority,
             RecordingHistoricalQueryService historian,
@@ -1850,6 +2658,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             ScopeKind = scopeKind;
             Gate = gate;
             HighAvailability = highAvailability;
+            Licensing = licensing;
             Runtime = runtime;
             Authority = authority;
             Historian = historian;
@@ -1869,12 +2678,14 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         public AssetProcessIntelligenceScopeKind ScopeKind { get; }
         public AssetProcessIntelligenceExecutionGate Gate { get; }
         public RuntimeHighAvailabilityService HighAvailability { get; }
+        public TestLicenseService Licensing { get; }
         public TestRuntimeCoordinator Runtime { get; }
         public InMemoryAuthorityPolicyStore Authority { get; }
         public RecordingHistoricalQueryService Historian { get; }
         public AssetProcessIntelligenceAnalyticsService Analytics { get; }
         public AssetProcessIntelligenceAnalyticsQueryRequest Request { get; }
         public AssetProcessIntelligenceCurrentFrequencyComparisonV1QueryRequest? CurrentFrequencyRequest { get; private set; }
+        public AssetProcessIntelligencePerformanceV1BQueryRequest? PerformanceV1BRequest { get; private set; }
 
         public Task<IResult> ExecuteAsync(
             AssetProcessIntelligenceAnalyticsQueryRequest? request = null)
@@ -1919,6 +2730,86 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 context,
                 request ?? CurrentFrequencyRequest ?? throw new InvalidOperationException("Current/frequency signals were not configured."),
                 context.RequestAborted);
+        }
+
+        public Task<IResult> ExecutePerformanceV1BAsync(AssetProcessIntelligencePerformanceV1BQueryRequest? request = null)
+        {
+            var context = CreateContext();
+            return Analytics.ExecutePerformanceV1BAsync(
+                context,
+                request ?? PerformanceV1BRequest ?? throw new InvalidOperationException("Performance signals were not configured."),
+                context.RequestAborted);
+        }
+
+        public (AssetProcessIntelligencePerformanceV1BQueryRequest Request, Dictionary<Guid, TagDefinition> Tags)
+            AddPerformanceSignals(string ruleId, string productionRole = "process.net_good_production_volume_rate")
+        {
+            var specifications = ruleId switch
+            {
+                "specific-active-energy-at-recorded-production-rate.v1" => new[]
+                {
+                    ("equipment.active_input_power", "ActivePower", 2, "unit.power.kilowatt"),
+                    (productionRole, "ProductionRate", 2, productionRole switch
+                    {
+                        "process.net_good_production_mass_rate" => "unit.mass_flow.kilogram_per_hour",
+                        "process.net_good_production_item_rate" => "unit.item_rate.item_per_hour",
+                        _ => "unit.volumetric_flow.cubic_metre_per_second"
+                    })
+                },
+                "recorded-differential-pressure-power.v1" => new[]
+                {
+                    ("pump.discharge_volumetric_flow", "Flow", 1, "unit.volumetric_flow.cubic_metre_per_hour"),
+                    ("pump.direct_differential_pressure", "DifferentialPressure", 2, "unit.pressure.bar")
+                },
+                "recorded-pressure-power-input-ratio.v1" => new[]
+                {
+                    ("pump.discharge_volumetric_flow", "Flow", 1, "unit.volumetric_flow.cubic_metre_per_hour"),
+                    ("pump.direct_differential_pressure", "DifferentialPressure", 2, "unit.pressure.bar"),
+                    ("equipment.active_input_power", "ActivePower", 2, "unit.power.watt")
+                },
+                _ => throw new ArgumentOutOfRangeException(nameof(ruleId))
+            };
+            var tags = new Dictionary<Guid, TagDefinition>();
+            var signals = new List<AssetProcessIntelligenceSignalEngineeringDto>();
+            foreach (var (role, suffix, semanticCatalog, unitCode) in specifications)
+            {
+                var tag = new TagDefinition(
+                    Guid.NewGuid(), suffix, $"Plant.Pump.{suffix}", TagDataType.Double, null, null, null, true,
+                    ControlledEngineeringUnit: new ControlledEngineeringUnitReference(
+                        suffix == "DifferentialPressure" || suffix == "Flow" ? 1 : 2, unitCode));
+                Workspace.Tags.Register(tag);
+                Runtime.AddTag(tag);
+                tags.Add(tag.Id, tag);
+                var binding = role switch
+                {
+                    "equipment.active_input_power" => new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+                        2, role, SignalKind: "measured_total_input"),
+                    "process.net_good_production_volume_rate" or "process.net_good_production_mass_rate" or "process.net_good_production_item_rate" =>
+                        new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(2, role, SignalKind: "measured_output"),
+                    "pump.discharge_volumetric_flow" => new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+                        1, role, FlowDirection: "pump_to_process"),
+                    "pump.direct_differential_pressure" => new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+                        2, role, SignalKind: "measured_output", PressureReference: "differential_outlet_minus_inlet"),
+                    _ => throw new InvalidOperationException("Unexpected performance role.")
+                };
+                signals.Add(new AssetProcessIntelligenceSignalEngineeringDto(
+                    Guid.NewGuid(), suffix, "legacy role is intentionally opaque", tag.Id, SemanticBinding: binding));
+            }
+            var configuration = Workspace.AssetProcessIntelligence.Snapshot();
+            var profile = configuration.Profiles!.Single();
+            Workspace.AssetProcessIntelligence.Replace(configuration with
+            {
+                Profiles = [profile with { Signals = profile.Signals!.Concat(signals).ToArray() }]
+            });
+            var descriptor = Workspace.Describe();
+            Workspace.SetCheckout(ProjectKey, "Performance V1B test", descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+            var assignment = configuration.Assignments!.Single();
+            var request = new AssetProcessIntelligencePerformanceV1BQueryRequest(
+                ScopeKind, ScopeId, assignment.Id, profile.Id, ruleId,
+                Array.AsReadOnly(signals.Select(signal => signal.Id).ToArray()),
+                Window(FromUtc, FromUtc.AddHours(1)));
+            PerformanceV1BRequest = request;
+            return (request, tags);
         }
 
         public (TagDefinition CurrentTag, TagDefinition FrequencyTag,
@@ -2123,7 +3014,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 security,
                 historian);
             return new Fixture(workspace, tag, equipmentId, scopeId, scopeKind,
-                gate, highAvailability, runtime, authority, historian, analytics, services);
+                gate, highAvailability, licensing, runtime, authority, historian, analytics, services);
         }
 
         public void Dispose()
@@ -2155,11 +3046,12 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
 
     private sealed class TestLicenseService(bool licensed) : IProductLicenseService
     {
+        public bool Licensed { get; set; } = licensed;
         public string MachineFingerprint => "analytics-test-machine";
         public string MachineRequestCode => "analytics-test-request";
         public LicenseVerificationResult CurrentVerification => new(
             LicenseState.Valid,
-            V3Entitlements: new MachineLicenseV3Entitlements(1, 1, false, licensed));
+            V3Entitlements: new MachineLicenseV3Entitlements(1, 1, false, Licensed));
         public LicenseVerificationResult VerifyCandidate(string licenseCode) => CurrentVerification;
         public void InstallLicense(string licenseCode) => throw new NotSupportedException();
         public void RemoveLicense() => throw new NotSupportedException();

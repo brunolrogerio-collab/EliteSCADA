@@ -7,24 +7,25 @@ Snapshot: 2026-10-16. Replace this snapshot when state changes; keep detailed hi
 | Field | Current disposition |
 | --- | --- |
 | Integration target | `wave15/corrections-integration` |
-| Verified product checkpoint | `ee0371ffc50113f085dc5fb36cc257931b075e1c` — PR #620 / #619 |
+| Verified product checkpoint | `257a4ab3c40a023beea91a027e5c3d692c22f72c` — #625 exact T2 green |
 | Product front | Asset & Process Intelligence, issue #588; Stage 3 partially delivered |
 | Completed slice | `current-at-recorded-frequency.compare.v1` — INTEGRATED / VERIFIED |
-| Product executor | Chat CODEX; assigned package #621, PERFORMANCE-V1A |
-| Immediate direction | Add versioned physical-input metadata with safe canonical/editor/import round-trip |
-| Next owner/action | CODEX implements #621 when dispatch/capacity is confirmed; Main reviews/integrates |
-| Product authorization in this snapshot | Only #621; activation, exact Main control/start commit and executor availability are recorded in its issue |
+| Verified prerequisite | PERFORMANCE-V1A #621 / PR #622 — INTEGRATED / VERIFIED after PR #625, exact post-merge T2 #38943570688 |
+| Product executor | Chat CODEX; active package #623, PERFORMANCE-V1B |
+| Immediate direction | Implement the three ADR-016 read-only observed physical indicators from exact verified A base |
+| Next owner/action | CODEX implements/tests and publishes the #623 draft PR; Main reviews/integrates and verifies exact-merge T2 |
+| Product authorization in this snapshot | #623 only; exact Main control/start commit, implementation branch and executor dispatch/capacity are recorded in #623 |
 
 Coordination-only commits after the product checkpoint do not invalidate its product evidence. Discover the current coordination HEAD from the live integration ref.
 
-Workflow adjustment #618 is complete. The finite [Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining V1 work. [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md) records accepted #619; [ADR-016](ADR-016-INTELLIGENCE-PERFORMANCE-V1.md) fixes the physical-input/formula scope. A concrete old-client/import capability risk requires prerequisite A (#621), then formula delivery B. Only A is active. This published Main control branch carries the current order until its docs join the implementation PR; its immutable commit is linked from #621/#305.
+Workflow adjustment #618 is complete. The finite [Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining V1 work. [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md) records accepted #619; [ADR-016](ADR-016-INTELLIGENCE-PERFORMANCE-V1.md) fixes the physical-input/formula scope. The old-client/import prerequisite A (#621) is verified at the checkpoint above. Main has activated only B (#623), with three fixed formulas and no broader Stage 4/5/6 scope. Its immutable control commit is linked from #623/#305.
 
 ## Evidence
 
-- Candidate `c2c7dd1c90db9ab7ba65bd93fd69621e7651d002`: local Analytics 78/78 and API build passed; [T1 #38832922847 attempt 2](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38832922847/attempts/2) passed (selected method 1/1, remaining Drivers 1,513 passed / 1 skipped).
-- Merge `ee0371ffc50113f085dc5fb36cc257931b075e1c`: [post-merge #38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474) passed backend build/test/runtime smoke, Web and Chromium integration smoke 13/13. Full-browser E2E was skipped.
-- First T1 failed in unchanged HA initial-policy synchronization; one documented failed-job retry passed unchanged. Root cause remains unproven. Local HA reproduction was NOT RUN: disposable PostgreSQL/Docker unavailable; one Docker start failed in backend socket initialization. No repeated recovery or HA changes are authorized.
-- #619/#620 contain source review, CF-01/02/03 corrections and exact integration evidence. #621/#305 hold activation and dispatch state; do not infer execution from publication alone.
+- #619/#620: local Analytics 78/78, T1 #38832922847 attempt2 and post-merge #38834562474; accepted `current-at-recorded-frequency.compare.v1` remains frozen within its meaning.
+- #621 / PR #622: A integrated at `a96b49b`; its broad post-merge CI initially failed in two HA-D2 separate-database timing cases. Test-only correction PR #625 is integrated at `257a4ab3`; [T1 #38942922868](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38942922868) and exact-SHA [T2 #38943570688](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38943570688) are green. T2 totals: Core674, PostgreSQL127, Timescale41, Drivers1,519 passed/1 skipped, Security42; Web build and Chromium integration smoke13/13 passed.
+- #625 changed only the test fixture wait/request timeout. It does not prove a root cause in HA and does not replace the Product Owner's outstanding local HA Preview/regression acceptance. No HA runtime/product code was touched.
+- #623 is the active B package from `257a4ab3`; exact control commit and dispatch/capacity are recorded in the issue. Stage3 remains partial; #588 and Wave15 remain open.
 
 ## Operating documents
 

@@ -15,6 +15,8 @@ public static class AssetProcessIntelligenceAnalyticsApi
             Results.Ok(AssetProcessIntelligenceNetObservedRateV1Catalog.Describe()));
         group.MapGet("/current-frequency-comparison/v1/catalog", () =>
             Results.Ok(AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.Describe()));
+        group.MapGet("/performance/v1/catalog", () =>
+            Results.Ok(AssetProcessIntelligencePerformanceV1BCatalog.Describe()));
         group.MapPost("/query", (
             HttpContext context,
             AssetProcessIntelligenceAnalyticsQueryRequest request,
@@ -33,6 +35,12 @@ public static class AssetProcessIntelligenceAnalyticsApi
             AssetProcessIntelligenceAnalyticsService service,
             CancellationToken cancellationToken) =>
             service.ExecuteCurrentFrequencyComparisonV1Async(context, request, cancellationToken));
+        group.MapPost("/performance/v1/query", (
+            HttpContext context,
+            AssetProcessIntelligencePerformanceV1BQueryRequest request,
+            AssetProcessIntelligenceAnalyticsService service,
+            CancellationToken cancellationToken) =>
+            service.ExecutePerformanceV1BAsync(context, request, cancellationToken));
         group.MapPost("/profile-coverage", (
             HttpContext context,
             AssetProcessIntelligenceProfileCoverageQueryRequest request,

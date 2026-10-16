@@ -1,6 +1,6 @@
 # ADR-015 — Comparison of current under recorded measured frequency
 
-Status: MAIN APPROVED FOR BOUNDED IMPLEMENTATION; not implemented/verified by this document.
+Status: INTEGRATED / VERIFIED for bounded #619 at `ee0371ffc50113f085dc5fb36cc257931b075e1c`, PR #620. Local Analytics 78/78 and API build passed; exact-candidate [T1 38832922847 attempt 2](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38832922847/attempts/2) and exact-merge [post-merge 38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474) passed. Chromium integration smoke was 13/13; full-browser E2E was skipped. Stage 3 and #588 remain open. The initial T1 HA synchronization failure passed unchanged on one evidenced retry; its causal mechanism and local owner HA acceptance remain unresolved, not waived.
 Owning package: [#619](https://github.com/brunolrogerio-collab/EliteSCADA/issues/619), parent #588. Base code: verified `54c7c9942b57328cabcef740c99f4ab3207cc040`; revalidated integration/start base `120d93a477924b34994e2a1c2167b873c93c512d` adds coordination only. The immutable Main control commit is recorded in #619 before dispatch.
 
 ## Observed contracts

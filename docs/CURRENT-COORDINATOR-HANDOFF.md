@@ -1,30 +1,30 @@
 # Current coordinator pointer — Wave 15
 
-Snapshot: 2026-10-15. Replace this snapshot when state changes; keep detailed history in the owning issue/PR. Live refs, published code, and exact-SHA Actions evidence govern implementation state.
+Snapshot: 2026-10-16. Replace this snapshot when state changes; keep detailed history in the owning issue/PR. Live refs, published code, and exact-SHA Actions evidence govern implementation state.
 
 ## Current position
 
 | Field | Current disposition |
 | --- | --- |
 | Integration target | `wave15/corrections-integration` |
-| Verified product checkpoint | `54c7c9942b57328cabcef740c99f4ab3207cc040` — PR #617 |
+| Verified product checkpoint | `ee0371ffc50113f085dc5fb36cc257931b075e1c` — PR #620 / #619 |
 | Product front | Asset & Process Intelligence, issue #588; Stage 3 partially delivered |
-| Completed slice | `net-observed-rate.v1` — INTEGRATED / VERIFIED |
-| Product executor | Chat CODEX; assigned package #619 |
-| Immediate direction | Implement recorded-current comparison under an explicit measured-frequency range |
-| Next owner/action | CODEX implements/tests/publishes the assigned draft PR; Main reviews and integrates |
-| Product authorization in this snapshot | Only #619; exact Main control/start commit is recorded in its activation comment |
+| Completed slice | `current-at-recorded-frequency.compare.v1` — INTEGRATED / VERIFIED |
+| Product executor | Chat CODEX; assigned package #621, PERFORMANCE-V1A |
+| Immediate direction | Add versioned physical-input metadata with safe canonical/editor/import round-trip |
+| Next owner/action | CODEX implements #621 when dispatch/capacity is confirmed; Main reviews/integrates |
+| Product authorization in this snapshot | Only #621; activation, exact Main control/start commit and executor availability are recorded in its issue |
 
 Coordination-only commits after the product checkpoint do not invalidate its product evidence. Discover the current coordination HEAD from the live integration ref.
 
-Workflow adjustment #618 is integrated at coordination HEAD `120d93a477924b34994e2a1c2167b873c93c512d`; CODEX acknowledged it. The finite [Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining V1 work. [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md) defines #619. This published Main control branch carries the current assignment until it joins the implementation PR/integration; its immutable commit is linked from #619/#305.
+Workflow adjustment #618 is complete. The finite [Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining V1 work. [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md) records accepted #619; [ADR-016](ADR-016-INTELLIGENCE-PERFORMANCE-V1.md) fixes the physical-input/formula scope. A concrete old-client/import capability risk requires prerequisite A (#621), then formula delivery B. Only A is active. This published Main control branch carries the current order until its docs join the implementation PR; its immutable commit is linked from #621/#305.
 
 ## Evidence
 
-- Candidate `453430328040daf111031a76ff11279599d880ea`: focused local Intelligence tests 73/73; [T1 #38811841547](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38811841547), attempt 2, passed (1,490 .NET passed / 1 skipped).
-- Merge `54c7c9942b57328cabcef740c99f4ab3207cc040`: [post-merge CI #38813353099](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38813353099) passed backend build/test/runtime smoke, Web build, and Chromium integration smoke 13/13. Full-browser E2E was skipped.
-- [Accepted slice disposition in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6203170115); [execution ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6203171386).
-- The earlier checkout-access blocker is resolved. Do not resume its retries or reopen the completed slice.
+- Candidate `c2c7dd1c90db9ab7ba65bd93fd69621e7651d002`: local Analytics 78/78 and API build passed; [T1 #38832922847 attempt 2](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38832922847/attempts/2) passed (selected method 1/1, remaining Drivers 1,513 passed / 1 skipped).
+- Merge `ee0371ffc50113f085dc5fb36cc257931b075e1c`: [post-merge #38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474) passed backend build/test/runtime smoke, Web and Chromium integration smoke 13/13. Full-browser E2E was skipped.
+- First T1 failed in unchanged HA initial-policy synchronization; one documented failed-job retry passed unchanged. Root cause remains unproven. Local HA reproduction was NOT RUN: disposable PostgreSQL/Docker unavailable; one Docker start failed in backend socket initialization. No repeated recovery or HA changes are authorized.
+- #619/#620 contain source review, CF-01/02/03 corrections and exact integration evidence. #621/#305 hold activation and dispatch state; do not infer execution from publication alone.
 
 ## Operating documents
 

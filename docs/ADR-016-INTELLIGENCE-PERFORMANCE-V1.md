@@ -1,8 +1,8 @@
 # ADR-016 — Intelligence performance inputs and recorded physical indicators
 
-Status: MAIN APPROVED DESIGN. Only prerequisite package [#621](https://github.com/brunolrogerio-collab/EliteSCADA/issues/621), PERFORMANCE-V1A, is released by its activation record; implementation/verification are not claimed here. PERFORMANCE-V1B requires Main activation after A is verified. Parent: #588; acceptance rows S3-05/S3-06.
+Status: MAIN APPROVED DESIGN. Prerequisite [#621](https://github.com/brunolrogerio-collab/EliteSCADA/issues/621), PERFORMANCE-V1A, is INTEGRATED / NOT VERIFIED via PR #622 at `a96b49b5531835b2b07ca6f2dc4a2f24be63973e`. Candidate T1 passed; broad post-merge #38894694846 attempts1/2 failed in unchanged HA initial-policy synchronization, and runtime smoke was NOT RUN. Isolated exact-merge local test passed1/1 but does not override that gate. PERFORMANCE-V1B [#623](https://github.com/brunolrogerio-collab/EliteSCADA/issues/623) remains PLANNED / NOT ACTIVE, requiring verified A and Main activation. Parent: #588; acceptance rows S3-05/S3-06.
 
-Product base: `ee0371ffc50113f085dc5fb36cc257931b075e1c`, PR #620 / #619, verified by [post-merge 38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474). The immutable documentation control/start commit is recorded in #621 before dispatch. It must preserve this product tree apart from Main coordination documents.
+Last verified product base: `ee0371ffc50113f085dc5fb36cc257931b075e1c`, PR #620 / #619, verified by [post-merge 38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474). A's immutable control/start commit and subsequent review/integration evidence are recorded in #621. The design below is unchanged; the new integrated HEAD is not yet a verified dependency for B.
 
 ## Actual dependencies and the finite split
 

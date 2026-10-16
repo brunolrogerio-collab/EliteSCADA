@@ -10,21 +10,23 @@ Snapshot: 2026-10-16. Replace this snapshot when state changes; keep detailed hi
 | Verified product checkpoint | `ee0371ffc50113f085dc5fb36cc257931b075e1c` — PR #620 / #619 |
 | Product front | Asset & Process Intelligence, issue #588; Stage 3 partially delivered |
 | Completed slice | `current-at-recorded-frequency.compare.v1` — INTEGRATED / VERIFIED |
-| Product executor | Chat CODEX; assigned package #621, PERFORMANCE-V1A |
-| Immediate direction | Add versioned physical-input metadata with safe canonical/editor/import round-trip |
-| Next owner/action | CODEX implements #621 when dispatch/capacity is confirmed; Main reviews/integrates |
-| Product authorization in this snapshot | Only #621; activation, exact Main control/start commit and executor availability are recorded in its issue |
+| Integrated product HEAD | `a96b49b5531835b2b07ca6f2dc4a2f24be63973e` — PR #622 / #621, NOT VERIFIED |
+| Product executor | Chat CODEX; #621 PERFORMANCE-V1A implementation reviewed and integrated |
+| Immediate gate | Broad post-merge Backend failed twice; runtime smoke NOT RUN |
+| Next owner/action | CODEX read-only diagnosis and one proposed discriminating local experiment; Main decides before execution |
+| Product authorization in this snapshot | Finish #621 verification; no further same-head CI retry, HA edit or #623 activation |
 
 Coordination-only commits after the product checkpoint do not invalidate its product evidence. Discover the current coordination HEAD from the live integration ref.
 
-Workflow adjustment #618 is complete. The finite [Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining V1 work. [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md) records accepted #619; [ADR-016](ADR-016-INTELLIGENCE-PERFORMANCE-V1.md) fixes the physical-input/formula scope. A concrete old-client/import capability risk requires prerequisite A (#621), then formula delivery B. Only A is active. This published Main control branch carries the current order until its docs join the implementation PR; its immutable commit is linked from #621/#305.
+Workflow adjustment #618 is complete. The finite [Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining V1 work. [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md) records accepted #619; [ADR-016](ADR-016-INTELLIGENCE-PERFORMANCE-V1.md) fixes the physical-input/formula scope. Prerequisite A (#621) is integrated but its verification gate is red. Formula delivery B [#623](https://github.com/brunolrogerio-collab/EliteSCADA/issues/623) is DESIGN FIXED / PLANNED / NOT ACTIVE. This documentation-only control branch updates the resume point; its name does not activate B. Immutable control commit and direct CODEX dispatch are recorded in #621/#305.
 
 ## Evidence
 
-- Candidate `c2c7dd1c90db9ab7ba65bd93fd69621e7651d002`: local Analytics 78/78 and API build passed; [T1 #38832922847 attempt 2](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38832922847/attempts/2) passed (selected method 1/1, remaining Drivers 1,513 passed / 1 skipped).
-- Merge `ee0371ffc50113f085dc5fb36cc257931b075e1c`: [post-merge #38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474) passed backend build/test/runtime smoke, Web and Chromium integration smoke 13/13. Full-browser E2E was skipped.
-- First T1 failed in unchanged HA initial-policy synchronization; one documented failed-job retry passed unchanged. Root cause remains unproven. Local HA reproduction was NOT RUN: disposable PostgreSQL/Docker unavailable; one Docker start failed in backend socket initialization. No repeated recovery or HA changes are authorized.
-- #619/#620 contain source review, CF-01/02/03 corrections and exact integration evidence. #621/#305 hold activation and dispatch state; do not infer execution from publication alone.
+- Last verified merge `ee0371ffc50113f085dc5fb36cc257931b075e1c`: #619/#620 and [post-merge #38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474) passed backend build/test/runtime smoke, Web and Chromium integration smoke13/13. Full-browser E2E was skipped.
+- A candidate `5260ccfe7a1ba6b5ef8cfc3dc0b1d6a5be070f6d`: corrected local Core135/135 and endpoint/analytics97/97; [T1 #38893549917](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38893549917) passed. Merge `a96b49b5531835b2b07ca6f2dc4a2f24be63973e` has exactly the candidate tree; tree identity is not a commit SHA.
+- Broad [#38894694846 attempt1](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38894694846/attempts/1) and the single evidenced [attempt2](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38894694846/attempts/2) failed in `RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack`, initial-policy synchronization at `WaitForInitialPolicyCommitAsync:844`. Backend jobs116952251038 and116957374868; Drivers1518 passed/1 failed/1 skipped in each. Runtime smoke NOT RUN; Web and Chromium integration passed; full-browser E2E skipped. No further same-head CI retry is authorized.
+- CODEX ran that existing test on exact merge a96 with required-PostgreSQL flag and a dedicated disposable database: Windows local1/1 passed,0 failed/0 skipped,36s test. This is two database names on one server, not independent physical-server failure. No source/assertion/timeout/workflow changes; worktree clean. Main removed only its temporary Compose project; existing stable containers were untouched. The earlier Docker-access blocker is no longer current. A local pass does not establish the CI root cause or override the failed gate.
+- #621/#622 contain the reviewed implementation and exact evidence; #621/#305 record the blocked gate and the read-only CODEX diagnosis. No HA product development is authorized; B remains blocked until A is verified.
 
 ## Operating documents
 

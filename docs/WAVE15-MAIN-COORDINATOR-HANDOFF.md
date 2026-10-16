@@ -2,7 +2,7 @@
 
 Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — #621 PERFORMANCE-V1A canonical compatibility
+## Current order — #621 integrated; diagnose the failed verification gate
 
 | Field | Order |
 | --- | --- |
@@ -11,17 +11,22 @@ Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current 
 | Product front | Intelligence #588; no change of front |
 | Integration target | `wave15/corrections-integration` |
 | Verified product checkpoint | `ee0371ffc50113f085dc5fb36cc257931b075e1c` |
-| Objective | Versioned physical-input metadata without old-client/editor/package/CSV/XLSX data loss |
-| Allowed changes | Separate v2 semantic/unit support, narrow canonical compatibility guards and existing selectors, owning tests, Main docs; see #621 |
-| Validation | Focused unit/legacy/endpoint/tabular/UI checks; API/Web builds; exact T1 EEE_PACKAGE + SESSION_LICENSING + UI_EDITOR and inference; Main review/post-merge |
-| Completion | #621 acceptance implemented, integrated and verified; CODEX then waits for Main to activate B |
+| Integrated HEAD | `a96b49b5531835b2b07ca6f2dc4a2f24be63973e`, PR #622; INTEGRATED / NOT VERIFIED |
+| Objective | Explain the exact post-merge Backend failure before deciding a correction/experiment |
+| Allowed activity | Read-only test/process/log/environment diagnosis; Main maintains control docs |
+| Validation state | Candidate T1 #38893549917 passed; broad #38894694846 attempts1/2 failed; isolated Windows local failed-method reproduction passed1/1 |
+| Completion | A's required post-merge gate must actually pass; local pass alone cannot release B |
 | Implementation branch | `work/w15-intelligence-performance-v1a-semantic-compatibility` |
 
 Workflow adjustment #618 is complete at coordination HEAD `120d93a477924b34994e2a1c2167b873c93c512d`; CODEX acknowledged the new process. Old documentation proposals #569/#591/#610 are closed with branches/evidence preserved.
 
-Start at the exact published Main control commit recorded in [#621](https://github.com/brunolrogerio-collab/EliteSCADA/issues/621)'s activation comment. It descends from verified `ee0371ffc50113f085dc5fb36cc257931b075e1c` and adds only this order, resume pointers, ADR status, [ADR-016](ADR-016-INTELLIGENCE-PERFORMANCE-V1.md), and the [finite Stage 3 acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md). CODEX uses a clean isolated implementation branch at that commit; Main-authored docs join its draft PR. No separate docs-only PR/CI is required to release A. Verify live integration remains that product base or differs only by coordinated documentation; product divergence requires Main disposition. The owning issue records direct dispatch and actual executor availability separately; a credits failure is not an executing assignment and must not trigger repeated wakes.
+Implementation was accepted on candidate `5260ccfe7a1ba6b5ef8cfc3dc0b1d6a5be070f6d` and merged as a96, with exactly the candidate tree. Do not restart A or treat its branch tip as a new baseline. Use the clean CODEX worktree `work/w15-intelligence-performance-v1a-semantic-compatibility` explicitly in every command, now detached safely at a96; branch5260 is preserved. The unrelated old dirty AUTH-04 checkout is not the execution route and must remain untouched. #621/#305 hold the exact published control commit and actual direct dispatch; a branch name or planned issue is not authorization.
 
-The owning issue and ADR fix new role/unit codes, schema27 and explicit writer-capability negotiation, old-client loss prevention, one CSV/XLSX path and basic selector support. Main permits only those narrow shared-file prerequisites. Existing v1 definitions/resolvers and #619 semantics remain frozen. No analytics formula, Historian/driver, HA/security/licensing behavior, dependency or workflow change is authorized in A. ADR-016 defines B's finite physical formulas and temporal limits, but B needs Main activation after verified A; no new research cycle or Product Owner permission is required merely to take that internal step.
+Both broad attempts failed in `AuthorityPolicyTwoApiPostgreSqlEvidenceTests.RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack` at initial-policy synchronization (`WaitForInitialPolicyCommitAsync:844`), before lifecycle acceptance. Attempt2 Backend job116957374868 is final red evidence; runtime smoke did not execute. The one justified failed-job retry budget is exhausted. No additional same-head CI, changed assertion/timeout, workflow change, HA product edit or B activation is authorized.
+
+CODEX's next return is a read-only diagnosis with real file/symbol/log references and a proposed smallest discriminating local experiment. Compare T1 vs broad test composition, child-process lifecycle, inherited state/ports/build artifacts and cleanup; separate observations from hypotheses. Main must dispose the experiment before execution. Existing canonical Linux harness may be inspected, but its broad `all` mode/global volumes are not permission to start suites or repair Docker. A demonstrated fix requiring HA product/front expansion must return for Product Owner direction, not become implicit #621 scope.
+
+The reviewed A delivery adds fixed v2 role/unit codes, schema27 and writer-capability negotiation, old-client loss prevention, one CSV/XLSX path and basic selector support. Existing v1 definitions/resolvers and #619 semantics remain frozen. No analytics formula, Historian/driver, HA/security/licensing behavior, dependency or workflow change is authorized in A. ADR-016 and planned #623 define B's finite physical formulas and temporal limits, but B needs Main activation after verified A; no new research cycle or repeated Product Owner permission is required merely to take that internal step once its prerequisite actually passes.
 
 ## Responsibilities
 
@@ -72,7 +77,7 @@ Main records review separately from the original evidence. An acknowledgement is
 
 PR #620's `current-at-recorded-frequency.compare.v1` is integrated/verified at the checkpoint above, with local 78/78, exact T1 #38832922847 attempt2 and exact post-merge #38834562474. It compares recorded-frequency-conditioned observations, not verified equivalent regimes or efficiency. Earlier descriptive/coverage/temporal/net-rate foundations remain accepted; they do not establish all of Stage 3 as complete.
 
-The [finite acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining scope: PERFORMANCE-V1A #621, then B's declared formulas, then exact-composition acceptance audit. The one compatibility split is justified by the observed lower-version writer/import risk, not by an indefinite investigation. Main reviews A's delivery and supplies B's verified base. Stage 4/5/6 and a renewed HA lane are not active orders.
+The [finite acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining scope: finish verification of PERFORMANCE-V1A #621, then activate B #623's declared formulas, then exact-composition acceptance audit. The compatibility split addresses the observed lower-version writer/import risk. Main supplies B's verified base only after A's gate passes. Stage 4/5/6 and a renewed HA lane are not active orders.
 
 ## Persistent authority
 

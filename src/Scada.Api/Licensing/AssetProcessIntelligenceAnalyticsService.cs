@@ -453,6 +453,148 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
+    public async Task<IResult> ExecuteContextualReferenceDeviationV1Async(
+        HttpContext context,
+        AssetProcessIntelligenceContextualReferenceDeviationV1QueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(request);
+        var requestToken = cancellationToken == default ? context.RequestAborted : cancellationToken;
+        var invalid = ValidateContextualReferenceDeviationRequest(request);
+        if (invalid is not null) return invalid;
+
+        try
+        {
+            var trendAuthorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.TrendUse,
+                cancellationToken: requestToken);
+            var trendFailure = trendAuthorization.FailureResult();
+            if (trendFailure is not null) return trendFailure;
+            if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+                return Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED");
+
+            var preparedResult = await PrepareContextualReferenceDeviationAsync(context, request, requestToken);
+            if (preparedResult.Error is not null) return preparedResult.Error;
+            var plan = preparedResult.Plan!;
+            var validationPlans = new[] { plan.TargetPlan, plan.ConditionPlan };
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(requestToken, plan.PermitToken);
+            var budget = new ContextualReferenceRawRowBudget();
+
+            var referenceTarget = await ReadContextualReferenceObservationsAsync(
+                context, request.ReferenceWindow!, plan.TargetPlan, validationPlans, budget, linkedCancellation.Token);
+            if (referenceTarget.Error is not null) return referenceTarget.Error;
+            var referenceCondition = await ReadContextualReferenceObservationsAsync(
+                context, request.ReferenceWindow!, plan.ConditionPlan, validationPlans, budget, linkedCancellation.Token);
+            if (referenceCondition.Error is not null) return referenceCondition.Error;
+            var evaluationTarget = await ReadContextualReferenceObservationsAsync(
+                context, request.EvaluationWindow!, plan.TargetPlan, validationPlans, budget, linkedCancellation.Token);
+            if (evaluationTarget.Error is not null) return evaluationTarget.Error;
+            var evaluationCondition = await ReadContextualReferenceObservationsAsync(
+                context, request.EvaluationWindow!, plan.ConditionPlan, validationPlans, budget, linkedCancellation.Token);
+            if (evaluationCondition.Error is not null) return evaluationCondition.Error;
+
+            var calculation = AssetProcessIntelligenceContextualReferenceDeviationV1Calculator.Calculate(
+                request.ReferenceWindow!,
+                request.EvaluationWindow!,
+                referenceTarget.Observations!,
+                referenceCondition.Observations!,
+                evaluationTarget.Observations!,
+                evaluationCondition.Observations!,
+                plan.Condition.ControlledEngineeringUnit!,
+                plan.ConditionLowerCanonical,
+                plan.ConditionUpperCanonical);
+
+            await using var finalMutation = await workspace.AcquireMutationAsync(plan.ChangeVersion, linkedCancellation.Token);
+            var finalCheck = await RevalidateContextualReferencePlansAsync(context, validationPlans, linkedCancellation.Token);
+            if (finalCheck is not null) return finalCheck;
+
+            return Results.Ok(new AssetProcessIntelligenceContextualReferenceDeviationV1Response(
+                AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.ContractVersion,
+                AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.CatalogVersion,
+                AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.RuleId,
+                AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.RuleVersion,
+                plan.ProjectKey,
+                plan.Revision,
+                request.ScopeKind,
+                request.ScopeId,
+                plan.Assignment.Id,
+                plan.Assignment.EquipmentId,
+                plan.Profile.Id,
+                plan.TargetDescription,
+                plan.ConditionDescription,
+                request.ReferenceWindow!,
+                request.EvaluationWindow!,
+                plan.ConditionLowerCanonical,
+                plan.ConditionUpperCanonical,
+                plan.ConditionUnit.CanonicalUnit,
+                calculation.ReferenceEvidence,
+                calculation.EvaluationEvidence,
+                calculation.ReferenceMedian,
+                calculation.ReferenceMad,
+                calculation.Status,
+                calculation.ReasonCodes,
+                budget.TotalRows,
+                calculation.EvaluationSamples.Count,
+                calculation.OmittedEvaluationSamples,
+                calculation.EvaluationSamples,
+                new AssetProcessIntelligenceContextualReferenceDeviationV1Provenance(
+                    HistoricalDatasets.HistorianSamplesV2,
+                    2,
+                    "Historian observation timestamps bound query and paging; accepted source timestamps must independently fall inside their declared window.",
+                    "exact equality of the target and condition TAG source.timestamp values; no tolerance, nearest-time join, interpolation, or carry-forward.",
+                    "Both rows require explicit Synchronized source timestamp evidence; that evidence does not establish physical simultaneity or clock accuracy.",
+                    "not_assessed",
+                    "unknown",
+                    plan.Target.EngineeringUnit ?? "tag engineering unit (as configured)",
+                    "Reference median and MAD use exact synchronized target/condition pairs whose canonical condition value is within [lowerInclusive, upperExclusive). Evaluation raw difference is the target value minus the selected reference median. Robust score is 0.67448975 * raw difference / reference MAD only with at least 30 qualified reference pairs and positive MAD.")));
+        }
+        catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED");
+        }
+        catch (EngineeringWorkspaceVersionConflictException)
+        {
+            return Conflict("INTELLIGENCE_WORKSPACE_CHANGED");
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Forbidden("HISTORICAL_QUERY_FORBIDDEN");
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_CURSOR_INVALID", "Historical query cursor is invalid."));
+        }
+        catch (HistoricalQueryValidationException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_INVALID", "The bounded Historian query was rejected."));
+        }
+        catch (HistoricalQueryProviderException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_UNAVAILABLE", "Historical data is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_RESPONSE_INVALID", "The Historian response did not match the requested TAG and window."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
     public async Task<IResult> ExecuteProfileCoverageAsync(
         HttpContext context,
         AssetProcessIntelligenceProfileCoverageQueryRequest request,
@@ -1085,6 +1227,193 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             new PreparedCurrentFrequencySignal(currentSignal, currentTag, currentBinding, currentDefinition, currentPlan, currentDescription),
             new PreparedCurrentFrequencySignal(frequencySignal, frequencyTag, frequencyBinding, frequencyDefinition, frequencyPlan, frequencyDescription),
             permitToken));
+    }
+
+    private async Task<PreparedContextualReferencePlanResult> PrepareContextualReferenceDeviationAsync(
+        HttpContext context,
+        AssetProcessIntelligenceContextualReferenceDeviationV1QueryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var beforeLock = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(beforeLock, runtime.Describe(), out var coherenceError))
+            return PreparedContextualReferencePlanResult.Fail(coherenceError!);
+
+        await using var mutation = await workspace.AcquireMutationAsync(beforeLock.ChangeVersion, cancellationToken);
+        var descriptor = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(descriptor, runtime.Describe(), out coherenceError))
+            return PreparedContextualReferencePlanResult.Fail(coherenceError!);
+        if (!highAvailability.CanOwnIndustrialEffects())
+            return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE"));
+        if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+            return PreparedContextualReferencePlanResult.Fail(Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED"));
+
+        var policyVersion = 0L;
+        var haEpoch = 0L;
+        if (authorityPolicyHa is not null)
+        {
+            var authorityFence = await authorityPolicyHa.CheckAsync(cancellationToken);
+            if (!authorityFence.Allowed)
+                return PreparedContextualReferencePlanResult.Fail(
+                    Conflict(authorityFence.ReasonCode.ToUpperInvariant().Replace('-', '_')));
+            policyVersion = authorityFence.PolicyVersion;
+            haEpoch = authorityFence.HaEpoch;
+            var refreshedTrendAuthorization = await security.CheckRuntimeAsync(
+                context, runtime, SecurityCapability.TrendUse, cancellationToken: cancellationToken);
+            var refreshedTrendFailure = refreshedTrendAuthorization.FailureResult();
+            if (refreshedTrendFailure is not null)
+                return PreparedContextualReferencePlanResult.Fail(refreshedTrendFailure);
+        }
+
+        var configuration = workspace.AssetProcessIntelligence.Snapshot();
+        if (configuration.Version != 2)
+            return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
+        var scopes = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
+            .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId).Take(2).ToArray();
+        if (scopes.Length != 1 || !scopes[0].Active)
+            return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
+        if (!executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
+                request.ScopeKind, request.ScopeId, out var permitToken, policyVersion, haEpoch))
+            return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
+
+        var assignments = (configuration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>())
+            .Where(item => item.Id == request.AssignmentId).Take(2).ToArray();
+        if (assignments.Length != 1)
+            return PreparedContextualReferencePlanResult.Fail(NotFound("INTELLIGENCE_ASSIGNMENT_NOT_AVAILABLE"));
+        var assignment = assignments[0];
+        var profiles = (configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+            .Where(item => item.Id == assignment.ProfileId).Take(2).ToArray();
+        if (profiles.Length != 1)
+            return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_PROFILE_NOT_AVAILABLE_OR_AMBIGUOUS"));
+        var profile = profiles[0];
+        var signals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>()).ToArray();
+        if (signals.Any(signal => signal is null || signal.Id == Guid.Empty || signal.TagId == Guid.Empty))
+            return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_PROFILE_SIGNAL_IDENTITY_INVALID"));
+        var targets = signals.Where(signal => signal.Id == request.TargetSignalId).Take(2).ToArray();
+        var conditions = signals.Where(signal => signal.Id == request.ConditionSignalId).Take(2).ToArray();
+        if (targets.Length != 1 || conditions.Length != 1 || request.TargetSignalId == request.ConditionSignalId ||
+            targets[0].TagId == conditions[0].TagId)
+            return PreparedContextualReferencePlanResult.Fail(BadRequest("INTELLIGENCE_CONTEXTUAL_REFERENCE_SIGNAL_IDENTITY_INVALID"));
+        var targetSignal = targets[0];
+        var conditionSignal = conditions[0];
+
+        var targetResolution = ResolveScopeSources(request.ScopeKind, request.ScopeId, targetSignal.TagId, configuration, workspace.Assets);
+        if (targetResolution.Error is not null) return PreparedContextualReferencePlanResult.Fail(targetResolution.Error);
+        var conditionResolution = ResolveScopeSources(request.ScopeKind, request.ScopeId, conditionSignal.TagId, configuration, workspace.Assets);
+        if (conditionResolution.Error is not null) return PreparedContextualReferencePlanResult.Fail(conditionResolution.Error);
+        var targetAssignment = targetResolution.Assignments!
+            .Where(item => item.AssignmentId == assignment.Id && item.ProfileId == profile.Id && item.SignalId == targetSignal.Id)
+            .Take(2).ToArray();
+        var conditionAssignment = conditionResolution.Assignments!
+            .Where(item => item.AssignmentId == assignment.Id && item.ProfileId == profile.Id && item.SignalId == conditionSignal.Id)
+            .Take(2).ToArray();
+        if (targetAssignment.Length != 1 || conditionAssignment.Length != 1 ||
+            targetAssignment[0].EquipmentId != assignment.EquipmentId || conditionAssignment[0].EquipmentId != assignment.EquipmentId)
+            return PreparedContextualReferencePlanResult.Fail(NotFound("INTELLIGENCE_ASSIGNMENT_NOT_IN_ACTIVE_SCOPE"));
+        if (!runtime.TryGetTag(targetSignal.TagId, out var targetTag) || targetTag is null || !IsNumeric(targetTag.DataType) ||
+            !runtime.TryGetTag(conditionSignal.TagId, out var conditionTag) || conditionTag is null || !IsNumeric(conditionTag.DataType))
+            return PreparedContextualReferencePlanResult.Fail(NotFound("INTELLIGENCE_ANALYTICS_SOURCE_NOT_AVAILABLE"));
+        if (!ControlledEngineeringSemanticsResolver.TryResolveUnit(conditionTag.ControlledEngineeringUnit, out var conditionUnit))
+            return PreparedContextualReferencePlanResult.Fail(BadRequest("INTELLIGENCE_CONTEXTUAL_REFERENCE_CONDITION_UNIT_UNSUPPORTED"));
+        var lowerCanonical = request.ConditionLowerInclusiveCanonical;
+        var upperCanonical = request.ConditionUpperExclusiveCanonical;
+
+        var targetAuthorization = await security.CheckRuntimeTagAsync(context, runtime, targetTag, TagAccessOperation.Read, cancellationToken);
+        var targetFailure = targetAuthorization.FailureResult();
+        if (targetFailure is not null) return PreparedContextualReferencePlanResult.Fail(targetFailure);
+        var conditionAuthorization = await security.CheckRuntimeTagAsync(context, runtime, conditionTag, TagAccessOperation.Read, cancellationToken);
+        var conditionFailure = conditionAuthorization.FailureResult();
+        if (conditionFailure is not null) return PreparedContextualReferencePlanResult.Fail(conditionFailure);
+        if (permitToken.IsCancellationRequested)
+            return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED"));
+
+        var targetPlan = new PreparedPlan(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion,
+            targetTag, Array.AsReadOnly(targetAssignment), permitToken, request.ScopeKind, request.ScopeId, policyVersion, haEpoch);
+        var conditionPlan = new PreparedPlan(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion,
+            conditionTag, Array.AsReadOnly(conditionAssignment), permitToken, request.ScopeKind, request.ScopeId, policyVersion, haEpoch);
+        var targetUnit = ControlledEngineeringSemanticsResolver.TryResolveUnit(targetTag.ControlledEngineeringUnit, out var targetDefinition)
+            ? targetDefinition
+            : null;
+        var targetDescription = DescribeContextualReferenceSignal(targetSignal, targetTag, targetUnit);
+        var conditionDescription = DescribeContextualReferenceSignal(conditionSignal, conditionTag, conditionUnit);
+        return PreparedContextualReferencePlanResult.Ready(new PreparedContextualReferencePlan(
+            descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion, assignment, profile,
+            targetTag, conditionTag, targetPlan, conditionPlan, targetDescription, conditionDescription, conditionUnit,
+            lowerCanonical, upperCanonical, permitToken));
+    }
+
+    private static AssetProcessIntelligenceContextualReferenceDeviationV1Signal DescribeContextualReferenceSignal(
+        AssetProcessIntelligenceSignalEngineeringDto signal,
+        TagDefinition tag,
+        ControlledEngineeringUnitDefinition? unit) => new(
+        signal.Id, signal.Key, tag.Id, tag.Path, tag.DataType, tag.EngineeringUnit,
+        tag.ControlledEngineeringUnit?.Code, unit?.CanonicalUnit);
+
+    private async Task<ContextualReferenceObservationReadResult> ReadContextualReferenceObservationsAsync(
+        HttpContext context,
+        AssetProcessIntelligenceAnalyticsWindow window,
+        PreparedPlan tagPlan,
+        IReadOnlyList<PreparedPlan> allPlans,
+        ContextualReferenceRawRowBudget budget,
+        CancellationToken cancellationToken)
+    {
+        var observations = new List<AssetProcessIntelligenceContextualReferenceRawObservation>();
+        var cursors = new HashSet<string>(StringComparer.Ordinal);
+        string? cursor = null;
+        var pageCount = 0;
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (budget.TotalRows >= AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.MaximumRawRowsAcrossQuery)
+                return ContextualReferenceObservationReadResult.Fail(WindowTooDense("INTELLIGENCE_CONTEXTUAL_REFERENCE_WINDOW_TOO_DENSE"));
+            if (++pageCount > AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.MaximumRawRowsAcrossQuery /
+                AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.QueryPageSize + 1)
+                throw new InvalidDataException("Historian pagination exceeded the bounded contextual-reference page count.");
+
+            await using var mutation = await workspace.AcquireMutationAsync(tagPlan.ChangeVersion, cancellationToken);
+            var validation = await RevalidateContextualReferencePlansAsync(context, allPlans, cancellationToken);
+            if (validation is not null) return ContextualReferenceObservationReadResult.Fail(validation);
+            var remaining = AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.MaximumRawRowsAcrossQuery - budget.TotalRows;
+            var pageSize = Math.Min(AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.QueryPageSize, remaining);
+            var query = new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamplesV2,
+                HistoricalTimeRange.Absolute(window.FromUtc, window.ToUtc),
+                Version: 2,
+                Filters: [new HistoricalFilter("tag.id", HistoricalFilterOperator.Eq, [HistoricalQueryValue.FromGuid(tagPlan.Tag.Id)])],
+                OrderBy: [new HistoricalSort("timestamp", HistoricalSortDirection.Ascending)],
+                Page: new HistoricalPageRequest(pageSize, cursor));
+            var response = await historicalQueries.QueryAsync(query, cancellationToken);
+            ValidateCurrentFrequencyPage(response, window, tagPlan.Tag.Id, pageSize);
+            validation = await RevalidateContextualReferencePlansAsync(context, allPlans, cancellationToken);
+            if (validation is not null) return ContextualReferenceObservationReadResult.Fail(validation);
+            var projected = budget.TotalRows + response.Rows.Count;
+            if (projected > AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.MaximumRawRowsAcrossQuery ||
+                (projected == AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.MaximumRawRowsAcrossQuery && response.NextCursor is not null))
+                return ContextualReferenceObservationReadResult.Fail(WindowTooDense("INTELLIGENCE_CONTEXTUAL_REFERENCE_WINDOW_TOO_DENSE"));
+            foreach (var row in response.Rows) observations.Add(ToContextualReferenceObservation(row));
+            budget.TotalRows = projected;
+            cursor = response.NextCursor;
+            if (cursor is not null && !cursors.Add(cursor))
+                throw new InvalidDataException("Historian pagination cursor repeated.");
+        }
+        while (cursor is not null);
+        return ContextualReferenceObservationReadResult.Ready(observations.AsReadOnly());
+    }
+
+    private async Task<IResult?> RevalidateContextualReferencePlansAsync(
+        HttpContext context,
+        IReadOnlyList<PreparedPlan> plans,
+        CancellationToken cancellationToken)
+    {
+        foreach (var plan in plans)
+        {
+            var validation = await RevalidateAsync(context, plan, cancellationToken);
+            if (validation is not null) return validation;
+            if (!runtime.TryGetTag(plan.Tag.Id, out var activeTag) || activeTag is null ||
+                !string.Equals(activeTag.EngineeringUnit, plan.Tag.EngineeringUnit, StringComparison.Ordinal) ||
+                activeTag.ControlledEngineeringUnit != plan.Tag.ControlledEngineeringUnit)
+                return Conflict("INTELLIGENCE_ACTIVE_TAG_SEMANTICS_CHANGED");
+        }
+        return null;
     }
 
     private static AssetProcessIntelligenceCurrentFrequencyComparisonV1Signal DescribeCurrentFrequencySignal(
@@ -1864,6 +2193,24 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         return null;
     }
 
+    private static IResult? ValidateContextualReferenceDeviationRequest(
+        AssetProcessIntelligenceContextualReferenceDeviationV1QueryRequest request)
+    {
+        if (!Enum.IsDefined(request.ScopeKind) || request.ScopeId == Guid.Empty || request.AssignmentId == Guid.Empty ||
+            request.TargetSignalId == Guid.Empty || request.ConditionSignalId == Guid.Empty ||
+            request.TargetSignalId == request.ConditionSignalId)
+            return BadRequest("INTELLIGENCE_CONTEXTUAL_REFERENCE_IDENTITY_INVALID");
+        if (request.ReferenceWindow is null || request.EvaluationWindow is null ||
+            !ValidCurrentFrequencyWindow(request.ReferenceWindow) || !ValidCurrentFrequencyWindow(request.EvaluationWindow))
+            return BadRequest("INTELLIGENCE_CONTEXTUAL_REFERENCE_WINDOWS_INVALID");
+        if (request.ReferenceWindow.ToUtc >= request.EvaluationWindow.FromUtc)
+            return BadRequest("INTELLIGENCE_CONTEXTUAL_REFERENCE_EVALUATION_WINDOW_MUST_BE_LATER");
+        if (!double.IsFinite(request.ConditionLowerInclusiveCanonical) || !double.IsFinite(request.ConditionUpperExclusiveCanonical) ||
+            request.ConditionLowerInclusiveCanonical >= request.ConditionUpperExclusiveCanonical)
+            return BadRequest("INTELLIGENCE_CONTEXTUAL_REFERENCE_CONDITION_RANGE_INVALID");
+        return null;
+    }
+
     private static IResult? ValidatePerformanceV1BRequest(AssetProcessIntelligencePerformanceV1BQueryRequest request)
     {
         if (!Enum.IsDefined(request.ScopeKind) || request.ScopeId == Guid.Empty ||
@@ -2041,6 +2388,22 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         return new(timestamp, quality, row.Cells["value"], sourceTimestamp, sourceEvidence);
     }
 
+    private static AssetProcessIntelligenceContextualReferenceRawObservation ToContextualReferenceObservation(
+        HistoricalQueryRow row)
+    {
+        var timestamp = row.Cells["timestamp"].AsDateTime();
+        var quality = row.Cells["quality"].Kind is HistoricalValueKind.Enum or HistoricalValueKind.String
+            ? row.Cells["quality"].Value
+            : null;
+        DateTimeOffset? sourceTimestamp = row.Cells["source.timestamp"].Kind == HistoricalValueKind.DateTime
+            ? row.Cells["source.timestamp"].AsDateTime()
+            : null;
+        var sourceEvidence = row.Cells["source.timestamp.status"].Kind is HistoricalValueKind.Enum or HistoricalValueKind.String
+            ? row.Cells["source.timestamp.status"].Value
+            : null;
+        return new(timestamp, quality, row.Cells["value"], sourceTimestamp, sourceEvidence);
+    }
+
     private static bool IsNumeric(TagDataType type) => type is
         TagDataType.Int16 or TagDataType.Int32 or TagDataType.Int64 or TagDataType.Float or TagDataType.Double;
 
@@ -2163,6 +2526,29 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         public static PreparedCurrentFrequencyComparisonResult Fail(IResult error) => new(null, error);
     }
 
+    private sealed record PreparedContextualReferencePlan(
+        string ProjectKey,
+        long Revision,
+        long ChangeVersion,
+        AssetProcessIntelligenceAssignmentEngineeringDto Assignment,
+        AssetProcessIntelligenceProfileEngineeringDto Profile,
+        TagDefinition Target,
+        TagDefinition Condition,
+        PreparedPlan TargetPlan,
+        PreparedPlan ConditionPlan,
+        AssetProcessIntelligenceContextualReferenceDeviationV1Signal TargetDescription,
+        AssetProcessIntelligenceContextualReferenceDeviationV1Signal ConditionDescription,
+        ControlledEngineeringUnitDefinition ConditionUnit,
+        double ConditionLowerCanonical,
+        double ConditionUpperCanonical,
+        CancellationToken PermitToken);
+
+    private sealed record PreparedContextualReferencePlanResult(PreparedContextualReferencePlan? Plan, IResult? Error)
+    {
+        public static PreparedContextualReferencePlanResult Ready(PreparedContextualReferencePlan plan) => new(plan, null);
+        public static PreparedContextualReferencePlanResult Fail(IResult error) => new(null, error);
+    }
+
     private sealed class CurrentFrequencyRawRowBudget
     {
         public int TotalRows { get; set; }
@@ -2175,6 +2561,20 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         public static CurrentFrequencyObservationReadResult Ready(
             IReadOnlyList<AssetProcessIntelligenceCurrentFrequencyRawObservation> observations) => new(observations, null);
         public static CurrentFrequencyObservationReadResult Fail(IResult error) => new(null, error);
+    }
+
+    private sealed class ContextualReferenceRawRowBudget
+    {
+        public int TotalRows { get; set; }
+    }
+
+    private sealed record ContextualReferenceObservationReadResult(
+        IReadOnlyList<AssetProcessIntelligenceContextualReferenceRawObservation>? Observations,
+        IResult? Error)
+    {
+        public static ContextualReferenceObservationReadResult Ready(
+            IReadOnlyList<AssetProcessIntelligenceContextualReferenceRawObservation> observations) => new(observations, null);
+        public static ContextualReferenceObservationReadResult Fail(IResult error) => new(null, error);
     }
 
     private sealed record PreparedPerformanceV1BPlan(

@@ -13,8 +13,8 @@ Snapshot: 2026-10-16. Replace this snapshot when state changes; keep detailed hi
 | Integrated product HEAD | `a96b49b5531835b2b07ca6f2dc4a2f24be63973e` — PR #622 / #621, NOT VERIFIED |
 | Product executor | Chat CODEX; #621 PERFORMANCE-V1A implementation reviewed and integrated |
 | Immediate gate | Broad post-merge Backend failed twice; runtime smoke NOT RUN |
-| Next owner/action | CODEX read-only diagnosis and one proposed discriminating local experiment; Main decides before execution |
-| Product authorization in this snapshot | Finish #621 verification; no further same-head CI retry, HA edit or #623 activation |
+| Next owner/action | CODEX runs one isolated Linux reproduction of the failing method; Main reads exact result |
+| Product authorization in this snapshot | One local Linux method only; no further same-head CI, HA product edit or #623 activation |
 
 Coordination-only commits after the product checkpoint do not invalidate its product evidence. Discover the current coordination HEAD from the live integration ref.
 
@@ -26,7 +26,7 @@ Workflow adjustment #618 is complete. The finite [Stage 3 acceptance matrix](WAV
 - A candidate `5260ccfe7a1ba6b5ef8cfc3dc0b1d6a5be070f6d`: corrected local Core135/135 and endpoint/analytics97/97; [T1 #38893549917](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38893549917) passed. Merge `a96b49b5531835b2b07ca6f2dc4a2f24be63973e` has exactly the candidate tree; tree identity is not a commit SHA.
 - Broad [#38894694846 attempt1](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38894694846/attempts/1) and the single evidenced [attempt2](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38894694846/attempts/2) failed in `RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack`, initial-policy synchronization at `WaitForInitialPolicyCommitAsync:844`. Backend jobs116952251038 and116957374868; Drivers1518 passed/1 failed/1 skipped in each. Runtime smoke NOT RUN; Web and Chromium integration passed; full-browser E2E skipped. No further same-head CI retry is authorized.
 - CODEX ran that existing test on exact merge a96 with required-PostgreSQL flag and a dedicated disposable database: Windows local1/1 passed,0 failed/0 skipped,36s test. This is two database names on one server, not independent physical-server failure. No source/assertion/timeout/workflow changes; worktree clean. Main removed only its temporary Compose project; existing stable containers were untouched. The earlier Docker-access blocker is no longer current. A local pass does not establish the CI root cause or override the failed gate.
-- #621/#622 contain the reviewed implementation and exact evidence; #621/#305 record the blocked gate and the read-only CODEX diagnosis. No HA product development is authorized; B remains blocked until A is verified.
+- #621/#622 contain the reviewed implementation and exact evidence; #621/#305 record the blocked gate, CODEX diagnosis, and Main's single local Linux experiment authorization. No HA product development is authorized; B remains blocked until A is verified.
 
 ## Operating documents
 

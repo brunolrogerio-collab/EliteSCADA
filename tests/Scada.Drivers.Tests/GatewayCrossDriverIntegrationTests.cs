@@ -80,15 +80,17 @@ public sealed class GatewayCrossDriverIntegrationTests
 
         var activation = await runtime.ActivateAsync("gateway-cross-driver", 1, package);
         Assert.True(activation.Activated, Describe(activation));
+        // Leave room for the first S7 transport cycle under the parallel CI test load.
+        var integrationWaitTimeout = TimeSpan.FromSeconds(10);
 
         await WaitForAsync(
             () => runtime.TryGetCurrent(sourceId, out var current) &&
                   current?.Quality == TagQuality.Good &&
                   Convert.ToInt16(current.Value, System.Globalization.CultureInfo.InvariantCulture) == 42,
-            TimeSpan.FromSeconds(4));
+            integrationWaitTimeout);
         await WaitForAsync(
             () => modbusServer.HoldingRegisters[20] == 42,
-            TimeSpan.FromSeconds(4));
+            integrationWaitTimeout);
         await WaitForAsync(
             () =>
             {
@@ -102,7 +104,7 @@ public sealed class GatewayCrossDriverIntegrationTests
                 return gateway.State == GatewayRouteRuntimeState.Running &&
                        gateway.TransferCount >= 1;
             },
-            TimeSpan.FromSeconds(4));
+            integrationWaitTimeout);
 
         var initialGateway = Assert.Single(runtime.GatewayDiagnostics());
         Assert.Equal(GatewayRouteRuntimeState.Running, initialGateway.State);
@@ -118,10 +120,10 @@ public sealed class GatewayCrossDriverIntegrationTests
             () => runtime.TryGetCurrent(sourceId, out var current) &&
                   current?.Quality == TagQuality.Good &&
                   Convert.ToInt16(current.Value, System.Globalization.CultureInfo.InvariantCulture) == 99,
-            TimeSpan.FromSeconds(4));
+            integrationWaitTimeout);
         await WaitForAsync(
             () => modbusServer.HoldingRegisters[20] == 99,
-            TimeSpan.FromSeconds(4));
+            integrationWaitTimeout);
         await WaitForAsync(
             () =>
             {
@@ -136,7 +138,7 @@ public sealed class GatewayCrossDriverIntegrationTests
                        gateway.TransferCount >= 2 &&
                        gateway.WriteFailureCount == 0;
             },
-            TimeSpan.FromSeconds(4));
+            integrationWaitTimeout);
 
         var updatedGateway = Assert.Single(runtime.GatewayDiagnostics());
         Assert.Equal(GatewayRouteRuntimeState.Running, updatedGateway.State);

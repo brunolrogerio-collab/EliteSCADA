@@ -1,8 +1,8 @@
 # ADR-016 — Intelligence performance inputs and recorded physical indicators
 
-Status: MAIN APPROVED DESIGN; PERFORMANCE-V1A #621 is INTEGRATED / VERIFIED after exact-merge T2 #38943570688 on product checkpoint `257a4ab3c40a023beea91a027e5c3d692c22f72c`. PERFORMANCE-V1B #623 is ACTIVE from that verified product base; Main's exact immutable control commit and direct CODEX dispatch are recorded in #623. Parent: #588; acceptance rows S3-05/S3-06 remain partial until B and Main's finite audit pass.
+Status: MAIN APPROVED DESIGN; PERFORMANCE-V1A #621 is INTEGRATED / VERIFIED after exact-merge T2 #38943570688 on `257a4ab3c40a023beea91a027e5c3d692c22f72c`. PERFORMANCE-V1B #623 / PR #626 is integrated at `ab38bfe879d6ca8074aa5c38b821c7da62634768`; candidate T1 #38956508442 and exact-merge T2 #38961262161 passed. Main's post-merge audit found a required S3-07 test-coverage gap. A test-only follow-up is active from exact base `ab38bfe`; full #623/Stage 3 acceptance is not VERIFIED/FROZEN pending Main review, exact T1 and corrected post-merge T2. Parent: #588.
 
-Original design evidence base: `ee0371ffc50113f085dc5fb36cc257931b075e1c`, PR #620 / #619, verified by [post-merge 38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474). Current verified PERFORMANCE-V1B implementation base: `257a4ab3c40a023beea91a027e5c3d692c22f72c`, with exact post-merge T2 #38943570688 green. B's immutable Main control/start commit is recorded in #623; implementation preserves this verified product tree apart from Main coordination documents and the bounded B changes below.
+Original design evidence base: `ee0371ffc50113f085dc5fb36cc257931b075e1c`, PR #620 / #619, verified by [post-merge 38834562474](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38834562474). A's verified base was `257a4ab3c40a023beea91a027e5c3d692c22f72c`; current product composition includes B at `ab38bfe`. The formula/temporal contracts below remain the accepted design; only the unfulfilled security-test evidence is being corrected.
 
 ## Actual dependencies and the finite split
 
@@ -36,9 +36,9 @@ Expose a static EngineeringView-protected `/api/engineering/asset-process-intell
 
 The full bounded scope, allowed paths, exact unit definitions, local/legacy/CSV/XLSX/UI acceptance and T1 return contract are #621. It explicitly authorizes only the necessary additive Engineering/configuration/import/editor changes, not a rewrite of frozen v1 consumers, security or Authority policy.
 
-## B — fixed formula families, not yet an implementation order
+## B — fixed formula families (implemented by PR #626; semantics frozen)
 
-The subsequent versioned catalog/query will use the existing analytics route group, under `/performance/v1/catalog` and `/performance/v1/query`. It accepts one active scope, one stable assignment/profile, explicit distinct signal IDs, one bounded UTC window and one of these rules; irrelevant inputs are refused, not read.
+The implemented versioned catalog/query reuses the existing analytics route group, under `/performance/v1/catalog` and `/performance/v1/query`. It accepts one active scope, one stable assignment/profile, explicit distinct signal IDs, one bounded UTC window and one of these rules; irrelevant inputs are refused, not read.
 
 | Rule ID | Qualified inputs and pointwise formula | Meaning |
 | --- | --- | --- |
@@ -60,10 +60,10 @@ Calculate per-qualified-tuple values, then deterministic sample summaries over a
 
 For S3-05, the finite V1 context is the stated input meanings, common assignment, requested window and exact qualified recorded-time tuple. This supports only the declared observed-data formulas. Synchronized timestamps do not prove physical co-acquisition, clock accuracy, expected acquisition cadence, calibration, completeness or globally equivalent operating regimes; report these unknown/unverified, and do not expose a verified-equivalent-regime or total-efficiency result without actual evidence. A frequency predicate in #619 is not that proof. Learned regime models remain Stage 4.
 
-Every selected TAG and TrendUse must be authorized before any read, around every page and at final publication, with existing entitlement, active scope, durable Authority/permit/revision gates and linked cancellation. Loss of authorization, scope, permit, entitlement or revision discards the entire operation. B must test in-flight revocation of every input, cancellation, revision changes, duplicates across pages, scalar rejection, aggregate bounds and no-partial failures, plus positive physical fixtures and v1 regression preservation. It requires focused local checks, exact published T1, Main review and exact post-merge CI.
+Every selected TAG and TrendUse must be authorized before any read, around every page and at final publication, with existing entitlement, active scope, durable Authority/permit/revision gates and linked cancellation. Loss of authorization, scope, permit, entitlement or revision discards the entire operation. B tests cover positive physical fixtures, row bounds, malformed evidence, refusals and no-partial failure behavior. Main's post-merge audit found that the specific revocation/context matrix is incomplete: the current between-page tests use only the two-input differential-pressure rule and revoke only its first selected TAG; they do not prove each input across both two-input rules and the three-input rule. The bounded test-only follow-up is authorized in #623 from `ab38bfe`, with only `AssetProcessIntelligenceAnalyticsTests.cs` allowed to change. Integration requires Main review, exact T1 and exact post-merge T2.
 
 ## Release sequence and permanent limits
 
-Main verified A only after exact post-merge evidence at `257a4ab3c40a023beea91a027e5c3d692c22f72c`, then published a new immutable control/start commit and activated B in #623. CODEX implements small reviewable commits on the exact assigned branch, provides local evidence and one coherent draft PR/T1, then waits. Main reviews/integrates and verifies exact-merge T2. B cannot move from the accepted formula/acceptance matrix or verified A base. Main then audits S3-01 through S3-08; no new statistic is added without an identified unmet row or Product Owner direction.
+Main verified A after exact post-merge evidence at `257a4ab3c40a023beea91a027e5c3d692c22f72c`, activated B in #623, and integrated PR #626 at `ab38bfe` with green exact T1/T2. Main then performed the required S3-01–S3-08 audit and opened the test-only correction for the remaining S3-07 matrix. CODEX provides one coherent draft PR/local evidence/exact T1; Main reviews/integrates and verifies exact-merge T2. No new statistic or changed frozen contract is authorized.
 
 No HA, Authority policy, licensing behavior, driver/time-evidence, Historian storage/provider, workflow, background worker/store, baseline or dashboard change is authorized. Windows/Linux and all declared product platforms remain scope. Owner HA local Preview/regression acceptance remains pending and is not replaced by CI. #588 and Wave15 remain open after A or B individually passes.

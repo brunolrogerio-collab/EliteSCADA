@@ -2,7 +2,7 @@
 
 Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — #623 PERFORMANCE-V1B observed physical indicators
+## Current order — #623 S3-07 security-test acceptance follow-up
 
 | Field | Order |
 | --- | --- |
@@ -10,19 +10,22 @@ Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current 
 | Executor | Chat CODEX for implementation and validation; Main for review/integration |
 | Product front | Intelligence #588; no change of front |
 | Integration target | `wave15/corrections-integration` |
-| Verified product checkpoint / B base | `257a4ab3c40a023beea91a027e5c3d692c22f72c` — PR #625 exact T2 green |
-| Main control/start | `coord/w15-intelligence-performance-v1b-activation-20261016`; exact immutable commit is recorded in #623 |
-| Objective | Deliver the three fixed, read-only recorded physical indicator rules with reproducible evidence |
-| Allowed changes | Add versioned performance catalog/calculator/query beneath the existing analytics route; reuse A canonical metadata, historian.samples.v2, existing query/security/scope guards and owning tests; see #623/ADR-016 |
-| Validation | Focused local calculator/service/API tests and API build; exact T1 SESSION_LICENSING plus inferred floor; Main source review and exact broad post-merge CI |
-| Completion | #623 finite acceptance implemented, integrated and verified; Main audits Stage3 S3-01–S3-08; no auto-close of #588/Wave15 |
-| Implementation branch | `work/w15-intelligence-performance-v1b-recorded-physical-indicators` |
+| Current product checkpoint / exact follow-up base | `ab38bfe879d6ca8074aa5c38b821c7da62634768` — PR #626 merged; T2 #38961262161 green |
+| Previously verified prerequisite | PERFORMANCE-V1A #621 at `257a4ab3`; exact T2 #38943570688 |
+| Objective | Close the explicit #623/S3-07 deterministic security-test matrix missing from post-merge review; do not change product behavior |
+| Allowed changes | `tests/Scada.Drivers.Tests/AssetProcessIntelligenceAnalyticsTests.cs` only |
+| Test matrix | Both 2-input rules and the 3-input ratio rule; revoke each selected TAG while another input page is deterministically in flight; permit cancellation plus workspace/revision/entitlement/scope invalidation in 2- and 3-input flows; no partial metric or unauthorized next read |
+| Validation | Focused PerformanceV1B and full Analytics class locally; one exact candidate T1; Main source/test review; integrate only after Main acceptance and verify exact post-merge T2 |
+| Completion | Main accepts the finite S3-07 tests and exact T1; after integration exact T2 passes, Main re-audits S3-01–S3-08. No auto-close of #588/Wave15 |
+| Implementation branch | `work/w15-intelligence-performance-v1b-security-matrix` |
 
 Workflow adjustment #618 is complete at coordination HEAD `120d93a477924b34994e2a1c2167b873c93c512d`; CODEX acknowledged the new process. Old documentation proposals #569/#591/#610 are closed with branches/evidence preserved. PERFORMANCE-V1A #621 is verified after the test-only PR #625 and exact post-merge T2 #38943570688.
 
-Start at the exact Main control commit recorded in [#623](https://github.com/brunolrogerio-collab/EliteSCADA/issues/623). It descends from verified product base `257a4ab3c40a023beea91a027e5c3d692c22f72c` and adds only this order, resume pointers, ADR status and the finite Stage3 matrix. CODEX uses a clean isolated implementation branch from that exact control commit; Main-authored docs join its draft PR. The owning issue records direct dispatch and actual executor availability separately; a credits failure is not execution and must not trigger repeated wakes.
+The original B package on #623/ADR-016 is integrated by PR #626 at `ab38bfe879d6ca8074aa5c38b821c7da62634768`. Exact-head T1 #38956508442 and exact-merge T2 #38961262161 passed. During the required Main audit, source review of `PerformanceV1B_RevocationOrContextChangeBetweenPagesDiscardsTheWholeQuery` found only the two-input differential-pressure rule and only `request.SignalIds[0]` revoked; the explicit #623 requirement for both two-/three-input flows and every selected TAG is therefore not yet proven. The correction is intentionally tests-only and does not reopen the accepted formulas or frozen A/#619 contracts.
 
-The owning issue #623 and ADR-016 fix B's three physical formula families, raw Historian-v2 evidence, exact synchronized source-time pairing, 50,000 combined-row cap, authorization/revision guards and no-partial-result behavior. A's schema27/unit/catalog/import/editor contracts and all #619 v1 meanings are frozen and must be reused, not reopened. No Authority/HA, licensing behavior, Historian storage/provider, driver, workflow, dependency, UI/dashboard, baseline, free-form formula, or Stage4–6 change is authorized. Do not infer total efficiency, global regime equivalence, integrated energy/production, or physical synchrony beyond the explicit evidence contract.
+Remote validation before dispatch: `wave15/corrections-integration` was `ab38bfe879d6ca8074aa5c38b821c7da62634768`; follow-up branch `work/w15-intelligence-performance-v1b-security-matrix` was absent. CODEX must revalidate both once before mutation, then use a clean isolated worktree from that exact base. The owning issue records dispatch and executor availability separately; do not confuse a published comment with a delivered task or repeat an unchanged wake.
+
+The owning issue #623 and ADR-016 fix B's three physical formula families, raw Historian-v2 evidence, exact synchronized source-time pairing, 50,000 combined-row cap, authorization/revision guards and no-partial-result behavior. A's schema27/unit/catalog/import/editor contracts and all #619 v1 meanings are frozen and must be reused, not reopened. This follow-up cannot modify product source, Authority/HA, licensing, Historian storage/provider, drivers, workflow, dependencies, UI/dashboard, baselines or formula semantics. Do not infer total efficiency, global regime equivalence, integrated energy/production, or physical synchrony beyond the explicit evidence contract. The prior Modbus result is treated as recurring timing per Product Owner and is outside this work.
 
 ## Responsibilities
 
@@ -73,7 +76,7 @@ Main records review separately from the original evidence. An acknowledgement is
 
 PR #620's `current-at-recorded-frequency.compare.v1` is integrated/verified at the checkpoint above, with local 78/78, exact T1 #38832922847 attempt2 and exact post-merge #38834562474. It compares recorded-frequency-conditioned observations, not verified equivalent regimes or efficiency. Earlier descriptive/coverage/temporal/net-rate foundations remain accepted; they do not establish all of Stage 3 as complete.
 
-The [finite acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) fixes the remaining scope: A #621 is verified, B #623 is active, then Main performs the exact-composition S3-01–S3-08 audit. The compatibility split is justified by the lower-version writer/import risk, not an indefinite investigation. Stage 4/5/6 and a renewed HA lane are not active orders. The Product Owner's HA Preview remains separate and pending.
+The [finite acceptance matrix](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md) records S3-01–S3-06 within their explicit meanings, with the global-regime/physical-synchrony limits preserved; S3-07 is the current test-only blocker. S3-08 must include the corrective candidate's exact T1 and exact post-merge T2. After that, Main re-audits the exact composition before setting the Stage 3 disposition. Stage 4/5/6 and a renewed HA lane are not current orders. The Product Owner's HA Preview remains separate and pending.
 
 ## Persistent authority
 

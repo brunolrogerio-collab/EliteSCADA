@@ -696,21 +696,23 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     {
         var persisted = (current.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
             .Where(profile => profile is not null)
-            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
-            .Where(signal => signal?.SemanticBinding is not null)
-            .GroupBy(signal => signal.Id)
-            .ToDictionary(group => group.Key, group => group.First());
+            .SelectMany(profile => (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                .Where(signal => signal?.SemanticBinding is not null)
+                .Select(signal => (Key: (profile.Id, signal!.Id), Signal: signal)))
+            .GroupBy(item => item.Key)
+            .ToDictionary(group => group.Key, group => group.First().Signal);
         if (persisted.Count == 0) return false;
         var replacement = (incoming.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
             .Where(profile => profile is not null)
-            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
-            .Where(signal => signal is not null)
-            .GroupBy(signal => signal.Id)
-            .ToDictionary(group => group.Key, group => group.First());
-        return persisted.Values.Any(signal =>
-            !replacement.TryGetValue(signal.Id, out var candidate) ||
-            candidate.TagId != signal.TagId ||
-            candidate.SemanticBinding != signal.SemanticBinding);
+            .SelectMany(profile => (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                .Where(signal => signal is not null)
+                .Select(signal => (Key: (profile.Id, signal!.Id), Signal: signal)))
+            .GroupBy(item => item.Key)
+            .ToDictionary(group => group.Key, group => group.First().Signal);
+        return persisted.Any(item =>
+            !replacement.TryGetValue(item.Key, out var candidate) ||
+            candidate.TagId != item.Value.TagId ||
+            candidate.SemanticBinding != item.Value.SemanticBinding);
     }
 
     private static bool OmitsPersistedVersion2SemanticBindings(
@@ -719,21 +721,23 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     {
         var persisted = (current.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
             .Where(profile => profile is not null)
-            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
-            .Where(signal => signal?.SemanticBinding?.CatalogVersion == 2)
-            .GroupBy(signal => signal.Id)
-            .ToDictionary(group => group.Key, group => group.First());
+            .SelectMany(profile => (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                .Where(signal => signal?.SemanticBinding?.CatalogVersion == 2)
+                .Select(signal => (ProfileId: profile.Id, Signal: signal!)))
+            .GroupBy(item => (item.ProfileId, item.Signal.Id))
+            .ToDictionary(group => group.Key, group => group.First().Signal);
         if (persisted.Count == 0) return false;
         var replacement = (incoming.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
             .Where(profile => profile is not null)
-            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
-            .Where(signal => signal is not null)
-            .GroupBy(signal => signal.Id)
-            .ToDictionary(group => group.Key, group => group.First());
-        return persisted.Values.Any(signal =>
-            !replacement.TryGetValue(signal.Id, out var candidate) ||
-            candidate.TagId != signal.TagId ||
-            candidate.SemanticBinding != signal.SemanticBinding);
+            .SelectMany(profile => (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                .Where(signal => signal is not null)
+                .Select(signal => (Key: (profile.Id, signal!.Id), Signal: signal)))
+            .GroupBy(item => item.Key)
+            .ToDictionary(group => group.Key, group => group.First().Signal);
+        return persisted.Any(item =>
+            !replacement.TryGetValue(item.Key, out var candidate) ||
+            candidate.TagId != item.Value.TagId ||
+            candidate.SemanticBinding != item.Value.SemanticBinding);
     }
 
     private static ImportEntityKind ImportKind(AssetProcessIntelligenceIssueEntity entity) => entity switch

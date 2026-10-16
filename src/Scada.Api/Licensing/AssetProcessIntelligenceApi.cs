@@ -356,62 +356,58 @@ public static class AssetProcessIntelligenceApi
     {
         var persisted = (current.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
             .Where(profile => profile is not null)
-            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
-            .Where(signal => signal?.SemanticBinding is not null)
-            .GroupBy(signal => signal.Id)
-            .Select(group => group.First());
-        var replacement = replacementProfiles
-            .Where(profile => profile is not null)
-            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
-            .Where(signal => signal is not null)
-            .GroupBy(signal => signal.Id)
-            .ToDictionary(group => group.Key, group => group.First());
-        return persisted.Any(signal =>
-            !replacement.TryGetValue(signal.Id, out var candidate) ||
-            candidate.TagId != signal.TagId ||
-            candidate.SemanticBinding != signal.SemanticBinding);
+            .SelectMany(profile => (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                .Where(signal => signal?.SemanticBinding is not null)
+                .Select(signal => (Key: (profile.Id, signal!.Id), Signal: signal)))
+            .GroupBy(item => item.Key)
+            .ToDictionary(group => group.Key, group => group.First().Signal);
+        var replacement = SignalsByProfileAndId(replacementProfiles);
+        return persisted.Any(item =>
+            !replacement.TryGetValue(item.Key, out var candidate) ||
+            candidate.TagId != item.Value.TagId ||
+            candidate.SemanticBinding != item.Value.SemanticBinding);
     }
 
     private static bool OmitsPersistedVersion2SemanticBindings(
         AssetProcessIntelligenceEngineeringDto current,
-        IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto> replacementProfiles) =>
-        PersistedVersion2SemanticBindings(current).Any(signal =>
-            !TryFindSignal(replacementProfiles, signal.Id, out var candidate) ||
-            candidate.TagId != signal.TagId ||
-            candidate.SemanticBinding != signal.SemanticBinding);
+        IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto> replacementProfiles)
+    {
+        var replacement = SignalsByProfileAndId(replacementProfiles);
+        return PersistedVersion2SemanticBindings(current).Any(persisted =>
+            !replacement.TryGetValue((persisted.ProfileId, persisted.Signal.Id), out var candidate) ||
+            candidate.TagId != persisted.Signal.TagId ||
+            candidate.SemanticBinding != persisted.Signal.SemanticBinding);
+    }
 
     private static bool AddsOrChangesVersion2SemanticBindings(
         AssetProcessIntelligenceEngineeringDto current,
         IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto> replacementProfiles)
     {
-        var persisted = PersistedVersion2SemanticBindings(current).ToDictionary(signal => signal.Id);
-        return replacementProfiles
-            .Where(profile => profile is not null)
-            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
-            .Where(signal => signal?.SemanticBinding?.CatalogVersion == 2)
-            .Any(signal => !persisted.TryGetValue(signal.Id, out var existing) ||
-                           existing.TagId != signal.TagId ||
-                           existing.SemanticBinding != signal.SemanticBinding);
+        var persisted = PersistedVersion2SemanticBindings(current)
+            .ToDictionary(item => (item.ProfileId, item.Signal.Id), item => item.Signal);
+        return SignalsByProfileAndId(replacementProfiles)
+            .Where(item => item.Value.SemanticBinding?.CatalogVersion == 2)
+            .Any(item => !persisted.TryGetValue(item.Key, out var existing) ||
+                         existing.TagId != item.Value.TagId ||
+                         existing.SemanticBinding != item.Value.SemanticBinding);
     }
 
-    private static IEnumerable<AssetProcessIntelligenceSignalEngineeringDto> PersistedVersion2SemanticBindings(
+    private static IEnumerable<(Guid ProfileId, AssetProcessIntelligenceSignalEngineeringDto Signal)> PersistedVersion2SemanticBindings(
         AssetProcessIntelligenceEngineeringDto configuration) =>
         (configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
         .Where(profile => profile is not null)
-        .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
-        .Where(signal => signal?.SemanticBinding?.CatalogVersion == 2);
+        .SelectMany(profile => (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+            .Where(signal => signal?.SemanticBinding?.CatalogVersion == 2)
+            .Select(signal => (profile.Id, signal!)));
 
-    private static bool TryFindSignal(
-        IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto> profiles,
-        Guid signalId,
-        out AssetProcessIntelligenceSignalEngineeringDto signal)
-    {
-        signal = profiles
+    private static Dictionary<(Guid ProfileId, Guid SignalId), AssetProcessIntelligenceSignalEngineeringDto> SignalsByProfileAndId(
+        IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto> profiles) => profiles
             .Where(profile => profile is not null)
-            .SelectMany(profile => profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
-            .FirstOrDefault(candidate => candidate?.Id == signalId)!;
-        return signal is not null;
-    }
+            .SelectMany(profile => (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                .Where(signal => signal is not null)
+                .Select(signal => (Key: (profile.Id, signal!.Id), Signal: signal)))
+            .GroupBy(item => item.Key)
+            .ToDictionary(group => group.Key, group => group.First().Signal);
 
     private static async Task<IResult> SetScopeActivationAsync(
         bool active,

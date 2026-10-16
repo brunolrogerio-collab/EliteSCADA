@@ -142,6 +142,7 @@ public static class ControlledEngineeringSemanticsResolver
         AssetProcessIntelligenceIssueEntity entity = AssetProcessIntelligenceIssueEntity.Profile,
         Guid? resourceId = null) => reference?.CatalogVersion switch
         {
+            null => ControlledEngineeringUnitCatalog.ValidateReference(reference, entity, resourceId),
             ControlledEngineeringUnitCatalog.CurrentCatalogVersion => ControlledEngineeringUnitCatalog.ValidateReference(reference, entity, resourceId),
             ControlledEngineeringUnitCatalogV2.CurrentCatalogVersion => ControlledEngineeringUnitCatalogV2.ValidateReference(reference, entity, resourceId),
             _ => [new("ENGINEERING_UNIT_CATALOG_VERSION_UNSUPPORTED", $"Unit catalog version '{reference?.CatalogVersion}' is unsupported; expected 1 or 2.", entity, resourceId)]

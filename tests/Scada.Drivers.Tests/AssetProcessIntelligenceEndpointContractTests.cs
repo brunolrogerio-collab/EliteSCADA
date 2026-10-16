@@ -122,6 +122,23 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
     }
 
     [Fact]
+    public async Task ContextualDeviationVectorCatalogEndpointReturnsBoundedVersionedContract()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"), includeAnalyticsEndpoints: true);
+
+        using var response = await api.Client.GetAsync(EndpointHarness.ContextualDeviationVectorCatalogPath);
+        var catalog = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, catalog.GetProperty("contractVersion").GetInt32());
+        Assert.Equal("contextual-deviation-vector.v1", catalog.GetProperty("ruleId").GetString());
+        Assert.Equal(8, catalog.GetProperty("maximumTargetSignals").GetInt32());
+        Assert.Equal(50000, catalog.GetProperty("maximumRawRowsAcrossAllSignalsAndWindows").GetInt32());
+        Assert.Equal("not_assessed", catalog.GetProperty("regimeEquivalence").GetString());
+        Assert.Equal("unknown", catalog.GetProperty("completeness").GetString());
+    }
+
+    [Fact]
     public async Task SemanticCatalogEndpointRequiresEngineeringView()
     {
         await using var api = await EndpointHarness.StartAsync(
@@ -433,6 +450,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public const string ScopesPath = "/api/engineering/asset-process-intelligence/scopes";
         public const string ConfigurationPath = "/api/engineering/asset-process-intelligence/configuration";
         public const string SemanticCatalogPath = "/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog";
+        public const string ContextualDeviationVectorCatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/contextual-deviation-vector/v1/catalog";
 
         private readonly WebApplication _app;
         private readonly IEngineeringProjectPersistenceService? _persistence;
@@ -483,7 +501,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             bool includeActivationPipeline = false,
             bool seedControlledSemanticTag = false,
             bool seedSemanticAnnotations = false,
-            bool engineeringViewGranted = true)
+            bool engineeringViewGranted = true,
+            bool includeAnalyticsEndpoints = false)
         {
             var workspace = new EngineeringWorkspace(seedDemo: false);
             var equipmentId = Guid.NewGuid();
@@ -576,6 +595,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             builder.Services.AddSingleton(new RuntimeHighAvailabilityService(builder.Configuration));
             builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(runtime);
             builder.Services.AddSingleton(new ScadaRuntimeFacade(runtime));
+            if (includeAnalyticsEndpoints)
+                builder.Services.AddTransient<AssetProcessIntelligenceAnalyticsService>();
             if (persistence is not null && exchange is not null)
             {
                 builder.Services.AddSingleton(persistence);
@@ -603,6 +624,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                 await next();
             });
             app.MapAssetProcessIntelligenceEndpoints();
+            if (includeAnalyticsEndpoints)
+                app.MapAssetProcessIntelligenceAnalyticsEndpoints();
             var routes = ((IEndpointRouteBuilder)app).DataSources
                 .SelectMany(source => source.Endpoints)
                 .OfType<RouteEndpoint>()

@@ -41,6 +41,28 @@ public sealed class EngineeringTabularExchangeTests
         Assert.Equal(current.RuntimePresentation, csvImport.RuntimePresentation);
     }
 
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("xlsx")]
+    public void TabularTagFormatsPreserveVersion2UnitsAndTheirSchemaCapability(string format)
+    {
+        var unit = new ControlledEngineeringUnitReference(2, "unit.power.kilowatt");
+        var package = Package();
+        var current = package with
+        {
+            SchemaVersion = 27,
+            Tags = [package.Tags.Single() with { ControlledEngineeringUnit = unit }]
+        };
+        var imported = format == "csv"
+            ? _exchange.ParseCsv(current, EngineeringTabularEntity.Tags,
+                _exchange.ExportCsv(current, EngineeringTabularEntity.Tags))
+            : _exchange.ParseXlsx(current, EngineeringTabularEntity.Tags,
+                _exchange.ExportXlsx(current, EngineeringTabularEntity.Tags));
+
+        Assert.Equal(27, imported.SchemaVersion);
+        Assert.Equal(unit, Assert.Single(imported.Tags).ControlledEngineeringUnit);
+    }
+
     [Fact]
     public void Csv_round_trip_preserves_multiline_and_formula_leading_text_without_evaluating_it()
     {

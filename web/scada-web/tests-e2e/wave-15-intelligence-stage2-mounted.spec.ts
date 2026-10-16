@@ -153,7 +153,7 @@ test('controlled signal role authoring keeps legacy text and sends complete type
   const workspace = page.getByTestId('intelligence-stage2-authoring');
   await expect(workspace.getByText('Legacy current text')).toBeVisible();
   const saveButton = workspace.locator('.asset-process-intelligence__authoring-footer').getByRole('button', { name: 'Salvar configuração de processo' });
-  await workspace.getByTestId('intelligence-semantic-role-current').selectOption('pump.electrical_current');
+  await workspace.getByTestId('intelligence-semantic-role-current').selectOption('1:pump.electrical_current');
   await expect(workspace.getByText(/Incompleta:/)).toBeVisible();
   await expect(saveButton).toBeDisabled();
   await workspace.getByTestId('intelligence-semantic-currentBasis-current').selectOption('line_rms');
@@ -171,6 +171,98 @@ test('controlled signal role authoring keeps legacy text and sends complete type
     signalRole: 'Legacy current text',
     semanticBinding: { catalogVersion: 1, roleCode: 'pump.electrical_current', currentBasis: 'line_rms' }
   });
+});
+
+test('v2 controlled process roles retain their catalog version through editing and save', async ({ page }) => {
+  let saved: Record<string, any> | null = null;
+  const configuration = {
+    version: 2,
+    scopes: [],
+    profiles: [{
+      id: '15000000-0000-0000-0000-000000000501',
+      key: 'pump',
+      name: 'Pump',
+      signals: [{
+        id: '15000000-0000-0000-0000-000000000502',
+        key: 'active-power',
+        signalRole: 'Input power',
+        tagId: '15000000-0000-0000-0000-000000000104',
+        required: true
+      }]
+    }],
+    assignments: [],
+    processStages: []
+  } as Record<string, any>;
+  await mockWorkspace(page, () => configuration, next => { saved = next; });
+
+  await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
+  const workspace = page.getByTestId('intelligence-stage2-authoring');
+  const saveButton = workspace.locator('.asset-process-intelligence__authoring-footer').getByRole('button', { name: 'Salvar configuração de processo' });
+  await workspace.getByTestId('intelligence-semantic-role-active-power').selectOption('2:equipment.active_input_power');
+  await expect(workspace.getByTestId('intelligence-semantic-signalKind-active-power')).toBeVisible();
+  await workspace.getByTestId('intelligence-semantic-signalKind-active-power').selectOption('measured_total_input');
+  await expect(workspace.getByText('Anotação controlada completa')).toBeVisible();
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
+  await expect.poll(() => saved).not.toBeNull();
+
+  const payload = saved as unknown as {
+    semanticContractVersion: number;
+    profiles: Array<{ signals: Array<{ semanticBinding: Record<string, unknown> }> }>;
+  };
+  expect(payload.semanticContractVersion).toBe(2);
+  expect(payload.profiles[0].signals[0].semanticBinding).toMatchObject({
+    catalogVersion: 2,
+    roleCode: 'equipment.active_input_power',
+    signalKind: 'measured_total_input'
+  });
+});
+
+test('v2-aware authoring can intentionally remove a v2 annotation with marker 2', async ({ page }) => {
+  let saved: Record<string, any> | null = null;
+  const configuration = {
+    version: 2,
+    scopes: [],
+    profiles: [{
+      id: '15000000-0000-0000-0000-000000000511',
+      key: 'pump',
+      name: 'Pump',
+      signals: [{
+        id: '15000000-0000-0000-0000-000000000512',
+        key: 'active-power',
+        signalRole: 'Input power',
+        tagId: '15000000-0000-0000-0000-000000000104',
+        required: true,
+        semanticBinding: {
+          catalogVersion: 2,
+          roleCode: 'equipment.active_input_power',
+          currentBasis: null,
+          signalKind: 'measured_total_input',
+          frequencyReference: null,
+          pressureReference: null,
+          flowDirection: null
+        }
+      }]
+    }],
+    assignments: [],
+    processStages: []
+  } as Record<string, any>;
+  await mockWorkspace(page, () => configuration, next => { saved = next; });
+
+  await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
+  const workspace = page.getByTestId('intelligence-stage2-authoring');
+  await workspace.getByTestId('intelligence-semantic-role-active-power').selectOption('');
+  const saveButton = workspace.locator('.asset-process-intelligence__authoring-footer').getByRole('button', { name: 'Salvar configuração de processo' });
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
+  await expect.poll(() => saved).not.toBeNull();
+
+  const payload = saved as unknown as {
+    semanticContractVersion: number;
+    profiles: Array<{ signals: Array<{ semanticBinding?: Record<string, unknown> | null }> }>;
+  };
+  expect(payload.semanticContractVersion).toBe(2);
+  expect(payload.profiles[0].signals[0].semanticBinding).toBeNull();
 });
 
 async function selectedStageId(workspace: import('@playwright/test').Locator) {
@@ -196,6 +288,7 @@ async function mockWorkspace(
     runtime: [],
     workspace: ['EngineeringModify', 'AssetProcessIntelligenceManage']
   } }));
+  await page.route('**/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog', route => route.fulfill({ json: semanticCatalog }));
   await page.route('**/api/engineering/asset-process-intelligence/scopes', async route => {
     const resources = options.emptyResources ? [] : [
       { kind: 'Equipment', scopeId: '15000000-0000-0000-0000-000000000301', path: 'Plant.Pump01', name: 'Pump P01' },
@@ -207,7 +300,8 @@ async function mockWorkspace(
       tags: options.emptyResources ? [] : [
         { id: '15000000-0000-0000-0000-000000000101', name: 'Temperature', path: 'Plant.Pump.Temperature', dataType: 'Double', engineeringUnit: '°C' },
         { id: '15000000-0000-0000-0000-000000000102', name: 'Flow', path: 'Plant.Pump.Flow', dataType: 'Double', engineeringUnit: 'm³/h' },
-        { id: '15000000-0000-0000-0000-000000000103', name: 'Current', path: 'Plant.Pump.Current', dataType: 'Double', engineeringUnit: 'A', controlledEngineeringUnit: { catalogVersion: 1, code: 'unit.electric_current.ampere' } }
+        { id: '15000000-0000-0000-0000-000000000103', name: 'Current', path: 'Plant.Pump.Current', dataType: 'Double', engineeringUnit: 'A', controlledEngineeringUnit: { catalogVersion: 1, code: 'unit.electric_current.ampere' } },
+        { id: '15000000-0000-0000-0000-000000000104', name: 'Active input power', path: 'Plant.Pump.ActiveInputPower', dataType: 'Double', engineeringUnit: 'kW', controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.power.kilowatt' } }
       ],
       licensed: false,
       execution: { stage: 'Stage1', workerRegistered: false, queueDepth: 0, activePermitCount: 0, projectKey: 'test', activeRevision: 1, workspaceDirty: false }
@@ -219,3 +313,43 @@ async function mockWorkspace(
     await route.fulfill({ json: { configuration: { version: 2, scopes: read().scopes, ...payload }, workspace: {} } });
   });
 }
+
+const semanticCatalog = {
+  supportedSemanticContractVersions: [1, 2],
+  semanticCatalogs: [
+    { catalogVersion: 1, roles: [
+      { code: 'pump.electrical_current', dimension: 'electric_current', qualifiers: [{ name: 'currentBasis', allowedValues: ['line_rms', 'phase_rms', 'dc_bus'] }] },
+      { code: 'pump.drive_frequency', dimension: 'frequency', qualifiers: [{ name: 'signalKind', allowedValues: ['measured_output', 'command_setpoint'] }, { name: 'frequencyReference', allowedValues: ['drive_electrical', 'shaft_rotational'] }] },
+      { code: 'pump.discharge_pressure', dimension: 'pressure', qualifiers: [{ name: 'pressureReference', allowedValues: ['gauge', 'absolute'] }] },
+      { code: 'pump.discharge_volumetric_flow', dimension: 'volumetric_flow', qualifiers: [{ name: 'flowDirection', allowedValues: ['pump_to_process', 'process_to_pump', 'bidirectional_signed', 'bidirectional_magnitude'] }] }
+    ] },
+    { catalogVersion: 2, roles: [
+      { code: 'equipment.active_input_power', dimension: 'power', qualifiers: [{ name: 'signalKind', allowedValues: ['measured_total_input'] }] },
+      { code: 'process.net_good_production_volume_rate', dimension: 'volumetric_flow', qualifiers: [{ name: 'signalKind', allowedValues: ['measured_output'] }] },
+      { code: 'process.net_good_production_mass_rate', dimension: 'mass_flow', qualifiers: [{ name: 'signalKind', allowedValues: ['measured_output'] }] },
+      { code: 'process.net_good_production_item_rate', dimension: 'item_rate', qualifiers: [{ name: 'signalKind', allowedValues: ['measured_output'] }] },
+      { code: 'pump.direct_differential_pressure', dimension: 'pressure', qualifiers: [{ name: 'signalKind', allowedValues: ['measured_output'] }, { name: 'pressureReference', allowedValues: ['differential_outlet_minus_inlet'] }] }
+    ] }
+  ],
+  controlledEngineeringUnitCatalogs: [
+    { catalogVersion: 1, units: [
+      { code: 'unit.ratio.percent', dimension: 'ratio', canonicalUnit: '1', scaleToCanonical: 0.01 },
+      { code: 'unit.electric_current.ampere', dimension: 'electric_current', canonicalUnit: 'A', scaleToCanonical: 1 },
+      { code: 'unit.frequency.hertz', dimension: 'frequency', canonicalUnit: 'Hz', scaleToCanonical: 1 },
+      { code: 'unit.pressure.bar', dimension: 'pressure', canonicalUnit: 'Pa', scaleToCanonical: 100000 },
+      { code: 'unit.volumetric_flow.cubic_metre_per_hour', dimension: 'volumetric_flow', canonicalUnit: 'm³/s', scaleToCanonical: 1 / 3600 }
+    ] },
+    { catalogVersion: 2, units: [
+      { code: 'unit.electric_current.milliampere', dimension: 'electric_current', canonicalUnit: 'A', scaleToCanonical: 0.001 },
+      { code: 'unit.power.watt', dimension: 'power', canonicalUnit: 'W', scaleToCanonical: 1 },
+      { code: 'unit.power.kilowatt', dimension: 'power', canonicalUnit: 'W', scaleToCanonical: 1000 },
+      { code: 'unit.volumetric_flow.cubic_metre_per_second', dimension: 'volumetric_flow', canonicalUnit: 'm³/s', scaleToCanonical: 1 },
+      { code: 'unit.mass_flow.kilogram_per_second', dimension: 'mass_flow', canonicalUnit: 'kg/s', scaleToCanonical: 1 },
+      { code: 'unit.mass_flow.kilogram_per_hour', dimension: 'mass_flow', canonicalUnit: 'kg/s', scaleToCanonical: 1 / 3600 },
+      { code: 'unit.item_rate.item_per_second', dimension: 'item_rate', canonicalUnit: 'item/s', scaleToCanonical: 1 },
+      { code: 'unit.item_rate.item_per_hour', dimension: 'item_rate', canonicalUnit: 'item/s', scaleToCanonical: 1 / 3600 },
+      { code: 'unit.pressure.pascal', dimension: 'pressure', canonicalUnit: 'Pa', scaleToCanonical: 1 },
+      { code: 'unit.pressure.kilopascal', dimension: 'pressure', canonicalUnit: 'Pa', scaleToCanonical: 1000 }
+    ] }
+  ]
+};

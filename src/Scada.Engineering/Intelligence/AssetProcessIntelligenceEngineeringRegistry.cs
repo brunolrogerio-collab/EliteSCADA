@@ -202,7 +202,7 @@ public static class AssetProcessIntelligenceEngineeringValidator
 
                 if (signal.SemanticBinding is not null)
                 {
-                    issues.AddRange(AssetProcessIntelligenceSemanticCatalog.ValidateBinding(signal.SemanticBinding, signal.Id));
+                    issues.AddRange(AssetProcessIntelligenceSemanticCatalogResolver.ValidateBinding(signal.SemanticBinding, signal.Id));
                     var tag = tags?.FirstOrDefault(item => item.Id == signal.TagId);
                     if (tag is not null)
                         ValidateSemanticTagBinding(signal.SemanticBinding, tag, signal.Id, issues);
@@ -264,11 +264,24 @@ public static class AssetProcessIntelligenceEngineeringValidator
             return;
         }
 
-        var unitIssues = ControlledEngineeringUnitCatalog.ValidateReference(tag.ControlledEngineeringUnit, AssetProcessIntelligenceIssueEntity.Profile, signalId);
+        var unitIssues = ControlledEngineeringSemanticsResolver.ValidateUnitReference(
+            tag.ControlledEngineeringUnit,
+            AssetProcessIntelligenceIssueEntity.Profile,
+            signalId);
         issues.AddRange(unitIssues);
-        if (!ControlledEngineeringUnitCatalog.TryResolve(tag.ControlledEngineeringUnit, out var unit))
+        if (!ControlledEngineeringSemanticsResolver.TryResolveUnit(tag.ControlledEngineeringUnit, out var unit))
             return;
-        var roleDimension = AssetProcessIntelligenceSemanticCatalog.DimensionForRole(binding.RoleCode);
+        if (binding.CatalogVersion == AssetProcessIntelligenceSemanticCatalog.CurrentCatalogVersion &&
+            tag.ControlledEngineeringUnit?.CatalogVersion != ControlledEngineeringUnitCatalog.CurrentCatalogVersion)
+        {
+            issues.Add(new(
+                "INTELLIGENCE_SEMANTIC_UNIT_CATALOG_VERSION_MISMATCH",
+                "Version 1 semantic roles require a version 1 controlled unit reference.",
+                AssetProcessIntelligenceIssueEntity.Profile,
+                signalId));
+            return;
+        }
+        var roleDimension = AssetProcessIntelligenceSemanticCatalogResolver.DimensionForRole(binding.CatalogVersion, binding.RoleCode);
         if (roleDimension is not null && !string.Equals(roleDimension, unit.Dimension, StringComparison.Ordinal))
             issues.Add(new(
                 "INTELLIGENCE_SEMANTIC_DIMENSION_MISMATCH",

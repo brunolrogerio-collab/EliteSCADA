@@ -1811,6 +1811,136 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Theory]
+    [InlineData("specific-active-energy-at-recorded-production-rate.v1", 0)]
+    [InlineData("specific-active-energy-at-recorded-production-rate.v1", 1)]
+    [InlineData("recorded-differential-pressure-power.v1", 0)]
+    [InlineData("recorded-differential-pressure-power.v1", 1)]
+    [InlineData("recorded-pressure-power-input-ratio.v1", 0)]
+    [InlineData("recorded-pressure-power-input-ratio.v1", 1)]
+    [InlineData("recorded-pressure-power-input-ratio.v1", 2)]
+    public async Task PerformanceV1B_RevokingEverySelectedTagWhileAnotherInputPageIsInFlightStopsAllReads(
+        string ruleId,
+        int revokedSignalIndex)
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals(ruleId);
+        var signals = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!
+            .Where(signal => request.SignalIds!.Contains(signal.Id))
+            .ToDictionary(signal => signal.Id);
+        var selectedSignal = signals[request.SignalIds![revokedSignalIndex]];
+        var revokedTag = tags[selectedSignal.TagId];
+        var differentSignal = request.SignalIds
+            .Select(signalId => signals[signalId])
+            .First(signal => signal.TagId != revokedTag.Id);
+        var inFlightTag = tags[differentSignal.TagId];
+        var pageEntered = new TaskCompletionSource<HistoricalQueryRequest>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePage = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        fixture.Historian.RespondAsync = async (query, cancellationToken) =>
+        {
+            var queriedTagId = query.Filters!.Single().Values.Single().AsGuid();
+            if (queriedTagId == inFlightTag.Id)
+            {
+                pageEntered.TrySetResult(query);
+                await releasePage.Task.WaitAsync(cancellationToken);
+            }
+            return PerformanceV1BPage(query);
+        };
+
+        var task = fixture.ExecutePerformanceV1BAsync(request);
+        var inFlightQuery = await pageEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        var callsAtRevocation = fixture.Historian.Calls;
+        Assert.Equal(inFlightTag.Id, inFlightQuery.Filters!.Single().Values.Single().AsGuid());
+        Assert.NotEqual(revokedTag.Id, inFlightTag.Id);
+
+        fixture.Runtime.SetTag(revokedTag with
+        {
+            AccessPolicy = new TagAccessPolicy(ReadRoles: ["different-role"])
+        });
+        releasePage.TrySetResult();
+        var result = await task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(callsAtRevocation, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Theory]
+    [InlineData("specific-active-energy-at-recorded-production-rate.v1", "permit", StatusCodes.Status409Conflict)]
+    [InlineData("specific-active-energy-at-recorded-production-rate.v1", "workspace", StatusCodes.Status409Conflict)]
+    [InlineData("specific-active-energy-at-recorded-production-rate.v1", "revision", StatusCodes.Status409Conflict)]
+    [InlineData("specific-active-energy-at-recorded-production-rate.v1", "entitlement", StatusCodes.Status403Forbidden)]
+    [InlineData("specific-active-energy-at-recorded-production-rate.v1", "scope", StatusCodes.Status409Conflict)]
+    [InlineData("recorded-differential-pressure-power.v1", "permit", StatusCodes.Status409Conflict)]
+    [InlineData("recorded-differential-pressure-power.v1", "workspace", StatusCodes.Status409Conflict)]
+    [InlineData("recorded-differential-pressure-power.v1", "revision", StatusCodes.Status409Conflict)]
+    [InlineData("recorded-differential-pressure-power.v1", "entitlement", StatusCodes.Status403Forbidden)]
+    [InlineData("recorded-differential-pressure-power.v1", "scope", StatusCodes.Status409Conflict)]
+    [InlineData("recorded-pressure-power-input-ratio.v1", "permit", StatusCodes.Status409Conflict)]
+    [InlineData("recorded-pressure-power-input-ratio.v1", "workspace", StatusCodes.Status409Conflict)]
+    [InlineData("recorded-pressure-power-input-ratio.v1", "revision", StatusCodes.Status409Conflict)]
+    [InlineData("recorded-pressure-power-input-ratio.v1", "entitlement", StatusCodes.Status403Forbidden)]
+    [InlineData("recorded-pressure-power-input-ratio.v1", "scope", StatusCodes.Status409Conflict)]
+    public async Task PerformanceV1B_ContextInvalidationWhileHistorianPageIsInFlightReturnsNoPartialResult(
+        string ruleId,
+        string invalidationKind,
+        int expectedStatus)
+    {
+        using var fixture = Fixture.Create();
+        var (request, _) = fixture.AddPerformanceSignals(ruleId);
+        var pageEntered = new TaskCompletionSource<HistoricalQueryRequest>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePage = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Historian.RespondAsync = async (query, cancellationToken) =>
+        {
+            pageEntered.TrySetResult(query);
+            await releasePage.Task.WaitAsync(cancellationToken);
+            return PerformanceV1BPage(query);
+        };
+
+        var task = fixture.ExecutePerformanceV1BAsync(request);
+        var queryInFlight = await pageEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal(1, fixture.Historian.Calls);
+        switch (invalidationKind)
+        {
+            case "permit":
+                fixture.Gate.Pause(Fixture.ProjectKey, fixture.ScopeKind, fixture.ScopeId);
+                break;
+            case "workspace":
+                fixture.Workspace.Tags.Upsert(fixture.Tag with { Description = "workspace changed during Historian read" });
+                break;
+            case "revision":
+                fixture.Runtime.SetRevision(42);
+                break;
+            case "entitlement":
+                fixture.Licensing.Licensed = false;
+                break;
+            case "scope":
+                var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+                fixture.Workspace.AssetProcessIntelligence.Replace(configuration with
+                {
+                    Scopes = configuration.Scopes!.Select(scope => scope with { Active = false }).ToArray()
+                });
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(invalidationKind));
+        }
+
+        var callsAtInvalidation = fixture.Historian.Calls;
+        if (invalidationKind != "permit")
+            releasePage.TrySetResult();
+        var result = await task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        Assert.Equal(queryInFlight, fixture.Historian.Requests[0]);
+        AssertStatus(expectedStatus, result);
+        Assert.Equal(callsAtInvalidation, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Theory]
     [InlineData("repeated-cursor")]
     [InlineData("malformed-row")]
     [InlineData("out-of-order-rows")]
@@ -2588,6 +2718,14 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         request.Range.ToUtc!.Value,
         cursor,
         request.Page!.Size);
+
+    private static HistoricalQueryResponse PerformanceV1BPage(HistoricalQueryRequest request)
+    {
+        var tagId = request.Filters!.Single().Values.Single().AsGuid();
+        var timestamp = request.Range.FromUtc!.Value.AddMinutes(1);
+        return ResponseV2(request,
+            [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(1), timestamp, "Synchronized")]);
+    }
 
     private static AssetProcessIntelligenceCurrentFrequencyComparisonV1WindowEvidence EmptyCurrentFrequencyEvidence(
         AssetProcessIntelligenceAnalyticsWindow window)

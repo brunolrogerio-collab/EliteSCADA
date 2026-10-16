@@ -1,9 +1,11 @@
 # ADR-019 — Intelligence two-context deviation vector v2
 
-**Status:** Accepted by Main for bounded Stage 4C implementation, 2026-10-16.  
-**Parent:** [#588 — Asset & Process Intelligence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588)  
-**Implementation package:** [#635 — Stage 4C](https://github.com/brunolrogerio-collab/EliteSCADA/issues/635)  
-**Product basis:** Stage 4B verified at `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79`.
+| Field | Value |
+| --- | --- |
+| Status | Accepted by Main for bounded Stage 4C implementation, 2026-10-16 |
+| Parent | [#588 — Asset & Process Intelligence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588) |
+| Implementation package | [#635 — Stage 4C](https://github.com/brunolrogerio-collab/EliteSCADA/issues/635) |
+| Product basis | Stage 4B verified at `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79` |
 
 ## Context
 

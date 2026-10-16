@@ -618,6 +618,210 @@ public sealed class AssetProcessIntelligenceEngineeringTests
         Assert.False(service.Preview(semanticV2Schema26, ImportMode.CreateAndUpdate).CanApply);
     }
 
+    [Theory]
+    [InlineData("equipment.active_input_power", "command_setpoint", null, null, "INTELLIGENCE_SEMANTIC_QUALIFIER_UNSUPPORTED")]
+    [InlineData("process.net_good_production_item_rate", "counter", null, null, "INTELLIGENCE_SEMANTIC_QUALIFIER_UNSUPPORTED")]
+    [InlineData("equipment.active_input_power", null, null, null, "INTELLIGENCE_SEMANTIC_QUALIFIER_INCOMPLETE")]
+    [InlineData("equipment.active_input_power", "measured_total_input", "line_rms", null, "INTELLIGENCE_SEMANTIC_QUALIFIER_NOT_APPLICABLE")]
+    [InlineData("pump.direct_differential_pressure", "measured_output", null, "gauge", "INTELLIGENCE_SEMANTIC_QUALIFIER_UNSUPPORTED")]
+    [InlineData("equipment.unknown_power", "measured_total_input", null, null, "INTELLIGENCE_SEMANTIC_ROLE_UNSUPPORTED")]
+    public void SemanticCatalogV2RejectsInvalidMeasurementAndQualifierMetadata(
+        string roleCode,
+        string? signalKind,
+        string? currentBasis,
+        string? pressureReference,
+        string expectedIssue)
+    {
+        var binding = new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+            2,
+            roleCode,
+            CurrentBasis: currentBasis,
+            SignalKind: signalKind,
+            PressureReference: pressureReference);
+        var issues = AssetProcessIntelligenceSemanticCatalogV2.ValidateBinding(binding, Guid.NewGuid());
+
+        Assert.Contains(issues, issue => issue.Code == expectedIssue);
+    }
+
+    [Theory]
+    [InlineData(2, "unit.power.not-a-unit", "ENGINEERING_UNIT_CODE_UNSUPPORTED")]
+    [InlineData(3, "unit.power.kilowatt", "ENGINEERING_UNIT_CATALOG_VERSION_UNSUPPORTED")]
+    [InlineData(2, "unit.pressure.pascal", "INTELLIGENCE_SEMANTIC_DIMENSION_MISMATCH")]
+    public void SemanticCatalogV2RejectsUnsupportedUnitCodeVersionAndDimension(
+        int catalogVersion,
+        string unitCode,
+        string expectedIssue)
+    {
+        var tagId = Guid.NewGuid();
+        var configuration = new AssetProcessIntelligenceEngineeringDto(Version: 2, Profiles:
+        [new(Guid.NewGuid(), "power", "Power", [new(Guid.NewGuid(), "input", "Power", tagId,
+            SemanticBinding: new(2, "equipment.active_input_power", SignalKind: "measured_total_input"))])]);
+        var tag = new TagEngineeringDto(tagId, "Power", "Plant.Power", TagDataType.Double,
+            ControlledEngineeringUnit: new ControlledEngineeringUnitReference(catalogVersion, unitCode));
+
+        var issues = AssetProcessIntelligenceEngineeringValidator.Validate(configuration, null, null, [tag]);
+
+        Assert.Contains(issues, issue => issue.Code == expectedIssue);
+    }
+
+    [Fact]
+    public void VersionOneMissingUnitKeepsRequiredDiagnosticInsteadOfUnsupportedVersion()
+    {
+        var tagId = Guid.NewGuid();
+        var configuration = new AssetProcessIntelligenceEngineeringDto(Version: 2, Profiles:
+        [new(Guid.NewGuid(), "current", "Current", [new(Guid.NewGuid(), "amps", "Current", tagId,
+            SemanticBinding: new(1, "pump.electrical_current", CurrentBasis: "line_rms"))])]);
+        var tag = new TagEngineeringDto(tagId, "Current", "Plant.Current", TagDataType.Double);
+
+        var issues = AssetProcessIntelligenceEngineeringValidator.Validate(configuration, null, null, [tag]);
+
+        Assert.Contains(issues, issue => issue.Code == "ENGINEERING_UNIT_REFERENCE_REQUIRED");
+        Assert.DoesNotContain(issues, issue => issue.Code == "ENGINEERING_UNIT_CATALOG_VERSION_UNSUPPORTED");
+    }
+
+    [Theory]
+    [InlineData("tags-csv")]
+    [InlineData("tabular-csv")]
+    [InlineData("tabular-xlsx")]
+    public void LegacyTagImportsCannotDropVersion2UnitWhileVersion2ProfileMetadataExists(string importPath)
+    {
+        var tagId = Guid.NewGuid();
+        var profileId = Guid.NewGuid();
+        var signalId = Guid.NewGuid();
+        var unit = new ControlledEngineeringUnitReference(2, "unit.power.kilowatt");
+        var binding = new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+            2, "equipment.active_input_power", SignalKind: "measured_total_input");
+        var tag = new TagDefinition(tagId, "Power", "Plant.Power", TagDataType.Double, null, "kW", null, true,
+            ControlledEngineeringUnit: unit);
+        var tags = new InMemoryTagRegistry();
+        tags.Register(tag);
+        var intelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        intelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Version: 2, Profiles:
+        [new(profileId, "power", "Power", [new(signalId, "input", "Power", tagId, SemanticBinding: binding)])]));
+        var service = CreateExchange(intelligence, tags: tags);
+        var current = service.ExportPackage();
+        var rows = new[]
+        {
+            new[] { "Id", "Path", "Name", "DataType", "Unit", "ControlledEngineeringUnitJson" },
+            new[] { tagId.ToString("D"), "Plant.Power", "Power", "Double", "kW", string.Empty }
+        };
+        var legacyCsv = CsvCodec.Write(rows.Select(row => (IReadOnlyList<string?>)row));
+        var tabular = new EngineeringTabularExchange();
+        var imported = importPath switch
+        {
+            "tags-csv" => service.ParseTagsCsv(legacyCsv),
+            "tabular-csv" => tabular.ParseCsv(current, EngineeringTabularEntity.Tags, legacyCsv),
+            "tabular-xlsx" => tabular.ParseXlsx(current, EngineeringTabularEntity.Tags, XlsxCodec.Write(rows, "Tags")),
+            _ => throw new ArgumentOutOfRangeException(nameof(importPath))
+        };
+        var tagsBefore = JsonSerializer.Serialize(tags.Snapshot());
+        var intelligenceBefore = JsonSerializer.Serialize(intelligence.Snapshot());
+
+        Assert.Equal(26, imported.SchemaVersion);
+        var preview = service.Preview(imported, ImportMode.CreateAndUpdate);
+        var applied = service.Apply(imported, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items.SelectMany(item => item.Issues), issue =>
+            issue.Code == "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT");
+        Assert.Contains(applied.Issues, issue => issue.Code == "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT");
+        Assert.Equal(tagsBefore, JsonSerializer.Serialize(tags.Snapshot()));
+        Assert.Equal(intelligenceBefore, JsonSerializer.Serialize(intelligence.Snapshot()));
+    }
+
+    [Fact]
+    public void Schema26JsonCannotDropVersion2BindingsForOneOfRepeatedCrossProfileSignalIds()
+    {
+        var tagId = Guid.NewGuid();
+        var signalId = Guid.NewGuid();
+        var firstProfile = new AssetProcessIntelligenceProfileEngineeringDto(
+            Guid.NewGuid(), "primary", "Primary", [new(signalId, "power", "Power", tagId,
+                SemanticBinding: new(2, "equipment.active_input_power", SignalKind: "measured_total_input"))]);
+        var secondProfile = new AssetProcessIntelligenceProfileEngineeringDto(
+            Guid.NewGuid(), "secondary", "Secondary", [new(signalId, "power", "Power", tagId,
+                SemanticBinding: firstProfile.Signals!.Single().SemanticBinding)]);
+        var tag = new TagDefinition(tagId, "Power", "Plant.Power", TagDataType.Double, null, "kW", null, true,
+            ControlledEngineeringUnit: new ControlledEngineeringUnitReference(2, "unit.power.kilowatt"));
+        var tags = new InMemoryTagRegistry();
+        tags.Register(tag);
+        var intelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        intelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Version: 2, Profiles: [firstProfile, secondProfile]));
+        var service = CreateExchange(intelligence, tags: tags);
+        var beforeTags = JsonSerializer.Serialize(tags.Snapshot());
+        var beforeIntelligence = JsonSerializer.Serialize(intelligence.Snapshot());
+        var legacy = service.ExportPackage() with
+        {
+            SchemaVersion = 26,
+            Tags = [],
+            AssetProcessIntelligence = new AssetProcessIntelligenceEngineeringDto(Version: 2, Profiles:
+            [secondProfile with { Signals = [secondProfile.Signals!.Single() with { SemanticBinding = null }] }])
+        };
+
+        var preview = service.Preview(legacy, ImportMode.CreateAndUpdate);
+        var applied = service.Apply(legacy, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items.SelectMany(item => item.Issues), issue =>
+            issue.Code == "INTELLIGENCE_SEMANTIC_ANNOTATION_CONFLICT");
+        Assert.Contains(applied.Issues, issue => issue.Code == "INTELLIGENCE_SEMANTIC_ANNOTATION_CONFLICT");
+        Assert.Equal(beforeTags, JsonSerializer.Serialize(tags.Snapshot()));
+        Assert.Equal(beforeIntelligence, JsonSerializer.Serialize(intelligence.Snapshot()));
+    }
+
+    [Fact]
+    public void Schema27AllowsCanonicalExplicitVersion2EditsAndRemovalForUnassignedProfileAndTag()
+    {
+        var tagId = Guid.NewGuid();
+        var profileId = Guid.NewGuid();
+        var signalId = Guid.NewGuid();
+        var tags = new InMemoryTagRegistry();
+        tags.Register(new TagDefinition(tagId, "Power", "Plant.Power", TagDataType.Double, null, "kW", null, true,
+            ControlledEngineeringUnit: new ControlledEngineeringUnitReference(2, "unit.power.kilowatt")));
+        var intelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        intelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Version: 2, Profiles:
+        [new(profileId, "power", "Power", [new(signalId, "input", "Power", tagId,
+            SemanticBinding: new(2, "equipment.active_input_power", SignalKind: "measured_total_input"))])],
+            Assignments: []));
+        var service = CreateExchange(intelligence, tags: tags);
+        var current = service.ExportPackage();
+        Assert.Empty(current.AssetProcessIntelligence!.Assignments ?? []);
+        var editedUnit = new ControlledEngineeringUnitReference(2, "unit.power.watt");
+        var edited = current with
+        {
+            SchemaVersion = 27,
+            Tags = [current.Tags.Single() with { EngineeringUnit = "W", ControlledEngineeringUnit = editedUnit }]
+        };
+
+        var editPreview = service.Preview(edited, ImportMode.CreateAndUpdate);
+        var editResult = service.Apply(edited, ImportMode.CreateAndUpdate);
+        Assert.True(editPreview.CanApply, string.Join("; ", editPreview.Items.SelectMany(item => item.Issues).Select(issue => issue.Message)));
+        Assert.Empty(editResult.Issues);
+        Assert.Equal(editedUnit, Assert.Single(tags.Snapshot()).ControlledEngineeringUnit);
+
+        var afterEdit = service.ExportPackage();
+        var profile = Assert.Single(afterEdit.AssetProcessIntelligence!.Profiles!);
+        var removed = afterEdit with
+        {
+            SchemaVersion = 27,
+            Tags = [afterEdit.Tags.Single() with { EngineeringUnit = null, ControlledEngineeringUnit = null }],
+            AssetProcessIntelligence = afterEdit.AssetProcessIntelligence with
+            {
+                Profiles = [profile with
+                {
+                    Signals = [profile.Signals!.Single() with { SemanticBinding = null }]
+                }]
+            }
+        };
+
+        var removalPreview = service.Preview(removed, ImportMode.CreateAndUpdate);
+        var removalResult = service.Apply(removed, ImportMode.CreateAndUpdate);
+
+        Assert.True(removalPreview.CanApply, string.Join("; ", removalPreview.Items.SelectMany(item => item.Issues).Select(issue => issue.Message)));
+        Assert.Empty(removalResult.Issues);
+        Assert.Null(Assert.Single(tags.Snapshot()).ControlledEngineeringUnit);
+        Assert.Null(Assert.Single(Assert.Single(intelligence.Snapshot().Profiles!).Signals!).SemanticBinding);
+    }
+
     [Fact]
     public void TagsCsvRoundTripsTypedUnitAndLegacyCsvRemainsSchema25()
     {

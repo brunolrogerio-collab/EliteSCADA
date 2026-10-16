@@ -170,6 +170,72 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
     }
 
     [Fact]
+    public async Task Version2WriterGuardsUseProfileAndSignalIdentityWhenSignalIdsRepeatAcrossProfiles()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"));
+        var tag = Assert.Single(api.Workspace.Tags.Snapshot());
+        api.Workspace.Tags.Upsert(tag with
+        {
+            Name = "Active input power",
+            Path = "Plant.Pump.ActiveInputPower",
+            EngineeringUnit = "kW",
+            ControlledEngineeringUnit = new ControlledEngineeringUnitReference(2, "unit.power.kilowatt")
+        });
+        var signalId = Guid.NewGuid();
+        var binding = new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+            2, "equipment.active_input_power", SignalKind: "measured_total_input");
+        var firstProfile = new AssetProcessIntelligenceProfileEngineeringDto(
+            Guid.NewGuid(), "pump-primary", "Pump primary",
+            [new(signalId, "active-input-power", "Power", api.TagId, SemanticBinding: binding)]);
+        var secondProfile = new AssetProcessIntelligenceProfileEngineeringDto(
+            Guid.NewGuid(), "pump-secondary", "Pump secondary",
+            [new(signalId, "active-input-power", "Power", api.TagId, SemanticBinding: binding)]);
+
+        using var seeded = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            new AssetProcessIntelligenceConfigurationRequest([firstProfile, secondProfile], [], [], SemanticContractVersion: 2));
+        Assert.Equal(HttpStatusCode.OK, seeded.StatusCode);
+
+        var preserveBoth = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            new AssetProcessIntelligenceConfigurationRequest(
+                [firstProfile with { Name = "Renamed primary" }, secondProfile], [], [], SemanticContractVersion: 1));
+        using (preserveBoth)
+            Assert.Equal(HttpStatusCode.OK, preserveBoth.StatusCode);
+
+        var beforeRejectedEdits = api.Workspace.AssetProcessIntelligence.Snapshot();
+        var snapshotBeforeRejectedEdits = JsonSerializer.Serialize(beforeRejectedEdits);
+        var versionBeforeRejectedEdits = api.Workspace.CaptureChangeVersion();
+        var changedOneBinding = firstProfile with
+        {
+            Signals = [firstProfile.Signals!.Single() with
+            {
+                SemanticBinding = binding with { RoleCode = "equipment.unsupported_power" }
+            }]
+        };
+        using var rejectedChange = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            new AssetProcessIntelligenceConfigurationRequest([changedOneBinding, secondProfile], [], [], SemanticContractVersion: 1));
+        Assert.Equal(HttpStatusCode.Conflict, rejectedChange.StatusCode);
+        Assert.Equal(snapshotBeforeRejectedEdits, JsonSerializer.Serialize(api.Workspace.AssetProcessIntelligence.Snapshot()));
+        Assert.Equal(versionBeforeRejectedEdits, api.Workspace.CaptureChangeVersion());
+
+        var omittedOneBinding = firstProfile with
+        {
+            Signals = [firstProfile.Signals!.Single() with { SemanticBinding = null }]
+        };
+        using var rejectedOmission = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            new AssetProcessIntelligenceConfigurationRequest([omittedOneBinding, secondProfile], [], [], SemanticContractVersion: 1));
+        Assert.Equal(HttpStatusCode.Conflict, rejectedOmission.StatusCode);
+        Assert.Equal(snapshotBeforeRejectedEdits, JsonSerializer.Serialize(api.Workspace.AssetProcessIntelligence.Snapshot()));
+        Assert.Equal(versionBeforeRejectedEdits, api.Workspace.CaptureChangeVersion());
+
+        using var explicitRemoval = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            new AssetProcessIntelligenceConfigurationRequest([omittedOneBinding, secondProfile], [], [], SemanticContractVersion: 2));
+        Assert.Equal(HttpStatusCode.OK, explicitRemoval.StatusCode);
+        var savedProfiles = api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!;
+        Assert.Null(Assert.Single(savedProfiles.Single(profile => profile.Id == firstProfile.Id).Signals!).SemanticBinding);
+        Assert.Equal(binding, Assert.Single(savedProfiles.Single(profile => profile.Id == secondProfile.Id).Signals!).SemanticBinding);
+    }
+
+    [Fact]
     public async Task Stage2ConfigurationEndpointSavesStaticConfigurationAndPreservesStage1Scopes()
     {
         await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"));

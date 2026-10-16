@@ -23,6 +23,7 @@ public sealed record AssetProcessIntelligencePerformanceV1BRule(
     IReadOnlyList<string> InputRoles,
     IReadOnlyList<AssetProcessIntelligencePerformanceV1BUnitSupport> InputUnits,
     string OutputUnit,
+    IReadOnlyList<AssetProcessIntelligencePerformanceV1BOutputUnitVariant> OutputUnitVariants,
     string TemporalRequirement,
     int MinimumQualifiedTuples,
     string Bounds,
@@ -33,6 +34,11 @@ public sealed record AssetProcessIntelligencePerformanceV1BUnitSupport(
     string CanonicalUnit,
     IReadOnlyList<int> UnitCatalogVersions,
     IReadOnlyList<string> AcceptedUnitCodes);
+
+public sealed record AssetProcessIntelligencePerformanceV1BOutputUnitVariant(
+    string ProductionRole,
+    string CanonicalInputUnit,
+    string OutputUnit);
 
 public static class AssetProcessIntelligencePerformanceV1BCatalog
 {
@@ -57,7 +63,11 @@ public static class AssetProcessIntelligencePerformanceV1BCatalog
                     new("process.net_good_production_volume_rate", "m³/s", Array.AsReadOnly([2]), Array.AsReadOnly<string>(["unit.volumetric_flow.cubic_metre_per_second"])),
                     new("process.net_good_production_mass_rate", "kg/s", Array.AsReadOnly([2]), Array.AsReadOnly<string>(["unit.mass_flow.kilogram_per_second", "unit.mass_flow.kilogram_per_hour"])),
                     new("process.net_good_production_item_rate", "item/s", Array.AsReadOnly([2]), Array.AsReadOnly<string>(["unit.item_rate.item_per_second", "unit.item_rate.item_per_hour"]))]),
-                "kWh/product-unit",
+                "role-specific; select exactly the output matching the selected net-good production-rate role",
+                Array.AsReadOnly<AssetProcessIntelligencePerformanceV1BOutputUnitVariant>([
+                    new("process.net_good_production_volume_rate", "m³/s", "kWh/m³"),
+                    new("process.net_good_production_mass_rate", "kg/s", "kWh/kg"),
+                    new("process.net_good_production_item_rate", "item/s", "kWh/item")]),
                 "Exact equality of distinct synchronized source timestamps; no interpolation, nearest-time join, carry-forward or assumed cadence.",
                 2,
                 "Active power must be >= 0 W; recorded production rate must be > 0 in its explicit canonical unit/s.",
@@ -72,6 +82,7 @@ public static class AssetProcessIntelligencePerformanceV1BCatalog
                     new("pump.discharge_volumetric_flow", "m³/s", Array.AsReadOnly<int>([1, 2]), Array.AsReadOnly<string>(["unit.volumetric_flow.cubic_metre_per_hour", "unit.volumetric_flow.cubic_metre_per_second"])),
                     new("pump.direct_differential_pressure", "Pa", Array.AsReadOnly<int>([1, 2]), Array.AsReadOnly<string>(["unit.pressure.bar", "unit.pressure.pascal", "unit.pressure.kilopascal"]))]),
                 "W",
+                Array.Empty<AssetProcessIntelligencePerformanceV1BOutputUnitVariant>(),
                 "Exact equality of distinct synchronized source timestamps; no interpolation, nearest-time join, carry-forward or assumed cadence.",
                 2,
                 "Pump-to-process flow must be > 0 m³/s; direct outlet-minus-inlet differential pressure must be >= 0 Pa.",
@@ -87,6 +98,7 @@ public static class AssetProcessIntelligencePerformanceV1BCatalog
                     new("pump.direct_differential_pressure", "Pa", Array.AsReadOnly<int>([1, 2]), Array.AsReadOnly<string>(["unit.pressure.bar", "unit.pressure.pascal", "unit.pressure.kilopascal"])),
                     new("equipment.active_input_power", "W", Array.AsReadOnly<int>([2]), Array.AsReadOnly<string>(["unit.power.watt", "unit.power.kilowatt"]))]),
                 "% pressure-only power / measured electrical input",
+                Array.Empty<AssetProcessIntelligencePerformanceV1BOutputUnitVariant>(),
                 "Exact equality of distinct synchronized source timestamps; no interpolation, nearest-time join, carry-forward or assumed cadence.",
                 2,
                 "Pump-to-process flow must be > 0 m³/s; differential pressure >= 0 Pa; measured active input power > 0 W. Finite results above 100% are retained and flagged.",
@@ -268,7 +280,7 @@ internal static class AssetProcessIntelligencePerformanceV1BCalculator
             return new(
                 Array.AsReadOnly(evaluated.Select((input, index) => input.ToEvidence(signals[index].Signal.Id)).ToArray()),
                 Array.AsReadOnly(tuples.ToArray()),
-                new(InsufficientDataStatus, rule.OutputUnit, Array.AsReadOnly(reasons.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray()),
+                new(InsufficientDataStatus, OutputUnit(rule, signals), Array.AsReadOnly(reasons.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray()),
                     qualified.Length, null, null, null, "arithmetic mean of qualified pointwise formula results; not time-weighted"));
         }
 
@@ -280,9 +292,19 @@ internal static class AssetProcessIntelligencePerformanceV1BCalculator
         return new(
             Array.AsReadOnly(evaluated.Select((input, index) => input.ToEvidence(signals[index].Signal.Id)).ToArray()),
             Array.AsReadOnly(tuples.ToArray()),
-            new(AvailableStatus, rule.OutputUnit, Array.AsReadOnly(reasons.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray()),
+            new(AvailableStatus, OutputUnit(rule, signals), Array.AsReadOnly(reasons.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray()),
                 qualified.Length, qualified.Min(), qualified.Max(), mean,
                 "arithmetic mean of qualified pointwise formula results; not time-weighted"));
+    }
+
+    private static string OutputUnit(
+        AssetProcessIntelligencePerformanceV1BRule rule,
+        IReadOnlyList<AssetProcessIntelligencePerformanceV1BPreparedSignal> signals)
+    {
+        if (rule.Id != "specific-active-energy-at-recorded-production-rate.v1") return rule.OutputUnit;
+        var productionRole = signals.Single(signal => signal.Binding.RoleCode.StartsWith(
+            "process.net_good_production_", StringComparison.Ordinal)).Binding.RoleCode;
+        return rule.OutputUnitVariants.Single(variant => variant.ProductionRole == productionRole).OutputUnit;
     }
 
     private static InputEvaluation EvaluateInput(

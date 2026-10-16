@@ -1121,6 +1121,15 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             ratioRule.InputUnits.Single(input => input.Role == "pump.discharge_volumetric_flow").AcceptedUnitCodes);
         Assert.Contains("unit.pressure.kilopascal",
             ratioRule.InputUnits.Single(input => input.Role == "pump.direct_differential_pressure").AcceptedUnitCodes);
+        var specificEnergyRule = AssetProcessIntelligencePerformanceV1BCatalog.Rules.Single(
+            rule => rule.Id == "specific-active-energy-at-recorded-production-rate.v1");
+        Assert.Equal(3, specificEnergyRule.OutputUnitVariants.Count);
+        Assert.Contains(specificEnergyRule.OutputUnitVariants, variant =>
+            variant.ProductionRole == "process.net_good_production_volume_rate" && variant.OutputUnit == "kWh/m³");
+        Assert.Contains(specificEnergyRule.OutputUnitVariants, variant =>
+            variant.ProductionRole == "process.net_good_production_mass_rate" && variant.OutputUnit == "kWh/kg");
+        Assert.Contains(specificEnergyRule.OutputUnitVariants, variant =>
+            variant.ProductionRole == "process.net_good_production_item_rate" && variant.OutputUnit == "kWh/item");
     }
 
     [Fact]
@@ -1155,6 +1164,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         Assert.Equal(0.001d, payload.Summary.Minimum!.Value, 12);
         Assert.Equal(0.001d, payload.Summary.Maximum!.Value, 12);
         Assert.Equal(0.001d, payload.Summary.ArithmeticMean!.Value, 12);
+        Assert.Equal("kWh/kg", payload.Summary.Unit);
         Assert.Equal(4, payload.TotalRawObservationCount);
         Assert.Contains(payload.Signals, signal => signal.RoleCode == "equipment.active_input_power" &&
             signal.SignalKind == "measured_total_input");
@@ -1195,10 +1205,44 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
         Assert.Equal(0.1d, payload.Summary.ArithmeticMean!.Value, 12);
+        Assert.Equal("kWh/m³", payload.Summary.Unit);
         Assert.Contains(payload.Signals, signal => signal.RoleCode == "process.net_good_production_volume_rate" &&
             signal.SignalKind == "measured_output" &&
             signal.CanonicalUnit == "m³/s" &&
             signal.ControlledUnitCode == "unit.volumetric_flow.cubic_metre_per_second");
+    }
+
+    [Fact]
+    public async Task PerformanceV1B_SpecificEnergyAveragesPointwiseValuesNotRatioOfMeanRates()
+    {
+        using var fixture = Fixture.Create();
+        var (request, tags) = fixture.AddPerformanceSignals("specific-active-energy-at-recorded-production-rate.v1");
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var isPower = tags[tagId].Path.EndsWith("ActivePower", StringComparison.Ordinal);
+            var values = isPower ? new[] { 2d, 2d } : new[] { 10d / 3600d, 30d / 3600d };
+            var first = FromUtc.AddMinutes(1);
+            var second = FromUtc.AddMinutes(2);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(values[0]), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(values[1]), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecutePerformanceV1BAsync(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("available", payload.Summary.Status);
+        Assert.Equal("kWh/m³", payload.Summary.Unit);
+        Assert.Equal(0.2d, payload.Tuples[0].Value!.Value, 12);
+        Assert.Equal(0.06666666666666667d, payload.Tuples[1].Value!.Value, 12);
+        Assert.Equal(0.13333333333333333d, payload.Summary.ArithmeticMean!.Value, 12);
+        Assert.NotEqual(0.1d, payload.Summary.ArithmeticMean!.Value);
+        Assert.Equal(2, payload.Summary.QualifiedTupleCount);
     }
 
     [Theory]
@@ -1411,6 +1455,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
         Assert.Equal("insufficient_data", payload.Summary.Status);
+        Assert.Equal("W", payload.Summary.Unit);
         Assert.Equal(0, payload.Summary.QualifiedTupleCount);
         Assert.Null(payload.Summary.Minimum);
         Assert.Null(payload.Summary.Maximum);
@@ -1450,6 +1495,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         var payload = Assert.IsType<AssetProcessIntelligencePerformanceV1BResponse>(
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
         Assert.Equal("insufficient_data", payload.Summary.Status);
+        Assert.Equal("kWh/item", payload.Summary.Unit);
         Assert.Contains(expectedReason, payload.Summary.ReasonCodes);
         Assert.All(payload.Tuples, tuple => Assert.Equal(expectedReason, tuple.ReasonCode));
     }

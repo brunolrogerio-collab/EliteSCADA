@@ -272,6 +272,187 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
+    public async Task<IResult> ExecuteCurrentFrequencyComparisonV1Async(
+        HttpContext context,
+        AssetProcessIntelligenceCurrentFrequencyComparisonV1QueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(request);
+        var requestToken = cancellationToken == default ? context.RequestAborted : cancellationToken;
+        var invalid = ValidateCurrentFrequencyComparisonRequest(request);
+        if (invalid is not null) return invalid;
+
+        try
+        {
+            var trendAuthorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.TrendUse,
+                cancellationToken: requestToken);
+            var trendFailure = trendAuthorization.FailureResult();
+            if (trendFailure is not null) return trendFailure;
+            if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+                return Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED");
+
+            var preparedResult = await PrepareCurrentFrequencyComparisonAsync(context, request, requestToken);
+            if (preparedResult.Error is not null) return preparedResult.Error;
+            var plan = preparedResult.Plan!;
+            var revalidationPlans = new[] { plan.Current.Plan, plan.Frequency.Plan };
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                requestToken,
+                plan.PermitToken);
+            var budget = new CurrentFrequencyRawRowBudget();
+
+            var currentPrimaryRead = await ReadCurrentFrequencyObservationsAsync(
+                context, request.PrimaryWindow!, plan.Current.Plan, revalidationPlans, budget, linkedCancellation.Token);
+            if (currentPrimaryRead.Error is not null) return currentPrimaryRead.Error;
+            var frequencyPrimaryRead = await ReadCurrentFrequencyObservationsAsync(
+                context, request.PrimaryWindow!, plan.Frequency.Plan, revalidationPlans, budget, linkedCancellation.Token);
+            if (frequencyPrimaryRead.Error is not null) return frequencyPrimaryRead.Error;
+            var currentComparisonRead = await ReadCurrentFrequencyObservationsAsync(
+                context, request.ComparisonWindow!, plan.Current.Plan, revalidationPlans, budget, linkedCancellation.Token);
+            if (currentComparisonRead.Error is not null) return currentComparisonRead.Error;
+            var frequencyComparisonRead = await ReadCurrentFrequencyObservationsAsync(
+                context, request.ComparisonWindow!, plan.Frequency.Plan, revalidationPlans, budget, linkedCancellation.Token);
+            if (frequencyComparisonRead.Error is not null) return frequencyComparisonRead.Error;
+
+            var currentUnit = plan.Current.Tag.ControlledEngineeringUnit!;
+            var frequencyUnit = plan.Frequency.Tag.ControlledEngineeringUnit!;
+            var primary = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateWindow(
+                request.PrimaryWindow!,
+                currentPrimaryRead.Observations!,
+                frequencyPrimaryRead.Observations!,
+                currentUnit,
+                frequencyUnit,
+                request.MinimumFrequencyHz,
+                request.MaximumFrequencyHz);
+            var comparison = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateWindow(
+                request.ComparisonWindow!,
+                currentComparisonRead.Observations!,
+                frequencyComparisonRead.Observations!,
+                currentUnit,
+                frequencyUnit,
+                request.MinimumFrequencyHz,
+                request.MaximumFrequencyHz);
+            var reusedSourceTimestamps = primary.Evidence.Pairs
+                .Select(pair => pair.SourceTimestampUtc)
+                .Intersect(comparison.Evidence.Pairs.Select(pair => pair.SourceTimestampUtc))
+                .ToHashSet();
+            if (reusedSourceTimestamps.Count > 0)
+            {
+                primary = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateWindow(
+                    request.PrimaryWindow!,
+                    currentPrimaryRead.Observations!,
+                    frequencyPrimaryRead.Observations!,
+                    currentUnit,
+                    frequencyUnit,
+                    request.MinimumFrequencyHz,
+                    request.MaximumFrequencyHz,
+                    reusedSourceTimestamps);
+                comparison = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateWindow(
+                    request.ComparisonWindow!,
+                    currentComparisonRead.Observations!,
+                    frequencyComparisonRead.Observations!,
+                    currentUnit,
+                    frequencyUnit,
+                    request.MinimumFrequencyHz,
+                    request.MaximumFrequencyHz,
+                    reusedSourceTimestamps);
+            }
+            var metric = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateMetric(
+                primary,
+                comparison,
+                reusedSourceTimestamps.Count > 0);
+
+            await using var finalMutation = await workspace.AcquireMutationAsync(
+                plan.ChangeVersion,
+                linkedCancellation.Token);
+            var finalCheck = await RevalidateCurrentFrequencyPlansAsync(
+                context,
+                revalidationPlans,
+                linkedCancellation.Token);
+            if (finalCheck is not null) return finalCheck;
+
+            return Results.Ok(new AssetProcessIntelligenceCurrentFrequencyComparisonV1Response(
+                AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.ContractVersion,
+                AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.CatalogVersion,
+                AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.RuleId,
+                AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.RuleVersion,
+                plan.ProjectKey,
+                plan.Revision,
+                request.ScopeKind,
+                request.ScopeId,
+                plan.Assignment.Id,
+                plan.Assignment.EquipmentId,
+                plan.Assignment.ProfileId,
+                plan.Current.Description,
+                plan.Frequency.Description,
+                request.MinimumFrequencyHz,
+                request.MaximumFrequencyHz,
+                primary.Evidence,
+                comparison.Evidence,
+                budget.TotalRows,
+                metric,
+                new AssetProcessIntelligenceCurrentFrequencyComparisonV1Provenance(
+                    HistoricalDatasets.HistorianSamplesV2,
+                    2,
+                    "Historian `timestamp` observation/publication time bounds provider filtering and paging only.",
+                    "exact equality of the two TAGs' `source.timestamp` values after each carries explicit Synchronized evidence; both source timestamps must also lie inside that window.",
+                    "TagValue.TimestampEvidenceState.Synchronized is required per row; it is not an acquisition-batch or clock-accuracy guarantee.",
+                    plan.Frequency.Binding.FrequencyReference == "drive_electrical"
+                        ? "Measured drive electrical output frequency in Hz; this is not shaft rotational speed."
+                        : "Measured shaft rotational frequency in Hz; this is not drive electrical output frequency.",
+                    "unverified; exact recorded source-time equality does not prove physical simultaneous acquisition.",
+                    "unverified; frequency conditioning does not prove equal load or a globally equivalent process regime.",
+                    "unknown",
+                    "unknown",
+                    "Arithmetic sample mean of paired current values in A where exact-paired measured frequency is inside the inclusive Hz range; primary mean minus comparison mean; 100 * difference / comparison mean only when the comparison mean is nonzero and the result is finite.")));
+        }
+        catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED");
+        }
+        catch (EngineeringWorkspaceVersionConflictException)
+        {
+            return Conflict("INTELLIGENCE_WORKSPACE_CHANGED");
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Forbidden("HISTORICAL_QUERY_FORBIDDEN");
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_CURSOR_INVALID", "Historical query cursor is invalid."));
+        }
+        catch (HistoricalQueryValidationException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_INVALID", "The bounded Historian query was rejected."));
+        }
+        catch (HistoricalQueryProviderException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_UNAVAILABLE", "Historical data is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_RESPONSE_INVALID", "The Historian response did not match the requested TAG and window."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
     public async Task<IResult> ExecuteProfileCoverageAsync(
         HttpContext context,
         AssetProcessIntelligenceProfileCoverageQueryRequest request,
@@ -609,6 +790,247 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             profile,
             Array.AsReadOnly(signalPlans.ToArray()),
             permitToken));
+    }
+
+    private async Task<PreparedCurrentFrequencyComparisonResult> PrepareCurrentFrequencyComparisonAsync(
+        HttpContext context,
+        AssetProcessIntelligenceCurrentFrequencyComparisonV1QueryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var beforeLock = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(beforeLock, runtime.Describe(), out var coherenceError))
+            return PreparedCurrentFrequencyComparisonResult.Fail(coherenceError!);
+
+        await using var mutation = await workspace.AcquireMutationAsync(beforeLock.ChangeVersion, cancellationToken);
+        var descriptor = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(descriptor, runtime.Describe(), out coherenceError))
+            return PreparedCurrentFrequencyComparisonResult.Fail(coherenceError!);
+        if (!highAvailability.CanOwnIndustrialEffects())
+            return PreparedCurrentFrequencyComparisonResult.Fail(Conflict("INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE"));
+        if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+            return PreparedCurrentFrequencyComparisonResult.Fail(Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED"));
+
+        var policyVersion = 0L;
+        var haEpoch = 0L;
+        if (authorityPolicyHa is not null)
+        {
+            var authorityFence = await authorityPolicyHa.CheckAsync(cancellationToken);
+            if (!authorityFence.Allowed)
+                return PreparedCurrentFrequencyComparisonResult.Fail(
+                    Conflict(authorityFence.ReasonCode.ToUpperInvariant().Replace('-', '_')));
+            policyVersion = authorityFence.PolicyVersion;
+            haEpoch = authorityFence.HaEpoch;
+            var refreshedTrendAuthorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.TrendUse,
+                cancellationToken: cancellationToken);
+            var refreshedTrendFailure = refreshedTrendAuthorization.FailureResult();
+            if (refreshedTrendFailure is not null)
+                return PreparedCurrentFrequencyComparisonResult.Fail(refreshedTrendFailure);
+        }
+
+        var configuration = workspace.AssetProcessIntelligence.Snapshot();
+        if (configuration.Version != 2)
+            return PreparedCurrentFrequencyComparisonResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
+        var scopeMatches = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
+            .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId)
+            .Take(2)
+            .ToArray();
+        if (scopeMatches.Length != 1 || !scopeMatches[0].Active)
+            return PreparedCurrentFrequencyComparisonResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
+        if (!executionGate.TryGetToken(
+                descriptor.ProjectKey!,
+                descriptor.BaseRevision!.Value,
+                request.ScopeKind,
+                request.ScopeId,
+                out var permitToken,
+                policyVersion,
+                haEpoch))
+            return PreparedCurrentFrequencyComparisonResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
+
+        var assignmentMatches = (configuration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>())
+            .Where(assignment => assignment.Id == request.AssignmentId)
+            .Take(2)
+            .ToArray();
+        if (assignmentMatches.Length != 1)
+            return PreparedCurrentFrequencyComparisonResult.Fail(NotFound("INTELLIGENCE_ASSIGNMENT_NOT_AVAILABLE"));
+        var assignment = assignmentMatches[0];
+        var profileMatches = (configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+            .Where(profile => profile.Id == assignment.ProfileId)
+            .Take(2)
+            .ToArray();
+        if (profileMatches.Length != 1)
+            return PreparedCurrentFrequencyComparisonResult.Fail(Conflict("INTELLIGENCE_PROFILE_NOT_AVAILABLE_OR_AMBIGUOUS"));
+        var profile = profileMatches[0];
+        var signals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>()).ToArray();
+        if (signals.Any(signal => signal is null || signal.Id == Guid.Empty || signal.TagId == Guid.Empty))
+            return PreparedCurrentFrequencyComparisonResult.Fail(Conflict("INTELLIGENCE_PROFILE_SIGNAL_IDENTITY_INVALID"));
+        var currentMatches = signals.Where(signal => signal.Id == request.CurrentSignalId).Take(2).ToArray();
+        var frequencyMatches = signals.Where(signal => signal.Id == request.FrequencySignalId).Take(2).ToArray();
+        if (currentMatches.Length != 1 || frequencyMatches.Length != 1 ||
+            request.CurrentSignalId == request.FrequencySignalId)
+            return PreparedCurrentFrequencyComparisonResult.Fail(BadRequest("INTELLIGENCE_CURRENT_FREQUENCY_SIGNAL_IDENTITY_INVALID"));
+        var currentSignal = currentMatches[0];
+        var frequencySignal = frequencyMatches[0];
+        if (currentSignal.TagId == Guid.Empty || frequencySignal.TagId == Guid.Empty ||
+            currentSignal.TagId == frequencySignal.TagId)
+            return PreparedCurrentFrequencyComparisonResult.Fail(BadRequest("INTELLIGENCE_CURRENT_FREQUENCY_TAG_IDENTITY_INVALID"));
+
+        var currentResolution = ResolveScopeSources(
+            request.ScopeKind, request.ScopeId, currentSignal.TagId, configuration, workspace.Assets);
+        if (currentResolution.Error is not null)
+            return PreparedCurrentFrequencyComparisonResult.Fail(currentResolution.Error);
+        var frequencyResolution = ResolveScopeSources(
+            request.ScopeKind, request.ScopeId, frequencySignal.TagId, configuration, workspace.Assets);
+        if (frequencyResolution.Error is not null)
+            return PreparedCurrentFrequencyComparisonResult.Fail(frequencyResolution.Error);
+        var currentAssignment = currentResolution.Assignments!
+            .Where(item => item.AssignmentId == assignment.Id && item.ProfileId == profile.Id && item.SignalId == currentSignal.Id)
+            .Take(2).ToArray();
+        var frequencyAssignment = frequencyResolution.Assignments!
+            .Where(item => item.AssignmentId == assignment.Id && item.ProfileId == profile.Id && item.SignalId == frequencySignal.Id)
+            .Take(2).ToArray();
+        if (currentAssignment.Length != 1 || frequencyAssignment.Length != 1 ||
+            currentAssignment[0].EquipmentId != assignment.EquipmentId ||
+            frequencyAssignment[0].EquipmentId != assignment.EquipmentId)
+            return PreparedCurrentFrequencyComparisonResult.Fail(NotFound("INTELLIGENCE_ASSIGNMENT_NOT_IN_ACTIVE_SCOPE"));
+
+        if (!runtime.TryGetTag(currentSignal.TagId, out var currentTag) || currentTag is null || !IsNumeric(currentTag.DataType) ||
+            !runtime.TryGetTag(frequencySignal.TagId, out var frequencyTag) || frequencyTag is null || !IsNumeric(frequencyTag.DataType))
+            return PreparedCurrentFrequencyComparisonResult.Fail(NotFound("INTELLIGENCE_ANALYTICS_SOURCE_NOT_AVAILABLE"));
+
+        var currentBinding = currentSignal.SemanticBinding;
+        var frequencyBinding = frequencySignal.SemanticBinding;
+        if (AssetProcessIntelligenceSemanticCatalog.ValidateBinding(currentBinding, currentSignal.Id).Count != 0 ||
+            currentBinding is null || currentBinding.RoleCode != "pump.electrical_current" ||
+            string.IsNullOrWhiteSpace(currentBinding.CurrentBasis) ||
+            AssetProcessIntelligenceSemanticCatalog.ValidateBinding(frequencyBinding, frequencySignal.Id).Count != 0 ||
+            frequencyBinding is null || frequencyBinding.RoleCode != "pump.drive_frequency" ||
+            frequencyBinding.SignalKind != "measured_output" ||
+            string.IsNullOrWhiteSpace(frequencyBinding.FrequencyReference))
+            return PreparedCurrentFrequencyComparisonResult.Fail(BadRequest("INTELLIGENCE_CURRENT_FREQUENCY_SEMANTICS_UNSUPPORTED"));
+
+        var currentUnit = currentTag.ControlledEngineeringUnit;
+        var frequencyUnit = frequencyTag.ControlledEngineeringUnit;
+        if (currentUnit is null || currentUnit.CatalogVersion != ControlledEngineeringUnitCatalog.CurrentCatalogVersion ||
+            currentUnit.Code != "unit.electric_current.ampere" ||
+            !ControlledEngineeringUnitCatalog.TryResolve(currentUnit, out var currentDefinition) ||
+            currentDefinition.Dimension != "electric_current" ||
+            frequencyUnit is null || frequencyUnit.CatalogVersion != ControlledEngineeringUnitCatalog.CurrentCatalogVersion ||
+            frequencyUnit.Code != "unit.frequency.hertz" ||
+            !ControlledEngineeringUnitCatalog.TryResolve(frequencyUnit, out var frequencyDefinition) ||
+            frequencyDefinition.Dimension != "frequency")
+            return PreparedCurrentFrequencyComparisonResult.Fail(BadRequest("INTELLIGENCE_CURRENT_FREQUENCY_UNITS_UNSUPPORTED"));
+
+        var currentAuthorization = await security.CheckRuntimeTagAsync(
+            context, runtime, currentTag, TagAccessOperation.Read, cancellationToken);
+        var currentFailure = currentAuthorization.FailureResult();
+        if (currentFailure is not null)
+            return PreparedCurrentFrequencyComparisonResult.Fail(currentFailure);
+        var frequencyAuthorization = await security.CheckRuntimeTagAsync(
+            context, runtime, frequencyTag, TagAccessOperation.Read, cancellationToken);
+        var frequencyFailure = frequencyAuthorization.FailureResult();
+        if (frequencyFailure is not null)
+            return PreparedCurrentFrequencyComparisonResult.Fail(frequencyFailure);
+        if (permitToken.IsCancellationRequested)
+            return PreparedCurrentFrequencyComparisonResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED"));
+
+        var currentPlan = new PreparedPlan(
+            descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion,
+            currentTag, Array.AsReadOnly(currentAssignment), permitToken, request.ScopeKind, request.ScopeId,
+            policyVersion, haEpoch);
+        var frequencyPlan = new PreparedPlan(
+            descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion,
+            frequencyTag, Array.AsReadOnly(frequencyAssignment), permitToken, request.ScopeKind, request.ScopeId,
+            policyVersion, haEpoch);
+        var currentDescription = DescribeCurrentFrequencySignal(currentSignal, currentTag, currentBinding, currentDefinition);
+        var frequencyDescription = DescribeCurrentFrequencySignal(frequencySignal, frequencyTag, frequencyBinding, frequencyDefinition);
+        return PreparedCurrentFrequencyComparisonResult.Ready(new PreparedCurrentFrequencyComparisonPlan(
+            descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion,
+            assignment, profile,
+            new PreparedCurrentFrequencySignal(currentSignal, currentTag, currentBinding, currentDefinition, currentPlan, currentDescription),
+            new PreparedCurrentFrequencySignal(frequencySignal, frequencyTag, frequencyBinding, frequencyDefinition, frequencyPlan, frequencyDescription),
+            permitToken));
+    }
+
+    private static AssetProcessIntelligenceCurrentFrequencyComparisonV1Signal DescribeCurrentFrequencySignal(
+        AssetProcessIntelligenceSignalEngineeringDto signal,
+        TagDefinition tag,
+        AssetProcessIntelligenceSignalSemanticBindingEngineeringDto binding,
+        ControlledEngineeringUnitDefinition unit) =>
+        new(signal.Id, signal.Key, tag.Id, tag.Path, tag.DataType, binding.RoleCode,
+            binding.CurrentBasis, binding.SignalKind, binding.FrequencyReference,
+            tag.EngineeringUnit, tag.ControlledEngineeringUnit!.Code, unit.CanonicalUnit);
+
+    private async Task<CurrentFrequencyObservationReadResult> ReadCurrentFrequencyObservationsAsync(
+        HttpContext context,
+        AssetProcessIntelligenceAnalyticsWindow window,
+        PreparedPlan tagPlan,
+        IReadOnlyList<PreparedPlan> allPlans,
+        CurrentFrequencyRawRowBudget budget,
+        CancellationToken cancellationToken)
+    {
+        var observations = new List<AssetProcessIntelligenceCurrentFrequencyRawObservation>();
+        var cursors = new HashSet<string>(StringComparer.Ordinal);
+        string? cursor = null;
+        var pageCount = 0;
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (budget.TotalRows >= AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.MaximumRawRowsAcrossQuery)
+                return CurrentFrequencyObservationReadResult.Fail(WindowTooDense("INTELLIGENCE_CURRENT_FREQUENCY_WINDOW_TOO_DENSE"));
+            if (++pageCount > AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.MaximumRawRowsAcrossQuery /
+                AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.QueryPageSize + 1)
+                throw new InvalidDataException("Historian pagination exceeded the bounded page count.");
+
+            await using var mutation = await workspace.AcquireMutationAsync(tagPlan.ChangeVersion, cancellationToken);
+            var validation = await RevalidateCurrentFrequencyPlansAsync(context, allPlans, cancellationToken);
+            if (validation is not null) return CurrentFrequencyObservationReadResult.Fail(validation);
+
+            var remainingRows = AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.MaximumRawRowsAcrossQuery - budget.TotalRows;
+            var pageSize = Math.Min(AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.QueryPageSize, remainingRows);
+            var request = new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamplesV2,
+                HistoricalTimeRange.Absolute(window.FromUtc, window.ToUtc),
+                Version: 2,
+                Filters: [new HistoricalFilter("tag.id", HistoricalFilterOperator.Eq,
+                    [HistoricalQueryValue.FromGuid(tagPlan.Tag.Id)])],
+                OrderBy: [new HistoricalSort("timestamp", HistoricalSortDirection.Ascending)],
+                Page: new HistoricalPageRequest(pageSize, cursor));
+            var response = await historicalQueries.QueryAsync(request, cancellationToken);
+            ValidateCurrentFrequencyPage(response, window, tagPlan.Tag.Id, pageSize);
+            validation = await RevalidateCurrentFrequencyPlansAsync(context, allPlans, cancellationToken);
+            if (validation is not null) return CurrentFrequencyObservationReadResult.Fail(validation);
+            if (budget.TotalRows + response.Rows.Count > AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.MaximumRawRowsAcrossQuery ||
+                (budget.TotalRows + response.Rows.Count == AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.MaximumRawRowsAcrossQuery &&
+                 response.NextCursor is not null))
+                return CurrentFrequencyObservationReadResult.Fail(WindowTooDense("INTELLIGENCE_CURRENT_FREQUENCY_WINDOW_TOO_DENSE"));
+
+            foreach (var row in response.Rows)
+                observations.Add(ToCurrentFrequencyObservation(row));
+            budget.TotalRows += response.Rows.Count;
+
+            cursor = response.NextCursor;
+            if (cursor is not null && !cursors.Add(cursor))
+                throw new InvalidDataException("Historian pagination cursor repeated.");
+        }
+        while (cursor is not null);
+
+        return CurrentFrequencyObservationReadResult.Ready(observations.AsReadOnly());
+    }
+
+    private async Task<IResult?> RevalidateCurrentFrequencyPlansAsync(
+        HttpContext context,
+        IReadOnlyList<PreparedPlan> plans,
+        CancellationToken cancellationToken)
+    {
+        foreach (var plan in plans)
+        {
+            var validation = await RevalidateAsync(context, plan, cancellationToken);
+            if (validation is not null) return validation;
+        }
+        return null;
     }
 
     private async Task<PreparedPlanResult> PrepareAsync(
@@ -991,11 +1413,39 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         return null;
     }
 
+    private static IResult? ValidateCurrentFrequencyComparisonRequest(
+        AssetProcessIntelligenceCurrentFrequencyComparisonV1QueryRequest request)
+    {
+        if (!Enum.IsDefined(request.ScopeKind) || request.ScopeId == Guid.Empty ||
+            request.AssignmentId == Guid.Empty || request.CurrentSignalId == Guid.Empty ||
+            request.FrequencySignalId == Guid.Empty || request.CurrentSignalId == request.FrequencySignalId)
+            return BadRequest("INTELLIGENCE_CURRENT_FREQUENCY_IDENTITY_INVALID");
+        if (request.PrimaryWindow is null || request.ComparisonWindow is null ||
+            !ValidCurrentFrequencyWindow(request.PrimaryWindow) || !ValidCurrentFrequencyWindow(request.ComparisonWindow) ||
+            request.PrimaryWindow.ToUtc - request.PrimaryWindow.FromUtc !=
+            request.ComparisonWindow.ToUtc - request.ComparisonWindow.FromUtc)
+            return BadRequest("INTELLIGENCE_CURRENT_FREQUENCY_WINDOWS_INVALID");
+        var primary = request.PrimaryWindow;
+        var comparison = request.ComparisonWindow;
+        if (!(primary.ToUtc < comparison.FromUtc || comparison.ToUtc < primary.FromUtc))
+            return BadRequest("INTELLIGENCE_CURRENT_FREQUENCY_WINDOWS_MUST_BE_DISJOINT");
+        if (!double.IsFinite(request.MinimumFrequencyHz) || !double.IsFinite(request.MaximumFrequencyHz) ||
+            request.MinimumFrequencyHz > request.MaximumFrequencyHz)
+            return BadRequest("INTELLIGENCE_CURRENT_FREQUENCY_RANGE_INVALID");
+        return null;
+    }
+
     private static bool ValidWindow(AssetProcessIntelligenceAnalyticsWindow window) =>
         window.FromUtc.Offset == TimeSpan.Zero &&
         window.ToUtc.Offset == TimeSpan.Zero &&
         window.ToUtc > window.FromUtc &&
         window.ToUtc - window.FromUtc <= AssetProcessIntelligenceKpiCatalogV1.MaximumWindow;
+
+    private static bool ValidCurrentFrequencyWindow(AssetProcessIntelligenceAnalyticsWindow window) =>
+        window.FromUtc.Offset == TimeSpan.Zero &&
+        window.ToUtc.Offset == TimeSpan.Zero &&
+        window.ToUtc > window.FromUtc &&
+        window.ToUtc - window.FromUtc <= AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.MaximumWindow;
 
     private static bool IsWorkspaceRuntimeCoherent(
         EngineeringWorkspaceDescriptor workspace,
@@ -1049,6 +1499,70 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
+    private static void ValidateCurrentFrequencyPage(
+        HistoricalQueryResponse response,
+        AssetProcessIntelligenceAnalyticsWindow window,
+        Guid expectedTagId,
+        int expectedPageSize)
+    {
+        if (response is null || response.Version != 2 ||
+            !string.Equals(response.Dataset, HistoricalDatasets.HistorianSamplesV2, StringComparison.Ordinal) ||
+            response.FromUtc != window.FromUtc || response.ToUtc != window.ToUtc ||
+            response.FromUtc.Offset != TimeSpan.Zero || response.ToUtc.Offset != TimeSpan.Zero ||
+            response.PageSize != expectedPageSize || response.Rows is null ||
+            response.Rows.Count > expectedPageSize || response.Columns is null)
+            throw new InvalidDataException("Historical v2 response metadata does not match the request.");
+
+        var requiredFields = new Dictionary<string, HistoricalFieldType>(StringComparer.Ordinal)
+        {
+            ["tag.id"] = HistoricalFieldType.Guid,
+            ["quality"] = HistoricalFieldType.Enum,
+            ["value"] = HistoricalFieldType.Scalar,
+            ["timestamp"] = HistoricalFieldType.DateTime,
+            ["source.timestamp"] = HistoricalFieldType.DateTime,
+            ["source.timestamp.status"] = HistoricalFieldType.Enum
+        };
+        foreach (var required in requiredFields)
+        {
+            var columns = response.Columns.Where(column => column.Field == required.Key).Take(2).ToArray();
+            if (columns.Length != 1 || columns[0].Type != required.Value)
+                throw new InvalidDataException("Historical v2 response columns do not match the contract.");
+        }
+
+        foreach (var row in response.Rows)
+        {
+            if (row.Cells is null ||
+                !row.Cells.TryGetValue("tag.id", out var tagCell) || tagCell.Kind != HistoricalValueKind.Guid ||
+                !Guid.TryParse(tagCell.Value, out var returnedTagId) || returnedTagId != expectedTagId)
+                throw new InvalidDataException("Historical v2 response contains a different TAG.");
+            if (!row.Cells.TryGetValue("timestamp", out var timestamp) ||
+                timestamp.Kind != HistoricalValueKind.DateTime ||
+                !DateTimeOffset.TryParse(timestamp.Value, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var observedAt) ||
+                observedAt.Offset != TimeSpan.Zero || observedAt < window.FromUtc || observedAt > window.ToUtc)
+                throw new InvalidDataException("Historical v2 response contains an invalid observation timestamp.");
+            if (!row.Cells.TryGetValue("quality", out var quality) ||
+                quality.Kind is not (HistoricalValueKind.Enum or HistoricalValueKind.String or HistoricalValueKind.Null))
+                throw new InvalidDataException("Historical v2 response contains malformed quality evidence.");
+            if (!row.Cells.TryGetValue("value", out var value) ||
+                value.Kind is not (HistoricalValueKind.Int16 or HistoricalValueKind.Int32 or HistoricalValueKind.Int64 or
+                    HistoricalValueKind.Float or HistoricalValueKind.Double or HistoricalValueKind.Number or
+                    HistoricalValueKind.String or HistoricalValueKind.Boolean or HistoricalValueKind.Null))
+                throw new InvalidDataException("Historical v2 response contains a malformed value.");
+            if (!row.Cells.TryGetValue("source.timestamp", out var sourceTimestamp) ||
+                sourceTimestamp.Kind is not (HistoricalValueKind.DateTime or HistoricalValueKind.Null))
+                throw new InvalidDataException("Historical v2 response contains malformed source timestamp evidence.");
+            if (sourceTimestamp.Kind == HistoricalValueKind.DateTime &&
+                (!DateTimeOffset.TryParse(sourceTimestamp.Value, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var parsedSourceTimestamp) ||
+                 parsedSourceTimestamp.Offset != TimeSpan.Zero))
+                throw new InvalidDataException("Historical v2 response contains an invalid source timestamp.");
+            if (!row.Cells.TryGetValue("source.timestamp.status", out var evidence) ||
+                evidence.Kind is not (HistoricalValueKind.Enum or HistoricalValueKind.String or HistoricalValueKind.Null))
+                throw new InvalidDataException("Historical v2 response contains malformed source timestamp status.");
+        }
+    }
+
     private static AssetProcessIntelligenceRawObservation ToObservation(HistoricalQueryRow row)
     {
         var timestamp = row.Cells["timestamp"].AsDateTime().ToUniversalTime();
@@ -1058,6 +1572,22 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             : null;
         var value = row.Cells.GetValueOrDefault("value");
         return new AssetProcessIntelligenceRawObservation(timestamp, quality, value);
+    }
+
+    private static AssetProcessIntelligenceCurrentFrequencyRawObservation ToCurrentFrequencyObservation(
+        HistoricalQueryRow row)
+    {
+        var timestamp = row.Cells["timestamp"].AsDateTime();
+        var quality = row.Cells["quality"].Kind is HistoricalValueKind.Enum or HistoricalValueKind.String
+            ? row.Cells["quality"].Value
+            : null;
+        DateTimeOffset? sourceTimestamp = row.Cells["source.timestamp"].Kind == HistoricalValueKind.DateTime
+            ? row.Cells["source.timestamp"].AsDateTime()
+            : null;
+        var sourceEvidence = row.Cells["source.timestamp.status"].Kind is HistoricalValueKind.Enum or HistoricalValueKind.String
+            ? row.Cells["source.timestamp.status"].Value
+            : null;
+        return new(timestamp, quality, row.Cells["value"], sourceTimestamp, sourceEvidence);
     }
 
     private static bool IsNumeric(TagDataType type) => type is
@@ -1154,5 +1684,45 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
     {
         public static PreparedProfileCoverageResult Ready(PreparedProfilePlan plan) => new(plan, null);
         public static PreparedProfileCoverageResult Fail(IResult error) => new(null, error);
+    }
+
+    private sealed record PreparedCurrentFrequencySignal(
+        AssetProcessIntelligenceSignalEngineeringDto Signal,
+        TagDefinition Tag,
+        AssetProcessIntelligenceSignalSemanticBindingEngineeringDto Binding,
+        ControlledEngineeringUnitDefinition Unit,
+        PreparedPlan Plan,
+        AssetProcessIntelligenceCurrentFrequencyComparisonV1Signal Description);
+
+    private sealed record PreparedCurrentFrequencyComparisonPlan(
+        string ProjectKey,
+        long Revision,
+        long ChangeVersion,
+        AssetProcessIntelligenceAssignmentEngineeringDto Assignment,
+        AssetProcessIntelligenceProfileEngineeringDto Profile,
+        PreparedCurrentFrequencySignal Current,
+        PreparedCurrentFrequencySignal Frequency,
+        CancellationToken PermitToken);
+
+    private sealed record PreparedCurrentFrequencyComparisonResult(
+        PreparedCurrentFrequencyComparisonPlan? Plan,
+        IResult? Error)
+    {
+        public static PreparedCurrentFrequencyComparisonResult Ready(PreparedCurrentFrequencyComparisonPlan plan) => new(plan, null);
+        public static PreparedCurrentFrequencyComparisonResult Fail(IResult error) => new(null, error);
+    }
+
+    private sealed class CurrentFrequencyRawRowBudget
+    {
+        public int TotalRows { get; set; }
+    }
+
+    private sealed record CurrentFrequencyObservationReadResult(
+        IReadOnlyList<AssetProcessIntelligenceCurrentFrequencyRawObservation>? Observations,
+        IResult? Error)
+    {
+        public static CurrentFrequencyObservationReadResult Ready(
+            IReadOnlyList<AssetProcessIntelligenceCurrentFrequencyRawObservation> observations) => new(observations, null);
+        public static CurrentFrequencyObservationReadResult Fail(IResult error) => new(null, error);
     }
 }

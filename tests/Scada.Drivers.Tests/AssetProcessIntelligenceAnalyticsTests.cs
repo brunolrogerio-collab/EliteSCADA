@@ -1081,6 +1081,8 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             new[]
             {
                 "/api/engineering/asset-process-intelligence/analytics/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/current-frequency-comparison/v1/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/current-frequency-comparison/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/net-observed-rate/v1/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/net-observed-rate/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/profile-coverage",
@@ -1095,6 +1097,698 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         Assert.Equal(new[] { "GET", "POST" }, methods);
+    }
+
+    [Fact]
+    public void CurrentFrequencyComparisonV1Catalog_DeclaresBoundedAAndHzRule()
+    {
+        var catalog = JsonSerializer.SerializeToElement(
+            AssetProcessIntelligenceCurrentFrequencyComparisonV1Catalog.Describe());
+
+        Assert.Equal(1, catalog.GetProperty("contractVersion").GetInt32());
+        Assert.Equal(1, catalog.GetProperty("catalogVersion").GetInt32());
+        Assert.Equal("current-at-recorded-frequency.compare.v1", catalog.GetProperty("ruleId").GetString());
+        Assert.Equal("historian.samples.v2", catalog.GetProperty("dataset").GetString());
+        Assert.Equal(2, catalog.GetProperty("datasetContractVersion").GetInt32());
+        Assert.Equal("unit.electric_current.ampere", catalog.GetProperty("currentUnit").GetProperty("code").GetString());
+        Assert.Equal("unit.frequency.hertz", catalog.GetProperty("frequencyUnit").GetProperty("code").GetString());
+        Assert.Equal(50000, catalog.GetProperty("maximumRawRowsAcrossBothTagsAndBothWindows").GetInt32());
+        Assert.Equal(200, catalog.GetProperty("pageSize").GetInt32());
+    }
+
+    [Fact]
+    public void CurrentFrequencyComparisonV1_RawDuplicateTimestampAcrossEvidenceStatesIsAmbiguous()
+    {
+        var window = Window(FromUtc, FromUtc.AddMinutes(10));
+        var duplicateTime = FromUtc.AddMinutes(2);
+        var ampere = new ControlledEngineeringUnitReference(1, "unit.electric_current.ampere");
+        var hertz = new ControlledEngineeringUnitReference(1, "unit.frequency.hertz");
+        var currentRows = new[]
+        {
+            CurrentFrequencyRow(FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(10), FromUtc.AddMinutes(1), "Synchronized"),
+            CurrentFrequencyRow(FromUtc.AddMinutes(2), "Good", HistoricalQueryValue.FromDouble(99), duplicateTime, "Synchronized"),
+            CurrentFrequencyRow(FromUtc.AddMinutes(2).AddSeconds(1), "Good", HistoricalQueryValue.FromDouble(101), duplicateTime, "PresentUnverified")
+        };
+        var frequencyRows = new[]
+        {
+            CurrentFrequencyRow(FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(50), FromUtc.AddMinutes(1), "Synchronized"),
+            CurrentFrequencyRow(FromUtc.AddMinutes(2), "Good", HistoricalQueryValue.FromDouble(50), duplicateTime, "Synchronized")
+        };
+
+        var forward = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateWindow(
+            window, currentRows, frequencyRows, ampere, hertz, 50, 50);
+        var reverse = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateWindow(
+            window, currentRows.Reverse().ToArray(), frequencyRows.Reverse().ToArray(), ampere, hertz, 50, 50);
+
+        Assert.Equal(1, forward.Evidence.Current.AmbiguousSourceTimestampGroupCount);
+        Assert.Equal(2, forward.Evidence.Current.AmbiguousSourceTimestampRowCount);
+        Assert.Equal(1, forward.Evidence.ExactSourceTimestampPairCount);
+        Assert.Equal(1, forward.Evidence.SelectedPairCount);
+        var metric = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateMetric(
+            forward,
+            new AssetProcessIntelligenceCurrentFrequencyWindowCalculation(
+                forward.Evidence with { SelectedPairCount = 2 }, 1d),
+            false);
+        Assert.Equal("insufficient_data", metric.Status);
+        Assert.Contains("fewer_than_two_primary_frequency_conditioned_pairs", metric.ReasonCodes);
+        Assert.Equal(
+            forward.Evidence.Pairs.Select(pair => pair.SourceTimestampUtc),
+            reverse.Evidence.Pairs.Select(pair => pair.SourceTimestampUtc));
+        Assert.Equal(10d, forward.MeanCurrentA);
+    }
+
+    [Fact]
+    public void CurrentFrequencyComparisonV1_FrequencyBoundsAreInclusiveAndOutOfRangePairsAreCounted()
+    {
+        var window = Window(FromUtc, FromUtc.AddMinutes(10));
+        var currentRows = new List<AssetProcessIntelligenceCurrentFrequencyRawObservation>();
+        var frequencyRows = new List<AssetProcessIntelligenceCurrentFrequencyRawObservation>();
+        var currentValues = new[] { 10d, 20d, 30d, 40d };
+        var frequencies = new[] { 49d, 51d, 48.999d, 51.001d };
+        for (var index = 0; index < currentValues.Length; index++)
+        {
+            var timestamp = FromUtc.AddMinutes(index + 1);
+            currentRows.Add(CurrentFrequencyRow(timestamp, "Good", HistoricalQueryValue.FromDouble(currentValues[index]), timestamp, "Synchronized"));
+            frequencyRows.Add(CurrentFrequencyRow(timestamp, "Good", HistoricalQueryValue.FromDouble(frequencies[index]), timestamp, "Synchronized"));
+        }
+
+        var calculation = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateWindow(
+            window,
+            currentRows,
+            frequencyRows,
+            new ControlledEngineeringUnitReference(1, "unit.electric_current.ampere"),
+            new ControlledEngineeringUnitReference(1, "unit.frequency.hertz"),
+            49,
+            51);
+
+        Assert.Equal(2, calculation.Evidence.FrequencyInRangePairCount);
+        Assert.Equal(2, calculation.Evidence.FrequencyOutOfRangePairCount);
+        Assert.Equal(2, calculation.Evidence.SelectedPairCount);
+        Assert.Equal(15d, calculation.MeanCurrentA);
+        Assert.Equal(2, calculation.Evidence.Frequency.RejectionCounts["frequency_outside_requested_range"]);
+    }
+
+    [Fact]
+    public void CurrentFrequencyComparisonV1_ZeroComparisonMeanRetainsAbsoluteDifference()
+    {
+        var window = Window(FromUtc, FromUtc.AddMinutes(10));
+        var primary = new AssetProcessIntelligenceCurrentFrequencyWindowCalculation(
+            EmptyCurrentFrequencyEvidence(window) with { SelectedPairCount = 2 }, 4d);
+        var comparison = new AssetProcessIntelligenceCurrentFrequencyWindowCalculation(
+            EmptyCurrentFrequencyEvidence(Window(FromUtc.AddHours(2), FromUtc.AddHours(2).AddMinutes(10)))
+                with { SelectedPairCount = 2 }, 0d);
+
+        var metric = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateMetric(
+            primary, comparison, false);
+
+        Assert.Equal("available", metric.Status);
+        Assert.Equal(4d, metric.DifferenceA);
+        Assert.Null(metric.PercentChange);
+        Assert.Equal("unsupported", metric.PercentChangeStatus);
+        Assert.Equal("comparison_mean_zero_percent_change_unavailable", metric.PercentChangeReasonCode);
+    }
+
+    [Fact]
+    public void CurrentFrequencyComparisonV1_RejectsMissingUnverifiedAndOutOfWindowSourceTimeEvidence()
+    {
+        var window = Window(FromUtc, FromUtc.AddMinutes(10));
+        var currentRows = new[]
+        {
+            CurrentFrequencyRow(FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(10), FromUtc.AddMinutes(1), "Synchronized"),
+            CurrentFrequencyRow(FromUtc.AddMinutes(2), "Good", HistoricalQueryValue.FromDouble(10), FromUtc.AddMinutes(2), "Synchronized"),
+            CurrentFrequencyRow(FromUtc.AddMinutes(3), "Good", HistoricalQueryValue.FromDouble(10), FromUtc.AddMinutes(3), "Synchronized"),
+            CurrentFrequencyRow(FromUtc.AddMinutes(4), "Good", HistoricalQueryValue.FromDouble(10), FromUtc.AddMinutes(4), "Synchronized")
+        };
+        var frequencyRows = new[]
+        {
+            CurrentFrequencyRow(FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(50), FromUtc.AddMinutes(1), "PresentUnverified"),
+            CurrentFrequencyRow(FromUtc.AddMinutes(2), "Good", HistoricalQueryValue.FromDouble(50), FromUtc.AddSeconds(-1), "Synchronized"),
+            CurrentFrequencyRow(FromUtc.AddMinutes(3), "Good", HistoricalQueryValue.FromDouble(50), null, "NotRecorded"),
+            CurrentFrequencyRow(FromUtc.AddMinutes(4), "BadCommunication", HistoricalQueryValue.FromDouble(50), FromUtc.AddMinutes(4), "Synchronized")
+        };
+
+        var calculation = AssetProcessIntelligenceCurrentFrequencyComparisonV1Calculator.CalculateWindow(
+            window,
+            currentRows,
+            frequencyRows,
+            new ControlledEngineeringUnitReference(1, "unit.electric_current.ampere"),
+            new ControlledEngineeringUnitReference(1, "unit.frequency.hertz"),
+            49,
+            51);
+
+        Assert.Equal(0, calculation.Evidence.ExactSourceTimestampPairCount);
+        Assert.Equal(0, calculation.Evidence.SelectedPairCount);
+        Assert.Equal(1, calculation.Evidence.Frequency.RejectionCounts["source_timestamp_not_synchronized"]);
+        Assert.Equal(1, calculation.Evidence.Frequency.RejectionCounts["source_timestamp_outside_requested_window"]);
+        Assert.Equal(1, calculation.Evidence.Frequency.RejectionCounts["source_timestamp_missing"]);
+        Assert.Equal(1, calculation.Evidence.Frequency.RejectionCounts["quality_not_good"]);
+        Assert.Equal(1, calculation.Evidence.Frequency.QualityCounts["BadCommunication"]);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_UsesExactSynchronizedPairsAndReturnsReproducibleMeans()
+    {
+        using var fixture = Fixture.Create();
+        var (currentTag, frequencyTag, request) = fixture.AddCurrentFrequencySignals();
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var from = query.Range.FromUtc!.Value;
+            var isPrimary = from == request.PrimaryWindow!.FromUtc;
+            var first = from.AddMinutes(5);
+            var second = from.AddMinutes(10);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromDouble(tagId == currentTag.Id
+                    ? isPrimary ? 4 : 2 : 50), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromDouble(tagId == currentTag.Id
+                    ? isPrimary ? 6 : 4 : 50), second, "Synchronized"),
+                V2Row(tagId, from.AddMinutes(15), "Good", HistoricalQueryValue.FromString("not numeric"),
+                    from.AddMinutes(15), "Synchronized"),
+                V2Row(tagId, from.AddMinutes(20), "Good", HistoricalQueryValue.FromBoolean(true),
+                    from.AddMinutes(20), "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(4, fixture.Historian.Calls);
+        Assert.All(fixture.Historian.Requests, query =>
+        {
+            Assert.Equal(HistoricalDatasets.HistorianSamplesV2, query.Dataset);
+            Assert.Equal(2, query.Version);
+            Assert.Equal("timestamp", Assert.Single(query.OrderBy!).Field);
+            Assert.Equal(200, query.Page!.Size);
+        });
+        Assert.Equal(currentTag.Id, payload.CurrentSignal.TagId);
+        Assert.Equal(frequencyTag.Id, payload.FrequencySignal.TagId);
+        Assert.Equal(5d, payload.Metric.PrimaryMeanCurrentA);
+        Assert.Equal(3d, payload.Metric.ComparisonMeanCurrentA);
+        Assert.Equal(2d, payload.Metric.DifferenceA);
+        Assert.Equal(200d / 3d, payload.Metric.PercentChange!.Value, 10);
+        Assert.Equal(16, payload.TotalRawObservationCount);
+        Assert.Equal(2, payload.Primary.SelectedPairCount);
+        Assert.Equal(2, payload.Comparison.SelectedPairCount);
+        Assert.Equal(4, payload.Primary.Current.RawObservationCount);
+        Assert.Equal(2, payload.Primary.Current.RejectedObservationCount);
+        Assert.Equal(4, payload.Primary.Frequency.RawObservationCount);
+        Assert.Equal(2, payload.Primary.Frequency.RejectedObservationCount);
+        Assert.Equal("A", payload.CurrentSignal.CanonicalUnit);
+        Assert.Equal("Hz", payload.FrequencySignal.CanonicalUnit);
+    }
+
+    [Theory]
+    [InlineData("unit.electric_current.milliampere", 1)]
+    [InlineData("unit.electric_current.ampere", 2)]
+    public async Task CurrentFrequencyComparisonV1_RejectsUnsupportedControlledUnitBeforeHistorianRead(
+        string currentUnitCode,
+        int currentUnitVersion)
+    {
+        using var fixture = Fixture.Create();
+        var (_, _, request) = fixture.AddCurrentFrequencySignals(
+            currentUnit: new ControlledEngineeringUnitReference(currentUnitVersion, currentUnitCode));
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async(request);
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_RejectsOverlappingWindowsBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddCurrentFrequencySignals();
+        var request = fixture.CurrentFrequencyRequest! with
+        {
+            ComparisonWindow = Window(FromUtc.AddMinutes(30), FromUtc.AddMinutes(90))
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async(request);
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_OnlyStringAndBooleanRowsReturnInsufficientDataNotProviderFailure()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddCurrentFrequencySignals();
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var first = query.Range.FromUtc!.Value.AddMinutes(5);
+            var second = query.Range.FromUtc.Value.AddMinutes(10);
+            return ResponseV2(query,
+            [
+                V2Row(tagId, first, "Good", HistoricalQueryValue.FromString("legacy string"), first, "Synchronized"),
+                V2Row(tagId, second, "Good", HistoricalQueryValue.FromBoolean(false), second, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async();
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("insufficient_data", payload.Metric.Status);
+        Assert.Null(payload.Metric.PrimaryMeanCurrentA);
+        Assert.Null(payload.Metric.ComparisonMeanCurrentA);
+        Assert.Equal(2, payload.Primary.Current.RejectedObservationCount);
+        Assert.Equal(2, payload.Primary.Frequency.RejectedObservationCount);
+        Assert.Equal(8, payload.TotalRawObservationCount);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_RejectsSetpointSemanticBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var (_, _, request) = fixture.AddCurrentFrequencySignals();
+        var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+        var profile = configuration.Profiles!.Single();
+        var invalidSignals = profile.Signals!.Select(signal => signal.Id == request.FrequencySignalId
+            ? signal with
+            {
+                SemanticBinding = signal.SemanticBinding! with { SignalKind = "command_setpoint" }
+            }
+            : signal).ToArray();
+        fixture.Workspace.AssetProcessIntelligence.Replace(configuration with
+        {
+            Profiles = [profile with { Signals = invalidSignals }]
+        });
+        var descriptor = fixture.Workspace.Describe();
+        fixture.Workspace.SetCheckout(Fixture.ProjectKey, "invalid measured output test",
+            descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async(request);
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_AuthorizesBothSelectedTagsBeforeFirstHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddCurrentFrequencySignals(frequencyAccessPolicy: new TagAccessPolicy(ReadRoles: ["different-role"]));
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async();
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_DuplicateRawTimestampSplitAcrossPagesIsExcludedDeterministically()
+    {
+        using var fixture = Fixture.Create();
+        var (currentTag, _, request) = fixture.AddCurrentFrequencySignals();
+        var primaryFirst = request.PrimaryWindow!.FromUtc.AddMinutes(5);
+        var primaryDuplicate = request.PrimaryWindow.FromUtc.AddMinutes(6);
+        var comparisonFirst = request.ComparisonWindow!.FromUtc.AddMinutes(5);
+        var comparisonSecond = request.ComparisonWindow.FromUtc.AddMinutes(6);
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var from = query.Range.FromUtc!.Value;
+            if (tagId == currentTag.Id && from == request.PrimaryWindow.FromUtc)
+            {
+                if (query.Page!.Cursor is null)
+                    return ResponseV2(query,
+                    [
+                        V2Row(tagId, primaryFirst, "Good", HistoricalQueryValue.FromDouble(10), primaryFirst, "Synchronized"),
+                        V2Row(tagId, primaryDuplicate, "Good", HistoricalQueryValue.FromDouble(99), primaryDuplicate, "Synchronized")
+                    ], "current-primary-second-page");
+                return ResponseV2(query,
+                    [V2Row(tagId, primaryDuplicate.AddSeconds(1), "Good", HistoricalQueryValue.FromDouble(101), primaryDuplicate, "PresentUnverified")]);
+            }
+
+            var isPrimary = from == request.PrimaryWindow.FromUtc;
+            var times = isPrimary ? new[] { primaryFirst, primaryDuplicate } : new[] { comparisonFirst, comparisonSecond };
+            return ResponseV2(query, times.Select((timestamp, index) =>
+            {
+                var sourceTimestamp = timestamp;
+                var value = tagId == currentTag.Id
+                    ? isPrimary ? index == 0 ? 10d : 99d : index == 0 ? 3d : 5d
+                    : 50d;
+                return V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(value), sourceTimestamp, "Synchronized");
+            }).ToArray());
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(5, fixture.Historian.Calls);
+        Assert.Equal("current-primary-second-page", fixture.Historian.Requests[1].Page!.Cursor);
+        Assert.Equal(1, payload.Primary.Current.AmbiguousSourceTimestampGroupCount);
+        Assert.Equal(2, payload.Primary.Current.AmbiguousSourceTimestampRowCount);
+        Assert.Equal(1, payload.Primary.ExactSourceTimestampPairCount);
+        Assert.Equal(1, payload.Primary.SelectedPairCount);
+        Assert.Equal(primaryFirst, Assert.Single(payload.Primary.Pairs).SourceTimestampUtc);
+        Assert.Equal("insufficient_data", payload.Metric.Status);
+        Assert.Contains("fewer_than_two_primary_frequency_conditioned_pairs", payload.Metric.ReasonCodes);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_GlobalRowCapCountsRejectedRowsAndReturnsNoPartialResult()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddCurrentFrequencySignals();
+        fixture.Historian.Respond = query =>
+        {
+            var pageNumber = fixture.Historian.Calls - 1;
+            var cursor = pageNumber == 249 ? null : $"global-page-{pageNumber + 1}";
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            return ResponseV2(query, Enumerable.Range(0, 200)
+                .Select(_ => V2Row(tagId, query.Range.FromUtc!.Value.AddSeconds(1), "Good",
+                    HistoricalQueryValue.FromString("not numeric"), null, "NotRecorded"))
+                .ToArray(), cursor);
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async();
+
+        AssertStatus(StatusCodes.Status413PayloadTooLarge, result);
+        Assert.Equal(250, fixture.Historian.Calls);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_CURRENT_FREQUENCY_WINDOW_TOO_DENSE", error.Code);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_PermitRevocationAfterAnyPageDiscardsAllEvidence()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddCurrentFrequencySignals();
+        fixture.Historian.Respond = query =>
+        {
+            fixture.Gate.Pause(Fixture.ProjectKey, fixture.ScopeKind, fixture.ScopeId);
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return ResponseV2(query,
+                [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(5), timestamp, "Synchronized")]);
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async();
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_FrequencyTagReadRevocationDuringCurrentPageStopsBeforeNextQuery()
+    {
+        using var fixture = Fixture.Create();
+        var (currentTag, frequencyTag, _) = fixture.AddCurrentFrequencySignals(
+            frequencyAccessPolicy: new TagAccessPolicy(ReadRoles: ["operator"]));
+
+        fixture.Historian.Respond = query =>
+        {
+            fixture.Runtime.SetTag(frequencyTag with
+            {
+                AccessPolicy = new TagAccessPolicy(ReadRoles: ["different-role"])
+            });
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return ResponseV2(query,
+                [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(10), timestamp, "Synchronized")]);
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async();
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.Equal(currentTag.Id, fixture.Historian.Requests[0].Filters!.Single().Values.Single().AsGuid());
+        Assert.IsNotType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_PermitCancellationWhileHistorianQueryIsInFlightIsDeterministic()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddCurrentFrequencySignals();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Historian.RespondAsync = async (query, cancellationToken) =>
+        {
+            started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return ResponseV2(query, []);
+        };
+
+        var task = fixture.ExecuteCurrentFrequencyComparisonV1Async();
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        fixture.Gate.Pause(Fixture.ProjectKey, fixture.ScopeKind, fixture.ScopeId);
+        var result = await task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_WorkspaceMutationDuringPageDiscardsTheWholeCalculation()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddCurrentFrequencySignals();
+        fixture.Historian.Respond = query =>
+        {
+            fixture.Workspace.Tags.Upsert(fixture.Tag with { Description = "unsaved during query" });
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return ResponseV2(query,
+                [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(10), timestamp, "Synchronized")]);
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async();
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_RuntimeRevisionChangeDuringPageDiscardsTheWholeCalculation()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddCurrentFrequencySignals();
+        fixture.Historian.Respond = query =>
+        {
+            fixture.Runtime.SetRevision(42);
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return ResponseV2(query,
+                [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(10), timestamp, "Synchronized")]);
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async();
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_RejectsUnknownAssignmentAndInactiveScopeBeforeHistorianRead()
+    {
+        using (var invalidAssignment = Fixture.Create())
+        {
+            var (_, _, request) = invalidAssignment.AddCurrentFrequencySignals();
+            var result = await invalidAssignment.ExecuteCurrentFrequencyComparisonV1Async(
+                request with { AssignmentId = Guid.NewGuid() });
+
+            AssertStatus(StatusCodes.Status404NotFound, result);
+            Assert.Equal(0, invalidAssignment.Historian.Calls);
+        }
+
+        using (var invalidScope = Fixture.Create())
+        {
+            var (_, _, request) = invalidScope.AddCurrentFrequencySignals();
+            var result = await invalidScope.ExecuteCurrentFrequencyComparisonV1Async(
+                request with { ScopeId = Guid.NewGuid() });
+
+            AssertStatus(StatusCodes.Status409Conflict, result);
+            Assert.Equal(0, invalidScope.Historian.Calls);
+        }
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_AggregateCapIsSharedAcrossTagsAndWindowsAndCountsRejectedRows()
+    {
+        using var fixture = Fixture.Create();
+        fixture.AddCurrentFrequencySignals();
+        var pageCounts = new Dictionary<(Guid Tag, DateTimeOffset From), int>();
+        var partitions = new List<(Guid Tag, DateTimeOffset From)>();
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var key = (Tag: tagId, From: query.Range.FromUtc!.Value);
+            pageCounts.TryGetValue(key, out var localPage);
+            if (!pageCounts.ContainsKey(key)) partitions.Add(key);
+            pageCounts[key] = localPage + 1;
+            var partitionIndex = partitions.IndexOf(key);
+            var cursor = $"{partitionIndex}-{localPage + 1}";
+            // The first three TAG/window partitions end at 12,400 rows each;
+            // the fourth reaches the shared 50,000 cap while advertising another page.
+            if (partitionIndex == 3 && localPage == 63)
+                cursor = "still-more-after-global-cap";
+            else if (partitionIndex < 3 && localPage == 61)
+                cursor = null;
+            var timestamp = query.Range.FromUtc.Value.AddSeconds(1);
+            return ResponseV2(query, Enumerable.Range(0, 200)
+                .Select(_ => V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromString("rejected raw row"), null, "NotRecorded"))
+                .ToArray(), cursor);
+        };
+
+        var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async();
+
+        AssertStatus(StatusCodes.Status413PayloadTooLarge, result);
+        Assert.Equal(250, fixture.Historian.Calls);
+        Assert.Equal(4, pageCounts.Count);
+        Assert.All(pageCounts.Values.Take(3), count => Assert.Equal(62, count));
+        Assert.Equal(64, pageCounts.Values.Last());
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_CURRENT_FREQUENCY_WINDOW_TOO_DENSE", error.Code);
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_RepeatedCursorAndInvalidV2MetadataReturnNoPartialResult()
+    {
+        using (var repeated = Fixture.Create())
+        {
+            repeated.AddCurrentFrequencySignals();
+            repeated.Historian.Respond = query =>
+            {
+                var tagId = query.Filters!.Single().Values.Single().AsGuid();
+                var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+                return ResponseV2(query,
+                    [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(1), timestamp, "Synchronized")],
+                    "same-cursor");
+            };
+
+            var invalidCursor = await repeated.ExecuteCurrentFrequencyComparisonV1Async();
+
+            AssertStatus(StatusCodes.Status503ServiceUnavailable, invalidCursor);
+            Assert.Equal(2, repeated.Historian.Calls);
+            Assert.IsNotType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(invalidCursor).Value);
+        }
+
+        using (var malformed = Fixture.Create())
+        {
+            malformed.AddCurrentFrequencySignals();
+            malformed.Historian.Respond = query => Response(
+                query,
+                [Row(query.Filters!.Single().Values.Single().AsGuid(), FromUtc.AddMinutes(1),
+                    "Good", HistoricalQueryValue.FromDouble(1))]);
+
+            var invalidMetadata = await malformed.ExecuteCurrentFrequencyComparisonV1Async();
+
+            AssertStatus(StatusCodes.Status503ServiceUnavailable, invalidMetadata);
+            Assert.Equal(1, malformed.Historian.Calls);
+            Assert.IsNotType<AssetProcessIntelligenceCurrentFrequencyComparisonV1Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(invalidMetadata).Value);
+        }
+    }
+
+    [Fact]
+    public async Task CurrentFrequencyComparisonV1_RejectsMissingOrWrongSemanticBindingsBeforeHistorianRead()
+    {
+        foreach (var wrongRole in new[] { false, true })
+        {
+            using var fixture = Fixture.Create();
+            var (_, _, request) = fixture.AddCurrentFrequencySignals();
+            var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+            var profile = configuration.Profiles!.Single();
+            var signals = profile.Signals!.Select(signal => signal.Id == request.FrequencySignalId
+                ? signal with
+                {
+                    SemanticBinding = wrongRole
+                        ? signal.SemanticBinding! with
+                        {
+                            RoleCode = "pump.discharge_pressure",
+                            SignalKind = null,
+                            FrequencyReference = null,
+                            PressureReference = "gauge"
+                        }
+                        : null
+                }
+                : signal).ToArray();
+            fixture.Workspace.AssetProcessIntelligence.Replace(configuration with
+            {
+                Profiles = [profile with { Signals = signals }]
+            });
+            var descriptor = fixture.Workspace.Describe();
+            fixture.Workspace.SetCheckout(Fixture.ProjectKey, "invalid semantic binding test",
+                descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+
+            var result = await fixture.ExecuteCurrentFrequencyComparisonV1Async(request);
+
+            AssertStatus(StatusCodes.Status400BadRequest, result);
+            Assert.Equal(0, fixture.Historian.Calls);
+        }
+    }
+
+    private static AssetProcessIntelligenceCurrentFrequencyRawObservation CurrentFrequencyRow(
+        DateTimeOffset observed,
+        string? quality,
+        HistoricalQueryValue? value,
+        DateTimeOffset? source,
+        string? evidence) => new(observed, quality, value, source, evidence);
+
+    private static HistoricalQueryRow V2Row(
+        Guid tagId,
+        DateTimeOffset timestamp,
+        string? quality,
+        HistoricalQueryValue value,
+        DateTimeOffset? sourceTimestamp,
+        string? sourceEvidence) =>
+        new(new Dictionary<string, HistoricalQueryValue>(StringComparer.Ordinal)
+        {
+            ["tag.id"] = HistoricalQueryValue.FromGuid(tagId),
+            ["timestamp"] = HistoricalQueryValue.FromDateTime(timestamp),
+            ["quality"] = quality is null ? HistoricalQueryValue.Null() : HistoricalQueryValue.FromEnum(quality),
+            ["value"] = value,
+            ["source.timestamp"] = sourceTimestamp.HasValue
+                ? HistoricalQueryValue.FromDateTime(sourceTimestamp.Value)
+                : HistoricalQueryValue.Null(),
+            ["source.timestamp.status"] = sourceEvidence is null
+                ? HistoricalQueryValue.Null()
+                : HistoricalQueryValue.FromEnum(sourceEvidence)
+        });
+
+    private static HistoricalQueryResponse ResponseV2(
+        HistoricalQueryRequest request,
+        IReadOnlyList<HistoricalQueryRow> rows,
+        string? cursor = null) => new(
+        2,
+        HistoricalDatasets.HistorianSamplesV2,
+        HistoricalQueryCatalog.Require(HistoricalDatasets.HistorianSamplesV2).Columns,
+        rows,
+        request.Range.FromUtc!.Value,
+        request.Range.ToUtc!.Value,
+        cursor,
+        request.Page!.Size);
+
+    private static AssetProcessIntelligenceCurrentFrequencyComparisonV1WindowEvidence EmptyCurrentFrequencyEvidence(
+        AssetProcessIntelligenceAnalyticsWindow window)
+    {
+        var emptySignal = new AssetProcessIntelligenceCurrentFrequencyComparisonV1SignalWindowEvidence(
+            0, 0, 0, 0, 0, 0,
+            new Dictionary<string, int>(),
+            new Dictionary<string, int>());
+        return new(window, emptySignal, emptySignal, 0, 0, 0, 0, 0, 0, 0, Array.Empty<AssetProcessIntelligenceCurrentFrequencyComparisonV1PairEvidence>());
     }
 
     private static AssetProcessIntelligenceRawObservation Observation(
@@ -1179,6 +1873,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         public RecordingHistoricalQueryService Historian { get; }
         public AssetProcessIntelligenceAnalyticsService Analytics { get; }
         public AssetProcessIntelligenceAnalyticsQueryRequest Request { get; }
+        public AssetProcessIntelligenceCurrentFrequencyComparisonV1QueryRequest? CurrentFrequencyRequest { get; private set; }
 
         public Task<IResult> ExecuteAsync(
             AssetProcessIntelligenceAnalyticsQueryRequest? request = null)
@@ -1213,6 +1908,74 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                     profile.Id,
                     Window(FromUtc, FromUtc.AddHours(1))),
                 context.RequestAborted);
+        }
+
+        public Task<IResult> ExecuteCurrentFrequencyComparisonV1Async(
+            AssetProcessIntelligenceCurrentFrequencyComparisonV1QueryRequest? request = null)
+        {
+            var context = CreateContext();
+            return Analytics.ExecuteCurrentFrequencyComparisonV1Async(
+                context,
+                request ?? CurrentFrequencyRequest ?? throw new InvalidOperationException("Current/frequency signals were not configured."),
+                context.RequestAborted);
+        }
+
+        public (TagDefinition CurrentTag, TagDefinition FrequencyTag,
+            AssetProcessIntelligenceCurrentFrequencyComparisonV1QueryRequest Request) AddCurrentFrequencySignals(
+            ControlledEngineeringUnitReference? currentUnit = null,
+            TagAccessPolicy? frequencyAccessPolicy = null)
+        {
+            currentUnit ??= new ControlledEngineeringUnitReference(1, "unit.electric_current.ampere");
+            var currentTag = new TagDefinition(
+                Guid.NewGuid(), "Current", "Plant.Pump.Current", TagDataType.Double,
+                null, "A", null, true,
+                AccessPolicy: null,
+                ControlledEngineeringUnit: currentUnit);
+            var frequencyTag = new TagDefinition(
+                Guid.NewGuid(), "Drive frequency", "Plant.Pump.DriveFrequency", TagDataType.Double,
+                null, "Hz", null, true,
+                AccessPolicy: frequencyAccessPolicy,
+                ControlledEngineeringUnit: new ControlledEngineeringUnitReference(1, "unit.frequency.hertz"));
+            Workspace.Tags.Register(currentTag);
+            Workspace.Tags.Register(frequencyTag);
+            Runtime.AddTag(currentTag);
+            Runtime.AddTag(frequencyTag);
+
+            var configuration = Workspace.AssetProcessIntelligence.Snapshot();
+            var profile = configuration.Profiles!.Single();
+            var currentSignalId = Guid.NewGuid();
+            var frequencySignalId = Guid.NewGuid();
+            var currentSignal = new AssetProcessIntelligenceSignalEngineeringDto(
+                currentSignalId, "electrical-current", "opaque legacy text", currentTag.Id,
+                SemanticBinding: new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+                    1, "pump.electrical_current", CurrentBasis: "line_rms"));
+            var frequencySignal = new AssetProcessIntelligenceSignalEngineeringDto(
+                frequencySignalId, "measured-drive-frequency", "also opaque", frequencyTag.Id,
+                SemanticBinding: new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+                    1, "pump.drive_frequency", SignalKind: "measured_output", FrequencyReference: "drive_electrical"));
+            Workspace.AssetProcessIntelligence.Replace(configuration with
+            {
+                Profiles = [profile with
+                {
+                    Signals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                        .Concat([currentSignal, frequencySignal]).ToArray()
+                }]
+            });
+            var descriptor = Workspace.Describe();
+            Workspace.SetCheckout(ProjectKey, "Stage 3B test", descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+            var assignmentId = configuration.Assignments!.Single().Id;
+            var request = new AssetProcessIntelligenceCurrentFrequencyComparisonV1QueryRequest(
+                ScopeKind,
+                ScopeId,
+                assignmentId,
+                currentSignalId,
+                frequencySignalId,
+                Window(FromUtc, FromUtc.AddHours(1)),
+                Window(FromUtc.AddHours(2), FromUtc.AddHours(3)),
+                49,
+                51);
+            CurrentFrequencyRequest = request;
+            return (currentTag, frequencyTag, request);
         }
 
         public TagDefinition AddProfileSignal(string key, string role, TagDataType dataType, string? unit)
@@ -1413,6 +2176,11 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         public RuntimeDescriptor Describe() => _descriptor;
         public void SetRevision(long revision) => _descriptor = _descriptor with { Revision = revision };
         public void AddTag(TagDefinition tag) => _tags.Add(tag);
+        public void SetTag(TagDefinition tag)
+        {
+            _tags.RemoveAll(existing => existing.Id == tag.Id);
+            _tags.Add(tag);
+        }
         public IReadOnlyCollection<TagDefinition> Tags() => _tags.ToArray();
         public IReadOnlyCollection<TagValue> CurrentValues() => [];
         public IReadOnlyCollection<AlarmDefinition> AlarmDefinitions() => [];

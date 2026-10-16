@@ -139,6 +139,25 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
     }
 
     [Fact]
+    public async Task ContextualDeviationVectorV2CatalogEndpointIsAdditiveAndDeclaresTwoContexts()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"), includeAnalyticsEndpoints: true);
+
+        using var response = await api.Client.GetAsync(EndpointHarness.ContextualDeviationVectorV2CatalogPath);
+        var catalog = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, catalog.GetProperty("contractVersion").GetInt32());
+        Assert.Equal("contextual-deviation-vector.v2", catalog.GetProperty("ruleId").GetString());
+        Assert.Equal(2, catalog.GetProperty("contextSignalCount").GetInt32());
+        Assert.Equal(30, catalog.GetProperty("minimumCompleteJointReferenceVectorsForRobustScore").GetInt32());
+        Assert.Equal(50000, catalog.GetProperty("maximumRawRowsAcrossAllSignalsAndWindows").GetInt32());
+        Assert.Equal(500, catalog.GetProperty("maximumReturnedEvaluationVectors").GetInt32());
+        Assert.Equal("not_assessed", catalog.GetProperty("regimeEquivalence").GetString());
+        Assert.Equal("unknown", catalog.GetProperty("completeness").GetString());
+    }
+
+    [Fact]
     public async Task SemanticCatalogEndpointRequiresEngineeringView()
     {
         await using var api = await EndpointHarness.StartAsync(
@@ -451,6 +470,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public const string ConfigurationPath = "/api/engineering/asset-process-intelligence/configuration";
         public const string SemanticCatalogPath = "/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog";
         public const string ContextualDeviationVectorCatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/contextual-deviation-vector/v1/catalog";
+        public const string ContextualDeviationVectorV2CatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/contextual-deviation-vector/v2/catalog";
 
         private readonly WebApplication _app;
         private readonly IEngineeringProjectPersistenceService? _persistence;

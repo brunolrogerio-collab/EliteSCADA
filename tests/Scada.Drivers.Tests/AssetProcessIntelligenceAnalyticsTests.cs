@@ -67,6 +67,277 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public void ContextualDeviationVectorV2Catalog_IsAdditiveAndKeepsInferenceLimitsExplicit()
+    {
+        var catalog = JsonSerializer.SerializeToElement(AssetProcessIntelligenceContextualDeviationVectorV2Catalog.Describe());
+
+        Assert.Equal(2, catalog.GetProperty("contractVersion").GetInt32());
+        Assert.Equal(2, catalog.GetProperty("catalogVersion").GetInt32());
+        Assert.Equal("contextual-deviation-vector.v2", catalog.GetProperty("ruleId").GetString());
+        Assert.Equal(2, catalog.GetProperty("minimumTargetSignals").GetInt32());
+        Assert.Equal(8, catalog.GetProperty("maximumTargetSignals").GetInt32());
+        Assert.Equal(2, catalog.GetProperty("contextSignalCount").GetInt32());
+        Assert.Equal(50000, catalog.GetProperty("maximumRawRowsAcrossAllSignalsAndWindows").GetInt32());
+        Assert.Equal(200, catalog.GetProperty("pageSize").GetInt32());
+        Assert.Equal(500, catalog.GetProperty("maximumReturnedEvaluationVectors").GetInt32());
+        Assert.Equal("not_assessed", catalog.GetProperty("regimeEquivalence").GetString());
+        Assert.Equal("unknown", catalog.GetProperty("completeness").GetString());
+        Assert.Contains("no nearest join", catalog.GetProperty("alignment").GetString(), StringComparison.Ordinal);
+        Assert.Contains("no combined", catalog.GetProperty("interpretation").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ContextualDeviationVectorV2_UsesOneExactJointContextCohortAndInclusiveExclusiveRanges()
+    {
+        var targetA = VectorSignalV2(Guid.NewGuid(), "target-a");
+        var targetB = VectorSignalV2(Guid.NewGuid(), "target-b");
+        var contextA = VectorSignalV2(Guid.NewGuid(), "context-a");
+        var contextB = VectorSignalV2(Guid.NewGuid(), "context-b");
+        var referenceWindow = Window(FromUtc, FromUtc.AddHours(1));
+        var evaluationWindow = Window(FromUtc.AddHours(2), FromUtc.AddHours(3));
+        var referenceTimes = Enumerable.Range(1, 32).Select(index => FromUtc.AddMinutes(index)).ToArray();
+        var evaluationTimes = new[] { evaluationWindow.FromUtc.AddMinutes(1), evaluationWindow.FromUtc.AddMinutes(2), evaluationWindow.FromUtc.AddMinutes(3) };
+        var referenceRows = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [targetA.SignalId] = referenceTimes.Select((timestamp, index) => VectorRow(timestamp, index + 1d)).ToArray(),
+            [targetB.SignalId] = referenceTimes.Select((timestamp, index) => VectorRow(timestamp, index + 101d)).ToArray(),
+            [contextA.SignalId] = referenceTimes.Select((timestamp, index) => VectorRow(timestamp, index == 30 ? 20d : 10d)).ToArray(),
+            [contextB.SignalId] = referenceTimes.Select((timestamp, index) => VectorRow(timestamp, index == 31 ? 200d : 100d)).ToArray()
+        };
+        var evaluationRows = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [targetA.SignalId] = evaluationTimes.Select((timestamp, index) => VectorRow(timestamp, 31d + index)).ToArray(),
+            [targetB.SignalId] = evaluationTimes.Select((timestamp, index) => VectorRow(timestamp, 131d + index)).ToArray(),
+            [contextA.SignalId] = [VectorRow(evaluationTimes[0], 10d), VectorRow(evaluationTimes[1], 20d), VectorRow(evaluationTimes[2], 10d)],
+            [contextB.SignalId] = [VectorRow(evaluationTimes[0], 100d), VectorRow(evaluationTimes[1], 100d), VectorRow(evaluationTimes[2], 200d)]
+        };
+        var unit = new ControlledEngineeringUnitDefinition("unit.frequency.hertz", "frequency", "Hz", 1d);
+
+        var result = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            [targetB, targetA], [contextA, contextB], referenceWindow, evaluationWindow,
+            referenceRows, evaluationRows, [unit, unit], [(10d, 20d), (100d, 200d)]);
+
+        Assert.Equal(32, result.CompleteReferenceVectorCount);
+        Assert.Equal(30, result.JointContextReferenceVectorCount);
+        Assert.Equal(3, result.CompleteEvaluationVectorCount);
+        Assert.Equal(1, result.JointContextEvaluationVectorCount);
+        Assert.Equal(evaluationTimes.Order(), result.EvaluationVectors.Select(vector => vector.SourceTimestampUtc));
+        Assert.Equal(new[] { targetB.SignalId, targetA.SignalId }, result.EvaluationVectors[0].Targets.Select(target => target.TargetSignalId));
+        Assert.Equal(new[] { contextA.SignalId, contextB.SignalId }, result.Contexts.Select(context => context.Signal.SignalId));
+        Assert.Equal(31, result.Contexts[0].ReferenceInRangeVectorCount);
+        Assert.Equal(31, result.Contexts[1].ReferenceInRangeVectorCount);
+        Assert.Equal(32, result.Contexts[0].CompleteReferenceVectorCount);
+        Assert.Equal(32, result.Contexts[1].CompleteReferenceVectorCount);
+        Assert.True(result.EvaluationVectors[0].FirstContextInRange);
+        Assert.True(result.EvaluationVectors[0].SecondContextInRange);
+        Assert.False(result.EvaluationVectors[1].FirstContextInRange);
+        Assert.False(result.EvaluationVectors[2].SecondContextInRange);
+        var jointTarget = Assert.Single(result.EvaluationVectors[0].Targets, item => item.TargetSignalId == targetA.SignalId);
+        Assert.Equal(15.5d, Assert.Single(result.TargetStatistics, item => item.Signal.SignalId == targetA.SignalId).ReferenceMedian);
+        Assert.Equal(15.5d, jointTarget.RawDifferenceFromReferenceMedian);
+        Assert.Equal(0.67448975d * 15.5d / 7.5d, jointTarget.RobustScore!.Value, precision: 10);
+        var outsideTarget = Assert.Single(result.EvaluationVectors[1].Targets, item => item.TargetSignalId == targetA.SignalId);
+        Assert.Null(outsideTarget.RawDifferenceFromReferenceMedian);
+        Assert.Null(outsideTarget.RobustScore);
+        Assert.Equal("outside_joint_declared_context", outsideTarget.ScoreUnavailableReason);
+    }
+
+    [Fact]
+    public void ContextualDeviationVectorV2_RequiresOneSynchronizedObservationAtEachExactTimestamp()
+    {
+        var targetA = VectorSignalV2(Guid.NewGuid(), "target-a");
+        var targetB = VectorSignalV2(Guid.NewGuid(), "target-b");
+        var contextA = VectorSignalV2(Guid.NewGuid(), "context-a");
+        var contextB = VectorSignalV2(Guid.NewGuid(), "context-b");
+        var referenceWindow = Window(FromUtc, FromUtc.AddHours(1));
+        var evaluationWindow = Window(FromUtc.AddHours(2), FromUtc.AddHours(3));
+        var t1 = FromUtc.AddMinutes(1);
+        var t2 = FromUtc.AddMinutes(2);
+        var t3 = FromUtc.AddMinutes(3);
+        var t4 = FromUtc.AddMinutes(4);
+        var t5 = FromUtc.AddMinutes(5);
+        var t6 = FromUtc.AddMinutes(6);
+        var t7 = FromUtc.AddMinutes(7);
+        var t8 = FromUtc.AddMinutes(8);
+        var reference = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [targetA.SignalId] =
+            [
+                VectorRow(t1, 1d), VectorRow(t1, 2d), VectorRow(t2, 3d),
+                VectorRow(t3, "Good", 4d, null, "Synchronized"),
+                VectorRow(t4, "BadCommunication", 5d, t4, "Synchronized"),
+                new(t5, "Good", new HistoricalQueryValue(HistoricalValueKind.Double, "NaN"), t5, "Synchronized"),
+                VectorRow(t6, "Good", 6d, referenceWindow.ToUtc.AddMinutes(1), "Synchronized"),
+                VectorRow(t7, 7d), VectorRow(t8, 8d)
+            ],
+            [targetB.SignalId] = [VectorRow(t1, 11d), VectorRow(t2, 12d), VectorRow(t3, 13d), VectorRow(t4, 14d), VectorRow(t5, 15d), VectorRow(t6, 16d), VectorRow(t7, 17d), VectorRow(t8, 18d)],
+            [contextA.SignalId] = [VectorRow(t1, 50d), VectorRow(t2, 50d), VectorRow(t3, 50d), VectorRow(t4, 50d), VectorRow(t5, 50d), VectorRow(t6, 50d), VectorRow(t7, 50d), VectorRow(t8, 50d)],
+            [contextB.SignalId] = [
+                VectorRow(t1, 20d), VectorRow(t2, "Good", 20d, t2, "NotRecorded"),
+                VectorRow(t3, 20d), VectorRow(t4, 20d), VectorRow(t5, 20d), VectorRow(t6, 20d), VectorRow(t7, 20d),
+                VectorRow(t8, "Good", 20d, t8, "4")]
+        };
+        var empty = reference.Keys.ToDictionary(id => id,
+            _ => (IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>)Array.Empty<AssetProcessIntelligenceContextualDeviationVectorRawObservation>());
+        var unit = new ControlledEngineeringUnitDefinition("unit.frequency.hertz", "frequency", "Hz", 1d);
+
+        var result = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            [targetA, targetB], [contextA, contextB], referenceWindow, evaluationWindow,
+            reference, empty, [unit, unit], [(49d, 51d), (19d, 21d)]);
+
+        Assert.Equal(1, result.CompleteReferenceVectorCount);
+        Assert.Equal(1, result.JointContextReferenceVectorCount);
+        var targetEvidence = Assert.Single(result.ReferenceEvidence, item => item.SignalId == targetA.SignalId);
+        Assert.Equal(9, targetEvidence.RawObservationCount);
+        Assert.Equal(7, targetEvidence.GoodFiniteNumericCount);
+        Assert.Equal(3, targetEvidence.AcceptedSynchronizedCount);
+        Assert.Equal(6, targetEvidence.RejectedObservationCount);
+        Assert.Equal(1, targetEvidence.AmbiguousSourceTimestampGroupCount);
+        Assert.Equal(2, targetEvidence.AmbiguousSourceTimestampRowCount);
+        Assert.Equal(2, targetEvidence.RejectionCounts["duplicate_source_timestamp"]);
+        Assert.Equal(1, targetEvidence.RejectionCounts["source_timestamp_missing"]);
+        Assert.Equal(1, targetEvidence.RejectionCounts["quality_not_good"]);
+        Assert.Equal(1, targetEvidence.RejectionCounts["value_not_finite_numeric"]);
+        Assert.Equal(1, targetEvidence.RejectionCounts["source_timestamp_outside_requested_window"]);
+        var secondContextEvidence = Assert.Single(result.ReferenceEvidence, item => item.SignalId == contextB.SignalId);
+        Assert.Equal(1, secondContextEvidence.RejectionCounts["source_timestamp_not_synchronized"]);
+        Assert.Equal(1, secondContextEvidence.RejectionCounts["source_timestamp_evidence_unrecognized"]);
+    }
+
+    [Fact]
+    public void ContextualDeviationVectorV2_ConvertsEachContextIntoItsCanonicalUnitBeforeRangeChecks()
+    {
+        var targetA = VectorSignalV2(Guid.NewGuid(), "target-a");
+        var targetB = VectorSignalV2(Guid.NewGuid(), "target-b");
+        var powerContext = VectorSignalV2(Guid.NewGuid(), "power-context");
+        var frequencyContext = VectorSignalV2(Guid.NewGuid(), "frequency-context");
+        var referenceWindow = Window(FromUtc, FromUtc.AddHours(1));
+        var evaluationWindow = Window(FromUtc.AddHours(2), FromUtc.AddHours(3));
+        var referenceTime = referenceWindow.FromUtc.AddMinutes(1);
+        var evaluationTime = evaluationWindow.FromUtc.AddMinutes(1);
+        var reference = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [targetA.SignalId] = [VectorRow(referenceTime, 1d)],
+            [targetB.SignalId] = [VectorRow(referenceTime, 2d)],
+            [powerContext.SignalId] = [VectorRow(referenceTime, 0.05d)],
+            [frequencyContext.SignalId] = [VectorRow(referenceTime, 50d)]
+        };
+        var evaluation = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [targetA.SignalId] = [VectorRow(evaluationTime, 3d)],
+            [targetB.SignalId] = [VectorRow(evaluationTime, 4d)],
+            [powerContext.SignalId] = [VectorRow(evaluationTime, 0.05d)],
+            [frequencyContext.SignalId] = [VectorRow(evaluationTime, 50d)]
+        };
+
+        var result = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            [targetA, targetB], [powerContext, frequencyContext], referenceWindow, evaluationWindow,
+            reference, evaluation,
+            [new ControlledEngineeringUnitDefinition("unit.power.kilowatt", "power", "W", 1000d),
+             new ControlledEngineeringUnitDefinition("unit.frequency.hertz", "frequency", "Hz", 1d)],
+            [(49d, 51d), (49d, 51d)]);
+
+        Assert.Equal("W", result.Contexts[0].CanonicalUnit);
+        Assert.Equal(50d, result.EvaluationVectors[0].FirstContextValueCanonical);
+        Assert.Equal(50d, result.EvaluationVectors[0].SecondContextValueCanonical);
+        Assert.True(result.EvaluationVectors[0].InJointContext);
+        Assert.Equal(1, result.JointContextReferenceVectorCount);
+    }
+
+    [Fact]
+    public void ContextualDeviationVectorV2_RequiresThirtyJointReferencesAndPositiveMadForScoring()
+    {
+        var targetA = VectorSignalV2(Guid.NewGuid(), "target-a");
+        var targetB = VectorSignalV2(Guid.NewGuid(), "target-b");
+        var contextA = VectorSignalV2(Guid.NewGuid(), "context-a");
+        var contextB = VectorSignalV2(Guid.NewGuid(), "context-b");
+        var referenceWindow = Window(FromUtc, FromUtc.AddHours(1));
+        var evaluationWindow = Window(FromUtc.AddHours(2), FromUtc.AddHours(3));
+        var evaluationTime = evaluationWindow.FromUtc.AddMinutes(1);
+        var unit = new ControlledEngineeringUnitDefinition("unit.frequency.hertz", "frequency", "Hz", 1d);
+
+        (Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>> reference,
+            Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>> evaluation) Build(int count)
+        {
+            var times = Enumerable.Range(1, count).Select(index => FromUtc.AddMinutes(index)).ToArray();
+            return (
+                new()
+                {
+                    [targetA.SignalId] = times.Select((timestamp, index) => VectorRow(timestamp, index + 1d)).ToArray(),
+                    [targetB.SignalId] = times.Select(_ => VectorRow(_, 5d)).ToArray(),
+                    [contextA.SignalId] = times.Select(timestamp => VectorRow(timestamp, 50d)).ToArray(),
+                    [contextB.SignalId] = times.Select(timestamp => VectorRow(timestamp, 20d)).ToArray()
+                },
+                new()
+                {
+                    [targetA.SignalId] = [VectorRow(evaluationTime, 40d)],
+                    [targetB.SignalId] = [VectorRow(evaluationTime, 10d)],
+                    [contextA.SignalId] = [VectorRow(evaluationTime, 50d)],
+                    [contextB.SignalId] = [VectorRow(evaluationTime, 20d)]
+                });
+        }
+
+        var (sparseReference, evaluation) = Build(29);
+        var sparse = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            [targetA, targetB], [contextA, contextB], referenceWindow, evaluationWindow,
+            sparseReference, evaluation, [unit, unit], [(49d, 51d), (19d, 21d)]);
+        Assert.Equal(29, sparse.JointContextReferenceVectorCount);
+        Assert.Equal("fewer_than_30_complete_joint_context_reference_vectors",
+            Assert.Single(sparse.EvaluationVectors[0].Targets, item => item.TargetSignalId == targetA.SignalId).ScoreUnavailableReason);
+
+        var (thirtyReference, _) = Build(30);
+        var result = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            [targetA, targetB], [contextA, contextB], referenceWindow, evaluationWindow,
+            thirtyReference, evaluation, [unit, unit], [(49d, 51d), (19d, 21d)]);
+        Assert.Equal(30, result.JointContextReferenceVectorCount);
+        var scored = Assert.Single(result.EvaluationVectors[0].Targets, item => item.TargetSignalId == targetA.SignalId);
+        Assert.NotNull(scored.RobustScore);
+        var zeroMad = Assert.Single(result.EvaluationVectors[0].Targets, item => item.TargetSignalId == targetB.SignalId);
+        Assert.Equal(0d, Assert.Single(result.TargetStatistics, item => item.Signal.SignalId == targetB.SignalId).ReferenceMad);
+        Assert.Equal(5d, zeroMad.RawDifferenceFromReferenceMedian);
+        Assert.Null(zeroMad.RobustScore);
+        Assert.Equal("reference_mad_zero", zeroMad.ScoreUnavailableReason);
+    }
+
+    [Fact]
+    public void ContextualDeviationVectorV2_CapsReturnedEvaluationVectorsAtFiveHundred()
+    {
+        var targetA = VectorSignalV2(Guid.NewGuid(), "target-a");
+        var targetB = VectorSignalV2(Guid.NewGuid(), "target-b");
+        var contextA = VectorSignalV2(Guid.NewGuid(), "context-a");
+        var contextB = VectorSignalV2(Guid.NewGuid(), "context-b");
+        var referenceWindow = Window(FromUtc, FromUtc.AddHours(1));
+        var evaluationWindow = Window(FromUtc.AddHours(2), FromUtc.AddHours(3));
+        var referenceTimes = Enumerable.Range(1, 30).Select(index => FromUtc.AddMinutes(index)).ToArray();
+        var evaluationTimes = Enumerable.Range(1, 501).Select(index => evaluationWindow.FromUtc.AddSeconds(index)).ToArray();
+        var reference = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [targetA.SignalId] = referenceTimes.Select((timestamp, index) => VectorRow(timestamp, index + 1d)).ToArray(),
+            [targetB.SignalId] = referenceTimes.Select((timestamp, index) => VectorRow(timestamp, index + 101d)).ToArray(),
+            [contextA.SignalId] = referenceTimes.Select(timestamp => VectorRow(timestamp, 50d)).ToArray(),
+            [contextB.SignalId] = referenceTimes.Select(timestamp => VectorRow(timestamp, 20d)).ToArray()
+        };
+        var evaluation = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [targetA.SignalId] = evaluationTimes.Select((timestamp, index) => VectorRow(timestamp, 31 + index)).ToArray(),
+            [targetB.SignalId] = evaluationTimes.Select((timestamp, index) => VectorRow(timestamp, 131 + index)).ToArray(),
+            [contextA.SignalId] = evaluationTimes.Select(timestamp => VectorRow(timestamp, 50d)).ToArray(),
+            [contextB.SignalId] = evaluationTimes.Select(timestamp => VectorRow(timestamp, 20d)).ToArray()
+        };
+        var unit = new ControlledEngineeringUnitDefinition("unit.frequency.hertz", "frequency", "Hz", 1d);
+
+        var result = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            [targetA, targetB], [contextA, contextB], referenceWindow, evaluationWindow,
+            reference, evaluation, [unit, unit], [(49d, 51d), (19d, 21d)]);
+
+        Assert.Equal(501, result.CompleteEvaluationVectorCount);
+        Assert.Equal(500, result.EvaluationVectors.Count);
+        Assert.Equal(1, result.OmittedEvaluationVectors);
+        Assert.Equal(evaluationTimes[0], result.EvaluationVectors[0].SourceTimestampUtc);
+        Assert.Equal(evaluationTimes[499], result.EvaluationVectors[^1].SourceTimestampUtc);
+    }
+
+    [Fact]
     public void ContextualDeviationVectorV1_UsesOneAlignedCohortAndStableTargetAndTimestampOrdering()
     {
         var targetA = VectorSignal(Guid.NewGuid(), "target-a");
@@ -1346,6 +1617,8 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 "/api/engineering/asset-process-intelligence/analytics/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v1/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v1/query",
+                "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v2/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v2/query",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-reference-deviation/v1/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-reference-deviation/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/current-frequency-comparison/v1/catalog",
@@ -2555,6 +2828,295 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         Assert.Equal("not_assessed", payload.Provenance.RegimeEquivalence);
         Assert.Equal("unknown", payload.Provenance.Completeness);
         Assert.Contains("no combined anomaly", payload.Provenance.Interpretation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ContextualDeviationVectorV2_ReadsBothContextsAndReturnsOneAuditableJointCohort()
+    {
+        using var fixture = Fixture.Create();
+        var (request, targetA, targetB, firstContext, secondContext) = fixture.AddContextualDeviationVectorV2Signals();
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var isReference = query.Range.FromUtc == request.ReferenceWindow!.FromUtc;
+            var count = isReference ? 30 : 2;
+            var rows = Enumerable.Range(1, count).Select(index =>
+            {
+                var timestamp = query.Range.FromUtc!.Value.AddMinutes(index);
+                var value = tagId == firstContext.Id ? 50d
+                    : tagId == secondContext.Id ? 20d
+                    : tagId == targetA.Id ? isReference ? index : 30 + index
+                    : isReference ? 100 + index : 130 + index;
+                return V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(value), timestamp, "Synchronized");
+            }).ToArray();
+            return ResponseV2(query, rows);
+        };
+
+        var result = await fixture.ExecuteContextualDeviationVectorV2Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceContextualDeviationVectorV2Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(8, fixture.Historian.Calls);
+        Assert.Equal(128, payload.TotalRawObservationCount);
+        Assert.Equal(30, payload.CompleteReferenceVectorCount);
+        Assert.Equal(30, payload.JointContextReferenceVectorCount);
+        Assert.Equal(2, payload.CompleteEvaluationVectorCount);
+        Assert.Equal(2, payload.JointContextEvaluationVectorCount);
+        Assert.Equal(new[] { request.TargetSignalIds![0], request.TargetSignalIds[1] },
+            payload.TargetSignals.Select(signal => signal.SignalId));
+        Assert.Equal(new[] { request.FirstContextSignalId, request.SecondContextSignalId },
+            payload.Contexts.Select(item => item.Signal.SignalId));
+        Assert.Equal("Hz", payload.Contexts[0].CanonicalUnit);
+        Assert.Equal(30, Assert.Single(payload.TargetStatistics, item => item.Signal.TagId == targetB.Id).JointContextReferenceVectorCount);
+        Assert.Equal("not_assessed", payload.Provenance.RegimeEquivalence);
+        Assert.Equal("unknown", payload.Provenance.Completeness);
+        Assert.Contains("no combined", payload.Provenance.Interpretation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ContextualDeviationVectorV2_RejectsInvalidIdentityUnitAndDeniedContextBeforeHistorianRead()
+    {
+        using (var invalid = Fixture.Create())
+        {
+            var (request, _, _, _, _) = invalid.AddContextualDeviationVectorV2Signals();
+            var invalidRequests = new[]
+            {
+                request with { TargetSignalIds = [request.TargetSignalIds![0]] },
+                request with { SecondContextSignalId = request.FirstContextSignalId },
+                request with { FirstContextUpperExclusiveCanonical = double.PositiveInfinity },
+                request with { SecondContextLowerInclusiveCanonical = 22d, SecondContextUpperExclusiveCanonical = 22d },
+                request with { EvaluationWindow = request.ReferenceWindow }
+            };
+            foreach (var invalidRequest in invalidRequests)
+                AssertStatus(StatusCodes.Status400BadRequest,
+                    await invalid.ExecuteContextualDeviationVectorV2Async(invalidRequest));
+            AssertStatus(StatusCodes.Status404NotFound,
+                await invalid.ExecuteContextualDeviationVectorV2Async(request with { AssignmentId = Guid.NewGuid() }));
+            Assert.Equal(0, invalid.Historian.Calls);
+        }
+
+        using (var duplicateTag = Fixture.Create())
+        {
+            var (request, _, _, firstContext, _) = duplicateTag.AddContextualDeviationVectorV2Signals();
+            var configuration = duplicateTag.Workspace.AssetProcessIntelligence.Snapshot();
+            var profile = configuration.Profiles!.Single();
+            duplicateTag.Workspace.AssetProcessIntelligence.Replace(configuration with
+            {
+                Profiles = [profile with
+                {
+                    Signals = profile.Signals!.Select(signal => signal.Id == request.SecondContextSignalId
+                        ? signal with { TagId = firstContext.Id }
+                        : signal).ToArray()
+                }]
+            });
+            var descriptor = duplicateTag.Workspace.Describe();
+            duplicateTag.Workspace.SetCheckout(Fixture.ProjectKey, "duplicate v2 TAG identity", descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+            AssertStatus(StatusCodes.Status400BadRequest,
+                await duplicateTag.ExecuteContextualDeviationVectorV2Async(request));
+            Assert.Equal(0, duplicateTag.Historian.Calls);
+        }
+
+        using (var inactiveScope = Fixture.Create(activeScope: false))
+        {
+            var (request, _, _, _, _) = inactiveScope.AddContextualDeviationVectorV2Signals();
+            AssertStatus(StatusCodes.Status409Conflict,
+                await inactiveScope.ExecuteContextualDeviationVectorV2Async(request));
+            Assert.Equal(0, inactiveScope.Historian.Calls);
+        }
+
+        using (var unsupportedUnit = Fixture.Create())
+        {
+            var (request, _, _, _, secondContext) = unsupportedUnit.AddContextualDeviationVectorV2Signals();
+            unsupportedUnit.Runtime.SetTag(secondContext with
+            {
+                ControlledEngineeringUnit = new ControlledEngineeringUnitReference(99, "unit.frequency.hertz")
+            });
+            AssertStatus(StatusCodes.Status400BadRequest,
+                await unsupportedUnit.ExecuteContextualDeviationVectorV2Async(request));
+            Assert.Equal(0, unsupportedUnit.Historian.Calls);
+        }
+
+        using (var deniedContext = Fixture.Create())
+        {
+            var (request, _, _, _, _) = deniedContext.AddContextualDeviationVectorV2Signals(
+                new TagAccessPolicy(ReadRoles: ["different-role"]));
+            AssertStatus(StatusCodes.Status403Forbidden,
+                await deniedContext.ExecuteContextualDeviationVectorV2Async(request));
+            Assert.Equal(0, deniedContext.Historian.Calls);
+        }
+    }
+
+    [Fact]
+    public async Task ContextualDeviationVectorV2_PermitRevocationDuringReadDiscardsResultBeforeAnotherQuery()
+    {
+        using var fixture = Fixture.Create();
+        var (request, _, _, _, _) = fixture.AddContextualDeviationVectorV2Signals();
+        fixture.Historian.Respond = query =>
+        {
+            fixture.Gate.Pause(Fixture.ProjectKey, fixture.ScopeKind, fixture.ScopeId);
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return ResponseV2(query,
+                [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(1), timestamp, "Synchronized")]);
+        };
+
+        var result = await fixture.ExecuteContextualDeviationVectorV2Async(request);
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceContextualDeviationVectorV2Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ContextualDeviationVectorV2_CancellationProviderCursorWorkspaceAndTagChangesNeverReturnPartialResults()
+    {
+        using (var cancelled = Fixture.Create())
+        {
+            var (request, _, _, _, _) = cancelled.AddContextualDeviationVectorV2Signals();
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            cancelled.Historian.RespondAsync = async (query, cancellationToken) =>
+            {
+                started.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return ResponseV2(query, []);
+            };
+            using var source = new CancellationTokenSource();
+            var pending = cancelled.ExecuteContextualDeviationVectorV2Async(request, source.Token);
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            source.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+            Assert.Equal(1, cancelled.Historian.Calls);
+        }
+
+        using (var providerFailure = Fixture.Create())
+        {
+            var (request, _, _, _, _) = providerFailure.AddContextualDeviationVectorV2Signals();
+            providerFailure.Historian.RespondAsync = (_, _) => throw new HistoricalQueryProviderException("test provider failure");
+            var result = await providerFailure.ExecuteContextualDeviationVectorV2Async(request);
+            AssertStatus(StatusCodes.Status503ServiceUnavailable, result);
+            Assert.Equal(1, providerFailure.Historian.Calls);
+            Assert.IsNotType<AssetProcessIntelligenceContextualDeviationVectorV2Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        }
+
+        using (var repeatedCursor = Fixture.Create())
+        {
+            var (request, _, _, _, _) = repeatedCursor.AddContextualDeviationVectorV2Signals();
+            repeatedCursor.Historian.Respond = query =>
+            {
+                var tagId = query.Filters!.Single().Values.Single().AsGuid();
+                var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+                return ResponseV2(query,
+                    [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(10), timestamp, "Synchronized")],
+                    "same-cursor");
+            };
+            var result = await repeatedCursor.ExecuteContextualDeviationVectorV2Async(request);
+            AssertStatus(StatusCodes.Status503ServiceUnavailable, result);
+            Assert.Equal(2, repeatedCursor.Historian.Calls);
+            Assert.IsNotType<AssetProcessIntelligenceContextualDeviationVectorV2Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        }
+
+        using (var invalidCursor = Fixture.Create())
+        {
+            var (request, _, _, _, _) = invalidCursor.AddContextualDeviationVectorV2Signals();
+            invalidCursor.Historian.RespondAsync = (_, _) => throw new HistoricalQueryCursorException("invalid test cursor");
+            AssertStatus(StatusCodes.Status400BadRequest,
+                await invalidCursor.ExecuteContextualDeviationVectorV2Async(request));
+            Assert.Equal(1, invalidCursor.Historian.Calls);
+        }
+
+        using (var changedWorkspace = Fixture.Create())
+        {
+            var (request, _, _, _, _) = changedWorkspace.AddContextualDeviationVectorV2Signals();
+            changedWorkspace.Historian.Respond = query =>
+            {
+                changedWorkspace.Workspace.Tags.Upsert(changedWorkspace.Tag with { Description = "changed during v2 query" });
+                var tagId = query.Filters!.Single().Values.Single().AsGuid();
+                var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+                return ResponseV2(query,
+                    [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(10), timestamp, "Synchronized")]);
+            };
+            var result = await changedWorkspace.ExecuteContextualDeviationVectorV2Async(request);
+            AssertStatus(StatusCodes.Status409Conflict, result);
+            Assert.Equal(1, changedWorkspace.Historian.Calls);
+            Assert.IsNotType<AssetProcessIntelligenceContextualDeviationVectorV2Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        }
+
+        using (var revokedContext = Fixture.Create())
+        {
+            var (request, _, _, _, secondContext) = revokedContext.AddContextualDeviationVectorV2Signals();
+            revokedContext.Historian.Respond = query =>
+            {
+                revokedContext.Runtime.SetTag(secondContext with { AccessPolicy = new TagAccessPolicy(ReadRoles: ["different-role"]) });
+                var tagId = query.Filters!.Single().Values.Single().AsGuid();
+                var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+                return ResponseV2(query,
+                    [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(10), timestamp, "Synchronized")]);
+            };
+            var result = await revokedContext.ExecuteContextualDeviationVectorV2Async(request);
+            AssertStatus(StatusCodes.Status403Forbidden, result);
+            Assert.Equal(1, revokedContext.Historian.Calls);
+            Assert.IsNotType<AssetProcessIntelligenceContextualDeviationVectorV2Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        }
+    }
+
+    [Fact]
+    public async Task ContextualDeviationVectorV2_AggregateCapIsAllOrNothingAndAllowsExactlyFiftyThousandRows()
+    {
+        using (var overflow = Fixture.Create())
+        {
+            var (request, _, _, _, _) = overflow.AddContextualDeviationVectorV2Signals();
+            overflow.Historian.Respond = query =>
+            {
+                var page = overflow.Historian.Calls - 1;
+                var tagId = query.Filters!.Single().Values.Single().AsGuid();
+                var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+                return ResponseV2(query, Enumerable.Range(0, query.Page!.Size)
+                    .Select(_ => V2Row(tagId, timestamp, "BadCommunication", HistoricalQueryValue.FromDouble(1), timestamp, "NotRecorded"))
+                    .ToArray(), $"page-{page + 1}");
+            };
+
+            var rejected = await overflow.ExecuteContextualDeviationVectorV2Async(request);
+
+            AssertStatus(StatusCodes.Status413PayloadTooLarge, rejected);
+            Assert.Equal(250, overflow.Historian.Calls);
+            Assert.IsNotType<AssetProcessIntelligenceContextualDeviationVectorV2Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(rejected).Value);
+        }
+
+        using (var exactLimit = Fixture.Create())
+        {
+            var (request, targetA, _, _, _) = exactLimit.AddContextualDeviationVectorV2Signals();
+            var nonEmptyPages = 0;
+            exactLimit.Historian.Respond = query =>
+            {
+                var tagId = query.Filters!.Single().Values.Single().AsGuid();
+                if (tagId != targetA.Id || query.Range.FromUtc != request.ReferenceWindow!.FromUtc)
+                    return ResponseV2(query, []);
+
+                var page = nonEmptyPages++;
+                var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+                var cursor = page == 249 ? null : $"data-{page + 1}";
+                var rows = Enumerable.Range(0, query.Page!.Size)
+                    .Select(_ => V2Row(tagId, timestamp, "BadCommunication", HistoricalQueryValue.FromDouble(1), timestamp, "NotRecorded"))
+                    .ToArray();
+                return ResponseV2(query, rows, cursor);
+            };
+
+            var accepted = await exactLimit.ExecuteContextualDeviationVectorV2Async(request);
+
+            AssertStatus(StatusCodes.Status200OK, accepted);
+            var payload = Assert.IsType<AssetProcessIntelligenceContextualDeviationVectorV2Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(accepted).Value);
+            Assert.Equal(50000, payload.TotalRawObservationCount);
+            Assert.Equal(250, nonEmptyPages);
+            Assert.Equal(257, exactLimit.Historian.Calls);
+        }
     }
 
     [Fact]
@@ -4000,6 +4562,9 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     private static AssetProcessIntelligenceContextualDeviationVectorV1Signal VectorSignal(Guid signalId, string key) =>
         new(signalId, key, Guid.NewGuid(), $"Plant.Pump.{key}", null, null, null);
 
+    private static AssetProcessIntelligenceContextualDeviationVectorV2Signal VectorSignalV2(Guid signalId, string key) =>
+        new(signalId, key, Guid.NewGuid(), $"Plant.Pump.{key}", null, null, null);
+
     private static AssetProcessIntelligenceContextualDeviationVectorRawObservation VectorRow(
         DateTimeOffset timestamp,
         double value) => VectorRow(timestamp, "Good", value, timestamp, "Synchronized");
@@ -4217,6 +4782,14 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             return Analytics.ExecuteContextualDeviationVectorV1Async(context, request, cancellationToken);
         }
 
+        public Task<IResult> ExecuteContextualDeviationVectorV2Async(
+            AssetProcessIntelligenceContextualDeviationVectorV2QueryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var context = CreateContext();
+            return Analytics.ExecuteContextualDeviationVectorV2Async(context, request, cancellationToken);
+        }
+
         public Task<IResult> ExecutePerformanceV1BAsync(AssetProcessIntelligencePerformanceV1BQueryRequest? request = null)
         {
             var context = CreateContext();
@@ -4390,6 +4963,50 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 currentFrequencyRequest.FrequencySignalId,
                 Window(FromUtc, FromUtc.AddHours(1)), Window(FromUtc.AddHours(2), FromUtc.AddHours(3)), 49d, 51d);
             return (request, targetA, targetB, condition);
+        }
+
+        public (AssetProcessIntelligenceContextualDeviationVectorV2QueryRequest Request,
+            TagDefinition TargetA, TagDefinition TargetB, TagDefinition FirstContext, TagDefinition SecondContext)
+            AddContextualDeviationVectorV2Signals(TagAccessPolicy? secondContextAccessPolicy = null)
+        {
+            var (v1Request, targetA, targetB, firstContext) = AddContextualDeviationVectorSignals();
+            var secondContext = new TagDefinition(
+                Guid.NewGuid(), "Suction pressure", "Plant.Pump.SuctionPressure", TagDataType.Double,
+                null, "Hz", null, true,
+                AccessPolicy: secondContextAccessPolicy,
+                ControlledEngineeringUnit: new ControlledEngineeringUnitReference(1, "unit.frequency.hertz"));
+            Workspace.Tags.Register(secondContext);
+            Runtime.AddTag(secondContext);
+
+            var configuration = Workspace.AssetProcessIntelligence.Snapshot();
+            var profile = configuration.Profiles!.Single();
+            var secondContextSignal = new AssetProcessIntelligenceSignalEngineeringDto(
+                Guid.NewGuid(), "pump-suction-pressure-context", "opaque legacy text", secondContext.Id);
+            Workspace.AssetProcessIntelligence.Replace(configuration with
+            {
+                Profiles = [profile with
+                {
+                    Signals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                        .Append(secondContextSignal).ToArray()
+                }]
+            });
+            var descriptor = Workspace.Describe();
+            Workspace.SetCheckout(ProjectKey, "Contextual deviation vector v2 test", descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+
+            var request = new AssetProcessIntelligenceContextualDeviationVectorV2QueryRequest(
+                v1Request.ScopeKind,
+                v1Request.ScopeId,
+                v1Request.AssignmentId,
+                v1Request.TargetSignalIds,
+                v1Request.ConditionSignalId,
+                49d,
+                51d,
+                secondContextSignal.Id,
+                19d,
+                21d,
+                v1Request.ReferenceWindow,
+                v1Request.EvaluationWindow);
+            return (request, targetA, targetB, firstContext, secondContext);
         }
 
         public TagDefinition AddProfileSignal(string key, string role, TagDataType dataType, string? unit)

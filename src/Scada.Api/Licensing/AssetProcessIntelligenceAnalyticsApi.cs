@@ -19,6 +19,8 @@ public static class AssetProcessIntelligenceAnalyticsApi
             Results.Ok(AssetProcessIntelligenceContextualReferenceDeviationV1Catalog.Describe()));
         group.MapGet("/contextual-deviation-vector/v1/catalog", () =>
             Results.Ok(AssetProcessIntelligenceContextualDeviationVectorV1Catalog.Describe()));
+        group.MapGet("/contextual-deviation-vector/v2/catalog", () =>
+            Results.Ok(AssetProcessIntelligenceContextualDeviationVectorV2Catalog.Describe()));
         group.MapGet("/performance/v1/catalog", () =>
             Results.Ok(AssetProcessIntelligencePerformanceV1BCatalog.Describe()));
         group.MapPost("/query", (
@@ -51,6 +53,12 @@ public static class AssetProcessIntelligenceAnalyticsApi
             AssetProcessIntelligenceAnalyticsService service,
             CancellationToken cancellationToken) =>
             service.ExecuteContextualDeviationVectorV1Async(context, request, cancellationToken));
+        group.MapPost("/contextual-deviation-vector/v2/query", (
+            HttpContext context,
+            AssetProcessIntelligenceContextualDeviationVectorV2QueryRequest request,
+            AssetProcessIntelligenceAnalyticsService service,
+            CancellationToken cancellationToken) =>
+            service.ExecuteContextualDeviationVectorV2Async(context, request, cancellationToken));
         group.MapPost("/performance/v1/query", (
             HttpContext context,
             AssetProcessIntelligencePerformanceV1BQueryRequest request,

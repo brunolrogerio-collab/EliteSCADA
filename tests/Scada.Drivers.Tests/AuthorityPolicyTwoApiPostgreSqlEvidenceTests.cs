@@ -387,7 +387,14 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             await nodeB.LoginAsync();
             if (!sharedDatabase)
             {
-                await WaitForInitialPolicyCommitAsync(nodeA, nodeB, referencePath);
+                // Separate-database D2 restarts the standby before policy replication.
+                // Keep this bounded wait consistent with the 75-second standby-readiness
+                // budget used immediately below; the commit predicate remains unchanged.
+                await WaitForInitialPolicyCommitAsync(
+                    nodeA,
+                    nodeB,
+                    referencePath,
+                    TimeSpan.FromSeconds(75));
                 await MirrorProjectToStandbyAsync(nodeA, nodeB);
             }
 
@@ -816,9 +823,13 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         return updated.AsObject();
     }
 
-    private static async Task WaitForInitialPolicyCommitAsync(ApiProcess a, ApiProcess b, string referencePath)
+    private static async Task WaitForInitialPolicyCommitAsync(
+        ApiProcess a,
+        ApiProcess b,
+        string referencePath,
+        TimeSpan? timeout = null)
     {
-        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(30);
+        var deadline = DateTimeOffset.UtcNow + (timeout ?? TimeSpan.FromSeconds(30));
         var lastState = "No policy status collected.";
         while (DateTimeOffset.UtcNow < deadline)
         {

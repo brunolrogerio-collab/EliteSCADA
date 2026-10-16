@@ -2206,6 +2206,33 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public void ContextualReferenceDeviationV1_RejectsUnsupportedEvidenceAndSourceTimeOutsideWindow()
+    {
+        var reference = Window(FromUtc, FromUtc.AddHours(1));
+        var evaluation = Window(FromUtc.AddHours(2), FromUtc.AddHours(3));
+        var unit = new ControlledEngineeringUnitReference(1, "unit.frequency.hertz");
+        var referenceTime = reference.FromUtc.AddMinutes(1);
+        var evaluationTime = evaluation.FromUtc.AddMinutes(1);
+
+        var result = AssetProcessIntelligenceContextualReferenceDeviationV1Calculator.Calculate(
+            reference,
+            evaluation,
+            [ContextualReferenceRow(referenceTime, "Good", HistoricalQueryValue.FromDouble(10), referenceTime, "PresentUnverified")],
+            [ContextualReferenceRow(referenceTime, "Good", HistoricalQueryValue.FromDouble(50), referenceTime, "Synchronized")],
+            [ContextualReferenceRow(evaluationTime, "Good", HistoricalQueryValue.FromDouble(12), evaluation.ToUtc.AddSeconds(1), "Synchronized")],
+            [ContextualReferenceRow(evaluationTime, "Good", HistoricalQueryValue.FromDouble(50), evaluationTime, "Synchronized")],
+            unit,
+            49,
+            51);
+
+        Assert.Equal(1, result.ReferenceEvidence.Target.RejectionCounts["source_timestamp_not_synchronized"]);
+        Assert.Equal(1, result.EvaluationEvidence.Target.RejectionCounts["source_timestamp_outside_requested_window"]);
+        Assert.Equal(0, result.ReferenceEvidence.QualifiedPairCount);
+        Assert.Equal(0, result.EvaluationEvidence.QualifiedPairCount);
+        Assert.Empty(result.EvaluationSamples);
+    }
+
+    [Fact]
     public void ContextualReferenceDeviationV1_EmptyEvaluationIsInsufficientAndInvalidWindowsNeverReachCalculation()
     {
         var reference = Window(FromUtc, FromUtc.AddHours(1));
@@ -2385,6 +2412,119 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             ConditionSignalId = valid.TargetSignalId
         });
         AssertStatus(StatusCodes.Status400BadRequest, duplicate);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ContextualReferenceDeviationV1_RejectsSignalFromDifferentProfileThanAssignmentBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create(scopeKind: AssetProcessIntelligenceScopeKind.Location);
+        var (_, _, currentFrequencyRequest) = fixture.AddCurrentFrequencySignals();
+        var foreignTag = new TagDefinition(
+            Guid.NewGuid(), "Other drive frequency", "Plant.OtherPump.DriveFrequency", TagDataType.Double,
+            null, "Hz", null, true,
+            ControlledEngineeringUnit: new ControlledEngineeringUnitReference(1, "unit.frequency.hertz"));
+        fixture.Workspace.Tags.Register(foreignTag);
+        fixture.Runtime.AddTag(foreignTag);
+
+        var foreignSignal = new AssetProcessIntelligenceSignalEngineeringDto(
+            Guid.NewGuid(), "other-drive-frequency", "measured-drive-frequency", foreignTag.Id);
+        var foreignProfile = new AssetProcessIntelligenceProfileEngineeringDto(
+            Guid.NewGuid(), "other-pump.profile", "Other pump profile", [foreignSignal]);
+        var foreignEquipmentId = Guid.NewGuid();
+        fixture.Workspace.Assets.UpsertEquipment(new EquipmentEngineeringDto(
+            foreignEquipmentId, "Plant.OtherPump", "Other pump", LocationId: fixture.ScopeId));
+        var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+        fixture.Workspace.AssetProcessIntelligence.Replace(configuration with
+        {
+            Profiles = configuration.Profiles!.Append(foreignProfile).ToArray(),
+            Assignments = configuration.Assignments!.Append(new AssetProcessIntelligenceAssignmentEngineeringDto(
+                Guid.NewGuid(), foreignEquipmentId, foreignProfile.Id)).ToArray()
+        });
+        var descriptor = fixture.Workspace.Describe();
+        fixture.Workspace.SetCheckout(Fixture.ProjectKey, "Contextual reference deviation profile-bound test",
+            descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+
+        var result = await fixture.ExecuteContextualReferenceDeviationV1Async(
+            new AssetProcessIntelligenceContextualReferenceDeviationV1QueryRequest(
+                fixture.ScopeKind,
+                fixture.ScopeId,
+                currentFrequencyRequest.AssignmentId,
+                foreignSignal.Id,
+                currentFrequencyRequest.FrequencySignalId,
+                Window(FromUtc, FromUtc.AddHours(1)),
+                Window(FromUtc.AddHours(2), FromUtc.AddHours(3)),
+                49,
+                51));
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ContextualReferenceDeviationV1_RejectsTwoSignalsPointingToTheSameTagBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var (target, _, currentFrequencyRequest) = fixture.AddCurrentFrequencySignals();
+        var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+        var profile = Assert.Single(configuration.Profiles!);
+        var duplicateTagSignal = new AssetProcessIntelligenceSignalEngineeringDto(
+            Guid.NewGuid(), "duplicate-current-tag", "duplicate", target.Id);
+        fixture.Workspace.AssetProcessIntelligence.Replace(configuration with
+        {
+            Profiles = [profile with { Signals = profile.Signals!.Append(duplicateTagSignal).ToArray() }]
+        });
+        var descriptor = fixture.Workspace.Describe();
+        fixture.Workspace.SetCheckout(Fixture.ProjectKey, "Contextual reference deviation duplicate tag test",
+            descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+
+        var result = await fixture.ExecuteContextualReferenceDeviationV1Async(
+            new AssetProcessIntelligenceContextualReferenceDeviationV1QueryRequest(
+                fixture.ScopeKind,
+                fixture.ScopeId,
+                currentFrequencyRequest.AssignmentId,
+                currentFrequencyRequest.CurrentSignalId,
+                duplicateTagSignal.Id,
+                Window(FromUtc, FromUtc.AddHours(1)),
+                Window(FromUtc.AddHours(2), FromUtc.AddHours(3)),
+                49,
+                51));
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ContextualReferenceDeviationV1_RejectsSignalTagOutsideChosenActiveScopeBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var (_, _, currentFrequencyRequest) = fixture.AddCurrentFrequencySignals();
+        var outsideEquipmentId = Guid.NewGuid();
+        fixture.Workspace.Assets.UpsertEquipment(new EquipmentEngineeringDto(
+            outsideEquipmentId, "Plant.OtherPump", "Other pump"));
+        var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+        var assignment = Assert.Single(configuration.Assignments!);
+        fixture.Workspace.AssetProcessIntelligence.Replace(configuration with
+        {
+            Assignments = [assignment with { EquipmentId = outsideEquipmentId }]
+        });
+        var descriptor = fixture.Workspace.Describe();
+        fixture.Workspace.SetCheckout(Fixture.ProjectKey, "Contextual reference deviation scope link test",
+            descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+
+        var result = await fixture.ExecuteContextualReferenceDeviationV1Async(
+            new AssetProcessIntelligenceContextualReferenceDeviationV1QueryRequest(
+                fixture.ScopeKind,
+                fixture.ScopeId,
+                currentFrequencyRequest.AssignmentId,
+                currentFrequencyRequest.CurrentSignalId,
+                currentFrequencyRequest.FrequencySignalId,
+                Window(FromUtc, FromUtc.AddHours(1)),
+                Window(FromUtc.AddHours(2), FromUtc.AddHours(3)),
+                49,
+                51));
+
+        AssertStatus(StatusCodes.Status404NotFound, result);
         Assert.Equal(0, fixture.Historian.Calls);
     }
 

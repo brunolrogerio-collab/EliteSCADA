@@ -2,7 +2,7 @@
 
 Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — Intelligence residual Stage 4 gap audit (read-only)
+## Current order — Intelligence Stage 4C two-context vector v2
 
 | Field | Order |
 | --- | --- |
@@ -11,17 +11,17 @@ Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace its current 
 | Product front | Intelligence #588; no change of front |
 | Integration target | `wave15/corrections-integration` |
 | Current product checkpoint | `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79` — #633 merge; exact T2 #38975551802 passed |
-| Completed prerequisite | Stage 3 S3-01–S3-08 and bounded Stage 4A/4B accepted; child issues #630 and #632 closed |
-| Objective | Determine the smallest defensible next Stage 4 slice, if one can be supported, from the remaining limits stated in #588: reference representativeness, operating-regime context, and validation for any multivariate deviation |
-| Allowed changes | None. Read-only repository/source audit and a findings comment in #588 only |
-| Audit questions | What existing APIs/contracts can safely support more representative reference cohorts or explicit context; whether a multivariate statistic has a defensible evidence/sufficiency contract; exact symbols, failure states, auth/revocation/resource controls, cross-platform constraints, bounded tests and limitations |
-| Boundaries | No source or product edits, schema/store/worker, free-form formula, external model, or implied anomaly/diagnostic claim; no Stage 5 UI/gauges, Stage 6 qualification, HA or other product front |
-| Completion | CODEX returns cited findings and at most one finite proposal to #588. Main will publish a separate ADR/implementation package before any source changes; if no defensible slice exists, report that directly |
-| Product checkpoint for audit | `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79` |
+| Completed prerequisite | Stage 3 S3-01–S3-08 and bounded Stage 4A/4B accepted; children #630/#632 closed; residual audit recorded in #588 |
+| Objective | Implement additive `contextual-deviation-vector.v2` with 2–8 targets and exactly two caller-declared numeric context intervals per ADR-019/#635 |
+| Allowed changes | New v2 catalog/query/calculator/response and focused tests; include the exact Main-authored ADR-019. Keep Stage 4A/4B v1 routes and contracts unchanged |
+| Acceptance | Focused local analytics/API tests and Release API build; one exact-head T1 with effective `SESSION_LICENSING`; Main source review; exact post-merge T2 before #635 closes |
+| Boundaries | No combined/multivariate anomaly, regime detection, representative/healthy-reference claim, diagnosis/RUL, persistence/cache/worker, UI, schema/shared Engineering semantics, HA or other product front |
+| Completion | CODEX publishes one draft PR and returns to Main; Main reviews/integrates and owns exact T2. Stage 4 remains partial after this bounded slice |
+| Product code basis | `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79`; current coordination ancestry is docs-only. Main records the exact post-ADR live integration ref in #635 before CODEX source mutation |
 
-Verified Stage 4 delivery evidence: Stage 4A PR #631 merged at `51a4204de926ec2a81bdcbebacba8dbb578dbb71`; exact T1 #38970785957 and T2 #38971337239 passed. Stage 4B PR #633 merged at `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79`; local focused analytics/API tests 198/198, Release API build 0 warnings/errors; exact candidate T1 #38974826487 passed (SESSION_LICENSING, 1,615 passed/1 skipped); exact T2 #38975551802 passed at the merge SHA (backend 2,500 passed/1 skipped, Web passed, Chromium integration smoke 13/13 passed, full-browser E2E skipped). Detailed Stage 3 evidence remains in #588 and the current coordinator pointer.
+Verified Stage 4 delivery evidence: Stage 4A PR #631 merged at `51a4204de926ec2a81bdcbebacba8dbb578dbb71`; exact T1 #38970785957 and T2 #38971337239 passed. Stage 4B PR #633 merged at `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79`; local focused analytics/API tests 198/198, Release API build 0 warnings/errors; exact candidate T1 #38974826487 passed (SESSION_LICENSING, 1,615 passed/1 skipped); exact T2 #38975551802 passed at the merge SHA (backend 2,500 passed/1 skipped, Web passed, Chromium integration smoke 13/13 passed, full-browser E2E skipped). The residual audit and Stage 4C decision are in #588/#635 and [ADR-019](ADR-019-INTELLIGENCE-CONTEXTUAL-DEVIATION-VECTOR-V2.md).
 
-Workflow adjustment #618 and PERFORMANCE-V1A #621/#625 remain verified. Accepted Stage 3 contracts and Stage 4A/4B endpoints are frozen within their stated meanings. Stage 4 is still partial; the current audit is read-only planning, not implementation. Stage 5/6, #588 and Wave 15 remain open.
+Workflow adjustment #618 and PERFORMANCE-V1A #621/#625 remain verified. Accepted Stage 3 contracts and Stage 4A/4B endpoints are frozen within their stated meanings. Main has authorized only the new Stage 4C v2 contract in #635. Stage 4 remains partial; Stages 5/6, #588 and Wave 15 remain open.
 
 ## Responsibilities
 
@@ -72,7 +72,7 @@ Main records review separately from the original evidence. An acknowledgement is
 
 Stage 3 S3-01–S3-08 is complete/verified. Stage 4A is integrated/verified at `51a4204de926ec2a81bdcbebacba8dbb578dbb71`; Stage 4B is integrated/verified at `7f09c9f88af85e0b5c92a3cacbca867d9a67ee79`. Stage 4B adds independent per-target contextual differences/scores over one complete synchronized cohort; it does not classify combined anomalies, diagnose faults, claim reference health or establish global regime equivalence. Exact tests and validation runs are recorded above and in #588/#632.
 
-Stage 4 remains partial because representative reference selection, operating-regime context, and validation limits for multivariate deviation remain unresolved. The active Main task is the read-only audit in the order table above; CODEX may inspect source and publish findings only. Main will choose or reject a next bounded package after that evidence. Stage 5 dashboards/visuals and Stage 6 broad hardening are not current orders. The Product Owner's local HA Preview remains separate and pending.
+The residual Stage 4 audit found that a second caller-declared numeric context can be added safely as a separate vector v2 contract, but does not establish representative references, global regime equivalence or a valid multivariate anomaly statistic. ADR-019 freezes this bounded decision. CODEX implements only #635 after Main records the exact post-documentation integration ref; Main then reviews, integrates and verifies T2. Stage 4 remains partial after this slice; Stage 5 dashboards/visuals and Stage 6 broad hardening are not current orders. The Product Owner's local HA Preview remains separate and pending.
 
 ## Persistent authority
 

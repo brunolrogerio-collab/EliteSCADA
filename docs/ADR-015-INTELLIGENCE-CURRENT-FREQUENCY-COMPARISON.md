@@ -1,0 +1,40 @@
+# ADR-015 — Comparison of current under recorded measured frequency
+
+Status: MAIN APPROVED FOR BOUNDED IMPLEMENTATION; not implemented/verified by this document.
+Owning package: [#619](https://github.com/brunolrogerio-collab/EliteSCADA/issues/619), parent #588. Base code: verified `54c7c9942b57328cabcef740c99f4ab3207cc040`; revalidated integration/start base `120d93a477924b34994e2a1c2167b873c93c512d` adds coordination only. The immutable Main control commit is recorded in #619 before dispatch.
+
+## Observed contracts
+
+- `AssetProcessIntelligenceAnalyticsService` already checks clean workspace/active-revision coherence, explicit active scope/permit, effective Active, entitlement, TrendUse, TAG reads, page bounds, cancellation and final workspace revision. `PrepareAsync`, `ResolveScopeSources`, `RevalidateAsync`, and `ReadObservationsAsync` supply the existing patterns. Existing v1 reads retain their current dataset/semantics.
+- `AssetProcessIntelligenceAssignmentEngineeringDto` relates stable EquipmentId and ProfileId; profiles contain stable signal IDs/TAG IDs. `AssetProcessIntelligenceSignalSemanticBindingEngineeringDto` is separate from opaque legacy SignalRole.
+- `AssetProcessIntelligenceSemanticCatalog` supports v1 `pump.electrical_current` with CurrentBasis and `pump.drive_frequency` with SignalKind/FrequencyReference. `ControlledEngineeringUnitCatalog` resolves ampere and hertz; it does not contain a milliampere code. #619 accepts exactly existing controlled `unit.electric_current.ampere` and `unit.frequency.hertz`. No new role/unit/schema is needed for this package. Main corrected its earlier A/mA premise after CODEX identified the missing catalog entry; mA must be refused before reads, never inferred locally.
+- `HistoricalDatasets.HistorianSamplesV2` exposes observed timestamp, optional source/server times and their evidence. ADR-014 preserves paging/filtering by observed time. `TimestampEvidenceState.Synchronized` is per-measurement provenance; it is not proof of physical co-acquisition, clock accuracy, expected cadence, or equivalent operating regime.
+- Existing Stage 3A comparisons have unverified regime equivalence. Stage 3B exact observed timestamp overlap and #617's endpoint rate remain unchanged.
+
+## Decision
+
+Add rule `current-at-recorded-frequency.compare.v1` with a separate catalog and query route under `AssetProcessIntelligenceAnalyticsApi.Route`: `/current-frequency-comparison/v1/catalog` and `/current-frequency-comparison/v1/query`.
+
+The caller supplies active scope Kind/Id, one existing assignment ID, two distinct current/frequency signal IDs from that assignment's profile, primary and comparison UTC windows of equal duration that do not overlap under the query's boundary semantics, and explicit finite inclusive lower/upper frequency bounds in canonical Hz. Reject an ambiguous/missing assignment, duplicate TAGs, unsupported metadata or invalid windows before reading historical data.
+
+Current requires the existing controlled v1 current role/qualifier and `unit.electric_current.ampere` TAG unit; frequency requires `unit.frequency.hertz`, the existing controlled frequency role, `measured_output`, and its explicit FrequencyReference. A command setpoint is insufficient. Resolve/convert only through the existing controlled catalog to A/Hz; never infer mA or another unit from names/free-text unit text. Unsupported controlled codes or versions are refused before historical reads. Echo CurrentBasis/FrequencyReference so electrical drive frequency is not described as shaft speed. Any additive/versioned unit expansion belongs to PERFORMANCE-V1's prerequisite decision, not this slice.
+
+Read raw v2 rows. Every raw row, including rejected rows, counts against an aggregate 50,000-row budget across both TAGs and both windows; page size <=200 and each window <=31 days. Preserve the existing cursor/window/TAG validation and reject overflow with no partial metric. Source/server timestamps remain non-filterable/non-sortable at the provider.
+
+Eligible paired evidence requires Good finite numeric values, non-null synchronized source timestamps also inside the requested window, and exact equality of the two source timestamps. Each selected TAG must have exactly one raw row at that source timestamp within its window; duplicates are ambiguous and excluded, including repeated identical values. Never select an arbitrary duplicate. Missing/unverified/unsynchronized/legacy/server-only evidence cannot substitute for synchronized source evidence. Do not interpolate, retain last value, choose a nearest time, or invent a tolerance. Reuse of an accepted source timestamp across the two windows is an explicit ambiguous-stale refusal.
+
+Keep rows/rejection reasons separate from accepted pairs. Preserve observed/source timestamps of eligible pairs (or bounded pair evidence sufficient to reproduce the reported aggregate), metadata and raw/accepted/paired/selected counts. Reject malformed provider responses rather than silently treating them as empty. For pair frequencies satisfying the inclusive range, calculate per-window arithmetic sample mean current. Require >=2 selected pairs in each window; this is a deterministic rule, not a statistical confidence claim.
+
+For means `I_primary` and `I_comparison`, report `I_primary - I_comparison` in A. Report `100 * (I_primary - I_comparison) / I_comparison` in percent only for nonzero comparison mean and finite calculation; otherwise keep the supported absolute difference and a null percent plus reason. Every other insufficient/unsupported result returns null unavailable metrics, never fabricated zero. All calculations and ordering must be deterministic across pagination and equivalent row orderings.
+
+## Meaning and limitations
+
+The result compares subsets of recorded observations under a stated frequency predicate. Matching synchronized source timestamps is this rule's exact recorded-time join, not proof of physical simultaneous acquisition or a global equivalent regime. Declare physical alignment/regime equivalence unverified and cadence/completeness unknown. Equal frequency alone does not establish equal mechanical load or efficiency. Do not label this result degradation, diagnosis, motor efficiency, instantaneous derivative, or learned baseline. The rule remains useful as a reproducible observed-data comparison while exposing its evidence limits.
+
+## Security and implementation boundary
+
+Authorize both selected TAGs plus TrendUse before the first source query, around every page and at final publication; reuse the active scope/assignment hierarchy, durable Authority/permit and final workspace guard. Any revocation, scope/entitlement/revision loss or cancellation discards the entire response. No unauthorized TAG identity may appear in a failure/result. Keep in-flight cancellation linked to the existing permit, including between signal/window queries.
+
+Main explicitly permits additive route/service changes plus new DTO/catalog/calculator/helper and owning tests. Existing v1 routes/catalogs/formulas, Engineering/package/semantic catalog, Historian provider/storage, security/HA behavior, workflows, dependencies, and UI remain frozen. A required shared-contract change is BLOCKED-CONTRACT, not permission to widen this implementation.
+
+Required validation and exact cases are the work package in #619. Local focused/API build, exact published T1 (SESSION_LICENSING plus path inference), Main review, and required exact post-merge CI remain the integration gate. The finite stage-level acceptance matrix is [here](WAVE15-INTELLIGENCE-STAGE3-ACCEPTANCE.md).

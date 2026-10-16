@@ -1302,6 +1302,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
 
     [Theory]
     [InlineData("unit.electric_current.milliampere", 1)]
+    [InlineData("unit.electric_current.milliampere", 2)]
     [InlineData("unit.electric_current.ampere", 2)]
     public async Task CurrentFrequencyComparisonV1_RejectsUnsupportedControlledUnitBeforeHistorianRead(
         string currentUnitCode,

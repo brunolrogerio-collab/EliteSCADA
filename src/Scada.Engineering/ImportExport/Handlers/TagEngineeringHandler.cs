@@ -38,9 +38,10 @@ internal sealed class TagEngineeringHandler
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
             if (dto.ControlledEngineeringUnit is not null)
             {
-                if (package.SchemaVersion < 26)
-                    issues.Add(new("TAG_CONTROLLED_UNIT_SCHEMA_VERSION_REQUIRED", "Controlled TAG unit references require Engineering package schema version 26 or newer.", ImportEntityKind.Tag, dto.Path, true));
-                issues.AddRange(ControlledEngineeringUnitCatalog.ValidateReference(dto.ControlledEngineeringUnit)
+                var requiredSchemaVersion = dto.ControlledEngineeringUnit.CatalogVersion >= 2 ? 27 : 26;
+                if (package.SchemaVersion < requiredSchemaVersion)
+                    issues.Add(new("TAG_CONTROLLED_UNIT_SCHEMA_VERSION_REQUIRED", $"Controlled TAG unit catalog version {dto.ControlledEngineeringUnit.CatalogVersion} requires Engineering package schema version {requiredSchemaVersion} or newer.", ImportEntityKind.Tag, dto.Path, true));
+                issues.AddRange(ControlledEngineeringSemanticsResolver.ValidateUnitReference(dto.ControlledEngineeringUnit)
                     .Select(issue => new ImportIssue(issue.Code, issue.Message, ImportEntityKind.Tag, dto.Path, true)));
             }
             ValidateAccessPolicy(dto, package, issues);
@@ -67,6 +68,16 @@ internal sealed class TagEngineeringHandler
                 issues.Add(new(
                     "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT",
                     $"Updating TAG '{dto.Path}' from a schema-25-or-older import would remove an existing semantic annotation. Use an Engineering schema 26 package to explicitly retain, change, or remove the controlled unit.",
+                    ImportEntityKind.Tag,
+                    dto.Path,
+                    true));
+            }
+            if (operation == ImportOperation.Update && existing?.ControlledEngineeringUnit?.CatalogVersion == 2 &&
+                package.SchemaVersion < 27 && dto.ControlledEngineeringUnit != existing.ControlledEngineeringUnit)
+            {
+                issues.Add(new(
+                    "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT",
+                    $"Updating TAG '{dto.Path}' from a schema-26-or-older import would remove or change its version 2 controlled unit. Use an Engineering schema 27 package to explicitly retain, change, or remove the controlled unit.",
                     ImportEntityKind.Tag,
                     dto.Path,
                     true));

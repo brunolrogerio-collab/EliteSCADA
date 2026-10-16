@@ -16,7 +16,7 @@ internal sealed class EngineeringCsvExchange
         "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband", "PeriodMilliseconds",
         "MaximumPeriodMilliseconds", "Description", "MetadataJson", "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson",
         "InitialValueDataType", "InitialValueJson", "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId",
-        "ControlledEngineeringUnitJson"
+        "ControlledEngineeringUnitJson", "ControlledEngineeringUnitContractVersion"
     ];
     private static readonly string[] AlarmColumns =
     [
@@ -51,7 +51,8 @@ internal sealed class EngineeringCsvExchange
                 "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband",
                 "PeriodMilliseconds", "MaximumPeriodMilliseconds", "Description", "MetadataJson",
                 "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson", "InitialValueDataType", "InitialValueJson",
-                "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId", "ControlledEngineeringUnitJson"
+                "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId", "ControlledEngineeringUnitJson",
+                "ControlledEngineeringUnitContractVersion"
             }
         };
 
@@ -68,7 +69,7 @@ internal sealed class EngineeringCsvExchange
                 JsonMap(tag.Metadata), JsonList(tag.AccessPolicy?.ReadRoles), JsonList(tag.AccessPolicy?.WriteRoles),
                 JsonList(tag.AccessPolicy?.ConfigureRoles), tag.InitialValue?.DataType.ToString(), tag.InitialValue?.Value.GetRawText(),
                 JsonCommunicationBinding(tag.CommunicationBinding), tag.DataSourceId?.ToString("D"),
-                tag.HistorianCaptureProfileId?.ToString("D"), JsonControlledUnit(tag.ControlledEngineeringUnit)
+                tag.HistorianCaptureProfileId?.ToString("D"), JsonControlledUnit(tag.ControlledEngineeringUnit), "2"
             });
         }
 
@@ -171,17 +172,50 @@ internal sealed class EngineeringCsvExchange
     }
 
     public IReadOnlyCollection<TagEngineeringDto> ParseTags(string csv)
+        => ParseTagsWithSchema(csv).Tags;
+
+    public ParsedEngineeringTagsCsv ParseTagsWithSchema(string csv)
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("TAG CSV import requires a header row.");
         var header = Header(table.Headers, TagColumns, "Id", "Name", "Path", "DataType");
-        return ParseRows(table, row => ParseTag(row.Cells, header));
+        var hasControlledUnitColumn = header.ContainsKey("ControlledEngineeringUnitJson");
+        var markerPresent = header.ContainsKey("ControlledEngineeringUnitContractVersion");
+        var rowVersions = table.Rows
+            .Select(row => ParseControlledUnitContractVersion(Get(row.Cells, header, "ControlledEngineeringUnitContractVersion")))
+            .Select(version => version ?? 1)
+            .Distinct()
+            .ToArray();
+        if (rowVersions.Length > 1)
+            throw new InvalidDataException("TAG CSV contains conflicting ControlledEngineeringUnitContractVersion row markers.");
+
+        var writerVersion = rowVersions.Length == 0
+            ? markerPresent ? 2 : (int?)null
+            : rowVersions.Single();
+        if (markerPresent && writerVersion == 2 && !hasControlledUnitColumn)
+            throw new InvalidDataException("TAG CSV declares controlled-unit contract version 2 but omits ControlledEngineeringUnitJson.");
+
+        var tags = ParseRows(table, row =>
+        {
+            var rowWriterVersion = ParseControlledUnitContractVersion(Get(row.Cells, header, "ControlledEngineeringUnitContractVersion")) ?? 1;
+            var tag = ParseTag(row.Cells, header);
+            if (tag.ControlledEngineeringUnit?.CatalogVersion == 2 && rowWriterVersion < 2)
+                throw new InvalidDataException("Version 2 controlled unit references require ControlledEngineeringUnitContractVersion 2.");
+            return tag;
+        });
+
+        var schemaVersion = writerVersion == 2
+            ? 27
+            : hasControlledUnitColumn ? 26 : 25;
+        return new ParsedEngineeringTagsCsv(tags, schemaVersion);
     }
 
-    public bool HasControlledEngineeringUnitColumn(string csv)
+    private static int? ParseControlledUnitContractVersion(string? value)
     {
-        var table = CsvCodec.ReadTable(csv);
-        return table?.Headers.Contains("ControlledEngineeringUnitJson", StringComparer.OrdinalIgnoreCase) == true;
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var version) && version is 1 or 2)
+            return version;
+        throw new InvalidDataException($"Unsupported ControlledEngineeringUnitContractVersion '{value}'. Supported versions are 1 and 2.");
     }
 
     public IReadOnlyCollection<AlarmEngineeringDto> ParseAlarms(string csv)
@@ -490,3 +524,7 @@ internal sealed class EngineeringCsvExchange
         });
     }
 }
+
+public sealed record ParsedEngineeringTagsCsv(
+    IReadOnlyCollection<TagEngineeringDto> Tags,
+    int SchemaVersion);

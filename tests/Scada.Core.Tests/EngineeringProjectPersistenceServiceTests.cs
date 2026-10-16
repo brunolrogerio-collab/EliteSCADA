@@ -135,7 +135,7 @@ public sealed class EngineeringProjectPersistenceServiceTests
         var preview = await targetPersistence.PreviewRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
         var applied = await targetPersistence.ApplyRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
 
-        Assert.Equal(26, persistedPackage.SchemaVersion);
+        Assert.Equal(27, persistedPackage.SchemaVersion);
         Assert.Equal(unit, Assert.Single(persistedPackage.Tags).ControlledEngineeringUnit);
         Assert.Equal(binding, Assert.Single(persistedPackage.AssetProcessIntelligence!.Profiles!.Single().Signals!).SemanticBinding);
         Assert.True(preview!.Preview.CanApply);

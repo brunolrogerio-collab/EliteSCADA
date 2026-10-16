@@ -99,6 +99,77 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
     }
 
     [Fact]
+    public async Task SemanticCatalogEndpointReturnsVersionedV1AndV2Catalogs()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"));
+
+        using var response = await api.Client.GetAsync(EndpointHarness.SemanticCatalogPath);
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var roles = payload.GetProperty("semanticCatalogs").EnumerateArray()
+            .Single(item => item.GetProperty("catalogVersion").GetInt32() == 2)
+            .GetProperty("roles").EnumerateArray().Select(item => item.GetProperty("code").GetString()).ToArray();
+        var units = payload.GetProperty("controlledEngineeringUnitCatalogs").EnumerateArray()
+            .Single(item => item.GetProperty("catalogVersion").GetInt32() == 2)
+            .GetProperty("units").EnumerateArray().Select(item => item.GetProperty("code").GetString()).ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(1, payload.GetProperty("supportedSemanticContractVersions").EnumerateArray().Select(item => item.GetInt32()));
+        Assert.Contains(2, payload.GetProperty("supportedSemanticContractVersions").EnumerateArray().Select(item => item.GetInt32()));
+        Assert.Contains("equipment.active_input_power", roles);
+        Assert.Contains("pump.direct_differential_pressure", roles);
+        Assert.Contains("unit.power.kilowatt", units);
+        Assert.Contains("unit.pressure.kilopascal", units);
+    }
+
+    [Fact]
+    public async Task SemanticCatalogEndpointRequiresEngineeringView()
+    {
+        await using var api = await EndpointHarness.StartAsync(
+            CreateVerification("valid"),
+            engineeringViewGranted: false);
+
+        using var response = await api.Client.GetAsync(EndpointHarness.SemanticCatalogPath);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Version2SemanticBindingsRequireMarker2AndLowerMarkerCannotDropThem()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"));
+        var tag = Assert.Single(api.Workspace.Tags.Snapshot());
+        api.Workspace.Tags.Upsert(tag with
+        {
+            Name = "Active input power",
+            Path = "Plant.Pump.ActiveInputPower",
+            EngineeringUnit = "kW",
+            ControlledEngineeringUnit = new ControlledEngineeringUnitReference(2, "unit.power.kilowatt")
+        });
+        var profileId = Guid.NewGuid();
+        var signalId = Guid.NewGuid();
+        var profile = new AssetProcessIntelligenceProfileEngineeringDto(profileId, "pump", "Pump",
+        [new(signalId, "active-input-power", "Power", api.TagId,
+            SemanticBinding: new(2, "equipment.active_input_power", SignalKind: "measured_total_input"))]);
+        var request = new AssetProcessIntelligenceConfigurationRequest([profile], [], [], SemanticContractVersion: 1);
+
+        using var rejectedVersion = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath, request);
+
+        Assert.Equal(HttpStatusCode.Conflict, rejectedVersion.StatusCode);
+        Assert.Empty(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!);
+
+        using var acceptedVersion = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            request with { SemanticContractVersion = 2 });
+        Assert.Equal(HttpStatusCode.OK, acceptedVersion.StatusCode);
+        var savedBinding = Assert.Single(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!).SemanticBinding;
+        Assert.Equal(2, savedBinding!.CatalogVersion);
+
+        using var rejectedDrop = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            new AssetProcessIntelligenceConfigurationRequest([], [], [], SemanticContractVersion: 1));
+        Assert.Equal(HttpStatusCode.Conflict, rejectedDrop.StatusCode);
+        Assert.Equal(savedBinding, Assert.Single(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!).SemanticBinding);
+    }
+
+    [Fact]
     public async Task Stage2ConfigurationEndpointSavesStaticConfigurationAndPreservesStage1Scopes()
     {
         await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"));
@@ -295,6 +366,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public const string ProjectKey = "intelligence-stage1-test";
         public const string ScopesPath = "/api/engineering/asset-process-intelligence/scopes";
         public const string ConfigurationPath = "/api/engineering/asset-process-intelligence/configuration";
+        public const string SemanticCatalogPath = "/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog";
 
         private readonly WebApplication _app;
         private readonly IEngineeringProjectPersistenceService? _persistence;
@@ -344,7 +416,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             bool engineeringModifyGranted = true,
             bool includeActivationPipeline = false,
             bool seedControlledSemanticTag = false,
-            bool seedSemanticAnnotations = false)
+            bool seedSemanticAnnotations = false,
+            bool engineeringViewGranted = true)
         {
             var workspace = new EngineeringWorkspace(seedDemo: false);
             var equipmentId = Guid.NewGuid();
@@ -385,7 +458,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                     Guid.NewGuid(),
                     "operator",
                     "Operator",
-                    Grants: CreateGrants(managerGrantOnTargetEquipment, engineeringModifyGranted, equipmentScopeId, otherScopeId))],
+                    Grants: CreateGrants(managerGrantOnTargetEquipment, engineeringModifyGranted, equipmentScopeId, otherScopeId, engineeringViewGranted))],
                 [
                     new SecurityScopeEngineeringDto(equipmentScopeId, "equipment-p01", "Pump", SecurityScopeNodeKind.Equipment, ResourceId: equipmentId),
                     new SecurityScopeEngineeringDto(otherScopeId, "equipment-p02", "Fan", SecurityScopeNodeKind.Equipment, ResourceId: otherEquipmentId)
@@ -519,14 +592,15 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             bool managerGrantOnTargetEquipment,
             bool engineeringModifyGranted,
             Guid equipmentScopeId,
-            Guid otherScopeId)
+            Guid otherScopeId,
+            bool engineeringViewGranted)
         {
             var grants = new List<CapabilityGrantEngineeringDto>
             {
-                new(SecurityCapability.EngineeringView),
                 new(SecurityCapability.AssetProcessIntelligenceManage,
                     new AuthorizationScopeEngineeringDto(ScopeNodeId: managerGrantOnTargetEquipment ? equipmentScopeId : otherScopeId))
             };
+            if (engineeringViewGranted) grants.Add(new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringView));
             if (engineeringModifyGranted)
                 grants.Add(new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify));
             return grants;

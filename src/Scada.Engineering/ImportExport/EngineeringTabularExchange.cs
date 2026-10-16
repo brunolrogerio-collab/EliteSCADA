@@ -99,8 +99,7 @@ public sealed class EngineeringTabularExchange
 
     private EngineeringPackage ParseRows(EngineeringTabularEntity entity, string csv) => entity switch
     {
-        EngineeringTabularEntity.Tags => new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
-            EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow, _csv.ParseTags(csv), []),
+        EngineeringTabularEntity.Tags => ParseTagsPackage(csv),
         EngineeringTabularEntity.Alarms => new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow, [], _csv.ParseAlarms(csv)),
         EngineeringTabularEntity.DataSources => new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
@@ -115,6 +114,17 @@ public sealed class EngineeringTabularExchange
         _ => throw new ArgumentOutOfRangeException(nameof(entity))
     };
 
+    private EngineeringPackage ParseTagsPackage(string csv)
+    {
+        var parsed = _csv.ParseTagsWithSchema(csv);
+        return new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            parsed.SchemaVersion,
+            DateTimeOffset.UtcNow,
+            parsed.Tags,
+            []);
+    }
+
     private static EngineeringPackage ReplaceTabularEntities(
         EngineeringPackage current,
         EngineeringTabularEntity entity,
@@ -123,7 +133,9 @@ public sealed class EngineeringTabularExchange
         ArgumentNullException.ThrowIfNull(current);
         return new EngineeringPackage(
             EngineeringExchangeService.CurrentSchema,
-            EngineeringExchangeService.CurrentSchemaVersion,
+            entity == EngineeringTabularEntity.Tags
+                ? parsed.SchemaVersion
+                : EngineeringExchangeService.CurrentSchemaVersion,
             DateTimeOffset.UtcNow,
             entity == EngineeringTabularEntity.Tags ? parsed.Tags : [],
             entity == EngineeringTabularEntity.Alarms ? parsed.Alarms : [],

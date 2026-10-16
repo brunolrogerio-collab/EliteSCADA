@@ -665,6 +665,139 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
+    public async Task<IResult> ExecutePerformanceV1BAsync(
+        HttpContext context,
+        AssetProcessIntelligencePerformanceV1BQueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(request);
+        var requestToken = cancellationToken == default ? context.RequestAborted : cancellationToken;
+        var invalid = ValidatePerformanceV1BRequest(request);
+        if (invalid is not null) return invalid;
+
+        try
+        {
+            var trendAuthorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.TrendUse,
+                cancellationToken: requestToken);
+            var trendFailure = trendAuthorization.FailureResult();
+            if (trendFailure is not null) return trendFailure;
+            if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+                return Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED");
+
+            var preparedResult = await PreparePerformanceV1BAsync(context, request, requestToken);
+            if (preparedResult.Error is not null) return preparedResult.Error;
+            var plan = preparedResult.Plan!;
+            var allPlans = plan.Signals.Select(signal => signal.Plan).ToArray();
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                requestToken,
+                plan.PermitToken);
+            var budget = new PerformanceV1BRawRowBudget();
+            var observations = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligencePerformanceV1BRawObservation>>();
+            foreach (var signal in plan.Signals)
+            {
+                var read = await ReadPerformanceV1BObservationsAsync(
+                    context,
+                    request.Window!,
+                    signal,
+                    allPlans,
+                    budget,
+                    linkedCancellation.Token);
+                if (read.Error is not null) return read.Error;
+                observations.Add(signal.Signal.Id, read.Observations!);
+            }
+
+            var calculation = AssetProcessIntelligencePerformanceV1BCalculator.Calculate(
+                plan.Rule,
+                request.Window!,
+                plan.Signals,
+                observations);
+
+            await using var finalMutation = await workspace.AcquireMutationAsync(
+                plan.ChangeVersion,
+                linkedCancellation.Token);
+            var finalCheck = await RevalidatePerformanceV1BPlansAsync(context, allPlans, linkedCancellation.Token);
+            if (finalCheck is not null) return finalCheck;
+
+            return Results.Ok(new AssetProcessIntelligencePerformanceV1BResponse(
+                AssetProcessIntelligencePerformanceV1BCatalog.ContractVersion,
+                AssetProcessIntelligencePerformanceV1BCatalog.CatalogVersion,
+                plan.Rule.Id,
+                plan.Rule.Version,
+                plan.ProjectKey,
+                plan.Revision,
+                request.ScopeKind,
+                request.ScopeId,
+                plan.Assignment.Id,
+                plan.Assignment.EquipmentId,
+                plan.Profile.Id,
+                request.Window!,
+                Array.AsReadOnly(plan.Signals.Select(signal => signal.Description).ToArray()),
+                calculation.Inputs,
+                calculation.Tuples,
+                budget.TotalRows,
+                calculation.Summary,
+                new AssetProcessIntelligencePerformanceV1BProvenance(
+                    HistoricalDatasets.HistorianSamplesV2,
+                    2,
+                    "Exact equality of each selected TAG's non-null source.timestamp with explicit Synchronized evidence; duplicate source-time groups are excluded regardless of quality.",
+                    "unverified; source-time equality is not proof of physical co-acquisition or clock accuracy",
+                    "unverified",
+                    "unknown",
+                    "unknown_without_expected_cadence",
+                    plan.Rule.Id == "recorded-pressure-power-input-ratio.v1"
+                        ? "Pressure-only power divided by directly measured total active electrical input; this is not hydraulic, motor, or overall system efficiency. No velocity/elevation correction or physical simultaneity is assumed."
+                        : plan.Rule.Id == "recorded-differential-pressure-power.v1"
+                            ? "Flow multiplied by directly measured outlet-minus-inlet differential pressure; pressure-only power, not total pump power or efficiency."
+                            : "Recorded active electrical input power divided by recorded net-good production rate; not an integrated-window energy ratio.")));
+        }
+        catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED");
+        }
+        catch (EngineeringWorkspaceVersionConflictException)
+        {
+            return Conflict("INTELLIGENCE_WORKSPACE_CHANGED");
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Forbidden("HISTORICAL_QUERY_FORBIDDEN");
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_CURSOR_INVALID", "Historical query cursor is invalid."));
+        }
+        catch (HistoricalQueryValidationException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_INVALID", "The bounded Historian query was rejected."));
+        }
+        catch (HistoricalQueryProviderException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_UNAVAILABLE", "Historical data is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_RESPONSE_INVALID", "The Historian response did not match the requested TAG and window."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
     private async Task<PreparedProfileCoverageResult> PrepareProfileCoverageAsync(
         HttpContext context,
         AssetProcessIntelligenceProfileCoverageQueryRequest request,
@@ -1032,6 +1165,302 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
         return null;
     }
+
+    private async Task<PreparedPerformanceV1BResult> PreparePerformanceV1BAsync(
+        HttpContext context,
+        AssetProcessIntelligencePerformanceV1BQueryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var rule = AssetProcessIntelligencePerformanceV1BCatalog.FindRule(request.RuleId);
+        if (rule is null)
+            return PreparedPerformanceV1BResult.Fail(BadRequest("INTELLIGENCE_PERFORMANCE_RULE_UNSUPPORTED"));
+        var expectedRoles = ExpectedPerformanceRoles(rule.Id);
+        var requestedIds = request.SignalIds!;
+        var expectedSignalCount = rule.Id == "specific-active-energy-at-recorded-production-rate.v1"
+            ? 2
+            : expectedRoles.Count;
+        if (requestedIds.Count != expectedSignalCount || requestedIds.Distinct().Count() != requestedIds.Count)
+            return PreparedPerformanceV1BResult.Fail(BadRequest("INTELLIGENCE_PERFORMANCE_SIGNAL_SELECTION_INVALID"));
+
+        var beforeLock = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(beforeLock, runtime.Describe(), out var coherenceError))
+            return PreparedPerformanceV1BResult.Fail(coherenceError!);
+
+        await using var mutation = await workspace.AcquireMutationAsync(beforeLock.ChangeVersion, cancellationToken);
+        var descriptor = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(descriptor, runtime.Describe(), out coherenceError))
+            return PreparedPerformanceV1BResult.Fail(coherenceError!);
+        if (!highAvailability.CanOwnIndustrialEffects())
+            return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE"));
+        if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+            return PreparedPerformanceV1BResult.Fail(Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED"));
+
+        var policyVersion = 0L;
+        var haEpoch = 0L;
+        if (authorityPolicyHa is not null)
+        {
+            var authorityFence = await authorityPolicyHa.CheckAsync(cancellationToken);
+            if (!authorityFence.Allowed)
+                return PreparedPerformanceV1BResult.Fail(
+                    Conflict(authorityFence.ReasonCode.ToUpperInvariant().Replace('-', '_')));
+            policyVersion = authorityFence.PolicyVersion;
+            haEpoch = authorityFence.HaEpoch;
+            var refreshedTrendAuthorization = await security.CheckRuntimeAsync(
+                context, runtime, SecurityCapability.TrendUse, cancellationToken: cancellationToken);
+            var refreshedTrendFailure = refreshedTrendAuthorization.FailureResult();
+            if (refreshedTrendFailure is not null)
+                return PreparedPerformanceV1BResult.Fail(refreshedTrendFailure);
+        }
+
+        var configuration = workspace.AssetProcessIntelligence.Snapshot();
+        if (configuration.Version != 2)
+            return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
+        var scopeMatches = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
+            .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId)
+            .Take(2)
+            .ToArray();
+        if (scopeMatches.Length != 1 || !scopeMatches[0].Active)
+            return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
+        if (!executionGate.TryGetToken(
+                descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId,
+                out var permitToken, policyVersion, haEpoch))
+            return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
+
+        var assignmentMatches = (configuration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>())
+            .Where(assignment => assignment.Id == request.AssignmentId)
+            .Take(2)
+            .ToArray();
+        if (assignmentMatches.Length != 1)
+            return PreparedPerformanceV1BResult.Fail(NotFound("INTELLIGENCE_ASSIGNMENT_NOT_AVAILABLE"));
+        var assignment = assignmentMatches[0];
+        if (assignment.EquipmentId == Guid.Empty || assignment.ProfileId != request.ProfileId)
+            return PreparedPerformanceV1BResult.Fail(BadRequest("INTELLIGENCE_PERFORMANCE_ASSIGNMENT_PROFILE_MISMATCH"));
+
+        var profileMatches = (configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+            .Where(profile => profile.Id == request.ProfileId)
+            .Take(2)
+            .ToArray();
+        if (profileMatches.Length != 1)
+            return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_PROFILE_NOT_AVAILABLE_OR_AMBIGUOUS"));
+        var profile = profileMatches[0];
+        var profileSignals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>()).ToArray();
+        if (profileSignals.Any(signal => signal is null || signal.Id == Guid.Empty || signal.TagId == Guid.Empty))
+            return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_PROFILE_SIGNAL_IDENTITY_INVALID"));
+
+        var selected = new List<AssetProcessIntelligenceSignalEngineeringDto>(requestedIds.Count);
+        foreach (var signalId in requestedIds)
+        {
+            var matches = profileSignals.Where(signal => signal.Id == signalId).Take(2).ToArray();
+            if (matches.Length != 1)
+                return PreparedPerformanceV1BResult.Fail(BadRequest("INTELLIGENCE_PERFORMANCE_SIGNAL_IDENTITY_INVALID"));
+            selected.Add(matches[0]);
+        }
+        if (selected.Select(signal => signal.TagId).Distinct().Count() != selected.Count)
+            return PreparedPerformanceV1BResult.Fail(BadRequest("INTELLIGENCE_PERFORMANCE_DUPLICATE_TAG_REFERENCE_UNSUPPORTED"));
+
+        var roleSignals = new Dictionary<string, AssetProcessIntelligenceSignalEngineeringDto>(StringComparer.Ordinal);
+        foreach (var signal in selected)
+        {
+            var binding = signal.SemanticBinding;
+            if (binding is null || AssetProcessIntelligenceSemanticCatalogResolver.ValidateBinding(binding, signal.Id).Count != 0 ||
+                !expectedRoles.Contains(binding.RoleCode, StringComparer.Ordinal) ||
+                !roleSignals.TryAdd(binding.RoleCode, signal))
+                return PreparedPerformanceV1BResult.Fail(BadRequest("INTELLIGENCE_PERFORMANCE_SEMANTICS_UNSUPPORTED"));
+        }
+        var rolesMatchRule = rule.Id == "specific-active-energy-at-recorded-production-rate.v1"
+            ? roleSignals.Count == 2 && roleSignals.ContainsKey("equipment.active_input_power") &&
+              roleSignals.Keys.Count(role => role.StartsWith("process.net_good_production_", StringComparison.Ordinal)) == 1
+            : roleSignals.Count == expectedRoles.Count && expectedRoles.All(role => roleSignals.ContainsKey(role));
+        if (!rolesMatchRule)
+            return PreparedPerformanceV1BResult.Fail(BadRequest("INTELLIGENCE_PERFORMANCE_SEMANTICS_UNSUPPORTED"));
+
+        var preparedSignals = new List<AssetProcessIntelligencePerformanceV1BPreparedSignal>(selected.Count);
+        foreach (var signal in selected.OrderBy(item => item.SemanticBinding!.RoleCode, StringComparer.Ordinal))
+        {
+            var binding = signal.SemanticBinding!;
+            if (!runtime.TryGetTag(signal.TagId, out var tag) || tag is null || !IsNumeric(tag.DataType))
+                return PreparedPerformanceV1BResult.Fail(NotFound("INTELLIGENCE_ANALYTICS_SOURCE_NOT_AVAILABLE"));
+            if (!TryResolvePerformanceUnit(binding.RoleCode, binding.CatalogVersion, binding,
+                    tag.ControlledEngineeringUnit, out var unit))
+                return PreparedPerformanceV1BResult.Fail(BadRequest("INTELLIGENCE_PERFORMANCE_UNITS_UNSUPPORTED"));
+            var resolution = ResolveScopeSources(request.ScopeKind, request.ScopeId, tag.Id, configuration, workspace.Assets);
+            if (resolution.Error is not null)
+                return PreparedPerformanceV1BResult.Fail(resolution.Error);
+            var provenanceMatches = resolution.Assignments!
+                .Where(item => item.AssignmentId == assignment.Id && item.EquipmentId == assignment.EquipmentId &&
+                               item.ProfileId == assignment.ProfileId && item.SignalId == signal.Id)
+                .Take(2)
+                .ToArray();
+            if (provenanceMatches.Length != 1)
+                return PreparedPerformanceV1BResult.Fail(NotFound("INTELLIGENCE_ASSIGNMENT_NOT_IN_ACTIVE_SCOPE"));
+
+            var tagAuthorization = await security.CheckRuntimeTagAsync(
+                context, runtime, tag, TagAccessOperation.Read, cancellationToken);
+            var tagFailure = tagAuthorization.FailureResult();
+            if (tagFailure is not null)
+                return PreparedPerformanceV1BResult.Fail(tagFailure);
+
+            var bindingDimension = AssetProcessIntelligenceSemanticCatalogResolver.DimensionForRole(
+                binding.CatalogVersion, binding.RoleCode);
+            if (bindingDimension is null || !string.Equals(bindingDimension, unit.Dimension, StringComparison.Ordinal))
+                return PreparedPerformanceV1BResult.Fail(BadRequest("INTELLIGENCE_PERFORMANCE_SEMANTICS_UNSUPPORTED"));
+            var plan = new PreparedPlan(
+                descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion,
+                tag, Array.AsReadOnly(provenanceMatches), permitToken, request.ScopeKind, request.ScopeId,
+                policyVersion, haEpoch);
+            var description = new AssetProcessIntelligencePerformanceV1BSignal(
+                signal.Id, signal.Key, tag.Id, tag.Path, tag.DataType, binding.CatalogVersion,
+                binding.RoleCode, binding.CurrentBasis, binding.SignalKind, binding.FrequencyReference,
+                binding.PressureReference, binding.FlowDirection, tag.ControlledEngineeringUnit!.Code,
+                tag.ControlledEngineeringUnit.CatalogVersion,
+                unit.CanonicalUnit);
+            preparedSignals.Add(new(signal, tag, binding, unit, description, plan));
+        }
+
+        if (permitToken.IsCancellationRequested)
+            return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED"));
+        return PreparedPerformanceV1BResult.Ready(new PreparedPerformanceV1BPlan(
+            descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion,
+            assignment, profile, rule, Array.AsReadOnly(preparedSignals.ToArray()), permitToken));
+    }
+
+    private static bool TryResolvePerformanceUnit(
+        string role,
+        int semanticCatalogVersion,
+        AssetProcessIntelligenceSignalSemanticBindingEngineeringDto binding,
+        ControlledEngineeringUnitReference? reference,
+        out ControlledEngineeringUnitDefinition definition)
+    {
+        definition = default!;
+        if (!ControlledEngineeringSemanticsResolver.TryResolveUnit(reference, out definition)) return false;
+
+        return role switch
+        {
+            "equipment.active_input_power" => semanticCatalogVersion == 2 && binding.SignalKind == "measured_total_input" &&
+                reference is not null && reference.CatalogVersion == 2 &&
+                (reference.Code == "unit.power.watt" || reference.Code == "unit.power.kilowatt") && definition.Dimension == "power",
+            "process.net_good_production_volume_rate" => semanticCatalogVersion == 2 && binding.SignalKind == "measured_output" &&
+                reference is not null && reference.CatalogVersion == 2 &&
+                reference.Code == "unit.volumetric_flow.cubic_metre_per_second" && definition.Dimension == "volumetric_flow",
+            "process.net_good_production_mass_rate" => semanticCatalogVersion == 2 && binding.SignalKind == "measured_output" &&
+                reference is not null && reference.CatalogVersion == 2 &&
+                (reference.Code == "unit.mass_flow.kilogram_per_second" || reference.Code == "unit.mass_flow.kilogram_per_hour") && definition.Dimension == "mass_flow",
+            "process.net_good_production_item_rate" => semanticCatalogVersion == 2 && binding.SignalKind == "measured_output" &&
+                reference is not null && reference.CatalogVersion == 2 &&
+                (reference.Code == "unit.item_rate.item_per_second" || reference.Code == "unit.item_rate.item_per_hour") && definition.Dimension == "item_rate",
+            "pump.discharge_volumetric_flow" => semanticCatalogVersion == 1 && binding.FlowDirection == "pump_to_process" &&
+                definition.Dimension == "volumetric_flow" &&
+                reference is not null &&
+                ((reference.CatalogVersion == 1 && reference.Code == "unit.volumetric_flow.cubic_metre_per_hour") ||
+                 (reference.CatalogVersion == 2 && reference.Code == "unit.volumetric_flow.cubic_metre_per_second")),
+            "pump.direct_differential_pressure" => semanticCatalogVersion == 2 && binding.SignalKind == "measured_output" &&
+                binding.PressureReference == "differential_outlet_minus_inlet" && definition.Dimension == "pressure" &&
+                reference is not null &&
+                ((reference.CatalogVersion == 1 && reference.Code == "unit.pressure.bar") ||
+                 (reference.CatalogVersion == 2 && (reference.Code == "unit.pressure.pascal" || reference.Code == "unit.pressure.kilopascal"))),
+            _ => false
+        };
+    }
+
+    private async Task<PerformanceV1BObservationReadResult> ReadPerformanceV1BObservationsAsync(
+        HttpContext context,
+        AssetProcessIntelligenceAnalyticsWindow window,
+        AssetProcessIntelligencePerformanceV1BPreparedSignal signal,
+        IReadOnlyList<PreparedPlan> allPlans,
+        PerformanceV1BRawRowBudget budget,
+        CancellationToken cancellationToken)
+    {
+        var observations = new List<AssetProcessIntelligencePerformanceV1BRawObservation>();
+        var cursors = new HashSet<string>(StringComparer.Ordinal);
+        string? cursor = null;
+        DateTimeOffset? lastObservedTimestamp = null;
+        var pageCount = 0;
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (++pageCount > AssetProcessIntelligencePerformanceV1BCatalog.MaximumRawRowsAcrossInputs /
+                AssetProcessIntelligencePerformanceV1BCatalog.QueryPageSize + 1)
+                throw new InvalidDataException("Historian pagination exceeded the bounded page count.");
+
+            await using var mutation = await workspace.AcquireMutationAsync(signal.Plan.ChangeVersion, cancellationToken);
+            var validation = await RevalidatePerformanceV1BPlansAsync(context, allPlans, cancellationToken);
+            if (validation is not null) return PerformanceV1BObservationReadResult.Fail(validation);
+            var remainingRows = AssetProcessIntelligencePerformanceV1BCatalog.MaximumRawRowsAcrossInputs - budget.TotalRows;
+            // At the aggregate cap, probe remaining TAGs with a one-row page so an
+            // exactly-full query can still succeed when those TAGs have no observations.
+            var pageSize = remainingRows == 0
+                ? 1
+                : Math.Min(AssetProcessIntelligencePerformanceV1BCatalog.QueryPageSize, remainingRows);
+            var request = new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamplesV2,
+                HistoricalTimeRange.Absolute(window.FromUtc, window.ToUtc),
+                Version: 2,
+                Filters: [new HistoricalFilter("tag.id", HistoricalFilterOperator.Eq,
+                    [HistoricalQueryValue.FromGuid(signal.Tag.Id)])],
+                OrderBy: [new HistoricalSort("timestamp", HistoricalSortDirection.Ascending)],
+                Page: new HistoricalPageRequest(pageSize, cursor));
+            var response = await historicalQueries.QueryAsync(request, cancellationToken);
+            ValidateCurrentFrequencyPage(response, window, signal.Tag.Id, pageSize);
+            var postReadValidation = await RevalidatePerformanceV1BPlansAsync(context, allPlans, cancellationToken);
+            if (postReadValidation is not null) return PerformanceV1BObservationReadResult.Fail(postReadValidation);
+            if (budget.TotalRows + response.Rows.Count > AssetProcessIntelligencePerformanceV1BCatalog.MaximumRawRowsAcrossInputs ||
+                (budget.TotalRows + response.Rows.Count == AssetProcessIntelligencePerformanceV1BCatalog.MaximumRawRowsAcrossInputs &&
+                 response.NextCursor is not null))
+                return PerformanceV1BObservationReadResult.Fail(WindowTooDense("INTELLIGENCE_PERFORMANCE_WINDOW_TOO_DENSE"));
+
+            foreach (var row in response.Rows)
+            {
+                var observation = ToPerformanceV1BObservation(row);
+                if (lastObservedTimestamp.HasValue && observation.ObservedTimestampUtc < lastObservedTimestamp.Value)
+                    throw new InvalidDataException("Historian v2 rows were not returned in ascending observed timestamp order.");
+                lastObservedTimestamp = observation.ObservedTimestampUtc;
+                observations.Add(observation);
+            }
+            budget.TotalRows += response.Rows.Count;
+            cursor = response.NextCursor;
+            if (cursor is not null && !cursors.Add(cursor))
+                throw new InvalidDataException("Historian pagination cursor repeated.");
+        }
+        while (cursor is not null);
+
+        return PerformanceV1BObservationReadResult.Ready(observations.AsReadOnly());
+    }
+
+    private async Task<IResult?> RevalidatePerformanceV1BPlansAsync(
+        HttpContext context,
+        IReadOnlyList<PreparedPlan> plans,
+        CancellationToken cancellationToken)
+    {
+        foreach (var plan in plans)
+        {
+            var validation = await RevalidateAsync(context, plan, cancellationToken);
+            if (validation is not null) return validation;
+        }
+        return null;
+    }
+
+    private static AssetProcessIntelligencePerformanceV1BRawObservation ToPerformanceV1BObservation(HistoricalQueryRow row)
+    {
+        var timestamp = row.Cells["timestamp"].AsDateTime();
+        var quality = row.Cells["quality"].Kind is HistoricalValueKind.Enum or HistoricalValueKind.String
+            ? row.Cells["quality"].Value : null;
+        DateTimeOffset? sourceTimestamp = row.Cells["source.timestamp"].Kind == HistoricalValueKind.DateTime
+            ? row.Cells["source.timestamp"].AsDateTime() : null;
+        var sourceEvidence = row.Cells["source.timestamp.status"].Kind is HistoricalValueKind.Enum or HistoricalValueKind.String
+            ? row.Cells["source.timestamp.status"].Value : null;
+        return new(timestamp, quality, row.Cells.GetValueOrDefault("value"), sourceTimestamp, sourceEvidence);
+    }
+
+    private static IReadOnlyList<string> ExpectedPerformanceRoles(string ruleId) => ruleId switch
+    {
+        "specific-active-energy-at-recorded-production-rate.v1" =>
+            ["equipment.active_input_power", "process.net_good_production_volume_rate", "process.net_good_production_mass_rate", "process.net_good_production_item_rate"],
+        "recorded-differential-pressure-power.v1" =>
+            ["pump.discharge_volumetric_flow", "pump.direct_differential_pressure"],
+        "recorded-pressure-power-input-ratio.v1" =>
+            ["pump.discharge_volumetric_flow", "pump.direct_differential_pressure", "equipment.active_input_power"],
+        _ => Array.Empty<string>()
+    };
 
     private async Task<PreparedPlanResult> PrepareAsync(
         HttpContext context,
@@ -1435,6 +1864,26 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         return null;
     }
 
+    private static IResult? ValidatePerformanceV1BRequest(AssetProcessIntelligencePerformanceV1BQueryRequest request)
+    {
+        if (!Enum.IsDefined(request.ScopeKind) || request.ScopeId == Guid.Empty ||
+            request.AssignmentId == Guid.Empty || request.ProfileId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(request.RuleId))
+            return BadRequest("INTELLIGENCE_PERFORMANCE_IDENTITY_INVALID");
+        if (AssetProcessIntelligencePerformanceV1BCatalog.FindRule(request.RuleId) is null)
+            return BadRequest("INTELLIGENCE_PERFORMANCE_RULE_UNSUPPORTED");
+        if (request.SignalIds is null || request.SignalIds.Count == 0 ||
+            request.SignalIds.Any(id => id == Guid.Empty) ||
+            request.SignalIds.Distinct().Count() != request.SignalIds.Count)
+            return BadRequest("INTELLIGENCE_PERFORMANCE_SIGNAL_SELECTION_INVALID");
+        if (request.Window is null ||
+            request.Window.FromUtc.Offset != TimeSpan.Zero || request.Window.ToUtc.Offset != TimeSpan.Zero ||
+            request.Window.ToUtc <= request.Window.FromUtc ||
+            request.Window.ToUtc - request.Window.FromUtc > AssetProcessIntelligencePerformanceV1BCatalog.MaximumWindow)
+            return BadRequest("INTELLIGENCE_PERFORMANCE_WINDOW_INVALID");
+        return null;
+    }
+
     private static bool ValidWindow(AssetProcessIntelligenceAnalyticsWindow window) =>
         window.FromUtc.Offset == TimeSpan.Zero &&
         window.ToUtc.Offset == TimeSpan.Zero &&
@@ -1522,34 +1971,36 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             ["source.timestamp"] = HistoricalFieldType.DateTime,
             ["source.timestamp.status"] = HistoricalFieldType.Enum
         };
+        if (response.Columns.Any(column => column is null))
+            throw new InvalidDataException("Historical v2 response contains a null column descriptor.");
         foreach (var required in requiredFields)
         {
-            var columns = response.Columns.Where(column => column.Field == required.Key).Take(2).ToArray();
+            var columns = response.Columns.Where(column => column is not null && column.Field == required.Key).Take(2).ToArray();
             if (columns.Length != 1 || columns[0].Type != required.Value)
                 throw new InvalidDataException("Historical v2 response columns do not match the contract.");
         }
 
         foreach (var row in response.Rows)
         {
-            if (row.Cells is null ||
-                !row.Cells.TryGetValue("tag.id", out var tagCell) || tagCell.Kind != HistoricalValueKind.Guid ||
+            if (row is null || row.Cells is null ||
+                !row.Cells.TryGetValue("tag.id", out var tagCell) || tagCell is null || tagCell.Kind != HistoricalValueKind.Guid ||
                 !Guid.TryParse(tagCell.Value, out var returnedTagId) || returnedTagId != expectedTagId)
                 throw new InvalidDataException("Historical v2 response contains a different TAG.");
-            if (!row.Cells.TryGetValue("timestamp", out var timestamp) ||
+            if (!row.Cells.TryGetValue("timestamp", out var timestamp) || timestamp is null ||
                 timestamp.Kind != HistoricalValueKind.DateTime ||
                 !DateTimeOffset.TryParse(timestamp.Value, System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.RoundtripKind, out var observedAt) ||
                 observedAt.Offset != TimeSpan.Zero || observedAt < window.FromUtc || observedAt > window.ToUtc)
                 throw new InvalidDataException("Historical v2 response contains an invalid observation timestamp.");
-            if (!row.Cells.TryGetValue("quality", out var quality) ||
+            if (!row.Cells.TryGetValue("quality", out var quality) || quality is null ||
                 quality.Kind is not (HistoricalValueKind.Enum or HistoricalValueKind.String or HistoricalValueKind.Null))
                 throw new InvalidDataException("Historical v2 response contains malformed quality evidence.");
-            if (!row.Cells.TryGetValue("value", out var value) ||
+            if (!row.Cells.TryGetValue("value", out var value) || value is null ||
                 value.Kind is not (HistoricalValueKind.Int16 or HistoricalValueKind.Int32 or HistoricalValueKind.Int64 or
                     HistoricalValueKind.Float or HistoricalValueKind.Double or HistoricalValueKind.Number or
                     HistoricalValueKind.String or HistoricalValueKind.Boolean or HistoricalValueKind.Null))
                 throw new InvalidDataException("Historical v2 response contains a malformed value.");
-            if (!row.Cells.TryGetValue("source.timestamp", out var sourceTimestamp) ||
+            if (!row.Cells.TryGetValue("source.timestamp", out var sourceTimestamp) || sourceTimestamp is null ||
                 sourceTimestamp.Kind is not (HistoricalValueKind.DateTime or HistoricalValueKind.Null))
                 throw new InvalidDataException("Historical v2 response contains malformed source timestamp evidence.");
             if (sourceTimestamp.Kind == HistoricalValueKind.DateTime &&
@@ -1557,7 +2008,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                     System.Globalization.DateTimeStyles.RoundtripKind, out var parsedSourceTimestamp) ||
                  parsedSourceTimestamp.Offset != TimeSpan.Zero))
                 throw new InvalidDataException("Historical v2 response contains an invalid source timestamp.");
-            if (!row.Cells.TryGetValue("source.timestamp.status", out var evidence) ||
+            if (!row.Cells.TryGetValue("source.timestamp.status", out var evidence) || evidence is null ||
                 evidence.Kind is not (HistoricalValueKind.Enum or HistoricalValueKind.String or HistoricalValueKind.Null))
                 throw new InvalidDataException("Historical v2 response contains malformed source timestamp status.");
         }
@@ -1620,7 +2071,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
 
     private enum AncestryResult { No, Yes, Invalid }
 
-    private sealed record PreparedPlan(
+    internal sealed record PreparedPlan(
         string ProjectKey,
         long Revision,
         long ChangeVersion,
@@ -1724,5 +2175,35 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         public static CurrentFrequencyObservationReadResult Ready(
             IReadOnlyList<AssetProcessIntelligenceCurrentFrequencyRawObservation> observations) => new(observations, null);
         public static CurrentFrequencyObservationReadResult Fail(IResult error) => new(null, error);
+    }
+
+    private sealed record PreparedPerformanceV1BPlan(
+        string ProjectKey,
+        long Revision,
+        long ChangeVersion,
+        AssetProcessIntelligenceAssignmentEngineeringDto Assignment,
+        AssetProcessIntelligenceProfileEngineeringDto Profile,
+        AssetProcessIntelligencePerformanceV1BRule Rule,
+        IReadOnlyList<AssetProcessIntelligencePerformanceV1BPreparedSignal> Signals,
+        CancellationToken PermitToken);
+
+    private sealed record PreparedPerformanceV1BResult(PreparedPerformanceV1BPlan? Plan, IResult? Error)
+    {
+        public static PreparedPerformanceV1BResult Ready(PreparedPerformanceV1BPlan plan) => new(plan, null);
+        public static PreparedPerformanceV1BResult Fail(IResult error) => new(null, error);
+    }
+
+    private sealed class PerformanceV1BRawRowBudget
+    {
+        public int TotalRows { get; set; }
+    }
+
+    private sealed record PerformanceV1BObservationReadResult(
+        IReadOnlyList<AssetProcessIntelligencePerformanceV1BRawObservation>? Observations,
+        IResult? Error)
+    {
+        public static PerformanceV1BObservationReadResult Ready(
+            IReadOnlyList<AssetProcessIntelligencePerformanceV1BRawObservation> observations) => new(observations, null);
+        public static PerformanceV1BObservationReadResult Fail(IResult error) => new(null, error);
     }
 }

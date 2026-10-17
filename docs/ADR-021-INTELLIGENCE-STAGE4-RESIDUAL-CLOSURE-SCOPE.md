@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Status | **PROPOSAL — not an implementation authorization** |
-| Date | 2026-10-17 |
+| Date | 2026-10-16 |
 | Parent | [#588 — Asset & Process Intelligence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588) |
 | Frozen boundary | Stage 4A–4C and ADR-020 remain unchanged |
 | Scheduling | Scope prepared while Stage 5A #639 is active; product implementation starts only after #639 is accepted and Main publishes a new exact-base assignment |

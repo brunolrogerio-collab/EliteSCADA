@@ -1,4 +1,4 @@
-# CURRENT RESUME POINT — STAGE 4 RESIDUAL SCOPE PROPOSED; STAGE 5A AWAITING CODEX DELIVERY — 2026-10-17
+# CURRENT RESUME POINT — STAGE 4 RESIDUAL SCOPE PROPOSED; STAGE 5A AWAITING CODEX DELIVERY — 2026-10-16
 
 Read this entry, [the short coordinator pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [Main's current order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), [ADR-021 residual scope proposal](docs/ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md), and live issues [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588), [#639](https://github.com/brunolrogerio-collab/EliteSCADA/issues/639), and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305). Live refs, issues/PRs and exact-SHA CI remain authoritative.
 

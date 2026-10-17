@@ -1,6 +1,6 @@
 # Current coordinator pointer — Wave 15
 
-Snapshot: 2026-10-17. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA Actions evidence govern implementation state. Replace this snapshot when state changes; keep detailed history in the owning issue/PR.
+Snapshot: 2026-10-16. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA Actions evidence govern implementation state. Replace this snapshot when state changes; keep detailed history in the owning issue/PR.
 
 ## Current position
 

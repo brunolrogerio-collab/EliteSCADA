@@ -1,6 +1,6 @@
 # Current coordinator pointer — Wave 15
 
-Snapshot: 2026-10-16. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA Actions evidence govern implementation state. Replace this snapshot when state changes; keep detailed history in the owning issue/PR.
+Snapshot: 2026-10-17. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA Actions evidence govern implementation state. Replace this snapshot when state changes; keep detailed history in the owning issue/PR.
 
 ## Current position
 
@@ -14,7 +14,7 @@ Snapshot: 2026-10-16. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA
 | Current acceptance state | **Stage 3 and Stage 4 V1 COMPLETE / VERIFIED / FROZEN within accepted scopes; broader Stage 4 remains PARTIAL**; Stage 5A active, 5B and 6 not released |
 | Product executor | Chat CODEX; one active product package at a time |
 | Immediate direction | CODEX completes only active Stage 5A #639 on its authorized exact base; Main then reviews and integrates subject to its stated gates |
-| Next owner/action | CODEX returns one Stage 5A PR; Main verifies post-merge CI and Product Owner Preview. Only after #639 acceptance does Main publish the Stage 4 residual package proposal; Stage 5B/6 remain unreleased until the broader Stage 4 disposition is resolved |
+| Next owner/action | CODEX returns one Stage 5A PR; Main reviews, integrates and verifies exact T2, then Product Owner performs manual Preview. Main is preparing the Stage 4 residual proposal concurrently in ADR-021; it does not activate Stage 4 code or change #639. After #639 acceptance Main may issue bounded 4D; Stage 5B/6 remain blocked until residual disposition |
 | Package boundary | Six generic display-only measurement widgets in the canonical editor toolbox. No Stage 5B dashboard generation, Stage 6, HA, drivers, or unrelated front |
 
 The last verified product code tree is at `81ac4193194e1471e812e8164f9b9e15e63512ea`. Documentation-only movement creates a coordination HEAD, not a new product checkpoint. The live integration ref was revalidated at exact Stage 5A dispatch base `9ad4756c07f3a848750ea10cd2a14af7b63f8e6d` and recorded in #639; revalidate again before any later product package.
@@ -34,7 +34,7 @@ The last verified product code tree is at `81ac4193194e1471e812e8164f9b9e15e6351
 - EliteSCADA remains multiplatform, including Windows and Linux. Do not narrow architecture to one operating system.
 - Intelligence remains licensed, selective, and read-only. Stage 4 V1 is accepted only within the explicit caller-selected reference/context and per-TAG descriptive-vector boundaries; #588 remains open.
 - Stage 5A #639 is the active bounded package: six generic reusable measurement displays in the canonical editor toolbox, independent of Intelligence license, display-only, accessible, and persisted/rendered through existing screen contracts. It does not close the broader Stage 4. Guided dashboard generation is Stage 5B and is not included. Stage 6 remains pending.
-- After #639 is accepted, Main must publish a residual Stage 4 package proposal against #588 before releasing Stage 5B or Stage 6. Resolve baseline/reference responsibility, operating-regime semantics, whether a joint multivariate model is required, and representative validation evidence. Do not alter frozen 4A–4C contracts. Do not claim whole Stage 4 complete until its accepted residual criteria are met or explicitly deferred by the Product Owner.
+- [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md) is a coordination-only proposal for Stage 4 residuals: reference evidence, explicit operating profiles, a separately validated joint score, and a closure evidence gate. It was prepared while #639 remains active; it is not yet a PO-approved model/threshold and does not authorize implementation. After #639 is accepted, Main must revalidate the exact base and activate the bounded next package. Do not alter frozen 4A–4C contracts. Do not claim whole Stage 4 complete until accepted residual criteria are met or explicitly deferred by the Product Owner.
 - Product Owner manual visual Preview is required after Stage 5A integration and before that slice is marked accepted/frozen. CI does not substitute for this Preview.
 - The Product Owner's local HA Preview/regression acceptance remains separate and pending. Do not switch product front to HA without a new product-direction decision.
 - No FND/FC0 or whole-Intelligence/Wave 15 completion is inferred from these bounded slices. Full-browser E2E was skipped in T2 and is not claimed.

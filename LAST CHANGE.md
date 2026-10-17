@@ -1,4 +1,16 @@
-# CURRENT RESUME POINT — STAGE 4 V1 FROZEN; BROADER STAGE 4 PARTIAL; STAGE 5A ACTIVE — 2026-10-16
+# CURRENT RESUME POINT — STAGE 4 RESIDUAL SCOPE PROPOSED; STAGE 5A AWAITING CODEX DELIVERY — 2026-10-17
+
+Read this entry, [the short coordinator pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [Main's current order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), [ADR-021 residual scope proposal](docs/ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md), and live issues [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588), [#639](https://github.com/brunolrogerio-collab/EliteSCADA/issues/639), and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305). Live refs, issues/PRs and exact-SHA CI remain authoritative.
+
+- Product code checkpoint remains `wave15/corrections-integration@81ac4193194e1471e812e8164f9b9e15e63512ea` (PR #637/T2 #38981435925). Stage 5A's authorized base remains `9ad4756c07f3a848750ea10cd2a14af7b63f8e6d`; the live integration HEAD is now `710a23cb12ce19308f5965ec0871d985d9a9b951` after documentation-only PR #642. No Stage 5A product source was rebased or changed by this documentation update.
+- Stage 4A–4C and ADR-020 remain **COMPLETE / VERIFIED / FROZEN only within Stage 4 V1**; broader #588 Stage 4 remains **PARTIAL**. ADR-021 proposes bounded residual packages: 4D reference/data evidence, 4E explicit regime profiles, 4F a separately calibrated joint score, and 4G representative validation/closure. It is a design proposal only, not model/threshold acceptance or code authorization. No 4A–4C contract changes.
+- CODEX's latest local report on #639: canonical widget-quality normalization corrected; Web build passed; five focused widget tests passed; `git diff --check` clean; no PR published. CODEX stopped awaiting Main review. The current dirty implementation must be preserved on its assigned worktree/base. It still needs a complete delivery report, exact-base/head PR with `VALIDATION_PROFILE: UI_EDITOR`, required T1, Main review/integration/T2, and Product Owner manual Preview before #639 acceptance.
+- Main attempted direct follow-up to the existing CODEX task; `send_message_to_thread` returned `thread not found: 01a09bc8-2aff-7b41-b674-039dc2befbe1` (including after navigating to the task). No new dispatch receipt is claimed. The exact receiving task is the pinned local Codex chat titled **CODEX**, whose last report is the Stage 5A local checkpoint above; its next action is to return the bounded #639 PR/report. The owning issue remains the durable channel.
+- Only docs/design scope is being worked in parallel. Stage 4 implementation begins only after #639 is accepted and Main revalidates/dispatches a new exact-base package. Stage 5B/6 remain unreleased pending Stage 4 residual disposition. No HA, drivers, FND/FC0 or full Wave 15 status is changed.
+
+---
+
+# HISTORICAL RESUME POINT — STAGE 4 V1 FROZEN; BROADER STAGE 4 PARTIAL; STAGE 5A ACTIVE — 2026-10-16
 
 Read this entry, [the short coordinator pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [Main's current order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), and live issues [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588), [#639](https://github.com/brunolrogerio-collab/EliteSCADA/issues/639), and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305). Current implementation source remains the product tree at the exact refs below; docs-only movement does not change that tree.
 

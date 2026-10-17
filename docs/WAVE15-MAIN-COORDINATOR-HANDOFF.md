@@ -1,6 +1,6 @@
 # Wave 15 — Main order and execution contract
 
-Snapshot: 2026-10-17. This is the live Main-to-CODEX order. Replace this current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
+Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace this current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
 ## Current order — Stage 5A generic measurement widgets (#639)
 

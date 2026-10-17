@@ -8,7 +8,7 @@ Snapshot: 2026-10-16. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA
 | --- | --- |
 | Integration target | `wave15/corrections-integration` |
 | Product code checkpoint | `81ac4193194e1471e812e8164f9b9e15e63512ea` — PR #637 merge; exact post-merge T2 #38981435925 attempt 2 passed |
-| Current integration HEAD | `51b4cb5f372aaaff6507d4980d85bff6e73b3c1f` — docs-only PR #638 merge; product tree unchanged |
+| Stage 5A implementation base | Main revalidates the live integration ref after this handoff PR and records the exact SHA in #639 before dispatch; documentation-only movement does not change the product code checkpoint |
 | Product front | Asset & Process Intelligence, parent issue #588; next bounded child #639 |
 | Completed slices | Stage 3 S3-01–S3-08; PERFORMANCE-V1A/B; Stage 4A #630 / PR #631; Stage 4B #632 / PR #633; Stage 4C #635 / PR #637 |
 | Current acceptance state | **Stage 3 and Stage 4 V1 COMPLETE / VERIFIED / FROZEN within their accepted scopes**; Stage 5 and 6 pending |
@@ -17,7 +17,7 @@ Snapshot: 2026-10-16. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA
 | Next owner/action | Main completes docs T1/merge and publishes the active base; CODEX then implements only Stage 5A and returns one PR |
 | Package boundary | Six generic display-only measurement widgets in the canonical editor toolbox. No Stage 5B dashboard generation, Stage 6, HA, drivers, or unrelated front |
 
-The current product tree is at `81ac4193194e1471e812e8164f9b9e15e63512ea`; integration HEAD is `51b4cb5f372aaaff6507d4980d85bff6e73b3c1f`. Documentation-only movement creates a coordination HEAD, not a new product checkpoint. Revalidate the live integration ref after this handoff PR merges and before CODEX starts product mutation.
+The last verified product code tree is at `81ac4193194e1471e812e8164f9b9e15e63512ea`. Documentation-only movement creates a coordination HEAD, not a new product checkpoint. GitHub's live integration ref is authoritative; Main revalidates it after this handoff PR merges and records the exact Stage 5A base in #639 before CODEX starts product mutation.
 
 ## Accepted evidence
 

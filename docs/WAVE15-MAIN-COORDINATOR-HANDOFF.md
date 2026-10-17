@@ -10,7 +10,7 @@ Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace this current
 | Executor | Chat CODEX; one bounded implementation package, dispatched after this handoff PR merges |
 | Product front | Asset & Process Intelligence #588 |
 | Integration target | `wave15/corrections-integration` |
-| Product evidence checkpoint | Code merge `81ac4193194e1471e812e8164f9b9e15e63512ea`, PR #637, exact T2 #38981435925 attempt 2 passed. Integration HEAD before this docs order is `51b4cb5f372aaaff6507d4980d85bff6e73b3c1f`, PR #638 merge. Main must revalidate and post the exact active base in #639 after this docs PR merges. |
+| Product evidence checkpoint | Code merge `81ac4193194e1471e812e8164f9b9e15e63512ea`, PR #637, exact T2 #38981435925 attempt 2 passed; documentation-only follow-up PRs #638 and #640 do not alter product files. Main must revalidate the live integration ref after this handoff update merges and post the exact active base in #639 before dispatch. |
 | Stage 4 disposition | Stage 4 V1 COMPLETE / VERIFIED / FROZEN only within the Product Owner-approved limits recorded in #588 and ADR-020 |
 | Objective | Add six generic display-only measurement widgets to the canonical Engineering screen toolbox, preview, serialization and Runtime rendering |
 | Scope | Semicircular dial; circular ring; horizontal graduated bar; vertical ruler/thermometer; segmented range bands; actual-value versus target. Reuse canonical screen model/binding/render lifecycle. Keep generic widgets usable without Intelligence license. Show unit, limits/target, quality and freshness accessibly; color is not the sole cue. No process writes or controls. |

@@ -2,28 +2,29 @@
 
 Snapshot: 2026-10-16. This is the live Main-to-CODEX order. Replace this current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — remaining Stage 4 gap audit (read-only)
+## Current order — Stage 5A generic measurement widgets (#639)
 
 | Field | Order |
 | --- | --- |
 | Owner | Main Coordinator |
-| Executor | Chat CODEX; one source/contract audit only |
-| Product front | Asset & Process Intelligence #588; no front switch |
+| Executor | Chat CODEX; one bounded implementation package, dispatched after this handoff PR merges |
+| Product front | Asset & Process Intelligence #588 |
 | Integration target | `wave15/corrections-integration` |
-| Current product checkpoint | `81ac4193194e1471e812e8164f9b9e15e63512ea` — PR #637 merge; exact T2 #38981435925 attempt 2 passed |
-| Completed Stage 4 slices | 4A #630 / PR #631; 4B #632 / PR #633; 4C #635 / PR #637; each accepted only within its bounded contract |
-| Objective | Identify what remains in Stage 4 after the accepted 4A/4B/4C contracts and recommend the next safe bounded increment, or report that no safe increment is ready |
-| Allowed work | Read current #588/ADR/docs and exact implementation at the checkpoint; trace source symbols and tests; produce a concise gap/evidence/options report for Main |
-| Forbidden work | No source/test/docs edits, branches/PRs, CI dispatch, contract changes, statistical or diagnostic claims, Stage 5/6 implementation, HA, driver work, or unrelated product front |
-| Acceptance | Report exact base SHA/tree, file/symbol references, evidence for each accepted Stage 4 contract, exact residual gaps, risks/dependencies, and one bounded recommendation; then wait for Main |
-| Completion | Main reviews the report and issues a separate bounded implementation order only if justified. Stage 4 remains partial until its acceptance is explicitly resolved; #588 and Wave 15 remain open |
+| Product evidence checkpoint | Code merge `81ac4193194e1471e812e8164f9b9e15e63512ea`, PR #637, exact T2 #38981435925 attempt 2 passed. Integration HEAD before this docs order is `51b4cb5f372aaaff6507d4980d85bff6e73b3c1f`, PR #638 merge. Main must revalidate and post the exact active base in #639 after this docs PR merges. |
+| Stage 4 disposition | Stage 4 V1 COMPLETE / VERIFIED / FROZEN only within the Product Owner-approved limits recorded in #588 and ADR-020 |
+| Objective | Add six generic display-only measurement widgets to the canonical Engineering screen toolbox, preview, serialization and Runtime rendering |
+| Scope | Semicircular dial; circular ring; horizontal graduated bar; vertical ruler/thermometer; segmented range bands; actual-value versus target. Reuse canonical screen model/binding/render lifecycle. Keep generic widgets usable without Intelligence license. Show unit, limits/target, quality and freshness accessibly; color is not the sole cue. No process writes or controls. |
+| Start condition | This documentation/order PR merges. Main then verifies the live integration SHA, publishes one activation comment on #639 with that exact base, and sends the single CODEX dispatch. CODEX does not mutate before that dispatch. |
+| Required validation | Local focused component/accessibility/round-trip and preview/runtime parity checks; PR declares `VALIDATION_PROFILE: UI_EDITOR`; exact-head T1 passes; Main reviews; after authorized merge, exact-merge T2 passes. Product Owner performs manual visual Preview after integration and before Stage 5A acceptance/freeze. |
+| Forbidden work | No dashboard generation (Stage 5B), Stage 6, Analytics/history changes, model training, license changes, second screen model/renderer, frozen Stage 4 contract changes, HA, drivers, or unrelated work |
+| Completion | CODEX returns one PR with exact base/head, symbols, local evidence, T1 links and caveats. Main reviews/integrates; post-merge T2 and Product Owner Preview are separate gates. Close only #639 after both pass; CODEX then waits for Main. #588 and Wave 15 remain open |
 
-### Context the audit must preserve
+### Context and frozen boundaries
 
-- Stage 3 S3-01–S3-08 is complete/verified. Stage 4A adds a descriptive single-target deviation against a caller-selected reference and context. Stage 4B adds independent per-target deviations over complete synchronized co-observations. Stage 4C adds the separate additive `contextual-deviation-vector.v2` with exactly two caller-declared numeric context intervals and 2–8 target TAGs.
+- Stage 3 S3-01–S3-08 is complete/verified. Stage 4A adds a descriptive single-target deviation against a caller-selected reference and context. Stage 4B adds independent per-target deviations over complete synchronized co-observations. Stage 4C adds the separate additive `contextual-deviation-vector.v2` with exactly two caller-declared numeric context intervals and 2–8 target TAGs. The Product Owner approved the V1 acceptance boundary after the read-only audit: the caller selects and is responsible for the known-good reference period; the system does not certify health, representativeness or global regime equivalence; the vector means independent per-TAG scores, not a joint multivariate model. Main recorded Stage 4 V1 COMPLETE / VERIFIED / FROZEN only under these limits in #588/#305 and ADR-020.
 - Stage 4C / ADR-019 / child #635 is integrated, verified and frozen only within its bounded scope at PR #637 merge `81ac4193194e1471e812e8164f9b9e15e63512ea`. Exact candidate T1 #38978898568 attempt 3 passed; exact post-merge T2 #38981435925 attempt 2 passed at the merge SHA. The backend-only retry passed after local Linux reproduction of its unchanged timing-sensitive Z-Wave test. Build/runtime smoke, Web build and Chromium integration smoke passed; full-browser E2E was skipped and is not claimed. Detailed counts and caveats are in #588/#635/#305 and PR #637.
-- ADR-019 does not claim representative/healthy references, global regime equivalence, multivariate anomaly detection, diagnosis or RUL. Do not relax those boundaries in an audit or infer that Stage 4 is complete just because 4C was integrated.
-- Stage 5 dashboards/gauges and Stage 6 hardening remain pending and are outside this read-only order. The Product Owner's local HA Preview/regression acceptance remains separate; do not switch to HA without direction.
+- ADR-019 and ADR-020 preserve non-claims: no automatic reference health, no global regime equivalence, no joint multivariate anomaly detection, diagnosis or RUL. Do not alter these limits in Stage 5A.
+- Stage 5A is only generic measurement widgets. Guided dashboard generation from profiles/processes is future Stage 5B; Stage 6 hardening remains later. The Product Owner's local HA Preview/regression acceptance remains separate; do not switch to HA.
 
 ## Responsibilities
 
@@ -47,19 +48,20 @@ Required local evidence, CI, and owner Preview are distinct acceptance sources. 
 
 ## Return from CODEX
 
-For the current read-only audit, return one report in this form:
+For Stage 5A, return one implementation report in this form:
 
 ```text
 CODEX -> MAIN COORDINATOR
-Package / owning issue: Stage 4 residual audit / #588
+Package / owning issue: Stage 5A generic measurement widgets / #639
 Status / next owner:
-Exact integration base SHA and tree:
-Files/symbols inspected:
-Accepted 4A/4B/4C evidence and contract boundaries:
-Residual requirements/gaps, with exact evidence:
-Options and risks; one bounded recommendation or no-safe-increment finding:
-Product Owner decision needed (if any):
-Confirmation: no source/tests/docs/CI changes made
+Exact base SHA and product tree; PR head SHA:
+Files/symbols changed and canonical screen/toolbox/render path reused:
+Six layout, theme, value/unit/bounds, quality/freshness and accessibility coverage:
+Serialization round-trip and preview/Runtime parity evidence:
+Focused local commands/results:
+VALIDATION_PROFILE and exact T1 run/job links:
+Risks/limitations and explicit non-claims:
+Confirmation: no Stage 5B, Stage 6, contract expansion, or self-merge
 ```
 
 Main records its review separately. An acknowledgement is not a second delivery.

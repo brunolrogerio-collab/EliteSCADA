@@ -2,8 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Status | **PROPOSAL — not an implementation authorization** |
+| Status | **SCOPE AUTHORIZED FOR SEQUENTIAL DEVELOPMENT — bounded Main assignments and validation gates apply** |
 | Date | 2026-10-16 |
+| Owner direction | Reiterated 2026-10-19: finish Stage 5A, then return to finish Stage 4 against this scope; [record in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298) |
 | Parent | [#588 — Asset & Process Intelligence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588) |
 | Frozen boundary | Stage 4A–4C and ADR-020 remain unchanged |
 | Scheduling | Scope prepared while Stage 5A #639 is active; product implementation starts only after #639 is accepted and Main publishes a new exact-base assignment |
@@ -12,9 +13,9 @@
 
 Stage 4A, 4B and 4C are integrated, verified and frozen within the descriptive Stage 4 V1 acceptance boundary in [ADR-020](ADR-020-INTELLIGENCE-STAGE4-V1-ACCEPTANCE.md). That boundary intentionally leaves the broader objective in #588 **PARTIAL**: the caller chooses the reference and context; the product does not certify baseline health or global regime equivalence; the multi-signal response contains independent per-TAG scores, not a joint multivariate score.
 
-This document scopes those residuals without changing the frozen 4A–4C contracts. It is a decision-ready development proposal, not evidence that the remaining capabilities exist, not a PO approval of a model or threshold, and not an order to interrupt Stage 5A.
+The Product Owner authorized this residual development sequence on 2026-10-19: complete Stage 5A, then finish Stage 4 using this scope before Stage 5B/6. Main releases the bounded packages on revalidated exact bases. The authorization does not change frozen 4A–4C contracts, establish that residual capabilities exist, or approve a model/threshold without its stated data-validation gate.
 
-## Proposed bounded packages
+## Authorized bounded packages
 
 ### 4D — Reference evidence and data sufficiency
 
@@ -50,11 +51,11 @@ This document scopes those residuals without changing the frozen 4A–4C contrac
 - No automatic “healthy/normal” certification of a reference. Unknown cadence/completeness remains unknown unless explicitly configured.
 - High-frequency vibration waveform acquisition and feature extraction require a separate acquisition/capability package. Existing historian vibration TAGs may be analyzed under the same availability/quality rules; their absence does not make other signals unusable.
 - Fault diagnosis, root-cause attribution, alarms, autonomous action, failure prediction and remaining-useful-life estimates remain out of scope without a separately approved evidence package.
-- Stage 5A widgets, Stage 5B guided dashboards, and Stage 6 hardening are separate product packages. This proposal does not change their ownership or release order.
+- Stage 5A widgets, Stage 5B guided dashboards, and Stage 6 hardening are separate product packages. Finish Stage 5A, then these Stage 4 residuals, before releasing Stage 5B/6.
 
-## Proposed implementation order after Stage 5A
+## Implementation order after Stage 5A
 
-1. Main revalidates the exact integration/product checkpoint after #639 acceptance and publishes a bounded 4D issue/assignment. No rebasing or code mutation is implied by this proposal.
+1. Main revalidates the exact integration/product checkpoint after #639 acceptance and publishes the bounded 4D issue/assignment. The owner authorization persists; a new exact-base Main assignment starts each package without requesting repeated authorization for the same scope.
 2. Implement and verify 4D's additive evidence contract and insufficiency semantics.
 3. Implement 4E's explicit versioned profiles/comparability only after its persisted schema and UX-facing operator semantics are accepted.
 4. Run the 4F method/data gate. If the representative dataset or agreed error bounds are absent, stop at design evidence and keep joint detection unclaimed; otherwise implement it as a new versioned contract.

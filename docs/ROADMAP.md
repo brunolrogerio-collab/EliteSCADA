@@ -1,4 +1,10 @@
-# CURRENT WAVE 15 IMPORT/EXPORT CHECKPOINT — 2026-10-13
+# CURRENT INTELLIGENCE DEVELOPMENT ORDER — 2026-10-19
+
+The active package is Stage 5A #639, six generic display-only measurement widgets. The Product Owner explicitly ordered: finish Stage 5A, then return to finish Intelligence Stage 4 using ADR-021 before Stage 5B guided dashboards or Stage 6. Main releases bounded packages in order: 4D reference/data sufficiency, 4E explicit operating profiles, 4F joint analysis with its representative-data/method gate, then 4G validation and closure. Frozen 4A–4C/ADR-020 contracts remain unchanged. Authorization does not establish model/threshold validity or implementation completion. See [owner direction](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298), [current pointer](CURRENT-COORDINATOR-HANDOFF.md), and root `LAST CHANGE.md` for active execution and exact evidence. Earlier dated snapshots below are historical.
+
+---
+
+# HISTORICAL WAVE 15 IMPORT/EXPORT CHECKPOINT — 2026-10-13
 
 Issue #597 / PR #598 is integrated into `wave15/corrections-integration` at merge commit `3883b86cdf5cbfff74af92519eaa568aece005b4`. Final pre-merge T1 #38488509219 passed on head `e0512c2f218f0ebbaf909a6650231e53123459a1` (Core 585/585, Drivers 1,374 passed / 1 skipped, Chromium 16/16, Web/Common/classifier/T1 gate green). Exact post-merge EliteSCADA CI #38489137716 passed on the merge SHA: Backend build/test/runtime smoke passed (Core 585, Engineering 126, Drivers 1,374, Security 42), Web build passed, and Chromium merge integration smoke passed 13/13. Full-browser E2E was skipped by workflow conditions; HA and specialized sidecars were skipped by the T1 profile. This completes the bounded #597 delivery only; it does not close Wave 15 or FND/FC0. Next sequenced work is #472 F5/F6, subject to live issue and base revalidation. See root `LAST CHANGE.md` and `docs/CURRENT-COORDINATOR-HANDOFF.md` for implementation/review detail.
 
@@ -10,7 +16,7 @@ Issue #597 authorizes a bounded Engineering tabular-exchange lane on `work/w15-e
 
 ---
 
-# CURRENT HOME/BUILDING DRIVER STATUS — 2026-10-12
+# HISTORICAL HOME/BUILDING DRIVER STATUS — 2026-10-12
 
 > This delta supersedes the Stage 3 planned status below only for Zigbee/KNX/DALI. GitHub live remains authoritative.
 
@@ -269,17 +275,11 @@ EliteGO remains deferred after Wave 16 per Product Owner decision.
 
 ### Current scheduling guard
 
-Immediate gate:
+The current Intelligence order at the top governs sequencing: finish Stage 5A, then ADR-021 Stage 4 residuals, before Stage 5B/6. Main publishes each bounded exact-base assignment. Parallel product lanes require a separate ownership review and dispatch.
 
-`PR #480 combined T1 -> Main acceptance -> merge -> slim post-merge -> new integration checkpoint`
+## Historical gate — 2026-09-24
 
-No new implementation branch is released by this roadmap update.
-
-After that checkpoint, Main may restore bounded parallelism only after path/contract ownership audit. Shared foundations precede protocol fan-out.
-
-## Live current gate — 2026-09-24
-
-This section supersedes older execution-status prose below when describing the **current** Wave 15 gate. Historical slice descriptions remain useful as execution record but are not current authorization.
+This section preserves the 2026-09-24 checkpoint only. The current order and coordinator pointer govern live Wave 15 execution.
 
 - FC0-A — **RELEASE APPROVED** at product SHA `e3ed5138369c576549cb58a7aff9783792f322d3` / tree `4e7627774fbfc111344e3d80fcb9d921eed8377e`.
 - release gate — EliteSCADA CI #1569 / `36060017969`: SUCCESS; Chromium 655 passed / 0 failed.

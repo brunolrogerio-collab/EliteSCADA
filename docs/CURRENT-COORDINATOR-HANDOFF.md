@@ -1,6 +1,6 @@
 # Current coordinator pointer — Wave 15
 
-Snapshot: 2026-10-16. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA Actions evidence govern implementation state. Replace this snapshot when state changes; keep detailed history in the owning issue/PR.
+Snapshot: 2026-10-19. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA Actions evidence govern implementation state. Replace this snapshot when state changes; keep detailed history in the owning issue/PR.
 
 ## Current position
 
@@ -13,8 +13,8 @@ Snapshot: 2026-10-16. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA
 | Completed slices | Stage 3 S3-01–S3-08; PERFORMANCE-V1A/B; Stage 4A #630 / PR #631; Stage 4B #632 / PR #633; Stage 4C #635 / PR #637 |
 | Current acceptance state | **Stage 3 and Stage 4 V1 COMPLETE / VERIFIED / FROZEN within accepted scopes; broader Stage 4 remains PARTIAL**; Stage 5A active, 5B and 6 not released |
 | Product executor | Chat CODEX; one active product package at a time |
-| Immediate direction | CODEX completes only active Stage 5A #639 on its authorized exact base; Main then reviews and integrates subject to its stated gates |
-| Next owner/action | CODEX returns one Stage 5A PR; Main reviews, integrates and verifies exact T2, then Product Owner performs manual Preview. ADR-021 is merged as a scope proposal only; it does not activate Stage 4 code or change #639. After #639 acceptance Main may issue bounded 4D; Stage 5B/6 remain blocked until residual disposition |
+| Immediate direction | CODEX resumed #639 after confirmed direct dispatch on 2026-10-19 and is closing the save/load, theme, band-label and target-unit review corrections on its authorized base; Main then reviews and integrates subject to the stated gates |
+| Next owner/action | CODEX returns one Stage 5A PR; Main reviews, integrates and verifies exact T2, then Product Owner performs manual Preview. The owner explicitly ordered on 2026-10-19 that Main next execute ADR-021 to finish Stage 4: issue bounded 4D after #639 acceptance and exact-base revalidation, followed by 4E–4G. Stage 5B/6 remain blocked until residual disposition |
 | Package boundary | Six generic display-only measurement widgets in the canonical editor toolbox. No Stage 5B dashboard generation, Stage 6, HA, drivers, or unrelated front |
 
 The last verified product code tree is at `81ac4193194e1471e812e8164f9b9e15e63512ea`. Documentation-only movement creates a coordination HEAD, not a new product checkpoint. The live integration ref was revalidated at exact Stage 5A dispatch base `9ad4756c07f3a848750ea10cd2a14af7b63f8e6d` and recorded in #639; revalidate again before any later product package.
@@ -34,7 +34,7 @@ The last verified product code tree is at `81ac4193194e1471e812e8164f9b9e15e6351
 - EliteSCADA remains multiplatform, including Windows and Linux. Do not narrow architecture to one operating system.
 - Intelligence remains licensed, selective, and read-only. Stage 4 V1 is accepted only within the explicit caller-selected reference/context and per-TAG descriptive-vector boundaries; #588 remains open.
 - Stage 5A #639 is the active bounded package: six generic reusable measurement displays in the canonical editor toolbox, independent of Intelligence license, display-only, accessible, and persisted/rendered through existing screen contracts. It does not close the broader Stage 4. Guided dashboard generation is Stage 5B and is not included. Stage 6 remains pending.
-- [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md), merged by docs-only PR #643, is a coordination-only proposal for Stage 4 residuals: reference evidence, explicit operating profiles, a separately validated joint score, and a closure evidence gate. It is not a PO-approved model/threshold and does not authorize implementation. After #639 is accepted, Main must revalidate the exact base and activate the bounded next package. Do not alter frozen 4A–4C contracts. Do not claim whole Stage 4 complete until accepted residual criteria are met or explicitly deferred by the Product Owner.
+- [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md) is the owner-authorized next development scope as of 2026-10-19: reference evidence, explicit operating profiles, a separately validated joint score, and a closure evidence gate. [Owner order in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298). After #639 acceptance Main must revalidate the exact base and activate bounded 4D, then 4E–4G, before Stage 5B/6. Method/threshold validity still requires the data gate. Do not alter frozen 4A–4C contracts or claim whole Stage 4 complete before its accepted criteria pass.
 - Product Owner manual visual Preview is required after Stage 5A integration and before that slice is marked accepted/frozen. CI does not substitute for this Preview.
 - The Product Owner's local HA Preview/regression acceptance remains separate and pending. Do not switch product front to HA without a new product-direction decision.
 - No FND/FC0 or whole-Intelligence/Wave 15 completion is inferred from these bounded slices. Full-browser E2E was skipped in T2 and is not claimed.

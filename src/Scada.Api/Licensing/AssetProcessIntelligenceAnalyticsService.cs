@@ -881,6 +881,218 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
+    public async Task<IResult> ExecuteReferenceEvidenceV1Async(
+        HttpContext context,
+        AssetProcessIntelligenceReferenceEvidenceV1QueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(request);
+        var requestReceivedAtUtc = DateTimeOffset.UtcNow;
+        var requestToken = cancellationToken == default ? context.RequestAborted : cancellationToken;
+        var invalid = ValidateReferenceEvidenceV1Request(request);
+        if (invalid is not null) return invalid;
+
+        try
+        {
+            var trendAuthorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.TrendUse,
+                cancellationToken: requestToken);
+            var trendFailure = trendAuthorization.FailureResult();
+            if (trendFailure is not null) return trendFailure;
+            if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+                return Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED");
+
+            // Reuse canonical profile preparation so scope/assignment resolution, all TAG read checks,
+            // workspace/runtime coherence and the existing execution/Authority/HA fences happen before reads.
+            var profileRequest = new AssetProcessIntelligenceProfileCoverageQueryRequest(
+                request.ScopeKind,
+                request.ScopeId,
+                request.ProfileId,
+                request.ReferenceWindow);
+            var preparedResult = await PrepareProfileCoverageAsync(context, profileRequest, requestToken);
+            if (preparedResult.Error is not null) return preparedResult.Error;
+            var plan = preparedResult.Plan!;
+
+            var assignmentBindings = plan.Signals.SelectMany(signal => signal.Assignments).ToArray();
+            var assignmentIdentities = assignmentBindings
+                .Select(assignment => (assignment.AssignmentId, assignment.EquipmentId, assignment.ProfileId))
+                .Distinct()
+                .ToArray();
+            if (assignmentIdentities.Length != 1 ||
+                plan.Signals.Any(signal => signal.Assignments.Count != 1) ||
+                assignmentBindings.Select(assignment => assignment.SignalId).Distinct().Count() != plan.Signals.Count ||
+                assignmentBindings.Any(assignment => assignment.ProfileId != request.ProfileId))
+                return Conflict("INTELLIGENCE_REFERENCE_EVIDENCE_ASSIGNMENT_AMBIGUOUS");
+
+            var assignmentIdentity = assignmentIdentities[0];
+            var allPlans = plan.Signals.Select(signal => signal.Plan).ToArray();
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                requestToken,
+                plan.PermitToken);
+            var budget = new ContextualDeviationVectorV2RawRowBudget();
+            IResult? readError = null;
+
+            async Task<AssetProcessIntelligenceReferenceEvidenceV1WindowCalculation?> ReadWindowAsync(
+                AssetProcessIntelligenceAnalyticsWindow window)
+            {
+                var rowsBySignal = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>();
+                foreach (var signalPlan in plan.Signals)
+                {
+                    if (!IsNumeric(signalPlan.Tag.DataType))
+                    {
+                        rowsBySignal.Add(signalPlan.Signal.Id, Array.Empty<AssetProcessIntelligenceContextualDeviationVectorRawObservation>());
+                        continue;
+                    }
+
+                    var read = await ReadReferenceEvidenceV1ObservationsAsync(
+                        context,
+                        window,
+                        signalPlan.Plan,
+                        allPlans,
+                        budget,
+                        linkedCancellation.Token);
+                    if (read.Error is not null)
+                    {
+                        readError = read.Error;
+                        return null;
+                    }
+                    rowsBySignal.Add(signalPlan.Signal.Id, read.Observations!);
+                }
+
+                var inputs = plan.Signals.Select(signal => new AssetProcessIntelligenceReferenceEvidenceV1SignalInput(
+                    signal.Signal.Id,
+                    signal.Signal.Required,
+                    IsNumeric(signal.Tag.DataType))).ToArray();
+                return AssetProcessIntelligenceReferenceEvidenceV1Calculator.CalculateWindow(inputs, window, rowsBySignal);
+            }
+
+            var referenceCalculation = await ReadWindowAsync(request.ReferenceWindow!);
+            if (readError is not null) return readError;
+            if (referenceCalculation is null)
+                throw new InvalidOperationException("Reference evidence calculation did not complete.");
+
+            AssetProcessIntelligenceReferenceEvidenceV1WindowCalculation? comparisonCalculation = null;
+            if (request.ComparisonWindow is { } comparisonWindow)
+            {
+                comparisonCalculation = await ReadWindowAsync(comparisonWindow);
+                if (readError is not null) return readError;
+                if (comparisonCalculation is null)
+                    throw new InvalidOperationException("Comparison evidence calculation did not complete.");
+            }
+
+            await using var finalMutation = await workspace.AcquireMutationAsync(
+                plan.ChangeVersion,
+                linkedCancellation.Token);
+            var finalCheck = await RevalidateContextualReferencePlansAsync(context, allPlans, linkedCancellation.Token);
+            if (finalCheck is not null) return finalCheck;
+            linkedCancellation.Token.ThrowIfCancellationRequested();
+
+            var signals = plan.Signals.Select((signalPlan, index) =>
+            {
+                var referenceEvidence = referenceCalculation.Signals[index];
+                var comparisonEvidence = comparisonCalculation?.Signals[index];
+                var status = !IsNumeric(signalPlan.Tag.DataType)
+                    ? "unsupported_non_numeric_tag_type"
+                    : referenceEvidence.AcceptedSynchronizedCount > 0
+                        ? "reference_evidence_available"
+                        : "reference_evidence_insufficient";
+                return new AssetProcessIntelligenceReferenceEvidenceV1Signal(
+                    signalPlan.Signal.Id,
+                    signalPlan.Signal.Key,
+                    signalPlan.Signal.Required,
+                    signalPlan.Tag.Id,
+                    signalPlan.Tag.Path,
+                    signalPlan.Tag.DataType,
+                    signalPlan.Tag.EngineeringUnit,
+                    status,
+                    referenceEvidence,
+                    comparisonEvidence);
+            }).ToArray();
+
+            return Results.Ok(new AssetProcessIntelligenceReferenceEvidenceV1Response(
+                AssetProcessIntelligenceReferenceEvidenceV1Catalog.ContractVersion,
+                AssetProcessIntelligenceReferenceEvidenceV1Catalog.CatalogVersion,
+                AssetProcessIntelligenceReferenceEvidenceV1Catalog.RuleId,
+                AssetProcessIntelligenceReferenceEvidenceV1Catalog.RuleVersion,
+                plan.ProjectKey,
+                plan.Revision,
+                request.ScopeKind,
+                request.ScopeId,
+                assignmentIdentity.AssignmentId,
+                assignmentIdentity.EquipmentId,
+                assignmentIdentity.ProfileId,
+                plan.Profile.Key,
+                plan.Profile.Name,
+                request.ReferenceWindow!,
+                request.ComparisonWindow,
+                Array.AsReadOnly(signals),
+                referenceCalculation.Cohort,
+                comparisonCalculation?.Cohort,
+                budget.TotalRows,
+                new AssetProcessIntelligenceReferenceEvidenceV1Provenance(
+                    trendAuthorization.Principal.SubjectId,
+                    requestReceivedAtUtc,
+                    "windows are the explicit values submitted in this authenticated request",
+                    "server UTC request-received time; not a claim about when a historical window was selected in the UI",
+                    HistoricalDatasets.HistorianSamplesV2,
+                    2,
+                    "Historian `timestamp` bounds retrieval and paging; source timestamps are separately checked against the requested window.",
+                    "Good finite numeric values with explicit Synchronized source timestamp evidence, a UTC source timestamp inside the selected window, and no duplicate timestamp group.",
+                    "exact intersection of accepted unique source timestamps; exact equality only and no proof of physical simultaneity or clock accuracy",
+                    "unknown",
+                    "unknown",
+                    "not_assessed",
+                    "not_assessed",
+                    "not_assessed",
+                    "historical evidence and observed data sufficiency only; no baseline health or future-model validity claim")));
+        }
+        catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED");
+        }
+        catch (EngineeringWorkspaceVersionConflictException)
+        {
+            return Conflict("INTELLIGENCE_WORKSPACE_CHANGED");
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Forbidden("HISTORICAL_QUERY_FORBIDDEN");
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_CURSOR_INVALID", "Historical query cursor is invalid."));
+        }
+        catch (HistoricalQueryValidationException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_INVALID", "The bounded Historian query was rejected."));
+        }
+        catch (HistoricalQueryProviderException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_UNAVAILABLE", "Historical data is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_RESPONSE_INVALID", "The Historian response did not match the requested TAG and window."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
     public async Task<IResult> ExecuteProfileCoverageAsync(
         HttpContext context,
         AssetProcessIntelligenceProfileCoverageQueryRequest request,
@@ -1879,6 +2091,75 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         return ContextualDeviationVectorV2ObservationReadResult.Ready(observations.AsReadOnly());
     }
 
+    private async Task<ContextualDeviationVectorV2ObservationReadResult> ReadReferenceEvidenceV1ObservationsAsync(
+        HttpContext context,
+        AssetProcessIntelligenceAnalyticsWindow window,
+        PreparedPlan tagPlan,
+        IReadOnlyList<PreparedPlan> allPlans,
+        ContextualDeviationVectorV2RawRowBudget budget,
+        CancellationToken cancellationToken)
+    {
+        var observations = new List<AssetProcessIntelligenceContextualDeviationVectorRawObservation>();
+        var cursors = new HashSet<string>(StringComparer.Ordinal);
+        string? cursor = null;
+        var pageCount = 0;
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (++pageCount > AssetProcessIntelligenceReferenceEvidenceV1Catalog.MaximumRawRowsAcrossQuery /
+                AssetProcessIntelligenceReferenceEvidenceV1Catalog.QueryPageSize + 2)
+                throw new InvalidDataException("Historian pagination exceeded the bounded reference-evidence v1 page count.");
+
+            await using var mutation = await workspace.AcquireMutationAsync(tagPlan.ChangeVersion, cancellationToken);
+            var validation = await RevalidateContextualReferencePlansAsync(context, allPlans, cancellationToken);
+            if (validation is not null) return ContextualDeviationVectorV2ObservationReadResult.Fail(validation);
+
+            var remaining = AssetProcessIntelligenceReferenceEvidenceV1Catalog.MaximumRawRowsAcrossQuery - budget.TotalRows;
+            // Probe one row after reaching the aggregate limit so an exact 50,000-row response can
+            // succeed while any additional row or continuation cursor rejects the entire query.
+            var pageSize = Math.Max(1, Math.Min(
+                AssetProcessIntelligenceReferenceEvidenceV1Catalog.QueryPageSize, remaining));
+            var query = new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamplesV2,
+                HistoricalTimeRange.Absolute(window.FromUtc, window.ToUtc),
+                Version: 2,
+                Filters: [new HistoricalFilter("tag.id", HistoricalFilterOperator.Eq,
+                    [HistoricalQueryValue.FromGuid(tagPlan.Tag.Id)])],
+                OrderBy: [new HistoricalSort("timestamp", HistoricalSortDirection.Ascending)],
+                Page: new HistoricalPageRequest(pageSize, cursor));
+            var response = await historicalQueries.QueryAsync(query, cancellationToken);
+            ValidateCurrentFrequencyPage(response, window, tagPlan.Tag.Id, pageSize);
+            validation = await RevalidateContextualReferencePlansAsync(context, allPlans, cancellationToken);
+            if (validation is not null) return ContextualDeviationVectorV2ObservationReadResult.Fail(validation);
+
+            var projected = budget.TotalRows + response.Rows.Count;
+            if (projected > AssetProcessIntelligenceReferenceEvidenceV1Catalog.MaximumRawRowsAcrossQuery ||
+                (projected == AssetProcessIntelligenceReferenceEvidenceV1Catalog.MaximumRawRowsAcrossQuery &&
+                 response.NextCursor is not null))
+                return ContextualDeviationVectorV2ObservationReadResult.Fail(
+                    WindowTooDense("INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE"));
+
+            foreach (var row in response.Rows)
+            {
+                var observation = ToContextualReferenceObservation(row);
+                observations.Add(new AssetProcessIntelligenceContextualDeviationVectorRawObservation(
+                    observation.ObservedTimestampUtc,
+                    observation.Quality,
+                    observation.Value,
+                    observation.SourceTimestampUtc,
+                    observation.SourceTimestampEvidence));
+            }
+
+            budget.TotalRows = projected;
+            cursor = response.NextCursor;
+            if (cursor is not null && !cursors.Add(cursor))
+                throw new InvalidDataException("Historian reference-evidence pagination cursor repeated.");
+        }
+        while (cursor is not null);
+
+        return ContextualDeviationVectorV2ObservationReadResult.Ready(observations.AsReadOnly());
+    }
+
     private async Task<PreparedContextualReferencePlanResult> PrepareContextualReferenceDeviationAsync(
         HttpContext context,
         AssetProcessIntelligenceContextualReferenceDeviationV1QueryRequest request,
@@ -2820,6 +3101,29 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             return BadRequest("INTELLIGENCE_ANALYTICS_BUCKET_SIZE_INVALID");
         return null;
     }
+
+    private static IResult? ValidateReferenceEvidenceV1Request(
+        AssetProcessIntelligenceReferenceEvidenceV1QueryRequest request)
+    {
+        if (!Enum.IsDefined(request.ScopeKind) || request.ScopeId == Guid.Empty || request.ProfileId == Guid.Empty)
+            return BadRequest("INTELLIGENCE_REFERENCE_EVIDENCE_IDENTITY_INVALID");
+        if (request.ReferenceWindow is null || !ValidReferenceEvidenceV1Window(request.ReferenceWindow))
+            return BadRequest("INTELLIGENCE_REFERENCE_EVIDENCE_REFERENCE_WINDOW_INVALID");
+        if (request.ComparisonWindow is { } comparisonWindow)
+        {
+            if (!ValidReferenceEvidenceV1Window(comparisonWindow))
+                return BadRequest("INTELLIGENCE_REFERENCE_EVIDENCE_COMPARISON_WINDOW_INVALID");
+            if (request.ReferenceWindow.ToUtc >= comparisonWindow.FromUtc)
+                return BadRequest("INTELLIGENCE_REFERENCE_EVIDENCE_COMPARISON_WINDOW_MUST_BE_LATER");
+        }
+        return null;
+    }
+
+    private static bool ValidReferenceEvidenceV1Window(AssetProcessIntelligenceAnalyticsWindow window) =>
+        window.FromUtc.Offset == TimeSpan.Zero &&
+        window.ToUtc.Offset == TimeSpan.Zero &&
+        window.ToUtc > window.FromUtc &&
+        window.ToUtc - window.FromUtc <= AssetProcessIntelligenceReferenceEvidenceV1Catalog.MaximumWindow;
 
     private static IResult? ValidateCurrentFrequencyComparisonRequest(
         AssetProcessIntelligenceCurrentFrequencyComparisonV1QueryRequest request)

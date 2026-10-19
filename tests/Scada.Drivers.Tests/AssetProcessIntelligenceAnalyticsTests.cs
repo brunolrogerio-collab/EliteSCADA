@@ -49,6 +49,84 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public void ReferenceEvidenceV1Catalog_DeclaresBoundedReadOnlyEvidenceWithoutCompletenessClaims()
+    {
+        var catalog = JsonSerializer.SerializeToElement(AssetProcessIntelligenceReferenceEvidenceV1Catalog.Describe());
+
+        Assert.Equal(1, catalog.GetProperty("contractVersion").GetInt32());
+        Assert.Equal(1, catalog.GetProperty("catalogVersion").GetInt32());
+        Assert.Equal("reference-evidence.v1", catalog.GetProperty("ruleId").GetString());
+        Assert.Equal(16, catalog.GetProperty("maximumProfileSignals").GetInt32());
+        Assert.Equal(50000, catalog.GetProperty("maximumRawRowsAcrossAllSignalsAndWindows").GetInt32());
+        Assert.Equal(200, catalog.GetProperty("pageSize").GetInt32());
+        Assert.Equal("unknown_without_a_declared_cadence_contract", catalog.GetProperty("expectedCadence").GetString());
+        Assert.Equal("unknown_without_a_declared_completeness_contract", catalog.GetProperty("completeness").GetString());
+        Assert.Equal("not_assessed", catalog.GetProperty("referenceHealth").GetString());
+        Assert.Contains("no nearest join", catalog.GetProperty("synchronizedCohort").GetString(), StringComparison.Ordinal);
+        Assert.Contains("not baseline validation", catalog.GetProperty("interpretation").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReferenceEvidenceV1_UsesOnlyExplicitSynchronizedUniqueUtcSourceTimesAndKeepsOptionalAbsenceOutOfRequiredCohort()
+    {
+        var requiredA = Guid.NewGuid();
+        var requiredB = Guid.NewGuid();
+        var optional = Guid.NewGuid();
+        var window = Window(FromUtc, FromUtc.AddHours(1));
+        var synchronized = FromUtc.AddMinutes(1);
+        var duplicate = FromUtc.AddMinutes(2);
+        var rows = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [requiredA] =
+            [
+                VectorRow(synchronized, "Good", 1, synchronized, "Synchronized"),
+                VectorRow(FromUtc.AddMinutes(3), "Good", 2, FromUtc.AddMinutes(3), "Unsynchronized"),
+                VectorRow(duplicate, "Good", 3, duplicate, "Synchronized"),
+                VectorRow(duplicate, "Good", 4, duplicate, "Synchronized")
+            ],
+            [requiredB] = [VectorRow(synchronized, 5)],
+            [optional] = Array.Empty<AssetProcessIntelligenceContextualDeviationVectorRawObservation>()
+        };
+
+        var result = AssetProcessIntelligenceReferenceEvidenceV1Calculator.CalculateWindow(
+        [
+            new(requiredA, Required: true, Numeric: true),
+            new(requiredB, Required: true, Numeric: true),
+            new(optional, Required: false, Numeric: true)
+        ],
+        window,
+        rows);
+
+        var first = result.Signals.Single(signal => signal.RawObservationCount == 4);
+        Assert.Equal(4, first.GoodFiniteNumericCount);
+        Assert.Equal(1, first.AcceptedSynchronizedCount);
+        Assert.Equal(3, first.RejectedObservationCount);
+        Assert.Equal(1, first.AmbiguousSourceTimestampGroupCount);
+        Assert.Equal(2, first.AmbiguousSourceTimestampRowCount);
+        Assert.Equal(1, first.RejectionCounts["source_timestamp_not_synchronized"]);
+        Assert.Equal(2, first.RejectionCounts["duplicate_source_timestamp"]);
+        Assert.Equal("required_source_synchronized_cohort_observed", result.Cohort.RequiredCohortStatus);
+        Assert.Equal(1, result.Cohort.CompleteRequiredNumericCohortCount);
+        Assert.Equal(0, result.Cohort.CompleteSelectedNumericCohortCount);
+        Assert.Equal("insufficient_selected_signal_data", result.Cohort.SelectedCohortStatus);
+    }
+
+    [Fact]
+    public void ReferenceEvidenceV1_ReportsRequiredNonnumericSignalsAsUnsupportedWithoutInventingEvidence()
+    {
+        var signal = Guid.NewGuid();
+        var result = AssetProcessIntelligenceReferenceEvidenceV1Calculator.CalculateWindow(
+            [new(signal, Required: true, Numeric: false)],
+            Window(FromUtc, FromUtc.AddHours(1)),
+            new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>());
+
+        Assert.Equal("unsupported_non_numeric_tag_type", Assert.Single(result.Signals).Status);
+        Assert.Equal(0, result.Cohort.RequiredNumericSignalCount);
+        Assert.Null(result.Cohort.CompleteRequiredNumericCohortCount);
+        Assert.Equal("insufficient_no_required_numeric_signals", result.Cohort.RequiredCohortStatus);
+    }
+
+    [Fact]
     public void ContextualDeviationVectorV1Catalog_IsBoundedAndDisclaimsInference()
     {
         var catalog = JsonSerializer.SerializeToElement(AssetProcessIntelligenceContextualDeviationVectorV1Catalog.Describe());
@@ -1629,7 +1707,9 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 "/api/engineering/asset-process-intelligence/analytics/performance/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/profile-coverage",
                 "/api/engineering/asset-process-intelligence/analytics/profile-coverage/catalog",
-                "/api/engineering/asset-process-intelligence/analytics/query"
+                "/api/engineering/asset-process-intelligence/analytics/query",
+                "/api/engineering/asset-process-intelligence/analytics/reference-evidence/v1/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/reference-evidence/v1/query"
             },
             routes);
         var methods = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
@@ -4545,6 +4625,458 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         }
     }
 
+    [Fact]
+    public async Task ReferenceEvidenceV1_ReadsBothExplicitWindowsAndReturnsAuthenticatedProvenance()
+    {
+        using var fixture = Fixture.Create();
+        fixture.Historian.Respond = query =>
+        {
+            var sourceTimestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            return ResponseV2(query,
+                [V2Row(tagId, sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(12.5), sourceTimestamp, "Synchronized")]);
+        };
+        var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
+        var request = new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            fixture.ScopeKind,
+            fixture.ScopeId,
+            profileId,
+            Window(FromUtc, FromUtc.AddHours(1)),
+            Window(FromUtc.AddHours(2), FromUtc.AddHours(3)));
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var response = Assert.IsType<AssetProcessIntelligenceReferenceEvidenceV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(1, response.ContractVersion);
+        Assert.Equal(2, response.TotalRawObservationCount);
+        Assert.Equal(2, fixture.Historian.Calls);
+        Assert.Equal("analytics-user", response.Provenance.SubmittedBySubjectId);
+        Assert.Equal("unknown", response.Provenance.ExpectedCadence);
+        Assert.Equal("unknown", response.Provenance.Completeness);
+        Assert.Equal("not_assessed", response.Provenance.ReferenceHealth);
+        Assert.Equal(1, Assert.Single(response.Signals).Reference.AcceptedSynchronizedCount);
+        Assert.Equal(1, Assert.Single(response.Signals).Comparison!.AcceptedSynchronizedCount);
+        Assert.Equal(FromUtc.AddHours(2), response.ComparisonWindow!.FromUtc);
+        Assert.Equal(0, fixture.Runtime.WriteCalls);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_ReturnsProfileSignalsInStableKeyOrder()
+    {
+        using var fixture = Fixture.Create();
+        var firstInserted = fixture.AddProfileSignal("zeta", "opaque-z", TagDataType.Double, "rpm");
+        fixture.AddProfileSignal("alpha", "opaque-a", TagDataType.Double, "rpm");
+        fixture.Historian.Respond = query =>
+        {
+            var sourceTimestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            return ResponseV2(query,
+                [V2Row(tagId, sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(1), sourceTimestamp, "Synchronized")]);
+        };
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(fixture));
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var response = Assert.IsType<AssetProcessIntelligenceReferenceEvidenceV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(new[] { "alpha", "pressure", "zeta" }, response.Signals.Select(signal => signal.SignalKey));
+        Assert.Equal(3, response.TotalRawObservationCount);
+        Assert.Equal(firstInserted.Id, response.Signals.Single(signal => signal.SignalKey == "zeta").TagId);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_RejectsOverlappingComparisonBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
+        var request = new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            fixture.ScopeKind,
+            fixture.ScopeId,
+            profileId,
+            Window(FromUtc, FromUtc.AddHours(1)),
+            Window(FromUtc.AddMinutes(59), FromUtc.AddHours(2)));
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_REFERENCE_EVIDENCE_COMPARISON_WINDOW_MUST_BE_LATER", error.Code);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_RejectsWindowBeyondThirtyOneDaysBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var request = ReferenceEvidenceRequest(fixture) with
+        {
+            ReferenceWindow = Window(FromUtc, FromUtc.AddDays(31).AddSeconds(1))
+        };
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_REFERENCE_EVIDENCE_REFERENCE_WINDOW_INVALID", error.Code);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_RejectsMoreThanSixteenConfiguredProfileSignalsBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        for (var index = 0; index < 16; index++)
+            fixture.AddProfileSignal($"signal-{index:00}", $"opaque-{index:00}", TagDataType.Double, "rpm");
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(fixture));
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+        Assert.Equal(0, fixture.Runtime.WriteCalls);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_PROFILE_SIGNAL_LIMIT_EXCEEDED", error.Code);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_AcceptsSixteenConfiguredProfileSignals()
+    {
+        using var fixture = Fixture.Create();
+        for (var index = 0; index < 15; index++)
+            fixture.AddProfileSignal($"signal-{index:00}", $"opaque-{index:00}", TagDataType.Double, "rpm");
+        fixture.Historian.Respond = query => ResponseV2(query, []);
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(fixture));
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var response = Assert.IsType<AssetProcessIntelligenceReferenceEvidenceV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(16, response.Signals.Count);
+        Assert.Equal(16, fixture.Historian.Calls);
+        Assert.All(response.Signals, signal => Assert.Equal("missing_historical_observations", signal.Reference.Status));
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_DisabledScopeDoesNotReadOrWrite()
+    {
+        using var fixture = Fixture.Create(activeScope: false);
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(fixture));
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+        Assert.Equal(0, fixture.Runtime.WriteCalls);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_DeniesMissingTrendUseBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create(grantTrendUse: false);
+        var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
+        var request = new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            fixture.ScopeKind,
+            fixture.ScopeId,
+            profileId,
+            Window(FromUtc, FromUtc.AddHours(1)));
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_DeniesMissingEntitlementTagReadAndPermitBeforeHistorianRead()
+    {
+        using (var unlicensed = Fixture.Create(licensed: false))
+        {
+            var request = ReferenceEvidenceRequest(unlicensed);
+            var result = await unlicensed.ExecuteReferenceEvidenceV1Async(request);
+            AssertStatus(StatusCodes.Status403Forbidden, result);
+            Assert.Equal(0, unlicensed.Historian.Calls);
+        }
+
+        using (var deniedTag = Fixture.Create(grantTagRead: false))
+        {
+            var request = ReferenceEvidenceRequest(deniedTag);
+            var result = await deniedTag.ExecuteReferenceEvidenceV1Async(request);
+            AssertStatus(StatusCodes.Status403Forbidden, result);
+            Assert.Equal(0, deniedTag.Historian.Calls);
+        }
+
+        using (var missingPermit = Fixture.Create(grantPermit: false))
+        {
+            var request = ReferenceEvidenceRequest(missingPermit);
+            var result = await missingPermit.ExecuteReferenceEvidenceV1Async(request);
+            AssertStatus(StatusCodes.Status409Conflict, result);
+            Assert.Equal(0, missingPermit.Historian.Calls);
+        }
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_RejectsDirtyWorkspaceAndProjectRevisionMismatchBeforeHistorianRead()
+    {
+        using (var dirty = Fixture.Create())
+        {
+            dirty.Workspace.Tags.Upsert(dirty.Tag with { Description = "unsaved edit" });
+            var result = await dirty.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(dirty));
+            AssertStatus(StatusCodes.Status409Conflict, result);
+            Assert.Equal(0, dirty.Historian.Calls);
+        }
+
+        using (var mismatchedProject = Fixture.Create())
+        {
+            var descriptor = mismatchedProject.Workspace.Describe();
+            mismatchedProject.Workspace.SetCheckout(
+                "other-project",
+                "Mismatched project test",
+                descriptor.BaseRevision!.Value,
+                DateTimeOffset.UtcNow);
+            var result = await mismatchedProject.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(mismatchedProject));
+            AssertStatus(StatusCodes.Status409Conflict, result);
+            Assert.Equal(0, mismatchedProject.Historian.Calls);
+        }
+
+        using (var mismatchedRevision = Fixture.Create(workspaceRevision: 41, runtimeRevision: 42))
+        {
+            var result = await mismatchedRevision.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(mismatchedRevision));
+            AssertStatus(StatusCodes.Status409Conflict, result);
+            Assert.Equal(0, mismatchedRevision.Historian.Calls);
+        }
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_CancellationDuringHistorianReadDoesNotProducePartialEvidence()
+    {
+        using var fixture = Fixture.Create();
+        var queryStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Historian.RespondAsync = async (_, cancellationToken) =>
+        {
+            queryStarted.TrySetResult(true);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("The canceled Historian query must not return a page.");
+        };
+        var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
+        var request = new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            fixture.ScopeKind,
+            fixture.ScopeId,
+            profileId,
+            Window(FromUtc, FromUtc.AddHours(1)));
+        using var cancellation = new CancellationTokenSource();
+        var pending = fixture.ExecuteReferenceEvidenceV1Async(request, cancellation.Token);
+
+        await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        Assert.Equal(1, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_RevocationBetweenPagesDiscardsTheQueryBeforeReturningEvidence()
+    {
+        using var fixture = Fixture.Create();
+        fixture.Historian.Respond = query =>
+        {
+            var prior = fixture.Authority.Snapshot();
+            var role = Assert.Single(prior.Roles);
+            fixture.Authority.TryReplaceAsync(
+                prior.Version,
+                [role with { Grants = [new CapabilityGrantEngineeringDto(SecurityCapability.TagRead)] }],
+                prior.Scopes).GetAwaiter().GetResult();
+            var sourceTimestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            return ResponseV2(query,
+                [V2Row(tagId, sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(5), sourceTimestamp, "Synchronized")],
+                "next-page");
+        };
+        var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
+        var request = new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            fixture.ScopeKind,
+            fixture.ScopeId,
+            profileId,
+            Window(FromUtc, FromUtc.AddHours(1)));
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceReferenceEvidenceV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_ActiveTagOrExecutionPermitChangeAfterReadDiscardsEvidence()
+    {
+        using (var changedTag = Fixture.Create())
+        {
+            changedTag.Historian.Respond = query =>
+            {
+                changedTag.Runtime.SetTag(changedTag.Tag with { EngineeringUnit = "kPa" });
+                var sourceTimestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+                var tagId = query.Filters!.Single().Values.Single().AsGuid();
+                return ResponseV2(query,
+                    [V2Row(tagId, sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(5), sourceTimestamp, "Synchronized")]);
+            };
+
+            var result = await changedTag.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(changedTag));
+
+            AssertStatus(StatusCodes.Status409Conflict, result);
+            Assert.Equal(1, changedTag.Historian.Calls);
+            Assert.IsNotType<AssetProcessIntelligenceReferenceEvidenceV1Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        }
+
+        using (var revokedPermit = Fixture.Create())
+        {
+            revokedPermit.Historian.Respond = query =>
+            {
+                revokedPermit.Gate.Pause(Fixture.ProjectKey, revokedPermit.ScopeKind, revokedPermit.ScopeId);
+                var sourceTimestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+                var tagId = query.Filters!.Single().Values.Single().AsGuid();
+                return ResponseV2(query,
+                    [V2Row(tagId, sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(5), sourceTimestamp, "Synchronized")]);
+            };
+
+            var result = await revokedPermit.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(revokedPermit));
+
+            AssertStatus(StatusCodes.Status409Conflict, result);
+            Assert.Equal(1, revokedPermit.Historian.Calls);
+            Assert.IsNotType<AssetProcessIntelligenceReferenceEvidenceV1Response>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        }
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_RejectsRepeatedHistorianCursorWithoutReturningPartialEvidence()
+    {
+        using var fixture = Fixture.Create();
+        fixture.Historian.Respond = query =>
+        {
+            var sourceTimestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            return ResponseV2(query,
+                [V2Row(tagId, sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(1), sourceTimestamp, "Synchronized")],
+                "repeat-cursor");
+        };
+        var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
+        var request = new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            fixture.ScopeKind,
+            fixture.ScopeId,
+            profileId,
+            Window(FromUtc, FromUtc.AddHours(1)));
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
+
+        AssertStatus(StatusCodes.Status503ServiceUnavailable, result);
+        Assert.Equal(2, fixture.Historian.Calls);
+        Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_MapsMalformedHistorianCursorToBadRequestWithoutPartialEvidence()
+    {
+        using var fixture = Fixture.Create();
+        fixture.Historian.Respond = query =>
+        {
+            if (query.Page!.Cursor is not null)
+                throw new HistoricalQueryCursorException("The provider rejected the cursor.");
+            var sourceTimestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            return ResponseV2(query,
+                [V2Row(tagId, sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(5), sourceTimestamp, "Synchronized")],
+                "opaque-malformed");
+        };
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(fixture));
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(2, fixture.Historian.Calls);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("HISTORICAL_QUERY_CURSOR_INVALID", error.Code);
+        Assert.IsNotType<AssetProcessIntelligenceReferenceEvidenceV1Response>(error);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_RejectsProviderRowsForAnotherTagWithoutPartialEvidence()
+    {
+        using var fixture = Fixture.Create();
+        fixture.Historian.Respond = query =>
+        {
+            var sourceTimestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return ResponseV2(query,
+                [V2Row(Guid.NewGuid(), sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(5), sourceTimestamp, "Synchronized")]);
+        };
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(ReferenceEvidenceRequest(fixture));
+
+        AssertStatus(StatusCodes.Status503ServiceUnavailable, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("HISTORICAL_RESPONSE_INVALID", error.Code);
+        Assert.IsNotType<AssetProcessIntelligenceReferenceEvidenceV1Response>(error);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_UsesOneRawRowBudgetAcrossReferenceAndComparisonWindows()
+    {
+        using var fixture = Fixture.Create();
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var sourceTimestamp = query.Range.FromUtc!.Value.AddSeconds(1);
+            if (query.Range.FromUtc == FromUtc)
+            {
+                var pageNumber = query.Page!.Cursor is null
+                    ? 0
+                    : int.Parse(query.Page.Cursor, System.Globalization.CultureInfo.InvariantCulture);
+                var nextCursor = pageNumber < 249
+                    ? (pageNumber + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    : null;
+                var rows = Enumerable.Range(0, query.Page.Size)
+                    .Select(_ => V2Row(tagId, sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(1), sourceTimestamp, "Synchronized"))
+                    .ToArray();
+                return ResponseV2(query, rows, nextCursor);
+            }
+
+            return ResponseV2(query,
+                [V2Row(tagId, sourceTimestamp, "Good", HistoricalQueryValue.FromDouble(2), sourceTimestamp, "Synchronized")]);
+        };
+        var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
+        var request = new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            fixture.ScopeKind,
+            fixture.ScopeId,
+            profileId,
+            Window(FromUtc, FromUtc.AddHours(1)),
+            Window(FromUtc.AddHours(2), FromUtc.AddHours(3)));
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
+
+        AssertStatus(StatusCodes.Status413PayloadTooLarge, result);
+        Assert.Equal(251, fixture.Historian.Calls);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE", error.Code);
+        Assert.IsNotType<AssetProcessIntelligenceReferenceEvidenceV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    private static AssetProcessIntelligenceReferenceEvidenceV1QueryRequest ReferenceEvidenceRequest(Fixture fixture)
+    {
+        var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
+        return new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            fixture.ScopeKind,
+            fixture.ScopeId,
+            profileId,
+            Window(FromUtc, FromUtc.AddHours(1)));
+    }
+
     private static AssetProcessIntelligenceCurrentFrequencyRawObservation CurrentFrequencyRow(
         DateTimeOffset observed,
         string? quality,
@@ -4788,6 +5320,14 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         {
             var context = CreateContext();
             return Analytics.ExecuteContextualDeviationVectorV2Async(context, request, cancellationToken);
+        }
+
+        public Task<IResult> ExecuteReferenceEvidenceV1Async(
+            AssetProcessIntelligenceReferenceEvidenceV1QueryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var context = CreateContext();
+            return Analytics.ExecuteReferenceEvidenceV1Async(context, request, cancellationToken);
         }
 
         public Task<IResult> ExecutePerformanceV1BAsync(AssetProcessIntelligencePerformanceV1BQueryRequest? request = null)
@@ -5202,9 +5742,11 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         : IEngineeringRuntimeCoordinator
     {
         private readonly List<TagDefinition> _tags = [tag];
+        private int _writeCalls;
         private RuntimeDescriptor _descriptor = new(
             projectKey, revision, DateTimeOffset.Parse("2026-10-14T00:00:00Z"), [], [], 1, 0);
 
+        public int WriteCalls => Volatile.Read(ref _writeCalls);
         public RuntimeDescriptor Describe() => _descriptor;
         public void SetRevision(long revision) => _descriptor = _descriptor with { Revision = revision };
         public void AddTag(TagDefinition tag) => _tags.Add(tag);
@@ -5236,7 +5778,11 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         public ValueTask<bool> AcknowledgeAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
         public ValueTask<bool> ShelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
         public ValueTask<bool> UnshelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
-        public ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _writeCalls);
+            return ValueTask.CompletedTask;
+        }
         public ValueTask ResetServerMemoryRetainedValueAsync(Guid tagId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public Task<RuntimeActivationResult> ActivateAsync(string projectKey, long revision, EngineeringPackage package, CancellationToken cancellationToken = default) => throw new NotSupportedException();

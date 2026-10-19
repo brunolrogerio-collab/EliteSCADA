@@ -48,4 +48,3 @@ export function measurementQualityState(sample: Pick<VisualDynamicSample, 'quali
   if (sample?.state && sample.state !== 'LocalSession') return 'unavailable';
   return normalizeRuntimeTagQuality(sample?.quality);
 }
-

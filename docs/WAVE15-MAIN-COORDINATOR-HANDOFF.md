@@ -2,25 +2,22 @@
 
 Snapshot: 2026-10-19. This is the live Main-to-CODEX order. Replace this current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — Stage 4E operating contexts (#652); owner Preview in parallel
+## Current order — Stage 4F method/data-readiness gate (#655); owner Preview remains separate
 
 | Field | Order |
 | --- | --- |
 | Owner / executor | Main Coordinator publishes and activates; existing chat CODEX implements one package after activation |
 | Parent / target | Intelligence #588 / `wave15/corrections-integration` |
-| Mission | `W15-INTELLIGENCE-4E-OPERATING-CONTEXT-01`, issue #652; [ADR-022](ADR-022-INTELLIGENCE-OPERATING-CONTEXT-PROFILES.md) and [repository scope](WAVE15-INTELLIGENCE-STAGE4E-OPERATING-CONTEXT.md) |
-| Product checkpoint | PR #651 / Stage 4D merge `dd67bac5c4ca937e028b0fb9890b00dfeedd03a4`; exact T1 #39321066819 and T2 #39321693285 passed |
-| Dispatch base | Candidate integration `dd67bac5c4ca937e028b0fb9890b00dfeedd03a4`; documentation order is under publication. Main records and revalidates the exact activated base in #652 after that merge; do not self-rebase to another product tree |
-| Preview / start condition | Stable Preview remains http://localhost:18080 at `0054d587`. Owner ordered development during evaluation; #639 visual acceptance is separate. Full ESLIC3 is installed and verified, while Runtime is Idle and no Intelligence scope/permit is activated. Do not reset/redeploy Preview. CODEX starts 4E only after Main's exact-base activation |
-| Planned branch | `work/w15-intelligence-stage4e-operating-context`, clean isolated checkout; preserve unrelated changes |
-| Objective | Add versioned operator-authored operating-context profiles and read-only context eligibility for caller-selected windows |
-| Scope | Engineering config v3, `.escadapkg` schema 28 compatibility, localized authoring UI, stable profile version, typed required predicates and `context-eligibility.v1`. Only observations matching every declared predicate at the same exact synchronized UTC source timestamp are eligible. No score or inferred/physical regime claim |
-| Canonical reuse | Existing measurement profiles, Equipment assignments, TAG identities, Engineering validator/API/import-export, authoring workspace, Historian v2 evidence reader, and canonical entitlement/scope/TrendUse/TagRead/permit/Authority/HA fences |
-| Resource limits | <=16 signals/predicates; <=31-day reference and optional later comparison windows; 200-row pages; 50,000 raw Historian rows aggregate; fail closed with no partial response |
-| Forbidden | Changes to frozen 4A–4D contracts, 4F joint score/calibration, 4G closure, 5B/6, HA, drivers, licensing, AI/learning, SQL/worker, imputation, process writes or automatic Preview deployment |
-| Local/T1 evidence owner | CODEX: focused domain/API/UI/package/security/version/cursor/limit/frozen-regression tests and Release API/Web builds on isolated resources; one draft PR, `VALIDATION_PROFILE: UI_EDITOR` plus inferred backend profiles, exact-head T1 and explicit skipped evidence |
-| Main acceptance | Main reviews semantics, persistence/import compatibility, diff and local/T1 evidence; conditionally merges under existing owner authorization and verifies exact-merge T2. Close only 4E after named criteria pass; no self-merge or automatic 4F |
-| Next package | Main releases the separate 4F method/data gate only after 4E acceptance, then 4G. Stage5B/6 remain unreleased until Stage4 residual disposition |
+| Mission | `W15-INTELLIGENCE-4F-METHOD-DATA-GATE-01`, issue #655, under [ADR-021 §4F–4G](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md) |
+| Accepted product checkpoint | Stage 4E PR #654 merge `793b8303547491e02b98bf73732d3ab5ab76567a`; exact T1 #39331697007 attempt 2 and exact-merge T2 #39336277009 passed |
+| Inspected product base | `wave15/corrections-integration@793b8303547491e02b98bf73732d3ab5ab76567a`; revalidate the live ref before any future implementation activation |
+| Owner Preview | Preserve `http://localhost:18080`, product `0054d587fe855bbea4b1af81726af016208643da`, data/volumes/ports. Owner evaluation and #639 visual acceptance remain separate. Do not reset or redeploy Preview |
+| Objective | Establish whether owner-approved representative evidence and explicit acceptance bounds support a defensible, genuinely joint multivariate read-only score |
+| Authorized work | Read-only inventory of tracked or explicitly available datasets/provenance; distinguish representative observations from synthetic fixtures; assess dimensions, synchronized cohorts, quality/missingness, variation, method/calibration readiness, holdout leakage and cross-platform cost; return evidence/readiness matrix to Main on #655 |
+| Stop/continue | If representative data and explicit bounds are absent, stop at the gate report and identify the smallest missing evidence/decision. If present, recommend a versioned method/contract to Main. In either case, **no product code, final algorithm/parameters, or score-validated claim until Main separately reviews and activates implementation** |
+| Forbidden | Changes to product code/API/schema/UI/SQL/workflows, frozen 4A–4E, HA, drivers, licensing, AI/learning, Stage 4G closure, 5B/6, or Preview. No inferred healthy baseline, diagnosis, fault probability, RUL, or synthetic-as-field-validation claim |
+| CODEX return | One evidence-backed report on #655: exact checkpoint; dataset inventory/provenance and permissions; representative-vs-synthetic classification; profile/context coverage, n/p and quality/synchronization; method assessment; unknowns; owner data/bound decisions; recommendation. No PR/T1 unless Main separately releases implementation |
+| Main next step | Review #655 report and choose either a separate exact-base 4F implementation order or the smallest evidence/data acquisition step. Keep 4G separate; Stage 4 and #588 remain PARTIAL meanwhile |
 
 ### Stable Preview isolation
 
@@ -36,7 +33,7 @@ Owner-authorized issue hygiene closed 27 fulfilled/retired trackers; see [the au
 - Stage 3 S3-01–S3-08 is complete/verified. Stage 4A adds a descriptive single-target deviation against a caller-selected reference and context. Stage 4B adds independent per-target deviations over complete synchronized co-observations. Stage 4C adds the separate additive `contextual-deviation-vector.v2` with exactly two caller-declared numeric context intervals and 2–8 target TAGs. The Product Owner approved the V1 acceptance boundary after the read-only audit: the caller selects and is responsible for the known-good reference period; the system does not certify health, representativeness or global regime equivalence; the vector means independent per-TAG scores, not a joint multivariate model. **This accepts and freezes Stage 4 V1 only; broader Stage 4 in #588 remains PARTIAL.** The V1 boundary is not evidence that the original Stage 4 residuals were implemented or permanently waived.
 - Stage 4C / ADR-019 / child #635 is integrated, verified and frozen only within its bounded scope at PR #637 merge `81ac4193194e1471e812e8164f9b9e15e63512ea`. Exact candidate T1 #38978898568 attempt 3 passed; exact post-merge T2 #38981435925 attempt 2 passed at the merge SHA. The backend-only retry passed after local Linux reproduction of its unchanged timing-sensitive Z-Wave test. Build/runtime smoke, Web build and Chromium integration smoke passed; full-browser E2E was skipped and is not claimed. Detailed counts and caveats are in #588/#635/#305 and PR #637.
 - ADR-019 and ADR-020 preserve non-claims: no automatic reference health, no global regime equivalence, no joint multivariate anomaly detection, diagnosis or RUL. Do not alter these limits in Stage 5A.
-- ADR-021 was initially a scope proposal (PR #643/T1 #38992226246); the owner authorized sequential development on 2026-10-19, [recorded in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298). The same-day clarification permits Stage 4D #649 after Stage5A technical verification and stable Preview delivery, without waiting for manual visual acceptance. Then Main releases bounded 4E–4G before 5B/6. Statistical method/threshold claims still require representative-data validation. Preserve caller-selected reference and frozen 4A–4C contracts; broader Stage4 is not complete until all residuals pass or are explicitly deferred.
+- ADR-021 was initially a scope proposal (PR #643/T1 #38992226246); the owner authorized sequential development on 2026-10-19, [recorded in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298). Stage 4D #649 and 4E #652 are accepted within bounded contracts. Current 4F gate #655 assesses method/data readiness only; it does not authorize implementation or threshold selection. Statistical validity requires representative-data evidence and explicit bounds. Preserve caller-selected reference and frozen 4A–4E contracts; broader Stage 4 remains partial until residuals pass or are explicitly deferred.
 - Stage 5A is only generic measurement widgets. Guided dashboard generation from profiles/processes is future Stage 5B; Stage 6 hardening remains later. The Product Owner's local HA Preview/regression acceptance remains separate; do not switch to HA.
 
 ## Responsibilities
@@ -61,21 +58,19 @@ Required local evidence, CI, and owner Preview are distinct acceptance sources. 
 
 ## Return from CODEX
 
-For Stage 4E, return one implementation report in this form:
+For the Stage 4F method/data-readiness gate, return one report in this form:
 
 ```text
 CODEX -> MAIN COORDINATOR
-Package / owning issue: Stage 4E operating contexts / #652
+Package / owning issue: Stage 4F method/data-readiness gate / #655
 Status / next owner:
-Exact base SHA and product tree; PR head SHA:
-Files/symbols changed and canonical Engineering/package/UI/analytics/guard paths reused:
-Configuration v3/schema 28, profile versioning, typed predicates and comparison eligibility:
-Bounds, cancellation/authorization/no-partial and frozen 4A–4D regression evidence:
-Confirmation: stable owner Preview revision/data/resources untouched:
-Focused local commands/results:
-VALIDATION_PROFILE and exact T1 run/job links:
-Risks/limitations and explicit non-claims:
-Confirmation: no 4F/4G, Stage 5B/6, HA/drivers, AI, SQL/worker or self-merge
+Exact inspected product checkpoint and live integration ref:
+Dataset inventory, provenance/permission and representative-vs-synthetic classification:
+Profile/context coverage, dimensions, sample/cohort counts, synchronization, quality/missingness and variability:
+Candidate method/alternatives, assumptions, conditioning/sample-size and holdout/calibration analysis:
+Supported evidence, unknowns, owner-approved bounds/data still needed:
+Recommendation to Main; explicit confirmation that no product code or threshold was changed/finalized:
+Confirmation: owner Preview, HA, drivers and frozen Stage 4A–4E untouched:
 ```
 
 Main records its review separately. An acknowledgement is not a second delivery.

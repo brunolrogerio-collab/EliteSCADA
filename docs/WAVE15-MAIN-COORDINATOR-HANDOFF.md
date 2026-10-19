@@ -2,25 +2,25 @@
 
 Snapshot: 2026-10-19. This is the live Main-to-CODEX order. Replace this current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — Stage 4D reference evidence (#649); owner Preview in parallel
+## Current order — Stage 4E operating contexts (#652); owner Preview in parallel
 
 | Field | Order |
 | --- | --- |
-| Owner / executor | Main Coordinator / existing chat CODEX, one product implementation package |
+| Owner / executor | Main Coordinator publishes and activates; existing chat CODEX implements one package after activation |
 | Parent / target | Intelligence #588 / `wave15/corrections-integration` |
-| Mission | `W15-INTELLIGENCE-4D-REFERENCE-EVIDENCE-01`, issue #649; [repository scope](WAVE15-INTELLIGENCE-STAGE4D-REFERENCE-EVIDENCE.md) |
-| Product checkpoint | PR #647 merge `0054d587fe855bbea4b1af81726af016208643da`; T1 #39258159241 / T2 #39259192178 attempt 2 passed |
-| Dispatch base | Main revalidated coordination ref `15697b30e2633510198fca0285df633156f7f338`; the exact activated base after this docs-only order merge is recorded in #649. Do not self-rebase to an unreviewed product tree |
-| Preview / start condition | CODEX delivered healthy stable Docker Preview http://localhost:18080 on product `0054d587`. Owner explicitly ordered development during evaluation; #639 visual acceptance remains pending, not a 4D blocker. Begin after Main publishes/activates this exact-base order |
-| Planned branch | `work/w15-intelligence-stage4d-reference-evidence`, clean isolated checkout; preserve unrelated changes |
-| Objective | Add a bounded versioned read-only reference-evidence/data-sufficiency report using canonical active assignment/profile and Historian v2 |
-| Scope | Server-derived reference-submission actor/time; exact project/revision/scope/assignment/profile/TAG/window/query provenance; per-signal quality/rejection/missing evidence; exact synchronized source-cohort counts; explicit Required/Optional insufficiency and unknown cadence/completeness. No claim of healthy reference or model validity |
-| Canonical reuse | Analytics API/service, profile coverage and v2 observation/revalidation helpers; existing execution permit, entitlement, TrendUse and TAG read guards. No duplicate query/identity/store authority |
-| Resource limits | <=16 configured profile signals; <=31-day reference and optional later comparison window; 200-row pages; one 50,000-row aggregate cap across selected signals/windows; no partial/unauthorized result |
-| Forbidden | Frozen 4A–4C/ADR-020 behavior changes, new persisted context profiles (4E), joint score (4F), broad Stage4 closure (4G), dashboards5B, Stage6, HA, drivers, licensing changes, SQL/store/schema/worker, imputation, process writes or automatic Preview deployment |
-| Local/T1 evidence owner | CODEX: focused calculator/service/API/security/cursor/limit/frozen-regression tests and Release API build, isolated test resources; one draft PR with `VALIDATION_PROFILE: SESSION_LICENSING`, exact-head T1 and limitations |
-| Main acceptance | Main reviews requirements/diff/local/T1; conditionally integrates under existing owner authorization and verifies exact-merge T2. 4D closes only after its named criteria pass; no automatic next-stage/self-merge by worker |
-| Next package | Main releases bounded 4E after accepted 4D, then 4F method/data gate and 4G. Stage5B/6 remain unreleased until Stage4 residual disposition |
+| Mission | `W15-INTELLIGENCE-4E-OPERATING-CONTEXT-01`, issue #652; [ADR-022](ADR-022-INTELLIGENCE-OPERATING-CONTEXT-PROFILES.md) and [repository scope](WAVE15-INTELLIGENCE-STAGE4E-OPERATING-CONTEXT.md) |
+| Product checkpoint | PR #651 / Stage 4D merge `dd67bac5c4ca937e028b0fb9890b00dfeedd03a4`; exact T1 #39321066819 and T2 #39321693285 passed |
+| Dispatch base | Candidate integration `dd67bac5c4ca937e028b0fb9890b00dfeedd03a4`; documentation order is under publication. Main records and revalidates the exact activated base in #652 after that merge; do not self-rebase to another product tree |
+| Preview / start condition | Stable Preview remains http://localhost:18080 at `0054d587`. Owner ordered development during evaluation; #639 visual acceptance is separate. Full ESLIC3 is installed and verified, while Runtime is Idle and no Intelligence scope/permit is activated. Do not reset/redeploy Preview. CODEX starts 4E only after Main's exact-base activation |
+| Planned branch | `work/w15-intelligence-stage4e-operating-context`, clean isolated checkout; preserve unrelated changes |
+| Objective | Add versioned operator-authored operating-context profiles and read-only context eligibility for caller-selected windows |
+| Scope | Engineering config v3, `.escadapkg` schema 28 compatibility, localized authoring UI, stable profile version, typed required predicates and `context-eligibility.v1`. Only observations matching every declared predicate at the same exact synchronized UTC source timestamp are eligible. No score or inferred/physical regime claim |
+| Canonical reuse | Existing measurement profiles, Equipment assignments, TAG identities, Engineering validator/API/import-export, authoring workspace, Historian v2 evidence reader, and canonical entitlement/scope/TrendUse/TagRead/permit/Authority/HA fences |
+| Resource limits | <=16 signals/predicates; <=31-day reference and optional later comparison windows; 200-row pages; 50,000 raw Historian rows aggregate; fail closed with no partial response |
+| Forbidden | Changes to frozen 4A–4D contracts, 4F joint score/calibration, 4G closure, 5B/6, HA, drivers, licensing, AI/learning, SQL/worker, imputation, process writes or automatic Preview deployment |
+| Local/T1 evidence owner | CODEX: focused domain/API/UI/package/security/version/cursor/limit/frozen-regression tests and Release API/Web builds on isolated resources; one draft PR, `VALIDATION_PROFILE: UI_EDITOR` plus inferred backend profiles, exact-head T1 and explicit skipped evidence |
+| Main acceptance | Main reviews semantics, persistence/import compatibility, diff and local/T1 evidence; conditionally merges under existing owner authorization and verifies exact-merge T2. Close only 4E after named criteria pass; no self-merge or automatic 4F |
+| Next package | Main releases the separate 4F method/data gate only after 4E acceptance, then 4G. Stage5B/6 remain unreleased until Stage4 residual disposition |
 
 ### Stable Preview isolation
 
@@ -61,21 +61,21 @@ Required local evidence, CI, and owner Preview are distinct acceptance sources. 
 
 ## Return from CODEX
 
-For Stage 4D, return one implementation report in this form:
+For Stage 4E, return one implementation report in this form:
 
 ```text
 CODEX -> MAIN COORDINATOR
-Package / owning issue: Stage 4D reference evidence / #649
+Package / owning issue: Stage 4E operating contexts / #652
 Status / next owner:
 Exact base SHA and product tree; PR head SHA:
-Files/symbols changed and canonical analytics/query/guard path reused:
-Authenticated provenance, per-signal evidence, required/optional and cohort semantics:
-Bounds, cancellation/authorization/no-partial and frozen 4A–4C regression evidence:
+Files/symbols changed and canonical Engineering/package/UI/analytics/guard paths reused:
+Configuration v3/schema 28, profile versioning, typed predicates and comparison eligibility:
+Bounds, cancellation/authorization/no-partial and frozen 4A–4D regression evidence:
 Confirmation: stable owner Preview revision/data/resources untouched:
 Focused local commands/results:
 VALIDATION_PROFILE and exact T1 run/job links:
 Risks/limitations and explicit non-claims:
-Confirmation: no 4E/4F/4G, Stage 5B/6, HA/drivers, store/schema or self-merge
+Confirmation: no 4F/4G, Stage 5B/6, HA/drivers, AI, SQL/worker or self-merge
 ```
 
 Main records its review separately. An acknowledgement is not a second delivery.

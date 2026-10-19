@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-19
 
 ## Mandatory continuity protocol
 
@@ -561,6 +561,12 @@ Full locked Wave 09 data/reporting semantics:
 
 - `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`;
 - `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
+
+## Asset and Process Intelligence
+
+Asset and Process Intelligence (#588) analyzes equipment and process data already available through the canonical SCADA contracts. It remains separately licensed, selectively enabled per configured scope, read-only and multiplatform; a disabled scope must not consume analysis resources. Generic screen measurement widgets remain usable independently of the Intelligence entitlement.
+
+Product Owner direction on 2026-10-19 fixes the development order: finish Stage 5A's six generic measurement widgets, then return to Stage 4 and complete the residual scope in `docs/ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md` before Stage 5B guided dashboards or Stage 6. Main releases bounded 4D–4G assignments under this authorization after the existing Stage 5A gates. Preserve frozen 4A–4C/ADR-020 contracts. Joint-model methods and thresholds must satisfy the representative-data validation gate before their results are claimed; implementation authorization is not evidence of detector validity.
 
 ## Security and audit
 

@@ -2115,10 +2115,12 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             if (validation is not null) return ContextualDeviationVectorV2ObservationReadResult.Fail(validation);
 
             var remaining = AssetProcessIntelligenceReferenceEvidenceV1Catalog.MaximumRawRowsAcrossQuery - budget.TotalRows;
-            // Probe one row after reaching the aggregate limit so an exact 50,000-row response can
-            // succeed while any additional row or continuation cursor rejects the entire query.
-            var pageSize = Math.Max(1, Math.Min(
-                AssetProcessIntelligenceReferenceEvidenceV1Catalog.QueryPageSize, remaining));
+            if (remaining <= 0)
+                return ContextualDeviationVectorV2ObservationReadResult.Fail(
+                    WindowTooDense("INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE"));
+
+            var pageSize = Math.Min(
+                AssetProcessIntelligenceReferenceEvidenceV1Catalog.QueryPageSize, remaining);
             var query = new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamplesV2,
                 HistoricalTimeRange.Absolute(window.FromUtc, window.ToUtc),

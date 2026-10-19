@@ -5059,11 +5059,53 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
 
         AssertStatus(StatusCodes.Status413PayloadTooLarge, result);
-        Assert.Equal(251, fixture.Historian.Calls);
+        Assert.Equal(250, fixture.Historian.Calls);
+        Assert.Equal(50_000, fixture.Historian.Requests.Sum(query => query.Page!.Size));
+        Assert.All(fixture.Historian.Requests, query => Assert.Equal(FromUtc, query.Range.FromUtc));
+        Assert.DoesNotContain(fixture.Historian.Requests,
+            query => query.Range.FromUtc == request.ComparisonWindow!.FromUtc);
         var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
         Assert.Equal("INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE", error.Code);
         Assert.IsNotType<AssetProcessIntelligenceReferenceEvidenceV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ReferenceEvidenceV1_ExactRawRowBudgetSucceedsWhenNoFurtherReadIsNeeded()
+    {
+        using var fixture = Fixture.Create();
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var pageNumber = query.Page!.Cursor is null
+                ? 0
+                : int.Parse(query.Page.Cursor, System.Globalization.CultureInfo.InvariantCulture);
+            var firstRow = pageNumber * query.Page.Size;
+            var rows = Enumerable.Range(0, query.Page.Size)
+                .Select(index =>
+                {
+                    var timestamp = query.Range.FromUtc!.Value.AddSeconds(firstRow + index);
+                    return V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(1), timestamp, "Synchronized");
+                })
+                .ToArray();
+            var nextCursor = pageNumber < 249
+                ? (pageNumber + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : null;
+            return ResponseV2(query, rows, nextCursor);
+        };
+
+        var request = ReferenceEvidenceRequest(fixture) with
+        {
+            ReferenceWindow = Window(FromUtc, FromUtc.AddDays(31))
+        };
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        Assert.Equal(250, fixture.Historian.Calls);
+        Assert.Equal(50_000, fixture.Historian.Requests.Sum(query => query.Page!.Size));
+        Assert.IsType<AssetProcessIntelligenceReferenceEvidenceV1Response>(
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
     }
 

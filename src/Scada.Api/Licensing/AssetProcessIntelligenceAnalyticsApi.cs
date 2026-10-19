@@ -23,6 +23,8 @@ public static class AssetProcessIntelligenceAnalyticsApi
             Results.Ok(AssetProcessIntelligenceContextualDeviationVectorV2Catalog.Describe()));
         group.MapGet("/performance/v1/catalog", () =>
             Results.Ok(AssetProcessIntelligencePerformanceV1BCatalog.Describe()));
+        group.MapGet("/reference-evidence/v1/catalog", () =>
+            Results.Ok(AssetProcessIntelligenceReferenceEvidenceV1Catalog.Describe()));
         group.MapPost("/query", (
             HttpContext context,
             AssetProcessIntelligenceAnalyticsQueryRequest request,
@@ -65,6 +67,12 @@ public static class AssetProcessIntelligenceAnalyticsApi
             AssetProcessIntelligenceAnalyticsService service,
             CancellationToken cancellationToken) =>
             service.ExecutePerformanceV1BAsync(context, request, cancellationToken));
+        group.MapPost("/reference-evidence/v1/query", (
+            HttpContext context,
+            AssetProcessIntelligenceReferenceEvidenceV1QueryRequest request,
+            AssetProcessIntelligenceAnalyticsService service,
+            CancellationToken cancellationToken) =>
+            service.ExecuteReferenceEvidenceV1Async(context, request, cancellationToken));
         group.MapPost("/profile-coverage", (
             HttpContext context,
             AssetProcessIntelligenceProfileCoverageQueryRequest request,

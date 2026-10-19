@@ -45,7 +45,13 @@ const PALETTE_ORDER: readonly BuiltinVisualObjectType[] = Object.freeze([
   BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser,
   BUILTIN_VISUAL_OBJECT_TYPES.button,
   BUILTIN_VISUAL_OBJECT_TYPES.slider,
-  BUILTIN_VISUAL_OBJECT_TYPES.numericInput
+  BUILTIN_VISUAL_OBJECT_TYPES.numericInput,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementDial,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementRing,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementBands,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
 ]);
 
 const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
@@ -72,7 +78,13 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser]: { labelKey: 'eventBrowser', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.button]: { labelKey: 'button', category: 'control' },
   [BUILTIN_VISUAL_OBJECT_TYPES.slider]: { labelKey: 'slider', category: 'control' },
-  [BUILTIN_VISUAL_OBJECT_TYPES.numericInput]: { labelKey: 'numericInput', category: 'control' }
+  [BUILTIN_VISUAL_OBJECT_TYPES.numericInput]: { labelKey: 'numericInput', category: 'control' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial]: { labelKey: 'measurementDial', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementRing]: { labelKey: 'measurementRing', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar]: { labelKey: 'measurementBar', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer]: { labelKey: 'measurementThermometer', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands]: { labelKey: 'measurementBands', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget]: { labelKey: 'measurementTarget', category: 'content' }
 });
 
 export function listVisualObjectPaletteItems(): readonly VisualObjectPaletteItem[] {
@@ -109,6 +121,16 @@ export function createObjectAddIntent(
         [VISUAL_PROPERTY_KEYS.width]: 720,
         [VISUAL_PROPERTY_KEYS.height]: 320
       })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementDial
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 150, [VISUAL_PROPERTY_KEYS.height]: 130 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementRing
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 130, [VISUAL_PROPERTY_KEYS.height]: 130 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 90, [VISUAL_PROPERTY_KEYS.height]: 190 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementBar ||
+    objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementBands ||
+    objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 220, [VISUAL_PROPERTY_KEYS.height]: 90 })
     : objectType === BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher
     ? Object.freeze({
         [VISUAL_PROPERTY_KEYS.width]: 190,

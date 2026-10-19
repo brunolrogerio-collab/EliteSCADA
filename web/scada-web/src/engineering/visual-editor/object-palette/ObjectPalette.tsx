@@ -39,7 +39,13 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   eventBrowser: 'Event Browser',
   button: 'Button',
   slider: 'Slider',
-  numericInput: 'Numeric input'
+  numericInput: 'Numeric input',
+  measurementDial: 'Measurement dial',
+  measurementRing: 'Measurement ring',
+  measurementBar: 'Graduated bar',
+  measurementThermometer: 'Vertical thermometer',
+  measurementBands: 'Range bands',
+  measurementTarget: 'Actual vs target'
 });
 
 export function ObjectPalette({
@@ -121,6 +127,12 @@ function paletteGlyph(item: VisualObjectPaletteItem): string {
     case 'button': return '▰';
     case 'slider': return '↔';
     case 'numericInput': return '123';
+    case 'measurementDial': return '◔';
+    case 'measurementRing': return '◉';
+    case 'measurementBar': return '▰';
+    case 'measurementThermometer': return '↕';
+    case 'measurementBands': return '▥';
+    case 'measurementTarget': return '⊙';
     default: return '□';
   }
 }

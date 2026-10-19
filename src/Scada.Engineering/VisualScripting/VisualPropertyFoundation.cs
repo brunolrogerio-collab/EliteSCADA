@@ -380,6 +380,14 @@ public static class VisualPropertyKeys
     public const string ReverseDirection = "reverseDirection";
     public const string TrackColor = "trackColor";
     public const string ThumbColor = "thumbColor";
+    public const string MeasurementTheme = "measurementTheme";
+    public const string MeasurementQualityVisible = "measurementQualityVisible";
+    public const string MeasurementFreshnessVisible = "measurementFreshnessVisible";
+    public const string MeasurementStaleAfterSeconds = "measurementStaleAfterSeconds";
+    public const string MeasurementUnit = "measurementUnit";
+    public const string MeasurementTarget = "measurementTarget";
+    public const string MeasurementBandOneEnd = "measurementBandOneEnd";
+    public const string MeasurementBandTwoEnd = "measurementBandTwoEnd";
 
     // Pre-Wave-07 compatibility constant. New visual schemas use AssetRef.
     public const string ImageResourceId = "imageResourceId";
@@ -528,6 +536,18 @@ public static class CommonVisualPropertyDefinitions
         Boolean(VisualPropertyKeys.ShowApplyButton, true),
         Boolean(VisualPropertyKeys.DecimalPlacesEnabled, false),
         Integer(VisualPropertyKeys.DecimalPlaces, 2, minimum: 0, maximum: 12)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Measurement { get; } =
+    [
+        EnumString(VisualPropertyKeys.MeasurementTheme, "inherit", ["inherit", "light", "dark", "high-contrast"]),
+        Boolean(VisualPropertyKeys.MeasurementQualityVisible, true),
+        Boolean(VisualPropertyKeys.MeasurementFreshnessVisible, true),
+        Integer(VisualPropertyKeys.MeasurementStaleAfterSeconds, 30, minimum: 1, maximum: 86400),
+        String(VisualPropertyKeys.MeasurementUnit, string.Empty),
+        Number(VisualPropertyKeys.MeasurementTarget, 50),
+        Number(VisualPropertyKeys.MeasurementBandOneEnd, 33),
+        Number(VisualPropertyKeys.MeasurementBandTwoEnd, 66)
     ];
 
     private static VisualPropertyDefinition Boolean(string key, bool value) =>

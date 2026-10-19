@@ -28,6 +28,12 @@ public static class BuiltinVisualObjectSchemas
     public const string ButtonType = "core.button";
     public const string SliderType = "core.slider";
     public const string NumericInputType = "core.numericInput";
+    public const string MeasurementDialType = "core.measurementDial";
+    public const string MeasurementRingType = "core.measurementRing";
+    public const string MeasurementBarType = "core.measurementBar";
+    public const string MeasurementThermometerType = "core.measurementThermometer";
+    public const string MeasurementBandsType = "core.measurementBands";
+    public const string MeasurementTargetType = "core.measurementTarget";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
     public const string SvgPaintOverridesProperty = "svgPaintOverrides";
@@ -79,6 +85,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.ReportLauncher)
             .Concat(CommonVisualPropertyDefinitions.Slider)
             .Concat(CommonVisualPropertyDefinitions.NumericInput)
+            .Concat(CommonVisualPropertyDefinitions.Measurement)
             .Concat(CommonVisualPropertyDefinitions.Arc)
             .Concat(CommonVisualPropertyDefinitions.Bezier)
             .Concat(CommonVisualPropertyDefinitions.Polygon)
@@ -347,6 +354,43 @@ public static class BuiltinVisualObjectSchemas
                 VisualPropertyKeys.ShowApplyButton
             ]));
 
+    private static readonly string[] Measurement =
+    [
+        VisualPropertyKeys.Value,
+        VisualPropertyKeys.MeasurementUnit,
+        VisualPropertyKeys.Minimum,
+        VisualPropertyKeys.Maximum,
+        VisualPropertyKeys.DecimalPlacesEnabled,
+        VisualPropertyKeys.DecimalPlaces,
+        VisualPropertyKeys.MeasurementTheme,
+        VisualPropertyKeys.MeasurementQualityVisible,
+        VisualPropertyKeys.MeasurementFreshnessVisible,
+        VisualPropertyKeys.MeasurementStaleAfterSeconds,
+        VisualPropertyKeys.TrackColor,
+        VisualPropertyKeys.ThumbColor
+    ];
+
+    private static VisualObjectPropertySchema CreateMeasurement(string objectType, params string[] additions) => Create(
+        objectType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(Stroke)
+            .Concat([VisualPropertyKeys.CornerRadius])
+            .Concat(Measurement)
+            .Concat(additions));
+
+    public static VisualObjectPropertySchema MeasurementDial { get; } = CreateMeasurement(MeasurementDialType);
+    public static VisualObjectPropertySchema MeasurementRing { get; } = CreateMeasurement(MeasurementRingType);
+    public static VisualObjectPropertySchema MeasurementBar { get; } = CreateMeasurement(MeasurementBarType);
+    public static VisualObjectPropertySchema MeasurementThermometer { get; } = CreateMeasurement(MeasurementThermometerType);
+    public static VisualObjectPropertySchema MeasurementBands { get; } = CreateMeasurement(
+        MeasurementBandsType,
+        VisualPropertyKeys.MeasurementBandOneEnd,
+        VisualPropertyKeys.MeasurementBandTwoEnd);
+    public static VisualObjectPropertySchema MeasurementTarget { get; } = CreateMeasurement(
+        MeasurementTargetType,
+        VisualPropertyKeys.MeasurementTarget);
+
     public static IReadOnlyCollection<VisualObjectPropertySchema> All { get; } =
     [
         Group,
@@ -369,7 +413,13 @@ public static class BuiltinVisualObjectSchemas
         EventBrowser,
         Button,
         Slider,
-        NumericInput
+        NumericInput,
+        MeasurementDial,
+        MeasurementRing,
+        MeasurementBar,
+        MeasurementThermometer,
+        MeasurementBands,
+        MeasurementTarget
     ];
 
     /// <summary>

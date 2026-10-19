@@ -102,7 +102,13 @@ export function VisualEditorAuthoringToolbar({
     [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser, '≡', 'eventBrowser', 'Event browser'],
     [BUILTIN_VISUAL_OBJECT_TYPES.button, '▰', 'button', 'Button'],
     [BUILTIN_VISUAL_OBJECT_TYPES.slider, '☷', 'slider', 'Slider'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.numericInput, '123', 'numericInput', 'Numeric input']
+    [BUILTIN_VISUAL_OBJECT_TYPES.numericInput, '123', 'numericInput', 'Numeric input'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, '◔', 'measurementDial', 'Measurement dial'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementRing, '◉', 'measurementRing', 'Measurement ring'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, '▰', 'measurementBar', 'Graduated bar'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, '↕', 'measurementThermometer', 'Vertical thermometer'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, '▥', 'measurementBands', 'Range bands'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, '⊙', 'measurementTarget', 'Actual vs target']
   ] as const;
 
   return <div className="visual-editor-authoring-toolbar" role="toolbar" aria-label={text.aria} data-testid="visual-editor-authoring-toolbar">

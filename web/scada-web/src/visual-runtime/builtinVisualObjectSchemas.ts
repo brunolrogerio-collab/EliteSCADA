@@ -25,7 +25,13 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   eventBrowser: 'core.eventBrowser',
   button: 'core.button',
   slider: 'core.slider',
-  numericInput: 'core.numericInput'
+  numericInput: 'core.numericInput',
+  measurementDial: 'core.measurementDial',
+  measurementRing: 'core.measurementRing',
+  measurementBar: 'core.measurementBar',
+  measurementThermometer: 'core.measurementThermometer',
+  measurementBands: 'core.measurementBands',
+  measurementTarget: 'core.measurementTarget'
 } as const;
 
 export type BuiltinVisualObjectType = typeof BUILTIN_VISUAL_OBJECT_TYPES[keyof typeof BUILTIN_VISUAL_OBJECT_TYPES];
@@ -114,6 +120,22 @@ const BROWSER: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.strokeColor,
   VISUAL_PROPERTY_KEYS.strokeWidth,
   VISUAL_PROPERTY_KEYS.cornerRadius
+];
+
+const MEASUREMENT: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.value,
+  VISUAL_PROPERTY_KEYS.unit,
+  VISUAL_PROPERTY_KEYS.minimum,
+  VISUAL_PROPERTY_KEYS.maximum,
+  VISUAL_PROPERTY_KEYS.decimalPlacesEnabled,
+  VISUAL_PROPERTY_KEYS.decimalPlaces,
+  VISUAL_PROPERTY_KEYS.measurementTheme,
+  VISUAL_PROPERTY_KEYS.measurementQualityVisible,
+  VISUAL_PROPERTY_KEYS.measurementFreshnessVisible,
+  VISUAL_PROPERTY_KEYS.measurementStaleAfterSeconds,
+  VISUAL_PROPERTY_KEYS.measurementUnit,
+  VISUAL_PROPERTY_KEYS.trackColor,
+  VISUAL_PROPERTY_KEYS.thumbColor
 ];
 
 const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY, ...EFFECTS] as const;
@@ -276,7 +298,13 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.showApplyButton,
     VISUAL_PROPERTY_KEYS.showCancelButton,
     VISUAL_PROPERTY_KEYS.showSteppers
-  ])]
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementRing, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementRing, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT, VISUAL_PROPERTY_KEYS.measurementBandOneEnd, VISUAL_PROPERTY_KEYS.measurementBandTwoEnd])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT, VISUAL_PROPERTY_KEYS.measurementTarget])]
 ]);
 
 export function supportsAnalogFill(objectType: string): boolean {

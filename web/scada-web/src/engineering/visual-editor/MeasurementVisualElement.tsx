@@ -242,4 +242,3 @@ function numeric(value: unknown, fallback: number) {
 function string(value: unknown, fallback: string) {
   return typeof value === 'string' ? value : fallback;
 }
-

@@ -23,7 +23,7 @@
 
 ### Current release-sequencing gate
 
-The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 hardening is complete and accepted under issue #201. Wave 15 complete-product delivery remains active under #297; the Product Owner accepted the current SVG factory/catalog and usable Dynamo set, with further visual polish deferred beyond this gate. Productization and final Preview remain under #306/#300, alongside localization/help/manual closure under #379/#424/#425. The owner has directed the next coordinator to initiate Home/Building automation-driver development from #472/#475, first reconciling the still-open #483 foundation against current integration. Starting that stream does not declare Wave 15 complete. Wave 13 signed Windows x64 + Authenticode/trusted-timestamp release work remains a separate paused stage until the Wave 15 product baseline is accepted.** Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
+The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 hardening is complete and accepted under issue #201. Wave 15 complete-product delivery remains active under #297; the Product Owner accepted the current SVG factory/catalog and usable Dynamo set, with further visual polish deferred beyond this gate. Productization and final Preview remain under #306/#300, alongside localization/help/manual closure under #379/#424/#425 and the authorized Intelligence sequence. Completed Home/Building and visual-foundation work must not be restarted from stale issue/bootstrap state. Physical driver L4 is human product testing outside GitHub control, not a requirement to keep completed driver issues open. Wave 13 signed Windows x64 + Authenticode/trusted-timestamp release work remains a separate paused stage until the Wave 15 product baseline is accepted.** Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
 
 ## Product mission
 
@@ -620,6 +620,12 @@ Runtime-HMI multilingual application content is a separate capability.
 ## External protocols and installable driver modules
 
 Modbus TCP remains the current real protocol baseline.
+
+### Physical driver validation and issue closeout
+
+Product Owner direction on 2026-10-19: real people perform physical driver L4 while testing the product, outside GitHub issue/run control. Do not retain or create L4 tracking issues merely to prevent closure of an implemented and accepted software package. Close fulfilled driver work with its concrete software evidence; observed corrections may be reported separately later. Existing physical-test timing/disclosure/installation prerequisites are not replaced by a new automated gate.
+
+Software tests, independent peers and human hardware evidence remain distinct. An untested device/family remains `NOT TESTED`; issue closure does not certify hardware, expand vendor compatibility, waive security, or authorize production/distribution. Experimental protocol restrictions remain in force. This rule does not remove required software tests, exact-SHA CI or final whole-product acceptance.
 
 ### Experimental Matter Wi-Fi product gate
 

@@ -7,20 +7,22 @@ Snapshot: 2026-10-19. This is the live Main-to-CODEX order. Replace this current
 | Field | Order |
 | --- | --- |
 | Owner | Main Coordinator |
-| Executor | Chat CODEX; the single bounded Stage 5A package is active |
+| Executor | Chat CODEX; Stage 5A delivered and its diagnostic complete; waits for Main's next bounded order |
 | Product front | Asset & Process Intelligence #588 |
 | Integration target | `wave15/corrections-integration` |
-| Product evidence checkpoint | Product merge `81ac4193194e1471e812e8164f9b9e15e63512ea`, PR #637, exact T2 #38981435925 attempt 2 passed; docs PRs #638, #640 and #641 do not alter product files. Exact Stage 5A dispatch base is `9ad4756c07f3a848750ea10cd2a14af7b63f8e6d`, recorded in #639. |
+| Product evidence checkpoint | PR #647 merge `0054d587fe855bbea4b1af81726af016208643da`; exact T1 #39258159241 passed on final head `6c8991a53f22dbc3f509e83dcfcf722257dd60ae`; exact-merge T2 #39259192178 attempt 2 passed. Owner visual Preview is separate and pending. |
 | Stage 4 disposition | Stage 4 V1 (4A–4C) COMPLETE / VERIFIED / FROZEN only within the Product Owner-approved limits recorded in #588 and ADR-020; broader Stage 4 product scope remains PARTIAL |
 | Objective | Add six generic display-only measurement widgets to the canonical Engineering screen toolbox, preview, serialization and Runtime rendering |
 | Scope | Semicircular dial; circular ring; horizontal graduated bar; vertical ruler/thermometer; segmented range bands; actual-value versus target. Reuse canonical screen model/binding/render lifecycle. Keep generic widgets usable without Intelligence license. Show unit, limits/target, quality and freshness accessibly; color is not the sole cue. No process writes or controls. |
 | Start condition | Satisfied: docs PR #641 merged, Main revalidated base `9ad4756c07f3a848750ea10cd2a14af7b63f8e6d`, posted activation in #639, and dispatched CODEX. No scope beyond #639 is released. |
-| Active review corrections | Direct dispatch resumed successfully on 2026-10-19. CODEX closes canonical screen save/load evidence for all six types with bindings/configuration and loaded-model Preview/Runtime rendering; applies theme colors to the graphics; exposes internal band limits accessibly; preserves complete units in target labels. Main reviews the returned PR, then integrates and verifies T2. |
+| Review disposition | Main accepted canonical screen save/load for all six types/bindings/configuration and loaded-model Preview/Runtime, applied theme colors, accessible band limits and complete unit labels; PR #647 is merged. Local seven-spec browser run passed 50/50. No duplicate product correction is ordered. |
 | Required validation | Local focused component/accessibility/round-trip and preview/runtime parity checks; PR declares `VALIDATION_PROFILE: UI_EDITOR`; exact-head T1 passes; Main reviews; after authorized merge, exact-merge T2 passes. Product Owner performs manual visual Preview after integration and before Stage 5A acceptance/freeze. |
 | Forbidden work | No dashboard generation (Stage 5B), Stage 6, Analytics/history changes, model training, license changes, second screen model/renderer, frozen Stage 4 contract changes, HA, drivers, or unrelated work |
-| Completion | CODEX returns one PR with exact base/head, symbols, local evidence, T1 links and caveats. Main reviews/integrates; post-merge T2 and Product Owner Preview are separate gates. Close only #639 after both pass; CODEX then waits for Main. #588 and Wave 15 remain open |
+| Completion | Implementation, Main review, merge and exact T2 are complete. #639 stays open for Product Owner visual Preview before acceptance/freeze. CODEX waits; #588 and Wave 15 remain open. The initial HA/Authority T2 timeout and isolated local diagnostic are recorded in #639; one backend-job retry passed without code/test changes. No HA work is released. |
 | Next authorized development | Product Owner reiterated on 2026-10-19: finish Stage 5A, then finish Stage 4 under [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md). No second product assignment is active during #639. |
 | Required follow-up before Stage 5B/6 | After #639 acceptance, Main must dispatch bounded 4D against a freshly revalidated exact base, followed by 4E–4G under the existing owner authorization. Stage 5B and Stage 6 remain unreleased until the Stage 4 residual criteria are implemented/verified or explicitly deferred by the Product Owner. |
+
+Owner-authorized issue hygiene on 2026-10-19 closed 27 fulfilled/retired work trackers; see [the audit ledger](WAVE15-ISSUE-AUDIT-2026-10-19.md). Physical driver L4 is human product testing outside GitHub control. Do not reopen accepted driver/foundation implementation from old bootstrap comments, and do not claim hardware certification. Remaining final acceptance and real undelivered functionality are distinguished in the ledger.
 
 ### Context and frozen boundaries
 

@@ -175,6 +175,8 @@ Local results, CI, and Product Owner Preview each answer their stated acceptance
 
 An outstanding Main correction remains open until its named evidence/correction exists and Main accepts the disposition. Returning the same green candidate does not close a later review request.
 
+When the Product Owner explicitly chooses parallel manual Preview and continued development, pending human feedback does not stop authorized work after required technical gates pass. Record Preview SHA/URL separately from moving integration; keep owner acceptance pending and isolate later development/test resources. Do not auto-redeploy/reset the owner environment. This does not waive CI, authorize another front or invent human acceptance. The owner chose this mode for Stage 5A/Intelligence Stage 4 on 2026-10-19.
+
 ### Keep the resume point short
 
 Maintain one current snapshot in `CURRENT-COORDINATOR-HANDOFF.md` and one current order in the active Main handoff. Update them in place. Keep the transfer bootstrap independent from current SHAs and assignments. Detailed evidence belongs in the owning issue/PR; preserve older long snapshots in clearly marked archives rather than stacking new CURRENT headings over them.

@@ -7,7 +7,7 @@
 | Owner direction | Reiterated 2026-10-19: finish Stage 5A, then return to finish Stage 4 against this scope; [record in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298) |
 | Parent | [#588 — Asset & Process Intelligence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588) |
 | Frozen boundary | Stage 4A–4C and ADR-020 remain unchanged |
-| Scheduling | Scope prepared while Stage 5A #639 is active; product implementation starts only after #639 is accepted and Main publishes a new exact-base assignment |
+| Scheduling | Stage 5A technical gates and stable Preview delivery passed; owner chose continued development during evaluation on 2026-10-19. #639 visual acceptance remains pending, not a blocker to Main's exact-base Stage 4D #649 assignment |
 
 ## Purpose and current truth
 
@@ -16,6 +16,8 @@ Stage 4A, 4B and 4C are integrated, verified and frozen within the descriptive S
 The Product Owner authorized this residual development sequence on 2026-10-19: complete Stage 5A, then finish Stage 4 using this scope before Stage 5B/6. Main releases the bounded packages on revalidated exact bases. The authorization does not change frozen 4A–4C contracts, establish that residual capabilities exist, or approve a model/threshold without its stated data-validation gate.
 
 ## Authorized bounded packages
+
+Owner clarification, 2026-10-19: continue development after delivery of the stable Docker Preview while the owner evaluates/reports corrections later. Stage 5A visual acceptance is still required before its freeze but is not a Stage 4 development blocker. Preserve Preview revision/data; isolate later development/tests. Main's bounded package is [#649](https://github.com/brunolrogerio-collab/EliteSCADA/issues/649), with [the repository order](WAVE15-INTELLIGENCE-STAGE4D-REFERENCE-EVIDENCE.md).
 
 ### 4D — Reference evidence and data sufficiency
 
@@ -55,7 +57,7 @@ The Product Owner authorized this residual development sequence on 2026-10-19: c
 
 ## Implementation order after Stage 5A
 
-1. Main revalidates the exact integration/product checkpoint after #639 acceptance and publishes the bounded 4D issue/assignment. The owner authorization persists; a new exact-base Main assignment starts each package without requesting repeated authorization for the same scope.
+1. Main revalidates the exact integration/product checkpoint after Stage 5A technical verification and stable Preview delivery, then activates bounded 4D #649. #639 visual acceptance proceeds independently per the owner's 2026-10-19 clarification. Existing authorization persists; each package starts through a bounded exact-base Main assignment without repeated owner permission.
 2. Implement and verify 4D's additive evidence contract and insufficiency semantics.
 3. Implement 4E's explicit versioned profiles/comparability only after its persisted schema and UX-facing operator semantics are accepted.
 4. Run the 4F method/data gate. If the representative dataset or agreed error bounds are absent, stop at design evidence and keep joint detection unclaimed; otherwise implement it as a new versioned contract.

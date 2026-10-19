@@ -1,4 +1,14 @@
-# CURRENT RESUME POINT — STAGE 4D RELEASE; STABLE PREVIEW IN PARALLEL — 2026-10-19
+# CURRENT RESUME POINT — STAGE 4E PREPARATION — 2026-10-19
+
+Read [the current pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [Main's current order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), [ADR-022](docs/ADR-022-INTELLIGENCE-OPERATING-CONTEXT-PROFILES.md), and [the Stage 4E scope](docs/WAVE15-INTELLIGENCE-STAGE4E-OPERATING-CONTEXT.md). This section supersedes the historical Stage 4D execution snapshot below; live refs, issues/PRs and exact-SHA CI remain authoritative.
+
+- **Stage 4D is integrated, verified and closed**: PR #651 merge `dd67bac5c4ca937e028b0fb9890b00dfeedd03a4`; exact final candidate T1 #39321066819 passed; exact-merge T2 #39321693285 passed (Backend build/test/smoke, Web build and Chromium integration gate). Stage4D issue #649 is closed; broader #588 remains PARTIAL. Product checkpoint is `dd67bac5c4ca937e028b0fb9890b00dfeedd03a4`.
+- **Current development front: Stage 4E / #652.** ADR-022 and its bounded issue/order define versioned operator-authored operating-context profiles persisted in Engineering config v3 and `.escadapkg` schema 28, typed required predicates, and read-only exact synchronized-source context eligibility. Frozen Stage 4A–4D contracts remain unchanged; 4F and 4G are not released. The design/docs-only order is being reviewed/published before CODEX activation; no product implementation has been dispatched yet.
+- Revalidated coordination worktree branch `docs/w15-stage4e-context-contract-20261019` at exact base `dd67bac5c4ca937e028b0fb9890b00dfeedd03a4`, equal to `origin/wave15/corrections-integration` at last check. This is a documentation checkout, not a product implementation checkout; re-fetch and revalidate the integration ref and clean isolated product checkout before activation. Stage 4E must remain isolated from the stable owner Preview.
+- Stable Preview remains `http://localhost:18080`, Compose `elitescada-stable`, product `0054d587fe855bbea4b1af81726af016208643da`; preserve its revision/data/volumes/ports. User requested a Full Intelligence license, but it is not installed because the Preview still needs an authenticated administrator session. Do not bypass login, solicit/store credentials, reset or redeploy Preview.
+- Main owns the exact-base activation, design review, PR review/conditional integration and exact-merge T2. CODEX owns one bounded 4E implementation, isolated local validation and exact-head T1. No later stage until 4E is accepted; then Main separately releases 4F and 4G. No Wave/FND/FC0 completion claim is inferred.
+
+# HISTORICAL RESUME POINT — STAGE 4D RELEASE; STABLE PREVIEW IN PARALLEL — 2026-10-19
 
 Read [the current pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [Main's order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), [the issue audit/closure ledger](docs/WAVE15-ISSUE-AUDIT-2026-10-19.md), and live #639/#588/#305. This entry supersedes the historical execution snapshot below.
 

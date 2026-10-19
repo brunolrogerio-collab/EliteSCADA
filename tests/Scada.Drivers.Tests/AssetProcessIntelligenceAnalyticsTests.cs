@@ -1693,6 +1693,8 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             new[]
             {
                 "/api/engineering/asset-process-intelligence/analytics/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v1/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v2/catalog",
@@ -5109,6 +5111,148 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
     }
 
+    [Fact]
+    public async Task ContextEligibilityV1ReturnsExactTimestampMatchesForDeclaredProfileVersion()
+    {
+        using var fixture = Fixture.Create();
+        var request = fixture.EnableContextEligibility();
+        fixture.Historian.Respond = query =>
+        {
+            var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return ResponseV2(query,
+            [
+                V2Row(fixture.Tag.Id, timestamp, "Good", HistoricalQueryValue.FromDouble(5), timestamp, "Synchronized"),
+                V2Row(fixture.Tag.Id, timestamp.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(15), timestamp.AddMinutes(1), "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecuteContextEligibilityV1Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceContextEligibilityV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        var signal = Assert.Single(payload.Signals);
+        Assert.Equal(1, payload.ProfileVersion);
+        Assert.Equal(2, signal.Reference.RawObservationCount);
+        Assert.Equal(2, signal.Reference.AcceptedSynchronizedUniqueCount);
+        Assert.Equal(1, signal.Reference.PredicateMatchCount);
+        Assert.Equal(1, signal.Reference.ContextEligibleObservationCount);
+        Assert.Equal("context_match_available", signal.Reference.Status);
+        Assert.Equal("context-eligibility.v1", payload.RuleId);
+        Assert.Contains("not assessed", payload.Interpretation, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.Equal(HistoricalDatasets.HistorianSamplesV2, fixture.Historian.Requests[0].Dataset);
+    }
+
+    [Fact]
+    public async Task ContextEligibilityV1RejectsStaleProfileBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var request = fixture.EnableContextEligibility();
+        var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+        var current = Assert.Single(configuration.OperatingContextProfiles!);
+        fixture.Workspace.AssetProcessIntelligence.Replace(configuration with
+        {
+            OperatingContextProfiles = [current with { Version = 2 }]
+        });
+        var descriptor = fixture.Workspace.Describe();
+        fixture.Workspace.SetCheckout(Fixture.ProjectKey, "Stale context profile test",
+            descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+
+        var result = await fixture.ExecuteContextEligibilityV1Async(request);
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ContextEligibilityV1EnforcesOneAggregateRawRowLimitAndAllowsExactLimitWithEmptyProbe()
+    {
+        using var fixture = Fixture.Create();
+        var additional = fixture.AddProfileSignal("spare-pressure", "process", TagDataType.Double, "bar");
+        var request = fixture.EnableContextEligibility() with
+        {
+            ReferenceWindow = Window(FromUtc, FromUtc.AddDays(31))
+        };
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            if (tagId == additional.Id) return ResponseV2(query, []);
+            var pageNumber = query.Page!.Cursor is null
+                ? 0
+                : int.Parse(query.Page.Cursor, System.Globalization.CultureInfo.InvariantCulture);
+            var firstSecond = pageNumber * query.Page.Size;
+            var rows = Enumerable.Range(0, query.Page.Size)
+                .Select(index =>
+                {
+                    var timestamp = query.Range.FromUtc!.Value.AddSeconds(firstSecond + index);
+                    return V2Row(fixture.Tag.Id, timestamp, "Good", HistoricalQueryValue.FromDouble(5), timestamp, "Synchronized");
+                })
+                .ToArray();
+            return ResponseV2(query, rows, pageNumber < 249
+                ? (pageNumber + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : null);
+        };
+
+        var result = await fixture.ExecuteContextEligibilityV1Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceContextEligibilityV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(50_000, payload.TotalRawObservationCount);
+        Assert.Equal(251, fixture.Historian.Calls);
+        Assert.Equal(1, fixture.Historian.Requests[^1].Page!.Size);
+    }
+
+    [Fact]
+    public async Task ContextEligibilityV1RejectsAggregateRawRowOverflowWithoutReturningPartialResults()
+    {
+        using var fixture = Fixture.Create();
+        var additional = fixture.AddProfileSignal("spare-pressure", "process", TagDataType.Double, "bar");
+        var request = fixture.EnableContextEligibility() with
+        {
+            ReferenceWindow = Window(FromUtc, FromUtc.AddDays(31))
+        };
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            if (tagId == additional.Id)
+            {
+                var timestamp = query.Range.FromUtc!.Value.AddDays(1);
+                return ResponseV2(query,
+                [
+                    V2Row(additional.Id, timestamp, "Good", HistoricalQueryValue.FromDouble(5), timestamp, "Synchronized")
+                ]);
+            }
+
+            var pageNumber = query.Page!.Cursor is null
+                ? 0
+                : int.Parse(query.Page.Cursor, System.Globalization.CultureInfo.InvariantCulture);
+            var firstSecond = pageNumber * query.Page.Size;
+            var rows = Enumerable.Range(0, query.Page.Size)
+                .Select(index =>
+                {
+                    var timestamp = query.Range.FromUtc!.Value.AddSeconds(firstSecond + index);
+                    return V2Row(fixture.Tag.Id, timestamp, "Good", HistoricalQueryValue.FromDouble(5), timestamp, "Synchronized");
+                })
+                .ToArray();
+            return ResponseV2(query, rows, pageNumber < 249
+                ? (pageNumber + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : null);
+        };
+
+        var result = await fixture.ExecuteContextEligibilityV1Async(request);
+
+        AssertStatus(StatusCodes.Status413PayloadTooLarge, result);
+        Assert.Equal(251, fixture.Historian.Calls);
+        Assert.Equal(50_001, fixture.Historian.Requests.Sum(query => query.Page!.Size));
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_CONTEXT_ELIGIBILITY_WINDOW_TOO_DENSE", error.Code);
+        Assert.IsNotType<AssetProcessIntelligenceContextEligibilityV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
     private static AssetProcessIntelligenceReferenceEvidenceV1QueryRequest ReferenceEvidenceRequest(Fixture fixture)
     {
         var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
@@ -5370,6 +5514,43 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         {
             var context = CreateContext();
             return Analytics.ExecuteReferenceEvidenceV1Async(context, request, cancellationToken);
+        }
+
+        public Task<IResult> ExecuteContextEligibilityV1Async(
+            AssetProcessIntelligenceContextEligibilityV1QueryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var context = CreateContext();
+            return Analytics.ExecuteContextEligibilityV1Async(context, request, cancellationToken);
+        }
+
+        public AssetProcessIntelligenceContextEligibilityV1QueryRequest EnableContextEligibility()
+        {
+            var configuration = Workspace.AssetProcessIntelligence.Snapshot();
+            var assignment = Assert.Single(configuration.Assignments!);
+            var contextId = Guid.NewGuid();
+            var contextProfile = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+                contextId,
+                "normal-operating",
+                "Normal operating",
+                assignment.Id,
+                1,
+                [new(Tag.Id, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 0, 10)]);
+            Workspace.AssetProcessIntelligence.Replace(configuration with
+            {
+                Version = 3,
+                OperatingContextProfiles = [contextProfile]
+            });
+            var descriptor = Workspace.Describe();
+            Workspace.SetCheckout(ProjectKey, "Operating context eligibility test",
+                descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+            return new AssetProcessIntelligenceContextEligibilityV1QueryRequest(
+                ScopeKind,
+                ScopeId,
+                assignment.Id,
+                contextId,
+                1,
+                Window(FromUtc, FromUtc.AddHours(1)));
         }
 
         public Task<IResult> ExecutePerformanceV1BAsync(AssetProcessIntelligencePerformanceV1BQueryRequest? request = null)

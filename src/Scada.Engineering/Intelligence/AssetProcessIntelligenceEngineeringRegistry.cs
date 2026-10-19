@@ -33,6 +33,11 @@ public sealed class InMemoryAssetProcessIntelligenceEngineeringRegistry(
                     .Select(stage => stage with
                     {
                         Links = (stage.Links ?? Array.Empty<AssetProcessIntelligenceProcessStageLinkEngineeringDto>()).ToArray()
+                    }).ToArray(),
+                OperatingContextProfiles = (_configuration.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+                    .Select(profile => profile with
+                    {
+                        Predicates = (profile.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>()).ToArray()
                     }).ToArray()
             };
     }
@@ -78,6 +83,16 @@ public sealed class InMemoryAssetProcessIntelligenceEngineeringRegistry(
                     .OrderBy(stage => stage.Order)
                     .ThenBy(stage => stage.Key, StringComparer.Ordinal)
                     .ThenBy(stage => stage.Id)
+                    .ToArray(),
+                OperatingContextProfiles = (configuration.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+                    .Select(profile => profile with
+                    {
+                        Predicates = (profile.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>())
+                            .OrderBy(predicate => predicate.TagId)
+                            .ToArray()
+                    })
+                    .OrderBy(profile => profile.Key, StringComparer.Ordinal)
+                    .ThenBy(profile => profile.Id)
                     .ToArray()
             };
         changed?.Invoke();
@@ -123,15 +138,17 @@ public static class AssetProcessIntelligenceEngineeringValidator
     {
         var issues = new List<AssetProcessIntelligenceEngineeringIssue>();
         if (configuration is null) return issues;
-        if (configuration.Version is not (1 or 2))
+        if (configuration.Version is not (1 or 2 or 3))
         {
-            issues.Add(new("INTELLIGENCE_CONFIGURATION_VERSION_UNSUPPORTED", "Asset & Process Intelligence configuration version must be 1 or 2."));
+            issues.Add(new("INTELLIGENCE_CONFIGURATION_VERSION_UNSUPPORTED", "Asset & Process Intelligence configuration version must be 1, 2 or 3."));
             return issues;
         }
 
         if (configuration.Version == 1 &&
-            ((configuration.Profiles?.Count ?? 0) != 0 || (configuration.Assignments?.Count ?? 0) != 0 || (configuration.ProcessStages?.Count ?? 0) != 0))
+            ((configuration.Profiles?.Count ?? 0) != 0 || (configuration.Assignments?.Count ?? 0) != 0 || (configuration.ProcessStages?.Count ?? 0) != 0 || (configuration.OperatingContextProfiles?.Count ?? 0) != 0))
             issues.Add(new("INTELLIGENCE_V1_EXTENSIONS_NOT_SUPPORTED", "Version 1 Intelligence configuration may contain scopes only.", AssetProcessIntelligenceIssueEntity.Configuration));
+        if (configuration.Version == 2 && (configuration.OperatingContextProfiles?.Count ?? 0) != 0)
+            issues.Add(new("INTELLIGENCE_V2_CONTEXT_PROFILES_NOT_SUPPORTED", "Version 2 Intelligence configuration cannot contain operating-context profiles.", AssetProcessIntelligenceIssueEntity.Configuration));
 
         var equipmentIds = UniqueResourceIds(equipment?.Where(item => item is not null).Select(item => item!.Id), "EQUIPMENT", AssetProcessIntelligenceIssueEntity.Assignment, issues);
         var locationIds = UniqueResourceIds(locations?.Where(item => item is not null).Select(item => item!.Id), "LOCATION", AssetProcessIntelligenceIssueEntity.Scope, issues);
@@ -248,7 +265,104 @@ public static class AssetProcessIntelligenceEngineeringValidator
             }
         }
 
+        if (configuration.Version == 3)
+        {
+            var contextProfiles = configuration.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>();
+            ValidateIdentitySet(contextProfiles, profile => profile.Id, profile => profile.Key, "OPERATING_CONTEXT_PROFILE", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, issues);
+            var contextKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var context in contextProfiles)
+            {
+                if (context is null) continue;
+                ValidateStableKey(context.Key, "OPERATING_CONTEXT_PROFILE", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id, issues);
+                if (!string.IsNullOrWhiteSpace(context.Key) && !contextKeys.Add(context.Key.Trim()))
+                    issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_KEY_DUPLICATE", $"Operating-context profile key '{context.Key}' is duplicated.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                if (string.IsNullOrWhiteSpace(context.DisplayLabel) || context.DisplayLabel.Trim().Length > 128)
+                    issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_LABEL_INVALID", "An operating-context profile requires a display label of 1 to 128 characters.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                if (context.Version < 1)
+                    issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_INVALID", "An operating-context profile version must be positive.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                if (!assignmentById.TryGetValue(context.AssignmentId, out var matchingAssignments) || matchingAssignments.Length != 1)
+                {
+                    issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_ASSIGNMENT_NOT_FOUND", "An operating-context profile must reference one existing Equipment assignment.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                    continue;
+                }
+                var assignment = matchingAssignments[0];
+                if (!profileById.TryGetValue(assignment.ProfileId, out var assignedProfiles) || assignedProfiles.Length != 1)
+                {
+                    issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_MEASUREMENT_PROFILE_NOT_FOUND", "The operating-context assignment has no unique measurement profile.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                    continue;
+                }
+                var signalTagIds = (assignedProfiles[0].Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                    .Where(signal => signal is not null)
+                    .Select(signal => signal.TagId)
+                    .ToHashSet();
+                var predicates = context.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>();
+                if (predicates.Count is < 1 or > 16)
+                    issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_PREDICATE_COUNT_INVALID", "An operating-context profile requires 1 to 16 predicates.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                var predicateTagIds = new HashSet<Guid>();
+                foreach (var predicate in predicates)
+                {
+                    if (predicate is null || predicate.TagId == Guid.Empty)
+                    {
+                        issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_PREDICATE_TAG_INVALID", "Every context predicate requires a stable TAG identity.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                        continue;
+                    }
+                    if (!predicateTagIds.Add(predicate.TagId))
+                        issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_PREDICATE_TAG_DUPLICATE", "An operating-context profile may declare only one predicate per TAG.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                    if (!signalTagIds.Contains(predicate.TagId))
+                        issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_TAG_NOT_IN_ASSIGNED_PROFILE", $"Context predicate TAG '{predicate.TagId:D}' is not part of the assigned measurement profile.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                    var tag = tags?.FirstOrDefault(item => item.Id == predicate.TagId);
+                    if (tagIds?.Contains(predicate.TagId) == false)
+                        issues.Add(new("INTELLIGENCE_OPERATING_CONTEXT_TAG_NOT_FOUND", $"Context predicate TAG '{predicate.TagId:D}' is missing or ambiguous.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                    if (tag is not null)
+                        ValidateOperatingContextPredicate(predicate, tag, context.Id, issues);
+                }
+            }
+        }
+
         return issues;
+    }
+
+    private static void ValidateOperatingContextPredicate(
+        AssetProcessIntelligenceOperatingContextPredicateEngineeringDto predicate,
+        TagEngineeringDto tag,
+        Guid profileId,
+        List<AssetProcessIntelligenceEngineeringIssue> issues)
+    {
+        void Invalid(string code, string message) => issues.Add(new(code, message, AssetProcessIntelligenceIssueEntity.OperatingContextProfile, profileId));
+        switch (predicate.Kind)
+        {
+            case AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval:
+                if (tag.DataType is not (Scada.Core.Tags.TagDataType.Int16 or Scada.Core.Tags.TagDataType.Int32 or Scada.Core.Tags.TagDataType.Int64 or Scada.Core.Tags.TagDataType.Float or Scada.Core.Tags.TagDataType.Double))
+                    Invalid("INTELLIGENCE_OPERATING_CONTEXT_PREDICATE_TYPE_MISMATCH", "Numeric intervals require a numeric TAG.");
+                if ((!predicate.Minimum.HasValue && !predicate.Maximum.HasValue) ||
+                    (predicate.Minimum.HasValue && !double.IsFinite(predicate.Minimum.Value)) ||
+                    (predicate.Maximum.HasValue && !double.IsFinite(predicate.Maximum.Value)) ||
+                    (predicate.Minimum.HasValue && predicate.Maximum.HasValue && predicate.Minimum.Value > predicate.Maximum.Value) ||
+                    predicate.BooleanValue.HasValue || predicate.ExactValue is not null)
+                    Invalid("INTELLIGENCE_OPERATING_CONTEXT_NUMERIC_BOUNDS_INVALID", "A numeric interval requires at least one finite bound, ordered inclusively, and no non-numeric value.");
+                break;
+            case AssetProcessIntelligenceOperatingContextPredicateKind.BooleanEquals:
+                if (tag.DataType != Scada.Core.Tags.TagDataType.Boolean)
+                    Invalid("INTELLIGENCE_OPERATING_CONTEXT_PREDICATE_TYPE_MISMATCH", "Boolean equality requires a Boolean TAG.");
+                if (!predicate.BooleanValue.HasValue || predicate.Minimum.HasValue || predicate.Maximum.HasValue || predicate.ExactValue is not null)
+                    Invalid("INTELLIGENCE_OPERATING_CONTEXT_BOOLEAN_VALUE_INVALID", "Boolean equality requires exactly one Boolean value.");
+                break;
+            case AssetProcessIntelligenceOperatingContextPredicateKind.StringEquals:
+                if (tag.DataType != Scada.Core.Tags.TagDataType.String)
+                    Invalid("INTELLIGENCE_OPERATING_CONTEXT_PREDICATE_TYPE_MISMATCH", "String equality requires a String TAG.");
+                if (predicate.ExactValue is null || predicate.BooleanValue.HasValue || predicate.Minimum.HasValue || predicate.Maximum.HasValue)
+                    Invalid("INTELLIGENCE_OPERATING_CONTEXT_EXACT_VALUE_INVALID", "String equality requires exactly one ordinal value.");
+                break;
+            case AssetProcessIntelligenceOperatingContextPredicateKind.EnumEquals:
+                if (tag.DataType != Scada.Core.Tags.TagDataType.Enum)
+                    Invalid("INTELLIGENCE_OPERATING_CONTEXT_PREDICATE_TYPE_MISMATCH", "Enum equality requires an Enum TAG.");
+                if (predicate.ExactValue is null || predicate.BooleanValue.HasValue || predicate.Minimum.HasValue || predicate.Maximum.HasValue)
+                    Invalid("INTELLIGENCE_OPERATING_CONTEXT_EXACT_VALUE_INVALID", "Enum equality requires exactly one ordinal value.");
+                break;
+            default:
+                Invalid("INTELLIGENCE_OPERATING_CONTEXT_PREDICATE_UNSUPPORTED", "The operating-context predicate kind is unsupported.");
+                break;
+        }
     }
 
     private static void ValidateSemanticTagBinding(

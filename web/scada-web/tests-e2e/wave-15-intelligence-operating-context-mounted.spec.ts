@@ -21,6 +21,7 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
     operatingContextProfiles: []
   };
   let saved: Record<string, any> | null = null;
+  let currentEngineeringUnit = '°C';
 
   await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
     authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
@@ -36,7 +37,7 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
   await page.route('**/api/engineering/asset-process-intelligence/scopes', route => route.fulfill({ json: {
     configuration,
     resources: [{ kind: 'Equipment', scopeId: equipmentId, path: 'Plant.Pump01', name: 'Pump P01' }],
-    tags: [{ id: tagId, name: 'Temperature', path: 'Plant.Pump.Temperature', dataType: 'Double', engineeringUnit: '°C' }],
+    tags: [{ id: tagId, name: 'Temperature', path: 'Plant.Pump.Temperature', dataType: 'Double', engineeringUnit: currentEngineeringUnit }],
     licensed: true,
     execution: { stage: 'Stage1', workerRegistered: false, queueDepth: 0, activePermitCount: 0, projectKey: 'test-project', activeRevision: 1, workspaceDirty: false }
   } }));
@@ -44,10 +45,12 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
     const payload = route.request().postDataJSON() as Record<string, any>;
     saved = payload;
     const previousProfiles = configuration.operatingContextProfiles as Array<Record<string, any>>;
-    const versionedContextProfiles = (payload.operatingContextProfiles as Array<Record<string, any>>).map(profile => ({
-      ...profile,
-      version: previousProfiles.find(previous => previous.id === profile.id)?.version ?? 1
-    }));
+    const versionedContextProfiles = (payload.operatingContextProfiles as Array<Record<string, any>>).map(profile => {
+      const previous = previousProfiles.find(item => item.id === profile.id);
+      const unchanged = previous && JSON.stringify(previous.predicates) === JSON.stringify(profile.predicates);
+      return { ...profile, version: previous ? previous.version + (unchanged ? 0 : 1) : 1 };
+    });
+    if (previousProfiles.length === 0) currentEngineeringUnit = 'K';
     configuration = { ...configuration, ...payload, operatingContextProfiles: versionedContextProfiles };
     await route.fulfill({ json: { configuration, workspace: {} } });
   });
@@ -72,10 +75,18 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
 
   const payload = saved as unknown as {
     operatingContextProfiles: Array<{
+      id: string;
       key: string;
       displayLabel: string;
       assignmentId: string;
-      predicates: Array<{ tagId: string; kind: string; minimum: number | null; maximum: number | null }>;
+      predicates: Array<{
+        tagId: string;
+        kind: string;
+        minimum: number | null;
+        maximum: number | null;
+        engineeringUnit: string | null;
+        engineeringUnitConfirmed: boolean;
+      }>;
     }>;
     expectedOperatingContextProfileVersions: Array<{ id: string; version: number }>;
   };
@@ -85,9 +96,35 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
     key: 'normal-operating',
     displayLabel: 'Operação normal',
     assignmentId,
-    predicates: [{ tagId, kind: 'NumericInterval', minimum: 2, maximum: 8 }]
+    predicates: [{
+      tagId,
+      kind: 'NumericInterval',
+      minimum: 2,
+      maximum: 8,
+      engineeringUnit: '°C',
+      engineeringUnitConfirmed: true
+    }]
   });
+  const contextId = payload.operatingContextProfiles[0].id;
   expect(payload.operatingContextProfiles[0]).not.toHaveProperty('version');
   await expect(contextEditor.getByText('Versão salva pelo servidor: v1')).toBeVisible();
   await expect(contextEditor.getByText('Operação normal')).toBeVisible();
+
+  await expect(contextEditor.getByRole('status')).toContainText('Unidade salva: °C; Unidade atual: K');
+  await expect(contextEditor.getByLabel('Mínimo (inclusivo)')).toBeDisabled();
+  await contextEditor.getByRole('button', { name: 'Confirmar limites na unidade atual' }).click();
+  await expect(contextEditor.getByLabel('Mínimo (inclusivo)')).toBeEnabled();
+  await workspace.locator('.asset-process-intelligence__authoring-footer')
+    .getByRole('button', { name: 'Salvar configuração de processo' }).click();
+  await expect.poll(() => saved?.expectedOperatingContextProfileVersions).toEqual([
+    { id: contextId, version: 1 }
+  ]);
+  const reconfirmed = saved as unknown as {
+    operatingContextProfiles: Array<{ predicates: Array<{ engineeringUnit: string | null; engineeringUnitConfirmed: boolean }> }>;
+  };
+  expect(reconfirmed.operatingContextProfiles[0].predicates[0]).toMatchObject({
+    engineeringUnit: 'K',
+    engineeringUnitConfirmed: true
+  });
+  await expect(contextEditor.getByText('Versão salva pelo servidor: v2')).toBeVisible();
 });

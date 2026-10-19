@@ -5166,6 +5166,106 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public async Task ContextEligibilityV1RejectsNumericBoundsAfterEngineeringUnitChangesBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var request = fixture.EnableContextEligibility();
+        fixture.Runtime.SetTag(fixture.Tag with { EngineeringUnit = "kPa" });
+
+        var result = await fixture.ExecuteContextEligibilityV1Async(request);
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_OPERATING_CONTEXT_NUMERIC_UNIT_STALE", error.Code);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ContextEligibilityV1KeepsOneDeclaredContextVersionAcrossBothWindows()
+    {
+        using var fixture = Fixture.Create();
+        var request = fixture.EnableContextEligibility() with
+        {
+            ComparisonWindow = Window(FromUtc.AddHours(2), FromUtc.AddHours(3))
+        };
+        fixture.Historian.Respond = query =>
+        {
+            var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return ResponseV2(query,
+            [
+                V2Row(fixture.Tag.Id, timestamp, "Good", HistoricalQueryValue.FromDouble(5), timestamp, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecuteContextEligibilityV1Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceContextEligibilityV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(request.ExpectedProfileVersion, payload.ProfileVersion);
+        var signal = Assert.Single(payload.Signals);
+        Assert.Equal(request.ReferenceWindow, signal.Reference.Window);
+        Assert.Equal(request.ComparisonWindow, signal.Comparison!.Window);
+        Assert.Equal("context_match_available", signal.Reference.Status);
+        Assert.Equal("context_match_available", signal.Comparison.Status);
+        Assert.Equal(2, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ContextEligibilityV1ProviderFailureInComparisonWindowNeverReturnsReferenceOnlyPayload()
+    {
+        using var fixture = Fixture.Create();
+        var request = fixture.EnableContextEligibility() with
+        {
+            ComparisonWindow = Window(FromUtc.AddHours(2), FromUtc.AddHours(3))
+        };
+        fixture.Historian.RespondAsync = (query, _) =>
+        {
+            if (query.Range.FromUtc == request.ComparisonWindow!.FromUtc)
+                throw new HistoricalQueryProviderException("comparison provider unavailable");
+            var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return Task.FromResult(ResponseV2(query,
+            [
+                V2Row(fixture.Tag.Id, timestamp, "Good", HistoricalQueryValue.FromDouble(5), timestamp, "Synchronized")
+            ]));
+        };
+
+        var result = await fixture.ExecuteContextEligibilityV1Async(request);
+
+        AssertStatus(StatusCodes.Status503ServiceUnavailable, result);
+        Assert.Equal(2, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceContextEligibilityV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ContextEligibilityV1ReportsNonNumericTargetAsNotApplicable()
+    {
+        using var fixture = Fixture.Create();
+        var request = fixture.EnableContextEligibility();
+        fixture.Runtime.SetTag(fixture.Tag with { DataType = TagDataType.String });
+        fixture.Historian.Respond = query =>
+        {
+            var timestamp = query.Range.FromUtc!.Value.AddMinutes(1);
+            return ResponseV2(query,
+            [
+                V2Row(fixture.Tag.Id, timestamp, "Good", HistoricalQueryValue.FromString("RUN"), timestamp, "Synchronized")
+            ]);
+        };
+
+        var result = await fixture.ExecuteContextEligibilityV1Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceContextEligibilityV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        var signal = Assert.Single(payload.Signals);
+        Assert.Equal("target_type_not_applicable", signal.Reference.Status);
+        Assert.Equal(0, signal.Reference.ContextEligibleObservationCount);
+        Assert.Equal(1, fixture.Historian.Calls);
+    }
+
+    [Fact]
     public async Task ContextEligibilityV1EnforcesOneAggregateRawRowLimitAndAllowsExactLimitWithEmptyProbe()
     {
         using var fixture = Fixture.Create();
@@ -5249,6 +5349,51 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
         var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
         Assert.Equal("INTELLIGENCE_CONTEXT_ELIGIBILITY_WINDOW_TOO_DENSE", error.Code);
+        Assert.IsNotType<AssetProcessIntelligenceContextEligibilityV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ContextEligibilityV1AppliesAggregateRowBudgetAcrossReferenceAndComparisonWindows()
+    {
+        using var fixture = Fixture.Create();
+        var request = fixture.EnableContextEligibility() with
+        {
+            ReferenceWindow = Window(FromUtc, FromUtc.AddDays(31)),
+            ComparisonWindow = Window(FromUtc.AddDays(31).AddMinutes(1), FromUtc.AddDays(31).AddMinutes(2))
+        };
+        fixture.Historian.Respond = query =>
+        {
+            if (query.Range.FromUtc == request.ComparisonWindow!.FromUtc)
+            {
+                var timestamp = query.Range.FromUtc.Value.AddSeconds(1);
+                return ResponseV2(query,
+                [
+                    V2Row(fixture.Tag.Id, timestamp, "Good", HistoricalQueryValue.FromDouble(5), timestamp, "Synchronized")
+                ]);
+            }
+
+            var pageNumber = query.Page!.Cursor is null
+                ? 0
+                : int.Parse(query.Page.Cursor, System.Globalization.CultureInfo.InvariantCulture);
+            var firstSecond = pageNumber * query.Page.Size;
+            var rows = Enumerable.Range(0, query.Page.Size)
+                .Select(index =>
+                {
+                    var timestamp = query.Range.FromUtc!.Value.AddSeconds(firstSecond + index);
+                    return V2Row(fixture.Tag.Id, timestamp, "Good", HistoricalQueryValue.FromDouble(5), timestamp, "Synchronized");
+                })
+                .ToArray();
+            return ResponseV2(query, rows, pageNumber < 249
+                ? (pageNumber + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : null);
+        };
+
+        var result = await fixture.ExecuteContextEligibilityV1Async(request);
+
+        AssertStatus(StatusCodes.Status413PayloadTooLarge, result);
+        Assert.Equal(251, fixture.Historian.Calls);
+        Assert.Equal(50_001, fixture.Historian.Requests.Sum(query => query.Page!.Size));
         Assert.IsNotType<AssetProcessIntelligenceContextEligibilityV1Response>(
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
     }
@@ -5535,7 +5680,8 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 "Normal operating",
                 assignment.Id,
                 1,
-                [new(Tag.Id, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 0, 10)]);
+                [new(Tag.Id, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 0, 10,
+                    EngineeringUnit: Tag.EngineeringUnit, EngineeringUnitConfirmed: true)]);
             Workspace.AssetProcessIntelligence.Replace(configuration with
             {
                 Version = 3,

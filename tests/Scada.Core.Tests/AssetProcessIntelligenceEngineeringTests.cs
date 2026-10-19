@@ -218,6 +218,62 @@ public sealed class AssetProcessIntelligenceEngineeringTests
     }
 
     [Fact]
+    public void ChangingOnlyNumericContextUnitProvenanceAdvancesTheContextProfileVersion()
+    {
+        var equipmentId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var measurementProfileId = Guid.NewGuid();
+        var signalId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var contextProfileId = Guid.NewGuid();
+        var equipment = new EquipmentEngineeringDto(equipmentId, "Plant.P01", "Pump P01");
+        var tag = TagDefinition.Create("Temperature", "Plant.P01.Temperature", TagDataType.Double,
+            engineeringUnit: "°C", readOnly: true) with { Id = tagId };
+        var measurement = new AssetProcessIntelligenceProfileEngineeringDto(measurementProfileId, "pump", "Pump",
+            [new(signalId, "temperature", "process", tagId)]);
+        var assignment = new AssetProcessIntelligenceAssignmentEngineeringDto(assignmentId, equipmentId, measurementProfileId);
+        var current = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+            contextProfileId, "normal", "Normal", assignmentId, 2,
+            [new(tagId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 10, 20)]);
+        var registry = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        registry.Replace(new AssetProcessIntelligenceEngineeringDto(
+            Version: 3,
+            Profiles: [measurement],
+            Assignments: [assignment],
+            OperatingContextProfiles: [current]));
+        var assets = new InMemoryEngineeringAssetRegistry();
+        assets.UpsertEquipment(equipment);
+        var tags = new InMemoryTagRegistry();
+        tags.Register(tag);
+        var service = CreateExchange(registry, assets, tags);
+        var confirmed = current with
+        {
+            Version = 1,
+            Predicates =
+            [new(tagId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 10, 20,
+                EngineeringUnit: "°C", EngineeringUnitConfirmed: true)]
+        };
+        var package = Package(new AssetProcessIntelligenceEngineeringDto(
+            Version: 3,
+            Profiles: [measurement],
+            Assignments: [assignment],
+            OperatingContextProfiles: [confirmed]),
+            equipment: [equipment],
+            tags: [new TagEngineeringDto(tagId, "Temperature", "Plant.P01.Temperature", TagDataType.Double,
+                EngineeringUnit: "°C")]);
+
+        var result = service.Apply(package, ImportMode.CreateAndUpdate);
+
+        Assert.Empty(result.Issues);
+        var saved = Assert.Single(registry.Snapshot().OperatingContextProfiles!);
+        var savedPredicate = Assert.Single(saved.Predicates!);
+        Assert.Equal(3, saved.Version);
+        Assert.Equal(10, savedPredicate.Minimum);
+        Assert.Equal("°C", savedPredicate.EngineeringUnit);
+        Assert.True(savedPredicate.EngineeringUnitConfirmed);
+    }
+
+    [Fact]
     public void PreviewRejectsMissingAndAmbiguousStage2ReferencesWithoutPartialMutation()
     {
         var equipmentId = Guid.Parse("a1700000-0000-0000-0000-000000000001");

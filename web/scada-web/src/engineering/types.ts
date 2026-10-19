@@ -342,6 +342,8 @@ export type AssetProcessIntelligenceOperatingContextPredicateEngineering = {
   maximum?: number | null;
   booleanValue?: boolean | null;
   exactValue?: string | null;
+  engineeringUnit?: string | null;
+  engineeringUnitConfirmed?: boolean;
 };
 
 export type AssetProcessIntelligenceOperatingContextProfileEngineering = {

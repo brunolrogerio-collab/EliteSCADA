@@ -1177,6 +1177,16 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             var signalsByTag = signals.ToDictionary(item => item.Tag.Id);
             if (predicates.Any(predicate => !signalsByTag.ContainsKey(predicate.TagId)))
                 return Conflict("INTELLIGENCE_CONTEXT_ELIGIBILITY_PREDICATE_TAG_NOT_IN_PROFILE");
+            var hasStaleNumericUnit = predicates
+                .Where(predicate => predicate.Kind == AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval)
+                .Any(predicate =>
+                {
+                    var tag = signalsByTag[predicate.TagId].Tag;
+                    return !predicate.EngineeringUnitConfirmed ||
+                        !string.Equals(predicate.EngineeringUnit, tag.EngineeringUnit, StringComparison.Ordinal);
+                });
+            if (hasStaleNumericUnit)
+                return Conflict("INTELLIGENCE_OPERATING_CONTEXT_NUMERIC_UNIT_STALE");
 
             var allPlans = plan.Signals.Select(signal => signal.Plan).ToArray();
             using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(requestToken, plan.PermitToken);

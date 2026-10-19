@@ -90,6 +90,7 @@ export function AssetProcessIntelligenceWorkspace({
   const [message, setMessage] = useState<string | null>(null);
 
   const copy = useMemo(() => text(locale), [locale]);
+  const unitCopy = useMemo(() => contextUnitText(locale), [locale]);
   const load = useCallback(async (adoptConfiguration = false) => {
     setLoading(true);
     setError(null);
@@ -327,6 +328,8 @@ export function AssetProcessIntelligenceWorkspace({
     if (contextPredicateKind === 'NumericInterval') {
       predicate.minimum = contextPredicateMinimum.trim() === '' ? null : Number(contextPredicateMinimum);
       predicate.maximum = contextPredicateMaximum.trim() === '' ? null : Number(contextPredicateMaximum);
+      predicate.engineeringUnit = tag.engineeringUnit ?? null;
+      predicate.engineeringUnitConfirmed = true;
     } else if (contextPredicateKind === 'BooleanEquals') {
       predicate.booleanValue = contextPredicateBoolean === 'true';
     } else {
@@ -596,16 +599,28 @@ export function AssetProcessIntelligenceWorkspace({
                 <label>{copy.contextLabel}<input value={selectedContextProfile.displayLabel} disabled={!canEngineer || !canManage} onChange={event => updateContextProfile({ displayLabel: event.currentTarget.value })}/></label>
               </div>
               <p className="asset-process-intelligence__version">{copy.savedProfileVersion}: v{snapshot?.configuration.operatingContextProfiles.find(item => item.id === selectedContextProfile.id)?.version ?? copy.newProfile}</p>
-              <div className="asset-process-intelligence__section-heading"><div><h4>{copy.contextPredicates}</h4><p>{copy.contextPredicatesHint}</p></div></div>
+              <div className="asset-process-intelligence__section-heading"><div><h4>{copy.contextPredicates}</h4><p>{copy.contextPredicatesHint}</p><p>{unitCopy.policy}</p></div></div>
               {selectedContextProfile.predicates.length === 0 ? <div className="eng-empty"><strong>{copy.noContextPredicates}</strong></div> : <div className="asset-process-intelligence__list">
                 {selectedContextProfile.predicates.map(predicate => {
                   const tag = tagsById.get(predicate.tagId.toLowerCase());
+                  const numericUnitConfirmed = predicate.kind !== 'NumericInterval' || (!!tag &&
+                    predicate.engineeringUnitConfirmed === true &&
+                    (predicate.engineeringUnit ?? null) === (tag?.engineeringUnit ?? null));
                   return <article className="asset-process-intelligence__row" key={predicate.tagId}>
                     <span><strong>{tag?.path ?? copy.missingTag}</strong><small>{tag ? `${tag.dataType}${tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}` : predicate.tagId}</small></span>
                     {predicate.kind === 'NumericInterval' ? <div className="asset-process-intelligence__field-grid">
-                      <label>{copy.minimumInclusive}<input type="number" value={predicate.minimum ?? ''} disabled={!canEngineer || !canManage} onChange={event => updateContextPredicate(predicate.tagId, { minimum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
-                      <label>{copy.maximumInclusive}<input type="number" value={predicate.maximum ?? ''} disabled={!canEngineer || !canManage} onChange={event => updateContextPredicate(predicate.tagId, { maximum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
+                      <label>{copy.minimumInclusive}<input type="number" value={predicate.minimum ?? ''} disabled={!canEngineer || !canManage || !numericUnitConfirmed} onChange={event => updateContextPredicate(predicate.tagId, { minimum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
+                      <label>{copy.maximumInclusive}<input type="number" value={predicate.maximum ?? ''} disabled={!canEngineer || !canManage || !numericUnitConfirmed} onChange={event => updateContextPredicate(predicate.tagId, { maximum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
                     </div> : predicate.kind === 'BooleanEquals' ? <label>{copy.predicateValue}<select value={String(predicate.booleanValue ?? true)} disabled={!canEngineer || !canManage} onChange={event => updateContextPredicate(predicate.tagId, { booleanValue: event.currentTarget.value === 'true' })}><option value="true">{copy.matchTrue}</option><option value="false">{copy.matchFalse}</option></select></label> : <label>{copy.exactValue}<input value={predicate.exactValue ?? ''} disabled={!canEngineer || !canManage} onChange={event => updateContextPredicate(predicate.tagId, { exactValue: event.currentTarget.value })}/></label>}
+                    {predicate.kind === 'NumericInterval' ? <>
+                      <small role="status">{numericUnitConfirmed
+                        ? `${unitCopy.confirmed}: ${predicate.engineeringUnit ?? unitCopy.unitless}`
+                        : `${unitCopy.unconfirmed}: ${unitCopy.storedUnit} ${predicate.engineeringUnit ?? unitCopy.unitless}; ${unitCopy.currentUnit} ${tag?.engineeringUnit ?? unitCopy.unitless}`}</small>
+                      {!numericUnitConfirmed ? <button type="button" className="secondary" disabled={!canEngineer || !canManage || !tag} onClick={() => tag && updateContextPredicate(predicate.tagId, {
+                        engineeringUnit: tag.engineeringUnit ?? null,
+                        engineeringUnitConfirmed: true
+                      })}>{unitCopy.confirm}</button> : null}
+                    </> : null}
                     <button type="button" className="secondary" disabled={!canEngineer || !canManage} onClick={() => removeContextPredicate(predicate.tagId)}>{copy.remove}</button>
                   </article>;
                 })}
@@ -810,5 +825,35 @@ function text(locale: EngineeringLocale) {
     assignments: 'Associações de equipamentos', assignmentsHint: 'Associe um perfil reutilizável a cada identidade estável de equipamento. Um equipamento pode usar vários perfis.', equipment: 'Equipamento', profile: 'Perfil', chooseEquipment: 'Escolha um equipamento', chooseProfile: 'Escolha um perfil', assignProfile: 'Associar perfil', noEquipment: 'Nenhum equipamento estável disponível.', noAssignments: 'Nenhuma associação ainda.', missingEquipment: 'Equipamento ausente', missingProfile: 'Perfil ausente', referenceMissing: 'Referência ausente',
     processStages: 'Etapas ordenadas do processo', processStagesHint: 'Organize associações nas etapas; a ordem é explícita e estável.', newStage: 'Nova etapa', noStages: 'Nenhuma etapa de processo ainda.', defaultStage: 'Etapa', stageKey: 'Chave estável', stageName: 'Nome de exibição', noStageAssignments: 'Nenhuma associação nesta etapa.', stageAssignment: 'Associação', chooseAssignment: 'Escolha uma associação', addToStage: 'Adicionar à etapa', moveUp: 'Mover para cima', moveDown: 'Mover para baixo', staticOnly: 'Somente configuração: sem leitura de TAG, valores, consultas ao Historian ou inferências.', saveConfiguration: 'Salvar configuração de processo', configurationSaved: 'Configuração de processo salva no Working.',
     contextProfiles: 'Perfis de contexto operacional', contextProfilesHint: 'Vincule cada contexto a uma associação de equipamento. Consultas de elegibilidade são separadas, somente leitura e usam a versão exata do perfil.', newContextProfile: 'Novo contexto', noContextProfiles: 'Nenhum contexto operacional ainda.', defaultContext: 'Contexto', contextKey: 'Chave estável', contextLabel: 'Rótulo do operador', selectedAssignment: 'Associação de equipamento', contextAuthorizationHint: 'São necessários EngineeringModify e AssetProcessIntelligenceManage com escopo para o recurso para editar contextos.', contextPredicates: 'Predicados obrigatórios', contextPredicatesHint: 'Todos os predicados devem corresponder no mesmo timestamp UTC de origem, sincronizado e exato. Os limites numéricos usam a unidade de Engineering atual.', noContextPredicates: 'Adicione pelo menos um predicado obrigatório antes de salvar.', predicateTag: 'TAG do perfil de medição associado', choosePredicateTag: 'Escolha um TAG do perfil', predicateKind: 'Tipo de predicado', NumericInterval: 'Intervalo numérico inclusivo', BooleanEquals: 'Igualdade booleana', StringEquals: 'String exata', EnumEquals: 'Enum exato', minimumInclusive: 'Mínimo (inclusivo)', maximumInclusive: 'Máximo (inclusivo)', predicateValue: 'Valor obrigatório', exactValue: 'Valor ordinal exato', matchTrue: 'Verdadeiro', matchFalse: 'Falso', addPredicate: 'Adicionar predicado', deleteContextProfile: 'Excluir perfil de contexto', savedProfileVersion: 'Versão salva pelo servidor', contextVersionConflict: 'Este perfil de contexto foi alterado em outra edição. Atualize e revise a versão mais recente antes de salvar.'
+  } as const;
+}
+
+function contextUnitText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    policy: 'Numeric bounds are saved with the current TAG unit. A unit change never converts bounds; review and explicitly reconfirm them. Queries fail closed until confirmed.',
+    confirmed: 'Bounds confirmed in',
+    unconfirmed: 'Numeric bounds need unit confirmation.',
+    storedUnit: 'Saved unit:',
+    currentUnit: 'Current unit:',
+    unitless: 'unitless',
+    confirm: 'Confirm bounds in current unit'
+  } as const;
+  if (locale === 'es') return {
+    policy: 'Los límites numéricos se guardan con la unidad actual del TAG. Un cambio de unidad nunca convierte los límites; revíselos y confírmelos explícitamente. Las consultas se bloquean hasta confirmarlos.',
+    confirmed: 'Límites confirmados en',
+    unconfirmed: 'Los límites numéricos requieren confirmar la unidad.',
+    storedUnit: 'Unidad guardada:',
+    currentUnit: 'Unidad actual:',
+    unitless: 'sin unidad',
+    confirm: 'Confirmar límites en la unidad actual'
+  } as const;
+  return {
+    policy: 'Os limites numéricos são salvos com a unidade atual do TAG. Uma mudança de unidade nunca converte os limites; revise-os e confirme explicitamente. As consultas ficam bloqueadas até a confirmação.',
+    confirmed: 'Limites confirmados em',
+    unconfirmed: 'Os limites numéricos precisam de confirmação da unidade.',
+    storedUnit: 'Unidade salva:',
+    currentUnit: 'Unidade atual:',
+    unitless: 'sem unidade',
+    confirm: 'Confirmar limites na unidade atual'
   } as const;
 }

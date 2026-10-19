@@ -73,7 +73,7 @@ public static class AssetProcessIntelligenceContextEligibilityV1Catalog
     public const int ContractVersion = 1;
     public const int CatalogVersion = 1;
     public const string RuleId = "context-eligibility.v1";
-    public const string RuleVersion = "1.0.0";
+    public const string RuleVersion = "1.1.0";
     public const int MaximumSignals = 16;
     public const int MaximumPredicates = 16;
     public const int MaximumRawRowsAcrossQuery = 50000;
@@ -94,7 +94,8 @@ public static class AssetProcessIntelligenceContextEligibilityV1Catalog
         maximumRawRowsAcrossAllSignalsAndWindows = MaximumRawRowsAcrossQuery,
         pageSize = QueryPageSize,
         sourceTimestampRule = "exact unique UTC source timestamps with explicit Synchronized evidence; no nearest join, hold, interpolation or imputation",
-        predicateRules = new[] { "inclusive finite numeric interval in the current Engineering unit", "exact Boolean equality", "exact ordinal String/Enum equality" },
+        predicateRules = new[] { "inclusive finite numeric interval in the explicitly confirmed current Engineering unit; unit changes require explicit reconfirmation and are never converted automatically", "exact Boolean equality", "exact ordinal String/Enum equality" },
+        targetStatusRules = new[] { "target_type_not_applicable is returned for a nonnumeric target TAG; it is not an evidence or timestamp-matching failure" },
         interpretation = "matches only the operator-declared context profile version; does not assert physical regime equivalence, health, sufficiency, score or model validity"
     };
 }
@@ -203,6 +204,15 @@ internal static class AssetProcessIntelligenceContextEligibilityV1Calculator
 
         foreach (var (signal, tag) in signals)
         {
+            if (!IsNumeric(tag.DataType))
+            {
+                result[signal.Id] = result[signal.Id] with
+                {
+                    ContextEligibleObservationCount = 0,
+                    Status = "target_type_not_applicable"
+                };
+                continue;
+            }
             var rows = rowsBySignal.GetValueOrDefault(signal.Id) ?? Array.Empty<AssetProcessIntelligenceContextualDeviationVectorRawObservation>();
             var timestampGroups = rows
                 .Where(row => row.SourceTimestampUtc.HasValue && row.SourceTimestampUtc.Value.Offset == TimeSpan.Zero)

@@ -3,6 +3,7 @@ using Scada.Core.Events;
 using Scada.Core.HistoricalQueries;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Assets;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Intelligence;
@@ -196,6 +197,74 @@ public sealed class EngineeringProjectPersistenceServiceTests
         Assert.Equal(signalId, restoredSignal.Id);
         Assert.Equal("legacy power label", restoredSignal.SignalRole);
         Assert.Equal(binding, restoredSignal.SemanticBinding);
+    }
+
+    [Fact]
+    public async Task SaveCurrentPreviewAndApplyRevision_PreservesOperatingContextIdentityVersionAssignmentAndUnitProvenance()
+    {
+        var equipmentId = Guid.Parse("b4300000-0000-0000-0000-000000000001");
+        var tagId = Guid.Parse("b4300000-0000-0000-0000-000000000002");
+        var measurementProfileId = Guid.Parse("b4300000-0000-0000-0000-000000000003");
+        var signalId = Guid.Parse("b4300000-0000-0000-0000-000000000004");
+        var assignmentId = Guid.Parse("b4300000-0000-0000-0000-000000000005");
+        var contextProfileId = Guid.Parse("b4300000-0000-0000-0000-000000000006");
+        var predicate = new AssetProcessIntelligenceOperatingContextPredicateEngineeringDto(
+            tagId,
+            AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval,
+            Minimum: 4.5,
+            Maximum: 8.5,
+            EngineeringUnit: "bar",
+            EngineeringUnitConfirmed: true);
+        var contextProfile = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+            contextProfileId,
+            "normal-running",
+            "Normal running",
+            assignmentId,
+            7,
+            [predicate]);
+        var sourceTags = new InMemoryTagRegistry();
+        sourceTags.Register(TagDefinition.Create("Discharge pressure", "Plant.P01.DischargePressure",
+            TagDataType.Double, engineeringUnit: "bar") with { Id = tagId });
+        var sourceAssets = new InMemoryEngineeringAssetRegistry();
+        sourceAssets.UpsertEquipment(new EquipmentEngineeringDto(equipmentId, "Plant.P01", "Pump P01"));
+        var sourceIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        sourceIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(
+            Version: 3,
+            Profiles: [new(measurementProfileId, "pump-pressure", "Pump pressure",
+                [new(signalId, "discharge-pressure", "process", tagId)])],
+            Assignments: [new(assignmentId, equipmentId, measurementProfileId)],
+            OperatingContextProfiles: [contextProfile]));
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = CreateExchange(sourceTags, sourceAlarms, sourceIntelligence, sourceAssets);
+        var store = new FakeEngineeringProjectStore();
+        var sourcePersistence = new EngineeringProjectPersistenceService(sourceExchange, store);
+
+        var saved = await sourcePersistence.SaveCurrentAsync("plant-a", "Plant A", "engineering-user");
+        var savedPackage = sourceExchange.ParseJson(saved.EngineeringJson);
+        var savedContext = Assert.Single(savedPackage.AssetProcessIntelligence!.OperatingContextProfiles!);
+        Assert.Equal(contextProfileId, savedContext.Id);
+        Assert.Equal(7, savedContext.Version);
+        Assert.Equal(assignmentId, savedContext.AssignmentId);
+        Assert.Equal(predicate, Assert.Single(savedContext.Predicates!));
+
+        var targetTags = new InMemoryTagRegistry();
+        var targetAssets = new InMemoryEngineeringAssetRegistry();
+        var targetIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetExchange = CreateExchange(targetTags, targetAlarms, targetIntelligence, targetAssets);
+        var targetPersistence = new EngineeringProjectPersistenceService(targetExchange, store);
+        var preview = await targetPersistence.PreviewRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+        var applied = await targetPersistence.ApplyRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+
+        Assert.True(preview!.Preview.CanApply);
+        Assert.Empty(applied!.Issues);
+        var restored = Assert.Single(targetIntelligence.Snapshot().OperatingContextProfiles!);
+        Assert.Equal(contextProfileId, restored.Id);
+        Assert.Equal(7, restored.Version);
+        Assert.Equal(assignmentId, restored.AssignmentId);
+        Assert.Equal("normal-running", restored.Key);
+        Assert.Equal("Normal running", restored.DisplayLabel);
+        Assert.Equal(predicate, Assert.Single(restored.Predicates!));
     }
 
     [Fact]
@@ -563,12 +632,13 @@ public sealed class EngineeringProjectPersistenceServiceTests
     private static EngineeringExchangeService CreateExchange(
         InMemoryTagRegistry tags,
         IAlarmEngine alarms,
-        IAssetProcessIntelligenceEngineeringRegistry intelligence) =>
+        IAssetProcessIntelligenceEngineeringRegistry intelligence,
+        InMemoryEngineeringAssetRegistry? assets = null) =>
         new(
             tags,
             alarms,
             new Scada.Engineering.DataSources.InMemoryDataSourceEngineeringRegistry(),
-            new Scada.Engineering.Assets.InMemoryEngineeringAssetRegistry(),
+            assets ?? new Scada.Engineering.Assets.InMemoryEngineeringAssetRegistry(),
             new Scada.Engineering.Views.InMemoryEngineeringViewRegistry(),
             new Scada.Engineering.Security.InMemorySecurityPolicyEngineeringRegistry(),
             new Scada.Engineering.Commands.InMemoryCommandEngineeringRegistry(),

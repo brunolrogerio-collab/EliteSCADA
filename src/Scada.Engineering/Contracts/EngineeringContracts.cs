@@ -331,7 +331,9 @@ public sealed record AssetProcessIntelligenceOperatingContextPredicateEngineerin
     double? Minimum = null,
     double? Maximum = null,
     bool? BooleanValue = null,
-    string? ExactValue = null);
+    string? ExactValue = null,
+    string? EngineeringUnit = null,
+    bool EngineeringUnitConfirmed = false);
 
 /// <summary>Versioned operator-authored context; it contains configuration only, never samples.</summary>
 public sealed record AssetProcessIntelligenceOperatingContextProfileEngineeringDto(

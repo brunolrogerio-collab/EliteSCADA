@@ -19,7 +19,7 @@ namespace Scada.Core.Tests;
 public sealed class AssetProcessIntelligenceEngineeringTests
 {
     [Fact]
-    public void Schema27ExportsAndRestoresStableEligibleScopesAndActivationState()
+    public void CurrentSchemaExportsAndRestoresStableEligibleScopesAndActivationState()
     {
         var locationId = Guid.Parse("a1000000-0000-0000-0000-000000000001");
         var equipmentId = Guid.Parse("a1000000-0000-0000-0000-000000000002");
@@ -33,7 +33,7 @@ public sealed class AssetProcessIntelligenceEngineeringTests
 
         var parsed = service.ParseJson(service.ExportJson());
 
-        Assert.Equal(27, parsed.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, parsed.SchemaVersion);
         Assert.Equal(registry.Snapshot().Version, parsed.AssetProcessIntelligence?.Version);
         Assert.Equal(registry.Snapshot().Scopes, parsed.AssetProcessIntelligence?.Scopes);
     }
@@ -90,7 +90,7 @@ public sealed class AssetProcessIntelligenceEngineeringTests
 
         Assert.Empty(result.Issues);
         Assert.Empty(restored.Issues);
-        Assert.Equal(27, parsed.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, parsed.SchemaVersion);
         Assert.False(Assert.Single(registry.Snapshot().Scopes!).Active);
         Assert.Equal(JsonSerializer.Serialize(configuration.Profiles), JsonSerializer.Serialize(registry.Snapshot().Profiles));
         Assert.Equal(JsonSerializer.Serialize(configuration.Assignments), JsonSerializer.Serialize(registry.Snapshot().Assignments));
@@ -100,6 +100,177 @@ public sealed class AssetProcessIntelligenceEngineeringTests
             JsonSerializer.Serialize(restoredService.ExportPackage().AssetProcessIntelligence));
         Assert.DoesNotContain("sampleValue", service.ExportJson(), StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("currentValue", service.ExportJson(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Version3OperatingContextsRoundTripWithoutSamplesAndKeepTheirDeclaredVersion()
+    {
+        var equipmentId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var measurementProfileId = Guid.NewGuid();
+        var signalId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var contextProfileId = Guid.NewGuid();
+        var equipment = new EquipmentEngineeringDto(equipmentId, "Plant.P01", "Pump P01");
+        var tag = TagDefinition.Create("Mode", "Plant.P01.Mode", TagDataType.Enum, readOnly: true) with { Id = tagId };
+        var measurement = new AssetProcessIntelligenceProfileEngineeringDto(
+            measurementProfileId, "pump-measurements", "Pump measurements",
+            [new(signalId, "mode", "state", tagId)]);
+        var assignment = new AssetProcessIntelligenceAssignmentEngineeringDto(assignmentId, equipmentId, measurementProfileId);
+        var contextProfile = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+            contextProfileId, "normal-running", "Normal running", assignmentId, 4,
+            [new(tagId, AssetProcessIntelligenceOperatingContextPredicateKind.EnumEquals, ExactValue: "RUN")]);
+        var configuration = new AssetProcessIntelligenceEngineeringDto(
+            Version: 3,
+            Profiles: [measurement],
+            Assignments: [assignment],
+            OperatingContextProfiles: [contextProfile]);
+        var sourceTags = new InMemoryTagRegistry();
+        sourceTags.Register(tag);
+        var sourceAssets = new InMemoryEngineeringAssetRegistry();
+        sourceAssets.UpsertEquipment(equipment);
+        var sourceIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        sourceIntelligence.Replace(configuration);
+        var source = CreateExchange(sourceIntelligence, sourceAssets, sourceTags);
+        var parsed = source.ParseJson(source.ExportJson());
+
+        var targetTags = new InMemoryTagRegistry();
+        var targetAssets = new InMemoryEngineeringAssetRegistry();
+        var targetIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        var target = CreateExchange(targetIntelligence, targetAssets, targetTags);
+        var restored = target.Apply(parsed, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, parsed.SchemaVersion);
+        Assert.Empty(restored.Issues);
+        Assert.Equal(3, targetIntelligence.Snapshot().Version);
+        Assert.Equal(JsonSerializer.Serialize(new[] { contextProfile }),
+            JsonSerializer.Serialize(targetIntelligence.Snapshot().OperatingContextProfiles!.ToArray()));
+        Assert.Equal(equipment, Assert.Single(targetAssets.SnapshotEquipment()));
+        Assert.Equal(tagId, Assert.Single(targetTags.Snapshot()).Id);
+        Assert.DoesNotContain("sampleValue", source.ExportJson(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("currentValue", source.ExportJson(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void OlderPackageCannotErasePersistedOperatingContextAndChangedPackageAdvancesItsVersion()
+    {
+        var equipmentId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var measurementProfileId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var contextProfileId = Guid.NewGuid();
+        var equipment = new EquipmentEngineeringDto(equipmentId, "Plant.P01", "Pump P01");
+        var tag = TagDefinition.Create("Temperature", "Plant.P01.Temperature", TagDataType.Double,
+            engineeringUnit: "°C", readOnly: true) with { Id = tagId };
+        var measurement = new AssetProcessIntelligenceProfileEngineeringDto(measurementProfileId, "pump", "Pump",
+            [new(Guid.NewGuid(), "temperature", "process", tagId)]);
+        var assignment = new AssetProcessIntelligenceAssignmentEngineeringDto(assignmentId, equipmentId, measurementProfileId);
+        var originalContext = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+            contextProfileId, "normal", "Normal", assignmentId, 2,
+            [new(tagId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 10, 20)]);
+        var registry = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        registry.Replace(new AssetProcessIntelligenceEngineeringDto(
+            Version: 3,
+            Profiles: [measurement],
+            Assignments: [assignment],
+            OperatingContextProfiles: [originalContext]));
+        var assets = new InMemoryEngineeringAssetRegistry();
+        assets.UpsertEquipment(equipment);
+        var tags = new InMemoryTagRegistry();
+        tags.Register(tag);
+        var service = CreateExchange(registry, assets, tags);
+        var tagDto = new TagEngineeringDto(tagId, "Temperature", "Plant.P01.Temperature", TagDataType.Double,
+            EngineeringUnit: "°C");
+        var legacy = Package(new AssetProcessIntelligenceEngineeringDto(
+            Version: 2,
+            Profiles: [measurement],
+            Assignments: [assignment]),
+            equipment: [equipment], tags: [tagDto]) with { SchemaVersion = 27 };
+
+        var legacyPreview = service.Preview(legacy, ImportMode.CreateAndUpdate);
+        var legacyApply = service.Apply(legacy, ImportMode.CreateAndUpdate);
+
+        Assert.False(legacyPreview.CanApply);
+        Assert.Contains(legacyPreview.Items.SelectMany(item => item.Issues),
+            issue => issue.Code == "INTELLIGENCE_OPERATING_CONTEXT_PROFILE_IMPORT_CONFLICT");
+        Assert.Contains(legacyApply.Issues,
+            issue => issue.Code == "INTELLIGENCE_OPERATING_CONTEXT_PROFILE_IMPORT_CONFLICT");
+        Assert.Equal(JsonSerializer.Serialize(new[] { originalContext }),
+            JsonSerializer.Serialize(registry.Snapshot().OperatingContextProfiles!.ToArray()));
+
+        var changedContext = originalContext with
+        {
+            Version = 1,
+            Predicates = [new(tagId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 11, 20)]
+        };
+        var currentSchemaPackage = Package(new AssetProcessIntelligenceEngineeringDto(
+            Version: 3,
+            Profiles: [measurement],
+            Assignments: [assignment],
+            OperatingContextProfiles: [changedContext]),
+            equipment: [equipment], tags: [tagDto]);
+        var changedResult = service.Apply(currentSchemaPackage, ImportMode.CreateAndUpdate);
+
+        Assert.Empty(changedResult.Issues);
+        var saved = Assert.Single(registry.Snapshot().OperatingContextProfiles!);
+        Assert.Equal(3, saved.Version);
+        Assert.Equal(11, Assert.Single(saved.Predicates!).Minimum);
+    }
+
+    [Fact]
+    public void ChangingOnlyNumericContextUnitProvenanceAdvancesTheContextProfileVersion()
+    {
+        var equipmentId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var measurementProfileId = Guid.NewGuid();
+        var signalId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var contextProfileId = Guid.NewGuid();
+        var equipment = new EquipmentEngineeringDto(equipmentId, "Plant.P01", "Pump P01");
+        var tag = TagDefinition.Create("Temperature", "Plant.P01.Temperature", TagDataType.Double,
+            engineeringUnit: "°C", readOnly: true) with { Id = tagId };
+        var measurement = new AssetProcessIntelligenceProfileEngineeringDto(measurementProfileId, "pump", "Pump",
+            [new(signalId, "temperature", "process", tagId)]);
+        var assignment = new AssetProcessIntelligenceAssignmentEngineeringDto(assignmentId, equipmentId, measurementProfileId);
+        var current = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+            contextProfileId, "normal", "Normal", assignmentId, 2,
+            [new(tagId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 10, 20)]);
+        var registry = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        registry.Replace(new AssetProcessIntelligenceEngineeringDto(
+            Version: 3,
+            Profiles: [measurement],
+            Assignments: [assignment],
+            OperatingContextProfiles: [current]));
+        var assets = new InMemoryEngineeringAssetRegistry();
+        assets.UpsertEquipment(equipment);
+        var tags = new InMemoryTagRegistry();
+        tags.Register(tag);
+        var service = CreateExchange(registry, assets, tags);
+        var confirmed = current with
+        {
+            Version = 1,
+            Predicates =
+            [new(tagId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 10, 20,
+                EngineeringUnit: "°C", EngineeringUnitConfirmed: true)]
+        };
+        var package = Package(new AssetProcessIntelligenceEngineeringDto(
+            Version: 3,
+            Profiles: [measurement],
+            Assignments: [assignment],
+            OperatingContextProfiles: [confirmed]),
+            equipment: [equipment],
+            tags: [new TagEngineeringDto(tagId, "Temperature", "Plant.P01.Temperature", TagDataType.Double,
+                EngineeringUnit: "°C")]);
+
+        var result = service.Apply(package, ImportMode.CreateAndUpdate);
+
+        Assert.Empty(result.Issues);
+        var saved = Assert.Single(registry.Snapshot().OperatingContextProfiles!);
+        var savedPredicate = Assert.Single(saved.Predicates!);
+        Assert.Equal(3, saved.Version);
+        Assert.Equal(10, savedPredicate.Minimum);
+        Assert.Equal("°C", savedPredicate.EngineeringUnit);
+        Assert.True(savedPredicate.EngineeringUnitConfirmed);
     }
 
     [Fact]
@@ -605,7 +776,8 @@ public sealed class AssetProcessIntelligenceEngineeringTests
 
         Assert.Throws<InvalidDataException>(() => service.ParseJson(JsonSerializer.Serialize(schema26, CompatibilityJsonOptions())));
         Assert.False(service.Preview(schema26, ImportMode.CreateAndUpdate).CanApply);
-        Assert.Equal(27, service.ParseJson(JsonSerializer.Serialize(package, CompatibilityJsonOptions())).SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion,
+            service.ParseJson(JsonSerializer.Serialize(package, CompatibilityJsonOptions())).SchemaVersion);
 
         var semanticV2 = package with
         {

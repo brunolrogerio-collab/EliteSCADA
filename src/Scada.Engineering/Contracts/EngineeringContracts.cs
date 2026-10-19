@@ -316,26 +316,57 @@ public sealed record AssetProcessIntelligenceProcessStageEngineeringDto(
     int Order,
     IReadOnlyCollection<AssetProcessIntelligenceProcessStageLinkEngineeringDto>? Links = null);
 
+public enum AssetProcessIntelligenceOperatingContextPredicateKind
+{
+    NumericInterval,
+    BooleanEquals,
+    StringEquals,
+    EnumEquals
+}
+
+/// <summary>A required typed condition over a TAG in the assigned measurement profile.</summary>
+public sealed record AssetProcessIntelligenceOperatingContextPredicateEngineeringDto(
+    Guid TagId,
+    AssetProcessIntelligenceOperatingContextPredicateKind Kind,
+    double? Minimum = null,
+    double? Maximum = null,
+    bool? BooleanValue = null,
+    string? ExactValue = null,
+    string? EngineeringUnit = null,
+    bool EngineeringUnitConfirmed = false);
+
+/// <summary>Versioned operator-authored context; it contains configuration only, never samples.</summary>
+public sealed record AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+    Guid Id,
+    string Key,
+    string DisplayLabel,
+    Guid AssignmentId,
+    int Version,
+    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>? Predicates = null);
+
 public enum AssetProcessIntelligenceIssueEntity
 {
     Configuration,
     Scope,
     Profile,
     Assignment,
-    ProcessStage
+    ProcessStage,
+    OperatingContextProfile
 }
 
 /// <summary>
 /// Versioned Engineering configuration for Asset & Process Intelligence. Version 1
 /// contains only Stage 1 scopes. Version 2 adds static profiles, signal references,
-/// Equipment assignments and ordered process stages; it never stores sampled values.
+/// Equipment assignments and ordered process stages. Version 3 adds operator-authored
+/// operating-context predicates; no version stores sampled values.
 /// </summary>
 public sealed record AssetProcessIntelligenceEngineeringDto(
     int Version = 1,
     IReadOnlyCollection<AssetProcessIntelligenceScopeEngineeringDto>? Scopes = null,
     IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto>? Profiles = null,
     IReadOnlyCollection<AssetProcessIntelligenceAssignmentEngineeringDto>? Assignments = null,
-    IReadOnlyCollection<AssetProcessIntelligenceProcessStageEngineeringDto>? ProcessStages = null);
+    IReadOnlyCollection<AssetProcessIntelligenceProcessStageEngineeringDto>? ProcessStages = null,
+    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>? OperatingContextProfiles = null);
 
 public sealed record AssetProcessIntelligenceEngineeringIssue(
     string Code,

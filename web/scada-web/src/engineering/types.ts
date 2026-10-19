@@ -332,6 +332,29 @@ export type AssetProcessIntelligenceProcessStageEngineering = {
   links: AssetProcessIntelligenceProcessStageLinkEngineering[];
 };
 
+export type AssetProcessIntelligenceOperatingContextPredicateKind =
+  | 'NumericInterval' | 'BooleanEquals' | 'StringEquals' | 'EnumEquals';
+
+export type AssetProcessIntelligenceOperatingContextPredicateEngineering = {
+  tagId: string;
+  kind: AssetProcessIntelligenceOperatingContextPredicateKind;
+  minimum?: number | null;
+  maximum?: number | null;
+  booleanValue?: boolean | null;
+  exactValue?: string | null;
+  engineeringUnit?: string | null;
+  engineeringUnitConfirmed?: boolean;
+};
+
+export type AssetProcessIntelligenceOperatingContextProfileEngineering = {
+  id: string;
+  key: string;
+  displayLabel: string;
+  assignmentId: string;
+  version: number;
+  predicates: AssetProcessIntelligenceOperatingContextPredicateEngineering[];
+};
+
 export type AlarmEngineering = {
   id?: string;
   name: string;

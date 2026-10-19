@@ -158,6 +158,23 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
     }
 
     [Fact]
+    public async Task ContextEligibilityCatalogDeclaresReadOnlyBoundedContract()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"), includeAnalyticsEndpoints: true);
+
+        using var response = await api.Client.GetAsync(EndpointHarness.ContextEligibilityV1CatalogPath);
+        var catalog = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, catalog.GetProperty("contractVersion").GetInt32());
+        Assert.Equal("context-eligibility.v1", catalog.GetProperty("ruleId").GetString());
+        Assert.Equal(16, catalog.GetProperty("maximumSignals").GetInt32());
+        Assert.Equal(16, catalog.GetProperty("maximumPredicates").GetInt32());
+        Assert.Equal(50000, catalog.GetProperty("maximumRawRowsAcrossAllSignalsAndWindows").GetInt32());
+        Assert.Contains("no nearest join", catalog.GetProperty("sourceTimestampRule").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SemanticCatalogEndpointRequiresEngineeringView()
     {
         await using var api = await EndpointHarness.StartAsync(
@@ -309,6 +326,89 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         Assert.Single(api.Workspace.AssetProcessIntelligence.Snapshot().Profiles!);
         var audit = await api.Audit.QueryAsync(action: AuditActions.AssetProcessIntelligenceConfigurationConfigure);
         Assert.Contains(audit, item => item.Outcome == AuditOutcome.Succeeded && item.TargetId == EndpointHarness.ProjectKey);
+    }
+
+    [Fact]
+    public async Task OperatingContextProfilesAreVersionedOptimisticallyAndCannotBeOverwrittenStale()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"));
+        var profileId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var contextId = Guid.NewGuid();
+        var measurement = new AssetProcessIntelligenceProfileEngineeringDto(profileId, "pump", "Pump",
+            [new(Guid.NewGuid(), "temperature", "process", api.TagId)]);
+        var assignment = new AssetProcessIntelligenceAssignmentEngineeringDto(assignmentId, api.EquipmentId, profileId);
+        var context = new AssetProcessIntelligenceOperatingContextProfileSaveRequest(contextId, "normal", "Normal",
+            assignmentId,
+            [new(api.TagId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 5, 12)]);
+        var create = new AssetProcessIntelligenceConfigurationRequest(
+            [measurement], [assignment], [], SemanticContractVersion: 1,
+            OperatingContextProfiles: [context],
+            ExpectedOperatingContextProfileVersions: []);
+
+        using var created = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath, create);
+
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var current = api.Workspace.AssetProcessIntelligence.Snapshot();
+        Assert.Equal(3, current.Version);
+        Assert.Equal(1, Assert.Single(current.OperatingContextProfiles!).Version);
+
+        var unchanged = create with
+        {
+            ExpectedOperatingContextProfileVersions = [new(contextId, 1)]
+        };
+        using var unchangedResponse = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath, unchanged);
+        Assert.Equal(HttpStatusCode.OK, unchangedResponse.StatusCode);
+        Assert.Equal(1, Assert.Single(api.Workspace.AssetProcessIntelligence.Snapshot().OperatingContextProfiles!).Version);
+
+        var changedContext = context with
+        {
+            Predicates = [new(api.TagId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 5, 13)]
+        };
+        var changed = unchanged with { OperatingContextProfiles = [changedContext] };
+        using var changedResponse = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath, changed);
+        Assert.Equal(HttpStatusCode.OK, changedResponse.StatusCode);
+        Assert.Equal(2, Assert.Single(api.Workspace.AssetProcessIntelligence.Snapshot().OperatingContextProfiles!).Version);
+
+        var snapshotBeforeStaleSave = JsonSerializer.Serialize(api.Workspace.AssetProcessIntelligence.Snapshot());
+        var changeVersionBeforeStaleSave = api.Workspace.CaptureChangeVersion();
+        var stale = changed with
+        {
+            OperatingContextProfiles = [changedContext with { DisplayLabel = "Stale edit" }],
+            ExpectedOperatingContextProfileVersions = [new(contextId, 1)]
+        };
+        using var staleResponse = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath, stale);
+        var staleBody = await staleResponse.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.Conflict, staleResponse.StatusCode);
+        Assert.Equal("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_CONFLICT", staleBody.GetProperty("error").GetString());
+        Assert.Equal(snapshotBeforeStaleSave, JsonSerializer.Serialize(api.Workspace.AssetProcessIntelligence.Snapshot()));
+        Assert.Equal(changeVersionBeforeStaleSave, api.Workspace.CaptureChangeVersion());
+    }
+
+    [Fact]
+    public async Task OperatingContextAuthoringRequiresResourceScopedManagerGrant()
+    {
+        await using var api = await EndpointHarness.StartAsync(
+            CreateVerification("valid"), managerGrantOnTargetEquipment: false);
+        var profileId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var request = new AssetProcessIntelligenceConfigurationRequest(
+            [new(profileId, "pump", "Pump", [new(Guid.NewGuid(), "temperature", "process", api.TagId)])],
+            [new(assignmentId, api.EquipmentId, profileId)],
+            [],
+            SemanticContractVersion: 1,
+            OperatingContextProfiles:
+            [new(Guid.NewGuid(), "normal", "Normal", assignmentId,
+                [new(api.TagId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 5, 12)])],
+            ExpectedOperatingContextProfileVersions: []);
+
+        using var response = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath, request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(1, api.Workspace.AssetProcessIntelligence.Snapshot().Version);
+        Assert.Empty(api.Workspace.AssetProcessIntelligence.Snapshot().OperatingContextProfiles!);
+        Assert.Empty(api.Workspace.AssetProcessIntelligence.Snapshot().Assignments!);
     }
 
     [Fact]
@@ -471,6 +571,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public const string SemanticCatalogPath = "/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog";
         public const string ContextualDeviationVectorCatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/contextual-deviation-vector/v1/catalog";
         public const string ContextualDeviationVectorV2CatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/contextual-deviation-vector/v2/catalog";
+        public const string ContextEligibilityV1CatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/context-eligibility/v1/catalog";
 
         private readonly WebApplication _app;
         private readonly IEngineeringProjectPersistenceService? _persistence;

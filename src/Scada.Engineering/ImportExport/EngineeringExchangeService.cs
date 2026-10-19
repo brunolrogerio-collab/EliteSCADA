@@ -26,7 +26,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 27;
+    public const int CurrentSchemaVersion = 28;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -321,6 +321,10 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             throw new InvalidDataException("ENGINEERING_CONTROLLED_SEMANTICS_SCHEMA_VERSION_REQUIRED: controlled semantic annotations require Engineering package schema version 26 or newer.");
         if (package.SchemaVersion < 25 && package.AssetProcessIntelligence?.Version >= 2)
             throw new InvalidDataException("Asset & Process Intelligence configuration version 2 requires Engineering package schema version 25 or newer.");
+        if (package.SchemaVersion < 28 &&
+            (package.AssetProcessIntelligence?.Version >= 3 ||
+             (package.AssetProcessIntelligence?.OperatingContextProfiles?.Count ?? 0) != 0))
+            throw new InvalidDataException("INTELLIGENCE_OPERATING_CONTEXT_SCHEMA_VERSION_REQUIRED: operating-context profiles require Engineering package schema version 28 or newer.");
 
         var normalized = package with
         {
@@ -352,7 +356,13 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             TransientEventDefinitions = package.TransientEventDefinitions ?? Array.Empty<TransientEventDefinitionEngineeringDto>(),
             CapabilityEventReferences = package.CapabilityEventReferences ?? Array.Empty<CapabilityEventReferenceEngineeringDto>(),
             RichCommandDefinitions = package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>(),
-            DriverCommandBindings = package.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>()
+            DriverCommandBindings = package.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>(),
+            AssetProcessIntelligence = package.AssetProcessIntelligence is null
+                ? null
+                : package.AssetProcessIntelligence with
+                {
+                    OperatingContextProfiles = package.AssetProcessIntelligence.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>()
+                }
         };
         return AuthorityScopeEngineeringMigration.Normalize(normalized);
     }
@@ -408,6 +418,18 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             var issue = new ImportIssue(
                 "INTELLIGENCE_SCHEMA_VERSION_MISMATCH",
                 "Asset & Process Intelligence configuration version 2 requires Engineering package schema version 25 or newer.",
+                ImportEntityKind.AssetProcessIntelligenceConfiguration,
+                "asset-process-intelligence",
+                true);
+            items.Add(new ImportPreviewItem(ImportEntityKind.AssetProcessIntelligenceConfiguration, "asset-process-intelligence", ImportOperation.Error, [issue]));
+        }
+        if (package.SchemaVersion < 28 &&
+            (package.AssetProcessIntelligence?.Version >= 3 ||
+             (package.AssetProcessIntelligence?.OperatingContextProfiles?.Count ?? 0) != 0))
+        {
+            var issue = new ImportIssue(
+                "INTELLIGENCE_OPERATING_CONTEXT_SCHEMA_VERSION_REQUIRED",
+                "Operating-context profiles require Engineering package schema 28 or newer.",
                 ImportEntityKind.AssetProcessIntelligenceConfiguration,
                 "asset-process-intelligence",
                 true);
@@ -607,6 +629,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                 };
             }
             var before = _assetProcessIntelligence.Snapshot();
+            intelligence = PreserveOperatingContextProfileVersions(before, intelligence);
             if (before == intelligence) skipped++;
             else
             {
@@ -630,6 +653,19 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         if (incoming is null) return;
 
         var currentConfiguration = _assetProcessIntelligence.Snapshot();
+        if (currentConfiguration.OperatingContextProfiles is { Count: > 0 } &&
+            package.AssetProcessIntelligence is { } incomingConfiguration &&
+            (incomingConfiguration.Version < 3 ||
+             (package.SchemaVersion < 28 && (incomingConfiguration.OperatingContextProfiles?.Count ?? 0) == 0)))
+        {
+            var issue = new ImportIssue(
+                "INTELLIGENCE_OPERATING_CONTEXT_PROFILE_IMPORT_CONFLICT",
+                "This package omits persisted operating-context profiles. Re-export with schema 28 and configuration version 3, then explicitly retain, change or remove those profiles.",
+                ImportEntityKind.AssetProcessIntelligenceConfiguration,
+                "asset-process-intelligence",
+                true);
+            items.Add(new ImportPreviewItem(ImportEntityKind.AssetProcessIntelligenceConfiguration, "asset-process-intelligence", ImportOperation.Error, [issue]));
+        }
         if (package.SchemaVersion < 27 && OmitsPersistedVersion2SemanticBindings(currentConfiguration, incoming))
         {
             var issue = new ImportIssue(
@@ -674,6 +710,31 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         }
         if (validationIssues.Count == 0)
             items.Add(new ImportPreviewItem(ImportEntityKind.AssetProcessIntelligenceConfiguration, "asset-process-intelligence", ImportOperation.Update, Array.Empty<ImportIssue>()));
+    }
+
+    private static AssetProcessIntelligenceEngineeringDto PreserveOperatingContextProfileVersions(
+        AssetProcessIntelligenceEngineeringDto current,
+        AssetProcessIntelligenceEngineeringDto incoming)
+    {
+        if (incoming.Version != 3) return incoming;
+        var currentById = (current.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+            .ToDictionary(profile => profile.Id);
+        var profiles = (incoming.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+            .Select(profile =>
+            {
+                if (!currentById.TryGetValue(profile.Id, out var existing))
+                    return profile with { Version = Math.Max(1, profile.Version) };
+                var unchanged = string.Equals(existing.Key, profile.Key, StringComparison.Ordinal) &&
+                    string.Equals(existing.DisplayLabel, profile.DisplayLabel, StringComparison.Ordinal) &&
+                    existing.AssignmentId == profile.AssignmentId &&
+                    (existing.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>())
+                        .OrderBy(predicate => predicate.TagId).ThenBy(predicate => predicate.Kind)
+                        .SequenceEqual((profile.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>())
+                            .OrderBy(predicate => predicate.TagId).ThenBy(predicate => predicate.Kind));
+                return profile with { Version = unchanged ? existing.Version : checked(existing.Version + 1) };
+            })
+            .ToArray();
+        return incoming with { OperatingContextProfiles = profiles };
     }
 
     private static bool HasControlledSemantics(EngineeringPackage package) =>

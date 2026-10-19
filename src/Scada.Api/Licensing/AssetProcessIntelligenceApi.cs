@@ -23,7 +23,18 @@ public sealed record AssetProcessIntelligenceConfigurationRequest(
     IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto>? Profiles,
     IReadOnlyCollection<AssetProcessIntelligenceAssignmentEngineeringDto>? Assignments,
     IReadOnlyCollection<AssetProcessIntelligenceProcessStageEngineeringDto>? ProcessStages,
-    int? SemanticContractVersion = null);
+    int? SemanticContractVersion = null,
+    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextProfileSaveRequest>? OperatingContextProfiles = null,
+    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextProfileExpectedVersion>? ExpectedOperatingContextProfileVersions = null);
+
+public sealed record AssetProcessIntelligenceOperatingContextProfileSaveRequest(
+    Guid Id,
+    string Key,
+    string DisplayLabel,
+    Guid AssignmentId,
+    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>? Predicates);
+
+public sealed record AssetProcessIntelligenceOperatingContextProfileExpectedVersion(Guid Id, int Version);
 
 public static class AssetProcessIntelligenceApi
 {
@@ -141,7 +152,8 @@ public static class AssetProcessIntelligenceApi
                     scopes = configuredScopes,
                     profiles = configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>(),
                     assignments = configuration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>(),
-                    processStages = configuration.ProcessStages ?? Array.Empty<AssetProcessIntelligenceProcessStageEngineeringDto>()
+                    processStages = configuration.ProcessStages ?? Array.Empty<AssetProcessIntelligenceProcessStageEngineeringDto>(),
+                    operatingContextProfiles = configuration.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>()
                 },
                 resources = equipment.Cast<object>().Concat(locations).ToArray(),
                 tags,
@@ -211,7 +223,8 @@ public static class AssetProcessIntelligenceApi
                     activeByKey.ContainsKey((scope.Kind, scope.ScopeId)))).ToArray(),
                 Profiles: current.Profiles,
                 Assignments: current.Assignments,
-                ProcessStages: current.ProcessStages);
+                ProcessStages: current.ProcessStages,
+                OperatingContextProfiles: current.OperatingContextProfiles);
             var issues = AssetProcessIntelligenceEngineeringValidator.Validate(
                 configuration,
                 assets.SnapshotEquipment(),
@@ -283,12 +296,62 @@ public static class AssetProcessIntelligenceApi
             if (request.SemanticContractVersion.GetValueOrDefault() < 2 &&
                 (OmitsPersistedVersion2SemanticBindings(current, request.Profiles) || AddsOrChangesVersion2SemanticBindings(current, request.Profiles)))
                 return Results.Conflict(new { error = "INTELLIGENCE_SEMANTIC_ANNOTATION_CONFLICT" });
+
+            IReadOnlyCollection<AssetProcessIntelligenceOperatingContextProfileEngineeringDto> contextProfiles;
+            var contextAuthoringRequested = request.OperatingContextProfiles is not null;
+            if (!contextAuthoringRequested)
+            {
+                // Older clients cannot erase a configuration they do not understand.
+                contextProfiles = current.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>();
+            }
+            else
+            {
+                var incomingContextProfiles = request.OperatingContextProfiles!;
+                var expectedVersions = request.ExpectedOperatingContextProfileVersions ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileExpectedVersion>();
+                if (expectedVersions.Any(item => item is null || item.Id == Guid.Empty || item.Version < 1) ||
+                    expectedVersions.Select(item => item.Id).Distinct().Count() != expectedVersions.Count)
+                    return Results.BadRequest(new { error = "INTELLIGENCE_OPERATING_CONTEXT_EXPECTED_VERSIONS_INVALID" });
+                var expectedById = expectedVersions.ToDictionary(item => item.Id, item => item.Version);
+                var persistedContexts = current.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>();
+                if (persistedContexts.Any(profile => !expectedById.TryGetValue(profile.Id, out var expected) || expected != profile.Version) ||
+                    expectedById.Count != persistedContexts.Count)
+                    return Results.Conflict(new { error = "INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_CONFLICT" });
+                if (incomingContextProfiles.Any(item => item is null || item.Id == Guid.Empty || item.Predicates is null) ||
+                    incomingContextProfiles.Select(item => item.Id).Distinct().Count() != incomingContextProfiles.Count)
+                    return Results.BadRequest(new { error = "INTELLIGENCE_OPERATING_CONTEXT_PROFILE_ENTRY_INVALID" });
+
+                var persistedById = persistedContexts.ToDictionary(item => item.Id);
+                var versioned = new List<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>();
+                foreach (var incoming in incomingContextProfiles)
+                {
+                    if (persistedById.TryGetValue(incoming.Id, out var persisted))
+                    {
+                        var expected = expectedById[incoming.Id];
+                        if (expected != persisted.Version)
+                            return Results.Conflict(new { error = "INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_CONFLICT" });
+                        var candidate = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+                            incoming.Id, incoming.Key, incoming.DisplayLabel, incoming.AssignmentId, persisted.Version, incoming.Predicates);
+                        versioned.Add(ContextProfileSemanticallyEqual(persisted, candidate)
+                            ? candidate
+                            : candidate with { Version = checked(persisted.Version + 1) });
+                    }
+                    else
+                    {
+                        versioned.Add(new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+                            incoming.Id, incoming.Key, incoming.DisplayLabel, incoming.AssignmentId, 1, incoming.Predicates));
+                    }
+                }
+                contextProfiles = versioned;
+            }
+
+            var shouldUseVersion3 = current.Version == 3 || contextAuthoringRequested || contextProfiles.Count != 0;
             var configuration = new AssetProcessIntelligenceEngineeringDto(
-                Version: 2,
+                Version: shouldUseVersion3 ? 3 : 2,
                 Scopes: current.Scopes,
                 Profiles: request.Profiles,
                 Assignments: request.Assignments,
-                ProcessStages: request.ProcessStages);
+                ProcessStages: request.ProcessStages,
+                OperatingContextProfiles: contextProfiles);
             var canonical = exchange.ExportPackage();
             var issues = AssetProcessIntelligenceEngineeringValidator.Validate(
                 configuration,
@@ -297,6 +360,36 @@ public static class AssetProcessIntelligenceApi
                 canonical.Tags);
             if (issues.Count != 0)
                 return Results.BadRequest(new { error = "INTELLIGENCE_CONFIGURATION_INVALID", issues });
+
+            if ((configuration.OperatingContextProfiles?.Count ?? 0) > 0 || (current.OperatingContextProfiles?.Count ?? 0) > 0)
+            {
+                var assignmentById = (configuration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>())
+                    .ToDictionary(item => item.Id);
+                var priorAssignmentById = (current.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>())
+                    .ToDictionary(item => item.Id);
+                var requiredEquipmentIds = (configuration.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+                    .Where(profile => assignmentById.ContainsKey(profile.AssignmentId))
+                    .Select(profile => assignmentById[profile.AssignmentId].EquipmentId)
+                    .Concat((current.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+                        .Where(profile => priorAssignmentById.ContainsKey(profile.AssignmentId))
+                        .Select(profile => priorAssignmentById[profile.AssignmentId].EquipmentId))
+                    .Distinct()
+                    .ToArray();
+                foreach (var equipmentId in requiredEquipmentIds)
+                {
+                    var manager = security.CheckWorkspace(
+                        context,
+                        SecurityCapability.AssetProcessIntelligenceManage,
+                        new AuthorizationResource(ResourceKind: AuthorizationResourceKind.Equipment, ResourceId: equipmentId));
+                    if (!manager.Allowed)
+                    {
+                        await audit.RecordAuthorizationDeniedAsync(
+                            context, manager, AuditActions.AssetProcessIntelligenceConfigurationConfigure,
+                            "asset-process-intelligence", "operating-context-profile");
+                        return manager.FailureResult() ?? Results.StatusCode(StatusCodes.Status403Forbidden);
+                    }
+                }
+            }
 
             intelligence.Replace(configuration);
             var saved = intelligence.Snapshot();
@@ -366,6 +459,27 @@ public static class AssetProcessIntelligenceApi
             !replacement.TryGetValue(item.Key, out var candidate) ||
             candidate.TagId != item.Value.TagId ||
             candidate.SemanticBinding != item.Value.SemanticBinding);
+    }
+
+    private static bool ContextProfileSemanticallyEqual(
+        AssetProcessIntelligenceOperatingContextProfileEngineeringDto left,
+        AssetProcessIntelligenceOperatingContextProfileEngineeringDto right)
+    {
+        if (left.Id != right.Id ||
+            !string.Equals(left.Key, right.Key, StringComparison.Ordinal) ||
+            !string.Equals(left.DisplayLabel, right.DisplayLabel, StringComparison.Ordinal) ||
+            left.AssignmentId != right.AssignmentId)
+            return false;
+
+        var leftPredicates = (left.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>())
+            .OrderBy(item => item.TagId)
+            .ThenBy(item => item.Kind)
+            .ToArray();
+        var rightPredicates = (right.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>())
+            .OrderBy(item => item.TagId)
+            .ThenBy(item => item.Kind)
+            .ToArray();
+        return leftPredicates.SequenceEqual(rightPredicates);
     }
 
     private static bool OmitsPersistedVersion2SemanticBindings(

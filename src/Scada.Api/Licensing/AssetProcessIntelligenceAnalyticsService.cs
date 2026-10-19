@@ -1093,6 +1093,243 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
+    public async Task<IResult> ExecuteContextEligibilityV1Async(
+        HttpContext context,
+        AssetProcessIntelligenceContextEligibilityV1QueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(request);
+        var requestReceivedAtUtc = DateTimeOffset.UtcNow;
+        var requestToken = cancellationToken == default ? context.RequestAborted : cancellationToken;
+        var invalid = ValidateContextEligibilityV1Request(request);
+        if (invalid is not null) return invalid;
+
+        try
+        {
+            var trendAuthorization = await security.CheckRuntimeAsync(
+                context, runtime, SecurityCapability.TrendUse, cancellationToken: requestToken);
+            var trendFailure = trendAuthorization.FailureResult();
+            if (trendFailure is not null) return trendFailure;
+            if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+                return Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED");
+
+            var initialConfiguration = workspace.AssetProcessIntelligence.Snapshot();
+            if (initialConfiguration.Version != 3)
+                return Conflict("INTELLIGENCE_CONFIGURATION_V3_REQUIRED");
+            var contextMatches = (initialConfiguration.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+                .Where(profile => profile.Id == request.OperatingContextProfileId)
+                .Take(2)
+                .ToArray();
+            if (contextMatches.Length != 1)
+                return NotFound("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_NOT_AVAILABLE");
+            var contextProfile = contextMatches[0];
+            if (contextProfile.Version != request.ExpectedProfileVersion)
+                return Conflict("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_STALE");
+            if (contextProfile.AssignmentId != request.AssignmentId)
+                return BadRequest("INTELLIGENCE_OPERATING_CONTEXT_ASSIGNMENT_MISMATCH");
+
+            var assignmentMatches = (initialConfiguration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>())
+                .Where(assignment => assignment.Id == request.AssignmentId)
+                .Take(2)
+                .ToArray();
+            if (assignmentMatches.Length != 1)
+                return NotFound("INTELLIGENCE_ASSIGNMENT_NOT_AVAILABLE");
+            var assignment = assignmentMatches[0];
+            var measurementProfiles = (initialConfiguration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+                .Where(profile => profile.Id == assignment.ProfileId)
+                .Take(2)
+                .ToArray();
+            if (measurementProfiles.Length != 1)
+                return Conflict("INTELLIGENCE_PROFILE_NOT_AVAILABLE_OR_AMBIGUOUS");
+            var measurementProfile = measurementProfiles[0];
+            var predicates = (contextProfile.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>()).ToArray();
+            if (predicates.Length is < 1 or > AssetProcessIntelligenceContextEligibilityV1Catalog.MaximumPredicates)
+                return Conflict("INTELLIGENCE_OPERATING_CONTEXT_PREDICATES_INVALID");
+
+            var profileRequest = new AssetProcessIntelligenceProfileCoverageQueryRequest(
+                request.ScopeKind, request.ScopeId, measurementProfile.Id, request.ReferenceWindow!);
+            var preparedResult = await PrepareProfileCoverageAsync(context, profileRequest, requestToken);
+            if (preparedResult.Error is not null) return preparedResult.Error;
+            var plan = preparedResult.Plan!;
+            var configurationAfterPrepare = workspace.AssetProcessIntelligence.Snapshot();
+            var measurementProfileAfterPrepare = (configurationAfterPrepare.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+                .Where(profile => profile.Id == measurementProfile.Id)
+                .Take(2)
+                .ToArray();
+            if (measurementProfileAfterPrepare.Length != 1 || !SameMeasurementProfile(measurementProfile, measurementProfileAfterPrepare[0]))
+                return Conflict("INTELLIGENCE_CONTEXT_ELIGIBILITY_MEASUREMENT_PROFILE_CHANGED");
+            var contextAfterPrepare = (configurationAfterPrepare.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+                .Where(profile => profile.Id == request.OperatingContextProfileId)
+                .Take(2)
+                .ToArray();
+            if (contextAfterPrepare.Length != 1 || !SameContextProfile(contextProfile, contextAfterPrepare[0]) ||
+                contextAfterPrepare[0].Version != request.ExpectedProfileVersion)
+                return Conflict("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_STALE");
+            if (plan.Signals.Count is < 1 or > AssetProcessIntelligenceContextEligibilityV1Catalog.MaximumSignals)
+                return BadRequest("INTELLIGENCE_CONTEXT_ELIGIBILITY_SIGNAL_LIMIT_EXCEEDED");
+
+            var assignments = plan.Signals.SelectMany(signal => signal.Assignments).ToArray();
+            if (assignments.Length != plan.Signals.Count || assignments.Any(item => item.AssignmentId != assignment.Id ||
+                    item.EquipmentId != assignment.EquipmentId || item.ProfileId != assignment.ProfileId))
+                return Conflict("INTELLIGENCE_CONTEXT_ELIGIBILITY_ASSIGNMENT_AMBIGUOUS");
+            var signals = plan.Signals.Select(item => (item.Signal, item.Tag)).ToArray();
+            var signalsByTag = signals.ToDictionary(item => item.Tag.Id);
+            if (predicates.Any(predicate => !signalsByTag.ContainsKey(predicate.TagId)))
+                return Conflict("INTELLIGENCE_CONTEXT_ELIGIBILITY_PREDICATE_TAG_NOT_IN_PROFILE");
+            var hasStaleNumericUnit = predicates
+                .Where(predicate => predicate.Kind == AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval)
+                .Any(predicate =>
+                {
+                    var tag = signalsByTag[predicate.TagId].Tag;
+                    return !predicate.EngineeringUnitConfirmed ||
+                        !string.Equals(predicate.EngineeringUnit, tag.EngineeringUnit, StringComparison.Ordinal);
+                });
+            if (hasStaleNumericUnit)
+                return Conflict("INTELLIGENCE_OPERATING_CONTEXT_NUMERIC_UNIT_STALE");
+
+            var allPlans = plan.Signals.Select(signal => signal.Plan).ToArray();
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(requestToken, plan.PermitToken);
+            var budget = new ContextualDeviationVectorV2RawRowBudget();
+            IResult? readError = null;
+
+            async Task<AssetProcessIntelligenceContextEligibilityV1WindowCalculation?> ReadWindowAsync(
+                AssetProcessIntelligenceAnalyticsWindow window)
+            {
+                var rowsBySignal = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>();
+                foreach (var signalPlan in plan.Signals)
+                {
+                    var read = await ReadReferenceEvidenceV1ObservationsAsync(
+                        context, window, signalPlan.Plan, allPlans, budget, linkedCancellation.Token,
+                        "INTELLIGENCE_CONTEXT_ELIGIBILITY_WINDOW_TOO_DENSE",
+                        allowEnumValue: true,
+                        allowExactLimitProbe: true);
+                    if (read.Error is not null)
+                    {
+                        readError = read.Error;
+                        return null;
+                    }
+                    rowsBySignal.Add(signalPlan.Signal.Id, read.Observations!
+                        .Select(item => new AssetProcessIntelligenceContextualDeviationVectorRawObservation(
+                            item.ObservedTimestampUtc, item.Quality, item.Value, item.SourceTimestampUtc, item.SourceTimestampEvidence))
+                        .ToArray());
+                }
+                return AssetProcessIntelligenceContextEligibilityV1Calculator.Calculate(
+                    signals, predicates, window, rowsBySignal);
+            }
+
+            var reference = await ReadWindowAsync(request.ReferenceWindow!);
+            if (readError is not null) return readError;
+            if (reference is null) throw new InvalidOperationException("Context eligibility reference calculation did not complete.");
+            AssetProcessIntelligenceContextEligibilityV1WindowCalculation? comparison = null;
+            if (request.ComparisonWindow is { } comparisonWindow)
+            {
+                comparison = await ReadWindowAsync(comparisonWindow);
+                if (readError is not null) return readError;
+                if (comparison is null) throw new InvalidOperationException("Context eligibility comparison calculation did not complete.");
+            }
+
+            await using var finalMutation = await workspace.AcquireMutationAsync(plan.ChangeVersion, linkedCancellation.Token);
+            var finalCheck = await RevalidateContextualReferencePlansAsync(context, allPlans, linkedCancellation.Token);
+            if (finalCheck is not null) return finalCheck;
+            linkedCancellation.Token.ThrowIfCancellationRequested();
+            var finalConfiguration = workspace.AssetProcessIntelligence.Snapshot();
+            var finalContext = (finalConfiguration.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+                .Where(profile => profile.Id == request.OperatingContextProfileId)
+                .Take(2)
+                .ToArray();
+            if (finalContext.Length != 1 || !SameContextProfile(contextProfile, finalContext[0]) ||
+                finalContext[0].Version != request.ExpectedProfileVersion)
+                return Conflict("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_STALE");
+
+            var predicateReports = predicates.Select(predicate =>
+            {
+                var accepted = reference.PredicateAccepted.GetValueOrDefault(predicate.TagId);
+                var matched = reference.PredicateMatched.GetValueOrDefault(predicate.TagId);
+                var comparisonAccepted = comparison?.PredicateAccepted.GetValueOrDefault(predicate.TagId);
+                var comparisonMatched = comparison?.PredicateMatched.GetValueOrDefault(predicate.TagId);
+                var status = matched > 0 ? "context_match_available" :
+                    accepted > 0 ? "predicate_mismatch" : "insufficient_evidence";
+                return new AssetProcessIntelligenceContextEligibilityV1Predicate(
+                    predicate.TagId, predicate.Kind, accepted, matched, comparisonAccepted, comparisonMatched, status);
+            }).ToArray();
+            var signalReports = plan.Signals.Select(item => new AssetProcessIntelligenceContextEligibilityV1Signal(
+                item.Signal.Id,
+                item.Signal.Key,
+                item.Signal.Required,
+                item.Tag.Id,
+                item.Tag.Path,
+                item.Tag.DataType,
+                item.Tag.EngineeringUnit,
+                reference.Signals[item.Signal.Id],
+                comparison?.Signals.GetValueOrDefault(item.Signal.Id))).ToArray();
+
+            return Results.Ok(new AssetProcessIntelligenceContextEligibilityV1Response(
+                AssetProcessIntelligenceContextEligibilityV1Catalog.ContractVersion,
+                AssetProcessIntelligenceContextEligibilityV1Catalog.CatalogVersion,
+                AssetProcessIntelligenceContextEligibilityV1Catalog.RuleId,
+                AssetProcessIntelligenceContextEligibilityV1Catalog.RuleVersion,
+                plan.ProjectKey,
+                plan.Revision,
+                assignment.Id,
+                assignment.EquipmentId,
+                measurementProfile.Id,
+                measurementProfile.Key,
+                contextProfile.Id,
+                contextProfile.Key,
+                contextProfile.DisplayLabel,
+                contextProfile.Version,
+                request.ReferenceWindow!,
+                request.ComparisonWindow,
+                Array.AsReadOnly(predicateReports),
+                Array.AsReadOnly(signalReports),
+                budget.TotalRows,
+                "Reports only matches to the selected operator-declared context profile version at exact unique synchronized UTC source timestamps; physical regime equivalence, reference health and statistical sufficiency are not assessed."));
+        }
+        catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED");
+        }
+        catch (EngineeringWorkspaceVersionConflictException)
+        {
+            return Conflict("INTELLIGENCE_WORKSPACE_CHANGED");
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Forbidden("HISTORICAL_QUERY_FORBIDDEN");
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_CURSOR_INVALID", "Historical query cursor is invalid."));
+        }
+        catch (HistoricalQueryValidationException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_INVALID", "The bounded Historian query was rejected."));
+        }
+        catch (HistoricalQueryProviderException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_UNAVAILABLE", "Historical data is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_RESPONSE_INVALID", "The Historian response did not match the requested TAG and window."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
     public async Task<IResult> ExecuteProfileCoverageAsync(
         HttpContext context,
         AssetProcessIntelligenceProfileCoverageQueryRequest request,
@@ -1476,7 +1713,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
 
         var configuration = workspace.AssetProcessIntelligence.Snapshot();
-        if (configuration.Version != 2)
+        if (configuration.Version is not (2 or 3))
             return PreparedProfileCoverageResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
         var scopeMatches = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId)
@@ -1604,7 +1841,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
 
         var configuration = workspace.AssetProcessIntelligence.Snapshot();
-        if (configuration.Version != 2)
+        if (configuration.Version is not (2 or 3))
             return PreparedCurrentFrequencyComparisonResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
         var scopeMatches = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId)
@@ -1763,7 +2000,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
 
         var configuration = workspace.AssetProcessIntelligence.Snapshot();
-        if (configuration.Version != 2)
+        if (configuration.Version is not (2 or 3))
             return PreparedContextualDeviationVectorV2PlanResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
         var scopes = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId).Take(2).ToArray();
@@ -1887,7 +2124,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
 
         var configuration = workspace.AssetProcessIntelligence.Snapshot();
-        if (configuration.Version != 2)
+        if (configuration.Version is not (2 or 3))
             return PreparedContextualDeviationVectorPlanResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
         var scopes = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId).Take(2).ToArray();
@@ -2097,7 +2334,10 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         PreparedPlan tagPlan,
         IReadOnlyList<PreparedPlan> allPlans,
         ContextualDeviationVectorV2RawRowBudget budget,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string denseErrorCode = "INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE",
+        bool allowEnumValue = false,
+        bool allowExactLimitProbe = false)
     {
         var observations = new List<AssetProcessIntelligenceContextualDeviationVectorRawObservation>();
         var cursors = new HashSet<string>(StringComparer.Ordinal);
@@ -2115,12 +2355,12 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             if (validation is not null) return ContextualDeviationVectorV2ObservationReadResult.Fail(validation);
 
             var remaining = AssetProcessIntelligenceReferenceEvidenceV1Catalog.MaximumRawRowsAcrossQuery - budget.TotalRows;
-            if (remaining <= 0)
+            if (remaining <= 0 && !allowExactLimitProbe)
                 return ContextualDeviationVectorV2ObservationReadResult.Fail(
-                    WindowTooDense("INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE"));
+                    WindowTooDense(denseErrorCode));
 
             var pageSize = Math.Min(
-                AssetProcessIntelligenceReferenceEvidenceV1Catalog.QueryPageSize, remaining);
+                AssetProcessIntelligenceReferenceEvidenceV1Catalog.QueryPageSize, Math.Max(1, remaining));
             var query = new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamplesV2,
                 HistoricalTimeRange.Absolute(window.FromUtc, window.ToUtc),
@@ -2130,7 +2370,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                 OrderBy: [new HistoricalSort("timestamp", HistoricalSortDirection.Ascending)],
                 Page: new HistoricalPageRequest(pageSize, cursor));
             var response = await historicalQueries.QueryAsync(query, cancellationToken);
-            ValidateCurrentFrequencyPage(response, window, tagPlan.Tag.Id, pageSize);
+            ValidateCurrentFrequencyPage(response, window, tagPlan.Tag.Id, pageSize, allowEnumValue);
             validation = await RevalidateContextualReferencePlansAsync(context, allPlans, cancellationToken);
             if (validation is not null) return ContextualDeviationVectorV2ObservationReadResult.Fail(validation);
 
@@ -2139,7 +2379,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                 (projected == AssetProcessIntelligenceReferenceEvidenceV1Catalog.MaximumRawRowsAcrossQuery &&
                  response.NextCursor is not null))
                 return ContextualDeviationVectorV2ObservationReadResult.Fail(
-                    WindowTooDense("INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE"));
+                    WindowTooDense(denseErrorCode));
 
             foreach (var row in response.Rows)
             {
@@ -2198,7 +2438,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
 
         var configuration = workspace.AssetProcessIntelligence.Snapshot();
-        if (configuration.Version != 2)
+        if (configuration.Version is not (2 or 3))
             return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
         var scopes = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId).Take(2).ToArray();
@@ -2475,7 +2715,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
 
         var configuration = workspace.AssetProcessIntelligence.Snapshot();
-        if (configuration.Version != 2)
+        if (configuration.Version is not (2 or 3))
             return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
         var scopeMatches = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId)
@@ -2766,7 +3006,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
 
         var configuration = workspace.AssetProcessIntelligence.Snapshot();
-        if (configuration.Version != 2)
+        if (configuration.Version is not (2 or 3))
             return PreparedPlanResult.Fail(Conflict("INTELLIGENCE_V2_CONFIGURATION_REQUIRED"));
         var scopeMatches = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId)
@@ -3121,6 +3361,54 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         return null;
     }
 
+    private static IResult? ValidateContextEligibilityV1Request(
+        AssetProcessIntelligenceContextEligibilityV1QueryRequest request)
+    {
+        if (!Enum.IsDefined(request.ScopeKind) || request.ScopeId == Guid.Empty ||
+            request.AssignmentId == Guid.Empty || request.OperatingContextProfileId == Guid.Empty ||
+            request.ExpectedProfileVersion < 1)
+            return BadRequest("INTELLIGENCE_CONTEXT_ELIGIBILITY_IDENTITY_INVALID");
+        if (request.ReferenceWindow is null || !ValidContextEligibilityV1Window(request.ReferenceWindow))
+            return BadRequest("INTELLIGENCE_CONTEXT_ELIGIBILITY_REFERENCE_WINDOW_INVALID");
+        if (request.ComparisonWindow is { } comparisonWindow)
+        {
+            if (!ValidContextEligibilityV1Window(comparisonWindow))
+                return BadRequest("INTELLIGENCE_CONTEXT_ELIGIBILITY_COMPARISON_WINDOW_INVALID");
+            if (request.ReferenceWindow.ToUtc >= comparisonWindow.FromUtc)
+                return BadRequest("INTELLIGENCE_CONTEXT_ELIGIBILITY_COMPARISON_WINDOW_MUST_BE_LATER");
+        }
+        return null;
+    }
+
+    private static bool ValidContextEligibilityV1Window(AssetProcessIntelligenceAnalyticsWindow window) =>
+        window.FromUtc.Offset == TimeSpan.Zero &&
+        window.ToUtc.Offset == TimeSpan.Zero &&
+        window.ToUtc > window.FromUtc &&
+        window.ToUtc - window.FromUtc <= AssetProcessIntelligenceContextEligibilityV1Catalog.MaximumWindow;
+
+    private static bool SameContextProfile(
+        AssetProcessIntelligenceOperatingContextProfileEngineeringDto left,
+        AssetProcessIntelligenceOperatingContextProfileEngineeringDto right) =>
+        left.Id == right.Id && left.Version == right.Version &&
+        string.Equals(left.Key, right.Key, StringComparison.Ordinal) &&
+        string.Equals(left.DisplayLabel, right.DisplayLabel, StringComparison.Ordinal) &&
+        left.AssignmentId == right.AssignmentId &&
+        (left.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>())
+            .OrderBy(predicate => predicate.TagId).ThenBy(predicate => predicate.Kind)
+            .SequenceEqual((right.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>())
+                .OrderBy(predicate => predicate.TagId).ThenBy(predicate => predicate.Kind));
+
+    private static bool SameMeasurementProfile(
+        AssetProcessIntelligenceProfileEngineeringDto left,
+        AssetProcessIntelligenceProfileEngineeringDto right) =>
+        left.Id == right.Id &&
+        string.Equals(left.Key, right.Key, StringComparison.Ordinal) &&
+        string.Equals(left.Name, right.Name, StringComparison.Ordinal) &&
+        (left.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+            .OrderBy(signal => signal.Id)
+            .SequenceEqual((right.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>())
+                .OrderBy(signal => signal.Id));
+
     private static bool ValidReferenceEvidenceV1Window(AssetProcessIntelligenceAnalyticsWindow window) =>
         window.FromUtc.Offset == TimeSpan.Zero &&
         window.ToUtc.Offset == TimeSpan.Zero &&
@@ -3327,7 +3615,8 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         HistoricalQueryResponse response,
         AssetProcessIntelligenceAnalyticsWindow window,
         Guid expectedTagId,
-        int expectedPageSize)
+        int expectedPageSize,
+        bool allowEnumValue = false)
     {
         if (response is null || response.Version != 2 ||
             !string.Equals(response.Dataset, HistoricalDatasets.HistorianSamplesV2, StringComparison.Ordinal) ||
@@ -3373,7 +3662,8 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             if (!row.Cells.TryGetValue("value", out var value) || value is null ||
                 value.Kind is not (HistoricalValueKind.Int16 or HistoricalValueKind.Int32 or HistoricalValueKind.Int64 or
                     HistoricalValueKind.Float or HistoricalValueKind.Double or HistoricalValueKind.Number or
-                    HistoricalValueKind.String or HistoricalValueKind.Boolean or HistoricalValueKind.Null))
+                    HistoricalValueKind.String or HistoricalValueKind.Boolean or HistoricalValueKind.Null) &&
+                !(allowEnumValue && value.Kind == HistoricalValueKind.Enum))
                 throw new InvalidDataException("Historical v2 response contains a malformed value.");
             if (!row.Cells.TryGetValue("source.timestamp", out var sourceTimestamp) || sourceTimestamp is null ||
                 sourceTimestamp.Kind is not (HistoricalValueKind.DateTime or HistoricalValueKind.Null))

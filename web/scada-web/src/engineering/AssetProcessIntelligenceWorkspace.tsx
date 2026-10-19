@@ -3,6 +3,9 @@ import { hasWorkspaceCapability, useEffectiveCapabilities } from '../auth/effect
 import type { EngineeringLocale } from './i18n';
 import type {
   AssetProcessIntelligenceAssignmentEngineering,
+  AssetProcessIntelligenceOperatingContextPredicateEngineering,
+  AssetProcessIntelligenceOperatingContextPredicateKind,
+  AssetProcessIntelligenceOperatingContextProfileEngineering,
   AssetProcessIntelligenceProcessStageEngineering,
   AssetProcessIntelligenceProfileEngineering,
   AssetProcessIntelligenceSignalSemanticBinding,
@@ -21,6 +24,7 @@ type Configuration = {
   profiles: AssetProcessIntelligenceProfileEngineering[];
   assignments: AssetProcessIntelligenceAssignmentEngineering[];
   processStages: AssetProcessIntelligenceProcessStageEngineering[];
+  operatingContextProfiles: AssetProcessIntelligenceOperatingContextProfileEngineering[];
 };
 type Snapshot = {
   configuration: Configuration;
@@ -39,7 +43,7 @@ type Snapshot = {
 };
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
-const EMPTY_CONFIGURATION: Configuration = { version: 1, scopes: [], profiles: [], assignments: [], processStages: [] };
+const EMPTY_CONFIGURATION: Configuration = { version: 1, scopes: [], profiles: [], assignments: [], processStages: [], operatingContextProfiles: [] };
 
 export function AssetProcessIntelligenceWorkspace({
   locale,
@@ -60,6 +64,15 @@ export function AssetProcessIntelligenceWorkspace({
   const [profiles, setProfiles] = useState<AssetProcessIntelligenceProfileEngineering[]>([]);
   const [assignments, setAssignments] = useState<AssetProcessIntelligenceAssignmentEngineering[]>([]);
   const [processStages, setProcessStages] = useState<AssetProcessIntelligenceProcessStageEngineering[]>([]);
+  const [operatingContextProfiles, setOperatingContextProfiles] = useState<AssetProcessIntelligenceOperatingContextProfileEngineering[]>([]);
+  const [selectedContextProfileId, setSelectedContextProfileId] = useState('');
+  const [contextAssignmentId, setContextAssignmentId] = useState('');
+  const [contextPredicateTagId, setContextPredicateTagId] = useState('');
+  const [contextPredicateKind, setContextPredicateKind] = useState<AssetProcessIntelligenceOperatingContextPredicateKind>('NumericInterval');
+  const [contextPredicateMinimum, setContextPredicateMinimum] = useState('');
+  const [contextPredicateMaximum, setContextPredicateMaximum] = useState('');
+  const [contextPredicateExact, setContextPredicateExact] = useState('');
+  const [contextPredicateBoolean, setContextPredicateBoolean] = useState('true');
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [selectedStageId, setSelectedStageId] = useState('');
   const [assignmentEquipmentId, setAssignmentEquipmentId] = useState('');
@@ -77,6 +90,7 @@ export function AssetProcessIntelligenceWorkspace({
   const [message, setMessage] = useState<string | null>(null);
 
   const copy = useMemo(() => text(locale), [locale]);
+  const unitCopy = useMemo(() => contextUnitText(locale), [locale]);
   const load = useCallback(async (adoptConfiguration = false) => {
     setLoading(true);
     setError(null);
@@ -91,6 +105,7 @@ export function AssetProcessIntelligenceWorkspace({
       next.configuration.profiles ??= [];
       next.configuration.assignments ??= [];
       next.configuration.processStages ??= [];
+      next.configuration.operatingContextProfiles ??= [];
       next.tags ??= [];
       setSnapshot(next);
       setSemanticCatalog(nextSemanticCatalog);
@@ -101,6 +116,8 @@ export function AssetProcessIntelligenceWorkspace({
           .reduce((version, signal) => Math.max(version, signal.semanticBinding?.catalogVersion ?? 1), 1));
         setAssignments(next.configuration.assignments);
         setProcessStages(next.configuration.processStages);
+        setOperatingContextProfiles(next.configuration.operatingContextProfiles);
+        setSelectedContextProfileId(current => next.configuration.operatingContextProfiles.some(item => item.id === current) ? current : next.configuration.operatingContextProfiles[0]?.id ?? '');
         setSelectedProfileId(current => next.configuration.profiles.some(item => item.id === current) ? current : next.configuration.profiles[0]?.id ?? '');
         setSelectedStageId(current => next.configuration.processStages.some(item => item.id === current) ? current : next.configuration.processStages[0]?.id ?? '');
       }
@@ -151,7 +168,9 @@ export function AssetProcessIntelligenceWorkspace({
           // Clearing the last v2 annotation must still declare an explicit v2 write.
           semanticContractVersion: Math.max(semanticContractVersion, profiles.flatMap(profile => profile.signals)
             .reduce((version, signal) => Math.max(version, signal.semanticBinding?.catalogVersion ?? 1), 1)),
-          profiles, assignments, processStages
+          profiles, assignments, processStages,
+          operatingContextProfiles: operatingContextProfiles.map(({ id, key, displayLabel, assignmentId, predicates }) => ({ id, key, displayLabel, assignmentId, predicates })),
+          expectedOperatingContextProfileVersions: (snapshot?.configuration.operatingContextProfiles ?? []).map(({ id, version }) => ({ id, version }))
         })
       });
       if (!response.ok) throw await responseError(response);
@@ -159,7 +178,8 @@ export function AssetProcessIntelligenceWorkspace({
       await onSaved?.();
       await load(true);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      const detail = reason instanceof Error ? reason.message : String(reason);
+      setError(detail === 'INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_CONFLICT' ? copy.contextVersionConflict : detail);
     } finally {
       setConfigSaving(false);
     }
@@ -190,8 +210,9 @@ export function AssetProcessIntelligenceWorkspace({
     configured.some(scope => !selected.has(scopeKey(scope)))
   );
   const initialConfig = snapshot?.configuration ?? EMPTY_CONFIGURATION;
-  const dirtyConfiguration = JSON.stringify({ profiles, assignments, processStages }) !== JSON.stringify({
-    profiles: initialConfig.profiles, assignments: initialConfig.assignments, processStages: initialConfig.processStages
+  const dirtyConfiguration = JSON.stringify({ profiles, assignments, processStages, operatingContextProfiles }) !== JSON.stringify({
+    profiles: initialConfig.profiles, assignments: initialConfig.assignments, processStages: initialConfig.processStages,
+    operatingContextProfiles: initialConfig.operatingContextProfiles
   });
   const semanticAnnotationsComplete = profiles.every(profile => profile.signals.every(signal =>
     !signal.semanticBinding || isSemanticBindingComplete(signal.semanticBinding, semanticCatalog?.semanticCatalogs ?? [])));
@@ -199,12 +220,20 @@ export function AssetProcessIntelligenceWorkspace({
     catalog.roles.map(role => ({ ...role, catalogVersion: catalog.catalogVersion })));
   const selectedProfile = profiles.find(profile => profile.id === selectedProfileId) ?? null;
   const selectedStage = processStages.find(stage => stage.id === selectedStageId) ?? null;
+  const selectedContextProfile = operatingContextProfiles.find(profile => profile.id === selectedContextProfileId) ?? null;
   const tags = snapshot?.tags?.length ? snapshot.tags : packageTags;
   const equipment = (snapshot?.resources ?? []).filter(resource => resource.kind === 'Equipment');
   const tagsById = new Map(tags.filter(tag => tag.id).map(tag => [tag.id!.toLowerCase(), tag]));
   const resourcesByKey = new Map((snapshot?.resources ?? []).map(resource => [scopeKey(resource), resource]));
   const profileById = new Map(profiles.map(profile => [profile.id, profile]));
   const assignmentById = new Map(assignments.map(assignment => [assignment.id, assignment]));
+  const selectedContextAssignment = selectedContextProfile ? assignmentById.get(selectedContextProfile.assignmentId) ?? null : null;
+  const selectedContextMeasurementProfile = selectedContextAssignment ? profileById.get(selectedContextAssignment.profileId) ?? null : null;
+  const contextSignalTags = (selectedContextMeasurementProfile?.signals ?? [])
+    .map(signal => tagsById.get(signal.tagId.toLowerCase()))
+    .filter((tag): tag is TagEngineering => Boolean(tag));
+  const selectedPredicateTag = tagsById.get(contextPredicateTagId.toLowerCase());
+  const availablePredicateKinds = contextPredicateKinds(selectedPredicateTag?.dataType);
 
   const createProfile = () => {
     const nextNumber = profiles.length + 1;
@@ -249,7 +278,9 @@ export function AssetProcessIntelligenceWorkspace({
     setProfiles(current => current.filter(item => item.id !== selectedProfile.id));
     setAssignments(current => current.filter(item => item.profileId !== selectedProfile.id));
     setProcessStages(current => current.map(stage => compactLinks({ ...stage, links: stage.links.filter(link => !removedAssignments.has(link.assignmentId)) })));
+    setOperatingContextProfiles(current => current.filter(item => !removedAssignments.has(item.assignmentId)));
     setSelectedProfileId('');
+    setSelectedContextProfileId('');
   };
 
   const addAssignment = () => {
@@ -260,8 +291,71 @@ export function AssetProcessIntelligenceWorkspace({
     setAssignmentProfileId('');
   };
 
+  const createContextProfile = () => {
+    const assignment = assignmentById.get(contextAssignmentId);
+    if (!assignment) return;
+    const nextNumber = operatingContextProfiles.length + 1;
+    const profile: AssetProcessIntelligenceOperatingContextProfileEngineering = {
+      id: crypto.randomUUID(), key: `context-${nextNumber}`, displayLabel: `${copy.defaultContext} ${nextNumber}`,
+      assignmentId: assignment.id, version: 1, predicates: []
+    };
+    setOperatingContextProfiles(current => [...current, profile]);
+    setSelectedContextProfileId(profile.id);
+    setContextPredicateTagId('');
+    setContextAssignmentId('');
+  };
+
+  const updateContextProfile = (changes: Partial<AssetProcessIntelligenceOperatingContextProfileEngineering>) => {
+    if (!selectedContextProfile) return;
+    setOperatingContextProfiles(current => current.map(profile => profile.id === selectedContextProfile.id
+      ? { ...profile, ...changes }
+      : profile));
+  };
+
+  const updateContextPredicate = (tagId: string, changes: Partial<AssetProcessIntelligenceOperatingContextPredicateEngineering>) => {
+    if (!selectedContextProfile) return;
+    updateContextProfile({ predicates: selectedContextProfile.predicates.map(predicate =>
+      predicate.tagId === tagId ? { ...predicate, ...changes } : predicate) });
+  };
+
+  const addContextPredicate = () => {
+    if (!selectedContextProfile || !contextPredicateTagId ||
+        selectedContextProfile.predicates.length >= 16 ||
+        selectedContextProfile.predicates.some(item => item.tagId === contextPredicateTagId)) return;
+    const tag = tagsById.get(contextPredicateTagId.toLowerCase());
+    if (!tag) return;
+    const predicate: AssetProcessIntelligenceOperatingContextPredicateEngineering = { tagId: tag.id!, kind: contextPredicateKind };
+    if (contextPredicateKind === 'NumericInterval') {
+      predicate.minimum = contextPredicateMinimum.trim() === '' ? null : Number(contextPredicateMinimum);
+      predicate.maximum = contextPredicateMaximum.trim() === '' ? null : Number(contextPredicateMaximum);
+      predicate.engineeringUnit = tag.engineeringUnit ?? null;
+      predicate.engineeringUnitConfirmed = true;
+    } else if (contextPredicateKind === 'BooleanEquals') {
+      predicate.booleanValue = contextPredicateBoolean === 'true';
+    } else {
+      predicate.exactValue = contextPredicateExact;
+    }
+    updateContextProfile({ predicates: [...selectedContextProfile.predicates, predicate] });
+    setContextPredicateTagId('');
+    setContextPredicateMinimum('');
+    setContextPredicateMaximum('');
+    setContextPredicateExact('');
+  };
+
+  const removeContextProfile = () => {
+    if (!selectedContextProfile) return;
+    setOperatingContextProfiles(current => current.filter(item => item.id !== selectedContextProfile.id));
+    setSelectedContextProfileId('');
+  };
+
+  const removeContextPredicate = (tagId: string) => {
+    if (!selectedContextProfile) return;
+    updateContextProfile({ predicates: selectedContextProfile.predicates.filter(predicate => predicate.tagId !== tagId) });
+  };
+
   const removeAssignment = (id: string) => {
     setAssignments(current => current.filter(item => item.id !== id));
+    setOperatingContextProfiles(current => current.filter(item => item.assignmentId !== id));
     setProcessStages(current => current.map(stage => compactLinks({ ...stage, links: stage.links.filter(link => link.assignmentId !== id) })));
   };
 
@@ -475,6 +569,89 @@ export function AssetProcessIntelligenceWorkspace({
           </div>}
         </section>
 
+        <section className="asset-process-intelligence__authoring-section" aria-labelledby="intelligence-context-profiles-heading" data-testid="intelligence-context-profiles">
+          <div className="asset-process-intelligence__section-heading"><div><h3 id="intelligence-context-profiles-heading">{copy.contextProfiles}</h3><p>{copy.contextProfilesHint}</p></div></div>
+          {assignments.length === 0 ? <div className="eng-empty"><strong>{copy.noAssignments}</strong></div> : <div className="asset-process-intelligence__assignment-form">
+            <label>{copy.selectedAssignment}<select value={contextAssignmentId} disabled={!canEngineer || !canManage} onChange={event => setContextAssignmentId(event.currentTarget.value)}>
+              <option value="">{copy.chooseAssignment}</option>
+              {assignments.map(assignment => {
+                const equip = resourcesByKey.get(`Equipment:${assignment.equipmentId.toLowerCase()}`);
+                const profile = profileById.get(assignment.profileId);
+                return <option key={assignment.id} value={assignment.id}>{equip?.name ?? copy.missingEquipment} · {profile?.name ?? copy.missingProfile}</option>;
+              })}
+            </select></label>
+            <button type="button" className="secondary" disabled={!canEngineer || !canManage || !contextAssignmentId} onClick={createContextProfile}>{copy.newContextProfile}</button>
+          </div>}
+          {!canManage ? <p role="note">{copy.contextAuthorizationHint}</p> : null}
+          {operatingContextProfiles.length === 0 ? <div className="eng-empty"><strong>{copy.noContextProfiles}</strong></div> : <div className="asset-process-intelligence__split">
+            <div className="asset-process-intelligence__choice-list" role="listbox" aria-label={copy.contextProfiles}>
+              {operatingContextProfiles.map(profile => {
+                const assignment = assignmentById.get(profile.assignmentId);
+                const equip = assignment ? resourcesByKey.get(`Equipment:${assignment.equipmentId.toLowerCase()}`) : undefined;
+                return <button type="button" role="option" aria-selected={profile.id === selectedContextProfileId} key={profile.id} onClick={() => setSelectedContextProfileId(profile.id)}>
+                  <strong>{profile.displayLabel}</strong><small>{profile.key} · v{profile.version} · {equip?.name ?? copy.missingEquipment}</small>
+                </button>;
+              })}
+            </div>
+            {selectedContextProfile ? <div className="asset-process-intelligence__editor">
+              <div className="asset-process-intelligence__field-grid">
+                <label>{copy.contextKey}<input value={selectedContextProfile.key} disabled={!canEngineer || !canManage} onChange={event => updateContextProfile({ key: event.currentTarget.value })}/></label>
+                <label>{copy.contextLabel}<input value={selectedContextProfile.displayLabel} disabled={!canEngineer || !canManage} onChange={event => updateContextProfile({ displayLabel: event.currentTarget.value })}/></label>
+              </div>
+              <p className="asset-process-intelligence__version">{copy.savedProfileVersion}: v{snapshot?.configuration.operatingContextProfiles.find(item => item.id === selectedContextProfile.id)?.version ?? copy.newProfile}</p>
+              <div className="asset-process-intelligence__section-heading"><div><h4>{copy.contextPredicates}</h4><p>{copy.contextPredicatesHint}</p><p>{unitCopy.policy}</p></div></div>
+              {selectedContextProfile.predicates.length === 0 ? <div className="eng-empty"><strong>{copy.noContextPredicates}</strong></div> : <div className="asset-process-intelligence__list">
+                {selectedContextProfile.predicates.map(predicate => {
+                  const tag = tagsById.get(predicate.tagId.toLowerCase());
+                  const numericUnitConfirmed = predicate.kind !== 'NumericInterval' || (!!tag &&
+                    predicate.engineeringUnitConfirmed === true &&
+                    (predicate.engineeringUnit ?? null) === (tag?.engineeringUnit ?? null));
+                  return <article className="asset-process-intelligence__row" key={predicate.tagId}>
+                    <span><strong>{tag?.path ?? copy.missingTag}</strong><small>{tag ? `${tag.dataType}${tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}` : predicate.tagId}</small></span>
+                    {predicate.kind === 'NumericInterval' ? <div className="asset-process-intelligence__field-grid">
+                      <label>{copy.minimumInclusive}<input type="number" value={predicate.minimum ?? ''} disabled={!canEngineer || !canManage || !numericUnitConfirmed} onChange={event => updateContextPredicate(predicate.tagId, { minimum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
+                      <label>{copy.maximumInclusive}<input type="number" value={predicate.maximum ?? ''} disabled={!canEngineer || !canManage || !numericUnitConfirmed} onChange={event => updateContextPredicate(predicate.tagId, { maximum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
+                    </div> : predicate.kind === 'BooleanEquals' ? <label>{copy.predicateValue}<select value={String(predicate.booleanValue ?? true)} disabled={!canEngineer || !canManage} onChange={event => updateContextPredicate(predicate.tagId, { booleanValue: event.currentTarget.value === 'true' })}><option value="true">{copy.matchTrue}</option><option value="false">{copy.matchFalse}</option></select></label> : <label>{copy.exactValue}<input value={predicate.exactValue ?? ''} disabled={!canEngineer || !canManage} onChange={event => updateContextPredicate(predicate.tagId, { exactValue: event.currentTarget.value })}/></label>}
+                    {predicate.kind === 'NumericInterval' ? <>
+                      <small role="status">{numericUnitConfirmed
+                        ? `${unitCopy.confirmed}: ${predicate.engineeringUnit ?? unitCopy.unitless}`
+                        : `${unitCopy.unconfirmed}: ${unitCopy.storedUnit} ${predicate.engineeringUnit ?? unitCopy.unitless}; ${unitCopy.currentUnit} ${tag?.engineeringUnit ?? unitCopy.unitless}`}</small>
+                      {!numericUnitConfirmed ? <button type="button" className="secondary" disabled={!canEngineer || !canManage || !tag} onClick={() => tag && updateContextPredicate(predicate.tagId, {
+                        engineeringUnit: tag.engineeringUnit ?? null,
+                        engineeringUnitConfirmed: true
+                      })}>{unitCopy.confirm}</button> : null}
+                    </> : null}
+                    <button type="button" className="secondary" disabled={!canEngineer || !canManage} onClick={() => removeContextPredicate(predicate.tagId)}>{copy.remove}</button>
+                  </article>;
+                })}
+              </div>}
+              <div className="asset-process-intelligence__assignment-form">
+                <label>{copy.predicateTag}<select value={contextPredicateTagId} disabled={!canEngineer || !canManage || !selectedContextMeasurementProfile || selectedContextProfile.predicates.length >= 16} onChange={event => {
+                  const nextId = event.currentTarget.value;
+                  const nextTag = tagsById.get(nextId.toLowerCase());
+                  const nextKinds = contextPredicateKinds(nextTag?.dataType);
+                  setContextPredicateTagId(nextId);
+                  if (nextKinds.length) setContextPredicateKind(nextKinds[0]);
+                }}>
+                  <option value="">{copy.choosePredicateTag}</option>
+                  {contextSignalTags.filter(tag => !selectedContextProfile.predicates.some(predicate => predicate.tagId.toLowerCase() === tag.id?.toLowerCase()) && contextPredicateKinds(tag.dataType).length > 0).map(tag => <option key={tag.id} value={tag.id}>{tag.path} · {tag.dataType}{tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}</option>)}
+                </select></label>
+                {selectedPredicateTag ? <>
+                  <label>{copy.predicateKind}<select value={contextPredicateKind} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateKind(event.currentTarget.value as AssetProcessIntelligenceOperatingContextPredicateKind)}>
+                    {availablePredicateKinds.map(kind => <option key={kind} value={kind}>{copy[kind]}</option>)}
+                  </select></label>
+                  {contextPredicateKind === 'NumericInterval' ? <>
+                    <label>{copy.minimumInclusive}<input type="number" value={contextPredicateMinimum} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateMinimum(event.currentTarget.value)}/></label>
+                    <label>{copy.maximumInclusive}<input type="number" value={contextPredicateMaximum} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateMaximum(event.currentTarget.value)}/></label>
+                  </> : contextPredicateKind === 'BooleanEquals' ? <label>{copy.predicateValue}<select value={contextPredicateBoolean} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateBoolean(event.currentTarget.value)}><option value="true">{copy.matchTrue}</option><option value="false">{copy.matchFalse}</option></select></label> : <label>{copy.exactValue}<input value={contextPredicateExact} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateExact(event.currentTarget.value)}/></label>}
+                </> : null}
+                <button type="button" className="secondary" disabled={!canEngineer || !canManage || !selectedPredicateTag || selectedContextProfile.predicates.length >= 16} onClick={addContextPredicate}>{copy.addPredicate}</button>
+              </div>
+              <button type="button" className="secondary asset-process-intelligence__danger" disabled={!canEngineer || !canManage} onClick={removeContextProfile}>{copy.deleteContextProfile}</button>
+            </div> : null}
+          </div>}
+        </section>
+
         <section className="asset-process-intelligence__authoring-section" aria-labelledby="intelligence-stages-heading">
           <div className="asset-process-intelligence__section-heading"><div><h3 id="intelligence-stages-heading">{copy.processStages}</h3><p>{copy.processStagesHint}</p></div>
             <button type="button" className="secondary" disabled={!canEngineer} onClick={addStage}>{copy.newStage}</button>
@@ -535,6 +712,16 @@ function compactLinks(stage: AssetProcessIntelligenceProcessStageEngineering): A
 function scopeKey(scope: { kind: ScopeKind; scopeId: string }) { return `${scope.kind}:${scope.scopeId.toLowerCase()}`; }
 function slug(value: string) {
   return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'signal';
+}
+
+function contextPredicateKinds(dataType: string | undefined): AssetProcessIntelligenceOperatingContextPredicateKind[] {
+  switch (dataType) {
+    case 'Int16': case 'Int32': case 'Int64': case 'Float': case 'Double': return ['NumericInterval'];
+    case 'Boolean': return ['BooleanEquals'];
+    case 'String': return ['StringEquals'];
+    case 'Enum': return ['EnumEquals'];
+    default: return [];
+  }
 }
 
 type SemanticQualifierKey = 'currentBasis' | 'signalKind' | 'frequencyReference' | 'pressureReference' | 'flowDirection';
@@ -608,7 +795,8 @@ function text(locale: EngineeringLocale) {
     stage2Title: 'Process configuration', stage2Hint: 'Create reusable profiles from stable TAG identities, assign them to Equipment and order the process stages. These edits are saved to Working.',
     profiles: 'Reusable profiles', profilesHint: 'A profile can be reused by multiple Equipment assignments.', newProfile: 'New profile', noProfiles: 'No profiles yet. Create one to define static signal references.', defaultProfile: 'Profile', defaultSignal: 'Signal', profileKey: 'Stable key', profileName: 'Display name', signals: 'Signal references', signalsHint: 'References are by TAG ID; legacy role and unit text stay unchanged. Controlled semantics are opt-in.', noSignals: 'No signals in this profile.', signalKey: 'Signal key', signalKeyPlaceholder: 'e.g. temperature', signalRole: 'Legacy domain role text', semanticRole: 'Controlled semantic role', noSemanticRole: 'No controlled role', chooseQualifier: 'Choose a qualifier', currentBasisLabel: 'Current basis', signalKindLabel: 'Signal kind', frequencyReferenceLabel: 'Frequency reference', pressureReferenceLabel: 'Pressure reference', flowDirectionLabel: 'Flow direction', semanticComplete: 'Controlled annotation complete', semanticIncomplete: 'Incomplete: select every required qualifier before saving', unsupportedSemantic: 'Unsupported stored role', tagReference: 'TAG reference', chooseTag: 'Choose a TAG', noTags: 'No stable TAGs available', addSignal: 'Add signal', required: 'Required', optional: 'Optional', missingTag: 'Missing TAG reference', remove: 'Remove', deleteProfile: 'Delete profile and its assignments',
     assignments: 'Equipment assignments', assignmentsHint: 'Assign a reusable profile to each stable Equipment identity. One Equipment may have multiple profile assignments.', equipment: 'Equipment', profile: 'Profile', chooseEquipment: 'Choose Equipment', chooseProfile: 'Choose a profile', assignProfile: 'Assign profile', noEquipment: 'No stable Equipment is available.', noAssignments: 'No assignments yet.', missingEquipment: 'Missing Equipment', missingProfile: 'Missing profile', referenceMissing: 'Reference is missing',
-    processStages: 'Ordered process stages', processStagesHint: 'Arrange assignment links into stages; order is explicit and stable.', newStage: 'New stage', noStages: 'No process stages yet.', defaultStage: 'Stage', stageKey: 'Stable key', stageName: 'Display name', noStageAssignments: 'No assignments in this stage.', stageAssignment: 'Assignment', chooseAssignment: 'Choose an assignment', addToStage: 'Add to stage', moveUp: 'Move up', moveDown: 'Move down', staticOnly: 'Configuration-only: no TAG reads, samples, Historian queries or inferred values are stored.', saveConfiguration: 'Save process configuration', configurationSaved: 'Process configuration saved to Working.'
+    processStages: 'Ordered process stages', processStagesHint: 'Arrange assignment links into stages; order is explicit and stable.', newStage: 'New stage', noStages: 'No process stages yet.', defaultStage: 'Stage', stageKey: 'Stable key', stageName: 'Display name', noStageAssignments: 'No assignments in this stage.', stageAssignment: 'Assignment', chooseAssignment: 'Choose an assignment', addToStage: 'Add to stage', moveUp: 'Move up', moveDown: 'Move down', staticOnly: 'Configuration-only: no TAG reads, samples, Historian queries or inferred values are stored.', saveConfiguration: 'Save process configuration', configurationSaved: 'Process configuration saved to Working.',
+    contextProfiles: 'Operating-context profiles', contextProfilesHint: 'Bind every context to one Equipment assignment. Eligibility queries are separate, read-only and use the exact saved profile version.', newContextProfile: 'New context', noContextProfiles: 'No operating contexts yet.', defaultContext: 'Context', contextKey: 'Stable key', contextLabel: 'Operator label', selectedAssignment: 'Equipment assignment', contextAuthorizationHint: 'EngineeringModify and a resource-scoped AssetProcessIntelligenceManage grant are required to edit contexts.', contextPredicates: 'Required predicates', contextPredicatesHint: 'All predicates must match at the same exact synchronized UTC source timestamp. Numeric bounds use the current Engineering unit.', noContextPredicates: 'Add at least one required predicate before saving.', predicateTag: 'TAG from assigned measurement profile', choosePredicateTag: 'Choose a profile TAG', predicateKind: 'Predicate type', NumericInterval: 'Inclusive numeric interval', BooleanEquals: 'Boolean equals', StringEquals: 'Exact String', EnumEquals: 'Exact Enum', minimumInclusive: 'Minimum (inclusive)', maximumInclusive: 'Maximum (inclusive)', predicateValue: 'Required value', exactValue: 'Exact ordinal value', matchTrue: 'True', matchFalse: 'False', addPredicate: 'Add predicate', deleteContextProfile: 'Delete context profile', savedProfileVersion: 'Server profile version', contextVersionConflict: 'This context profile changed elsewhere. Refresh and review the latest version before saving.'
   } as const;
   if (locale === 'es') return {
     eyebrow: 'Ingeniería · Etapa 1/2', title: 'Inteligencia de Activos y Procesos',
@@ -621,7 +809,8 @@ function text(locale: EngineeringLocale) {
     stage2Title: 'Configuración de procesos', stage2Hint: 'Cree perfiles reutilizables con identidades TAG estables, asígnelos a equipos y ordene las etapas. Los cambios se guardan en Working.',
     profiles: 'Perfiles reutilizables', profilesHint: 'Un perfil puede reutilizarse en varias asignaciones de equipos.', newProfile: 'Nuevo perfil', noProfiles: 'Aún no hay perfiles. Cree uno para definir referencias estáticas.', defaultProfile: 'Perfil', defaultSignal: 'Señal', profileKey: 'Clave estable', profileName: 'Nombre', signals: 'Referencias de señales', signalsHint: 'Las referencias usan el ID TAG; el texto de rol y unidad se conserva. La semántica controlada es opcional.', noSignals: 'Este perfil no tiene señales.', signalKey: 'Clave de señal', signalKeyPlaceholder: 'p. ej. temperatura', signalRole: 'Texto de rol heredado', semanticRole: 'Rol semántico controlado', noSemanticRole: 'Sin rol controlado', chooseQualifier: 'Elija un calificador', currentBasisLabel: 'Base de corriente', signalKindLabel: 'Tipo de señal', frequencyReferenceLabel: 'Referencia de frecuencia', pressureReferenceLabel: 'Referencia de presión', flowDirectionLabel: 'Dirección del flujo', semanticComplete: 'Anotación controlada completa', semanticIncomplete: 'Incompleta: seleccione todos los calificadores requeridos antes de guardar', unsupportedSemantic: 'Rol almacenado no compatible', tagReference: 'Referencia TAG', chooseTag: 'Elija un TAG', noTags: 'No hay TAGs estables', addSignal: 'Añadir señal', required: 'Obligatoria', optional: 'Opcional', missingTag: 'Falta la referencia TAG', remove: 'Eliminar', deleteProfile: 'Eliminar perfil y sus asignaciones',
     assignments: 'Asignaciones de equipo', assignmentsHint: 'Asigne un perfil reutilizable a cada identidad estable de equipo. Un equipo puede tener varios perfiles.', equipment: 'Equipo', profile: 'Perfil', chooseEquipment: 'Elija un equipo', chooseProfile: 'Elija un perfil', assignProfile: 'Asignar perfil', noEquipment: 'No hay equipos estables.', noAssignments: 'Aún no hay asignaciones.', missingEquipment: 'Equipo inexistente', missingProfile: 'Perfil inexistente', referenceMissing: 'Falta la referencia',
-    processStages: 'Etapas ordenadas', processStagesHint: 'Organice los enlaces de asignación; el orden es explícito y estable.', newStage: 'Nueva etapa', noStages: 'Aún no hay etapas.', defaultStage: 'Etapa', stageKey: 'Clave estable', stageName: 'Nombre', noStageAssignments: 'No hay asignaciones en esta etapa.', stageAssignment: 'Asignación', chooseAssignment: 'Elija una asignación', addToStage: 'Añadir a etapa', moveUp: 'Mover arriba', moveDown: 'Mover abajo', staticOnly: 'Solo configuración: no se leen TAGs, valores, Historian ni se guardan inferencias.', saveConfiguration: 'Guardar configuración', configurationSaved: 'Configuración guardada en Working.'
+    processStages: 'Etapas ordenadas', processStagesHint: 'Organice los enlaces de asignación; el orden es explícito y estable.', newStage: 'Nueva etapa', noStages: 'Aún no hay etapas.', defaultStage: 'Etapa', stageKey: 'Clave estable', stageName: 'Nombre', noStageAssignments: 'No hay asignaciones en esta etapa.', stageAssignment: 'Asignación', chooseAssignment: 'Elija una asignación', addToStage: 'Añadir a etapa', moveUp: 'Mover arriba', moveDown: 'Mover abajo', staticOnly: 'Solo configuración: no se leen TAGs, valores, Historian ni se guardan inferencias.', saveConfiguration: 'Guardar configuración', configurationSaved: 'Configuración guardada en Working.',
+    contextProfiles: 'Perfiles de contexto operativo', contextProfilesHint: 'Vincule cada contexto a una asignación de equipo. Las consultas de elegibilidad son independientes, de solo lectura y usan la versión exacta del perfil.', newContextProfile: 'Nuevo contexto', noContextProfiles: 'Aún no hay contextos operativos.', defaultContext: 'Contexto', contextKey: 'Clave estable', contextLabel: 'Etiqueta del operador', selectedAssignment: 'Asignación de equipo', contextAuthorizationHint: 'Se requieren EngineeringModify y AssetProcessIntelligenceManage con alcance de recurso para editar contextos.', contextPredicates: 'Predicados obligatorios', contextPredicatesHint: 'Todos los predicados deben coincidir en la misma marca UTC de origen, sincronizada y exacta. Los límites numéricos usan la unidad actual de Engineering.', noContextPredicates: 'Añada al menos un predicado obligatorio antes de guardar.', predicateTag: 'TAG del perfil de medición asignado', choosePredicateTag: 'Elija un TAG del perfil', predicateKind: 'Tipo de predicado', NumericInterval: 'Intervalo numérico inclusivo', BooleanEquals: 'Igualdad booleana', StringEquals: 'String exacto', EnumEquals: 'Enum exacto', minimumInclusive: 'Mínimo (inclusivo)', maximumInclusive: 'Máximo (inclusivo)', predicateValue: 'Valor obligatorio', exactValue: 'Valor ordinal exacto', matchTrue: 'Verdadero', matchFalse: 'Falso', addPredicate: 'Añadir predicado', deleteContextProfile: 'Eliminar perfil de contexto', savedProfileVersion: 'Versión guardada por el servidor', contextVersionConflict: 'Este perfil cambió en otro lugar. Actualice y revise la versión más reciente antes de guardar.'
   } as const;
   return {
     eyebrow: 'Engenharia · Stage 1/2', title: 'Inteligência de Ativos e Processos',
@@ -634,6 +823,37 @@ function text(locale: EngineeringLocale) {
     stage2Title: 'Configuração de processos', stage2Hint: 'Crie perfis reutilizáveis com referências estáveis de TAG, associe-os a equipamentos e ordene as etapas. As edições são salvas no Working.',
     profiles: 'Perfis reutilizáveis', profilesHint: 'Um perfil pode ser reutilizado em várias associações de equipamentos.', newProfile: 'Novo perfil', noProfiles: 'Nenhum perfil ainda. Crie um para definir referências estáticas de sinais.', defaultProfile: 'Perfil', defaultSignal: 'Sinal', profileKey: 'Chave estável', profileName: 'Nome de exibição', signals: 'Referências de sinais', signalsHint: 'As referências usam o ID do TAG; textos livres de papel e unidade são preservados. Semântica controlada é opcional.', noSignals: 'Este perfil não possui sinais.', signalKey: 'Chave do sinal', signalKeyPlaceholder: 'ex.: temperatura', signalRole: 'Texto de papel legado', semanticRole: 'Papel semântico controlado', noSemanticRole: 'Sem papel controlado', chooseQualifier: 'Escolha um qualificador', currentBasisLabel: 'Base de corrente', signalKindLabel: 'Tipo do sinal', frequencyReferenceLabel: 'Referência de frequência', pressureReferenceLabel: 'Referência de pressão', flowDirectionLabel: 'Direção do fluxo', semanticComplete: 'Anotação controlada completa', semanticIncomplete: 'Incompleta: selecione todos os qualificadores obrigatórios antes de salvar', unsupportedSemantic: 'Papel armazenado não compatível', tagReference: 'Referência do TAG', chooseTag: 'Escolha um TAG', noTags: 'Nenhum TAG estável disponível', addSignal: 'Adicionar sinal', required: 'Obrigatório', optional: 'Opcional', missingTag: 'Referência de TAG ausente', remove: 'Remover', deleteProfile: 'Excluir perfil e associações',
     assignments: 'Associações de equipamentos', assignmentsHint: 'Associe um perfil reutilizável a cada identidade estável de equipamento. Um equipamento pode usar vários perfis.', equipment: 'Equipamento', profile: 'Perfil', chooseEquipment: 'Escolha um equipamento', chooseProfile: 'Escolha um perfil', assignProfile: 'Associar perfil', noEquipment: 'Nenhum equipamento estável disponível.', noAssignments: 'Nenhuma associação ainda.', missingEquipment: 'Equipamento ausente', missingProfile: 'Perfil ausente', referenceMissing: 'Referência ausente',
-    processStages: 'Etapas ordenadas do processo', processStagesHint: 'Organize associações nas etapas; a ordem é explícita e estável.', newStage: 'Nova etapa', noStages: 'Nenhuma etapa de processo ainda.', defaultStage: 'Etapa', stageKey: 'Chave estável', stageName: 'Nome de exibição', noStageAssignments: 'Nenhuma associação nesta etapa.', stageAssignment: 'Associação', chooseAssignment: 'Escolha uma associação', addToStage: 'Adicionar à etapa', moveUp: 'Mover para cima', moveDown: 'Mover para baixo', staticOnly: 'Somente configuração: sem leitura de TAG, valores, consultas ao Historian ou inferências.', saveConfiguration: 'Salvar configuração de processo', configurationSaved: 'Configuração de processo salva no Working.'
+    processStages: 'Etapas ordenadas do processo', processStagesHint: 'Organize associações nas etapas; a ordem é explícita e estável.', newStage: 'Nova etapa', noStages: 'Nenhuma etapa de processo ainda.', defaultStage: 'Etapa', stageKey: 'Chave estável', stageName: 'Nome de exibição', noStageAssignments: 'Nenhuma associação nesta etapa.', stageAssignment: 'Associação', chooseAssignment: 'Escolha uma associação', addToStage: 'Adicionar à etapa', moveUp: 'Mover para cima', moveDown: 'Mover para baixo', staticOnly: 'Somente configuração: sem leitura de TAG, valores, consultas ao Historian ou inferências.', saveConfiguration: 'Salvar configuração de processo', configurationSaved: 'Configuração de processo salva no Working.',
+    contextProfiles: 'Perfis de contexto operacional', contextProfilesHint: 'Vincule cada contexto a uma associação de equipamento. Consultas de elegibilidade são separadas, somente leitura e usam a versão exata do perfil.', newContextProfile: 'Novo contexto', noContextProfiles: 'Nenhum contexto operacional ainda.', defaultContext: 'Contexto', contextKey: 'Chave estável', contextLabel: 'Rótulo do operador', selectedAssignment: 'Associação de equipamento', contextAuthorizationHint: 'São necessários EngineeringModify e AssetProcessIntelligenceManage com escopo para o recurso para editar contextos.', contextPredicates: 'Predicados obrigatórios', contextPredicatesHint: 'Todos os predicados devem corresponder no mesmo timestamp UTC de origem, sincronizado e exato. Os limites numéricos usam a unidade de Engineering atual.', noContextPredicates: 'Adicione pelo menos um predicado obrigatório antes de salvar.', predicateTag: 'TAG do perfil de medição associado', choosePredicateTag: 'Escolha um TAG do perfil', predicateKind: 'Tipo de predicado', NumericInterval: 'Intervalo numérico inclusivo', BooleanEquals: 'Igualdade booleana', StringEquals: 'String exata', EnumEquals: 'Enum exato', minimumInclusive: 'Mínimo (inclusivo)', maximumInclusive: 'Máximo (inclusivo)', predicateValue: 'Valor obrigatório', exactValue: 'Valor ordinal exato', matchTrue: 'Verdadeiro', matchFalse: 'Falso', addPredicate: 'Adicionar predicado', deleteContextProfile: 'Excluir perfil de contexto', savedProfileVersion: 'Versão salva pelo servidor', contextVersionConflict: 'Este perfil de contexto foi alterado em outra edição. Atualize e revise a versão mais recente antes de salvar.'
+  } as const;
+}
+
+function contextUnitText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    policy: 'Numeric bounds are saved with the current TAG unit. A unit change never converts bounds; review and explicitly reconfirm them. Queries fail closed until confirmed.',
+    confirmed: 'Bounds confirmed in',
+    unconfirmed: 'Numeric bounds need unit confirmation.',
+    storedUnit: 'Saved unit:',
+    currentUnit: 'Current unit:',
+    unitless: 'unitless',
+    confirm: 'Confirm bounds in current unit'
+  } as const;
+  if (locale === 'es') return {
+    policy: 'Los límites numéricos se guardan con la unidad actual del TAG. Un cambio de unidad nunca convierte los límites; revíselos y confírmelos explícitamente. Las consultas se bloquean hasta confirmarlos.',
+    confirmed: 'Límites confirmados en',
+    unconfirmed: 'Los límites numéricos requieren confirmar la unidad.',
+    storedUnit: 'Unidad guardada:',
+    currentUnit: 'Unidad actual:',
+    unitless: 'sin unidad',
+    confirm: 'Confirmar límites en la unidad actual'
+  } as const;
+  return {
+    policy: 'Os limites numéricos são salvos com a unidade atual do TAG. Uma mudança de unidade nunca converte os limites; revise-os e confirme explicitamente. As consultas ficam bloqueadas até a confirmação.',
+    confirmed: 'Limites confirmados em',
+    unconfirmed: 'Os limites numéricos precisam de confirmação da unidade.',
+    storedUnit: 'Unidade salva:',
+    currentUnit: 'Unidade atual:',
+    unitless: 'sem unidade',
+    confirm: 'Confirmar limites na unidade atual'
   } as const;
 }

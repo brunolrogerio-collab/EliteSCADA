@@ -49,6 +49,7 @@ type ExportedPackage = {
     readOnly?: boolean;
     engineeringUnit?: string | null;
   }>;
+  startupScreenId?: string | null;
   [key: string]: unknown;
 };
 
@@ -156,7 +157,8 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;
-  const originalScreen = originalPackage.screens?.[0];
+  const originalScreen = originalPackage.screens?.find(candidate => candidate.id === originalPackage.startupScreenId)
+    ?? originalPackage.screens?.[0];
   expect(originalScreen).toBeTruthy();
 
   const bindingTag = originalPackage.tags?.find(tag => tag.dataType.toLowerCase() === 'boolean')
@@ -653,6 +655,193 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
   }
 });
 
+test('W15 measurement widgets retain bindings and display configuration through editor preview, canonical save/load and Runtime', async ({ page, request }, testInfo) => {
+  test.setTimeout(90_000);
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as ExportedPackage;
+  const staleMeasurementWidgets = (originalPackage.screens ?? []).reduce(
+    (total, screen) => total + removeMeasurementTestWidgets(screen.elements ?? []),
+    0
+  );
+  if (staleMeasurementWidgets > 0) {
+    const cleanup = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+    });
+    expect(cleanup.ok(), `could not remove ${staleMeasurementWidgets} stale test widgets (HTTP ${cleanup.status()})`).toBeTruthy();
+  }
+  const originalScreen = originalPackage.screens?.find(candidate => candidate.id === originalPackage.startupScreenId)
+    ?? originalPackage.screens?.[0];
+  const numericTag = originalPackage.tags?.find(tag => ['int16', 'int32', 'int64', 'float', 'double'].includes(tag.dataType.toLowerCase()));
+  expect(originalScreen, 'the fixture must contain a Screen for the persisted visual contract').toBeTruthy();
+  expect(numericTag, 'the fixture must expose a numeric TAG for the measurement bindings').toBeTruthy();
+
+  const widgetTypes = [
+    'core.measurementDial', 'core.measurementRing', 'core.measurementBar',
+    'core.measurementThermometer', 'core.measurementBands', 'core.measurementTarget'
+  ];
+  const widgets: ExportedVisualElement[] = widgetTypes.map((type, index) => ({
+    id: randomUUID(),
+    key: `w15-measurement-${index + 1}`,
+    type,
+    bindings: [{
+      key: 'value', kind: 'tag', target: numericTag!.path, direction: 'input',
+      metadata: { engineeringUnit: 'bar' }
+    }],
+    properties: {
+      x: 20 + index * 230, y: 160, width: 210, height: 140,
+      minimum: 0, maximum: 100, measurementUnit: 'bar', measurementTheme: 'high-contrast',
+      measurementQualityVisible: true, measurementFreshnessVisible: true,
+      measurementStaleAfterSeconds: 30,
+      ...(type === 'core.measurementBands' ? { measurementBandOneEnd: 30, measurementBandTwoEnd: 70 } : {}),
+      ...(type === 'core.measurementTarget' ? { measurementTarget: 65 } : {})
+    }
+  }));
+  const seededPackage = structuredClone(originalPackage);
+  const seededScreen = seededPackage.screens?.find(candidate =>
+    (originalScreen!.id && candidate.id === originalScreen!.id) || candidate.key === originalScreen!.key);
+  expect(seededScreen).toBeTruthy();
+  seededScreen!.elements = [...(seededScreen!.elements ?? []), ...widgets];
+  let projectKey: string | null = null;
+  let restoreActiveRuntime = false;
+
+  try {
+    const seed = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' }, data: seededPackage
+    });
+    expect(seed.ok(), `could not seed canonical measurement model (HTTP ${seed.status()})`).toBeTruthy();
+    const workspaceResponse = await request.get('/api/engineering/workspace');
+    expect(workspaceResponse.ok()).toBeTruthy();
+    const workspace = await workspaceResponse.json() as { projectKey?: string | null };
+    projectKey = workspace.projectKey ?? null;
+    expect(projectKey, 'the test fixture must have a project to activate for Runtime proof').toBeTruthy();
+    restoreActiveRuntime = true;
+
+    await page.goto('/engineering');
+    await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
+    const editorWidgets = page.locator('[data-testid="visual-editor-canonical-layer"] [data-widget-type^="core.measurement"]');
+    await expect(editorWidgets).toHaveCount(6);
+    for (let index = 0; index < widgetTypes.length; index += 1) {
+      await expect(editorWidgets.nth(index)).toHaveAttribute('data-widget-type', widgetTypes[index]);
+      await expect(editorWidgets.nth(index)).toHaveAttribute('data-object-id', widgets[index].id!);
+    }
+    await testInfo.attach('measurement-widgets-editor-loaded-preview', {
+      body: await page.getByTestId('visual-editor-canonical-layer').screenshot(),
+      contentType: 'image/png'
+    });
+
+    // Move one authored object by a single logical pixel so the normal Preview -> Apply
+    // lifecycle validates and saves the exact model now mounted by the editor.
+    const firstEditorObject = page.locator(
+      `.visual-editor-canvas__interaction-layer [data-canvas-object-type="${widgetTypes[0]}"][data-canvas-object-id="${widgets[0].id}"]`
+    );
+    await expect(firstEditorObject).toBeVisible();
+    await firstEditorObject.click();
+    const canvasSurface = page.locator('.visual-editor-canvas__surface');
+    await canvasSurface.focus();
+    await canvasSurface.press('ArrowRight');
+    await page.getByTestId('visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('visual-editor-apply')).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
+    await applyAndAwaitCanonicalCompletion(page, 'visual-editor-apply');
+    await page.reload();
+    await expect(page.getByTestId('visual-editor-canonical-layer')).toBeVisible();
+
+    const persistedResponse = await request.get('/api/engineering/export/json');
+    expect(persistedResponse.ok()).toBeTruthy();
+    const persistedPackage = await persistedResponse.json() as ExportedPackage;
+    const persistedScreen = persistedPackage.screens?.find(candidate =>
+      (originalScreen!.id && candidate.id === originalScreen!.id) || candidate.key === originalScreen!.key);
+    const persistedElements = flatten(persistedScreen?.elements ?? []);
+    const persistedWidgets = widgets.map(widget => persistedElements.find(element => element.id === widget.id));
+    expect(persistedWidgets.every(Boolean)).toBeTruthy();
+    for (let index = 0; index < widgetTypes.length; index += 1) {
+      expect(persistedWidgets[index]).toMatchObject({
+        id: widgets[index].id, key: widgets[index].key, type: widgetTypes[index],
+        bindings: [expect.objectContaining({ key: 'value', kind: 'tag', target: numericTag!.path })],
+        properties: expect.objectContaining({
+          minimum: 0, maximum: 100, measurementUnit: 'bar', measurementTheme: 'high-contrast',
+          measurementQualityVisible: true, measurementFreshnessVisible: true,
+          measurementStaleAfterSeconds: 30
+        })
+      });
+    }
+    expect(persistedWidgets[4]?.properties).toMatchObject({ measurementBandOneEnd: 30, measurementBandTwoEnd: 70 });
+    expect(persistedWidgets[5]?.properties).toMatchObject({ measurementTarget: 65 });
+
+    await savePublishActivate(request, projectKey!, 'measurement-widgets-e2e');
+    await page.goto('/');
+    const runtimeWidgets = page.locator('[data-widget-type^="core.measurement"]');
+    await expect(runtimeWidgets).toHaveCount(6, { timeout: 20_000 });
+    for (let index = 0; index < widgetTypes.length; index += 1) {
+      await expect(runtimeWidgets.nth(index)).toHaveAttribute('data-widget-type', widgetTypes[index]);
+      await expect(runtimeWidgets.nth(index)).toHaveAttribute('data-object-id', widgets[index].id!);
+    }
+    await expect(runtimeWidgets.nth(4)).toContainText('Limites das faixas: 30 bar · 70 bar');
+    await expect(runtimeWidgets.nth(5)).toHaveAttribute('aria-label', /Meta: 65 bar/);
+    await testInfo.attach('measurement-widgets-active-runtime-loaded-model', {
+      body: await page.getByTestId('runtime-engineering-canvas').screenshot(),
+      contentType: 'image/png'
+    });
+
+    const persistedJson = encodeURIComponent(JSON.stringify(persistedWidgets));
+    for (const mode of ['preview', 'runtime'] as const) {
+      await page.goto(`/tests-e2e/harness/measurement-visual-harness.html?mode=${mode}&elements=${persistedJson}`);
+      const rendered = page.locator('[data-widget-type^="core.measurement"]');
+      await expect(rendered).toHaveCount(6);
+      for (let index = 0; index < widgetTypes.length; index += 1) {
+        await expect(rendered.nth(index)).toHaveAttribute('data-widget-type', widgetTypes[index]);
+        await expect(rendered.nth(index)).toHaveAttribute('data-object-id', widgets[index].id!);
+        await expect(rendered.nth(index)).toHaveClass(/visual-measurement--high-contrast/);
+        await expect(rendered.nth(index)).toContainText('bar');
+        await expect(rendered.nth(index)).toContainText('Good');
+      }
+      await expect(rendered.nth(4).locator('.visual-measurement__band-track > span').nth(0)).toHaveAttribute('style', /width:\s*30%/);
+      await expect(rendered.nth(4).locator('.visual-measurement__band-track > span').nth(1)).toHaveAttribute('style', /width:\s*40%/);
+      await expect(rendered.nth(5)).toHaveAttribute('aria-label', /Target: 65 bar/);
+      await testInfo.attach(`measurement-widgets-${mode}-loaded-canonical-model`, {
+        body: await page.screenshot(), contentType: 'image/png'
+      });
+    }
+  } finally {
+    const restore = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+    });
+    expect(restore.ok()).toBeTruthy();
+    if (restoreActiveRuntime && projectKey) {
+      await savePublishActivate(request, projectKey, 'measurement-widgets-e2e-restore');
+    }
+  }
+});
+
+async function savePublishActivate(
+  request: import('@playwright/test').APIRequestContext,
+  projectKey: string,
+  actor: string
+): Promise<void> {
+  const workspaceResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceResponse.ok()).toBeTruthy();
+  const workspace = await workspaceResponse.json() as { projectName?: string | null };
+  const save = await request.post(`/api/engineering/persistence/${encodeURIComponent(projectKey)}/save`, {
+    data: { projectName: workspace.projectName ?? projectKey, savedBy: actor }
+  });
+  expect(save.ok(), `could not save project revision for ${actor} (HTTP ${save.status()})`).toBeTruthy();
+  const saved = await save.json() as { revision: number };
+  expect(Number.isInteger(saved.revision)).toBeTruthy();
+
+  const publish = await request.post(`/api/engineering/persistence/${encodeURIComponent(projectKey)}/revisions/${saved.revision}/publish`, {
+    data: { publishedBy: actor }
+  });
+  expect(publish.ok(), `could not publish revision ${saved.revision} for ${actor} (HTTP ${publish.status()})`).toBeTruthy();
+
+  const activate = await request.post(`/api/engineering/persistence/${encodeURIComponent(projectKey)}/published/activate`, {
+    data: { activatedBy: actor }
+  });
+  expect(activate.ok(), `could not activate revision ${saved.revision} for ${actor} (HTTP ${activate.status()})`).toBeTruthy();
+}
+
 async function applyAndAwaitCanonicalCompletion(
   page: import('@playwright/test').Page,
   applyTestId: 'visual-editor-apply' | 'popup-visual-editor-apply'
@@ -693,6 +882,20 @@ function flatten(elements: readonly ExportedVisualElement[]): ExportedVisualElem
     result.push(...flatten(element.children ?? []));
   }
   return result;
+}
+
+function removeMeasurementTestWidgets(elements: ExportedVisualElement[]): number {
+  let removed = 0;
+  for (let index = elements.length - 1; index >= 0; index -= 1) {
+    const element = elements[index];
+    if (element.key?.startsWith('w15-measurement-')) {
+      elements.splice(index, 1);
+      removed += 1;
+      continue;
+    }
+    removed += removeMeasurementTestWidgets(element.children ?? []);
+  }
+  return removed;
 }
 
 function readAssetId(element: ExportedVisualElement): string | null {

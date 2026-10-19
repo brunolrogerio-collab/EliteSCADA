@@ -119,7 +119,8 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
     text: 'Text',
     image: 'Image',
     control: 'Control',
-    trend: 'Trend'
+    trend: 'Trend',
+    measurement: 'Measurement'
   }
 };
 
@@ -141,7 +142,11 @@ export function PropertyInspector({
     ...DEFAULT_COPY,
     ...chromeText,
     ...copy,
-    category: { ...DEFAULT_COPY.category, ...(copy?.category ?? {}) }
+    category: {
+      ...DEFAULT_COPY.category,
+      measurement: locale === 'en' ? 'Measurement' : locale === 'es' ? 'Medición' : 'Medição',
+      ...(copy?.category ?? {})
+    }
   };
   const [filter, setFilter] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState<ReadonlySet<string>>(() => new Set());
@@ -489,6 +494,22 @@ function visualPropertyLabel(propertyKey: string, text: PropertyInspectorCopy, o
       return locale === 'en' ? 'Show increment/decrement buttons' : locale === 'es' ? 'Mostrar botones para aumentar/disminuir' : 'Mostrar botões de aumentar/diminuir';
     case VISUAL_PROPERTY_KEYS.unit:
       return locale === 'en' ? 'Unit' : locale === 'es' ? 'Unidad' : 'Unidade';
+    case VISUAL_PROPERTY_KEYS.measurementUnit:
+      return locale === 'en' ? 'Display unit' : locale === 'es' ? 'Unidad mostrada' : 'Unidade exibida';
+    case VISUAL_PROPERTY_KEYS.measurementTheme:
+      return locale === 'en' ? 'Widget theme' : locale === 'es' ? 'Tema del indicador' : 'Tema do indicador';
+    case VISUAL_PROPERTY_KEYS.measurementQualityVisible:
+      return locale === 'en' ? 'Show data quality' : locale === 'es' ? 'Mostrar calidad del dato' : 'Exibir qualidade do dado';
+    case VISUAL_PROPERTY_KEYS.measurementFreshnessVisible:
+      return locale === 'en' ? 'Show data freshness' : locale === 'es' ? 'Mostrar vigencia del dato' : 'Exibir atualidade do dado';
+    case VISUAL_PROPERTY_KEYS.measurementStaleAfterSeconds:
+      return locale === 'en' ? 'Stale after (seconds)' : locale === 'es' ? 'Desactualizado después de (segundos)' : 'Marcar desatualizado após (segundos)';
+    case VISUAL_PROPERTY_KEYS.measurementTarget:
+      return locale === 'en' ? 'Target value' : locale === 'es' ? 'Valor objetivo' : 'Valor da meta';
+    case VISUAL_PROPERTY_KEYS.measurementBandOneEnd:
+      return locale === 'en' ? 'Band 1 upper limit' : locale === 'es' ? 'Límite superior de banda 1' : 'Limite superior da faixa 1';
+    case VISUAL_PROPERTY_KEYS.measurementBandTwoEnd:
+      return locale === 'en' ? 'Band 2 upper limit' : locale === 'es' ? 'Límite superior de banda 2' : 'Limite superior da faixa 2';
     case VISUAL_PROPERTY_KEYS.showEngineeringUnit:
       return locale === 'en' ? 'Show TAG engineering unit' : locale === 'es' ? 'Mostrar unidad de ingeniería del TAG' : 'Exibir unidade de engenharia da TAG';
     case VISUAL_PROPERTY_KEYS.decimalPlacesEnabled:

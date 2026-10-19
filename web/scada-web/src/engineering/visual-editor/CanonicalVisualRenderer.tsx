@@ -17,6 +17,7 @@ import {
   supportsAnalogFill,
   VISUAL_PROPERTY_KEYS,
   runtimeReportHref,
+  type BuiltinVisualObjectType,
   type VisualObjectPropertySchema,
   type VisualPropertyValue
 } from '../../visual-runtime';
@@ -37,6 +38,7 @@ import {
 import { resolveVisualDynamicState } from './visualDynamicRuntime';
 import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
 import { NumericInputVisualElement } from './NumericInputVisualElement';
+import { MeasurementVisualElement } from './MeasurementVisualElement';
 import './CanonicalVisualInteraction.css';
 import { TrendVisualElement } from './TrendVisualElement';
 import { SvgSymbolVisualElement } from './SvgSymbolVisualElement';
@@ -75,6 +77,14 @@ export type CanonicalVisualRendererProps = {
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
 const emptyElements = Object.freeze([]) as readonly VisualElementEngineering[];
+const measurementTypes = new Set<string>([
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementDial,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementRing,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementBands,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
+]);
 
 export function CanonicalVisualRenderer({
   elements,
@@ -554,6 +564,25 @@ function CanonicalElement({
         locale={locale}
         title={elementTitle}
         onTagWrite={onTagWrite}
+      />;
+    }
+
+    if (measurementTypes.has(element.type)) {
+      const valueBinding = element.bindings?.find(binding => {
+        const kind = binding.kind?.trim().toLowerCase();
+        return binding.key === VISUAL_PROPERTY_KEYS.value && (kind === 'tag' || kind === 'clientmemory');
+      });
+      return <MeasurementVisualElement
+        element={element}
+        objectType={element.type as BuiltinVisualObjectType}
+        values={values}
+        sample={valueBinding ? bindingSample(liveSamples, valueBinding) : undefined}
+        hasValueBinding={Boolean(valueBinding)}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        title={elementTitle}
+        locale={locale}
+        onClick={onClick}
       />;
     }
 

@@ -94,12 +94,63 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateWritableNumericControl(element, entityKind, entityKey, "Slider", "VISUAL_SLIDER"));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.NumericInputType, StringComparison.Ordinal))
             issues.AddRange(ValidateWritableNumericControl(element, entityKind, entityKey, "Numeric Input", "VISUAL_NUMERIC_INPUT"));
+        if (IsMeasurementType(element.Type))
+            issues.AddRange(ValidateMeasurementDisplay(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
             element.Type.Equals(BuiltinVisualObjectSchemas.EventBrowserType, StringComparison.Ordinal))
             issues.AddRange(ValidateBrowserConfiguration(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal))
             issues.AddRange(ValidateSvgPaintOverrides(element, entityKind, entityKey));
         return issues;
+    }
+
+    private static bool IsMeasurementType(string? objectType) => objectType is
+        BuiltinVisualObjectSchemas.MeasurementDialType or
+        BuiltinVisualObjectSchemas.MeasurementRingType or
+        BuiltinVisualObjectSchemas.MeasurementBarType or
+        BuiltinVisualObjectSchemas.MeasurementThermometerType or
+        BuiltinVisualObjectSchemas.MeasurementBandsType or
+        BuiltinVisualObjectSchemas.MeasurementTargetType;
+
+    private static IEnumerable<ImportIssue> ValidateMeasurementDisplay(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        var minimum = ReadNumber(element, VisualPropertyKeys.Minimum, 0);
+        var maximum = ReadNumber(element, VisualPropertyKeys.Maximum, 100);
+        if (minimum >= maximum)
+        {
+            yield return Error(
+                "VISUAL_MEASUREMENT_RANGE_INVALID",
+                $"Measurement display '{element.Key}' requires minimum to be less than maximum.",
+                entityKind,
+                entityKey);
+            yield break;
+        }
+
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.MeasurementTargetType, StringComparison.Ordinal))
+        {
+            var target = ReadNumber(element, VisualPropertyKeys.MeasurementTarget, 50);
+            if (target < minimum || target > maximum)
+                yield return Error(
+                    "VISUAL_MEASUREMENT_TARGET_OUT_OF_RANGE",
+                    $"Measurement display '{element.Key}' target must be within its configured limits.",
+                    entityKind,
+                    entityKey);
+        }
+
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.MeasurementBandsType, StringComparison.Ordinal))
+        {
+            var first = ReadNumber(element, VisualPropertyKeys.MeasurementBandOneEnd, 33);
+            var second = ReadNumber(element, VisualPropertyKeys.MeasurementBandTwoEnd, 66);
+            if (!(minimum < first && first < second && second < maximum))
+                yield return Error(
+                    "VISUAL_MEASUREMENT_BANDS_INVALID",
+                    $"Measurement display '{element.Key}' requires ordered band limits between its minimum and maximum.",
+                    entityKind,
+                    entityKey);
+        }
     }
 
     private static IEnumerable<ImportIssue> ValidateWritableNumericControl(

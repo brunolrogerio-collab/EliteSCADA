@@ -102,7 +102,15 @@ export const VISUAL_PROPERTY_KEYS = {
   trendLegendVisible: 'trendLegendVisible',
   trendGridVisible: 'trendGridVisible',
   trendAxesVisible: 'trendAxesVisible',
-  trendQualityVisible: 'trendQualityVisible'
+  trendQualityVisible: 'trendQualityVisible',
+  measurementTheme: 'measurementTheme',
+  measurementQualityVisible: 'measurementQualityVisible',
+  measurementFreshnessVisible: 'measurementFreshnessVisible',
+  measurementStaleAfterSeconds: 'measurementStaleAfterSeconds',
+  measurementUnit: 'measurementUnit',
+  measurementTarget: 'measurementTarget',
+  measurementBandOneEnd: 'measurementBandOneEnd',
+  measurementBandTwoEnd: 'measurementBandTwoEnd'
 } as const;
 
 export type CommonVisualPropertyKey = typeof VISUAL_PROPERTY_KEYS[keyof typeof VISUAL_PROPERTY_KEYS];
@@ -450,7 +458,15 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   booleanProperty(VISUAL_PROPERTY_KEYS.trendLegendVisible, true, 'trend'),
   booleanProperty(VISUAL_PROPERTY_KEYS.trendGridVisible, true, 'trend'),
   booleanProperty(VISUAL_PROPERTY_KEYS.trendAxesVisible, true, 'trend'),
-  booleanProperty(VISUAL_PROPERTY_KEYS.trendQualityVisible, true, 'trend')
+  booleanProperty(VISUAL_PROPERTY_KEYS.trendQualityVisible, true, 'trend'),
+  enumProperty(VISUAL_PROPERTY_KEYS.measurementTheme, 'inherit', ['inherit', 'light', 'dark', 'high-contrast'], 'measurement'),
+  booleanProperty(VISUAL_PROPERTY_KEYS.measurementQualityVisible, true, 'measurement'),
+  booleanProperty(VISUAL_PROPERTY_KEYS.measurementFreshnessVisible, true, 'measurement'),
+  numberProperty(VISUAL_PROPERTY_KEYS.measurementStaleAfterSeconds, 30, { minimum: 1, maximum: 86400, integer: true, unit: 's', category: 'measurement' }),
+  stringProperty(VISUAL_PROPERTY_KEYS.measurementUnit, '', 'measurement'),
+  numberProperty(VISUAL_PROPERTY_KEYS.measurementTarget, 50, { category: 'measurement' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.measurementBandOneEnd, 33, { category: 'measurement' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.measurementBandTwoEnd, 66, { category: 'measurement' })
 ];
 
 export const COMMON_VISUAL_PROPERTY_REGISTRY = new VisualPropertyRegistry(

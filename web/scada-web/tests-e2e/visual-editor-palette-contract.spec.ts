@@ -34,7 +34,13 @@ test('palette is derived from the complete registered built-in set', () => {
     BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser,
     BUILTIN_VISUAL_OBJECT_TYPES.button,
     BUILTIN_VISUAL_OBJECT_TYPES.slider,
-    BUILTIN_VISUAL_OBJECT_TYPES.numericInput
+    BUILTIN_VISUAL_OBJECT_TYPES.numericInput,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementDial,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementRing,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementBands,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
   ]);
   expect(new Set(items.map(item => item.objectType)).size).toBe(items.length);
 
@@ -85,6 +91,25 @@ test('Trend palette entry is first-class content backed by the registered scalar
   expect(trend?.category).toBe('content');
   expect(trend?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.trendWindowSeconds);
   expect(trend?.propertyKeys).not.toContain('pens');
+});
+
+test('six measurement displays are generic content with configured first-use geometry and no asset/license dependency', () => {
+  const expected = [
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, 'measurementDial', 150, 130],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementRing, 'measurementRing', 130, 130],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, 'measurementBar', 220, 90],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, 'measurementThermometer', 90, 190],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, 'measurementBands', 220, 90],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, 'measurementTarget', 220, 90]
+  ] as const;
+  for (const [objectType, labelKey, width, height] of expected) {
+    const item = listVisualObjectPaletteItems().find(candidate => candidate.objectType === objectType);
+    expect(item).toMatchObject({ category: 'content', labelKey, supportsAssetReference: false });
+    expect(createObjectAddIntent(objectType)).toMatchObject({
+      objectType,
+      initialProperties: { width, height }
+    });
+  }
 });
 
 test('object add intent delegates defaults and identity to canonical coordinator composition', () => {

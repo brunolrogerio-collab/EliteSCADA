@@ -29,7 +29,13 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.eventBrowser",
             "core.button",
             "core.slider",
-            "core.numericInput"
+            "core.numericInput",
+            "core.measurementDial",
+            "core.measurementRing",
+            "core.measurementBar",
+            "core.measurementThermometer",
+            "core.measurementBands",
+            "core.measurementTarget"
         ], BuiltinVisualObjectSchemas.All.Select(schema => schema.ObjectTypeKey).ToArray());
     }
 
@@ -75,6 +81,29 @@ public sealed class BuiltinVisualObjectSchemasTests
 
         Assert.True(BuiltinVisualObjectSchemas.NumericInput.Declares(VisualPropertyKeys.ShowApplyButton));
         Assert.False(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.ShowApplyButton));
+
+        foreach (var schema in new[]
+        {
+            BuiltinVisualObjectSchemas.MeasurementDial,
+            BuiltinVisualObjectSchemas.MeasurementRing,
+            BuiltinVisualObjectSchemas.MeasurementBar,
+            BuiltinVisualObjectSchemas.MeasurementThermometer,
+            BuiltinVisualObjectSchemas.MeasurementBands,
+            BuiltinVisualObjectSchemas.MeasurementTarget
+        })
+        {
+            Assert.True(schema.Declares(VisualPropertyKeys.Value));
+            Assert.True(schema.Declares(VisualPropertyKeys.MeasurementUnit));
+            Assert.True(schema.Declares(VisualPropertyKeys.Minimum));
+            Assert.True(schema.Declares(VisualPropertyKeys.Maximum));
+            Assert.True(schema.Declares(VisualPropertyKeys.MeasurementQualityVisible));
+            Assert.True(schema.Declares(VisualPropertyKeys.MeasurementFreshnessVisible));
+            Assert.True(schema.Declares(VisualPropertyKeys.MeasurementTheme));
+            Assert.False(schema.Declares(VisualPropertyKeys.InteractionEnabled));
+        }
+        Assert.True(BuiltinVisualObjectSchemas.MeasurementTarget.Declares(VisualPropertyKeys.MeasurementTarget));
+        Assert.True(BuiltinVisualObjectSchemas.MeasurementBands.Declares(VisualPropertyKeys.MeasurementBandOneEnd));
+        Assert.True(BuiltinVisualObjectSchemas.MeasurementBands.Declares(VisualPropertyKeys.MeasurementBandTwoEnd));
     }
 
     [Fact]

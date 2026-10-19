@@ -28,7 +28,13 @@ const expectedTypes = [
   'core.eventBrowser',
   'core.button',
   'core.slider',
-  'core.numericInput'
+  'core.numericInput',
+  'core.measurementDial',
+  'core.measurementRing',
+  'core.measurementBar',
+  'core.measurementThermometer',
+  'core.measurementBands',
+  'core.measurementTarget'
 ];
 
 test('built-in visual object types are stable and unique', () => {
@@ -104,6 +110,28 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(slider.declares(VISUAL_PROPERTY_KEYS.enabled)).toBeTruthy();
   expect(slider.declares(VISUAL_PROPERTY_KEYS.interactionEnabled)).toBeTruthy();
   expect(slider.declares(VISUAL_PROPERTY_KEYS.orientation)).toBeTruthy();
+
+  for (const objectType of [
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementDial,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementRing,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementBands,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
+  ]) {
+    const measurement = getBuiltinVisualObjectSchema(objectType);
+    expect(measurement.declares(VISUAL_PROPERTY_KEYS.value)).toBeTruthy();
+    expect(measurement.declares(VISUAL_PROPERTY_KEYS.measurementUnit)).toBeTruthy();
+    expect(measurement.declares(VISUAL_PROPERTY_KEYS.minimum)).toBeTruthy();
+    expect(measurement.declares(VISUAL_PROPERTY_KEYS.maximum)).toBeTruthy();
+    expect(measurement.declares(VISUAL_PROPERTY_KEYS.measurementQualityVisible)).toBeTruthy();
+    expect(measurement.declares(VISUAL_PROPERTY_KEYS.measurementFreshnessVisible)).toBeTruthy();
+    expect(measurement.declares(VISUAL_PROPERTY_KEYS.measurementTheme)).toBeTruthy();
+    expect(measurement.declares(VISUAL_PROPERTY_KEYS.interactionEnabled)).toBeFalsy();
+  }
+  expect(getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget).declares(VISUAL_PROPERTY_KEYS.measurementTarget)).toBeTruthy();
+  expect(getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.measurementBands).declares(VISUAL_PROPERTY_KEYS.measurementBandOneEnd)).toBeTruthy();
+  expect(getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.measurementBands).declares(VISUAL_PROPERTY_KEYS.measurementBandTwoEnd)).toBeTruthy();
 });
 
 test('Analog Fill eligibility is explicit in the shared object capability contract', () => {

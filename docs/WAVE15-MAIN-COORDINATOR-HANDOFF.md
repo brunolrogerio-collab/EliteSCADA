@@ -2,34 +2,41 @@
 
 Snapshot: 2026-10-19. This is the live Main-to-CODEX order. Replace this current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current order — Stage 5A generic measurement widgets (#639)
+## Current order — Stage 4D reference evidence (#649); owner Preview in parallel
 
 | Field | Order |
 | --- | --- |
-| Owner | Main Coordinator |
-| Executor | Chat CODEX; Stage 5A delivered and its diagnostic complete; waits for Main's next bounded order |
-| Product front | Asset & Process Intelligence #588 |
-| Integration target | `wave15/corrections-integration` |
-| Product evidence checkpoint | PR #647 merge `0054d587fe855bbea4b1af81726af016208643da`; exact T1 #39258159241 passed on final head `6c8991a53f22dbc3f509e83dcfcf722257dd60ae`; exact-merge T2 #39259192178 attempt 2 passed. Owner visual Preview is separate and pending. |
-| Stage 4 disposition | Stage 4 V1 (4A–4C) COMPLETE / VERIFIED / FROZEN only within the Product Owner-approved limits recorded in #588 and ADR-020; broader Stage 4 product scope remains PARTIAL |
-| Objective | Add six generic display-only measurement widgets to the canonical Engineering screen toolbox, preview, serialization and Runtime rendering |
-| Scope | Semicircular dial; circular ring; horizontal graduated bar; vertical ruler/thermometer; segmented range bands; actual-value versus target. Reuse canonical screen model/binding/render lifecycle. Keep generic widgets usable without Intelligence license. Show unit, limits/target, quality and freshness accessibly; color is not the sole cue. No process writes or controls. |
-| Start condition | Satisfied: docs PR #641 merged, Main revalidated base `9ad4756c07f3a848750ea10cd2a14af7b63f8e6d`, posted activation in #639, and dispatched CODEX. No scope beyond #639 is released. |
-| Review disposition | Main accepted canonical screen save/load for all six types/bindings/configuration and loaded-model Preview/Runtime, applied theme colors, accessible band limits and complete unit labels; PR #647 is merged. Local seven-spec browser run passed 50/50. No duplicate product correction is ordered. |
-| Required validation | Local focused component/accessibility/round-trip and preview/runtime parity checks; PR declares `VALIDATION_PROFILE: UI_EDITOR`; exact-head T1 passes; Main reviews; after authorized merge, exact-merge T2 passes. Product Owner performs manual visual Preview after integration and before Stage 5A acceptance/freeze. |
-| Forbidden work | No dashboard generation (Stage 5B), Stage 6, Analytics/history changes, model training, license changes, second screen model/renderer, frozen Stage 4 contract changes, HA, drivers, or unrelated work |
-| Completion | Implementation, Main review, merge and exact T2 are complete. #639 stays open for Product Owner visual Preview before acceptance/freeze. CODEX waits; #588 and Wave 15 remain open. The initial HA/Authority T2 timeout and isolated local diagnostic are recorded in #639; one backend-job retry passed without code/test changes. No HA work is released. |
-| Next authorized development | Product Owner reiterated on 2026-10-19: finish Stage 5A, then finish Stage 4 under [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md). No second product assignment is active during #639. |
-| Required follow-up before Stage 5B/6 | After #639 acceptance, Main must dispatch bounded 4D against a freshly revalidated exact base, followed by 4E–4G under the existing owner authorization. Stage 5B and Stage 6 remain unreleased until the Stage 4 residual criteria are implemented/verified or explicitly deferred by the Product Owner. |
+| Owner / executor | Main Coordinator / existing chat CODEX, one product implementation package |
+| Parent / target | Intelligence #588 / `wave15/corrections-integration` |
+| Mission | `W15-INTELLIGENCE-4D-REFERENCE-EVIDENCE-01`, issue #649; [repository scope](WAVE15-INTELLIGENCE-STAGE4D-REFERENCE-EVIDENCE.md) |
+| Product checkpoint | PR #647 merge `0054d587fe855bbea4b1af81726af016208643da`; T1 #39258159241 / T2 #39259192178 attempt 2 passed |
+| Dispatch base | Main revalidated coordination ref `15697b30e2633510198fca0285df633156f7f338`; the exact activated base after this docs-only order merge is recorded in #649. Do not self-rebase to an unreviewed product tree |
+| Preview / start condition | CODEX delivered healthy stable Docker Preview http://localhost:18080 on product `0054d587`. Owner explicitly ordered development during evaluation; #639 visual acceptance remains pending, not a 4D blocker. Begin after Main publishes/activates this exact-base order |
+| Planned branch | `work/w15-intelligence-stage4d-reference-evidence`, clean isolated checkout; preserve unrelated changes |
+| Objective | Add a bounded versioned read-only reference-evidence/data-sufficiency report using canonical active assignment/profile and Historian v2 |
+| Scope | Server-derived reference-submission actor/time; exact project/revision/scope/assignment/profile/TAG/window/query provenance; per-signal quality/rejection/missing evidence; exact synchronized source-cohort counts; explicit Required/Optional insufficiency and unknown cadence/completeness. No claim of healthy reference or model validity |
+| Canonical reuse | Analytics API/service, profile coverage and v2 observation/revalidation helpers; existing execution permit, entitlement, TrendUse and TAG read guards. No duplicate query/identity/store authority |
+| Resource limits | <=16 configured profile signals; <=31-day reference and optional later comparison window; 200-row pages; one 50,000-row aggregate cap across selected signals/windows; no partial/unauthorized result |
+| Forbidden | Frozen 4A–4C/ADR-020 behavior changes, new persisted context profiles (4E), joint score (4F), broad Stage4 closure (4G), dashboards5B, Stage6, HA, drivers, licensing changes, SQL/store/schema/worker, imputation, process writes or automatic Preview deployment |
+| Local/T1 evidence owner | CODEX: focused calculator/service/API/security/cursor/limit/frozen-regression tests and Release API build, isolated test resources; one draft PR with `VALIDATION_PROFILE: SESSION_LICENSING`, exact-head T1 and limitations |
+| Main acceptance | Main reviews requirements/diff/local/T1; conditionally integrates under existing owner authorization and verifies exact-merge T2. 4D closes only after its named criteria pass; no automatic next-stage/self-merge by worker |
+| Next package | Main releases bounded 4E after accepted 4D, then 4F method/data gate and 4G. Stage5B/6 remain unreleased until Stage4 residual disposition |
 
-Owner-authorized issue hygiene on 2026-10-19 closed 27 fulfilled/retired work trackers; see [the audit ledger](WAVE15-ISSUE-AUDIT-2026-10-19.md). Physical driver L4 is human product testing outside GitHub control. Do not reopen accepted driver/foundation implementation from old bootstrap comments, and do not claim hardware certification. Remaining final acceptance and real undelivered functionality are distinguished in the ledger.
+### Stable Preview isolation
+
+- The owner authorized recreating only the old stable test stack/data for this initial deployment. CODEX delivered fresh bootstrap; no default password. URL http://localhost:18080; product `0054d587fe855bbea4b1af81726af016208643da`; Compose project `elitescada-stable`; checkout `C:/Users/Bruno Rogerio/Documents/Codex/EliteSCADA-stable-preview-20261019`.
+- After delivery, do not reset, migrate or redeploy that evaluation revision/data automatically. New implementation/tests use a separate checkout, DB/Compose project, volumes/ports and process resources. Preserve `local-timescaledb-1` and other user projects. Existing stable secrets remain local and unpublished.
+- #639 remains INTEGRATED / TECHNICALLY VERIFIED / OWNER VISUAL PREVIEW PENDING. Parallel development is not implicit visual acceptance/freeze. User findings become bounded reviewed corrections; do not stop development merely waiting for feedback.
+- The initial T2 Authority-policy timeout and successful unchanged-SHA retry remain recorded in #639. No HA fix or HA acceptance is inferred. HA manual regression/possible rollback review stays separate.
+
+Owner-authorized issue hygiene closed 27 fulfilled/retired trackers; see [the audit](WAVE15-ISSUE-AUDIT-2026-10-19.md). Physical driver L4 is human testing outside GitHub control. Do not reopen accepted drivers/visual foundations from stale bootstraps.
 
 ### Context and frozen boundaries
 
 - Stage 3 S3-01–S3-08 is complete/verified. Stage 4A adds a descriptive single-target deviation against a caller-selected reference and context. Stage 4B adds independent per-target deviations over complete synchronized co-observations. Stage 4C adds the separate additive `contextual-deviation-vector.v2` with exactly two caller-declared numeric context intervals and 2–8 target TAGs. The Product Owner approved the V1 acceptance boundary after the read-only audit: the caller selects and is responsible for the known-good reference period; the system does not certify health, representativeness or global regime equivalence; the vector means independent per-TAG scores, not a joint multivariate model. **This accepts and freezes Stage 4 V1 only; broader Stage 4 in #588 remains PARTIAL.** The V1 boundary is not evidence that the original Stage 4 residuals were implemented or permanently waived.
 - Stage 4C / ADR-019 / child #635 is integrated, verified and frozen only within its bounded scope at PR #637 merge `81ac4193194e1471e812e8164f9b9e15e63512ea`. Exact candidate T1 #38978898568 attempt 3 passed; exact post-merge T2 #38981435925 attempt 2 passed at the merge SHA. The backend-only retry passed after local Linux reproduction of its unchanged timing-sensitive Z-Wave test. Build/runtime smoke, Web build and Chromium integration smoke passed; full-browser E2E was skipped and is not claimed. Detailed counts and caveats are in #588/#635/#305 and PR #637.
 - ADR-019 and ADR-020 preserve non-claims: no automatic reference health, no global regime equivalence, no joint multivariate anomaly detection, diagnosis or RUL. Do not alter these limits in Stage 5A.
-- ADR-021 was originally merged as a scope proposal (PR #643/T1 #38992226246); the Product Owner explicitly authorized its sequential development on 2026-10-19, [recorded in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298). Finish #639 first, then Main dispatches bounded 4D–4G to finish Stage 4 before Stage 5B/6. This authorization does not approve a statistical method/threshold without its representative-data gate. Preserve the caller-selected-reference semantics and frozen 4A–4C contracts. Do not claim whole Stage 4 completion before its accepted criteria pass or a named residual is explicitly deferred.
+- ADR-021 was initially a scope proposal (PR #643/T1 #38992226246); the owner authorized sequential development on 2026-10-19, [recorded in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298). The same-day clarification permits Stage 4D #649 after Stage5A technical verification and stable Preview delivery, without waiting for manual visual acceptance. Then Main releases bounded 4E–4G before 5B/6. Statistical method/threshold claims still require representative-data validation. Preserve caller-selected reference and frozen 4A–4C contracts; broader Stage4 is not complete until all residuals pass or are explicitly deferred.
 - Stage 5A is only generic measurement widgets. Guided dashboard generation from profiles/processes is future Stage 5B; Stage 6 hardening remains later. The Product Owner's local HA Preview/regression acceptance remains separate; do not switch to HA.
 
 ## Responsibilities
@@ -54,20 +61,21 @@ Required local evidence, CI, and owner Preview are distinct acceptance sources. 
 
 ## Return from CODEX
 
-For Stage 5A, return one implementation report in this form:
+For Stage 4D, return one implementation report in this form:
 
 ```text
 CODEX -> MAIN COORDINATOR
-Package / owning issue: Stage 5A generic measurement widgets / #639
+Package / owning issue: Stage 4D reference evidence / #649
 Status / next owner:
 Exact base SHA and product tree; PR head SHA:
-Files/symbols changed and canonical screen/toolbox/render path reused:
-Six layout, theme, value/unit/bounds, quality/freshness and accessibility coverage:
-Serialization round-trip and preview/Runtime parity evidence:
+Files/symbols changed and canonical analytics/query/guard path reused:
+Authenticated provenance, per-signal evidence, required/optional and cohort semantics:
+Bounds, cancellation/authorization/no-partial and frozen 4A–4C regression evidence:
+Confirmation: stable owner Preview revision/data/resources untouched:
 Focused local commands/results:
 VALIDATION_PROFILE and exact T1 run/job links:
 Risks/limitations and explicit non-claims:
-Confirmation: no Stage 5B, Stage 6, contract expansion, or self-merge
+Confirmation: no 4E/4F/4G, Stage 5B/6, HA/drivers, store/schema or self-merge
 ```
 
 Main records its review separately. An acknowledgement is not a second delivery.

@@ -568,6 +568,8 @@ Asset and Process Intelligence (#588) analyzes equipment and process data alread
 
 Product Owner direction on 2026-10-19 fixes the development order: finish Stage 5A's six generic measurement widgets, then return to Stage 4 and complete the residual scope in `docs/ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md` before Stage 5B guided dashboards or Stage 6. Main releases bounded 4D–4G assignments under this authorization after the existing Stage 5A gates. Preserve frozen 4A–4C/ADR-020 contracts. Joint-model methods and thresholds must satisfy the representative-data validation gate before their results are claimed; implementation authorization is not evidence of detector validity.
 
+Owner clarification on 2026-10-19 for the Intelligence sequence: after CODEX delivers the stable Docker Preview, continue development while the owner evaluates and reports corrections later. Stage 5A's manual visual acceptance remains pending before freeze, but is not a residual Stage 4 development blocker after its technical gates pass. This supersedes earlier wording requiring full #639 acceptance before 4D. Preserve the delivered Preview revision/data; later development/tests use isolated checkouts, databases, Compose projects/ports and resources. No automatic Preview reset/redeploy as integration advances. Required local/CI/security evidence is not waived.
+
 ## Security and audit
 
 Security is backend-enforced, never merely hidden UI.

@@ -477,6 +477,15 @@ def find_episodes(decisions: Sequence[ScoreDecision], threshold: float) -> list[
         if not active and len(history) == 5 and sum(history) >= 3:
             active = True
             starts.append(decision.sample_index)
+            # The confirmation window is still part of this consecutive run.
+            # In particular, trailing below-threshold decisions in TTTFF count
+            # toward the five-below termination rule.
+            below_run = 0
+            for value in reversed(history):
+                if value:
+                    break
+                below_run += 1
+            continue
         if above:
             below_run = 0
         else:
@@ -485,7 +494,6 @@ def find_episodes(decisions: Sequence[ScoreDecision], threshold: float) -> list[
                 if below_run >= 5:
                     active = False
                     below_run = 0
-                    history.clear()
             else:
                 below_run = 0
     return starts

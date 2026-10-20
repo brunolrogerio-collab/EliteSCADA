@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import itertools
 import json
 import math
 import tempfile
@@ -20,6 +21,33 @@ def row(**changes):
 
 def decision(index: int, above: bool, *, break_before: bool = False, eligible: bool = True) -> b.ScoreDecision:
     return b.ScoreDecision(index, index * b.CADENCE_S, 2.0 if above else 0.0, eligible, None, break_before)
+
+
+def reference_episode_starts(values: tuple[bool, ...]) -> list[int]:
+    """Small independent specification using direct five-value slices."""
+    starts: list[int] = []
+    active = False
+    below_run = 0
+    for index, above in enumerate(values):
+        if active:
+            if above:
+                below_run = 0
+            else:
+                below_run += 1
+                if below_run == 5:
+                    active = False
+                    below_run = 0
+            continue
+        window = values[max(0, index - 4):index + 1]
+        if len(window) == 5 and sum(window) >= 3:
+            starts.append(index)
+            active = True
+            below_run = 0
+            for item in reversed(window):
+                if item:
+                    break
+                below_run += 1
+    return starts
 
 
 class SyntheticBenchMechanismTests(unittest.TestCase):
@@ -154,8 +182,26 @@ class SyntheticBenchMechanismTests(unittest.TestCase):
         self.assertEqual(b.find_episodes(after_ineligible, threshold), [9])
 
         pattern = [decision(i, True) for i in range(5)] + [decision(i, False) for i in range(5, 10)] + [decision(i, True) for i in range(10, 15)]
-        self.assertEqual(b.find_episodes(pattern, threshold), [4, 14])
+        self.assertEqual(b.find_episodes(pattern, threshold), [4, 12])
         self.assertEqual(b._trace_summary([decision(i, True) for i in range(12, 17)], 1.0, 12)["latencySeconds"], 40)
+
+    def test_episode_termination_preserves_window_for_rearm(self):
+        threshold = 1.0
+        ttttt_fffff_ttt = [True] * 5 + [False] * 5 + [True] * 3
+        ttt_fffff_ttt = [True] * 3 + [False] * 5 + [True] * 3
+        self.assertEqual(b.find_episodes([decision(i, value) for i, value in enumerate(ttttt_fffff_ttt)], threshold), [4, 12])
+        self.assertEqual(b.find_episodes([decision(i, value) for i, value in enumerate(ttt_fffff_ttt)], threshold), [4, 10])
+
+    def test_episode_matches_independent_oracle_for_short_boolean_sequences(self):
+        threshold = 1.0
+        checked = 0
+        for length in range(14):
+            for values in itertools.product((False, True), repeat=length):
+                with self.subTest(values=values):
+                    actual = b.find_episodes([decision(i, value) for i, value in enumerate(values)], threshold)
+                    self.assertEqual(actual, reference_episode_starts(values))
+                checked += 1
+        self.assertEqual(checked, 16_383)
 
     def test_quantile_and_calibration_tie_break_are_fixed(self):
         self.assertEqual(b.nearest_rank_quantile([4.0, 1.0, 3.0, 2.0], 0.75), 3.0)

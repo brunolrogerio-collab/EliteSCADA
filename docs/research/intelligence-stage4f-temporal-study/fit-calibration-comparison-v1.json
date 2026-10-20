@@ -1,0 +1,47 @@
+{
+  "differenceCount": 0,
+  "differences": [],
+  "exactIdentityCountsLabelsAndCandidateChoice": true,
+  "fitParameterTolerancePassed": true,
+  "linuxArtifactSha256": "A78DB19AE18D401D4CAC3267F0BBF051D4B97C2F3C48D0FDD3C3E29A4A22BBF8",
+  "linuxSelection": {
+    "calibrationFeasible": false,
+    "candidateCanBeCalledWinner": false,
+    "eligibleJointCandidates": [
+      "joint-instant-q099",
+      "joint-instant-q0999",
+      "joint-ewma-q099",
+      "joint-ewma-q0999"
+    ],
+    "reason": "no joint candidate met every frozen calibration point-estimate target; freeze instantaneous joint q0.99 as an infeasible reference",
+    "selectedCandidate": "joint-instant-q099"
+  },
+  "linuxSourceCommit": "3a09a5d189784679b506fb64762ccdda4a92ac51",
+  "maximumObservedDifferences": {
+    "absolute": 0.0,
+    "relative": 0.0
+  },
+  "schemaVersion": 1,
+  "selectedCandidate": "joint-instant-q099",
+  "stage": "cross-platform-fit-calibration-comparison",
+  "status": "PASS",
+  "thresholdMetricTolerancePassed": true,
+  "tolerances": {
+    "fitReferenceAbsolute": 1e-10,
+    "thresholdsAndCalibrationMetricsRelative": 1e-08
+  },
+  "windowsArtifactSha256": "84379F7F713D7B0F642634A8057F80BA834B1E2159D94C3D6D34E55EB5F54130",
+  "windowsSelection": {
+    "calibrationFeasible": false,
+    "candidateCanBeCalledWinner": false,
+    "eligibleJointCandidates": [
+      "joint-instant-q099",
+      "joint-instant-q0999",
+      "joint-ewma-q099",
+      "joint-ewma-q0999"
+    ],
+    "reason": "no joint candidate met every frozen calibration point-estimate target; freeze instantaneous joint q0.99 as an infeasible reference",
+    "selectedCandidate": "joint-instant-q099"
+  },
+  "windowsSourceCommit": "3a09a5d189784679b506fb64762ccdda4a92ac51"
+}

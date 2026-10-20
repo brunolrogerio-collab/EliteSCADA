@@ -103,7 +103,9 @@
     "platforms": {
       "tests": ["Windows CPython 3.14.6", "isolated Linux CPython 3.14.6"],
       "fitCalibration": ["Windows CPython 3.14.6", "isolated Linux CPython 3.14.6"],
-      "holdout": ["Windows CPython 3.14.6 only"]
+      "holdout": ["Windows CPython 3.14.6 only"],
+      "linuxFitCalibrationImage": "python:3.14.6-slim-bookworm@sha256:4c92ffcde4dd6f1ff72a24518f49fd4990b27134987dfa31a733badde66df9f8",
+      "linuxNetwork": "disabled"
     },
     "crossPlatformTolerances": {
       "identityCountsLabelsPartitionHashes": "exact",

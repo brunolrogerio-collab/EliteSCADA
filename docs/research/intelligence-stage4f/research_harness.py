@@ -485,6 +485,70 @@ def verify_configuration_digest(config: dict) -> None:
         raise ResearchDataError(f"frozen configuration digest mismatch: expected {expected}, got {actual}")
 
 
+def default_holdout_guard_directory() -> Path:
+    """Return stable per-user state outside the checkout and source-data folder."""
+    if os.name == "nt":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        base = Path(local_app_data) if local_app_data else Path.home() / "AppData" / "Local"
+        return base / "EliteSCADA" / "Research" / "Stage4F" / "holdout-claims"
+    state_home = os.environ.get("XDG_STATE_HOME")
+    base = Path(state_home) if state_home else Path.home() / ".local" / "state"
+    return base / "elitescada" / "research" / "stage4f" / "holdout-claims"
+
+
+def claim_final_holdout_once(
+    configuration_sha256: str,
+    frozen_config_commit: str,
+    study_commit: str,
+    claim_directory: Path | None = None,
+    provenance: dict | None = None,
+) -> Path:
+    """Atomically consume a frozen-config digest before any source archive read.
+
+    O_CREAT|O_EXCL is atomic between independent processes sharing this local
+    state directory. A crash after file creation remains fail-closed: the marker
+    is deliberately never reclaimed or deleted automatically.
+    """
+    digest = str(configuration_sha256).upper()
+    if len(digest) != 64 or any(character not in "0123456789ABCDEF" for character in digest):
+        raise ResearchDataError("holdout configuration digest must be a full SHA-256")
+    for label, commit in (("frozen-config", frozen_config_commit), ("study", study_commit)):
+        if len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit.lower()):
+            raise ResearchDataError(f"{label} commit must be a full 40-character SHA")
+
+    directory = claim_directory if claim_directory is not None else default_holdout_guard_directory()
+    directory.mkdir(parents=True, exist_ok=True)
+    marker = directory / f"{digest}.claim.json"
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    try:
+        descriptor = os.open(marker, flags, 0o600)
+    except FileExistsError as exc:
+        raise ResearchDataError(
+            f"final holdout for frozen configuration {digest} was already claimed/consumed; refusing a second read"
+        ) from exc
+    record = {
+        "guardVersion": 1,
+        "configurationSha256": digest,
+        "frozenConfigCommit": frozen_config_commit.lower(),
+        "studyCommit": study_commit.lower(),
+        "claimedAtUtc": datetime.now(timezone.utc).isoformat(),
+        "state": "consumed-fail-closed",
+        "provenance": provenance or {"kind": "runtime-claim-before-holdout-read"},
+    }
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            payload = (json.dumps(record, sort_keys=True, allow_nan=False) + "\n").encode("utf-8")
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except (OSError, TypeError, ValueError) as exc:
+        # Keep an incomplete exclusive marker as a fail-closed tombstone.
+        raise ResearchDataError(f"holdout claim marker could not be persisted; digest remains consumed: {exc}") from exc
+    return marker
+
+
 def _matrix_diagnostics(rows: Sequence[Sequence[float]]) -> dict:
     covariance, means = covariance_matrix(rows)
     eigenvalues = jacobi_eigenvalues(covariance)
@@ -670,6 +734,7 @@ def run_holdout(
     protocol_path: Path,
     config_path: Path,
     frozen_config_commit: str,
+    claim_directory: Path | None = None,
 ) -> dict:
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -680,9 +745,6 @@ def run_holdout(
         raise ResearchDataError("configuration does not prove that holdout was unopened at freeze")
     if len(frozen_config_commit) != 40 or any(character not in "0123456789abcdef" for character in frozen_config_commit.lower()):
         raise ResearchDataError("frozen configuration commit must be a full 40-character SHA")
-    manifest, archive_sha = verify_archive(archive_path, source_manifest_path)
-    if archive_sha != config.get("archiveSha256"):
-        raise ResearchDataError("holdout archive SHA does not match frozen configuration")
     if sha256_file(protocol_path) != config.get("protocolSha256"):
         raise ResearchDataError("protocol changed after frozen configuration commit")
     if sha256_file(split_manifest_path) != config.get("splitManifestSha256"):
@@ -691,6 +753,19 @@ def run_holdout(
     split = read_split_manifest(split_manifest_path)
     if list(split["holdout"]) != config.get("holdoutCycles"):
         raise ResearchDataError("holdout cycle groups do not match frozen configuration")
+
+    # Claim before hashing or parsing the source archive, so concurrent/repeated
+    # invocations cannot both inspect final-holdout rows for the same config.
+    claim_final_holdout_once(
+        config["configurationSha256"],
+        frozen_config_commit,
+        config["studyCommit"],
+        claim_directory,
+    )
+
+    manifest, archive_sha = verify_archive(archive_path, source_manifest_path)
+    if archive_sha != config.get("archiveSha256"):
+        raise ResearchDataError("holdout archive SHA does not match frozen configuration")
 
     # Holdout phase reads only holdout profile and matrix rows.
     read_profile_cycles(archive_path, split["holdout"])

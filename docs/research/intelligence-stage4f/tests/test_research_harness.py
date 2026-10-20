@@ -1,19 +1,24 @@
 from __future__ import annotations
 
+import json
 import math
+import multiprocessing
 import sys
 import tempfile
 import unittest
 import zipfile
 from array import array
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from research_harness import (  # noqa: E402
     ResearchDataError,
+    claim_final_holdout_once,
     cholesky,
     covariance_matrix,
+    default_holdout_guard_directory,
     fit_robust_scaling,
     independent_max_abs,
     jacobi_eigenvalues,
@@ -23,10 +28,23 @@ from research_harness import (  # noqa: E402
     peak_rss_bytes,
     read_signal_cycles,
     rank_and_condition,
+    run_holdout,
+    sha256_file,
     shrink_covariance,
     validate_partition_mapping,
     verify_configuration_digest,
 )
+
+
+def _claim_in_independent_process(directory: str, barrier, result_queue) -> None:
+    try:
+        barrier.wait(timeout=15)
+        claim_final_holdout_once("A" * 64, "B" * 40, "C" * 40, Path(directory))
+        result_queue.put("claimed")
+    except ResearchDataError:
+        result_queue.put("rejected")
+    except BaseException as exc:  # pragma: no cover - relayed to parent assertion
+        result_queue.put(f"error: {type(exc).__name__}: {exc}")
 
 
 class ResearchHarnessTests(unittest.TestCase):
@@ -114,6 +132,80 @@ class ResearchHarnessTests(unittest.TestCase):
         config["value"] = 2
         with self.assertRaisesRegex(ResearchDataError, "digest mismatch"):
             verify_configuration_digest(config)
+
+    def test_holdout_claim_is_single_use_and_repeat_stops_before_archive_read(self) -> None:
+        research_dir = Path(__file__).resolve().parents[1]
+        protocol_path = research_dir / "protocol-v1.md"
+        split_path = research_dir / "cycle-split-manifest.csv"
+        guard_path = "D" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            guard_dir = root / "persistent-guard"
+            config = {
+                "configurationSha256": "",
+                "holdoutOpened": False,
+                "holdoutCycles": [1796, 1797],
+                "protocolSha256": sha256_file(protocol_path),
+                "splitManifestSha256": sha256_file(split_path),
+                "studyCommit": "E" * 40,
+            }
+            from research_harness import _configuration_digest
+
+            config["configurationSha256"] = _configuration_digest(config)
+            config_path = root / "frozen-config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+            marker = claim_final_holdout_once(config["configurationSha256"], guard_path, config["studyCommit"], guard_dir)
+            self.assertTrue(marker.is_file())
+            with mock.patch("research_harness.verify_archive", side_effect=AssertionError("archive read")) as verify_archive, \
+                 mock.patch("research_harness.read_profile_cycles", side_effect=AssertionError("profile rows read")) as read_profile, \
+                 mock.patch("research_harness.load_channels", side_effect=AssertionError("matrix rows read")) as load_channels:
+                with self.assertRaisesRegex(ResearchDataError, "already claimed/consumed"):
+                    run_holdout(
+                        root / "unused-source.zip",
+                        root / "unused-source-manifest.json",
+                        split_path,
+                        protocol_path,
+                        config_path,
+                        guard_path,
+                        guard_dir,
+                    )
+            verify_archive.assert_not_called()
+            read_profile.assert_not_called()
+            load_channels.assert_not_called()
+
+    def test_independent_processes_cannot_claim_same_digest(self) -> None:
+        context = multiprocessing.get_context("spawn")
+        with tempfile.TemporaryDirectory() as directory:
+            guard_dir = Path(directory) / "claims"
+            barrier = context.Barrier(2)
+            results = context.Queue()
+            processes = [
+                context.Process(target=_claim_in_independent_process, args=(str(guard_dir), barrier, results))
+                for _ in range(2)
+            ]
+            try:
+                for process in processes:
+                    process.start()
+                outcomes = [results.get(timeout=30) for _ in processes]
+                for process in processes:
+                    process.join(timeout=30)
+                self.assertTrue(all(not process.is_alive() for process in processes))
+                self.assertEqual(sorted(outcomes), ["claimed", "rejected"])
+                self.assertTrue(all(process.exitcode == 0 for process in processes))
+                self.assertEqual(len(list(guard_dir.glob("*.claim.json"))), 1)
+            finally:
+                for process in processes:
+                    if process.is_alive():
+                        process.terminate()
+                        process.join(timeout=5)
+                results.close()
+
+    def test_default_holdout_guard_is_persistent_user_state_outside_checkout(self) -> None:
+        guard_directory = default_holdout_guard_directory().resolve()
+        checkout_root = Path(__file__).resolve().parents[4]
+        self.assertTrue(guard_directory.is_absolute())
+        self.assertNotIn(checkout_root.resolve(), guard_directory.parents)
 
     def test_peak_rss_is_reported_on_supported_runtimes(self) -> None:
         self.assertGreater(peak_rss_bytes(), 0)

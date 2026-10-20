@@ -2,12 +2,13 @@
 
 Snapshot: 2026-10-20. This is the live Main-to-CODEX order. Replace this current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current status — Stage 4F research delivered; product readiness remains NOT READY
+## Current status — Stage 4F local input preflight #667 active; product readiness remains NOT READY
 
 | Field | Order |
 | --- | --- |
-| Owner / executor | Main completed review/integration of bounded research issue #662; CODEX has no active package or route |
+| Owner / executor | CODEX implements local preparation utility #667; Main owns package review, T1 and integration. The read-only input-path audit is accepted |
 | Parent / target | Intelligence #588 / `wave15/corrections-integration` |
+| Active package | [#667](https://github.com/brunolrogerio-collab/EliteSCADA/issues/667), local input preflight for the existing collection CSV; branch `work/w15-intelligence-stage4f-input-preflight`; inspected integration base `e6fbac70aae76ef80a1c2b56b5a7e6bfc716ce4d`, subject to live revalidation. Direct chat delivery/start was confirmed |
 | Completed bounded mission | `W15-INTELLIGENCE-4F-OFFLINE-METHOD-STUDY-01`, [#662](https://github.com/brunolrogerio-collab/EliteSCADA/issues/662), closed as a research deliverable; [PR #664](https://github.com/brunolrogerio-collab/EliteSCADA/pull/664) merged at `6e6bd345dd730b4ba7dee1522dbb58ef12a42231`; final head `a55f4a0859fdb7f95ab58ee31b3cdd29bf971040` |
 | Accepted product checkpoint | Stage 4E PR #654 merge `793b8303547491e02b98bf73732d3ab5ab76567a`; exact T1 #39331697007 attempt 2 and exact-merge T2 #39336277009 passed. PR #664 is research/documentation and does not advance this product checkpoint |
 | Exact research gate | DOCS_I18N_HELP exact-head T1 [#39439718537](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/39439718537) passed on `a55f4a0859fdb7f95ab58ee31b3cdd29bf971040`: classifier, Common T1 sanity and Wave 15 T1 gate succeeded; product checks were skipped as expected. No product T2 applies |
@@ -16,7 +17,8 @@ Snapshot: 2026-10-20. This is the live Main-to-CODEX order. Replace this current
 | Evidence | 18/18 synthetic harness tests passed on Windows/Python 3.14 and isolated Docker/Linux/Python 3.12.15; all 1,138 fit/calibration numeric values matched across runtimes. Frozen config/results were unchanged during guard hardening; real holdout cycles were not reopened. Full counts, conditioning and caveats are in `docs/research/intelligence-stage4f/results.md` and #662 closeout |
 | Unresolved data gate | Dataset lacks independent healthy/fault labels, UTC per-sample source timestamps, `Good` quality and `Synchronized` provenance. Only two calibration and two holdout cycle groups exist; no reliable confidence interval, operating-hour exposure, validated false-alarm rate/episodes, event recall or cadence-qualified latency can be computed |
 | Defined acceptance plan | [Main's plan](WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md) remains binding: motor-driven pumping sets first, compressors second; targets include ≤1% point false positives, ≤1 false episode per 24 eligible operating hours, ≥90% recall per defined sustained-deviation class, and cadence-qualified 10-minute latency. These targets are not measured. Do not ask the owner to define them again |
-| Next owner/action | No new CODEX route. Resume Stage 4F method implementation only after permission-cleared representative Historian data has stable TAG/unit mapping, UTC source timestamps, Good quality, Synchronized provenance, independent event windows/labels and sufficient eligible exposure. Main rechecks data eligibility and issues a new bounded exact-base order. Stage 4G is separate |
+| Active tool scope | Standalone local CSV structural/declared-metadata preflight under `docs/research/intelligence-stage4f-input-preflight/`; strict shape/types/status/timestamps including seven-digit precision, duplicate detection, explicit resource limits and bounded aggregate diagnostics. Correct obsolete owner-criteria wording in the collection guidance. Synthetic fixtures only; no operational-data access or scoring engine |
+| Next owner/action | CODEX returns one coherent draft PR with meaningful local Windows/Linux tests and CLI success/failure evidence. Main reviews and owns T1/merge. This preparation tool can be built now; a real run and Stage 4F method evaluation require an explicitly authorized eligible cohort. Fixed acceptance targets need no owner redefinition. Stage 4G remains separate |
 | Forbidden | Claiming method/threshold or product acceptance from the public sample; treating cycle adjacency as elapsed exposure; using holdout exceedances as false positives; altering frozen 4A–4E, HA/drivers/licensing/Preview, runtime, API/schema/UI/SQL or releasing 4G/5B/6 without their gates |
 
 ### Stable Preview isolation
@@ -58,17 +60,19 @@ Required local evidence, CI, and owner Preview are distinct acceptance sources. 
 
 ## Return from CODEX
 
-The Stage 4F executor return is complete. PR #664 and the merged research report are the durable record; there is no active CODEX task. The next owner is Main, which must wait for or qualify an authorized dataset before issuing another implementation package. The accepted bounded evidence is:
+For #667, return one bounded delivery; prior #664 results remain frozen:
 
 ```text
-PR / merge: #664, `a55f4a0859fdb7f95ab58ee31b3cdd29bf971040` → `6e6bd345dd730b4ba7dee1522dbb58ef12a42231`.
-Exact-head T1: #39439718537 passed; product profile jobs skipped; no T2 applies.
-Local checks: 18/18 synthetic tests on Windows and isolated Docker/Linux; fit/calibration numeric outputs matched 1,138/1,138.
-Disposition: reproducible offline study only; INSUFFICIENT EVIDENCE, no score method/threshold selected.
-Data limits: no independent labels, UTC source timestamps, Good/Synchronized provenance or sufficient exposure/groups for operational metrics.
-Guard: frozen configuration/results preserved; holdout cycles not reopened during hardening.
-Product checkpoint: unchanged at `793b8303547491e02b98bf73732d3ab5ab76567a`; Stable Preview, HA, drivers and frozen 4A–4E untouched.
-Next owner: Main after a permission-cleared representative Historian cohort meets the existing acceptance plan; no owner target redefinition is needed.
+Package / issue: Stage 4F local input preflight / #667.
+Exact inspected integration base, branch/head and draft PR:
+Supported input/report/exit-status semantics and explicit resource limits:
+Canonical source files/symbols used for types/status/precision consistency:
+Synthetic local tests and CLI success/failure results on Windows and isolated Linux:
+Deterministic bounded diagnostics and evidence that raw values are not echoed:
+Collection guidance changes; workbook preservation/verification if modified:
+Remaining NOT ASSESSED eligibility/field claims and limitations:
+Confirmation: no real input, consumed UCI experiment, product, Preview, HA or drivers changed:
+Next owner: Main for review/T1/integration; no executor CI dispatch or self-merge.
 ```
 
 Main records its review separately. An acknowledgement is not a second delivery.

@@ -117,7 +117,7 @@
     "minimumIndependentEligibleHoldoutGroups": 100,
     "clusterBootstrapReplicates": 2000,
     "bootstrap": "whole group IDs, paired scenario variants retained; percentile 95% interval",
-    "bootstrapSeed": "for replicate NNNN, first 8 bytes big-endian SHA-256(experiment|bootstrap|holdout|replicate-NNNN); reuse the same resample group indices for every scenario and metric",
+    "bootstrapSeed": "for replicate NNNN, first 8 bytes big-endian SHA-256(experiment|bootstrap|holdout|replicate-NNNN); rejection-sampled uniform group indices reused for every scenario and metric",
     "groupOccurrenceInterval": "Wilson 95% when no nonfault group has an episode"
   },
   "boundedRequest": {

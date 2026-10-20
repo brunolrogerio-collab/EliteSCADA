@@ -1,0 +1,1 @@
+export.id,cohort.id,tag.id,tag.path,quality,value.kind,value,timestamp,source.timestamp,source.timestamp.status,server.timestamp,server.timestamp.status,capture.policy.profileId,capture.policy.fingerprint,capture.policy.status

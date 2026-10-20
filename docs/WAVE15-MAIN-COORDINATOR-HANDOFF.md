@@ -14,11 +14,11 @@ Snapshot: 2026-10-19. This is the live Main-to-CODEX order. Replace this current
 | Owner Preview | Preserve `http://localhost:18080`, product `0054d587fe855bbea4b1af81726af016208643da`, data/volumes/ports. Owner evaluation and #639 visual acceptance remain separate. Do not reset or redeploy Preview |
 | Gate result | NOT READY: no permission-cleared representative Historian time series, approved false-alarm/sensitivity bounds, or data-use/retention decision was found. Demo config contains no history; existing analytics tests use synthetic inline vectors |
 | Objective | Gate complete as assessment only; joint multivariate score/calibration remains NOT DELIVERED / NOT VALIDATED |
-| Next owner input | Define initial supported profile/context(s); provide/authorize representative Historian observations with TAG IDs/units, source/event times, quality, normal and known non-fault variability, correlated/degraded/misaligned cases; set false-alarm denominator/window and scenario sensitivity targets; define permitted use/retention |
+| Next owner input | Use the blank collection package in `docs/examples/intelligence-stage4f-data-request/`: define initial profile/context, false-alarm numerator/denominator/window, sensitivity target per labeled scenario, calibration/holdout split, data sufficiency/quality rules, and use/retention; authorize a representative Historian export with TAG IDs/units and separate observed/source/server timestamps. Keep raw data in an approved private location, outside GitHub |
 | Stop/continue | No algorithm, sample floor, regularization, threshold, score implementation, or validation claim was selected. After owner inputs, Main reviews and may publish a separate exact-base method/implementation order. 4G remains separate |
 | Forbidden | Changes to product code/API/schema/UI/SQL/workflows, frozen 4A–4E, HA, drivers, licensing, AI/learning, Stage 4G closure, 5B/6, or Preview. No inferred healthy baseline, diagnosis, fault probability, RUL, or synthetic-as-field-validation claim |
 | CODEX return | Report delivered and reviewed in #655; no PR/T1 was appropriate because this gate made no product change |
-| Main next step | Await Product Owner data/criteria input; then decide whether the evidence supports an implementation assignment. Keep 4G separate; Stage 4 and #588 remain PARTIAL meanwhile |
+| Main next step | Await the Product Owner's completed criteria and permission-cleared dataset, review the readiness evidence, then decide whether to release a bounded 4F implementation order. Keep 4G separate; Stage 4 and #588 remain PARTIAL meanwhile |
 
 ### Stable Preview isolation
 

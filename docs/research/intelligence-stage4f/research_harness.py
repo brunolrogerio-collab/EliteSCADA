@@ -502,8 +502,11 @@ def claim_final_holdout_once(
     study_commit: str,
     claim_directory: Path | None = None,
     provenance: dict | None = None,
+    archive_sha256: str | None = None,
+    split_manifest_sha256: str | None = None,
+    holdout_cycles: Sequence[int] | None = None,
 ) -> Path:
-    """Atomically consume a frozen-config digest before any holdout-row parsing.
+    """Atomically consume a frozen configuration/partition before holdout parsing.
 
     O_CREAT|O_EXCL is atomic between independent processes sharing this local
     state directory. A crash after file creation remains fail-closed: the marker
@@ -516,9 +519,31 @@ def claim_final_holdout_once(
         if len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit.lower()):
             raise ResearchDataError(f"{label} commit must be a full 40-character SHA")
 
+    partition_values = (archive_sha256, split_manifest_sha256, holdout_cycles)
+    if any(value is not None for value in partition_values):
+        if any(value is None for value in partition_values):
+            raise ResearchDataError("archive SHA, split SHA, and holdout cycles must be provided together")
+        archive_digest = str(archive_sha256).upper()
+        split_digest = str(split_manifest_sha256).upper()
+        cycles = list(holdout_cycles or ())
+        for label, value in (("archive", archive_digest), ("split manifest", split_digest)):
+            if len(value) != 64 or any(character not in "0123456789ABCDEF" for character in value):
+                raise ResearchDataError(f"{label} SHA must be a full SHA-256")
+        if not cycles or any(type(cycle) is not int or cycle < 0 for cycle in cycles):
+            raise ResearchDataError("holdout cycles must be a non-empty list of non-negative integers")
+        partition_identity = {
+            "sourceArchiveSha256": archive_digest,
+            "splitManifestSha256": split_digest,
+            "holdoutCycles": cycles,
+        }
+        claim_key = sha256_json(partition_identity)
+    else:
+        partition_identity = None
+        claim_key = digest
+
     directory = claim_directory if claim_directory is not None else default_holdout_guard_directory()
     directory.mkdir(parents=True, exist_ok=True)
-    marker = directory / f"{digest}.claim.json"
+    marker = directory / f"{claim_key}.claim.json"
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
     if hasattr(os, "O_BINARY"):
         flags |= os.O_BINARY
@@ -531,10 +556,12 @@ def claim_final_holdout_once(
     record = {
         "guardVersion": 1,
         "configurationSha256": digest,
+        "claimKeySha256": claim_key,
         "frozenConfigCommit": frozen_config_commit.lower(),
         "studyCommit": study_commit.lower(),
         "claimedAtUtc": datetime.now(timezone.utc).isoformat(),
         "state": "consumed-fail-closed",
+        "partitionIdentity": partition_identity,
         "provenance": provenance or {"kind": "runtime-claim-before-holdout-read"},
     }
     try:
@@ -553,7 +580,12 @@ def reject_committed_holdout_receipt(
     configuration_sha256: str,
     frozen_config_commit: str,
     study_commit: str,
+    archive_sha256: str,
+    split_manifest_sha256: str,
+    protocol_sha256: str,
+    holdout_cycles: Sequence[int],
     receipt_path: Path | None = None,
+    authorization_path: Path | None = None,
 ) -> None:
     """Honor versioned prior-consumption provenance, including in fresh clones."""
     path = receipt_path if receipt_path is not None else Path(__file__).with_name("holdout-consumption-receipt.json")
@@ -568,6 +600,8 @@ def reject_committed_holdout_receipt(
 
     digest = str(receipt.get("configurationSha256", "")).upper()
     archive_digest = str(receipt.get("sourceArchiveSha256", "")).upper()
+    split_digest = str(receipt.get("splitManifestSha256", "")).upper()
+    protocol_digest = str(receipt.get("protocolSha256", "")).upper()
     cycle_values = receipt.get("holdoutCycles")
     required = (
         receipt.get("receiptVersion") == 1
@@ -578,7 +612,13 @@ def reject_committed_holdout_receipt(
         and all(character in "0123456789ABCDEF" for character in digest)
         and len(archive_digest) == 64
         and all(character in "0123456789ABCDEF" for character in archive_digest)
-        and cycle_values == [1796, 1797]
+        and len(split_digest) == 64
+        and all(character in "0123456789ABCDEF" for character in split_digest)
+        and len(protocol_digest) == 64
+        and all(character in "0123456789ABCDEF" for character in protocol_digest)
+        and isinstance(cycle_values, list)
+        and bool(cycle_values)
+        and all(type(cycle) is int and cycle >= 0 for cycle in cycle_values)
         and receipt.get("guardAddedAfterRecordedRun") is True
         and isinstance(receipt.get("frozenConfigCommit"), str)
         and len(receipt["frozenConfigCommit"]) == 40
@@ -592,16 +632,58 @@ def reject_committed_holdout_receipt(
     )
     if not required:
         raise ResearchDataError("committed holdout consumption receipt is malformed; refusing holdout")
-    if digest != str(configuration_sha256).upper():
+
+    current_archive = str(archive_sha256).upper()
+    current_split = str(split_manifest_sha256).upper()
+    current_protocol = str(protocol_sha256).upper()
+    current_cycles = list(holdout_cycles)
+    if current_archive != archive_digest:
         return
-    if (
-        receipt["frozenConfigCommit"].lower() != frozen_config_commit.lower()
-        or receipt["studyCommit"].lower() != study_commit.lower()
-    ):
-        raise ResearchDataError("committed consumed digest has conflicting provenance; refusing holdout")
-    raise ResearchDataError(
-        f"committed provenance records final holdout for frozen configuration {digest} as already consumed"
-    )
+    if current_split == split_digest and current_cycles == cycle_values:
+        raise ResearchDataError(
+            "committed provenance records this source archive/split/holdout partition as already consumed; "
+            "a changed frozen configuration cannot reopen it"
+        )
+
+    # Repartitioning the same source is an explicitly reviewed new study, not an
+    # automatic escape hatch. Require a committed authorization bound to both
+    # the prior receipt and the exact new protocol/split/configuration.
+    auth_path = authorization_path if authorization_path is not None else Path(__file__).with_name("holdout-reopen-authorization.json")
+    try:
+        authorization = json.loads(auth_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ResearchDataError(
+            "this source archive already has a consumed holdout; a separately authorized new study "
+            f"with an explicit protocol/split change is required: {exc}"
+        ) from exc
+    if not isinstance(authorization, dict):
+        raise ResearchDataError("new-study holdout authorization is invalid; refusing holdout")
+    try:
+        authorized = (
+            authorization.get("authorizationVersion") == 1
+            and authorization.get("state") == "authorized"
+            and authorization.get("previousConfigurationSha256", "").upper() == digest
+            and authorization.get("sourceArchiveSha256", "").upper() == current_archive
+            and authorization.get("previousProtocolSha256", "").upper() == protocol_digest
+            and authorization.get("previousSplitManifestSha256", "").upper() == split_digest
+            and authorization.get("previousHoldoutCycles") == cycle_values
+            and authorization.get("newConfigurationSha256", "").upper() == str(configuration_sha256).upper()
+            and authorization.get("newFrozenConfigCommit", "").lower() == frozen_config_commit.lower()
+            and authorization.get("newStudyCommit", "").lower() == study_commit.lower()
+            and frozen_config_commit.lower() != receipt["frozenConfigCommit"].lower()
+            and study_commit.lower() != receipt["studyCommit"].lower()
+            and authorization.get("newProtocolSha256", "").upper() == current_protocol
+            and authorization.get("newSplitManifestSha256", "").upper() == current_split
+            and authorization.get("newHoldoutCycles") == current_cycles
+            and authorization.get("authorizedBy")
+            and authorization.get("authorizationReference")
+            and (current_protocol != protocol_digest or current_split != split_digest)
+            and str(configuration_sha256).upper() != digest
+        )
+    except (AttributeError, TypeError):
+        authorized = False
+    if not authorized:
+        raise ResearchDataError("new-study authorization does not match the consumed partition and exact new study")
 
 
 def _matrix_diagnostics(rows: Sequence[Sequence[float]]) -> dict:
@@ -791,6 +873,7 @@ def run_holdout(
     frozen_config_commit: str,
     claim_directory: Path | None = None,
     receipt_path: Path | None = None,
+    authorization_path: Path | None = None,
 ) -> dict:
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -814,7 +897,12 @@ def run_holdout(
         config["configurationSha256"],
         frozen_config_commit,
         config["studyCommit"],
-        receipt_path,
+        config["archiveSha256"],
+        config["splitManifestSha256"],
+        config["protocolSha256"],
+        split["holdout"],
+        receipt_path=receipt_path,
+        authorization_path=authorization_path,
     )
 
     # Validate the selected archive before consuming a new digest. Hashing and
@@ -831,6 +919,9 @@ def run_holdout(
         frozen_config_commit,
         config["studyCommit"],
         claim_directory,
+        archive_sha256=archive_sha,
+        split_manifest_sha256=config["splitManifestSha256"],
+        holdout_cycles=split["holdout"],
     )
 
     # Holdout phase reads only holdout profile and matrix rows.

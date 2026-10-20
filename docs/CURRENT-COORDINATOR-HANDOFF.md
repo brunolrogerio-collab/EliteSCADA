@@ -8,7 +8,7 @@ Snapshot: 2026-10-20. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA
 | --- | --- |
 | Integration target | `wave15/corrections-integration` |
 | Product code checkpoint | `793b8303547491e02b98bf73732d3ab5ab76567a` — last accepted product-code merge, Stage 4E PR #654; exact post-merge T2 #39336277009 passed |
-| Coordination integration HEAD | `6e6bd345dd730b4ba7dee1522dbb58ef12a42231` — PR #664 bounded research docs/code package; not a new product-code checkpoint |
+| Stage 4F research merge | PR #664 at `6e6bd345dd730b4ba7dee1522dbb58ef12a42231` — bounded research package; not a new product-code checkpoint or the current integration HEAD |
 | Stage 5A source evidence | Dispatch base `9ad4756c07f3a848750ea10cd2a14af7b63f8e6d`; final PR head `6c8991a53f22dbc3f509e83dcfcf722257dd60ae`; exact T1 #39258159241 passed |
 | Product front | Asset & Process Intelligence #588 remains OPEN/PARTIAL; Stage 4F gate #655 is NOT READY; bounded research issue #662 is closed as delivered. #639 owner Preview continues separately |
 | Completed slices | Stage 3 S3-01–S3-08; PERFORMANCE-V1A/B; Stage 4A #630 / PR #631; Stage 4B #632 / PR #633; Stage 4C #635 / PR #637; Stage 4D #649 / PR #651; Stage 4E #652 / PR #654; Stage 4F offline research deliverable #662 / PR #664 (insufficient evidence; not product acceptance) |

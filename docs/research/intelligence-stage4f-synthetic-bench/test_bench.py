@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import math
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 
 import bench as b
 
@@ -112,8 +115,24 @@ class SyntheticBenchMechanismTests(unittest.TestCase):
                 self.assertEqual(b.validate_trace([invalid])[0].reason, expected_reason)
                 self.assertFalse(b.validate_trace([invalid])[0].eligible)
         self.assertEqual(b.validate_trace(valid, cadence_s=None)[0].reason, "unknown-cadence")
-        duplicate = [valid[0], dataclasses.replace(valid[1], source_time_s=valid[0].source_time_s)]
-        self.assertEqual(b.validate_trace(duplicate)[1].reason, "duplicate-source-time")
+        duplicate_orders = [
+            [valid[0], dataclasses.replace(valid[1], source_time_s=valid[0].source_time_s), valid[2]],
+            [dataclasses.replace(valid[1], source_time_s=valid[0].source_time_s), valid[0], valid[2]],
+        ]
+        model = {
+            "contextCoefficients": [[0.0, 0.0, 0.0] for _ in range(3)],
+            "robustCenters": [0.0, 0.0, 0.0],
+            "robustScales": [1.0, 1.0, 1.0],
+            "covarianceMean": [0.0, 0.0, 0.0],
+            "candidates": {"unit": {"status": "eligible", "kind": "independent"}},
+        }
+        for ordered_rows in duplicate_orders:
+            with self.subTest(duplicate_order=[row.sample_index for row in ordered_rows]):
+                eligibility = b.validate_trace(ordered_rows)
+                self.assertEqual([item.reason for item in eligibility[:2]], ["duplicate-source-time"] * 2)
+                self.assertFalse(any(item.eligible for item in eligibility[:2]))
+                scored = b.score_trace(ordered_rows, model)["unit"]
+                self.assertTrue(all(not item.eligible and item.score is None for item in scored[:2]))
         gap = b.validate_trace([valid[0], valid[2]])
         self.assertTrue(gap[1].eligible)
         self.assertTrue(gap[1].break_before)
@@ -123,13 +142,20 @@ class SyntheticBenchMechanismTests(unittest.TestCase):
 
     def test_episode_confirmation_termination_and_interruptions(self):
         threshold = 1.0
-        self.assertEqual(b.find_episodes([decision(0, True), decision(1, True), decision(2, True)], threshold), [2])
-        self.assertEqual(b.find_episodes([decision(0, True), decision(1, True), decision(2, False), decision(3, True)], threshold), [3])
-        pattern = [decision(i, True) for i in range(3)] + [decision(i, False) for i in range(3, 8)] + [decision(i, True) for i in range(8, 11)]
-        self.assertEqual(b.find_episodes(pattern, threshold), [2, 10])
-        interrupted = [decision(0, True), decision(1, True), decision(2, False), decision(3, True), decision(4, True, break_before=True), decision(5, True), decision(6, True)]
-        self.assertEqual(b.find_episodes(interrupted, threshold), [3, 6])
-        self.assertEqual(b._trace_summary([decision(i, True) for i in range(12, 15)], 1.0, 12)["latencySeconds"], 20)
+        self.assertEqual(b.find_episodes([decision(i, True) for i in range(3)], threshold), [])
+        self.assertEqual(b.find_episodes([decision(0, True), decision(1, True), decision(2, True), decision(3, False)], threshold), [])
+        self.assertEqual(b.find_episodes([decision(0, True), decision(1, True), decision(2, False), decision(3, True), decision(4, False)], threshold), [4])
+
+        after_gap = [decision(i, True) for i in range(4)] + [decision(4, True, break_before=True)] + [decision(i, True) for i in range(5, 9)]
+        self.assertEqual(b.find_episodes(after_gap, threshold), [8])
+        after_context_change = [decision(i, True) for i in range(4)] + [decision(4, True, break_before=True)] + [decision(i, True) for i in range(5, 10)]
+        self.assertEqual(b.find_episodes(after_context_change, threshold), [8])
+        after_ineligible = [decision(i, True) for i in range(4)] + [decision(4, True, eligible=False)] + [decision(i, True) for i in range(5, 10)]
+        self.assertEqual(b.find_episodes(after_ineligible, threshold), [9])
+
+        pattern = [decision(i, True) for i in range(5)] + [decision(i, False) for i in range(5, 10)] + [decision(i, True) for i in range(10, 15)]
+        self.assertEqual(b.find_episodes(pattern, threshold), [4, 14])
+        self.assertEqual(b._trace_summary([decision(i, True) for i in range(12, 17)], 1.0, 12)["latencySeconds"], 40)
 
     def test_quantile_and_calibration_tie_break_are_fixed(self):
         self.assertEqual(b.nearest_rank_quantile([4.0, 1.0, 3.0, 2.0], 0.75), 3.0)
@@ -187,15 +213,137 @@ class SyntheticBenchMechanismTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "tolerance exceeded"):
                 b.compare_fit_calibration(lp, rp)
 
-    def test_atomic_holdout_receipt_rejects_duplicate_claim_in_test_scratch(self):
+    def test_identity_claim_rejects_second_scratch_before_generator(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "test-only-receipt.json"
-            b._claim_receipt(path, {"identity": "UNIT-TEST-NOT-FINAL-HOLDOUT", "state": "reserved"})
+            root = Path(directory) / "canonical-reservations"
+            identity = "UNIT-SECOND-SCRATCH-NOT-FINAL-HOLDOUT"
+            receipt = {"identity": identity, "state": "reserved"}
+            generator_calls = []
+
+            def attempt(scratch_name):
+                scratch = Path(directory) / scratch_name
+                return b._claim_then_generate(
+                    scratch / "receipt.json", receipt,
+                    lambda: generator_calls.append(scratch_name) or "generated",
+                    reservation_root=root,
+                )
+
+            self.assertEqual(attempt("scratch-a"), "generated")
             with self.assertRaisesRegex(RuntimeError, "already consumed or reserved"):
-                b._claim_receipt(path, {"identity": "UNIT-TEST-NOT-FINAL-HOLDOUT", "state": "reserved"})
-            data = json.loads(path.read_text(encoding="utf-8"))
-            self.assertEqual(data["identity"], "UNIT-TEST-NOT-FINAL-HOLDOUT")
-            self.assertNotEqual(data.get("identity"), b.HOLDOUT_ID)
+                attempt("scratch-b")
+            self.assertEqual(generator_calls, ["scratch-a"])
+            self.assertTrue((root / f"{hashlib.sha256(identity.encode()).hexdigest()}.json").exists())
+            self.assertTrue((Path(directory) / "scratch-a" / "receipt.json").exists())
+            self.assertFalse((Path(directory) / "scratch-b" / "receipt.json").exists())
+
+    def test_identity_claim_allows_only_one_concurrent_scratch_contender(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "canonical-reservations"
+            identity = "UNIT-CONCURRENT-CONTENDER-NOT-FINAL-HOLDOUT"
+            receipt = {"identity": identity, "state": "reserved"}
+            generator_calls = []
+            start_together = Barrier(2)
+
+            def attempt(index):
+                scratch = Path(directory) / f"scratch-{index}"
+                start_together.wait(timeout=5)
+                try:
+                    return b._claim_then_generate(
+                        scratch / "receipt.json", receipt,
+                        lambda: generator_calls.append(index) or "generated",
+                        reservation_root=root,
+                    )
+                except RuntimeError:
+                    return "rejected"
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(attempt, (1, 2)))
+            self.assertCountEqual(results, ["generated", "rejected"])
+            self.assertEqual(len(generator_calls), 1)
+
+    def test_committed_unit_receipt_rejects_before_generator_or_reservation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "canonical-reservations"
+            scratch = Path(directory) / "scratch"
+            committed = Path(directory) / "committed-unit-receipt.json"
+            identity = "UNIT-COMMITTED-NOT-FINAL-HOLDOUT"
+            committed.write_bytes(b._canonical_json({"identity": identity, "state": "completed"}) + b"\n")
+            generator_calls = []
+            with self.assertRaisesRegex(RuntimeError, "already committed"):
+                b._claim_then_generate(
+                    scratch / "receipt.json", {"identity": identity, "state": "reserved"},
+                    lambda: generator_calls.append("generated"),
+                    reservation_root=root,
+                    committed_receipt_path=committed,
+                )
+            self.assertEqual(generator_calls, [])
+            self.assertFalse(root.exists())
+
+    def test_historical_receipt_verifies_at_frozen_commit_and_blocks_current_hash_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            frozen_head = "a" * 40
+            identity = "UNIT-HISTORICAL-NOT-FINAL-HOLDOUT"
+            file_bytes = {
+                "docs/research/intelligence-stage4f-synthetic-bench/bench.py": b"historical bench source\n",
+                "docs/research/intelligence-stage4f-synthetic-bench/test_bench.py": b"historical tests\n",
+                "docs/research/intelligence-stage4f/research_harness.py": b"historical numerical source\n",
+                "docs/research/intelligence-stage4f-synthetic-bench/protocol-v3.md": b"historical protocol\n",
+                "docs/research/intelligence-stage4f-synthetic-bench/experiment-manifest-v1.json": b._canonical_json({"fixture": "manifest"}) + b"\n",
+            }
+            config = {"fixture": "config"}
+            config["configurationSha256"] = b._sha256_json(config)
+            file_bytes["docs/research/intelligence-stage4f-synthetic-bench/frozen-config-v1.json"] = b._canonical_json(config) + b"\n"
+            protocol_sha = b._sha256_text_bytes(file_bytes["docs/research/intelligence-stage4f-synthetic-bench/protocol-v3.md"])
+            manifest_sha = b._sha256_json(json.loads(file_bytes["docs/research/intelligence-stage4f-synthetic-bench/experiment-manifest-v1.json"]))
+            partition_sha = "partition-fixture-sha256"
+            report = {
+                "holdoutIdentity": identity,
+                "experimentIdentity": "UNIT-EXPERIMENT",
+                "frozenHead": frozen_head,
+                "configurationSha256": config["configurationSha256"],
+                "protocolSha256": protocol_sha,
+                "partitionSha256": partition_sha,
+                "fixture": "aggregate",
+            }
+            report["reportSha256"] = b._sha256_json(report)
+            receipt = {
+                "holdoutIdentity": identity,
+                "experimentIdentity": report["experimentIdentity"],
+                "frozenHead": frozen_head,
+                "configurationSha256": config["configurationSha256"],
+                "protocolSha256": protocol_sha,
+                "partitionSha256": partition_sha,
+                "manifestCanonicalSha256": manifest_sha,
+                "benchSourceSha256": b._sha256_text_bytes(file_bytes["docs/research/intelligence-stage4f-synthetic-bench/bench.py"]),
+                "testSourceSha256": b._sha256_text_bytes(file_bytes["docs/research/intelligence-stage4f-synthetic-bench/test_bench.py"]),
+                "numericSourceSha256": b._sha256_text_bytes(file_bytes["docs/research/intelligence-stage4f/research_harness.py"]),
+                "state": "completed",
+                "aggregateReportSha256": report["reportSha256"],
+            }
+            with self.subTest("recorded-source-proof"):
+                proof = b._verify_historical_holdout_record(
+                    receipt, report,
+                    read_committed_file=lambda revision, path: file_bytes[path],
+                    current_bench_source=b"hardened bench source\n",
+                    current_test_source=b"hardened test source\n",
+                )
+                self.assertTrue(proof["historicalEvidenceVerified"])
+                self.assertFalse(proof["currentSourcesMatchHistorical"])
+
+            report_path = Path(directory) / "aggregate.json"
+            receipt_path = Path(directory) / "receipt.json"
+            report_path.write_bytes(b._canonical_json(report) + b"\n")
+            receipt_path.write_bytes(b._canonical_json(receipt) + b"\n")
+            generator_calls = []
+            with self.assertRaisesRegex(RuntimeError, "current bench/test source hashes differ"):
+                b._reject_published_holdout(
+                    report_path, receipt_path,
+                    read_committed_file=lambda revision, path: file_bytes[path],
+                    current_bench_source=b"hardened bench source\n",
+                    current_test_source=b"hardened test source\n",
+                )
+                generator_calls.append("generated")
+            self.assertEqual(generator_calls, [])
 
     def test_bootstrap_and_zero_episode_wilson_bound_are_deterministic(self):
         blocks = [{"fp": 1.0, "n": 100.0}, {"fp": 0.0, "n": 100.0}, {"fp": 2.0, "n": 100.0}]

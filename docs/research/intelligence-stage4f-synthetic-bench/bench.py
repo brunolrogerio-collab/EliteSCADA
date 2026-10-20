@@ -20,7 +20,7 @@ import tempfile
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 
 HERE = Path(__file__).resolve().parent
@@ -64,8 +64,12 @@ def _sha256_bytes(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest().upper()
 
 
+def _sha256_text_bytes(raw: bytes) -> str:
+    return _sha256_bytes(_canonical_text_bytes(raw))
+
+
 def _sha256_text(path: Path) -> str:
-    return _sha256_bytes(_canonical_text_bytes(path.read_bytes()))
+    return _sha256_text_bytes(path.read_bytes())
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -269,13 +273,18 @@ def validate_trace(
     if cadence_s is None or cadence_s <= 0:
         return [Eligibility(False, "unknown-cadence", True) for _ in rows]
     results: list[Eligibility] = []
-    seen: set[int] = set()
+    source_time_counts: dict[int, int] = {}
+    for row in rows:
+        if row.source_time_s is not None:
+            source_time_counts[row.source_time_s] = source_time_counts.get(row.source_time_s, 0) + 1
     previous_time: int | None = None
     previous_eligible = True
     for row in rows:
         reason: str | None = None
         break_before = not previous_eligible
-        if len(row.targets) != 3 or any(value is None for value in row.targets):
+        if row.source_time_s is not None and source_time_counts[row.source_time_s] > 1:
+            reason = "duplicate-source-time"
+        elif len(row.targets) != 3 or any(value is None for value in row.targets):
             reason = "missing-required-target"
         elif any(not math.isfinite(float(value)) for value in row.targets if value is not None):
             reason = "nonfinite-target"
@@ -295,8 +304,6 @@ def validate_trace(
             reason = "source-time-unverified"
         elif not row.source_time_synchronized:
             reason = "source-time-unsynchronized"
-        elif row.source_time_s in seen:
-            reason = "duplicate-source-time"
         elif row.source_time_s % cadence_s != 0 or row.source_time_s != row.sample_index * cadence_s:
             reason = "misaligned-source-time"
         elif row.context_id != expected_context_id:
@@ -306,11 +313,7 @@ def validate_trace(
         if reason is not None:
             results.append(Eligibility(False, reason, True))
             previous_eligible = False
-            if row.source_time_s is not None:
-                seen.add(row.source_time_s)
             continue
-        if row.source_time_s is not None:
-            seen.add(row.source_time_s)
         if previous_time is not None and row.source_time_s is not None:
             delta = row.source_time_s - previous_time
             if delta <= 0:
@@ -469,16 +472,14 @@ def find_episodes(decisions: Sequence[ScoreDecision], threshold: float) -> list[
             if not decision.eligible:
                 continue
         above = decision.score is not None and decision.score > threshold
+        history.append(above)
+        history = history[-5:]
+        if not active and len(history) == 5 and sum(history) >= 3:
+            active = True
+            starts.append(decision.sample_index)
         if above:
             below_run = 0
-            history.append(True)
-            history = history[-5:]
-            if not active and sum(history) >= 3:
-                active = True
-                starts.append(decision.sample_index)
         else:
-            history.append(False)
-            history = history[-5:]
             if active:
                 below_run += 1
                 if below_run >= 5:
@@ -889,17 +890,183 @@ def _git(*args: str) -> str:
     return result.stdout.strip()
 
 
-def _claim_receipt(path: Path, initial: dict[str, Any]) -> None:
+def _git_show_bytes(revision: str, path: str) -> bytes:
+    result = subprocess.run(["git", "show", f"{revision}:{path}"], cwd=REPO, check=True, capture_output=True)
+    return result.stdout
+
+
+def _verify_historical_holdout_record(
+    receipt: dict[str, Any],
+    report: dict[str, Any],
+    *,
+    read_committed_file: Callable[[str, str], bytes] = _git_show_bytes,
+    current_bench_source: bytes | None = None,
+    current_test_source: bytes | None = None,
+) -> dict[str, Any]:
+    """Validate frozen evidence against its recorded source commit, not current code."""
+    frozen_head = receipt.get("frozenHead")
+    if not isinstance(frozen_head, str) or len(frozen_head) != 40:
+        raise RuntimeError("historical holdout receipt has no valid frozen commit")
+    if receipt.get("state") != "completed":
+        raise RuntimeError("historical holdout receipt is not completed")
+    if report.get("frozenHead") != frozen_head:
+        raise RuntimeError("historical aggregate and receipt name different frozen commits")
+    for field in ("holdoutIdentity", "experimentIdentity", "configurationSha256", "protocolSha256", "partitionSha256"):
+        if report.get(field) != receipt.get(field):
+            raise RuntimeError(f"historical aggregate/receipt mismatch: {field}")
+
+    report_copy = dict(report)
+    claimed_report_hash = report_copy.pop("reportSha256", None)
+    if claimed_report_hash != _sha256_json(report_copy):
+        raise RuntimeError("historical aggregate digest does not match its contents")
+    if receipt.get("aggregateReportSha256") != claimed_report_hash:
+        raise RuntimeError("historical receipt does not bind the published aggregate")
+
+    paths = {
+        "benchSourceSha256": Path(__file__).resolve().relative_to(REPO).as_posix(),
+        "testSourceSha256": TEST_SOURCE.resolve().relative_to(REPO).as_posix(),
+        "numericSourceSha256": OLD_NUMERIC_SOURCE.resolve().relative_to(REPO).as_posix(),
+        "protocolSha256": PROTOCOL_PATH.resolve().relative_to(REPO).as_posix(),
+    }
+    for field, path in paths.items():
+        if _sha256_text_bytes(read_committed_file(frozen_head, path)) != receipt.get(field):
+            raise RuntimeError(f"historical holdout source binding failed: {field}")
+
+    manifest_path = MANIFEST_PATH.resolve().relative_to(REPO).as_posix()
+    historical_manifest = json.loads(read_committed_file(frozen_head, manifest_path).decode("utf-8"))
+    if _sha256_json(historical_manifest) != receipt.get("manifestCanonicalSha256"):
+        raise RuntimeError("historical holdout manifest binding failed")
+
+    config_path = (HERE / "frozen-config-v1.json").resolve().relative_to(REPO).as_posix()
+    historical_config = json.loads(read_committed_file(frozen_head, config_path).decode("utf-8"))
+    config_copy = dict(historical_config)
+    claimed_config_hash = config_copy.pop("configurationSha256", None)
+    if claimed_config_hash != _sha256_json(config_copy) or claimed_config_hash != receipt.get("configurationSha256"):
+        raise RuntimeError("historical holdout frozen-configuration binding failed")
+
+    current_bench_source = Path(__file__).read_bytes() if current_bench_source is None else current_bench_source
+    current_test_source = TEST_SOURCE.read_bytes() if current_test_source is None else current_test_source
+    current_sources_match = (
+        _sha256_text_bytes(current_bench_source) == receipt.get("benchSourceSha256")
+        and _sha256_text_bytes(current_test_source) == receipt.get("testSourceSha256")
+    )
+    return {
+        "frozenHead": frozen_head,
+        "historicalEvidenceVerified": True,
+        "currentSourcesMatchHistorical": current_sources_match,
+    }
+
+
+def _reject_published_holdout(
+    report_path: Path,
+    receipt_path: Path,
+    *,
+    read_committed_file: Callable[[str, str], bytes] = _git_show_bytes,
+    current_bench_source: bytes | None = None,
+    current_test_source: bytes | None = None,
+) -> None:
+    if not report_path.exists() and not receipt_path.exists():
+        return
+    if not report_path.exists() or not receipt_path.exists():
+        raise RuntimeError("published holdout evidence is incomplete; one-use replay is forbidden")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    proof = _verify_historical_holdout_record(
+        receipt,
+        report,
+        read_committed_file=read_committed_file,
+        current_bench_source=current_bench_source,
+        current_test_source=current_test_source,
+    )
+    if not proof["currentSourcesMatchHistorical"]:
+        raise RuntimeError(
+            "historical holdout integrity verified at frozen commit "
+            f"{proof['frozenHead']}, but current bench/test source hashes differ; replay is forbidden"
+        )
+    raise RuntimeError(f"one-use holdout identity {receipt['holdoutIdentity']} is already consumed; replay is forbidden")
+
+
+def _canonical_reservation_root() -> Path:
+    # Follow the prior Stage 4F harness's stable per-user guard convention,
+    # but isolate this synthetic experiment in its own identity namespace.
+    if os.name == "nt":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        base = Path(local_app_data) if local_app_data else Path.home() / "AppData" / "Local"
+        return base / "EliteSCADA" / "Research" / "Stage4F" / "synthetic-bench-holdout-claims"
+    state_home = os.environ.get("XDG_STATE_HOME")
+    base = Path(state_home) if state_home else Path.home() / ".local" / "state"
+    return base / "elitescada" / "research" / "stage4f" / "synthetic-bench-holdout-claims"
+
+
+def _receipt_identity(initial: dict[str, Any]) -> str:
+    identity = initial.get("holdoutIdentity", initial.get("identity"))
+    if not isinstance(identity, str) or not identity.strip():
+        raise RuntimeError("one-use receipt must include a non-empty holdout identity")
+    return identity
+
+
+def _claim_receipt_file(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = _canonical_json(initial) + b"\n"
+    encoded = _canonical_json(payload) + b"\n"
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
     try:
-        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        fd = os.open(path, flags, 0o600)
     except FileExistsError as exc:
         raise RuntimeError("one-use holdout identity is already consumed or reserved; hard stop") from exc
     with os.fdopen(fd, "wb") as target:
         target.write(encoded)
         target.flush()
         os.fsync(target.fileno())
+
+
+def _claim_receipt(
+    path: Path,
+    initial: dict[str, Any],
+    *,
+    reservation_root: Path | None = None,
+    committed_receipt_path: Path | None = None,
+) -> None:
+    identity = _receipt_identity(initial)
+    if committed_receipt_path is not None and committed_receipt_path.exists():
+        try:
+            committed = json.loads(committed_receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError("committed one-use receipt is unreadable; hard stop") from exc
+        if _receipt_identity(committed) != identity:
+            raise RuntimeError("committed receipt path is occupied by another identity; hard stop")
+        raise RuntimeError("one-use holdout identity is already committed; hard stop")
+
+    root = reservation_root if reservation_root is not None else _canonical_reservation_root()
+    identity_key = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+    canonical_path = root / f"{identity_key}.json"
+    reservation = {
+        "schema": "elitescada.research.one-use-reservation.v1",
+        "holdoutIdentity": identity,
+        "receipt": initial,
+    }
+    _claim_receipt_file(canonical_path, reservation)
+    # Keep the protocol's external-scratch receipt as a mirror; the canonical claim
+    # above is independent of caller-selected scratch and remains on any failure.
+    _claim_receipt_file(path, initial)
+
+
+def _claim_then_generate(
+    path: Path,
+    initial: dict[str, Any],
+    generator: Callable[[], Any],
+    *,
+    reservation_root: Path | None = None,
+    committed_receipt_path: Path | None = None,
+) -> Any:
+    _claim_receipt(
+        path,
+        initial,
+        reservation_root=reservation_root,
+        committed_receipt_path=committed_receipt_path,
+    )
+    return generator()
 
 
 def _write_atomic(path: Path, value: Any) -> None:
@@ -985,51 +1152,15 @@ def _holdout_reports(per_candidate: dict[str, Any], group_count: int) -> dict[st
     return reports
 
 
-def run_holdout(config_path: Path, scratch: Path) -> dict[str, Any]:
-    config_path = config_path.resolve()
-    config = json.loads(config_path.read_text(encoding="utf-8"))
-    _verify_configuration(config)
-    if config_path != (HERE / "frozen-config-v1.json").resolve():
-        raise RuntimeError("holdout must use the committed frozen-config-v1.json")
-    if _git("branch", "--show-current") != config["assignedBranch"]:
-        raise RuntimeError("holdout branch does not match the frozen assignment")
-    if _git("status", "--porcelain"):
-        raise RuntimeError("holdout requires a clean checkout after the frozen-configuration commit")
-    head = _git("rev-parse", "HEAD")
-    committed_config = json.loads(_git("show", f"HEAD:{config_path.relative_to(REPO).as_posix()}"))
-    _verify_configuration(committed_config)
-    if committed_config != config:
-        raise RuntimeError("committed configuration differs from the working frozen configuration")
-    if os.name != "nt" or sys.version_info[:3] != (3, 14, 6):
-        raise RuntimeError("the one-use final holdout is designated for Windows CPython 3.14.6 only")
-    report_path = HERE / "holdout-aggregate-v1.json"
-    receipt_mirror = HERE / "holdout-receipt-v1.json"
-    if report_path.exists() or receipt_mirror.exists():
-        raise RuntimeError("holdout aggregate or receipt already published; one-use rule forbids another run")
-    if scratch.exists() and any(scratch.iterdir()):
-        raise RuntimeError("holdout scratch already contains data; refusing reuse")
-    scratch.mkdir(parents=True, exist_ok=True)
-    receipt_path = scratch / "holdout-one-use-receipt.json"
-    manifest = _manifest()
-    receipt = {
-        "schema": "elitescada.w15.intelligence.synthetic-bench-holdout-receipt.v1",
-        "state": "reserved",
-        "holdoutIdentity": HOLDOUT_ID,
-        "experimentIdentity": EXPERIMENT_ID,
-        "platform": platform.platform(),
-        "python": sys.version,
-        "frozenHead": head,
-        "protocolSha256": manifest["protocolSha256"],
-        "manifestCanonicalSha256": _sha256_json(manifest),
-        "benchSourceSha256": _sha256_text(Path(__file__)),
-        "testSourceSha256": _sha256_text(TEST_SOURCE),
-        "numericSourceSha256": _sha256_text(OLD_NUMERIC_SOURCE),
-        "configurationSha256": config["configurationSha256"],
-        "partitionSha256": partition_digest(),
-        "groupRange": [HOLDOUT_GROUPS[0], HOLDOUT_GROUPS[-1]],
-        "startedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-    _claim_receipt(receipt_path, receipt)
+def _perform_claimed_holdout(
+    receipt: dict[str, Any],
+    config: dict[str, Any],
+    head: str,
+    manifest: dict[str, Any],
+    receipt_path: Path,
+    report_path: Path,
+    receipt_mirror: Path,
+) -> dict[str, Any]:
     start_wall, start_cpu = time.perf_counter(), time.process_time()
     fit = config["fit"]
     model = {
@@ -1101,6 +1232,60 @@ def run_holdout(config_path: Path, scratch: Path) -> dict[str, Any]:
     _write_atomic(report_path, report)
     _write_atomic(receipt_mirror, receipt)
     return report
+
+
+def run_holdout(config_path: Path, scratch: Path) -> dict[str, Any]:
+    report_path = HERE / "holdout-aggregate-v1.json"
+    receipt_mirror = HERE / "holdout-receipt-v1.json"
+    # Historical output is checked against its recorded source commit and then
+    # rejected for replay before current code can reserve or generate anything.
+    _reject_published_holdout(report_path, receipt_mirror)
+
+    config_path = config_path.resolve()
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    _verify_configuration(config)
+    if config_path != (HERE / "frozen-config-v1.json").resolve():
+        raise RuntimeError("holdout must use the committed frozen-config-v1.json")
+    if _git("branch", "--show-current") != config["assignedBranch"]:
+        raise RuntimeError("holdout branch does not match the frozen assignment")
+    if _git("status", "--porcelain"):
+        raise RuntimeError("holdout requires a clean checkout after the frozen-configuration commit")
+    head = _git("rev-parse", "HEAD")
+    committed_config = json.loads(_git("show", f"HEAD:{config_path.relative_to(REPO).as_posix()}"))
+    _verify_configuration(committed_config)
+    if committed_config != config:
+        raise RuntimeError("committed configuration differs from the working frozen configuration")
+    if os.name != "nt" or sys.version_info[:3] != (3, 14, 6):
+        raise RuntimeError("the one-use final holdout is designated for Windows CPython 3.14.6 only")
+    if scratch.exists() and any(scratch.iterdir()):
+        raise RuntimeError("holdout scratch already contains data; refusing reuse")
+    scratch.mkdir(parents=True, exist_ok=True)
+    receipt_path = scratch / "holdout-one-use-receipt.json"
+    manifest = _manifest()
+    receipt = {
+        "schema": "elitescada.w15.intelligence.synthetic-bench-holdout-receipt.v1",
+        "state": "reserved",
+        "holdoutIdentity": HOLDOUT_ID,
+        "experimentIdentity": EXPERIMENT_ID,
+        "platform": platform.platform(),
+        "python": sys.version,
+        "frozenHead": head,
+        "protocolSha256": manifest["protocolSha256"],
+        "manifestCanonicalSha256": _sha256_json(manifest),
+        "benchSourceSha256": _sha256_text(Path(__file__)),
+        "testSourceSha256": _sha256_text(TEST_SOURCE),
+        "numericSourceSha256": _sha256_text(OLD_NUMERIC_SOURCE),
+        "configurationSha256": config["configurationSha256"],
+        "partitionSha256": partition_digest(),
+        "groupRange": [HOLDOUT_GROUPS[0], HOLDOUT_GROUPS[-1]],
+        "startedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    return _claim_then_generate(
+        receipt_path,
+        receipt,
+        lambda: _perform_claimed_holdout(receipt, config, head, manifest, receipt_path, report_path, receipt_mirror),
+        committed_receipt_path=receipt_mirror,
+    )
 
 
 def run_tests() -> int:

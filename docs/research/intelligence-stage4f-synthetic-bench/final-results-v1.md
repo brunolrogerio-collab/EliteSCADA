@@ -1,8 +1,29 @@
 # Stage 4F synthetic motor/pump bench — final result v1
 
+## Main review erratum — post-holdout hardening
+
+**Main has not accepted the original mechanical demonstration or any PASS cell below.** The original 13/13 suite missed three demonstrated defects: three/four decisions could confirm an episode without a complete five-decision 3-of-5 window; a duplicate source-time pair left its first row eligible for scoring; and a caller-chosen scratch folder allowed a second reservation after interruption. Those original tests passed, but did not establish the prescribed mechanics.
+
+The same PR now hardens those mechanics and adds small-fixture regressions: confirmation requires five consecutive eligible decisions; every row in a duplicate source-time key is ineligible; and an atomic per-user reservation keyed by holdout identity is independent of scratch and remains fail-closed after interruption, with the committed consumption receipt checked as well. The guard follows the stable per-user exclusive-claim pattern already used by the prior Stage 4F harness, in a separate synthetic-bench namespace. Current code validates historical source/artifact bindings at the receipt's frozen commit, then refuses replay when current bench/test hashes differ. A read-only verification confirmed the existing record against `35f187d9304ec1c31ed9859d07a4a812f13cfcab` and produced the expected current-source-mismatch refusal.
+
+This is **post-execution hardening only**: no fit/calibration, score recalculation, generator run, or holdout replay was performed. The old aggregate and receipt remain the historical output of the code frozen at `35f187d9304ec1c31ed9859d07a4a812f13cfcab`; their episode-dependent values are not accepted measurements of the now-corrected convention. The old aggregate's original candidate-level PASS labels are historical labels only, **not Main acceptance**. The original holdout identity remains consumed; a fresh experiment needs Main's separate predeclared protocol and identity.
+
+Mechanism regressions now pass **16/16 on Windows and 16/16 on isolated Linux**. The following raw-file SHA-256 values were recorded before hardening and verified unchanged against the pre-hardening PR head `162637c40f81867a2ad172d9263691bfb61d5b7a`:
+
+| Preserved evidence | Raw-file SHA-256 |
+| --- | --- |
+| `protocol-v1.md` | `436DA377FBDF45FB93064BC042096B088392768400A7128AF0F85AFB0445A385` |
+| `protocol-v2.md` | `FABACE0AA305888E36BA5DBC0B4C04E1ABF3F5752428D087BD6A4D9BFA195288` |
+| `protocol-v3.md` | `2457E2E685287E19E35CAA7CCBE88B01F02DE3374565EBC6C85CDB73555F3DE4` |
+| `experiment-manifest-v1.json` | `E53F706815FA6B61B7ED1F3497BD75BBDA23C202D9F31E1AEED6B3AAEB29F019` |
+| `frozen-config-v1.json` | `B79EE826D5C7DC02149C7B9FDAF3CC89C6F078262FA3554961E79656F56FDE70` |
+| `fit-calibration-summary-v1.json` | `7323DE28AA7628C9AFC7DB2D52CF1C103BF79698B507BD320E4A9B12326BB24D` |
+| `holdout-aggregate-v1.json` | `D8976874B61ADAEDFA3D870232BAC3964649D00C42C37116854C18CC3C6BB6E0` |
+| `holdout-receipt-v1.json` | `75C78CE6D87C9136A3B686E195BC2E4118F4CAB685DAC279E4577237D55C62CF` |
+
 ## Disposition
 
-**Bench mechanics: DEMONSTRATED. Synthetic performance: FAIL / INSUFFICIENT; not a pass. Product and field validity: NOT PROVEN.** The covariance-aware per-observation score substantially improved detection of the predeclared synthetic relationship change over the marginal control, but it still missed the unchanged 90% recall and 90%-within-10-minute targets. The one-use holdout is complete; nothing was tuned or rerun against it. The actual ≥168-hour / 14-calendar-day false-episode exposure remains UNMEASURED.
+**Historical original result:** bench mechanics were initially classified DEMONSTRATED; Main review overturned that classification pending the hardening above. Historical synthetic outputs remain FAIL / INSUFFICIENT, and product/field validity is NOT PROVEN. The covariance-aware score's reported original outputs remain unchanged and are not reinterpreted as results under the corrected episode convention. The one-use holdout remains consumed. Actual ≥168-hour / 14-calendar-day exposure remains UNMEASURED.
 
 ## Frozen execution record
 
@@ -21,11 +42,11 @@
 
 | Area / unchanged criterion | Holdout evidence | Disposition |
 | --- | --- | --- |
-| Deterministic generation, blocked 360/120/120 grouping, fit-only contextual regression/scaling/covariance, finite shrinkage grid, frozen hashes, one-use guard, invalid-data gates and episode mechanics | 13/13 focused tests on each platform; one completed atomic receipt; no row-level traces/scores persisted | **DEMONSTRATED** for this research harness only |
+| Deterministic generation, blocked 360/120/120 grouping, fit-only contextual regression/scaling/covariance, finite shrinkage grid, frozen hashes, one-use guard, invalid-data gates and episode mechanics | Original 13/13 suite passed but missed the three Main-reviewed cases; corrected 16/16 fixture suite now passes on each platform | Original **DEMONSTRATED** label is overturned; corrected mechanics demonstrated for this research harness only |
 | Point false positives ≤1% on known synthetic nonfault | Selected λ=0.05: 122/14,400 = 0.847%; source-block bootstrap 95% interval 0.688–1.014%. Independent control: 117/14,400 = 0.813%, interval 0.632–0.993% | λ=0.05 point estimate is below target, but uncertainty crosses 1%; conditional synthetic evidence only |
 | False episodes ≤1 per 24 eligible operating hours | λ=0.05: 5 episodes / 40 simulated hours = 3.0 per 24 h; cluster bootstrap 0.6–6.0 per 24 h; Wilson group-occurrence upper bound 6.76 per 24 h | **FAIL** at point estimate; the formal 168-hour/14-day exposure floor is also **INSUFFICIENT / UNMEASURED** |
-| Strong single-target shift, ≥90% recall and ≥90% detected within 10 minutes | λ=0.05 current shift: 120/120 detected, 120/120 within 10 minutes; latency p95 50 s, maximum 90 s | **PASS, synthetic-conditional** |
-| Strong multi-target shift, ≥90% recall and ≥90% within 10 minutes | λ=0.05: 120/120 detected and within 10 minutes; latency p95 40 s, maximum 60 s | **PASS, synthetic-conditional** |
+| Strong single-target shift, ≥90% recall and ≥90% detected within 10 minutes | Historical λ=0.05 output: 120/120 detected, 120/120 within 10 minutes; latency p95 50 s, maximum 90 s | Original candidate-level **PASS** label only; not Main acceptance or a result under corrected mechanics |
+| Strong multi-target shift, ≥90% recall and ≥90% within 10 minutes | Historical λ=0.05 output: 120/120 detected and within 10 minutes; latency p95 40 s, maximum 60 s | Original candidate-level **PASS** label only; not Main acceptance or a result under corrected mechanics |
 | Strong cross-signal relationship change, ≥90% recall and ≥90% within 10 minutes | λ=0.05: 104/120 detected (86.7%, block-bootstrap 80.0–92.5%); 89/120 within 10 minutes (74.2%, interval 65.8–81.7%); latency p95 820 s, maximum 1,060 s. Independent control: 1/120 detected (0.83%) | **FAIL**. Joint score adds information over the marginal control but misses both targets. Other joint shrinkage values also failed this class. |
 | Smaller shifts and ramp | λ=0.05: 1-scale current shift 59/120 (49.2%) detected, 43/120 within 10 minutes; 2-scale 120/120 detected, 119/120 within 10 minutes; ramp 120/120 detected and within 10 minutes | Characterization only; no sensitivity guarantee or product claim |
 | Real normal exposure, source provenance, product integration and field validity | No real plant/public archive used. The 40 simulated normal hours do not represent elapsed operating time or synchronized sensors | **NOT MEASURED / NOT PROVEN** |
@@ -38,6 +59,6 @@ The first Windows fit/calibration process completed its deterministic calculatio
 
 All generated traces and per-sample scores remained ephemeral. The external holdout scratch contains only the compact receipt. The committed aggregate report and receipt hashes were verified against each other and the frozen configuration. No product files, product services, Preview, HA, drivers, licensing, UCI archive/holdout, owner data or raw records were accessed or changed. No CI was manually dispatched and no PR was merged.
 
-## One next action for Main
+## Next action for Main
 
-Main should decide whether to request one **specific, owner-authorized, labeled 14-day pump export** with current, pressure, flow, speed, running/load context, quality, source-time verification/synchronization and known nonfault/event labels. Until such evidence exists, keep the product gate NOT READY and do not promote this synthetic evaluator or threshold into product behavior.
+No new experiment is authorized by this correction return. Main decides whether the corrected mechanics and containment are acceptable, then may issue a separate finite, predeclared research action. Keep the product gate NOT READY; do not promote this synthetic evaluator or threshold into product behavior.

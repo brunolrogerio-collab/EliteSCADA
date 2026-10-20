@@ -133,7 +133,7 @@ class ResearchHarnessTests(unittest.TestCase):
         with self.assertRaisesRegex(ResearchDataError, "digest mismatch"):
             verify_configuration_digest(config)
 
-    def test_holdout_claim_is_single_use_and_repeat_stops_before_archive_read(self) -> None:
+    def test_holdout_claim_is_single_use_and_repeat_stops_before_holdout_rows(self) -> None:
         research_dir = Path(__file__).resolve().parents[1]
         protocol_path = research_dir / "protocol-v1.md"
         split_path = research_dir / "cycle-split-manifest.csv"
@@ -145,6 +145,7 @@ class ResearchHarnessTests(unittest.TestCase):
                 "configurationSha256": "",
                 "holdoutOpened": False,
                 "holdoutCycles": [1796, 1797],
+                "archiveSha256": "F" * 64,
                 "protocolSha256": sha256_file(protocol_path),
                 "splitManifestSha256": sha256_file(split_path),
                 "studyCommit": "E" * 40,
@@ -157,7 +158,7 @@ class ResearchHarnessTests(unittest.TestCase):
 
             marker = claim_final_holdout_once(config["configurationSha256"], guard_path, config["studyCommit"], guard_dir)
             self.assertTrue(marker.is_file())
-            with mock.patch("research_harness.verify_archive", side_effect=AssertionError("archive read")) as verify_archive, \
+            with mock.patch("research_harness.verify_archive", return_value=({}, "F" * 64)) as verify_archive, \
                  mock.patch("research_harness.read_profile_cycles", side_effect=AssertionError("profile rows read")) as read_profile, \
                  mock.patch("research_harness.load_channels", side_effect=AssertionError("matrix rows read")) as load_channels:
                 with self.assertRaisesRegex(ResearchDataError, "already claimed/consumed"):
@@ -169,10 +170,109 @@ class ResearchHarnessTests(unittest.TestCase):
                         config_path,
                         guard_path,
                         guard_dir,
+                        root / "no-consumption-receipt.json",
                     )
+            verify_archive.assert_called_once()
+            read_profile.assert_not_called()
+            load_channels.assert_not_called()
+
+    def test_committed_receipt_blocks_same_digest_in_fresh_clone(self) -> None:
+        research_dir = Path(__file__).resolve().parents[1]
+        protocol_path = research_dir / "protocol-v1.md"
+        split_path = research_dir / "cycle-split-manifest.csv"
+        frozen_commit = "B" * 40
+        study_commit = "C" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = {
+                "configurationSha256": "",
+                "holdoutOpened": False,
+                "holdoutCycles": [1796, 1797],
+                "archiveSha256": "F" * 64,
+                "protocolSha256": sha256_file(protocol_path),
+                "splitManifestSha256": sha256_file(split_path),
+                "studyCommit": study_commit,
+            }
+            from research_harness import _configuration_digest
+
+            config["configurationSha256"] = _configuration_digest(config)
+            config_path = root / "frozen-config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            receipt_path = root / "holdout-consumption-receipt.json"
+            receipt_path.write_text(json.dumps({
+                "receiptVersion": 1,
+                "assignment": "#662",
+                "state": "consumed",
+                "configurationSha256": config["configurationSha256"],
+                "frozenConfigCommit": frozen_commit,
+                "studyCommit": study_commit,
+                "resultCommit": "D" * 40,
+                "sourceArchiveSha256": "F" * 64,
+                "holdoutCycles": [1796, 1797],
+                "holdoutOpenedAfterFreeze": True,
+                "guardAddedAfterRecordedRun": True,
+            }), encoding="utf-8")
+
+            with mock.patch("research_harness.verify_archive", side_effect=AssertionError("archive inspected")) as verify_archive:
+                with mock.patch("research_harness.read_profile_cycles", side_effect=AssertionError("profile rows read")) as read_profile:
+                    with mock.patch("research_harness.load_channels", side_effect=AssertionError("matrix rows read")) as load_channels:
+                        with self.assertRaisesRegex(ResearchDataError, "already consumed"):
+                            run_holdout(
+                                root / "unused-source.zip",
+                                root / "unused-source-manifest.json",
+                                split_path,
+                                protocol_path,
+                                config_path,
+                                frozen_commit,
+                                root / "empty-fresh-clone-state",
+                                receipt_path,
+                            )
             verify_archive.assert_not_called()
             read_profile.assert_not_called()
             load_channels.assert_not_called()
+
+    def test_wrong_archive_does_not_consume_holdout_claim(self) -> None:
+        research_dir = Path(__file__).resolve().parents[1]
+        protocol_path = research_dir / "protocol-v1.md"
+        split_path = research_dir / "cycle-split-manifest.csv"
+        frozen_commit = "B" * 40
+        study_commit = "C" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            guard_dir = root / "claims"
+            config = {
+                "configurationSha256": "",
+                "holdoutOpened": False,
+                "holdoutCycles": [1796, 1797],
+                "archiveSha256": "F" * 64,
+                "protocolSha256": sha256_file(protocol_path),
+                "splitManifestSha256": sha256_file(split_path),
+                "studyCommit": study_commit,
+            }
+            from research_harness import _configuration_digest
+
+            config["configurationSha256"] = _configuration_digest(config)
+            config_path = root / "frozen-config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+            with mock.patch("research_harness.verify_archive", return_value=({}, "0" * 64)):
+                with mock.patch("research_harness.read_profile_cycles", side_effect=AssertionError("profile rows read")) as read_profile:
+                    with mock.patch("research_harness.load_channels", side_effect=AssertionError("matrix rows read")) as load_channels:
+                        with self.assertRaisesRegex(ResearchDataError, "archive SHA does not match"):
+                            run_holdout(
+                                root / "wrong-source.zip",
+                                root / "source-manifest.json",
+                                split_path,
+                                protocol_path,
+                                config_path,
+                                frozen_commit,
+                                guard_dir,
+                                root / "no-consumption-receipt.json",
+                            )
+            self.assertFalse((guard_dir / f"{config['configurationSha256']}.claim.json").exists())
+            read_profile.assert_not_called()
+            load_channels.assert_not_called()
+            claim_final_holdout_once(config["configurationSha256"], frozen_commit, study_commit, guard_dir)
 
     def test_independent_processes_cannot_claim_same_digest(self) -> None:
         context = multiprocessing.get_context("spawn")

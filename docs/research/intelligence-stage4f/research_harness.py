@@ -503,7 +503,7 @@ def claim_final_holdout_once(
     claim_directory: Path | None = None,
     provenance: dict | None = None,
 ) -> Path:
-    """Atomically consume a frozen-config digest before any source archive read.
+    """Atomically consume a frozen-config digest before any holdout-row parsing.
 
     O_CREAT|O_EXCL is atomic between independent processes sharing this local
     state directory. A crash after file creation remains fail-closed: the marker
@@ -547,6 +547,61 @@ def claim_final_holdout_once(
         # Keep an incomplete exclusive marker as a fail-closed tombstone.
         raise ResearchDataError(f"holdout claim marker could not be persisted; digest remains consumed: {exc}") from exc
     return marker
+
+
+def reject_committed_holdout_receipt(
+    configuration_sha256: str,
+    frozen_config_commit: str,
+    study_commit: str,
+    receipt_path: Path | None = None,
+) -> None:
+    """Honor versioned prior-consumption provenance, including in fresh clones."""
+    path = receipt_path if receipt_path is not None else Path(__file__).with_name("holdout-consumption-receipt.json")
+    if not path.exists():
+        return
+    try:
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ResearchDataError(f"committed holdout consumption receipt cannot be read; refusing holdout: {exc}") from exc
+    if not isinstance(receipt, dict):
+        raise ResearchDataError("committed holdout consumption receipt is invalid; refusing holdout")
+
+    digest = str(receipt.get("configurationSha256", "")).upper()
+    archive_digest = str(receipt.get("sourceArchiveSha256", "")).upper()
+    cycle_values = receipt.get("holdoutCycles")
+    required = (
+        receipt.get("receiptVersion") == 1
+        and receipt.get("assignment") == "#662"
+        and receipt.get("state") == "consumed"
+        and receipt.get("holdoutOpenedAfterFreeze") is True
+        and len(digest) == 64
+        and all(character in "0123456789ABCDEF" for character in digest)
+        and len(archive_digest) == 64
+        and all(character in "0123456789ABCDEF" for character in archive_digest)
+        and cycle_values == [1796, 1797]
+        and receipt.get("guardAddedAfterRecordedRun") is True
+        and isinstance(receipt.get("frozenConfigCommit"), str)
+        and len(receipt["frozenConfigCommit"]) == 40
+        and all(character in "0123456789abcdef" for character in receipt["frozenConfigCommit"].lower())
+        and isinstance(receipt.get("studyCommit"), str)
+        and len(receipt["studyCommit"]) == 40
+        and all(character in "0123456789abcdef" for character in receipt["studyCommit"].lower())
+        and isinstance(receipt.get("resultCommit"), str)
+        and len(receipt["resultCommit"]) == 40
+        and all(character in "0123456789abcdef" for character in receipt["resultCommit"].lower())
+    )
+    if not required:
+        raise ResearchDataError("committed holdout consumption receipt is malformed; refusing holdout")
+    if digest != str(configuration_sha256).upper():
+        return
+    if (
+        receipt["frozenConfigCommit"].lower() != frozen_config_commit.lower()
+        or receipt["studyCommit"].lower() != study_commit.lower()
+    ):
+        raise ResearchDataError("committed consumed digest has conflicting provenance; refusing holdout")
+    raise ResearchDataError(
+        f"committed provenance records final holdout for frozen configuration {digest} as already consumed"
+    )
 
 
 def _matrix_diagnostics(rows: Sequence[Sequence[float]]) -> dict:
@@ -735,6 +790,7 @@ def run_holdout(
     config_path: Path,
     frozen_config_commit: str,
     claim_directory: Path | None = None,
+    receipt_path: Path | None = None,
 ) -> dict:
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -754,18 +810,28 @@ def run_holdout(
     if list(split["holdout"]) != config.get("holdoutCycles"):
         raise ResearchDataError("holdout cycle groups do not match frozen configuration")
 
-    # Claim before hashing or parsing the source archive, so concurrent/repeated
-    # invocations cannot both inspect final-holdout rows for the same config.
+    reject_committed_holdout_receipt(
+        config["configurationSha256"],
+        frozen_config_commit,
+        config["studyCommit"],
+        receipt_path,
+    )
+
+    # Validate the selected archive before consuming a new digest. Hashing and
+    # manifest validation do not parse holdout rows; a wrong archive must not
+    # burn the one-time claim.
+    manifest, archive_sha = verify_archive(archive_path, source_manifest_path)
+    if archive_sha != config.get("archiveSha256"):
+        raise ResearchDataError("holdout archive SHA does not match frozen configuration")
+
+    # Claim before parsing source rows, so concurrent/repeated invocations cannot
+    # both inspect final-holdout observations for the same frozen configuration.
     claim_final_holdout_once(
         config["configurationSha256"],
         frozen_config_commit,
         config["studyCommit"],
         claim_directory,
     )
-
-    manifest, archive_sha = verify_archive(archive_path, source_manifest_path)
-    if archive_sha != config.get("archiveSha256"):
-        raise ResearchDataError("holdout archive SHA does not match frozen configuration")
 
     # Holdout phase reads only holdout profile and matrix rows.
     read_profile_cycles(archive_path, split["holdout"])

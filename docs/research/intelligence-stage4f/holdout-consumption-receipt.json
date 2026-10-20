@@ -1,0 +1,16 @@
+{
+  "assignment": "#662",
+  "configurationSha256": "F0D2F8DED8F5969CD73D1BBFC549C8B621D70809461B243FF2F442C04815DF75",
+  "frozenConfigCommit": "e4a3e11b696da78ccaa74669cbb01d38d2ddf06e",
+  "guardAddedAfterRecordedRun": true,
+  "holdoutCycles": [
+    1796,
+    1797
+  ],
+  "holdoutOpenedAfterFreeze": true,
+  "receiptVersion": 1,
+  "resultCommit": "e5268be27d6cd66e8492c32eb1afc32de4c522da",
+  "sourceArchiveSha256": "24128AAD2EE45EEA7E6B63EBBD9992CDF25D0483A2CEBEFBFC13BC69079AF1F2",
+  "state": "consumed",
+  "studyCommit": "ca2fb6c97d64fd7ee7dafb9c53e567bb073119f2"
+}

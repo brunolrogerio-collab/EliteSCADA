@@ -1,0 +1,28 @@
+{
+  "absoluteTolerance": 1e-09,
+  "firstMismatchPath": null,
+  "fixedThresholdRuleAndScenarioKeysMatch": true,
+  "linuxArtifactSha256": "EBCFF6103D559A5D2B78E2F1AC54BD7823DD3D20756FD0D9E89E8B1E8848982F",
+  "linuxNumericalSha256": "BD2FE0630332C82D4C5CFDA5234908483C0E2170EBBCB350C096364448C13DAB",
+  "linuxRuntime": {
+    "imageRef": "python:3.14.6-slim-bookworm@sha256:4c92ffcde4dd6f1ff72a24518f49fd4990b27134987dfa31a733badde66df9f8",
+    "implementation": "CPython",
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "python": "3.14.6",
+    "system": "Linux"
+  },
+  "maximumAbsoluteDifference": 0.0,
+  "maximumRelativeDifference": 0.0,
+  "relativeTolerance": 1e-09,
+  "schemaVersion": 1,
+  "state": "MATCH",
+  "windowsArtifactSha256": "A4159215D4D172BCEAC9A2AFB969F669F11D5E6EF539D0AA8586C984470AC3B0",
+  "windowsNumericalSha256": "BD2FE0630332C82D4C5CFDA5234908483C0E2170EBBCB350C096364448C13DAB",
+  "windowsRuntime": {
+    "imageRef": null,
+    "implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.14.6",
+    "system": "Windows"
+  }
+}

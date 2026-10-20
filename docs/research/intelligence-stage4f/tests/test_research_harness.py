@@ -20,6 +20,7 @@ from research_harness import (  # noqa: E402
     mahalanobis_squared,
     median,
     nearest_rank_quantile,
+    peak_rss_bytes,
     read_signal_cycles,
     rank_and_condition,
     shrink_covariance,
@@ -113,6 +114,9 @@ class ResearchHarnessTests(unittest.TestCase):
         config["value"] = 2
         with self.assertRaisesRegex(ResearchDataError, "digest mismatch"):
             verify_configuration_digest(config)
+
+    def test_peak_rss_is_reported_on_supported_runtimes(self) -> None:
+        self.assertGreater(peak_rss_bytes(), 0)
 
 
 if __name__ == "__main__":

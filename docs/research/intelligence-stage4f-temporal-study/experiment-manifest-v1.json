@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "study": "W15-INTELLIGENCE-4F-TEMPORAL-STUDY-01",
+  "experimentId": "W15-INTEL-4F-TEMPORAL-2026-10-20-01",
+  "holdoutIdentity": "W15-INTEL-4F-TEMPORAL-HOLDOUT-2026-10-20-01",
+  "seedNamespace": "ELITESCADA-W15-4F-TEMPORAL-v1",
+  "status": "PREREGISTERED_NO_FIT_CALIBRATION_OR_HOLDOUT_OUTCOMES",
+  "base": {
+    "branch": "wave15/corrections-integration",
+    "commit": "ebe9b3abbbaffb8054b79273728f383e3bd17086",
+    "productCheckpoint": "793b8303547491e02b98bf73732d3ab5ab76567a"
+  },
+  "groups": {
+    "independentUnit": "one complete synthetic source run",
+    "count": 240,
+    "fit": [0, 59],
+    "calibration": [60, 119],
+    "holdout": [120, 239],
+    "samplesPerGroup": 120,
+    "cadenceSeconds": 10,
+    "eventStartIndex": 12,
+    "partitioning": "contiguous ordered groups, no shuffle, no overlap; all variants remain with source group"
+  },
+  "scenarios": [
+    "nonfault-context",
+    "single-current-strong",
+    "multi-target-strong",
+    "relationship-strong",
+    "single-current-1scale",
+    "single-current-2scale",
+    "single-current-ramp"
+  ],
+  "targets": ["motor_current_A", "flow_m3h", "discharge_pressure_bar"],
+  "generator": {
+    "type": "fresh study-local deterministic synthetic generator",
+    "prng": "SplitMix64; each unit innovation=sum(12 open-interval uniforms)-6",
+    "seedDerivation": "first 64 bits SHA256(ASCII(seedNamespace + '|group-' + three-digit group ID))",
+    "targetSds": [0.7, 1.0, 0.1],
+    "correlationBaseline": [[1.0, 0.65, 0.25], [0.65, 1.0, 0.2], [0.25, 0.2, 1.0]],
+    "correlationRelationshipEvent": [[1.0, -0.65, 0.25], [-0.65, 1.0, 0.2], [0.25, 0.2, 1.0]],
+    "ar1Phi": 0.65,
+    "relationshipEventPreservesMarginalInnovationSds": true,
+    "noiseStateCrossesRuns": false,
+    "syntheticQuality": "Good",
+    "syntheticTimeVerified": true,
+    "syntheticTimeSynchronized": true,
+    "contextId": "pump-profile-v1",
+    "profileVersion": "model-v1"
+  },
+  "methods": {
+    "joint": {
+      "statistic": "squared Mahalanobis distance on fit-only centered robust standardized residual vector",
+      "shrinkage": 0.05,
+      "forms": ["instantaneous", "EWMA"],
+      "ewmaAlpha": 0.2,
+      "ewmaEquation": "S_t=0.20*Y_t+0.80*S_(t-1)",
+      "ewmaInitialization": "fit-only arithmetic mean of the same instantaneous statistic; update at first eligible sample; no warm-up discard"
+    },
+    "marginalControl": {
+      "statistic": "max(abs(z_j))",
+      "forms": ["instantaneous", "EWMA"],
+      "ewmaAlpha": 0.2,
+      "ewmaInitialization": "fit-only arithmetic mean of the same instantaneous statistic"
+    },
+    "quantiles": [0.99, 0.999],
+    "quantileRule": "nearest rank; zero-based sorted index ceil(q*n)-1 on calibration nonfault scores",
+    "candidateCounts": {"joint": 4, "marginalControls": 4, "total": 8},
+    "episodeRule": "complete rolling five eligible decisions; confirm at >=3 scores strictly above threshold; five consecutive below terminate; preserve rolling eligible history through termination; below values already in confirming window count toward termination"
+  },
+  "selection": {
+    "fitGroupsOnly": [0, 59],
+    "calibrationGroupsOnly": [60, 119],
+    "jointCandidateOrder": ["highest minimum timely fraction", "highest minimum recall", "fewer nonfault false episodes", "instantaneous before EWMA", "lower quantile"],
+    "feasibilityTargets": {
+      "pointFalsePositiveRateMax": 0.01,
+      "falseEpisodesPer24EligibleSimulatedHoursMax": 1.0,
+      "requiredStrongRecallMinEach": 0.9,
+      "requiredStrongWithin600SecondsMinEach": 0.9,
+      "maxConditionNumberExclusive": 1000000.0
+    },
+    "ifNoJointCandidateFeasible": "freeze instantaneous joint q0.99 as calibration-infeasible reference; no success claim",
+    "controlsCanWin": false
+  },
+  "uncertainty": {
+    "bootstrapReplicates": 2000,
+    "interval": "percentile 95%",
+    "resamplingUnit": "whole independent source group; carry all scenario variants together",
+    "normalGroupOccurrenceInterval": "Wilson 95%, additionally reported if no nonfault group has a false episode",
+    "minimumEligibleHoldoutGroupsPerRequiredClass": 100
+  },
+  "processing": {
+    "queryEnvelopeScalarRows": 43560,
+    "queryEnvelopeCalculation": "60*120*3 fit reference + 60*120*3 calibration reference + 120*3 one analysis block",
+    "expectedUniqueGeneratedVectors": {"fit": 7200, "calibration": 50400, "holdout": 100800, "total": 158400},
+    "expectedUniqueGeneratedScalarTargets": {"fit": 21600, "calibration": 151200, "holdout": 302400, "total": 475200},
+    "fitRevisit": "OLS and residual/covariance passes revisit the same fit-only baseline vectors; count separately",
+    "rowLevelFilesCommitted": false,
+    "maxCommittedDirectoryBytes": 1048576,
+    "maxWorkers": 1,
+    "maxPeakRssBytesPerRun": 536870912,
+    "maxWallSecondsPerRun": 900,
+    "externalNumericalDependencies": false,
+    "platforms": {
+      "tests": ["Windows CPython 3.14.6", "isolated Linux CPython 3.14.6"],
+      "fitCalibration": ["Windows CPython 3.14.6", "isolated Linux CPython 3.14.6"],
+      "holdout": ["Windows CPython 3.14.6 only"]
+    },
+    "crossPlatformTolerances": {
+      "identityCountsLabelsPartitionHashes": "exact",
+      "fitParametersScalesCovarianceFactorsAbsolute": 1e-10,
+      "thresholdsAndAggregateMetricsRelative": 1e-8
+    }
+  },
+  "nonReuse": {
+    "previousExperimentGeneratorOrEntryPoint": false,
+    "previousExperimentDataOrHoldoutIdentity": false,
+    "previousUciDataOrHoldout": false,
+    "productDataOrRuntime": false,
+    "publicArchiveOrOwnerData": false
+  },
+  "reusedPureHelperSources": [
+    {
+      "baseCommit": "ebe9b3abbbaffb8054b79273728f383e3bd17086",
+      "path": "docs/research/intelligence-stage4f/research_harness.py",
+      "normalizedTextSha256": "CE18520A8E9BE140DBE76233EACEB45326367CECB1C1D87E6D8C0A17ADC51A5B",
+      "allowlist": ["ResearchDataError", "MAD_NORMAL_SCALE", "EIGEN_RELATIVE_TOLERANCE", "median", "fit_robust_scaling", "transform_rows", "covariance_matrix", "jacobi_eigenvalues", "rank_and_condition", "shrink_covariance", "cholesky", "mahalanobis_squared", "independent_max_abs", "nearest_rank_quantile"]
+    },
+    {
+      "baseCommit": "ebe9b3abbbaffb8054b79273728f383e3bd17086",
+      "path": "docs/research/intelligence-stage4f-synthetic-bench/bench.py",
+      "normalizedTextSha256": "42B772A90D2646D2108BFEE1D648ED130C32FBDFA58A5E6F81924C443B29F9E6",
+      "allowlist": ["find_episodes"]
+    }
+  ],
+  "validationStatus": "NO_FIT_CALIBRATION_OR_HOLDOUT_OUTCOMES"
+}

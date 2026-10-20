@@ -67,9 +67,11 @@ Required local evidence, CI, and owner Preview are distinct acceptance sources. 
 
 ## Return from CODEX
 
-For #680, return exact inspected base/head and one draft PR; preregistered protocol/manifest/source/helper/test digests; pre-holdout frozen reference/component normalizations/threshold; one-use receipt; focused Windows/Linux tests and fit/calibration agreement; compact final per-class counts/exposure/latency/uncertainty/resources and PASS/FAIL/INSUFFICIENT with field/product gaps explicit. Put `VALIDATION_PROFILE: DOCS_I18N_HELP` in the PR body at creation. Main owns review/T1/integration; no manual CI, self-merge, post-holdout retuning, product patch or follow-on study. Persist material steps in #680/PR and end visible interactions with fresh `Hora: HH:MM`.
+## Completed CODEX return — #680
 
-The owner approved continued Intelligence research/design on 2026-10-20. Main accepted #678 as design evidence and separately releases #680 with explicit finite decisions; this is not a waiver of ADR-021 or a product method. #667/#671/#675/#678 remain complete within their scopes; prior studies and acceptance targets stay frozen. Any later study, private-data assessment or product implementation requires its own applicable decision/evidence; no field-validity or Stage 4 closure is inferred.
+CODEX returned the exact preregistration/configuration/receipt chain and one-use holdout result in PR #682. Main completed independent review, exact-head T1 and integration; the finite research issue is closed. The result failed the combined synthetic gate and does not select a product method. No follow-on study or product implementation is currently released. Do not replay or retune the holdout. Persist later decisions only after Main identifies an eligible evidence basis and issues a new bounded order. End visible interactions with fresh `Hora: HH:MM`.
+
+The owner approved continued Intelligence research/design on 2026-10-20. Main accepted #678 as design evidence and separately authorized finite #680; its negative result is now recorded in #680/PR #682 and does not waive ADR-021 or approve a product method. #667/#671/#675/#678/#680 remain complete within their scopes; prior studies and acceptance targets stay frozen. Any later study, private-data assessment or product implementation requires its own applicable decision/evidence; no field-validity or Stage 4 closure is inferred.
 
 ## Blocking, recovery, and observation
 

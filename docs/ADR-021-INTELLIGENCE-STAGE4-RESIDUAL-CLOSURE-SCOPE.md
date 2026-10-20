@@ -11,6 +11,8 @@
 
 ## Purpose and current truth
 
+Main's initial scope, operational acceptance targets and public-research data policy are defined in [the Stage 4F acceptance plan](WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md) under the Product Owner's 2026-10-20 delegation. These decisions resolve the corresponding owner-input dependency; they do not establish data eligibility, select the final method/threshold or waive this ADR's validation gates.
+
 Stage 4A, 4B and 4C are integrated, verified and frozen within the descriptive Stage 4 V1 acceptance boundary in [ADR-020](ADR-020-INTELLIGENCE-STAGE4-V1-ACCEPTANCE.md). That boundary intentionally leaves the broader objective in #588 **PARTIAL**: the caller chooses the reference and context; the product does not certify baseline health or global regime equivalence; the multi-signal response contains independent per-TAG scores, not a joint multivariate score.
 
 The Product Owner authorized this residual development sequence on 2026-10-19: complete Stage 5A, then finish Stage 4 using this scope before Stage 5B/6. Main releases the bounded packages on revalidated exact bases. The authorization does not change frozen 4A–4C contracts, establish that residual capabilities exist, or approve a model/threshold without its stated data-validation gate.

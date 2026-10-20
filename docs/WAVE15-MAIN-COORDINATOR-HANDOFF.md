@@ -6,19 +6,19 @@ Snapshot: 2026-10-20. This is the live Main-to-CODEX order. Replace this current
 
 | Field | Order |
 | --- | --- |
-| Owner / executor | CODEX owns supplemental source qualification #659; Main owns review. Product Owner scope/acceptance criteria remain pending before implementation |
+| Owner / executor | CODEX owns supplemental source qualification #659; Main owns review and, under owner delegation on 2026-10-20, has defined the initial scope/acceptance/data-handling decisions |
 | Parent / target | Intelligence #588 / `wave15/corrections-integration` |
 | Mission | `W15-INTELLIGENCE-4F-PUBLIC-DATA-QUALIFICATION-01`, [#659](https://github.com/brunolrogerio-collab/EliteSCADA/issues/659): bounded inspection/isolated descriptive analysis of UCI MetroPT-3 and hydraulic-system sources. Completed #655 remains NOT READY; [ADR-021 §4F–4G](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md) remains binding |
 | Accepted product checkpoint | Stage 4E PR #654 merge `793b8303547491e02b98bf73732d3ab5ab76567a`; exact T1 #39331697007 attempt 2 and exact-merge T2 #39336277009 passed |
 | Inspected integration base | `wave15/corrections-integration@2803135cdd68e204b2afde03d5e6f675d495c3fa` includes docs-only PR #658 over the unchanged accepted product. Revalidate live ref and checkout cleanliness; no product mutation is assigned |
 | Owner Preview | Preserve `http://localhost:18080`, product `0054d587fe855bbea4b1af81726af016208643da`, data/volumes/ports. Owner evaluation and #639 visual acceptance remain separate. Do not reset or redeploy Preview |
-| Gate result | NOT READY: no permission-cleared representative Historian time series, approved false-alarm/sensitivity bounds, or data-use/retention decision was found. Demo config contains no history; existing analytics tests use synthetic inline vectors |
+| Gate result | #655 assessed NOT READY at audit time. Main's later delegated acceptance plan resolves scope/bounds/research-use choices; representative-data eligibility and actual score performance remain unproved. Demo config contains no history; existing analytics tests use synthetic inline vectors |
 | Objective | Determine whether either public source supports an offline method study or the existing synchronized-cohort contract, and identify missing evidence. Separate source assertions, measured facts and unknowns. Joint score/calibration remains NOT DELIVERED / NOT VALIDATED |
-| Next owner input | Use the blank collection package in `docs/examples/intelligence-stage4f-data-request/`: define initial profile/context, false-alarm numerator/denominator/window, sensitivity target per labeled scenario, calibration/holdout split, data sufficiency/quality rules, and use/retention; authorize a representative Historian export with TAG IDs/units and separate observed/source/server timestamps. Keep raw data in an approved private location, outside GitHub |
-| Stop/continue | Research only. Pin source identity/license; inspect actual timestamps/cycles, rates, gaps, labels and quality evidence; map to real product symbols. Do not invent `Good`, source/server timestamps, capture-policy provenance or `Synchronized`. Propose a grouped temporal holdout protocol, leaving final method and acceptance bounds undecided. Full assignment and resource limits are in #659. 4G remains separate |
+| Defined scope/targets | Apply [Main's acceptance plan](WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md): motor-driven pumping sets first, compressors as second validation case; conservative advisory objectives, exposure/uncertainty, grouped temporal evaluation and local public-source retention. The blank collection package remains a reusable form; the owner need not fill statistical targets again |
+| Stop/continue | Research only. Pin source identity/license; inspect actual timestamps/cycles, rates, gaps, labels and quality evidence; map to real product symbols. Do not invent `Good`, source/server timestamps, capture-policy provenance or `Synchronized`. Check feasibility of the defined plan and identify concrete data gaps, leaving final method/sample sufficiency/threshold for evidence-based review. Source/resource limits remain in #659. 4G remains separate |
 | Forbidden | Changes to product code/API/schema/UI/SQL/workflows, frozen 4A–4E, HA, drivers, licensing, AI/learning, Stage 4G closure, 5B/6, or Preview. No inferred healthy baseline, diagnosis, fault probability, RUL, or synthetic-as-field-validation claim |
 | CODEX return | One coherent report in #659 with source/file fingerprints where downloaded, contract fit, actual descriptive evidence, gaps, resource paths and recommended next owner/action. No product PR or CI is required |
-| Main next step | Review #659 against ADR-021 and the owner input package. Source discovery alone does not change readiness or select the supported profile. Release an implementation only when evidence and owner bounds support it. Stage 4 and #588 remain PARTIAL |
+| Main next step | Review #659 against ADR-021 and the defined acceptance plan; then release an implementation only when evidence supports it. Request owner-held data only for a specific remaining gap. Source discovery alone does not qualify a product profile. Stage 4 and #588 remain PARTIAL |
 
 ### Stable Preview isolation
 
@@ -70,7 +70,7 @@ Exact source records/files, retrieved license notices, attribution and checksums
 Observed schema/units, chronology/rates/gaps, clock/quality evidence and label scope:
 Mapping to real Historian/Stage 4E symbols; unsupported source-time/quality mappings:
 Separate suitability for offline research, canonical synchronized cohorts and field claims:
-Leakage-controlled reference/calibration/holdout proposal; owner bounds/data still needed:
+Feasibility against Main's acceptance plan; leakage controls and precise remaining data gaps:
 Local resources and recommendation to Main; no product code/method/threshold finalized:
 Confirmation: owner Preview, HA, drivers and frozen Stage 4A–4E untouched:
 ```

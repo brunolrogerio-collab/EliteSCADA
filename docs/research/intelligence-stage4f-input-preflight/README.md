@@ -18,7 +18,7 @@ This preflight does **not** call that API, create an export endpoint/client, or 
 
 ## Checks and limits
 
-The accepted header fields and meanings are defined by the Stage 4F data-request README, `HistoricalQueryContracts.cs`, `TagValue.cs`, `TagQuality.cs`, `HistorianCapturePolicy.cs`, and the Timescale Historian v2 projection. The verifier requires exactly the expected field-name set (order may vary), strict UTF-8, valid CSV quoting and exact row width. It handles an initial UTF-8 BOM and quoted CSV fields.
+The accepted header fields and meanings are defined by the [Stage 4F data-request README and workbook/CSV model](../../examples/intelligence-stage4f-data-request/README.md), `HistoricalQueryContracts.cs`, `TagValue.cs`, `TagQuality.cs`, `HistorianCapturePolicy.cs`, and the Timescale Historian v2 projection. The verifier requires exactly the expected field-name set (order may vary), strict UTF-8, valid CSV quoting and exact row width. It handles an initial UTF-8 BOM and quoted CSV fields.
 
 The explicit bounds are 256 MiB per input, 1,000,000 data rows, 65,536 characters per CSV field, 2,048 characters per TAG path, 256 characters per collection identifier, 128 characters for typed numeric text, 100 emitted diagnostic items, and a 40-character timestamp text. These are resource and format bounds for this local preflight only. The 1,000,000-row bound is not the Stage 4D/4E product query cap and is not a statistical sufficiency target.
 
@@ -36,7 +36,7 @@ Repeated source-time keys are counted as aggregate groups and rows. Rows with ab
 
 The report includes aggregate row/cohort/TAG and enumerated-state counts, duplicate-key counts and bounded diagnostics containing only logical CSV row number, column name and stable reason code. It never includes values, collection IDs, TAG IDs/paths, timestamps, credentials, input/output paths, raw parser messages, or tracebacks. The process does not log or copy input data.
 
-`structure_status` and `content_status` describe only file parsing and row contract checks. `analytical_eligibility`, `product_readiness`, and every entry in the report's `assessments` object always remain `NOT_ASSESSED`, including when every structural check passes. This explicitly covers required signals, context, labels, completeness/cadence, physical synchronization, exposure targets, leakage, analytical-use authorization, statistical sufficiency, and query/detector performance. Those require their own evidence and decisions under the [accepted Stage 4F plan](../../WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md); #655 remains **NOT READY**.
+`structure_status` and `content_status` describe only file parsing and row contract checks. `analytical_eligibility`, `product_readiness`, and every entry in the report's `assessments` object always remain `NOT_ASSESSED`, including when every structural check passes. This explicitly covers required signals, context, labels, completeness/cadence, physical synchronization, exposure targets, leakage, analytical-use authorization, statistical sufficiency, and query/detector performance. Those require their own evidence and decisions under the [accepted Stage 4F plan](../../WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md); #655 was closed with disposition **NOT READY**, which remains the current product-readiness outcome.
 
 Provide only an explicitly authorized copy. Keep operational exports and generated reports in the approved private location, not in GitHub. The repository fixture remains header-only; tests below use synthetic data only.
 

@@ -122,13 +122,13 @@
     {
       "baseCommit": "ebe9b3abbbaffb8054b79273728f383e3bd17086",
       "path": "docs/research/intelligence-stage4f/research_harness.py",
-      "normalizedTextSha256": "CE18520A8E9BE140DBE76233EACEB45326367CECB1C1D87E6D8C0A17ADC51A5B",
+      "normalizedTextSha256": "C216B0DF9D9C79021F7E765FF6C4F5FAACC21CB2BBCC141D24AF12FD34D2F037",
       "allowlist": ["ResearchDataError", "MAD_NORMAL_SCALE", "EIGEN_RELATIVE_TOLERANCE", "median", "fit_robust_scaling", "transform_rows", "covariance_matrix", "jacobi_eigenvalues", "rank_and_condition", "shrink_covariance", "cholesky", "mahalanobis_squared", "independent_max_abs", "nearest_rank_quantile"]
     },
     {
       "baseCommit": "ebe9b3abbbaffb8054b79273728f383e3bd17086",
       "path": "docs/research/intelligence-stage4f-synthetic-bench/bench.py",
-      "normalizedTextSha256": "42B772A90D2646D2108BFEE1D648ED130C32FBDFA58A5E6F81924C443B29F9E6",
+      "normalizedTextSha256": "7AAB78231623EDB1B00C9CB83D4B5E11E8A1FC4FB3023D4FA577C578EC41E318",
       "allowlist": ["find_episodes"]
     }
   ],

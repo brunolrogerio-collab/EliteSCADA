@@ -2,6 +2,10 @@
 
 **State: preregistered before fitting, calibration, or holdout generation.** This is a new synthetic-only experiment under #675, not a replay, repair, or reinterpretation of #671, the earlier UCI study, or any prior holdout. The protocol, namespace, partition, equations, metrics, thresholds, selection, uncertainty, bounds and stop rules are fixed before examining study outcomes. No result is included here.
 
+### Pre-fit provenance correction
+
+The initial preregistration savepoint `d6c076652c012ba4e3593628f7bee4d92730117a` recorded incorrect normalized helper-source digests because the shell command used for the first digest calculation mishandled CRLF escapes. The study loader rejected the mismatch before compiling any helper or generating a row. The normalized UTF-8 SHA-256 values below are independently recomputed by byte-level CRLF/CR-to-LF normalization and supersede the initial savepoint. No fit, calibration, generator run, holdout, or outcome inspection occurred before this correction. It changes provenance metadata only; the predeclared method, generator, groups, seeds, metrics and decision rules are unchanged.
+
 ## 1. Question and evidence boundary
 
 Compare the instantaneous covariance-aware squared residual distance against an EWMA of that same score for sustained deviations in the declared synthetic motor/pump generator. The sole temporal coefficient is alpha 0.20. Shrinkage is fixed at 0.05. The hypothesis is that temporal accumulation may improve the sustained-deviation / false-episode tradeoff; the experiment does not presume improvement.
@@ -91,8 +95,8 @@ Reused code is restricted to these accepted pure helper subsets, compiled from A
 
 | Base source at `ebe9b3abbbaffb8054b79273728f383e3bd17086` | Normalized text SHA-256 | Allowlist |
 | --- | --- | --- |
-| `docs/research/intelligence-stage4f/research_harness.py` | `CE18520A8E9BE140DBE76233EACEB45326367CECB1C1D87E6D8C0A17ADC51A5B` | `ResearchDataError`, `MAD_NORMAL_SCALE`, `EIGEN_RELATIVE_TOLERANCE`, `median`, `fit_robust_scaling`, `transform_rows`, `covariance_matrix`, `jacobi_eigenvalues`, `rank_and_condition`, `shrink_covariance`, `cholesky`, `mahalanobis_squared`, `independent_max_abs`, `nearest_rank_quantile` |
-| `docs/research/intelligence-stage4f-synthetic-bench/bench.py` | `42B772A90D2646D2108BFEE1D648ED130C32FBDFA58A5E6F81924C443B29F9E6` | `find_episodes` only |
+| `docs/research/intelligence-stage4f/research_harness.py` | `C216B0DF9D9C79021F7E765FF6C4F5FAACC21CB2BBCC141D24AF12FD34D2F037` | `ResearchDataError`, `MAD_NORMAL_SCALE`, `EIGEN_RELATIVE_TOLERANCE`, `median`, `fit_robust_scaling`, `transform_rows`, `covariance_matrix`, `jacobi_eigenvalues`, `rank_and_condition`, `shrink_covariance`, `cholesky`, `mahalanobis_squared`, `independent_max_abs`, `nearest_rank_quantile` |
+| `docs/research/intelligence-stage4f-synthetic-bench/bench.py` | `7AAB78231623EDB1B00C9CB83D4B5E11E8A1FC4FB3023D4FA577C578EC41E318` | `find_episodes` only |
 
 Tests use only deterministic tiny UNIT rows/groups and disposable UNIT reservation identities. They cover generator determinism/isolation, exact partitions/seeds, hand OLS/EWMA calculations, per-run initialization/reset/warm-up, fit-only separation, covariance/shrinkage limits, threshold quantiles, selection ties/fallback, complete 3-of-5 and termination/rearm oracle, gaps/context/ineligible/duplicate handling, metric denominators/bootstrap grouping, claim-before-generation/second-claim rejection, committed-receipt rejection, and shape/output bounds. They never instantiate this experiment's holdout identity and never call a prior generator or data reader. Never run a Linux holdout.
 

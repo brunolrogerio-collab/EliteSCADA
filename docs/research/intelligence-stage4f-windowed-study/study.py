@@ -988,7 +988,25 @@ def _git(*args: str) -> str:
     return completed.stdout.strip()
 
 
+def _linux_host_source_commit() -> str | None:
+    if platform.system() != "Linux" or os.environ.get("ELITESCADA_IMAGE_REF") != LINUX_IMAGE:
+        return None
+    commit = os.environ.get("ELITESCADA_SOURCE_COMMIT", "")
+    if len(commit) != 40 or any(char not in "0123456789abcdef" for char in commit.lower()):
+        raise StudyError("pinned Linux run requires the native host's exact 40-hex clean source commit")
+    return commit.lower()
+
+
+def _source_commit_for_fitcal() -> tuple[str, str]:
+    attested = _linux_host_source_commit()
+    if attested is not None:
+        return attested, "native-host-clean-tree-attestation-passed-before-pinned-container-run"
+    return _git("rev-parse", "HEAD"), "native-git-clean-tree-check-passed-before-run"
+
+
 def _assert_clean_repository() -> None:
+    if _linux_host_source_commit() is not None:
+        return
     status = _git("status", "--porcelain")
     if status:
         raise StudyError("repository must be clean at this lifecycle checkpoint")
@@ -1106,6 +1124,7 @@ def run_fit_calibration() -> dict[str, Any]:
     if platform.python_implementation() != "CPython":
         raise StudyError("fit/calibration requires CPython")
     audit_group_partition()
+    source_commit, provenance_evidence = _source_commit_for_fitcal()
     raw_budget = validate_query_budget(7200, 120, 3, 3)
     start_wall, start_cpu = time.perf_counter(), time.process_time()
     fit_rows: list[Cohort] = []
@@ -1152,9 +1171,12 @@ def run_fit_calibration() -> dict[str, Any]:
         "state": "fit-calibration-complete-no-holdout-consumed",
         "experimentId": EXPERIMENT_ID,
         "seedNamespace": SEED_NAMESPACE,
-        "sourceCommit": _git("rev-parse", "HEAD"),
+        "sourceCommit": source_commit,
+        "sourceWorktreeEvidence": provenance_evidence,
         "protocolSha256": _sha256_file(PROTOCOL_PATH),
         "manifestSha256": _sha256_file(MANIFEST_PATH),
+        "harnessSha256": _sha256_file(ROOT / "study.py"),
+        "testSha256": _sha256_file(ROOT / "test_study.py"),
         "runtime": _current_runtime(),
         "rawRequestBudget": {
             "rawRows": raw_budget,
@@ -1219,6 +1241,9 @@ def compare_fit_calibration(windows_path: Path, linux_path: Path, output_path: P
         raise StudyError("cross-platform runtimes are not both Python 3.14.6")
     if linux.get("runtime", {}).get("imageRef") != LINUX_IMAGE:
         raise StudyError("Linux fit/calibration did not use the pinned image digest")
+    for key in ("protocolSha256", "manifestSha256", "harnessSha256", "testSha256"):
+        if windows.get(key) != linux.get(key):
+            raise StudyError(f"Windows/Linux source provenance mismatch: {key}")
     equal, max_abs, max_rel, mismatch = _walk_numeric_compare(windows.get("numerical"), linux.get("numerical"))
     result = {
         "schemaVersion": 1,
@@ -1535,21 +1560,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     fit_parser = subparsers.add_parser("fit-cal", help="run fit and calibration only; never generates holdout groups")
-    fit_parser.add_argument("--output", type=Path, default=ROOT / "fit-calibration-windows-v1.json")
+    fit_parser.add_argument("--output", type=Path, default=ROOT / "fit-calibration-windows-v2.json")
     compare_parser = subparsers.add_parser("compare", help="compare Windows/Linux numerical fit and calibration outputs")
-    compare_parser.add_argument("--windows", type=Path, default=ROOT / "fit-calibration-windows-v1.json")
-    compare_parser.add_argument("--linux", type=Path, default=ROOT / "fit-calibration-linux-v1.json")
-    compare_parser.add_argument("--output", type=Path, default=ROOT / "fit-calibration-comparison-v1.json")
+    compare_parser.add_argument("--windows", type=Path, default=ROOT / "fit-calibration-windows-v2.json")
+    compare_parser.add_argument("--linux", type=Path, default=ROOT / "fit-calibration-linux-v2.json")
+    compare_parser.add_argument("--output", type=Path, default=ROOT / "fit-calibration-comparison-v2.json")
     freeze_parser = subparsers.add_parser("freeze", help="seal exactly one threshold/configuration before holdout")
-    freeze_parser.add_argument("--windows", type=Path, default=ROOT / "fit-calibration-windows-v1.json")
-    freeze_parser.add_argument("--linux", type=Path, default=ROOT / "fit-calibration-linux-v1.json")
-    freeze_parser.add_argument("--comparison", type=Path, default=ROOT / "fit-calibration-comparison-v1.json")
+    freeze_parser.add_argument("--windows", type=Path, default=ROOT / "fit-calibration-windows-v2.json")
+    freeze_parser.add_argument("--linux", type=Path, default=ROOT / "fit-calibration-linux-v2.json")
+    freeze_parser.add_argument("--comparison", type=Path, default=ROOT / "fit-calibration-comparison-v2.json")
     freeze_parser.add_argument("--output", type=Path, default=ROOT / "frozen-config-v1.json")
     holdout_parser = subparsers.add_parser("holdout", help="consume the exact one-use Windows holdout after config commit")
     holdout_parser.add_argument("--config", type=Path, default=ROOT / "frozen-config-v1.json")
-    holdout_parser.add_argument("--windows", type=Path, default=ROOT / "fit-calibration-windows-v1.json")
-    holdout_parser.add_argument("--linux", type=Path, default=ROOT / "fit-calibration-linux-v1.json")
-    holdout_parser.add_argument("--comparison", type=Path, default=ROOT / "fit-calibration-comparison-v1.json")
+    holdout_parser.add_argument("--windows", type=Path, default=ROOT / "fit-calibration-windows-v2.json")
+    holdout_parser.add_argument("--linux", type=Path, default=ROOT / "fit-calibration-linux-v2.json")
+    holdout_parser.add_argument("--comparison", type=Path, default=ROOT / "fit-calibration-comparison-v2.json")
     holdout_parser.add_argument("--aggregate", type=Path, default=ROOT / "holdout-aggregate-v1.json")
     holdout_parser.add_argument("--receipt", type=Path, default=ROOT / "holdout-receipt-v1.json")
     args = parser.parse_args(argv)

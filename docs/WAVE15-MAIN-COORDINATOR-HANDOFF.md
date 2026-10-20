@@ -2,12 +2,14 @@
 
 Snapshot: 2026-10-20. This is the live Main-to-CODEX order. Replace this current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
-## Current status — Stage 4F local input preflight #667 accepted; representative data pending
+## Current status — Stage 4F controlled synthetic bench #671 released; product gate remains NOT READY
 
 | Field | Order |
 | --- | --- |
-| Owner / executor | Main accepted and integrated #667; CODEX is idle with no new task |
+| Owner / executor | CODEX implements offline bench #671; Main owns review, T1 and integration. #667 is accepted/closed |
 | Parent / target | Intelligence #588 / `wave15/corrections-integration` |
+| Active package | [#671](https://github.com/brunolrogerio-collab/EliteSCADA/issues/671), `W15-INTELLIGENCE-4F-SYNTHETIC-BENCH-01`; branch `work/w15-intelligence-stage4f-synthetic-bench`, inspected integration `26ecd07f06dfe48d286ce77704fa79ac4d92bd92`, subject to live revalidation. Write only `docs/research/intelligence-stage4f-synthetic-bench/`; reuse existing pure numerical functions without changing the consumed experiment |
+| Execution contract | Commit generator/scenario/partition/selection protocol before fitting; use separate tiny fixtures for mechanics; commit hash-bound fit/calibration configuration before a fresh one-use synthetic holdout. No post-holdout retuning. Required scenarios, resource bounds, metrics and return are specified once in #671 |
 | Preparation package completed | [#667](https://github.com/brunolrogerio-collab/EliteSCADA/issues/667), local CSV input preflight; PR #669 merged at `4ebb8b08005271c4eb3143bd647f992870dd86c4`; final head `6821c55c6fb84d05ebfd4a2b9ab85382c99081b9`; issue closed for the utility scope |
 | Preparation evidence | Exact-head DOCS_I18N_HELP T1 #39452237823 passed classifier, Common sanity and final gate. CODEX passed 19/19 synthetic tests on Windows and isolated Linux; Main independently passed the Windows suite and Unicode rejection probes. No product T2 applies |
 | Completed bounded mission | `W15-INTELLIGENCE-4F-OFFLINE-METHOD-STUDY-01`, [#662](https://github.com/brunolrogerio-collab/EliteSCADA/issues/662), closed as a research deliverable; [PR #664](https://github.com/brunolrogerio-collab/EliteSCADA/pull/664) merged at `6e6bd345dd730b4ba7dee1522dbb58ef12a42231`; final head `a55f4a0859fdb7f95ab58ee31b3cdd29bf971040` |
@@ -19,7 +21,7 @@ Snapshot: 2026-10-20. This is the live Main-to-CODEX order. Replace this current
 | Unresolved data gate | Dataset lacks independent healthy/fault labels, UTC per-sample source timestamps, `Good` quality and `Synchronized` provenance. Only two calibration and two holdout cycle groups exist; no reliable confidence interval, operating-hour exposure, validated false-alarm rate/episodes, event recall or cadence-qualified latency can be computed |
 | Defined acceptance plan | [Main's plan](WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md) remains binding: motor-driven pumping sets first, compressors second; targets include ≤1% point false positives, ≤1 false episode per 24 eligible operating hours, ≥90% recall per defined sustained-deviation class, and cadence-qualified 10-minute latency. These targets are not measured. Do not ask the owner to define them again |
 | Accepted tool scope | Standalone local CSV structural/declared-metadata preflight under `docs/research/intelligence-stage4f-input-preflight/`; seven-digit/100 ns timestamp precision, invariant numeric/date grammar, duplicate counts, explicit limits and aggregate diagnostics. Collection guidance points to accepted criteria; analytical eligibility/readiness stay NOT_ASSESSED. No operational cohort was used |
-| Next owner/action | Data owner/steward supplies an explicitly authorized private export with TAG/unit/context mapping, timestamp/quality/synchronization provenance, independent label references and documented coverage limitations. Main then uses the preflight and existing plan to assess eligibility/sufficiency before releasing method work on a revalidated base. Do not request statistical-target redefinition. Stage 4G remains separate; 5B/6 are unreleased |
+| Next owner/action | CODEX returns one coherent draft bench PR with protocol/freeze/holdout hashes and commits, Windows/Linux tests/numerical comparison/resources, per-criterion synthetic PASS/FAIL/INSUFFICIENT matrix and one next finite recommendation. Main reviews before any production-method decision. This bench needs no plant export and does not prove real operating exposure. Stage 4G remains separate; 5B/6 are unreleased |
 | Forbidden | Claiming method/threshold or product acceptance from the public sample; treating cycle adjacency as elapsed exposure; using holdout exceedances as false positives; altering frozen 4A–4E, HA/drivers/licensing/Preview, runtime, API/schema/UI/SQL or releasing 4G/5B/6 without their gates |
 
 ### Stable Preview isolation
@@ -61,9 +63,9 @@ Required local evidence, CI, and owner Preview are distinct acceptance sources. 
 
 ## Return from CODEX
 
-The #667 return is complete and accepted; [Main's closeout](https://github.com/brunolrogerio-collab/EliteSCADA/issues/667#issuecomment-6295099396) records the exact merge/head, 19/19 Windows/Linux tests, T1 #39452237823 and scope limits. The tool is integrated as preparation infrastructure; it supplies no detector calibration or field-validity evidence. No further CODEX return is pending, and prior #664 results remain frozen.
+For #671, return the exact base/head, draft PR, pre-fit protocol and partition commits/hashes, pre-holdout frozen configuration and one-use receipt, focused Windows/Linux evidence, declared tolerances/resources, aggregate synthetic results and unmet product/field criteria. Return one finite next recommendation, then wait for Main; do not self-merge, dispatch CI or choose another experiment. Internal savepoints are not additional Main approval gates. Persist material evidence in #671/PR and end user-visible interactions with fresh `Hora: HH:MM`.
 
-The next transition requires an explicitly authorized dataset in private storage. Main records its eligibility assessment and a new bounded assignment before method implementation. The previously delegated acceptance targets remain binding.
+The owner approved this research path on 2026-10-20 after Main distinguished engineering evidence from field validation. It supersedes waiting for a private export only for the synthetic bench. #667 remains complete; #664's consumed experiment and all existing acceptance targets remain frozen. Any later public-data experiment/private-data assessment or product implementation requires Main's separate bounded assignment and its applicable evidence; no artificial field-validity or Stage 4 closure follows.
 
 ## Blocking, recovery, and observation
 

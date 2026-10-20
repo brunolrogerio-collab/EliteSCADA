@@ -733,9 +733,11 @@ def _verify_configuration(config: dict[str, Any]) -> None:
 
 def _peak_rss_bytes() -> int:
     if os.name == "nt":
+        from ctypes import wintypes
+
         class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
             _fields_ = [
-                ("cb", ctypes.c_ulong), ("PageFaultCount", ctypes.c_ulong),
+                ("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
                 ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
                 ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
                 ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
@@ -743,9 +745,17 @@ def _peak_rss_bytes() -> int:
             ]
         counters = PROCESS_MEMORY_COUNTERS()
         counters.cb = ctypes.sizeof(counters)
-        handle = ctypes.windll.kernel32.GetCurrentProcess()
-        if not ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
-            raise OSError("GetProcessMemoryInfo failed")
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+        get_current_process = kernel32.GetCurrentProcess
+        get_current_process.argtypes = []
+        get_current_process.restype = wintypes.HANDLE
+        get_process_memory_info = psapi.GetProcessMemoryInfo
+        get_process_memory_info.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESS_MEMORY_COUNTERS), wintypes.DWORD]
+        get_process_memory_info.restype = wintypes.BOOL
+        if not get_process_memory_info(get_current_process(), ctypes.byref(counters), counters.cb):
+            error = ctypes.get_last_error()
+            raise OSError(error, ctypes.FormatError(error))
         return int(counters.PeakWorkingSetSize)
     try:
         import resource

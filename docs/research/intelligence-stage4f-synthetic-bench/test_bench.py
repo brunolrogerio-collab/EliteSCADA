@@ -206,6 +206,9 @@ class SyntheticBenchMechanismTests(unittest.TestCase):
         self.assertIsNotNone(zero_bound)
         self.assertGreater(zero_bound[1], 0.0)
 
+    def test_peak_rss_measurement_is_available_on_current_platform(self):
+        self.assertGreater(b._peak_rss_bytes(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

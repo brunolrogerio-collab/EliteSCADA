@@ -161,6 +161,7 @@ class ResearchHarnessTests(unittest.TestCase):
                 config["configurationSha256"], guard_path, config["studyCommit"], guard_dir,
                 archive_sha256=config["archiveSha256"],
                 split_manifest_sha256=config["splitManifestSha256"],
+                protocol_sha256=config["protocolSha256"],
                 holdout_cycles=config["holdoutCycles"],
             )
             self.assertTrue(marker.is_file())
@@ -172,6 +173,7 @@ class ResearchHarnessTests(unittest.TestCase):
                     guard_dir,
                     archive_sha256=config["archiveSha256"],
                     split_manifest_sha256=config["splitManifestSha256"],
+                    protocol_sha256=config["protocolSha256"],
                     holdout_cycles=config["holdoutCycles"],
                 )
             with mock.patch("research_harness.verify_archive", return_value=({}, "F" * 64)) as verify_archive, \
@@ -298,6 +300,7 @@ class ResearchHarnessTests(unittest.TestCase):
                 config["configurationSha256"], frozen_commit, study_commit, guard_dir,
                 archive_sha256="F" * 64,
                 split_manifest_sha256=config["splitManifestSha256"],
+                protocol_sha256=config["protocolSha256"],
                 holdout_cycles=config["holdoutCycles"],
             )
 

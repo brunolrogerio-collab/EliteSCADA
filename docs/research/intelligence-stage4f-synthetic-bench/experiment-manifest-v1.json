@@ -1,10 +1,10 @@
 {
   "schema": "elitescada.w15.intelligence.synthetic-bench-manifest.v1",
-  "protocol": "protocol-v2.md",
-  "protocolVersion": "v2",
-  "supersedesProtocol": "protocol-v1.md",
-  "supersedesProtocolSha256": "436DA377FBDF45FB93064BC042096B088392768400A7128AF0F85AFB0445A385",
-  "protocolSha256": "FABACE0AA305888E36BA5DBC0B4C04E1ABF3F5752428D087BD6A4D9BFA195288",
+  "protocol": "protocol-v3.md",
+  "protocolVersion": "v3",
+  "supersedesProtocol": "protocol-v2.md",
+  "supersedesProtocolSha256": "FABACE0AA305888E36BA5DBC0B4C04E1ABF3F5752428D087BD6A4D9BFA195288",
+  "protocolSha256": "2457E2E685287E19E35CAA7CCBE88B01F02DE3374565EBC6C85CDB73555F3DE4",
   "protocolState": "pre-fit-frozen-before-any-outcomes",
   "experimentIdentity": "W15-INTEL-4F-SYNTH-BENCH-2026-10-20-01",
   "finalHoldoutIdentity": "W15-INTEL-4F-SYNTH-BENCH-HOLDOUT-2026-10-20-01",
@@ -68,7 +68,9 @@
       "single-current-ramp"
     ],
     "strongShiftScaleUnits": 3.5,
-    "rampDurationMinutes": 10
+    "rampDurationMinutes": 10,
+    "sourceTimeVerified": true,
+    "sourceTimeSynchronized": true
   },
   "evaluator": {
     "targets": ["motor_current", "flow", "discharge_pressure"],

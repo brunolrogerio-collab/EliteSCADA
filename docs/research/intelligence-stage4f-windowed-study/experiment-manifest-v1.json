@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "state": "preregistered-before-fit-calibration-or-generation",
+  "issue": 680,
+  "parentIssue": 588,
+  "designIssue": 678,
+  "branch": "work/w15-intelligence-stage4f-windowed-study",
+  "base": {
+    "ref": "wave15/corrections-integration",
+    "sha": "2da9cfa76a9d21b4d6b31097ed0921edaba2c01d",
+    "remoteRevalidation": {
+      "observedSha": "1a131cd28b1f5a20d94bc88f9b4bba950949548f",
+      "deltaFromBase": [
+        "LAST CHANGE.md",
+        "docs/CURRENT-COORDINATOR-HANDOFF.md",
+        "docs/WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md",
+        "docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md"
+      ],
+      "disposition": "coordination-docs-only; product/source scope unchanged; retain exact assigned base"
+    }
+  },
+  "preservation": {
+    "productCheckpoint": "793b8303547491e02b98bf73732d3ab5ab76567a",
+    "ownerPreview": "http://localhost:18080",
+    "ownerPreviewCommit": "0054d587fe855bbea4b1af81726af016208643da",
+    "changesAllowedOnlyUnder": "docs/research/intelligence-stage4f-windowed-study/"
+  },
+  "identity": {
+    "seedNamespace": "ELITESCADA-W15-4F-WINDOWED-v1",
+    "experimentId": "W15-INTEL-4F-WINDOWED-2026-10-20-01",
+    "holdoutId": "W15-INTEL-4F-WINDOWED-HOLDOUT-2026-10-20-01",
+    "unitNamespace": "ELITESCADA-W15-4F-WINDOWED-UNIT-v1",
+    "groupCount": 240,
+    "groupsPerPartition": {
+      "fit": [0, 59],
+      "calibration": [60, 119],
+      "holdout": [120, 239]
+    },
+    "cohortsPerGroup": 120,
+    "cadenceSeconds": 10,
+    "onsetIndex": 12,
+    "onsetSeconds": 120,
+    "finalIndex": 119,
+    "groupSeed": "first 8 bytes, big-endian, of SHA-256(UTF-8(namespace|group-NNN))",
+    "randomGenerator": "portable SplitMix64; open U=((next_u64>>11)+0.5)/2^53; normal approximation=sum(12 independent open U)-6"
+  },
+  "targets": [
+    {
+      "id": "current",
+      "mean": "4 + 20*load + 0.012*(speed-1450)",
+      "innovationSd": 0.7
+    },
+    {
+      "id": "flow",
+      "mean": "3 + 30*load + 0.020*(speed-1450)",
+      "innovationSd": 1.0
+    },
+    {
+      "id": "pressure",
+      "mean": "1.2 + 3*load - 0.0015*(speed-1450)",
+      "innovationSd": 0.1
+    }
+  ],
+  "context": {
+    "speedRpm": "1430 + 5*(groupId mod 9)",
+    "loadBase": "0.30 + 0.05*(groupId mod 9)",
+    "loadOffsetsPer30CohortBlock": [-0.05, 0.05, 0.0, 0.07],
+    "loadClip": [0.25, 0.8],
+    "ar1Phi": 0.65,
+    "innovationMultiplier": "sqrt(1-phi^2)",
+    "baselineCorrelation": [[1.0, 0.65, 0.25], [0.65, 1.0, 0.2], [0.25, 0.2, 1.0]],
+    "relationshipCorrelation": [[1.0, -0.65, 0.25], [-0.65, 1.0, 0.2], [0.25, 0.2, 1.0]]
+  },
+  "scenarios": [
+    {"id": "nonfault-context", "role": "nonfault", "change": "none"},
+    {"id": "current-plus-3-fit-scales", "role": "strong-required", "change": "post-onset current += 3*fitCurrentScale"},
+    {"id": "all-targets-plus-3-fit-scales", "role": "strong-required", "change": "post-onset target[j] += 3*fitScale[j]"},
+    {"id": "relationship-current-flow-flip", "role": "strong-required", "change": "post-onset innovation matrix R0 -> R1; marginal SD fixed"},
+    {"id": "residual-dispersion-2x", "role": "strong-required", "change": "post-onset AR residual multiplier 2 around unchanged mean"},
+    {"id": "residual-dispersion-0.5x", "role": "strong-required", "change": "post-onset AR residual multiplier 0.5 around unchanged mean"},
+    {"id": "mixed-relationship-and-current-plus-3", "role": "strong-required", "change": "post-onset R1 plus current += 3*fitCurrentScale"},
+    {"id": "current-plus-1-fit-scale", "role": "sensitivity-only", "change": "post-onset current += fitCurrentScale"},
+    {"id": "current-plus-2-fit-scales", "role": "sensitivity-only", "change": "post-onset current += 2*fitCurrentScale"},
+    {"id": "current-linear-ramp-to-3", "role": "sensitivity-only", "change": "linear 0 to 3*fitCurrentScale over 60 samples, then hold"}
+  ],
+  "fit": {
+    "rows": 7200,
+    "input": "fit partition nonfault only",
+    "design": ["1", "load", "(speed-1450)/20"],
+    "ols": "ordinary least squares; rank exactly 3; finite condition <= 1e6",
+    "residualScale": "median and 1.4826*MAD per target",
+    "windowCohorts": 30,
+    "windowUpdateSeconds": 10,
+    "components": ["L=max(abs(median_W(e_j)-m_j)/s_j)", "D=max(abs(log(MAD_W(e_j)/MAD_R(e_j))))", "C=2*sum_{j<k}(rho_W-rho_R)^2"],
+    "componentNormalization": "center=fit nonfault full-window median; scale=1.4826*MAD; Z=(component-center)/scale",
+    "score": "T=max(Z_L,Z_D,Z_C), signed upper-tail"
+  },
+  "calibration": {
+    "groups": 60,
+    "thresholdPopulation": "nonfault-context complete T windows only",
+    "quantile": 0.999,
+    "quantileRule": "ascending order; zero-based ceil(q*n)-1",
+    "selection": "exactly one threshold; no alternate score, grid, or tuning"
+  },
+  "episode": {
+    "entry": "complete rolling five scored decisions; at least 3 strictly above threshold",
+    "termination": "five consecutive below-threshold decisions; retain rolling history on termination",
+    "strictComparison": "score > threshold",
+    "latency": "episode confirmation source timestamp minus true injection source time; includes warm-up",
+    "timelySeconds": 600
+  },
+  "metrics": {
+    "pointFalsePositiveMaximum": 0.01,
+    "falseEpisodesPer24ScoredEligibleHoursMaximum": 1.0,
+    "strongClassRecallMinimum": 0.9,
+    "strongClassTimelyFractionMinimum": 0.9,
+    "minimumIndependentEligibleHoldoutGroups": 100,
+    "clusterBootstrapReplicates": 2000,
+    "bootstrap": "whole group IDs, paired scenario variants retained; percentile 95% interval",
+    "bootstrapSeed": "first 8 bytes big-endian SHA-256(experiment|bootstrap|scenario|metric)",
+    "groupOccurrenceInterval": "Wilson 95% when no nonfault group has an episode"
+  },
+  "boundedRequest": {
+    "maximumRawRows": 50000,
+    "p3ReferencePlusEvaluationRows": 43920,
+    "p8ReferencePlusEvaluationRows": 80520,
+    "p8Disposition": "reject before request",
+    "rowsPerPage": 200,
+    "maxWindowDays": 31,
+    "maxOutputs": 500,
+    "countBeforeFiltering": true
+  },
+  "resources": {
+    "dependencies": "Python standard library only",
+    "python": "3.14.6",
+    "linuxImage": "python:3.14.6-slim-bookworm@sha256:4c92ffcde4dd6f1ff72a24518f49fd4990b27134987dfa31a733badde66df9f8",
+    "linuxNetwork": "disabled",
+    "cpus": 1,
+    "memoryMiB": 512,
+    "maxCpuMinutesPerStudyProcess": 15,
+    "maxWallMinutesPerStudyProcess": 20,
+    "maxCommittedArtifactsBytes": 1048576
+  },
+  "holdout": {
+    "consumptions": 1,
+    "platform": "Windows CPython 3.14.6 only",
+    "claim": "atomic exclusive create under per-user LOCALAPPDATA identity-hash path before generation",
+    "interruptedClaim": "permanent hard stop; no retry",
+    "receipt": "exclusive create after successful run; checked before any claim",
+    "replay": "forbidden, including clean repository clones after receipt is committed"
+  },
+  "decision": {
+    "resultScope": "synthetic conditional only",
+    "mainOwns": ["review", "exact-head T1", "integration"],
+    "pr": "one draft PR; VALIDATION_PROFILE: DOCS_I18N_HELP in creation body",
+    "forbidden": ["manual CI", "merge", "follow-on study", "product patch", "changes outside new research directory"]
+  }
+}

@@ -135,6 +135,7 @@
     "python": "3.14.6",
     "linuxImage": "python:3.14.6-slim-bookworm@sha256:4c92ffcde4dd6f1ff72a24518f49fd4990b27134987dfa31a733badde66df9f8",
     "linuxNetwork": "disabled",
+    "linuxGitProvenance": "native host verifies clean worktree and passes exact source commit in ELITESCADA_SOURCE_COMMIT; pinned slim image has no Git binary",
     "cpus": 1,
     "memoryMiB": 512,
     "maxCpuMinutesPerStudyProcess": 15,

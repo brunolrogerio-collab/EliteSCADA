@@ -88,11 +88,11 @@ MAX_NUMERIC_CHARS = 128
 MAX_DATETIME_CHARS = 40
 FINGERPRINT_PREFIX = "sha256-128-v1:"
 UTC_TIMESTAMP_RE = re.compile(
-    r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,7}))?(Z|\+00:00)$"
+    r"^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.([0-9]{1,7}))?(Z|\+00:00)$"
 )
 GUID_D_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
-INTEGER_RE = re.compile(r"^[+-]?\d+$")
-NUMBER_RE = re.compile(r"^[+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+-]?\d+)?$")
+INTEGER_RE = re.compile(r"^[+-]?[0-9]+$")
+NUMBER_RE = re.compile(r"^[+-]?(?:(?:[0-9]+(?:\.[0-9]*)?)|(?:\.[0-9]+))(?:[eE][+-]?[0-9]+)?$")
 FINGERPRINT_RE = re.compile(r"^[0-9a-f]{32}$")
 
 

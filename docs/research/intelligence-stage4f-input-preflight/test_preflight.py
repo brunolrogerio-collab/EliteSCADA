@@ -301,6 +301,34 @@ class PreflightContractTests(unittest.TestCase):
         self.assertIn("observation_timestamp_required", self.reasons(report))
         self.assertIn("timestamp_utc_invalid", self.reasons(report))
 
+    def test_typed_numeric_and_iso_digits_are_ascii_only_but_text_remains_unicode(self):
+        invalid = [
+            record(**{"value.kind": "int16", "value": "١"}),
+            record(**{"value.kind": "double", "value": "١.5"}),
+            record(**{"timestamp": "٢٠٢٦-01-02T03:04:05Z"}),
+            record(**{"value.kind": "dateTime", "value": "٢٠٢٦-01-02T03:04:05Z"}),
+        ]
+        report, code = self.analyze(invalid)
+        self.assertEqual(code, 3)
+        self.assertIn("value_integer_invalid", self.reasons(report))
+        self.assertIn("value_number_invalid", self.reasons(report))
+        self.assertIn("timestamp_utc_invalid", self.reasons(report))
+        self.assertIn("value_datetime_invalid", self.reasons(report))
+        self.assertNotIn("١", json.dumps(report))
+
+        unicode_text = record(
+            **{
+                "export.id": "export-١",
+                "cohort.id": "cohort-١",
+                "tag.path": "Planta.Bomba.١",
+                "value.kind": "string",
+                "value": "temperatura ١",
+            }
+        )
+        report, code = self.analyze([unicode_text])
+        self.assertEqual(code, 0)
+        self.assertNotIn("temperatura ١", json.dumps(report))
+
     def test_diagnostic_cap_counts_all_reasons_without_values(self):
         marker = "raw-private-value-do-not-report"
         rows = [record(**{"value.kind": "unknown", "value": marker}) for _ in range(preflight.MAX_DIAGNOSTICS + 5)]

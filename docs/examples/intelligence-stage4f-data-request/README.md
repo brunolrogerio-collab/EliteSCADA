@@ -1,6 +1,6 @@
 # Intelligence Stage 4F — modelo de dados e critérios
 
-Este pacote contém um modelo vazio para preparar a avaliação do Stage 4F. Ele não contém dados de planta, não implementa a análise conjunta e não define algoritmo, tamanho mínimo de amostra, regularização, limiar ou metas de falso alarme/sensibilidade. O gate #655 continua **NOT READY** até que dados representativos autorizados e critérios aprovados estejam disponíveis.
+Este pacote contém um modelo vazio para preparar a avaliação do Stage 4F. Ele não contém dados de planta nem implementa a análise conjunta. O plano aceito do Stage 4F define as metas iniciais de avaliação e os controles de validação; a escolha final do método, sua calibração, a suficiência estatística e o desempenho continuam dependentes da análise de uma coorte representativa autorizada. O gate #655 permanece **NOT READY** até que essa evidência seja avaliada.
 
 ## Arquivos
 
@@ -8,6 +8,8 @@ Este pacote contém um modelo vazio para preparar a avaliação do Stage 4F. Ele
 - `historian-observations.csv`: cabeçalho vazio para observações em formato longo, uma linha por amostra.
 
 O CSV usa os campos do contrato `historian.samples.v2` como base. `export.id` e `cohort.id` são anotações desta coleta, e `value.kind` achata `cells.value.kind` do envelope JSON. Essas três colunas não são campos consultáveis adicionais do produto. A unidade e o contexto de perfil ficam na aba Mapa TAG, pois não fazem parte de cada linha da resposta Historian v2.
+
+Para uma verificação local e estrutural do CSV preparado, use o [Stage 4F input preflight](../../research/intelligence-stage4f-input-preflight/README.md). Ele só verifica formato/contrato; não aprova elegibilidade analítica nem prontidão.
 
 ## Mapeamento do Historian v2
 
@@ -29,16 +31,16 @@ Para outra plataforma, mapeie campos apenas quando a semântica for equivalente 
 
 Use uma coorte por intervalo/perfil/contexto claramente delimitado. Rótulos de operação, não-falha, degradação e falha precisam de uma referência independente do resultado do detector. Se a condição não for conhecida, use `unknown_unlabeled`. Os códigos disponíveis são `normal_variation`, `known_nonfault`, `sensor_quality_loss`, `synchronized`, `misaligned_unsynchronized`, `correlated_signals`, `injected_single_signal`, `injected_multi_signal`, `known_degradation`, `known_fault`, `synthetic_fixture` e `unknown_unlabeled`. A aba Dicionário descreve cada código. `synchronized` só deve ser usado quando a fonte fornecer evidência explícita; os demais estados permanecem distintos.
 
-Antes de liberar a implementação 4F, o Product Owner precisa preencher e aceitar:
+O [`plano de aceitação do Stage 4F`](../../WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md) é a referência para metas numéricas, regra de episódios, cenários, separação temporal de dados, tratamento de incerteza e limites de retenção. Este modelo não solicita que o Product Owner defina novamente essas decisões.
 
-1. O equipamento, perfil, contexto e conjunto de TAGs/unidades da primeira versão.
-2. A definição de um falso alarme, incluindo como alertas repetidos de um episódio são agrupados.
-3. O numerador, denominador, população elegível e janela/unidade de exposição para a taxa de falso alarme, com limite máximo por perfil/contexto.
-4. Para cada cenário de desvio, a definição de episódio detectado, a janela de detecção e a sensibilidade mínima aceitável.
-5. A separação entre calibração e holdout/validação, sem vazamento do mesmo evento, execução ou janelas sobrepostas.
-6. Como a suficiência da coorte e a incerteza serão avaliadas depois de inspecionar dados representativos. Não adote automaticamente `n >= 30` como suficiente para um modelo conjunto.
-7. O tratamento de TAG ausente, qualidade ruim, duplicidade e timestamps ausentes/desalinhados, sem imputação silenciosa.
-8. O responsável, a finalidade permitida, o local de armazenamento, as pessoas autorizadas e a retenção/expurgo.
+Antes de avaliar uma coleta específica, o responsável pelos dados e a equipe que a preparou devem registrar:
+
+1. O equipamento, perfil, contexto, TAGs e unidades efetivamente cobertos, com a versão e a vigência das configurações aplicáveis.
+2. O sistema e a versão de origem, intervalo consultado, filtros, ordenação e proveniência dos timestamps. Preserve a distinção entre instante observado, instante de origem e instante de servidor.
+3. A referência de autorização para esse uso, finalidade, local aprovado, pessoas com acesso e forma de expurgo. Aplique os limites do plano aceito e qualquer regra mais restritiva do responsável pelos dados.
+4. A fonte independente que sustenta cada rótulo de condição. Use `unknown_unlabeled` quando a condição não for conhecida.
+5. O manifesto de separação da coorte em blocos temporais completos, sem dividir o mesmo evento, execução ou janelas sobrepostas entre partições.
+6. A cobertura, lacunas, qualidade e limitações observadas, sem imputação ou promoção silenciosa de evidência.
 
 Falso alarme deve ser medido em dados retidos de operação normal e variação não-falha. Sensibilidade deve ser medida separadamente por cenário conhecido e validado. Dados sintéticos podem provar comportamento determinístico de teste, mas não substituem evidência de campo. O Stage 4G continua um gate separado.
 
@@ -46,4 +48,4 @@ Falso alarme deve ser medido em dados retidos de operação normal e variação 
 
 Não adicione dados operacionais reais, credenciais, configurações sensíveis ou referências que revelem segredo industrial a este repositório, PR ou issue. Guarde o export bruto somente no local privado aprovado pelo responsável dos dados. No GitHub, registre apenas o identificador da coleta e a referência de autorização, sem anexar o histórico. O arquivo CSV deste pacote tem somente o cabeçalho.
 
-Este modelo não é um formato de importação do produto nem uma declaração de que 4F está pronto, validado ou completo. Após o Product Owner preencher os critérios e confirmar um export autorizado, Main revisará a evidência e decidirá sobre uma ordem de implementação 4F separada. A validação/fechamento 4G permanece posterior e independente.
+Este modelo não é um formato de importação do produto nem uma declaração de que 4F está pronto, validado ou completo. Depois que houver autorização específica e uma coorte preparada com a proveniência exigida, Main revisará a evidência e decidirá sobre uma ordem de implementação 4F separada. A validação/fechamento 4G permanece posterior e independente.

@@ -1,0 +1,472 @@
+{
+  "archiveSha256": "24128AAD2EE45EEA7E6B63EBBD9992CDF25D0483A2CEBEFBFC13BC69079AF1F2",
+  "assignment": "#662",
+  "dimensions": {
+    "3": {
+      "holdoutCycleIds": [
+        1796,
+        1797
+      ],
+      "methods": {
+        "independentControl": {
+          "calibrationThresholdQ99": 19.32226395091553,
+          "holdoutReferenceExceedanceByCycle": {
+            "1796": {
+              "referenceExceedanceCount": 0,
+              "referenceExceedanceRate": 0.0,
+              "scoreMax": 19.32226395091553,
+              "scoreMean": 3.6464463329525745,
+              "scoreMedian": 0.6908510645576151,
+              "scoreP95": 19.32226395091553,
+              "scoreP99": 19.32226395091553,
+              "vectorRows": 6000
+            },
+            "1797": {
+              "referenceExceedanceCount": 0,
+              "referenceExceedanceRate": 0.0,
+              "scoreMax": 19.32226395091553,
+              "scoreMean": 3.6455868156018703,
+              "scoreMedian": 0.6881168354256165,
+              "scoreP95": 19.32226395091553,
+              "scoreP99": 19.32226395091553,
+              "vectorRows": 6000
+            }
+          },
+          "scoreDefinition": "max absolute robust-scaled marginal signal score"
+        },
+        "jointCandidates": {
+          "0.05": {
+            "calibrationThresholdQ99": 25.040238790573223,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 56,
+                "referenceExceedanceRate": 0.009333333333333334,
+                "scoreMax": 65.9319458706998,
+                "scoreMean": 2.732356073145979,
+                "scoreMedian": 0.836910933870108,
+                "scoreP95": 8.283611303264864,
+                "scoreP99": 24.5423078005902,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 59,
+                "referenceExceedanceRate": 0.009833333333333333,
+                "scoreMax": 66.49384713683351,
+                "scoreMean": 2.738408818005351,
+                "scoreMedian": 0.8722129636388021,
+                "scoreP95": 8.306852193870949,
+                "scoreP99": 24.669972171860366,
+                "vectorRows": 6000
+              }
+            }
+          },
+          "0.1": {
+            "calibrationThresholdQ99": 23.065617048238167,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 50,
+                "referenceExceedanceRate": 0.008333333333333333,
+                "scoreMax": 45.27926572317736,
+                "scoreMean": 2.670749441731537,
+                "scoreMedian": 0.6305672245287413,
+                "scoreP95": 8.700553489313894,
+                "scoreP99": 22.30902615835588,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 55,
+                "referenceExceedanceRate": 0.009166666666666667,
+                "scoreMax": 45.86664637945563,
+                "scoreMean": 2.6734132557956083,
+                "scoreMedian": 0.6543335231162877,
+                "scoreP95": 8.720273921900862,
+                "scoreP99": 22.526156032291038,
+                "vectorRows": 6000
+              }
+            }
+          },
+          "0.25": {
+            "calibrationThresholdQ99": 20.708503635247272,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 63,
+                "referenceExceedanceRate": 0.0105,
+                "scoreMax": 34.33517308079898,
+                "scoreMean": 2.872289992373012,
+                "scoreMedian": 0.660147398417842,
+                "scoreP95": 10.353726884713678,
+                "scoreP99": 21.138035621254403,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 63,
+                "referenceExceedanceRate": 0.0105,
+                "scoreMax": 34.22231985691194,
+                "scoreMean": 2.8715359248176084,
+                "scoreMedian": 0.6507823311353609,
+                "scoreP95": 10.367477413811278,
+                "scoreP99": 21.225709718133327,
+                "vectorRows": 6000
+              }
+            }
+          },
+          "0.5": {
+            "calibrationThresholdQ99": 21.446210125893067,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 60,
+                "referenceExceedanceRate": 0.01,
+                "scoreMax": 40.305333454909345,
+                "scoreMean": 3.7699338013917028,
+                "scoreMedian": 0.7685211449109793,
+                "scoreP95": 15.289144791496444,
+                "scoreP99": 21.33816006373395,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 58,
+                "referenceExceedanceRate": 0.009666666666666667,
+                "scoreMax": 40.150211148738514,
+                "scoreMean": 3.767397333201357,
+                "scoreMedian": 0.7527602964225807,
+                "scoreP95": 15.299770366898986,
+                "scoreP99": 21.20832570532903,
+                "vectorRows": 6000
+              }
+            }
+          }
+        }
+      },
+      "rawSignalRows": 36000,
+      "signals": [
+        "EPS1",
+        "PS1",
+        "PS2"
+      ],
+      "sourceGroups": 2,
+      "vectorRows": 12000
+    },
+    "5": {
+      "holdoutCycleIds": [
+        1796,
+        1797
+      ],
+      "methods": {
+        "independentControl": {
+          "calibrationThresholdQ99": 22.21001715133651,
+          "holdoutReferenceExceedanceByCycle": {
+            "1796": {
+              "referenceExceedanceCount": 36,
+              "referenceExceedanceRate": 0.006,
+              "scoreMax": 71.20695303617214,
+              "scoreMean": 5.010008103716193,
+              "scoreMedian": 1.4239249366729083,
+              "scoreP95": 22.21001715133651,
+              "scoreP99": 22.21001715133651,
+              "vectorRows": 6000
+            },
+            "1797": {
+              "referenceExceedanceCount": 37,
+              "referenceExceedanceRate": 0.006166666666666667,
+              "scoreMax": 72.78718852980302,
+              "scoreMean": 5.012376498866634,
+              "scoreMedian": 1.498868354392493,
+              "scoreP95": 22.21001715133651,
+              "scoreP99": 22.21001715133651,
+              "vectorRows": 6000
+            }
+          },
+          "scoreDefinition": "max absolute robust-scaled marginal signal score"
+        },
+        "jointCandidates": {
+          "0.05": {
+            "calibrationThresholdQ99": 32.12902215473293,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 59,
+                "referenceExceedanceRate": 0.009833333333333333,
+                "scoreMax": 372.537228930888,
+                "scoreMean": 4.66264252562152,
+                "scoreMedian": 2.7513845691608996,
+                "scoreP95": 10.443566672015045,
+                "scoreP99": 31.614523836293802,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 65,
+                "referenceExceedanceRate": 0.010833333333333334,
+                "scoreMax": 392.16420423323876,
+                "scoreMean": 4.6449852184401035,
+                "scoreMedian": 2.7387526070080157,
+                "scoreP95": 10.269270130678457,
+                "scoreP99": 34.05478985780003,
+                "vectorRows": 6000
+              }
+            }
+          },
+          "0.1": {
+            "calibrationThresholdQ99": 27.28547185510216,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 61,
+                "referenceExceedanceRate": 0.010166666666666666,
+                "scoreMax": 367.2639868416572,
+                "scoreMean": 4.678446743937881,
+                "scoreMedian": 2.7897515921447544,
+                "scoreP95": 10.8370090770604,
+                "scoreP99": 27.37969626496997,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 67,
+                "referenceExceedanceRate": 0.011166666666666667,
+                "scoreMax": 385.1177377236526,
+                "scoreMean": 4.658145059435828,
+                "scoreMedian": 2.7775551902208715,
+                "scoreP95": 10.561005223024674,
+                "scoreP99": 28.880722367073613,
+                "vectorRows": 6000
+              }
+            }
+          },
+          "0.25": {
+            "calibrationThresholdQ99": 26.64455346320936,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 63,
+                "referenceExceedanceRate": 0.0105,
+                "scoreMax": 405.39789735320556,
+                "scoreMean": 5.097182724983501,
+                "scoreMedian": 2.985608485406576,
+                "scoreP95": 12.349127230682493,
+                "scoreP99": 26.91605737799713,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 67,
+                "referenceExceedanceRate": 0.011166666666666667,
+                "scoreMax": 423.52806773344696,
+                "scoreMean": 5.072002305428196,
+                "scoreMedian": 2.9741434675600678,
+                "scoreP95": 12.125800303458082,
+                "scoreP99": 27.472776637218136,
+                "vectorRows": 6000
+              }
+            }
+          },
+          "0.5": {
+            "calibrationThresholdQ99": 33.49490264468635,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 61,
+                "referenceExceedanceRate": 0.010166666666666666,
+                "scoreMax": 545.9811591372448,
+                "scoreMean": 6.4971151670185066,
+                "scoreMedian": 3.413374754772634,
+                "scoreP95": 17.114087229268627,
+                "scoreP99": 33.51434488917345,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 65,
+                "referenceExceedanceRate": 0.010833333333333334,
+                "scoreMax": 569.3427476106585,
+                "scoreMean": 6.4629554693923295,
+                "scoreMedian": 3.4183554686458324,
+                "scoreP95": 16.86858302341017,
+                "scoreP99": 34.39764668819836,
+                "vectorRows": 6000
+              }
+            }
+          }
+        }
+      },
+      "rawSignalRows": 60000,
+      "signals": [
+        "EPS1",
+        "PS1",
+        "PS2",
+        "PS3",
+        "PS4"
+      ],
+      "sourceGroups": 2,
+      "vectorRows": 12000
+    },
+    "7": {
+      "holdoutCycleIds": [
+        1796,
+        1797
+      ],
+      "methods": {
+        "independentControl": {
+          "calibrationThresholdQ99": 22.21001715133651,
+          "holdoutReferenceExceedanceByCycle": {
+            "1796": {
+              "referenceExceedanceCount": 36,
+              "referenceExceedanceRate": 0.006,
+              "scoreMax": 71.20695303617214,
+              "scoreMean": 5.055381639226382,
+              "scoreMedian": 1.503150835404984,
+              "scoreP95": 22.21001715133651,
+              "scoreP99": 22.21001715133651,
+              "vectorRows": 6000
+            },
+            "1797": {
+              "referenceExceedanceCount": 37,
+              "referenceExceedanceRate": 0.006166666666666667,
+              "scoreMax": 72.78718852980302,
+              "scoreMean": 5.055778787682096,
+              "scoreMedian": 1.510353619070525,
+              "scoreP95": 22.21001715133651,
+              "scoreP99": 22.21001715133651,
+              "vectorRows": 6000
+            }
+          },
+          "scoreDefinition": "max absolute robust-scaled marginal signal score"
+        },
+        "jointCandidates": {
+          "0.05": {
+            "calibrationThresholdQ99": 32.665297131887016,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 60,
+                "referenceExceedanceRate": 0.01,
+                "scoreMax": 376.69308888842596,
+                "scoreMean": 5.615246810377658,
+                "scoreMedian": 3.6350955537151965,
+                "scoreP95": 11.878762400246357,
+                "scoreP99": 32.40407444960643,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 66,
+                "referenceExceedanceRate": 0.011,
+                "scoreMax": 392.72001061583563,
+                "scoreMean": 5.585063644070447,
+                "scoreMedian": 3.6500049118841504,
+                "scoreP95": 11.434366318731263,
+                "scoreP99": 35.01949784925232,
+                "vectorRows": 6000
+              }
+            }
+          },
+          "0.1": {
+            "calibrationThresholdQ99": 28.030883680666182,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 64,
+                "referenceExceedanceRate": 0.010666666666666666,
+                "scoreMax": 369.567602858742,
+                "scoreMean": 5.459716604830239,
+                "scoreMedian": 3.5110341947208266,
+                "scoreP95": 12.038349303083534,
+                "scoreP99": 28.651158315354646,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 65,
+                "referenceExceedanceRate": 0.010833333333333334,
+                "scoreMax": 385.4492969820988,
+                "scoreMean": 5.4341931598905155,
+                "scoreMedian": 3.512597898838628,
+                "scoreP95": 11.55619965685792,
+                "scoreP99": 29.573995463014068,
+                "vectorRows": 6000
+              }
+            }
+          },
+          "0.25": {
+            "calibrationThresholdQ99": 27.346238907350905,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 64,
+                "referenceExceedanceRate": 0.010666666666666666,
+                "scoreMax": 406.0056797399992,
+                "scoreMean": 5.759931482469282,
+                "scoreMedian": 3.5531002276860475,
+                "scoreP95": 13.378612361952928,
+                "scoreP99": 27.61465587516331,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 69,
+                "referenceExceedanceRate": 0.0115,
+                "scoreMax": 424.1161925793994,
+                "scoreMean": 5.732270006563605,
+                "scoreMedian": 3.5514634060863197,
+                "scoreP95": 13.053718018505288,
+                "scoreP99": 28.954070010092284,
+                "vectorRows": 6000
+              }
+            }
+          },
+          "0.5": {
+            "calibrationThresholdQ99": 34.17580718382171,
+            "holdoutReferenceExceedanceByCycle": {
+              "1796": {
+                "referenceExceedanceCount": 61,
+                "referenceExceedanceRate": 0.010166666666666666,
+                "scoreMax": 546.1256688118957,
+                "scoreMean": 7.26263890316822,
+                "scoreMedian": 3.98004990214437,
+                "scoreP95": 18.373300719491812,
+                "scoreP99": 34.38265321596947,
+                "vectorRows": 6000
+              },
+              "1797": {
+                "referenceExceedanceCount": 64,
+                "referenceExceedanceRate": 0.010666666666666666,
+                "scoreMax": 570.8515642890249,
+                "scoreMean": 7.222343261624986,
+                "scoreMedian": 3.9859925739732254,
+                "scoreP95": 18.07096869965806,
+                "scoreP99": 36.039281559051204,
+                "vectorRows": 6000
+              }
+            }
+          }
+        }
+      },
+      "rawSignalRows": 84000,
+      "signals": [
+        "EPS1",
+        "PS1",
+        "PS2",
+        "PS3",
+        "PS4",
+        "PS5",
+        "PS6"
+      ],
+      "sourceGroups": 2,
+      "vectorRows": 12000
+    }
+  },
+  "execution": {
+    "elapsedWallSeconds": 2.519942699999774,
+    "peakResidentBytes": 34992128,
+    "runtime": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "processor": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel",
+      "python": "3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 64 bit (AMD64)]"
+    }
+  },
+  "frozenConfigCommit": "e4a3e11b696da78ccaa74669cbb01d38d2ddf06e",
+  "frozenConfigSha256": "F0D2F8DED8F5969CD73D1BBFC549C8B621D70809461B243FF2F442C04815DF75",
+  "holdoutCycles": [
+    1796,
+    1797
+  ],
+  "holdoutOpenedAfterFreeze": true,
+  "metrics": {
+    "acceptance": "INSUFFICIENT EVIDENCE",
+    "canonicalGoodSynchronizedCohort": "ineligible: source lacks UTC source timestamps and explicit quality/synchronization status",
+    "confidenceIntervals": "not_measured: only two holdout cycle groups; independence is not established",
+    "eventSensitivityAndLatency": "not_measured: no natural labels or qualifying contiguous event windows",
+    "falseEpisodesPerOperatingHour": "not_measured: no canonical source-time/exposure",
+    "pointFalsePositiveRate": "not_measured: no independent known-healthy point labels"
+  },
+  "reportVersion": 1,
+  "sourceRecord": "UCI 447 / DOI 10.24432/C5CW21",
+  "status": "offline reference-exceedance study; not product acceptance",
+  "studyCommit": "ca2fb6c97d64fd7ee7dafb9c53e567bb073119f2"
+}

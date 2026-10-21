@@ -136,6 +136,12 @@ test('alarm browser localizes current alarm state and priority without exposing 
   expect(presentCurrentBrowserAlarm(alarm, 'Plant/Pressure', 'en').tagPath).toBe('Plant/Pressure');
   expect(presentCurrentBrowserAlarm(alarm, '', 'en').tagPath).not.toContain(alarm.tagId);
   expect(isVisibleInActiveAlarmBrowser({ ...alarm, acknowledgedAt: '2026-10-21T16:35:00Z' })).toBe(false);
+
+  const active = { ...alarm, state: 1, priority: 3 };
+  expect(presentCurrentBrowserAlarm(active, 'Plant/Pump', 'pt-BR')).toMatchObject({
+    state: 'Ativo', priority: 'Alta', tagPath: 'Plant/Pump', canAcknowledge: true
+  });
+  expect(isVisibleInActiveAlarmBrowser(active)).toBe(true);
 });
 
 test('editing a Dynamo changes its drawing while preserving its stable link and parameter contract', () => {

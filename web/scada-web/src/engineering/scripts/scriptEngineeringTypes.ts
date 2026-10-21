@@ -1,4 +1,5 @@
 import type { TagValueReferenceEngineering } from '../types';
+import type { DataSourceEngineering, TagEngineering } from '../types';
 
 export type ScriptEngineeringScope = 'clientVisual' | 'server';
 
@@ -173,4 +174,6 @@ export type ScriptEngineeringContext = {
   workspace: ScriptEngineeringWorkspaceDescriptor;
   scripts: ScriptEngineeringDefinition[];
   visualEventReferences: ScriptVisualEventReference[];
+  tags?: TagEngineering[];
+  dataSources?: DataSourceEngineering[];
 };

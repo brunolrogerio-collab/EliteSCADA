@@ -41,6 +41,23 @@ test('Script workspace consumes Engineering semantic theme tokens without indepe
   expect(css).not.toContain('var(--border, #c9ced8)');
 });
 
+test('Script TAG dependencies present readable paths while retaining their stable identity binding', async () => {
+  const workspace = await readFile(new URL('../src/engineering/scripts/ScriptEngineeringWorkspace.tsx', import.meta.url), 'utf8');
+  const api = await readFile(new URL('../src/engineering/scripts/scriptEngineeringApi.ts', import.meta.url), 'utf8');
+  const copy = await readFile(new URL('../src/engineering/scripts/ScriptEngineeringWorkspace.copy.ts', import.meta.url), 'utf8');
+
+  expect(workspace).toContain('copy.tagPath');
+  expect(workspace).toContain('stableReference: tag.id!');
+  expect(workspace).toContain('reference: tag.path');
+  expect(workspace).toContain('tag.id === dependency.tagBinding?.expected.tagId');
+  expect(workspace).not.toContain('tag.path === dependency.tagBinding?.reference');
+  expect(workspace).toContain("dependency.kind === 'serverMemoryTag'");
+  expect(api).toContain('loadEngineeringSnapshot()');
+  expect(api).toContain('tags: snapshot.package.tags');
+  expect(copy).toContain('read_server_memory("EEE.Pump01.Running")');
+  expect(copy).toContain('ID estável mantido automaticamente');
+});
+
 test('wire enums normalize and minimal package preserves owned visual references only', () => {
   const id = '11111111-1111-4111-8111-111111111111';
   const otherId = '22222222-2222-4222-8222-222222222222';

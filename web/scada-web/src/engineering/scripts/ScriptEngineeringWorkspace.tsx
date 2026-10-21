@@ -41,6 +41,7 @@ import { ScriptEntryPointsEditor } from './ScriptEntryPointsEditor';
 import { scriptPythonPreviewCopy } from './scriptPythonPreviewCopy';
 import type {
   ScriptDeleteDependency,
+  ScriptEngineeringDependencyKind,
   ScriptEngineeringContext,
   ScriptEngineeringDefinition,
   ScriptMutationPreviewToken
@@ -454,13 +455,47 @@ export function ScriptEngineeringWorkspace({
 
               <EditorCollectionHeader title={copy.dependencies} hint={copy.dependenciesHint} action={copy.addDependency} onAdd={() => patchDraft({ dependencies: [...draft.dependencies, { kind: 'script', stableReference: '' }] })} />
               <div className="script-rows">
-                {draft.dependencies.map((dependency, index) => (
-                  <div className="script-row script-row--dependency" key={`dependency-${index}`}>
-                    <label>{copy.kind}<select value={dependency.kind} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, kind: event.target.value as typeof dependency.kind } : item) })}>{SCRIPT_DEPENDENCY_KINDS.map(kind => <option key={kind} value={kind}>{dependencyKindLabel(kind, locale)}</option>)}</select></label>
-                    <label>{copy.stableReference}<input value={dependency.stableReference} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, stableReference: event.target.value } : item) })} /></label>
+                {draft.dependencies.map((dependency, index) => {
+                  const allTags = context?.tags ?? [];
+                  const dependencyTags = dependency.kind === 'serverMemoryTag'
+                    ? allTags.filter(tag => context?.dataSources?.find(dataSource => dataSource.id === tag.dataSourceId)?.driver === 'builtin.memory.server')
+                    : allTags;
+                  const selectableTags = dependencyTags.filter(tag => Boolean(tag.id));
+                  // Only the stable TAG identity may select a catalog entry. A matching
+                  // readable path is not proof of identity and could hide drift/reuse.
+                  const selectedTag = allTags.find(tag => tag.id === dependency.tagBinding?.expected.tagId ||
+                    tag.id === dependency.stableReference);
+                  const selectedOption = selectableTags.some(tag => tag.id === selectedTag?.id) ? selectedTag : undefined;
+                  const tagKind = isTagDependencyKind(dependency.kind);
+                  return (
+                    <div className={`script-row script-row--dependency${tagKind ? ' script-row--dependency-tag' : ''}`} key={`dependency-${index}`}>
+                    <label>{copy.kind}<select value={dependency.kind} onChange={event => {
+                      const kind = event.target.value as typeof dependency.kind;
+                      patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index
+                        ? { ...item, kind, tagBinding: isTagDependencyKind(kind) ? item.tagBinding : null }
+                        : item) });
+                    }}>{SCRIPT_DEPENDENCY_KINDS.map(kind => <option key={kind} value={kind}>{dependencyKindLabel(kind, locale)}</option>)}</select></label>
+                    {tagKind && selectableTags.length > 0
+                      ? <>
+                        <label>{copy.tagPath}<select value={selectedOption?.id ?? ''} onChange={event => {
+                          const tag = selectableTags.find(item => item.id === event.target.value);
+                          if (!tag?.id) return;
+                          patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index
+                            ? { ...item, stableReference: tag.id!, tagBinding: { version: 1, reference: tag.path, expected: { tagId: tag.id!, selector: null } } }
+                            : item) });
+                        }}>
+                          <option value="">{copy.selectTag}</option>
+                          {selectableTags.map(tag => <option key={tag.id} value={tag.id}>{tag.path}</option>)}
+                        </select></label>
+                        <span className="script-dependency-identity" title={selectedOption?.id ?? dependency.stableReference}>
+                          {selectedOption ? copy.identityManaged : `${copy.unresolvedTagReference}: ${dependency.stableReference || '—'}`}
+                        </span>
+                      </>
+                      : <label>{copy.stableReference}<input value={dependency.stableReference} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, stableReference: event.target.value, tagBinding: null } : item) })} /></label>}
                     <button type="button" className="danger ghost" onClick={() => patchDraft({ dependencies: draft.dependencies.filter((_, itemIndex) => itemIndex !== index) })}>{copy.remove}</button>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="script-preserved">
@@ -510,6 +545,10 @@ export function ScriptEngineeringWorkspace({
       </div>
     </section>
   );
+}
+
+function isTagDependencyKind(kind: ScriptEngineeringDependencyKind): boolean {
+  return kind === 'tag' || kind === 'clientMemoryTag' || kind === 'serverMemoryTag';
 }
 
 function EditorCollectionHeader({ title, hint, action, onAdd }: { title: string; hint: string; action: string; onAdd: () => void }) {

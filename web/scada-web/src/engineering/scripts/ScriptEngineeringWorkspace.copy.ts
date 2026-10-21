@@ -102,8 +102,29 @@ export function scriptWorkspaceCopy(locale: EngineeringLocale) {
     }
   } as const;
   const copy = copies[locale];
+  const dependencyCopy = locale === 'pt-BR'
+    ? {
+      dependenciesHint: 'Selecione TAGs pelo caminho legível. No código, use esse caminho, por exemplo read_server_memory("EEE.Pump01.Running"); o ID estável fica vinculado e validado pelo sistema.',
+      tagPath: 'TAG / Caminho', selectTag: 'Selecione uma TAG',
+      identityManaged: 'ID estável mantido automaticamente',
+      unresolvedTagReference: 'Referência sem correspondência; selecione uma TAG'
+    }
+    : locale === 'es'
+      ? {
+        dependenciesHint: 'Seleccione TAGs por su ruta legible y úsela en el código, por ejemplo read_server_memory("Plant.Pump.Running"); el sistema conserva y valida el ID estable.',
+        tagPath: 'TAG / Ruta', selectTag: 'Seleccione una TAG',
+        identityManaged: 'ID estable administrado automáticamente',
+        unresolvedTagReference: 'Referencia sin correspondencia; seleccione una TAG'
+      }
+      : {
+        dependenciesHint: 'Select TAGs by their readable path. Use that path in code, for example read_server_memory("Plant.Pump.Running"); the system retains and validates the stable ID.',
+        tagPath: 'TAG / Path', selectTag: 'Select a TAG',
+        identityManaged: 'Stable ID managed automatically',
+        unresolvedTagReference: 'Unmatched reference; select a TAG'
+      };
   if (locale === 'en') return {
     ...copy,
+    ...dependencyCopy,
     help: 'Help', subtitle: 'Edit the draft and check it before applying to the Workspace. Save or publish from Overview to update Runtime.',
     sourceHint: 'Code edits only the local draft. Check, then apply it to the Workspace.',
     preview: 'Check changes',
@@ -112,6 +133,7 @@ export function scriptWorkspaceCopy(locale: EngineeringLocale) {
   };
   if (locale === 'es') return {
     ...copy,
+    ...dependencyCopy,
     help: 'Ayuda', subtitle: 'Edite y verifique el borrador antes de aplicarlo al Workspace. Guarde o publique desde Overview para actualizar Runtime.',
     sourceHint: 'El código solo modifica el borrador local. Verifique y luego aplíquelo al Workspace.',
     preview: 'Verificar cambios',
@@ -120,6 +142,7 @@ export function scriptWorkspaceCopy(locale: EngineeringLocale) {
   };
   return {
     ...copy,
+    ...dependencyCopy,
     help: 'Ajuda', subtitle: 'Edite e verifique o rascunho antes de aplicar ao Workspace. Salve ou publique em Visão geral para atualizar o Runtime.',
     sourceHint: 'O código altera somente o rascunho local. Verifique as mudanças e aplique ao Workspace.',
     preview: 'Verificar alterações',

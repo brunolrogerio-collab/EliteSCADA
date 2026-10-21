@@ -284,7 +284,11 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
             }
 
             var fence = reference.AuthorityPolicy;
-            if (fence is null || fence.CommittedDigest is null)
+            // Only start the first-time bootstrap when there is no write already
+            // in flight. An initial pending update intentionally has no committed
+            // digest yet and must flow through the recovery/peer-ACK path below.
+            if (fence is null ||
+                (fence.CommittedDigest is null && !fence.PendingVersion.HasValue))
             {
                 if (!IsCurrentEffectiveActive(reference))
                 {

@@ -132,6 +132,14 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     appConnectionB.ConnectionString, license, apiDll, root, suffix);
                 await nodeB.WaitForHealthAsync();
                 await nodeB.LoginAsync();
+                // On a cold Linux runner, API health can precede passive runtime
+                // materialization. Let the peer converge before the test requires
+                // the initial policy fence to be committed and mirrored.
+                await WaitForHaTopologyAsync(
+                    nodeA,
+                    topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                    TimeSpan.FromSeconds(75),
+                    "the shared-database standby never materialized the published runtime before policy fencing");
             }
             await WaitForInitialPolicyCommitAsync(
                 nodeA,

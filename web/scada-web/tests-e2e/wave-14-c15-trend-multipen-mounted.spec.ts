@@ -20,17 +20,41 @@ function row(tagId: string, tagPath: string, timestamp: string, value: number, q
   };
 }
 
-function historyResponse(rows: unknown[]) {
-  const to = Date.now();
+function historyResponse(rows: unknown[], request?: any) {
+  const queryRange = request?.definition?.query?.timeRange;
+  const to = queryRange?.kind === 'absolute' ? Date.parse(queryRange.toUtc) : Date.now();
+  const from = queryRange?.kind === 'absolute'
+    ? Date.parse(queryRange.fromUtc)
+    : to - (queryRange?.durationSeconds ?? 3600) * 1000;
   return {
     version: 1,
+    queryId: '48bba95f-2817-421e-b524-ac642ecc2eae',
+    queryKey: 'runtime-trend-history-v1',
     datasetKey: 'historian.samples',
+    retrievalMode: 'sampledFixedStep',
     columns: [],
-    rows,
-    fromUtc: new Date(to - 3600_000).toISOString(),
+    rows: rows.map(candidate => candidate && typeof candidate === 'object' && 'data' in candidate
+      ? candidate
+      : { data: candidate, provenance: { kind: 'measured' } }),
+    fromUtc: new Date(from).toISOString(),
     toUtc: new Date(to).toISOString(),
     nextCursor: null,
-    pageSize: 200
+    resultLimit: 200
+  };
+}
+
+function gapRow(tagId: string, tagPath: string, timestamp: string) {
+  return {
+    data: {
+      cells: {
+        'tag.id': { kind: 'guid', value: tagId },
+        'tag.path': { kind: 'string', value: tagPath },
+        timestamp: { kind: 'dateTime', value: timestamp },
+        value: { kind: 'null', value: null },
+        quality: { kind: 'null', value: null }
+      }
+    },
+    provenance: { kind: 'gap', reason: 'maximum-gap-exceeded' }
   };
 }
 
@@ -39,16 +63,17 @@ async function openHarness(page: Page, query = '') {
   await expect(page.getByTestId('visual-trend').first()).toBeVisible();
 }
 
-test('C15 mounted canonical Trend renders multiple historian Pens through one protected query', async ({ page }) => {
+test('C15 mounted canonical Trend renders multiple historian Pens through one bounded transient sampled query', async ({ page }) => {
   const requests: any[] = [];
   const now = Date.now();
-  await page.route('**/api/historical/query', async route => {
-    requests.push(route.request().postDataJSON());
+  await page.route('**/api/historical/data-query', async route => {
+    const request = route.request().postDataJSON();
+    requests.push(request);
     await fulfillJson(route, historyResponse([
       row(tagOne, 'Area/Pump/Pressure', new Date(now - 10_000).toISOString(), 7.2, 'Good'),
       row(tagOne, 'Area/Pump/Pressure', new Date(now - 5_000).toISOString(), 7.3, 'Good'),
       row(tagTwo, 'Area/Pump/Flow', new Date(now - 5_000).toISOString(), 20.5, 'Good')
-    ]));
+    ], request));
   });
 
   await openHarness(page, '?locale=en');
@@ -58,20 +83,36 @@ test('C15 mounted canonical Trend renders multiple historian Pens through one pr
   await expect(page.getByTestId('visual-trend-legend')).toContainText('20.5 m3/h');
   await expect.poll(() => requests.length).toBeGreaterThanOrEqual(1);
   expect(requests[0]).toMatchObject({
-    version: 1,
-    datasetKey: 'historian.samples',
-    timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
-    filters: [{ field: 'tag.id', operator: 'in' }]
+    definition: {
+      providerKey: 'historical',
+      version: 1,
+      query: {
+        version: 1,
+        datasetKey: 'historian.samples',
+        timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
+        filters: [{ field: 'tag.id', operator: 'in' }],
+        page: { limit: 200 }
+      },
+      selectedFields: ['tag.id', 'tag.path', 'quality', 'value', 'timestamp'],
+      historianRetrieval: {
+        mode: 'sampledFixedStep',
+        stepMilliseconds: expect.any(Number),
+        maximumGapMilliseconds: expect.any(Number)
+      }
+    },
+    execution: {}
   });
-  expect(requests[0].filters[0].values.map((item: any) => item.value)).toEqual([tagOne, tagTwo]);
+  expect(requests[0].definition.query.filters[0].values.map((item: any) => item.value)).toEqual([tagOne, tagTwo]);
+  expect(requests[0].definition.historianRetrieval.stepMilliseconds).toBeGreaterThan(0);
+  expect(requests[0].definition.historianRetrieval.maximumGapMilliseconds).toBeGreaterThan(0);
 });
 
 test('C15 quality gaps are fail-safe even when quality chrome is hidden', async ({ page }) => {
   const now = Date.now();
-  await page.route('**/api/historical/query', async route => {
+  await page.route('**/api/historical/data-query', async route => {
     await fulfillJson(route, historyResponse([
       row(tagOne, 'Area/Pump/Pressure', new Date(now - 15_000).toISOString(), 10, 'Good'),
-      row(tagOne, 'Area/Pump/Pressure', new Date(now - 10_000).toISOString(), 90, 'Uncertain'),
+      gapRow(tagOne, 'Area/Pump/Pressure', new Date(now - 10_000).toISOString()),
       row(tagOne, 'Area/Pump/Pressure', new Date(now - 5_000).toISOString(), 11, 'Good')
     ]));
   });
@@ -87,8 +128,9 @@ test('C15 quality gaps are fail-safe even when quality chrome is hidden', async 
 });
 
 test('C15 mounted Trend localizes no-data state in Spanish', async ({ page }) => {
-  await page.route('**/api/historical/query', async route => {
-    await fulfillJson(route, historyResponse([]));
+  await page.route('**/api/historical/data-query', async route => {
+    const request = route.request().postDataJSON();
+    await fulfillJson(route, historyResponse([], request));
   });
 
   await openHarness(page, '?locale=es');
@@ -98,12 +140,13 @@ test('C15 mounted Trend localizes no-data state in Spanish', async ({ page }) =>
 test('C15 keeps two mounted Trend instances independent', async ({ page }) => {
   const requests: any[] = [];
   const now = Date.now();
-  await page.route('**/api/historical/query', async route => {
-    requests.push(route.request().postDataJSON());
+  await page.route('**/api/historical/data-query', async route => {
+    const request = route.request().postDataJSON();
+    requests.push(request);
     await fulfillJson(route, historyResponse([
       row(tagOne, 'Area/Pump/Pressure', new Date(now - 5_000).toISOString(), 7.1, 'Good'),
       row(tagTwo, 'Area/Pump/Flow', new Date(now - 5_000).toISOString(), 19.8, 'Good')
-    ]));
+    ], request));
   });
 
   await openHarness(page, '?locale=en&count=2');
@@ -120,9 +163,9 @@ test('C15 live mode consumes canonical runtime TAG snapshot and WebSocket update
   let historicalRequests = 0;
   let socketRoute: WebSocketRoute | null = null;
 
-  await page.route('**/api/historical/query', async route => {
+  await page.route('**/api/historical/data-query', async route => {
     historicalRequests += 1;
-    await fulfillJson(route, historyResponse([]));
+    await fulfillJson(route, historyResponse([], route.request().postDataJSON()));
   });
   await page.route('**/api/tags', async route => {
     await fulfillJson(route, [
@@ -191,19 +234,10 @@ test('R2C-P mounted canonical Trend preserves the required absolute interval and
     engineeringWrites += 1;
     await route.abort();
   });
-  await page.route('**/api/historical/query', async route => {
+  await page.route('**/api/historical/data-query', async route => {
     const request = route.request().postDataJSON();
     requests.push(request);
-    await fulfillJson(route, {
-      version: 1,
-      datasetKey: 'historian.samples',
-      columns: [],
-      rows: [],
-      fromUtc: request.timeRange.kind === 'absolute' ? request.timeRange.fromUtc : '2026-09-30T11:00:00Z',
-      toUtc: request.timeRange.kind === 'absolute' ? request.timeRange.toUtc : '2026-09-30T12:00:00Z',
-      nextCursor: null,
-      pageSize: 0
-    });
+    await fulfillJson(route, historyResponse([], request));
   });
 
   await openHarness(page, '?locale=pt-BR&controls=on');
@@ -219,22 +253,24 @@ test('R2C-P mounted canonical Trend preserves the required absolute interval and
     toUtc: '2026-09-28T15:00:00.000Z'
   };
   await expect.poll(() => requests.some(request =>
-    request.timeRange?.kind === expectedAbsoluteRange.kind &&
-    request.timeRange?.fromUtc === expectedAbsoluteRange.fromUtc &&
-    request.timeRange?.toUtc === expectedAbsoluteRange.toUtc
+    request.definition.query.timeRange?.kind === expectedAbsoluteRange.kind &&
+    request.definition.query.timeRange?.fromUtc === expectedAbsoluteRange.fromUtc &&
+    request.definition.query.timeRange?.toUtc === expectedAbsoluteRange.toUtc
   )).toBeTruthy();
   const absolute = requests.find(request =>
-    request.timeRange?.kind === expectedAbsoluteRange.kind &&
-    request.timeRange?.fromUtc === expectedAbsoluteRange.fromUtc &&
-    request.timeRange?.toUtc === expectedAbsoluteRange.toUtc
+    request.definition.query.timeRange?.kind === expectedAbsoluteRange.kind &&
+    request.definition.query.timeRange?.fromUtc === expectedAbsoluteRange.fromUtc &&
+    request.definition.query.timeRange?.toUtc === expectedAbsoluteRange.toUtc
   );
-  expect(absolute.timeRange).toEqual(expectedAbsoluteRange);
-  expect(absolute.filters[0].values.map((item: any) => item.value)).toEqual([tagOne, tagTwo]);
+  expect(absolute.definition.query.timeRange).toEqual(expectedAbsoluteRange);
+  expect(absolute.definition.query.filters[0].values.map((item: any) => item.value)).toEqual([tagOne, tagTwo]);
+  expect(absolute.definition.historianRetrieval.mode).toBe('sampledFixedStep');
+  expect(absolute.definition.historianRetrieval.stepMilliseconds).toBeGreaterThan(60_000);
 
   const countBeforeRefresh = requests.length;
   await controls.getByRole('button', { name: 'Atualizar' }).click();
   await expect.poll(() => requests.length).toBeGreaterThan(countBeforeRefresh);
-  expect(requests.at(-1).timeRange).toEqual(absolute.timeRange);
+  expect(requests.at(-1).definition.query.timeRange).toEqual(absolute.definition.query.timeRange);
 
   await controls.getByLabel('Período').selectOption('live');
   await expect(page.getByTestId('visual-trend')).toHaveAttribute('data-trend-source', 'runtime-tags');

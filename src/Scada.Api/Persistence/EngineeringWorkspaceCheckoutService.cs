@@ -57,7 +57,14 @@ public sealed class EngineeringWorkspaceCheckoutService(
             var snapshot = await store.LoadRevisionAsync(projectKey.Trim(), revision, cancellationToken);
             if (snapshot is null) return null;
 
-            var (package, importContext) = await ParseAndValidateAsync(snapshot, cancellationToken);
+            var (parsedPackage, importContext) = await ParseAndValidateAsync(snapshot, cancellationToken);
+            // A checkout replaces the complete Working project. Older revisions
+            // without RuntimePresentation therefore mean the documented defaults,
+            // unlike partial imports where an omitted field means "leave unchanged".
+            var package = parsedPackage with
+            {
+                RuntimePresentation = parsedPackage.RuntimePresentation ?? new RuntimePresentationEngineeringDto()
+            };
             var preview = PreviewInIsolation(package, importContext);
             if (!preview.CanApply)
             {

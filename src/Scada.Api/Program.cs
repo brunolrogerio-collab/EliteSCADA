@@ -638,7 +638,7 @@ app.MapPost("/api/engineering/import/json/preview", async (HttpRequest request, 
         mode,
         exchange,
         EngineeringImportBodyReader.ReadJsonAsync,
-        exchange.ParseJson))
+        exchange.ParseJsonForImport))
     .RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/json/apply", async (
@@ -660,7 +660,7 @@ app.MapPost("/api/engineering/import/json/apply", async (
         async () =>
         {
             var body = await EngineeringImportBodyReader.ReadJsonAsync(request, context.RequestAborted);
-            return exchange.ParseJson(body);
+            return exchange.ParseJsonForImport(body);
         });
 });
 

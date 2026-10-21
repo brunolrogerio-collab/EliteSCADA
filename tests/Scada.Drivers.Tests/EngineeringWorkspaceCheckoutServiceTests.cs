@@ -85,6 +85,43 @@ public sealed class EngineeringWorkspaceCheckoutServiceTests
     }
 
     [Fact]
+    public async Task CheckoutAsync_LegacyRevisionWithoutRuntimePresentationUsesDocumentedDefaults()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var exchange = CreateExchange(workspace);
+        var existingPresentation = new RuntimePresentationEngineeringDto(
+            HistoricalPlaybackEnabled: true,
+            MobileOrientation: "portrait",
+            Header: new RuntimeHeaderEngineeringDto(Height: 72));
+        var seed = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            RuntimePresentation: existingPresentation);
+        Assert.Empty(exchange.Apply(seed, ImportMode.CreateAndUpdate).Issues);
+
+        var legacyPackage = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>());
+        var snapshot = Snapshot(22, "legacy-presentation", "Legacy presentation", legacyPackage);
+        var service = new EngineeringWorkspaceCheckoutService(
+            new SingleSnapshotStore(snapshot),
+            exchange,
+            workspace);
+
+        var outcome = await service.CheckoutAsync(snapshot.ProjectKey, snapshot.Revision);
+
+        Assert.NotNull(outcome);
+        Assert.True(outcome!.CheckedOut);
+        Assert.Equal(new RuntimePresentationEngineeringDto(), exchange.ExportPackage().RuntimePresentation);
+    }
+
+    [Fact]
     public async Task CheckoutAsync_RestoresVersion2IntelligenceAcrossFreshWorkspaceHydration()
     {
         var tagId = Guid.Parse("53000000-0000-0000-0000-000000000001");

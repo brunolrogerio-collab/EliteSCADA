@@ -504,7 +504,10 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _securityScopeHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
         PreviewOperationalHmiReferences(package, items);
-        var requestedRuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto();
+        // Runtime presentation is project-level state. Imports may intentionally
+        // contain only a partial resource update (for example, an Engineering Lock
+        // update); absence must not erase the current header/mobile settings.
+        var requestedRuntimePresentation = package.RuntimePresentation ?? _runtimePresentation;
         var runtimeScreenKeys = (package.Screens ?? Array.Empty<ScreenEngineeringDto>())
             .Where(screen => screen is not null && !string.IsNullOrWhiteSpace(screen.Key))
             .Select(screen => screen.Key)
@@ -530,7 +533,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
              dateTime.Order is >= 0 and <= 20 &&
              dateTime.DateFormat is "dd/MM/yyyy" or "MM/dd/yyyy" or "yyyy-MM-dd" &&
              dateTime.TimeFormat is "24h" or "12h");
-        var invalidHeader = header is not null &&
+        var invalidHeader = package.RuntimePresentation is not null && header is not null &&
             (header.Height is < 32 or > 168 || header.TitlePosition is not ("left" or "center" or "right") ||
              header.ControlsPosition is not ("left" or "right") || header.ControlsOrder is < 0 or > 20 ||
              !IsValidHeaderColor(header.BackgroundColor) ||
@@ -541,11 +544,12 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                  string.IsNullOrWhiteSpace(link.ScreenKey) ||
                  !runtimeScreenKeys.Contains(link.ScreenKey) ||
                  (link.VisualAssetId.HasValue && !(package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>()).Any(asset => asset is not null && asset.Id == link.VisualAssetId && asset.MediaType?.StartsWith("image/", StringComparison.Ordinal) == true))) ?? false));
-        var invalidMobile = requestedRuntimePresentation.MobileScreens?.Any(pair => !runtimeScreenKeys.Contains(pair.Key) || !runtimeScreenKeys.Contains(pair.Value)) ?? false;
+        var invalidMobile = package.RuntimePresentation is not null &&
+            (requestedRuntimePresentation.MobileScreens?.Any(pair => !runtimeScreenKeys.Contains(pair.Key) || !runtimeScreenKeys.Contains(pair.Value)) ?? false);
         if (invalidHeader || invalidMobile)
             items.Add(new ImportPreviewItem(ImportEntityKind.RuntimePresentation, "runtime-presentation", ImportOperation.Error,
                 [new ImportIssue("RUNTIME_PRESENTATION_REFERENCE_INVALID", "Header settings or mobile screen references are invalid.", ImportEntityKind.RuntimePresentation, "runtime-presentation", true)]));
-        if (requestedRuntimePresentation.MobileOrientation is not ("landscape" or "portrait"))
+        if (package.RuntimePresentation is not null && requestedRuntimePresentation.MobileOrientation is not ("landscape" or "portrait"))
             items.Add(new ImportPreviewItem(
                 ImportEntityKind.RuntimePresentation,
                 "runtime-presentation",
@@ -559,7 +563,9 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         items.Add(new ImportPreviewItem(
             ImportEntityKind.RuntimePresentation,
             "runtime-presentation",
-            requestedRuntimePresentation == _runtimePresentation ? ImportOperation.Skip : ImportOperation.Update,
+            package.RuntimePresentation is null || requestedRuntimePresentation == _runtimePresentation
+                ? ImportOperation.Skip
+                : ImportOperation.Update,
             Array.Empty<ImportIssue>()));
 
         return new ImportPreview(
@@ -599,11 +605,11 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _visualAssetHandler.Apply(package, mode, ref created, ref updated, ref skipped, context);
         if (package.Branding is not null)
             _branding.Replace(package.Branding);
-        var requestedRuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto();
-        if (requestedRuntimePresentation == _runtimePresentation) skipped++;
+        if (package.RuntimePresentation is null) skipped++;
+        else if (package.RuntimePresentation == _runtimePresentation) skipped++;
         else
         {
-            _runtimePresentation = requestedRuntimePresentation;
+            _runtimePresentation = package.RuntimePresentation;
             updated++;
         }
         _viewHandler.Apply(package, mode, ref created, ref updated, ref skipped);

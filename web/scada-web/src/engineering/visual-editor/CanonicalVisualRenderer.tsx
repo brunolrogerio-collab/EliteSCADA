@@ -73,6 +73,7 @@ export type CanonicalVisualRendererProps = {
   liveBindings?: boolean;
   bindingSamples?: ReadonlyMap<string, VisualLiveScalarSample>;
   operatorTimeRangeControls?: boolean;
+  historicalQueriesEnabled?: boolean;
 };
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
@@ -99,7 +100,8 @@ export function CanonicalVisualRenderer({
   showTechnicalFallbackText = true,
   liveBindings = true,
   bindingSamples,
-  operatorTimeRangeControls = false
+  operatorTimeRangeControls = false,
+  historicalQueriesEnabled = true
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
   const runtimeBindingElements = React.useMemo(
@@ -124,6 +126,7 @@ export function CanonicalVisualRenderer({
       visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
       operatorTimeRangeControls={operatorTimeRangeControls}
+      historicalQueriesEnabled={historicalQueriesEnabled}
     />)}
   </div>;
 }
@@ -140,7 +143,8 @@ function CanonicalElement({
   onTagWrite,
   visualAssetUrl,
   showTechnicalFallbackText,
-  operatorTimeRangeControls
+  operatorTimeRangeControls,
+  historicalQueriesEnabled = true
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -154,6 +158,7 @@ function CanonicalElement({
   visualAssetUrl: VisualAssetUrlResolver;
   showTechnicalFallbackText: boolean;
   operatorTimeRangeControls: boolean;
+  historicalQueriesEnabled?: boolean;
 }) {
   if ((element.dynamoDefinitionId || element.dynamoKey) && dynamoDefinitions) {
     return <CanonicalDynamoElement
@@ -517,6 +522,7 @@ function CanonicalElement({
         locale={locale}
         enabled={enabled}
         operatorTimeRangeControls={operatorTimeRangeControls}
+        dataQueriesEnabled={historicalQueriesEnabled}
         onClick={onClick}
       />;
     }

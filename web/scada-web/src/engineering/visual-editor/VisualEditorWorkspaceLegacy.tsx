@@ -82,13 +82,15 @@ type VisualEditorWorkspaceProps = {
   definitionKind?: 'screen' | 'template' | 'dynamo';
   initialDefinitionKey?: string | null;
   onRequestClose?: () => void;
+  initialScreenDraft?: ScreenEngineering | null;
+  onInitialScreenDraftConsumed?: (key: string) => void;
 };
 
 type ValidatedCandidate = { package: EngineeringPackageView; changeVersion: number };
 
 const DEFAULT_VIEWPORT: VisualEditorViewport = Object.freeze({ zoom: 1, panX: 0, panY: 0 });
 
-export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImported, definitionKind = 'screen', initialDefinitionKey, onRequestClose }: VisualEditorWorkspaceProps) {
+export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImported, definitionKind = 'screen', initialDefinitionKey, onRequestClose, initialScreenDraft, onInitialScreenDraftConsumed }: VisualEditorWorkspaceProps) {
   const text = useMemo(() => {
     const copy = visualEditorText(locale);
     if (definitionKind === 'dynamo') {
@@ -114,7 +116,11 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     : definitionKind === 'dynamo'
       ? dynamos.map(dynamoAsScreen)
       : snapshot.package.screens ?? [];
+  const initialScreenDraftRef = useRef<ScreenEngineering | null>(
+    definitionKind === 'screen' && initialScreenDraft ? cloneEngineeringValue(initialScreenDraft) : null
+  );
   const [selectedIdentity, setSelectedIdentity] = useState<string>(() => {
+    if (initialScreenDraftRef.current) return NEW_SCREEN_IDENTITY;
     const initial = initialDefinitionKey ? screens.find(screen => screen.key === initialDefinitionKey) : null;
     const first = initial ?? screens[0];
     return first ? screenIdentity(first) : NEW_SCREEN_IDENTITY;
@@ -123,7 +129,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
   const selected = !isNew ? screens.find(screen => matchesScreenIdentity(screen, selectedIdentity)) ?? null : null;
   const selectedTemplate = definitionKind === 'template' && selected ? templates.find(item => screenIdentity(item) === screenIdentity(selected)) ?? null : null;
   const selectedDynamo = definitionKind === 'dynamo' && selected ? dynamos.find(item => (item.id ? `id:${item.id}` : `key:${item.key}`) === screenIdentity(selected)) ?? null : null;
-  const initialDraft = selected ? cloneEngineeringValue(selected) : createDraft(screens, locale, definitionKind);
+  const initialDraft = selected ? cloneEngineeringValue(selected) : initialScreenDraftRef.current ?? createDraft(screens, locale, definitionKind);
   const [session, setSessionState] = useState<VisualEditorSessionState>(() => createVisualEditorSession(initialDraft));
   const [dynamoParameters, setDynamoParameters] = useState<readonly DynamoParameterDefinitionEngineering[]>(
     () => Object.freeze([...(selectedDynamo?.parameters ?? [])])
@@ -196,10 +202,13 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     if (selectedIdentity === NEW_SCREEN_IDENTITY) {
       const pasted = pendingScreenPasteRef.current;
       pendingScreenPasteRef.current = null;
-      replaceSession(createVisualEditorSession(pasted ?? createDraft(screens, locale, definitionKind)));
+      const dashboardDraft = initialScreenDraftRef.current;
+      initialScreenDraftRef.current = null;
+      replaceSession(createVisualEditorSession(pasted ?? dashboardDraft ?? createDraft(screens, locale, definitionKind)));
       setDynamoParameters(Object.freeze([]));
       setViewport(DEFAULT_VIEWPORT);
       invalidateValidation();
+      if (dashboardDraft) onInitialScreenDraftConsumed?.(dashboardDraft.key);
       return;
     }
     const current = screens.find(screen => matchesScreenIdentity(screen, selectedIdentity)) ?? null;
@@ -216,7 +225,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     }
     if (screens[0]) setSelectedIdentity(screenIdentity(screens[0]));
     else setSelectedIdentity(NEW_SCREEN_IDENTITY);
-  }, [selectedIdentity, snapshot.package, definitionKind]);
+  }, [selectedIdentity, snapshot.package, definitionKind, onInitialScreenDraftConsumed]);
 
   const visualDefinitionChanged = selected !== null && JSON.stringify(selected) !== JSON.stringify(draft);
   const publicInterfaceChanged = definitionKind === 'dynamo' &&
@@ -547,6 +556,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
 
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
   const objectCount = countVisualElements(draft.elements);
+  const intelligenceDashboardDraft = isNew && draft.metadata?.intelligenceDashboardGenerator === 'stage5b.1';
 
   const layoutClassName = [
     'eng-section visual-editor-workspace',
@@ -664,6 +674,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
                 height: logicalScreenSize.height,
                 label: `${locale === 'en' ? 'Runtime screen' : locale === 'es' ? 'Pantalla de Runtime' : 'Tela do Runtime'} · ${logicalScreenSize.width} × ${logicalScreenSize.height}`
               } : undefined}
+              liveDataEnabled={!intelligenceDashboardDraft}
               polygonToolActive={polygonToolActive}
               onPolygonToolCancel={() => setPolygonToolActive(false)}
               bezierToolActive={bezierToolActive}

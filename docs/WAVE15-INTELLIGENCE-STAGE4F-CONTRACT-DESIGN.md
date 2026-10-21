@@ -1,14 +1,14 @@
-# Stage 4F — experimental contract (local implementation under verification)
+# Stage 4F — experimental contract (draft PR #687 under verification)
 
 | Field | Value |
 | --- | --- |
-| Status | **Additive v1 experimental implementation exists in an isolated local worktree; not merged, field-validated, or frozen for product release.** |
+| Status | **Additive v1 experimental implementation is in draft PR #687. Exact-head T1 run #39531733156 passed on implementation candidate `6f9557316cf9c9a3ce2a2ac4e5a1aa74f5b59297` (1,684 passed / 1 skipped / 0 failed, plus common sanity and T1 gate). Not merged, field-validated, or frozen for product release.** |
 | Date | 2026-10-21 |
 | Parent | [#588 — Asset & Process Intelligence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588) |
 | Governing scope | [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md) and [the 4F acceptance plan](WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md) |
-| Product baseline inspected | `6b324035ef54bfb57901a4d6a2a6f5f621b09156` |
+| Product baseline inspected | Exact PR base `63182e021730ad4fb35532481e28d7a16fc04be3` |
 
-This note records the implementation boundary now being verified without reopening 4A–4E or claiming a field-validated detector. It is not an ADR or approval for release: the route/schema/method are an additive local v1 experimental contract and remain subject to review before integration. The Product Owner authorized simulation-validated experimental implementation on 2026-10-20. Output remains explicitly experimental; synthetic checks do not meet operational acceptance targets or establish field validity. #588 remains **PARTIAL** until its broader acceptance gate is satisfied; 4G remains separate.
+This note records the implementation boundary under PR review without reopening 4A–4E or claiming a field-validated detector. It is not an ADR or approval for release: the route/schema/method are an additive v1 experimental contract and remain subject to CI/Main review before integration. The Product Owner authorized simulation-validated experimental implementation on 2026-10-20. Output remains explicitly experimental; synthetic checks do not meet operational acceptance targets or establish field validity. #588 remains **PARTIAL** until its broader acceptance gate is satisfied; 4G remains separate.
 
 ## Existing contracts inspected
 
@@ -46,9 +46,9 @@ The local implementation uses the following semantic boundary; names and method 
 - Remain on-demand, read-only and bounded. No model training service, background learner, process write, alarm mutation, local-only authorization cache, parallel policy store, or new persistence layer is implied by this design.
 - Preserve fail-closed behavior on permission/permit revocation, scope/profile/configuration changes, provider errors, cursor repetition, exceeded budgets, incomplete cohorts and unavailable calibration. Never return a partial or stale score after invalidation.
 
-## Local implementation and evidence
+## Candidate implementation and evidence
 
-The local implementation is in `src/Scada.Core/Intelligence/Experimental/ExperimentalJointDeviation.cs`, `src/Scada.Api/Licensing/AssetProcessIntelligenceExperimentalJointDeviationV1.cs` and `AssetProcessIntelligenceAnalyticsService.cs`, with separate API routes `/experimental-joint-deviation/v1/catalog` and `/experimental-joint-deviation/v1/query`. It reuses the existing Historian v2 reader, 4E typed predicates, `TrendUse`, entitlement, per-TAG `TagRead`, execution permit, query budget and final workspace/config revalidation. Main's current Windows/Linux evidence is recorded in `CURRENT-COORDINATOR-HANDOFF.md`; this isolated work has not changed GitHub branches/PRs or the owner's Preview.
+The candidate is in [draft PR #687](https://github.com/brunolrogerio-collab/EliteSCADA/pull/687), exact base `63182e021730ad4fb35532481e28d7a16fc04be3`. Implementation commit `8239028` is included in candidate head `6f9557316cf9c9a3ce2a2ac4e5a1aa74f5b59297`, which passed exact-head T1 #39531733156 (1,684 passed / 1 skipped / 0 failed, plus common sanity and T1 gate). It is implemented in `src/Scada.Core/Intelligence/Experimental/ExperimentalJointDeviation.cs`, `src/Scada.Api/Licensing/AssetProcessIntelligenceExperimentalJointDeviationV1.cs` and `AssetProcessIntelligenceAnalyticsService.cs`, with separate API routes `/experimental-joint-deviation/v1/catalog` and `/experimental-joint-deviation/v1/query`. It reuses the existing Historian v2 reader, 4E typed predicates, `TrendUse`, entitlement, per-TAG `TagRead`, execution permit, query budget and final workspace/config revalidation. Local Windows/Linux evidence is recorded in `CURRENT-COORDINATOR-HANDOFF.md`. This PR does not access or change the owner's local Preview.
 
 Remaining before a candidate handoff/integration, verify:
 

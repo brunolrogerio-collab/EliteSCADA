@@ -1,14 +1,14 @@
-# Stage 4F — candidate contract boundary (design only)
+# Stage 4F — experimental contract (local implementation under verification)
 
 | Field | Value |
 | --- | --- |
-| Status | **Design aid only — not a frozen API/DTO, method decision, or implementation authorization** |
-| Date | 2026-10-20 |
+| Status | **Additive v1 experimental implementation exists in an isolated local worktree; not merged, field-validated, or frozen for product release.** |
+| Date | 2026-10-21 |
 | Parent | [#588 — Asset & Process Intelligence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588) |
 | Governing scope | [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md) and [the 4F acceptance plan](WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md) |
 | Product baseline inspected | `6b324035ef54bfb57901a4d6a2a6f5f621b09156` |
 
-This note records the narrow API boundary that can be designed without reopening 4A–4E or claiming a validated joint detector. It is intentionally not an ADR and does not reserve a route, JSON schema, C# DTO, algorithm, threshold, sample minimum, calibration procedure, or persistence strategy. Any product implementation still requires a separately authorized, eligible representative cohort and a fresh Main release under ADR-021. Until then, joint detection remains **NOT DELIVERED / NOT VALIDATED**, #588 remains **PARTIAL**, and 4G remains gated.
+This note records the implementation boundary now being verified without reopening 4A–4E or claiming a field-validated detector. It is not an ADR or approval for release: the route/schema/method are an additive local v1 experimental contract and remain subject to review before integration. The Product Owner authorized simulation-validated experimental implementation on 2026-10-20. Output remains explicitly experimental; synthetic checks do not meet operational acceptance targets or establish field validity. #588 remains **PARTIAL** until its broader acceptance gate is satisfied; 4G remains separate.
 
 ## Existing contracts inspected
 
@@ -18,9 +18,9 @@ This note records the narrow API boundary that can be designed without reopening
 - `AssetProcessIntelligenceOperatingContextProfileEngineeringDto` and `AssetProcessIntelligenceAssignmentEngineeringDto` in `src/Scada.Engineering/Contracts/EngineeringContracts.cs` are the current Engineering-owned context/assignment configuration. Stage 4F should reference these stable identities and the active workspace revision, not duplicate policy or profile data in a second authoritative store.
 - `MapPost` registrations in `src/Scada.Api/Licensing/AssetProcessIntelligenceAnalyticsApi.cs` and the corresponding `ExecuteContextualDeviationVectorV2Async`, `ExecuteReferenceEvidenceV1Async` and `ExecuteContextEligibilityV1Async` paths in `AssetProcessIntelligenceAnalyticsService.cs` are the current extension/security pattern. They check `TrendUse`, the Intelligence entitlement, canonical profile/scope/TAG-read fences, execution permit cancellation, bounded Historian reads and final workspace/configuration revalidation.
 
-## Candidate logical boundary
+## Implemented logical boundary
 
-The following semantic inputs/outputs are useful design constraints, **not field names to freeze**.
+The local implementation uses the following semantic boundary; names and method details are reviewable until integration, and none of it claims field validity.
 
 ### Request semantics
 
@@ -33,35 +33,39 @@ The following semantic inputs/outputs are useful design constraints, **not field
 
 - A cohort may contain a decision only when every selected target has exactly one `Good`, finite numeric observation at the same unique UTC source timestamp with explicit `Synchronized` evidence and a matching declared context. Duplicate timestamps, missing values, quality/synchronization failures and context mismatches remain exclusions/evidence; never align by nearest time, hold, interpolation or imputation.
 - Treat cadence/completeness as unknown unless an existing explicit contract proves it. Do not turn observation counts into hours or exposure. Reuse the existing 4D/4E evidence semantics; do not weaken them to get a score.
-- The logical result has a distinct version/rule identity and explicit outcome. A score is present only when the selected method's own fitting, conditioning and calibration requirements are satisfied. Every unavailable-score outcome returns **no score** and a stable insufficiency reason; an API error is not converted to a low/normal score.
-- When a future method is approved, expose its score, decision threshold and exact method/calibration identity together. Also expose per-target residual/contribution information sufficient to explain how each selected signal relates to the aggregate result. The numeric definition, normalization and contribution calculation are method-dependent and remain undecided here.
-- Include auditable per-signal and complete-cohort evidence plus source-time, context, reference-window and software/rule provenance. Keep result interpretation to deviation from the caller-selected reference under the declared context. No fault diagnosis, cause, probability, efficiency claim without required measurements, RUL, healthy-state certification or safe-state claim.
+- The logical result has a distinct version/rule identity and explicit outcome. A score is present only when the experimental method's fit and conditioning requirements are satisfied. If no threshold has been validated for the declared operating context, return the score as **experimental without classification**; do not fabricate a low/normal/alert state. Every unavailable-score outcome returns **no score** and a stable insufficiency reason; an API error is not converted to a score.
+- The current score response has no operational or synthetic decision threshold (`decisionThreshold: null`), sets `validationStatus=experimental_not_field_validated` and `classificationStatus=none`, and returns per-target level/marginal-variance contributions plus the cross-signal interaction. It makes no alarm, fault, probability, diagnosis, efficiency or RUL claim.
+- The response enumerates selected target and context TAGs and includes reference/evaluation evidence per signal: raw rows, Good-quality rows, type-compatible values, UTC/in-window/synchronized source timestamps, duplicate timestamp groups/rows, accepted synchronized unique rows, and context-predicate matches. Duplicate groups/rows are limited to UTC source timestamps inside that requested window; out-of-window rows cannot contaminate a window's diagnostics. These diagnostic counters overlap and are not additive; only the accepted unique count is the final per-signal source-evidence gate. Complete-cohort counts are reported separately.
+- The current fit requires at least `max(100, 20 × target count)` reference innovations after contiguous-run breaks. A 40-cohort evaluation window needs warmup; reference/evaluation windows are exact, disjoint, UTC and at most 31 days. A shared 50,000-raw-row budget and 500 returned score cap bound the read-only query.
+- Include auditable complete-cohort counts and source-time, context, reference-window and software/rule provenance. Keep result interpretation to deviation from the caller-selected reference under the declared context. No fault diagnosis, cause, probability, efficiency claim without required measurements, RUL, healthy-state certification or safe-state claim.
 
 ### Execution/security semantics
 
-- Add a separate versioned route only after the data/method gate and a fresh implementation release. Do not reuse `/contextual-deviation-vector/v2/query` or change its behavior.
+- Add a separate versioned route; do not reuse `/contextual-deviation-vector/v2/query` or change its behavior. The route must remain read-only and can return a score without an operational decision threshold while field evidence is pending.
 - Follow existing Analytics service guards: runtime `TrendUse`, Intelligence entitlement, canonical Authority and per-TAG `TagRead`, execution/permit cancellation, the established Historian provider, explicit row/window limits, and final workspace/runtime/configuration revalidation before returning a result.
 - Remain on-demand, read-only and bounded. No model training service, background learner, process write, alarm mutation, local-only authorization cache, parallel policy store, or new persistence layer is implied by this design.
 - Preserve fail-closed behavior on permission/permit revocation, scope/profile/configuration changes, provider errors, cursor repetition, exceeded budgets, incomplete cohorts and unavailable calibration. Never return a partial or stale score after invalidation.
 
-## Future implementation evidence checklist
+## Local implementation and evidence
 
-Once eligible data and a fresh package are authorized, add exact-contract tests for:
+The local implementation is in `src/Scada.Core/Intelligence/Experimental/ExperimentalJointDeviation.cs`, `src/Scada.Api/Licensing/AssetProcessIntelligenceExperimentalJointDeviationV1.cs` and `AssetProcessIntelligenceAnalyticsService.cs`, with separate API routes `/experimental-joint-deviation/v1/catalog` and `/experimental-joint-deviation/v1/query`. It reuses the existing Historian v2 reader, 4E typed predicates, `TrendUse`, entitlement, per-TAG `TagRead`, execution permit, query budget and final workspace/config revalidation. Main's current Windows/Linux evidence is recorded in `CURRENT-COORDINATOR-HANDOFF.md`; this isolated work has not changed GitHub branches/PRs or the owner's Preview.
+
+Remaining before a candidate handoff/integration, verify:
 
 1. additive versioning: all frozen 4A–4E request/response/catalog behavior and serialization remain unchanged;
 2. stable identity resolution: missing/duplicate/stale assignment, profile, context version, signal, TAG or unit fails before data access;
 3. cohort construction: exact UTC uniqueness, `Good` finite numeric values, explicit `Synchronized` evidence, all-target completeness, declared-context matching and no imputation;
-4. mathematical fail-closed cases: undersized cohort, singular/ill-conditioned fit, unavailable calibration and invalid parameters return insufficiency with no score/threshold;
-5. deterministic score, threshold and per-signal explanations from frozen model/configuration inputs, with no access to holdout during fitting/calibration;
+4. mathematical fail-closed cases: undersized cohort, singular/ill-conditioned fit and invalid parameters return insufficiency with no score; absent field calibration suppresses classification rather than blocking the experimental score;
+5. deterministic score and per-signal explanations from frozen model/configuration inputs; separate fitting/calibration/holdout roles whenever a threshold is exercised in simulation, with no access to holdout during fitting/calibration;
 6. security/lifecycle: disabled Intelligence, denied `TagRead`, permit revocation/cancellation and configuration changes discard work; bounded paging/row budgets reject partial-result leakage;
 7. storage/restart only if the selected method actually requires persisted artifacts, using an explicitly approved canonical ownership and migration design;
 8. isolated Windows and Linux tests plus exact-head CI and exact-merge evidence. Synthetic tests prove mechanics only; 4G/field validity still needs representative held-out evidence.
 
-## Unresolved release gates (intentionally not decided)
+## Field-validation gates (not blockers to the experimental implementation)
 
-- A separately authorized owner-Historian cohort must pass the existing provenance, coverage, label, exposure and context criteria in the 4F plan. The prepared request workbook/local preflight establish structure and declared metadata only; they do not establish analytical eligibility.
-- A preregistered evaluation must choose or reject method, sample sufficiency, regularization, calibration partition and threshold against the binding acceptance plan. The completed #675 result selected no winner; #680's one-use holdout must not be replayed; #683 remains an experimental draft and does not approve a method.
-- Only after those gates may Main freeze the exact API/catalog schema and release product implementation. 4G validation, broader Stage 4 closure and later stages remain separate gates.
+- A separately authorized owner/product-test cohort must pass the provenance, coverage, label, exposure and context criteria in the 4F plan before field-performance claims. The prepared request workbook/local preflight establish structure and declared metadata only; they do not establish analytical eligibility.
+- Future representative evaluation must assess or improve sample sufficiency, regularization and threshold against the binding operational targets. The completed #675 and #680 experiments retain their results; #680's one-use holdout must not be replayed. PR #683 remains experimental evidence only and does not approve field performance.
+- Simulation closes software/math/integration gaps only. 4G validation, broader Stage 4 closure and later stages remain separate gates.
 
 ## Source anchors
 

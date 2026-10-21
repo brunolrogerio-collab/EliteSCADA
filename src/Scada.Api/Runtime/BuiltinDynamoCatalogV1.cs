@@ -182,6 +182,8 @@ public static class BuiltinDynamoCatalogV1
         foreach (var shape in stateShapes)
         {
             shape.SetAttributeValue("data-elitescada-slot", "state");
+            if (sourceFile == "motor-vertical.svg")
+                shape.SetAttributeValue("fill", "#93B99A");
             // A flat base color leaves the mapped state color writable; the SVG's
             // cooling ribs, hardware, outlines and highlights retain their detail.
             if (shape.Attribute("fill")?.Value.StartsWith("url(", StringComparison.OrdinalIgnoreCase) == true)
@@ -229,8 +231,10 @@ public static class BuiltinDynamoCatalogV1
                 element.Attribute("d")?.Value.TrimStart().StartsWith("M 40 40", StringComparison.Ordinal) == true),
             "motor-inclinado-amarelo.svg" => shapes.Where(element => element.Name == svg + "rect" &&
                 element.Attribute("x")?.Value == "40" && element.Attribute("y")?.Value == "30"),
+            // Housing, cooling ribs and terminal box are painted together. Keep
+            // the metallic shaft separate; neutral overlays retain tonal detail.
             "motor-vertical.svg" => shapes.Where(element => element.Name == svg + "rect" &&
-                element.Attribute("x")?.Value == "35" && element.Attribute("y")?.Value == "30"),
+                element.Attribute("fill")?.Value is "#E6D319" or "#D4C214" or "#EBF01D"),
             "valvula-manual-volante.svg" => shapes.Where(element => element.Name == svg + "rect" &&
                 element.Attribute("x")?.Value == "65" && element.Attribute("y")?.Value == "100"),
             "corpo-esferico-dourado.svg" => shapes.Where(element =>
@@ -247,6 +251,21 @@ public static class BuiltinDynamoCatalogV1
     private static void RefineReferenceArtworkPalette(string file, XElement root)
     {
         XNamespace svg = "http://www.w3.org/2000/svg";
+        if (file == "motor-vertical.svg")
+        {
+            foreach (var part in root.Descendants(svg + "rect").Where(element =>
+                         element.Attribute("data-elitescada-slot")?.Value == "state" &&
+                         element.Attribute("y")?.Value is "55" or "110").ToArray())
+            {
+                var highlight = part.Attribute("y")?.Value == "110";
+                var tone = new XElement(part);
+                tone.SetAttributeValue("data-elitescada-slot", null);
+                tone.SetAttributeValue("fill", highlight ? "#FFFFFF" : "#000000");
+                tone.SetAttributeValue("fill-opacity", highlight ? "0.12" : "0.18");
+                tone.SetAttributeValue("stroke", "none");
+                part.AddAfterSelf(tone);
+            }
+        }
         if (file == "motor-horizontal-vermelho.svg")
         {
             foreach (var finGroup in root.Descendants(svg + "g").Where(element =>

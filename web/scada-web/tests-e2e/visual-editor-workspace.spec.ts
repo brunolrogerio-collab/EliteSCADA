@@ -153,6 +153,9 @@ test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and co
 
 test('Wave 08 composes Canvas, palette, properties, project-source binding, image asset and canonical save/reopen', async ({ page, request }) => {
   page.setDefaultTimeout(5_000);
+  // CI runners can need longer to navigate into the full Engineering shell;
+  // keep the short interaction budget while giving page navigation its own bound.
+  page.setDefaultNavigationTimeout(20_000);
 
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();

@@ -412,6 +412,7 @@ export function EngineeringProjectManagementWorkspace({ locale }: { locale: Engi
               <button type="button" data-testid="project-tabular-export-xlsx" onClick={() => void downloadTabular('xlsx')} disabled={Boolean(busy)}>{copy.downloadXlsx}</button>
             </div>
           </CardHeader>
+          <p className="eng-project-management__tabular-identity-hint" data-testid="project-tabular-identities-hint" role="note">{copy.tabularIdentityHint}</p>
 
           <label className="eng-project-management__mode">
             <span>{copy.tabularEntity}</span>

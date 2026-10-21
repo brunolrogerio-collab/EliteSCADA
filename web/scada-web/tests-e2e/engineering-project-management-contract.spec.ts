@@ -199,6 +199,7 @@ test('tabular import/export can be operated from the Engineering project-managem
 
   const card = page.getByTestId('project-tabular-portability');
   await expect(card).toBeVisible();
+  await expect(card.getByTestId('project-tabular-identities-hint')).toContainText(/DataSourceKey.*TagPath/);
 
   const [xlsxDownload] = await Promise.all([
     page.waitForEvent('download'),

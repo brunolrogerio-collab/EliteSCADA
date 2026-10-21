@@ -15,7 +15,8 @@ internal sealed class EngineeringCsvExchange
         "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "AddressSelectorKind", "AddressSelectorIndex", "ReadOnly",
         "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband", "PeriodMilliseconds",
         "MaximumPeriodMilliseconds", "Description", "MetadataJson", "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson",
-        "InitialValueDataType", "InitialValueJson", "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId",
+        "InitialValueDataType", "InitialValueJson", "CommunicationBindingJson", "DataSourceId", "DataSourceKey",
+        "HistorianCaptureProfileId", "HistorianCaptureProfileKey",
         "ControlledEngineeringUnitJson", "ControlledEngineeringUnitContractVersion"
     ];
     private static readonly string[] AlarmColumns =
@@ -39,6 +40,12 @@ internal sealed class EngineeringCsvExchange
     public EngineeringCsvExchange(JsonSerializerOptions json) => _json = json;
 
     public string ExportTags(IReadOnlyCollection<TagEngineeringDto> tags)
+        => ExportTags(tags, [], []);
+
+    public string ExportTags(
+        IReadOnlyCollection<TagEngineeringDto> tags,
+        IReadOnlyCollection<DataSourceEngineeringDto>? dataSources,
+        IReadOnlyCollection<HistorianCaptureProfileEngineeringDto>? historianProfiles)
     {
         if (tags.Any(tag => ContainsPlaintextSecret(tag.CommunicationBinding?.EffectiveSettings)))
             throw new InvalidDataException("Export blocked because a TAG contains plaintext secret material. Replace it with a secret reference first.");
@@ -47,20 +54,44 @@ internal sealed class EngineeringCsvExchange
         {
             new[]
             {
-                "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "AddressSelectorKind", "AddressSelectorIndex", "ReadOnly",
+                "Path", "Name", "DataType", "Unit", "DataSourceKey", "Address", "AddressSelectorKind", "AddressSelectorIndex", "ReadOnly",
                 "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband",
                 "PeriodMilliseconds", "MaximumPeriodMilliseconds", "Description", "MetadataJson",
                 "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson", "InitialValueDataType", "InitialValueJson",
-                "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId", "ControlledEngineeringUnitJson",
+                "CommunicationBindingJson", "HistorianCaptureProfileKey", "ControlledEngineeringUnitJson",
                 "ControlledEngineeringUnitContractVersion"
             }
         };
+
+        var dataSourceKeys = (dataSources ?? Array.Empty<DataSourceEngineeringDto>())
+            .Where(item => item.Id.HasValue)
+            .ToDictionary(item => item.Id!.Value, item => item.Key);
+        var profileKeys = (historianProfiles ?? Array.Empty<HistorianCaptureProfileEngineeringDto>())
+            .Where(item => item.Id.HasValue)
+            .ToDictionary(item => item.Id!.Value, item => item.Key);
+
+        var tagWithUnresolvedDataSource = tags.FirstOrDefault(tag =>
+            tag.DataSourceId.HasValue &&
+            !dataSourceKeys.ContainsKey(tag.DataSourceId.Value) &&
+            string.IsNullOrWhiteSpace(tag.Source));
+        if (tagWithUnresolvedDataSource is not null)
+            throw new InvalidDataException($"TAG '{tagWithUnresolvedDataSource.Path}' references a Data Source that cannot be resolved to a readable key.");
+
+        var tagWithUnresolvedHistorianProfile = tags.FirstOrDefault(tag =>
+            tag.HistorianCaptureProfileId.HasValue &&
+            !profileKeys.ContainsKey(tag.HistorianCaptureProfileId.Value));
+        if (tagWithUnresolvedHistorianProfile is not null)
+            throw new InvalidDataException($"TAG '{tagWithUnresolvedHistorianProfile.Path}' references a Historian profile that cannot be resolved to a readable key.");
 
         foreach (var tag in tags)
         {
             rows.Add(new[]
             {
-                tag.Id?.ToString(), tag.Path, tag.Name, tag.DataType.ToString(), tag.EngineeringUnit, tag.Source, tag.Address,
+                tag.Path, tag.Name, tag.DataType.ToString(), tag.EngineeringUnit,
+                tag.DataSourceId.HasValue && dataSourceKeys.TryGetValue(tag.DataSourceId.Value, out var dataSourceKey)
+                    ? dataSourceKey
+                    : tag.Source,
+                tag.Address,
                 tag.AddressSelector?.Kind.ToString(), tag.AddressSelector?.Index.ToString(CultureInfo.InvariantCulture),
                 tag.ReadOnly.ToString(), CsvCodec.Number(tag.ScaleMinimum), CsvCodec.Number(tag.ScaleMaximum),
                 (tag.Historian?.Enabled ?? false).ToString(), tag.Historian?.Strategy, CsvCodec.Number(tag.Historian?.Deadband),
@@ -68,8 +99,11 @@ internal sealed class EngineeringCsvExchange
                 tag.Historian?.MaximumPeriodMilliseconds?.ToString(CultureInfo.InvariantCulture), tag.Description,
                 JsonMap(tag.Metadata), JsonList(tag.AccessPolicy?.ReadRoles), JsonList(tag.AccessPolicy?.WriteRoles),
                 JsonList(tag.AccessPolicy?.ConfigureRoles), tag.InitialValue?.DataType.ToString(), tag.InitialValue?.Value.GetRawText(),
-                JsonCommunicationBinding(tag.CommunicationBinding), tag.DataSourceId?.ToString("D"),
-                tag.HistorianCaptureProfileId?.ToString("D"), JsonControlledUnit(tag.ControlledEngineeringUnit), "2"
+                JsonCommunicationBinding(tag.CommunicationBinding),
+                tag.HistorianCaptureProfileId.HasValue && profileKeys.TryGetValue(tag.HistorianCaptureProfileId.Value, out var profileKey)
+                    ? profileKey
+                    : null,
+                JsonControlledUnit(tag.ControlledEngineeringUnit), "2"
             });
         }
 
@@ -77,22 +111,41 @@ internal sealed class EngineeringCsvExchange
     }
 
     public string ExportAlarms(IReadOnlyCollection<AlarmEngineeringDto> alarms)
+        => ExportAlarms(alarms, []);
+
+    public string ExportAlarms(
+        IReadOnlyCollection<AlarmEngineeringDto> alarms,
+        IReadOnlyCollection<TagEngineeringDto>? tags)
     {
         var rows = new List<IReadOnlyList<string?>>
         {
             new[]
             {
-                "Id", "Name", "TagId", "TagPath", "Type", "Priority", "Setpoint", "DigitalActiveValue",
+                "Name", "TagPath", "Type", "Priority", "Setpoint", "DigitalActiveValue",
                 "Class", "Area", "Message", "ActivationDelayMilliseconds", "RequiresAcknowledgement",
                 "ShelvingAllowed", "Enabled", "SoundProfile", "MetadataJson"
             }
         };
+        var tagPaths = (tags ?? Array.Empty<TagEngineeringDto>())
+            .Where(item => item.Id.HasValue)
+            .ToDictionary(item => item.Id!.Value, item => item.Path);
+
+        var alarmWithUnresolvedTag = alarms.FirstOrDefault(alarm =>
+            alarm.TagId.HasValue &&
+            string.IsNullOrWhiteSpace(alarm.TagPath) &&
+            !tagPaths.ContainsKey(alarm.TagId.Value));
+        if (alarmWithUnresolvedTag is not null)
+            throw new InvalidDataException($"Alarm '{alarmWithUnresolvedTag.Name}' references a TAG that cannot be resolved to a readable path.");
 
         foreach (var alarm in alarms)
         {
             rows.Add(new[]
             {
-                alarm.Id?.ToString(), alarm.Name, alarm.TagId?.ToString(), alarm.TagPath, alarm.Type.ToString(), alarm.Priority.ToString(),
+                alarm.Name,
+                !string.IsNullOrWhiteSpace(alarm.TagPath)
+                    ? alarm.TagPath
+                    : alarm.TagId.HasValue && tagPaths.TryGetValue(alarm.TagId.Value, out var tagPath) ? tagPath : null,
+                alarm.Type.ToString(), alarm.Priority.ToString(),
                 CsvCodec.Number(alarm.Setpoint), alarm.DigitalActiveValue.ToString(), alarm.AlarmClass, alarm.Area, alarm.Message,
                 alarm.ActivationDelayMilliseconds?.ToString(CultureInfo.InvariantCulture), alarm.RequiresAcknowledgement.ToString(),
                 alarm.ShelvingAllowed.ToString(), alarm.Enabled.ToString(), alarm.SoundProfile, JsonMap(alarm.Metadata)
@@ -110,14 +163,14 @@ internal sealed class EngineeringCsvExchange
 
         var rows = new List<IReadOnlyList<string?>>
         {
-            new[] { "Id", "Key", "Name", "Driver", "Enabled", "SettingsJson", "SecretReferencesJson", "MetadataJson" }
+            new[] { "Key", "Name", "Driver", "Enabled", "SettingsJson", "SecretReferencesJson", "MetadataJson" }
         };
 
         foreach (var dataSource in dataSources)
         {
             rows.Add(new[]
             {
-                dataSource.Id?.ToString(), dataSource.Key, dataSource.Name, dataSource.Driver, dataSource.Enabled.ToString(),
+                dataSource.Key, dataSource.Name, dataSource.Driver, dataSource.Enabled.ToString(),
                 JsonMap(dataSource.Settings), JsonMap(dataSource.SecretReferences), JsonMap(dataSource.Metadata)
             });
         }
@@ -126,23 +179,43 @@ internal sealed class EngineeringCsvExchange
     }
 
     public string ExportGatewayRoutes(IReadOnlyCollection<GatewayRouteEngineeringDto> routes)
+        => ExportGatewayRoutes(routes, []);
+
+    public string ExportGatewayRoutes(
+        IReadOnlyCollection<GatewayRouteEngineeringDto> routes,
+        IReadOnlyCollection<TagEngineeringDto>? tags)
     {
         var rows = new List<IReadOnlyList<string?>>
         {
             new[]
             {
-                "Id", "Key", "Name", "SourceTagId", "SourceTagPath", "DestinationTagId", "DestinationTagPath",
+                "Key", "Name", "SourceTagPath", "DestinationTagPath",
                 "TransferMode", "QualityPolicy", "ConversionPolicy", "InitialTransferPolicy", "Gain", "Offset",
                 "Deadband", "MinimumIntervalMilliseconds", "PeriodMilliseconds", "Description", "Enabled", "MetadataJson"
             }
         };
+        var tagPaths = (tags ?? Array.Empty<TagEngineeringDto>())
+            .Where(item => item.Id.HasValue)
+            .ToDictionary(item => item.Id!.Value, item => item.Path);
+
+        var routeWithUnresolvedTag = routes.FirstOrDefault(route =>
+            (route.SourceTagId.HasValue && string.IsNullOrWhiteSpace(route.SourceTagPath) && !tagPaths.ContainsKey(route.SourceTagId.Value)) ||
+            (route.DestinationTagId.HasValue && string.IsNullOrWhiteSpace(route.DestinationTagPath) && !tagPaths.ContainsKey(route.DestinationTagId.Value)));
+        if (routeWithUnresolvedTag is not null)
+            throw new InvalidDataException($"Gateway route '{routeWithUnresolvedTag.Key}' references a TAG that cannot be resolved to a readable path.");
 
         foreach (var route in routes)
         {
             rows.Add(new[]
             {
-                route.Id?.ToString("D"), route.Key, route.Name, route.SourceTagId?.ToString("D"), route.SourceTagPath,
-                route.DestinationTagId?.ToString("D"), route.DestinationTagPath, route.TransferMode.ToString(),
+                route.Key, route.Name,
+                !string.IsNullOrWhiteSpace(route.SourceTagPath)
+                    ? route.SourceTagPath
+                    : route.SourceTagId.HasValue && tagPaths.TryGetValue(route.SourceTagId.Value, out var sourcePath) ? sourcePath : null,
+                !string.IsNullOrWhiteSpace(route.DestinationTagPath)
+                    ? route.DestinationTagPath
+                    : route.DestinationTagId.HasValue && tagPaths.TryGetValue(route.DestinationTagId.Value, out var destinationPath) ? destinationPath : null,
+                route.TransferMode.ToString(),
                 route.QualityPolicy.ToString(), route.ConversionPolicy.ToString(), route.InitialTransferPolicy.ToString(),
                 CsvCodec.Number(route.Gain), CsvCodec.Number(route.Offset), CsvCodec.Number(route.Deadband),
                 route.MinimumIntervalMilliseconds?.ToString(CultureInfo.InvariantCulture),
@@ -155,17 +228,33 @@ internal sealed class EngineeringCsvExchange
     }
 
     public string ExportOperationalEvents(IReadOnlyCollection<OperationalEventEngineeringDto> events)
+        => ExportOperationalEvents(events, []);
+
+    public string ExportOperationalEvents(
+        IReadOnlyCollection<OperationalEventEngineeringDto> events,
+        IReadOnlyCollection<TagEngineeringDto>? tags)
     {
         var rows = new List<IReadOnlyList<string?>>
         {
-            new[] { "Id", "Key", "Name", "Type", "Category", "Source", "Area", "EquipmentPath", "TagId", "TagPath", "Message", "Enabled", "MetadataJson" }
+            new[] { "Key", "Name", "Type", "Category", "Source", "Area", "EquipmentPath", "TagPath", "Message", "Enabled", "MetadataJson" }
         };
+        var tagPaths = (tags ?? Array.Empty<TagEngineeringDto>())
+            .Where(item => item.Id.HasValue)
+            .ToDictionary(item => item.Id!.Value, item => item.Path);
+        var eventWithUnresolvedTag = events.FirstOrDefault(item =>
+            item.TagId.HasValue && string.IsNullOrWhiteSpace(item.TagPath) && !tagPaths.ContainsKey(item.TagId.Value));
+        if (eventWithUnresolvedTag is not null)
+            throw new InvalidDataException($"Operational Event '{eventWithUnresolvedTag.Key}' references a TAG that cannot be resolved to a readable path.");
         foreach (var item in events)
         {
             rows.Add(new[]
             {
-                item.Id?.ToString("D"), item.Key, item.Name, item.Type, item.Category, item.Source, item.Area,
-                item.EquipmentPath, item.TagId?.ToString("D"), item.TagPath, item.Message, item.Enabled.ToString(), JsonMap(item.Metadata)
+                item.Key, item.Name, item.Type, item.Category, item.Source, item.Area,
+                item.EquipmentPath,
+                !string.IsNullOrWhiteSpace(item.TagPath)
+                    ? item.TagPath
+                    : item.TagId.HasValue && tagPaths.TryGetValue(item.TagId.Value, out var tagPath) ? tagPath : null,
+                item.Message, item.Enabled.ToString(), JsonMap(item.Metadata)
             });
         }
         return CsvCodec.Write(rows);
@@ -174,11 +263,13 @@ internal sealed class EngineeringCsvExchange
     public IReadOnlyCollection<TagEngineeringDto> ParseTags(string csv)
         => ParseTagsWithSchema(csv).Tags;
 
-    public ParsedEngineeringTagsCsv ParseTagsWithSchema(string csv)
+    public ParsedEngineeringTagsCsv ParseTagsWithSchema(
+        string csv,
+        IReadOnlyCollection<HistorianCaptureProfileEngineeringDto>? historianProfiles = null)
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("TAG CSV import requires a header row.");
-        var header = Header(table.Headers, TagColumns, "Id", "Name", "Path", "DataType");
+        var header = Header(table.Headers, TagColumns, "Name", "Path", "DataType");
         var hasControlledUnitColumn = header.ContainsKey("ControlledEngineeringUnitJson");
         var markerPresent = header.ContainsKey("ControlledEngineeringUnitContractVersion");
         var rowVersions = table.Rows
@@ -198,7 +289,7 @@ internal sealed class EngineeringCsvExchange
         var tags = ParseRows(table, row =>
         {
             var rowWriterVersion = ParseControlledUnitContractVersion(Get(row.Cells, header, "ControlledEngineeringUnitContractVersion")) ?? 1;
-            var tag = ParseTag(row.Cells, header);
+            var tag = ParseTag(row.Cells, header, historianProfiles);
             if (tag.ControlledEngineeringUnit?.CatalogVersion == 2 && rowWriterVersion < 2)
                 throw new InvalidDataException("Version 2 controlled unit references require ControlledEngineeringUnitContractVersion 2.");
             return tag;
@@ -222,7 +313,7 @@ internal sealed class EngineeringCsvExchange
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("Alarm CSV import requires a header row.");
-        var header = Header(table.Headers, AlarmColumns, "Id", "Name", "TagId", "TagPath", "Type", "Priority");
+        var header = Header(table.Headers, AlarmColumns, "Name", "Type", "Priority");
         return ParseRows(table, row => new AlarmEngineeringDto(
             GuidOrNull(Get(row.Cells, header, "Id")),
             Get(row.Cells, header, "Name"),
@@ -247,7 +338,7 @@ internal sealed class EngineeringCsvExchange
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("Data Source CSV import requires a header row.");
-        var header = Header(table.Headers, DataSourceColumns, "Id", "Key", "Name", "Driver");
+        var header = Header(table.Headers, DataSourceColumns, "Key", "Name", "Driver");
         return ParseRows(table, row => new DataSourceEngineeringDto(
             GuidOrNull(Get(row.Cells, header, "Id")),
             Get(row.Cells, header, "Key"),
@@ -263,7 +354,7 @@ internal sealed class EngineeringCsvExchange
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("Gateway route CSV import requires a header row.");
-        var header = Header(table.Headers, GatewayRouteColumns, "Id", "Key", "Name", "SourceTagId", "SourceTagPath", "DestinationTagId", "DestinationTagPath");
+        var header = Header(table.Headers, GatewayRouteColumns, "Key", "Name");
         return ParseRows(table, row => new GatewayRouteEngineeringDto(
             GuidOrNull(Get(row.Cells, header, "Id")), Get(row.Cells, header, "Key"), Get(row.Cells, header, "Name"),
             GuidOrNull(Get(row.Cells, header, "SourceTagId")), Null(Get(row.Cells, header, "SourceTagPath")),
@@ -282,7 +373,7 @@ internal sealed class EngineeringCsvExchange
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("Operational Event CSV import requires a header row.");
-        var header = Header(table.Headers, OperationalEventColumns, "Id", "Key", "Name", "Type", "Category", "Source", "TagId", "TagPath");
+        var header = Header(table.Headers, OperationalEventColumns, "Key", "Name", "Type", "Category", "Source");
         return ParseRows(table, row => new OperationalEventEngineeringDto(
             GuidOrNull(Get(row.Cells, header, "Id")), Get(row.Cells, header, "Key"), Get(row.Cells, header, "Name"),
             Get(row.Cells, header, "Type"), Get(row.Cells, header, "Category"), Get(row.Cells, header, "Source"),
@@ -292,7 +383,10 @@ internal sealed class EngineeringCsvExchange
             ParseMap(Get(row.Cells, header, "MetadataJson"))));
     }
 
-    private TagEngineeringDto ParseTag(string[] row, Dictionary<string, int> header)
+    private TagEngineeringDto ParseTag(
+        string[] row,
+        Dictionary<string, int> header,
+        IReadOnlyCollection<HistorianCaptureProfileEngineeringDto>? historianProfiles)
     {
         var readRolesJson = Null(Get(row, header, "ReadRolesJson"));
         var writeRolesJson = Null(Get(row, header, "WriteRolesJson"));
@@ -312,12 +406,24 @@ internal sealed class EngineeringCsvExchange
         var communicationBinding = ParseCommunicationBinding(
             Null(Get(row, header, "CommunicationBindingJson")));
 
+        var sourceKey = Null(Get(row, header, "DataSourceKey")) ?? Null(Get(row, header, "Source"));
+        var historianProfileKey = Null(Get(row, header, "HistorianCaptureProfileKey"));
+        Guid? historianProfileId = GuidOrNull(Get(row, header, "HistorianCaptureProfileId"));
+        if (historianProfileKey is not null)
+        {
+            var profile = (historianProfiles ?? Array.Empty<HistorianCaptureProfileEngineeringDto>())
+                .FirstOrDefault(item => item.Key.Equals(historianProfileKey, StringComparison.OrdinalIgnoreCase));
+            if (profile?.Id is null)
+                throw new InvalidDataException($"Historian capture profile key '{historianProfileKey}' was not found. Select an existing profile key.");
+            historianProfileId = profile.Id;
+        }
+
         return new TagEngineeringDto(
             GuidOrNull(Get(row, header, "Id")),
             Get(row, header, "Name"),
             Get(row, header, "Path"),
             EnumValue<TagDataType>(Get(row, header, "DataType")),
-            Null(Get(row, header, "Source")),
+            sourceKey,
             Null(Get(row, header, "Address")),
             Null(Get(row, header, "Unit")),
             Null(Get(row, header, "Description")),
@@ -336,7 +442,7 @@ internal sealed class EngineeringCsvExchange
             addressSelector,
             communicationBinding,
             GuidOrNull(Get(row, header, "DataSourceId")),
-            GuidOrNull(Get(row, header, "HistorianCaptureProfileId")),
+            historianProfileId,
             ParseControlledUnit(Null(Get(row, header, "ControlledEngineeringUnitJson"))));
     }
 

@@ -296,9 +296,17 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         return JsonSerializer.Serialize(ExportPackage(), options);
     }
 
-    public string ExportTagsCsv() => _csv.ExportTags(ExportPackage().Tags);
+    public string ExportTagsCsv()
+    {
+        var package = ExportPackage();
+        return _csv.ExportTags(package.Tags, package.DataSources, package.HistorianCaptureProfiles);
+    }
 
-    public string ExportAlarmsCsv() => _csv.ExportAlarms(ExportPackage().Alarms);
+    public string ExportAlarmsCsv()
+    {
+        var package = ExportPackage();
+        return _csv.ExportAlarms(package.Alarms, package.Tags);
+    }
 
     public string ExportDataSourcesCsv() =>
         _csv.ExportDataSources(ExportPackage().DataSources ?? Array.Empty<DataSourceEngineeringDto>());

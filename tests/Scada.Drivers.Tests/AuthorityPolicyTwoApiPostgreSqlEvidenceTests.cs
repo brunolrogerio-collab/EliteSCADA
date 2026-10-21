@@ -132,14 +132,6 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     appConnectionB.ConnectionString, license, apiDll, root, suffix);
                 await nodeB.WaitForHealthAsync();
                 await nodeB.LoginAsync();
-                // On a cold Linux runner, API health can precede passive runtime
-                // materialization. Let the peer converge before the test requires
-                // the initial policy fence to be committed and mirrored.
-                await WaitForHaTopologyAsync(
-                    nodeA,
-                    topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
-                    TimeSpan.FromSeconds(75),
-                    "the shared-database standby never materialized the published runtime before policy fencing");
             }
             await WaitForInitialPolicyCommitAsync(
                 nodeA,
@@ -405,6 +397,18 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     appConnectionB.ConnectionString, license, apiDll, root, suffix);
                 await nodeB.WaitForHealthAsync();
                 await nodeB.LoginAsync();
+            }
+            // A fresh shared-database standby can be healthy before its passive
+            // runtime has materialized. Require the same observable ReadyStandby
+            // precondition that the D2 lifecycle needs before waiting on the policy
+            // fence; keep the fence's commit/mirror predicate unchanged.
+            if (sharedDatabase)
+            {
+                await WaitForHaTopologyAsync(
+                    nodeA,
+                    topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                    TimeSpan.FromSeconds(75),
+                    "the shared-database standby never materialized the published runtime before policy fencing");
             }
             // Separate-database D2 restarts the standby before policy replication.
             // Allow cold standby startup plus peer sync to finish under the broad T2

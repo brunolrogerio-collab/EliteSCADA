@@ -2,12 +2,12 @@
 
 | Field | Value |
 | --- | --- |
-| Status | **SCOPE AUTHORIZED FOR SEQUENTIAL DEVELOPMENT — bounded Main assignments and validation gates apply** |
+| Status | **SCOPE AUTHORIZED — 4D/4E accepted within bounded scope; 4F experimental implementation integrated/T2 verified; 4G field validation and broader #588 acceptance remain open** |
 | Date | 2026-10-16 |
 | Owner direction | Reiterated 2026-10-19: finish Stage 5A, then return to finish Stage 4 against this scope; [record in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298) |
 | Parent | [#588 — Asset & Process Intelligence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588) |
 | Frozen boundary | Stage 4A–4C and ADR-020 remain unchanged |
-| Scheduling | Stage 5A technical gates and stable Preview delivery passed; owner chose continued development during evaluation on 2026-10-19. #639 visual acceptance remains pending, not a blocker to Main's exact-base Stage 4D #649 assignment |
+| Scheduling | Stage 5A technical gates and stable Preview delivery passed; owner chose continued development during evaluation. 4D/4E are integrated within scope. 4F PR #687 merged at `48cfe002ac437f5248d0127aaecce28c82dc9ba9`, exact T1/T2 passed for its simulation-validated increment. #639 visual acceptance remains separate; 4G awaits eligible representative product-test data |
 
 ## Purpose and current truth
 
@@ -59,11 +59,9 @@ Owner clarification, 2026-10-19: continue development after delivery of the stab
 - Fault diagnosis, root-cause attribution, alarms, autonomous action, failure prediction and remaining-useful-life estimates remain out of scope without a separately approved evidence package.
 - Stage 5A widgets, Stage 5B guided dashboards, and Stage 6 hardening are separate product packages. Finish Stage 5A, then these Stage 4 residuals, before releasing Stage 5B/6.
 
-## Implementation order after Stage 5A
+## Implementation status and remaining gates
 
-1. Main revalidates the exact integration/product checkpoint after Stage 5A technical verification and stable Preview delivery, then activates bounded 4D #649. #639 visual acceptance proceeds independently per the owner's 2026-10-19 clarification. Existing authorization persists; each package starts through a bounded exact-base Main assignment without repeated owner permission.
-2. Implement and verify 4D's additive evidence contract and insufficiency semantics.
-3. Implement 4E's explicit versioned profiles/comparability only after its persisted schema and UX-facing operator semantics are accepted.
-4. Implement 4F as a new versioned, read-only experimental contract using deterministic simulated cohorts. Keep its experimental status explicit, test integration/security/query bounds on isolated Windows and Linux resources, and never use the Preview database or replay a consumed holdout.
-5. Keep field targets and operational threshold qualification open until future authorized product tests produce eligible representative evidence. Use that evidence to tune and revalidate; do not call synthetic exposure real.
-6. Complete 4G exact-SHA local/CI evidence and Main's review. Only then resolve the parent #588 Stage 4 disposition. Stage 5B/6 remain unreleased until that decision.
+1. Stage 4D #649 and 4E #652 are integrated and verified within their bounded contracts; they do not establish reference health or physical-regime equivalence.
+2. Stage 4F's additive experimental joint-score implementation is integrated in PR #687 at `48cfe002ac437f5248d0127aaecce28c82dc9ba9`. Exact candidate T1 #39532394830 and exact-merge T2 #39532910787 passed. It is read-only, simulation-validated, unclassified, and has no field-calibrated threshold. Do not alter frozen 4A–4E or replay a consumed holdout.
+3. 4G remains open for future eligible representative product-test data under applicable owner permissions. Public UCI sources and finite synthetic studies did not establish field validity. Use the accepted data-request model/preflight and evaluate provenance, independent labels, cadence/exposure, coverage and operating-context criteria before field claims.
+4. Resolve broader #588 Stage 4 only after accepted 4D–4G criteria are exact-SHA implemented and verified, or after the Product Owner explicitly defers a named residual. Stage 5B/6 remain unreleased until that decision. Stage 5A owner visual Preview and the user's independent local Preview changes remain separate; do not access or alter them without handoff.

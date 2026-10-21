@@ -1,14 +1,14 @@
-# Stage 4F — experimental contract (draft PR #687 under verification)
+# Stage 4F — experimental contract (PR #687 integrated; simulation-validated only)
 
 | Field | Value |
 | --- | --- |
-| Status | **Additive v1 experimental implementation is in draft PR #687. Exact-head T1 run #39531733156 passed on implementation candidate `6f9557316cf9c9a3ce2a2ac4e5a1aa74f5b59297` (1,684 passed / 1 skipped / 0 failed, plus common sanity and T1 gate). Not merged, field-validated, or frozen for product release.** |
+| Status | **Additive v1 experimental implementation PR #687 is integrated at merge `48cfe002ac437f5248d0127aaecce28c82dc9ba9`; exact T1 #39532394830 and exact-merge T2 #39532910787 passed. Simulation-validated only; not field-validated or frozen for operational release.** |
 | Date | 2026-10-21 |
 | Parent | [#588 — Asset & Process Intelligence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588) |
 | Governing scope | [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md) and [the 4F acceptance plan](WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md) |
 | Product baseline inspected | Exact PR base `63182e021730ad4fb35532481e28d7a16fc04be3` |
 
-This note records the implementation boundary under PR review without reopening 4A–4E or claiming a field-validated detector. It is not an ADR or approval for release: the route/schema/method are an additive v1 experimental contract and remain subject to CI/Main review before integration. The Product Owner authorized simulation-validated experimental implementation on 2026-10-20. Output remains explicitly experimental; synthetic checks do not meet operational acceptance targets or establish field validity. #588 remains **PARTIAL** until its broader acceptance gate is satisfied; 4G remains separate.
+This note records the integrated implementation boundary without reopening 4A–4E or claiming a field-validated detector. It is not an ADR or general release approval: the route/schema/method are an additive v1 experimental contract whose integration and mechanics are verified, while operational/field acceptance remains separate. The Product Owner authorized simulation-validated experimental implementation on 2026-10-20. Output remains explicitly experimental; synthetic checks do not meet operational acceptance targets or establish field validity. #588 remains **PARTIAL** until its broader acceptance gate is satisfied; 4G remains separate.
 
 ## Existing contracts inspected
 
@@ -20,7 +20,7 @@ This note records the implementation boundary under PR review without reopening 
 
 ## Implemented logical boundary
 
-The local implementation uses the following semantic boundary; names and method details are reviewable until integration, and none of it claims field validity.
+The integrated implementation uses the following semantic boundary; none of it claims field validity.
 
 ### Request semantics
 
@@ -46,11 +46,11 @@ The local implementation uses the following semantic boundary; names and method 
 - Remain on-demand, read-only and bounded. No model training service, background learner, process write, alarm mutation, local-only authorization cache, parallel policy store, or new persistence layer is implied by this design.
 - Preserve fail-closed behavior on permission/permit revocation, scope/profile/configuration changes, provider errors, cursor repetition, exceeded budgets, incomplete cohorts and unavailable calibration. Never return a partial or stale score after invalidation.
 
-## Candidate implementation and evidence
+## Integrated implementation and evidence
 
-The candidate is in [draft PR #687](https://github.com/brunolrogerio-collab/EliteSCADA/pull/687), exact base `63182e021730ad4fb35532481e28d7a16fc04be3`. Implementation commit `8239028` is included in candidate head `6f9557316cf9c9a3ce2a2ac4e5a1aa74f5b59297`, which passed exact-head T1 #39531733156 (1,684 passed / 1 skipped / 0 failed, plus common sanity and T1 gate). It is implemented in `src/Scada.Core/Intelligence/Experimental/ExperimentalJointDeviation.cs`, `src/Scada.Api/Licensing/AssetProcessIntelligenceExperimentalJointDeviationV1.cs` and `AssetProcessIntelligenceAnalyticsService.cs`, with separate API routes `/experimental-joint-deviation/v1/catalog` and `/experimental-joint-deviation/v1/query`. It reuses the existing Historian v2 reader, 4E typed predicates, `TrendUse`, entitlement, per-TAG `TagRead`, execution permit, query budget and final workspace/config revalidation. Local Windows/Linux evidence is recorded in `CURRENT-COORDINATOR-HANDOFF.md`. This PR does not access or change the owner's local Preview.
+The implementation is in [PR #687](https://github.com/brunolrogerio-collab/EliteSCADA/pull/687), merged at `48cfe002ac437f5248d0127aaecce28c82dc9ba9` from exact base `63182e021730ad4fb35532481e28d7a16fc04be3`; PR head `ee0e087ac8a1d6891a554b08f8de9fbf5ddf1a24`. Exact-head T1 #39532394830 passed (1,684 passed / 1 skipped / 0 failed, plus classifier/Common sanity/T1 gate); exact-merge T2 #39532910787 passed backend build/test/runtime smoke, Web build and Chromium integration smoke. Full-browser E2E was skipped, not passed. Code is in `src/Scada.Core/Intelligence/Experimental/ExperimentalJointDeviation.cs`, `src/Scada.Api/Licensing/AssetProcessIntelligenceExperimentalJointDeviationV1.cs` and `AssetProcessIntelligenceAnalyticsService.cs`, with separate API routes `/experimental-joint-deviation/v1/catalog` and `/experimental-joint-deviation/v1/query`. It reuses the existing Historian v2 reader, 4E typed predicates, `TrendUse`, entitlement, per-TAG `TagRead`, execution permit, query budget and final workspace/config revalidation. Local Windows/Linux evidence is recorded in `CURRENT-COORDINATOR-HANDOFF.md`. The user's local Preview was not accessed or changed.
 
-Remaining before a candidate handoff/integration, verify:
+Bounded implementation-verification surface exercised locally and on exact PR/merge CI:
 
 1. additive versioning: all frozen 4A–4E request/response/catalog behavior and serialization remain unchanged;
 2. stable identity resolution: missing/duplicate/stale assignment, profile, context version, signal, TAG or unit fails before data access;

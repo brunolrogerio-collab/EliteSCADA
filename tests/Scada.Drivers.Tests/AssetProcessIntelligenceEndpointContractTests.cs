@@ -17,6 +17,7 @@ using Scada.Engineering.Assets;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Events;
+using Scada.Core.HistoricalQueries;
 using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
@@ -194,6 +195,36 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         Assert.Equal(JsonValueKind.Null, catalog.GetProperty("decisionThreshold").ValueKind);
         Assert.Contains("no imputation", catalog.GetProperty("sourceTimestampRule").GetString(), StringComparison.Ordinal);
         Assert.Contains("must not be summed", catalog.GetProperty("evidenceCounterRule").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExperimentalJointDeviationQueryRejectsInvalidCadenceOverHttpBeforeHistorianRead()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"), includeAnalyticsEndpoints: true);
+        var request = new AssetProcessIntelligenceExperimentalJointDeviationV1QueryRequest(
+            AssetProcessIntelligenceScopeKind.Equipment,
+            api.EquipmentId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ExpectedProfileVersion: 1,
+            TargetSignalIds: [Guid.NewGuid(), Guid.NewGuid()],
+            ExpectedCadenceSeconds: 0,
+            ReferenceWindow: new(
+                DateTimeOffset.Parse("2026-10-01T00:00:00Z"),
+                DateTimeOffset.Parse("2026-10-01T01:00:00Z")),
+            EvaluationWindow: new(
+                DateTimeOffset.Parse("2026-10-01T02:00:00Z"),
+                DateTimeOffset.Parse("2026-10-01T03:00:00Z")));
+
+        using var response = await api.Client.PostAsJsonAsync(EndpointHarness.ExperimentalJointDeviationV1QueryPath, request);
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_CADENCE_INVALID",
+            payload.GetProperty("code").GetString());
+        Assert.Equal("The analytics query is invalid.", payload.GetProperty("error").GetString());
+        Assert.Equal(0, api.HistoricalQueries.Calls);
     }
 
     [Fact]
@@ -595,6 +626,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public const string ContextualDeviationVectorV2CatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/contextual-deviation-vector/v2/catalog";
         public const string ContextEligibilityV1CatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/context-eligibility/v1/catalog";
         public const string ExperimentalJointDeviationV1CatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/experimental-joint-deviation/v1/catalog";
+        public const string ExperimentalJointDeviationV1QueryPath = AssetProcessIntelligenceAnalyticsApi.Route + "/experimental-joint-deviation/v1/query";
 
         private readonly WebApplication _app;
         private readonly IEngineeringProjectPersistenceService? _persistence;
@@ -608,6 +640,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             AssetProcessIntelligenceExecutionGate gate,
             IEngineeringRuntimeCoordinator runtime,
             InMemoryAuditSink audit,
+            RecordingHistoricalQueryService historicalQueries,
             IEngineeringProjectPersistenceService? persistence,
             IEngineeringExchangeService? exchange,
             IReadOnlyCollection<string> routes)
@@ -622,6 +655,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             Gate = gate;
             Runtime = runtime;
             Audit = audit;
+            HistoricalQueries = historicalQueries;
             Routes = routes;
             ActivatePath = $"{ScopesPath}/Equipment/{equipmentId:D}/activate";
         }
@@ -633,6 +667,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public AssetProcessIntelligenceExecutionGate Gate { get; }
         public IEngineeringRuntimeCoordinator Runtime { get; }
         public InMemoryAuditSink Audit { get; }
+        public RecordingHistoricalQueryService HistoricalQueries { get; }
         public int ProcessWriteCalls => (Runtime as TestRuntimeCoordinator)?.ProcessWriteCalls ?? 0;
         public IReadOnlyCollection<string> Routes { get; }
         public string ActivatePath { get; }
@@ -721,6 +756,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                 runtime = liveRuntime;
             }
             var sink = new InMemoryAuditSink();
+            var historicalQueries = new RecordingHistoricalQueryService();
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?> { ["Authentication:Enabled"] = "true" })
                 .Build();
@@ -740,7 +776,10 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(runtime);
             builder.Services.AddSingleton(new ScadaRuntimeFacade(runtime));
             if (includeAnalyticsEndpoints)
+            {
+                builder.Services.AddSingleton<IHistoricalQueryService>(historicalQueries);
                 builder.Services.AddTransient<AssetProcessIntelligenceAnalyticsService>();
+            }
             if (persistence is not null && exchange is not null)
             {
                 builder.Services.AddSingleton(persistence);
@@ -789,6 +828,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                 gate,
                 runtime,
                 sink,
+                historicalQueries,
                 persistence,
                 exchange,
                 routes);
@@ -846,6 +886,19 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             await _app.DisposeAsync();
             if (Runtime is IAsyncDisposable asyncDisposable)
                 await asyncDisposable.DisposeAsync();
+        }
+
+        public sealed class RecordingHistoricalQueryService : IHistoricalQueryService
+        {
+            public int Calls { get; private set; }
+
+            public Task<HistoricalQueryResponse> QueryAsync(
+                HistoricalQueryRequest request,
+                CancellationToken cancellationToken = default)
+            {
+                Calls++;
+                throw new InvalidOperationException("The invalid query must be rejected before the Historian is called.");
+            }
         }
     }
 

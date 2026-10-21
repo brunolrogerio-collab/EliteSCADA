@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 
 export const VISUAL_DEFINITION_SURFACE_KEYS = Object.freeze({
+  screenOrientation: 'screenOrientation',
   backgroundMode: 'backgroundMode',
   backgroundColor: 'backgroundColor',
   backgroundImageAssetId: 'backgroundImageAssetId',
@@ -9,8 +10,10 @@ export const VISUAL_DEFINITION_SURFACE_KEYS = Object.freeze({
 
 export type VisualDefinitionBackgroundFit = 'cover' | 'contain' | 'stretch' | 'center' | 'tile';
 export type VisualDefinitionBackgroundMode = 'theme' | 'color' | 'image';
+export type VisualDefinitionScreenOrientation = 'landscape' | 'portrait';
 
 export type VisualDefinitionSurfaceConfig = Readonly<{
+  screenOrientation: VisualDefinitionScreenOrientation | null;
   backgroundMode: VisualDefinitionBackgroundMode;
   backgroundColor: string | null;
   backgroundImageAssetId: string | null;
@@ -18,6 +21,7 @@ export type VisualDefinitionSurfaceConfig = Readonly<{
 }>;
 
 export type VisualDefinitionSurfacePatch = Readonly<{
+  screenOrientation?: VisualDefinitionScreenOrientation | null;
   backgroundMode?: VisualDefinitionBackgroundMode | null;
   backgroundColor?: string | null;
   backgroundImageAssetId?: string | null;
@@ -35,7 +39,8 @@ export function readVisualDefinitionSurfaceConfig(
     color
   );
   const fit = normalizeFit(properties?.[VISUAL_DEFINITION_SURFACE_KEYS.backgroundImageFit] ?? null);
-  return Object.freeze({ backgroundMode, backgroundColor: color, backgroundImageAssetId: assetId, backgroundImageFit: fit });
+  const screenOrientation = normalizeScreenOrientation(properties?.[VISUAL_DEFINITION_SURFACE_KEYS.screenOrientation] ?? null);
+  return Object.freeze({ screenOrientation, backgroundMode, backgroundColor: color, backgroundImageAssetId: assetId, backgroundImageFit: fit });
 }
 
 export function applyVisualDefinitionSurfacePatch<T extends Readonly<{
@@ -45,6 +50,10 @@ export function applyVisualDefinitionSurfacePatch<T extends Readonly<{
   patch: VisualDefinitionSurfacePatch
 ): T {
   const properties = { ...(definition.properties ?? {}) };
+  if (patch.screenOrientation !== undefined) {
+    if (patch.screenOrientation === null) delete properties[VISUAL_DEFINITION_SURFACE_KEYS.screenOrientation];
+    else properties[VISUAL_DEFINITION_SURFACE_KEYS.screenOrientation] = normalizeScreenOrientation(patch.screenOrientation)!;
+  }
   if (patch.backgroundMode !== undefined) {
     if (patch.backgroundMode === null) delete properties[VISUAL_DEFINITION_SURFACE_KEYS.backgroundMode];
     else properties[VISUAL_DEFINITION_SURFACE_KEYS.backgroundMode] = normalizeBackgroundMode(patch.backgroundMode, null, null);
@@ -64,6 +73,13 @@ export function applyVisualDefinitionSurfacePatch<T extends Readonly<{
     else properties[VISUAL_DEFINITION_SURFACE_KEYS.backgroundImageFit] = normalizeFit(patch.backgroundImageFit);
   }
   return { ...definition, properties } as T;
+}
+
+function normalizeScreenOrientation(value: string | null | undefined): VisualDefinitionScreenOrientation | null {
+  const normalized = normalizeStableText(value)?.toLowerCase();
+  if (normalized === null || normalized === undefined) return null;
+  if (normalized === 'landscape' || normalized === 'portrait') return normalized;
+  throw new Error(`Unknown visual definition screen orientation '${value}'.`);
 }
 
 export function resolveVisualDefinitionSurfaceStyle(

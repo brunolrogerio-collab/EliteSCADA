@@ -205,8 +205,18 @@ const richCommandBrowserProjection = {
         }),
         browserButton('s5-rich-concurrent-b', 'rich-concurrent-b', 'Comando concorrente B', 440, {
           eventKey: 'click', kind: 'ExecuteRichCommand', commandId: '77777777-bbbb-4bbb-8bbb-777777777772', version: 2
+        }),
+        browserButton('s5-navigate-status', 'navigate-status', 'Abrir instrumentação', 508, {
+          eventKey: 'click', kind: 'NavigateScreen', targetKey: 'instrumentation', version: 1
         })
       ]
+    }, {
+      id: '99999999-aaaa-4aaa-8aaa-999999999999',
+      key: 'instrumentation',
+      name: 'Instrumentation',
+      elements: [browserButton('s5-navigate-home', 'navigate-home', 'Voltar para visão geral', 32, {
+        eventKey: 'click', kind: 'NavigateScreen', targetKey: 'home', version: 1
+      })]
     }],
     popups: [{
       id: '88888888-aaaa-4aaa-8aaa-888888888888',
@@ -222,6 +232,9 @@ const richCommandBrowserProjection = {
         }),
         browserButton('s5-rich-popup-tag', 'rich-popup-tag', 'Escrever TAG no Popup', 156, {
           eventKey: 'click', kind: 'SetTagValue', targetKey: BROWSER_TAG_ID, parameters: { value: 42 }, version: 1
+        }),
+        browserButton('s5-close-popup', 'close-popup', 'Fechar utilitários', 224, {
+          eventKey: 'click', kind: 'ClosePopup', version: 1
         })
       ]
     }],
@@ -336,6 +349,47 @@ async function routeRichCommandExecution(
     });
   });
 }
+
+test('HTTP navigation and repeated Popup mounts work without the secure-context UUID API', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
+  });
+  await installRichCommandBrowserShell(page);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  if (new URL(page.url()).hostname === 'elitescada-http.test') {
+    expect(await page.evaluate(() => window.isSecureContext)).toBe(false);
+  }
+  await expect(page.getByRole('button', { name: 'Abrir instrumentação' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Abrir instrumentação' }).click();
+  await expect(page.getByRole('button', { name: 'Voltar para visão geral' })).toBeVisible();
+  await page.getByRole('button', { name: 'Voltar para visão geral' }).click();
+
+  const popup = page.locator('[data-popup-key="rich-tools"]');
+  const instanceIds: string[] = [];
+  for (let i = 0; i < 2; i += 1) {
+    await page.getByRole('button', { name: 'Abrir utilitários' }).click();
+    await expect(popup).toBeVisible();
+    instanceIds.push(await popup.getAttribute('data-popup-runtime-instance-id') ?? '');
+    await popup.getByRole('button', { name: 'Fechar utilitários' }).click();
+    await expect(popup).toHaveCount(0);
+  }
+  expect(new Set(instanceIds).size).toBe(2);
+  for (const id of instanceIds) {
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  }
+  const correlationIds = await page.evaluate(async () => {
+    const { createRemoteRequestMetadata } = await import('/src/transport/timingPolicyV1.ts');
+    return Array.from({ length: 32 }, () => createRemoteRequestMetadata('runtime.read', 'requestRead').requestId);
+  });
+  expect(new Set(correlationIds).size).toBe(32);
+  for (const id of correlationIds) {
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  }
+  expect(errors).toEqual([]);
+});
 
 test('Rendered Screen parameterless action invokes once and shows the server outcome', async ({ page }) => {
   await installRichCommandBrowserShell(page);
@@ -482,6 +536,28 @@ test('Rendered Popup Rich Command coexists with legacy bodyless Command and TAG 
   await popup.getByRole('button', { name: 'Escrever TAG no Popup' }).click();
   await expect.poll(() => tagCalls.length).toBe(1);
   expect(tagCalls).toEqual([{ method: 'POST', body: { value: 42 } }]);
+});
+
+test('Accepted legacy command feedback is truthful and clears after a short timeout', async ({ page }) => {
+  await installRichCommandBrowserShell(page);
+  await page.clock.install({ time: new Date('2026-10-20T12:00:00Z') });
+  const calls: string[] = [];
+  await page.route('**/api/commands/' + BROWSER_LEGACY_COMMAND + '/execute', async route => {
+    calls.push(route.request().method());
+    await route.fulfill({ status: 202 });
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Abrir utilitários' }).click();
+  const popup = page.locator('[data-popup-key="rich-tools"]');
+  await popup.getByRole('button', { name: 'Comando legado no Popup' }).click();
+
+  const feedback = page.getByTestId('runtime-action-feedback')
+    .locator('[data-object-id="s5-rich-popup-legacy"]');
+  await expect.poll(() => calls.length).toBe(1);
+  await expect(feedback).toHaveText('Command accepted');
+  await page.clock.fastForward(5000);
+  await expect(feedback).toHaveCount(0);
 });
 
 test('Concurrent Screen definition replies keep one prompt owner and release the losing action', async ({ page }) => {

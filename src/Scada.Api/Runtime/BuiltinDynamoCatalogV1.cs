@@ -14,7 +14,7 @@ namespace Scada.Api.Runtime;
 /// </summary>
 public static class BuiltinDynamoCatalogV1
 {
-    public const string Version = "1.2.0";
+    public const string Version = "1.4.0";
     private const string Outline = "#263746";
     private const string Steel = "#A9BAC5";
     private const string Light = "#E7EEF2";
@@ -408,6 +408,8 @@ public static class BuiltinDynamoCatalogV1
             new DynamoParameterDefinitionEngineeringDto("equipmentPath", DynamoParameterKind.EquipmentPath),
             new DynamoParameterDefinitionEngineeringDto("actionMode", DynamoParameterKind.String,
                 DefaultValue: JsonSerializer.SerializeToElement(index switch { 0 => "command", 1 => "set-analog", 2 => "toggle-bool", _ => "set-bool" })),
+            new DynamoParameterDefinitionEngineeringDto("commandsEnabled", DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(true)),
             new DynamoParameterDefinitionEngineeringDto("targetTag", DynamoParameterKind.TagReference),
             new DynamoParameterDefinitionEngineeringDto("command", DynamoParameterKind.Command),
             new DynamoParameterDefinitionEngineeringDto("state", DynamoParameterKind.ValueSource),
@@ -436,6 +438,7 @@ public static class BuiltinDynamoCatalogV1
             : new Dictionary<string, string>(buttonElement.Metadata, StringComparer.Ordinal);
         buttonMetadata["dynamoInteraction"] = "momentary-button";
         buttonMetadata["dynamoActionModeParameter"] = "actionMode";
+        buttonMetadata["dynamoCommandsEnabledParameter"] = "commandsEnabled";
         buttonMetadata["dynamoOptionalActionTarget"] = "true";
         buttonMetadata["dynamoBooleanStateInvertParameter"] = "invertBoolean";
         x[x.IndexOf(buttonElement)] = buttonElement with { Actions = [clickAction], Metadata = buttonMetadata };
@@ -498,6 +501,10 @@ public static class BuiltinDynamoCatalogV1
         if (isStatefulEquipment)
         {
             parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "commandsEnabled",
+                DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(true)));
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
                 "offColor",
                 DynamoParameterKind.String,
                 DefaultValue: JsonSerializer.SerializeToElement("#93B99A")));
@@ -527,7 +534,11 @@ public static class BuiltinDynamoCatalogV1
             if (bodyIndex >= 0)
                 x[bodyIndex] = x[bodyIndex] with
                 {
-                    Metadata = new Dictionary<string, string>(x[bodyIndex].Metadata ?? new Dictionary<string, string>()) { ["dynamoOptionalActionTarget"] = "true" },
+                    Metadata = new Dictionary<string, string>(x[bodyIndex].Metadata ?? new Dictionary<string, string>())
+                    {
+                        ["dynamoOptionalActionTarget"] = "true",
+                        ["dynamoCommandsEnabledParameter"] = "commandsEnabled"
+                    },
                     Actions = [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ExecuteCommand, CommandParameterKey: "command")]
                 };
             metadata["stateSource"] = "numeric-value-source-enum";
@@ -599,7 +610,8 @@ public static class BuiltinDynamoCatalogV1
             var properties = new Dictionary<string, JsonElement>(text.Properties!, StringComparer.Ordinal)
             {
                 ["text"] = JsonSerializer.SerializeToElement("{" + labels[state] + "}"),
-                ["visible"] = JsonSerializer.SerializeToElement(false)
+                ["visible"] = JsonSerializer.SerializeToElement(false),
+                ["textColor"] = JsonSerializer.SerializeToElement("#E6F2F7")
             };
             var metadata = new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -623,7 +635,7 @@ public static class BuiltinDynamoCatalogV1
                     "visible", VisualBooleanConditionKind.NumericInterval,
                     new VisualValueSourceEngineeringDto(VisualValueSourceKind.Tag, VisualExpressionValueType.Number,
                         Target: "{dynamoParameter:state}"),
-                    Minimum: state, Maximum: state + 1)]
+                    Minimum: state, Maximum: state + 1, MaximumInclusive: false)]
             };
         }
     }

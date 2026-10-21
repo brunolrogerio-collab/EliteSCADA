@@ -161,6 +161,35 @@ test('state PropertyMap sources participate in the public Dynamo state and quali
   expect(resolveDynamoRuntimeState([element], samples({ ...stateSample, value: 4 })).state.kind).toBe('inhibited');
 });
 
+test('SVG-composed Dynamo state fill slot participates in quality and state resolution', () => {
+  const element: VisualElementEngineering = {
+    id: 'pump-svg-state',
+    key: 'pump-state',
+    type: 'core.svgSymbol',
+    metadata: {
+      dynamoStateColorParameter: 'state',
+      dynamoStateColorProfile: 'stopped,running,fault,communicationBad,inhibited'
+    },
+    propertyMaps: [{
+      propertyKey: 'svg.slot.state.fill',
+      source: { kind: 'Tag', valueType: 'Number', tagReference: { tagId: 'tag-pump-state' } },
+      rules: [],
+      fallback: '#93B99A'
+    }]
+  };
+  const stateSample: VisualLiveScalarSample = {
+    reference: 'Plant.Pump01.State', tagId: 'tag-pump-state', value: 1,
+    dataType: 'Number', quality: 'Good'
+  };
+
+  const running = resolveDynamoRuntimeState([element], samples(stateSample));
+  expect(running.parameterSamples.get('state')?.quality).toBe('Good');
+  expect(running.state.kind).toBe('active');
+
+  const badQuality = resolveDynamoRuntimeState([element], samples({ ...stateSample, quality: 'BadCommunication' }));
+  expect(badQuality.state.kind).toBe('bad-quality');
+});
+
 test('Runtime Dynamo overlay reports bad communication quality even when the last value was running', () => {
   const root: VisualElementEngineering = {
     id: 'motor-instance',

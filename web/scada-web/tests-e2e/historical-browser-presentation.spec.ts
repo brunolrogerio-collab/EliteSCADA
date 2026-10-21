@@ -92,7 +92,9 @@ test('Historical Browser scalar presentation remains typed and fail-closed', () 
   expect(formatHistoricalScalar(1.25, 'Int32')).toBe('Unavailable');
   expect(formatHistoricalScalar(Number.POSITIVE_INFINITY, 'Double')).toBe('Unavailable');
   expect(formatHistoricalScalar(null, 'String')).toBe('—');
-  expect(formatHistoricalScalar('2026-08-29T23:00:00Z', 'DateTime')).toBe('2026-08-29T23:00:00Z');
+  const formatted = formatHistoricalScalar('2026-08-29T23:00:00Z', 'DateTime');
+  expect(formatted).toMatch(/2026/);
+  expect(formatted).not.toMatch(/T\d{2}:\d{2}:\d{2}.*Z/);
 });
 
 

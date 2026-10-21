@@ -112,6 +112,12 @@ const TREND: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.trendLegendVisible,
   VISUAL_PROPERTY_KEYS.trendGridVisible,
   VISUAL_PROPERTY_KEYS.trendAxesVisible,
+  VISUAL_PROPERTY_KEYS.trendLeftAxisVisible,
+  VISUAL_PROPERTY_KEYS.trendRightAxisVisible,
+  VISUAL_PROPERTY_KEYS.trendAxisLabelsVisible,
+  VISUAL_PROPERTY_KEYS.trendTimeAxisVisible,
+  VISUAL_PROPERTY_KEYS.trendAxisFontSize,
+  VISUAL_PROPERTY_KEYS.trendLegendFontSize,
   VISUAL_PROPERTY_KEYS.trendQualityVisible
 ];
 

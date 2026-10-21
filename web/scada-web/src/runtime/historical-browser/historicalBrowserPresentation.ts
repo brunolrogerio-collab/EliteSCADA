@@ -156,8 +156,23 @@ export function formatHistoricalScalar(
     case 'String':
       return typeof value === 'string' ? value : text.unavailable;
     case 'DateTime':
-      return typeof value === 'string' && value.trim() ? value : text.unavailable;
+      return typeof value === 'string' ? formatHistoricalDateTime(value, locale) || text.unavailable : text.unavailable;
   }
+}
+
+/** Compact operator-facing local timestamp; the query contract retains the UTC instant. */
+export function formatHistoricalDateTime(value: string, locale: HistoricalBrowserLocale = 'en'): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
+  }).format(date);
 }
 
 export function historicalDatasetLabel(

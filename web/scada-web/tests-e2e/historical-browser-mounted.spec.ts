@@ -90,6 +90,7 @@ test('mounted Historical Browser queries historian data and preserves exact Int6
   await page.getByRole('button', { name: 'Query', exact: true }).click();
 
   await expect(page.getByRole('cell', { name: '9223372036854775807' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '11111111-1111-1111-1111-111111111111' })).toHaveCount(0);
   expect(capturedRequest).toMatchObject({
     version: 1,
     datasetKey: 'historian.samples',
@@ -100,7 +101,9 @@ test('mounted Historical Browser queries historian data and preserves exact Int6
   await expect(page.getByRole('textbox', { name: 'Search' })).toBeEnabled();
   await expect(page.getByRole('combobox', { name: 'Sort by' })).toContainText('Timestamp');
   await expect(page.getByRole('combobox', { name: 'Field' })).toContainText('TAG / Path');
-  await expect(page.getByText('2026-08-30T00:00:00Z → 2026-08-30T01:00:00Z')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Field' })).not.toContainText('TAG / ID');
+  await expect(page.getByText(/2026.*→.*2026.*·/)).toBeVisible();
+  await expect(page.getByText(/2026-08-30T00:00:00Z/)).toHaveCount(0);
 });
 
 test('mounted Historical Browser builds typed filters only from returned schema metadata', async ({ page }) => {
@@ -141,11 +144,37 @@ test('mounted Historical Browser alarm history remains read-only with no operati
   await page.getByRole('group', { name: 'Dataset' }).getByRole('button', { name: 'Alarms', exact: true }).click();
   await page.getByRole('button', { name: 'Query', exact: true }).click();
   await expect(page.getByRole('cell', { name: 'High level' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '22222222-2222-2222-2222-222222222222' })).toHaveCount(0);
+  await page.getByText('Advanced filters', { exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Field' })).not.toContainText('Alarm / ID');
 
   await page.getByRole('row', { name: /Demo.Level Active 800 High level/ }).click();
   await expect(page.getByTestId('historical-row-detail')).toContainText('Read-only context');
   await expect(page.getByTestId('historical-row-detail')).toContainText('High level');
   await expect(page.getByRole('button', { name: /ack|shelve|reset|command/i })).toHaveCount(0);
+});
+
+test('mounted History formats alarm and historian instants in local pt-BR time and exposes exact UTC on hover', async ({ browser }) => {
+  const context = await browser.newContext({ timezoneId: 'America/Sao_Paulo', locale: 'pt-BR' });
+  const page = await context.newPage();
+  await page.route('**/api/historical/query', async route => {
+    const request = route.request().postDataJSON();
+    await fulfillJson(route, historicalResponse(request.datasetKey));
+  });
+
+  await openHarness(page, '?locale=pt-BR');
+  await page.getByRole('button', { name: 'Consultar', exact: true }).click();
+  const timestamp = page.getByRole('cell', { name: '29/08/2026, 22:00:00' });
+  await expect(timestamp).toBeVisible();
+  await expect(timestamp).toHaveAttribute('title', '2026-08-30T01:00:00Z');
+  await expect(page.getByText(/29\/08\/2026, 21:00:00 → 29\/08\/2026, 22:00:00 · America\/Sao_Paulo/)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Alarmes', exact: true }).click();
+  await page.getByRole('button', { name: 'Consultar', exact: true }).click();
+  const alarmTimestamp = page.getByRole('cell', { name: '29/08/2026, 22:05:00' });
+  await expect(alarmTimestamp).toBeVisible();
+  await expect(alarmTimestamp).toHaveAttribute('title', '2026-08-30T01:05:00Z');
+  await context.close();
 });
 
 test('mounted Historical Browser transports opaque cursor unchanged for next-page query', async ({ page }) => {
@@ -213,7 +242,7 @@ test('mounted Historical Browser keeps the required pt-BR absolute range determi
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1].timeRange).toEqual(requests[0].timeRange);
 
-  await rangeControls.getByLabel('De', { exact: true }).fill('2026-09-28T12:00');
+  await page.getByLabel('De', { exact: true }).fill('2026-09-28T12:00');
   await expect(page.getByRole('button', { name: 'Consultar', exact: true })).toBeDisabled();
   expect(requests).toHaveLength(2);
 

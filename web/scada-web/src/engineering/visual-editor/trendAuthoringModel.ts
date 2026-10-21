@@ -29,6 +29,12 @@ const TREND_PROPERTY_LABELS: Readonly<Record<EngineeringLocale, Readonly<Record<
     [VISUAL_PROPERTY_KEYS.trendLegendVisible]: 'Mostrar legenda',
     [VISUAL_PROPERTY_KEYS.trendGridVisible]: 'Mostrar grade',
     [VISUAL_PROPERTY_KEYS.trendAxesVisible]: 'Mostrar eixos',
+    [VISUAL_PROPERTY_KEYS.trendLeftAxisVisible]: 'Mostrar eixo esquerdo',
+    [VISUAL_PROPERTY_KEYS.trendRightAxisVisible]: 'Mostrar eixo direito',
+    [VISUAL_PROPERTY_KEYS.trendAxisLabelsVisible]: 'Mostrar escala de valores',
+    [VISUAL_PROPERTY_KEYS.trendTimeAxisVisible]: 'Mostrar eixo de tempo',
+    [VISUAL_PROPERTY_KEYS.trendAxisFontSize]: 'Tamanho da fonte dos eixos',
+    [VISUAL_PROPERTY_KEYS.trendLegendFontSize]: 'Tamanho da fonte da legenda',
     [VISUAL_PROPERTY_KEYS.trendQualityVisible]: 'Mostrar qualidade'
   }),
   en: Object.freeze({
@@ -38,6 +44,12 @@ const TREND_PROPERTY_LABELS: Readonly<Record<EngineeringLocale, Readonly<Record<
     [VISUAL_PROPERTY_KEYS.trendLegendVisible]: 'Show legend',
     [VISUAL_PROPERTY_KEYS.trendGridVisible]: 'Show grid',
     [VISUAL_PROPERTY_KEYS.trendAxesVisible]: 'Show axes',
+    [VISUAL_PROPERTY_KEYS.trendLeftAxisVisible]: 'Show left axis',
+    [VISUAL_PROPERTY_KEYS.trendRightAxisVisible]: 'Show right axis',
+    [VISUAL_PROPERTY_KEYS.trendAxisLabelsVisible]: 'Show value scale',
+    [VISUAL_PROPERTY_KEYS.trendTimeAxisVisible]: 'Show time axis',
+    [VISUAL_PROPERTY_KEYS.trendAxisFontSize]: 'Axis font size',
+    [VISUAL_PROPERTY_KEYS.trendLegendFontSize]: 'Legend font size',
     [VISUAL_PROPERTY_KEYS.trendQualityVisible]: 'Show quality'
   }),
   es: Object.freeze({
@@ -47,6 +59,12 @@ const TREND_PROPERTY_LABELS: Readonly<Record<EngineeringLocale, Readonly<Record<
     [VISUAL_PROPERTY_KEYS.trendLegendVisible]: 'Mostrar leyenda',
     [VISUAL_PROPERTY_KEYS.trendGridVisible]: 'Mostrar cuadrícula',
     [VISUAL_PROPERTY_KEYS.trendAxesVisible]: 'Mostrar ejes',
+    [VISUAL_PROPERTY_KEYS.trendLeftAxisVisible]: 'Mostrar eje izquierdo',
+    [VISUAL_PROPERTY_KEYS.trendRightAxisVisible]: 'Mostrar eje derecho',
+    [VISUAL_PROPERTY_KEYS.trendAxisLabelsVisible]: 'Mostrar escala de valores',
+    [VISUAL_PROPERTY_KEYS.trendTimeAxisVisible]: 'Mostrar eje de tiempo',
+    [VISUAL_PROPERTY_KEYS.trendAxisFontSize]: 'Tamaño de fuente de los ejes',
+    [VISUAL_PROPERTY_KEYS.trendLegendFontSize]: 'Tamaño de fuente de la leyenda',
     [VISUAL_PROPERTY_KEYS.trendQualityVisible]: 'Mostrar calidad'
   })
 });

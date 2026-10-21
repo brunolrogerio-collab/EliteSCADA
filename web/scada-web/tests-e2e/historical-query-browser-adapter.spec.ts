@@ -82,6 +82,10 @@ test('Historical Browser validates and projects canonical response columns, oper
   expect(page.nextCursor).toBe('opaque-do-not-parse');
   expect(page.rows).toHaveLength(1);
   expect(page.rows[0].cells.value).toBe('9223372036854775807');
+  expect(page.columns.map(column => column.key)).not.toContain('tag.id');
+  expect(page.rows[0].cells).not.toHaveProperty('tag.id');
+  expect(page.rows[0].cellTitles.timestamp).toBe('2026-08-30T01:00:00.0000000+00:00');
+  expect(page.rows[0].cells.timestamp).not.toMatch(/T\d{2}:\d{2}:\d{2}.*\+00:00/);
   expect(page.columns.find(column => column.key === 'timestamp')?.sortable).toBe(true);
 });
 
@@ -131,6 +135,6 @@ test('Historical Browser projected page remains read-only presentation data', ()
   };
 
   const page = projectHistoricalQueryResponse(response);
-  expect(page.rows[0].detail.map(fact => fact.label)).toContain('Alarm / ID');
+  expect(page.rows[0].detail.map(fact => fact.label)).not.toContain('Alarm / id');
   expect(JSON.stringify(page)).not.toMatch(/acknowledge|shelve|command/i);
 });

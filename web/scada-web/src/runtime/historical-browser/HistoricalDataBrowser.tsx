@@ -30,6 +30,7 @@ export type HistoricalBrowserColumn = Readonly<{
 export type HistoricalBrowserRow = Readonly<{
   id: string;
   cells: Readonly<Record<string, unknown>>;
+  cellTitles?: Readonly<Record<string, string>>;
   detail?: readonly HistoricalBrowserDetailFact[];
 }>;
 
@@ -211,7 +212,7 @@ export function HistoricalDataBrowser({
                     }}
                   >
                     {columns.map(column => (
-                      <td key={column.key}>{formatHistoricalScalar(row.cells[column.key], column.scalarType, locale)}</td>
+                      <td key={column.key} title={row.cellTitles?.[column.key]}>{formatHistoricalScalar(row.cells[column.key], column.scalarType, locale)}</td>
                     ))}
                   </tr>
                 ))}

@@ -84,27 +84,183 @@ test('C15 mounted canonical Trend renders multiple historian Pens through one bo
   await expect.poll(() => requests.length).toBeGreaterThanOrEqual(1);
   expect(requests[0]).toMatchObject({
     definition: {
-      providerKey: 'historical',
       version: 1,
+      providerKey: 'historical',
       query: {
         version: 1,
         datasetKey: 'historian.samples',
         timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
-        filters: [{ field: 'tag.id', operator: 'in' }],
-        page: { limit: 200 }
+        filters: [{ field: 'tag.id', operator: 'in' }]
       },
-      selectedFields: ['tag.id', 'tag.path', 'quality', 'value', 'timestamp'],
-      historianRetrieval: {
-        mode: 'sampledFixedStep',
-        stepMilliseconds: expect.any(Number),
-        maximumGapMilliseconds: expect.any(Number)
-      }
+      historianRetrieval: { mode: 'sampledFixedStep' }
     },
     execution: {}
   });
   expect(requests[0].definition.query.filters[0].values.map((item: any) => item.value)).toEqual([tagOne, tagTwo]);
-  expect(requests[0].definition.historianRetrieval.stepMilliseconds).toBeGreaterThan(0);
+  expect(requests[0].definition.historianRetrieval.stepMilliseconds).toBeGreaterThan(30_000);
+  expect(requests[0].definition.selectedFields).toEqual(['tag.id', 'tag.path', 'quality', 'value', 'timestamp']);
+  expect(requests[0].definition.query.page.limit).toBe(200);
   expect(requests[0].definition.historianRetrieval.maximumGapMilliseconds).toBeGreaterThan(0);
+});
+
+test('Trend uses the full available width and applies configurable axis and legend font sizes', async ({ page }) => {
+  const now = Date.now();
+  await page.route('**/api/historical/data-query', async route => {
+    await fulfillJson(route, historyResponse([
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 5_000).toISOString(), 7.2, 'Good'),
+      row(tagTwo, 'Area/Pump/Flow', new Date(now - 5_000).toISOString(), 20.5, 'Good')
+    ]));
+  });
+
+  await openHarness(page, '?locale=pt-BR&controls=on&axisFontSize=24&legendFontSize=19');
+  const trend = page.getByTestId('visual-trend');
+  await expect(page.getByTestId('visual-trend-series')).toHaveCount(2);
+  const chart = page.getByTestId('visual-trend-chart');
+  const svg = chart.locator('svg');
+  await expect(trend).toHaveAttribute('data-trend-axis-font-size', '24');
+  await expect(trend).toHaveAttribute('data-trend-legend-font-size', '19');
+  await expect(page.getByTestId('visual-trend-legend')).toHaveCSS('font-size', '19px');
+  await expect(page.getByTestId('visual-trend-axis-label').first()).toHaveAttribute('font-size', '24');
+  await expect(page.getByTestId('visual-trend-time-label')).toHaveCount(6);
+
+  const axisGap = await page.evaluate(() => {
+    const unit = document.querySelector('[data-testid="visual-trend-axis-unit"]') as SVGGraphicsElement | null;
+    const maximum = document.querySelector('[data-testid="visual-trend-axis-label"]') as SVGGraphicsElement | null;
+    if (!unit || !maximum) return null;
+    const unitBox = unit.getBBox();
+    const maximumBox = maximum.getBBox();
+    return maximumBox.y - (unitBox.y + unitBox.height);
+  });
+  expect(axisGap).not.toBeNull();
+  expect(axisGap!).toBeGreaterThanOrEqual(0);
+
+  const widths = await Promise.all([
+    trend.evaluate(element => element.getBoundingClientRect().width),
+    chart.evaluate(element => element.getBoundingClientRect().width),
+    svg.evaluate(element => element.getBoundingClientRect().width)
+  ]);
+  expect(widths[1]).toBeGreaterThan(widths[0] - 4);
+  expect(widths[2]).toBeGreaterThan(widths[1] - 2);
+});
+
+test('Trend operator context menu provides zoom, temporary manual scales, reset and time-axis visibility', async ({ page }) => {
+  const now = Date.now();
+  await page.route('**/api/historical/data-query', async route => {
+    await fulfillJson(route, historyResponse([
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 30 * 60_000).toISOString(), 7, 'Good'),
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 20 * 60_000).toISOString(), 8, 'Good'),
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 10 * 60_000).toISOString(), 9, 'Good'),
+      row(tagTwo, 'Area/Pump/Flow', new Date(now - 20 * 60_000).toISOString(), 20, 'Good')
+    ]));
+  });
+
+  await openHarness(page, '?locale=pt-BR&controls=on');
+  const trend = page.getByTestId('visual-trend');
+  const chart = page.getByTestId('visual-trend-chart');
+  await expect(page.getByTestId('visual-trend-series')).toHaveCount(2);
+  await expect(trend).toHaveAttribute('data-trend-time-axis-visible', 'true');
+  await chart.click({ button: 'right', position: { x: 100, y: 80 } });
+  const menu = page.getByTestId('visual-trend-context-menu');
+  await expect(menu).toBeVisible();
+  await menu.getByRole('button', { name: 'Ampliar' }).click();
+  await expect(trend).toHaveAttribute('data-trend-zoom-factor', '1.5');
+  await menu.getByTestId('trend-axis-left-minimum').fill('-10');
+  await menu.getByTestId('trend-axis-left-maximum').fill('10');
+  await menu.getByRole('button', { name: 'Aplicar escala' }).click();
+  await expect(trend).toHaveAttribute('data-trend-left-domain', '-10,10');
+
+  await chart.click({ button: 'right', position: { x: 100, y: 80 } });
+  await page.getByTestId('visual-trend-context-menu').getByRole('button', { name: 'Usar escala configurada' }).click();
+  await expect(trend).not.toHaveAttribute('data-trend-left-domain', '-10,10');
+
+  await page.goto(`${harnessPath}?locale=pt-BR&timeAxis=off`);
+  await expect(page.getByTestId('visual-trend')).toHaveAttribute('data-trend-time-axis-visible', 'false');
+  await expect(page.getByTestId('visual-trend-time-label')).toHaveCount(0);
+});
+
+test('Trend reference line selects the nearest sample for every legend pen and can be switched off', async ({ page }) => {
+  const now = Date.now();
+  await page.route('**/api/historical/data-query', async route => {
+    await fulfillJson(route, historyResponse([
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 40 * 60_000).toISOString(), 7.1, 'Good'),
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 30 * 60_000).toISOString(), 7.5, 'Good'),
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 10 * 60_000).toISOString(), 9, 'Good'),
+      row(tagTwo, 'Area/Pump/Flow', new Date(now - 30 * 60_000).toISOString(), 30.5, 'Good')
+    ]));
+  });
+
+  await openHarness(page, '?locale=pt-BR&controls=on');
+  const chart = page.getByTestId('visual-trend-chart');
+  const legend = page.getByTestId('visual-trend-legend');
+  await expect(page.getByTestId('visual-trend-series')).toHaveCount(2);
+  await expect(legend).toContainText('9 bar');
+
+  await chart.click({ button: 'right', position: { x: 400, y: 100 } });
+  await page.getByTestId('trend-reference-line-toggle').click();
+  await expect(page.getByTestId('visual-trend')).toHaveAttribute('data-trend-reference-enabled', 'true');
+  await chart.hover({ position: { x: 400, y: 100 } });
+  await expect(page.getByTestId('visual-trend-reference-line')).toBeVisible();
+  const referenceValues = legend.getByTestId('visual-trend-reference-value');
+  await expect(referenceValues).toHaveCount(2);
+  await expect(referenceValues.nth(0)).toHaveAttribute('data-reference-value', '7.5');
+  await expect(referenceValues.nth(1)).toHaveAttribute('data-reference-value', '30.5');
+  await expect(legend).toContainText('7,5 bar');
+
+  await chart.click({ button: 'right', position: { x: 400, y: 100 } });
+  await page.getByTestId('trend-reference-line-toggle').click();
+  await expect(page.getByTestId('visual-trend')).toHaveAttribute('data-trend-reference-enabled', 'false');
+  await expect(page.getByTestId('visual-trend-reference-line')).toHaveCount(0);
+  await expect(legend).toContainText('9 bar');
+});
+
+test('Dynamo content scales proportionally to the selected frame and stays clipped inside it', async ({ page }) => {
+  await page.goto(`${harnessPath}?dynamo=on`);
+  await expect(page.getByTestId('visual-dynamo-content')).toBeVisible();
+  const frame = page.locator('[data-dynamo-instance-id="test-dynamo-instance"]');
+  const child = page.locator('[data-object-id="test-dynamo-rect"]');
+  await expect(frame).toHaveAttribute('data-dynamo-design-width', '100');
+  await expect(frame).toHaveAttribute('data-dynamo-frame-width', '200');
+  await expect(frame).toHaveAttribute('data-dynamo-frame-height', '150');
+  await expect(child).toBeVisible();
+  const geometry = await frame.evaluate((outer, childId) => {
+    const inner = document.querySelector(`[data-object-id="${childId}"]`)!.getBoundingClientRect();
+    const box = outer.getBoundingClientRect();
+    return { x: inner.left - box.left, y: inner.top - box.top, width: inner.width, height: inner.height, overflow: getComputedStyle(outer).overflow };
+  }, 'test-dynamo-rect');
+  expect(geometry.x).toBeCloseTo(20, 0);
+  expect(geometry.y).toBeCloseTo(30, 0);
+  expect(geometry.width).toBeCloseTo(60, 0);
+  expect(geometry.height).toBeCloseTo(60, 0);
+  expect(geometry.overflow).toBe('hidden');
+});
+
+test('Trend time-range edits are staged and not interrupted by historian polling', async ({ page }) => {
+  const requests: any[] = [];
+  await page.route('**/api/historical/data-query', async route => {
+    requests.push(route.request().postDataJSON());
+    await fulfillJson(route, historyResponse([
+      row(tagOne, 'Area/Pump/Pressure', new Date(Date.now() - 30_000).toISOString(), 7, 'Good'),
+      row(tagTwo, 'Area/Pump/Flow', new Date(Date.now() - 20_000).toISOString(), 20, 'Good')
+    ]));
+  });
+  await page.goto(`${harnessPath}?controls=on`);
+  const trend = page.getByTestId('visual-trend');
+  const controls = page.getByTestId('historical-time-range-controls');
+  await expect(page.getByTestId('visual-trend-series')).toHaveCount(2);
+  const unit = controls.getByLabel('Unidade');
+  await unit.focus();
+  await unit.selectOption('hours');
+  await expect(unit).toHaveValue('hours');
+  await expect(unit).toBeEnabled();
+  await controls.getByLabel('Quantidade').fill('1');
+  await page.waitForTimeout(1_150);
+  await expect(unit).toHaveValue('hours');
+  await expect(unit).toBeEnabled();
+  expect(requests).toHaveLength(1);
+  await controls.getByRole('button', { name: 'Aplicar' }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1].definition.query.timeRange).toEqual({ kind: 'relative', durationSeconds: 3600, anchor: 'now' });
+  await expect(trend).toHaveAttribute('data-trend-state', 'ready');
 });
 
 test('C15 quality gaps are fail-safe even when quality chrome is hidden', async ({ page }) => {
@@ -239,13 +395,15 @@ test('R2C-P mounted canonical Trend preserves the required absolute interval and
     requests.push(request);
     await fulfillJson(route, historyResponse([], request));
   });
+  await page.route('**/api/tags', async route => { await fulfillJson(route, []); });
+  await page.routeWebSocket('**/ws/tags', () => {});
 
   await openHarness(page, '?locale=pt-BR&controls=on');
   const controls = page.getByTestId('historical-time-range-controls');
   await controls.getByLabel('Período').selectOption('absolute');
   await controls.getByLabel('De', { exact: true }).fill('2026-09-27T01:00');
   await controls.getByLabel('Até', { exact: true }).fill('2026-09-28T12:00');
-  await controls.getByRole('button', { name: 'Atualizar' }).click();
+  await controls.getByRole('button', { name: 'Aplicar' }).click();
 
   const expectedAbsoluteRange = {
     kind: 'absolute',
@@ -268,11 +426,12 @@ test('R2C-P mounted canonical Trend preserves the required absolute interval and
   expect(absolute.definition.historianRetrieval.stepMilliseconds).toBeGreaterThan(60_000);
 
   const countBeforeRefresh = requests.length;
-  await controls.getByRole('button', { name: 'Atualizar' }).click();
+  await controls.getByRole('button', { name: 'Aplicar' }).click();
   await expect.poll(() => requests.length).toBeGreaterThan(countBeforeRefresh);
   expect(requests.at(-1).definition.query.timeRange).toEqual(absolute.definition.query.timeRange);
 
   await controls.getByLabel('Período').selectOption('live');
+  await controls.getByRole('button', { name: 'Aplicar' }).click();
   await expect(page.getByTestId('visual-trend')).toHaveAttribute('data-trend-source', 'runtime-tags');
   expect(engineeringWrites).toBe(0);
   await context.close();

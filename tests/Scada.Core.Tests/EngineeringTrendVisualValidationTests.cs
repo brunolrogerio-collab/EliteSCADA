@@ -18,6 +18,12 @@ public sealed class EngineeringTrendVisualValidationTests
         Assert.True(schema.Declares("trendLegendVisible"));
         Assert.True(schema.Declares("trendGridVisible"));
         Assert.True(schema.Declares("trendAxesVisible"));
+        Assert.True(schema.Declares("trendLeftAxisVisible"));
+        Assert.True(schema.Declares("trendRightAxisVisible"));
+        Assert.True(schema.Declares("trendAxisLabelsVisible"));
+        Assert.True(schema.Declares("trendTimeAxisVisible"));
+        Assert.True(schema.Declares("trendAxisFontSize"));
+        Assert.True(schema.Declares("trendLegendFontSize"));
         Assert.True(schema.Declares("trendQualityVisible"));
         Assert.False(schema.Declares(BuiltinVisualObjectSchemas.TrendPensProperty));
     }
@@ -40,6 +46,12 @@ public sealed class EngineeringTrendVisualValidationTests
                 ["trendLegendVisible"] = Json("true"),
                 ["trendGridVisible"] = Json("true"),
                 ["trendAxesVisible"] = Json("true"),
+                ["trendLeftAxisVisible"] = Json("true"),
+                ["trendRightAxisVisible"] = Json("true"),
+                ["trendAxisLabelsVisible"] = Json("true"),
+                ["trendTimeAxisVisible"] = Json("true"),
+                ["trendAxisFontSize"] = Json("24"),
+                ["trendLegendFontSize"] = Json("18"),
                 ["trendQualityVisible"] = Json("true"),
                 [BuiltinVisualObjectSchemas.TrendPensProperty] = Json("""
                 [
@@ -77,7 +89,8 @@ public sealed class EngineeringTrendVisualValidationTests
 
         var invalidProperties = new Dictionary<string, JsonElement>(valid.Properties!, StringComparer.Ordinal)
         {
-            ["trendWindowSeconds"] = Json("59")
+            ["trendWindowSeconds"] = Json("59"),
+            ["trendAxisFontSize"] = Json("33")
         };
         var invalid = valid with { Properties = invalidProperties };
 

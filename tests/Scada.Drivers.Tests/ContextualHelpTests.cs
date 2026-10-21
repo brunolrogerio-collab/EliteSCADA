@@ -283,6 +283,8 @@ public sealed class ContextualHelpTests
             var catalog = ContextualHelpCatalog.Build(locale);
             var scriptTopic = Assert.Single(catalog.Topics, topic => topic.Id == "scripts.server");
             var documentedCode = string.Join("\n", scriptTopic.Sections.Select(section => section.Code ?? string.Empty));
+            Assert.Contains("Plant.Pump.Running", documentedCode, StringComparison.Ordinal);
+            Assert.DoesNotContain("<stable-server-memory-tag-id>", documentedCode, StringComparison.Ordinal);
             foreach (var apiFunction in runtimeApi)
                 Assert.Contains($"{apiFunction}(", documentedCode, StringComparison.Ordinal);
 

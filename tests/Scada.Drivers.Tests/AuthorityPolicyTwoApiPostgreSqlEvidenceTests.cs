@@ -108,30 +108,51 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             await nodeA.WaitForHealthAsync();
             await nodeA.BootstrapAsync();
 
-            nodeB = ApiProcess.Start(
-                "node-b", urlB, urlA, ProjectKey, referencePath, directory,
-                appConnectionB.ConnectionString, license, apiDll, root, suffix);
-            await nodeB.WaitForHealthAsync();
-            if (sharedDatabase)
-                await nodeB.LoginAsync();
-            else
-                await nodeB.BootstrapAsync();
-
-            await PrepareProjectAsync(nodeA, activate: true);
             if (!sharedDatabase)
             {
-                await PrepareProjectAsync(nodeB, activate: false);
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.BootstrapAsync();
+            }
+
+            await PrepareProjectAsync(nodeA, activate: true);
+            if (sharedDatabase)
+            {
+                // Start the shared-database standby only after the active
+                // project's published runtime exists, so startup can materialize
+                // it directly without restarting a live peer endpoint.
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB!.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+            }
+            else
+            {
+                await PrepareProjectAsync(nodeB!, activate: false);
                 // A fresh neutral installation starts with process effects fenced.
                 // Once the standby's first Application is attached and published,
                 // restart it so startup recovers that binding before HA passive
                 // Runtime projection begins. Do not locally activate the standby.
-                await nodeB.DisposeAsync();
+                await nodeB!.DisposeAsync();
                 nodeB = null;
                 nodeB = ApiProcess.Start(
                     "node-b", urlB, urlA, ProjectKey, referencePath, directory,
                     appConnectionB.ConnectionString, license, apiDll, root, suffix);
                 await nodeB.WaitForHealthAsync();
                 await nodeB.LoginAsync();
+            }
+            // Do not enter the initial policy fence until the shared-database
+            // standby's passive Runtime is observably ready.
+            if (sharedDatabase)
+            {
+                await WaitForHaTopologyAsync(
+                    nodeA,
+                    topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                    TimeSpan.FromSeconds(75),
+                    "the shared-database standby never materialized the published runtime before initial policy fencing");
             }
             await WaitForInitialPolicyCommitAsync(
                 nodeA,
@@ -363,43 +384,64 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             await nodeA.WaitForHealthAsync();
             await nodeA.BootstrapAsync();
 
-            nodeB = ApiProcess.Start(
-                "node-b", urlB, urlA, ProjectKey, referencePath, directory,
-                appConnectionB.ConnectionString, license, apiDll, root, suffix);
-            await nodeB.WaitForHealthAsync();
-            if (sharedDatabase)
-                await nodeB.LoginAsync();
-            else
+            if (!sharedDatabase)
+            {
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
                 await nodeB.BootstrapAsync();
+            }
 
             await PrepareProjectAsync(nodeA, activate: true);
             if (sharedDatabase)
-                await WaitForInitialPolicyCommitAsync(nodeA, nodeB, referencePath);
-            if (!sharedDatabase)
-                await PrepareProjectAsync(nodeB, activate: false);
-            // Node B was started before the first published revision existed. In the
-            // separate-database case, prepare/publish its local copy without activating
-            // it. Restart after provisioning so D2 starts from a loaded standby rather
-            // than an empty-runtime case. Shared-database policy commit is established
-            // before restart; isolated-database policy commit follows standby bootstrap.
-            await nodeB.DisposeAsync();
-            nodeB = null;
-            nodeB = ApiProcess.Start(
-                "node-b", urlB, urlA, ProjectKey, referencePath, directory,
-                appConnectionB.ConnectionString, license, apiDll, root, suffix);
-            await nodeB.WaitForHealthAsync();
-            await nodeB.LoginAsync();
+            {
+                // Start the shared-database standby only after the published project
+                // exists, so its first runtime load is materialized. Do not restart a
+                // live peer endpoint while Node A's HA synchronizer may have a pooled
+                // connection to it.
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+            }
+            else
+            {
+                await PrepareProjectAsync(nodeB!, activate: false);
+                // In the separate-database case, publish its local copy without
+                // activating it, then restart so D2 begins from a loaded standby.
+                await nodeB!.DisposeAsync();
+                nodeB = null;
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+            }
+            // A fresh shared-database standby can be healthy before its passive
+            // runtime has materialized. Require the same observable ReadyStandby
+            // precondition that the D2 lifecycle needs before waiting on the policy
+            // fence; keep the fence's commit/mirror predicate unchanged.
+            if (sharedDatabase)
+            {
+                await WaitForHaTopologyAsync(
+                    nodeA,
+                    topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                    TimeSpan.FromSeconds(75),
+                    "the shared-database standby never materialized the published runtime before policy fencing");
+            }
+            // Separate-database D2 restarts the standby before policy replication.
+            // Allow cold standby startup plus peer sync to finish under the broad T2
+            // suite; the commit predicate remains unchanged.
+            await WaitForInitialPolicyCommitAsync(
+                nodeA,
+                nodeB!,
+                referencePath,
+                sharedDatabase ? null : TimeSpan.FromSeconds(90));
             if (!sharedDatabase)
             {
-                // Separate-database D2 restarts the standby before policy replication.
-                // Allow cold standby startup plus peer sync to finish under the broad T2
-                // suite; the commit predicate remains unchanged.
-                await WaitForInitialPolicyCommitAsync(
-                    nodeA,
-                    nodeB,
-                    referencePath,
-                    TimeSpan.FromSeconds(90));
-                await MirrorProjectToStandbyAsync(nodeA, nodeB);
+                await MirrorProjectToStandbyAsync(nodeA, nodeB!);
             }
 
             var initialA = await WaitForHaTopologyAsync(

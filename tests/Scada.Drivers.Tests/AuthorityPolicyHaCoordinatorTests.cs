@@ -15,7 +15,7 @@ namespace Scada.Drivers.Tests;
 public sealed class AuthorityPolicyHaCoordinatorTests
 {
     [Fact]
-    public async Task EmptyInitialPolicyBootstrapsItsFirstFenceInsteadOfAbortingIt()
+    public async Task EmptyInitialPolicyBootstrapResumesAfterPeerBecomesAvailable()
     {
         var directory = Path.Combine(Path.GetTempPath(), "elitescada-authority-ha-empty-bootstrap-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -52,6 +52,18 @@ public sealed class AuthorityPolicyHaCoordinatorTests
                 optionsA, new RuntimeHaPeerAuthenticator(optionsA, TimeProvider.System),
                 gateA, TimeProvider.System, NullLogger<AuthorityPolicyHaCoordinator>.Instance, peer);
 
+            // Leave the first bootstrap fence pending, as if the active had
+            // written its durable intent while the peer endpoint was unavailable.
+            peer.Available = false;
+            await coordinatorA.SynchronizeOnceAsync();
+            var pendingFence = (await referenceA.ReadAsync())!.AuthorityPolicy!;
+            Assert.Equal(0, pendingFence.PendingVersion);
+            Assert.Null(pendingFence.CommittedDigest);
+            Assert.Null(pendingFence.AcknowledgedVersion);
+
+            // The next pass must resume that pending snapshot instead of trying
+            // to begin the same update again and returning update-pending.
+            peer.Available = true;
             await coordinatorA.SynchronizeOnceAsync();
 
             var readiness = await coordinatorA.CheckAsync();

@@ -198,6 +198,23 @@ test('C15 keeps hidden Pens out of the transient query and rejects Live as a his
   })).toThrow('Live Trend does not query Historian history.');
 });
 
+test('C15 bounds trend samples while spanning the full absolute time range', () => {
+  const request = buildTrendHistoricalQuery(fixturePens(), Object.freeze({
+    mode: 'absolute',
+    relativeAmount: 1,
+    relativeUnit: 'hours',
+    absoluteFromLocal: '2026-10-20T18:29:00',
+    absoluteToLocal: '2026-10-20T23:44:00'
+  }));
+  const from = Date.parse(request.definition.query.timeRange.kind === 'absolute' ? request.definition.query.timeRange.fromUtc : '');
+  const to = Date.parse(request.definition.query.timeRange.kind === 'absolute' ? request.definition.query.timeRange.toUtc : '');
+  const step = request.definition.historianRetrieval.stepMilliseconds;
+  const pointsPerPen = Math.floor((Math.floor(200 / 2) - 1) + 1);
+  expect(to - from).toBe(5 * 60 * 60 * 1000 + 15 * 60 * 1000);
+  expect(Math.ceil((to - from) / step) + 1).toBeLessThanOrEqual(pointsPerPen);
+  expect(request.definition.historianRetrieval.maximumGapMilliseconds).toBeLessThanOrEqual(60_000);
+});
+
 test('C15 groups historian rows by canonical tag id and preserves quality', () => {
   const response: HistoricalQueryResponse = {
     version: 1,

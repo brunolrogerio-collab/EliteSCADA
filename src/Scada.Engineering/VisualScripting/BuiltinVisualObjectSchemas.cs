@@ -44,6 +44,12 @@ public static class BuiltinVisualObjectSchemas
     private const string TrendLegendVisibleProperty = "trendLegendVisible";
     private const string TrendGridVisibleProperty = "trendGridVisible";
     private const string TrendAxesVisibleProperty = "trendAxesVisible";
+    private const string TrendLeftAxisVisibleProperty = "trendLeftAxisVisible";
+    private const string TrendRightAxisVisibleProperty = "trendRightAxisVisible";
+    private const string TrendAxisLabelsVisibleProperty = "trendAxisLabelsVisible";
+    private const string TrendAxisFontSizeProperty = "trendAxisFontSize";
+    private const string TrendLegendFontSizeProperty = "trendLegendFontSize";
+    private const string TrendTimeAxisVisibleProperty = "trendTimeAxisVisible";
     private const string TrendQualityVisibleProperty = "trendQualityVisible";
 
     private static readonly IReadOnlyList<VisualPropertyDefinition> TrendDefinitions =
@@ -69,6 +75,20 @@ public static class BuiltinVisualObjectSchemas
         new(TrendLegendVisibleProperty, new VisualBooleanValue(true)),
         new(TrendGridVisibleProperty, new VisualBooleanValue(true)),
         new(TrendAxesVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendLeftAxisVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendRightAxisVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendAxisLabelsVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendTimeAxisVisibleProperty, new VisualBooleanValue(true)),
+        new(
+            TrendAxisFontSizeProperty,
+            new VisualNumberValue(16),
+            constraints: new VisualPropertyConstraints { Minimum = 8, Maximum = 32 },
+            unit: "px"),
+        new(
+            TrendLegendFontSizeProperty,
+            new VisualNumberValue(14),
+            constraints: new VisualPropertyConstraints { Minimum = 8, Maximum = 32 },
+            unit: "px"),
         new(TrendQualityVisibleProperty, new VisualBooleanValue(true))
     ];
 
@@ -285,6 +305,12 @@ public static class BuiltinVisualObjectSchemas
             TrendLegendVisibleProperty,
             TrendGridVisibleProperty,
             TrendAxesVisibleProperty,
+            TrendLeftAxisVisibleProperty,
+            TrendRightAxisVisibleProperty,
+            TrendAxisLabelsVisibleProperty,
+            TrendTimeAxisVisibleProperty,
+            TrendAxisFontSizeProperty,
+            TrendLegendFontSizeProperty,
             TrendQualityVisibleProperty
         ]));
 

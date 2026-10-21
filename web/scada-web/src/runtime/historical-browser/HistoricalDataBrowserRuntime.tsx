@@ -12,10 +12,16 @@ import {
 import {
   buildHistoricalQueryRequest,
   canSearchHistoricalColumns,
+  isInternalIdentityColumn,
   projectHistoricalQueryResponse,
   sortableHistoricalColumns
 } from './historicalBrowserQueryAdapter';
-import { createHistoricalBrowserDraft, type HistoricalBrowserDraft } from './historicalBrowserPresentation';
+import {
+  createHistoricalBrowserDraft,
+  formatHistoricalDateTime,
+  type HistoricalBrowserDraft
+} from './historicalBrowserPresentation';
+import { localTimeZoneLabel } from '../historicalTimeRange';
 import {
   historicalBrowserCopy,
   historicalFieldLabel,
@@ -61,8 +67,12 @@ export function HistoricalDataBrowserRuntime({
 
   useEffect(() => () => activeController.current?.abort(), []);
 
-  const searchable = canSearchHistoricalColumns(responseColumns);
-  const sortableColumns = useMemo(() => sortableHistoricalColumns(responseColumns), [responseColumns]);
+  const operatorColumns = useMemo(
+    () => responseColumns.filter(column => !isInternalIdentityColumn(column)),
+    [responseColumns]
+  );
+  const searchable = canSearchHistoricalColumns(operatorColumns);
+  const sortableColumns = useMemo(() => sortableHistoricalColumns(operatorColumns), [operatorColumns]);
 
   const runQuery = useCallback(async (
     queryDraft: HistoricalBrowserDraft,
@@ -99,6 +109,7 @@ export function HistoricalDataBrowserRuntime({
       setRows(projected.rows.map(row => Object.freeze({
         id: row.id,
         cells: row.cells,
+        cellTitles: row.cellTitles,
         detail: row.detail
       })));
       setResolvedRange(Object.freeze({ fromUtc: projected.fromUtc, toUtc: projected.toUtc }));
@@ -179,7 +190,10 @@ export function HistoricalDataBrowserRuntime({
       text.sortField + ': ' + historicalFieldLabel(sortField, locale) + ' ' +
       (sortDirection === 'ascending' ? text.ascending : text.descending)
     );
-    if (resolvedRange) summary.push(resolvedRange.fromUtc + ' → ' + resolvedRange.toUtc);
+    if (resolvedRange) summary.push(
+      formatHistoricalDateTime(resolvedRange.fromUtc, locale) + ' → ' +
+      formatHistoricalDateTime(resolvedRange.toUtc, locale) + ' · ' + localTimeZoneLabel()
+    );
     summary.push(text.page + ' ' + String(pageIndex + 1));
     return Object.freeze(summary);
   }, [filters, locale, pageIndex, resolvedRange, search, searchable, sortDirection, sortField, text]);
@@ -244,7 +258,7 @@ export function HistoricalDataBrowserRuntime({
 
             <HistoricalFilterBuilder
               locale={locale}
-              columns={responseColumns}
+              columns={operatorColumns}
               filters={filters}
               disabled={state === 'loading'}
               onFiltersChange={handleFiltersChange}

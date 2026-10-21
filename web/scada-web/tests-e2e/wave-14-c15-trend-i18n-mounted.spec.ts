@@ -65,7 +65,8 @@ test('C15 mounted Runtime Trend exposes Portuguese no-data state', async ({ page
       fromUtc: new Date(now - 3600_000).toISOString(),
       toUtc: new Date(now).toISOString(),
       nextCursor: null,
-      resultLimit: 200
+      resultLimit: 200,
+      retrievalMode: 'sampledFixedStep'
     });
   });
 

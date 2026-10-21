@@ -27,6 +27,8 @@ public static class AssetProcessIntelligenceAnalyticsApi
             Results.Ok(AssetProcessIntelligenceReferenceEvidenceV1Catalog.Describe()));
         group.MapGet("/context-eligibility/v1/catalog", () =>
             Results.Ok(AssetProcessIntelligenceContextEligibilityV1Catalog.Describe()));
+        group.MapGet("/experimental-joint-deviation/v1/catalog", () =>
+            Results.Ok(AssetProcessIntelligenceExperimentalJointDeviationV1Catalog.Describe()));
         group.MapPost("/query", (
             HttpContext context,
             AssetProcessIntelligenceAnalyticsQueryRequest request,
@@ -81,6 +83,12 @@ public static class AssetProcessIntelligenceAnalyticsApi
             AssetProcessIntelligenceAnalyticsService service,
             CancellationToken cancellationToken) =>
             service.ExecuteContextEligibilityV1Async(context, request, cancellationToken));
+        group.MapPost("/experimental-joint-deviation/v1/query", (
+            HttpContext context,
+            AssetProcessIntelligenceExperimentalJointDeviationV1QueryRequest request,
+            AssetProcessIntelligenceAnalyticsService service,
+            CancellationToken cancellationToken) =>
+            service.ExecuteExperimentalJointDeviationV1Async(context, request, cancellationToken));
         group.MapPost("/profile-coverage", (
             HttpContext context,
             AssetProcessIntelligenceProfileCoverageQueryRequest request,

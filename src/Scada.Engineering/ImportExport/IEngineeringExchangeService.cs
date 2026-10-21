@@ -1,3 +1,5 @@
+using System.Linq;
+using System.Text.Json;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.VisualAssets;
 
@@ -12,6 +14,21 @@ public interface IEngineeringExchangeService
     string ExportDataSourcesCsv();
 
     EngineeringPackage ParseJson(string json);
+
+    /// <summary>
+    /// Parses an import payload while preserving the distinction between an omitted
+    /// RuntimePresentation field and an explicit/default presentation value.
+    /// </summary>
+    EngineeringPackage ParseJsonForImport(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var includesRuntimePresentation = document.RootElement.ValueKind == JsonValueKind.Object &&
+            document.RootElement.EnumerateObject().Any(property =>
+                string.Equals(property.Name, "runtimePresentation", StringComparison.OrdinalIgnoreCase));
+        var package = ParseJson(json);
+        return includesRuntimePresentation ? package : package with { RuntimePresentation = null };
+    }
+
     EngineeringPackage ParseTagsCsv(string csv);
     EngineeringPackage ParseAlarmsCsv(string csv);
     EngineeringPackage ParseDataSourcesCsv(string csv);

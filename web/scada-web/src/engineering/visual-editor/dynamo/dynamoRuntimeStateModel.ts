@@ -87,7 +87,7 @@ export function collectPublicParameterSamples(
     const stateParameter = element.metadata?.dynamoStateColorParameter?.trim();
     if (stateParameter) {
       const normalized = normalizeKey(stateParameter);
-      const map = element.propertyMaps?.find(candidate => candidate.propertyKey === 'fillColor');
+      const map = resolveStateColorPropertyMap(element);
       const source = map?.source;
       if (!result.has(normalized) && source) {
         const sample = source.tagReference?.tagId
@@ -100,6 +100,18 @@ export function collectPublicParameterSamples(
   };
   for (const element of elements) visit(element);
   return new Map(result);
+}
+
+function resolveStateColorPropertyMap(element: VisualElementEngineering) {
+  const sourcedMaps = (element.propertyMaps ?? []).filter(candidate => candidate.source);
+  return sourcedMaps.find(candidate => candidate.propertyKey === 'fillColor')
+    // SVG-composed Dynamos expose their state paint slot with a namespaced key.
+    // This is the same public state-color contract as a primitive fillColor.
+    ?? sourcedMaps.find(candidate => /(?:^|\.)state\.fill$/i.test(candidate.propertyKey))
+    // Some composed one-slot symbols have their own public property key. Since
+    // the element explicitly declares a Dynamo state-color parameter, a single
+    // sourced map is unambiguous; multiple unmatched maps remain fail-closed.
+    ?? (sourcedMaps.length === 1 ? sourcedMaps[0] : undefined);
 }
 
 function resolveNumericStateProfile(

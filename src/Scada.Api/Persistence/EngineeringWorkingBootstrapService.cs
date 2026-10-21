@@ -120,7 +120,8 @@ public sealed class EngineeringWorkingBootstrapService(
              dynamo.Metadata.TryGetValue("importedDynamoLibrary", out var imported) &&
               string.Equals(imported, "true", StringComparison.OrdinalIgnoreCase) ||
              dynamo.Metadata.TryGetValue("assetOrigin", out var origin) &&
-              string.Equals(origin, "elipse-e3-import", StringComparison.OrdinalIgnoreCase)));
+              string.Equals(origin, "elipse-e3-import", StringComparison.OrdinalIgnoreCase)) ||
+            IsOutdatedBuiltinDynamo(dynamo));
 
         UpgradeBuiltinDynamos(workspace);
         RemoveImportedE3Dynamos();
@@ -290,6 +291,18 @@ public sealed class EngineeringWorkingBootstrapService(
 
         foreach (var key in importedKeys)
             workspace.Assets.RemoveDynamo(key);
+    }
+
+    private static bool IsOutdatedBuiltinDynamo(Scada.Engineering.Contracts.DynamoEngineeringDto dynamo)
+    {
+        if (dynamo.Metadata?.TryGetValue("builtinLibrary", out var builtin) != true ||
+            !string.Equals(builtin, "true", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var currentVersionText = dynamo.Properties?.GetValueOrDefault("libraryVersion");
+        return !Version.TryParse(currentVersionText, out var currentVersion) ||
+               !Version.TryParse(BuiltinDynamoCatalogV1.Version, out var latestVersion) ||
+               currentVersion < latestVersion;
     }
 
     private static string? Normalize(string? value) =>

@@ -1,3 +1,5 @@
+import { createBrowserUuid } from '../browserUuid';
+
 export const TIMING_POLICY_V1_SCHEMA = 'elitescada.timing-policy/v1' as const;
 
 export const TIMING_HEADERS = Object.freeze({
@@ -116,7 +118,7 @@ export function createRemoteRequestMetadata(
   }
 
   return Object.freeze({
-    requestId: crypto.randomUUID(),
+    requestId: createBrowserUuid(),
     operation: normalizedOperation,
     category,
     attempt,

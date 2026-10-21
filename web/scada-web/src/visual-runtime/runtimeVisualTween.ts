@@ -1,3 +1,4 @@
+import { createBrowserUuid } from '../browserUuid';
 import { RuntimeVisualInstance, RuntimeVisualInstanceError } from './runtimeVisualInstance';
 
 export const VISUAL_TWEEN_POLICY = Object.freeze({
@@ -381,14 +382,14 @@ function browserFrameClock(): VisualTweenFrameClock {
 }
 
 function createTweenHandle(): string {
-  const randomUuid = globalThis.crypto?.randomUUID;
-  if (typeof randomUuid !== 'function') {
+  try {
+    return `tween-${createBrowserUuid()}`;
+  } catch {
     throw new RuntimeVisualTweenError(
       'VISUAL_TWEEN_HANDLE_FACTORY_UNAVAILABLE',
       'Browser UUID generation is required for visual tween handles.'
     );
   }
-  return `tween-${randomUuid.call(globalThis.crypto)}`;
 }
 
 function sanitizeDiagnostic(reason: unknown): string {

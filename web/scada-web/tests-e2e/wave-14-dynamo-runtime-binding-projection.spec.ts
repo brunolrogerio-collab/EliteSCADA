@@ -78,6 +78,41 @@ test('legacy equipmentPath remains the fallback for existing instances', () => {
   expect(resolveDynamoRuntimeEquipmentPath(null, new Map())).toBeNull();
 });
 
+test('persisted numeric Dynamo state labels do not overlap at enum boundaries', () => {
+  const stateSource = { kind: 'Tag' as const, valueType: 'Number' as const, target: '{dynamoParameter:state}' };
+  const labels: VisualElementEngineering[] = [0, 1].map(index => ({
+    key: `state-label-${index}`,
+    type: 'core.text',
+    metadata: { dynamoStateLabelIndex: String(index) },
+    booleanConditions: [{
+      propertyKey: 'visible',
+      kind: 'NumericInterval',
+      source: stateSource,
+      minimum: index,
+      maximum: index + 1
+    }]
+  }));
+
+  const projected = projectDynamoRuntimeElements(labels, new Map(), null);
+  const camelCaseWireLabels = labels.map(element => ({
+    ...element,
+    booleanConditions: element.booleanConditions?.map(condition => ({
+      ...condition,
+      kind: 'numericInterval'
+    }))
+  })) as unknown as VisualElementEngineering[];
+  const projectedWireLabels = projectDynamoRuntimeElements(camelCaseWireLabels, new Map(), null);
+
+  expect(projected.map(element => element.booleanConditions?.[0])).toEqual([
+    expect.objectContaining({ minimum: 0, maximum: 1, maximumInclusive: false }),
+    expect.objectContaining({ minimum: 1, maximum: 2, maximumInclusive: false })
+  ]);
+  expect(projectedWireLabels.map(element => element.booleanConditions?.[0])).toEqual([
+    expect.objectContaining({ kind: 'numericInterval', minimum: 0, maximum: 1, maximumInclusive: false }),
+    expect.objectContaining({ kind: 'numericInterval', minimum: 1, maximum: 2, maximumInclusive: false })
+  ]);
+});
+
 test('Dynamo composition accepts API camelCase EquipmentPath parameters at every entry point', () => {
   const definition = {
     id: '55000000-0000-0000-0000-000000000001',
@@ -683,6 +718,33 @@ test('button Dynamo lets each instance select a canonical command or TAG action'
   expect(resolve('set-analog')).toMatchObject({ kind: 'SetTagValue', targetKey: 'tag-1', parameters: { value: 11.5 } });
   expect(resolve('set-bool')).toMatchObject({ kind: 'SetTagValue', targetKey: 'tag-1', parameters: { value: true } });
   expect(resolve('toggle-bool')).toMatchObject({ kind: 'ToggleTagBoolean', targetKey: 'tag-1' });
+});
+
+test('Dynamo commands can be disabled per instance without removing non-operational navigation', () => {
+  const control: VisualElementEngineering = {
+    id: 'equipment-actions', key: 'state-body', type: 'core.rectangle',
+    metadata: { dynamoCommandsEnabledParameter: 'commandsEnabled' },
+    actions: [
+      { eventKey: 'click', kind: 'ExecuteCommand', commandParameterKey: 'command' },
+      { eventKey: 'pointerdown', kind: 'SetTagValue', targetKey: '{targetTag}', parameters: { value: 1 } },
+      { eventKey: 'pointerup', kind: 'ToggleTagBoolean', targetKey: '{targetTag}' },
+      { eventKey: 'doubleClick', kind: 'OpenPopup', targetKey: 'pump-details' }
+    ]
+  };
+  const disabled = projectDynamoRuntimeElements([control], parameters(
+    { key: 'commandsEnabled', kind: 'Boolean', value: false },
+    { key: 'command', kind: 'Command', commandId: 'command-1' },
+    { key: 'targetTag', kind: 'TagReference', tagReference: { tagId: 'tag-1' } }
+  ), null)[0];
+  expect(disabled?.actions).toEqual([{ eventKey: 'doubleClick', kind: 'OpenPopup', targetKey: 'pump-details' }]);
+
+  const enabled = projectDynamoRuntimeElements([control], parameters(
+    { key: 'commandsEnabled', kind: 'Boolean', value: true },
+    { key: 'command', kind: 'Command', commandId: 'command-1' },
+    { key: 'targetTag', kind: 'TagReference', tagReference: { tagId: 'tag-1' } }
+  ), null)[0];
+  expect(enabled?.actions?.[0]).toMatchObject({ kind: 'ExecuteCommand', commandId: 'command-1' });
+  expect(enabled?.actions).toHaveLength(4);
 });
 
 test('button pressed feedback accepts an inverted Boolean expression source', () => {

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createBrowserUuid } from '../../browserUuid';
 import type { EngineeringLocale } from '../../engineering/i18n';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import type { EngineeringPackageView } from '../../engineering/types';
@@ -6,7 +7,7 @@ import type {
   CanonicalVisualEvent,
   VisualAssetUrlResolver
 } from '../../engineering/visual-editor/CanonicalVisualRenderer';
-import { resolveVisualDefinitionSurfaceStyle } from '../../engineering/visual-editor/visualDefinitionSurfaceModel';
+import { readVisualDefinitionSurfaceConfig, resolveVisualDefinitionSurfaceStyle } from '../../engineering/visual-editor/visualDefinitionSurfaceModel';
 import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clientVisualEventDispatcher';
 import { RuntimeLogicalViewport } from './RuntimeLogicalViewport';
 import { useMobileRuntime } from '../useMobileRuntime';
@@ -98,6 +99,7 @@ export function RuntimeVisualNavigator({
   const richCommandPromptOwner = React.useRef<Readonly<{ objectId: string; requestId: string }> | null>(null);
   const richCommandSubmitting = React.useRef(false);
   const actionInFlight = React.useRef(new Set<string>());
+  const feedbackTimers = React.useRef(new Map<string, number>());
   const catalog = useMemo(() => createRuntimeVisualCatalog(engineeringPackage), [engineeringPackage]);
   const initialResolution = useMemo(
     () => resolveInitialNavigation(catalog, initialScreenKey),
@@ -110,8 +112,11 @@ export function RuntimeVisualNavigator({
     const next = resolveInitialNavigation(catalog, initialScreenKey);
     setState(next.state);
     setDiagnostic(next.diagnostic);
+    clearFeedbackTimers(feedbackTimers.current);
     setActionFeedback(new Map());
   }, [catalog, initialScreenKey]);
+
+  useEffect(() => () => clearFeedbackTimers(feedbackTimers.current), []);
 
   useEffect(() => {
     if (!state || !onVisualContextChange) return;
@@ -142,19 +147,20 @@ export function RuntimeVisualNavigator({
     return <RuntimeDiagnostic diagnostic={asRuntimeDiagnostic(reason)} />;
   }
 
-  const designSize = resolveRuntimeLogicalSize();
+  const authoredOrientation = readVisualDefinitionSurfaceConfig(activeScreen.properties).screenOrientation;
+  const designSize = resolveRuntimeLogicalSize(authoredOrientation);
+  const effectiveMobileOrientation = authoredOrientation ?? mobileOrientation;
 
   const dispatch = async (event: CanonicalVisualEvent, popupRuntimeInstanceId?: string) => {
     const objectId = event.element.id ?? event.element.key;
     let operational = false;
     let acquired = false;
     let retainInFlight = false;
-    const requestId = crypto.randomUUID();
+    let requestId = '';
     const started = Date.now();
-    const feedback = (status: RuntimeActionFeedback['state']) => setActionFeedback(previous => {
-      if (status !== 'pending' && previous.get(objectId)?.requestId !== requestId) return previous;
-      return new Map(previous).set(objectId, { state: status, label: actionFeedbackLabel(status, locale), requestId });
-    });
+    const feedback = (status: RuntimeActionFeedback['state']) => publishActionFeedback(
+      objectId, requestId, status, locale, setActionFeedback, feedbackTimers.current
+    );
     const confirmWrite = async (tagId: string, value: unknown) => {
       feedback('accepted');
       try {
@@ -170,6 +176,7 @@ export function RuntimeVisualNavigator({
       operational = ['ExecuteCommand', 'ExecuteRichCommand', 'SetTagValue', 'ToggleTagBoolean'].includes(action.kind);
       if (operational) {
         if (actionInFlight.current.has(objectId)) return;
+        requestId = createBrowserUuid();
         actionInFlight.current.add(objectId); acquired = true; feedback('pending');
       }
       if (action.kind === 'ExecuteCommand') {
@@ -282,10 +289,7 @@ export function RuntimeVisualNavigator({
   };
 
   const updateFeedback = (objectId: string, requestId: string, status: RuntimeActionFeedback['state']) => {
-    setActionFeedback(previous => {
-      if (previous.get(objectId)?.requestId !== requestId) return previous;
-      return new Map(previous).set(objectId, { state: status, label: actionFeedbackLabel(status, locale), requestId });
-    });
+    publishActionFeedback(objectId, requestId, status, locale, setActionFeedback, feedbackTimers.current);
   };
 
   const cancelRichCommandPrompt = () => {
@@ -294,6 +298,7 @@ export function RuntimeVisualNavigator({
       richCommandPromptOwner.current = null;
     }
     actionInFlight.current.delete(richCommandPrompt.objectId);
+    clearFeedbackTimer(feedbackTimers.current, richCommandPrompt.objectId, richCommandPrompt.requestId);
     setActionFeedback(previous => {
       if (previous.get(richCommandPrompt.objectId)?.requestId !== richCommandPrompt.requestId) return previous;
       const next = new Map(previous);
@@ -377,7 +382,7 @@ export function RuntimeVisualNavigator({
     data-runtime-temporal-mode={playback?.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
     data-runtime-historical-at={playback?.atUtc ?? undefined}
   >
-    <RuntimeLogicalViewport designSize={designSize} mobileOrientation={mobileOrientation}>
+    <RuntimeLogicalViewport designSize={designSize} mobileOrientation={effectiveMobileOrientation}>
       <div className="runtime-logical-composition">
         <section
           className="runtime-visual-screen"
@@ -595,6 +600,60 @@ function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering
     );
   }
   return Object.freeze({ ...(action as unknown as OperationalVisualAction), kind });
+}
+
+function publishActionFeedback(
+  objectId: string,
+  requestId: string,
+  status: RuntimeActionFeedback['state'],
+  locale: EngineeringLocale,
+  setFeedback: React.Dispatch<React.SetStateAction<ReadonlyMap<string, RuntimeActionFeedback>>>,
+  timers: Map<string, number>
+) {
+  const timerKey = feedbackTimerKey(objectId, requestId);
+  clearFeedbackTimerByKey(timers, timerKey);
+  setFeedback(previous => {
+    if (status !== 'pending' && previous.get(objectId)?.requestId !== requestId) return previous;
+    return new Map(previous).set(objectId, {
+      state: status,
+      label: actionFeedbackLabel(status, locale),
+      requestId
+    });
+  });
+
+  if (status === 'pending') return;
+  const duration = status === 'failed' || status === 'Failed' || status === 'Rejected' ||
+    status === 'TimedOut' || status === 'Unknown' ? 8000 : 5000;
+  const timer = window.setTimeout(() => {
+    timers.delete(timerKey);
+    setFeedback(previous => {
+      if (previous.get(objectId)?.requestId !== requestId) return previous;
+      const next = new Map(previous);
+      next.delete(objectId);
+      return next;
+    });
+  }, duration);
+  timers.set(timerKey, timer);
+}
+
+function feedbackTimerKey(objectId: string, requestId: string): string {
+  return `${objectId}\u0000${requestId}`;
+}
+
+function clearFeedbackTimer(timers: Map<string, number>, objectId: string, requestId: string) {
+  clearFeedbackTimerByKey(timers, feedbackTimerKey(objectId, requestId));
+}
+
+function clearFeedbackTimerByKey(timers: Map<string, number>, key: string) {
+  const timer = timers.get(key);
+  if (timer === undefined) return;
+  window.clearTimeout(timer);
+  timers.delete(key);
+}
+
+function clearFeedbackTimers(timers: Map<string, number>) {
+  for (const timer of timers.values()) window.clearTimeout(timer);
+  timers.clear();
 }
 
 function isRichCommandErrorOutcome(outcome: RuntimeRichCommandOutcome): boolean {

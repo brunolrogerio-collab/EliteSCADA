@@ -67,6 +67,17 @@ function projectElement(
   }
   const stateLabelIndex = Number(element.metadata?.dynamoStateLabelIndex);
   const hasStateLabel = Number.isInteger(stateLabelIndex);
+  const booleanConditions = hasStateLabel
+    ? element.booleanConditions?.map(condition => {
+      const isAdjacentStateInterval = condition.propertyKey === 'visible' &&
+        String(condition.kind).toLocaleLowerCase('en-US') === 'numericinterval' &&
+        condition.minimum === stateLabelIndex &&
+        condition.maximum === stateLabelIndex + 1;
+      return isAdjacentStateInterval && condition.maximumInclusive !== false
+        ? Object.freeze({ ...condition, maximumInclusive: false })
+        : condition;
+    })
+    : element.booleanConditions;
   const stateLabelEnabled = !hasStateLabel || isDynamoStateEnabled(
     element.metadata?.dynamoStateEnableParameterProfile?.split(',').map(value => value.trim()) ?? [],
     stateLabelIndex,
@@ -184,7 +195,7 @@ function projectElement(
         source: projectedStateSource
       });
     }) : undefined,
-    booleanConditions: animationEnabled && stateLabelEnabled ? element.booleanConditions?.map(condition => Object.freeze({
+    booleanConditions: animationEnabled && stateLabelEnabled ? booleanConditions?.map(condition => Object.freeze({
       ...condition,
       source: projectDynamoStateSource(condition.source, element, parameters, equipmentPath)
     })) : undefined,
@@ -371,6 +382,14 @@ function projectAction(
     if (!selected) throw new Error(`Dynamo action mode '${mode.value}' is not supported.`);
     projected = { ...projected, ...selected, commandId: null };
   }
+  const commandsEnabledParameterKey = metadata?.dynamoCommandsEnabledParameter?.trim();
+  const commandsEnabled = commandsEnabledParameterKey
+    ? findParameter(parameters, commandsEnabledParameterKey)
+    : undefined;
+  const actionKind = String(projected.kind).trim().toLocaleLowerCase('en-US');
+  const isOperationalAction = ['executecommand', 'executerichcommand', 'settagvalue', 'toggletagboolean'].includes(actionKind);
+  if (isOperationalAction && commandsEnabled?.kind === 'Boolean' && commandsEnabled.value === false) return null;
+
   const commandParameterKey = projected.commandParameterKey?.trim();
   if (commandParameterKey) {
     const parameter = findParameter(parameters, commandParameterKey);

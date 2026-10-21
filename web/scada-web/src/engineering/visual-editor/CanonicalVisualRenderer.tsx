@@ -695,6 +695,12 @@ function CanonicalDynamoElement({
     const enabled = booleanValue(dynamic.values[VISUAL_PROPERTY_KEYS.enabled], true);
     const runtimeObjectId = composition.instanceId;
     const onClick = visualClickHandler(element, onVisualEvent, runtimeObjectId);
+    const designWidth = positiveDynamoDimension(definition.properties?.defaultWidth, 120);
+    const designHeight = positiveDynamoDimension(definition.properties?.defaultHeight, 100);
+    const frameWidth = positiveDynamoDimension(dynamic.values[VISUAL_PROPERTY_KEYS.width], 100);
+    const frameHeight = positiveDynamoDimension(dynamic.values[VISUAL_PROPERTY_KEYS.height], 100);
+    const scaleX = frameWidth / designWidth;
+    const scaleY = frameHeight / designHeight;
     const diagnosticTitle = dynamic.diagnostics.length > 0
       ? dynamic.diagnostics.map(item => `${item.propertyKey ? `${item.propertyKey}: ` : ''}${item.message}`).join('\n')
       : undefined;
@@ -705,7 +711,7 @@ function CanonicalDynamoElement({
 
     return <div
       className="visual-editor-object visual-editor-group visual-editor-dynamo"
-      style={style}
+      style={{ ...style, overflow: 'hidden' }}
       data-object-id={element.id ?? undefined}
       data-runtime-object-id={runtimeObjectId}
       data-enabled={enabled}
@@ -713,25 +719,37 @@ function CanonicalDynamoElement({
       data-dynamo-definition-id={composition.definitionId}
       data-dynamo-instance-id={composition.instanceId}
       data-dynamo-parameter-count={composition.parameters.size}
+      data-dynamo-design-width={designWidth}
+      data-dynamo-design-height={designHeight}
+      data-dynamo-frame-width={frameWidth}
+      data-dynamo-frame-height={frameHeight}
       data-dynamic-state={dynamic.diagnostics.length > 0 ? 'unavailable' : 'available'}
       title={title}
       onClick={onClick}
     >
-      {projectedChildren.map((child, index) => <CanonicalElement
-        key={child.id ?? `${child.key}-${index}`}
-        element={child}
-        locale={locale}
-        liveSamples={liveSamples}
-        dynamoDefinitions={dynamoDefinitions}
-        equipmentDefinitions={equipmentDefinitions}
-        templateDefinitions={templateDefinitions}
-        onVisualEvent={onVisualEvent}
-        runtimeIdentityPrefix={composition.instanceId}
-        onTagWrite={onTagWrite}
-        visualAssetUrl={visualAssetUrl}
-        showTechnicalFallbackText={showTechnicalFallbackText}
-      operatorTimeRangeControls={operatorTimeRangeControls}
-      />)}
+      <div
+        data-testid="visual-dynamo-content"
+        style={{
+          position: 'absolute', left: 0, top: 0, width: designWidth, height: designHeight,
+          transform: `scale(${scaleX}, ${scaleY})`, transformOrigin: 'top left', overflow: 'hidden'
+        }}
+      >
+        {projectedChildren.map((child, index) => <CanonicalElement
+          key={child.id ?? `${child.key}-${index}`}
+          element={child}
+          locale={locale}
+          liveSamples={liveSamples}
+          dynamoDefinitions={dynamoDefinitions}
+          equipmentDefinitions={equipmentDefinitions}
+          templateDefinitions={templateDefinitions}
+          onVisualEvent={onVisualEvent}
+          runtimeIdentityPrefix={composition.instanceId}
+          onTagWrite={onTagWrite}
+          visualAssetUrl={visualAssetUrl}
+          showTechnicalFallbackText={showTechnicalFallbackText}
+          operatorTimeRangeControls={operatorTimeRangeControls}
+        />)}
+      </div>
     </div>;
   } catch (reason) {
     const message = reason instanceof Error ? reason.message : String(reason);
@@ -745,6 +763,11 @@ function CanonicalDynamoElement({
       title={message}
     >{element.key || element.dynamoKey || 'invalid Dynamo'}</div>;
   }
+}
+
+function positiveDynamoDimension(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return typeof parsed === 'number' && Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function CanonicalEquipmentElement({

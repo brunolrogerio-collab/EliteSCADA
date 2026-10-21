@@ -450,12 +450,38 @@ public sealed class BuiltinDynamoLibraryTests
             Assert.Equal("visible", condition.PropertyKey);
             Assert.Equal(tagId, condition.Source.TagReference!.TagId);
             Assert.Null(condition.Source.Target);
+            Assert.True(condition.MinimumInclusive);
+            Assert.False(condition.MaximumInclusive);
         });
         Assert.All(animated.Elements.SelectMany(element => element.PropertyMaps ?? []), map =>
         {
             Assert.Equal(tagId, map.Source.TagReference!.TagId);
             Assert.Null(map.Source.Target);
         });
+    }
+
+    [Fact]
+    public void StatefulDynamosAndButtons_ExposePerInstanceCommandEnableSwitch()
+    {
+        var definitions = BuiltinDynamoCatalogV1.Create();
+        foreach (var key in new[] { "pump.submersible", "motor.tefc", "valve.gate", "operator.button.raised" })
+        {
+            var definition = definitions.Single(item => item.Key == key);
+            var parameter = Assert.Single(definition.Parameters!, item => item.Key == "commandsEnabled");
+            Assert.Equal(DynamoParameterKind.Boolean, parameter.Kind);
+            Assert.True(parameter.DefaultValue!.Value.GetBoolean());
+        }
+
+        var pump = definitions.Single(item => item.Key == "pump.submersible");
+        var pumpBody = Assert.Single(pump.Elements!, element => element.Metadata?.GetValueOrDefault("dynamoCommandsEnabledParameter") == "commandsEnabled");
+        Assert.Equal("commandsEnabled", pumpBody.Metadata!["dynamoCommandsEnabledParameter"]);
+
+        var button = definitions.Single(item => item.Key == "operator.button.raised");
+        var buttonBody = Assert.Single(button.Elements!, element => element.Metadata?.GetValueOrDefault("dynamoCommandsEnabledParameter") == "commandsEnabled");
+        Assert.Equal("commandsEnabled", buttonBody.Metadata!["dynamoCommandsEnabledParameter"]);
+
+        var stateLabel = Assert.Single(pump.Elements!, element => element.Key == "state-label-0");
+        Assert.Equal("#E6F2F7", stateLabel.Properties!["textColor"].GetString());
     }
 
     [Fact]

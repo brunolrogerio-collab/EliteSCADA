@@ -9,8 +9,8 @@ export const useRuntimeActionFeedback = () => useContext(RuntimeActionFeedbackCo
 export function actionFeedbackLabel(state: RuntimeActionFeedback['state'], locale: string) {
   if (state === 'Rejected' || state === 'Accepted' || state === 'Completed' ||
       state === 'Failed' || state === 'TimedOut' || state === 'Unknown') return state;
-  const copy = locale === 'pt-BR' ? { pending: 'Comando pendente', accepted: 'Enviado · aguardando retorno', confirmed: 'Retorno confirmado', failed: 'Falha no comando' }
-    : locale === 'es' ? { pending: 'Comando pendiente', accepted: 'Enviado · esperando retorno', confirmed: 'Retorno confirmado', failed: 'Comando fallido' }
-      : { pending: 'Command pending', accepted: 'Sent · awaiting feedback', confirmed: 'Feedback confirmed', failed: 'Command failed' };
+  const copy = locale === 'pt-BR' ? { pending: 'Comando pendente', accepted: 'Comando aceito', confirmed: 'Retorno confirmado', failed: 'Falha no comando' }
+    : locale === 'es' ? { pending: 'Comando pendiente', accepted: 'Comando aceptado', confirmed: 'Retorno confirmado', failed: 'Comando fallido' }
+      : { pending: 'Command pending', accepted: 'Command accepted', confirmed: 'Feedback confirmed', failed: 'Command failed' };
   return copy[state];
 }

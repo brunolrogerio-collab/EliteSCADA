@@ -1,3 +1,4 @@
+import { createBrowserUuid } from '../../browserUuid';
 import type {
   DynamoEngineering,
   EngineeringPackageView,
@@ -692,14 +693,14 @@ function cloneJsonValue<T>(value: T): T {
 }
 
 function createRuntimeInstanceId(): string {
-  const factory = globalThis.crypto?.randomUUID;
-  if (typeof factory !== 'function') {
+  try {
+    return createBrowserUuid();
+  } catch {
     throw new RuntimeVisualCompositionError(
       'VISUAL_RUNTIME_INSTANCE_ID_FACTORY_UNAVAILABLE',
       'Browser UUID generation is required to mount a Popup runtime instance.'
     );
   }
-  return factory.call(globalThis.crypto);
 }
 
 function normalizeKey(value: string): string {

@@ -1,12 +1,18 @@
 import type {
   DynamoEngineering,
-  VisualElementEngineering
+  VisualElementEngineering,
+  VisualValueSourceEngineering
 } from '../../engineering/types';
 import type {
   DynamoParameterDefinitionEngineering,
   DynamoParameterKindEngineering,
   DynamoParameterValueEngineering
 } from './runtimeVisualNavigationModel';
+import {
+  normalizeVisualExpressionDependencyKind,
+  normalizeVisualExpressionValueType,
+  normalizeVisualValueSourceKind
+} from '../../engineering/visual-editor/visualDynamicWireContract';
 
 export class DynamoParameterWireContractError extends Error {
   constructor(
@@ -65,9 +71,13 @@ export function normalizeDynamoParameterDefinition(
   parameter: DynamoParameterDefinitionEngineering
 ): DynamoParameterDefinitionEngineering {
   const wire = parameter as DynamoParameterDefinitionEngineering & Readonly<{ kind: unknown }>;
+  const valueSourceType = parameter.valueSourceType === null || parameter.valueSourceType === undefined
+    ? parameter.valueSourceType
+    : normalizeValueType(parameter.valueSourceType);
   return Object.freeze({
     ...parameter,
     kind: normalizeDynamoParameterKind(wire.kind),
+    valueSourceType,
     defaultValue: parameter.defaultValue === null ? undefined : parameter.defaultValue,
     defaultTagReference: parameter.defaultTagReference
       ? Object.freeze({
@@ -109,27 +119,69 @@ export function normalizeDynamoParameterValue(
 }
 
 function normalizeValueSource(source: NonNullable<DynamoParameterValueEngineering['valueSource']>) {
+  const kind = normalizeVisualValueSourceKind(source.kind);
+  if (!kind.ok) {
+    throw new DynamoParameterWireContractError(
+      'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID',
+      kind.message
+    );
+  }
+  const valueType = normalizeValueType(source.valueType);
+
+  const expression = source.expression ? normalizeExpression(source.expression) : source.expression;
   return Object.freeze({
     ...source,
+    kind: kind.value,
+    valueType,
     tagReference: source.tagReference
       ? Object.freeze({
           ...source.tagReference,
           selector: source.tagReference.selector ? Object.freeze({ ...source.tagReference.selector }) : source.tagReference.selector
         })
       : source.tagReference,
-    expression: source.expression ? Object.freeze({
-      ...source.expression,
-      dependencies: source.expression.dependencies
-        ? Object.freeze(source.expression.dependencies.map(dependency => Object.freeze({
+    expression
+  });
+}
+
+function normalizeExpression(expression: NonNullable<VisualValueSourceEngineering['expression']>) {
+  const resultType = normalizeValueType(expression.resultType);
+
+  return Object.freeze({
+    ...expression,
+    resultType,
+    dependencies: expression.dependencies
+      ? Object.freeze(expression.dependencies.map(dependency => {
+          const kind = normalizeVisualExpressionDependencyKind(dependency.kind);
+          if (!kind.ok) {
+            throw new DynamoParameterWireContractError(
+              'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID',
+              kind.message
+            );
+          }
+          const valueType = normalizeValueType(dependency.valueType);
+          return Object.freeze({
             ...dependency,
+            kind: kind.value,
+            valueType,
             tagReference: Object.freeze({
               ...dependency.tagReference,
               selector: dependency.tagReference.selector ? Object.freeze({ ...dependency.tagReference.selector }) : dependency.tagReference.selector
             })
-          })))
-        : source.expression.dependencies
-    }) : source.expression
+          });
+        }))
+      : expression.dependencies
   });
+}
+
+function normalizeValueType(value: unknown): 'Boolean' | 'Number' {
+  const normalized = normalizeVisualExpressionValueType(value);
+  if (!normalized.ok) {
+    throw new DynamoParameterWireContractError(
+      'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID',
+      normalized.message
+    );
+  }
+  return normalized.value;
 }
 
 export function normalizeDynamoDefinitionParameterContract(

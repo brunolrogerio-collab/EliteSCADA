@@ -17,6 +17,8 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
     expect(copy.tabularEntities).toHaveLength(5);
     expect(copy.tabularDescription.toLowerCase()).toContain('runtime');
     expect(copy.tabularDescription.toLowerCase()).toContain('fragment');
+    expect(copy.tabularIdentityHint.toLowerCase()).toContain(locale === 'en' ? 'internally' : 'internamente');
+    expect(copy.tabularIdentityHint).toContain('DataSourceKey');
     expect(copy.tabularApplyDescription.length).toBeGreaterThan(50);
   });
 }

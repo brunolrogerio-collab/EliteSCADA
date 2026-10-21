@@ -42,6 +42,111 @@ public sealed class EngineeringTabularExchangeTests
     }
 
     [Theory]
+    [InlineData(EngineeringTabularEntity.Tags)]
+    [InlineData(EngineeringTabularEntity.Alarms)]
+    [InlineData(EngineeringTabularEntity.DataSources)]
+    [InlineData(EngineeringTabularEntity.GatewayRoutes)]
+    [InlineData(EngineeringTabularEntity.OperationalEvents)]
+    public void Flat_exports_hide_internal_ids_and_use_readable_relationship_keys(EngineeringTabularEntity entity)
+    {
+        var package = Package();
+        var rows = CsvCodec.Read(_exchange.ExportCsv(package, entity));
+        var headers = rows[0];
+
+        Assert.DoesNotContain(headers, column => column.Equals("Id", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(headers, column => column.EndsWith("Id", StringComparison.OrdinalIgnoreCase));
+
+        switch (entity)
+        {
+            case EngineeringTabularEntity.Tags:
+                Assert.Equal("plc", rows[1][Array.IndexOf(headers, "DataSourceKey")]);
+                Assert.Equal("historian.fast", rows[1][Array.IndexOf(headers, "HistorianCaptureProfileKey")]);
+                break;
+            case EngineeringTabularEntity.Alarms:
+                Assert.Equal("Plant.Temperature", rows[1][Array.IndexOf(headers, "TagPath")]);
+                break;
+            case EngineeringTabularEntity.GatewayRoutes:
+                Assert.Equal("Plant.Temperature", rows[1][Array.IndexOf(headers, "SourceTagPath")]);
+                Assert.Equal("Plant.Mirror", rows[1][Array.IndexOf(headers, "DestinationTagPath")]);
+                break;
+            case EngineeringTabularEntity.OperationalEvents:
+                Assert.Equal("Plant.Temperature", rows[1][Array.IndexOf(headers, "TagPath")]);
+                break;
+        }
+
+        var internalIds = new[]
+        {
+            package.Tags.Single().Id!.Value,
+            package.Tags.Single().DataSourceId!.Value,
+            package.Tags.Single().HistorianCaptureProfileId!.Value,
+            package.Alarms.Single().Id!.Value,
+            package.DataSources!.Single().Id!.Value,
+            package.Gateways!.Single().Id!.Value,
+            package.OperationalEvents!.Single().Id!.Value
+        };
+        Assert.All(internalIds, id => Assert.DoesNotContain(id.ToString("D"), string.Join(',', rows.SelectMany(row => row)), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("xlsx")]
+    public void Legacy_id_bearing_tabular_files_remain_readable(string format)
+    {
+        var package = Package();
+        var tag = package.Tags.Single();
+        var alarm = package.Alarms.Single();
+        var dataSource = package.DataSources!.Single();
+        var route = package.Gateways!.Single();
+        var operationalEvent = package.OperationalEvents!.Single();
+
+        void AssertLegacyRoundTrip(EngineeringTabularEntity entity, string csv, Action<EngineeringPackage> assert)
+        {
+            var imported = format == "csv"
+                ? _exchange.ParseCsv(package, entity, csv)
+                : _exchange.ParseXlsx(package, entity, XlsxCodec.Write(CsvCodec.Read(csv), SheetName(entity)));
+            assert(imported);
+        }
+
+        AssertLegacyRoundTrip(EngineeringTabularEntity.Tags,
+            $"Id,Path,Name,DataType,Source,DataSourceId,HistorianCaptureProfileId\n{tag.Id:D},{tag.Path},{tag.Name},{tag.DataType},{tag.Source},{tag.DataSourceId:D},{tag.HistorianCaptureProfileId:D}",
+            imported =>
+            {
+                var value = Assert.Single(imported.Tags);
+                Assert.Equal(tag.Id, value.Id);
+                Assert.Equal(tag.DataSourceId, value.DataSourceId);
+                Assert.Equal(tag.HistorianCaptureProfileId, value.HistorianCaptureProfileId);
+            });
+        AssertLegacyRoundTrip(EngineeringTabularEntity.Alarms,
+            $"Id,Name,TagId,TagPath,Type,Priority\n{alarm.Id:D},{alarm.Name},{alarm.TagId:D},{alarm.TagPath},{alarm.Type},{alarm.Priority}",
+            imported =>
+            {
+                var value = Assert.Single(imported.Alarms);
+                Assert.Equal(alarm.Id, value.Id);
+                Assert.Equal(alarm.TagId, value.TagId);
+            });
+        AssertLegacyRoundTrip(EngineeringTabularEntity.DataSources,
+            $"Id,Key,Name,Driver,Enabled\n{dataSource.Id:D},{dataSource.Key},{dataSource.Name},{dataSource.Driver},{dataSource.Enabled}",
+            imported => Assert.Equal(dataSource.Id, Assert.Single(imported.DataSources!).Id));
+        AssertLegacyRoundTrip(EngineeringTabularEntity.GatewayRoutes,
+            $"Id,Key,Name,SourceTagId,SourceTagPath,DestinationTagId,DestinationTagPath\n{route.Id:D},{route.Key},{route.Name},{route.SourceTagId:D},{route.SourceTagPath},{route.DestinationTagId:D},{route.DestinationTagPath}",
+            imported =>
+            {
+                var value = Assert.Single(imported.Gateways!);
+                Assert.Equal(route.Id, value.Id);
+                Assert.Equal(route.SourceTagId, value.SourceTagId);
+                Assert.Equal(route.DestinationTagId, value.DestinationTagId);
+            });
+        AssertLegacyRoundTrip(EngineeringTabularEntity.OperationalEvents,
+            $"Id,Key,Name,Type,Category,Source,TagId,TagPath\n{operationalEvent.Id:D},{operationalEvent.Key},{operationalEvent.Name},{operationalEvent.Type},{operationalEvent.Category},{operationalEvent.Source},{operationalEvent.TagId:D},{operationalEvent.TagPath}",
+            imported =>
+            {
+                var value = Assert.Single(imported.OperationalEvents!);
+                Assert.Equal(operationalEvent.Id, value.Id);
+                Assert.Equal(operationalEvent.TagId, value.TagId);
+            });
+    }
+
+    [Theory]
     [InlineData("csv")]
     [InlineData("xlsx")]
     public void TabularTagFormatsPreserveVersion2UnitsAndTheirSchemaCapability(string format)
@@ -374,15 +479,45 @@ public sealed class EngineeringTabularExchangeTests
         foreach (var mode in Enum.GetValues<ImportMode>())
         {
             var package = _exchange.ParseCsv(current, entity, csv);
+            var identityBeforeImport = ResourceId(entity, current);
             var preview = canonicalExchange.Preview(package, mode);
             Assert.True(preview.CanApply, string.Join("; ", preview.Items.SelectMany(item => item.Issues).Select(issue => issue.Message)));
             var result = canonicalExchange.Apply(package, mode);
             Assert.DoesNotContain(result.Issues, issue => issue.IsError);
+            Assert.Equal(identityBeforeImport, ResourceId(entity, canonicalExchange.ExportPackage()));
             if (mode == ImportMode.CreateOnly)
                 Assert.True(preview.SkipCount > 0);
             else
                 Assert.True(preview.UpdateCount > 0);
         }
+    }
+
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("xlsx")]
+    public void New_tag_import_generates_an_internal_id_without_an_id_column(string format)
+    {
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var canonicalExchange = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms);
+        var source = Package() with
+        {
+            Tags = [new TagEngineeringDto(null, "New level", "Plant.Tank.Level", TagDataType.Double)],
+            Alarms = []
+        };
+        var imported = format == "csv"
+            ? _exchange.ParseCsv(source, EngineeringTabularEntity.Tags,
+                _exchange.ExportCsv(source, EngineeringTabularEntity.Tags))
+            : _exchange.ParseXlsx(source, EngineeringTabularEntity.Tags,
+                _exchange.ExportXlsx(source, EngineeringTabularEntity.Tags));
+
+        Assert.Null(Assert.Single(imported.Tags).Id);
+        var preview = canonicalExchange.Preview(imported, ImportMode.CreateAndUpdate);
+        Assert.True(preview.CanApply, string.Join("; ", preview.Items.SelectMany(item => item.Issues).Select(issue => issue.Message)));
+        var result = canonicalExchange.Apply(imported, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(1, result.Created);
+        Assert.DoesNotContain(result.Issues, issue => issue.IsError);
+        Assert.NotNull(Assert.Single(canonicalExchange.ExportPackage().Tags).Id);
     }
 
     [Theory]
@@ -418,6 +553,36 @@ public sealed class EngineeringTabularExchangeTests
         var result = canonicalExchange.Apply(imported, ImportMode.CreateAndUpdate);
         Assert.DoesNotContain(result.Issues, issue => issue.IsError);
         Assert.Equal(CountRows(edited, entity), CountRows(canonicalExchange.ExportPackage(), entity));
+
+        var applied = canonicalExchange.ExportPackage();
+        switch (entity)
+        {
+            case EngineeringTabularEntity.Tags:
+                var importedTag = applied.Tags.Single(item => item.Path == "Plant.Imported");
+                Assert.NotNull(importedTag.Id);
+                Assert.NotEqual(edited.Tags.Last().Id, importedTag.Id);
+                Assert.Equal(applied.DataSources!.Single().Id, importedTag.DataSourceId);
+                break;
+            case EngineeringTabularEntity.Alarms:
+                Assert.NotNull(applied.Alarms.Single(item => item.Name == "Imported high alarm").Id);
+                break;
+            case EngineeringTabularEntity.DataSources:
+                var importedDataSource = applied.DataSources!.Single(item => item.Key == "imported-plc");
+                Assert.NotNull(importedDataSource.Id);
+                Assert.NotEqual(edited.DataSources!.Last().Id, importedDataSource.Id);
+                break;
+            case EngineeringTabularEntity.GatewayRoutes:
+                var importedRoute = applied.Gateways!.Single(item => item.Key == "imported-route");
+                Assert.NotNull(importedRoute.Id);
+                Assert.Equal(applied.Tags.Single(item => item.Path == "Plant.Source").Id, importedRoute.SourceTagId);
+                Assert.Equal(applied.Tags.Single(item => item.Path == "Plant.SecondaryDestination").Id, importedRoute.DestinationTagId);
+                break;
+            case EngineeringTabularEntity.OperationalEvents:
+                var importedEvent = applied.OperationalEvents!.Single(item => item.Key == "imported.updated");
+                Assert.NotNull(importedEvent.Id);
+                Assert.Equal(applied.Tags.Single(item => item.Path == importedEvent.TagPath).Id, importedEvent.TagId);
+                break;
+        }
     }
 
     [Fact]
@@ -502,6 +667,7 @@ public sealed class EngineeringTabularExchangeTests
         var sourceId = Guid.NewGuid();
         var tagId = Guid.NewGuid();
         var destinationId = Guid.NewGuid();
+        var historianProfileId = Guid.NewGuid();
         return new EngineeringPackage(
             EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion,
@@ -510,7 +676,7 @@ public sealed class EngineeringTabularExchangeTests
                 Source: "plc", Address: "40001", EngineeringUnit: "°C", ReadOnly: false,
                 Historian: new HistorianSettingsDto(true, "periodic", 0.25, 1000, 5000),
                 Metadata: new Dictionary<string, string> { ["note"] = "line 1\nline 2" },
-                DataSourceId: sourceId, HistorianCaptureProfileId: Guid.NewGuid())],
+                DataSourceId: sourceId, HistorianCaptureProfileId: historianProfileId)],
             [new AlarmEngineeringDto(Guid.NewGuid(), "High temperature", tagId, "Plant.Temperature",
                 AlarmType.High, AlarmPriority.High, 80.5, Message: "High, \"hot\"")],
             DataSources: [new DataSourceEngineeringDto(sourceId, "plc", "PLC", "ModbusTcp", true,
@@ -526,7 +692,9 @@ public sealed class EngineeringTabularExchangeTests
                 "Started, ready", true, new Dictionary<string, string> { ["origin"] = "PLC" })],
             EngineeringLock: new EngineeringLockEngineeringDto(false),
             AuthorityPolicyReference: new AuthorityPolicyReferenceEngineeringDto("scada.authority-policy", 1, 42, [], []),
-            RuntimePresentation: new RuntimePresentationEngineeringDto());
+            RuntimePresentation: new RuntimePresentationEngineeringDto(),
+            HistorianCaptureProfiles: [new HistorianCaptureProfileEngineeringDto(
+                historianProfileId, "historian.fast", "Fast historian", HistorianCaptureStrategy.Periodic, 1000)]);
     }
 
     private static EngineeringPackage SeedPackage()
@@ -607,6 +775,16 @@ public sealed class EngineeringTabularExchangeTests
         _ => throw new ArgumentOutOfRangeException(nameof(entity))
     };
 
+    private static Guid? ResourceId(EngineeringTabularEntity entity, EngineeringPackage package) => entity switch
+    {
+        EngineeringTabularEntity.Tags => package.Tags.Single(item => item.Path == "Plant.Source").Id,
+        EngineeringTabularEntity.Alarms => package.Alarms.Single().Id,
+        EngineeringTabularEntity.DataSources => package.DataSources!.Single().Id,
+        EngineeringTabularEntity.GatewayRoutes => package.Gateways!.Single().Id,
+        EngineeringTabularEntity.OperationalEvents => package.OperationalEvents!.Single().Id,
+        _ => throw new ArgumentOutOfRangeException(nameof(entity))
+    };
+
     private static string SheetName(EngineeringTabularEntity entity) => entity switch
     {
         EngineeringTabularEntity.Tags => "Tags",
@@ -624,26 +802,40 @@ public sealed class EngineeringTabularExchangeTests
             case EngineeringTabularEntity.Tags:
                 Assert.Single(package.Tags);
                 Assert.Equal("Plant.Temperature", package.Tags.Single().Path);
-                Assert.NotNull(package.Tags.Single().DataSourceId);
+                Assert.Null(package.Tags.Single().Id);
+                Assert.Equal("plc", package.Tags.Single().Source);
+                Assert.Null(package.Tags.Single().DataSourceId);
                 Assert.NotNull(package.Tags.Single().HistorianCaptureProfileId);
                 break;
             case EngineeringTabularEntity.Alarms:
                 Assert.Single(package.Alarms);
                 Assert.Equal("High temperature", package.Alarms.Single().Name);
+                Assert.Null(package.Alarms.Single().Id);
+                Assert.Null(package.Alarms.Single().TagId);
+                Assert.Equal("Plant.Temperature", package.Alarms.Single().TagPath);
                 break;
             case EngineeringTabularEntity.DataSources:
                 Assert.Single(package.DataSources ?? []);
+                Assert.Null(package.DataSources!.Single().Id);
+                Assert.Equal("plc", package.DataSources!.Single().Key);
                 Assert.Equal("env://SCADA_PLC_PASSWORD", package.DataSources!.Single().SecretReferences!["password"]);
                 break;
             case EngineeringTabularEntity.GatewayRoutes:
                 var routes = package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>();
                 Assert.Single(routes);
+                Assert.Null(routes.Single().Id);
+                Assert.Null(routes.Single().SourceTagId);
+                Assert.Null(routes.Single().DestinationTagId);
+                Assert.Equal("Plant.Temperature", routes.Single().SourceTagPath);
+                Assert.Equal("Plant.Mirror", routes.Single().DestinationTagPath);
                 Assert.Equal(GatewayTransferMode.Periodic, routes.Single().TransferMode);
                 Assert.Equal(100, routes.Single().MinimumIntervalMilliseconds);
                 break;
             case EngineeringTabularEntity.OperationalEvents:
                 var events = package.OperationalEvents ?? Array.Empty<OperationalEventEngineeringDto>();
                 Assert.Single(events);
+                Assert.Null(events.Single().Id);
+                Assert.Null(events.Single().TagId);
                 Assert.Equal("pump.started", events.Single().Key);
                 Assert.Equal("Plant.Temperature", events.Single().TagPath);
                 break;

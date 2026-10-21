@@ -32,11 +32,23 @@ public sealed class HistorianCaptureProfileEngineeringExchangeDecorator : IEngin
     public string ExportJson(bool indented = true) =>
         JsonSerializer.Serialize(ExportPackage(), JsonOptions(indented));
 
-    public string ExportTagsCsv() => _inner.ExportTagsCsv();
-    public string ExportAlarmsCsv() => _inner.ExportAlarmsCsv();
-    public string ExportDataSourcesCsv() => _inner.ExportDataSourcesCsv();
+    public string ExportTagsCsv() =>
+        new EngineeringTabularExchange().ExportCsv(ExportPackage(), EngineeringTabularEntity.Tags);
+
+    public string ExportAlarmsCsv() =>
+        new EngineeringTabularExchange().ExportCsv(ExportPackage(), EngineeringTabularEntity.Alarms);
+
+    public string ExportDataSourcesCsv() =>
+        new EngineeringTabularExchange().ExportCsv(ExportPackage(), EngineeringTabularEntity.DataSources);
     public EngineeringPackage ParseJson(string json) => _inner.ParseJson(json);
-    public EngineeringPackage ParseTagsCsv(string csv) => _inner.ParseTagsCsv(csv);
+
+    public EngineeringPackage ParseTagsCsv(string csv)
+    {
+        var current = _inner.ExportPackage() with { HistorianCaptureProfiles = _profiles.Snapshot() };
+        var parsed = new EngineeringTabularExchange().ParseCsv(current, EngineeringTabularEntity.Tags, csv);
+        return parsed with { AuthorityPolicyReference = current.AuthorityPolicyReference };
+    }
+
     public EngineeringPackage ParseAlarmsCsv(string csv) => _inner.ParseAlarmsCsv(csv);
     public EngineeringPackage ParseDataSourcesCsv(string csv) => _inner.ParseDataSourcesCsv(csv);
 

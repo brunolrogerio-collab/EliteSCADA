@@ -35,11 +35,11 @@ public sealed class EngineeringTabularExchange
 
     public string ExportCsv(EngineeringPackage package, EngineeringTabularEntity entity) => entity switch
     {
-        EngineeringTabularEntity.Tags => _csv.ExportTags(package.Tags),
-        EngineeringTabularEntity.Alarms => _csv.ExportAlarms(package.Alarms),
+        EngineeringTabularEntity.Tags => _csv.ExportTags(package.Tags, package.DataSources, package.HistorianCaptureProfiles),
+        EngineeringTabularEntity.Alarms => _csv.ExportAlarms(package.Alarms, package.Tags),
         EngineeringTabularEntity.DataSources => _csv.ExportDataSources(package.DataSources ?? []),
-        EngineeringTabularEntity.GatewayRoutes => _csv.ExportGatewayRoutes(package.Gateways ?? []),
-        EngineeringTabularEntity.OperationalEvents => _csv.ExportOperationalEvents(package.OperationalEvents ?? []),
+        EngineeringTabularEntity.GatewayRoutes => _csv.ExportGatewayRoutes(package.Gateways ?? [], package.Tags),
+        EngineeringTabularEntity.OperationalEvents => _csv.ExportOperationalEvents(package.OperationalEvents ?? [], package.Tags),
         _ => throw new ArgumentOutOfRangeException(nameof(entity))
     };
 
@@ -52,7 +52,7 @@ public sealed class EngineeringTabularExchange
     public EngineeringPackage ParseCsv(EngineeringPackage current, EngineeringTabularEntity entity, string csv)
     {
         if (string.IsNullOrWhiteSpace(csv)) throw new InvalidDataException("CSV import requires a header row.");
-        return ReplaceTabularEntities(current, entity, ParseRows(entity, csv));
+        return ReplaceTabularEntities(current, entity, ParseRows(current, entity, csv));
     }
 
     public EngineeringPackage ParseXlsx(EngineeringPackage current, EngineeringTabularEntity entity, ReadOnlyMemory<byte> xlsx)
@@ -60,7 +60,7 @@ public sealed class EngineeringTabularExchange
         var rows = XlsxCodec.Read(xlsx, SheetName(entity));
         if (rows.Count == 0) throw new InvalidDataException("XLSX import requires a header row.");
         var csv = CsvCodec.Write(rows.Select(row => (IReadOnlyList<string?>)row));
-        return ReplaceTabularEntities(current, entity, ParseRows(entity, csv));
+        return ReplaceTabularEntities(current, entity, ParseRows(current, entity, csv));
     }
 
     public static bool TryParseEntity(string? value, out EngineeringTabularEntity entity)
@@ -97,9 +97,9 @@ public sealed class EngineeringTabularExchange
         _ => throw new ArgumentOutOfRangeException(nameof(entity))
     };
 
-    private EngineeringPackage ParseRows(EngineeringTabularEntity entity, string csv) => entity switch
+    private EngineeringPackage ParseRows(EngineeringPackage current, EngineeringTabularEntity entity, string csv) => entity switch
     {
-        EngineeringTabularEntity.Tags => ParseTagsPackage(csv),
+        EngineeringTabularEntity.Tags => ParseTagsPackage(csv, current.HistorianCaptureProfiles),
         EngineeringTabularEntity.Alarms => new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow, [], _csv.ParseAlarms(csv)),
         EngineeringTabularEntity.DataSources => new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
@@ -114,9 +114,11 @@ public sealed class EngineeringTabularExchange
         _ => throw new ArgumentOutOfRangeException(nameof(entity))
     };
 
-    private EngineeringPackage ParseTagsPackage(string csv)
+    private EngineeringPackage ParseTagsPackage(
+        string csv,
+        IReadOnlyCollection<HistorianCaptureProfileEngineeringDto>? historianProfiles)
     {
-        var parsed = _csv.ParseTagsWithSchema(csv);
+        var parsed = _csv.ParseTagsWithSchema(csv, historianProfiles);
         return new EngineeringPackage(
             EngineeringExchangeService.CurrentSchema,
             parsed.SchemaVersion,

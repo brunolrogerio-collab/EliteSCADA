@@ -555,7 +555,7 @@ public sealed class AssetProcessIntelligenceEngineeringTests
         var row = new string[columns.Length];
         var index = columns.Select((name, position) => (name, position))
             .ToDictionary(item => item.name, item => item.position, StringComparer.OrdinalIgnoreCase);
-        row[index["Id"]] = tagId.ToString("D");
+        Assert.DoesNotContain("Id", index.Keys, StringComparer.OrdinalIgnoreCase);
         row[index["Path"]] = "Plant.P01.Current";
         row[index["Name"]] = "Current";
         row[index["DataType"]] = nameof(TagDataType.Double);

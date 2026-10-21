@@ -55,9 +55,14 @@ internal sealed class OperationalEventEngineeringHandler
                 continue;
             }
 
+            var tagId = definition.TagId ??
+                (string.IsNullOrWhiteSpace(definition.TagPath)
+                    ? null
+                    : ResolveTagByPath(package, definition.TagPath)?.Id);
             _registry.UpsertOperationalEvent(definition with
             {
-                Id = existing?.Id ?? definition.Id ?? Guid.NewGuid()
+                Id = existing?.Id ?? definition.Id ?? Guid.NewGuid(),
+                TagId = tagId
             });
             if (existing is null) created++; else updated++;
         }

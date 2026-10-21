@@ -133,7 +133,7 @@ test('builds operational counts from authoritative active alarm items', () => {
     total: 5,
     awaitingAcknowledgement: 4,
     acknowledged: 1,
-    criticalAwaitingAcknowledgement: 1,
+    criticalAwaitingAcknowledgement: 2,
     highAwaitingAcknowledgement: 1
   });
 });

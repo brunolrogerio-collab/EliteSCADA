@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { visualAssetContentUrl } from '../../api';
+import { visualAssetContentUrl } from '../../visualAssetContentUrl';
 import type { ScreenEngineering } from '../../types';
 import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import { useDynamoAuthoringCatalog } from '../DynamoAuthoringCatalogContext';
@@ -44,7 +44,7 @@ export function VisualDefinitionSurfaceInspector({
     const directWrapper = hostRef.current?.closest('.visual-editor-canvas-enhanced');
     const composition = hostRef.current?.closest('.visual-editor-composition');
     const wrapper = directWrapper ?? composition?.querySelector<HTMLElement>('.visual-editor-canvas-enhanced') ?? null;
-    setCanvasSurface(wrapper?.querySelector<HTMLElement>('.visual-editor-canvas__surface') ?? null);
+    setCanvasSurface(wrapper?.querySelector<HTMLElement>('.visual-editor-canvas__canonical-layer') ?? null);
   }, []);
 
   const setSurface = (patch: Extract<VisualEditorKeyboardCommand, { kind: 'surface.set' }>['patch']) => {

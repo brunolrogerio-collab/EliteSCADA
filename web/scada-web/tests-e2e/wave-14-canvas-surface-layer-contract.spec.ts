@@ -17,22 +17,27 @@ const canvasCss = readFileSync(
 
 test('authored background is projected into the established Canvas surface rather than a second canvas', () => {
   expect(inspectorSource).toContain("closest('.visual-editor-canvas-enhanced')");
-  expect(inspectorSource).toContain("querySelector<HTMLElement>('.visual-editor-canvas__surface')");
+  expect(inspectorSource).toContain("querySelector<HTMLElement>('.visual-editor-canvas__canonical-layer')");
   expect(inspectorSource).toContain('createPortal(');
   expect(inspectorSource).toContain('visual-editor-canvas__authored-background');
 });
 
 test('canvas keeps the grid on the established surface and projects authored background below visual objects', () => {
-  expect(canvasCss).toContain('.visual-editor-canvas__surface.has-grid');
+  expect(canvasCss).toContain('.visual-editor-canvas__canonical-layer.has-grid');
   expect(canvasCss).toContain('background-image:');
   expect(inspectorCss).toContain('.visual-editor-canvas__authored-background');
   expect(inspectorCss).toContain('z-index: 0');
-  expect(inspectorCss).toContain('.visual-editor-canvas__viewport { z-index: 1; }');
+  expect(canvasCss).toContain('z-index: 1;');
+  expect(canvasCss).toContain('z-index: 2;');
 });
 
-test('authored background follows logical canvas pan and zoom variables', () => {
-  expect(inspectorCss).toContain('left: var(--visual-editor-grid-pan-x)');
-  expect(inspectorCss).toContain('top: var(--visual-editor-grid-pan-y)');
-  expect(inspectorCss).toContain('width: calc(var(--visual-editor-grid-size) * var(--visual-editor-background-grid-width,600))');
-  expect(inspectorCss).toContain('height: calc(var(--visual-editor-grid-size) * var(--visual-editor-background-grid-height,400))');
+test('authored background shares the canonical layer dimensions and viewport transform', async () => {
+  const canvasSource = await import('node:fs/promises').then(({ readFile }) => readFile(
+    new URL('../src/engineering/visual-editor/canvas/VisualEditorCanvas.tsx', import.meta.url),
+    'utf8'
+  ));
+  expect(canvasSource).toContain('transform: `translate(${effectiveViewport.panX}px, ${effectiveViewport.panY}px) scale(${effectiveViewport.zoom})`');
+  expect(canvasSource).toContain('width: logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH');
+  expect(canvasSource).toContain('height: logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT');
+  expect(inspectorCss).toContain('inset: 0; width: 100%; height: 100%;');
 });

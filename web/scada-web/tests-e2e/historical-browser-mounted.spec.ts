@@ -96,9 +96,10 @@ test('mounted Historical Browser queries historian data and preserves exact Int6
     timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
     page: { limit: 100 }
   });
+  await page.getByText('Advanced filters', { exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Search' })).toBeEnabled();
-  await expect(page.getByRole('combobox', { name: 'Sort field' })).toContainText('timestamp');
-  await expect(page.getByRole('combobox', { name: 'Filter field' })).toContainText('tag.path');
+  await expect(page.getByRole('combobox', { name: 'Sort by' })).toContainText('Timestamp');
+  await expect(page.getByRole('combobox', { name: 'Field' })).toContainText('TAG / Path');
   await expect(page.getByText('2026-08-30T00:00:00Z → 2026-08-30T01:00:00Z')).toBeVisible();
 });
 
@@ -110,19 +111,20 @@ test('mounted Historical Browser builds typed filters only from returned schema 
   });
 
   await openHarness(page);
-  await page.getByRole('combobox', { name: 'Dataset' }).selectOption('alarm.events');
+  await page.getByRole('group', { name: 'Dataset' }).getByRole('button', { name: 'Alarms', exact: true }).click();
   await page.getByRole('button', { name: 'Query', exact: true }).click();
-  await expect(page.getByRole('combobox', { name: 'Filter field' })).toBeEnabled();
+  await page.getByText('Advanced filters', { exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Field' })).toBeEnabled();
 
-  await page.getByRole('combobox', { name: 'Filter field' }).selectOption('priority');
-  await expect(page.getByRole('combobox', { name: 'Operator' })).toHaveValue('eq');
-  await expect(page.getByRole('combobox', { name: 'Operator' })).toContainText('gte');
-  await expect(page.getByRole('combobox', { name: 'Operator' })).not.toContainText('contains');
-  await page.getByRole('combobox', { name: 'Operator' }).selectOption('gte');
+  await page.getByRole('combobox', { name: 'Field' }).selectOption('priority');
+  await expect(page.getByRole('combobox', { name: 'Condition' })).toHaveValue('eq');
+  await expect(page.getByRole('combobox', { name: 'Condition' }).locator('option[value="gte"]')).toHaveCount(1);
+  await expect(page.getByRole('combobox', { name: 'Condition' }).locator('option[value="contains"]')).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Condition' }).selectOption('gte');
   await page.getByRole('textbox', { name: 'Value' }).fill('800');
   await page.getByRole('button', { name: 'Add filter' }).click();
-  await expect(page.getByText('priority gte 800', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Apply query' }).click();
+  await expect(page.getByText('Priority greater than or equal to 800', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Query', exact: true }).click();
 
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1].filters).toEqual([{ field: 'priority', operator: 'gte', values: [{ kind: 'number', value: '800' }] }]);
@@ -136,7 +138,7 @@ test('mounted Historical Browser alarm history remains read-only with no operati
   });
 
   await openHarness(page);
-  await page.getByRole('combobox', { name: 'Dataset' }).selectOption('alarm.events');
+  await page.getByRole('group', { name: 'Dataset' }).getByRole('button', { name: 'Alarms', exact: true }).click();
   await page.getByRole('button', { name: 'Query', exact: true }).click();
   await expect(page.getByRole('cell', { name: 'High level' })).toBeVisible();
 
@@ -177,7 +179,7 @@ test('mounted Historical Browser exposes forbidden state without fabricating emp
   await openHarness(page);
   await page.getByRole('button', { name: 'Query', exact: true }).click();
 
-  await expect(page.getByRole('alert')).toContainText('Not authorized to query this historical dataset.');
+  await expect(page.getByRole('alert')).toContainText('You are not authorized to query this history.');
   await expect(page.locator('tbody tr')).toHaveCount(0);
 });
 
@@ -193,11 +195,9 @@ test('mounted Historical Browser keeps the required pt-BR absolute range determi
   });
 
   await openHarness(page, '?locale=pt-BR');
-  const rangeControls = page
-    .getByTestId('historical-data-browser-runtime')
-    .locator('.historical-browser__controls');
+  const rangeControls = page.getByTestId('historical-data-browser-runtime').locator('.historical-browser__primary');
   await expect(rangeControls).toHaveCount(1);
-  await rangeControls.getByLabel('Período absoluto', { exact: true }).check();
+  await rangeControls.getByRole('button', { name: 'Personalizado', exact: true }).click();
   await rangeControls.getByLabel('De', { exact: true }).fill('2026-09-27T01:00');
   await rangeControls.getByLabel('Até', { exact: true }).fill('2026-09-28T12:00');
   await page.getByRole('button', { name: 'Consultar', exact: true }).click();
@@ -209,7 +209,7 @@ test('mounted Historical Browser keeps the required pt-BR absolute range determi
     toUtc: '2026-09-28T15:00:00.000Z'
   });
 
-  await page.getByRole('button', { name: 'Atualizar', exact: true }).click();
+  await page.getByRole('button', { name: 'Consultar', exact: true }).click();
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1].timeRange).toEqual(requests[0].timeRange);
 

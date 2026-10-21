@@ -16,9 +16,9 @@ test('Historical Browser exposes the canonical historian, alarm and operational 
     'alarm.events',
     'operational.events'
   ]);
-  expect(historicalDatasetLabel('historian.samples')).toBe('Historian samples');
-  expect(historicalDatasetLabel('alarm.events')).toBe('Alarm events');
-  expect(historicalDatasetLabel('operational.events')).toBe('Operational events');
+  expect(historicalDatasetLabel('historian.samples')).toBe('TAG values');
+  expect(historicalDatasetLabel('alarm.events')).toBe('Alarms');
+  expect(historicalDatasetLabel('operational.events')).toBe('Events');
 });
 
 test('Historical Browser transient draft defaults to a bounded relative period without becoming a query DTO', () => {

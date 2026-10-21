@@ -8,7 +8,7 @@ import type {
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../../visual-runtime';
 import type { EngineeringLocale } from '../../i18n';
 import type { DynamoEngineering, EquipmentEngineering, TemplateEngineering } from '../../types';
-import { visualAssetContentUrl } from '../../api';
+import { visualAssetContentUrl } from '../../visualAssetContentUrl';
 import { CanonicalVisualRenderer } from '../CanonicalVisualRenderer';
 import { resolveVisualDefinitionSurfaceStyle } from '../visualDefinitionSurfaceModel';
 import { updateCanonicalPolygonPoints } from '../polygonCanonicalMutations';

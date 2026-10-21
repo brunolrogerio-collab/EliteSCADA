@@ -1,6 +1,6 @@
 import React, { type CSSProperties } from 'react';
 import { MediaPlayer } from './MediaPlayer';
-import { visualAssetContentUrl } from '../api';
+import { visualAssetContentUrl } from '../visualAssetContentUrl';
 import type { EngineeringLocale } from '../i18n';
 import type {
   BindingEngineering,

@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests-e2e',
-  testMatch: /(?:wave-15-intelligence-(?:stage2|permit-rearm|dashboard)-mounted|wave-15-resource-organizer-mounted|intelligence-dashboard-generator)\.spec\.ts/,
+  testMatch: /(?:wave-15-intelligence-(?:stage2|permit-rearm|dashboard|profile-coverage)-mounted|wave-15-resource-organizer-mounted|intelligence-dashboard-generator)\.spec\.ts/,
   workers: 1,
   timeout: 30_000,
   expect: { timeout: 10_000 },

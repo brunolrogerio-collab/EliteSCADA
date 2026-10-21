@@ -219,6 +219,104 @@
   margin-top: 1rem;
 }
 
+.asset-process-intelligence__coverage {
+  flex: 1 1 100%;
+  min-width: min(100%, 18rem);
+  padding-top: 0.35rem;
+}
+
+.asset-process-intelligence__coverage-body {
+  display: grid;
+  gap: 0.85rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.5rem;
+  background: var(--surface-subtle, rgba(148, 163, 184, 0.06));
+}
+
+.asset-process-intelligence__coverage-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.asset-process-intelligence__coverage-form label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.asset-process-intelligence__coverage-note {
+  color: var(--text-muted, #64748b);
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-error {
+  color: var(--danger, #b91c1c);
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-result {
+  display: grid;
+  gap: 1rem;
+}
+
+.asset-process-intelligence__coverage-result section {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__coverage-result h4,
+.asset-process-intelligence__coverage-signals h5 {
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-result p {
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 0.6rem 1rem;
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-facts > div {
+  min-width: 0;
+}
+
+.asset-process-intelligence__coverage-facts dt {
+  color: var(--text-muted, #64748b);
+  font-size: 0.875rem;
+}
+
+.asset-process-intelligence__coverage-facts dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-process-intelligence__coverage-signals {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.asset-process-intelligence__coverage-signals > article {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.4rem;
+  background: var(--surface, #fff);
+}
+
 @media (max-width: 720px) {
   .asset-process-intelligence__scope-panel > header,
   .asset-process-intelligence__row,
@@ -228,6 +326,16 @@
   .asset-process-intelligence__authoring-footer {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .asset-process-intelligence__coverage-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .asset-process-intelligence__coverage-form label,
+  .asset-process-intelligence__coverage-form input {
+    width: 100%;
   }
 
   .asset-process-intelligence__split {

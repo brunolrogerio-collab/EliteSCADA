@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { hasWorkspaceCapability, useEffectiveCapabilities } from '../auth/effectiveCapabilities';
+import { hasRuntimeCapability, hasWorkspaceCapability, useEffectiveCapabilities } from '../auth/effectiveCapabilities';
 import type { EngineeringLocale } from './i18n';
 import type {
   AssetProcessIntelligenceAssignmentEngineering,
@@ -19,6 +19,7 @@ import {
   type IntelligenceDashboardAssignmentSource,
   type IntelligenceDashboardSource
 } from './intelligenceDashboardGenerator';
+import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
 import './asset-process-intelligence.css';
 
 type ScopeKind = 'Equipment' | 'Location';
@@ -64,9 +65,10 @@ export function AssetProcessIntelligenceWorkspace({
   onSaved?: () => Promise<void>;
   onCreateDashboardDraft?: (draft: ScreenEngineering) => void;
 }) {
-  const { capabilities } = useEffectiveCapabilities();
+  const { capabilities, loading: capabilitiesLoading, error: capabilitiesError } = useEffectiveCapabilities();
   const canEngineer = hasWorkspaceCapability(capabilities, 'EngineeringModify');
   const canManage = hasWorkspaceCapability(capabilities, 'AssetProcessIntelligenceManage');
+  const canUseTrend = hasRuntimeCapability(capabilities, 'TrendUse');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [semanticCatalog, setSemanticCatalog] = useState<EngineeringSemanticCatalogResponse | null>(null);
   const [semanticContractVersion, setSemanticContractVersion] = useState(1);
@@ -634,12 +636,44 @@ export function AssetProcessIntelligenceWorkspace({
               const equipmentResource = resourcesByKey.get(`Equipment:${assignment.equipmentId.toLowerCase()}`);
               const profile = profileById.get(assignment.profileId);
               const dashboardSource = createDashboardSourceForAssignment(assignment.id);
+              const matchingAssignments = assignments.filter(item =>
+                item.equipmentId.toLowerCase() === assignment.equipmentId.toLowerCase() &&
+                item.profileId.toLowerCase() === assignment.profileId.toLowerCase());
+              const matchingScopes = initialConfig.scopes.filter(scope =>
+                String(scope.kind).toLowerCase() === 'equipment' &&
+                scope.scopeId.toLowerCase() === assignment.equipmentId.toLowerCase());
+              const coverageScope = matchingScopes.length === 1 ? matchingScopes[0] : null;
+              const coverageBlockedReason = capabilitiesLoading ? 'capabilities-loading'
+                : capabilitiesError || !capabilities ? 'authority-unavailable'
+                  : !snapshot.licensed ? 'license-required'
+                    : !canUseTrend ? 'trend-use-required'
+                      : matchingAssignments.length !== 1 ? 'assignment-ambiguous'
+                        : matchingScopes.length !== 1 ? 'scope-unavailable'
+                          : !coverageScope?.active ? 'scope-inactive'
+                            : !coverageScope.executionArmed ? 'permit-required'
+                            : dirtyConfiguration ? 'configuration-unsaved'
+                              : dirtySelection ? 'scope-selection-unsaved'
+                                : snapshot.execution.workspaceDirty ? 'workspace-dirty'
+                                  : !snapshot.execution.projectKey || snapshot.execution.activeRevision === null ? 'project-unavailable'
+                                    : !profile?.signals.length ? 'signals-required'
+                                      : new Set(profile.signals.map(signal => signal.tagId.toLowerCase())).size !== profile.signals.length
+                                        ? 'duplicate-tags'
+                                        : null;
               return <article className="asset-process-intelligence__row" key={assignment.id}>
                 <span><strong>{equipmentResource?.name ?? copy.missingEquipment} · {profile?.name ?? copy.missingProfile}</strong><small>{equipmentResource?.path ?? assignment.equipmentId} · {profile?.key ?? assignment.profileId}</small></span>
                 {(!equipmentResource || !profile) ? <span className="asset-process-intelligence__missing">{copy.referenceMissing}</span> : null}
                 <button type="button" className="secondary" data-testid={`intelligence-dashboard-assignment-${assignment.id}`}
                   disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !dashboardSource}
                   onClick={() => generateDashboard(dashboardSource)}>{copy.generateDashboard}</button>
+                {equipmentResource && profile ? <AssetProcessIntelligenceCoveragePanel
+                  locale={locale}
+                  scopeId={assignment.equipmentId}
+                  profileId={assignment.profileId}
+                  projectKey={snapshot.execution.projectKey}
+                  activeRevision={snapshot.execution.activeRevision}
+                  canQuery={!coverageBlockedReason}
+                  blockedReason={coverageBlockedReason}
+                /> : null}
                 <button type="button" className="secondary" disabled={!canEngineer} onClick={() => removeAssignment(assignment.id)}>{copy.remove}</button>
               </article>;
             })}

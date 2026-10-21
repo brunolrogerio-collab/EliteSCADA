@@ -15,6 +15,8 @@ import { c07VisualEditorText } from '../src/engineering/visual-editor/c07VisualE
 import { applyVisualEditorMutationIntent, replaceDynamoInPackage } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
 import { historicalBrowserCopy } from '../src/runtime/historical-browser/historicalBrowserI18n';
 import { formatHistoricalQueryValue } from '../src/runtime/historical-browser/historicalBrowserQueryAdapter';
+import { isVisibleInActiveAlarmBrowser, presentCurrentBrowserAlarm } from '../src/engineering/visual-editor/browserVisualPresentation';
+import type { RuntimeAlarmCenterItem } from '../src/runtime/alarmCenterTypes';
 
 test('Alarm Browser and Event Browser are first-class authoring palette objects', () => {
   const items = listVisualObjectPaletteItems();
@@ -110,6 +112,30 @@ test('browser configurations remain structured, independent and kind-specific', 
   expect(alarm.columns).not.toEqual(event.columns);
   expect(() => normalizeAlarmBrowserConfig({ ...DEFAULT_ALARM_BROWSER_CONFIG, columns: ['type'] })).toThrow();
   expect(() => normalizeEventBrowserConfig({ ...DEFAULT_EVENT_BROWSER_CONFIG, columns: ['state'] })).toThrow();
+});
+
+test('alarm browser localizes current alarm state and priority without exposing a TAG GUID', () => {
+  const alarm: RuntimeAlarmCenterItem = {
+    definitionId: 'alarm-returned', name: 'High pressure', tagId: 'tag-guid-not-for-display',
+    type: 'high', priority: 4, state: 3, lastTransition: '2026-10-21T16:30:00Z', acknowledgedAt: null
+  };
+
+  const portuguese = presentCurrentBrowserAlarm(alarm, '', 'pt-BR');
+  expect(portuguese).toMatchObject({
+    state: 'Retornado', priority: 'Crítica', tagPath: 'Caminho TAG indisponível', canAcknowledge: true
+  });
+  expect(portuguese.timestamp).not.toBe(alarm.lastTransition);
+  expect(portuguese.timestamp).not.toContain('T');
+  expect(presentCurrentBrowserAlarm(alarm, '', 'en')).toMatchObject({
+    state: 'Returned', priority: 'Critical', tagPath: 'TAG path unavailable', canAcknowledge: true
+  });
+  expect(presentCurrentBrowserAlarm(alarm, '', 'es')).toMatchObject({
+    state: 'Retornada', priority: 'Crítica', tagPath: 'Ruta TAG no disponible', canAcknowledge: true
+  });
+  expect(isVisibleInActiveAlarmBrowser(alarm)).toBe(true);
+  expect(presentCurrentBrowserAlarm(alarm, 'Plant/Pressure', 'en').tagPath).toBe('Plant/Pressure');
+  expect(presentCurrentBrowserAlarm(alarm, '', 'en').tagPath).not.toContain(alarm.tagId);
+  expect(isVisibleInActiveAlarmBrowser({ ...alarm, acknowledgedAt: '2026-10-21T16:35:00Z' })).toBe(false);
 });
 
 test('editing a Dynamo changes its drawing while preserving its stable link and parameter contract', () => {

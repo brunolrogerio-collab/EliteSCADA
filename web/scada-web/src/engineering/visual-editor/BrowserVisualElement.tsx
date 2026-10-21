@@ -17,6 +17,7 @@ import type {
   RuntimeAlarmCenterItem,
   RuntimeAlarmDefinition
 } from '../../runtime/alarmCenterTypes';
+import { normalizeRuntimeAlarmState, runtimeAlarmPriorityRank } from '../../runtime/alarmCenterModel';
 import {
   HISTORICAL_QUERY_VERSION,
   executeHistoricalQuery,
@@ -25,6 +26,8 @@ import {
   type HistoricalQueryResponse,
   type HistoricalQueryValue
 } from '../../runtime/historical-browser/historicalQueryApi';
+import { formatHistoricalDateTime } from '../../runtime/historical-browser/historicalBrowserPresentation';
+import { isVisibleInActiveAlarmBrowser, presentCurrentBrowserAlarm } from './browserVisualPresentation';
 import './BrowserVisualElement.css';
 
 type BrowserVisualElementProps = Readonly<{
@@ -83,7 +86,7 @@ export function BrowserVisualElement(props: BrowserVisualElementProps) {
 }
 
 function AlarmBrowserVisual(props: BrowserVisualElementProps & { config: AlarmBrowserConfig; copy: Copy }) {
-  const { config, copy } = props;
+  const { config, copy, locale } = props;
   const [cursor, setCursor] = useState<string | null>(null);
   const [cursorStack, setCursorStack] = useState<readonly (string | null)[]>(Object.freeze([]));
   const [pageIndex, setPageIndex] = useState(0);
@@ -100,9 +103,9 @@ function AlarmBrowserVisual(props: BrowserVisualElementProps & { config: AlarmBr
 
   const state = useBrowserLoad(
     async signal => config.mode === 'history'
-      ? loadAlarmHistory(config, cursor, signal)
-      : loadCurrentAlarms(config, pageIndex, signal),
-    [queryKey, cursor, pageIndex, refresh]
+      ? loadAlarmHistory(config, cursor, signal, locale)
+      : loadCurrentAlarms(config, pageIndex, signal, locale),
+    [queryKey, cursor, pageIndex, refresh, locale]
   );
 
   async function acknowledge(row: DisplayRow) {
@@ -157,7 +160,7 @@ function AlarmBrowserVisual(props: BrowserVisualElementProps & { config: AlarmBr
 }
 
 function EventBrowserVisual(props: BrowserVisualElementProps & { config: EventBrowserConfig; copy: Copy }) {
-  const { config, copy } = props;
+  const { config, copy, locale } = props;
   const [cursor, setCursor] = useState<string | null>(null);
   const [cursorStack, setCursorStack] = useState<readonly (string | null)[]>(Object.freeze([]));
   const queryKey = useMemo(() => JSON.stringify(config), [config]);
@@ -165,7 +168,7 @@ function EventBrowserVisual(props: BrowserVisualElementProps & { config: EventBr
     setCursor(null);
     setCursorStack(Object.freeze([]));
   }, [queryKey]);
-  const state = useBrowserLoad(signal => loadEventHistory(config, cursor, signal), [queryKey, cursor]);
+  const state = useBrowserLoad(signal => loadEventHistory(config, cursor, signal, locale), [queryKey, cursor, locale]);
 
   return <BrowserFrame
     {...props}
@@ -257,7 +260,7 @@ function useBrowserLoad(loader: (signal: AbortSignal) => Promise<LoadedPage>, de
   return state;
 }
 
-async function loadCurrentAlarms(config: AlarmBrowserConfig, pageIndex: number, signal: AbortSignal): Promise<LoadedPage> {
+async function loadCurrentAlarms(config: AlarmBrowserConfig, pageIndex: number, signal: AbortSignal, locale: EngineeringLocale): Promise<LoadedPage> {
   const [alarmResult, tags] = await Promise.all([
     loadRuntimeAlarms(config.lifecycle === 'active', signal),
     loadReadableTags(signal)
@@ -267,11 +270,11 @@ async function loadCurrentAlarms(config: AlarmBrowserConfig, pageIndex: number, 
   const filtered = alarmResult.value.filter(alarm => currentAlarmMatches(alarm, tagPaths.get(alarm.tagId) ?? '', config));
   const sorted = [...filtered].sort((left, right) => compareCurrentAlarm(left, right, config.sortField, config.sortDirection, tagPaths));
   const start = pageIndex * config.pageSize;
-  const rows = sorted.slice(start, start + config.pageSize).map(alarm => currentAlarmRow(alarm, tagPaths.get(alarm.tagId) ?? ''));
+  const rows = sorted.slice(start, start + config.pageSize).map(alarm => currentAlarmRow(alarm, tagPaths.get(alarm.tagId) ?? '', locale));
   return Object.freeze({ rows: Object.freeze(rows), nextCursor: start + config.pageSize < sorted.length ? String(pageIndex + 1) : null });
 }
 
-async function loadAlarmHistory(config: AlarmBrowserConfig, cursor: string | null, signal: AbortSignal): Promise<LoadedPage> {
+async function loadAlarmHistory(config: AlarmBrowserConfig, cursor: string | null, signal: AbortSignal, locale: EngineeringLocale): Promise<LoadedPage> {
   const definitionsResult = await loadRuntimeAlarmDefinitions(signal);
   const definitions = definitionsResult.available ? definitionsResult.value : Object.freeze([] as RuntimeAlarmDefinition[]);
   let allowedAlarmIds: readonly string[] | undefined;
@@ -289,12 +292,12 @@ async function loadAlarmHistory(config: AlarmBrowserConfig, cursor: string | nul
     buildAlarmHistoricalRequest(config, cursor, allowedAlarmIds),
     signal
   );
-  return projectHistoricalRows(response, definitions);
+  return projectHistoricalRows(response, definitions, locale);
 }
 
-async function loadEventHistory(config: EventBrowserConfig, cursor: string | null, signal: AbortSignal): Promise<LoadedPage> {
+async function loadEventHistory(config: EventBrowserConfig, cursor: string | null, signal: AbortSignal, locale: EngineeringLocale): Promise<LoadedPage> {
   const response = await executeHistoricalQuery(buildEventHistoricalRequest(config, cursor), signal);
-  return projectHistoricalRows(response);
+  return projectHistoricalRows(response, [], locale);
 }
 
 export function buildAlarmHistoricalRequest(
@@ -371,12 +374,17 @@ export function buildEventHistoricalRequest(config: EventBrowserConfig, cursor: 
 
 function projectHistoricalRows(
   response: HistoricalQueryResponse,
-  alarmDefinitions: readonly RuntimeAlarmDefinition[] = []
+  alarmDefinitions: readonly RuntimeAlarmDefinition[] = [],
+  locale: EngineeringLocale = 'pt-BR'
 ): LoadedPage {
   const definitions = new Map(alarmDefinitions.map(definition => [definition.id.toLocaleLowerCase(), definition]));
   const rows = response.rows.map((row, index) => {
     const cells: Record<string, string> = {};
-    for (const [field, value] of Object.entries(row.cells)) cells[field] = displayHistoricalValue(value);
+    for (const [field, value] of Object.entries(row.cells)) {
+      cells[field] = value?.kind === 'dateTime' && value.value !== null
+        ? formatHistoricalDateTime(value.value, locale) || '—'
+        : displayHistoricalValue(value);
+    }
     const alarmId = row.cells['alarm.id']?.value ?? null;
     if (alarmId) {
       const definition = definitions.get(alarmId.toLocaleLowerCase());
@@ -405,13 +413,13 @@ async function loadReadableTags(signal: AbortSignal): Promise<readonly Readonly<
 }
 
 function currentAlarmMatches(alarm: RuntimeAlarmCenterItem, tagPath: string, config: AlarmBrowserConfig): boolean {
-  const state = normalizedAlarmState(alarm.state);
-  if (config.lifecycle === 'active' && state !== 'active' && state !== 'acknowledged') return false;
+  const state = normalizeRuntimeAlarmState(alarm.state);
+  if (config.lifecycle === 'active' && !isVisibleInActiveAlarmBrowser(alarm)) return false;
   if (config.lifecycle === 'returned' && state !== 'returned') return false;
   const acked = state === 'acknowledged' || Boolean(alarm.acknowledgedAt);
   if (config.acknowledgement === 'acknowledged' && !acked) return false;
   if (config.acknowledgement === 'unacknowledged' && acked) return false;
-  const priority = normalizedAlarmPriority(alarm.priority);
+  const priority = runtimeAlarmPriorityRank(alarm);
   if (config.minimumPriority !== null && priority < config.minimumPriority) return false;
   if (config.area && !(alarm.area ?? '').toLocaleLowerCase().includes(config.area.toLocaleLowerCase())) return false;
   if (config.tagPath && !tagPath.toLocaleLowerCase().includes(config.tagPath.toLocaleLowerCase())) return false;
@@ -422,23 +430,23 @@ function currentAlarmMatches(alarm: RuntimeAlarmCenterItem, tagPath: string, con
   return true;
 }
 
-function currentAlarmRow(alarm: RuntimeAlarmCenterItem, tagPath: string): DisplayRow {
+function currentAlarmRow(alarm: RuntimeAlarmCenterItem, tagPath: string, locale: EngineeringLocale): DisplayRow {
+  const presentation = presentCurrentBrowserAlarm(alarm, tagPath, locale);
   const cells = Object.freeze({
-    timestamp: alarm.lastTransition,
-    state: String(alarm.state),
-    priority: String(alarm.priority),
+    timestamp: presentation.timestamp,
+    state: presentation.state,
+    priority: presentation.priority,
     name: alarm.name,
     area: alarm.area ?? '—',
-    'tag.path': tagPath || alarm.tagId,
+    'tag.path': presentation.tagPath,
     message: alarm.message ?? '—',
     acknowledgedBy: alarm.acknowledgedBy ?? '—'
   });
-  const state = normalizedAlarmState(alarm.state);
   return Object.freeze({
     id: `${alarm.definitionId}:${alarm.lastTransition}`,
     cells,
     alarmDefinitionId: alarm.definitionId,
-    canAcknowledge: state === 'active'
+    canAcknowledge: presentation.canAcknowledge
   });
 }
 
@@ -446,23 +454,11 @@ function compareCurrentAlarm(left: RuntimeAlarmCenterItem, right: RuntimeAlarmCe
   const factor = direction === 'ascending' ? 1 : -1;
   let leftValue: string | number;
   let rightValue: string | number;
-  if (field === 'priority') { leftValue = normalizedAlarmPriority(left.priority); rightValue = normalizedAlarmPriority(right.priority); }
-  else if (field === 'state') { leftValue = String(left.state); rightValue = String(right.state); }
+  if (field === 'priority') { leftValue = runtimeAlarmPriorityRank(left); rightValue = runtimeAlarmPriorityRank(right); }
+  else if (field === 'state') { leftValue = normalizeRuntimeAlarmState(left.state); rightValue = normalizeRuntimeAlarmState(right.state); }
   else if (field === 'tag.path') { leftValue = tagPaths.get(left.tagId) ?? ''; rightValue = tagPaths.get(right.tagId) ?? ''; }
   else { leftValue = Date.parse(left.lastTransition) || 0; rightValue = Date.parse(right.lastTransition) || 0; }
   return (leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0) * factor;
-}
-
-function normalizedAlarmState(value: string | number): string {
-  if (typeof value === 'number') return ['normal', 'active', 'acknowledged', 'returned', 'disabled', 'shelved'][value] ?? String(value);
-  return value.trim().toLowerCase();
-}
-
-function normalizedAlarmPriority(value: string | number): number {
-  if (typeof value === 'number') return value;
-  const numeric = Number(value);
-  if (Number.isFinite(numeric)) return numeric;
-  return ({ low: 1, medium: 2, high: 3, critical: 4 } as Record<string, number>)[value.trim().toLowerCase()] ?? 0;
 }
 
 function enumFilter(field: string, value: string): HistoricalFilter { return Object.freeze({ field, operator: 'eq', values: Object.freeze([enumValue(value)]) }); }

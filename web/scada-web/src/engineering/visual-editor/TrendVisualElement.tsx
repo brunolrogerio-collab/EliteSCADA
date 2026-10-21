@@ -8,7 +8,6 @@ import {
   type TrendVisualPen,
   type VisualPropertyValue
 } from '../../visual-runtime';
-import { executeHistoricalQuery } from '../../runtime/historical-browser/historicalQueryApi';
 import {
   createHistoricalTimeRangeState,
   historicalDurationSeconds,
@@ -33,6 +32,7 @@ import {
 import {
   buildTrendHistoricalQuery,
   buildTrendSeries,
+  executeTrendHistoricalQuery,
   trendQueryRange,
   type TrendSeries
 } from '../../runtime/trendVisualQueryModel';
@@ -207,7 +207,7 @@ export function TrendVisualElement({
       active = controller;
       setState(previous => ({ kind: 'loading', series: previous.series }));
       try {
-        const response = await executeHistoricalQuery(
+        const response = await executeTrendHistoricalQuery(
           buildTrendHistoricalQuery(visiblePens, activeTimeRange),
           controller.signal
         );
@@ -245,7 +245,7 @@ export function TrendVisualElement({
   }, [activeDurationSeconds, activeTimeRange, refreshRevision, refreshSeconds, visiblePens]);
 
   const series = state.series;
-  const hasSamples = series.some(item => item.samples.some(sample => isUsableTrendQuality(sample.quality)));
+  const hasSamples = series.some(item => item.samples.some(sample => isUsableTrendQuality(sample.quality) && sample.value !== null));
   const range = state.kind === 'ready'
     ? { from: state.from, to: state.to }
     : inferRange(series, activeDurationSeconds);
@@ -294,11 +294,11 @@ export function TrendVisualElement({
     {showLegend && visiblePens.length > 0 ? <div style={legendStyle} data-testid="visual-trend-legend">
       {seriesWithEmpty(visiblePens, series).map(item => {
         const latest = item.samples[item.samples.length - 1];
-        const latestUsable = latest ? isUsableTrendQuality(latest.quality) : false;
+        const latestUsable = latest ? isUsableTrendQuality(latest.quality) && latest.value !== null : false;
         return <span key={item.pen.id} style={legendItemStyle} data-pen-id={item.pen.id}>
           <i aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 2, background: item.pen.color, display: 'inline-block' }} />
           <strong>{item.pen.label}</strong>
-          <span>{latest && latestUsable ? formatNumber(latest.value, locale) : '—'}{item.pen.unit ? ` ${item.pen.unit}` : ''}</span>
+          <span>{latest && latestUsable && latest.value !== null ? formatNumber(latest.value, locale) : '—'}{item.pen.unit ? ` ${item.pen.unit}` : ''}</span>
           {showQuality && latest ? <small>{latest.quality}</small> : null}
           <small>{item.pen.axis === 'left' ? text.left : text.right}</small>
         </span>;
@@ -328,14 +328,14 @@ function TrendSeriesPath({
   range
 }: Readonly<{ series: TrendSeries; range: Readonly<{ from: number; to: number }> }>) {
   const usableValues = series.samples
-    .filter(sample => isUsableTrendQuality(sample.quality))
+    .filter((sample): sample is typeof sample & { value: number } => isUsableTrendQuality(sample.quality) && sample.value !== null)
     .map(sample => sample.value);
   const domain = valueDomain(series.pen, usableValues);
   if (!domain) return null;
   let drawing = false;
   const commands: string[] = [];
   for (const sample of series.samples) {
-    if (!isUsableTrendQuality(sample.quality)) {
+    if (!isUsableTrendQuality(sample.quality) || sample.value === null) {
       drawing = false;
       continue;
     }

@@ -52,17 +52,20 @@ test('C15 mounted Property Inspector localizes Trend scalar chrome in pt-BR en a
 });
 
 test('C15 mounted Runtime Trend exposes Portuguese no-data state', async ({ page }) => {
-  await page.route('**/api/historical/query', async route => {
+  await page.route('**/api/historical/data-query', async route => {
     const now = Date.now();
     await fulfillJson(route, {
       version: 1,
+      queryId: '48bba95f-2817-421e-b524-ac642ecc2eae',
+      queryKey: 'runtime-trend-history-v1',
       datasetKey: 'historian.samples',
+      retrievalMode: 'sampledFixedStep',
       columns: [],
       rows: [],
       fromUtc: new Date(now - 3600_000).toISOString(),
       toUtc: new Date(now).toISOString(),
       nextCursor: null,
-      pageSize: 1000
+      resultLimit: 200
     });
   });
 

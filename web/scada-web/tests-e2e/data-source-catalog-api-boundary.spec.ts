@@ -21,7 +21,8 @@ test('Driver catalog DI and endpoint remain in the Engineering API boundary', as
 
   expect(persistenceApi).toContain('builder.AddEngineeringDriverCatalog();');
   expect(persistenceApi).toContain('app.MapEngineeringDriverCatalogEndpoints();');
-  expect(program).toContain('builder.AddOptionalEngineeringPersistence();');
+  expect(program).toContain('var databaseConnections = builder.AddDatabaseTopologyCore();');
+  expect(program).toContain('builder.AddOptionalEngineeringPersistence(databaseConnections);');
   expect(program).toContain('app.MapEngineeringPersistenceEndpoints();');
 
   expect(licensingApi).not.toContain('EngineeringDataSourceTypeCatalog');

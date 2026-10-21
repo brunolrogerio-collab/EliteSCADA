@@ -48,7 +48,8 @@ test('Canvas keeps viewport selection hover and adornment state out of canonical
   expect(canvas).toContain('setHoveredObjectId');
   expect(canvas).toContain('setInteraction');
   expect(canvas).not.toContain('screen.metadata');
-  expect(canvas).not.toContain('screen.properties');
+  expect(canvas).toContain('resolveVisualDefinitionSurfaceStyle(screen.properties, visualAssetContentUrl)');
+  expect(canvas).not.toMatch(/screen\.properties\s*=/);
   expect(canvas).not.toContain('selectedObjectIds.push');
 });
 

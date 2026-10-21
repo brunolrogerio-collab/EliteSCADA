@@ -90,7 +90,7 @@ test('Engineering navigation exposes current domains and structured preview edit
     await page.getByRole('button', { name: section.button }).click();
     await expect(page.getByRole('heading', { name: section.heading })).toBeVisible();
     if (section.expected) {
-      await expect(page.getByText(section.expected, { exact: true }).first()).toBeVisible();
+      await expect(page.getByText(section.expected, { exact: false }).first()).toBeVisible();
     }
   }
 

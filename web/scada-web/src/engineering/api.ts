@@ -14,6 +14,7 @@ import type {
   VisualAssetEngineering,
   VisualEngineeringAssetReference
 } from './types';
+export { visualAssetContentUrl } from './visualAssetContentUrl';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
@@ -257,10 +258,6 @@ export async function deleteMediaSourceCredential(id: string): Promise<void> {
     headers: { accept: 'application/json' }
   });
   if (!response.ok) throw await readError(response);
-}
-
-export function visualAssetContentUrl(assetId: string): string {
-  return `${API}/api/engineering/visual-assets/${encodeURIComponent(assetId)}/content`;
 }
 
 export async function loadGatewayDiagnostics(): Promise<GatewayRuntimeDiagnostic[]> {

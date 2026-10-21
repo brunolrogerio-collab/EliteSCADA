@@ -46,7 +46,13 @@ test('browser insertion labels follow the shared Screen and Popup visual-editor 
     eventBrowser: 'Browser de Eventos',
     videoPlayer: 'Vídeo',
     pdfViewer: 'Visualizador PDF',
-    reportLauncher: 'Abrir relatório'
+    reportLauncher: 'Abrir relatório',
+    measurementDial: 'Mostrador semicircular',
+    measurementRing: 'Anel de medição',
+    measurementBar: 'Barra graduada',
+    measurementThermometer: 'Régua vertical',
+    measurementBands: 'Faixas de intervalo',
+    measurementTarget: 'Valor atual e meta'
   });
   expect(c07VisualEditorText('en').palette).toEqual({
     arc: 'Arc',
@@ -55,7 +61,13 @@ test('browser insertion labels follow the shared Screen and Popup visual-editor 
     eventBrowser: 'Event Browser',
     videoPlayer: 'Video',
     pdfViewer: 'PDF viewer',
-    reportLauncher: 'Report launcher'
+    reportLauncher: 'Report launcher',
+    measurementDial: 'Semicircular dial',
+    measurementRing: 'Measurement ring',
+    measurementBar: 'Graduated bar',
+    measurementThermometer: 'Vertical ruler',
+    measurementBands: 'Range bands',
+    measurementTarget: 'Actual vs target'
   });
   expect(c07VisualEditorText('es').palette).toEqual({
     arc: 'Arco',
@@ -64,7 +76,13 @@ test('browser insertion labels follow the shared Screen and Popup visual-editor 
     eventBrowser: 'Browser de Eventos',
     videoPlayer: 'Vídeo',
     pdfViewer: 'Visor PDF',
-    reportLauncher: 'Abrir informe'
+    reportLauncher: 'Abrir informe',
+    measurementDial: 'Indicador semicircular',
+    measurementRing: 'Anillo de medición',
+    measurementBar: 'Barra graduada',
+    measurementThermometer: 'Regla vertical',
+    measurementBands: 'Bandas de rango',
+    measurementTarget: 'Valor actual y objetivo'
   });
 });
 

@@ -60,6 +60,15 @@ const expectedCommonKeys = [
   'horizontalAlignment',
   'verticalAlignment',
   'assetRef',
+  'mediaAutoplay',
+  'mediaSourceId',
+  'mediaMuted',
+  'mediaLoop',
+  'mediaControls',
+  'pdfInitialPage',
+  'pdfZoom',
+  'pdfToolbarVisible',
+  'reportKey',
   'imageFit',
   'imagePositionX',
   'imagePositionY',
@@ -85,7 +94,15 @@ const expectedCommonKeys = [
   'trendLegendVisible',
   'trendGridVisible',
   'trendAxesVisible',
-  'trendQualityVisible'
+  'trendQualityVisible',
+  'measurementTheme',
+  'measurementQualityVisible',
+  'measurementFreshnessVisible',
+  'measurementStaleAfterSeconds',
+  'measurementUnit',
+  'measurementTarget',
+  'measurementBandOneEnd',
+  'measurementBandTwoEnd'
 ];
 
 test('common registry exposes the converged visual property family and image fit enum', () => {

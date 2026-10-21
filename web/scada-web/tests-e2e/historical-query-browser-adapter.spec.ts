@@ -131,6 +131,6 @@ test('Historical Browser projected page remains read-only presentation data', ()
   };
 
   const page = projectHistoricalQueryResponse(response);
-  expect(page.rows[0].detail.map(fact => fact.label)).toContain('Alarm / id');
+  expect(page.rows[0].detail.map(fact => fact.label)).toContain('Alarm / ID');
   expect(JSON.stringify(page)).not.toMatch(/acknowledge|shelve|command/i);
 });

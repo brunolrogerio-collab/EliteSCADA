@@ -8,7 +8,7 @@
 | Governing scope | [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md) and [the 4F acceptance plan](WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md) |
 | Product baseline inspected | Exact PR base `63182e021730ad4fb35532481e28d7a16fc04be3` |
 
-This note records the integrated implementation boundary without reopening 4A–4E or claiming a field-validated detector. It is not an ADR or general release approval: the route/schema/method are an additive v1 experimental contract whose integration and mechanics are verified, while operational/field acceptance remains separate. The Product Owner authorized simulation-validated experimental implementation on 2026-10-20. Output remains explicitly experimental; synthetic checks do not meet operational acceptance targets or establish field validity. #588 remains **PARTIAL** until its broader acceptance gate is satisfied; 4G remains separate.
+This note records the integrated implementation boundary without reopening 4A–4E or claiming a field-validated detector. It is not an ADR or general release approval: the route/schema/method are an additive v1 experimental contract whose integration and mechanics are verified, while operational/field acceptance remains separate. The Product Owner authorized simulation-validated experimental implementation on 2026-10-20 and closed Stage 4 engineering within this scope on 2026-10-21. Output remains explicitly experimental; synthetic checks do not meet operational acceptance targets or establish field validity. Data-dependent field acceptance is deferred to future-wave #701; parent #588 remains open for later product scope.
 
 ## Existing contracts inspected
 
@@ -59,13 +59,13 @@ Bounded implementation-verification surface exercised locally and on exact PR/me
 5. deterministic score and per-signal explanations from frozen model/configuration inputs; separate fitting/calibration/holdout roles whenever a threshold is exercised in simulation, with no access to holdout during fitting/calibration;
 6. security/lifecycle: disabled Intelligence, denied `TagRead`, permit revocation/cancellation and configuration changes discard work; bounded paging/row budgets reject partial-result leakage;
 7. storage/restart only if the selected method actually requires persisted artifacts, using an explicitly approved canonical ownership and migration design;
-8. isolated Windows and Linux tests plus exact-head CI and exact-merge evidence. Synthetic tests prove mechanics only; 4G/field validity still needs representative held-out evidence.
+8. isolated Windows and Linux tests plus exact-head CI and exact-merge evidence. Synthetic tests prove mechanics only; field validity still needs representative held-out evidence and is deferred to #701.
 
 ## Field-validation gates (not blockers to the experimental implementation)
 
 - A separately authorized owner/product-test cohort must pass the provenance, coverage, label, exposure and context criteria in the 4F plan before field-performance claims. The prepared request workbook/local preflight establish structure and declared metadata only; they do not establish analytical eligibility.
 - Future representative evaluation must assess or improve sample sufficiency, regularization and threshold against the binding operational targets. The completed #675 and #680 experiments retain their results; #680's one-use holdout must not be replayed. PR #683 remains experimental evidence only and does not approve field performance.
-- Simulation closes software/math/integration gaps only. 4G validation, broader Stage 4 closure and later stages remain separate gates.
+- Simulation closes software/math/integration gaps only. Stage 4 engineering is closed within the experimental scope; field validation remains a separate future-wave gate in #701, and later product stages remain separate.
 
 ## Source anchors
 

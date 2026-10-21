@@ -45,3 +45,5 @@ Use ADR-022 as the binding schema and semantic decision. The authoring surface m
 ## Explicitly outside 4E
 
 No joint multivariate score/calibration (4F), representative validation dataset or Stage 4 closure (4G), Stage 5B dashboards, Stage 6, HA/driver/licensing changes, AI/learning, automatic baseline selection, diagnosis/fault probability/RUL, process/control writes, new SQL persistence, deployment, or changes to the stable owner Preview. The owner continues evaluating the delivered Preview in parallel; development/tests remain isolated.
+
+Superseding Stage 4 status: the Product Owner closed Stage 4 engineering on 2026-10-21 within the experimental scope documented in [ADR-021](ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md). Field-validation evidence remains deferred to future-wave [#701](https://github.com/brunolrogerio-collab/EliteSCADA/issues/701); this historical 4E exclusion list does not describe the current completion state.

@@ -345,9 +345,24 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
       canRedo={props.canRedo}
       canPaste={props.canPaste}
       onInsertObject={props.onInsertObject}
+      placement="authoring"
     />
     <div className="visual-editor-canvas-enhanced__canvas">
-      <LegacyVisualEditorCanvas {...props} onMutationIntent={handleMutationIntent} />
+      <LegacyVisualEditorCanvas
+        {...props}
+        onMutationIntent={handleMutationIntent}
+        toolbarContent={<VisualEditorAuthoringToolbar
+          screen={props.screen}
+          selectedObjectIds={props.selectedObjectIds}
+          onOperation={props.onAuthoringOperation}
+          onKeyboardCommand={props.onKeyboardCommand}
+          canUndo={props.canUndo}
+          canRedo={props.canRedo}
+          canPaste={props.canPaste}
+          onInsertObject={props.onInsertObject}
+          placement="arrangement"
+        />}
+      />
     </div>
     {contextMenu ? <VisualEditorContextMenu
       screen={props.screen}

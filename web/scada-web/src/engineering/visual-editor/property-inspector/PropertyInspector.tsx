@@ -215,6 +215,8 @@ export function PropertyInspector({
         onMutationIntent={onMutationIntent}
       /> : null}
 
+      {selectedTrend ? <TrendPenEditor element={selectedTrend} onMutationIntent={onMutationIntent} /> : null}
+
       <label className="property-inspector__filter">
         <span>{text.filterLabel}</span>
         <input
@@ -266,7 +268,6 @@ export function PropertyInspector({
         locale={locale}
         onMutationIntent={onMutationIntent}
       /> : null}
-      {selectedTrend ? <TrendPenEditor element={selectedTrend} onMutationIntent={onMutationIntent} /> : null}
       {selectedBrowser ? <BrowserConfigurationEditor element={selectedBrowser} locale={locale} onMutationIntent={onMutationIntent} /> : null}
 
       {showEvents && selectedElements.length === 1 && selectedElements[0].id ? (

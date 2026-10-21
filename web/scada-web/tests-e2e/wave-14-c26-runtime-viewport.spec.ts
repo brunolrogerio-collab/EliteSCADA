@@ -3,6 +3,18 @@ import { expect, test, type Page } from '@playwright/test';
 test.use({ locale: 'pt-BR' });
 
 const bottomObjectId = '26000000-0000-0000-0000-000000000902';
+const mobileVariant = {
+  id: '26000000-0000-0000-0000-000000000903',
+  key: 'viewport.mobile',
+  name: 'Viewport Mobile',
+  properties: { backgroundColor: '#15212b', screenOrientation: 'portrait' },
+  elements: [{
+    id: '26000000-0000-0000-0000-000000000904',
+    key: 'mobile-content',
+    type: 'core.text',
+    properties: { x: 60, y: 1760, width: 960, height: 72, text: 'Conteúdo mobile dedicado', textColor: '#ffffff' }
+  }]
+} as const;
 const runtimeProjection = {
   mode: 'engineering',
   projectKey: 'c26-runtime-viewport',
@@ -40,7 +52,12 @@ const runtimeProjection = {
   }
 } as const;
 
-async function installRuntimeContract(page: Page) {
+async function installRuntimeContract(
+  page: Page,
+  screenOrientation?: 'landscape' | 'portrait',
+  mobileScreens?: Readonly<Record<string, string>>,
+  mobileScreen?: typeof mobileVariant
+) {
   await page.route('**/api/auth/config', route => route.fulfill({
     json: {
       authenticationEnabled: true,
@@ -74,7 +91,20 @@ async function installRuntimeContract(page: Page) {
   await page.route('**/api/engineering/persistence/status', route => route.fulfill({
     json: { enabled: true, hasProjects: true }
   }));
-  await page.route('**/api/runtime/application', route => route.fulfill({ json: runtimeProjection }));
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: {
+    ...runtimeProjection,
+    package: {
+      ...runtimeProjection.package,
+      ...(mobileScreens ? { runtimePresentation: { historicalPlaybackEnabled: false, mobileOrientation: 'portrait', mobileScreens, version: 1 } } : {}),
+      screens: [
+        ...runtimeProjection.package.screens.map(screen => ({
+          ...screen,
+          properties: { ...screen.properties, ...(screenOrientation ? { screenOrientation } : {}) }
+        })),
+        ...(mobileScreen ? [mobileScreen] : [])
+      ]
+    }
+  } }));
 }
 
 type LayoutMetrics = {
@@ -215,6 +245,44 @@ test('mobile Runtime defaults to landscape while preserving the logical canvas i
   expect(bounds!.width).toBeLessThanOrEqual(viewportBounds!.width + 1);
   expect(bounds!.height).toBeLessThanOrEqual(viewportBounds!.height + 1);
   await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
+});
+
+test('a portrait Screen uses 1080x1920 and remains portrait on a mobile device', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = query => query === '(pointer: coarse)'
+      ? ({ matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } } as MediaQueryList)
+      : nativeMatchMedia(query);
+  });
+  await installRuntimeContract(page, 'portrait');
+  await page.goto('/');
+
+  const viewport = page.getByTestId('runtime-logical-viewport');
+  await expect(viewport).toHaveAttribute('data-design-width', '1080');
+  await expect(viewport).toHaveAttribute('data-design-height', '1920');
+  await expect(viewport).toHaveAttribute('data-mobile-orientation', 'portrait');
+  await expect(viewport).not.toHaveAttribute('data-mobile-rotated', 'true');
+  await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
+});
+
+test('mobile Runtime selects the mapped dedicated screen while desktop screens stay unchanged', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = query => query === '(pointer: coarse)'
+      ? ({ matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } } as MediaQueryList)
+      : nativeMatchMedia(query);
+  });
+  await installRuntimeContract(page, undefined, { 'viewport.home': 'viewport.mobile' }, mobileVariant);
+  await page.goto('/');
+
+  const viewport = page.getByTestId('runtime-logical-viewport');
+  await expect(page.getByText('Conteúdo mobile dedicado')).toBeVisible();
+  await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toHaveCount(0);
+  await expect(viewport).toHaveAttribute('data-design-width', '1080');
+  await expect(viewport).toHaveAttribute('data-design-height', '1920');
+  await expect(viewport).toHaveAttribute('data-mobile-orientation', 'portrait');
 });
 
 for (const path of ['/engineering/mobile', '/admin/database']) {

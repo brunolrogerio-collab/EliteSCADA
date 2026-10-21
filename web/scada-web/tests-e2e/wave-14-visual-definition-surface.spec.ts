@@ -17,6 +17,7 @@ test('surface patch stores canonical color, asset identity and fit', () => {
     backgroundImageFit: 'contain'
   });
   expect(readVisualDefinitionSurfaceConfig(screen.properties)).toEqual({
+    screenOrientation: null,
     backgroundMode: 'image',
     backgroundColor: '#AABBCC',
     backgroundImageAssetId: 'asset-1',
@@ -26,12 +27,14 @@ test('surface patch stores canonical color, asset identity and fit', () => {
 
 test('surface config treats absent fit as canonical cover without materializing it', () => {
   expect(readVisualDefinitionSurfaceConfig({})).toEqual({
+    screenOrientation: null,
     backgroundMode: 'theme',
     backgroundColor: null,
     backgroundImageAssetId: null,
     backgroundImageFit: 'cover'
   });
   expect(readVisualDefinitionSurfaceConfig(undefined)).toEqual({
+    screenOrientation: null,
     backgroundMode: 'theme',
     backgroundColor: null,
     backgroundImageAssetId: null,
@@ -49,6 +52,15 @@ test('surface patch removes optional background values without sentinel strings'
   });
   expect(screen.properties).toEqual({});
   expect(readVisualDefinitionSurfaceConfig(screen.properties).backgroundImageFit).toBe('cover');
+});
+
+test('screen orientation is explicit, canonical, and can return to Runtime default', () => {
+  const portrait = applyVisualDefinitionSurfacePatch({ properties: { retained: 'yes' } }, { screenOrientation: 'portrait' });
+  expect(portrait.properties).toEqual({ retained: 'yes', screenOrientation: 'portrait' });
+  expect(readVisualDefinitionSurfaceConfig(portrait.properties).screenOrientation).toBe('portrait');
+  expect(applyVisualDefinitionSurfacePatch(portrait, { screenOrientation: null }).properties).toEqual({ retained: 'yes' });
+  expect(() => readVisualDefinitionSurfaceConfig({ screenOrientation: 'diagonal' }))
+    .toThrow(/Unknown visual definition screen orientation/);
 });
 
 test('surface style resolves a stable asset URL and deterministic fit', () => {

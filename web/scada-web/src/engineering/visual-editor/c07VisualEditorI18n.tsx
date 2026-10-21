@@ -13,6 +13,7 @@ const ptBR = {
     title: 'Estrutura', hierarchy: 'Hierarquia de objetos visuais', expand: 'Expandir', collapse: 'Recolher', locked: 'Bloqueado', lockedByParent: 'Bloqueado pelo grupo pai'
   },
   surface: {
+    orientationLabel: 'Formato da tela', runtimeDefault: 'Padrão do Runtime', landscape: 'Paisagem · 1920 × 1080', portrait: 'Retrato · 1080 × 1920', orientationHint: 'O Runtime escala a tela inteira para caber no dispositivo.',
     background: 'Fundo', image: 'imagem', color: 'cor', default: 'padrão', modeLabel: 'Usar', mode: { theme: 'Tema atual (claro/escuro)', color: 'Cor personalizada', image: 'Imagem de asset' }, colorLabel: 'Cor', clear: 'Limpar', imageAsset: 'Asset de imagem', chooseImage: 'Escolher imagem…', importingAsset: 'Importando…', noBackgroundImage: 'Sem imagem de fundo', imageFit: 'Ajuste da imagem', assetIdentityOnly: 'Somente identidade canônica do asset do projeto.', resetBackground: 'Restaurar fundo',
     fit: { cover: 'Cobrir', contain: 'Conter', stretch: 'Esticar', center: 'Centralizar', tile: 'Repetir' }
   },
@@ -47,6 +48,7 @@ const en: C07VisualEditorText = {
     title: 'Outliner', hierarchy: 'Visual object hierarchy', expand: 'Expand', collapse: 'Collapse', locked: 'Locked', lockedByParent: 'Locked by parent group'
   },
   surface: {
+    orientationLabel: 'Screen format', runtimeDefault: 'Runtime default', landscape: 'Landscape · 1920 × 1080', portrait: 'Portrait · 1080 × 1920', orientationHint: 'Runtime scales the complete screen to fit the device.',
     background: 'Background', image: 'image', color: 'color', default: 'default', modeLabel: 'Use', mode: { theme: 'Current theme (light/dark)', color: 'Custom color', image: 'Image asset' }, colorLabel: 'Color', clear: 'Clear', imageAsset: 'Image asset', chooseImage: 'Choose image…', importingAsset: 'Importing…', noBackgroundImage: 'No background image', imageFit: 'Image fit', assetIdentityOnly: 'Canonical project asset identity only.', resetBackground: 'Reset background',
     fit: { cover: 'Cover', contain: 'Contain', stretch: 'Stretch', center: 'Center', tile: 'Tile' }
   },
@@ -78,6 +80,7 @@ const es: C07VisualEditorText = {
     title: 'Estructura', hierarchy: 'Jerarquía de objetos visuales', expand: 'Expandir', collapse: 'Contraer', locked: 'Bloqueado', lockedByParent: 'Bloqueado por el grupo padre'
   },
   surface: {
+    orientationLabel: 'Formato de pantalla', runtimeDefault: 'Predeterminado de Runtime', landscape: 'Paisaje · 1920 × 1080', portrait: 'Retrato · 1080 × 1920', orientationHint: 'Runtime escala toda la pantalla para ajustarla al dispositivo.',
     background: 'Fondo', image: 'imagen', color: 'color', default: 'predeterminado', modeLabel: 'Usar', mode: { theme: 'Tema actual (claro/oscuro)', color: 'Color personalizado', image: 'Recurso de imagen' }, colorLabel: 'Color', clear: 'Limpiar', imageAsset: 'Recurso de imagen', chooseImage: 'Elegir imagen…', importingAsset: 'Importando…', noBackgroundImage: 'Sin imagen de fondo', imageFit: 'Ajuste de imagen', assetIdentityOnly: 'Solo identidad canónica del recurso del proyecto.', resetBackground: 'Restablecer fondo',
     fit: { cover: 'Cubrir', contain: 'Contener', stretch: 'Estirar', center: 'Centrar', tile: 'Repetir' }
   },

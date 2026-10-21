@@ -73,6 +73,7 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screenKey }).click();
 
     const toolbar = page.getByTestId('visual-editor-authoring-toolbar');
+    const arrangementToolbar = page.getByTestId('visual-editor-arrangement-toolbar');
     const canvas = page.getByTestId('visual-editor-canvas');
     const canvasToolbar = canvas.getByRole('toolbar', { name: 'Controles do canvas' });
     const canvasSurface = canvas.locator('.visual-editor-canvas__surface');
@@ -175,8 +176,8 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await outlinerEntry(outliner, rectangleAKey).click();
     await outlinerEntry(outliner, rectangleBKey).click({ modifiers: ['Shift'] });
     await outlinerEntry(outliner, rectangleCKey).click({ modifiers: ['Shift'] });
-    const alignTop = toolbar.getByRole('button', { name: 'Alinhar ao topo', exact: true });
-    const distributeCenters = toolbar.getByRole('button', { name: 'Distribuir centros horizontalmente', exact: true });
+    const alignTop = arrangementToolbar.getByRole('button', { name: 'Alinhar ao topo', exact: true });
+    const distributeCenters = arrangementToolbar.getByRole('button', { name: 'Distribuir centros horizontalmente', exact: true });
     await expect(alignTop).toBeEnabled();
     await expect(distributeCenters).toBeEnabled();
     await alignTop.click();
@@ -191,7 +192,7 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await expect.poll(async () => centerX(rectangleB))
       .toBeCloseTo(((await centerX(rectangleA)) + (await centerX(rectangleC))) / 2, 4);
 
-    await toolbar.getByRole('button', { name: 'Agrupar', exact: true }).click();
+    await arrangementToolbar.getByRole('button', { name: 'Agrupar', exact: true }).click();
     await expect(roots).toHaveCount(3);
     const group = roots.filter({ has: page.locator(`[data-canvas-object-id="${rectangleAId}"]`) });
     await expect(group).toHaveAttribute('data-canvas-object-type', 'core.group');
@@ -203,17 +204,17 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await expect(canvasToolbar.getByRole('button', { name: 'Excluir seleção', exact: true })).toBeDisabled();
 
     await outlinerEntry(outliner, 'group').click();
-    await toolbar.getByRole('button', { name: 'Desagrupar', exact: true }).click();
+    await arrangementToolbar.getByRole('button', { name: 'Desagrupar', exact: true }).click();
     await expect(roots).toHaveCount(5);
 
     await outlinerEntry(outliner, rectangleAKey).click();
-    await toolbar.getByRole('button', { name: 'Bloquear seleção', exact: true }).click();
+    await arrangementToolbar.getByRole('button', { name: 'Bloquear seleção', exact: true }).click();
     await expect(rectangleA).toHaveClass(/is-authoring-locked/);
     await expect(rectangleA.locator('[data-canvas-resize-handle]')).toHaveCount(0);
     await expect(canvasToolbar.getByRole('button', { name: 'Duplicar seleção', exact: true })).toBeDisabled();
     await expect(canvasToolbar.getByRole('button', { name: 'Excluir seleção', exact: true })).toBeDisabled();
     await expect(canvasToolbar.getByRole('button', { name: 'Trazer para frente', exact: true })).toBeDisabled();
-    await toolbar.getByRole('button', { name: 'Desbloquear seleção', exact: true }).click();
+    await arrangementToolbar.getByRole('button', { name: 'Desbloquear seleção', exact: true }).click();
     await expect(rectangleA).not.toHaveClass(/is-authoring-locked/);
     await expect(rectangleA.locator('[data-canvas-resize-handle]')).toHaveCount(4);
 

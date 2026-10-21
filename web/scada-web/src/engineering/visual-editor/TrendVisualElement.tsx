@@ -48,6 +48,7 @@ export type TrendVisualElementProps = Readonly<{
   locale: EngineeringLocale;
   enabled: boolean;
   operatorTimeRangeControls?: boolean;
+  dataQueriesEnabled?: boolean;
   onClick?: (event: React.MouseEvent) => void;
 }>;
 
@@ -146,6 +147,7 @@ export function TrendVisualElement({
   locale,
   enabled,
   operatorTimeRangeControls = false,
+  dataQueriesEnabled = true,
   onClick
 }: TrendVisualElementProps) {
   const text = COPY[locale];
@@ -220,6 +222,10 @@ export function TrendVisualElement({
   const [state, setState] = React.useState<LoadState>({ kind: 'idle', series: Object.freeze([]) });
 
   React.useEffect(() => {
+    if (!dataQueriesEnabled) {
+      setState({ kind: 'idle', series: Object.freeze([]) });
+      return undefined;
+    }
     if (visiblePens.length === 0) {
       setState({ kind: 'idle', series: Object.freeze([]) });
       return;
@@ -345,7 +351,7 @@ export function TrendVisualElement({
       active?.abort();
       window.clearInterval(interval);
     };
-  }, [activeDurationSeconds, activeTimeRange, refreshRevision, refreshSeconds, visiblePens]);
+  }, [activeDurationSeconds, activeTimeRange, dataQueriesEnabled, refreshRevision, refreshSeconds, visiblePens]);
 
   const series = state.series;
   const hasSamples = series.some(item => item.samples.some(sample => isUsableTrendQuality(sample.quality) && sample.value !== null));

@@ -85,6 +85,7 @@ export type VisualEditorCanvasProps = VisualEditorCanvasContractProps & Readonly
   templateDefinitions?: readonly TemplateEngineering[] | null;
   emptyLabel?: string;
   toolbarContent?: React.ReactNode;
+  liveDataEnabled?: boolean;
 }>;
 
 export function VisualEditorCanvas({
@@ -103,7 +104,8 @@ export function VisualEditorCanvas({
   equipmentDefinitions,
   templateDefinitions,
   emptyLabel,
-  toolbarContent
+  toolbarContent,
+  liveDataEnabled = true
 }: VisualEditorCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [gridEnabled, setGridEnabled] = useState(true);
@@ -617,6 +619,8 @@ export function VisualEditorCanvas({
             equipmentDefinitions={equipmentDefinitions}
             templateDefinitions={templateDefinitions}
             showTechnicalFallbackText={identitiesVisible}
+            liveBindings={liveDataEnabled}
+            historicalQueriesEnabled={liveDataEnabled}
           />
         </div>
         {logicalBoundary ? <div

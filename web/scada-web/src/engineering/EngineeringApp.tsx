@@ -33,7 +33,7 @@ import { VisualAssetManagementWorkspace } from './VisualAssetManagementWorkspace
 import { EquipmentFaceplateWorkspace } from './EquipmentFaceplateWorkspace';
 import { HomeBuildingWorkspace } from './HomeBuildingWorkspace';
 import { AssetProcessIntelligenceWorkspace } from './AssetProcessIntelligenceWorkspace';
-import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, TemplateEngineering } from './types';
+import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, ScreenEngineering, TemplateEngineering } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
 import { selectDefaultDynamoCatalog } from './visual-editor/dynamoLibraryModel';
 import { listUserVisualAssets } from './visualAssetCatalogModel';
@@ -123,6 +123,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
   const [error, setError] = useState<string | null>(null);
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [productIdentity, setProductIdentity] = useState<ProductIdentityView | null>(null);
+  const [intelligenceDashboardDraft, setIntelligenceDashboardDraft] = useState<ScreenEngineering | null>(null);
   const t = useMemo(() => translator(locale), [locale]);
   const { capabilities } = useEffectiveCapabilities();
   const canAdministerDatabase = hasRuntimeCapability(capabilities, 'SystemAdmin');
@@ -172,6 +173,16 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
     const nextPath = engineeringSectionPath(next);
     if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
   };
+
+  const openIntelligenceDashboardDraft = useCallback((draft: ScreenEngineering) => {
+    setIntelligenceDashboardDraft(draft);
+    setSection('screens');
+    const nextPath = engineeringSectionPath('screens');
+    if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
+  }, []);
+  const consumeIntelligenceDashboardDraft = useCallback((key: string) => {
+    setIntelligenceDashboardDraft(current => current?.key === key ? null : current);
+  }, []);
 
   return (
     <main className="eng-shell">
@@ -261,7 +272,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
         >
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
           {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
-          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} onReload={load} onSnapshotRefreshed={refreshSnapshotInPlace}/>}
+          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} onReload={load} onSnapshotRefreshed={refreshSnapshotInPlace} onCreateIntelligenceDashboard={openIntelligenceDashboardDraft} initialIntelligenceDashboardDraft={intelligenceDashboardDraft} onIntelligenceDashboardDraftConsumed={consumeIntelligenceDashboardDraft}/>}
         </section>
       </div>
     </main>
@@ -274,7 +285,7 @@ function editorNavigationLabel(locale: EngineeringLocale, collapsed: boolean): s
   return collapsed ? 'Mostrar navegação do Engineering' : 'Ocultar navegação do Engineering';
 }
 
-function EngineeringSection({ section, snapshot, productIdentity, t, locale, onReload, onSnapshotRefreshed }: {
+function EngineeringSection({ section, snapshot, productIdentity, t, locale, onReload, onSnapshotRefreshed, onCreateIntelligenceDashboard, initialIntelligenceDashboardDraft, onIntelligenceDashboardDraftConsumed }: {
   section: SectionId;
   snapshot: EngineeringSnapshot;
   productIdentity: ProductIdentityView | null;
@@ -282,6 +293,9 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   locale: EngineeringLocale;
   onReload: () => Promise<void>;
   onSnapshotRefreshed: () => Promise<void>;
+  onCreateIntelligenceDashboard: (draft: ScreenEngineering) => void;
+  initialIntelligenceDashboardDraft: ScreenEngineering | null;
+  onIntelligenceDashboardDraftConsumed: (key: string) => void;
 }) {
   const model = snapshot.package;
   if (section === 'overview') return <>
@@ -302,7 +316,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   if (section === 'historian') return <HistorianSection model={model} t={t}/>;
   if (section === 'reports') return <ReportDesignerWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale}/>;
-  if (section === 'intelligence') return <AssetProcessIntelligenceWorkspace locale={locale} tags={model.tags} onSaved={onReload}/>;
+  if (section === 'intelligence') return <AssetProcessIntelligenceWorkspace locale={locale} tags={model.tags} screens={model.screens ?? []} onCreateDashboardDraft={onCreateIntelligenceDashboard} onSaved={onReload}/>;
   if (section === 'highAvailability') return <HighAvailabilityAdminWorkspace locale={locale}/>;
   if (section === 'monitor') return <DevelopmentMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'tagMonitor') return <EngineeringTagMonitorWorkspace snapshot={snapshot} locale={locale}/>;
@@ -319,7 +333,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
     case 'templates': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed} definitionKind="template"/>;
     case 'equipment': return <EquipmentFaceplateWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
     case 'dynamos': return <DynamoCatalogSection items={model.dynamos ?? []} snapshot={snapshot} locale={locale} onApplied={onReload} onSnapshotRefreshed={onSnapshotRefreshed}/>;
-    case 'screens': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed}/>;
+    case 'screens': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed} initialScreenDraft={initialIntelligenceDashboardDraft} onInitialScreenDraftConsumed={onIntelligenceDashboardDraftConsumed}/>;
     case 'popups': return <PopupVisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed}/>;
     default: return null;
   }

@@ -49,6 +49,11 @@ test(`active scope with closed permit can be rearmed after authorization recover
     runtime: [],
     workspace: ['EngineeringModify', 'AssetProcessIntelligenceManage']
   } }));
+  await page.route('**/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog', route => route.fulfill({ json: {
+    supportedSemanticContractVersions: [1, 2],
+    semanticCatalogs: [{ catalogVersion: 1, roles: [] }, { catalogVersion: 2, roles: [] }],
+    controlledEngineeringUnitCatalogs: [{ catalogVersion: 1, units: [] }, { catalogVersion: 2, units: [] }]
+  } }));
   await page.route('**/api/engineering/asset-process-intelligence/scopes', async route => {
     if (route.request().method() !== 'GET') {
       attemptedConfigurationWrites++;

@@ -20,12 +20,14 @@ const FIT_OPTIONS: readonly VisualDefinitionBackgroundFit[] = Object.freeze([
 
 export function VisualDefinitionSurfaceInspector({
   screen,
+  screenOrientationEnabled = false,
   onCommand,
   onImportAsset,
   importDisabled = false,
   importing = false
 }: {
   screen: ScreenEngineering;
+  screenOrientationEnabled?: boolean;
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
   onImportAsset?: (file: File) => Promise<string | null | void> | string | null | void;
   importDisabled?: boolean;
@@ -61,6 +63,19 @@ export function VisualDefinitionSurfaceInspector({
   const selectedAsset = userVisualAssets.find(asset => asset.id === config.backgroundImageAssetId) ?? null;
 
   return <>
+    {screenOrientationEnabled ? <label className="visual-editor-surface-inspector__field visual-editor-surface-inspector__orientation" data-testid="screen-orientation-property">
+      <span>{text.orientationLabel}</span>
+      <select
+        value={config.screenOrientation ?? ''}
+        disabled={!onCommand}
+        onChange={event => setSurface({ screenOrientation: event.currentTarget.value ? event.currentTarget.value as 'landscape' | 'portrait' : null })}
+      >
+        <option value="">{text.runtimeDefault}</option>
+        <option value="landscape">{text.landscape}</option>
+        <option value="portrait">{text.portrait}</option>
+      </select>
+      <small>{text.orientationHint}</small>
+    </label> : null}
     <details ref={hostRef} className="visual-editor-surface-inspector" data-testid="visual-definition-surface-inspector">
       <summary>
         <strong>{text.background}</strong>

@@ -5,6 +5,7 @@ import {
   MIN_CANVAS_ZOOM,
   clientDeltaToCanvas,
   collapseHierarchySelection,
+  fitViewportToBounds,
   nextSelection,
   normalizeSelection,
   normalizeViewport,
@@ -133,6 +134,16 @@ test('grid snap and viewport math are finite bounded and deterministic', () => {
     true,
     DEFAULT_CANVAS_GRID_SIZE
   )).toEqual({ x: 10, y: 20 });
+});
+
+test('fit viewport centers the complete logical screen inside the visible canvas', () => {
+  expect(fitViewportToBounds(800, 600, 1920, 1080)).toEqual({
+    zoom: 752 / 1920,
+    panX: 24,
+    panY: (600 - (1080 * 752 / 1920)) / 2
+  });
+  expect(fitViewportToBounds(800, 600, 1920, 1080, 0).zoom).toBe(800 / 1920);
+  expect(fitViewportToBounds(Number.NaN, 600, 1920, 1080).zoom).toBe(MIN_CANVAS_ZOOM);
 });
 
 test('resize handles produce absolute bounds and enforce positive size', () => {

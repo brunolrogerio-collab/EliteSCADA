@@ -20,7 +20,8 @@ export function VisualEditorAuthoringToolbar({
   canUndo,
   canRedo,
   canPaste,
-  onInsertObject
+  onInsertObject,
+  placement = 'all'
 }: {
   screen: ScreenEngineering;
   selectedObjectIds: readonly string[];
@@ -30,6 +31,7 @@ export function VisualEditorAuthoringToolbar({
   canRedo?: boolean;
   canPaste?: boolean;
   onInsertObject?: (objectType: string) => void;
+  placement?: 'all' | 'authoring' | 'arrangement';
 }) {
   const editorText = useC07VisualEditorText();
   const text = editorText.toolbar;
@@ -111,7 +113,14 @@ export function VisualEditorAuthoringToolbar({
     [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, '⊙', 'measurementTarget', 'Actual vs target']
   ] as const;
 
-  return <div className="visual-editor-authoring-toolbar" role="toolbar" aria-label={text.aria} data-testid="visual-editor-authoring-toolbar">
+  const embedded = placement === 'arrangement';
+  return <div
+    className={`visual-editor-authoring-toolbar${embedded ? ' visual-editor-authoring-toolbar--embedded' : ''}`}
+    role={embedded ? 'group' : 'toolbar'}
+    aria-label={embedded ? [text.align, text.distribute, text.size, text.structure].join(', ') : text.aria}
+    data-testid={embedded ? 'visual-editor-arrangement-toolbar' : 'visual-editor-authoring-toolbar'}
+  >
+    {placement !== 'arrangement' ? <>
     <ToolbarGroup label="Draw">
       {inserts.slice(0, 7).map(([objectType, glyph, labelKey, fallbackLabel]) => <Tool
         key={objectType}
@@ -136,7 +145,9 @@ export function VisualEditorAuthoringToolbar({
       <Tool label={text.copy} disabled={!onKeyboardCommand || state.selectionCount === 0 || !state.sameParent} onClick={() => onKeyboardCommand?.({ kind: 'copy' })}>⧉</Tool>
       <Tool label={text.paste} disabled={!onKeyboardCommand || canPaste === false} onClick={() => onKeyboardCommand?.({ kind: 'paste' })}>▣</Tool>
     </ToolbarGroup>
+    </> : null}
 
+    {placement !== 'authoring' ? <>
     <ToolbarGroup label={text.align}>
       <Tool label={text.alignLeft} disabled={!authoringAvailable || !state.canAlign} onClick={() => align('left')}>⇤</Tool>
       <Tool label={text.alignHorizontalCenters} disabled={!authoringAvailable || !state.canAlign} onClick={() => align('horizontalCenter')}>↔</Tool>
@@ -168,6 +179,7 @@ export function VisualEditorAuthoringToolbar({
         onClick={() => dispatchOperation({ kind: 'lock', objectIds: state.selectedObjectIds, locked: state.nextLockedValue })}
       >{state.nextLockedValue ? '▣' : '▢'}</Tool>
     </ToolbarGroup>
+    </> : null}
   </div>;
 }
 

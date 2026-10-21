@@ -16,6 +16,9 @@ export function MobileRuntimeEngineeringWorkspace({ snapshot, onApplied, locale 
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const text = copy(locale);
+  const packageScreens = snapshot.package.screens ?? [];
+  const desktopScreens = packageScreens.filter(screen => !screen.metadata?.mobileVariantOf);
+  const mobileVariants = packageScreens.filter(screen => Boolean(screen.metadata?.mobileVariantOf));
   const signature = useMemo(() => JSON.stringify({ orientation, screens, changeVersion: snapshot.workspace.changeVersion }), [orientation, screens, snapshot.workspace.changeVersion]);
 
   useEffect(() => {
@@ -73,14 +76,18 @@ export function MobileRuntimeEngineeringWorkspace({ snapshot, onApplied, locale 
       </label>
       <p className="mobile-runtime-editor__note">{text.note}</p>
       <h2>{locale === 'pt-BR' ? 'Versões de telas para mobile' : locale === 'es' ? 'Versiones móviles de pantallas' : 'Mobile screen variants'}</h2>
-      {(snapshot.package.screens ?? []).map(screen => <label className="eng-editor-field" key={screen.key}>
-        <span>{screen.name || screen.key}</span><select value={screens[screen.key] ?? ''} onChange={e => {
+      {desktopScreens.map(screen => {
+        const matchingVariants = mobileVariants.filter(item => item.metadata?.mobileVariantOf === screen.key);
+        const destinations = matchingVariants.length ? matchingVariants : packageScreens.filter(item => item.key !== screen.key);
+        return <label className="eng-editor-field" key={screen.key}>
+        <span>{screen.name || screen.key}</span><select aria-label={`${text.variantFor} ${screen.name || screen.key}`} value={screens[screen.key] ?? ''} onChange={e => {
           const next = { ...screens }; if (e.target.value) next[screen.key] = e.target.value; else delete next[screen.key];
           setScreens(next); setPreview(null); setPreviewSignature('');
         }}><option value="">{locale === 'pt-BR' ? 'Mesma tela do desktop' : locale === 'es' ? 'Misma pantalla del escritorio' : 'Same desktop screen'}</option>
-          {(snapshot.package.screens ?? []).filter(item => item.key !== screen.key).map(item => <option key={item.key} value={item.key}>{item.name || item.key}</option>)}
+          {destinations.map(item => <option key={item.key} value={item.key}>{item.name || item.key}</option>)}
         </select>
-      </label>)}
+      </label>;
+      })}
       <div className="branding-editor__actions">
         <button type="button" onClick={() => void validate()} disabled={busy}>{text.validate}</button>
         <button type="button" onClick={() => void apply()} disabled={busy || !preview?.canApply || previewSignature !== signature}>{text.apply}</button>
@@ -95,19 +102,22 @@ function copy(locale: EngineeringLocale) {
   if (locale === 'en') return {
     eyebrow: 'Runtime presentation', title: 'Mobile', description: 'Set the default orientation used by the Runtime on coarse-pointer devices. Desktop keeps its normal responsive layout.',
     orientation: 'Mobile orientation', landscape: 'Landscape (rotate the canvas when needed)', portrait: 'Portrait',
-    note: 'The Runtime preserves proportions, supports zoom and rotates the logical canvas for landscape. Mobile variants share the same Runtime and TAGs. Configure the operator header in Header. Hardware orientation locking depends on browser support.',
+    note: 'The Runtime preserves proportions and supports zoom. Use dedicated portrait or landscape screen variants for mobile; they share the same Runtime and TAGs. Configure the operator header in Header. Hardware orientation locking depends on browser support.',
+    variantFor: 'Mobile variant for',
     validate: 'Validate preview', apply: 'Apply to Working', valid: 'Preview is valid. Apply updates only the Working project.', invalid: 'The preview contains validation errors.', applied: 'Mobile Runtime setting applied to Working. Save, Publish and Activate are still required.'
   };
   if (locale === 'es') return {
     eyebrow: 'Presentación de Runtime', title: 'Móvil', description: 'Defina la orientación predeterminada de Runtime en dispositivos táctiles. El escritorio conserva su diseño adaptable habitual.',
     orientation: 'Orientación móvil', landscape: 'Horizontal (girar el canvas si es necesario)', portrait: 'Vertical',
-    note: 'Runtime conserva proporciones, admite zoom y gira el canvas para modo horizontal. Las variantes comparten Runtime y TAGs. Configure el encabezado en Encabezado. El bloqueo físico depende del navegador.',
+    note: 'Runtime conserva proporciones y admite zoom. Use variantes específicas verticales u horizontales para móvil; comparten Runtime y TAGs. Configure el encabezado en Encabezado. El bloqueo físico depende del navegador.',
+    variantFor: 'Variante móvil de',
     validate: 'Validar preview', apply: 'Aplicar a Working', valid: 'El preview es válido. Aplicar solo actualiza el proyecto Working.', invalid: 'El preview contiene errores de validación.', applied: 'Configuración móvil aplicada a Working. Aún debe guardar, publicar y activar.'
   };
   return {
     eyebrow: 'Apresentação do Runtime', title: 'Mobile', description: 'Defina a orientação padrão do Runtime em dispositivos com toque. O desktop mantém seu layout responsivo normal.',
     orientation: 'Orientação mobile', landscape: 'Paisagem (girar o canvas quando necessário)', portrait: 'Retrato',
-    note: 'O Runtime preserva proporções, permite zoom e gira o canvas lógico em paisagem. As versões mobile compartilham o mesmo Runtime e TAGs. Configure o cabeçalho em Cabeçalho. O bloqueio físico da orientação depende do navegador.',
+    note: 'O Runtime preserva proporções e permite zoom. Use variantes específicas em retrato ou paisagem para celular; As versões mobile compartilham o mesmo Runtime e TAGs. Configure o cabeçalho em Cabeçalho. O bloqueio físico da orientação depende do navegador.',
+    variantFor: 'Versão mobile de',
     validate: 'Validar preview', apply: 'Aplicar ao Working', valid: 'Preview válido. Aplicar atualiza somente o projeto Working.', invalid: 'O preview contém erros de validação.', applied: 'Configuração mobile aplicada ao Working. Ainda é necessário salvar, publicar e ativar.'
   };
 }

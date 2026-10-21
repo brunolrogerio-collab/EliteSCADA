@@ -27,6 +27,7 @@ import {
   DEFAULT_CANVAS_GRID_SIZE,
   clientDeltaToCanvas,
   collapseHierarchySelection,
+  fitViewportToBounds,
   hasMeaningfulDelta,
   nextSelection,
   normalizeSelection,
@@ -83,6 +84,7 @@ export type VisualEditorCanvasProps = VisualEditorCanvasContractProps & Readonly
   equipmentDefinitions?: readonly EquipmentEngineering[] | null;
   templateDefinitions?: readonly TemplateEngineering[] | null;
   emptyLabel?: string;
+  toolbarContent?: React.ReactNode;
 }>;
 
 export function VisualEditorCanvas({
@@ -100,7 +102,8 @@ export function VisualEditorCanvas({
   dynamoDefinitions,
   equipmentDefinitions,
   templateDefinitions,
-  emptyLabel
+  emptyLabel,
+  toolbarContent
 }: VisualEditorCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [gridEnabled, setGridEnabled] = useState(true);
@@ -140,6 +143,14 @@ export function VisualEditorCanvas({
     [screen, interaction]
   );
   const canvasText = canvasControlText(locale);
+
+  const fitToLogicalBoundary = (): void => {
+    const surface = surfaceRef.current?.getBoundingClientRect();
+    if (!surface) return;
+    const width = logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH;
+    const height = logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT;
+    onUiIntent({ kind: 'viewport.change', viewport: fitViewportToBounds(surface.width, surface.height, width, height) });
+  };
 
   const emitSelection = (objectIds: readonly string[], mode: 'replace' | 'add' | 'toggle'): void => {
     onUiIntent({ kind: 'selection.change', objectIds, mode });
@@ -556,6 +567,7 @@ export function VisualEditorCanvas({
     <div className="visual-editor-canvas__toolbar" role="toolbar" aria-label={canvasText.controls}>
       <button type="button" title={canvasText.zoomOut} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1 / 1.2) })} aria-label={canvasText.zoomOut}>−</button>
       <button type="button" title={canvasText.resetViewport} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: { zoom: 1, panX: 0, panY: 0 } })} aria-label={canvasText.resetViewport}>1:1</button>
+      {logicalBoundary ? <button type="button" title={canvasText.fitScreen} onClick={fitToLogicalBoundary} aria-label={canvasText.fitScreen} data-testid="canvas-fit-screen">⛶</button> : null}
       <button type="button" title={canvasText.zoomIn} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1.2) })} aria-label={canvasText.zoomIn}>+</button>
       <button type="button" title={canvasText.grid} aria-label={canvasText.grid} aria-pressed={gridEnabled} onClick={() => setGridEnabled(value => !value)} data-testid="canvas-grid-toggle">#</button>
       <button type="button" title={canvasText.snap} aria-label={canvasText.snap} aria-pressed={snapEnabled} onClick={() => setSnapEnabled(value => !value)} data-testid="canvas-snap-toggle">⊙</button>
@@ -578,6 +590,7 @@ export function VisualEditorCanvas({
         <button type="button" title={canvasText.removeBezierAnchor} aria-label={canvasText.removeBezierAnchor} disabled={selectedBezierAnchor?.objectId !== selectedProjection.objectId || removeBezierAnchor(String(selectedProjection.element.properties?.[VISUAL_PROPERTY_KEYS.bezierPath] ?? ''), selectedBezierAnchor?.ordinal) === null} onClick={() => updateSelectedBezier('remove')} data-testid="bezier-anchor-remove">⌒−</button>
       </> : null}
       <button type="button" title={canvasText.identities} aria-label={canvasText.identities} aria-pressed={identitiesVisible} onClick={() => setIdentitiesVisible(value => !value)} data-testid="canvas-identities-toggle">ID</button>
+      {toolbarContent}
       <span className="visual-editor-canvas__toolbar-spacer" />
       <button type="button" title={canvasText.duplicate} aria-label={canvasText.duplicate} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.duplicate', objectIds: selection })}>⧉</button>
       <button type="button" title={canvasText.deleteSelection} aria-label={canvasText.deleteSelection} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.delete', objectIds: selection })}>⌫</button>
@@ -681,7 +694,7 @@ function projectTransientInteraction(
 
 function canvasControlText(locale: EngineeringLocale) {
   if (locale === 'en') return {
-    controls: 'Canvas controls', zoomOut: 'Zoom out', resetViewport: 'Reset viewport', zoomIn: 'Zoom in', identities: 'Show object identities',
+    controls: 'Canvas controls', zoomOut: 'Zoom out', resetViewport: 'Reset viewport', fitScreen: 'Fit screen to visible area', zoomIn: 'Zoom in', identities: 'Show object identities',
     grid: 'Grid', snap: 'Snap', polygon: 'Polygon points', finishPolygon: 'Finish polygon', cancelPolygon: 'Cancel polygon',
     bezier: 'Bezier anchors', finishBezier: 'Close and finish Bezier curve', cancelBezier: 'Cancel Bezier curve', cancelShort: '×',
     addVertex: 'Add polygon vertex', removeVertex: 'Remove polygon vertex', duplicate: 'Duplicate selection',
@@ -691,7 +704,7 @@ function canvasControlText(locale: EngineeringLocale) {
     polygonDrawing: 'polygon drawing', bezierDrawing: 'Bezier drawing: click anchors; close at the first point or press Enter', empty: 'This visual surface has no objects yet.'
   };
   if (locale === 'es') return {
-    controls: 'Controles del canvas', zoomOut: 'Alejar', resetViewport: 'Restablecer vista', zoomIn: 'Acercar', identities: 'Mostrar identidades de objetos',
+    controls: 'Controles del canvas', zoomOut: 'Alejar', resetViewport: 'Restablecer vista', fitScreen: 'Ajustar pantalla al área visible', zoomIn: 'Acercar', identities: 'Mostrar identidades de objetos',
     grid: 'Cuadrícula', snap: 'Ajuste', polygon: 'Puntos del polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
     bezier: 'Puntos Bézier', finishBezier: 'Cerrar y finalizar curva Bézier', cancelBezier: 'Cancelar curva Bézier', cancelShort: '×',
     addVertex: 'Agregar vértice', removeVertex: 'Eliminar vértice', duplicate: 'Duplicar selección',
@@ -701,7 +714,7 @@ function canvasControlText(locale: EngineeringLocale) {
     polygonDrawing: 'dibujando polígono', bezierDrawing: 'Dibujando Bézier: haga clic; cierre en el primer punto o pulse Enter', empty: 'Esta superficie visual todavía no tiene objetos.'
   };
   return {
-    controls: 'Controles do canvas', zoomOut: 'Reduzir zoom', resetViewport: 'Restaurar visualização', zoomIn: 'Aumentar zoom', identities: 'Mostrar identificadores dos objetos',
+    controls: 'Controles do canvas', zoomOut: 'Reduzir zoom', resetViewport: 'Restaurar visualização', fitScreen: 'Ajustar tela à área visível', zoomIn: 'Aumentar zoom', identities: 'Mostrar identificadores dos objetos',
     grid: 'Grade', snap: 'Ajuste à grade', polygon: 'Pontos do polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
     bezier: 'Pontos da Bézier', finishBezier: 'Fechar e finalizar curva Bézier', cancelBezier: 'Cancelar curva Bézier', cancelShort: '×',
     addVertex: 'Adicionar vértice', removeVertex: 'Remover vértice', duplicate: 'Duplicar seleção',

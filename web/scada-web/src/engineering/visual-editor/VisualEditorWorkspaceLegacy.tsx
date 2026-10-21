@@ -20,6 +20,7 @@ import type {
   TemplateEngineering
 } from '../types';
 import { initializeClientMemory } from '../../runtime/clientMemory';
+import { resolveRuntimeLogicalSize } from '../../runtime/visual-navigation/runtimeLogicalCanvas';
 import { listUserVisualAssets } from '../visualAssetCatalogModel';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
 import { VisualEditorCanvas } from './canvas';
@@ -71,6 +72,7 @@ import {
   type VisualEditorSessionState
 } from './visualEditorSessionModel';
 import './VisualEditorWorkspace.css';
+import { readVisualDefinitionSurfaceConfig } from './visualDefinitionSurfaceModel';
 
 type VisualEditorWorkspaceProps = {
   snapshot: EngineeringSnapshot;
@@ -224,6 +226,8 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     () => selectedVisualElements(draft, selectedObjectIds),
     [draft, selectedObjectIds]
   );
+  const screenOrientation = readVisualDefinitionSurfaceConfig(draft.properties).screenOrientation ?? 'landscape';
+  const logicalScreenSize = resolveRuntimeLogicalSize(screenOrientation);
   const projectReferences = useMemo(
     () => buildProjectReferenceCatalog(snapshot.package, clientMemoryDefinitions),
     [snapshot.package, clientMemoryDefinitions]
@@ -655,6 +659,11 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
               equipmentDefinitions={snapshot.package.equipment}
               templateDefinitions={snapshot.package.templates}
               emptyLabel={text.emptyCanvas}
+              logicalBoundary={definitionKind === 'screen' ? {
+                width: logicalScreenSize.width,
+                height: logicalScreenSize.height,
+                label: `${locale === 'en' ? 'Runtime screen' : locale === 'es' ? 'Pantalla de Runtime' : 'Tela do Runtime'} · ${logicalScreenSize.width} × ${logicalScreenSize.height}`
+              } : undefined}
               polygonToolActive={polygonToolActive}
               onPolygonToolCancel={() => setPolygonToolActive(false)}
               bezierToolActive={bezierToolActive}
@@ -668,6 +677,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
             <VisualEditorRegionToggle region="properties" collapsed={propertiesCollapsed} locale={locale} onToggle={() => setPropertiesCollapsed(value => !value)} />
             <VisualEditorSelectionInspector
               screen={draft}
+              screenOrientationEnabled={definitionKind === 'screen'}
               selectedElements={selectedElements}
               selectedObjectIds={selectedObjectIds}
               sourceCatalog={bindingSourceCatalog}

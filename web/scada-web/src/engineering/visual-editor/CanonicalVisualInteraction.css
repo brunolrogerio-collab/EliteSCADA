@@ -42,6 +42,12 @@
   transition: filter 100ms ease, translate 100ms ease, scale 100ms ease, box-shadow 100ms ease;
 }
 
+/* A Dynamo's design-space content is fitted into its selected frame. Keep
+   children clipped to that frame even though generic groups can overflow. */
+.visual-editor-dynamo {
+  overflow: hidden !important;
+}
+
 .visual-editor-object[data-dynamo-interaction="momentary-button"]:hover {
   filter: brightness(1.08);
 }

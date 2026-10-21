@@ -28,6 +28,7 @@ test('surface authoring participates in Screen session undo and redo without rep
   session = applyVisualEditorSessionKeyboardCommand(session, {
     kind: 'surface.set',
     patch: {
+      screenOrientation: 'portrait',
       backgroundColor: '#203040',
       backgroundImageAssetId: 'asset-process-map',
       backgroundImageFit: 'contain'
@@ -37,6 +38,7 @@ test('surface authoring participates in Screen session undo and redo without rep
   let current = currentVisualEditorSessionScreen(session);
   expect(current.properties.retained).toBe('yes');
   expect(readVisualDefinitionSurfaceConfig(current.properties)).toEqual({
+    screenOrientation: 'portrait',
     backgroundMode: 'image',
     backgroundColor: '#203040',
     backgroundImageAssetId: 'asset-process-map',
@@ -48,10 +50,12 @@ test('surface authoring participates in Screen session undo and redo without rep
   expect(current.properties.retained).toBe('yes');
   expect(current.properties[VISUAL_DEFINITION_SURFACE_KEYS.backgroundColor]).toBeUndefined();
   expect(current.properties[VISUAL_DEFINITION_SURFACE_KEYS.backgroundImageAssetId]).toBeUndefined();
+  expect(current.properties[VISUAL_DEFINITION_SURFACE_KEYS.screenOrientation]).toBeUndefined();
 
   session = applyVisualEditorSessionKeyboardCommand(session, { kind: 'redo' });
   current = currentVisualEditorSessionScreen(session);
   expect(readVisualDefinitionSurfaceConfig(current.properties)).toEqual({
+    screenOrientation: 'portrait',
     backgroundMode: 'image',
     backgroundColor: '#203040',
     backgroundImageAssetId: 'asset-process-map',
@@ -64,6 +68,7 @@ test('surface reset removes only C07 canonical surface keys', () => {
     ...screen(),
     properties: {
       retained: 'yes',
+      [VISUAL_DEFINITION_SURFACE_KEYS.screenOrientation]: 'portrait',
       [VISUAL_DEFINITION_SURFACE_KEYS.backgroundColor]: '#112233',
       [VISUAL_DEFINITION_SURFACE_KEYS.backgroundImageAssetId]: 'asset-old',
       [VISUAL_DEFINITION_SURFACE_KEYS.backgroundImageFit]: 'cover'
@@ -76,7 +81,8 @@ test('surface reset removes only C07 canonical surface keys', () => {
       backgroundColor: null,
       backgroundImageAssetId: null,
       backgroundImageFit: null,
-      backgroundMode: null
+      backgroundMode: null,
+      screenOrientation: null
     }
   });
 

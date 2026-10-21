@@ -16,6 +16,7 @@ export type VisualEditorInspectorTab = 'properties' | 'dynamics' | 'events';
 
 export function VisualEditorSelectionInspector({
   screen,
+  screenOrientationEnabled = true,
   selectedElements,
   selectedObjectIds,
   sourceCatalog,
@@ -32,6 +33,7 @@ export function VisualEditorSelectionInspector({
   dynamoCommandParameters
 }: {
   screen: ScreenEngineering;
+  screenOrientationEnabled?: boolean;
   selectedElements: readonly VisualElementEngineering[];
   selectedObjectIds: readonly string[];
   sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[];
@@ -90,6 +92,7 @@ export function VisualEditorSelectionInspector({
         />
         {selectedElements.length === 0 ? <VisualDefinitionSurfaceInspector
           screen={screen}
+          screenOrientationEnabled={screenOrientationEnabled}
           onCommand={onCommand}
           onImportAsset={onImportImage}
           importDisabled={imageImportDisabled}

@@ -1330,6 +1330,156 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
+    public async Task<IResult> ExecuteExperimentalJointDeviationV1Async(
+        HttpContext context,
+        AssetProcessIntelligenceExperimentalJointDeviationV1QueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(request);
+        var requestToken = cancellationToken == default ? context.RequestAborted : cancellationToken;
+        var invalid = ValidateExperimentalJointDeviationV1Request(request);
+        if (invalid is not null) return invalid;
+
+        try
+        {
+            var trendAuthorization = await security.CheckRuntimeAsync(
+                context, runtime, SecurityCapability.TrendUse, cancellationToken: requestToken);
+            var trendFailure = trendAuthorization.FailureResult();
+            if (trendFailure is not null) return trendFailure;
+            if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+                return Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED");
+
+            var preparedResult = await PrepareExperimentalJointDeviationV1Async(context, request, requestToken);
+            if (preparedResult.Error is not null) return preparedResult.Error;
+            var plan = preparedResult.Plan!;
+            var allPlans = plan.Signals.Select(signal => signal.Plan).ToArray();
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(requestToken, plan.PermitToken);
+            var budget = new ContextualDeviationVectorV2RawRowBudget();
+            var referenceRows = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>();
+            var evaluationRows = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>();
+
+            foreach (var signal in plan.Signals)
+            {
+                var read = await ReadReferenceEvidenceV1ObservationsAsync(context, request.ReferenceWindow!, signal.Plan,
+                    allPlans, budget, linkedCancellation.Token,
+                    "INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_WINDOW_TOO_DENSE", allowEnumValue: true, allowExactLimitProbe: true);
+                if (read.Error is not null) return read.Error;
+                referenceRows.Add(signal.Signal.Id, read.Observations!);
+            }
+            foreach (var signal in plan.Signals)
+            {
+                var read = await ReadReferenceEvidenceV1ObservationsAsync(context, request.EvaluationWindow!, signal.Plan,
+                    allPlans, budget, linkedCancellation.Token,
+                    "INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_WINDOW_TOO_DENSE", allowEnumValue: true, allowExactLimitProbe: true);
+                if (read.Error is not null) return read.Error;
+                evaluationRows.Add(signal.Signal.Id, read.Observations!);
+            }
+
+            var calculation = AssetProcessIntelligenceExperimentalJointDeviationV1Calculator.Calculate(
+                plan.Targets.Select(signal => (signal.Signal, signal.Tag)).ToArray(),
+                plan.Contexts.Select(signal => (signal.Signal, signal.Tag)).ToArray(),
+                plan.ContextProfile.Predicates!.ToArray(),
+                plan.Assignment.Id,
+                plan.ContextProfile.Id,
+                plan.ContextProfile.Version,
+                request.ReferenceWindow!,
+                request.EvaluationWindow!,
+                request.ExpectedCadenceSeconds,
+                referenceRows,
+                evaluationRows);
+
+            await using var finalMutation = await workspace.AcquireMutationAsync(plan.ChangeVersion, linkedCancellation.Token);
+            var finalCheck = await RevalidateContextualReferencePlansAsync(context, allPlans, linkedCancellation.Token);
+            if (finalCheck is not null) return finalCheck;
+            linkedCancellation.Token.ThrowIfCancellationRequested();
+            var finalConfiguration = workspace.AssetProcessIntelligence.Snapshot();
+            var finalContext = (finalConfiguration.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+                .Where(profile => profile.Id == plan.ContextProfile.Id).Take(2).ToArray();
+            if (finalContext.Length != 1 || !SameContextProfile(plan.ContextProfile, finalContext[0]) ||
+                finalContext[0].Version != request.ExpectedProfileVersion)
+                return Conflict("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_STALE");
+
+            return Results.Ok(new AssetProcessIntelligenceExperimentalJointDeviationV1Response(
+                AssetProcessIntelligenceExperimentalJointDeviationV1Catalog.ContractVersion,
+                AssetProcessIntelligenceExperimentalJointDeviationV1Catalog.CatalogVersion,
+                AssetProcessIntelligenceExperimentalJointDeviationV1Catalog.RuleId,
+                AssetProcessIntelligenceExperimentalJointDeviationV1Catalog.RuleVersion,
+                "experimental_not_field_validated",
+                "none",
+                null,
+                plan.ProjectKey,
+                plan.Revision,
+                request.ScopeKind,
+                request.ScopeId,
+                plan.Assignment.Id,
+                plan.Assignment.EquipmentId,
+                plan.Profile.Id,
+                plan.ContextProfile.Id,
+                plan.ContextProfile.Key,
+                plan.ContextProfile.Version,
+                request.ReferenceWindow!,
+                request.EvaluationWindow!,
+                request.ExpectedCadenceSeconds,
+                calculation.ReferenceCompleteCohortCount,
+                calculation.ReferenceFitSegmentCount,
+                calculation.ReferenceStatus,
+                calculation.ReferenceUnavailableReason,
+                calculation.EvaluationCompleteCohortCount,
+                calculation.EvaluationScoredCohortCount,
+                calculation.EvaluationWarmupCohortCount,
+                Array.AsReadOnly(plan.Targets.Select(signal => signal.Description).ToArray()),
+                Array.AsReadOnly(plan.Contexts.Select(signal => signal.Description).ToArray()),
+                calculation.SignalEvidence,
+                calculation.Scores,
+                calculation.OmittedEvaluationScores,
+                budget.TotalRows,
+                "Experimental continuous joint deviation from the selected reference under the declared context. The score is not field-validated and does not classify normal/fault state, raise alarms, estimate probabilities, diagnose causes, claim efficiency, or estimate remaining useful life."));
+        }
+        catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED");
+        }
+        catch (EngineeringWorkspaceVersionConflictException)
+        {
+            return Conflict("INTELLIGENCE_WORKSPACE_CHANGED");
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Forbidden("HISTORICAL_QUERY_FORBIDDEN");
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_CURSOR_INVALID", "Historian cursor is invalid."));
+        }
+        catch (HistoricalQueryValidationException)
+        {
+            return Results.BadRequest(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_INVALID", "The bounded Historian query was rejected."));
+        }
+        catch (HistoricalQueryProviderException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_QUERY_UNAVAILABLE", "Historical data is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Json(new AssetProcessIntelligenceAnalyticsApiError(
+                "HISTORICAL_RESPONSE_INVALID", "The Historian response did not match the requested TAG and window."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
     public async Task<IResult> ExecuteProfileCoverageAsync(
         HttpContext context,
         AssetProcessIntelligenceProfileCoverageQueryRequest request,
@@ -1963,6 +2113,170 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             new PreparedCurrentFrequencySignal(frequencySignal, frequencyTag, frequencyBinding, frequencyDefinition, frequencyPlan, frequencyDescription),
             permitToken));
     }
+
+    private async Task<PreparedExperimentalJointDeviationV1PlanResult> PrepareExperimentalJointDeviationV1Async(
+        HttpContext context,
+        AssetProcessIntelligenceExperimentalJointDeviationV1QueryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var beforeLock = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(beforeLock, runtime.Describe(), out var coherenceError))
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(coherenceError!);
+
+        await using var mutation = await workspace.AcquireMutationAsync(beforeLock.ChangeVersion, cancellationToken);
+        var descriptor = workspace.Describe();
+        if (!IsWorkspaceRuntimeCoherent(descriptor, runtime.Describe(), out coherenceError))
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(coherenceError!);
+        if (!highAvailability.CanOwnIndustrialEffects())
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE"));
+        if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Forbidden("INTELLIGENCE_ENTITLEMENT_REQUIRED"));
+
+        var policyVersion = 0L;
+        var haEpoch = 0L;
+        if (authorityPolicyHa is not null)
+        {
+            var authorityFence = await authorityPolicyHa.CheckAsync(cancellationToken);
+            if (!authorityFence.Allowed)
+                return PreparedExperimentalJointDeviationV1PlanResult.Fail(
+                    Conflict(authorityFence.ReasonCode.ToUpperInvariant().Replace('-', '_')));
+            policyVersion = authorityFence.PolicyVersion;
+            haEpoch = authorityFence.HaEpoch;
+            var refreshedTrendAuthorization = await security.CheckRuntimeAsync(
+                context, runtime, SecurityCapability.TrendUse, cancellationToken: cancellationToken);
+            var refreshedTrendFailure = refreshedTrendAuthorization.FailureResult();
+            if (refreshedTrendFailure is not null)
+                return PreparedExperimentalJointDeviationV1PlanResult.Fail(refreshedTrendFailure);
+        }
+
+        var configuration = workspace.AssetProcessIntelligence.Snapshot();
+        if (configuration.Version != 3)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_CONFIGURATION_V3_REQUIRED"));
+        var scopes = (configuration.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
+            .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId).Take(2).ToArray();
+        if (scopes.Length != 1 || !scopes[0].Active)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
+        if (!executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
+                request.ScopeKind, request.ScopeId, out var permitToken, policyVersion, haEpoch))
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
+
+        var assignmentMatches = (configuration.Assignments ?? Array.Empty<AssetProcessIntelligenceAssignmentEngineeringDto>())
+            .Where(assignment => assignment.Id == request.AssignmentId).Take(2).ToArray();
+        if (assignmentMatches.Length != 1)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(NotFound("INTELLIGENCE_ASSIGNMENT_NOT_AVAILABLE"));
+        var assignment = assignmentMatches[0];
+        var profileMatches = (configuration.Profiles ?? Array.Empty<AssetProcessIntelligenceProfileEngineeringDto>())
+            .Where(profile => profile.Id == assignment.ProfileId).Take(2).ToArray();
+        if (profileMatches.Length != 1)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_PROFILE_NOT_AVAILABLE_OR_AMBIGUOUS"));
+        var profile = profileMatches[0];
+        var contextMatches = (configuration.OperatingContextProfiles ?? Array.Empty<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>())
+            .Where(item => item.Id == request.OperatingContextProfileId).Take(2).ToArray();
+        if (contextMatches.Length != 1)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(NotFound("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_NOT_AVAILABLE"));
+        var contextProfile = contextMatches[0];
+        if (contextProfile.Version != request.ExpectedProfileVersion)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_STALE"));
+        if (contextProfile.AssignmentId != assignment.Id)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(BadRequest("INTELLIGENCE_OPERATING_CONTEXT_ASSIGNMENT_MISMATCH"));
+
+        var profileSignals = (profile.Signals ?? Array.Empty<AssetProcessIntelligenceSignalEngineeringDto>()).ToArray();
+        if (profileSignals.Length == 0 || profileSignals.Length > MaximumProfileSignals ||
+            profileSignals.Any(signal => signal is null || signal.Id == Guid.Empty || signal.TagId == Guid.Empty) ||
+            profileSignals.Select(signal => signal.Id).Distinct().Count() != profileSignals.Length ||
+            profileSignals.Select(signal => signal.TagId).Distinct().Count() != profileSignals.Length)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_PROFILE_SIGNAL_IDENTITY_INVALID"));
+        var predicates = (contextProfile.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>()).ToArray();
+        if (predicates.Length is < 1 or > AssetProcessIntelligenceContextEligibilityV1Catalog.MaximumPredicates ||
+            predicates.Any(predicate => predicate is null || predicate.TagId == Guid.Empty) ||
+            predicates.Select(predicate => predicate.TagId).Distinct().Count() != predicates.Length)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_OPERATING_CONTEXT_PREDICATES_INVALID"));
+
+        var targetSignals = new List<AssetProcessIntelligenceSignalEngineeringDto>(request.TargetSignalIds!.Count);
+        foreach (var signalId in request.TargetSignalIds)
+        {
+            var matches = profileSignals.Where(signal => signal.Id == signalId).Take(2).ToArray();
+            if (matches.Length != 1) return PreparedExperimentalJointDeviationV1PlanResult.Fail(
+                BadRequest("INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_TARGET_IDENTITY_INVALID"));
+            targetSignals.Add(matches[0]);
+        }
+        if (targetSignals.Select(signal => signal.TagId).Distinct().Count() != targetSignals.Count)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(
+                BadRequest("INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_DUPLICATE_TARGET_TAG"));
+
+        var contextSignals = new List<AssetProcessIntelligenceSignalEngineeringDto>();
+        foreach (var tagId in predicates.Select(predicate => predicate.TagId).Distinct())
+        {
+            var matches = profileSignals.Where(signal => signal.TagId == tagId).Take(2).ToArray();
+            if (matches.Length != 1) return PreparedExperimentalJointDeviationV1PlanResult.Fail(
+                Conflict("INTELLIGENCE_CONTEXT_ELIGIBILITY_PREDICATE_TAG_NOT_IN_PROFILE"));
+            contextSignals.Add(matches[0]);
+        }
+        if (targetSignals.Any(target => contextSignals.Any(item => item.TagId == target.TagId)))
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(
+                BadRequest("INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_TARGET_CONTEXT_TAG_OVERLAP"));
+
+        var preparedTargets = new List<PreparedExperimentalJointDeviationV1Signal>(targetSignals.Count);
+        var preparedContexts = new List<PreparedExperimentalJointDeviationV1Signal>(contextSignals.Count);
+        var combined = targetSignals.Select(signal => (Signal: signal, IsTarget: true))
+            .Concat(contextSignals.Select(signal => (Signal: signal, IsTarget: false))).ToArray();
+        foreach (var (signal, isTarget) in combined)
+        {
+            var resolution = ResolveScopeSources(request.ScopeKind, request.ScopeId, signal.TagId, configuration, workspace.Assets);
+            if (resolution.Error is not null) return PreparedExperimentalJointDeviationV1PlanResult.Fail(resolution.Error);
+            var provenance = resolution.Assignments!
+                .Where(item => item.AssignmentId == assignment.Id && item.EquipmentId == assignment.EquipmentId &&
+                               item.ProfileId == profile.Id && item.SignalId == signal.Id).Take(2).ToArray();
+            if (provenance.Length != 1)
+                return PreparedExperimentalJointDeviationV1PlanResult.Fail(NotFound("INTELLIGENCE_ASSIGNMENT_NOT_IN_ACTIVE_SCOPE"));
+            if (!runtime.TryGetTag(signal.TagId, out var tag) || tag is null || (isTarget && !IsNumeric(tag.DataType)))
+                return PreparedExperimentalJointDeviationV1PlanResult.Fail(NotFound("INTELLIGENCE_ANALYTICS_SOURCE_NOT_AVAILABLE"));
+            if (!isTarget && predicates.Where(predicate => predicate.TagId == tag.Id)
+                    .Any(predicate => !ValidExperimentalContextPredicate(predicate, tag)))
+                return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_OPERATING_CONTEXT_PREDICATE_INCOMPATIBLE"));
+
+            var authorization = await security.CheckRuntimeTagAsync(context, runtime, tag, TagAccessOperation.Read, cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null) return PreparedExperimentalJointDeviationV1PlanResult.Fail(failure);
+            var tagPlan = new PreparedPlan(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion,
+                tag, Array.AsReadOnly(provenance), permitToken, request.ScopeKind, request.ScopeId, policyVersion, haEpoch);
+            var description = new AssetProcessIntelligenceExperimentalJointDeviationV1Signal(
+                signal.Id, signal.Key, tag.Id, tag.Path, tag.DataType, tag.EngineeringUnit);
+            var prepared = new PreparedExperimentalJointDeviationV1Signal(signal, tag, tagPlan, description);
+            if (isTarget) preparedTargets.Add(prepared); else preparedContexts.Add(prepared);
+        }
+
+        if (permitToken.IsCancellationRequested)
+            return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED"));
+        return PreparedExperimentalJointDeviationV1PlanResult.Ready(new PreparedExperimentalJointDeviationV1Plan(
+            descriptor.ProjectKey!, descriptor.BaseRevision!.Value, descriptor.ChangeVersion,
+            assignment, profile, contextProfile, Array.AsReadOnly(predicates),
+            Array.AsReadOnly(preparedTargets.ToArray()), Array.AsReadOnly(preparedContexts.ToArray()), permitToken));
+    }
+
+    private static bool ValidExperimentalContextPredicate(
+        AssetProcessIntelligenceOperatingContextPredicateEngineeringDto predicate,
+        TagDefinition tag) => predicate.Kind switch
+    {
+        AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval => IsNumeric(tag.DataType) &&
+            predicate.EngineeringUnitConfirmed &&
+            string.Equals(predicate.EngineeringUnit, tag.EngineeringUnit, StringComparison.Ordinal) &&
+            (predicate.Minimum.HasValue || predicate.Maximum.HasValue) &&
+            (!predicate.Minimum.HasValue || double.IsFinite(predicate.Minimum.Value)) &&
+            (!predicate.Maximum.HasValue || double.IsFinite(predicate.Maximum.Value)) &&
+            (!predicate.Minimum.HasValue || !predicate.Maximum.HasValue || predicate.Minimum.Value <= predicate.Maximum.Value) &&
+            !predicate.BooleanValue.HasValue && predicate.ExactValue is null,
+        AssetProcessIntelligenceOperatingContextPredicateKind.BooleanEquals =>
+            tag.DataType == TagDataType.Boolean && predicate.BooleanValue.HasValue &&
+            !predicate.Minimum.HasValue && !predicate.Maximum.HasValue && predicate.ExactValue is null,
+        AssetProcessIntelligenceOperatingContextPredicateKind.StringEquals =>
+            tag.DataType == TagDataType.String && predicate.ExactValue is not null &&
+            !predicate.BooleanValue.HasValue && !predicate.Minimum.HasValue && !predicate.Maximum.HasValue,
+        AssetProcessIntelligenceOperatingContextPredicateKind.EnumEquals =>
+            tag.DataType == TagDataType.Enum && predicate.ExactValue is not null &&
+            !predicate.BooleanValue.HasValue && !predicate.Minimum.HasValue && !predicate.Maximum.HasValue,
+        _ => false
+    };
 
     private async Task<PreparedContextualDeviationVectorV2PlanResult> PrepareContextualDeviationVectorV2Async(
         HttpContext context,
@@ -3380,6 +3694,31 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         return null;
     }
 
+    private static IResult? ValidateExperimentalJointDeviationV1Request(
+        AssetProcessIntelligenceExperimentalJointDeviationV1QueryRequest request)
+    {
+        if (!Enum.IsDefined(request.ScopeKind) || request.ScopeId == Guid.Empty || request.AssignmentId == Guid.Empty ||
+            request.OperatingContextProfileId == Guid.Empty || request.ExpectedProfileVersion < 1)
+            return BadRequest("INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_IDENTITY_INVALID");
+        if (request.TargetSignalIds is null ||
+            request.TargetSignalIds.Count is < AssetProcessIntelligenceExperimentalJointDeviationV1Catalog.MinimumTargetSignals or
+                > AssetProcessIntelligenceExperimentalJointDeviationV1Catalog.MaximumTargetSignals ||
+            request.TargetSignalIds.Any(id => id == Guid.Empty) || request.TargetSignalIds.Distinct().Count() != request.TargetSignalIds.Count)
+            return BadRequest("INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_TARGETS_INVALID");
+        if (request.ExpectedCadenceSeconds is < 1 or > 86_400)
+            return BadRequest("INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_CADENCE_INVALID");
+        if (request.ReferenceWindow is null || !ValidExperimentalJointDeviationWindow(request.ReferenceWindow) ||
+            request.EvaluationWindow is null || !ValidExperimentalJointDeviationWindow(request.EvaluationWindow) ||
+            request.ReferenceWindow.ToUtc >= request.EvaluationWindow.FromUtc)
+            return BadRequest("INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_WINDOWS_INVALID");
+        return null;
+    }
+
+    private static bool ValidExperimentalJointDeviationWindow(AssetProcessIntelligenceAnalyticsWindow window) =>
+        window.FromUtc.Offset == TimeSpan.Zero && window.ToUtc.Offset == TimeSpan.Zero &&
+        window.ToUtc > window.FromUtc &&
+        window.ToUtc - window.FromUtc <= AssetProcessIntelligenceExperimentalJointDeviationV1Catalog.MaximumWindow;
+
     private static bool ValidContextEligibilityV1Window(AssetProcessIntelligenceAnalyticsWindow window) =>
         window.FromUtc.Offset == TimeSpan.Zero &&
         window.ToUtc.Offset == TimeSpan.Zero &&
@@ -3872,6 +4211,35 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         TagDefinition Tag,
         PreparedPlan Plan,
         AssetProcessIntelligenceContextualDeviationVectorV1Signal Description);
+
+    private sealed record PreparedExperimentalJointDeviationV1Signal(
+        AssetProcessIntelligenceSignalEngineeringDto Signal,
+        TagDefinition Tag,
+        PreparedPlan Plan,
+        AssetProcessIntelligenceExperimentalJointDeviationV1Signal Description);
+
+    private sealed record PreparedExperimentalJointDeviationV1Plan(
+        string ProjectKey,
+        long Revision,
+        long ChangeVersion,
+        AssetProcessIntelligenceAssignmentEngineeringDto Assignment,
+        AssetProcessIntelligenceProfileEngineeringDto Profile,
+        AssetProcessIntelligenceOperatingContextProfileEngineeringDto ContextProfile,
+        IReadOnlyList<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto> Predicates,
+        IReadOnlyList<PreparedExperimentalJointDeviationV1Signal> Targets,
+        IReadOnlyList<PreparedExperimentalJointDeviationV1Signal> Contexts,
+        CancellationToken PermitToken)
+    {
+        public IReadOnlyList<PreparedExperimentalJointDeviationV1Signal> Signals => Targets.Concat(Contexts).ToArray();
+    }
+
+    private sealed record PreparedExperimentalJointDeviationV1PlanResult(
+        PreparedExperimentalJointDeviationV1Plan? Plan,
+        IResult? Error)
+    {
+        public static PreparedExperimentalJointDeviationV1PlanResult Ready(PreparedExperimentalJointDeviationV1Plan plan) => new(plan, null);
+        public static PreparedExperimentalJointDeviationV1PlanResult Fail(IResult error) => new(null, error);
+    }
 
     private sealed record PreparedContextualDeviationVectorV2Signal(
         AssetProcessIntelligenceSignalEngineeringDto Signal,

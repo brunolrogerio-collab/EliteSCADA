@@ -245,7 +245,7 @@ internal static class AssetProcessIntelligenceContextEligibilityV1Calculator
         return new(result, predicateAccepted, predicateMatched);
     }
 
-    private static bool Matches(
+    internal static bool Matches(
         AssetProcessIntelligenceOperatingContextPredicateEngineeringDto predicate,
         TagDataType dataType,
         HistoricalQueryValue value)
@@ -269,10 +269,10 @@ internal static class AssetProcessIntelligenceContextEligibilityV1Calculator
         };
     }
 
-    private static bool IsNumeric(TagDataType type) => type is
+    internal static bool IsNumeric(TagDataType type) => type is
         TagDataType.Int16 or TagDataType.Int32 or TagDataType.Int64 or TagDataType.Float or TagDataType.Double;
 
-    private static bool TryFiniteNumeric(HistoricalQueryValue? value, out double number)
+    internal static bool TryFiniteNumeric(HistoricalQueryValue? value, out double number)
     {
         number = 0;
         return value is not null && value.Kind is (HistoricalValueKind.Int16 or HistoricalValueKind.Int32 or
@@ -280,7 +280,7 @@ internal static class AssetProcessIntelligenceContextEligibilityV1Calculator
             double.TryParse(value.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out number) && double.IsFinite(number);
     }
 
-    private static bool SupportsTagValue(TagDataType type, HistoricalQueryValue value) => type switch
+    internal static bool SupportsTagValue(TagDataType type, HistoricalQueryValue value) => type switch
     {
         TagDataType.Boolean => value.Kind == HistoricalValueKind.Boolean,
         TagDataType.String => value.Kind == HistoricalValueKind.String,

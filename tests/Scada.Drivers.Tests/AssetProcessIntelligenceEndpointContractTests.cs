@@ -175,6 +175,28 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
     }
 
     [Fact]
+    public async Task ExperimentalJointDeviationCatalogDeclaresExperimentalUnclassifiedReadOnlyContract()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"), includeAnalyticsEndpoints: true);
+
+        using var response = await api.Client.GetAsync(EndpointHarness.ExperimentalJointDeviationV1CatalogPath);
+        var catalog = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("experimental-joint-deviation.v1", catalog.GetProperty("ruleId").GetString());
+        Assert.Equal(2, catalog.GetProperty("minimumTargetSignals").GetInt32());
+        Assert.Equal(8, catalog.GetProperty("maximumTargetSignals").GetInt32());
+        Assert.Equal(100, catalog.GetProperty("minimumReferenceInnovations").GetInt32());
+        Assert.Equal(20, catalog.GetProperty("minimumReferenceInnovationsPerTargetSignal").GetInt32());
+        Assert.Equal(50000, catalog.GetProperty("maximumRawRowsAcrossAllSignalsAndWindows").GetInt32());
+        Assert.Equal("experimental_not_field_validated", catalog.GetProperty("validationStatus").GetString());
+        Assert.Equal("none", catalog.GetProperty("classificationStatus").GetString());
+        Assert.Equal(JsonValueKind.Null, catalog.GetProperty("decisionThreshold").ValueKind);
+        Assert.Contains("no imputation", catalog.GetProperty("sourceTimestampRule").GetString(), StringComparison.Ordinal);
+        Assert.Contains("must not be summed", catalog.GetProperty("evidenceCounterRule").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SemanticCatalogEndpointRequiresEngineeringView()
     {
         await using var api = await EndpointHarness.StartAsync(
@@ -572,6 +594,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public const string ContextualDeviationVectorCatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/contextual-deviation-vector/v1/catalog";
         public const string ContextualDeviationVectorV2CatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/contextual-deviation-vector/v2/catalog";
         public const string ContextEligibilityV1CatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/context-eligibility/v1/catalog";
+        public const string ExperimentalJointDeviationV1CatalogPath = AssetProcessIntelligenceAnalyticsApi.Route + "/experimental-joint-deviation/v1/catalog";
 
         private readonly WebApplication _app;
         private readonly IEngineeringProjectPersistenceService? _persistence;

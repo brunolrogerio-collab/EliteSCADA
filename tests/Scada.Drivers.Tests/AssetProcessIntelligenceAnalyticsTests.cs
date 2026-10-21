@@ -1703,6 +1703,8 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 "/api/engineering/asset-process-intelligence/analytics/contextual-reference-deviation/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/current-frequency-comparison/v1/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/current-frequency-comparison/v1/query",
+                "/api/engineering/asset-process-intelligence/analytics/experimental-joint-deviation/v1/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/experimental-joint-deviation/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/net-observed-rate/v1/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/net-observed-rate/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/performance/v1/catalog",
@@ -5145,6 +5147,252 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public async Task ExperimentalJointDeviationV1ReadsOnlyProfileTargetsAndContextAndReturnsUnclassifiedScore()
+    {
+        using var fixture = Fixture.Create();
+        var (request, targetA, targetB, contextTag) = fixture.EnableExperimentalJointDeviation();
+        var beforeDescriptor = fixture.Workspace.Describe();
+        var beforeConfigurationVersion = fixture.Workspace.AssetProcessIntelligence.Snapshot().Version;
+        var random = new Random(712);
+        var stateA = 0d;
+        var stateB = 0d;
+        var simulatedTargets = new (double A, double B)[170];
+        for (var index = 0; index < simulatedTargets.Length; index++)
+        {
+            var sharedNoise = random.NextDouble() - 0.5;
+            stateA = 0.4 * stateA + sharedNoise;
+            stateB = 0.3 * stateB + 0.35 * sharedNoise + random.NextDouble() - 0.5;
+            simulatedTargets[index] = (stateA, stateB);
+        }
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = Assert.Single(Assert.Single(query.Filters!).Values).AsGuid();
+            var isReference = query.Range.FromUtc == request.ReferenceWindow!.FromUtc;
+            var count = isReference ? 120 : 50;
+            var rows = Enumerable.Range(0, count).Select(index =>
+            {
+                var timestamp = query.Range.FromUtc!.Value.AddSeconds((index + 1) * request.ExpectedCadenceSeconds);
+                var sampleIndex = isReference ? index : index + 120;
+                var value = tagId == contextTag.Id
+                    ? 30d
+                    : tagId == targetA.Id
+                        ? simulatedTargets[sampleIndex].A + (isReference ? 0 : 0.25)
+                        : simulatedTargets[sampleIndex].B;
+                return V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(value), timestamp, "Synchronized");
+            }).ToArray();
+            return ResponseV2(query, rows);
+        };
+
+        var result = await fixture.ExecuteExperimentalJointDeviationV1Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var payload = Assert.IsType<AssetProcessIntelligenceExperimentalJointDeviationV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("experimental_not_field_validated", payload.ValidationStatus);
+        Assert.Equal("none", payload.ClassificationStatus);
+        Assert.Null(payload.DecisionThreshold);
+        Assert.True(payload.ReferenceFitStatus == "available",
+            $"{payload.ReferenceFitUnavailableReason}; cohorts={payload.ReferenceCompleteCohortCount}; segments={payload.ReferenceFitSegmentCount}");
+        Assert.Equal(120, payload.ReferenceCompleteCohortCount);
+        Assert.Equal(50, payload.EvaluationCompleteCohortCount);
+        Assert.Equal(10, payload.EvaluationScoredCohortCount);
+        Assert.Equal(40, payload.EvaluationWarmupCohortCount);
+        Assert.Equal(2, payload.TargetSignals.Count);
+        Assert.Equal(contextTag.Id, Assert.Single(payload.ContextSignals).TagId);
+        Assert.Equal(3, payload.SignalEvidence.Count);
+        Assert.Equal(510, payload.TotalRawObservationCount);
+        Assert.Equal(6, fixture.Historian.Calls);
+        Assert.All(fixture.Historian.Requests, query => Assert.Equal(HistoricalDatasets.HistorianSamplesV2, query.Dataset));
+        Assert.Equal(beforeDescriptor.ChangeVersion, fixture.Workspace.Describe().ChangeVersion);
+        Assert.Equal(beforeConfigurationVersion, fixture.Workspace.AssetProcessIntelligence.Snapshot().Version);
+        Assert.All(payload.Scores, point =>
+        {
+            Assert.Equal("available", point.Status);
+            Assert.Null(point.Reason);
+            Assert.NotNull(point.Score);
+            Assert.Equal(2, point.TargetContributions!.Count);
+        });
+        Assert.All(payload.SignalEvidence, evidence =>
+        {
+            Assert.Equal(120, evidence.Reference.RawObservationCount);
+            Assert.Equal(120, evidence.Reference.AcceptedSynchronizedUniqueCount);
+            Assert.Equal(50, evidence.Evaluation.RawObservationCount);
+            Assert.Equal(50, evidence.Evaluation.AcceptedSynchronizedUniqueCount);
+        });
+        var contextEvidence = Assert.Single(payload.SignalEvidence, item => item.Role == "context");
+        Assert.Equal(120, contextEvidence.Reference.PredicateMatchCount);
+        Assert.Equal(50, contextEvidence.Evaluation.PredicateMatchCount);
+        Assert.Contains("does not classify", payload.Interpretation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExperimentalJointDeviationV1RejectsStaleContextBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var (request, _, _, _) = fixture.EnableExperimentalJointDeviation();
+
+        var result = await fixture.ExecuteExperimentalJointDeviationV1Async(request with { ExpectedProfileVersion = 2 });
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_STALE", error.Code);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ExperimentalJointDeviationV1RequiresIntelligenceEntitlementBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create(licensed: false);
+        var (request, _, _, _) = fixture.EnableExperimentalJointDeviation();
+
+        var result = await fixture.ExecuteExperimentalJointDeviationV1Async(request);
+
+        AssertStatus(StatusCodes.Status403Forbidden, result);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ExperimentalJointDeviationV1RequiresTrendTagReadPermitAndActiveScopeBeforeHistorianRead()
+    {
+        using (var noTrend = Fixture.Create(grantTrendUse: false))
+        {
+            var (request, _, _, _) = noTrend.EnableExperimentalJointDeviation();
+            AssertStatus(StatusCodes.Status403Forbidden,
+                await noTrend.ExecuteExperimentalJointDeviationV1Async(request));
+            Assert.Equal(0, noTrend.Historian.Calls);
+        }
+
+        using (var noTagRead = Fixture.Create(grantTagRead: false))
+        {
+            var (request, _, _, _) = noTagRead.EnableExperimentalJointDeviation();
+            AssertStatus(StatusCodes.Status403Forbidden,
+                await noTagRead.ExecuteExperimentalJointDeviationV1Async(request));
+            Assert.Equal(0, noTagRead.Historian.Calls);
+        }
+
+        using (var noPermit = Fixture.Create(grantPermit: false))
+        {
+            var (request, _, _, _) = noPermit.EnableExperimentalJointDeviation();
+            AssertStatus(StatusCodes.Status409Conflict,
+                await noPermit.ExecuteExperimentalJointDeviationV1Async(request));
+            Assert.Equal(0, noPermit.Historian.Calls);
+        }
+
+        using (var inactiveScope = Fixture.Create(activeScope: false))
+        {
+            var (request, _, _, _) = inactiveScope.EnableExperimentalJointDeviation();
+            AssertStatus(StatusCodes.Status409Conflict,
+                await inactiveScope.ExecuteExperimentalJointDeviationV1Async(request));
+            Assert.Equal(0, inactiveScope.Historian.Calls);
+        }
+    }
+
+    [Fact]
+    public async Task ExperimentalJointDeviationV1RejectsTargetContextOverlapBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var (request, _, _, contextTag) = fixture.EnableExperimentalJointDeviation();
+        var contextSignal = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Signals!
+            .Single(signal => signal.TagId == contextTag.Id);
+
+        var result = await fixture.ExecuteExperimentalJointDeviationV1Async(request with
+        {
+            TargetSignalIds = request.TargetSignalIds!.Append(contextSignal.Id).ToArray()
+        });
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        var error = Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal("INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_TARGET_CONTEXT_TAG_OVERLAP", error.Code);
+        Assert.Equal(0, fixture.Historian.Calls);
+    }
+
+    [Fact]
+    public async Task ExperimentalJointDeviationV1PermitRevocationDuringReadDiscardsResult()
+    {
+        using var fixture = Fixture.Create();
+        var (request, _, _, _) = fixture.EnableExperimentalJointDeviation();
+        fixture.Historian.Respond = query =>
+        {
+            fixture.Gate.Pause(Fixture.ProjectKey, fixture.ScopeKind, fixture.ScopeId);
+            var tagId = Assert.Single(Assert.Single(query.Filters!).Values).AsGuid();
+            var timestamp = query.Range.FromUtc!.Value.AddSeconds(request.ExpectedCadenceSeconds);
+            return ResponseV2(query,
+                [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(1), timestamp, "Synchronized")]);
+        };
+
+        var result = await fixture.ExecuteExperimentalJointDeviationV1Async(request);
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceExperimentalJointDeviationV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ExperimentalJointDeviationV1ContextProfileChangeDuringReadDiscardsResult()
+    {
+        using var fixture = Fixture.Create();
+        var (request, _, _, _) = fixture.EnableExperimentalJointDeviation();
+        fixture.Historian.Respond = query =>
+        {
+            var configuration = fixture.Workspace.AssetProcessIntelligence.Snapshot();
+            var contextProfile = Assert.Single(configuration.OperatingContextProfiles!);
+            fixture.Workspace.AssetProcessIntelligence.Replace(configuration with
+            {
+                OperatingContextProfiles = [contextProfile with { Version = 2 }]
+            });
+            var descriptor = fixture.Workspace.Describe();
+            fixture.Workspace.SetCheckout(Fixture.ProjectKey, "Concurrent 4F profile change",
+                descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+            var tagId = Assert.Single(Assert.Single(query.Filters!).Values).AsGuid();
+            var timestamp = query.Range.FromUtc!.Value.AddSeconds(request.ExpectedCadenceSeconds);
+            return ResponseV2(query,
+                [V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(1), timestamp, "Synchronized")]);
+        };
+
+        var result = await fixture.ExecuteExperimentalJointDeviationV1Async(request);
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceExperimentalJointDeviationV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task ExperimentalJointDeviationV1RejectsAggregateRawRowOverflowWithoutPartialResult()
+    {
+        using var fixture = Fixture.Create();
+        var (request, _, _, _) = fixture.EnableExperimentalJointDeviation();
+        var rowsRemaining = 50_001;
+        var cursorSequence = 0;
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = Assert.Single(Assert.Single(query.Filters!).Values).AsGuid();
+            var pageSize = query.Page!.Size;
+            var count = Math.Min(pageSize, rowsRemaining);
+            rowsRemaining -= count;
+            var timestamp = query.Range.FromUtc!.Value.AddSeconds(1);
+            var rows = Enumerable.Range(0, count).Select(_ =>
+                V2Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(1), timestamp, "Synchronized")).ToArray();
+            var nextCursor = rowsRemaining > 0 ? $"experimental-page-{++cursorSequence}" : null;
+            return ResponseV2(query, rows, nextCursor);
+        };
+
+        var result = await fixture.ExecuteExperimentalJointDeviationV1Async(request);
+
+        AssertStatus(StatusCodes.Status413PayloadTooLarge, result);
+        Assert.Equal("INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_WINDOW_TOO_DENSE",
+            Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value).Code);
+        Assert.Equal(250, fixture.Historian.Calls);
+        Assert.Equal(50_000, fixture.Historian.Requests.Sum(query => query.Page!.Size));
+        Assert.IsNotType<AssetProcessIntelligenceExperimentalJointDeviationV1Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
     public async Task ContextEligibilityV1RejectsStaleProfileBeforeHistorianRead()
     {
         using var fixture = Fixture.Create();
@@ -5697,6 +5945,49 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 contextId,
                 1,
                 Window(FromUtc, FromUtc.AddHours(1)));
+        }
+
+        public (AssetProcessIntelligenceExperimentalJointDeviationV1QueryRequest Request,
+            TagDefinition TargetA, TagDefinition TargetB, TagDefinition ContextTag) EnableExperimentalJointDeviation()
+        {
+            var (vectorRequest, targetA, targetB, contextTag) = AddContextualDeviationVectorSignals();
+            var configuration = Workspace.AssetProcessIntelligence.Snapshot();
+            var assignment = Assert.Single(configuration.Assignments!);
+            var contextId = Guid.NewGuid();
+            var contextProfile = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+                contextId,
+                "normal-operating",
+                "Normal operating",
+                assignment.Id,
+                1,
+                [new(contextTag.Id, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval,
+                    0, 60, EngineeringUnit: contextTag.EngineeringUnit, EngineeringUnitConfirmed: true)]);
+            Workspace.AssetProcessIntelligence.Replace(configuration with
+            {
+                Version = 3,
+                OperatingContextProfiles = [contextProfile]
+            });
+            var descriptor = Workspace.Describe();
+            Workspace.SetCheckout(ProjectKey, "Experimental joint deviation test",
+                descriptor.BaseRevision!.Value, DateTimeOffset.UtcNow);
+            return (new AssetProcessIntelligenceExperimentalJointDeviationV1QueryRequest(
+                ScopeKind,
+                ScopeId,
+                assignment.Id,
+                contextId,
+                1,
+                vectorRequest.TargetSignalIds,
+                10,
+                vectorRequest.ReferenceWindow,
+                vectorRequest.EvaluationWindow), targetA, targetB, contextTag);
+        }
+
+        public Task<IResult> ExecuteExperimentalJointDeviationV1Async(
+            AssetProcessIntelligenceExperimentalJointDeviationV1QueryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var context = CreateContext();
+            return Analytics.ExecuteExperimentalJointDeviationV1Async(context, request, cancellationToken);
         }
 
         public Task<IResult> ExecutePerformanceV1BAsync(AssetProcessIntelligencePerformanceV1BQueryRequest? request = null)

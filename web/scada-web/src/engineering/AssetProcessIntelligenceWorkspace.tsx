@@ -20,6 +20,7 @@ import {
   type IntelligenceDashboardSource
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
+import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
 import './asset-process-intelligence.css';
 
 type ScopeKind = 'Equipment' | 'Location';
@@ -673,6 +674,17 @@ export function AssetProcessIntelligenceWorkspace({
                   activeRevision={snapshot.execution.activeRevision}
                   canQuery={!coverageBlockedReason}
                   blockedReason={coverageBlockedReason}
+                /> : null}
+                {equipmentResource && profile ? <AssetProcessIntelligencePerformancePanel
+                  locale={locale}
+                  scopeId={assignment.equipmentId}
+                  assignmentId={assignment.id}
+                  profile={profile}
+                  tags={tags}
+                  semanticCatalogs={semanticCatalog?.semanticCatalogs ?? []}
+                  projectKey={snapshot.execution.projectKey}
+                  activeRevision={snapshot.execution.activeRevision}
+                  canQuery={!coverageBlockedReason}
                 /> : null}
                 <button type="button" className="secondary" disabled={!canEngineer} onClick={() => removeAssignment(assignment.id)}>{copy.remove}</button>
               </article>;

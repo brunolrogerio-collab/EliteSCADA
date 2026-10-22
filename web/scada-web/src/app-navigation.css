@@ -16,6 +16,7 @@
 .app-brand-copy { min-width: 0; display: grid; gap: 1px; }
 .app-brand-copy strong { font-size: 14px; letter-spacing: .01em; }
 .app-brand-copy small, .app-navigation a small { color: var(--app-text-secondary); font-size: 10px; line-height: 1.15; letter-spacing: .045em; text-transform: uppercase; }
+.app-brand-copy small { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-navigation { display: flex; align-items: stretch; }
 .app-navigation a { min-width: 112px; display: grid; align-content: center; gap: 3px; padding: 6px 16px 5px; border-left: 1px solid transparent; border-right: 1px solid transparent; border-bottom: 2px solid transparent; color: var(--app-text-secondary); text-decoration: none; transition: background-color .12s ease, color .12s ease, border-color .12s ease; }
 .app-navigation a > span { font-size: 12px; font-weight: 650; }
@@ -75,7 +76,7 @@
   .runtime-view-navigation { padding-inline: 10px; }
 }
 
-.app-brand-image { max-width: 156px; max-height: 34px; width: auto; height: auto; object-fit: contain; flex: 0 1 auto; }
+.app-brand-image { max-width: 156px; max-height: 34px; }
 .app-brand-diagnostic { max-width: 220px; color: var(--app-warning, #d6a958); font-size: 10px; line-height: 1.15; }
 .app-bar--branding-none { grid-template-columns: minmax(0, 1fr) minmax(250px, 1fr); }
 .app-bar--branding-none .app-navigation { justify-self: start; }

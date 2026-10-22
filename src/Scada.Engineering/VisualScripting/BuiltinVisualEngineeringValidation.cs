@@ -100,6 +100,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateIntelligencePerformanceV1B(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProfileCoverageV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageCoverageV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceProcessStageCoverageV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceContextualDeviationV2Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceContextualDeviationV2(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
@@ -237,6 +239,66 @@ public static class BuiltinVisualEngineeringValidation
                 $"Profile coverage visual '{element.Key}' requires canonical scope/profile UUIDs on a Screen.",
                 entityKind,
                 entityKey);
+        }
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligenceProcessStageCoverageV1(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        var stageId = ReadString(element, VisualPropertyKeys.IntelligenceStageId);
+        var stageKey = ReadString(element, VisualPropertyKeys.IntelligenceStageKey);
+        var stageName = ReadString(element, VisualPropertyKeys.IntelligenceStageName);
+        var membersJson = ReadString(element, VisualPropertyKeys.IntelligenceStageMembers);
+        if (entityKind != ImportEntityKind.Screen || !Guid.TryParseExact(stageId, "D", out _) ||
+            string.IsNullOrWhiteSpace(stageKey) || stageKey != stageKey.Trim() || stageKey.Length > 64 ||
+            string.IsNullOrWhiteSpace(stageName) || stageName != stageName.Trim() || stageName.Length > 128 ||
+            membersJson is not { Length: <= 32768 })
+        {
+            yield return Error(
+                "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID",
+                $"Process-stage coverage visual '{element.Key}' requires canonical stage identity, bounded labels and Screen scope.",
+                entityKind,
+                entityKey);
+            yield break;
+        }
+
+        JsonElement[]? members;
+        try { members = JsonSerializer.Deserialize<JsonElement[]>(membersJson); }
+        catch (JsonException) { members = null; }
+        if (members is not { Length: >= 1 and <= 32 })
+        {
+            yield return Error(
+                "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID",
+                $"Process-stage coverage visual '{element.Key}' requires between one and 32 stable member references.",
+                entityKind,
+                entityKey);
+            yield break;
+        }
+
+        var assignmentIds = new HashSet<Guid>();
+        var scopeProfiles = new HashSet<(Guid ScopeId, Guid ProfileId)>();
+        var orders = new HashSet<int>();
+        foreach (var member in members)
+        {
+            if (member.ValueKind != JsonValueKind.Object ||
+                !TryReadGuid(member, "assignmentId", out var assignmentId) ||
+                !TryReadGuid(member, "scopeId", out var scopeId) ||
+                !TryReadGuid(member, "profileId", out var profileId) ||
+                !TryReadBoundedString(member, "displayLabel", 320, out _) ||
+                !TryReadNonNegativeInt32(member, "order", out var order) ||
+                !assignmentIds.Add(assignmentId) ||
+                !scopeProfiles.Add((scopeId, profileId)) ||
+                !orders.Add(order))
+            {
+                yield return Error(
+                    "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID",
+                    $"Process-stage coverage visual '{element.Key}' contains an absent, ambiguous or invalid member reference.",
+                    entityKind,
+                    entityKey);
+                yield break;
+            }
         }
     }
 
@@ -697,6 +759,37 @@ public static class BuiltinVisualEngineeringValidation
         value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
+
+    private static bool TryReadGuid(JsonElement element, string propertyName, out Guid value)
+    {
+        value = default;
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.String &&
+               Guid.TryParseExact(property.GetString(), "D", out value);
+    }
+
+    private static bool TryReadBoundedString(
+        JsonElement element,
+        string propertyName,
+        int maximumLength,
+        out string value)
+    {
+        value = string.Empty;
+        if (!element.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind != JsonValueKind.String)
+            return false;
+
+        value = property.GetString() ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(value) && value == value.Trim() && value.Length <= maximumLength;
+    }
+
+    private static bool TryReadNonNegativeInt32(JsonElement element, string propertyName, out int value)
+    {
+        value = default;
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.Number &&
+               property.TryGetInt32(out value) && value >= 0;
+    }
 
     private static bool ReadBoolean(
         VisualElementEngineeringDto element,

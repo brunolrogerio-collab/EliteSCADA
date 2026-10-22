@@ -4,6 +4,7 @@ const equipmentId = '15000000-0000-0000-0000-000000000301';
 const profileId = '15000000-0000-0000-0000-000000000201';
 const assignmentId = '15000000-0000-0000-0000-000000000203';
 const tagId = '15000000-0000-0000-0000-000000000101';
+const stageId = '15000000-0000-0000-0000-000000000204';
 
 test('Intelligence opens a generated screen in the canonical editor without persisting the draft', async ({ page }) => {
   await page.addInitScript(() => window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
@@ -68,7 +69,9 @@ test('Intelligence opens a generated screen in the canonical editor without pers
     if (path === '/api/engineering/asset-process-intelligence/scopes') return route.fulfill({ json: {
       configuration: {
         version: 2, scopes: [], profiles: [profile],
-        assignments: [{ id: assignmentId, equipmentId, profileId }], processStages: [], operatingContextProfiles: []
+        assignments: [{ id: assignmentId, equipmentId, profileId }],
+        processStages: [{ id: stageId, key: 'pump-train', name: 'Pumping train', order: 0, links: [{ assignmentId, order: 0 }] }],
+        operatingContextProfiles: []
       },
       resources: [{ kind: 'Equipment', scopeId: equipmentId, path: 'Plant.Pump01', name: 'Pump P-101' }],
       tags: [tag], licensed: intelligenceLicensed,
@@ -118,6 +121,18 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(coverageEditor.getByLabel('Nome de exibição')).toHaveValue(/Cobertura histórica · Pump P-101 · Pump process profile/);
   await expect(coverageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(coverageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
+
+  await page.goto('/engineering');
+  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  const stageCoverage = page.getByTestId(`intelligence-stage-coverage-${stageId}`);
+  await expect(stageCoverage).toBeEnabled();
+  await stageCoverage.click();
+  await expect(page).toHaveURL(/\/engineering\/screens$/);
+  const stageCoverageEditor = page.getByTestId('visual-editor-workspace');
+  await expect(stageCoverageEditor).toBeVisible();
+  await expect(stageCoverageEditor.getByLabel('Nome de exibição')).toHaveValue(/Cobertura da etapa · Pumping train/);
+  await expect(stageCoverageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
+  await expect(stageCoverageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
   expect(coverageQueries).toEqual([]);
   expect(writes).toEqual([]);
   expect(dataReads).toEqual([]);

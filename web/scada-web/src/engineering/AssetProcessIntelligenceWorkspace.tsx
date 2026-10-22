@@ -19,11 +19,13 @@ import {
   generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
   generateIntelligenceContextualDeviationScreenDraft,
+  generateIntelligenceProcessStageCoverageScreenDraft,
   type IntelligenceDashboardAssignmentSource,
   type IntelligenceDashboardSource,
   type IntelligenceContextualDeviationDashboardSelection,
   type IntelligencePerformanceDashboardSelection,
-  type IntelligenceProfileCoverageDashboardSelection
+  type IntelligenceProfileCoverageDashboardSelection,
+  type IntelligenceProcessStageCoverageDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
 import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
@@ -110,6 +112,7 @@ export function AssetProcessIntelligenceWorkspace({
   const [message, setMessage] = useState<string | null>(null);
 
   const copy = useMemo(() => text(locale), [locale]);
+  const stageCoverageCopy = useMemo(() => processStageCoverageText(locale), [locale]);
   const unitCopy = useMemo(() => contextUnitText(locale), [locale]);
   const load = useCallback(async (adoptConfiguration = false) => {
     setLoading(true);
@@ -296,6 +299,36 @@ export function AssetProcessIntelligenceWorkspace({
     };
   };
 
+  const createProcessStageCoverageSelection = (
+    stage: AssetProcessIntelligenceProcessStageEngineering
+  ): IntelligenceProcessStageCoverageDashboardSelection | null => {
+    if (stage.links.length < 1 || stage.links.length > 32) return null;
+    const members = [...stage.links]
+      .sort((left, right) => left.order - right.order || left.assignmentId.localeCompare(right.assignmentId))
+      .map(link => {
+        const assignment = assignmentById.get(link.assignmentId);
+        const equipmentResource = assignment
+          ? resourcesByKey.get(`Equipment:${assignment.equipmentId.toLowerCase()}`)
+          : undefined;
+        const profile = assignment ? profileById.get(assignment.profileId) : undefined;
+        if (!assignment || !equipmentResource || !profile) return null;
+        return {
+          assignmentId: assignment.id,
+          scopeId: assignment.equipmentId,
+          profileId: profile.id,
+          displayLabel: `${equipmentResource.name} · ${profile.name}`,
+          order: link.order
+        };
+      });
+    if (members.some(member => member === null)) return null;
+    return {
+      stageId: stage.id,
+      stageKey: stage.key,
+      stageName: stage.name,
+      members: members as NonNullable<typeof members[number]>[]
+    };
+  };
+
   const generateDashboard = (source: IntelligenceDashboardSource | null) => {
     setError(null);
     setMessage(null);
@@ -315,6 +348,25 @@ export function AssetProcessIntelligenceWorkspace({
       onCreateDashboardDraft(generateIntelligenceDashboardDraft(screens, source, tags, locale));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : copy.dashboardSourceUnavailable);
+    }
+  };
+
+  const generateProcessStageCoverageScreen = (stage: AssetProcessIntelligenceProcessStageEngineering) => {
+    setError(null);
+    setMessage(null);
+    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+      setError(copy.dashboardAuthorizationHint);
+      return;
+    }
+    const selection = createProcessStageCoverageSelection(stage);
+    if (!selection) {
+      setError(stageCoverageCopy.unavailable);
+      return;
+    }
+    try {
+      onCreateDashboardDraft(generateIntelligenceProcessStageCoverageScreenDraft(screens, selection, locale));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : stageCoverageCopy.unavailable);
     }
   };
 
@@ -891,6 +943,9 @@ export function AssetProcessIntelligenceWorkspace({
               <button type="button" className="secondary" data-testid={`intelligence-dashboard-stage-${selectedStage.id}`}
                 disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !createDashboardSourceForStage(selectedStage)}
                 onClick={() => generateDashboard(createDashboardSourceForStage(selectedStage))}>{copy.generateStageDashboard}</button>
+              <button type="button" className="secondary" data-testid={`intelligence-stage-coverage-${selectedStage.id}`}
+                disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !createProcessStageCoverageSelection(selectedStage)}
+                onClick={() => generateProcessStageCoverageScreen(selectedStage)}>{stageCoverageCopy.generate}</button>
               {selectedStage.links.length === 0 ? <div className="eng-empty"><strong>{copy.noStageAssignments}</strong></div> : <div className="asset-process-intelligence__list">
                 {[...selectedStage.links].sort((a, b) => a.order - b.order).map((link, index) => {
                   const assignment = assignmentById.get(link.assignmentId);
@@ -1056,6 +1111,21 @@ function text(locale: EngineeringLocale) {
     dashboardTitle: 'Rascunho guiado de tela', dashboardHint: 'Gere uma tela normal e editável a partir de um perfil ou etapa do processo. A geração usa somente metadados dos TAGs; não lê valores ao vivo nem Historian e não inventa KPIs. O rascunho abre no editor canônico e só é salvo pelo fluxo existente de Preview/Apply.', generateDashboard: 'Criar rascunho de tela', generateStageDashboard: 'Criar tela da etapa', dashboardLicenseRequired: 'A licença de Inteligência de Ativos e Processos é necessária para gerar esta tela.', dashboardAuthorizationHint: 'EngineeringModify e AssetProcessIntelligenceManage são necessários para gerar telas a partir destes perfis.', dashboardSourceUnavailable: 'Escolha um perfil ou etapa completa com pelo menos um TAG numérico resolvível.',
     contextProfiles: 'Perfis de contexto operacional', contextProfilesHint: 'Vincule cada contexto a uma associação de equipamento. Consultas de elegibilidade são separadas, somente leitura e usam a versão exata do perfil.', newContextProfile: 'Novo contexto', noContextProfiles: 'Nenhum contexto operacional ainda.', defaultContext: 'Contexto', contextKey: 'Chave estável', contextLabel: 'Rótulo do operador', selectedAssignment: 'Associação de equipamento', contextAuthorizationHint: 'São necessários EngineeringModify e AssetProcessIntelligenceManage com escopo para o recurso para editar contextos.', contextPredicates: 'Predicados obrigatórios', contextPredicatesHint: 'Todos os predicados devem corresponder no mesmo timestamp UTC de origem, sincronizado e exato. Os limites numéricos usam a unidade de Engineering atual.', noContextPredicates: 'Adicione pelo menos um predicado obrigatório antes de salvar.', predicateTag: 'TAG do perfil de medição associado', choosePredicateTag: 'Escolha um TAG do perfil', predicateKind: 'Tipo de predicado', NumericInterval: 'Intervalo numérico inclusivo', BooleanEquals: 'Igualdade booleana', StringEquals: 'String exata', EnumEquals: 'Enum exato', minimumInclusive: 'Mínimo (inclusivo)', maximumInclusive: 'Máximo (inclusivo)', predicateValue: 'Valor obrigatório', exactValue: 'Valor ordinal exato', matchTrue: 'Verdadeiro', matchFalse: 'Falso', addPredicate: 'Adicionar predicado', deleteContextProfile: 'Excluir perfil de contexto', savedProfileVersion: 'Versão salva pelo servidor', contextVersionConflict: 'Este perfil de contexto foi alterado em outra edição. Atualize e revise a versão mais recente antes de salvar.'
   } as const;
+}
+
+function processStageCoverageText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    generate: 'Create stage coverage screen',
+    unavailable: 'Choose a process stage with one to 32 complete, unique Equipment assignments and profiles.'
+  };
+  if (locale === 'es') return {
+    generate: 'Crear pantalla de cobertura de etapa',
+    unavailable: 'Elija una etapa con una a 32 asignaciones de equipo y perfiles completos y únicos.'
+  };
+  return {
+    generate: 'Criar tela de cobertura da etapa',
+    unavailable: 'Escolha uma etapa com uma a 32 associações de Equipamento e perfis completos e únicos.'
+  };
 }
 
 function contextUnitText(locale: EngineeringLocale) {

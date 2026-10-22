@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Scada.Api.Runtime;
@@ -313,6 +314,105 @@ public sealed class ContextualHelpTests
     }
 
     [Fact]
+    public void ServerScriptHelp_LocalizesApiExplanationsAndDoesNotInventSourceQuality()
+    {
+        var portuguese = ContextualHelpCatalog.Build("pt-BR");
+        var english = ContextualHelpCatalog.Build("en");
+        var spanish = ContextualHelpCatalog.Build("es");
+
+        var ptApi = portuguese.ServerScriptApiDetails.ToDictionary(item => item.Name, StringComparer.Ordinal);
+        var enApi = english.ServerScriptApiDetails.ToDictionary(item => item.Name, StringComparer.Ordinal);
+        var esApi = spanish.ServerScriptApiDetails.ToDictionary(item => item.Name, StringComparer.Ordinal);
+        foreach (var name in ContextualHelpCatalog.ServerScriptApiFunctions)
+        {
+            Assert.NotEqual(ptApi[name].Parameters, enApi[name].Parameters);
+            Assert.NotEqual(ptApi[name].Parameters, esApi[name].Parameters);
+            Assert.NotEqual(ptApi[name].Result, enApi[name].Result);
+            Assert.NotEqual(ptApi[name].Result, esApi[name].Result);
+            Assert.NotEqual(ptApi[name].Safety, enApi[name].Safety);
+            Assert.NotEqual(ptApi[name].Safety, esApi[name].Safety);
+        }
+
+        var scriptTopic = Assert.Single(portuguese.Topics, topic => topic.Id == "scripts.server");
+        var qualitySection = Assert.Single(scriptTopic.Sections, section => section.Heading == "Quality: não invente Good");
+        Assert.Contains("não expõe", qualitySection.Body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Good somente", qualitySection.Body, StringComparison.Ordinal);
+        Assert.Contains("\"Uncertain\"", qualitySection.Code, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Good\"", qualitySection.Code, StringComparison.Ordinal);
+
+        var englishScriptTopic = Assert.Single(english.Topics, topic => topic.Id == "scripts.server");
+        var englishQualitySection = Assert.Single(englishScriptTopic.Sections, section => section.Heading == "Quality: do not invent Good");
+        Assert.Contains("source quality and timestamp are not exposed", englishQualitySection.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ServerScriptHelp_CodeExamplesExecuteInTheActualSandboxInterpreter()
+    {
+        const string exampleCommandId = "11111111-1111-4111-8111-111111111111";
+        var catalog = ContextualHelpCatalog.Build("pt-BR");
+        var topic = Assert.Single(catalog.Topics, item => item.Id == "scripts.server");
+        var examples = topic.Sections
+            .Select(section => section.Code)
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Cast<string>()
+            .Concat(catalog.ServerScriptApiDetails.Select(item => item.Example))
+            .Concat(ReadManualServerScriptExamples())
+            .ToArray();
+        Assert.NotEmpty(examples);
+
+        var runnerPath = Path.Combine(AppContext.BaseDirectory, "ServerScriptRunner.py");
+        foreach (var originalSource in examples)
+        {
+            var source = originalSource.Replace("<stable-rich-command-guid>", exampleCommandId, StringComparison.Ordinal);
+            var handlers = Regex.Matches(source, @"(?m)^def\s+(?<name>[A-Za-z_]\w*)\s*\(")
+                .Cast<Match>()
+                .Select(match => match.Groups["name"].Value)
+                .ToArray();
+            Assert.NotEmpty(handlers);
+
+            var tagPaths = GetScriptReferences(
+                source,
+                "read_tag",
+                "read_server_memory",
+                "write_tag",
+                "write_server_memory",
+                "publish_server_memory_sample");
+            var memoryPaths = GetScriptReferences(
+                source,
+                "read_server_memory",
+                "write_server_memory",
+                "publish_server_memory_sample");
+            var values = new Dictionary<string, object?>(StringComparer.Ordinal);
+            foreach (var path in tagPaths)
+            {
+                values[path] = path.EndsWith(".Running", StringComparison.Ordinal) ||
+                               path.EndsWith(".HighPressure", StringComparison.Ordinal)
+                    ? (object)false
+                    : 10;
+            }
+            var richCommandIds = source.Contains("invoke_rich_command", StringComparison.Ordinal)
+                ? new[] { exampleCommandId }
+                : Array.Empty<string>();
+
+            foreach (var handler in handlers)
+            {
+                var output = await RunServerScriptExampleAsync(
+                    runnerPath,
+                    source,
+                    handler,
+                    values,
+                    memoryPaths,
+                    richCommandIds);
+                using var document = JsonDocument.Parse(output);
+                var response = document.RootElement.GetProperty("response");
+                Assert.True(
+                    response.GetProperty("succeeded").GetBoolean(),
+                    $"Server Script example handler '{handler}' failed in the actual interpreter: {response.GetProperty("error").GetString()}");
+            }
+        }
+    }
+
+    [Fact]
     public void ServerScriptHelp_DocumentsRuntimeTriggersLifecycleFailurePolicyAndSandbox()
     {
         var expectedTriggers = new[] { "Initialize", "Dispose", "TagChanged", "Timer", "ServerRuntimeEvent" };
@@ -339,6 +439,100 @@ public sealed class ContextualHelpTests
         Assert.Contains("industrial-driver", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("secrets", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("sandbox enforcement must not depend on text scanning", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string[] GetScriptReferences(string source, params string[] functionNames)
+    {
+        return functionNames
+            .SelectMany(functionName =>
+            {
+                var pattern = Regex.Escape(functionName) + "\\s*\\(\\s*\"(?<path>[^\"]+)\"";
+                return Regex.Matches(source, pattern)
+                    .Cast<Match>()
+                    .Select(match => match.Groups["path"].Value);
+            })
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static IEnumerable<string> ReadManualServerScriptExamples()
+    {
+        var manualPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "manual",
+            "pt-BR",
+            "06-SCRIPTING-ALARMES-HISTORICO.md");
+        var manual = File.ReadAllText(manualPath);
+        return Regex.Matches(manual, "```python\\r?\\n(?<source>[\\s\\S]*?)\\r?\\n```")
+            .Cast<Match>()
+            .Select(match => match.Groups["source"].Value)
+            .ToArray();
+    }
+
+    private static async Task<string> RunServerScriptExampleAsync(
+        string runnerPath,
+        string source,
+        string handler,
+        IReadOnlyDictionary<string, object?> values,
+        IReadOnlyCollection<string> serverMemoryTagIds,
+        IReadOnlyCollection<string> richCommandIds)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? "python" : "python3",
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add(runnerPath);
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Could not start the Python Server Script runner.");
+        var standardError = process.StandardError.ReadToEndAsync();
+        var payload = JsonSerializer.Serialize(new
+        {
+            source,
+            handler,
+            values,
+            @event = new
+            {
+                canonicalEvent = new
+                {
+                    payload = new { action = "single" }
+                }
+            },
+            serverMemoryTagIds,
+            richCommandIds
+        });
+        await process.StandardInput.WriteLineAsync(payload);
+
+        string? completedLine = null;
+        while (await process.StandardOutput.ReadLineAsync() is { } line)
+        {
+            using var message = JsonDocument.Parse(line);
+            var root = message.RootElement;
+            if (root.GetProperty("type").GetString() == "richCommandRequest")
+            {
+                var commandResponse = JsonSerializer.Serialize(new
+                {
+                    type = "richCommandResponse",
+                    requestId = root.GetProperty("requestId").GetString(),
+                    result = new { outcome = "Completed" }
+                });
+                await process.StandardInput.WriteLineAsync(commandResponse);
+            }
+            else
+            {
+                completedLine = line;
+            }
+        }
+
+        await process.WaitForExitAsync();
+        var error = await standardError;
+        Assert.True(process.ExitCode == 0, $"Server Script runner exited with {process.ExitCode}: {error}");
+        return completedLine ?? throw new InvalidOperationException($"Server Script runner returned no completion response: {error}");
     }
 
 

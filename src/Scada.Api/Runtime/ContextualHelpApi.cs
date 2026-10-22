@@ -703,17 +703,117 @@ public static class ContextualHelpCatalog
     private static TopicDefinition BuildServerScriptsTopic() => Detailed(
         "scripts.server", "scripts",
         Tx("Server Scripts", "Server Scripts", "Server Scripts"),
-        Tx("Python isolado, revision-bound e limitado à superfície real do build.", "Isolated, revision-bound Python limited to the build's real surface.", "Python aislado, revision-bound y limitado a la superficie real del build."),
+        Tx("Automação Python executada no servidor, vinculada à revisão ativa e limitada a uma sintaxe e a APIs próprias do EliteSCADA. Não é um interpretador Python geral.", "Server-side Python automation bound to the Active revision and limited to EliteSCADA-specific syntax and APIs. It is not a general Python interpreter.", "Automatización Python ejecutada en el servidor, vinculada a la revisión Active y limitada a una sintaxis y APIs propias de EliteSCADA. No es un intérprete general de Python."),
         S(Tx("API suportada", "Supported API", "API soportada"), Tx(
-            "A API específica deste build contém somente read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample e emit_operational_event. TAGs acessados precisam ser dependências declaradas; funções de Server Memory exigem ServerMemoryTag.",
-            "This build-specific API contains only read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample and emit_operational_event. Accessed TAGs must be declared dependencies; Server Memory functions require ServerMemoryTag.",
-            "La API específica de este build contiene solo read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample y emit_operational_event. Los TAGs accedidos deben ser dependencias declaradas; funciones de Server Memory requieren ServerMemoryTag."),
-            "value = read_tag(\"<stable-tag-id>\")\nwrite_tag(\"<stable-tag-id>\", value)\nemit_operational_event(\"<definition-id>\", \"message\", {\"source\": \"script\"})"),
+            "As seis funções da referência abaixo formam a API de TAG, Server Memory e Operational Event. Declare cada TAG como dependência do Script antes de ler ou escrever. Você pode usar o caminho legível quando a dependência tem esse binding configurado; o produto continua verificando a identidade estável. Funções de memória também exigem dependência ServerMemoryTag.",
+            "The six functions in the reference below are the TAG, Server Memory and Operational Event API. Declare each TAG as a Script dependency before reading or writing it. You may use a readable path when the dependency has that binding configured; the product still verifies its stable identity. Memory functions also require a ServerMemoryTag dependency.",
+            "Las seis funciones de la referencia siguiente forman la API de TAG, Server Memory y Operational Event. Declare cada TAG como dependencia del Script antes de leerlo o escribirlo. Puede usar la ruta legible cuando la dependencia tiene configurado ese binding; el producto sigue verificando la identidad estable. Las funciones de memoria también requieren una dependencia ServerMemoryTag."),
+            """
+            def update_visual_state():
+                left = read_tag("Plant.Pump.LeftPressure")
+                right = read_tag("Plant.Pump.RightPressure")
+                if left is not None:
+                    if right is not None:
+                        write_tag("Plant.Pump.PressureBalanced", left == right)
+
+            def record_transition():
+                emit_operational_event("<stable-event-definition-id>", "Pressure state evaluated", {"source": "script"})
+            """),
+        S(Tx("Client Visual e Server: escolha o escopo", "Client Visual and Server: choose a scope", "Client Visual y Server: elija el ámbito"), Tx(
+            "Client Visual Script roda no Runtime do cliente e trabalha com interação/propriedades visuais e Client Memory conforme a superfície visual. Server Script roda no backend na revisão Active e não acessa a tela nem Client Memory. Escolha Server quando a regra precisa operar sem uma tela aberta; escolha Client Visual quando a ação pertence à interação ou apresentação do usuário. Nenhum escopo dá acesso direto a Drivers, banco de dados, rede arbitrária ou segredos.",
+            "A Client Visual Script runs in the client Runtime and works with visual interactions/properties and Client Memory according to the visual surface. A Server Script runs in the backend on the Active revision and cannot access screens or Client Memory. Choose Server when a rule must run without an open screen; choose Client Visual when the action belongs to user interaction or presentation. Neither scope grants direct access to Drivers, databases, arbitrary network or secrets.",
+            "Un Client Visual Script se ejecuta en el Runtime del cliente y trabaja con interacciones/propiedades visuales y Client Memory según la superficie visual. Un Server Script se ejecuta en el backend, en la revisión Active, y no accede a pantallas ni Client Memory. Elija Server cuando la regla deba operar sin una pantalla abierta; elija Client Visual cuando la acción pertenezca a la interacción o presentación del usuario. Ningún ámbito concede acceso directo a Drivers, bases de datos, red arbitraria ni secretos.")),
+        S(Tx("Como organizar o código", "How to organize code", "Cómo organizar el código"), Tx(
+            "Cada ponto de entrada configurado em Engineering aponta para uma função pelo nome. No nível principal do arquivo, declare funções; não execute leituras, escritas ou cálculos fora delas. Um handler pode receber zero argumentos. Para ServerRuntimeEvent, declare um argumento para receber o dicionário do evento. O nome da função deve coincidir exatamente com o configurado no ponto de entrada.",
+            "Each Engineering entry point refers to a function by name. At the top level of the file, declare functions; do not run reads, writes or calculations outside them. A handler may receive zero arguments. For ServerRuntimeEvent, declare one argument to receive the event dictionary. The function name must exactly match the entry point configuration.",
+            "Cada punto de entrada de Engineering apunta a una función por su nombre. En el nivel principal del archivo, declare funciones; no ejecute lecturas, escrituras ni cálculos fuera de ellas. Un handler puede recibir cero argumentos. Para ServerRuntimeEvent, declare un argumento para recibir el diccionario del evento. El nombre de la función debe coincidir exactamente con el configurado en el punto de entrada."),
+            """
+            def on_start():
+                pressure = read_tag("Plant.Pump.DischargePressure")
+
+            def on_device_event(event):
+                action = event["canonicalEvent"]["payload"]["action"]
+            """),
+        S(Tx("Sintaxe aceita e limites", "Accepted syntax and limits", "Sintaxis aceptada y límites"), Tx(
+            "O runtime aceita funções def sem decorators, parâmetros padrão ou keyword-only; atribuição local e +=, -=, *=; if/else; return; pass; listas, tuplas, dicionários e acesso por índice; operações +, -, *, /, //, %, **; comparações ==, !=, <, <=, >, >=, is, is not; not, and e or; chamadas posicionais a funções do Script e a min, max, abs, round, int, float, bool, str e len. Não aceita import, execução/variáveis no nível principal, for/while, comprehensions, class, try/except, lambda, f-string, acesso a atributo nem argumentos nomeados. and/or avaliam todos os operandos e não têm o curto-circuito do Python padrão. Para operações que podem falhar, use ifs aninhados. Mesmo a sintaxe aceita pode falhar por tipo incompatível ou divisão por zero.",
+            "The runtime accepts def functions without decorators, default or keyword-only parameters; local assignment and +=, -=, *=; if/else; return; pass; lists, tuples, dictionaries and indexing; +, -, *, /, //, %, ** operations; ==, !=, <, <=, >, >=, is, is not comparisons; not, and and or; positional calls to Script functions and to min, max, abs, round, int, float, bool, str and len. It does not accept import, top-level execution/variables, for/while, comprehensions, class, try/except, lambda, f-strings, attribute access or keyword arguments. and/or evaluate every operand and do not short-circuit like standard Python. For operations that can fail, use nested if statements. Accepted syntax can still fail on incompatible types or division by zero.",
+            "El runtime acepta funciones def sin decorators, parámetros predeterminados ni keyword-only; asignación local y +=, -=, *=; if/else; return; pass; listas, tuplas, diccionarios y acceso por índice; operaciones +, -, *, /, //, %, **; comparaciones ==, !=, <, <=, >, >=, is, is not; not, and y or; llamadas posicionales a funciones del Script y a min, max, abs, round, int, float, bool, str y len. No acepta import, ejecución/variables en el nivel principal, for/while, comprehensions, class, try/except, lambda, f-string, acceso a atributos ni argumentos con nombre. and/or evalúan todos los operandos y no tienen el cortocircuito del Python estándar. Para operaciones que puedan fallar, use if anidados. La sintaxis aceptada también puede fallar por tipos incompatibles o división por cero."),
+            """
+            def calculate_deviation():
+                value = read_tag("Plant.Pump.Current")
+                reference = read_tag("Plant.Pump.ReferenceCurrent")
+                if value is not None:
+                    if reference is not None:
+                        return round(value - reference, 2)
+                return None
+            """),
+        S(Tx("Exemplo: limite com histerese e evento", "Example: threshold with hysteresis and event", "Ejemplo: umbral con histéresis y evento"), Tx(
+            "Associe o ponto de entrada TagChanged ao TAG de pressão. Declare os TAGs de limite e o TAG Server Memory de estado como dependências; o de estado precisa ser ServerMemoryTag. O limite de retorno deve ser menor que o limite de disparo. Assim o mesmo Operational Event não é repetido a cada atualização enquanto a pressão permanece alta. Substitua caminhos e ID de evento pelos objetos reais do projeto.",
+            "Bind the TagChanged entry point to the pressure TAG. Declare the limit TAGs and the state Server Memory TAG as dependencies; the state TAG must be a ServerMemoryTag. The reset threshold should be lower than the trigger threshold. This prevents the same Operational Event from repeating on every update while pressure remains high. Replace paths and event ID with the project's actual objects.",
+            "Asocie el punto de entrada TagChanged al TAG de presión. Declare los TAGs de límite y el TAG Server Memory de estado como dependencias; el TAG de estado debe ser ServerMemoryTag. El umbral de retorno debe ser menor que el de activación. Así el mismo Operational Event no se repite en cada actualización mientras la presión siga alta. Sustituya las rutas y el ID del evento por los objetos reales del proyecto."),
+            """
+            def on_pressure_change():
+                pressure = read_tag("Plant.Pump.DischargePressure")
+                high_limit = read_tag("Limits.Pump.HighPressure")
+                reset_limit = read_tag("Limits.Pump.ResetPressure")
+                alarm_latched = read_server_memory("State.Pump.HighPressure")
+                if pressure is not None:
+                    if high_limit is not None:
+                        if reset_limit is not None:
+                            if alarm_latched is not True:
+                                if pressure >= high_limit:
+                                    write_server_memory("State.Pump.HighPressure", True)
+                                    emit_operational_event("<stable-event-definition-id>", "Pump discharge pressure crossed the high limit", {"pressure": str(pressure)})
+                            else:
+                                if pressure <= reset_limit:
+                                    write_server_memory("State.Pump.HighPressure", False)
+            """),
+        S(Tx("Exemplo: Timer sem laço", "Example: Timer without a loop", "Ejemplo: Timer sin bucle"), Tx(
+            "Configure um ponto de entrada Timer com intervalo de pelo menos 50 ms (ou o mínimo informado pela instalação). O host chama o handler a cada disparo; não crie while/for nem espere dentro do Script. Timer não garante sincronismo com o ciclo de aquisição do Driver: leia o valor corrente disponível e trate ausência explicitamente.",
+            "Configure a Timer entry point with an interval of at least 50 ms (or the minimum reported by the installation). The host calls the handler on each tick; do not create while/for loops or wait inside the Script. A Timer does not guarantee synchronization with Driver acquisition; read the current available value and handle absence explicitly.",
+            "Configure un punto de entrada Timer con un intervalo de al menos 50 ms (o el mínimo indicado por la instalación). El host llama al handler en cada tick; no cree bucles while/for ni espere dentro del Script. Timer no garantiza sincronización con la adquisición del Driver: lea el valor disponible y trate explícitamente su ausencia."),
+            """
+            def on_timer():
+                current = read_tag("Plant.Pump.Current")
+                if current is not None:
+                    write_server_memory("State.Pump.LastCurrent", current)
+            """),
+        S(Tx("Exemplo: Rich Command com resultado tratado", "Example: Rich Command with handled result", "Ejemplo: Rich Command con resultado tratado"), Tx(
+            "invoke_rich_command é uma extensão do host para Rich Commands declarados, não uma conexão direta ao Driver. Declare o comando como dependência RichCommand, configure o binding, associe ServerRuntimeEvent a um Transient Event real e conceda CommandExecute no scope exato do comando. Parâmetros escalares devem seguir o schema. A resposta distingue Rejected, Accepted, Completed, Failed, TimedOut e Unknown. Accepted não prova conclusão física; Unknown é ambíguo e não deve ser repetido automaticamente. O exemplo demonstra um pulso de 250 ms após a ação single.",
+            "invoke_rich_command is a host extension for declared Rich Commands, not a direct Driver connection. Declare the command as a RichCommand dependency, configure its binding, associate ServerRuntimeEvent with a real Transient Event, and grant CommandExecute for the exact command scope. Scalar parameters must follow the schema. The response distinguishes Rejected, Accepted, Completed, Failed, TimedOut and Unknown. Accepted does not prove physical completion; Unknown is ambiguous and must not be retried automatically. The example demonstrates a 250 ms pulse after the single action.",
+            "invoke_rich_command es una extensión del host para Rich Commands declarados, no una conexión directa al Driver. Declare el comando como dependencia RichCommand, configure su binding, asocie ServerRuntimeEvent a un Transient Event real y conceda CommandExecute en el scope exacto del comando. Los parámetros escalares deben seguir el schema. La respuesta distingue Rejected, Accepted, Completed, Failed, TimedOut y Unknown. Accepted no prueba la finalización física; Unknown es ambiguo y no debe repetirse automáticamente. El ejemplo demuestra un pulso de 250 ms tras la acción single."),
+            """
+            def on_device_event(event):
+                action = event["canonicalEvent"]["payload"]["action"]
+                if action == "single":
+                    result = invoke_rich_command("<stable-rich-command-guid>", {"onTime": "00:00:00.2500000"})
+                    if result["outcome"] == "Completed":
+                        write_server_memory("State.Command.LastOutcome", 1)
+                    else:
+                        write_server_memory("State.Command.LastOutcome", -1)
+            """),
+        S(Tx("Quality: não invente Good", "Quality: do not invent Good", "Quality: no invente Good"), Tx(
+            "read_tag retorna o valor, não expõe ao Script a quality nem o timestamp de origem. publish_server_memory_sample exige que o autor informe uma TagQuality. Use Good somente se a aplicação tiver uma regra validada para qualidade e atualidade dos dados — testar apenas se o valor não é None não basta, pois não revela quality nem timestamp de origem. Se a confiabilidade não puder ser estabelecida, use uma qualidade conservadora apropriada, como Uncertain, ou não publique. Não transforme valor ausente em zero. O destino deve ser um ServerMemoryTag declarado.",
+            "read_tag returns the value; it does not expose the source quality or timestamp to the Script. publish_server_memory_sample requires the author to provide a TagQuality. Use Good only if the application has a validated rule for data quality and freshness—checking only whether the value is None is not enough because source quality and timestamp are not exposed. If reliability cannot be established, use an appropriate conservative quality such as Uncertain, or do not publish. Do not turn a missing value into zero. The target must be a declared ServerMemoryTag.",
+            "read_tag devuelve el valor; no expone al Script la quality ni la marca de tiempo de origen. publish_server_memory_sample requiere que el autor indique una TagQuality. Use Good solo si la aplicación tiene una regla validada para calidad y vigencia de los datos: comprobar únicamente que el valor no sea None no basta porque no se exponen la quality ni la marca de tiempo de origen. Si no puede establecerse la confiabilidad, use una calidad conservadora adecuada, como Uncertain, o no publique. No convierta un valor ausente en cero. El destino debe ser un ServerMemoryTag declarado."),
+            """
+            def publish_calculated_sample():
+                value = read_tag("Plant.Pump.ValidatedDerivedValue")
+                if value is not None:
+                    publish_server_memory_sample("State.Pump.DerivedValue", value, "Uncertain")
+            """),
         S(Tx("Receita: estado visual permitido", "Recipe: allowed visual state", "Receta: estado visual permitido"), Tx(
-            "Leia TAGs estáveis declarados, avalie a condição e escreva somente um TAG de estado autorizado que já esteja ligado à propriedade visual. O script não altera objetos de tela diretamente e não cria uma API visual paralela.",
-            "Read declared stable TAGs, evaluate the condition, and write only an authorized state TAG already bound to the visual property. The script does not mutate screen objects directly or create a parallel visual API.",
-            "Lea TAGs estables declarados, evalúe la condición y escriba solamente un TAG de estado autorizado ya ligado a la propiedad visual. El script no muta objetos de pantalla directamente ni crea una API visual paralela."),
-            "left = read_tag(\"<stable-left-tag-id>\")\nright = read_tag(\"<stable-right-tag-id>\")\nif left > right:\n    write_tag(\"<stable-visual-state-tag-id>\", True)"),
+            "Leia TAGs declarados, avalie a condição e escreva somente em um TAG gravável e autorizado que já esteja vinculado à propriedade visual. Server Script não altera objetos de tela diretamente. Se o valor do processo estiver ausente, não substitua por zero nem escreva um estado normal por suposição.",
+            "Read declared TAGs, evaluate the condition and write only to a writable, authorized TAG already bound to the visual property. A Server Script does not mutate screen objects directly. If the process value is missing, do not replace it with zero or write a normal state by assumption.",
+            "Lea TAGs declarados, evalúe la condición y escriba solo en un TAG grabable y autorizado ya vinculado a la propiedad visual. Server Script no modifica directamente objetos de pantalla. Si falta el valor del proceso, no lo sustituya por cero ni escriba un estado normal por suposición."),
+            """
+            def update_pressure_indicator():
+                pressure = read_tag("Plant.Pump.DischargePressure")
+                high_limit = read_tag("Limits.Pump.HighPressure")
+                if pressure is not None:
+                    if high_limit is not None:
+                        write_tag("Plant.Screen.PumpPressureHigh", pressure >= high_limit)
+            """),
         S(Tx("Lifecycle e triggers", "Lifecycle and triggers", "Lifecycle y triggers"), Tx(
             "Somente scripts habilitados de scope Server são hospedados na revisão Active. O host atual despacha Initialize, Dispose, TagChanged, Timer e ServerRuntimeEvent ligados a ocorrências canônicas de Transient Event referenciadas no grafo Active; targets genéricos não acionam scripts. Ao trocar Active, a geração anterior é cancelada; acesso de TAG e emissão de Operational Event usam revision gate para impedir execução obsoleta sobre uma revisão nova.",
             "Only enabled Server-scope scripts are hosted on the Active revision. The current host dispatches Initialize, Dispose, TagChanged, Timer and ServerRuntimeEvent triggers bound to canonical Transient Event occurrences referenced by the Active graph; generic targets do not trigger scripts. When Active changes, the previous generation is cancelled; TAG access and Operational Event emission use a revision gate to prevent obsolete execution against a new revision.",
@@ -727,34 +827,39 @@ public static class ContextualHelpCatalog
             "The Server Script surface allows shared TAG reads, Server Memory reads/writes and TAG writes according to contract. The sandbox denies filesystem, operating system, shell/process execution, arbitrary network, database, direct industrial-driver access, secrets, browser DOM and browser storage. Preflight rejects obviously prohibited imports/calls but is editor feedback; sandbox enforcement must not depend on text scanning.",
             "La superficie Server Script permite lectura de TAGs compartidos, lectura/escritura de Server Memory y escritura de TAGs según contrato. El sandbox niega filesystem, sistema operativo, shell/process execution, red arbitraria, database, acceso directo a industrial drivers, secrets, browser DOM y browser storage. Preflight rechaza imports/calls claramente prohibidos, pero es feedback del editor; enforcement del sandbox no debe depender de escaneo de texto.")),
         S(Tx("Exemplo Server Memory", "Server Memory example", "Ejemplo Server Memory"), Tx(
-            "Selecione a TAG nas dependências pelo caminho legível. O caminho precisa estar vinculado à identidade estável da TAG; o sistema valida o vínculo antes da execução.",
-            "Select the TAG in Dependencies by its readable path. The path must be bound to the stable TAG identity; the system validates the binding before execution.",
-            "Seleccione la TAG en Dependencias por su ruta legible. La ruta debe estar vinculada a la identidad estable de la TAG; el sistema valida el vínculo antes de ejecutar."),
-            "value = read_server_memory(\"Plant.Pump.Running\")\nwrite_server_memory(\"Plant.Pump.Running\", value)\npublish_server_memory_sample(\"Plant.Pump.Running\", value, \"Good\")"));
+            "No editor de dependências, inclua o TAG pelo caminho legível e confirme que é ServerMemoryTag. O caminho fica associado ao ID estável; se mudar ou apontar para outra identidade, a execução falha fechada. Este exemplo lê um estado retentivo e atualiza outro TAG de memória; adapte ambos os TAGs ao tipo de dado real.",
+            "In the dependency editor, add the TAG by readable path and confirm that it is a ServerMemoryTag. The path is bound to the stable ID; if it changes or points to another identity, execution fails closed. This example reads a retained state and updates another memory TAG; adapt both TAGs to the real data type.",
+            "En el editor de dependencias, agregue el TAG por ruta legible y confirme que es ServerMemoryTag. La ruta queda vinculada al ID estable; si cambia o apunta a otra identidad, la ejecución falla de forma cerrada. Este ejemplo lee un estado retentivo y actualiza otro TAG de memoria; adapte ambos TAGs al tipo de dato real."),
+            """
+            def update_runtime_memory():
+                running = read_server_memory("Plant.Pump.Running")
+                if running is not None:
+                    write_server_memory("Plant.Pump.LastKnownRunning", bool(running))
+            """));
 
     private static IReadOnlyCollection<ContextualHelpScriptApi> BuildServerScriptApi(string locale) => new[]
     {
-        ScriptApi("read_tag", "read_tag(tag_id)", "tag_id: stable declared TAG id", "Returns the current TAG value.", "Read only; the TAG must be a declared dependency.", "value = read_tag(\"<stable-tag-id>\")", locale),
-        ScriptApi("read_server_memory", "read_server_memory(tag_reference)", "tag_reference: readable path or stable ID of a declared ServerMemoryTag", "Returns the current Server Memory value.", "Read only; only declared ServerMemoryTag references are accepted. A readable path is resolved through its stable TAG binding.", "value = read_server_memory(\"Plant.Pump.Running\")", locale),
-        ScriptApi("write_tag", "write_tag(tag_id, value)", "tag_id: stable declared TAG id; value: serializable value", "Writes the TAG and returns None.", "Only declared, write-authorized TAGs are allowed; no UI object is mutated directly.", "write_tag(\"<stable-visual-state-tag-id>\", True)", locale),
-        ScriptApi("write_server_memory", "write_server_memory(tag_reference, value)", "tag_reference: readable path or stable ID of a declared ServerMemoryTag; value: serializable value", "Writes Server Memory and returns None.", "Only declared ServerMemoryTag references are accepted. A readable path is resolved through its stable TAG binding.", "write_server_memory(\"Plant.Pump.Running\", value)", locale),
-        ScriptApi("publish_server_memory_sample", "publish_server_memory_sample(tag_reference, value, quality)", "tag_reference: readable path or stable ID of a declared ServerMemoryTag; value: serializable value; quality: quality string", "Publishes a Server Memory sample and returns None.", "Only declared ServerMemoryTag references are accepted. A readable path is resolved through its stable TAG binding.", "publish_server_memory_sample(\"Plant.Pump.Running\", value, \"Good\")", locale),
-        ScriptApi("emit_operational_event", "emit_operational_event(definition_id, message=None, context=None)", "definition_id: stable event definition id; message: optional string; context: optional dictionary", "Emits the operational event and returns None.", "Inputs are validated and bounded; it does not grant Authority fallback.", "emit_operational_event(\"<definition-id>\", \"threshold crossed\", {\"source\": \"script\"})", locale)
+        ScriptApi("read_tag", "read_tag(tag_reference)", Tx("tag_reference: caminho com binding declarado ou ID estável de TAG declarado.", "tag_reference: path with a declared binding or stable ID of a declared TAG.", "tag_reference: ruta con binding declarado o ID estable de un TAG declarado."), Tx("Retorna o valor corrente do TAG; não retorna quality nem timestamp de origem.", "Returns the current TAG value; it does not return source quality or timestamp.", "Devuelve el valor actual del TAG; no devuelve quality ni marca de tiempo de origen."), Tx("Somente leitura. A dependência precisa estar declarada. Um caminho legível deve corresponder exatamente ao binding da dependência.", "Read only. The dependency must be declared. A readable path must exactly match the dependency binding.", "Solo lectura. La dependencia debe estar declarada. Una ruta legible debe coincidir exactamente con el binding de la dependencia."), "def example_read_tag():\n    value = read_tag(\"Plant.Pump.Running\")", locale),
+        ScriptApi("read_server_memory", "read_server_memory(tag_reference)", Tx("tag_reference: caminho com binding declarado ou ID estável de ServerMemoryTag declarado.", "tag_reference: path with a declared binding or stable ID of a declared ServerMemoryTag.", "tag_reference: ruta con binding declarado o ID estable de un ServerMemoryTag declarado."), Tx("Retorna o valor corrente da Server Memory.", "Returns the current Server Memory value.", "Devuelve el valor actual de Server Memory."), Tx("Somente ServerMemoryTag declarado é aceito. Use o caminho apenas quando ele corresponder ao binding e à identidade estável.", "Only a declared ServerMemoryTag is accepted. Use a path only when it matches the binding and stable identity.", "Solo se acepta un ServerMemoryTag declarado. Use la ruta solo cuando coincida con el binding y la identidad estable."), "def example_read_server_memory():\n    value = read_server_memory(\"State.Pump.Running\")", locale),
+        ScriptApi("write_tag", "write_tag(tag_reference, value)", Tx("tag_reference: caminho com binding declarado ou ID estável de TAG declarado; value: valor compatível com o tipo do TAG.", "tag_reference: path with a declared binding or stable ID of a declared TAG; value: value compatible with the TAG type.", "tag_reference: ruta con binding declarado o ID estable de un TAG declarado; value: valor compatible con el tipo del TAG."), Tx("Escreve o valor no TAG e retorna None.", "Writes the value to the TAG and returns None.", "Escribe el valor en el TAG y devuelve None."), Tx("Exige TAG declarado, gravável e autorizado no escopo correspondente. Não altera diretamente um objeto de tela.", "Requires a declared, writable TAG authorized in the corresponding scope. It does not directly change a screen object.", "Requiere un TAG declarado y grabable, autorizado en el ámbito correspondiente. No cambia directamente un objeto de pantalla."), "def example_write_tag():\n    write_tag(\"Plant.Screen.PumpPressureHigh\", True)", locale),
+        ScriptApi("write_server_memory", "write_server_memory(tag_reference, value)", Tx("tag_reference: caminho com binding declarado ou ID estável de ServerMemoryTag declarado; value: valor serializável.", "tag_reference: path with a declared binding or stable ID of a declared ServerMemoryTag; value: serializable value.", "tag_reference: ruta con binding declarado o ID estable de un ServerMemoryTag declarado; value: valor serializable."), Tx("Grava o valor em Server Memory e retorna None.", "Writes the value to Server Memory and returns None.", "Escribe el valor en Server Memory y devuelve None."), Tx("Exige dependência ServerMemoryTag declarada. O caminho deve corresponder ao binding e à identidade estável.", "Requires a declared ServerMemoryTag dependency. The path must match the binding and stable identity.", "Requiere una dependencia ServerMemoryTag declarada. La ruta debe coincidir con el binding y la identidad estable."), "def example_write_server_memory():\n    write_server_memory(\"State.Pump.LastCurrent\", 12.5)", locale),
+        ScriptApi("publish_server_memory_sample", "publish_server_memory_sample(tag_reference, value, quality)", Tx("tag_reference: caminho com binding declarado ou ID estável de ServerMemoryTag declarado; value: valor serializável; quality: nome canônico de TagQuality.", "tag_reference: path with a declared binding or stable ID of a declared ServerMemoryTag; value: serializable value; quality: canonical TagQuality name.", "tag_reference: ruta con binding declarado o ID estable de un ServerMemoryTag declarado; value: valor serializable; quality: nombre canónico de TagQuality."), Tx("Publica uma amostra qualificada em Server Memory e retorna None.", "Publishes a qualified Server Memory sample and returns None.", "Publica una muestra cualificada en Server Memory y devuelve None."), Tx("Exige ServerMemoryTag declarado e quality exatamente igual a um nome TagQuality aceito. A função não deriva quality nem timestamp do TAG de origem.", "Requires a declared ServerMemoryTag and a quality exactly matching an accepted TagQuality name. This function does not derive quality or timestamp from the source TAG.", "Requiere un ServerMemoryTag declarado y una quality que coincida exactamente con un nombre TagQuality aceptado. Esta función no deriva la quality ni la marca de tiempo del TAG de origen."), "def example_publish_sample():\n    publish_server_memory_sample(\"State.Pump.LastCurrent\", 12.5, \"Uncertain\")", locale),
+        ScriptApi("emit_operational_event", "emit_operational_event(definition_id, message=None, context=None)", Tx("definition_id: ID estável da definição do Operational Event; message: texto opcional; context: dicionário opcional cujos valores são textos.", "definition_id: stable Operational Event definition ID; message: optional text; context: optional dictionary whose values are strings.", "definition_id: ID estable de la definición del Operational Event; message: texto opcional; context: diccionario opcional cuyos valores son textos."), Tx("Solicita a emissão do Operational Event e retorna None.", "Requests emission of the Operational Event and returns None.", "Solicita la emisión del Operational Event y devuelve None."), Tx("A definição precisa existir e as entradas têm limites de tamanho/quantidade. A chamada não concede fallback de Authority.", "The definition must exist and inputs have size/count limits. This call grants no Authority fallback.", "La definición debe existir y las entradas tienen límites de tamaño/cantidad. La llamada no concede fallback de Authority."), "def example_emit_event():\n    emit_operational_event(\"<stable-event-definition-id>\", \"threshold crossed\", {\"source\": \"script\"})", locale)
     };
 
     private static ContextualHelpScriptApi ScriptApi(
         string name,
         string signature,
-        string parameters,
-        string result,
-        string safety,
+        LocalizedText parameters,
+        LocalizedText result,
+        LocalizedText safety,
         string example,
         string locale) => new(
         name,
         signature,
-        Pick(locale, parameters.Replace("stable declared", "TAG estável declarado", StringComparison.Ordinal), parameters, parameters),
-        Pick(locale, result.Replace("Returns", "Retorna", StringComparison.Ordinal).Replace("Writes", "Escreve", StringComparison.Ordinal).Replace("Publishes", "Publica", StringComparison.Ordinal).Replace("Emits", "Emite", StringComparison.Ordinal), result, result),
-        Pick(locale, safety.Replace("Read only", "Somente leitura", StringComparison.Ordinal).Replace("Only", "Somente", StringComparison.Ordinal).Replace("Requires", "Exige", StringComparison.Ordinal).Replace("Inputs", "Entradas", StringComparison.Ordinal), safety, safety),
+        parameters.For(locale),
+        result.For(locale),
+        safety.For(locale),
         example);
 
     private static TopicDefinition BuildReusableLibrariesTopic() => Detailed(

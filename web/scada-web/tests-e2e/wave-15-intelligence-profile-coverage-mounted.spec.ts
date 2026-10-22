@@ -42,6 +42,152 @@ test('profile coverage runs only on explicit request and renders canonical quali
   expect(fixture.requests).toHaveLength(1);
 });
 
+test('Performance V1B runs only on explicit request and binds its transient result to the canonical selection', async ({ page }) => {
+  const fixture = await installWorkspace(page, { performanceReady: true });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-performance-${profileId}`);
+  await expect(panel).toBeVisible();
+  expect(fixture.performanceCatalogRequests).toEqual([]);
+  expect(fixture.performanceRequests).toEqual([]);
+
+  await panel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  await expect(panel.getByLabel('Regra de desempenho')).toBeVisible();
+  expect(fixture.performanceCatalogRequests).toEqual(['GET /api/engineering/asset-process-intelligence/analytics/performance/v1/catalog']);
+  await panel.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
+  await panel.getByLabel('De (horário local)').fill('2026-10-20T10:00');
+  await panel.getByLabel('Até (horário local)').fill('2026-10-21T11:00');
+  expect(fixture.performanceRequests).toEqual([]);
+
+  await panel.getByRole('button', { name: 'Analisar desempenho' }).click();
+  await expect(panel.getByTestId('intelligence-performance-result')).toBeVisible();
+  expect(fixture.performanceRequests).toHaveLength(1);
+  expect(fixture.performanceRequests[0]).toMatchObject({
+    scopeKind: 0, scopeId: equipmentId, assignmentId, profileId,
+    ruleId: 'specific-active-energy-at-recorded-production-rate.v1',
+    signalIds: ['15000000-0000-0000-0000-000000000211', '15000000-0000-0000-0000-000000000212']
+  });
+  expect(Date.parse(fixture.performanceRequests[0].window.fromUtc)).toBeLessThan(Date.parse(fixture.performanceRequests[0].window.toUtc));
+  expect(Date.parse(fixture.performanceRequests[0].window.toUtc) - Date.parse(fixture.performanceRequests[0].window.fromUtc)).toBe(25 * 60 * 60 * 1000);
+  await expect(panel.getByText('equipment.active_input_power · W')).toBeVisible();
+  await expect(panel.getByText('process.net_good_production_volume_rate · m³/s')).toBeVisible();
+  await expect(panel.getByText(/não comprova eficiência em campo/)).toBeVisible();
+  expect(fixture.dataReads).toEqual([]);
+  expect(fixture.otherWrites).toEqual([]);
+
+  await panel.getByLabel('De (horário local)').fill('2026-10-20T09:00');
+  await expect(panel.getByTestId('intelligence-performance-result')).toHaveCount(0);
+  expect(fixture.performanceRequests).toHaveLength(1);
+});
+
+test('Performance V1B fails closed on ambiguous profile roles and unsupported semantic bindings', async ({ page }) => {
+  const ambiguousFixture = await installWorkspace(page, { performanceReady: true, duplicatePerformanceRole: true });
+  await openIntelligence(page);
+  const ambiguousPanel = page.getByTestId(`intelligence-performance-${profileId}`);
+  await ambiguousPanel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  const ambiguousRule = ambiguousPanel.locator('option[value="specific-active-energy-at-recorded-production-rate.v1"]');
+  await expect(ambiguousRule).toHaveAttribute('disabled', '');
+  await expect(ambiguousRule).toContainText('Vários sinais do perfil correspondem a um papel obrigatório');
+  expect(ambiguousFixture.performanceRequests).toEqual([]);
+
+  const unsupportedPage = await page.context().newPage();
+  const unsupportedFixture = await installWorkspace(unsupportedPage, { performanceReady: true, semanticCatalogAvailable: false });
+  await openIntelligence(unsupportedPage);
+  const unsupportedPanel = unsupportedPage.getByTestId(`intelligence-performance-${profileId}`);
+  await unsupportedPanel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  const unsupportedRule = unsupportedPanel.locator('option[value="specific-active-energy-at-recorded-production-rate.v1"]');
+  await expect(unsupportedRule).toHaveAttribute('disabled', '');
+  await expect(unsupportedRule).toContainText('A semântica tipada ou os qualificadores canônicos não correspondem');
+  expect(unsupportedFixture.performanceRequests).toEqual([]);
+
+  const unsupportedUnitPage = await page.context().newPage();
+  const unsupportedUnitFixture = await installWorkspace(unsupportedUnitPage, { performanceReady: true, unsupportedPerformanceUnit: true });
+  await openIntelligence(unsupportedUnitPage);
+  const unsupportedUnitPanel = unsupportedUnitPage.getByTestId(`intelligence-performance-${profileId}`);
+  await unsupportedUnitPanel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  const unsupportedUnitRule = unsupportedUnitPanel.locator('option[value="specific-active-energy-at-recorded-production-rate.v1"]');
+  await expect(unsupportedUnitRule).toHaveAttribute('disabled', '');
+  await expect(unsupportedUnitRule).toContainText('A unidade da TAG está ausente ou não é aceita pela regra do catálogo');
+  expect(unsupportedUnitFixture.performanceRequests).toEqual([]);
+});
+
+test('Performance V1B matches the pump flow unit version/code pair accepted by the server', async ({ page }) => {
+  const validPage = await page.context().newPage();
+  await installWorkspace(validPage, { pumpPerformanceReady: true });
+  await openIntelligence(validPage);
+  const validPanel = validPage.getByTestId(`intelligence-performance-${profileId}`);
+  await validPanel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  const pumpRule = validPanel.locator('option[value="recorded-differential-pressure-power.v1"]');
+  await expect(pumpRule).not.toHaveAttribute('disabled', '');
+
+  const mismatchedPage = await page.context().newPage();
+  const fixture = await installWorkspace(mismatchedPage, { pumpPerformanceReady: true, mismatchedPumpFlowUnitPair: true });
+  await openIntelligence(mismatchedPage);
+  const mismatchedPanel = mismatchedPage.getByTestId(`intelligence-performance-${profileId}`);
+  await mismatchedPanel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  const mismatchedRule = mismatchedPanel.locator('option[value="recorded-differential-pressure-power.v1"]');
+  await expect(mismatchedRule).toHaveAttribute('disabled', '');
+  await expect(mismatchedRule).toContainText('A unidade da TAG está ausente ou não é aceita pela regra do catálogo');
+  expect(fixture.performanceRequests).toEqual([]);
+});
+
+for (const scenario of [
+  { name: 'without Intelligence entitlement', options: { licensed: false } },
+  { name: 'without TrendUse', options: { trendUse: false } },
+  { name: 'with an inactive Equipment scope', options: { active: false } },
+  { name: 'without an armed execution permit', options: { armed: false } },
+  { name: 'with unpublished Engineering changes', options: { workspaceDirty: true } }
+]) {
+  test(`Performance V1B remains blocked ${scenario.name}`, async ({ page }) => {
+    const fixture = await installWorkspace(page, { ...scenario.options, performanceReady: true });
+    await openIntelligence(page);
+    const panel = page.getByTestId(`intelligence-performance-${profileId}`);
+    await panel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+    await expect(panel.getByText('A análise exige licença válida', { exact: false })).toBeVisible();
+    await expect(panel.getByLabel('Regra de desempenho')).toBeDisabled();
+    await expect(panel.getByRole('button', { name: 'Analisar desempenho' })).toBeDisabled();
+    expect(fixture.performanceRequests).toEqual([]);
+  });
+}
+
+test('Performance V1B rejects a response tied to a different project revision', async ({ page }) => {
+  const fixture = await installWorkspace(page, { performanceReady: true, mismatchedPerformanceRevision: true });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-performance-${profileId}`);
+  await panel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  await panel.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
+  await panel.getByRole('button', { name: 'Analisar desempenho' }).click();
+  await expect(panel.getByRole('alert')).toContainText('A resposta não corresponde à regra, associação, perfil, revisão do projeto ou janela selecionada');
+  await expect(panel.getByTestId('intelligence-performance-result')).toHaveCount(0);
+  expect(fixture.performanceRequests).toHaveLength(1);
+});
+
+test('Performance V1B enforces the catalog window maximum before dispatch', async ({ page }) => {
+  const fixture = await installWorkspace(page, { performanceReady: true });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-performance-${profileId}`);
+  await panel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  await panel.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
+  await panel.getByLabel('De (horário local)').fill('2026-09-01T00:00');
+  await panel.getByLabel('Até (horário local)').fill('2026-10-21T00:00');
+  await expect(panel.getByRole('alert')).toContainText('não pode exceder 31 dias');
+  await expect(panel.getByRole('button', { name: 'Analisar desempenho' })).toBeDisabled();
+  expect(fixture.performanceRequests).toEqual([]);
+});
+
+test('Performance V1B clears prior output and reports a bounded server-query error', async ({ page }) => {
+  const fixture = await installWorkspace(page, { performanceReady: true, performanceFailCode: 'INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE' });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-performance-${profileId}`);
+  await panel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  await panel.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
+  await panel.getByLabel('De (horário local)').fill('2026-10-20T10:00');
+  await panel.getByLabel('Até (horário local)').fill('2026-10-21T11:00');
+  await panel.getByRole('button', { name: 'Analisar desempenho' }).click();
+  await expect(panel.getByRole('alert')).toContainText('INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE');
+  await expect(panel.getByTestId('intelligence-performance-result')).toHaveCount(0);
+  expect(fixture.performanceRequests).toHaveLength(1);
+});
+
 for (const scenario of [
   { name: 'without Intelligence entitlement', options: { licensed: false }, message: 'É necessária a licença' },
   { name: 'without TrendUse', options: { trendUse: false }, message: 'É necessário TrendUse' },
@@ -127,27 +273,74 @@ async function installWorkspace(page: Page, options: {
   failCode?: string;
   insufficient?: boolean;
   workspaceDirty?: boolean;
+  performanceReady?: boolean;
+  pumpPerformanceReady?: boolean;
+  duplicatePerformanceRole?: boolean;
+  mismatchedPerformanceRevision?: boolean;
+  semanticCatalogAvailable?: boolean;
+  unsupportedPerformanceUnit?: boolean;
+  mismatchedPumpFlowUnitPair?: boolean;
+  performanceFailCode?: string;
 } = {}) {
   const requests: Array<Record<string, any>> = [];
+  const performanceCatalogRequests: string[] = [];
+  const performanceRequests: Array<Record<string, any>> = [];
   const dataReads: string[] = [];
   const otherWrites: string[] = [];
+  const performanceSignals = options.pumpPerformanceReady ? [
+    { id: '15000000-0000-0000-0000-000000000211', key: 'Vazão de descarga', signalRole: 'processo', tagId: currentTagId, required: true,
+      semanticBinding: { catalogVersion: 1, roleCode: 'pump.discharge_volumetric_flow', flowDirection: 'pump_to_process' } },
+    { id: '15000000-0000-0000-0000-000000000212', key: 'Pressão diferencial direta', signalRole: 'processo', tagId: speedTagId, required: true,
+      semanticBinding: { catalogVersion: 2, roleCode: 'pump.direct_differential_pressure', signalKind: 'measured_output', pressureReference: 'differential_outlet_minus_inlet' } }
+  ] : options.performanceReady ? [
+    { id: '15000000-0000-0000-0000-000000000211', key: 'Potência ativa', signalRole: 'elétrico', tagId: currentTagId, required: true,
+      semanticBinding: { catalogVersion: 2, roleCode: 'equipment.active_input_power', signalKind: 'measured_total_input' } },
+    { id: '15000000-0000-0000-0000-000000000212', key: 'Produção boa', signalRole: 'processo', tagId: speedTagId, required: true,
+      semanticBinding: { catalogVersion: 2, roleCode: 'process.net_good_production_volume_rate', signalKind: 'measured_output' } },
+    ...(options.duplicatePerformanceRole ? [{ id: '15000000-0000-0000-0000-000000000213', key: 'Potência duplicada', signalRole: 'elétrico', tagId: '15000000-0000-0000-0000-000000000103', required: true,
+      semanticBinding: { catalogVersion: 2, roleCode: 'equipment.active_input_power', signalKind: 'measured_total_input' } }] : [])
+  ] : [
+    { id: '15000000-0000-0000-0000-000000000211', key: 'Corrente', signalRole: 'eléctrico', tagId: currentTagId, required: true },
+    { id: '15000000-0000-0000-0000-000000000212', key: 'Velocidade', signalRole: 'mecânico', tagId: speedTagId, required: true }
+  ];
   const profile = {
     id: profileId,
     key: 'pump-drive',
     name: 'Perfil da bomba',
-    signals: [
-      { id: '15000000-0000-0000-0000-000000000211', key: 'Corrente', signalRole: 'eléctrico', tagId: currentTagId, required: true },
-      { id: '15000000-0000-0000-0000-000000000212', key: 'Velocidade', signalRole: 'mecânico', tagId: speedTagId, required: true }
-    ]
+    signals: performanceSignals
   };
   const tags = [
-    { id: currentTagId, name: 'Corrente', path: 'Planta.Bomba01.Corrente', dataType: 'Double', engineeringUnit: 'A', readOnly: true },
-    { id: speedTagId, name: 'Velocidade', path: 'Planta.Bomba01.Velocidade', dataType: 'Double', engineeringUnit: 'rpm', readOnly: true }
+    { id: currentTagId,
+      name: options.pumpPerformanceReady ? 'Vazão de descarga' : options.performanceReady ? 'Potência ativa' : 'Corrente',
+      path: options.pumpPerformanceReady ? 'Planta.Bomba01.VazaoDescarga' : options.performanceReady ? 'Planta.Bomba01.PotenciaAtiva' : 'Planta.Bomba01.Corrente',
+      dataType: 'Double', engineeringUnit: options.pumpPerformanceReady ? 'm³/s' : options.performanceReady ? 'W' : 'A', readOnly: true,
+      controlledEngineeringUnit: options.pumpPerformanceReady
+        ? { catalogVersion: options.mismatchedPumpFlowUnitPair ? 1 : 2, code: 'unit.volumetric_flow.cubic_metre_per_second' }
+        : { catalogVersion: 2, code: options.unsupportedPerformanceUnit ? 'unit.pressure.pascal' : 'unit.power.watt' } },
+    { id: speedTagId,
+      name: options.pumpPerformanceReady ? 'Pressão diferencial direta' : options.performanceReady ? 'Produção boa' : 'Velocidade',
+      path: options.pumpPerformanceReady ? 'Planta.Bomba01.PressaoDiferencial' : options.performanceReady ? 'Planta.Bomba01.ProducaoBoa' : 'Planta.Bomba01.Velocidade',
+      dataType: 'Double', engineeringUnit: options.pumpPerformanceReady ? 'Pa' : options.performanceReady ? 'm³/s' : 'rpm', readOnly: true,
+      controlledEngineeringUnit: options.pumpPerformanceReady
+        ? { catalogVersion: 2, code: 'unit.pressure.pascal' }
+        : { catalogVersion: 2, code: 'unit.volumetric_flow.cubic_metre_per_second' } },
+    ...(options.duplicatePerformanceRole ? [{ id: '15000000-0000-0000-0000-000000000103', name: 'Potência duplicada', path: 'Planta.Bomba01.Potencia2', dataType: 'Double', engineeringUnit: 'W', readOnly: true,
+      controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.power.watt' } }] : [])
   ];
   await page.route('**/api/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
+    if (path === '/api/engineering/asset-process-intelligence/analytics/performance/v1/catalog') {
+      performanceCatalogRequests.push(`${request.method()} ${path}`);
+      return route.fulfill({ json: performanceCatalog() });
+    }
+    if (path === '/api/engineering/asset-process-intelligence/analytics/performance/v1/query') {
+      const body = request.postDataJSON() as Record<string, any>;
+      performanceRequests.push(body);
+      if (options.performanceFailCode) return route.fulfill({ status: 413, json: { code: options.performanceFailCode } });
+      return route.fulfill({ json: performanceResponse(body, options.mismatchedPerformanceRevision === true) });
+    }
     if (path === '/api/engineering/asset-process-intelligence/analytics/profile-coverage') {
       const body = request.postDataJSON() as Record<string, any>;
       requests.push(body);
@@ -184,7 +377,16 @@ async function installWorkspace(page: Page, options: {
     } });
     if (path === '/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog') return route.fulfill({ json: {
       supportedSemanticContractVersions: [1, 2],
-      semanticCatalogs: [{ catalogVersion: 1, roles: [] }, { catalogVersion: 2, roles: [] }],
+      semanticCatalogs: [{ catalogVersion: 1, roles: options.pumpPerformanceReady && options.semanticCatalogAvailable !== false ? [
+        { code: 'pump.discharge_volumetric_flow', dimension: 'volumetric_flow', qualifiers: [{ name: 'flowDirection', allowedValues: ['pump_to_process', 'process_to_pump', 'bidirectional_signed', 'bidirectional_magnitude'] }] }
+      ] : [] }, { catalogVersion: 2, roles: (options.performanceReady || options.pumpPerformanceReady) && options.semanticCatalogAvailable !== false ? [
+        { code: 'equipment.active_input_power', dimension: 'power', qualifiers: [{ name: 'signalKind', allowedValues: ['measured_total_input'] }] },
+        { code: 'process.net_good_production_volume_rate', dimension: 'volumetric_flow', qualifiers: [{ name: 'signalKind', allowedValues: ['measured_output'] }] },
+        { code: 'pump.direct_differential_pressure', dimension: 'pressure', qualifiers: [
+          { name: 'signalKind', allowedValues: ['measured_output'] },
+          { name: 'pressureReference', allowedValues: ['differential_outlet_minus_inlet'] }
+        ] }
+      ] : [] }],
       controlledEngineeringUnitCatalogs: [{ catalogVersion: 1, units: [] }, { catalogVersion: 2, units: [] }]
     } });
     if (path === '/api/engineering/asset-process-intelligence/scopes') return route.fulfill({ json: {
@@ -205,7 +407,62 @@ async function installWorkspace(page: Page, options: {
   page.on('websocket', socket => {
     if (new URL(socket.url()).pathname === '/ws/tags') dataReads.push('WS /ws/tags');
   });
-  return { requests, dataReads, otherWrites };
+  return { requests, performanceCatalogRequests, performanceRequests, dataReads, otherWrites };
+}
+
+function performanceCatalog() {
+  return {
+    contractVersion: 1, catalogVersion: 1, ruleVersion: '1.0.0', dataset: 'historian.samples',
+    datasetContractVersion: 2, maximumWindowDays: 31, maximumRawRowsAcrossSelectedTags: 50000,
+    rules: [{
+      id: 'specific-active-energy-at-recorded-production-rate.v1', version: '1.0.0', kind: 'derived',
+      formula: 'active_input_power_W / net_good_production_rate_m3_s / 3,600,000',
+      inputRoles: ['equipment.active_input_power', 'process.net_good_production_volume_rate|process.net_good_production_mass_rate|process.net_good_production_item_rate'],
+      inputUnits: [
+        { role: 'equipment.active_input_power', canonicalUnit: 'W', unitCatalogVersions: [2], acceptedUnitCodes: ['unit.power.watt', 'unit.power.kilowatt'] },
+        { role: 'process.net_good_production_volume_rate', canonicalUnit: 'm³/s', unitCatalogVersions: [2], acceptedUnitCodes: ['unit.volumetric_flow.cubic_metre_per_second'] }
+      ],
+      outputUnit: 'role-specific',
+      outputUnitVariants: [{ productionRole: 'process.net_good_production_volume_rate', canonicalInputUnit: 'm³/s', outputUnit: 'kWh/m³' }],
+      temporalRequirement: 'Exact equality of distinct synchronized source timestamps; no interpolation or assumed cadence.',
+      minimumQualifiedTuples: 2, bounds: 'Power >= 0 W; production rate > 0.', unavailableStates: ['fewer_than_two_qualified_tuples']
+    }, {
+      id: 'recorded-differential-pressure-power.v1', version: '1.0.0', kind: 'derived',
+      formula: 'flow_m3_per_second * direct_differential_pressure_Pa = pressure-only W',
+      inputRoles: ['pump.discharge_volumetric_flow', 'pump.direct_differential_pressure'],
+      inputUnits: [
+        { role: 'pump.discharge_volumetric_flow', canonicalUnit: 'm³/s', unitCatalogVersions: [1, 2], acceptedUnitCodes: ['unit.volumetric_flow.cubic_metre_per_hour', 'unit.volumetric_flow.cubic_metre_per_second'] },
+        { role: 'pump.direct_differential_pressure', canonicalUnit: 'Pa', unitCatalogVersions: [1, 2], acceptedUnitCodes: ['unit.pressure.bar', 'unit.pressure.pascal', 'unit.pressure.kilopascal'] }
+      ],
+      outputUnit: 'W', outputUnitVariants: [],
+      temporalRequirement: 'Exact equality of distinct synchronized source timestamps; no interpolation or assumed cadence.',
+      minimumQualifiedTuples: 2, bounds: 'Pump-to-process flow > 0 m³/s; differential pressure >= 0 Pa.',
+      unavailableStates: ['fewer_than_two_qualified_tuples']
+    }]
+  };
+}
+
+function performanceResponse(body: Record<string, any>, mismatchedRevision: boolean) {
+  return {
+    contractVersion: 1, catalogVersion: 1, ruleId: body.ruleId, ruleVersion: '1.0.0',
+    projectKey: 'intelligence-coverage-test', activeRevision: mismatchedRevision ? 5 : 4,
+    scopeKind: 'Equipment', scopeId: body.scopeId, assignmentId: body.assignmentId, equipmentId: body.scopeId, profileId: body.profileId,
+    window: body.window,
+    signals: [
+      { signalId: '15000000-0000-0000-0000-000000000211', signalKey: 'Potência ativa', roleCode: 'equipment.active_input_power', canonicalUnit: 'W' },
+      { signalId: '15000000-0000-0000-0000-000000000212', signalKey: 'Produção boa', roleCode: 'process.net_good_production_volume_rate', canonicalUnit: 'm³/s' }
+    ],
+    inputs: [
+      { signalId: '15000000-0000-0000-0000-000000000211', rawObservationCount: 10, eligibleSynchronizedCount: 8, pairedCount: 4, qualifiedCount: 3, qualityCounts: { Good: 8 }, rejectionCounts: { Uncertain: 2 } },
+      { signalId: '15000000-0000-0000-0000-000000000212', rawObservationCount: 10, eligibleSynchronizedCount: 8, pairedCount: 4, qualifiedCount: 3, qualityCounts: { Good: 8 }, rejectionCounts: { Uncertain: 2 } }
+    ],
+    totalRawObservationCount: 20,
+    summary: { status: 'available', unit: 'kWh/m³', reasonCodes: [], qualifiedTupleCount: 3, minimum: 1.2, maximum: 1.8, arithmeticMean: 1.5, meanSemantics: 'arithmetic mean over qualified tuples' },
+    provenance: { dataset: 'historian.samples', datasetContractVersion: 2,
+      timestampPairing: 'exact_synchronized_source_timestamp', acquisitionAlignment: 'unverified',
+      operatingRegimeEquivalence: 'unverified', expectedCadence: 'unknown', completeness: 'unknown',
+      measurementInterpretation: 'derived from recorded active input power and recorded net-good production rate' }
+  };
 }
 
 function coverageResponse(body: Record<string, any>, insufficient = false) {

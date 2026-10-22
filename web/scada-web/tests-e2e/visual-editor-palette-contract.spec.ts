@@ -5,10 +5,19 @@ import {
 } from '../src/visual-runtime/builtinVisualObjectSchemas';
 import { VISUAL_PROPERTY_KEYS } from '../src/visual-runtime/visualPropertyRegistry';
 import { createClosedBezierGeometry, insertBezierAnchor, readEditableBezierPath, removeBezierAnchor } from '../src/engineering/visual-editor/bezierGeometry';
+import { visualAssetContentUrl } from '../src/engineering/visualAssetContentUrl';
 import {
   createObjectAddIntent,
   listVisualObjectPaletteItems
 } from '../src/engineering/visual-editor/object-palette/objectPaletteModel';
+
+test('visual asset content URLs resolve both asset-prefixed and bare GUID references', () => {
+  const assetId = '15000000-0000-0000-0000-000000000021';
+  const expectedUrl = `/api/engineering/visual-assets/${assetId}/content`;
+
+  expect(visualAssetContentUrl(`asset:${assetId}`)).toBe(expectedUrl);
+  expect(visualAssetContentUrl(assetId)).toBe(expectedUrl);
+});
 
 test('palette is derived from the complete registered built-in set', () => {
   const items = listVisualObjectPaletteItems();

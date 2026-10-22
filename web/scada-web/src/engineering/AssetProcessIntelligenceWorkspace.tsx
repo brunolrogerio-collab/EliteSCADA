@@ -18,13 +18,16 @@ import {
   generateIntelligenceDashboardDraft,
   generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
+  generateIntelligenceContextualDeviationScreenDraft,
   type IntelligenceDashboardAssignmentSource,
   type IntelligenceDashboardSource,
+  type IntelligenceContextualDeviationDashboardSelection,
   type IntelligencePerformanceDashboardSelection,
   type IntelligenceProfileCoverageDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
 import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
+import { AssetProcessIntelligenceContextualDeviationPanel } from './AssetProcessIntelligenceContextualDeviationPanel';
 import './asset-process-intelligence.css';
 
 type ScopeKind = 'Equipment' | 'Location';
@@ -352,6 +355,31 @@ export function AssetProcessIntelligenceWorkspace({
     }
     try {
       onCreateDashboardDraft(generateIntelligenceProfileCoverageScreenDraft(screens, selection, locale));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : copy.dashboardSourceUnavailable);
+    }
+  };
+
+  const generateContextualDeviationScreen = (
+    assignment: AssetProcessIntelligenceAssignmentEngineering,
+    profile: AssetProcessIntelligenceProfileEngineering,
+    equipmentName: string,
+    selection: IntelligenceContextualDeviationDashboardSelection
+  ) => {
+    setError(null);
+    setMessage(null);
+    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+      setError(copy.dashboardAuthorizationHint);
+      return;
+    }
+    try {
+      onCreateDashboardDraft(generateIntelligenceContextualDeviationScreenDraft(screens, {
+        ...selection,
+        scopeId: assignment.equipmentId,
+        assignmentId: assignment.id,
+        profileId: profile.id,
+        displayName: equipmentName
+      }, locale));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : copy.dashboardSourceUnavailable);
     }
@@ -740,6 +768,19 @@ export function AssetProcessIntelligenceWorkspace({
                   canQuery={!coverageBlockedReason}
                   onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft
                     ? selection => generatePerformanceScreen(assignment, profile, equipmentResource.name, selection)
+                    : undefined}
+                /> : null}
+                {equipmentResource && profile ? <AssetProcessIntelligenceContextualDeviationPanel
+                  locale={locale}
+                  scopeId={assignment.equipmentId}
+                  assignmentId={assignment.id}
+                  profile={profile}
+                  tags={tags}
+                  controlledUnits={semanticCatalog?.controlledEngineeringUnitCatalogs ?? []}
+                  displayName={`${equipmentResource.name} · ${profile.name}`}
+                  canCreate={Boolean(snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft)}
+                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft
+                    ? selection => generateContextualDeviationScreen(assignment, profile, equipmentResource.name, selection)
                     : undefined}
                 /> : null}
                 <button type="button" className="secondary" disabled={!canEngineer} onClick={() => removeAssignment(assignment.id)}>{copy.remove}</button>

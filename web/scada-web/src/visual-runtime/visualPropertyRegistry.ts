@@ -122,7 +122,13 @@ export const VISUAL_PROPERTY_KEYS = {
   intelligenceProfileId: 'intelligenceProfileId',
   intelligenceRuleId: 'intelligenceRuleId',
   intelligenceRuleVersion: 'intelligenceRuleVersion',
-  intelligenceSignalIds: 'intelligenceSignalIds'
+  intelligenceSignalIds: 'intelligenceSignalIds',
+  intelligenceFirstContextSignalId: 'intelligenceFirstContextSignalId',
+  intelligenceFirstContextLowerInclusiveCanonical: 'intelligenceFirstContextLowerInclusiveCanonical',
+  intelligenceFirstContextUpperExclusiveCanonical: 'intelligenceFirstContextUpperExclusiveCanonical',
+  intelligenceSecondContextSignalId: 'intelligenceSecondContextSignalId',
+  intelligenceSecondContextLowerInclusiveCanonical: 'intelligenceSecondContextLowerInclusiveCanonical',
+  intelligenceSecondContextUpperExclusiveCanonical: 'intelligenceSecondContextUpperExclusiveCanonical'
 } as const;
 
 export type CommonVisualPropertyKey = typeof VISUAL_PROPERTY_KEYS[keyof typeof VISUAL_PROPERTY_KEYS];
@@ -491,11 +497,29 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
     VISUAL_PROPERTY_KEYS.intelligenceProfileId,
     VISUAL_PROPERTY_KEYS.intelligenceRuleId,
     VISUAL_PROPERTY_KEYS.intelligenceRuleVersion,
-    VISUAL_PROPERTY_KEYS.intelligenceSignalIds
+    VISUAL_PROPERTY_KEYS.intelligenceSignalIds,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextSignalId,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId
   ].map(key => ({
     key,
     type: 'string' as const,
     defaultValue: key === VISUAL_PROPERTY_KEYS.intelligenceSignalIds ? '[]' : '',
+    engineeringEditable: false,
+    runtimeReadable: true,
+    runtimeWritable: false,
+    supportsBinding: false,
+    animatable: false,
+    category: 'intelligence'
+  })),
+  ...[
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextLowerInclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextUpperExclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextLowerInclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextUpperExclusiveCanonical
+  ].map(key => ({
+    key,
+    type: 'number' as const,
+    defaultValue: 0,
     engineeringEditable: false,
     runtimeReadable: true,
     runtimeWritable: false,

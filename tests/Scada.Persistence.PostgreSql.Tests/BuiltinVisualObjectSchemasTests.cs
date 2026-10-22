@@ -37,7 +37,8 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.measurementBands",
             "core.measurementTarget",
             "core.intelligencePerformanceV1B",
-            "core.intelligenceProfileCoverageV1"
+            "core.intelligenceProfileCoverageV1",
+            "core.intelligenceContextualDeviationV2"
         ], BuiltinVisualObjectSchemas.All.Select(schema => schema.ObjectTypeKey).ToArray());
     }
 

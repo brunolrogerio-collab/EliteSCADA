@@ -33,7 +33,8 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   measurementBands: 'core.measurementBands',
   measurementTarget: 'core.measurementTarget',
   intelligencePerformanceV1B: 'core.intelligencePerformanceV1B',
-  intelligenceProfileCoverageV1: 'core.intelligenceProfileCoverageV1'
+  intelligenceProfileCoverageV1: 'core.intelligenceProfileCoverageV1',
+  intelligenceContextualDeviationV2: 'core.intelligenceContextualDeviationV2'
 } as const;
 
 export type BuiltinVisualObjectType = typeof BUILTIN_VISUAL_OBJECT_TYPES[keyof typeof BUILTIN_VISUAL_OBJECT_TYPES];
@@ -326,6 +327,19 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     ...BASE,
     VISUAL_PROPERTY_KEYS.intelligenceScopeId,
     VISUAL_PROPERTY_KEYS.intelligenceProfileId
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceAssignmentId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceSignalIds,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextSignalId,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextLowerInclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextUpperExclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextLowerInclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextUpperExclusiveCanonical
   ])]
 ]);
 

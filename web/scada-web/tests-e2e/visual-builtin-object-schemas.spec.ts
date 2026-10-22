@@ -36,7 +36,8 @@ const expectedTypes = [
   'core.measurementBands',
   'core.measurementTarget',
   'core.intelligencePerformanceV1B',
-  'core.intelligenceProfileCoverageV1'
+  'core.intelligenceProfileCoverageV1',
+  'core.intelligenceContextualDeviationV2'
 ];
 
 test('built-in visual object types are stable and unique', () => {
@@ -133,6 +134,38 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(coverage.declares(VISUAL_PROPERTY_KEYS.intelligenceAssignmentId)).toBe(false);
   expect(coverage.propertyKeys).not.toContain('result');
   expect(coverage.propertyKeys).not.toContain('window');
+
+  const contextualDeviation = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2);
+  for (const key of [
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceAssignmentId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceSignalIds,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextSignalId,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId
+  ]) {
+    const property = contextualDeviation.getRequired(key);
+    expect(property.type).toBe('string');
+    expect(property.engineeringEditable).toBe(false);
+    expect(property.runtimeReadable).toBe(true);
+    expect(property.runtimeWritable).toBe(false);
+    expect(property.supportsBinding).toBe(false);
+  }
+  for (const key of [
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextLowerInclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextUpperExclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextLowerInclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextUpperExclusiveCanonical
+  ]) {
+    const property = contextualDeviation.getRequired(key);
+    expect(property.type).toBe('number');
+    expect(property.engineeringEditable).toBe(false);
+    expect(property.runtimeReadable).toBe(true);
+    expect(property.runtimeWritable).toBe(false);
+    expect(property.supportsBinding).toBe(false);
+  }
+  expect(contextualDeviation.propertyKeys).not.toContain('referenceWindow');
+  expect(contextualDeviation.propertyKeys).not.toContain('evaluationVectors');
 
   const slider = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.slider);
   expect(slider.declares(VISUAL_PROPERTY_KEYS.value)).toBeTruthy();

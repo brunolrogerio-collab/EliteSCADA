@@ -49,6 +49,20 @@ export type IntelligenceProfileCoverageDashboardSelection = Readonly<{
   displayName: string;
 }>;
 
+export type IntelligenceContextualDeviationDashboardSelection = Readonly<{
+  scopeId: string;
+  assignmentId: string;
+  profileId: string;
+  targetSignalIds: readonly string[];
+  firstContextSignalId: string;
+  firstContextLowerInclusiveCanonical: number;
+  firstContextUpperExclusiveCanonical: number;
+  secondContextSignalId: string;
+  secondContextLowerInclusiveCanonical: number;
+  secondContextUpperExclusiveCanonical: number;
+  displayName: string;
+}>;
+
 type ResolvedSignal = Readonly<{
   assignment: IntelligenceDashboardAssignmentSource;
   signal: AssetProcessIntelligenceSignalEngineering;
@@ -441,6 +455,111 @@ export function generateIntelligenceProfileCoverageScreenDraft(
   };
 }
 
+/**
+ * Creates a Screen-only Runtime V2 contextual-deviation visual. The draft stores
+ * stable signal references and caller-declared canonical ranges only; time
+ * windows, Historian samples and analysis results remain transient Runtime state.
+ */
+export function generateIntelligenceContextualDeviationScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligenceContextualDeviationDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const identifiers = [selection.scopeId, selection.assignmentId, selection.profileId,
+    ...selection.targetSignalIds, selection.firstContextSignalId, selection.secondContextSignalId];
+  const allSignalIds = [...selection.targetSignalIds, selection.firstContextSignalId, selection.secondContextSignalId];
+  if (identifiers.some(value => !isCanonicalUuid(value)) ||
+      selection.targetSignalIds.length < 2 || selection.targetSignalIds.length > 8 ||
+      new Set(allSignalIds.map(id => id.toLowerCase())).size !== allSignalIds.length ||
+      !validCanonicalRange(selection.firstContextLowerInclusiveCanonical, selection.firstContextUpperExclusiveCanonical) ||
+      !validCanonicalRange(selection.secondContextLowerInclusiveCanonical, selection.secondContextUpperExclusiveCanonical)) {
+    throw new Error('A contextual deviation screen requires canonical Equipment, assignment, profile and unique signal UUIDs, two to eight targets, and finite lower-inclusive/upper-exclusive canonical ranges.');
+  }
+
+  const displayName = selection.displayName.trim() || selection.scopeId;
+  const key = uniqueScreenKey(existingScreens, `intelligence-contextual-deviation-${slug(displayName)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = locale === 'en' ? `Contextual deviation · ${displayName}`
+    : locale === 'es' ? `Desviación contextual · ${displayName}`
+      : `Desvio contextual · ${displayName}`;
+  const subtitle = locale === 'en'
+    ? 'Runtime-only · explicit comparison · per-signal descriptive evidence · transient result'
+    : locale === 'es'
+      ? 'Solo Runtime · comparación explícita · evidencia descriptiva por señal · resultado transitorio'
+      : 'Somente Runtime · comparação explícita · evidência descritiva por sinal · resultado temporário';
+  const caution = locale === 'en'
+    ? 'Each target is compared with its own joint-context reference distribution. The result is not a combined anomaly, diagnosis, fault classification or remaining-life estimate.'
+    : locale === 'es'
+      ? 'Cada señal objetivo se compara con su propia distribución de referencia en el contexto conjunto. El resultado no es una anomalía combinada, diagnóstico, clasificación de falla ni estimación de vida restante.'
+      : 'Cada sinal-alvo é comparado com sua própria distribuição de referência no contexto conjunto. O resultado não é anomalia combinada, diagnóstico, classificação de falha nem estimativa de vida restante.';
+
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements: [
+      {
+        id: allocateId(), key: 'intelligence-contextual-deviation-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 36, width: 1792, height: 52,
+          [VISUAL_PROPERTY_KEYS.text]: title,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+          [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-contextual-deviation-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 98, width: 1792, height: 34,
+          [VISUAL_PROPERTY_KEYS.text]: subtitle,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-contextual-deviation-v2',
+        type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2,
+        properties: {
+          x: 64, y: 152, width: 1792, height: 720,
+          [VISUAL_PROPERTY_KEYS.intelligenceScopeId]: selection.scopeId,
+          [VISUAL_PROPERTY_KEYS.intelligenceAssignmentId]: selection.assignmentId,
+          [VISUAL_PROPERTY_KEYS.intelligenceProfileId]: selection.profileId,
+          [VISUAL_PROPERTY_KEYS.intelligenceSignalIds]: JSON.stringify(selection.targetSignalIds),
+          [VISUAL_PROPERTY_KEYS.intelligenceFirstContextSignalId]: selection.firstContextSignalId,
+          [VISUAL_PROPERTY_KEYS.intelligenceFirstContextLowerInclusiveCanonical]: selection.firstContextLowerInclusiveCanonical,
+          [VISUAL_PROPERTY_KEYS.intelligenceFirstContextUpperExclusiveCanonical]: selection.firstContextUpperExclusiveCanonical,
+          [VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId]: selection.secondContextSignalId,
+          [VISUAL_PROPERTY_KEYS.intelligenceSecondContextLowerInclusiveCanonical]: selection.secondContextLowerInclusiveCanonical,
+          [VISUAL_PROPERTY_KEYS.intelligenceSecondContextUpperExclusiveCanonical]: selection.secondContextUpperExclusiveCanonical
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-contextual-deviation-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 900, width: 1792, height: 74,
+          [VISUAL_PROPERTY_KEYS.text]: caution,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      }
+    ],
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.6',
+      intelligenceContextualDeviationRuleId: 'contextual-deviation-vector.v2',
+      intelligenceContextualDeviationRuleVersion: '2.0.0'
+    }
+  };
+}
+
 export function isNumericTagDataType(dataType: string | null | undefined): boolean {
   const normalized = dataType?.trim().toLowerCase();
   return normalized !== undefined && NUMERIC_DATA_TYPES.has(normalized);
@@ -462,6 +581,10 @@ function validScale(minimum: number | null | undefined, maximum: number | null |
     typeof maximum === 'number' && Number.isFinite(maximum) && minimum < maximum
     ? { minimum, maximum }
     : null;
+}
+
+function validCanonicalRange(lowerInclusive: number, upperExclusive: number): boolean {
+  return Number.isFinite(lowerInclusive) && Number.isFinite(upperExclusive) && lowerInclusive < upperExclusive;
 }
 
 function createUniqueIdAllocator(createId: () => string): () => string {

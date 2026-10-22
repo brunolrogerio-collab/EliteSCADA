@@ -36,6 +36,7 @@ public static class BuiltinVisualObjectSchemas
     public const string MeasurementTargetType = "core.measurementTarget";
     public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
     public const string IntelligenceProfileCoverageV1Type = "core.intelligenceProfileCoverageV1";
+    public const string IntelligenceContextualDeviationV2Type = "core.intelligenceContextualDeviationV2";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
     public const string SvgPaintOverridesProperty = "svgPaintOverrides";
@@ -101,7 +102,13 @@ public static class BuiltinVisualObjectSchemas
         new(VisualPropertyKeys.IntelligenceProfileId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
         new(VisualPropertyKeys.IntelligenceRuleId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
         new(VisualPropertyKeys.IntelligenceRuleVersion, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
-        new(VisualPropertyKeys.IntelligenceSignalIds, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
+        new(VisualPropertyKeys.IntelligenceSignalIds, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceFirstContextSignalId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSecondContextSignalId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceFirstContextLowerInclusiveCanonical, new VisualNumberValue(0), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceFirstContextUpperExclusiveCanonical, new VisualNumberValue(0), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSecondContextLowerInclusiveCanonical, new VisualNumberValue(0), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSecondContextUpperExclusiveCanonical, new VisualNumberValue(0), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
     ];
 
     private static readonly IReadOnlyDictionary<string, VisualPropertyDefinition> CommonByKey =
@@ -448,6 +455,21 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.IntelligenceProfileId
         ]));
 
+    public static VisualObjectPropertySchema IntelligenceContextualDeviationV2 { get; } = Create(
+        IntelligenceContextualDeviationV2Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceAssignmentId,
+            VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceSignalIds,
+            VisualPropertyKeys.IntelligenceFirstContextSignalId,
+            VisualPropertyKeys.IntelligenceFirstContextLowerInclusiveCanonical,
+            VisualPropertyKeys.IntelligenceFirstContextUpperExclusiveCanonical,
+            VisualPropertyKeys.IntelligenceSecondContextSignalId,
+            VisualPropertyKeys.IntelligenceSecondContextLowerInclusiveCanonical,
+            VisualPropertyKeys.IntelligenceSecondContextUpperExclusiveCanonical
+        ]));
+
     public static IReadOnlyCollection<VisualObjectPropertySchema> All { get; } =
     [
         Group,
@@ -478,7 +500,8 @@ public static class BuiltinVisualObjectSchemas
         MeasurementBands,
         MeasurementTarget,
         IntelligencePerformanceV1B,
-        IntelligenceProfileCoverageV1
+        IntelligenceProfileCoverageV1,
+        IntelligenceContextualDeviationV2
     ];
 
     /// <summary>

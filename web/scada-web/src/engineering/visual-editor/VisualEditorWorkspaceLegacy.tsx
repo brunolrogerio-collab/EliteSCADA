@@ -556,7 +556,10 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
 
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
   const objectCount = countVisualElements(draft.elements);
-  const intelligenceDashboardDraft = isNew && draft.metadata?.intelligenceDashboardGenerator === 'stage5b.1';
+  const intelligenceDashboardDraft = isNew && (
+    draft.metadata?.intelligenceDashboardGenerator === 'stage5b.1' ||
+    draft.metadata?.intelligenceDashboardGenerator === 'stage5b.8'
+  );
 
   const layoutClassName = [
     'eng-section visual-editor-workspace',

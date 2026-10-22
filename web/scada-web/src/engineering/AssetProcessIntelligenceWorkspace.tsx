@@ -267,6 +267,7 @@ export function AssetProcessIntelligenceWorkspace({
     const assignmentSource: IntelligenceDashboardAssignmentSource = {
       equipmentName: equipmentResource.name,
       equipmentPath: equipmentResource.path ?? equipmentResource.scopeId,
+      scopeId: assignment.equipmentId,
       profile
     };
     return {

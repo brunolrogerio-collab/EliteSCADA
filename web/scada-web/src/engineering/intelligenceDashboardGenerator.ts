@@ -15,6 +15,7 @@ import {
 import { createScreenDraft } from './visual-editor/visualEditorCanonicalModel';
 
 export const INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS = 15;
+export const INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS = 8;
 export const INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS = 32;
 const NUMERIC_DATA_TYPES = new Set([
   'byte', 'sbyte', 'int8', 'uint8', 'short', 'int16', 'uint16', 'int', 'integer', 'int32', 'uint32',
@@ -24,6 +25,8 @@ const NUMERIC_DATA_TYPES = new Set([
 export type IntelligenceDashboardAssignmentSource = Readonly<{
   equipmentName: string;
   equipmentPath: string;
+  /** Canonical Equipment scope identity; required for the optional coverage panel. */
+  scopeId?: string;
   profile: AssetProcessIntelligenceProfileEngineering;
 }>;
 
@@ -95,6 +98,7 @@ type DashboardText = Readonly<{
     duplicates: number;
     omitted: number;
     trended: number;
+    profileCoverage: 'included' | 'unavailable' | 'not-applicable';
   }>) => string;
   noNumericSignals: string;
 }>;
@@ -141,7 +145,19 @@ export function generateIntelligenceDashboardDraft(
   const draft = createScreenDraft(existingScreens, locale);
   const key = uniqueScreenKey(existingScreens, `intelligence-${slug(source.stableKey)}`);
   const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
-  const shown = resolved.slice(0, INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS);
+  const profileAssignment = source.kind === 'equipment-profile' && source.assignments.length === 1
+    ? source.assignments[0]
+    : null;
+  const hasProfileCoverage = Boolean(profileAssignment &&
+    isCanonicalUuid(profileAssignment.scopeId ?? '') &&
+    isCanonicalUuid(profileAssignment.profile.id ?? ''));
+  const profileCoverage: 'included' | 'unavailable' | 'not-applicable' = hasProfileCoverage
+    ? 'included'
+    : profileAssignment ? 'unavailable' : 'not-applicable';
+  const shownLimit = hasProfileCoverage
+    ? INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS
+    : INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS;
+  const shown = resolved.slice(0, shownLimit);
   const trendSignals = resolved.slice(0, MAX_TREND_PENS);
   const screenName = copy.generatedTitle(source.displayName);
   const summary = copy.summary({
@@ -151,7 +167,8 @@ export function generateIntelligenceDashboardDraft(
     nonNumeric,
     duplicates,
     omitted: Math.max(0, resolved.length - shown.length),
-    trended: trendSignals.length
+    trended: trendSignals.length,
+    profileCoverage
   });
   const allocateId = createUniqueIdAllocator(createId);
   const elements: NonNullable<ScreenEngineering['elements']> = [
@@ -178,10 +195,10 @@ export function generateIntelligenceDashboardDraft(
     }
   ];
 
-  const columns = 5;
-  const cardWidth = 330;
+  const columns = hasProfileCoverage ? 2 : 5;
+  const cardWidth = hasProfileCoverage ? 392 : 330;
   const cardHeight = 132;
-  const columnGap = 24;
+  const columnGap = hasProfileCoverage ? 18 : 24;
   const rowGap = 18;
   const rowCount = Math.ceil(shown.length / columns);
   shown.forEach((item, index) => {
@@ -253,6 +270,25 @@ export function generateIntelligenceDashboardDraft(
       pens: trendPensEngineeringValue(pens)
     }
   });
+  if (hasProfileCoverage && profileAssignment) {
+    elements[elements.length - 1] = {
+      ...elements[elements.length - 1],
+      properties: {
+        ...elements[elements.length - 1].properties,
+        width: 800,
+        height: Math.min(275, Math.max(180, 972 - trendY))
+      }
+    };
+    elements.push({
+      id: allocateId(), key: 'intelligence-profile-coverage-v1',
+      type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1,
+      properties: {
+        x: 900, y: 166, width: 956, height: 806,
+        [VISUAL_PROPERTY_KEYS.intelligenceScopeId]: profileAssignment.scopeId!,
+        [VISUAL_PROPERTY_KEYS.intelligenceProfileId]: profileAssignment.profile.id!
+      }
+    });
+  }
   elements.push({
     id: allocateId(), key: 'intelligence-dashboard-scope-note', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
     properties: {
@@ -274,7 +310,7 @@ export function generateIntelligenceDashboardDraft(
     context: { ...(draft.context ?? {}) },
     metadata: {
       ...(draft.metadata ?? {}),
-      intelligenceDashboardGenerator: 'stage5b.1',
+      intelligenceDashboardGenerator: hasProfileCoverage ? 'stage5b.8' : 'stage5b.1',
       intelligenceDashboardSourceKind: source.kind,
       intelligenceDashboardSourceKey: source.stableKey,
       intelligenceDashboardSummary: summary
@@ -748,7 +784,7 @@ function dashboardText(locale: EngineeringLocale): DashboardText {
       ? `Process stage · ${source.displayName} · read-only TAG overview`
       : `Equipment and profile · ${source.displayName} · read-only TAG overview`,
     signalLabel: item => `${item.assignment.equipmentName} · ${item.signal.key}${item.tag.engineeringUnit ? ` (${item.tag.engineeringUnit})` : ''}`,
-    summary: counts => `${counts.shown} value cards from ${counts.supported} numeric TAGs; ${counts.trended} TAG references configured in the historical trend, initially hidden until enabled in Runtime.${counts.missing ? ` ${counts.missing} missing references.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} non-numeric signals omitted.` : ''}${counts.duplicates ? ` ${counts.duplicates} duplicate TAG references omitted.` : ''}${counts.omitted ? ` ${counts.omitted} additional numeric signals omitted from value cards.` : ''} Starter screen only: it does not calculate KPIs, coverage, deviations, efficiency, diagnosis, or predictions.`,
+    summary: counts => `${counts.shown} value cards from ${counts.supported} numeric TAGs; ${counts.trended} TAG references configured in the historical trend, initially hidden until enabled in Runtime.${counts.missing ? ` ${counts.missing} missing references.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} non-numeric signals omitted.` : ''}${counts.duplicates ? ` ${counts.duplicates} duplicate TAG references omitted.` : ''}${counts.omitted ? ` ${counts.omitted} additional numeric signals omitted from value cards.` : ''}${counts.profileCoverage === 'included' ? ' A separate profile-coverage report is available on this screen and runs only after an explicit Runtime request.' : counts.profileCoverage === 'unavailable' ? ' Profile coverage was omitted because canonical Equipment/profile references are unavailable.' : ''} Starter screen only: it does not calculate KPIs, aggregate coverage, deviations, efficiency, diagnosis, or predictions.`,
     noNumericSignals: 'This source has no resolvable numeric TAGs to place on a read-only dashboard.'
   };
   if (locale === 'es') return {
@@ -757,7 +793,7 @@ function dashboardText(locale: EngineeringLocale): DashboardText {
       ? `Etapa del proceso · ${source.displayName} · resumen de TAG de solo lectura`
       : `Equipo y perfil · ${source.displayName} · resumen de TAG de solo lectura`,
     signalLabel: item => `${item.assignment.equipmentName} · ${item.signal.key}${item.tag.engineeringUnit ? ` (${item.tag.engineeringUnit})` : ''}`,
-    summary: counts => `${counts.shown} tarjetas de valor de ${counts.supported} TAG numéricos; ${counts.trended} referencias TAG configuradas en la tendencia histórica, ocultas hasta activarlas en Runtime.${counts.missing ? ` ${counts.missing} referencias ausentes.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} señales no numéricas omitidas.` : ''}${counts.duplicates ? ` ${counts.duplicates} referencias TAG duplicadas omitidas.` : ''}${counts.omitted ? ` ${counts.omitted} señales numéricas adicionales omitidas de las tarjetas.` : ''} Pantalla inicial: no calcula KPI, cobertura, desviaciones, eficiencia, diagnóstico ni predicciones.`,
+    summary: counts => `${counts.shown} tarjetas de valor de ${counts.supported} TAG numéricos; ${counts.trended} referencias TAG configuradas en la tendencia histórica, ocultas hasta activarlas en Runtime.${counts.missing ? ` ${counts.missing} referencias ausentes.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} señales no numéricas omitidas.` : ''}${counts.duplicates ? ` ${counts.duplicates} referencias TAG duplicadas omitidas.` : ''}${counts.omitted ? ` ${counts.omitted} señales numéricas adicionales omitidas de las tarjetas.` : ''}${counts.profileCoverage === 'included' ? ' Esta pantalla incluye un informe separado de cobertura del perfil que solo consulta Historian tras una solicitud explícita en Runtime.' : counts.profileCoverage === 'unavailable' ? ' Se omitió cobertura del perfil porque faltan referencias canónicas de Equipo/perfil.' : ''} Pantalla inicial: no deriva KPI de proceso, desviaciones, eficiencia, diagnóstico ni predicciones.`,
     noNumericSignals: 'Esta fuente no tiene TAG numéricos resolubles para una pantalla de solo lectura.'
   };
   return {
@@ -766,7 +802,7 @@ function dashboardText(locale: EngineeringLocale): DashboardText {
       ? `Etapa do processo · ${source.displayName} · visão somente leitura dos TAGs`
       : `Equipamento e perfil · ${source.displayName} · visão somente leitura dos TAGs`,
     signalLabel: item => `${item.assignment.equipmentName} · ${item.signal.key}${item.tag.engineeringUnit ? ` (${item.tag.engineeringUnit})` : ''}`,
-    summary: counts => `${counts.shown} cartões de valor para ${counts.supported} TAGs numéricos; ${counts.trended} referências TAG configuradas na tendência histórica, ocultas até ativação no Runtime.${counts.missing ? ` ${counts.missing} referências ausentes.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} sinais não numéricos omitidos.` : ''}${counts.duplicates ? ` ${counts.duplicates} referências TAG duplicadas omitidas.` : ''}${counts.omitted ? ` ${counts.omitted} sinais numéricos adicionais omitidos dos cartões.` : ''} Tela inicial: não calcula KPIs, cobertura, desvios, eficiência, diagnóstico nem predições.`,
+    summary: counts => `${counts.shown} cartões de valor para ${counts.supported} TAGs numéricos; ${counts.trended} referências TAG configuradas na tendência histórica, ocultas até ativação no Runtime.${counts.missing ? ` ${counts.missing} referências ausentes.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} sinais não numéricos omitidos.` : ''}${counts.duplicates ? ` ${counts.duplicates} referências TAG duplicadas omitidas.` : ''}${counts.omitted ? ` ${counts.omitted} sinais numéricos adicionais omitidos dos cartões.` : ''}${counts.profileCoverage === 'included' ? ' Esta tela inclui um relatório separado de cobertura do perfil, consultado somente após ação explícita no Runtime.' : counts.profileCoverage === 'unavailable' ? ' A cobertura do perfil foi omitida porque faltam referências canônicas de Equipamento/perfil.' : ''} Tela inicial: não calcula KPIs de processo, desvios, eficiência, diagnóstico nem predições.`,
     noNumericSignals: 'Esta origem não tem TAGs numéricos resolvíveis para uma tela somente leitura.'
   };
 }

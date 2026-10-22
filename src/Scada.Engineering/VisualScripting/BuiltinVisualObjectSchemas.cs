@@ -35,6 +35,7 @@ public static class BuiltinVisualObjectSchemas
     public const string MeasurementBandsType = "core.measurementBands";
     public const string MeasurementTargetType = "core.measurementTarget";
     public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
+    public const string IntelligenceProfileCoverageV1Type = "core.intelligenceProfileCoverageV1";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
     public const string SvgPaintOverridesProperty = "svgPaintOverrides";
@@ -440,6 +441,13 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.IntelligenceSignalIds
         ]));
 
+    public static VisualObjectPropertySchema IntelligenceProfileCoverageV1 { get; } = Create(
+        IntelligenceProfileCoverageV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceProfileId
+        ]));
+
     public static IReadOnlyCollection<VisualObjectPropertySchema> All { get; } =
     [
         Group,
@@ -469,7 +477,8 @@ public static class BuiltinVisualObjectSchemas
         MeasurementThermometer,
         MeasurementBands,
         MeasurementTarget,
-        IntelligencePerformanceV1B
+        IntelligencePerformanceV1B,
+        IntelligenceProfileCoverageV1
     ];
 
     /// <summary>

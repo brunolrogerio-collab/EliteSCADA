@@ -98,6 +98,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateMeasurementDisplay(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligencePerformanceV1BType, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligencePerformanceV1B(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProfileCoverageV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
             element.Type.Equals(BuiltinVisualObjectSchemas.EventBrowserType, StringComparison.Ordinal))
             issues.AddRange(ValidateBrowserConfiguration(element, entityKind, entityKey));
@@ -211,6 +213,26 @@ public static class BuiltinVisualEngineeringValidation
             yield return Error(
                 "VISUAL_INTELLIGENCE_PERFORMANCE_CONFIG_INVALID",
                 $"Performance indicator '{element.Key}' requires two or three distinct canonical signal UUIDs.",
+                entityKind,
+                entityKey);
+        }
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligenceProfileCoverageV1(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        var identifiers = new[]
+        {
+            ReadString(element, VisualPropertyKeys.IntelligenceScopeId),
+            ReadString(element, VisualPropertyKeys.IntelligenceProfileId)
+        };
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(value => !Guid.TryParseExact(value, "D", out _)))
+        {
+            yield return Error(
+                "VISUAL_INTELLIGENCE_COVERAGE_CONFIG_INVALID",
+                $"Profile coverage visual '{element.Key}' requires canonical scope/profile UUIDs on a Screen.",
                 entityKind,
                 entityKey);
         }

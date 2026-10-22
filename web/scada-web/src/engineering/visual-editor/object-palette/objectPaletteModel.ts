@@ -86,7 +86,8 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands]: { labelKey: 'measurementBands', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget]: { labelKey: 'measurementTarget', category: 'content' },
   // Runtime-created Intelligence references are intentionally not in PALETTE_ORDER.
-  [BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B]: { labelKey: 'intelligencePerformanceV1B', category: 'content' }
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B]: { labelKey: 'intelligencePerformanceV1B', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1]: { labelKey: 'intelligenceProfileCoverageV1', category: 'content' }
 });
 
 export function listVisualObjectPaletteItems(): readonly VisualObjectPaletteItem[] {

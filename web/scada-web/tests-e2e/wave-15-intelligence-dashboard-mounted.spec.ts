@@ -9,6 +9,7 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await page.addInitScript(() => window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
   const writes: string[] = [];
   const dataReads: string[] = [];
+  const coverageQueries: string[] = [];
   let intelligenceLicensed = false;
   const profile = {
     id: profileId,
@@ -31,6 +32,7 @@ test('Intelligence opens a generated screen in the canonical editor without pers
     const path = url.pathname;
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method())) writes.push(`${request.method()} ${path}`);
     if (path === '/api/tags' || path === '/api/historical/data-query') dataReads.push(`${request.method()} ${path}`);
+    if (path === '/api/engineering/asset-process-intelligence/analytics/profile-coverage') coverageQueries.push(`${request.method()} ${path}`);
 
     if (path === '/api/auth/effective-capabilities') return route.fulfill({ json: {
       authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
@@ -103,6 +105,20 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(editor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(editor.getByTestId('visual-editor-preview')).toBeEnabled();
   await expect(editor.getByTestId('visual-editor-apply')).toBeDisabled();
+  expect(coverageQueries).toEqual([]);
+
+  await page.goto('/engineering');
+  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  const coveragePanel = page.getByTestId(`intelligence-profile-coverage-${profileId}`);
+  await coveragePanel.getByRole('button', { name: /Revisar cobertura histórica|Review historical coverage|Revisar cobertura histórica/ }).click();
+  await coveragePanel.getByTestId(`intelligence-coverage-create-screen-${profileId}`).click();
+  await expect(page).toHaveURL(/\/engineering\/screens$/);
+  const coverageEditor = page.getByTestId('visual-editor-workspace');
+  await expect(coverageEditor).toBeVisible();
+  await expect(coverageEditor.getByLabel('Nome de exibição')).toHaveValue(/Cobertura histórica · Pump P-101 · Pump process profile/);
+  await expect(coverageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
+  await expect(coverageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
+  expect(coverageQueries).toEqual([]);
   expect(writes).toEqual([]);
   expect(dataReads).toEqual([]);
 });

@@ -36,7 +36,8 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.measurementThermometer",
             "core.measurementBands",
             "core.measurementTarget",
-            "core.intelligencePerformanceV1B"
+            "core.intelligencePerformanceV1B",
+            "core.intelligenceProfileCoverageV1"
         ], BuiltinVisualObjectSchemas.All.Select(schema => schema.ObjectTypeKey).ToArray());
     }
 
@@ -114,6 +115,17 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(intelligence.Declares(VisualPropertyKeys.IntelligenceRuleVersion));
         Assert.True(intelligence.Declares(VisualPropertyKeys.IntelligenceSignalIds));
         Assert.All(intelligence.Properties.Values.Where(property => property.Key.StartsWith("intelligence", StringComparison.Ordinal)), property =>
+        {
+            Assert.False(property.EngineeringEditable);
+            Assert.False(property.RuntimeWritable);
+            Assert.False(property.SupportsBinding);
+        });
+
+        var coverage = BuiltinVisualObjectSchemas.IntelligenceProfileCoverageV1;
+        Assert.True(coverage.Declares(VisualPropertyKeys.IntelligenceScopeId));
+        Assert.True(coverage.Declares(VisualPropertyKeys.IntelligenceProfileId));
+        Assert.False(coverage.Declares(VisualPropertyKeys.IntelligenceAssignmentId));
+        Assert.All(coverage.Properties.Values.Where(property => property.Key.StartsWith("intelligence", StringComparison.Ordinal)), property =>
         {
             Assert.False(property.EngineeringEditable);
             Assert.False(property.RuntimeWritable);

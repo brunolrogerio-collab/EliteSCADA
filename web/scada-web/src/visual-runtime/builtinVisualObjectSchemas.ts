@@ -32,7 +32,8 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   measurementThermometer: 'core.measurementThermometer',
   measurementBands: 'core.measurementBands',
   measurementTarget: 'core.measurementTarget',
-  intelligencePerformanceV1B: 'core.intelligencePerformanceV1B'
+  intelligencePerformanceV1B: 'core.intelligencePerformanceV1B',
+  intelligenceProfileCoverageV1: 'core.intelligenceProfileCoverageV1'
 } as const;
 
 export type BuiltinVisualObjectType = typeof BUILTIN_VISUAL_OBJECT_TYPES[keyof typeof BUILTIN_VISUAL_OBJECT_TYPES];
@@ -320,6 +321,11 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.intelligenceRuleId,
     VISUAL_PROPERTY_KEYS.intelligenceRuleVersion,
     VISUAL_PROPERTY_KEYS.intelligenceSignalIds
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId
   ])]
 ]);
 

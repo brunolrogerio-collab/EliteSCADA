@@ -35,7 +35,8 @@ const expectedTypes = [
   'core.measurementThermometer',
   'core.measurementBands',
   'core.measurementTarget',
-  'core.intelligencePerformanceV1B'
+  'core.intelligencePerformanceV1B',
+  'core.intelligenceProfileCoverageV1'
 ];
 
 test('built-in visual object types are stable and unique', () => {
@@ -119,6 +120,19 @@ test('built-in schemas expose only relevant shared visual properties', () => {
     expect(property.runtimeWritable).toBe(false);
     expect(property.supportsBinding).toBe(false);
   }
+
+  const coverage = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1);
+  for (const key of [VISUAL_PROPERTY_KEYS.intelligenceScopeId, VISUAL_PROPERTY_KEYS.intelligenceProfileId]) {
+    const property = coverage.getRequired(key);
+    expect(property.type).toBe('string');
+    expect(property.engineeringEditable).toBe(false);
+    expect(property.runtimeReadable).toBe(true);
+    expect(property.runtimeWritable).toBe(false);
+    expect(property.supportsBinding).toBe(false);
+  }
+  expect(coverage.declares(VISUAL_PROPERTY_KEYS.intelligenceAssignmentId)).toBe(false);
+  expect(coverage.propertyKeys).not.toContain('result');
+  expect(coverage.propertyKeys).not.toContain('window');
 
   const slider = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.slider);
   expect(slider.declares(VISUAL_PROPERTY_KEYS.value)).toBeTruthy();

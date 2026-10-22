@@ -43,6 +43,12 @@ export type IntelligencePerformanceDashboardSelection = Readonly<{
   displayName: string;
 }>;
 
+export type IntelligenceProfileCoverageDashboardSelection = Readonly<{
+  scopeId: string;
+  profileId: string;
+  displayName: string;
+}>;
+
 type ResolvedSignal = Readonly<{
   assignment: IntelligenceDashboardAssignmentSource;
   signal: AssetProcessIntelligenceSignalEngineering;
@@ -343,6 +349,94 @@ export function generateIntelligencePerformanceScreenDraft(
       intelligenceDashboardGenerator: 'stage5b.4',
       intelligencePerformanceRuleId: selection.ruleId,
       intelligencePerformanceRuleVersion: selection.ruleVersion
+    }
+  };
+}
+
+/**
+ * Creates a canonical Screen draft containing one Runtime-only, on-demand
+ * profile-coverage visual. Engineering state stores stable scope/profile refs;
+ * the requested window and returned coverage report are transient Runtime state.
+ */
+export function generateIntelligenceProfileCoverageScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligenceProfileCoverageDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  if (!isCanonicalUuid(selection.scopeId) || !isCanonicalUuid(selection.profileId)) {
+    throw new Error('A coverage screen requires canonical Equipment scope and profile UUIDs.');
+  }
+
+  const displayName = selection.displayName.trim() || selection.scopeId;
+  const key = uniqueScreenKey(existingScreens, `intelligence-coverage-${slug(displayName)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = locale === 'en' ? `Historical coverage · ${displayName}`
+    : locale === 'es' ? `Cobertura histórica · ${displayName}`
+      : `Cobertura histórica · ${displayName}`;
+  const subtitle = locale === 'en'
+    ? 'Runtime-only report · explicit request · read-only · transient result'
+    : locale === 'es'
+      ? 'Informe solo en Runtime · solicitud explícita · read-only · resultado transitorio'
+      : 'Relatório somente no Runtime · solicitação explícita · somente leitura · resultado temporário';
+
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements: [
+      {
+        id: allocateId(), key: 'intelligence-coverage-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 36, width: 1792, height: 52,
+          [VISUAL_PROPERTY_KEYS.text]: title,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+          [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-coverage-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 98, width: 1792, height: 34,
+          [VISUAL_PROPERTY_KEYS.text]: subtitle,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-profile-coverage-v1',
+        type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1,
+        properties: {
+          x: 64, y: 152, width: 1792, height: 790,
+          [VISUAL_PROPERTY_KEYS.intelligenceScopeId]: selection.scopeId,
+          [VISUAL_PROPERTY_KEYS.intelligenceProfileId]: selection.profileId
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-coverage-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 960, width: 1792, height: 74,
+          [VISUAL_PROPERTY_KEYS.text]: locale === 'en'
+            ? 'Exact Historian timestamps do not prove source acquisition synchronization. Unknown cadence/completeness remains unknown; no process KPI is inferred.'
+            : locale === 'es'
+              ? 'Las marcas de tiempo exactas de Historian no prueban sincronización de adquisición. La cadencia/completitud desconocida sigue desconocida; no se infiere un KPI de proceso.'
+              : 'Timestamps exatos do Historian não comprovam sincronização da aquisição. Cadência/completude desconhecida permanece desconhecida; nenhum KPI de processo é inferido.',
+          [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      }
+    ],
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.5',
+      intelligenceProfileCoverageProfileId: selection.profileId
     }
   };
 }

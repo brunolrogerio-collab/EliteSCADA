@@ -128,7 +128,11 @@ export const VISUAL_PROPERTY_KEYS = {
   intelligenceFirstContextUpperExclusiveCanonical: 'intelligenceFirstContextUpperExclusiveCanonical',
   intelligenceSecondContextSignalId: 'intelligenceSecondContextSignalId',
   intelligenceSecondContextLowerInclusiveCanonical: 'intelligenceSecondContextLowerInclusiveCanonical',
-  intelligenceSecondContextUpperExclusiveCanonical: 'intelligenceSecondContextUpperExclusiveCanonical'
+  intelligenceSecondContextUpperExclusiveCanonical: 'intelligenceSecondContextUpperExclusiveCanonical',
+  intelligenceStageId: 'intelligenceStageId',
+  intelligenceStageKey: 'intelligenceStageKey',
+  intelligenceStageName: 'intelligenceStageName',
+  intelligenceStageMembers: 'intelligenceStageMembers'
 } as const;
 
 export type CommonVisualPropertyKey = typeof VISUAL_PROPERTY_KEYS[keyof typeof VISUAL_PROPERTY_KEYS];
@@ -499,7 +503,11 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
     VISUAL_PROPERTY_KEYS.intelligenceRuleVersion,
     VISUAL_PROPERTY_KEYS.intelligenceSignalIds,
     VISUAL_PROPERTY_KEYS.intelligenceFirstContextSignalId,
-    VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId,
+    VISUAL_PROPERTY_KEYS.intelligenceStageId,
+    VISUAL_PROPERTY_KEYS.intelligenceStageKey,
+    VISUAL_PROPERTY_KEYS.intelligenceStageName,
+    VISUAL_PROPERTY_KEYS.intelligenceStageMembers
   ].map(key => ({
     key,
     type: 'string' as const,

@@ -59,6 +59,13 @@ export type ProfileCoverageResponse = {
     dataset: string;
     datasetContractVersion: number;
     ruleVersion: string;
+    assignments?: Array<{
+      assignmentId: string;
+      equipmentId: string;
+      profileId: string;
+      signalId: string;
+      signalKey: string;
+    }>;
     signalRoleInterpretation: string;
     unitConversion: string;
     processKpiDisposition: string;
@@ -385,7 +392,8 @@ export function isMatchingResponse(
   profileId: string,
   projectKey: string,
   activeRevision: number,
-  window: WindowValue
+  window: WindowValue,
+  requiredAssignmentId?: string
 ): value is ProfileCoverageResponse {
   if (!value || typeof value !== 'object') return false;
   const response = value as Partial<ProfileCoverageResponse>;
@@ -395,7 +403,10 @@ export function isMatchingResponse(
     response.profileId?.toLowerCase() === profileId.toLowerCase() &&
     Date.parse(response.window?.fromUtc ?? '') === Date.parse(window.fromUtc) &&
     Date.parse(response.window?.toUtc ?? '') === Date.parse(window.toUtc) &&
-    Array.isArray(response.signals) && Boolean(response.temporalAlignment && response.provenance);
+    Array.isArray(response.signals) && Boolean(response.temporalAlignment && response.provenance) &&
+    (!requiredAssignmentId || Boolean(response.provenance?.assignments?.some(assignment =>
+      typeof assignment.assignmentId === 'string' &&
+      assignment.assignmentId.toLowerCase() === requiredAssignmentId.toLowerCase())));
 }
 
 function formatUtc(value: string, locale: string) {

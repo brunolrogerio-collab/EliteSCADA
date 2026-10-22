@@ -15,6 +15,7 @@ import {
 import { createScreenDraft } from './visual-editor/visualEditorCanonicalModel';
 
 export const INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS = 15;
+export const INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS = 32;
 const NUMERIC_DATA_TYPES = new Set([
   'byte', 'sbyte', 'int8', 'uint8', 'short', 'int16', 'uint16', 'int', 'integer', 'int32', 'uint32',
   'long', 'int64', 'uint64', 'single', 'float', 'float32', 'double', 'float64', 'decimal', 'number'
@@ -61,6 +62,19 @@ export type IntelligenceContextualDeviationDashboardSelection = Readonly<{
   secondContextLowerInclusiveCanonical: number;
   secondContextUpperExclusiveCanonical: number;
   displayName: string;
+}>;
+
+export type IntelligenceProcessStageCoverageDashboardSelection = Readonly<{
+  stageId: string;
+  stageKey: string;
+  stageName: string;
+  members: readonly Readonly<{
+    assignmentId: string;
+    scopeId: string;
+    profileId: string;
+    displayLabel: string;
+    order: number;
+  }>[];
 }>;
 
 type ResolvedSignal = Readonly<{
@@ -451,6 +465,108 @@ export function generateIntelligenceProfileCoverageScreenDraft(
       ...(draft.metadata ?? {}),
       intelligenceDashboardGenerator: 'stage5b.5',
       intelligenceProfileCoverageProfileId: selection.profileId
+    }
+  };
+}
+
+/**
+ * Creates a canonical Screen draft that lets Runtime inspect one configured
+ * process-stage member's profile coverage at a time. Only stable references and
+ * display labels are saved; the existing per-profile report remains authoritative.
+ */
+export function generateIntelligenceProcessStageCoverageScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligenceProcessStageCoverageDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const identifiers = [selection.stageId, ...selection.members.flatMap(member => [
+    member.assignmentId, member.scopeId, member.profileId
+  ])];
+  if (identifiers.some(value => !isCanonicalUuid(value)) ||
+      !selection.stageKey.trim() || selection.stageKey !== selection.stageKey.trim() || selection.stageKey.length > 64 ||
+      !selection.stageName.trim() || selection.stageName !== selection.stageName.trim() || selection.stageName.length > 128 ||
+      selection.members.length < 1 || selection.members.length > INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS ||
+      selection.members.some(member => !member.displayLabel.trim() || member.displayLabel !== member.displayLabel.trim() ||
+        member.displayLabel.length > 320 || !Number.isInteger(member.order) || member.order < 0) ||
+      new Set(selection.members.map(member => member.assignmentId.toLowerCase())).size !== selection.members.length ||
+      new Set(selection.members.map(member => `${member.scopeId.toLowerCase()}:${member.profileId.toLowerCase()}`)).size !== selection.members.length ||
+      new Set(selection.members.map(member => member.order)).size !== selection.members.length) {
+    throw new Error('A process-stage coverage screen requires a canonical stage and one to 32 unique, ordered assignment/scope/profile references.');
+  }
+
+  const members = [...selection.members].sort((left, right) => left.order - right.order || left.assignmentId.localeCompare(right.assignmentId));
+  const displayName = selection.stageName;
+  const key = uniqueScreenKey(existingScreens, `intelligence-stage-coverage-${slug(selection.stageKey)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = locale === 'en' ? `Process-stage coverage · ${displayName}`
+    : locale === 'es' ? `Cobertura de etapa · ${displayName}`
+      : `Cobertura da etapa · ${displayName}`;
+  const subtitle = locale === 'en'
+    ? 'Select one configured Equipment assignment and explicitly request its independent, read-only coverage report.'
+    : locale === 'es'
+      ? 'Seleccione una asignación de equipo configurada y solicite explícitamente su informe de cobertura independiente y de solo lectura.'
+      : 'Selecione um Equipamento associado e solicite explicitamente seu relatório de cobertura independente e somente leitura.';
+
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements: [
+      {
+        id: allocateId(), key: 'intelligence-process-stage-coverage-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 36, width: 1792, height: 52,
+          [VISUAL_PROPERTY_KEYS.text]: title,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+          [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-coverage-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 98, width: 1792, height: 36,
+          [VISUAL_PROPERTY_KEYS.text]: subtitle,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-coverage-v1',
+        type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1,
+        properties: {
+          x: 64, y: 150, width: 1792, height: 790,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageId]: selection.stageId,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageKey]: selection.stageKey,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageName]: selection.stageName,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageMembers]: JSON.stringify(members)
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-coverage-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 954, width: 1792, height: 86,
+          [VISUAL_PROPERTY_KEYS.text]: locale === 'en'
+            ? 'Results stay separate per Equipment profile. This screen does not combine samples, compare assets, or compute a process KPI, efficiency score or diagnosis.'
+            : locale === 'es'
+              ? 'Los resultados se mantienen separados por perfil de equipo. Esta pantalla no combina muestras, compara activos ni calcula un KPI de proceso, una eficiencia o un diagnóstico.'
+              : 'Os resultados permanecem separados por perfil de Equipamento. Esta tela não combina amostras, compara ativos nem calcula KPI de processo, eficiência ou diagnóstico.',
+          [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      }
+    ],
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.7',
+      intelligenceProcessStageCoverageStageId: selection.stageId
     }
   };
 }

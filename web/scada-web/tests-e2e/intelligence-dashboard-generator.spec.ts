@@ -8,8 +8,10 @@ import {
   generateIntelligenceDashboardDraft,
   generateIntelligenceContextualDeviationScreenDraft,
   generateIntelligenceProfileCoverageScreenDraft,
+  generateIntelligenceProcessStageCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
   INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS,
+  INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS,
   isNumericTagDataType,
   type IntelligenceProfileCoverageDashboardSelection
 } from '../src/engineering/intelligenceDashboardGenerator';
@@ -199,6 +201,82 @@ test('profile coverage screen draft rejects non-canonical stable references', ()
     profileId: '30000000-0000-0000-0000-000000000003',
     displayName: 'Pump P-101'
   }, 'en', ids())).toThrow(/canonical Equipment scope and profile UUIDs/);
+});
+
+test('process-stage coverage screen stores ordered independent stable member references only', () => {
+  const selection = {
+    stageId: '10000000-0000-0000-0000-000000000001',
+    stageKey: 'pump-train',
+    stageName: 'Pumping train',
+    members: [
+      {
+        assignmentId: '30000000-0000-0000-0000-000000000003',
+        scopeId: '40000000-0000-0000-0000-000000000004',
+        profileId: '50000000-0000-0000-0000-000000000005',
+        displayLabel: 'Pump P-102 · Pump profile', order: 1
+      },
+      {
+        assignmentId: '20000000-0000-0000-0000-000000000002',
+        scopeId: '60000000-0000-0000-0000-000000000006',
+        profileId: '70000000-0000-0000-0000-000000000007',
+        displayLabel: 'Pump P-101 · Pump profile', order: 0
+      }
+    ]
+  } as const;
+  const first = generateIntelligenceProcessStageCoverageScreenDraft([], selection, 'pt-BR', ids());
+  const second = generateIntelligenceProcessStageCoverageScreenDraft([first], selection, 'pt-BR', ids());
+  const visual = first.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1);
+  const members = JSON.parse(String(visual?.properties?.intelligenceStageMembers)) as Array<{ assignmentId: string; order: number }>;
+
+  expect(first.key).toBe('intelligence-stage-coverage-pump-train');
+  expect(second.key).toBe(`${first.key}-2`);
+  expect(second.route).toBe(`${first.route}-2`);
+  expect(first.metadata).toMatchObject({
+    intelligenceDashboardGenerator: 'stage5b.7',
+    intelligenceProcessStageCoverageStageId: selection.stageId
+  });
+  expect(visual?.properties).toMatchObject({
+    intelligenceStageId: selection.stageId,
+    intelligenceStageKey: selection.stageKey,
+    intelligenceStageName: selection.stageName
+  });
+  expect(members.map(member => member.assignmentId)).toEqual([
+    '20000000-0000-0000-0000-000000000002',
+    '30000000-0000-0000-0000-000000000003'
+  ]);
+  expect(visual?.properties).not.toHaveProperty('window');
+  expect(visual?.properties).not.toHaveProperty('result');
+});
+
+test('process-stage coverage screen rejects missing, duplicate, unbounded and unordered member references', () => {
+  const base = {
+    stageId: '10000000-0000-0000-0000-000000000001',
+    stageKey: 'pump-train',
+    stageName: 'Pumping train',
+    members: [{
+      assignmentId: '20000000-0000-0000-0000-000000000002',
+      scopeId: '30000000-0000-0000-0000-000000000003',
+      profileId: '40000000-0000-0000-0000-000000000004',
+      displayLabel: 'Pump P-101 · Pump profile', order: 0
+    }]
+  } as const;
+  expect(() => generateIntelligenceProcessStageCoverageScreenDraft([], { ...base, members: [] }, 'en', ids())).toThrow(/one to 32/);
+  expect(() => generateIntelligenceProcessStageCoverageScreenDraft([], {
+    ...base, members: [{ ...base.members[0], assignmentId: 'invalid' }]
+  }, 'en', ids())).toThrow(/one to 32/);
+  expect(() => generateIntelligenceProcessStageCoverageScreenDraft([], {
+    ...base, members: Array.from({ length: INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS + 1 }, (_, index) => ({
+      ...base.members[0], assignmentId: `20000000-0000-0000-0000-${String(index + 2).padStart(12, '0')}`,
+      scopeId: `30000000-0000-0000-0000-${String(index + 2).padStart(12, '0')}`,
+      profileId: `40000000-0000-0000-0000-${String(index + 2).padStart(12, '0')}`, order: index
+    }))
+  }, 'en', ids())).toThrow(/one to 32/);
+  expect(() => generateIntelligenceProcessStageCoverageScreenDraft([], {
+    ...base, members: [{ ...base.members[0], order: -1 }]
+  }, 'en', ids())).toThrow(/one to 32/);
+  expect(() => generateIntelligenceProcessStageCoverageScreenDraft([], {
+    ...base, members: [base.members[0], { ...base.members[0], order: 1 }]
+  }, 'en', ids())).toThrow(/one to 32/);
 });
 
 test('contextual deviation V2 Screen draft stores stable identities and declared canonical ranges only', () => {

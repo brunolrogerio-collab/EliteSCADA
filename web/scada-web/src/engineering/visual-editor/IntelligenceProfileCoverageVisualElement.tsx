@@ -26,6 +26,7 @@ type Props = Readonly<{
   runtimeObjectId?: string;
   locale: EngineeringLocale;
   title?: string;
+  requiredAssignmentId?: string;
 }>;
 
 export function IntelligenceProfileCoverageVisualElement({
@@ -34,7 +35,8 @@ export function IntelligenceProfileCoverageVisualElement({
   style,
   runtimeObjectId,
   locale,
-  title
+  title,
+  requiredAssignmentId
 }: Props) {
   const runtime = useIntelligenceAnalyticsRuntimeContext();
   const { profile: authProfile } = useAuth();
@@ -104,7 +106,8 @@ export function IntelligenceProfileCoverageVisualElement({
         profileId,
         runtime.projectKey,
         runtime.activeRevision,
-        windowResult.window
+        windowResult.window,
+        requiredAssignmentId
       )) throw new CoverageVisualError('INVALID_RESPONSE');
       if (requestVersion.current === version && !requestController.signal.aborted) setResult(payload);
     } catch (reason) {

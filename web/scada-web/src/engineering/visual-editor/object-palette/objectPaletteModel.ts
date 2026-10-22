@@ -88,6 +88,7 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   // Runtime-created Intelligence references are intentionally not in PALETTE_ORDER.
   [BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B]: { labelKey: 'intelligencePerformanceV1B', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1]: { labelKey: 'intelligenceProfileCoverageV1', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1]: { labelKey: 'intelligenceProcessStageCoverageV1', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2]: { labelKey: 'intelligenceContextualDeviationV2', category: 'content' }
 });
 

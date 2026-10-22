@@ -36,6 +36,7 @@ public static class BuiltinVisualObjectSchemas
     public const string MeasurementTargetType = "core.measurementTarget";
     public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
     public const string IntelligenceProfileCoverageV1Type = "core.intelligenceProfileCoverageV1";
+    public const string IntelligenceProcessStageCoverageV1Type = "core.intelligenceProcessStageCoverageV1";
     public const string IntelligenceContextualDeviationV2Type = "core.intelligenceContextualDeviationV2";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
@@ -111,6 +112,14 @@ public static class BuiltinVisualObjectSchemas
         new(VisualPropertyKeys.IntelligenceSecondContextUpperExclusiveCanonical, new VisualNumberValue(0), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
     ];
 
+    private static readonly IReadOnlyList<VisualPropertyDefinition> IntelligenceProcessStageCoverageDefinitions =
+    [
+        new(VisualPropertyKeys.IntelligenceStageId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceStageKey, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceStageName, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceStageMembers, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
+    ];
+
     private static readonly IReadOnlyDictionary<string, VisualPropertyDefinition> CommonByKey =
         CommonVisualPropertyDefinitions.Geometry
             .Concat(CommonVisualPropertyDefinitions.Transform)
@@ -130,6 +139,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Polygon)
             .Concat(TrendDefinitions)
             .Concat(IntelligencePerformanceDefinitions)
+            .Concat(IntelligenceProcessStageCoverageDefinitions)
             .ToDictionary(property => property.Key, StringComparer.Ordinal);
 
     private static readonly HashSet<string> AnalogFillCapableTypes =
@@ -455,6 +465,15 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.IntelligenceProfileId
         ]));
 
+    public static VisualObjectPropertySchema IntelligenceProcessStageCoverageV1 { get; } = Create(
+        IntelligenceProcessStageCoverageV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceStageId,
+            VisualPropertyKeys.IntelligenceStageKey,
+            VisualPropertyKeys.IntelligenceStageName,
+            VisualPropertyKeys.IntelligenceStageMembers
+        ]));
+
     public static VisualObjectPropertySchema IntelligenceContextualDeviationV2 { get; } = Create(
         IntelligenceContextualDeviationV2Type,
         Base.Concat([
@@ -501,6 +520,7 @@ public static class BuiltinVisualObjectSchemas
         MeasurementTarget,
         IntelligencePerformanceV1B,
         IntelligenceProfileCoverageV1,
+        IntelligenceProcessStageCoverageV1,
         IntelligenceContextualDeviationV2
     ];
 

@@ -20,6 +20,7 @@ import {
   generateIntelligencePerformanceScreenDraft,
   generateIntelligenceContextualDeviationScreenDraft,
   generateIntelligenceProcessStageCoverageScreenDraft,
+  generateIntelligenceProcessStageGuidedDashboardDrafts,
   generateIntelligenceGuidedDashboardDrafts,
   type IntelligenceDashboardAssignmentSource,
   type IntelligenceDashboardSource,
@@ -124,6 +125,7 @@ export function AssetProcessIntelligenceWorkspace({
 
   const copy = useMemo(() => text(locale), [locale]);
   const stageCoverageCopy = useMemo(() => processStageCoverageText(locale), [locale]);
+  const guidedStageDashboardCopy = useMemo(() => guidedProcessStageDashboardText(locale), [locale]);
   const unitCopy = useMemo(() => contextUnitText(locale), [locale]);
   const load = useCallback(async (adoptConfiguration = false) => {
     setLoading(true);
@@ -303,10 +305,16 @@ export function AssetProcessIntelligenceWorkspace({
           : undefined;
         const profile = assignment ? profileById.get(assignment.profileId) : undefined;
         return assignment && equipmentResource && profile
-          ? [{ equipmentName: equipmentResource.name, equipmentPath: equipmentResource.path ?? equipmentResource.scopeId, profile }]
+          ? [{
+              equipmentName: equipmentResource.name,
+              equipmentPath: equipmentResource.path ?? equipmentResource.scopeId,
+              scopeId: assignment.equipmentId,
+              assignmentId: assignment.id,
+              profile
+            }]
           : [];
       });
-    if (assignmentSources.length === 0) return null;
+    if (assignmentSources.length === 0 || assignmentSources.length !== stage.links.length) return null;
     return {
       kind: 'process-stage',
       stableKey: stage.key,
@@ -406,6 +414,28 @@ export function AssetProcessIntelligenceWorkspace({
     }
     try {
       onCreateDashboardDraft(generateIntelligenceProcessStageCoverageScreenDraft(screens, selection, locale));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : stageCoverageCopy.unavailable);
+    }
+  };
+
+  const generateGuidedProcessStageDashboard = (stage: AssetProcessIntelligenceProcessStageEngineering) => {
+    setError(null);
+    setMessage(null);
+    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+      setError(copy.dashboardAuthorizationHint);
+      return;
+    }
+    const source = createDashboardSourceForStage(stage);
+    const selection = createProcessStageCoverageSelection(stage);
+    if (!source || !selection) {
+      setError(stageCoverageCopy.unavailable);
+      return;
+    }
+    try {
+      onCreateDashboardDraft(generateIntelligenceProcessStageGuidedDashboardDrafts(
+        screens, source, selection, tags, locale
+      ));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : stageCoverageCopy.unavailable);
     }
@@ -991,6 +1021,10 @@ export function AssetProcessIntelligenceWorkspace({
               <button type="button" className="secondary" data-testid={`intelligence-dashboard-stage-${selectedStage.id}`}
                 disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !createDashboardSourceForStage(selectedStage)}
                 onClick={() => generateDashboard(createDashboardSourceForStage(selectedStage))}>{copy.generateStageDashboard}</button>
+              <button type="button" className="secondary" data-testid={`intelligence-guided-stage-dashboard-${selectedStage.id}`}
+                disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft ||
+                  !createDashboardSourceForStage(selectedStage) || !createProcessStageCoverageSelection(selectedStage)}
+                onClick={() => generateGuidedProcessStageDashboard(selectedStage)}>{guidedStageDashboardCopy.generate}</button>
               <button type="button" className="secondary" data-testid={`intelligence-stage-coverage-${selectedStage.id}`}
                 disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !createProcessStageCoverageSelection(selectedStage)}
                 onClick={() => generateProcessStageCoverageScreen(selectedStage)}>{stageCoverageCopy.generate}</button>
@@ -1174,6 +1208,12 @@ function processStageCoverageText(locale: EngineeringLocale) {
     generate: 'Criar tela de cobertura da etapa',
     unavailable: 'Escolha uma etapa com uma a 32 associações de Equipamento e perfis completos e únicos.'
   };
+}
+
+function guidedProcessStageDashboardText(locale: EngineeringLocale) {
+  if (locale === 'en') return { generate: 'Create guided stage dashboard' };
+  if (locale === 'es') return { generate: 'Crear panel guiado de etapa' };
+  return { generate: 'Criar painel guiado da etapa' };
 }
 
 function contextUnitText(locale: EngineeringLocale) {

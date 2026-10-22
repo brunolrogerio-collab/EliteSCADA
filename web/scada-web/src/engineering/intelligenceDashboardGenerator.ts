@@ -82,6 +82,8 @@ export type IntelligenceProcessStageCoverageDashboardSelection = Readonly<{
   }>[];
 }>;
 
+export type IntelligenceProcessStageGuidedDashboardSelection = IntelligenceProcessStageCoverageDashboardSelection;
+
 type ResolvedSignal = Readonly<{
   assignment: IntelligenceDashboardAssignmentSource;
   signal: AssetProcessIntelligenceSignalEngineering;
@@ -675,22 +677,7 @@ export function generateIntelligenceProcessStageCoverageScreenDraft(
   locale: EngineeringLocale,
   createId: () => string = () => crypto.randomUUID()
 ): ScreenEngineering {
-  const identifiers = [selection.stageId, ...selection.members.flatMap(member => [
-    member.assignmentId, member.scopeId, member.profileId
-  ])];
-  if (identifiers.some(value => !isCanonicalUuid(value)) ||
-      !selection.stageKey.trim() || selection.stageKey !== selection.stageKey.trim() || selection.stageKey.length > 64 ||
-      !selection.stageName.trim() || selection.stageName !== selection.stageName.trim() || selection.stageName.length > 128 ||
-      selection.members.length < 1 || selection.members.length > INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS ||
-      selection.members.some(member => !member.displayLabel.trim() || member.displayLabel !== member.displayLabel.trim() ||
-        member.displayLabel.length > 320 || !Number.isInteger(member.order) || member.order < 0) ||
-      new Set(selection.members.map(member => member.assignmentId.toLowerCase())).size !== selection.members.length ||
-      new Set(selection.members.map(member => `${member.scopeId.toLowerCase()}:${member.profileId.toLowerCase()}`)).size !== selection.members.length ||
-      new Set(selection.members.map(member => member.order)).size !== selection.members.length) {
-    throw new Error('A process-stage coverage screen requires a canonical stage and one to 32 unique, ordered assignment/scope/profile references.');
-  }
-
-  const members = [...selection.members].sort((left, right) => left.order - right.order || left.assignmentId.localeCompare(right.assignmentId));
+  const members = validateProcessStageCoverageSelection(selection);
   const displayName = selection.stageName;
   const key = uniqueScreenKey(existingScreens, `intelligence-stage-coverage-${slug(selection.stageKey)}`);
   const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
@@ -764,6 +751,125 @@ export function generateIntelligenceProcessStageCoverageScreenDraft(
       intelligenceProcessStageCoverageStageId: selection.stageId
     }
   };
+}
+
+function validateProcessStageCoverageSelection(
+  selection: IntelligenceProcessStageCoverageDashboardSelection
+): IntelligenceProcessStageCoverageDashboardSelection['members'] {
+  const members = Array.isArray(selection?.members) ? selection.members : [];
+  const identifiers = [selection?.stageId, ...members.flatMap(member => [
+    member?.assignmentId, member?.scopeId, member?.profileId
+  ])];
+  if (identifiers.some(value => typeof value !== 'string' || !isCanonicalUuid(value)) ||
+      typeof selection?.stageKey !== 'string' || !selection.stageKey.trim() ||
+      selection.stageKey !== selection.stageKey.trim() || selection.stageKey.length > 64 ||
+      typeof selection?.stageName !== 'string' || !selection.stageName.trim() ||
+      selection.stageName !== selection.stageName.trim() || selection.stageName.length > 128 ||
+      members.length < 1 || members.length > INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS ||
+      members.some(member => !member || typeof member.displayLabel !== 'string' || !member.displayLabel.trim() ||
+        member.displayLabel !== member.displayLabel.trim() || member.displayLabel.length > 320 ||
+        !Number.isInteger(member.order) || member.order < 0) ||
+      new Set(members.map(member => member.assignmentId.toLowerCase())).size !== members.length ||
+      new Set(members.map(member => `${member.scopeId.toLowerCase()}:${member.profileId.toLowerCase()}`)).size !== members.length ||
+      new Set(members.map(member => member.order)).size !== members.length) {
+    throw new Error('A process-stage coverage screen requires a canonical stage and one to 32 unique, ordered assignment/scope/profile references.');
+  }
+
+  return [...members].sort((left, right) => left.order - right.order || left.assignmentId.localeCompare(right.assignmentId));
+}
+
+/**
+ * Generates a linked pair for one process stage: a TAG values/trend overview
+ * and the existing per-member coverage selector. The overview juxtaposes
+ * configured TAGs only; no samples are combined and no process KPI is inferred.
+ */
+export function generateIntelligenceProcessStageGuidedDashboardDrafts(
+  existingScreens: readonly ScreenEngineering[],
+  source: IntelligenceDashboardSource,
+  selection: IntelligenceProcessStageGuidedDashboardSelection,
+  tags: readonly TagEngineering[],
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): readonly ScreenEngineering[] {
+  const orderedMembers = validateProcessStageCoverageSelection(selection);
+  if (source.kind !== 'process-stage' || source.stableKey !== selection.stageKey ||
+      source.displayName !== selection.stageName || source.assignments.length !== selection.members.length ||
+      source.assignments.length < 1 || source.assignments.length > INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS) {
+    throw new Error('A guided process-stage dashboard requires one complete process stage with matching canonical member references.');
+  }
+
+  const membersByAssignmentId = new Map(orderedMembers.map(member => [member.assignmentId.toLowerCase(), member]));
+  const sourceAssignmentIds = source.assignments.map(assignment => assignment.assignmentId?.toLowerCase() ?? '');
+  if (new Set(sourceAssignmentIds).size !== source.assignments.length ||
+      source.assignments.some((assignment, index) => {
+    const member = membersByAssignmentId.get(sourceAssignmentIds[index]);
+    return !member || !isCanonicalUuid(assignment.assignmentId ?? '') ||
+      !isCanonicalUuid(assignment.scopeId ?? '') || !isCanonicalUuid(assignment.profile.id) ||
+      !assignment.equipmentName.trim() || !assignment.equipmentPath.trim() ||
+      member.assignmentId.toLowerCase() !== orderedMembers[index].assignmentId.toLowerCase() ||
+      member.scopeId.toLowerCase() !== assignment.scopeId!.toLowerCase() ||
+      member.profileId.toLowerCase() !== assignment.profile.id.toLowerCase();
+  })) {
+    throw new Error('A guided process-stage dashboard requires every member to match its stable assignment, Equipment and profile references.');
+  }
+
+  const usedVisualIds = new Set<string>();
+  const allocateVisualId = () => {
+    const id = createId().trim();
+    if (!id || usedVisualIds.has(id)) throw new Error('Guided dashboard visual identities must be non-empty and unique across all screens.');
+    usedVisualIds.add(id);
+    return id;
+  };
+  const drafts: ScreenEngineering[] = [];
+  const existingAndDrafts = () => [...existingScreens, ...drafts];
+  drafts.push(generateDashboardDraft(existingAndDrafts(), source, tags, locale, allocateVisualId, false));
+  drafts.push(generateIntelligenceProcessStageCoverageScreenDraft(existingAndDrafts(), selection, locale, allocateVisualId));
+
+  const labels = locale === 'en'
+    ? ['Values & trend', 'Member coverage'] as const
+    : locale === 'es'
+      ? ['Valores y tendencia', 'Cobertura por equipo'] as const
+      : ['Valores e tendência', 'Cobertura por Equipamento'] as const;
+  return drafts.map((screen, index) => {
+    const elements = (screen.elements ?? []).map(element => {
+      if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.text ||
+          !(element.key.endsWith('-title') || element.key.endsWith('-source') || element.key.endsWith('-subtitle'))) return element;
+      return { ...element, properties: { ...element.properties, width: 1200 } };
+    });
+    const targetIndex = index === 0 ? 1 : 0;
+    const navigation = {
+      id: allocateVisualId(),
+      key: `intelligence-stage-guided-navigation-${targetIndex + 1}`,
+      type: BUILTIN_VISUAL_OBJECT_TYPES.button,
+      properties: {
+        x: 1304,
+        y: 40,
+        width: 220,
+        height: 44,
+        [VISUAL_PROPERTY_KEYS.text]: labels[targetIndex],
+        [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+        [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+        [VISUAL_PROPERTY_KEYS.backgroundColor]: '#1E293B',
+        [VISUAL_PROPERTY_KEYS.strokeColor]: '#475569',
+        [VISUAL_PROPERTY_KEYS.strokeWidth]: 1,
+        [VISUAL_PROPERTY_KEYS.cornerRadius]: 8,
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      },
+      actions: [{ eventKey: 'click', kind: 'NavigateScreen' as const, targetKey: drafts[targetIndex].key, version: 1 }]
+    };
+    return {
+      ...screen,
+      elements: [...elements, navigation],
+      metadata: {
+        ...(screen.metadata ?? {}),
+        intelligenceDashboardGenerator: 'stage5b.10',
+        intelligenceDashboardSetVersion: 'stage5b.10',
+        intelligenceDashboardSetRootKey: drafts[0].key,
+        intelligenceDashboardViewRole: index === 0 ? 'values-trend' : 'process-stage-coverage'
+      }
+    };
+  });
 }
 
 /**

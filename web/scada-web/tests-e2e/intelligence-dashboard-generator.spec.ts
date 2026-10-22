@@ -10,6 +10,7 @@ import {
   generateIntelligenceGuidedDashboardDrafts,
   generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligenceProcessStageCoverageScreenDraft,
+  generateIntelligenceProcessStageGuidedDashboardDrafts,
   generateIntelligencePerformanceScreenDraft,
   INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS,
   INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS,
@@ -466,6 +467,129 @@ test('process-stage coverage screen rejects missing, duplicate, unbounded and un
   expect(() => generateIntelligenceProcessStageCoverageScreenDraft([], {
     ...base, members: [base.members[0], { ...base.members[0], order: 1 }]
   }, 'en', ids())).toThrow(/one to 32/);
+});
+
+test('guided process-stage dashboard links TAG overview and independent member coverage without aggregation', () => {
+  const selection = {
+    stageId: '10000000-0000-0000-0000-000000000001',
+    stageKey: 'pump-train',
+    stageName: 'Pumping train',
+    members: [
+      {
+        assignmentId: '20000000-0000-0000-0000-000000000002',
+        scopeId: '30000000-0000-0000-0000-000000000003',
+        profileId: '40000000-0000-0000-0000-000000000004',
+        displayLabel: 'Pump P-101 · Pump profile', order: 1
+      },
+      {
+        assignmentId: '50000000-0000-0000-0000-000000000005',
+        scopeId: '60000000-0000-0000-0000-000000000006',
+        profileId: '70000000-0000-0000-0000-000000000007',
+        displayLabel: 'Pump P-102 · Pump profile', order: 0
+      }
+    ]
+  } as const;
+  const orderedSelectionMembers = [...selection.members].sort((left, right) => left.order - right.order);
+  const source = {
+    kind: 'process-stage' as const,
+    stableKey: selection.stageKey,
+    displayName: selection.stageName,
+    assignments: orderedSelectionMembers.map((member, index) => ({
+      equipmentName: `Pump P-10${index + 1}`,
+      equipmentPath: `Plant.P-10${index + 1}`,
+      scopeId: member.scopeId,
+      assignmentId: member.assignmentId,
+      profile: {
+        id: member.profileId,
+        key: 'pump-profile',
+        name: 'Pump profile',
+        signals: [{ id: `80000000-0000-0000-0000-00000000000${index + 1}`, key: 'flow', signalRole: 'flow', tagId: `tag-flow-${index + 1}`, required: true }]
+      }
+    }))
+  };
+  const drafts = generateIntelligenceProcessStageGuidedDashboardDrafts([], source, selection, [
+    numericTag('tag-flow-1', 'Plant.P-101.Flow'),
+    numericTag('tag-flow-2', 'Plant.P-102.Flow')
+  ], 'en', ids());
+  const [overview, coverage] = drafts;
+  const overviewNavigation = overview.elements?.find(element => element.key === 'intelligence-stage-guided-navigation-2');
+  const coverageNavigation = coverage.elements?.find(element => element.key === 'intelligence-stage-guided-navigation-1');
+  const coverageVisual = coverage.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1);
+  const members = JSON.parse(String(coverageVisual?.properties?.intelligenceStageMembers)) as Array<{ assignmentId: string }>;
+  const elementIds = drafts.flatMap(screen => (screen.elements ?? []).map(element => element.id));
+  const elements = drafts.flatMap(screen => screen.elements ?? []);
+
+  expect(drafts).toHaveLength(2);
+  expect(new Set(drafts.map(screen => screen.key)).size).toBe(2);
+  expect(new Set(drafts.map(screen => screen.route)).size).toBe(2);
+  expect(new Set(elementIds).size).toBe(elementIds.length);
+  expect(overview.metadata).toMatchObject({
+    intelligenceDashboardGenerator: 'stage5b.10',
+    intelligenceDashboardSetRootKey: overview.key,
+    intelligenceDashboardViewRole: 'values-trend'
+  });
+  expect(coverage.metadata).toMatchObject({
+    intelligenceDashboardGenerator: 'stage5b.10',
+    intelligenceDashboardSetRootKey: overview.key,
+    intelligenceDashboardViewRole: 'process-stage-coverage'
+  });
+  expect(overview.elements?.filter(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay)).toHaveLength(2);
+  expect(overview.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.trend)?.properties?.pens).toHaveLength(2);
+  expect(overview.metadata?.intelligenceDashboardSummary).toContain('does not calculate KPIs');
+  expect(members.map(member => member.assignmentId)).toEqual(orderedSelectionMembers.map(member => member.assignmentId));
+  expect(overviewNavigation?.actions).toEqual([expect.objectContaining({ kind: 'NavigateScreen', targetKey: coverage.key })]);
+  expect(coverageNavigation?.actions).toEqual([expect.objectContaining({ kind: 'NavigateScreen', targetKey: overview.key })]);
+  expect(coverageVisual?.properties).not.toHaveProperty('result');
+  expect(coverageVisual?.properties).not.toHaveProperty('window');
+  for (const element of elements) {
+    const { x, y, width, height } = element.properties;
+    if ([x, y, width, height].every(value => typeof value === 'number')) {
+      expect(x as number).toBeGreaterThanOrEqual(0);
+      expect(y as number).toBeGreaterThanOrEqual(0);
+      expect((x as number) + (width as number)).toBeLessThanOrEqual(1920);
+      expect((y as number) + (height as number)).toBeLessThanOrEqual(1080);
+    }
+  }
+});
+
+test('guided process-stage dashboard rejects incomplete or mismatched canonical members before returning drafts', () => {
+  const selection = {
+    stageId: '10000000-0000-0000-0000-000000000001',
+    stageKey: 'pump-train',
+    stageName: 'Pumping train',
+    members: [{
+      assignmentId: '20000000-0000-0000-0000-000000000002',
+      scopeId: '30000000-0000-0000-0000-000000000003',
+      profileId: '40000000-0000-0000-0000-000000000004',
+      displayLabel: 'Pump P-101 · Pump profile', order: 0
+    }]
+  } as const;
+  const source = {
+    kind: 'process-stage' as const, stableKey: selection.stageKey, displayName: selection.stageName,
+    assignments: [{
+      equipmentName: 'Pump P-101', equipmentPath: 'Plant.P-101', scopeId: selection.members[0].scopeId,
+      assignmentId: selection.members[0].assignmentId,
+      profile: { id: selection.members[0].profileId, key: 'pump-profile', name: 'Pump profile', signals: [] }
+    }]
+  };
+  expect(() => generateIntelligenceProcessStageGuidedDashboardDrafts([], source, {
+    ...selection, members: [{ ...selection.members[0], scopeId: '50000000-0000-0000-0000-000000000005' }]
+  }, [numericTag('tag-flow', 'Plant.P-101.Flow')], 'en', ids())).toThrow(/stable assignment/);
+  expect(() => generateIntelligenceProcessStageGuidedDashboardDrafts([], {
+    ...source, stableKey: 'different-stage'
+  }, selection, [numericTag('tag-flow', 'Plant.P-101.Flow')], 'en', ids())).toThrow(/matching canonical member references/);
+  expect(() => generateIntelligenceProcessStageGuidedDashboardDrafts([], {
+    ...source, assignments: [source.assignments[0], source.assignments[0]]
+  }, { ...selection, members: [selection.members[0], {
+    ...selection.members[0],
+    assignmentId: '50000000-0000-0000-0000-000000000005',
+    scopeId: '60000000-0000-0000-0000-000000000006',
+    profileId: '70000000-0000-0000-0000-000000000007',
+    displayLabel: 'Pump P-102 · Pump profile', order: 1
+  }] }, [numericTag('tag-flow', 'Plant.P-101.Flow')], 'en', ids())).toThrow(/every member to match/);
+  expect(() => generateIntelligenceProcessStageGuidedDashboardDrafts([], source, {
+    ...selection, members: []
+  }, [numericTag('tag-flow', 'Plant.P-101.Flow')], 'en', ids())).toThrow(/one to 32/);
 });
 
 test('contextual deviation V2 Screen draft stores stable identities and declared canonical ranges only', () => {

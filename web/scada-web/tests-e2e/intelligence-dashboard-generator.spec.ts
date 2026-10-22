@@ -6,6 +6,7 @@ import type {
 } from '../src/engineering/types';
 import {
   generateIntelligenceDashboardDraft,
+  generateIntelligencePerformanceScreenDraft,
   INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS,
   isNumericTagDataType
 } from '../src/engineering/intelligenceDashboardGenerator';
@@ -107,6 +108,58 @@ test('dashboard generator keeps existing screen key and route identities unique'
   expect(second.key).toBe(`${first.key}-2`);
   expect(second.route).toBe(`${first.route}-2`);
   expect(first.key).not.toBe(second.key);
+});
+
+test('Performance V1B screen draft uses the canonical visual type and persists stable refs only', () => {
+  const selection = {
+    scopeId: '10000000-0000-0000-0000-000000000001',
+    assignmentId: '20000000-0000-0000-0000-000000000002',
+    profileId: '30000000-0000-0000-0000-000000000003',
+    ruleId: 'specific-active-energy-at-recorded-production-rate.v1',
+    ruleVersion: '1.0',
+    signalIds: [
+      '40000000-0000-0000-0000-000000000004',
+      '50000000-0000-0000-0000-000000000005'
+    ],
+    displayName: 'Pump P-101'
+  } as const;
+  const first = generateIntelligencePerformanceScreenDraft([], selection, 'pt-BR', ids());
+  const second = generateIntelligencePerformanceScreenDraft([first], selection, 'pt-BR', ids());
+  const performance = first.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B);
+
+  expect(first.key).toBe('intelligence-performance-pump-p-101');
+  expect(second.key).toBe(`${first.key}-2`);
+  expect(performance?.properties).toMatchObject({
+    intelligenceScopeId: selection.scopeId,
+    intelligenceAssignmentId: selection.assignmentId,
+    intelligenceProfileId: selection.profileId,
+    intelligenceRuleId: selection.ruleId,
+    intelligenceRuleVersion: selection.ruleVersion,
+    intelligenceSignalIds: JSON.stringify(selection.signalIds)
+  });
+  expect(performance?.properties).not.toHaveProperty('result');
+  expect(performance?.properties).not.toHaveProperty('window');
+  expect(first.metadata).toMatchObject({
+    intelligenceDashboardGenerator: 'stage5b.4',
+    intelligencePerformanceRuleId: selection.ruleId,
+    intelligencePerformanceRuleVersion: selection.ruleVersion
+  });
+});
+
+test('Performance V1B screen draft rejects incomplete and duplicated identities', () => {
+  const selection = {
+    scopeId: '10000000-0000-0000-0000-000000000001',
+    assignmentId: '20000000-0000-0000-0000-000000000002',
+    profileId: '30000000-0000-0000-0000-000000000003',
+    ruleId: 'specific-active-energy-at-recorded-production-rate.v1',
+    ruleVersion: '1.0',
+    signalIds: [
+      '40000000-0000-0000-0000-000000000004',
+      '40000000-0000-0000-0000-000000000004'
+    ],
+    displayName: 'Pump P-101'
+  } as const;
+  expect(() => generateIntelligencePerformanceScreenDraft([], selection, 'en', ids())).toThrow(/stable equipment assignment/);
 });
 
 test('numeric source filtering excludes state and text TAGs', () => {

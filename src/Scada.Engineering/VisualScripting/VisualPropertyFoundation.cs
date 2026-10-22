@@ -388,6 +388,12 @@ public static class VisualPropertyKeys
     public const string MeasurementTarget = "measurementTarget";
     public const string MeasurementBandOneEnd = "measurementBandOneEnd";
     public const string MeasurementBandTwoEnd = "measurementBandTwoEnd";
+    public const string IntelligenceScopeId = "intelligenceScopeId";
+    public const string IntelligenceAssignmentId = "intelligenceAssignmentId";
+    public const string IntelligenceProfileId = "intelligenceProfileId";
+    public const string IntelligenceRuleId = "intelligenceRuleId";
+    public const string IntelligenceRuleVersion = "intelligenceRuleVersion";
+    public const string IntelligenceSignalIds = "intelligenceSignalIds";
 
     // Pre-Wave-07 compatibility constant. New visual schemas use AssetRef.
     public const string ImageResourceId = "imageResourceId";

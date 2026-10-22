@@ -51,6 +51,9 @@ export type RuntimeVisualNavigatorProps = Readonly<{
   scriptContext?: ScriptEngineeringContext | null;
   onScriptDispatch?: (records: readonly ClientVisualEventDispatchRecord[]) => void;
   visualAssetUrl?: VisualAssetUrlResolver;
+  runtimeProjectKey?: string | null;
+  runtimeRevision?: number | null;
+  performanceAnalyticsEnabled?: boolean;
   onVisualContextChange?: (context: Readonly<{ screenKey: string; popupKeys: readonly string[] }>) => void;
 }>;
 
@@ -87,6 +90,9 @@ export function RuntimeVisualNavigator({
   scriptContext,
   onScriptDispatch,
   visualAssetUrl,
+  runtimeProjectKey = null,
+  runtimeRevision = null,
+  performanceAnalyticsEnabled = false,
   onVisualContextChange
 }: RuntimeVisualNavigatorProps) {
   const playback = useOptionalHistoricalPlayback();
@@ -402,6 +408,9 @@ export function RuntimeVisualNavigator({
             onScriptDispatch={onScriptDispatch}
             onVisualEvent={event => { void dispatch(event); }}
             visualAssetUrl={visualAssetUrl}
+            projectKey={runtimeProjectKey}
+            activeRevision={runtimeRevision}
+            performanceAnalyticsEnabled={performanceAnalyticsEnabled}
           />
         </section>
 
@@ -458,6 +467,9 @@ export function RuntimeVisualNavigator({
                     onScriptDispatch={onScriptDispatch}
                     onVisualEvent={event => { void dispatch(event, mount.runtimeInstanceId); }}
                     visualAssetUrl={visualAssetUrl}
+                    projectKey={runtimeProjectKey}
+                    activeRevision={runtimeRevision}
+                    performanceAnalyticsEnabled={performanceAnalyticsEnabled}
                   />
                 </div>
               </section>;

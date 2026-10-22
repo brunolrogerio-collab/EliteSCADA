@@ -35,7 +35,8 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.measurementBar",
             "core.measurementThermometer",
             "core.measurementBands",
-            "core.measurementTarget"
+            "core.measurementTarget",
+            "core.intelligencePerformanceV1B"
         ], BuiltinVisualObjectSchemas.All.Select(schema => schema.ObjectTypeKey).ToArray());
     }
 
@@ -104,6 +105,20 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(BuiltinVisualObjectSchemas.MeasurementTarget.Declares(VisualPropertyKeys.MeasurementTarget));
         Assert.True(BuiltinVisualObjectSchemas.MeasurementBands.Declares(VisualPropertyKeys.MeasurementBandOneEnd));
         Assert.True(BuiltinVisualObjectSchemas.MeasurementBands.Declares(VisualPropertyKeys.MeasurementBandTwoEnd));
+
+        var intelligence = BuiltinVisualObjectSchemas.IntelligencePerformanceV1B;
+        Assert.True(intelligence.Declares(VisualPropertyKeys.IntelligenceScopeId));
+        Assert.True(intelligence.Declares(VisualPropertyKeys.IntelligenceAssignmentId));
+        Assert.True(intelligence.Declares(VisualPropertyKeys.IntelligenceProfileId));
+        Assert.True(intelligence.Declares(VisualPropertyKeys.IntelligenceRuleId));
+        Assert.True(intelligence.Declares(VisualPropertyKeys.IntelligenceRuleVersion));
+        Assert.True(intelligence.Declares(VisualPropertyKeys.IntelligenceSignalIds));
+        Assert.All(intelligence.Properties.Values.Where(property => property.Key.StartsWith("intelligence", StringComparison.Ordinal)), property =>
+        {
+            Assert.False(property.EngineeringEditable);
+            Assert.False(property.RuntimeWritable);
+            Assert.False(property.SupportsBinding);
+        });
     }
 
     [Fact]

@@ -34,7 +34,8 @@ const expectedTypes = [
   'core.measurementBar',
   'core.measurementThermometer',
   'core.measurementBands',
-  'core.measurementTarget'
+  'core.measurementTarget',
+  'core.intelligencePerformanceV1B'
 ];
 
 test('built-in visual object types are stable and unique', () => {
@@ -101,6 +102,23 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(valueDisplay.declares(VISUAL_PROPERTY_KEYS.text)).toBeTruthy();
   expect(valueDisplay.declares(VISUAL_PROPERTY_KEYS.showEngineeringUnit)).toBeTruthy();
   expect(valueDisplay.getRequired(VISUAL_PROPERTY_KEYS.showEngineeringUnit).defaultValue).toBe(true);
+
+  const performance = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B);
+  for (const key of [
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceAssignmentId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceRuleId,
+    VISUAL_PROPERTY_KEYS.intelligenceRuleVersion,
+    VISUAL_PROPERTY_KEYS.intelligenceSignalIds
+  ]) {
+    const property = performance.getRequired(key);
+    expect(property.type).toBe('string');
+    expect(property.engineeringEditable).toBe(false);
+    expect(property.runtimeReadable).toBe(true);
+    expect(property.runtimeWritable).toBe(false);
+    expect(property.supportsBinding).toBe(false);
+  }
 
   const slider = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.slider);
   expect(slider.declares(VISUAL_PROPERTY_KEYS.value)).toBeTruthy();

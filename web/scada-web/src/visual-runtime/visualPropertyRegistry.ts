@@ -116,7 +116,13 @@ export const VISUAL_PROPERTY_KEYS = {
   measurementUnit: 'measurementUnit',
   measurementTarget: 'measurementTarget',
   measurementBandOneEnd: 'measurementBandOneEnd',
-  measurementBandTwoEnd: 'measurementBandTwoEnd'
+  measurementBandTwoEnd: 'measurementBandTwoEnd',
+  intelligenceScopeId: 'intelligenceScopeId',
+  intelligenceAssignmentId: 'intelligenceAssignmentId',
+  intelligenceProfileId: 'intelligenceProfileId',
+  intelligenceRuleId: 'intelligenceRuleId',
+  intelligenceRuleVersion: 'intelligenceRuleVersion',
+  intelligenceSignalIds: 'intelligenceSignalIds'
 } as const;
 
 export type CommonVisualPropertyKey = typeof VISUAL_PROPERTY_KEYS[keyof typeof VISUAL_PROPERTY_KEYS];
@@ -478,7 +484,25 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   stringProperty(VISUAL_PROPERTY_KEYS.measurementUnit, '', 'measurement'),
   numberProperty(VISUAL_PROPERTY_KEYS.measurementTarget, 50, { category: 'measurement' }),
   numberProperty(VISUAL_PROPERTY_KEYS.measurementBandOneEnd, 33, { category: 'measurement' }),
-  numberProperty(VISUAL_PROPERTY_KEYS.measurementBandTwoEnd, 66, { category: 'measurement' })
+  numberProperty(VISUAL_PROPERTY_KEYS.measurementBandTwoEnd, 66, { category: 'measurement' }),
+  ...[
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceAssignmentId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceRuleId,
+    VISUAL_PROPERTY_KEYS.intelligenceRuleVersion,
+    VISUAL_PROPERTY_KEYS.intelligenceSignalIds
+  ].map(key => ({
+    key,
+    type: 'string' as const,
+    defaultValue: key === VISUAL_PROPERTY_KEYS.intelligenceSignalIds ? '[]' : '',
+    engineeringEditable: false,
+    runtimeReadable: true,
+    runtimeWritable: false,
+    supportsBinding: false,
+    animatable: false,
+    category: 'intelligence'
+  }))
 ];
 
 export const COMMON_VISUAL_PROPERTY_REGISTRY = new VisualPropertyRegistry(

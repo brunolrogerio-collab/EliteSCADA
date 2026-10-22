@@ -11,3 +11,4 @@ export * from './runtimeVisualTween';
 export * from './visualPythonPropertyCapabilityProvider';
 export * from './trendVisualModel';
 export * from './browserVisualModel';
+export * from './intelligencePerformanceRuntimeContext';

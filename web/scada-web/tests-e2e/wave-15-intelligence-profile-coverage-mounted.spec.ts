@@ -84,6 +84,27 @@ test('Performance V1B runs only on explicit request and binds its transient resu
   expect(fixture.performanceRequests).toHaveLength(1);
 });
 
+test('eligible Performance V1B rule creates a canonical Runtime screen draft without querying Historian or persisting', async ({ page }) => {
+  const fixture = await installWorkspace(page, { performanceReady: true });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-performance-${profileId}`);
+  await panel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  await panel.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
+  await panel.getByTestId(`intelligence-performance-create-screen-${profileId}`).click();
+
+  await expect(page).toHaveURL(/\/engineering\/screens$/);
+  const editor = page.getByTestId('visual-editor-workspace');
+  await expect(editor).toBeVisible();
+  await expect(editor.getByLabel('Nome de exibição')).toHaveValue(/Desempenho registrado · Bomba P-101/);
+  await expect(editor.getByTestId('visual-editor-canonical-layer').getByTestId('runtime-intelligence-performance')).toBeVisible();
+  await expect(editor.getByText(/Esta referência só é interativa no Runtime ao vivo/)).toBeVisible();
+  await expect(editor.getByTestId('visual-editor-apply')).toBeDisabled();
+  expect(fixture.performanceCatalogRequests).toHaveLength(1);
+  expect(fixture.performanceRequests).toEqual([]);
+  expect(fixture.otherWrites).toEqual([]);
+  expect(fixture.dataReads).toEqual([]);
+});
+
 test('Performance V1B fails closed on ambiguous profile roles and unsupported semantic bindings', async ({ page }) => {
   const ambiguousFixture = await installWorkspace(page, { performanceReady: true, duplicatePerformanceRole: true });
   await openIntelligence(page);

@@ -29,6 +29,7 @@ import {
   type ClientVisualPythonRuntimeFactory
 } from '../../python-runtime/clientVisualEventDispatcher';
 import type { VisualTweenFrameClock } from '../../visual-runtime/runtimeVisualTween';
+import { IntelligencePerformanceRuntimeProvider } from '../../visual-runtime/intelligencePerformanceRuntimeContext';
 import {
   createRuntimeVisualInstances,
   projectRuntimeVisualElements
@@ -60,6 +61,9 @@ export type RuntimeVisualDefinitionRendererProps = Readonly<{
   frameClock?: VisualTweenFrameClock;
   onTagWrite?: SliderTagWrite;
   visualAssetUrl?: VisualAssetUrlResolver;
+  projectKey?: string | null;
+  activeRevision?: number | null;
+  performanceAnalyticsEnabled?: boolean;
 }>;
 
 /**
@@ -88,7 +92,10 @@ export function RuntimeVisualDefinitionRenderer({
   runtimeFactory,
   frameClock,
   onTagWrite = writeRuntimeTagValue,
-  visualAssetUrl
+  visualAssetUrl,
+  projectKey = null,
+  activeRevision = null,
+  performanceAnalyticsEnabled = false
 }: RuntimeVisualDefinitionRendererProps) {
   const runtimeLocale = locale ?? 'pt-BR';
   const runtimeText = c07VisualEditorText(runtimeLocale).runtimeState;
@@ -227,21 +234,28 @@ export function RuntimeVisualDefinitionRenderer({
     onPointerOutCapture={event => captureObjectInteraction(event, 'pointerleave')}
     onPointerMoveCapture={event => captureObjectInteraction(event, 'pointermove')}
   >
-    <CanonicalVisualRenderer
-      elements={expandedDynamoElements}
-      emptyLabel={emptyLabel}
-      locale={runtimeLocale}
-      dynamoDefinitions={dynamoDefinitions}
-      equipmentDefinitions={equipmentDefinitions}
-      templateDefinitions={templateDefinitions}
-      onVisualEvent={onVisualEvent}
-      onTagWrite={historical ? undefined : onTagWrite}
-      visualAssetUrl={visualAssetUrl}
-      showTechnicalFallbackText={false}
-      liveBindings={!historical}
-      bindingSamples={historical ? playback?.samples : undefined}
-      operatorTimeRangeControls
-    />
+    <IntelligencePerformanceRuntimeProvider value={{
+      enabled: performanceAnalyticsEnabled && !historical && Boolean(projectKey?.trim()) && Number.isInteger(activeRevision),
+      projectKey,
+      activeRevision,
+      runtimeContextId
+    }}>
+      <CanonicalVisualRenderer
+        elements={expandedDynamoElements}
+        emptyLabel={emptyLabel}
+        locale={runtimeLocale}
+        dynamoDefinitions={dynamoDefinitions}
+        equipmentDefinitions={equipmentDefinitions}
+        templateDefinitions={templateDefinitions}
+        onVisualEvent={onVisualEvent}
+        onTagWrite={historical ? undefined : onTagWrite}
+        visualAssetUrl={visualAssetUrl}
+        showTechnicalFallbackText={false}
+        liveBindings={!historical}
+        bindingSamples={historical ? playback?.samples : undefined}
+        operatorTimeRangeControls
+      />
+    </IntelligencePerformanceRuntimeProvider>
     <RuntimeDynamoStateLayer
       indicators={dynamoStateIndicators}
       hosts={dynamoStateHosts}

@@ -333,6 +333,9 @@ function EngineeringRuntimeApplicationContent({
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
         initialScreenKey={requestedScreen ?? startup.screenKey}
+        runtimeProjectKey={projection.projectKey ?? null}
+        runtimeRevision={projection.revision ?? null}
+        performanceAnalyticsEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'TrendUse')}
         mobileScreens={engineeringPackage.runtimePresentation?.mobileScreens ?? undefined}
         mobileOrientation={engineeringPackage.runtimePresentation?.mobileOrientation ?? 'landscape'}
         locale={locale}

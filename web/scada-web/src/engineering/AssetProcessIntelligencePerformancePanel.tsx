@@ -17,7 +17,7 @@ type PerformanceInputUnit = {
   unitCatalogVersions: number[];
   acceptedUnitCodes: string[];
 };
-type PerformanceRule = {
+export type PerformanceRule = {
   id: string;
   version: string;
   kind: string;
@@ -31,7 +31,7 @@ type PerformanceRule = {
   bounds: string;
   unavailableStates: string[];
 };
-type PerformanceCatalog = {
+export type PerformanceCatalog = {
   contractVersion: number;
   catalogVersion: number;
   ruleVersion: string;
@@ -41,8 +41,8 @@ type PerformanceCatalog = {
   maximumRawRowsAcrossSelectedTags: number;
   rules: PerformanceRule[];
 };
-type WindowValue = { fromUtc: string; toUtc: string };
-type PerformanceResponse = {
+export type WindowValue = { fromUtc: string; toUtc: string };
+export type PerformanceResponse = {
   contractVersion: number;
   catalogVersion: number;
   ruleId: string;
@@ -98,7 +98,8 @@ export function AssetProcessIntelligencePerformancePanel({
   semanticCatalogs,
   projectKey,
   activeRevision,
-  canQuery
+  canQuery,
+  onCreateRuntimeScreenDraft
 }: {
   locale: EngineeringLocale;
   scopeId: string;
@@ -109,6 +110,7 @@ export function AssetProcessIntelligencePerformancePanel({
   projectKey: string | null;
   activeRevision: number | null;
   canQuery: boolean;
+  onCreateRuntimeScreenDraft?: (selection: Readonly<{ ruleId: string; ruleVersion: string; signalIds: readonly string[] }>) => void;
 }) {
   const copy = useMemo(() => performanceCopy(locale), [locale]);
   const [expanded, setExpanded] = useState(false);
@@ -257,6 +259,13 @@ export function AssetProcessIntelligencePerformancePanel({
             }).join(' · ')}</p>
             <p><strong>{copy.bounds}:</strong> {selected.rule.bounds}</p>
             <p><strong>{copy.timeRequirement}:</strong> {selected.rule.temporalRequirement}</p>
+            {onCreateRuntimeScreenDraft && !selected.reason ? <button type="button" className="secondary"
+              data-testid={`intelligence-performance-create-screen-${profile.id}`}
+              onClick={() => onCreateRuntimeScreenDraft({
+                ruleId: selected.rule.id,
+                ruleVersion: selected.rule.version,
+                signalIds: selected.signalIds
+              })}>{copy.createRuntimeScreen}</button> : null}
           </div> : null}
           <label>{copy.from}<input type="datetime-local" value={fromLocal} disabled={!canQuery || loading} onChange={event => updateWindow(setFromLocal, event.currentTarget.value)}/></label>
           <label>{copy.to}<input type="datetime-local" value={toLocal} disabled={!canQuery || loading} onChange={event => updateWindow(setToLocal, event.currentTarget.value)}/></label>
@@ -380,14 +389,14 @@ function isSemanticBindingComplete(
   return true;
 }
 
-function isValidCatalog(value: PerformanceCatalog | null): value is PerformanceCatalog {
+export function isValidCatalog(value: PerformanceCatalog | null): value is PerformanceCatalog {
   return Boolean(value && value.contractVersion === 1 && value.catalogVersion === 1 &&
     Array.isArray(value.rules) && Number.isInteger(value.maximumWindowDays) && value.maximumWindowDays > 0 &&
     value.rules.every(rule => typeof rule.id === 'string' && typeof rule.formula === 'string' &&
       Array.isArray(rule.inputRoles) && Array.isArray(rule.inputUnits) && rule.inputRoles.length > 0));
 }
 
-function matchesResponse(
+export function matchesResponse(
   value: unknown,
   scopeId: string,
   assignmentId: string,
@@ -446,17 +455,17 @@ function sameId(left: string | null | undefined, right: string) {
   return typeof left === 'string' && left.toLowerCase() === right.toLowerCase();
 }
 
-function PerformanceResult({ result, rule, locale, copy, profile }: {
+export function PerformanceResult({ result, rule, locale, copy, profile }: {
   result: PerformanceResponse;
   rule: PerformanceRule;
   locale: EngineeringLocale;
   copy: PerformanceCopy;
-  profile: AssetProcessIntelligenceProfileEngineering;
+  profile?: AssetProcessIntelligenceProfileEngineering;
 }) {
   const localeCode = locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : 'pt-BR';
   const number = (value: number | null | undefined) => value === null || value === undefined || !Number.isFinite(value)
     ? copy.unknown : new Intl.NumberFormat(localeCode, { maximumFractionDigits: 8 }).format(value);
-  const signalById = new Map(profile.signals.map(signal => [signal.id.toLowerCase(), signal]));
+  const signalById = new Map((profile?.signals ?? []).map(signal => [signal.id.toLowerCase(), signal]));
   const signalDescription = new Map(result.signals.map(signal => [signal.signalId.toLowerCase(), signal]));
   return <div className="asset-process-intelligence__performance-result" data-testid="intelligence-performance-result">
     <p role="status"><strong>{copy.queryWindow}</strong> {formatUtc(result.window.fromUtc, localeCode)} – {formatUtc(result.window.toUtc, localeCode)}</p>
@@ -520,7 +529,7 @@ function formatCounts(values: Record<string, number>, copy: PerformanceCopy) {
     .map(([key, value]) => `${key}: ${new Intl.NumberFormat().format(value)}`).join(' · ') || copy.none;
 }
 
-function parseWindow(fromLocal: string, toLocal: string, maximumDays: number): { window: WindowValue | null; error: 'missing' | 'invalid' | null } {
+export function parseWindow(fromLocal: string, toLocal: string, maximumDays: number): { window: WindowValue | null; error: 'missing' | 'invalid' | null } {
   if (!fromLocal || !toLocal) return { window: null, error: 'missing' };
   const from = new Date(fromLocal).getTime();
   const to = new Date(toLocal).getTime();
@@ -528,24 +537,24 @@ function parseWindow(fromLocal: string, toLocal: string, maximumDays: number): {
   return { window: { fromUtc: new Date(from).toISOString(), toUtc: new Date(to).toISOString() }, error: null };
 }
 
-function localDateTimeInput(value: Date) {
+export function localDateTimeInput(value: Date) {
   const pad = (part: number) => String(part).padStart(2, '0');
   return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
 }
 
-function formatUtc(value: string, locale: string) {
+export function formatUtc(value: string, locale: string) {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }).format(date) : value;
 }
 
-function ruleTitle(id: string, copy: PerformanceCopy) {
+export function ruleTitle(id: string, copy: PerformanceCopy) {
   if (id === 'specific-active-energy-at-recorded-production-rate.v1') return copy.specificEnergy;
   if (id === 'recorded-differential-pressure-power.v1') return copy.pressurePower;
   if (id === 'recorded-pressure-power-input-ratio.v1') return copy.pressurePowerRatio;
   return id;
 }
 
-function errorText(code: string, copy: PerformanceCopy) {
+export function errorText(code: string, copy: PerformanceCopy) {
   switch (code) {
     case 'INTELLIGENCE_PERFORMANCE_SIGNAL_SELECTION_INVALID':
     case 'INTELLIGENCE_PERFORMANCE_SIGNAL_IDENTITY_INVALID': return `${copy.queryFailed}: ${code}`;
@@ -561,10 +570,10 @@ class PerformanceQueryError extends Error {
   constructor(readonly code: string) { super(code); }
 }
 
-type PerformanceCopy = ReturnType<typeof performanceCopy>;
-function performanceCopy(locale: EngineeringLocale) {
+export type PerformanceCopy = ReturnType<typeof performanceCopy>;
+export function performanceCopy(locale: EngineeringLocale) {
   if (locale === 'en') return {
-    open: 'Review recorded performance', hide: 'Hide performance', blocked: 'Analysis requires the current entitlement, TrendUse, one active Equipment assignment and execution permit, and a clean Engineering revision.', description: 'Choose one existing catalog rule. The calculation remains server-owned, read-only and explicitly requested; the report is transient. It does not establish field efficiency or physical simultaneity.',
+    open: 'Review recorded performance', hide: 'Hide performance', createRuntimeScreen: 'Create a Runtime analysis screen', blocked: 'Analysis requires the current entitlement, TrendUse, one active Equipment assignment and execution permit, and a clean Engineering revision.', description: 'Choose one existing catalog rule. The calculation remains server-owned, read-only and explicitly requested; the report is transient. It does not establish field efficiency or physical simultaneity.',
     loadingCatalog: 'Loading the versioned performance catalog…', catalogUnavailable: 'The performance catalog is unavailable.',
     rule: 'Performance rule', chooseRule: 'Choose an eligible rule', formula: 'Catalog formula', inputSelection: 'Canonical input signals',
     bounds: 'Rule bounds', timeRequirement: 'Timestamp requirement', from: 'From (local time)', to: 'To (local time)',
@@ -586,7 +595,7 @@ function performanceCopy(locale: EngineeringLocale) {
     specificEnergy: 'Specific active energy per recorded production', pressurePower: 'Recorded differential-pressure power', pressurePowerRatio: 'Recorded pressure-power / input ratio'
   };
   if (locale === 'es') return {
-    open: 'Revisar rendimiento registrado', hide: 'Ocultar rendimiento', blocked: 'El análisis requiere licencia actual, TrendUse, una asignación Equipment activa, permiso de ejecución y una revisión Engineering sin cambios pendientes.', description: 'Elija una regla existente del catálogo. El cálculo sigue siendo del servidor, read-only y explícito; el informe es transitorio. No demuestra eficiencia de campo ni simultaneidad física.',
+    open: 'Revisar rendimiento registrado', hide: 'Ocultar rendimiento', createRuntimeScreen: 'Crear pantalla de análisis Runtime', blocked: 'El análisis requiere licencia actual, TrendUse, una asignación Equipment activa, permiso de ejecución y una revisión Engineering sin cambios pendientes.', description: 'Elija una regla existente del catálogo. El cálculo sigue siendo del servidor, read-only y explícito; el informe es transitorio. No demuestra eficiencia de campo ni simultaneidad física.',
     loadingCatalog: 'Cargando el catálogo de rendimiento versionado…', catalogUnavailable: 'El catálogo de rendimiento no está disponible.',
     rule: 'Regla de rendimiento', chooseRule: 'Elija una regla elegible', formula: 'Fórmula del catálogo', inputSelection: 'Señales canónicas de entrada',
     bounds: 'Límites de la regla', timeRequirement: 'Requisito temporal', from: 'Desde (hora local)', to: 'Hasta (hora local)',
@@ -608,7 +617,7 @@ function performanceCopy(locale: EngineeringLocale) {
     specificEnergy: 'Energía activa específica por producción registrada', pressurePower: 'Potencia por presión diferencial registrada', pressurePowerRatio: 'Relación potencia de presión / entrada registrada'
   };
   return {
-    open: 'Analisar desempenho registrado', hide: 'Ocultar desempenho', blocked: 'A análise exige licença válida, TrendUse, uma associação Equipment ativa, permit de execução e revisão Engineering sem alterações pendentes.', description: 'Escolha uma regra existente do catálogo. O cálculo permanece no servidor, read-only e sob solicitação explícita; o relatório é temporário. Ele não comprova eficiência em campo nem simultaneidade física.',
+    open: 'Analisar desempenho registrado', hide: 'Ocultar desempenho', createRuntimeScreen: 'Criar tela de análise no Runtime', blocked: 'A análise exige licença válida, TrendUse, uma associação Equipment ativa, permit de execução e revisão Engineering sem alterações pendentes.', description: 'Escolha uma regra existente do catálogo. O cálculo permanece no servidor, read-only e sob solicitação explícita; o relatório é temporário. Ele não comprova eficiência em campo nem simultaneidade física.',
     loadingCatalog: 'Carregando catálogo versionado de desempenho…', catalogUnavailable: 'Catálogo de desempenho indisponível.',
     rule: 'Regra de desempenho', chooseRule: 'Escolha uma regra elegível', formula: 'Fórmula do catálogo', inputSelection: 'Sinais canônicos de entrada',
     bounds: 'Limites da regra', timeRequirement: 'Requisito temporal', from: 'De (horário local)', to: 'Até (horário local)',

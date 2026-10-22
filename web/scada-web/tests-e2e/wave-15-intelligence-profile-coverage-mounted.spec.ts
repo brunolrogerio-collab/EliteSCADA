@@ -74,6 +74,11 @@ test('Performance V1B runs only on explicit request and binds its transient resu
   expect(fixture.dataReads).toEqual([]);
   expect(fixture.otherWrites).toEqual([]);
 
+  await panel.getByLabel('Regra de desempenho').selectOption('');
+  await expect(panel.getByTestId('intelligence-performance-result')).toHaveCount(0);
+  expect(fixture.performanceRequests).toHaveLength(1);
+
+  await panel.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
   await panel.getByLabel('De (horário local)').fill('2026-10-20T09:00');
   await expect(panel.getByTestId('intelligence-performance-result')).toHaveCount(0);
   expect(fixture.performanceRequests).toHaveLength(1);

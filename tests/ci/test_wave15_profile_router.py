@@ -167,6 +167,7 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         )
         self.assertEqual(result["effective_profiles"], ["INTELLIGENCE_HARDENING"])
         self.assertTrue(result["run_intelligence_hardening"])
+        self.assertTrue(result["run_intelligence_ui"])
         self.assertFalse(result["run_dotnet"])
         self.assertFalse(result["run_web"])
         self.assertFalse(result["run_e2e"])
@@ -180,8 +181,21 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         )
         self.assertEqual(result["effective_profiles"], ["INTELLIGENCE_HARDENING"])
         self.assertTrue(result["run_intelligence_hardening"])
+        self.assertTrue(result["run_intelligence_ui"])
         self.assertFalse(result["run_dotnet"])
         self.assertFalse(result["run_web"])
+        self.assertFalse(result["run_e2e"])
+        self.assertFalse(result["run_ha_two_process"])
+        self.assertFalse(result["run_ha_d2_acceptance"])
+
+    def test_intelligence_hardening_frontend_script_selects_web_build_and_ui_gate(self):
+        result = self.classify(
+            ["web/scada-web/package.json"],
+            "VALIDATION_PROFILE: CI_INFRA, INTELLIGENCE_HARDENING",
+        )
+        self.assertTrue(result["run_web"])
+        self.assertTrue(result["run_intelligence_hardening"])
+        self.assertTrue(result["run_intelligence_ui"])
         self.assertFalse(result["run_e2e"])
         self.assertFalse(result["run_ha_two_process"])
         self.assertFalse(result["run_ha_d2_acceptance"])

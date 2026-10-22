@@ -112,7 +112,7 @@ DOTNET_PROJECTS = {
 WEB_PROFILES = {
     "APP_SHELL", "UI_EDITOR", "SCRIPT_ENGINEERING", "SCRIPT_RUNTIME",
     "RUNTIME_RENDERER", "AUTHORITY_UX", "LICENSING_UX", "ELITEGO_RUNTIME",
-    "DATABASE_TOPOLOGY", "INSTALLATION", "HA_DISTRIBUTED",
+    "DATABASE_TOPOLOGY", "INSTALLATION", "HA_DISTRIBUTED", "INTELLIGENCE_HARDENING",
 }
 
 E2E_PROFILE_DEFAULTS = {
@@ -321,6 +321,7 @@ def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr
         "run_web": web_changed and bool(effective & WEB_PROFILES),
         "run_dotnet": bool(projects),
         "run_intelligence_hardening": "INTELLIGENCE_HARDENING" in effective,
+        "run_intelligence_ui": "INTELLIGENCE_HARDENING" in effective,
         "run_e2e": bool(specs),
         "run_driver": driver,
         "run_ha_two_process": needs_ha_two_process(paths, effective, mode),

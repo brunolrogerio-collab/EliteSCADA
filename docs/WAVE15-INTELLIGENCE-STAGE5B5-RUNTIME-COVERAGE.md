@@ -1,6 +1,6 @@
 # Wave 15 Intelligence — Stage 5B.5 profile coverage in Runtime
 
-Snapshot: 2026-10-21. Owning issue: [#716](https://github.com/brunolrogerio-collab/EliteSCADA/issues/716). This is a bounded contract audit and implementation record, not Stage 5B or Wave 15 acceptance.
+Snapshot: 2026-10-22. Owning issue: [#716](https://github.com/brunolrogerio-collab/EliteSCADA/issues/716), closed for this bounded scope after PR #717 passed exact-head T1 and exact-merge T2. This remains a bounded contract audit and implementation record, not Stage 5B or Wave 15 acceptance.
 
 ## Exact base and objective
 
@@ -34,4 +34,11 @@ Product base: `wave15/corrections-integration@4133af7e8eb379e65a468148f127bcc944
 - PostgreSQL `BuiltinVisualObjectSchemasTests`: 3/3 passed.
 - Local SDK resolved to .NET `10.0.402` under the repository's `10.0.400` roll-forward setting. CI remains the independent exact-head/exact-merge gate.
 
-Stage 5B.5 remains pending until review, exact-head T1, integration, and exact-merge T2 pass. Comparisons/deviations and cross-equipment process-stage aggregation remain unclaimed; do not start Stage 6 or modify Stage 4/5A, HA, Preview/DEMO, or licensing as part of this slice.
+## Integration and verification
+
+- PR #717 merged to `wave15/corrections-integration` at `596b76cd405ee7e99b3d4b1e260052614facfcc1` from base `4133af7e8eb379e65a468148f127bcc944a34aff`; PR head was `82d81d2703d381c7ce38530a7d438640acfc4c52`.
+- Exact-head T1 #39707953999 passed classifier, common sanity, web build, focused .NET and focused Chromium evidence.
+- Exact-merge T2 #39708548322 passed on the merge SHA: backend build/test/Runtime smoke, Web build and Chromium merge integration smoke (13 passed). Backend suite: Core 721/721, PostgreSQL persistence 127/127, Historian 41/41, Drivers 1689 passed / 1 skipped of 1690, Security 42/42; total 2620 passed / 1 skipped.
+- The T2 full-browser E2E step was skipped by workflow condition and is not claimed. Local evidence above supplements but does not replace exact-head/exact-merge CI.
+
+Stage 5B.5 is integrated and verified only within this bounded scope. Comparisons/deviations and cross-equipment process-stage aggregation remain unclaimed; do not infer full Stage 5B, Intelligence, FND/FC0 or Wave 15 acceptance, start Stage 6, or modify Stage 4/5A, HA, Preview/DEMO, or licensing as part of this slice.

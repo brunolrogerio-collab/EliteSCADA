@@ -7,6 +7,10 @@ const adminPassword = 'E2Epass8';
 test.setTimeout(90_000);
 
 test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser, baseURL, request }) => {
+  // This scenario covers bootstrap, first-project setup, Authority/application
+  // restore, and durable re-authentication. Keep enough budget for the full
+  // end-to-end flow on the slower CI database/browser pair.
+  test.setTimeout(150_000);
   const apiBaseUrl = process.env.ELITESCADA_E2E_API_BASE_URL ?? 'http://127.0.0.1:5080';
   const context = await browser.newContext({
     baseURL: baseURL ?? 'http://127.0.0.1:5173',
@@ -502,13 +506,13 @@ test('secure first-run creates the initial local Administrator, first project an
       await page.goto('/engineering/installation');
       await expect(page.getByTestId('installation-switching')).toBeVisible({ timeout: 15_000 });
       await expect(page.getByTestId('installation-current-state')).toBeVisible();
-      await page.getByRole('button', { name: 'Detach application from this installation' }).click();
+      await page.getByRole('button', { name: 'Desvincular aplicação desta instalação' }).click();
 
-      await page.getByLabel(/Continue without exporting the Application now/).check();
-      await page.getByLabel(/Continue without exporting the Authority now/).check();
-      await page.getByLabel(/I understand this Application will stop being the one attached/).check();
-      await page.getByLabel(/I understand the current Authority will be detached/).check();
-      await page.getByLabel(/I understand Historian\/database data is preserved/).check();
+      await page.getByLabel(/Continuar sem exportar a Application agora/).check();
+      await page.getByLabel(/Continuar sem exportar a Authority agora/).check();
+      await page.getByLabel(/Entendo que esta Application deixará de ser a vinculada à instalação/).check();
+      await page.getByLabel(/Entendo que a Authority atual será desvinculada/).check();
+      await page.getByLabel(/Entendo que dados do Historian\/banco são preservados/).check();
 
       const confirm = page.getByTestId('installation-detach-confirm');
       await expect(confirm).toBeEnabled();
@@ -534,8 +538,8 @@ test('secure first-run creates the initial local Administrator, first project an
     await page.locator('input[name="bootstrap-password-confirmation"]').fill(adminBPassword);
     await page.locator('button[type="submit"]').click();
 
-    await expect(page.getByRole('heading', { name: 'Create New Project' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('button', { name: 'Import application' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Criar novo projeto' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('button', { name: 'Importar aplicação' })).toBeVisible();
 
     const neutralAfterA = await page.evaluate(async () => {
       const response = await fetch('/api/runtime/application');
@@ -687,7 +691,7 @@ test('secure first-run creates the initial local Administrator, first project an
 
     // Restore A through the full neutral Restore path: Authority and Application remain
     // two separate artifacts, and the restored Authority must authenticate before Apply.
-    await page.getByRole('button', { name: 'Restore backup' }).click();
+    await page.getByRole('button', { name: 'Restaurar backup' }).click();
     await page.getByTestId('recovery-application-file').setInputFiles({
       name: 'application-a.escadapkg',
       mimeType: 'application/vnd.elitescada.project-package',
@@ -699,8 +703,8 @@ test('secure first-run creates the initial local Administrator, first project an
       buffer: Buffer.from(authorityABackup.body.backup)
     });
     await page.getByTestId('recovery-authority-password').fill(authorityBackupPassword);
-    await page.getByRole('button', { name: 'Validate backups' }).click();
-    await page.getByRole('button', { name: 'Restore Authority' }).click();
+    await page.getByRole('button', { name: 'Validar backups' }).click();
+    await page.getByRole('button', { name: 'Restaurar Authority' }).click();
 
     await expect(page.locator('input[name="username"]')).toBeVisible({ timeout: 15_000 });
     const staleBLogin = await page.evaluate(async ({ username, password }) => {
@@ -718,13 +722,13 @@ test('secure first-run creates the initial local Administrator, first project an
     await page.locator('button[type="submit"]').click();
 
     await expect(page.getByTestId('restore-first-application')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('heading', { name: 'Continue recovery' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Continuar recuperação' })).toBeVisible();
     await expect(page.getByTestId('recovery-continuation-summary')).toContainText('application-a.escadapkg');
     await expect(page.getByTestId('recovery-application-file')).toHaveCount(0);
     await expect(page.getByTestId('recovery-license-file')).toHaveCount(0);
     await expect(page.getByTestId('recovery-authority-password')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Continue recovery' }).click();
-    await page.getByRole('button', { name: 'Import selected application' }).click();
+    await page.getByRole('button', { name: 'Continuar recuperação' }).click();
+    await page.getByRole('button', { name: 'Importar aplicação selecionada' }).click();
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
 

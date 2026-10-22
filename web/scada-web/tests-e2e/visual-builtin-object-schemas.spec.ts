@@ -38,6 +38,7 @@ const expectedTypes = [
   'core.intelligencePerformanceV1B',
   'core.intelligenceProfileCoverageV1',
   'core.intelligenceProcessStageCoverageV1',
+  'core.intelligenceProcessStageInsightsV1',
   'core.intelligenceContextualDeviationV2'
 ];
 
@@ -152,6 +153,23 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   }
   expect(stageCoverage.propertyKeys).not.toContain('result');
   expect(stageCoverage.propertyKeys).not.toContain('window');
+
+  const stageInsights = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1);
+  for (const key of [
+    VISUAL_PROPERTY_KEYS.intelligenceStageId,
+    VISUAL_PROPERTY_KEYS.intelligenceStageKey,
+    VISUAL_PROPERTY_KEYS.intelligenceStageName,
+    VISUAL_PROPERTY_KEYS.intelligenceStageMembers
+  ]) {
+    const property = stageInsights.getRequired(key);
+    expect(property.type).toBe('string');
+    expect(property.engineeringEditable).toBe(false);
+    expect(property.runtimeReadable).toBe(true);
+    expect(property.runtimeWritable).toBe(false);
+    expect(property.supportsBinding).toBe(false);
+  }
+  expect(stageInsights.propertyKeys).not.toContain('result');
+  expect(stageInsights.propertyKeys).not.toContain('window');
 
   const contextualDeviation = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2);
   for (const key of [

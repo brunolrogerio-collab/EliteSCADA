@@ -42,6 +42,7 @@ import { MeasurementVisualElement } from './MeasurementVisualElement';
 import { IntelligencePerformanceVisualElement } from './IntelligencePerformanceVisualElement';
 import { IntelligenceProfileCoverageVisualElement } from './IntelligenceProfileCoverageVisualElement';
 import { IntelligenceProcessStageCoverageVisualElement } from './IntelligenceProcessStageCoverageVisualElement';
+import { IntelligenceProcessStageInsightsVisualElement } from './IntelligenceProcessStageInsightsVisualElement';
 import { IntelligenceContextualDeviationVisualElement } from './IntelligenceContextualDeviationVisualElement';
 import './CanonicalVisualInteraction.css';
 import { TrendVisualElement } from './TrendVisualElement';
@@ -277,6 +278,19 @@ function CanonicalElement({
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1) {
       return <IntelligenceProcessStageCoverageVisualElement
+        stageId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageId])}
+        stageKey={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageKey])}
+        stageName={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageName])}
+        membersJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageMembers], '[]')}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        locale={locale}
+        title={elementTitle}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1) {
+      return <IntelligenceProcessStageInsightsVisualElement
         stageId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageId])}
         stageKey={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageKey])}
         stageName={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageName])}

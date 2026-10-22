@@ -21,6 +21,7 @@ import {
   generateIntelligenceContextualDeviationScreenDraft,
   generateIntelligenceProcessStageCoverageScreenDraft,
   generateIntelligenceProcessStageGuidedDashboardDrafts,
+  generateIntelligenceProcessStageInsightsDashboardDraft,
   generateIntelligenceGuidedDashboardDrafts,
   type IntelligenceDashboardAssignmentSource,
   type IntelligenceDashboardSource,
@@ -28,7 +29,8 @@ import {
   type IntelligencePerformanceDashboardSelection,
   type IntelligenceGuidedDashboardSelections,
   type IntelligenceProfileCoverageDashboardSelection,
-  type IntelligenceProcessStageCoverageDashboardSelection
+  type IntelligenceProcessStageCoverageDashboardSelection,
+  type IntelligenceProcessStageInsightsDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
 import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
@@ -353,6 +355,37 @@ export function AssetProcessIntelligenceWorkspace({
     };
   };
 
+  const createProcessStageInsightsSelection = (
+    stage: AssetProcessIntelligenceProcessStageEngineering
+  ): IntelligenceProcessStageInsightsDashboardSelection | null => {
+    const coverage = createProcessStageCoverageSelection(stage);
+    if (!coverage) return null;
+    const members = coverage.members.map(member => {
+      const performance = guidedPerformanceSelections[member.assignmentId];
+      const contextualDeviation = guidedDeviationSelections[member.assignmentId];
+      if (!performance || !contextualDeviation) return null;
+      return {
+        ...member,
+        performance: {
+          ruleId: performance.ruleId,
+          ruleVersion: performance.ruleVersion,
+          signalIds: performance.signalIds
+        },
+        contextualDeviation: {
+          targetSignalIds: contextualDeviation.targetSignalIds,
+          firstContextSignalId: contextualDeviation.firstContextSignalId,
+          firstContextLowerInclusiveCanonical: contextualDeviation.firstContextLowerInclusiveCanonical,
+          firstContextUpperExclusiveCanonical: contextualDeviation.firstContextUpperExclusiveCanonical,
+          secondContextSignalId: contextualDeviation.secondContextSignalId,
+          secondContextLowerInclusiveCanonical: contextualDeviation.secondContextLowerInclusiveCanonical,
+          secondContextUpperExclusiveCanonical: contextualDeviation.secondContextUpperExclusiveCanonical
+        }
+      };
+    });
+    if (members.some(member => member === null)) return null;
+    return { ...coverage, members: members as NonNullable<typeof members[number]>[] };
+  };
+
   const generateDashboard = (source: IntelligenceDashboardSource | null) => {
     setError(null);
     setMessage(null);
@@ -436,6 +469,26 @@ export function AssetProcessIntelligenceWorkspace({
       onCreateDashboardDraft(generateIntelligenceProcessStageGuidedDashboardDrafts(
         screens, source, selection, tags, locale
       ));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : stageCoverageCopy.unavailable);
+    }
+  };
+
+  const generateProcessStageInsightsScreen = (stage: AssetProcessIntelligenceProcessStageEngineering) => {
+    setError(null);
+    setMessage(null);
+    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+      setError(copy.dashboardAuthorizationHint);
+      return;
+    }
+    const source = createDashboardSourceForStage(stage);
+    const selection = createProcessStageInsightsSelection(stage);
+    if (!source || !selection) {
+      setError(stageCoverageCopy.unavailable);
+      return;
+    }
+    try {
+      onCreateDashboardDraft(generateIntelligenceProcessStageInsightsDashboardDraft(screens, source, selection, locale));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : stageCoverageCopy.unavailable);
     }
@@ -1025,6 +1078,11 @@ export function AssetProcessIntelligenceWorkspace({
                 disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft ||
                   !createDashboardSourceForStage(selectedStage) || !createProcessStageCoverageSelection(selectedStage)}
                 onClick={() => generateGuidedProcessStageDashboard(selectedStage)}>{guidedStageDashboardCopy.generate}</button>
+              <button type="button" className="secondary" data-testid={`intelligence-process-stage-insights-${selectedStage.id}`}
+                disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft ||
+                  !createDashboardSourceForStage(selectedStage) || !createProcessStageInsightsSelection(selectedStage)}
+                onClick={() => generateProcessStageInsightsScreen(selectedStage)}>{guidedStageDashboardCopy.generateInsights}</button>
+              <small>{guidedStageDashboardCopy.hint}</small>
               <button type="button" className="secondary" data-testid={`intelligence-stage-coverage-${selectedStage.id}`}
                 disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !createProcessStageCoverageSelection(selectedStage)}
                 onClick={() => generateProcessStageCoverageScreen(selectedStage)}>{stageCoverageCopy.generate}</button>
@@ -1211,9 +1269,21 @@ function processStageCoverageText(locale: EngineeringLocale) {
 }
 
 function guidedProcessStageDashboardText(locale: EngineeringLocale) {
-  if (locale === 'en') return { generate: 'Create guided stage dashboard' };
-  if (locale === 'es') return { generate: 'Crear panel guiado de etapa' };
-  return { generate: 'Criar painel guiado da etapa' };
+  if (locale === 'en') return {
+    generate: 'Create guided stage dashboard',
+    generateInsights: 'Create stage member insights',
+    hint: 'Configure a Performance rule and contextual-deviation ranges for every member before generating member insights.'
+  };
+  if (locale === 'es') return {
+    generate: 'Crear panel guiado de etapa',
+    generateInsights: 'Crear análisis de miembros de etapa',
+    hint: 'Configure una regla de rendimiento y rangos de desviación contextual para cada miembro antes de generar los análisis.'
+  };
+  return {
+    generate: 'Criar painel guiado da etapa',
+    generateInsights: 'Criar análises dos membros da etapa',
+    hint: 'Configure uma regra de desempenho e os intervalos de desvio contextual de cada membro antes de gerar as análises.'
+  };
 }
 
 function contextUnitText(locale: EngineeringLocale) {

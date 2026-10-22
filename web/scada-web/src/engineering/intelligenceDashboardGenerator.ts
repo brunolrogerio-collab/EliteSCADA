@@ -82,7 +82,19 @@ export type IntelligenceProcessStageCoverageDashboardSelection = Readonly<{
   }>[];
 }>;
 
+export type IntelligenceProcessStageInsightsDashboardMember = IntelligenceProcessStageCoverageDashboardSelection['members'][number] & Readonly<{
+  performance: Pick<IntelligencePerformanceDashboardSelection, 'ruleId' | 'ruleVersion' | 'signalIds'>;
+  contextualDeviation: Pick<IntelligenceContextualDeviationDashboardSelection,
+    'targetSignalIds' | 'firstContextSignalId' | 'firstContextLowerInclusiveCanonical' |
+    'firstContextUpperExclusiveCanonical' | 'secondContextSignalId' |
+    'secondContextLowerInclusiveCanonical' | 'secondContextUpperExclusiveCanonical'>;
+}>;
+
 export type IntelligenceProcessStageGuidedDashboardSelection = IntelligenceProcessStageCoverageDashboardSelection;
+
+export type IntelligenceProcessStageInsightsDashboardSelection = Omit<IntelligenceProcessStageCoverageDashboardSelection, 'members'> & Readonly<{
+  members: readonly IntelligenceProcessStageInsightsDashboardMember[];
+}>;
 
 type ResolvedSignal = Readonly<{
   assignment: IntelligenceDashboardAssignmentSource;
@@ -154,7 +166,6 @@ function generateDashboardDraft(
       resolved.push({ assignment, signal, tag });
     }
   }
-
   if (resolved.length === 0) throw new Error(copy.noNumericSignals);
 
   const draft = createScreenDraft(existingScreens, locale);
@@ -823,7 +834,9 @@ export function generateIntelligenceProcessStageGuidedDashboardDrafts(
   const drafts: ScreenEngineering[] = [];
   const existingAndDrafts = () => [...existingScreens, ...drafts];
   drafts.push(generateDashboardDraft(existingAndDrafts(), source, tags, locale, allocateVisualId, false));
-  drafts.push(generateIntelligenceProcessStageCoverageScreenDraft(existingAndDrafts(), selection, locale, allocateVisualId));
+  drafts.push(generateIntelligenceProcessStageCoverageScreenDraft(existingAndDrafts(), {
+    stageId: selection.stageId, stageKey: selection.stageKey, stageName: selection.stageName, members: orderedMembers
+  }, locale, allocateVisualId));
 
   const labels = locale === 'en'
     ? ['Values & trend', 'Member coverage'] as const
@@ -870,6 +883,150 @@ export function generateIntelligenceProcessStageGuidedDashboardDrafts(
       }
     };
   });
+}
+
+/**
+ * Creates a separate process-stage member-insights Screen. The established
+ * Stage 5B.10 overview/coverage pair remains usable without these selections.
+ */
+export function generateIntelligenceProcessStageInsightsDashboardDraft(
+  existingScreens: readonly ScreenEngineering[],
+  source: IntelligenceDashboardSource,
+  selection: IntelligenceProcessStageInsightsDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const orderedMembers = validateProcessStageCoverageSelection(selection);
+  if (source.kind !== 'process-stage' || source.stableKey !== selection.stageKey ||
+      source.displayName !== selection.stageName || source.assignments.length !== orderedMembers.length ||
+      source.assignments.length < 1 || source.assignments.length > INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS) {
+    throw new Error('A process-stage member-insights screen requires one complete process stage with matching canonical member references.');
+  }
+
+  const membersByAssignmentId = new Map(selection.members.map(member => [member.assignmentId.toLowerCase(), member]));
+  const sourceAssignmentIds = source.assignments.map(assignment => assignment.assignmentId?.toLowerCase() ?? '');
+  if (new Set(sourceAssignmentIds).size !== source.assignments.length || source.assignments.some((assignment, index) => {
+    const member = membersByAssignmentId.get(sourceAssignmentIds[index]);
+    return !member || !isCanonicalUuid(assignment.assignmentId ?? '') ||
+      !isCanonicalUuid(assignment.scopeId ?? '') || !isCanonicalUuid(assignment.profile.id) ||
+      !assignment.equipmentName.trim() || !assignment.equipmentPath.trim() ||
+      member.assignmentId.toLowerCase() !== orderedMembers[index].assignmentId.toLowerCase() ||
+      member.scopeId.toLowerCase() !== assignment.scopeId!.toLowerCase() ||
+      member.profileId.toLowerCase() !== assignment.profile.id.toLowerCase();
+  })) {
+    throw new Error('A process-stage member-insights screen requires every member to match its stable assignment, Equipment and profile references.');
+  }
+
+  for (const assignment of source.assignments) {
+    const member = membersByAssignmentId.get(assignment.assignmentId!.toLowerCase());
+    const profileSignalIds = new Set(assignment.profile.signals.map(signal => signal.id.toLowerCase()));
+    const performance = member?.performance;
+    const deviation = member?.contextualDeviation;
+    const deviationSignalIds = deviation
+      ? [...deviation.targetSignalIds, deviation.firstContextSignalId, deviation.secondContextSignalId]
+      : [];
+    if (!member || !performance || !deviation ||
+        performance.signalIds.length < 2 || performance.signalIds.length > 3 ||
+        !performance.ruleId || performance.ruleId !== performance.ruleId.trim() || performance.ruleId.length > 128 ||
+        !performance.ruleVersion || performance.ruleVersion !== performance.ruleVersion.trim() || performance.ruleVersion.length > 32 ||
+        performance.signalIds.some(id => !isCanonicalUuid(id) || !profileSignalIds.has(id.toLowerCase())) ||
+        new Set(performance.signalIds.map(id => id.toLowerCase())).size !== performance.signalIds.length ||
+        deviation.targetSignalIds.length < 2 || deviation.targetSignalIds.length > 8 ||
+        deviationSignalIds.some(id => !isCanonicalUuid(id) || !profileSignalIds.has(id.toLowerCase())) ||
+        new Set(deviationSignalIds.map(id => id.toLowerCase())).size !== deviationSignalIds.length ||
+        !validCanonicalRange(deviation.firstContextLowerInclusiveCanonical, deviation.firstContextUpperExclusiveCanonical) ||
+        !validCanonicalRange(deviation.secondContextLowerInclusiveCanonical, deviation.secondContextUpperExclusiveCanonical)) {
+      throw new Error('A process-stage member-insights screen requires complete Performance and contextual-deviation selections belonging to every stable member profile.');
+    }
+  }
+
+  const orderedSelection: IntelligenceProcessStageInsightsDashboardSelection = {
+    ...selection,
+    members: orderedMembers.map(member => membersByAssignmentId.get(member.assignmentId.toLowerCase())!)
+  };
+  if (JSON.stringify(orderedSelection.members).length > 65536) {
+    throw new Error('The process-stage member insight configuration exceeds the supported 64 KB limit.');
+  }
+  return generateIntelligenceProcessStageInsightsScreenDraft(existingScreens, orderedSelection, locale, createId);
+}
+
+function generateIntelligenceProcessStageInsightsScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligenceProcessStageInsightsDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string
+): ScreenEngineering {
+  const key = uniqueScreenKey(existingScreens, `intelligence-process-stage-insights-${slug(selection.stageKey)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = locale === 'en' ? `Process-stage member insights · ${selection.stageName}`
+    : locale === 'es' ? `Análisis de miembros de etapa · ${selection.stageName}`
+      : `Análises dos membros da etapa · ${selection.stageName}`;
+  const subtitle = locale === 'en'
+    ? 'Choose one configured Equipment member, then explicitly open one independent read-only report.'
+    : locale === 'es'
+      ? 'Elija un miembro de equipo configurado y abra explícitamente uno de sus informes independientes y de solo lectura.'
+      : 'Escolha um Equipamento associado e abra explicitamente um dos relatórios independentes e somente leitura.';
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements: [
+      {
+        id: allocateId(), key: 'intelligence-process-stage-insights-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 36, width: 1200, height: 52,
+          [VISUAL_PROPERTY_KEYS.text]: title,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+          [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-insights-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 98, width: 1200, height: 36,
+          [VISUAL_PROPERTY_KEYS.text]: subtitle,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-insights-v1',
+        type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1,
+        properties: {
+          x: 64, y: 150, width: 1792, height: 790,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageId]: selection.stageId,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageKey]: selection.stageKey,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageName]: selection.stageName,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageMembers]: JSON.stringify(selection.members)
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-insights-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 954, width: 1792, height: 86,
+          [VISUAL_PROPERTY_KEYS.text]: locale === 'en'
+            ? 'Reports remain attributable to the selected Equipment assignment. No process-wide score, timestamp join, diagnosis or efficiency claim is produced.'
+            : locale === 'es'
+              ? 'Los informes siguen atribuidos a la asignación de equipo seleccionada. No se produce una puntuación de proceso, unión de marcas de tiempo, diagnóstico ni afirmación de eficiencia.'
+              : 'Os relatórios permanecem atribuídos ao Equipamento selecionado. Não é gerado score do processo, cruzamento de timestamps, diagnóstico ou afirmação de eficiência.',
+          [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      }
+    ],
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.11',
+      intelligenceProcessStageInsightsStageId: selection.stageId
+    }
+  };
 }
 
 /**

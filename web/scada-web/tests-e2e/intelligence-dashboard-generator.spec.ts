@@ -11,6 +11,7 @@ import {
   generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligenceProcessStageCoverageScreenDraft,
   generateIntelligenceProcessStageGuidedDashboardDrafts,
+  generateIntelligenceProcessStageInsightsDashboardDraft,
   generateIntelligencePerformanceScreenDraft,
   INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS,
   INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS,
@@ -479,13 +480,35 @@ test('guided process-stage dashboard links TAG overview and independent member c
         assignmentId: '20000000-0000-0000-0000-000000000002',
         scopeId: '30000000-0000-0000-0000-000000000003',
         profileId: '40000000-0000-0000-0000-000000000004',
-        displayLabel: 'Pump P-101 · Pump profile', order: 1
+        displayLabel: 'Pump P-101 · Pump profile', order: 1,
+        performance: {
+          ruleId: 'specific-active-energy-at-recorded-production-rate.v1', ruleVersion: '1.0.0',
+          signalIds: ['80000000-0000-0000-0000-000000000002', '81000000-0000-0000-0000-000000000002']
+        },
+        contextualDeviation: {
+          targetSignalIds: ['80000000-0000-0000-0000-000000000002', '81000000-0000-0000-0000-000000000002'],
+          firstContextSignalId: '82000000-0000-0000-0000-000000000002',
+          firstContextLowerInclusiveCanonical: 1, firstContextUpperExclusiveCanonical: 5,
+          secondContextSignalId: '83000000-0000-0000-0000-000000000002',
+          secondContextLowerInclusiveCanonical: 10, secondContextUpperExclusiveCanonical: 20
+        }
       },
       {
         assignmentId: '50000000-0000-0000-0000-000000000005',
         scopeId: '60000000-0000-0000-0000-000000000006',
         profileId: '70000000-0000-0000-0000-000000000007',
-        displayLabel: 'Pump P-102 · Pump profile', order: 0
+        displayLabel: 'Pump P-102 · Pump profile', order: 0,
+        performance: {
+          ruleId: 'specific-active-energy-at-recorded-production-rate.v1', ruleVersion: '1.0.0',
+          signalIds: ['80000000-0000-0000-0000-000000000001', '81000000-0000-0000-0000-000000000001']
+        },
+        contextualDeviation: {
+          targetSignalIds: ['80000000-0000-0000-0000-000000000001', '81000000-0000-0000-0000-000000000001'],
+          firstContextSignalId: '82000000-0000-0000-0000-000000000001',
+          firstContextLowerInclusiveCanonical: 1, firstContextUpperExclusiveCanonical: 5,
+          secondContextSignalId: '83000000-0000-0000-0000-000000000001',
+          secondContextLowerInclusiveCanonical: 10, secondContextUpperExclusiveCanonical: 20
+        }
       }
     ]
   } as const;
@@ -503,7 +526,12 @@ test('guided process-stage dashboard links TAG overview and independent member c
         id: member.profileId,
         key: 'pump-profile',
         name: 'Pump profile',
-        signals: [{ id: `80000000-0000-0000-0000-00000000000${index + 1}`, key: 'flow', signalRole: 'flow', tagId: `tag-flow-${index + 1}`, required: true }]
+        signals: [
+          { id: `80000000-0000-0000-0000-00000000000${index + 1}`, key: 'flow', signalRole: 'flow', tagId: `tag-flow-${index + 1}`, required: true },
+          { id: `81000000-0000-0000-0000-00000000000${index + 1}`, key: 'power', signalRole: 'active-power', tagId: `tag-power-${index + 1}`, required: true },
+          { id: `82000000-0000-0000-0000-00000000000${index + 1}`, key: 'temperature', signalRole: 'temperature', tagId: `tag-temperature-${index + 1}`, required: true },
+          { id: `83000000-0000-0000-0000-00000000000${index + 1}`, key: 'speed', signalRole: 'speed', tagId: `tag-speed-${index + 1}`, required: true }
+        ]
       }
     }))
   };
@@ -561,7 +589,14 @@ test('guided process-stage dashboard rejects incomplete or mismatched canonical 
       assignmentId: '20000000-0000-0000-0000-000000000002',
       scopeId: '30000000-0000-0000-0000-000000000003',
       profileId: '40000000-0000-0000-0000-000000000004',
-      displayLabel: 'Pump P-101 · Pump profile', order: 0
+      displayLabel: 'Pump P-101 · Pump profile', order: 0,
+      performance: { ruleId: 'rule', ruleVersion: '1.0.0', signalIds: ['80000000-0000-0000-0000-000000000001', '81000000-0000-0000-0000-000000000001'] },
+      contextualDeviation: {
+        targetSignalIds: ['80000000-0000-0000-0000-000000000001', '81000000-0000-0000-0000-000000000001'],
+        firstContextSignalId: '82000000-0000-0000-0000-000000000001', firstContextLowerInclusiveCanonical: 1,
+        firstContextUpperExclusiveCanonical: 5, secondContextSignalId: '83000000-0000-0000-0000-000000000001',
+        secondContextLowerInclusiveCanonical: 10, secondContextUpperExclusiveCanonical: 20
+      }
     }]
   } as const;
   const source = {
@@ -590,6 +625,76 @@ test('guided process-stage dashboard rejects incomplete or mismatched canonical 
   expect(() => generateIntelligenceProcessStageGuidedDashboardDrafts([], source, {
     ...selection, members: []
   }, [numericTag('tag-flow', 'Plant.P-101.Flow')], 'en', ids())).toThrow(/one to 32/);
+});
+
+test('process-stage member-insights screen stores stable per-member report selections without result state', () => {
+  const selection = {
+    stageId: '10000000-0000-0000-0000-000000000001',
+    stageKey: 'pump-train',
+    stageName: 'Pumping train',
+    members: [{
+      assignmentId: '20000000-0000-0000-0000-000000000002',
+      scopeId: '30000000-0000-0000-0000-000000000003',
+      profileId: '40000000-0000-0000-0000-000000000004',
+      displayLabel: 'Pump P-101 · Pump profile', order: 0,
+      performance: {
+        ruleId: 'specific-active-energy-at-recorded-production-rate.v1', ruleVersion: '1.0.0',
+        signalIds: [
+          '80000000-0000-0000-0000-000000000001',
+          '81000000-0000-0000-0000-000000000001'
+        ]
+      },
+      contextualDeviation: {
+        targetSignalIds: [
+          '80000000-0000-0000-0000-000000000001',
+          '81000000-0000-0000-0000-000000000001'
+        ],
+        firstContextSignalId: '82000000-0000-0000-0000-000000000001',
+        firstContextLowerInclusiveCanonical: 1, firstContextUpperExclusiveCanonical: 5,
+        secondContextSignalId: '83000000-0000-0000-0000-000000000001',
+        secondContextLowerInclusiveCanonical: 10, secondContextUpperExclusiveCanonical: 20
+      }
+    }]
+  } as const;
+  const source = {
+    kind: 'process-stage' as const, stableKey: selection.stageKey, displayName: selection.stageName,
+    assignments: [{
+      equipmentName: 'Pump P-101', equipmentPath: 'Plant.P-101', scopeId: selection.members[0].scopeId,
+      assignmentId: selection.members[0].assignmentId,
+      profile: {
+        id: selection.members[0].profileId, key: 'pump-profile', name: 'Pump profile',
+        signals: [
+          { id: '80000000-0000-0000-0000-000000000001', key: 'power', signalRole: 'active-power', tagId: 'tag-power', required: true },
+          { id: '81000000-0000-0000-0000-000000000001', key: 'rate', signalRole: 'production-rate', tagId: 'tag-rate', required: true },
+          { id: '82000000-0000-0000-0000-000000000001', key: 'pressure', signalRole: 'pressure', tagId: 'tag-pressure', required: true },
+          { id: '83000000-0000-0000-0000-000000000001', key: 'flow', signalRole: 'flow', tagId: 'tag-flow', required: true }
+        ]
+      }
+    }]
+  };
+
+  const screen = generateIntelligenceProcessStageInsightsDashboardDraft([], source, selection, 'en', ids());
+  const visual = screen.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1);
+  const persistedMembers = JSON.parse(String(visual?.properties?.intelligenceStageMembers)) as typeof selection.members;
+  expect(screen.metadata).toMatchObject({
+    intelligenceDashboardGenerator: 'stage5b.11',
+    intelligenceProcessStageInsightsStageId: selection.stageId
+  });
+  expect(visual?.properties).toMatchObject({
+    intelligenceStageId: selection.stageId,
+    intelligenceStageKey: selection.stageKey,
+    intelligenceStageName: selection.stageName
+  });
+  expect(persistedMembers).toEqual(selection.members);
+  expect(visual?.properties).not.toHaveProperty('result');
+  expect(visual?.properties).not.toHaveProperty('window');
+  expect(() => generateIntelligenceProcessStageInsightsDashboardDraft([], source, {
+    ...selection,
+    members: [{ ...selection.members[0], performance: {
+      ...selection.members[0].performance,
+      signalIds: ['99000000-0000-0000-0000-000000000009', '98000000-0000-0000-0000-000000000009']
+    } }]
+  }, 'en', ids())).toThrow(/belonging to every stable member profile/);
 });
 
 test('contextual deviation V2 Screen draft stores stable identities and declared canonical ranges only', () => {

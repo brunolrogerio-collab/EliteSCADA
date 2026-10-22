@@ -1,6 +1,7 @@
 export function contextualHelpTopic(path: string) {
   if (path.startsWith('/engineering/diagnostics/tag-monitor')) return 'diagnostics.overview';
   if (path.startsWith('/engineering/diagnostics')) return 'diagnostics.overview';
+  if (path.startsWith('/engineering/intelligence')) return 'intelligence.process-stage-member-insights';
   if (path.startsWith('/engineering/scripts')) return 'scripts.engineering';
   if (path.startsWith('/engineering/libraries')) return 'libraries.reusable-resources';
   if (path.startsWith('/engineering/dataSources')) return 'sources.data-sources';

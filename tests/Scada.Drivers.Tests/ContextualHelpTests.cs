@@ -11,7 +11,7 @@ public sealed class ContextualHelpTests
     [Fact]
     public void RequiredManualTopics_ArePresentInEveryLocale()
     {
-        Assert.Equal(46, ContextualHelpCatalog.RequiredManualTopicIds.Count);
+        Assert.Equal(47, ContextualHelpCatalog.RequiredManualTopicIds.Count);
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {
@@ -578,7 +578,8 @@ public sealed class ContextualHelpTests
             "security.engineering-lock",
             "licensing.generator",
             "runtime.session-classes",
-            "application.export-import"
+            "application.export-import",
+            "intelligence.process-stage-member-insights"
         };
         var headings = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
@@ -596,6 +597,55 @@ public sealed class ContextualHelpTests
                 Assert.Equal(headings[locale], topic.Sections.Select(section => section.Heading).ToArray());
                 Assert.NotEmpty(topic.RelatedTopicIds ?? Array.Empty<string>());
             }
+        }
+    }
+
+    [Fact]
+    public void ProcessStageMemberInsightsHelp_PreservesItsScopeAndLimitationsInEveryLocale()
+    {
+        var expectations = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "cada solicitação é independente",
+                "temporário, somente leitura",
+                "Trocar de equipamento apaga o resultado anterior",
+                "Não se calcula score do processo",
+                "Não trate valor ausente ou indisponível como zero ou normal",
+                "resposta estiver desatualizada",
+                "não é diagnóstico nem comprovação de eficiência"
+            },
+            ["en"] = new[]
+            {
+                "each request is independent",
+                "temporary, read-only",
+                "Changing Equipment clears the previous result",
+                "No process-wide score",
+                "Do not treat missing or unavailable values as zero or normal",
+                "response is stale",
+                "not a diagnosis or proof of efficiency"
+            },
+            ["es"] = new[]
+            {
+                "cada solicitud es independiente",
+                "temporal, de solo lectura",
+                "Al cambiar de equipo se borra el resultado anterior",
+                "No se calcula una puntuación global del proceso",
+                "No interprete valores ausentes o no disponibles como cero o normales",
+                "respuesta está desactualizada",
+                "no es un diagnóstico ni una prueba de eficiencia"
+            }
+        };
+
+        foreach (var (locale, expectedPhrases) in expectations)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics,
+                item => item.Id == "intelligence.process-stage-member-insights");
+            var text = string.Join("\n", new[] { topic.Title, topic.Summary }
+                .Concat(topic.Sections.Select(section => section.Body)));
+
+            foreach (var phrase in expectedPhrases)
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
         }
     }
 

@@ -3,6 +3,7 @@ import { contextualHelpTopic } from '../src/help/contextualHelpTopic';
 
 test('routes resolve to stable contextual Help topics with a safe fallback', () => {
   expect(contextualHelpTopic('/engineering/scripts')).toBe('scripts.engineering');
+  expect(contextualHelpTopic('/engineering/intelligence')).toBe('intelligence.process-stage-member-insights');
   expect(contextualHelpTopic('/engineering/libraries')).toBe('libraries.reusable-resources');
   expect(contextualHelpTopic('/engineering/security')).toBe('security.users-roles-capabilities');
   expect(contextualHelpTopic('/engineering/recovery')).toBe('recovery.backup-system-recovery');

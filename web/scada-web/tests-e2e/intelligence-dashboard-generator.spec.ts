@@ -6,9 +6,11 @@ import type {
 } from '../src/engineering/types';
 import {
   generateIntelligenceDashboardDraft,
+  generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
   INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS,
-  isNumericTagDataType
+  isNumericTagDataType,
+  type IntelligenceProfileCoverageDashboardSelection
 } from '../src/engineering/intelligenceDashboardGenerator';
 import { BUILTIN_VISUAL_OBJECT_TYPES, MAX_TREND_PENS } from '../src/visual-runtime';
 
@@ -160,6 +162,42 @@ test('Performance V1B screen draft rejects incomplete and duplicated identities'
     displayName: 'Pump P-101'
   } as const;
   expect(() => generateIntelligencePerformanceScreenDraft([], selection, 'en', ids())).toThrow(/stable equipment assignment/);
+});
+
+test('profile coverage screen draft stores only stable references and creates collision-safe canonical Screens', () => {
+  const selection: IntelligenceProfileCoverageDashboardSelection = {
+    scopeId: '10000000-0000-0000-0000-000000000001',
+    profileId: '30000000-0000-0000-0000-000000000003',
+    displayName: 'Pump P-101'
+  };
+  const first = generateIntelligenceProfileCoverageScreenDraft([], selection, 'en', ids());
+  const second = generateIntelligenceProfileCoverageScreenDraft([first], selection, 'en', ids());
+  const coverage = first.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1);
+
+  expect(first.key).toBe('intelligence-coverage-pump-p-101');
+  expect(second.key).toBe(`${first.key}-2`);
+  expect(second.route).toBe(`${first.route}-2`);
+  expect(first.metadata).toMatchObject({
+    intelligenceDashboardGenerator: 'stage5b.5',
+    intelligenceProfileCoverageProfileId: selection.profileId
+  });
+  expect(coverage?.properties).toMatchObject({
+    intelligenceScopeId: selection.scopeId,
+    intelligenceProfileId: selection.profileId
+  });
+  expect(coverage?.bindings).toBeUndefined();
+  expect(coverage?.properties).not.toHaveProperty('result');
+  expect(coverage?.properties).not.toHaveProperty('window');
+  expect(first.metadata).not.toHaveProperty('intelligenceProfileCoverageResult');
+  expect(first.metadata).not.toHaveProperty('intelligenceProfileCoverageWindow');
+});
+
+test('profile coverage screen draft rejects non-canonical stable references', () => {
+  expect(() => generateIntelligenceProfileCoverageScreenDraft([], {
+    scopeId: 'not-a-scope-uuid',
+    profileId: '30000000-0000-0000-0000-000000000003',
+    displayName: 'Pump P-101'
+  }, 'en', ids())).toThrow(/canonical Equipment scope and profile UUIDs/);
 });
 
 test('numeric source filtering excludes state and text TAGs', () => {

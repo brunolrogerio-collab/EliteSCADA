@@ -8,7 +8,7 @@ type CoverageBlockedReason = 'capabilities-loading' | 'authority-unavailable' | 
   'assignment-ambiguous' | 'scope-unavailable' | 'scope-inactive' | 'permit-required' | 'signals-required' | 'duplicate-tags' |
   'configuration-unsaved' | 'scope-selection-unsaved' | 'workspace-dirty' | 'project-unavailable';
 
-type WindowValue = { fromUtc: string; toUtc: string };
+export type WindowValue = { fromUtc: string; toUtc: string };
 type SignalSummary = {
   rawObservationCount: number;
   acceptedSampleCount: number;
@@ -21,7 +21,7 @@ type SignalSummary = {
   completeness: string;
   expectedSampleCount: number | null;
 };
-type ProfileCoverageResponse = {
+export type ProfileCoverageResponse = {
   contractVersion: number;
   ruleCatalogVersion: number;
   ruleVersion: string;
@@ -72,7 +72,8 @@ export function AssetProcessIntelligenceCoveragePanel({
   projectKey,
   activeRevision,
   canQuery,
-  blockedReason
+  blockedReason,
+  onCreateRuntimeScreenDraft
 }: {
   locale: EngineeringLocale;
   scopeId: string;
@@ -81,6 +82,7 @@ export function AssetProcessIntelligenceCoveragePanel({
   activeRevision: number | null;
   canQuery: boolean;
   blockedReason: CoverageBlockedReason | null;
+  onCreateRuntimeScreenDraft?: () => void;
 }) {
   const copy = useMemo(() => coverageCopy(locale), [locale]);
   const [expanded, setExpanded] = useState(false);
@@ -158,6 +160,9 @@ export function AssetProcessIntelligenceCoveragePanel({
     </button>
     {expanded ? <div className="asset-process-intelligence__coverage-body">
       <p>{copy.description}</p>
+      {onCreateRuntimeScreenDraft ? <button type="button" className="secondary"
+        data-testid={`intelligence-coverage-create-screen-${profileId}`}
+        onClick={onCreateRuntimeScreenDraft}>{copy.createRuntimeScreen}</button> : null}
       {!canQuery ? <p className="asset-process-intelligence__coverage-note" role="note">{blockedReason ? blockedReasonText(blockedReason, copy) : copy.unavailable}</p> : null}
       <form className="asset-process-intelligence__coverage-form" onSubmit={event => void query(event)}>
         <label>{copy.from}<input type="datetime-local" value={fromLocal} disabled={!canQuery || loading} onChange={event => setFromLocal(event.currentTarget.value)}/></label>
@@ -174,7 +179,7 @@ export function AssetProcessIntelligenceCoveragePanel({
   </section>;
 }
 
-function CoverageResult({ result, locale, copy }: {
+export function CoverageResult({ result, locale, copy }: {
   result: ProfileCoverageResponse;
   locale: EngineeringLocale;
   copy: CoverageCopy;
@@ -243,9 +248,9 @@ function Fact({ label, value }: { label: string; value: string }) {
   return <div><dt>{label}</dt><dd>{value}</dd></div>;
 }
 
-type CoverageCopy = ReturnType<typeof coverageCopy>;
+export type CoverageCopy = ReturnType<typeof coverageCopy>;
 
-function coverageCopy(locale: EngineeringLocale) {
+export function coverageCopy(locale: EngineeringLocale) {
   if (locale === 'en') return {
     blockedCapabilitiesLoading: 'Checking authorization…', blockedAuthorityUnavailable: 'Authorization could not be verified; analysis is disabled.',
     blockedLicenseRequired: 'The Asset & Process Intelligence license is required.', blockedTrendUseRequired: 'Runtime TrendUse is required.',
@@ -255,6 +260,9 @@ function coverageCopy(locale: EngineeringLocale) {
     blockedConfigurationUnsaved: 'Save or discard the local profile changes before querying.', blockedScopeSelectionUnsaved: 'Save or discard scope-selection changes before querying.',
     blockedWorkspaceDirty: 'Publish or discard Engineering Working changes before querying the active project revision.', blockedProjectUnavailable: 'An active project revision is required.',
     review: 'Review historical coverage', hide: 'Hide coverage', description: 'Run the existing read-only profile coverage analysis for an explicit time window. Results are transient and are not added to the screen draft.',
+    createRuntimeScreen: 'Create Runtime coverage screen', runtimeHeader: 'Historical profile coverage · transient',
+    runtimeDescription: 'Request this report only when you choose Analyze. The result exists only in the current Runtime session and is not saved.',
+    runtimeOnly: 'This visualization runs only in the canonical Runtime screen.', runtimeUnavailable: 'Coverage queries are unavailable during historical playback or without an active Runtime View/TrendUse context.',
     from: 'From (local time)', to: 'To (local time)', utcHint: 'The selected local times are sent to the server as UTC. Maximum window: 31 days. No query runs until Analyze is selected.',
     analyze: 'Analyze coverage', loading: 'Analyzing…', unavailable: 'Analysis is currently unavailable.',
     windowRequired: 'Choose both ends of the time window.', windowInvalid: 'The end must be after the start and the window cannot exceed 31 days.',
@@ -282,6 +290,9 @@ function coverageCopy(locale: EngineeringLocale) {
     blockedConfigurationUnsaved: 'Guarde o descarte los cambios locales del perfil antes de consultar.', blockedScopeSelectionUnsaved: 'Guarde o descarte los cambios de alcance antes de consultar.',
     blockedWorkspaceDirty: 'Publique o descarte los cambios de Engineering Working antes de consultar la revisión activa.', blockedProjectUnavailable: 'Se requiere una revisión de proyecto activa.',
     review: 'Revisar cobertura histórica', hide: 'Ocultar cobertura', description: 'Ejecute el análisis read-only existente para un intervalo explícito. El resultado es transitorio y no se agrega al borrador de pantalla.',
+    createRuntimeScreen: 'Crear pantalla de cobertura Runtime', runtimeHeader: 'Cobertura histórica del perfil · transitoria',
+    runtimeDescription: 'Solicite este informe solo al pulsar Analizar. El resultado existe únicamente en la sesión actual de Runtime y no se guarda.',
+    runtimeOnly: 'Esta visualización solo funciona en la pantalla canónica de Runtime.', runtimeUnavailable: 'Las consultas de cobertura no están disponibles durante la reproducción histórica ni sin un contexto activo de Runtime View/TrendUse.',
     from: 'Desde (hora local)', to: 'Hasta (hora local)', utcHint: 'Las horas locales se envían al servidor en UTC. Intervalo máximo: 31 días. No se consulta hasta pulsar Analizar.',
     analyze: 'Analizar cobertura', loading: 'Analizando…', unavailable: 'El análisis no está disponible ahora.',
     windowRequired: 'Seleccione ambos extremos del intervalo.', windowInvalid: 'El final debe ser posterior al inicio y el intervalo no puede superar 31 días.',
@@ -309,6 +320,9 @@ function coverageCopy(locale: EngineeringLocale) {
     blockedConfigurationUnsaved: 'Salve ou descarte as alterações locais do perfil antes de consultar.', blockedScopeSelectionUnsaved: 'Salve ou descarte alterações na seleção de escopos antes de consultar.',
     blockedWorkspaceDirty: 'Publique ou descarte alterações de Engineering Working antes de consultar a revisão ativa.', blockedProjectUnavailable: 'É necessária uma revisão ativa do projeto.',
     review: 'Revisar cobertura histórica', hide: 'Ocultar cobertura', description: 'Execute a análise de cobertura somente para leitura do perfil em uma janela explícita. O resultado é temporário e não é adicionado ao rascunho da tela.',
+    createRuntimeScreen: 'Criar tela de cobertura no Runtime', runtimeHeader: 'Cobertura histórica do perfil · temporária',
+    runtimeDescription: 'Solicite este relatório somente ao clicar em Analisar. O resultado existe apenas nesta sessão do Runtime e não é salvo.',
+    runtimeOnly: 'Esta visualização funciona somente em uma tela do Runtime canônico.', runtimeUnavailable: 'Consultas de cobertura ficam indisponíveis durante reprodução histórica ou sem um contexto ativo de Runtime View/TrendUse.',
     from: 'De (horário local)', to: 'Até (horário local)', utcHint: 'Os horários locais selecionados são enviados ao servidor em UTC. Janela máxima: 31 dias. Nenhuma consulta ocorre até clicar em Analisar.',
     analyze: 'Analisar cobertura', loading: 'Analisando…', unavailable: 'A análise não está disponível neste momento.',
     windowRequired: 'Escolha os dois extremos da janela.', windowInvalid: 'O fim deve ser posterior ao início e a janela não pode exceder 31 dias.',
@@ -348,7 +362,7 @@ function blockedReasonText(reason: CoverageBlockedReason, copy: CoverageCopy) {
   }
 }
 
-function parseWindow(fromLocal: string, toLocal: string): { window: WindowValue | null; error: 'missing' | 'invalid' | null } {
+export function parseWindow(fromLocal: string, toLocal: string): { window: WindowValue | null; error: 'missing' | 'invalid' | null } {
   if (!fromLocal || !toLocal) return { window: null, error: 'missing' };
   const from = new Date(fromLocal);
   const to = new Date(toLocal);
@@ -360,12 +374,12 @@ function parseWindow(fromLocal: string, toLocal: string): { window: WindowValue 
   return { window: { fromUtc: from.toISOString(), toUtc: to.toISOString() }, error: null };
 }
 
-function localDateTimeInput(value: Date) {
+export function localDateTimeInput(value: Date) {
   const pad = (part: number) => String(part).padStart(2, '0');
   return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
 }
 
-function isMatchingResponse(
+export function isMatchingResponse(
   value: unknown,
   scopeId: string,
   profileId: string,
@@ -409,7 +423,7 @@ function describeSignalStatus(status: string, copy: CoverageCopy) {
   }
 }
 
-function coverageErrorText(code: string, copy: CoverageCopy) {
+export function coverageErrorText(code: string, copy: CoverageCopy) {
   switch (code) {
     case 'INTELLIGENCE_ENTITLEMENT_REQUIRED': return `${copy.queryFailed}: ${code}`;
     case 'INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE': return `${copy.queryFailed}: ${code}`;

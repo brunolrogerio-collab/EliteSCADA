@@ -16,10 +16,12 @@ import type {
 import { loadEngineeringSemanticCatalog, type EngineeringSemanticCatalogResponse, type VersionedSemanticCatalog } from './semanticCatalogApi';
 import {
   generateIntelligenceDashboardDraft,
+  generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
   type IntelligenceDashboardAssignmentSource,
   type IntelligenceDashboardSource,
-  type IntelligencePerformanceDashboardSelection
+  type IntelligencePerformanceDashboardSelection,
+  type IntelligenceProfileCoverageDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
 import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
@@ -336,6 +338,20 @@ export function AssetProcessIntelligenceWorkspace({
         displayName: equipmentName
       } satisfies IntelligencePerformanceDashboardSelection, locale);
       onCreateDashboardDraft(draft);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : copy.dashboardSourceUnavailable);
+    }
+  };
+
+  const generateCoverageScreen = (selection: IntelligenceProfileCoverageDashboardSelection) => {
+    setError(null);
+    setMessage(null);
+    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+      setError(copy.dashboardAuthorizationHint);
+      return;
+    }
+    try {
+      onCreateDashboardDraft(generateIntelligenceProfileCoverageScreenDraft(screens, selection, locale));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : copy.dashboardSourceUnavailable);
     }
@@ -704,6 +720,13 @@ export function AssetProcessIntelligenceWorkspace({
                   activeRevision={snapshot.execution.activeRevision}
                   canQuery={!coverageBlockedReason}
                   blockedReason={coverageBlockedReason}
+                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft
+                    ? () => generateCoverageScreen({
+                        scopeId: assignment.equipmentId,
+                        profileId: profile.id,
+                        displayName: `${equipmentResource.name} · ${profile.name}`
+                      })
+                    : undefined}
                 /> : null}
                 {equipmentResource && profile ? <AssetProcessIntelligencePerformancePanel
                   locale={locale}

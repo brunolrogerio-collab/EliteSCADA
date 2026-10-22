@@ -44,6 +44,7 @@ test('palette is derived from the complete registered built-in set', () => {
   ]);
   expect(new Set(items.map(item => item.objectType)).size).toBe(items.length);
   expect(items.some(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B)).toBe(false);
+  expect(items.some(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1)).toBe(false);
 
   for (const item of items) {
     const schema = getBuiltinVisualObjectSchema(item.objectType);

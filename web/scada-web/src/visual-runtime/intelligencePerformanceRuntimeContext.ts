@@ -14,3 +14,8 @@ export function useIntelligencePerformanceRuntimeContext() {
 }
 
 export const IntelligencePerformanceRuntimeProvider = IntelligencePerformanceRuntimeContext.Provider;
+
+// Shared, read-only context for transient Intelligence analytics visuals in canonical Runtime.
+export type IntelligenceAnalyticsRuntimeContextValue = IntelligencePerformanceRuntimeContextValue;
+export const useIntelligenceAnalyticsRuntimeContext = useIntelligencePerformanceRuntimeContext;
+export const IntelligenceAnalyticsRuntimeProvider = IntelligencePerformanceRuntimeProvider;

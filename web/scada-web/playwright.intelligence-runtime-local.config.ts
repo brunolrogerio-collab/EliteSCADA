@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests-e2e',
-  testMatch: /(intelligence-dashboard-generator|visual-builtin-object-schemas|visual-editor-palette-contract|wave-15-intelligence-dashboard-mounted|wave-15-intelligence-contextual-deviation-runtime-mounted|wave-15-intelligence-process-stage-coverage-runtime-mounted)\.spec\.ts/,
+  testMatch: /(intelligence-dashboard-generator|visual-builtin-object-schemas|visual-editor-palette-contract|wave-15-intelligence-dashboard-mounted|wave-15-intelligence-contextual-deviation-runtime-mounted|wave-15-intelligence-process-stage-coverage-runtime-mounted|wave-15-intelligence-process-stage-insights-runtime-mounted)\.spec\.ts/,
   workers: 1,
   timeout: 60_000,
   expect: { timeout: 10_000 },

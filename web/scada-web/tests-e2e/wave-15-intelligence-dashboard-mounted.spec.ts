@@ -140,6 +140,7 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
   const guidedStageDashboard = page.getByTestId(`intelligence-guided-stage-dashboard-${stageId}`);
   await expect(guidedStageDashboard).toBeEnabled();
+  await expect(page.getByTestId(`intelligence-process-stage-insights-${stageId}`)).toBeDisabled();
   await guidedStageDashboard.click();
   await expect(page).toHaveURL(/\/engineering\/screens$/);
   const guidedStageEditor = page.getByTestId('visual-editor-workspace');

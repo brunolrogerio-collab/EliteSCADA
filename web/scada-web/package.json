@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "prepreview": "node scripts/sync-pyodide.mjs",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:intelligence-ui": "playwright test --config=playwright.intelligence-ui.config.ts && playwright test --config=playwright.intelligence-runtime-local.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/arimo": "^5.3.0",

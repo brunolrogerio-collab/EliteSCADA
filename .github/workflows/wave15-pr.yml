@@ -28,6 +28,7 @@ jobs:
       run_web: ${{ steps.router.outputs.run_web }}
       run_dotnet: ${{ steps.router.outputs.run_dotnet }}
       run_intelligence_hardening: ${{ steps.router.outputs.run_intelligence_hardening }}
+      run_intelligence_ui: ${{ steps.router.outputs.run_intelligence_ui }}
       run_e2e: ${{ steps.router.outputs.run_e2e }}
       run_driver: ${{ steps.router.outputs.run_driver }}
       run_ha_two_process: ${{ steps.router.outputs.run_ha_two_process }}
@@ -431,6 +432,45 @@ jobs:
             ${{ runner.temp }}/intelligence-stage6b-linux.md
           if-no-files-found: warn
 
+  intelligence-ui-regression:
+    name: Intelligence dashboard and Runtime UI regression
+    needs: classify
+    if: needs.classify.outputs.run_intelligence_ui == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: web/scada-web/package-lock.json
+      - working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - name: Cache Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('web/scada-web/package-lock.json') }}
+      - working-directory: web/scada-web
+        run: npx playwright install-deps chromium
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: web/scada-web
+        run: npx playwright install chromium
+      - name: Run the same focused Intelligence UI configs used locally
+        working-directory: web/scada-web
+        run: npm run test:e2e:intelligence-ui
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intelligence-ui-playwright-evidence
+          path: |
+            web/scada-web/test-results
+            web/scada-web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
   chromium-focused:
     name: Focused Chromium evidence
     needs: classify
@@ -803,7 +843,7 @@ jobs:
 
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, intelligence-ui-regression, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -814,6 +854,7 @@ jobs:
       DOTNET: ${{ needs.dotnet-focused.result }}
       INTELLIGENCE_WINDOWS: ${{ needs.intelligence-windows-focus.result }}
       INTELLIGENCE_POSTGRES: ${{ needs.intelligence-postgres-restart.result }}
+      INTELLIGENCE_UI: ${{ needs.intelligence-ui-regression.result }}
       E2E: ${{ needs.chromium-focused.result }}
       HA_TWO_PROCESS: ${{ needs.ha-two-process.result }}
       HA_D2: ${{ needs.ha-d2-acceptance.result }}
@@ -825,6 +866,7 @@ jobs:
       NEED_WEB: ${{ needs.classify.outputs.run_web }}
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
       NEED_INTELLIGENCE_HARDENING: ${{ needs.classify.outputs.run_intelligence_hardening }}
+      NEED_INTELLIGENCE_UI: ${{ needs.classify.outputs.run_intelligence_ui }}
       NEED_E2E: ${{ needs.classify.outputs.run_e2e }}
       NEED_HA_TWO_PROCESS: ${{ needs.classify.outputs.run_ha_two_process }}
       NEED_HA_D2: ${{ needs.classify.outputs.run_ha_d2_acceptance }}
@@ -845,6 +887,7 @@ jobs:
           if [ "$NEED_DOTNET" = true ]; then test "$DOTNET" = success; fi
           if [ "$NEED_INTELLIGENCE_HARDENING" = true ]; then test "$INTELLIGENCE_WINDOWS" = success; fi
           if [ "$NEED_INTELLIGENCE_HARDENING" = true ]; then test "$INTELLIGENCE_POSTGRES" = success; fi
+          if [ "$NEED_INTELLIGENCE_UI" = true ]; then test "$INTELLIGENCE_UI" = success; fi
           if [ "$NEED_E2E" = true ]; then test "$E2E" = success; fi
           if [ "$NEED_HA_TWO_PROCESS" = true ]; then test "$HA_TWO_PROCESS" = success; fi
           if [ "$NEED_HA_D2" = true ]; then test "$HA_D2" = success; fi
@@ -855,7 +898,7 @@ jobs:
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
-            echo "Web: $WEB; .NET: $DOTNET; Intelligence Windows: $INTELLIGENCE_WINDOWS; Intelligence PostgreSQL restart: $INTELLIGENCE_POSTGRES; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 process acceptance: $HA_D2; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR";
+            echo "Web: $WEB; .NET: $DOTNET; Intelligence Windows: $INTELLIGENCE_WINDOWS; Intelligence PostgreSQL restart: $INTELLIGENCE_POSTGRES; Intelligence UI regressions: $INTELLIGENCE_UI; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 process acceptance: $HA_D2; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR";
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
           } >> "$GITHUB_STEP_SUMMARY"

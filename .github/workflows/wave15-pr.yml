@@ -27,6 +27,7 @@ jobs:
       run_common_sanity: ${{ steps.router.outputs.run_common_sanity }}
       run_web: ${{ steps.router.outputs.run_web }}
       run_dotnet: ${{ steps.router.outputs.run_dotnet }}
+      run_intelligence_hardening: ${{ steps.router.outputs.run_intelligence_hardening }}
       run_e2e: ${{ steps.router.outputs.run_e2e }}
       run_driver: ${{ steps.router.outputs.run_driver }}
       run_ha_two_process: ${{ steps.router.outputs.run_ha_two_process }}
@@ -267,6 +268,131 @@ jobs:
               dotnet test "$project" --no-restore --configuration Release --verbosity minimal --filter "FullyQualifiedName!~L3DriverInteractionS6Tests"
             fi
           done < /tmp/dotnet-projects.txt
+
+  intelligence-windows-focus:
+    name: Intelligence Stage 6A focused Windows regression
+    needs: classify
+    if: needs.classify.outputs.run_intelligence_hardening == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore focused Intelligence test projects
+        shell: pwsh
+        run: |
+          dotnet restore tests/Scada.Core.Tests/Scada.Core.Tests.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore tests/Scada.Security.Tests/Scada.Security.Tests.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run platform-neutral Intelligence and Authority regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/Scada.Security.Tests/Scada.Security.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AuthorityPolicyContractTests'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record Windows evidence provenance
+        if: always()
+        shell: pwsh
+        run: |
+          @(
+            '## Intelligence Stage 6A Windows evidence',
+            "Tested checkout: $(git rev-parse HEAD)",
+            "SDK: $(dotnet --version)",
+            'Scope: Core and Drivers Intelligence-focused tests plus Authority policy contract tests; PostgreSQL durable restart is independently required on Linux.'
+          ) | Add-Content $env:GITHUB_STEP_SUMMARY
+
+  intelligence-postgres-restart:
+    name: Intelligence Stage 6A PostgreSQL durable restart
+    needs: classify
+    if: needs.classify.outputs.run_intelligence_hardening == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_intelligence_restart
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_intelligence_restart"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ELITESCADA_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=elitescada_intelligence_restart;Username=postgres;Password=postgres;Pooling=false
+      ELITESCADA_REQUIRE_INTELLIGENCE_POSTGRES: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore focused Intelligence test projects
+        run: |
+          set -euo pipefail
+          dotnet restore tests/Scada.Core.Tests/Scada.Core.Tests.csproj
+          dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          dotnet restore tests/Scada.Security.Tests/Scada.Security.Tests.csproj
+      - name: Run platform-neutral Intelligence and Authority regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence'
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests'
+          dotnet test tests/Scada.Security.Tests/Scada.Security.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AuthorityPolicyContractTests'
+      - name: Run real PostgreSQL revision restart evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/intelligence-restart-results"
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --no-restore --configuration Release --verbosity minimal \
+            --filter 'FullyQualifiedName=Scada.Drivers.Tests.AssetProcessIntelligenceDurableRestartTests.PostgreSqlRevisionReloadPreservesIntelligenceConfigurationButDoesNotRearmPermit' \
+            --logger 'trx;LogFileName=intelligence-durable-restart.trx' \
+            --results-directory "$RUNNER_TEMP/intelligence-restart-results"
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          paths = list(Path(os.environ['RUNNER_TEMP'], 'intelligence-restart-results').glob('*.trx'))
+          results = [
+              item
+              for path in paths
+              for item in ET.parse(path).getroot().iter()
+              if item.tag.endswith('UnitTestResult')
+              and 'PostgreSqlRevisionReloadPreservesIntelligenceConfigurationButDoesNotRearmPermit' in item.attrib.get('testName', '')
+          ]
+          if len(results) != 1 or results[0].attrib.get('outcome') != 'Passed':
+              raise SystemExit('The required PostgreSQL durable-restart test did not pass exactly once.')
+          print('Required PostgreSQL durable-restart test passed exactly once.')
+          PY
+      - name: Record PostgreSQL evidence provenance
+        if: always()
+        run: |
+          {
+            echo '## Intelligence Stage 6A PostgreSQL durable-restart evidence'
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo "SDK: $(dotnet --version)"
+            echo 'Database: isolated Timescale PostgreSQL service; no Preview database, project, volume or port used.'
+            echo 'Required test: revision saved, fresh store/process rehydrated stable Intelligence IDs/configuration, active permit not recreated.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve durable-restart test result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave15-intelligence-durable-restart-trx
+          path: ${{ runner.temp }}/intelligence-restart-results
+          if-no-files-found: ignore
+          retention-days: 14
 
   chromium-focused:
     name: Focused Chromium evidence
@@ -640,7 +766,7 @@ jobs:
 
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -649,6 +775,8 @@ jobs:
       COMMON: ${{ needs.common-sanity.result }}
       WEB: ${{ needs.web-semantic.result }}
       DOTNET: ${{ needs.dotnet-focused.result }}
+      INTELLIGENCE_WINDOWS: ${{ needs.intelligence-windows-focus.result }}
+      INTELLIGENCE_POSTGRES: ${{ needs.intelligence-postgres-restart.result }}
       E2E: ${{ needs.chromium-focused.result }}
       HA_TWO_PROCESS: ${{ needs.ha-two-process.result }}
       HA_D2: ${{ needs.ha-d2-acceptance.result }}
@@ -659,6 +787,7 @@ jobs:
       EXEMPT: ${{ needs.classify.outputs.coordination_exempt }}
       NEED_WEB: ${{ needs.classify.outputs.run_web }}
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
+      NEED_INTELLIGENCE_HARDENING: ${{ needs.classify.outputs.run_intelligence_hardening }}
       NEED_E2E: ${{ needs.classify.outputs.run_e2e }}
       NEED_HA_TWO_PROCESS: ${{ needs.classify.outputs.run_ha_two_process }}
       NEED_HA_D2: ${{ needs.classify.outputs.run_ha_d2_acceptance }}
@@ -677,6 +806,8 @@ jobs:
           if [ "$EXEMPT" != true ]; then test "$COMMON" = success; fi
           if [ "$NEED_WEB" = true ]; then test "$WEB" = success; fi
           if [ "$NEED_DOTNET" = true ]; then test "$DOTNET" = success; fi
+          if [ "$NEED_INTELLIGENCE_HARDENING" = true ]; then test "$INTELLIGENCE_WINDOWS" = success; fi
+          if [ "$NEED_INTELLIGENCE_HARDENING" = true ]; then test "$INTELLIGENCE_POSTGRES" = success; fi
           if [ "$NEED_E2E" = true ]; then test "$E2E" = success; fi
           if [ "$NEED_HA_TWO_PROCESS" = true ]; then test "$HA_TWO_PROCESS" = success; fi
           if [ "$NEED_HA_D2" = true ]; then test "$HA_D2" = success; fi
@@ -687,7 +818,7 @@ jobs:
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
-            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 process acceptance: $HA_D2; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR";
+            echo "Web: $WEB; .NET: $DOTNET; Intelligence Windows: $INTELLIGENCE_WINDOWS; Intelligence PostgreSQL restart: $INTELLIGENCE_POSTGRES; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 process acceptance: $HA_D2; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR";
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
           } >> "$GITHUB_STEP_SUMMARY"

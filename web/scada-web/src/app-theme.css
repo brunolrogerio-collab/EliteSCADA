@@ -9,10 +9,10 @@
   --app-text-primary: #edf3f7;
   --app-text-secondary: #9eacb8;
   --app-text-disabled: #7f8c98;
-  --app-accent: #64b5e3;
-  --app-selected: #183247;
+  --app-accent: #21d0c3;
+  --app-selected: #143431;
   --app-hover: #17232d;
-  --app-focus: #8bd3ff;
+  --app-focus: #8af2ea;
   --app-error: #ff7f8a;
   --app-warning: #f3c96b;
   --app-success: #75d69c;
@@ -35,10 +35,10 @@
   --app-text-primary: #15212b;
   --app-text-secondary: #4d5f6d;
   --app-text-disabled: #5c6d7b;
-  --app-accent: #066a9f;
-  --app-selected: #d9edf9;
+  --app-accent: #087e78;
+  --app-selected: #d9f2ef;
   --app-hover: #e8f1f7;
-  --app-focus: #005f91;
+  --app-focus: #006c66;
   --app-error: #a9222f;
   --app-warning: #805d00;
   --app-success: #176b38;
@@ -148,6 +148,8 @@ body { background: var(--app-bg); color: var(--app-text-primary); }
 .eng-entity-card,
 .eng-lifecycle span,
 .eng-flow span { background: var(--app-surface-elevated); border-color: var(--app-border); }
+.eng-mark { padding: 0; overflow: hidden; background: transparent; border-color: transparent; }
+.eng-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .eng-runtime-link,
 .eng-panel h2,
 .eng-table td { color: var(--app-text-primary); }

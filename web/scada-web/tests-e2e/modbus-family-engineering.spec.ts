@@ -23,7 +23,7 @@ test('Modbus family Data Source UX uses server-owned serial catalog with manual 
 
   const serial = editor.getByTestId('data-source-setting-serialPort');
   await expect(serial).toBeVisible();
-  await expect(editor.getByTestId('server-serial-port-authority')).toContainText('servidor EliteSCADA');
+  await expect(editor.getByTestId('server-serial-port-authority')).toContainText('servidor SCADIVO');
   await serial.fill('/dev/custom-offline-modbus');
   await expect(serial).toHaveValue('/dev/custom-offline-modbus');
 

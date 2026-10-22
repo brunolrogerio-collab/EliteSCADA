@@ -54,7 +54,7 @@ export function ReusableLibraryWorkspace({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [exportName, setExportName] = useState('EliteSCADA Library');
+  const [exportName, setExportName] = useState('SCADIVO Library');
   const [exportVersion, setExportVersion] = useState('1.0.0');
   const [selectedExport, setSelectedExport] = useState<Set<string>>(() => new Set());
   const [selectedPreview, setSelectedPreview] = useState<ReusableLibraryResourcePreview | null>(null);

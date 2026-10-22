@@ -1599,14 +1599,14 @@ function copy(locale: EngineeringLocale) {
       eyebrow: "Home / Building",
       title: "Integrations, locations and devices",
       description:
-        "Discover physical devices and organize them in EliteSCADA while keeping the canonical Engineering and Runtime model.",
+        "Discover physical devices and organize them in SCADIVO while keeping the canonical Engineering and Runtime model.",
       workspaceTabs: "Home and building workspaces",
       integrations: "Integrations",
       locations: "Locations",
       devices: "Devices",
       catalogTitle: "Available integration catalog",
       catalogHint:
-        "Driver metadata comes from the current EliteSCADA catalog; dependencies and discovery support are shown before configuration.",
+        "Driver metadata comes from the current SCADIVO catalog; dependencies and discovery support are shown before configuration.",
       catalogDrivers: "drivers",
       noDescription: "No description provided.",
       discoveryBadge: "Discovery",
@@ -1673,7 +1673,7 @@ function copy(locale: EngineeringLocale) {
       capabilities: "capabilities",
       deviceName: "Equipment name",
       devicePath: "Stable Engineering path",
-      assignLocation: "EliteSCADA location",
+      assignLocation: "SCADIVO location",
       unassigned: "Unassigned for now",
       locationAssignmentHint:
         "A driver-provided location is only a hint. Choose a canonical location here or explicitly leave the device unassigned.",
@@ -1709,14 +1709,14 @@ function copy(locale: EngineeringLocale) {
       eyebrow: "Hogar / Edificios",
       title: "Integraciones, ubicaciones y dispositivos",
       description:
-        "Descubra dispositivos físicos y organícelos en EliteSCADA conservando el modelo canónico de Engineering y Runtime.",
+        "Descubra dispositivos físicos y organícelos en SCADIVO conservando el modelo canónico de Engineering y Runtime.",
       workspaceTabs: "Espacios de hogar y edificios",
       integrations: "Integraciones",
       locations: "Ubicaciones",
       devices: "Dispositivos",
       catalogTitle: "Catálogo de integraciones disponibles",
       catalogHint:
-        "Los metadatos provienen del catálogo actual de EliteSCADA; se muestran dependencias y descubrimiento antes de configurar.",
+        "Los metadatos provienen del catálogo actual de SCADIVO; se muestran dependencias y descubrimiento antes de configurar.",
       catalogDrivers: "drivers",
       noDescription: "Sin descripción.",
       discoveryBadge: "Descubrimiento",
@@ -1784,7 +1784,7 @@ function copy(locale: EngineeringLocale) {
       capabilities: "capacidades",
       deviceName: "Nombre del equipo",
       devicePath: "Ruta estable de Engineering",
-      assignLocation: "Ubicación EliteSCADA",
+      assignLocation: "Ubicación SCADIVO",
       unassigned: "Sin asignar por ahora",
       locationAssignmentHint:
         "La ubicación del driver es solo una sugerencia. Elija una ubicación canónica o déjelo sin asignar.",
@@ -1818,14 +1818,14 @@ function copy(locale: EngineeringLocale) {
     eyebrow: "HOME / BUILDING",
     title: "Integrações, locais e dispositivos",
     description:
-      "Descubra dispositivos físicos e organize-os no EliteSCADA preservando o modelo canônico de Engenharia e Runtime.",
+      "Descubra dispositivos físicos e organize-os no SCADIVO preservando o modelo canônico de Engenharia e Runtime.",
     workspaceTabs: "Áreas de Home e Building",
     integrations: "Integrações",
     locations: "Locais",
     devices: "Dispositivos",
     catalogTitle: "Catálogo de integrações disponíveis",
     catalogHint:
-      "Os metadados vêm do catálogo atual do EliteSCADA; dependências e suporte a descoberta aparecem antes da configuração.",
+      "Os metadados vêm do catálogo atual do SCADIVO; dependências e suporte a descoberta aparecem antes da configuração.",
     catalogDrivers: "drivers",
     noDescription: "Sem descrição disponível.",
     discoveryBadge: "Descoberta",
@@ -1870,7 +1870,7 @@ function copy(locale: EngineeringLocale) {
     operationError: "Bloqueado",
     deviceTitle: "Descobrir e registrar dispositivos",
     deviceHint:
-      "A descoberta não altera o projeto. Selecione um candidato, defina nome e local no EliteSCADA e confira o Preview de Equipamento, TAGs e Comandos antes de aplicar.",
+      "A descoberta não altera o projeto. Selecione um candidato, defina nome e local no SCADIVO e confira o Preview de Equipamento, TAGs e Comandos antes de aplicar.",
     integration: "Integração",
     noDiscoverySource:
       "Nenhuma integração salva com descoberta de dispositivos.",
@@ -1892,7 +1892,7 @@ function copy(locale: EngineeringLocale) {
     capabilities: "capacidades",
     deviceName: "Nome do equipamento",
     devicePath: "Caminho estável na Engenharia",
-    assignLocation: "Local no EliteSCADA",
+    assignLocation: "Local no SCADIVO",
     unassigned: "Sem local por enquanto",
     locationAssignmentHint:
       "A indicação do driver é apenas uma sugestão. Escolha aqui um local canônico ou deixe o equipamento explicitamente sem local.",

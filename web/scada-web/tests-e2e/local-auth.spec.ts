@@ -10,6 +10,7 @@ test('secure first-run creates the initial local Administrator, first project an
   const apiBaseUrl = process.env.ELITESCADA_E2E_API_BASE_URL ?? 'http://127.0.0.1:5080';
   const context = await browser.newContext({
     baseURL: baseURL ?? 'http://127.0.0.1:5173',
+    locale: 'pt-BR',
     extraHTTPHeaders: { Authorization: '' }
   });
   const page = await context.newPage();
@@ -32,6 +33,8 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(authConfig.body.passwordPolicy.maximumLength).toBe(1024);
 
     await expect(page.locator('.auth-card')).toBeVisible();
+    await expect(page.locator('.auth-mark')).toHaveAttribute('src', '/scadivo-mark.svg');
+    await expect(page.locator('.auth-mark')).toHaveAttribute('alt', 'SCADIVO');
     await expect(page.locator('input[name="bootstrap-username"]')).toBeVisible();
     await expect(page.locator('input[name="username"]')).toHaveCount(0);
 
@@ -124,6 +127,7 @@ test('secure first-run creates the initial local Administrator, first project an
     await page.locator('input[name="project-name"]').fill('E2E C01 First Project');
     await page.locator('button[type="submit"]').click();
     await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('.eng-brand__title')).toHaveText('SCADIVO Engenharia');
 
     const workspace = await page.evaluate(async () => {
       const response = await fetch('/api/engineering/workspace');

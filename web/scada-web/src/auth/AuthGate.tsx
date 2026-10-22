@@ -95,9 +95,9 @@ function persistRecoveryContinuation(continuation: RecoveryContinuation | null) 
 
 const messages = {
   'pt-BR': {
-    title: 'EliteSCADA',
+    title: 'SCADIVO',
     subtitle: 'Acesso ao Runtime e Engineering',
-    welcome: 'Bem-vindo ao EliteSCADA',
+    welcome: 'Bem-vindo ao SCADIVO',
     firstRun: 'Restaure um backup existente ou crie o Administrador inicial para concluir a configuração segura deste servidor.',
     firstRunBlocked: 'A identidade local está vazia, mas o servidor não pode confirmar uma instalação realmente vazia. Por segurança, o bootstrap anônimo permanece fechado. Restaure um Administrador ou use a configuração explícita de bootstrap do servidor.',
     username: 'Usuário',
@@ -129,9 +129,9 @@ const messages = {
     retry: 'Tentar novamente'
   },
   en: {
-    title: 'EliteSCADA',
+    title: 'SCADIVO',
     subtitle: 'Runtime and Engineering access',
-    welcome: 'Welcome to EliteSCADA',
+    welcome: 'Welcome to SCADIVO',
     firstRun: 'Restore an existing backup or create the initial Administrator to complete the secure setup of this server.',
     firstRunBlocked: 'The local identity store is empty, but the server cannot confirm a truly empty installation. Anonymous bootstrap remains closed for safety. Restore an Administrator or use the server-side explicit bootstrap configuration.',
     username: 'Username',
@@ -163,9 +163,9 @@ const messages = {
     retry: 'Retry'
   },
   es: {
-    title: 'EliteSCADA',
+    title: 'SCADIVO',
     subtitle: 'Acceso a Runtime y Engineering',
-    welcome: 'Bienvenido a EliteSCADA',
+    welcome: 'Bienvenido a SCADIVO',
     firstRun: 'Restaure un backup existente o cree el Administrador inicial para completar la configuración segura de este servidor.',
     firstRunBlocked: 'El almacén de identidad local está vacío, pero el servidor no puede confirmar una instalación realmente vacía. Por seguridad, el bootstrap anónimo permanece cerrado. Restaure un Administrador o use la configuración explícita de bootstrap del servidor.',
     username: 'Usuario',
@@ -521,14 +521,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }), [canSwitchUser, logout, profile, switchUser]);
 
   if (checking || checkingProject) {
-    return <div className="auth-page"><div className="auth-card auth-loading"><strong>{t.title}</strong></div></div>;
+    return <div className="auth-page"><div className="auth-card auth-loading"><img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO"/><strong>{t.title}</strong></div></div>;
   }
 
   if (unavailable) {
     return (
       <div className="auth-page">
         <div className="auth-card">
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.title}</h1>
           <p>{t.unavailable}</p>
           <button type="button" className="auth-primary" onClick={() => void check()}>{t.retry}</button>
@@ -572,7 +572,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="auth-page">
         <form className="auth-card auth-card--first-run" onSubmit={createFirstProject}>
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.firstProjectTitle}</h1>
           <p>{t.firstProject}</p>
           <label>
@@ -621,7 +621,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="auth-page">
         <div className="auth-card">
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.title}</h1>
           <p>{t.external}</p>
         </div>
@@ -633,7 +633,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="auth-page">
         <div className="auth-card auth-card--first-run">
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.title}</h1>
           <p role="alert">{t.firstRunBlocked}</p>
         </div>
@@ -646,7 +646,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="auth-page">
         <form className="auth-card auth-card--first-run" onSubmit={bootstrap}>
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.welcome}</h1>
           <p>{t.firstRun}</p>
           <label>
@@ -714,7 +714,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={login}>
-        <div className="auth-mark">E</div>
+        <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
         <h1>{t.title}</h1>
         <p>{t.subtitle}</p>
         {recoverySignInRequired && <div className="auth-status" role="status">{t.recoverySignInRequired}</div>}

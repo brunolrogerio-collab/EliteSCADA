@@ -35,7 +35,7 @@ type HelpCatalog = Readonly<{
 
 const ui = {
   'pt-BR': {
-    title: 'Ajuda do EliteSCADA',
+    title: 'Ajuda do SCADIVO',
     subtitle: 'Ajuda local e contextual',
     language: 'Idioma',
     topics: 'Tópicos',
@@ -45,7 +45,7 @@ const ui = {
     api: 'API de Server Script suportada nesta compilação', parameters: 'Parâmetros', result: 'Resultado', safety: 'Segurança', related: 'Tópicos relacionados'
   },
   en: {
-    title: 'EliteSCADA Help',
+    title: 'SCADIVO Help',
     subtitle: 'Local contextual help',
     language: 'Language',
     topics: 'Topics',
@@ -55,7 +55,7 @@ const ui = {
     api: 'Server Script API supported by this build', parameters: 'Parameters', result: 'Result', safety: 'Safety', related: 'Related topics'
   },
   es: {
-    title: 'Ayuda de EliteSCADA',
+    title: 'Ayuda de SCADIVO',
     subtitle: 'Ayuda local y contextual',
     language: 'Idioma',
     topics: 'Temas',

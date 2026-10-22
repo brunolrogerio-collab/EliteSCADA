@@ -44,7 +44,7 @@ test('TAG Monitor is an Engineering diagnostic while its facts remain Active Run
   await inspector.getByRole('option').filter({ hasText: 'Demo.Tank01.Level' }).click();
   const terms = inspector.getByRole('term');
   await expect(terms.filter({ hasText: 'Qualidade' }).first()).toBeVisible();
-  await expect(terms.filter({ hasText: 'Timestamp EliteSCADA' }).first()).toBeVisible();
+  await expect(terms.filter({ hasText: 'Timestamp SCADIVO' }).first()).toBeVisible();
   await expect(terms.filter({ hasText: 'Timestamp da origem' }).first()).toBeVisible();
   await expect(terms.filter({ hasText: 'Timestamp do servidor' }).first()).toBeVisible();
   await expect(terms.filter({ hasText: 'Tipo' }).first()).toBeVisible();

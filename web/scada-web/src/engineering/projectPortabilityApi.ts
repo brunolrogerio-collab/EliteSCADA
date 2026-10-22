@@ -215,7 +215,7 @@ export async function saveProjectDownload(
     const handle = await picker({
       suggestedName: download.filename,
       types: [{
-        description: 'Aplicação EliteSCADA',
+        description: 'Aplicação SCADIVO',
         accept: { [PACKAGE_MEDIA_TYPE]: ['.escadapkg'] }
       }]
     });

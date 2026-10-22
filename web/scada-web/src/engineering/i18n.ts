@@ -40,7 +40,7 @@ export function productTerm(locale: EngineeringLocale, term: ProductGlossaryTerm
 }
 
 const ptBR = {
-  'app.title': `EliteSCADA ${productTerm('pt-BR', 'engineering')}`,
+  'app.title': `SCADIVO ${productTerm('pt-BR', 'engineering')}`,
   'app.subtitle': 'Ambiente de Engenharia',
   'app.runtime': productTerm('pt-BR', 'runtime'),
   'app.engineering': productTerm('pt-BR', 'engineering'),
@@ -135,7 +135,7 @@ const ptBR = {
 export type TranslationKey = keyof typeof ptBR;
 
 const en: Record<TranslationKey, string> = {
-  'app.title': `EliteSCADA ${productTerm('en', 'engineering')}`,
+  'app.title': `SCADIVO ${productTerm('en', 'engineering')}`,
   'app.subtitle': 'Engineering Environment',
   'app.runtime': productTerm('en', 'runtime'),
   'app.engineering': productTerm('en', 'engineering'),
@@ -228,7 +228,7 @@ const en: Record<TranslationKey, string> = {
 };
 
 const es: Record<TranslationKey, string> = {
-  'app.title': `EliteSCADA ${productTerm('es', 'engineering')}`,
+  'app.title': `SCADIVO ${productTerm('es', 'engineering')}`,
   'app.subtitle': 'Entorno de Ingeniería',
   'app.runtime': productTerm('es', 'runtime'),
   'app.engineering': productTerm('es', 'engineering'),

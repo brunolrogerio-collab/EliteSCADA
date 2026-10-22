@@ -474,7 +474,7 @@ public static class ContextualHelpCatalog
         TaskGuide(
             "packages.escadapkg", "packages",
             Tx("Pacotes .escadapkg", ".escadapkg packages", "Paquetes .escadapkg"),
-            Tx("Pacote portátil e autocontido de uma aplicação EliteSCADA.", "Portable self-contained package for an EliteSCADA application.", "Paquete portátil y autocontenido de una aplicación EliteSCADA."),
+            Tx("Pacote portátil e autocontido de uma aplicação SCADIVO.", "Portable self-contained package for a SCADIVO application.", "Paquete portátil y autocontenido de una aplicación SCADIVO."),
             Tx("Use para transportar uma aplicação entre instalações ou manter um artefato de entrega.", "Use it to move an application between installations or keep a delivery artifact.", "Úselo para mover una aplicación entre instalaciones o conservar un artefacto de entrega."),
             Tx("Tenha acesso de Engineering e preserve uma cópia segura do estado atual antes de aplicar um pacote em um projeto existente.", "Have Engineering access and keep a safe copy of the current state before applying a package to an existing project.", "Tenga acceso de Engineering y conserve una copia segura del estado actual antes de aplicar un paquete a un proyecto existente."),
             Tx("Exporte quando precisar transportar; ao importar, inspecione o pacote, execute Preview e aplique somente se o resultado estiver correto.", "Export when portability is needed; on import, inspect the package, run Preview, and apply only when the result is correct.", "Exporte cuando necesite portabilidad; al importar, inspeccione el paquete, ejecute Preview y aplique solo si el resultado es correcto."),

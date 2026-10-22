@@ -299,7 +299,7 @@ for (const path of ['/engineering/mobile', '/admin/database']) {
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
     await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
     await expect(page.locator('.app-bar')).toHaveCount(0);
-    await expect(page.getByRole('navigation', { name: 'EliteSCADA', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'SCADIVO', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Tela cheia', exact: true })).toHaveCount(0);
     await expect(page.getByTestId('runtime-logical-viewport')).toHaveAttribute('data-mobile-rotated', 'true');
   });

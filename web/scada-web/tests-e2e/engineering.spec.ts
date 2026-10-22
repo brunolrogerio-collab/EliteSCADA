@@ -10,7 +10,8 @@ test('Runtime exposes an entry to the Engineering workspace', async ({ page }) =
   await engineeringLink.click();
 
   await expect(page).toHaveURL(/\/engineering$/);
-  await expect(page.getByText('EliteSCADA Engenharia')).toBeVisible();
+  await expect(page.getByText('SCADIVO Engenharia')).toBeVisible();
+  await expect(page.locator('.eng-mark img')).toHaveAttribute('src', '/scadivo-mark.svg');
 });
 
 test('Engineering workspace renders the public model and switches locale without changing Engineering identifiers', async ({ page, request }) => {
@@ -24,7 +25,7 @@ test('Engineering workspace renders the public model and switches locale without
 
   await page.goto('/engineering');
 
-  await expect(page.getByText('EliteSCADA Engenharia')).toBeVisible();
+  await expect(page.getByText('SCADIVO Engenharia')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toBeVisible();
   await expect(page.getByText(String(engineering.tags.length), { exact: true }).first()).toBeVisible();
 

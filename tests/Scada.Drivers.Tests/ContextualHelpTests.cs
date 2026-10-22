@@ -66,6 +66,18 @@ public sealed class ContextualHelpTests
         }
     }
 
+    [Theory]
+    [InlineData("pt-BR", "Pacote portátil e autocontido de uma aplicação SCADIVO.")]
+    [InlineData("en", "Portable self-contained package for a SCADIVO application.")]
+    [InlineData("es", "Paquete portátil y autocontenido de una aplicación SCADIVO.")]
+    public void ProjectPackageHelp_UsesTheCommercialBrandWithoutChangingItsTopicId(string locale, string expectedSummary)
+    {
+        var catalog = ContextualHelpCatalog.Build(locale);
+        var topic = Assert.Single(catalog.Topics, item => item.Id == "packages.escadapkg");
+
+        Assert.Equal(expectedSummary, topic.Summary);
+    }
+
     [Fact]
     public void DriverHelpInventory_MatchesCanonicalProductionCatalogAndExcludesSimulation()
     {

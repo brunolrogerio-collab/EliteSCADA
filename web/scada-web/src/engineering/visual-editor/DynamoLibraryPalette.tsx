@@ -165,6 +165,6 @@ function sourceHeading(locale: 'pt-BR' | 'en' | 'es'): string {
 
 function sourceLabel(value: 'builtin' | 'project' | '', locale: 'pt-BR' | 'en' | 'es'): string {
   if (!value) return locale === 'pt-BR' ? 'Todas as origens' : locale === 'es' ? 'Todos los orígenes' : 'All origins';
-  if (value === 'builtin') return 'EliteSCADA Built-in';
+  if (value === 'builtin') return 'SCADIVO Built-in';
   return locale === 'pt-BR' ? 'Projeto / Usuário' : locale === 'es' ? 'Proyecto / Usuario' : 'Project / User';
 }

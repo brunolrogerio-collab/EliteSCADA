@@ -456,7 +456,7 @@ test('shell keeps navigation, account and theme reachable without horizontal ove
   for (const width of [1180, 1024, 901]) {
     await page.setViewportSize({ width, height: 720 });
     await page.goto('/');
-    await expect(page.getByRole('navigation', { name: 'EliteSCADA' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'SCADIVO' })).toBeVisible();
     await expect(page.getByTestId('session-menu-toggle')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Tema' })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

@@ -32,7 +32,7 @@ export async function loginLocalDeveloper(page: Page) {
   await page.locator('input[name="password"]').fill(LOCAL_DEVELOPER_PASSWORD);
   await page.locator('button[type="submit"]').click();
   await expect(page.locator('.app-bar')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('navigation', { name: 'EliteSCADA' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'SCADIVO' })).toBeVisible();
 }
 
 export async function setProductLocale(page: Page, locale: 'pt-BR' | 'en' | 'es') {

@@ -188,7 +188,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
     <main className="eng-shell">
       <header className="eng-topbar">
         <div className="eng-brand">
-          <div className="eng-mark" aria-hidden="true">E</div>
+          <div className="eng-mark" aria-hidden="true"><img src="/scadivo-mark.svg" alt="" /></div>
           <strong className="eng-brand__title">{t('app.title')}</strong>
         </div>
         <div className="eng-context" data-testid="engineering-context-row">

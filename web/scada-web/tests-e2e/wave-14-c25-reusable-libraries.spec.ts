@@ -270,7 +270,7 @@ test('library association stays non-mutating, selective use advances Working, an
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('Process-Library.escadalib');
   expect(contract.exportRequest).toMatchObject({
-    name: 'EliteSCADA Library',
+    name: 'SCADIVO Library',
     version: '1.0.0',
     resources: [{ kind: 'screen', resourceId: screenId }]
   });

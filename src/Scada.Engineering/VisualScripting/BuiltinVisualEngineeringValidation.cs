@@ -100,6 +100,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateIntelligencePerformanceV1B(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProfileCoverageV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceContextualDeviationV2Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceContextualDeviationV2(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
             element.Type.Equals(BuiltinVisualObjectSchemas.EventBrowserType, StringComparison.Ordinal))
             issues.AddRange(ValidateBrowserConfiguration(element, entityKind, entityKey));
@@ -233,6 +235,68 @@ public static class BuiltinVisualEngineeringValidation
             yield return Error(
                 "VISUAL_INTELLIGENCE_COVERAGE_CONFIG_INVALID",
                 $"Profile coverage visual '{element.Key}' requires canonical scope/profile UUIDs on a Screen.",
+                entityKind,
+                entityKey);
+        }
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligenceContextualDeviationV2(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        var identifiers = new[]
+        {
+            ReadString(element, VisualPropertyKeys.IntelligenceScopeId),
+            ReadString(element, VisualPropertyKeys.IntelligenceAssignmentId),
+            ReadString(element, VisualPropertyKeys.IntelligenceProfileId),
+            ReadString(element, VisualPropertyKeys.IntelligenceFirstContextSignalId),
+            ReadString(element, VisualPropertyKeys.IntelligenceSecondContextSignalId)
+        };
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(value => !Guid.TryParseExact(value, "D", out _)))
+        {
+            yield return Error(
+                "VISUAL_INTELLIGENCE_CONTEXTUAL_DEVIATION_CONFIG_INVALID",
+                $"Contextual deviation visual '{element.Key}' requires canonical scope, assignment, profile and context signal UUIDs on a Screen.",
+                entityKind,
+                entityKey);
+            yield break;
+        }
+
+        var signalIdsJson = ReadString(element, VisualPropertyKeys.IntelligenceSignalIds);
+        string?[]? targetSignalIds = null;
+        if (signalIdsJson is { Length: <= 1024 })
+        {
+            try { targetSignalIds = JsonSerializer.Deserialize<string?[]>(signalIdsJson); }
+            catch (JsonException) { targetSignalIds = null; }
+        }
+        var firstContextId = identifiers[3];
+        var secondContextId = identifiers[4];
+        if (targetSignalIds is not { Length: >= 2 and <= 8 } ||
+            targetSignalIds.Any(value => value is null || !Guid.TryParseExact(value, "D", out _)) ||
+            targetSignalIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() != targetSignalIds.Length ||
+            targetSignalIds.Any(value => string.Equals(value, firstContextId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, secondContextId, StringComparison.OrdinalIgnoreCase)) ||
+            string.Equals(firstContextId, secondContextId, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return Error(
+                "VISUAL_INTELLIGENCE_CONTEXTUAL_DEVIATION_CONFIG_INVALID",
+                $"Contextual deviation visual '{element.Key}' requires two to eight distinct target signals, distinct from its two context signals.",
+                entityKind,
+                entityKey);
+            yield break;
+        }
+
+        var firstLower = ReadNumber(element, VisualPropertyKeys.IntelligenceFirstContextLowerInclusiveCanonical, double.NaN);
+        var firstUpper = ReadNumber(element, VisualPropertyKeys.IntelligenceFirstContextUpperExclusiveCanonical, double.NaN);
+        var secondLower = ReadNumber(element, VisualPropertyKeys.IntelligenceSecondContextLowerInclusiveCanonical, double.NaN);
+        var secondUpper = ReadNumber(element, VisualPropertyKeys.IntelligenceSecondContextUpperExclusiveCanonical, double.NaN);
+        if (!double.IsFinite(firstLower) || !double.IsFinite(firstUpper) || firstLower >= firstUpper ||
+            !double.IsFinite(secondLower) || !double.IsFinite(secondUpper) || secondLower >= secondUpper)
+        {
+            yield return Error(
+                "VISUAL_INTELLIGENCE_CONTEXTUAL_DEVIATION_CONFIG_INVALID",
+                $"Contextual deviation visual '{element.Key}' requires finite canonical ranges with each lower bound below its exclusive upper bound.",
                 entityKind,
                 entityKey);
         }

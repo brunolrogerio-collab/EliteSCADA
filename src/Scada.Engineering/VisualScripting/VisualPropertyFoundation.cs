@@ -394,6 +394,12 @@ public static class VisualPropertyKeys
     public const string IntelligenceRuleId = "intelligenceRuleId";
     public const string IntelligenceRuleVersion = "intelligenceRuleVersion";
     public const string IntelligenceSignalIds = "intelligenceSignalIds";
+    public const string IntelligenceFirstContextSignalId = "intelligenceFirstContextSignalId";
+    public const string IntelligenceFirstContextLowerInclusiveCanonical = "intelligenceFirstContextLowerInclusiveCanonical";
+    public const string IntelligenceFirstContextUpperExclusiveCanonical = "intelligenceFirstContextUpperExclusiveCanonical";
+    public const string IntelligenceSecondContextSignalId = "intelligenceSecondContextSignalId";
+    public const string IntelligenceSecondContextLowerInclusiveCanonical = "intelligenceSecondContextLowerInclusiveCanonical";
+    public const string IntelligenceSecondContextUpperExclusiveCanonical = "intelligenceSecondContextUpperExclusiveCanonical";
 
     // Pre-Wave-07 compatibility constant. New visual schemas use AssetRef.
     public const string ImageResourceId = "imageResourceId";

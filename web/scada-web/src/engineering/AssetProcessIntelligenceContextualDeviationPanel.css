@@ -1,0 +1,85 @@
+.asset-process-intelligence__deviation-panel {
+  margin-top: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--app-border, #475569);
+  border-radius: 6px;
+}
+
+.asset-process-intelligence__deviation-panel > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.asset-process-intelligence__deviation-body {
+  display: grid;
+  gap: 0.65rem;
+  padding-top: 0.6rem;
+}
+
+.asset-process-intelligence__deviation-body p {
+  margin: 0;
+  color: var(--app-text-secondary, #94a3b8);
+  font-size: 0.85rem;
+}
+
+.asset-process-intelligence__deviation-body fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0.55rem;
+  border: 1px solid var(--app-border, #475569);
+  border-radius: 5px;
+}
+
+.asset-process-intelligence__deviation-body legend {
+  padding: 0 0.25rem;
+  font-weight: 600;
+}
+
+.asset-process-intelligence__deviation-targets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 0.35rem 0.65rem;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.asset-process-intelligence__deviation-targets label {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+
+.asset-process-intelligence__deviation-targets small {
+  display: block;
+  color: var(--app-text-secondary, #94a3b8);
+  overflow-wrap: anywhere;
+}
+
+.asset-process-intelligence__deviation-contexts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0.65rem;
+}
+
+.asset-process-intelligence__deviation-contexts fieldset {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+}
+
+.asset-process-intelligence__deviation-contexts label {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__deviation-contexts input,
+.asset-process-intelligence__deviation-contexts select {
+  min-width: 0;
+  min-height: 2rem;
+}
+
+.asset-process-intelligence__deviation-note {
+  border-left: 3px solid var(--app-accent, #38bdf8);
+  padding-left: 0.6rem;
+}

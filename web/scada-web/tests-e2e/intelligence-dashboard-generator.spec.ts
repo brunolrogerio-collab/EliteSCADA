@@ -6,6 +6,7 @@ import type {
 } from '../src/engineering/types';
 import {
   generateIntelligenceDashboardDraft,
+  generateIntelligenceContextualDeviationScreenDraft,
   generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
   INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS,
@@ -198,6 +199,78 @@ test('profile coverage screen draft rejects non-canonical stable references', ()
     profileId: '30000000-0000-0000-0000-000000000003',
     displayName: 'Pump P-101'
   }, 'en', ids())).toThrow(/canonical Equipment scope and profile UUIDs/);
+});
+
+test('contextual deviation V2 Screen draft stores stable identities and declared canonical ranges only', () => {
+  const selection = {
+    scopeId: '10000000-0000-0000-0000-000000000001',
+    assignmentId: '20000000-0000-0000-0000-000000000002',
+    profileId: '30000000-0000-0000-0000-000000000003',
+    targetSignalIds: [
+      '40000000-0000-0000-0000-000000000004',
+      '50000000-0000-0000-0000-000000000005'
+    ],
+    firstContextSignalId: '60000000-0000-0000-0000-000000000006',
+    firstContextLowerInclusiveCanonical: 5,
+    firstContextUpperExclusiveCanonical: 25,
+    secondContextSignalId: '70000000-0000-0000-0000-000000000007',
+    secondContextLowerInclusiveCanonical: 100,
+    secondContextUpperExclusiveCanonical: 220,
+    displayName: 'Pump P-101'
+  } as const;
+  const first = generateIntelligenceContextualDeviationScreenDraft([], selection, 'pt-BR', ids());
+  const second = generateIntelligenceContextualDeviationScreenDraft([first], selection, 'pt-BR', ids());
+  const visual = first.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2);
+
+  expect(first.key).toBe('intelligence-contextual-deviation-pump-p-101');
+  expect(second.key).toBe(`${first.key}-2`);
+  expect(second.route).toBe(`${first.route}-2`);
+  expect(first.metadata).toMatchObject({
+    intelligenceDashboardGenerator: 'stage5b.6',
+    intelligenceContextualDeviationRuleId: 'contextual-deviation-vector.v2',
+    intelligenceContextualDeviationRuleVersion: '2.0.0'
+  });
+  expect(visual?.properties).toMatchObject({
+    intelligenceScopeId: selection.scopeId,
+    intelligenceAssignmentId: selection.assignmentId,
+    intelligenceProfileId: selection.profileId,
+    intelligenceSignalIds: JSON.stringify(selection.targetSignalIds),
+    intelligenceFirstContextSignalId: selection.firstContextSignalId,
+    intelligenceFirstContextLowerInclusiveCanonical: selection.firstContextLowerInclusiveCanonical,
+    intelligenceFirstContextUpperExclusiveCanonical: selection.firstContextUpperExclusiveCanonical,
+    intelligenceSecondContextSignalId: selection.secondContextSignalId,
+    intelligenceSecondContextLowerInclusiveCanonical: selection.secondContextLowerInclusiveCanonical,
+    intelligenceSecondContextUpperExclusiveCanonical: selection.secondContextUpperExclusiveCanonical
+  });
+  expect(visual?.bindings).toBeUndefined();
+  expect(visual?.properties).not.toHaveProperty('referenceWindow');
+  expect(visual?.properties).not.toHaveProperty('evaluationWindow');
+  expect(visual?.properties).not.toHaveProperty('evaluationVectors');
+});
+
+test('contextual deviation V2 Screen draft rejects overlapping identities, too many targets or invalid ranges', () => {
+  const valid = {
+    scopeId: '10000000-0000-0000-0000-000000000001',
+    assignmentId: '20000000-0000-0000-0000-000000000002',
+    profileId: '30000000-0000-0000-0000-000000000003',
+    targetSignalIds: ['40000000-0000-0000-0000-000000000004', '50000000-0000-0000-0000-000000000005'],
+    firstContextSignalId: '60000000-0000-0000-0000-000000000006',
+    firstContextLowerInclusiveCanonical: 5,
+    firstContextUpperExclusiveCanonical: 25,
+    secondContextSignalId: '70000000-0000-0000-0000-000000000007',
+    secondContextLowerInclusiveCanonical: 100,
+    secondContextUpperExclusiveCanonical: 220,
+    displayName: 'Pump P-101'
+  } as const;
+  expect(() => generateIntelligenceContextualDeviationScreenDraft([], {
+    ...valid, targetSignalIds: [valid.targetSignalIds[0], valid.firstContextSignalId]
+  }, 'en', ids())).toThrow(/unique signal UUIDs/);
+  expect(() => generateIntelligenceContextualDeviationScreenDraft([], {
+    ...valid, targetSignalIds: Array.from({ length: 9 }, (_, index) => `${String(index + 1).padStart(8, '0')}-0000-0000-0000-000000000000`)
+  }, 'en', ids())).toThrow(/two to eight targets/);
+  expect(() => generateIntelligenceContextualDeviationScreenDraft([], {
+    ...valid, firstContextLowerInclusiveCanonical: Number.NaN
+  }, 'en', ids())).toThrow(/finite lower-inclusive/);
 });
 
 test('numeric source filtering excludes state and text TAGs', () => {

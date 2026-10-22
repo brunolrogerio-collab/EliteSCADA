@@ -41,6 +41,7 @@ import { NumericInputVisualElement } from './NumericInputVisualElement';
 import { MeasurementVisualElement } from './MeasurementVisualElement';
 import { IntelligencePerformanceVisualElement } from './IntelligencePerformanceVisualElement';
 import { IntelligenceProfileCoverageVisualElement } from './IntelligenceProfileCoverageVisualElement';
+import { IntelligenceContextualDeviationVisualElement } from './IntelligenceContextualDeviationVisualElement';
 import './CanonicalVisualInteraction.css';
 import { TrendVisualElement } from './TrendVisualElement';
 import { SvgSymbolVisualElement } from './SvgSymbolVisualElement';
@@ -266,6 +267,25 @@ function CanonicalElement({
       return <IntelligenceProfileCoverageVisualElement
         scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
         profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        locale={locale}
+        title={elementTitle}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2) {
+      return <IntelligenceContextualDeviationVisualElement
+        scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])}
+        profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        targetSignalIdsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceSignalIds], '[]')}
+        firstContextSignalId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceFirstContextSignalId])}
+        firstContextLowerInclusiveCanonical={numberValue(values[VISUAL_PROPERTY_KEYS.intelligenceFirstContextLowerInclusiveCanonical], Number.NaN)}
+        firstContextUpperExclusiveCanonical={numberValue(values[VISUAL_PROPERTY_KEYS.intelligenceFirstContextUpperExclusiveCanonical], Number.NaN)}
+        secondContextSignalId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId])}
+        secondContextLowerInclusiveCanonical={numberValue(values[VISUAL_PROPERTY_KEYS.intelligenceSecondContextLowerInclusiveCanonical], Number.NaN)}
+        secondContextUpperExclusiveCanonical={numberValue(values[VISUAL_PROPERTY_KEYS.intelligenceSecondContextUpperExclusiveCanonical], Number.NaN)}
         style={style}
         runtimeObjectId={runtimeObjectId}
         locale={locale}

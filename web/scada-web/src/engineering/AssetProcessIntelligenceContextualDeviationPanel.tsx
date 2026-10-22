@@ -25,7 +25,8 @@ export function AssetProcessIntelligenceContextualDeviationPanel({
   controlledUnits,
   displayName,
   canCreate,
-  onCreateRuntimeScreenDraft
+  onCreateRuntimeScreenDraft,
+  onGuidedSelectionChange
 }: {
   locale: EngineeringLocale;
   scopeId: string;
@@ -36,6 +37,7 @@ export function AssetProcessIntelligenceContextualDeviationPanel({
   displayName: string;
   canCreate: boolean;
   onCreateRuntimeScreenDraft?: (selection: IntelligenceContextualDeviationDashboardSelection) => void;
+  onGuidedSelectionChange?: (assignmentId: string, selection: IntelligenceContextualDeviationDashboardSelection | null) => void;
 }) {
   const copy = useMemo(() => panelCopy(locale), [locale]);
   const [targetIds, setTargetIds] = useState<string[]>([]);
@@ -90,6 +92,28 @@ export function AssetProcessIntelligenceContextualDeviationPanel({
     targetIds.every(id => !selectedContextIds.includes(id)) &&
     firstLowerValue !== null && firstUpperValue !== null && firstLowerValue < firstUpperValue &&
     secondLowerValue !== null && secondUpperValue !== null && secondLowerValue < secondUpperValue;
+
+  useEffect(() => {
+    if (!selectionValid || firstLowerValue === null || firstUpperValue === null ||
+        secondLowerValue === null || secondUpperValue === null) {
+      onGuidedSelectionChange?.(assignmentId, null);
+      return;
+    }
+    onGuidedSelectionChange?.(assignmentId, {
+      scopeId,
+      assignmentId,
+      profileId: profile.id,
+      targetSignalIds: targetIds,
+      firstContextSignalId: firstContextId,
+      firstContextLowerInclusiveCanonical: firstLowerValue,
+      firstContextUpperExclusiveCanonical: firstUpperValue,
+      secondContextSignalId: secondContextId,
+      secondContextLowerInclusiveCanonical: secondLowerValue,
+      secondContextUpperExclusiveCanonical: secondUpperValue,
+      displayName
+    });
+  }, [assignmentId, displayName, firstContextId, firstLowerValue, firstUpperValue, onGuidedSelectionChange,
+    profile.id, scopeId, secondContextId, secondLowerValue, secondUpperValue, selectionValid, targetIds]);
 
   const submit = () => {
     if (!selectionValid || !onCreateRuntimeScreenDraft || firstLowerValue === null || firstUpperValue === null ||

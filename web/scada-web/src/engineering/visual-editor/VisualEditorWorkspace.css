@@ -247,6 +247,7 @@
   }
   .visual-editor-canvas-slot .visual-editor-canvas__surface { min-height: 0; }
 }
+.visual-editor-generated-drafts{display:flex;flex-direction:column;gap:5px;max-height:240px;overflow:auto;padding:10px 8px;border-top:1px solid var(--eng-border,#d7dde5)}.visual-editor-generated-drafts>strong{padding:2px 4px;font-size:11px}.visual-editor-generated-drafts>button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:9px;border:1px solid transparent;border-radius:8px;background:transparent;color:inherit;text-align:left;cursor:pointer}.visual-editor-generated-drafts>button:hover{background:rgba(255,255,255,.75)}.visual-editor-generated-drafts>button.selected{border-color:rgba(38,101,160,.28);background:#fff;box-shadow:0 1px 4px rgba(24,39,58,.06)}.visual-editor-generated-drafts>button strong{font-size:11px}.visual-editor-generated-drafts>button code,.visual-editor-generated-drafts>button span{font-size:10px}.visual-editor-generated-drafts>button span{color:var(--eng-muted,#657080)}
 
 .visual-editor-canvas-meta-sr-only {
   position: absolute;

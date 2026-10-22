@@ -5,6 +5,10 @@ const profileId = '15000000-0000-0000-0000-000000000201';
 const assignmentId = '15000000-0000-0000-0000-000000000203';
 const currentTagId = '15000000-0000-0000-0000-000000000101';
 const speedTagId = '15000000-0000-0000-0000-000000000102';
+const firstContextSignalId = '15000000-0000-0000-0000-000000000213';
+const secondContextSignalId = '15000000-0000-0000-0000-000000000214';
+const firstContextTagId = '15000000-0000-0000-0000-000000000105';
+const secondContextTagId = '15000000-0000-0000-0000-000000000106';
 
 test('profile coverage runs only on explicit request and renders canonical quality, alignment and provenance', async ({ page }) => {
   const fixture = await installWorkspace(page);
@@ -103,6 +107,53 @@ test('eligible Performance V1B rule creates a canonical Runtime screen draft wit
   expect(fixture.performanceRequests).toEqual([]);
   expect(fixture.otherWrites).toEqual([]);
   expect(fixture.dataReads).toEqual([]);
+});
+
+test('guided dashboard opens four independently editable linked drafts without querying or saving', async ({ page }) => {
+  const fixture = await installWorkspace(page, { performanceReady: true, guidedDashboardReady: true });
+  await openIntelligence(page);
+
+  const performance = page.getByTestId(`intelligence-performance-${profileId}`);
+  await performance.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  await performance.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
+
+  const deviation = page.getByTestId(`intelligence-contextual-deviation-${assignmentId}`);
+  await deviation.locator('summary').click();
+  await deviation.getByRole('checkbox').nth(0).check();
+  await deviation.getByRole('checkbox').nth(1).check();
+  const contextSelectors = deviation.locator('.asset-process-intelligence__deviation-contexts select');
+  await contextSelectors.nth(0).selectOption(firstContextSignalId);
+  await contextSelectors.nth(1).selectOption(secondContextSignalId);
+  const ranges = deviation.locator('.asset-process-intelligence__deviation-contexts input');
+  await ranges.nth(0).fill('0');
+  await ranges.nth(1).fill('100');
+  await ranges.nth(2).fill('0');
+  await ranges.nth(3).fill('100');
+
+  const guidedGenerate = page.getByTestId(`intelligence-guided-dashboard-assignment-${assignmentId}`);
+  await expect(guidedGenerate).toBeEnabled();
+  await guidedGenerate.click();
+
+  await expect(page).toHaveURL(/\/engineering\/screens$/);
+  const editor = page.getByTestId('visual-editor-workspace');
+  await expect(editor.getByTestId('visual-editor-generated-drafts').getByRole('button')).toHaveCount(4);
+  await editor.getByTestId('visual-editor-generated-draft-intelligence-coverage-bomba-p-101-perfil-da-bomba').click();
+  await expect(editor.getByTestId('runtime-intelligence-profile-coverage')).toBeVisible();
+  expect(fixture.performanceCatalogRequests).toHaveLength(1);
+  expect(fixture.performanceRequests).toEqual([]);
+  expect(fixture.requests).toEqual([]);
+  expect(fixture.dataReads).toEqual([]);
+  expect(fixture.otherWrites).toEqual([]);
+
+  const dialogs: string[] = [];
+  page.on('dialog', async dialog => { dialogs.push(dialog.message()); await dialog.dismiss(); });
+  await editor.getByTestId(`visual-editor-generated-draft-intelligence-performance-bomba-p-101-perfil-da-bomba`).click();
+  await expect(editor.getByTestId('runtime-intelligence-performance')).toBeVisible();
+  expect(dialogs).toEqual([]);
+  expect(fixture.performanceRequests).toEqual([]);
+  expect(fixture.requests).toEqual([]);
+  expect(fixture.dataReads).toEqual([]);
+  expect(fixture.otherWrites).toEqual([]);
 });
 
 test('Performance V1B fails closed on ambiguous profile roles and unsupported semantic bindings', async ({ page }) => {
@@ -300,6 +351,7 @@ async function installWorkspace(page: Page, options: {
   insufficient?: boolean;
   workspaceDirty?: boolean;
   performanceReady?: boolean;
+  guidedDashboardReady?: boolean;
   pumpPerformanceReady?: boolean;
   duplicatePerformanceRole?: boolean;
   mismatchedPerformanceRevision?: boolean;
@@ -323,8 +375,12 @@ async function installWorkspace(page: Page, options: {
       semanticBinding: { catalogVersion: 2, roleCode: 'equipment.active_input_power', signalKind: 'measured_total_input' } },
     { id: '15000000-0000-0000-0000-000000000212', key: 'Produção boa', signalRole: 'processo', tagId: speedTagId, required: true,
       semanticBinding: { catalogVersion: 2, roleCode: 'process.net_good_production_volume_rate', signalKind: 'measured_output' } },
-    ...(options.duplicatePerformanceRole ? [{ id: '15000000-0000-0000-0000-000000000213', key: 'Potência duplicada', signalRole: 'elétrico', tagId: '15000000-0000-0000-0000-000000000103', required: true,
-      semanticBinding: { catalogVersion: 2, roleCode: 'equipment.active_input_power', signalKind: 'measured_total_input' } }] : [])
+    ...(options.duplicatePerformanceRole ? [{ id: '15000000-0000-0000-0000-000000000215', key: 'Potência duplicada', signalRole: 'elétrico', tagId: '15000000-0000-0000-0000-000000000103', required: true,
+      semanticBinding: { catalogVersion: 2, roleCode: 'equipment.active_input_power', signalKind: 'measured_total_input' } }] : []),
+    ...(options.guidedDashboardReady ? [
+      { id: firstContextSignalId, key: 'Temperatura contextual', signalRole: 'processo', tagId: firstContextTagId, required: true },
+      { id: secondContextSignalId, key: 'Pressão contextual', signalRole: 'processo', tagId: secondContextTagId, required: true }
+    ] : [])
   ] : [
     { id: '15000000-0000-0000-0000-000000000211', key: 'Corrente', signalRole: 'eléctrico', tagId: currentTagId, required: true },
     { id: '15000000-0000-0000-0000-000000000212', key: 'Velocidade', signalRole: 'mecânico', tagId: speedTagId, required: true }
@@ -351,7 +407,13 @@ async function installWorkspace(page: Page, options: {
         ? { catalogVersion: 2, code: 'unit.pressure.pascal' }
         : { catalogVersion: 2, code: 'unit.volumetric_flow.cubic_metre_per_second' } },
     ...(options.duplicatePerformanceRole ? [{ id: '15000000-0000-0000-0000-000000000103', name: 'Potência duplicada', path: 'Planta.Bomba01.Potencia2', dataType: 'Double', engineeringUnit: 'W', readOnly: true,
-      controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.power.watt' } }] : [])
+      controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.power.watt' } }] : []),
+    ...(options.guidedDashboardReady ? [
+      { id: firstContextTagId, name: 'Temperatura contextual', path: 'Planta.Bomba01.Temperatura', dataType: 'Double', engineeringUnit: '°C', readOnly: true,
+        controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.temperature.degree_celsius' } },
+      { id: secondContextTagId, name: 'Pressão contextual', path: 'Planta.Bomba01.Pressao', dataType: 'Double', engineeringUnit: 'kPa', readOnly: true,
+        controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.pressure.kilopascal' } }
+    ] : [])
   ];
   await page.route('**/api/**', async route => {
     const request = route.request();
@@ -413,7 +475,10 @@ async function installWorkspace(page: Page, options: {
           { name: 'pressureReference', allowedValues: ['differential_outlet_minus_inlet'] }
         ] }
       ] : [] }],
-      controlledEngineeringUnitCatalogs: [{ catalogVersion: 1, units: [] }, { catalogVersion: 2, units: [] }]
+      controlledEngineeringUnitCatalogs: [{ catalogVersion: 1, units: [] }, { catalogVersion: 2, units: options.guidedDashboardReady ? [
+        { code: 'unit.temperature.degree_celsius', dimension: 'temperature', canonicalUnit: '°C', scaleToCanonical: 1 },
+        { code: 'unit.pressure.kilopascal', dimension: 'pressure', canonicalUnit: 'Pa', scaleToCanonical: 1000 }
+      ] : [] }]
     } });
     if (path === '/api/engineering/asset-process-intelligence/scopes') return route.fulfill({ json: {
       configuration: {

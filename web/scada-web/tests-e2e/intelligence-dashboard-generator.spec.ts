@@ -7,6 +7,7 @@ import type {
 import {
   generateIntelligenceDashboardDraft,
   generateIntelligenceContextualDeviationScreenDraft,
+  generateIntelligenceGuidedDashboardDrafts,
   generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligenceProcessStageCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
@@ -121,6 +122,131 @@ test('single-equipment dashboard composes bounded profile coverage beside its si
     expect(x + width).toBeLessThanOrEqual(1920);
     expect(y + height).toBeLessThanOrEqual(1080);
   }
+});
+
+test('guided single-equipment dashboard creates four linked canonical screens without combining analyses', () => {
+  const scopeId = '10000000-0000-0000-0000-000000000001';
+  const assignmentId = '20000000-0000-0000-0000-000000000002';
+  const profileId = '30000000-0000-0000-0000-000000000003';
+  const signalIds = [
+    '40000000-0000-0000-0000-000000000004',
+    '50000000-0000-0000-0000-000000000005',
+    '60000000-0000-0000-0000-000000000006',
+    '70000000-0000-0000-0000-000000000007',
+    '80000000-0000-0000-0000-000000000008'
+  ];
+  const tagIds = signalIds.map((_, index) => `90000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}`);
+  const profile: AssetProcessIntelligenceProfileEngineering = {
+    id: profileId,
+    key: 'pump-profile',
+    name: 'Pump profile',
+    signals: signalIds.map((id, index) => ({
+      id,
+      key: `signal-${index + 1}`,
+      signalRole: 'process',
+      tagId: tagIds[index],
+      required: true
+    }))
+  };
+  const tags = signalIds.map((_, index) => numericTag(tagIds[index], `Plant.P-101.Signal${index + 1}`));
+  const screens = generateIntelligenceGuidedDashboardDrafts([], {
+    kind: 'equipment-profile',
+    stableKey: 'Plant.P-101/pump-profile',
+    displayName: 'Pump P-101 · Pump profile',
+    assignments: [{ equipmentName: 'Pump P-101', equipmentPath: 'Plant.P-101', scopeId, assignmentId, profile }]
+  }, tags, {
+    performance: {
+      scopeId, assignmentId, profileId,
+      ruleId: 'specific-active-energy-at-recorded-production-rate.v1',
+      ruleVersion: '1.0',
+      signalIds: [signalIds[0], signalIds[1]],
+      displayName: 'Pump P-101'
+    },
+    contextualDeviation: {
+      scopeId, assignmentId, profileId,
+      targetSignalIds: [signalIds[0], signalIds[1]],
+      firstContextSignalId: signalIds[2],
+      firstContextLowerInclusiveCanonical: 10,
+      firstContextUpperExclusiveCanonical: 20,
+      secondContextSignalId: signalIds[3],
+      secondContextLowerInclusiveCanonical: 100,
+      secondContextUpperExclusiveCanonical: 200,
+      displayName: 'Pump P-101'
+    }
+  }, 'pt-BR', ids());
+
+  expect(screens).toHaveLength(4);
+  expect(screens.map(screen => screen.metadata?.intelligenceDashboardViewRole)).toEqual([
+    'values-trend', 'profile-coverage', 'performance', 'contextual-deviation'
+  ]);
+  expect(screens.every(screen => screen.metadata?.intelligenceDashboardSetVersion === 'stage5b.9')).toBe(true);
+  expect(new Set(screens.map(screen => screen.key)).size).toBe(4);
+  expect(new Set(screens.map(screen => screen.route)).size).toBe(4);
+  expect(screens[0].elements?.some(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1)).toBe(false);
+
+  for (const screen of screens) {
+    const buttons = screen.elements?.filter(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.button) ?? [];
+    expect(buttons).toHaveLength(3);
+    expect(buttons.every(button => screen.key !== button.actions?.[0]?.targetKey)).toBe(true);
+    expect(buttons.every(button => screens.some(target => target.key === button.actions?.[0]?.targetKey))).toBe(true);
+    expect(buttons.every(button => button.actions?.[0]?.kind === 'NavigateScreen')).toBe(true);
+    for (const element of screen.elements ?? []) {
+      const x = Number(element.properties?.x ?? 0);
+      const y = Number(element.properties?.y ?? 0);
+      const width = Number(element.properties?.width ?? 0);
+      const height = Number(element.properties?.height ?? 0);
+      expect(x + width).toBeLessThanOrEqual(1920);
+      expect(y + height).toBeLessThanOrEqual(1080);
+    }
+  }
+
+  const performance = screens[2].elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B);
+  const deviation = screens[3].elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2);
+  expect(performance?.properties).toMatchObject({ intelligenceScopeId: scopeId, intelligenceAssignmentId: assignmentId, intelligenceProfileId: profileId });
+  expect(deviation?.properties).toMatchObject({ intelligenceScopeId: scopeId, intelligenceAssignmentId: assignmentId, intelligenceProfileId: profileId });
+  expect(JSON.stringify(screens)).not.toMatch(/"(?:window|result)"\s*:/i);
+});
+
+test('guided dashboard fails closed for missing selections and inconsistent assignment references', () => {
+  const scopeId = '10000000-0000-0000-0000-000000000001';
+  const assignmentId = '20000000-0000-0000-0000-000000000002';
+  const profileId = '30000000-0000-0000-0000-000000000003';
+  const signalIds = [
+    '40000000-0000-0000-0000-000000000004',
+    '50000000-0000-0000-0000-000000000005',
+    '60000000-0000-0000-0000-000000000006',
+    '70000000-0000-0000-0000-000000000007'
+  ];
+  const profile: AssetProcessIntelligenceProfileEngineering = {
+    id: profileId, key: 'complete', name: 'Complete',
+    signals: signalIds.map((id, index) => ({ id, key: `signal-${index}`, signalRole: 'process', tagId: `tag-${index}`, required: true }))
+  };
+  const source = {
+    kind: 'equipment-profile' as const,
+    stableKey: 'Pump/profile', displayName: 'Pump',
+    assignments: [{ equipmentName: 'Pump', equipmentPath: 'Plant.Pump', scopeId, assignmentId, profile }]
+  };
+  const selections = {
+    performance: {
+      scopeId, assignmentId, profileId, ruleId: 'rule.v1', ruleVersion: '1.0', signalIds: signalIds.slice(0, 2), displayName: 'Pump'
+    },
+    contextualDeviation: {
+      scopeId, assignmentId, profileId, targetSignalIds: signalIds.slice(0, 2),
+      firstContextSignalId: signalIds[2], firstContextLowerInclusiveCanonical: 0, firstContextUpperExclusiveCanonical: 1,
+      secondContextSignalId: signalIds[3], secondContextLowerInclusiveCanonical: 0, secondContextUpperExclusiveCanonical: 1,
+      displayName: 'Pump'
+    }
+  } as const;
+  const tags = signalIds.map((_, index) => numericTag(`tag-${index}`, `Plant.Pump.Signal${index}`));
+
+  expect(() => generateIntelligenceGuidedDashboardDrafts([], source, tags, { ...selections, performance: null as never }, 'en', ids()))
+    .toThrow(/valid Performance rule/);
+  expect(() => generateIntelligenceGuidedDashboardDrafts([], {
+    ...source,
+    assignments: [{ ...source.assignments[0], assignmentId: '21000000-0000-0000-0000-000000000002' }]
+  }, tags, selections, 'en', ids())).toThrow(/current Equipment assignment/);
+  expect(() => generateIntelligenceGuidedDashboardDrafts([], source, tags.slice(1), selections, 'en', ids()))
+    .toThrow(/required profile TAG binding/);
 });
 
 test('composite dashboard limits value cards to the bounded two-column area and reports omissions', () => {

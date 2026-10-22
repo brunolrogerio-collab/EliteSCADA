@@ -21,5 +21,8 @@
     <None Include="../../src/Scada.Api/Runtime/ServerScriptRunner.py"
           Link="ServerScriptRunner.py"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../docs/manual/pt-BR/06-SCRIPTING-ALARMES-HISTORICO.md"
+          Link="manual/pt-BR/06-SCRIPTING-ALARMES-HISTORICO.md"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

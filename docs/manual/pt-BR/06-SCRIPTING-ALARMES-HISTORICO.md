@@ -2,72 +2,206 @@
 
 ## Server Scripts
 
-Server Scripts habilitados e de scope Server são hospedados pela revisão Active.
+Server Script é automação executada no servidor. Pense nele como uma função pequena chamada por um evento do produto: ela lê dependências que você declarou, calcula algo e usa as APIs permitidas. Embora a sintaxe se pareça com Python, o runtime executa um subconjunto determinístico — não é Python geral nem um lugar para instalar bibliotecas.
 
-A superfície pública documentada neste build contém exatamente:
+Scripts de scope Server habilitados são hospedados pela revisão **Active**. Ao ativar outra revisão, a geração anterior é cancelada; leituras, escritas e emissão de eventos da geração antiga não devem continuar agindo sobre a nova revisão.
 
-- `read_tag(tag_id)`
-- `read_server_memory(tag_id)`
-- `write_tag(tag_id, value)`
-- `write_server_memory(tag_id, value)`
-- `publish_server_memory_sample(tag_id, value, quality)`
-- `emit_operational_event(definition_id, message=None, context=None)`
+### Antes de escrever: conceitos que evitam erros
 
-TAGs acessados devem ser dependências declaradas. Funções de Server Memory aceitam referências de ServerMemoryTag.
+- **Handler** é a função chamada por um ponto de entrada. O nome configurado no Engineering deve coincidir exatamente com o nome da função.
+- **Ponto de entrada/trigger** diz quando chamar o handler: inicialização, alteração de TAG, intervalo de Timer ou evento de Runtime.
+- **Dependência** declara qual TAG ou comando o Script pode usar. Colocar o caminho no código não declara acesso.
+- **Binding legível** é um caminho como `Plant.Pump.DischargePressure` ligado a uma identidade estável. Quando esse binding está configurado, o código pode usar o caminho; o produto ainda valida a identidade. Um ID estável também é aceito.
+- **Server Memory** é memória retentiva do servidor. Seus TAGs são dependências do tipo `ServerMemoryTag`; não confunda com Client Memory, que pertence ao Runtime do cliente.
+- **Active** é a revisão que o Runtime está executando. Salvar ou editar código, por si só, não significa que a nova versão já esteja Active.
 
-### Triggers de Runtime
+### Como escrever um handler
 
-O host atual despacha:
+No nível principal do arquivo, declare funções. Não coloque leituras, escritas ou cálculos soltos fora de uma função. Um handler comum pode não receber argumentos. `ServerRuntimeEvent` fornece um dicionário de evento e, nesse caso, o handler recebe um argumento:
 
-- `Initialize`
-- `Dispose`
-- `TagChanged`
-- `Timer`
-- `ServerRuntimeEvent`
+```python
+def on_start():
+    pressure = read_tag("Plant.Pump.DischargePressure")
 
-Quando Active muda, a geração anterior é cancelada. Acesso a TAG e emissão de evento usam gates de revisão para impedir execução obsoleta contra a nova revisão.
+def on_device_event(event):
+    action = event["canonicalEvent"]["payload"]["action"]
+```
 
-### Política de falha e isolamento
+O segundo exemplo mostra o formato de um evento canônico usado pelo host; só use campos presentes no evento real configurado para o seu projeto. Acesso por chave ausente falha o handler.
 
-A política padrão registrada no produto usa timeout de handler de 250 ms, fila limitada a 128 eventos, Timer mínimo de 50 ms e cooldown após 5 falhas consecutivas. Ao fim do cooldown configurado, um evento pode atuar como probe de recuperação.
+### Triggers disponíveis
 
-Esses limites isolam a instância do script; não concedem fallback de Authority.
+| Trigger | Quando usar | Observação |
+| --- | --- | --- |
+| `Initialize` | Inicializar o estado da instância quando ela começa | Não presuma que o código roda uma vez para sempre; nova geração pode inicializar novamente. |
+| `Dispose` | Encerrar/limpar o estado da instância | A geração pode já estar sendo cancelada; mantenha o handler curto. |
+| `TagChanged` | Recalcular uma regra quando o TAG associado mudar | Declare como dependências todos os TAGs lidos e escritos. |
+| `Timer` | Fazer uma verificação periódica independente de uma tela aberta | Configure intervalo de pelo menos 50 ms ou o mínimo indicado pelo produto. Não crie laço nem espere dentro do Script. O Timer não sincroniza com o ciclo de aquisição do Driver. |
+| `ServerRuntimeEvent` | Reagir a uma ocorrência canônica de Transient Event | Associe o evento real no grafo Active; targets genéricos não acionam o handler. |
 
-### Sandbox
+### Sintaxe: o que funciona e o que não funciona
 
-A superfície de Server Script não oferece acesso arbitrário a:
+O subconjunto atual aceita:
 
-- filesystem;
-- sistema operacional;
-- shell/processos;
-- rede arbitrária;
-- banco de dados direto;
-- Drivers industriais diretamente;
-- secrets;
-- DOM do navegador;
-- browser storage.
+- `def` sem decorators, valores padrão, parâmetros positional-only ou keyword-only;
+- atribuição local e `+=`, `-=`, `*=`;
+- `if`/`else`, `return` e `pass`;
+- listas, tuplas, dicionários e acesso por índice, por exemplo `event["payload"]["action"]`;
+- `+`, `-`, `*`, `/`, `//`, `%`, `**`; comparações `==`, `!=`, `<`, `<=`, `>`, `>=`, `is`, `is not`;
+- `not`, `and`, `or`, chamadas posicionais a funções do próprio Script e a `min`, `max`, `abs`, `round`, `int`, `float`, `bool`, `str`, `len`.
 
-O preflight de editor ajuda a rejeitar imports/calls obviamente proibidos, mas o enforcement de segurança não depende apenas de análise textual.
+Não aceita `import`, código/variáveis no nível principal, `for`, `while`, comprehensions, `class`, `try/except`, `lambda`, f-strings, acesso a atributos, decorators, argumentos nomeados ou bibliotecas Python externas. Mesmo código sintaticamente aceito pode falhar por tipo incompatível, divisão por zero ou chave/índice inexistente.
 
-### Procedimento: escrever um Script seguro que reage a TAG
+**Diferença importante:** neste interpretador, `and` e `or` avaliam todos os operandos; não têm o curto-circuito do Python normal. Evite usá-los para proteger uma operação que pode falhar. Escreva `if` aninhado:
 
-**Objetivo:** ler dados declarados e escrever somente uma saída autorizada.
+```python
+def evaluate_pressure():
+    pressure = read_tag("Plant.Pump.DischargePressure")
+    high_limit = read_tag("Limits.Pump.HighPressure")
+    if pressure is not None:
+        if high_limit is not None:
+            above_limit = pressure >= high_limit
+```
 
-**Pré-requisitos:** referências de TAG estáveis e declaradas; destino gravável e autorizado.
+### API de TAG, Server Memory e Operational Event
 
-**Passos:**
-1. Declare as dependências necessárias.
-2. Leia o TAG usando `read_tag`.
-3. Calcule o resultado sem acessar recursos externos proibidos.
-4. Escreva somente TAG autorizado com `write_tag`.
-5. Valide sintaxe/referências na superfície de Script Engineering.
-6. Salve/publique/ative pelo lifecycle normal.
+Estas são as seis funções públicas documentadas para TAG, memória e evento. Todas as referências precisam ser dependências declaradas; para caminho legível, o binding precisa corresponder à identidade estável. Em falha de referência, corrija a dependência/binding — não tente contornar pelo Driver.
 
-**Resultado esperado:** o script roda somente na revisão Active e permanece limitado às APIs públicas.
+| Função | O que recebe e retorna | Regras principais |
+| --- | --- | --- |
+| `read_tag(tag_reference)` | Caminho vinculado ou ID estável; retorna o valor corrente. | Não retorna quality nem timestamp da origem. Só lê dependência declarada. |
+| `read_server_memory(tag_reference)` | Caminho vinculado ou ID estável; retorna o valor corrente de Server Memory. | Exige dependência declarada do tipo `ServerMemoryTag`. |
+| `write_tag(tag_reference, value)` | TAG declarado e valor compatível com seu tipo; retorna `None`. | Exige TAG gravável e autorização no escopo correspondente. Não muda diretamente um objeto visual. |
+| `write_server_memory(tag_reference, value)` | ServerMemoryTag declarado e valor serializável; retorna `None`. | Grava memória do servidor, não um TAG de processo. |
+| `publish_server_memory_sample(tag_reference, value, quality)` | ServerMemoryTag, valor serializável e nome canônico de `TagQuality`; retorna `None`. | A quality deve ser exatamente um valor suportado, por exemplo `Good`, `Uncertain`, `Bad`, `BadCommunication`, `BadConfiguration`, `BadDevice`, `Stale`, `Disabled` ou `Unavailable`. O Script informa a quality; a função não a descobre na origem. |
+| `emit_operational_event(definition_id, message=None, context=None)` | ID estável da definição; texto opcional; dicionário opcional com valores de texto; retorna `None`. | A definição precisa existir. Entradas têm limites de quantidade/tamanho. Operational Event não substitui Audit nem Alarm. |
 
-**Troubleshooting:** erro de referência, sandbox ou autorização deve ser corrigido na origem; não substitua por acesso direto ao Driver.
+### Exemplo 1: derivar um estado visual
 
-**Ajuda relacionada:** `/help?topic=scripts.server`.
+Use este padrão quando quiser avaliar um valor e escrever o resultado em um TAG gravável que já esteja ligado à propriedade visual. Declare pressão, limite e saída como dependências; configure a saída com tipo compatível (neste exemplo, booleano).
+
+```python
+def update_pressure_indicator():
+    pressure = read_tag("Plant.Pump.DischargePressure")
+    high_limit = read_tag("Limits.Pump.HighPressure")
+    if pressure is not None:
+        if high_limit is not None:
+            write_tag("Plant.Screen.PumpPressureHigh", pressure >= high_limit)
+```
+
+Se qualquer entrada não estiver disponível, o handler não sobrescreve a saída com `False`; isso evita transformar dado ausente em indicação de condição normal. O Server Script não altera diretamente o objeto da tela: o TAG de saída precisa estar vinculado à propriedade visual.
+
+### Exemplo 2: histerese e Operational Event sem repetição contínua
+
+Use um estado retentivo para registrar se a condição já foi sinalizada. Configure `TagChanged` para o TAG de pressão e declare os dois limites, o `ServerMemoryTag` de estado e a definição de evento como dependências aplicáveis. O limite de retorno deve ser menor que o limite de disparo.
+
+```python
+def on_pressure_change():
+    pressure = read_tag("Plant.Pump.DischargePressure")
+    high_limit = read_tag("Limits.Pump.HighPressure")
+    reset_limit = read_tag("Limits.Pump.ResetPressure")
+    event_sent = read_server_memory("State.Pump.HighPressure")
+
+    if pressure is not None:
+        if high_limit is not None:
+            if reset_limit is not None:
+                if event_sent is not True:
+                    if pressure >= high_limit:
+                        write_server_memory("State.Pump.HighPressure", True)
+                        emit_operational_event(
+                            "<stable-event-definition-id>",
+                            "Pump discharge pressure crossed the high limit",
+                            {"pressure": str(pressure)}
+                        )
+                else:
+                    if pressure <= reset_limit:
+                        write_server_memory("State.Pump.HighPressure", False)
+```
+
+Substitua o placeholder pelo ID estável real. O estado evita emitir o mesmo evento em cada mudança enquanto a pressão permanece acima do limite. Isso é lógica de aplicação, não substitui configuração de Alarm quando o requisito é um alarme.
+
+### Exemplo 3: amostra calculada e qualidade explícita
+
+`read_tag` não expõe se a fonte está `Good`, `Stale` ou qual é o timestamp de origem. Portanto, verificar apenas `value is not None` **não** prova que a amostra é boa. Se a aplicação não tem como confirmar quality e atualidade, publique uma quality conservadora apropriada ou não publique:
+
+```python
+def publish_unverified_sample():
+    current = read_tag("Plant.Pump.Current")
+    if current is not None:
+        publish_server_memory_sample(
+            "State.Pump.LastCurrent",
+            current,
+            "Uncertain"
+        )
+```
+
+Use `"Good"` apenas quando uma regra validada do projeto estabelecer a confiabilidade do valor e não depender de informações de quality/timestamp que o Script não recebe. Nunca substitua valor ausente por zero para forçar uma amostra.
+
+### Exemplo 4: Timer sem laço
+
+Configure o ponto de entrada `Timer` no Engineering. O host dispara o handler; o código não fica rodando continuamente:
+
+```python
+def on_timer():
+    current = read_tag("Plant.Pump.Current")
+    if current is not None:
+        write_server_memory("State.Pump.LastCurrent", current)
+```
+
+Declare ambos os TAGs e confirme que o destino é `ServerMemoryTag`. Se precisa detectar mudanças, considere `TagChanged`; não reduza o intervalo do Timer sem necessidade, porque timers rápidos geram trabalho adicional no servidor.
+
+### Rich Command: operação explicitamente autorizada
+
+Além das seis APIs acima, a integração do host disponibiliza `invoke_rich_command` para uma dependência Rich Command declarada. Isso **não** é acesso direto a Driver. Configure o binding real do comando, associe um `ServerRuntimeEvent` a um Transient Event real e conceda `CommandExecute` no escopo exato. Os parâmetros devem ser valores escalares compatíveis com o schema do comando.
+
+O resultado distingue `Rejected`, `Accepted`, `Completed`, `Failed`, `TimedOut` e `Unknown`. `Accepted` significa que a solicitação foi aceita, não que o equipamento concluiu a ação. `Unknown` é ambíguo: não repita automaticamente, pois o comando pode ter sido executado apesar da resposta perdida. Faça reconciliação por feedback independente do processo antes de decidir uma nova ação.
+
+```python
+def on_device_event(event):
+    action = event["canonicalEvent"]["payload"]["action"]
+    if action == "single":
+        result = invoke_rich_command(
+            "<stable-rich-command-guid>",
+            {"onTime": "00:00:00.2500000"}
+        )
+        if result["outcome"] == "Completed":
+            write_server_memory("State.Command.LastOutcome", 1)
+        else:
+            write_server_memory("State.Command.LastOutcome", -1)
+```
+
+Este exemplo registra sucesso apenas para `Completed`; qualquer outro resultado fica marcado como não concluído/pendente de diagnóstico. Não use o valor `-1` como prova de falha física: para distinguir os resultados, armazene ou publique o estado segundo o modelo de dados da aplicação. Substitua comando, parâmetro e campos do evento pelos objetos reais. A operação ainda passa pelas validações e autorizações normais do produto.
+
+### Fluxo recomendado no Engineering
+
+1. Defina o objetivo e o efeito permitido: apenas calcular, gravar memória, gravar um TAG de processo ou solicitar Rich Command.
+2. Crie/configure o Script e escolha scope `Server`.
+3. Declare cada TAG, ServerMemoryTag, evento ou comando necessário. Confira tipo, binding, identidade estável, gravação permitida e escopo de Authority.
+4. Crie um handler e vincule seu nome exato ao trigger. Para `ServerRuntimeEvent`, confira o evento canônico e os campos disponíveis.
+5. Escreva primeiro a leitura e os casos de dado ausente; depois o cálculo; por último a escrita/emissão.
+6. Valide a sintaxe e as dependências no editor. Preflight é feedback; a autorização e o sandbox continuam sendo aplicados no runtime.
+7. Teste com valores normais, limites, valores ausentes, tipos inesperados e falha/timeout de comando. Confirme cada efeito escrito e cada evento.
+8. Salve, gere a revisão e siga o fluxo normal de publicação/ativação. Verifique que a revisão esperada se tornou `Active`.
+
+### Execução, falhas e sandbox
+
+A política padrão documentada usa timeout de handler de 250 ms, fila limitada a 128 eventos, Timer mínimo de 50 ms e cooldown após 5 falhas consecutivas. Depois do cooldown configurável, um evento pode ser aceito como probe de recuperação. Mantenha cada handler curto; o orçamento determinístico também limita o número de passos.
+
+Server Script não fornece acesso arbitrário a filesystem, sistema operacional, shell/processos, rede, banco de dados, Drivers, secrets, DOM ou browser storage. O preflight ajuda a detectar alguns erros cedo, mas não é a fronteira de segurança: o enforcement é do runtime.
+
+### Problemas comuns
+
+| Sintoma | Verifique |
+| --- | --- |
+| TAG “não declarado” ou caminho rejeitado | A dependência existe? O binding legível está configurado e aponta para a mesma identidade estável? O ID está correto? |
+| Handler não é chamado | O nome de função coincide exatamente com o ponto de entrada? O Script está habilitado e scope Server? A revisão esperada está Active? O trigger está ligado ao objeto/evento correto? |
+| Falha ao ler/escrever Server Memory | A dependência é realmente `ServerMemoryTag`? Escrita e valor correspondem ao contrato? |
+| Saída visual não muda | O destino é TAG gravável e autorizado? Ele está ligado à propriedade do objeto? Server Script não altera objeto visual diretamente. |
+| Script compila, mas handler falha | Confira tipos, `None`, chave/índice do evento, divisão por zero e limites; lembre que `and/or` não fazem curto-circuito. |
+| Comando retorna `Accepted`, `TimedOut` ou `Unknown` | Não presuma conclusão física nem repita automaticamente. Consulte feedback independente, estado do equipamento e auditoria. |
+| Script entra em cooldown | Corrija a causa da falha, examine diagnostics e teste com dados representativos antes de reativar. |
+
+**Ajuda relacionada:** `/help?topic=scripts.server`, `/help?topic=sources.internal-memory`, `/help?topic=operational-events.overview`, `/help?topic=alarms.overview`.
 
 ## Client Memory
 

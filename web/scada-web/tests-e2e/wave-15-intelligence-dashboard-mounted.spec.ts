@@ -135,6 +135,19 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(stageCoverageEditor.getByLabel('Nome de exibição')).toHaveValue(/Cobertura da etapa · Pumping train/);
   await expect(stageCoverageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(stageCoverageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
+
+  await page.goto('/engineering');
+  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  const guidedStageDashboard = page.getByTestId(`intelligence-guided-stage-dashboard-${stageId}`);
+  await expect(guidedStageDashboard).toBeEnabled();
+  await guidedStageDashboard.click();
+  await expect(page).toHaveURL(/\/engineering\/screens$/);
+  const guidedStageEditor = page.getByTestId('visual-editor-workspace');
+  await expect(guidedStageEditor).toBeVisible();
+  await expect(guidedStageEditor.getByTestId('visual-editor-generated-drafts').getByRole('button')).toHaveCount(2);
+  await expect(guidedStageEditor.getByLabel('Nome de exibição')).toHaveValue(/Pumping train/);
+  await expect(guidedStageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
+  await expect(guidedStageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
   expect(coverageQueries).toEqual([]);
   expect(writes).toEqual([]);
   expect(dataReads).toEqual([]);

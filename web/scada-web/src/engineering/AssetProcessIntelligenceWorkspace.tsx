@@ -16,8 +16,10 @@ import type {
 import { loadEngineeringSemanticCatalog, type EngineeringSemanticCatalogResponse, type VersionedSemanticCatalog } from './semanticCatalogApi';
 import {
   generateIntelligenceDashboardDraft,
+  generateIntelligencePerformanceScreenDraft,
   type IntelligenceDashboardAssignmentSource,
-  type IntelligenceDashboardSource
+  type IntelligenceDashboardSource,
+  type IntelligencePerformanceDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
 import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
@@ -306,6 +308,34 @@ export function AssetProcessIntelligenceWorkspace({
     }
     try {
       onCreateDashboardDraft(generateIntelligenceDashboardDraft(screens, source, tags, locale));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : copy.dashboardSourceUnavailable);
+    }
+  };
+
+  const generatePerformanceScreen = (
+    assignment: AssetProcessIntelligenceAssignmentEngineering,
+    profile: AssetProcessIntelligenceProfileEngineering,
+    equipmentName: string,
+    selection: Readonly<{ ruleId: string; ruleVersion: string; signalIds: readonly string[] }>
+  ) => {
+    setError(null);
+    setMessage(null);
+    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+      setError(copy.dashboardAuthorizationHint);
+      return;
+    }
+    try {
+      const draft = generateIntelligencePerformanceScreenDraft(screens, {
+        scopeId: assignment.equipmentId,
+        assignmentId: assignment.id,
+        profileId: profile.id,
+        ruleId: selection.ruleId,
+        ruleVersion: selection.ruleVersion,
+        signalIds: selection.signalIds,
+        displayName: equipmentName
+      } satisfies IntelligencePerformanceDashboardSelection, locale);
+      onCreateDashboardDraft(draft);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : copy.dashboardSourceUnavailable);
     }
@@ -685,6 +715,9 @@ export function AssetProcessIntelligenceWorkspace({
                   projectKey={snapshot.execution.projectKey}
                   activeRevision={snapshot.execution.activeRevision}
                   canQuery={!coverageBlockedReason}
+                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft
+                    ? selection => generatePerformanceScreen(assignment, profile, equipmentResource.name, selection)
+                    : undefined}
                 /> : null}
                 <button type="button" className="secondary" disabled={!canEngineer} onClick={() => removeAssignment(assignment.id)}>{copy.remove}</button>
               </article>;

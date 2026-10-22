@@ -96,6 +96,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateWritableNumericControl(element, entityKind, entityKey, "Numeric Input", "VISUAL_NUMERIC_INPUT"));
         if (IsMeasurementType(element.Type))
             issues.AddRange(ValidateMeasurementDisplay(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligencePerformanceV1BType, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligencePerformanceV1B(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
             element.Type.Equals(BuiltinVisualObjectSchemas.EventBrowserType, StringComparison.Ordinal))
             issues.AddRange(ValidateBrowserConfiguration(element, entityKind, entityKey));
@@ -150,6 +152,67 @@ public static class BuiltinVisualEngineeringValidation
                     $"Measurement display '{element.Key}' requires ordered band limits between its minimum and maximum.",
                     entityKind,
                     entityKey);
+        }
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligencePerformanceV1B(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        var identifiers = new[]
+        {
+            ReadString(element, VisualPropertyKeys.IntelligenceScopeId),
+            ReadString(element, VisualPropertyKeys.IntelligenceAssignmentId),
+            ReadString(element, VisualPropertyKeys.IntelligenceProfileId)
+        };
+        if (identifiers.Any(value => !Guid.TryParseExact(value, "D", out _)))
+        {
+            yield return Error(
+                "VISUAL_INTELLIGENCE_PERFORMANCE_CONFIG_INVALID",
+                $"Performance indicator '{element.Key}' requires canonical scope, assignment and profile UUIDs.",
+                entityKind,
+                entityKey);
+            yield break;
+        }
+
+        var ruleId = ReadString(element, VisualPropertyKeys.IntelligenceRuleId);
+        var ruleVersion = ReadString(element, VisualPropertyKeys.IntelligenceRuleVersion);
+        if (string.IsNullOrWhiteSpace(ruleId) || ruleId.Length > 128 ||
+            ruleId != ruleId.Trim() ||
+            string.IsNullOrWhiteSpace(ruleVersion) || ruleVersion.Length > 32 ||
+            ruleVersion != ruleVersion.Trim())
+        {
+            yield return Error(
+                "VISUAL_INTELLIGENCE_PERFORMANCE_CONFIG_INVALID",
+                $"Performance indicator '{element.Key}' requires a bounded rule identity and version.",
+                entityKind,
+                entityKey);
+            yield break;
+        }
+
+        var signalIdsJson = ReadString(element, VisualPropertyKeys.IntelligenceSignalIds);
+        string?[]? signalIds = null;
+        if (signalIdsJson is { Length: <= 512 })
+        {
+            try
+            {
+                signalIds = JsonSerializer.Deserialize<string?[]>(signalIdsJson);
+            }
+            catch (JsonException)
+            {
+                signalIds = null;
+            }
+        }
+        if (signalIds is not { Length: >= 2 and <= 3 } ||
+            signalIds.Any(value => value is null || !Guid.TryParseExact(value, "D", out _)) ||
+            signalIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() != signalIds.Length)
+        {
+            yield return Error(
+                "VISUAL_INTELLIGENCE_PERFORMANCE_CONFIG_INVALID",
+                $"Performance indicator '{element.Key}' requires two or three distinct canonical signal UUIDs.",
+                entityKind,
+                entityKey);
         }
     }
 
@@ -542,6 +605,12 @@ public static class BuiltinVisualEngineeringValidation
         value.TryGetDouble(out var number)
             ? number
             : fallback;
+
+    private static string? ReadString(VisualElementEngineeringDto element, string key) =>
+        element.Properties is not null && element.Properties.TryGetValue(key, out var value) &&
+        value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 
     private static bool ReadBoolean(
         VisualElementEngineeringDto element,

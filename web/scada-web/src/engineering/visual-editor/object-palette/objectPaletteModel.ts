@@ -84,7 +84,9 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar]: { labelKey: 'measurementBar', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer]: { labelKey: 'measurementThermometer', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands]: { labelKey: 'measurementBands', category: 'content' },
-  [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget]: { labelKey: 'measurementTarget', category: 'content' }
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget]: { labelKey: 'measurementTarget', category: 'content' },
+  // Runtime-created Intelligence references are intentionally not in PALETTE_ORDER.
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B]: { labelKey: 'intelligencePerformanceV1B', category: 'content' }
 });
 
 export function listVisualObjectPaletteItems(): readonly VisualObjectPaletteItem[] {

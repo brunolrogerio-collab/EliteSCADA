@@ -34,6 +34,7 @@ public static class BuiltinVisualObjectSchemas
     public const string MeasurementThermometerType = "core.measurementThermometer";
     public const string MeasurementBandsType = "core.measurementBands";
     public const string MeasurementTargetType = "core.measurementTarget";
+    public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
     public const string SvgPaintOverridesProperty = "svgPaintOverrides";
@@ -92,6 +93,16 @@ public static class BuiltinVisualObjectSchemas
         new(TrendQualityVisibleProperty, new VisualBooleanValue(true))
     ];
 
+    private static readonly IReadOnlyList<VisualPropertyDefinition> IntelligencePerformanceDefinitions =
+    [
+        new(VisualPropertyKeys.IntelligenceScopeId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceAssignmentId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceProfileId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceRuleId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceRuleVersion, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSignalIds, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
+    ];
+
     private static readonly IReadOnlyDictionary<string, VisualPropertyDefinition> CommonByKey =
         CommonVisualPropertyDefinitions.Geometry
             .Concat(CommonVisualPropertyDefinitions.Transform)
@@ -110,6 +121,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Bezier)
             .Concat(CommonVisualPropertyDefinitions.Polygon)
             .Concat(TrendDefinitions)
+            .Concat(IntelligencePerformanceDefinitions)
             .ToDictionary(property => property.Key, StringComparer.Ordinal);
 
     private static readonly HashSet<string> AnalogFillCapableTypes =
@@ -417,6 +429,17 @@ public static class BuiltinVisualObjectSchemas
         MeasurementTargetType,
         VisualPropertyKeys.MeasurementTarget);
 
+    public static VisualObjectPropertySchema IntelligencePerformanceV1B { get; } = Create(
+        IntelligencePerformanceV1BType,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceAssignmentId,
+            VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceRuleId,
+            VisualPropertyKeys.IntelligenceRuleVersion,
+            VisualPropertyKeys.IntelligenceSignalIds
+        ]));
+
     public static IReadOnlyCollection<VisualObjectPropertySchema> All { get; } =
     [
         Group,
@@ -445,7 +468,8 @@ public static class BuiltinVisualObjectSchemas
         MeasurementBar,
         MeasurementThermometer,
         MeasurementBands,
-        MeasurementTarget
+        MeasurementTarget,
+        IntelligencePerformanceV1B
     ];
 
     /// <summary>

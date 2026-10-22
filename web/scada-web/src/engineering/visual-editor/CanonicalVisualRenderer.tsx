@@ -39,6 +39,7 @@ import { resolveVisualDynamicState } from './visualDynamicRuntime';
 import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
 import { NumericInputVisualElement } from './NumericInputVisualElement';
 import { MeasurementVisualElement } from './MeasurementVisualElement';
+import { IntelligencePerformanceVisualElement } from './IntelligencePerformanceVisualElement';
 import './CanonicalVisualInteraction.css';
 import { TrendVisualElement } from './TrendVisualElement';
 import { SvgSymbolVisualElement } from './SvgSymbolVisualElement';
@@ -243,6 +244,21 @@ function CanonicalElement({
       operatorTimeRangeControls={operatorTimeRangeControls}
         />)}
       </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B) {
+      return <IntelligencePerformanceVisualElement
+        scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])}
+        profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        ruleId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceRuleId])}
+        ruleVersion={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceRuleVersion])}
+        signalIdsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceSignalIds], '[]')}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        locale={locale}
+        title={elementTitle}
+      />;
     }
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol) {

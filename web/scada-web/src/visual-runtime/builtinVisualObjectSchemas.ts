@@ -31,7 +31,8 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   measurementBar: 'core.measurementBar',
   measurementThermometer: 'core.measurementThermometer',
   measurementBands: 'core.measurementBands',
-  measurementTarget: 'core.measurementTarget'
+  measurementTarget: 'core.measurementTarget',
+  intelligencePerformanceV1B: 'core.intelligencePerformanceV1B'
 } as const;
 
 export type BuiltinVisualObjectType = typeof BUILTIN_VISUAL_OBJECT_TYPES[keyof typeof BUILTIN_VISUAL_OBJECT_TYPES];
@@ -310,7 +311,16 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
   [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
   [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT, VISUAL_PROPERTY_KEYS.measurementBandOneEnd, VISUAL_PROPERTY_KEYS.measurementBandTwoEnd])],
-  [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT, VISUAL_PROPERTY_KEYS.measurementTarget])]
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT, VISUAL_PROPERTY_KEYS.measurementTarget])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceAssignmentId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceRuleId,
+    VISUAL_PROPERTY_KEYS.intelligenceRuleVersion,
+    VISUAL_PROPERTY_KEYS.intelligenceSignalIds
+  ])]
 ]);
 
 export function supportsAnalogFill(objectType: string): boolean {

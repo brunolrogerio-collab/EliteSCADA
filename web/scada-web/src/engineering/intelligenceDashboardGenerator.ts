@@ -33,6 +33,16 @@ export type IntelligenceDashboardSource = Readonly<{
   assignments: readonly IntelligenceDashboardAssignmentSource[];
 }>;
 
+export type IntelligencePerformanceDashboardSelection = Readonly<{
+  scopeId: string;
+  assignmentId: string;
+  profileId: string;
+  ruleId: string;
+  ruleVersion: string;
+  signalIds: readonly string[];
+  displayName: string;
+}>;
+
 type ResolvedSignal = Readonly<{
   assignment: IntelligenceDashboardAssignmentSource;
   signal: AssetProcessIntelligenceSignalEngineering;
@@ -238,6 +248,105 @@ export function generateIntelligenceDashboardDraft(
   };
 }
 
+/**
+ * Creates a canonical Screen draft containing one configured, Runtime-only
+ * Performance V1B object. Its Engineering state stores stable references only;
+ * the analytics result is always queried transiently in the active Runtime.
+ */
+export function generateIntelligencePerformanceScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligencePerformanceDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const identifiers = [selection.scopeId, selection.assignmentId, selection.profileId, ...selection.signalIds];
+  if (identifiers.some(value => !isCanonicalUuid(value)) ||
+      selection.signalIds.length < 2 || selection.signalIds.length > 3 ||
+      new Set(selection.signalIds.map(id => id.toLowerCase())).size !== selection.signalIds.length ||
+      !selection.ruleId.trim() || selection.ruleId !== selection.ruleId.trim() || selection.ruleId.length > 128 ||
+      !selection.ruleVersion.trim() || selection.ruleVersion !== selection.ruleVersion.trim() || selection.ruleVersion.length > 32) {
+    throw new Error('A performance screen requires one stable equipment assignment, profile, catalog rule and two or three unique signals.');
+  }
+
+  const displayName = selection.displayName.trim() || selection.scopeId;
+  const key = uniqueScreenKey(existingScreens, `intelligence-performance-${slug(displayName)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = locale === 'en' ? `Recorded performance · ${displayName}`
+    : locale === 'es' ? `Rendimiento registrado · ${displayName}`
+      : `Desempenho registrado · ${displayName}`;
+  const subtitle = locale === 'en'
+    ? 'Runtime-only analysis · server-calculated · read-only · transient result'
+    : locale === 'es'
+      ? 'Análisis solo en Runtime · cálculo en servidor · solo lectura · resultado transitorio'
+      : 'Análise somente no Runtime · cálculo no servidor · somente leitura · resultado temporário';
+  const elements: NonNullable<ScreenEngineering['elements']> = [
+    {
+      id: allocateId(), key: 'intelligence-performance-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+      properties: {
+        x: 64, y: 36, width: 1792, height: 52,
+        [VISUAL_PROPERTY_KEYS.text]: title,
+        [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+        [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      }
+    },
+    {
+      id: allocateId(), key: 'intelligence-performance-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+      properties: {
+        x: 64, y: 98, width: 1792, height: 34,
+        [VISUAL_PROPERTY_KEYS.text]: subtitle,
+        [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      }
+    },
+    {
+      id: allocateId(), key: 'intelligence-performance-v1b',
+      type: BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B,
+      properties: {
+        x: 64, y: 152, width: 1200, height: 720,
+        [VISUAL_PROPERTY_KEYS.intelligenceScopeId]: selection.scopeId,
+        [VISUAL_PROPERTY_KEYS.intelligenceAssignmentId]: selection.assignmentId,
+        [VISUAL_PROPERTY_KEYS.intelligenceProfileId]: selection.profileId,
+        [VISUAL_PROPERTY_KEYS.intelligenceRuleId]: selection.ruleId,
+        [VISUAL_PROPERTY_KEYS.intelligenceRuleVersion]: selection.ruleVersion,
+        [VISUAL_PROPERTY_KEYS.intelligenceSignalIds]: JSON.stringify(selection.signalIds)
+      }
+    },
+    {
+      id: allocateId(), key: 'intelligence-performance-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+      properties: {
+        x: 64, y: 900, width: 1792, height: 74,
+        [VISUAL_PROPERTY_KEYS.text]: locale === 'en'
+          ? 'The report describes recorded Historian evidence only. It is not a field-validated diagnosis, physical simultaneity claim or total-system efficiency measure.'
+          : locale === 'es'
+            ? 'El informe describe solo evidencia registrada en Historian. No es un diagnóstico validado en campo, una afirmación de simultaneidad física ni una medida de eficiencia total del sistema.'
+            : 'O relatório descreve somente evidências registradas no Historian. Não é diagnóstico validado em campo, afirmação de simultaneidade física nem medida de eficiência total do sistema.',
+        [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      }
+    }
+  ];
+
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements,
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.4',
+      intelligencePerformanceRuleId: selection.ruleId,
+      intelligencePerformanceRuleVersion: selection.ruleVersion
+    }
+  };
+}
+
 export function isNumericTagDataType(dataType: string | null | undefined): boolean {
   const normalized = dataType?.trim().toLowerCase();
   return normalized !== undefined && NUMERIC_DATA_TYPES.has(normalized);
@@ -293,6 +402,10 @@ function uniqueScreenRoute(key: string, routes: readonly (string | null | undefi
 function slug(value: string): string {
   return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'source';
+}
+
+function isCanonicalUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
 function dashboardText(locale: EngineeringLocale): DashboardText {

@@ -4,6 +4,8 @@ Snapshot: 2026-10-22. Live refs, accepted ADRs, owning issues/PRs, and exact-SHA
 
 PR #740 closeout: canonical pull-request T1 #39843967397 passed on candidate `22bf448a600b2cf17b7d9bfe3cd9414d7643fefe`; PR #740 merged at `e69c5e5777ae98d336b1f541d3fefe4f1d05433f`. Exact-merge T2 #39844952036 passed Backend build/test/runtime smoke (2,633 passed / 1 skipped), Web build, and Chromium integration smoke 13/13. Full browser E2E was skipped and is not claimed. The earlier classifier failure #39834555333 and old-head dispatch pass #39834994674 are historical; the corrected canonical T1 on the final PR head is the governing evidence.
 
+PR #744 initial classifier run #39852256942 failed before product checks because the PR body contained literal `\n` sequences after its required validation-profile line. The body is corrected with real line breaks; no product test ran in that failed attempt. The next exact-head T1 run is authoritative.
+
 ## Current position
 
 | Field | Current disposition |

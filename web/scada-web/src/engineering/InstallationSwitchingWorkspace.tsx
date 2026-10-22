@@ -570,7 +570,7 @@ function licenseLabel(value: string, t: ReturnType<typeof installationCopy>) {
 function installationCopy(locale: EngineeringLocale) {
   if (locale === 'en') return {
     eyebrow: 'Installation', title: 'Switch application on this installation',
-    description: 'Preserve what you need, detach the current Application securely, then return this same EliteSCADA installation to a real neutral state.',
+    description: 'Preserve what you need, detach the current Application securely, then return this same SCADIVO installation to a real neutral state.',
     loading: 'Loading installation state…', loadFailed: 'Installation state could not be loaded.', retry: 'Try again',
     refresh: 'Refresh', refreshing: 'Refreshing…', operationFailed: 'The operation did not complete. The current installation remains recoverable.',
     application: 'Current Application', unnamed: 'Unnamed application', noProject: 'No project identity', working: 'Working', dirty: 'Unsaved changes', clean: 'Saved',
@@ -611,7 +611,7 @@ function installationCopy(locale: EngineeringLocale) {
 
   if (locale === 'es') return {
     eyebrow: 'Instalación', title: 'Cambiar la aplicación de esta instalación',
-    description: 'Conserve lo necesario, desvincule de forma segura la Application actual y devuelva esta misma instalación de EliteSCADA a un estado neutral real.',
+    description: 'Conserve lo necesario, desvincule de forma segura la Application actual y devuelva esta misma instalación de SCADIVO a un estado neutral real.',
     loading: 'Cargando estado de la instalación…', loadFailed: 'No fue posible cargar el estado de la instalación.', retry: 'Intentar nuevamente',
     refresh: 'Actualizar', refreshing: 'Actualizando…', operationFailed: 'La operación no terminó. La instalación actual permanece recuperable.',
     application: 'Application actual', unnamed: 'Aplicación sin nombre', noProject: 'Sin identidad de proyecto', working: 'Working', dirty: 'Cambios sin guardar', clean: 'Guardado',
@@ -652,7 +652,7 @@ function installationCopy(locale: EngineeringLocale) {
 
   return {
     eyebrow: 'Instalação', title: 'Trocar a aplicação desta instalação',
-    description: 'Preserve o que precisar, desvincule com segurança a Application atual e devolva esta mesma instalação do EliteSCADA a um estado neutro real.',
+    description: 'Preserve o que precisar, desvincule com segurança a Application atual e devolva esta mesma instalação do SCADIVO a um estado neutro real.',
     loading: 'Carregando estado da instalação…', loadFailed: 'Não foi possível carregar o estado da instalação.', retry: 'Tentar novamente',
     refresh: 'Atualizar', refreshing: 'Atualizando…', operationFailed: 'A operação não foi concluída. A instalação atual permanece recuperável.',
     application: 'Application atual', unnamed: 'Aplicação sem nome', noProject: 'Sem identidade de projeto', working: 'Working', dirty: 'Alterações não salvas', clean: 'Salvo',

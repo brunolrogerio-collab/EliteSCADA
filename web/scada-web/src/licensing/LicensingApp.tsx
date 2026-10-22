@@ -57,7 +57,7 @@ const messages = {
     refresh: 'Atualizar', license: 'Licença', runtime: 'Runtime', state: 'Estado', tier: 'Faixa', tags: 'Limite de TAGs',
     licenseId: 'ID da licença', schema: 'Esquema da licença', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime View Only', haRuntime: 'Redundância / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
     expires: 'Validade', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
-    unlimited: 'Ilimitado', none: 'Não informado', legacy: 'legado', legacyNotSpecified: 'Não especificado pela ESLIC1', yes: 'Licenciado', no: 'Não licenciado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento EliteSCADA. Identificadores brutos de hardware não são exibidos.',
+    unlimited: 'Ilimitado', none: 'Não informado', legacy: 'legado', legacyNotSpecified: 'Não especificado pela ESLIC1', yes: 'Licenciado', no: 'Não licenciado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento SCADIVO. Identificadores brutos de hardware não são exibidos.',
     copy: 'Copiar código', copied: 'Código da máquina copiado.', install: 'Instalar licença', licenseCode: 'Código de licença assinado',
     validateInstall: 'Validar e instalar', remove: 'Remover licença', installed: 'Licença validada e instalada.', removed: 'Licença removida. As próximas ativações usarão o modo Demo.',
     loading: 'Carregando…', loadError: 'Não foi possível carregar o estado de licenciamento.', installError: 'Não foi possível instalar a licença.', removeConfirm: 'Remover a licença instalada desta máquina?'
@@ -67,7 +67,7 @@ const messages = {
     refresh: 'Refresh', license: 'License', runtime: 'Runtime', state: 'State', tier: 'Tier', tags: 'TAG limit',
     licenseId: 'License ID', schema: 'License schema', interactiveTotal: 'Interactive Runtime clients', viewOnlyTotal: 'View Only Runtime clients', haRuntime: 'Runtime redundancy / HA', assetProcessIntelligence: 'Asset & Process Intelligence',
     expires: 'Expiry', diagnostic: 'Diagnostic', demoRemaining: 'Demo remaining',
-    unlimited: 'Unlimited', none: 'Not provided', legacy: 'legacy', legacyNotSpecified: 'Not specified by ESLIC1', yes: 'Licensed', no: 'Not licensed', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the EliteSCADA licensing authority. Raw hardware identifiers are not exposed.',
+    unlimited: 'Unlimited', none: 'Not provided', legacy: 'legacy', legacyNotSpecified: 'Not specified by ESLIC1', yes: 'Licensed', no: 'Not licensed', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the SCADIVO licensing authority. Raw hardware identifiers are not exposed.',
     copy: 'Copy request', copied: 'Machine request copied.', install: 'Install license', licenseCode: 'Signed license code',
     validateInstall: 'Validate and install', remove: 'Remove license', installed: 'License validated and installed.', removed: 'License removed. Future activations will use Demo mode.',
     loading: 'Loading…', loadError: 'Licensing status could not be loaded.', installError: 'License could not be installed.', removeConfirm: 'Remove the installed license from this machine?'
@@ -77,7 +77,7 @@ const messages = {
     refresh: 'Actualizar', license: 'Licencia', runtime: 'Runtime', state: 'Estado', tier: 'Nivel', tags: 'Límite de TAGs',
     licenseId: 'ID de licencia', schema: 'Esquema de licencia', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime Solo visualización', haRuntime: 'Redundancia / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
     expires: 'Validez', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
-    unlimited: 'Ilimitado', none: 'No informado', legacy: 'legado', legacyNotSpecified: 'No especificado por ESLIC1', yes: 'Licenciado', no: 'No licenciado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento EliteSCADA. No se muestran identificadores brutos de hardware.',
+    unlimited: 'Ilimitado', none: 'No informado', legacy: 'legado', legacyNotSpecified: 'No especificado por ESLIC1', yes: 'Licenciado', no: 'No licenciado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento SCADIVO. No se muestran identificadores brutos de hardware.',
     copy: 'Copiar código', copied: 'Código de máquina copiado.', install: 'Instalar licencia', licenseCode: 'Código de licencia firmado',
     validateInstall: 'Validar e instalar', remove: 'Eliminar licencia', installed: 'Licencia validada e instalada.', removed: 'Licencia eliminada. Las próximas activaciones usarán el modo Demo.',
     loading: 'Cargando…', loadError: 'No fue posible cargar el estado de licenciamiento.', installError: 'No fue posible instalar la licencia.', removeConfirm: '¿Eliminar la licencia instalada de esta máquina?'

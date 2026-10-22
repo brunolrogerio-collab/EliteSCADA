@@ -9,10 +9,10 @@ public sealed class ProductIdentityApiTests
     {
         var identity = ProductIdentityApi.Describe(typeof(ProductIdentityApi).Assembly);
 
-        Assert.Equal("EliteSCADA", identity.ProductName);
+        Assert.Equal("SCADIVO", identity.ProductName);
         Assert.Equal("Alpha", identity.Channel);
         Assert.Equal("0.15.2.1", identity.Version);
-        Assert.Equal("EliteSCADA Alpha 0.15.2.1", identity.DisplayVersion);
-        Assert.Contains("EliteSCADA Alpha 0.15.2.1", identity.InformationalVersion, StringComparison.Ordinal);
+        Assert.Equal("SCADIVO Alpha 0.15.2.1", identity.DisplayVersion);
+        Assert.Contains("SCADIVO Alpha 0.15.2.1", identity.InformationalVersion, StringComparison.Ordinal);
     }
 }

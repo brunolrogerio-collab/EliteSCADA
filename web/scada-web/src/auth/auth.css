@@ -45,14 +45,8 @@
 .auth-mark {
   width: 42px;
   height: 42px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
-  background: var(--app-surface-elevated);
-  color: var(--app-accent);
-  font-weight: 800;
-  font-size: 20px;
+  display: block;
+  object-fit: contain;
 }
 
 .auth-card label {

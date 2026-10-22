@@ -12,7 +12,7 @@
       assembly/distribution metadata derive from one source rather than
       component-local literals.
     -->
-    <EliteScadaProductName>EliteSCADA</EliteScadaProductName>
+    <EliteScadaProductName>SCADIVO</EliteScadaProductName>
     <EliteScadaProductChannel>Alpha</EliteScadaProductChannel>
     <EliteScadaProductVersion>0.15.2.1</EliteScadaProductVersion>
     <Product>$(EliteScadaProductName)</Product>

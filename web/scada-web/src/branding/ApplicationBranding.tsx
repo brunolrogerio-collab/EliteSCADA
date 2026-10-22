@@ -19,16 +19,16 @@ export function resolveApplicationBranding(
     const text = branding.text?.trim();
     return text
       ? { mode: 'text', text, subtitle: branding.subtitle?.trim() || undefined }
-      : { mode: 'default', diagnostic: 'Configured TEXT branding is empty; showing EliteSCADA.' };
+      : { mode: 'default', diagnostic: 'Configured TEXT branding is empty; showing SCADIVO.' };
   }
   if (branding.mode === 'image') {
     const id = branding.visualAssetId?.trim();
     const asset = id ? assets.find(x => x.id?.toLowerCase() === id.toLowerCase()) : undefined;
     return asset?.id
       ? { mode: 'image', imageUrl: contentUrl(asset.id), alt: branding.text?.trim() || asset.name || 'Application brand', text: branding.text?.trim() || undefined, subtitle: branding.subtitle?.trim() || undefined }
-      : { mode: 'default', diagnostic: 'Configured brand image is missing from the Active application; showing EliteSCADA.' };
+      : { mode: 'default', diagnostic: 'Configured brand image is missing from the Active application; showing SCADIVO.' };
   }
-  return { mode: 'default', diagnostic: 'Branding mode is invalid; showing EliteSCADA.' };
+  return { mode: 'default', diagnostic: 'Branding mode is invalid; showing SCADIVO.' };
 }
 
 export function useActiveApplicationBranding(): ResolvedApplicationBranding {
@@ -40,7 +40,7 @@ export function useActiveApplicationBranding(): ResolvedApplicationBranding {
       const pkg = projection.mode === 'engineering' ? projection.package : null;
       setValue(resolveApplicationBranding(pkg?.branding, pkg?.visualAssets ?? [], runtimeVisualAssetContentUrl));
     }).catch(reason => {
-      if (!controller.signal.aborted) setValue({ mode: 'default', diagnostic: `Active branding is unavailable (${reason instanceof Error ? reason.message : String(reason)}); showing EliteSCADA.` });
+      if (!controller.signal.aborted) setValue({ mode: 'default', diagnostic: `Active branding is unavailable (${reason instanceof Error ? reason.message : String(reason)}); showing SCADIVO.` });
     });
     return () => controller.abort();
   }, []);
@@ -51,14 +51,14 @@ export function ApplicationBrand({ branding, defaultSubtitle, href }: { branding
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [branding]);
   const effective: ResolvedApplicationBranding = failed && branding.mode === 'image'
-    ? { mode: 'default', diagnostic: 'Configured brand image could not be loaded; showing EliteSCADA.' }
+    ? { mode: 'default', diagnostic: 'Configured brand image could not be loaded; showing SCADIVO.' }
     : branding;
   if (effective.mode === 'none') return null;
-  const label = effective.mode === 'text' ? effective.text : effective.mode === 'image' ? effective.alt : 'EliteSCADA';
-  const title = effective.mode === 'text' ? effective.text : effective.mode === 'image' ? effective.text : 'EliteSCADA';
+  const label = effective.mode === 'text' ? effective.text : effective.mode === 'image' ? effective.alt : 'SCADIVO';
+  const title = effective.mode === 'text' ? effective.text : effective.mode === 'image' ? effective.text : 'SCADIVO';
   const subtitle = effective.mode === 'text' || effective.mode === 'image' ? effective.subtitle : defaultSubtitle;
   return <a className="app-brand" href={href} aria-label={label} data-branding-mode={effective.mode}>
-    {effective.mode === 'default' ? <span className="app-brand-mark" aria-hidden="true">E</span> : null}
+    {effective.mode === 'default' ? <img className="app-brand-image" src="/scadivo-mark.svg" alt="" aria-hidden="true" /> : null}
     {effective.mode === 'image' ? <img className="app-brand-image" src={effective.imageUrl} alt={effective.alt} onError={() => setFailed(true)} /> : null}
     {(title || subtitle) ? <span className="app-brand-copy">{title ? <strong>{title}</strong> : null}{subtitle ? <small>{subtitle}</small> : null}</span> : null}
     {'diagnostic' in effective && effective.diagnostic ? <span className="app-brand-diagnostic" role="status">{effective.diagnostic}</span> : null}

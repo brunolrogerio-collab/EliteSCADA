@@ -397,7 +397,7 @@ export function RestoreFirstPanel({
   return (
     <div className="auth-page">
       <div className="auth-card auth-card--recovery" data-testid={`restore-first-${mode}`}>
-        <div className="auth-mark">E</div>
+        <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
         <h1>{mode === 'bootstrap' ? t.title : stagedContinuation || resumedContinuation ? t.continuationTitle : t.importTitle}</h1>
         <p>{mode === 'bootstrap' ? t.bootstrapIntro : stagedContinuation || resumedContinuation ? t.continuationIntro : t.applicationIntro}</p>
 

@@ -38,7 +38,7 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
   try {
     await loginLocalDeveloper(page);
 
-    const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    const navigation = page.getByRole('navigation', { name: 'SCADIVO' });
     await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
     await expect(page.locator('.eng-shell')).toHaveCount(0);
@@ -53,7 +53,7 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
     await expect(page.locator('.eng-shell')).toBeVisible();
     await expect(page.locator('.user-session-menu')).toBeVisible();
 
-    await page.getByRole('navigation', { name: 'EliteSCADA' }).getByRole('link', { name: /Auditoria/ }).click();
+    await page.getByRole('navigation', { name: 'SCADIVO' }).getByRole('link', { name: /Auditoria/ }).click();
     await expect(page).toHaveURL(/\/audit$/);
     await expect(page.getByRole('heading', { name: 'Auditoria' })).toBeVisible();
     await expect(page.locator('.user-session-menu')).toBeVisible();
@@ -222,7 +222,7 @@ for (const expected of localeExpectations) {
     await setProductLocale(page, expected.locale);
     await page.goto('/');
 
-    const runtimeNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    const runtimeNavigation = page.getByRole('navigation', { name: 'SCADIVO' });
     await expect(page.getByText(expected.subtitle, { exact: true })).toBeVisible();
     await expect(page.locator('.app-context')).toHaveCount(0);
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
@@ -238,9 +238,9 @@ for (const expected of localeExpectations) {
     const databaseTopology = page.locator('.eng-nav')
       .getByRole('link', { name: /Banco de dados|Database|Base de datos/ });
     await expect(databaseTopology).toHaveAttribute('href', '/engineering/database-topology');
-    await expect(page.getByRole('navigation', { name: 'EliteSCADA' }).getByRole('link', { name: /Topologia de Banco|Database Topology|Topología de Base/ })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'SCADIVO' }).getByRole('link', { name: /Topologia de Banco|Database Topology|Topología de Base/ })).toHaveCount(0);
 
-    const engineeringNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    const engineeringNavigation = page.getByRole('navigation', { name: 'SCADIVO' });
     const auditLink = engineeringNavigation.getByRole('link', { name: new RegExp(expected.audit) });
     await expect(auditLink).toHaveAttribute('href', '/audit');
     await auditLink.click();

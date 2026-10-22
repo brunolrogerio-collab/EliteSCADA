@@ -30,8 +30,10 @@ test('primary shell keeps authorized application navigation coherent without Eng
     }
   }));
   await page.goto('/');
+  await expect(page).toHaveTitle('SCADIVO');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/scadivo-mark.svg');
 
-  let navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  let navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
   await expect(
     page.getByTestId('runtime-engineering-application')
@@ -56,7 +58,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
   }
 
   await page.goto('/engineering');
-  navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: 'Engenharia' })).toHaveAttribute('aria-current', 'page');
   await page.locator('.eng-overview-advanced > summary').click();
   await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
@@ -99,13 +101,13 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await expect(page.getByText(/TAG Monitor/i)).toBeVisible();
 
   await page.goto('/audit');
-  navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: /Auditoria/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.audit-panel').first()).toBeVisible();
   await expectCssToken(page.locator('.audit-panel').first(), 'background-color', '--app-surface');
 
   await page.goto('/licensing');
-  navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: /Licenciamento/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'Licenciamento' })).toBeVisible();
   await expect(page.locator('.licensing-card').first()).toBeVisible();
@@ -119,7 +121,7 @@ test('shell uses shared locale, updates live from Engineering selector, and pres
   });
   await page.goto('/engineering');
 
-  const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  const navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: 'Engineering' })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Audit/ })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Licensing/ })).toBeVisible();
@@ -324,7 +326,8 @@ test('NONE collapses shell brand slot and invalid Active IMAGE falls back explic
 
   const brand = page.locator('.app-brand');
   await expect(brand).toHaveAttribute('data-branding-mode', 'default');
-  await expect(brand).toContainText('EliteSCADA');
+  await expect(brand).toContainText('SCADIVO');
+  await expect(brand.locator('img.app-brand-image')).toHaveAttribute('src', '/scadivo-mark.svg');
   await expect(brand.getByRole('status')).toContainText(/missing.*Active application/i);
 });
 
@@ -362,7 +365,7 @@ test('compact shell header separates navigation from actions and removes Help/Li
   const bar = page.locator('.app-bar');
   const brand = page.locator('.app-brand');
   const actions = page.locator('.app-shell-actions');
-  const nav = page.getByRole('navigation', { name: 'EliteSCADA' });
+  const nav = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(bar).toBeVisible();
   await expect(nav.locator('a[href="/licensing"] small')).toHaveCount(0);
   await expect(nav.locator('a[href^="/help"] small')).toHaveCount(0);

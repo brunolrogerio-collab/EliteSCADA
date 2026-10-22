@@ -109,7 +109,7 @@ export function AppNavigation() {
           defaultSubtitle={text.subtitle}
           href={access.runtime ? '/' : access.engineering ? '/engineering' : access.licensing ? '/licensing' : databaseAdmin ? '/admin/database' : '#'}
         />
-        <nav className="app-navigation" aria-label="EliteSCADA">
+        <nav className="app-navigation" aria-label="SCADIVO">
           {links.map(link => {
             const normalizedHref = link.href.startsWith('/help') ? '/help' : link.href;
             const isActive = activeHref === normalizedHref;

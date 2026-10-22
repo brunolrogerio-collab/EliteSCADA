@@ -11,6 +11,7 @@ import {
   generateIntelligenceProcessStageCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
   INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS,
+  INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS,
   INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS,
   isNumericTagDataType,
   type IntelligenceProfileCoverageDashboardSelection
@@ -76,6 +77,68 @@ test('dashboard generator builds a canonical editable screen from stable TAG ref
   ]));
   expect(screen.elements?.some(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.numericInput)).toBe(false);
   expect(screen.metadata?.intelligenceDashboardSummary).toContain('não calcula KPIs');
+  expect(screen.metadata?.intelligenceDashboardSummary).toContain('A cobertura do perfil foi omitida');
+});
+
+test('single-equipment dashboard composes bounded profile coverage beside its signal/trend view', () => {
+  const profileId = '30000000-0000-0000-0000-000000000003';
+  const scopeId = '10000000-0000-0000-0000-000000000001';
+  const screen = generateIntelligenceDashboardDraft([], {
+    kind: 'equipment-profile', stableKey: 'Plant.P-101/pump-standard', displayName: 'Pump P-101',
+    assignments: [{
+      ...equipmentAssignment,
+      scopeId,
+      profile: { ...equipmentAssignment.profile, id: profileId }
+    }]
+  }, [
+    numericTag('tag-current', 'Plant.P-101.Current', 0, 120),
+    numericTag('tag-flow', 'Plant.P-101.Flow'),
+    { id: 'tag-running', name: 'Running', path: 'Plant.P-101.Running', dataType: 'Boolean', readOnly: true }
+  ], 'pt-BR', ids());
+  const coverage = screen.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1);
+  const trend = screen.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.trend);
+  const summary = String(screen.metadata?.intelligenceDashboardSummary ?? '');
+
+  expect(screen.metadata).toMatchObject({
+    intelligenceDashboardGenerator: 'stage5b.8',
+    intelligenceDashboardSourceKind: 'equipment-profile'
+  });
+  expect(coverage?.properties).toMatchObject({
+    x: 900, y: 166, width: 956, height: 806,
+    intelligenceScopeId: scopeId,
+    intelligenceProfileId: profileId
+  });
+  expect(coverage?.properties).not.toHaveProperty('window');
+  expect(coverage?.properties).not.toHaveProperty('result');
+  expect(trend?.properties).toMatchObject({ x: 64, width: 800 });
+  expect(summary).toContain('relatório separado de cobertura do perfil');
+
+  for (const element of screen.elements ?? []) {
+    const x = Number(element.properties?.x ?? 0);
+    const y = Number(element.properties?.y ?? 0);
+    const width = Number(element.properties?.width ?? 0);
+    const height = Number(element.properties?.height ?? 0);
+    expect(x + width).toBeLessThanOrEqual(1920);
+    expect(y + height).toBeLessThanOrEqual(1080);
+  }
+});
+
+test('composite dashboard limits value cards to the bounded two-column area and reports omissions', () => {
+  const signals = Array.from({ length: INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS + 2 }, (_, index) => ({
+    id: `signal-${index}`, key: `signal-${index}`, signalRole: 'process', tagId: `tag-${index}`, required: true
+  }));
+  const profile: AssetProcessIntelligenceProfileEngineering = {
+    id: '30000000-0000-0000-0000-000000000003', key: 'many-signals', name: 'Many signals', signals
+  };
+  const screen = generateIntelligenceDashboardDraft([], {
+    kind: 'equipment-profile', stableKey: 'Plant.P-101/many-signals', displayName: 'Pump P-101',
+    assignments: [{ ...equipmentAssignment, scopeId: '10000000-0000-0000-0000-000000000001', profile }]
+  }, signals.map(signal => numericTag(signal.tagId, `Plant.P-101.${signal.key}`)), 'pt-BR', ids());
+  const values = screen.elements?.filter(element =>
+    element.type === BUILTIN_VISUAL_OBJECT_TYPES.measurementBar || element.type === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay) ?? [];
+
+  expect(values).toHaveLength(INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS);
+  expect(screen.metadata?.intelligenceDashboardSummary).toContain('2 sinais numéricos adicionais omitidos');
 });
 
 test('dashboard generator fails closed when no numeric TAG can be resolved', () => {

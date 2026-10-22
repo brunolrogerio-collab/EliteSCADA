@@ -104,8 +104,9 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   const editor = page.getByTestId('visual-editor-workspace');
   await expect(editor).toBeVisible();
   await expect(editor.getByLabel('Nome de exibição')).toHaveValue(/Inteligência · Pump P-101 · Pump process profile/);
-  await expect(editor.locator('.visual-editor-header-status')).toContainText('6 objetos');
+  await expect(editor.locator('.visual-editor-header-status')).toContainText('7 objetos');
   await expect(editor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
+  await expect(editor.getByTestId('runtime-intelligence-profile-coverage')).toBeVisible();
   await expect(editor.getByTestId('visual-editor-preview')).toBeEnabled();
   await expect(editor.getByTestId('visual-editor-apply')).toBeDisabled();
   expect(coverageQueries).toEqual([]);

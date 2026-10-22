@@ -33,6 +33,7 @@ No second Help system or external documentation dependency was added.
 | TAG addressing / quality / timestamps / writeability | existing `tags.*` topics | TAG entry + topic navigation | yes | yes | yes | COVERED |
 | TAG copy/paste/duplicate/sequential | `tags.copy-duplicate-sequential` | TAG contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Screen Editor | `screens.overview` | `/engineering/screens` | yes | yes | yes | COVERED |
+| Intelligence — process-stage member insights | `intelligence.process-stage-member-insights` | `/engineering/intelligence` | yes | yes | yes | COVERED — bounded Stage 5B.11 route; independent per-equipment read-only analyses, no process aggregate |
 | Popup Editor | `popups.overview` | `/engineering/popups` | yes | yes | yes | COVERED |
 | Visual properties | `visual.properties` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Dynamics | `visual.dynamics` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |

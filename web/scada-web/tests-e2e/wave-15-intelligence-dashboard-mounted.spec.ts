@@ -103,6 +103,7 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(page).toHaveURL(/\/engineering\/screens$/);
   const editor = page.getByTestId('visual-editor-workspace');
   await expect(editor).toBeVisible();
+  await expect(editor.getByTestId('visual-editor-generated-drafts').getByRole('button')).toHaveCount(1);
   await expect(editor.getByLabel('Nome de exibição')).toHaveValue(/Inteligência · Pump P-101 · Pump process profile/);
   await expect(editor.locator('.visual-editor-header-status')).toContainText('7 objetos');
   await expect(editor.getByTestId('visual-editor-canonical-layer')).toBeVisible();

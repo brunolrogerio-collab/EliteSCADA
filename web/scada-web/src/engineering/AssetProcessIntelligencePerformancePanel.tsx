@@ -7,7 +7,7 @@ import type {
 } from './types';
 import type { EngineeringLocale } from './i18n';
 import type { VersionedSemanticCatalog } from './semanticCatalogApi';
-import { isNumericTagDataType } from './intelligenceDashboardGenerator';
+import { isNumericTagDataType, type IntelligencePerformanceDashboardSelection } from './intelligenceDashboardGenerator';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 const DEFAULT_MAX_WINDOW_DAYS = 31;
@@ -99,7 +99,8 @@ export function AssetProcessIntelligencePerformancePanel({
   projectKey,
   activeRevision,
   canQuery,
-  onCreateRuntimeScreenDraft
+  onCreateRuntimeScreenDraft,
+  onGuidedSelectionChange
 }: {
   locale: EngineeringLocale;
   scopeId: string;
@@ -111,6 +112,7 @@ export function AssetProcessIntelligencePerformancePanel({
   activeRevision: number | null;
   canQuery: boolean;
   onCreateRuntimeScreenDraft?: (selection: Readonly<{ ruleId: string; ruleVersion: string; signalIds: readonly string[] }>) => void;
+  onGuidedSelectionChange?: (assignmentId: string, selection: IntelligencePerformanceDashboardSelection | null) => void;
 }) {
   const copy = useMemo(() => performanceCopy(locale), [locale]);
   const [expanded, setExpanded] = useState(false);
@@ -149,6 +151,22 @@ export function AssetProcessIntelligencePerformancePanel({
   const selected = selections.find(item => item.rule.id === ruleId) ?? null;
   const windowResult = useMemo(() => parseWindow(fromLocal, toLocal, catalog?.maximumWindowDays ?? DEFAULT_MAX_WINDOW_DAYS),
     [fromLocal, toLocal, catalog?.maximumWindowDays]);
+
+  useEffect(() => {
+    if (!selected || selected.reason || !scopeId || !assignmentId || !profile.id) {
+      onGuidedSelectionChange?.(assignmentId, null);
+      return;
+    }
+    onGuidedSelectionChange?.(assignmentId, {
+      scopeId,
+      assignmentId,
+      profileId: profile.id,
+      ruleId: selected.rule.id,
+      ruleVersion: selected.rule.version,
+      signalIds: selected.signalIds,
+      displayName: profile.name
+    });
+  }, [assignmentId, onGuidedSelectionChange, profile.id, profile.name, scopeId, selected]);
 
   const invalidateResult = () => {
     requestVersion.current += 1;

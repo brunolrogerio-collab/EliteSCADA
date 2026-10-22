@@ -16,7 +16,7 @@ export function VisualEditorWorkspace({
   definitionKind = 'screen',
   initialDefinitionKey,
   onRequestClose,
-  initialScreenDraft,
+  initialScreenDrafts,
   onInitialScreenDraftConsumed
 }: {
   snapshot: EngineeringSnapshot;
@@ -26,7 +26,7 @@ export function VisualEditorWorkspace({
   definitionKind?: 'screen' | 'template' | 'dynamo';
   initialDefinitionKey?: string | null;
   onRequestClose?: () => void;
-  initialScreenDraft?: ScreenEngineering | null;
+  initialScreenDrafts?: readonly ScreenEngineering[];
   onInitialScreenDraftConsumed?: (key: string) => void;
 }) {
   const normalizedSnapshot = React.useMemo<EngineeringSnapshot>(() => ({
@@ -51,7 +51,7 @@ export function VisualEditorWorkspace({
         visualAssets={normalizedSnapshot.package.visualAssets ?? []}
         onApplied={onApplied}
       >
-        <LegacyVisualEditorWorkspace snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} onAssetImported={onAssetImported} definitionKind={definitionKind} initialDefinitionKey={initialDefinitionKey} onRequestClose={onRequestClose} initialScreenDraft={initialScreenDraft} onInitialScreenDraftConsumed={onInitialScreenDraftConsumed} />
+        <LegacyVisualEditorWorkspace snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} onAssetImported={onAssetImported} definitionKind={definitionKind} initialDefinitionKey={initialDefinitionKey} onRequestClose={onRequestClose} initialScreenDrafts={initialScreenDrafts} onInitialScreenDraftConsumed={onInitialScreenDraftConsumed} />
       </DynamoAuthoringCatalogProvider>
     </C07VisualEditorI18nProvider>
 

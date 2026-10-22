@@ -82,15 +82,24 @@ type VisualEditorWorkspaceProps = {
   definitionKind?: 'screen' | 'template' | 'dynamo';
   initialDefinitionKey?: string | null;
   onRequestClose?: () => void;
-  initialScreenDraft?: ScreenEngineering | null;
+  initialScreenDrafts?: readonly ScreenEngineering[];
   onInitialScreenDraftConsumed?: (key: string) => void;
 };
 
 type ValidatedCandidate = { package: EngineeringPackageView; changeVersion: number };
 
 const DEFAULT_VIEWPORT: VisualEditorViewport = Object.freeze({ zoom: 1, panX: 0, panY: 0 });
+const GENERATED_DRAFT_IDENTITY_PREFIX = 'generated:';
 
-export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImported, definitionKind = 'screen', initialDefinitionKey, onRequestClose, initialScreenDraft, onInitialScreenDraftConsumed }: VisualEditorWorkspaceProps) {
+function generatedDraftIdentity(key: string): string {
+  return `${GENERATED_DRAFT_IDENTITY_PREFIX}${key}`;
+}
+
+function generatedDraftKey(identity: string): string {
+  return identity.slice(GENERATED_DRAFT_IDENTITY_PREFIX.length);
+}
+
+export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImported, definitionKind = 'screen', initialDefinitionKey, onRequestClose, initialScreenDrafts, onInitialScreenDraftConsumed }: VisualEditorWorkspaceProps) {
   const text = useMemo(() => {
     const copy = visualEditorText(locale);
     if (definitionKind === 'dynamo') {
@@ -116,20 +125,26 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     : definitionKind === 'dynamo'
       ? dynamos.map(dynamoAsScreen)
       : snapshot.package.screens ?? [];
-  const initialScreenDraftRef = useRef<ScreenEngineering | null>(
-    definitionKind === 'screen' && initialScreenDraft ? cloneEngineeringValue(initialScreenDraft) : null
+  const [generatedDrafts, setGeneratedDrafts] = useState<ScreenEngineering[]>(() =>
+    definitionKind === 'screen' ? (initialScreenDrafts ?? []).map(cloneEngineeringValue) : []
   );
   const [selectedIdentity, setSelectedIdentity] = useState<string>(() => {
-    if (initialScreenDraftRef.current) return NEW_SCREEN_IDENTITY;
+    const firstGeneratedDraft = definitionKind === 'screen' ? initialScreenDrafts?.[0] : undefined;
+    if (firstGeneratedDraft) return generatedDraftIdentity(firstGeneratedDraft.key);
     const initial = initialDefinitionKey ? screens.find(screen => screen.key === initialDefinitionKey) : null;
     const first = initial ?? screens[0];
     return first ? screenIdentity(first) : NEW_SCREEN_IDENTITY;
   });
-  const isNew = selectedIdentity === NEW_SCREEN_IDENTITY;
+  const isNew = selectedIdentity === NEW_SCREEN_IDENTITY || selectedIdentity.startsWith(GENERATED_DRAFT_IDENTITY_PREFIX);
+  const selectedGeneratedDraft = selectedIdentity.startsWith(GENERATED_DRAFT_IDENTITY_PREFIX)
+    ? generatedDrafts.find(screen => screen.key === generatedDraftKey(selectedIdentity)) ?? null
+    : null;
   const selected = !isNew ? screens.find(screen => matchesScreenIdentity(screen, selectedIdentity)) ?? null : null;
   const selectedTemplate = definitionKind === 'template' && selected ? templates.find(item => screenIdentity(item) === screenIdentity(selected)) ?? null : null;
   const selectedDynamo = definitionKind === 'dynamo' && selected ? dynamos.find(item => (item.id ? `id:${item.id}` : `key:${item.key}`) === screenIdentity(selected)) ?? null : null;
-  const initialDraft = selected ? cloneEngineeringValue(selected) : initialScreenDraftRef.current ?? createDraft(screens, locale, definitionKind);
+  const initialDraft = selected ? cloneEngineeringValue(selected)
+    : selectedGeneratedDraft ? cloneEngineeringValue(selectedGeneratedDraft)
+      : createDraft(screens, locale, definitionKind);
   const [session, setSessionState] = useState<VisualEditorSessionState>(() => createVisualEditorSession(initialDraft));
   const [dynamoParameters, setDynamoParameters] = useState<readonly DynamoParameterDefinitionEngineering[]>(
     () => Object.freeze([...(selectedDynamo?.parameters ?? [])])
@@ -199,16 +214,26 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     }
     setPolygonToolActive(false);
     setBezierToolActive(false);
+    if (selectedIdentity.startsWith(GENERATED_DRAFT_IDENTITY_PREFIX)) {
+      const generated = generatedDrafts.find(screen => screen.key === generatedDraftKey(selectedIdentity)) ?? null;
+      if (generated) {
+        replaceSession(createVisualEditorSession(cloneEngineeringValue(generated)));
+        setDynamoParameters(Object.freeze([]));
+        setViewport(DEFAULT_VIEWPORT);
+        invalidateValidation();
+        return;
+      }
+      if (screens[0]) setSelectedIdentity(screenIdentity(screens[0]));
+      else setSelectedIdentity(NEW_SCREEN_IDENTITY);
+      return;
+    }
     if (selectedIdentity === NEW_SCREEN_IDENTITY) {
       const pasted = pendingScreenPasteRef.current;
       pendingScreenPasteRef.current = null;
-      const dashboardDraft = initialScreenDraftRef.current;
-      initialScreenDraftRef.current = null;
-      replaceSession(createVisualEditorSession(pasted ?? dashboardDraft ?? createDraft(screens, locale, definitionKind)));
+      replaceSession(createVisualEditorSession(pasted ?? createDraft(screens, locale, definitionKind)));
       setDynamoParameters(Object.freeze([]));
       setViewport(DEFAULT_VIEWPORT);
       invalidateValidation();
-      if (dashboardDraft) onInitialScreenDraftConsumed?.(dashboardDraft.key);
       return;
     }
     const current = screens.find(screen => matchesScreenIdentity(screen, selectedIdentity)) ?? null;
@@ -225,11 +250,12 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     }
     if (screens[0]) setSelectedIdentity(screenIdentity(screens[0]));
     else setSelectedIdentity(NEW_SCREEN_IDENTITY);
-  }, [selectedIdentity, snapshot.package, definitionKind, onInitialScreenDraftConsumed]);
+  }, [selectedIdentity, snapshot.package, definitionKind, generatedDrafts]);
 
   const visualDefinitionChanged = selected !== null && JSON.stringify(selected) !== JSON.stringify(draft);
   const publicInterfaceChanged = definitionKind === 'dynamo' &&
     JSON.stringify(selectedDynamo?.parameters ?? []) !== JSON.stringify(dynamoParameters);
+  const generatedDraftChanged = selectedGeneratedDraft !== null && JSON.stringify(selectedGeneratedDraft) !== JSON.stringify(draft);
   const changed = isNew ? true : visualDefinitionChanged || publicInterfaceChanged;
   const selectedElements = useMemo(
     () => selectedVisualElements(draft, selectedObjectIds),
@@ -307,7 +333,8 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
 
   const chooseScreen = (identity: string) => {
     if (identity === selectedIdentity) return;
-    if (changed && !window.confirm(text.discardConfirm)) return;
+    const hasEditsToDiscard = selectedGeneratedDraft ? generatedDraftChanged : changed;
+    if (hasEditsToDiscard && !window.confirm(text.discardConfirm)) return;
     setSelectedIdentity(identity);
     setViewport(DEFAULT_VIEWPORT);
     setPolygonToolActive(false);
@@ -505,6 +532,10 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
       await onApplied();
       setSelectedIdentity(`key:${appliedKey}`);
       replaceSession(createVisualEditorSession(draft));
+      if (selectedGeneratedDraft) {
+        setGeneratedDrafts(current => current.filter(screen => screen.key !== appliedKey));
+        onInitialScreenDraftConsumed?.(appliedKey);
+      }
       setPolygonToolActive(false);
       setBezierToolActive(false);
       setPreview(null);
@@ -556,10 +587,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
 
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
   const objectCount = countVisualElements(draft.elements);
-  const intelligenceDashboardDraft = isNew && (
-    draft.metadata?.intelligenceDashboardGenerator === 'stage5b.1' ||
-    draft.metadata?.intelligenceDashboardGenerator === 'stage5b.8'
-  );
+  const intelligenceDashboardDraft = isNew && draft.metadata?.intelligenceDashboardGenerator?.startsWith('stage5b.') === true;
 
   const layoutClassName = [
     'eng-section visual-editor-workspace',
@@ -580,7 +608,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
         <header>
           <strong>{text.screens}</strong>
           <div className="visual-editor-region-actions">
-          <button type="button" className={isNew ? 'active' : ''} onClick={() => chooseScreen(NEW_SCREEN_IDENTITY)}>+ {text.newScreen}</button>
+          <button type="button" className={selectedIdentity === NEW_SCREEN_IDENTITY ? 'active' : ''} onClick={() => chooseScreen(NEW_SCREEN_IDENTITY)}>+ {text.newScreen}</button>
             <VisualEditorRegionToggle region="screens" collapsed={screensCollapsed} locale={locale} onToggle={() => setScreensCollapsed(value => !value)} />
           </div>
         </header>
@@ -605,12 +633,22 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
             </button>;
           })}
         </div>}
+        {definitionKind === 'screen' && generatedDrafts.length > 0 ? <div className="visual-editor-generated-drafts" data-testid="visual-editor-generated-drafts">
+          <strong>{text.generatedDashboardDrafts}</strong>
+          {generatedDrafts.map(generated => {
+            const identity = generatedDraftIdentity(generated.key);
+            return <button type="button" className={selectedIdentity === identity ? 'selected' : ''} key={identity}
+              data-testid={`visual-editor-generated-draft-${generated.key}`} onClick={() => chooseScreen(identity)}>
+              <strong>{generated.name || generated.key}</strong><code>{generated.key}</code><span>{text.unsavedGeneratedDraft} · {countVisualElements(generated.elements)} {text.objects}</span>
+            </button>;
+          })}
+        </div> : null}
       </aside>
 
       <section className="visual-editor-main">
         <div className="visual-editor-screen-form">
           <label><span>{text.name}</span><input aria-description={text.nameHint} value={draft.name} onChange={event => updateDraft(current => ({ ...current, name: event.target.value }))} /><small aria-hidden="true">{text.nameHint}</small></label>
-          <label><span>{text.key}</span><input aria-description={text.keyHint} className="mono" value={draft.key} readOnly={definitionKind === 'dynamo' && !isNew} onChange={event => updateDraft(current => ({ ...current, key: event.target.value }))} /><small aria-hidden="true">{text.keyHint}</small></label>
+          <label><span>{text.key}</span><input aria-description={text.keyHint} className="mono" value={draft.key} readOnly={(definitionKind === 'dynamo' && !isNew) || draft.metadata?.intelligenceDashboardSetVersion === 'stage5b.9'} onChange={event => updateDraft(current => ({ ...current, key: event.target.value }))} /><small aria-hidden="true">{text.keyHint}</small></label>
           {definitionKind === 'screen' ? <label><span>{text.route}</span><input aria-description={text.routeHint} className="mono" value={draft.route ?? ''} placeholder="/overview" onChange={event => updateDraft(current => ({ ...current, route: emptyToNull(event.target.value) }))} /><small aria-hidden="true">{text.routeHint}</small></label> : <div className="visual-editor-draft-state"><span>{text.route}</span><strong>{draft.key}</strong><small>{text.routeHint}</small></div>}
           <div className="visual-editor-draft-state"><span>{text.draft}</span><strong>{isNew ? text.newDraft : changed ? text.changed : text.unchanged}</strong><small>{objectCount} {text.objects}</small></div>
         </div>
@@ -789,7 +827,7 @@ function parameterDataType(kind: DynamoParameterKindEngineering): string | null 
 function visualEditorText(locale: EngineeringLocale) {
   if (locale === 'en') return {
     eyebrow: 'Canonical graphical Engineering', title: 'Screen editor foundation', description: 'Screens are edited as canonical Engineering. Canvas state remains transient and is never a second project authority.',
-    authorityTitle: 'Preview required before Apply', authorityHint: 'The public Engineering Preview/Apply and Workspace CAS protect Screen changes.', screenList: 'Screen list', screens: 'Screens', newScreen: 'New Screen', noRoute: 'no route', objects: 'objects',
+    authorityTitle: 'Preview required before Apply', authorityHint: 'The public Engineering Preview/Apply and Workspace CAS protect Screen changes.', screenList: 'Screen list', generatedDashboardDrafts: 'Generated dashboard drafts', unsavedGeneratedDraft: 'Unsaved draft', screens: 'Screens', newScreen: 'New Screen', noRoute: 'no route', objects: 'objects',
     name: 'Display name', nameHint: 'Label shown to people.', key: 'Identifier', keyHint: 'Stable internal reference for this screen.', route: 'Screen address', routeHint: 'Navigation address inside the application; it is not the identifier.', draft: 'Draft', newDraft: 'New', changed: 'Changed', unchanged: 'Unchanged', untitled: 'Untitled Screen', objectsPanel: 'Objects', objectsPanelHint: 'Add registered visual objects. Identity and defaults remain canonical authority.', addObject: 'Add', objectLabels: { group: 'Group', rectangle: 'Rectangle', ellipse: 'Ellipse', line: 'Line', polygon: 'Polygon', text: 'Text', image: 'Image', valueDisplay: 'Value display', button: 'Button' },
     propertiesPanel: 'Properties', canonicalPreview: 'Canonical rendered preview', canonicalPreviewHint: 'Renderer projection of the same Engineering draft, including live scalar text bindings.', interactiveCanvas: 'Interactive Canvas', polygonDrawing: 'Polygon drawing mode: click vertices, Enter to finish, Escape to cancel.', emptyCanvas: 'This Screen has no canonical visual objects yet.', reset: 'Reset draft', preview: 'Preview change', previewing: 'Previewing...', apply: 'Apply to Workspace', applying: 'Applying...',
     assets: 'Image assets', assetHint: 'Import images to the project and assign them to objects by asset.', importAsset: 'Import image', importingAsset: 'Importing image...', imageAsset: 'Image asset', asset: 'Asset', noAsset: 'No asset',
@@ -799,7 +837,7 @@ function visualEditorText(locale: EngineeringLocale) {
   };
   if (locale === 'es') return {
     eyebrow: 'Ingeniería gráfica canónica', title: 'Base del editor de Pantallas', description: 'Las Pantallas se editan como Engineering canónico. El estado del Canvas es transitorio y nunca se convierte en una segunda autoridad del proyecto.',
-    authorityTitle: 'Preview obligatorio antes de Aplicar', authorityHint: 'El Preview/Apply público y CAS del Workspace protegen los cambios de Pantalla.', screenList: 'Lista de Pantallas', screens: 'Pantallas', newScreen: 'Nueva Pantalla', noRoute: 'sin ruta', objects: 'objetos',
+    authorityTitle: 'Preview obligatorio antes de Aplicar', authorityHint: 'El Preview/Apply público y CAS del Workspace protegen los cambios de Pantalla.', screenList: 'Lista de Pantallas', generatedDashboardDrafts: 'Borradores de panel generados', unsavedGeneratedDraft: 'Borrador sin guardar', screens: 'Pantallas', newScreen: 'Nueva Pantalla', noRoute: 'sin ruta', objects: 'objetos',
     name: 'Nombre visible', nameHint: 'Etiqueta que se muestra a las personas.', key: 'Identificador', keyHint: 'Referencia interna estable de esta pantalla.', route: 'Dirección de pantalla', routeHint: 'Dirección de navegación en la aplicación; no es el identificador.', draft: 'Borrador', newDraft: 'Nuevo', changed: 'Modificado', unchanged: 'Sin cambios', untitled: 'Pantalla sin título', objectsPanel: 'Objetos', objectsPanelHint: 'Agregue objetos visuales registrados. La identidad y los valores predeterminados siguen bajo autoridad canónica.', addObject: 'Agregar', objectLabels: { group: 'Grupo', rectangle: 'Rectángulo', ellipse: 'Elipse', line: 'Línea', polygon: 'Polígono', text: 'Texto', image: 'Imagen', valueDisplay: 'Valor', button: 'Botón' },
     propertiesPanel: 'Propiedades', canonicalPreview: 'Preview renderizado canónico', canonicalPreviewHint: 'Proyección del renderer sobre el mismo borrador, incluyendo valores de texto dinámicos.', interactiveCanvas: 'Canvas interactivo', polygonDrawing: 'Modo polígono: haga clic en vértices, Enter para finalizar, Escape para cancelar.', emptyCanvas: 'Esta Pantalla todavía no contiene objetos visuales canónicos.', reset: 'Restablecer borrador', preview: 'Preview del cambio', previewing: 'Validando...', apply: 'Aplicar al Workspace', applying: 'Aplicando...',
     assets: 'Recursos de imagen', assetHint: 'Importe imágenes al proyecto y asígnelas a los objetos por recurso.', importAsset: 'Importar imagen', importingAsset: 'Importando imagen...', imageAsset: 'Recurso de imagen', asset: 'Recurso', noAsset: 'Sin recurso',
@@ -809,7 +847,7 @@ function visualEditorText(locale: EngineeringLocale) {
   };
   return {
     eyebrow: 'Engenharia gráfica canônica', title: 'Fundação do editor de Telas', description: 'Telas são editadas como Engineering canônico. Estado de Canvas permanece transitório e nunca vira uma segunda autoridade do projeto.',
-    authorityTitle: 'Preview obrigatório antes do Apply', authorityHint: 'O Preview/Apply público e o CAS do Workspace protegem as mudanças da Tela.', screenList: 'Lista de Telas', screens: 'Telas', newScreen: 'Nova Tela', noRoute: 'sem rota', objects: 'objetos',
+    authorityTitle: 'Preview obrigatório antes do Apply', authorityHint: 'O Preview/Apply público e o CAS do Workspace protegem as mudanças da Tela.', screenList: 'Lista de Telas', generatedDashboardDrafts: 'Rascunhos gerados do painel', unsavedGeneratedDraft: 'Rascunho não salvo', screens: 'Telas', newScreen: 'Nova Tela', noRoute: 'sem rota', objects: 'objetos',
     name: 'Nome de exibição', nameHint: 'Rótulo mostrado para as pessoas.', key: 'Identificador', keyHint: 'Referência interna estável desta tela.', route: 'Endereço da tela', routeHint: 'Endereço de navegação dentro do aplicativo; não é o identificador.', draft: 'Rascunho', newDraft: 'Novo', changed: 'Alterado', unchanged: 'Sem alterações', untitled: 'Tela sem título', objectsPanel: 'Objetos', objectsPanelHint: 'Adicione objetos visuais registrados. Identidade e defaults continuam sob autoridade canônica.', addObject: 'Adicionar', objectLabels: { group: 'Grupo', rectangle: 'Retângulo', ellipse: 'Elipse', line: 'Linha', polygon: 'Polígono', text: 'Texto', image: 'Imagem', valueDisplay: 'Valor', button: 'Botão' },
     propertiesPanel: 'Propriedades', canonicalPreview: 'Preview renderizado canônico', canonicalPreviewHint: 'Projeção do renderer sobre o mesmo rascunho, incluindo valores vivos de texto.', interactiveCanvas: 'Canvas interativo', polygonDrawing: 'Modo polígono: clique nos vértices, Enter para finalizar, Escape para cancelar.', emptyCanvas: 'Esta Tela ainda não possui objetos visuais canônicos.', reset: 'Restaurar rascunho', preview: 'Preview da alteração', previewing: 'Validando...', apply: 'Aplicar ao Workspace', applying: 'Aplicando...',
     assets: 'Assets de imagem', assetHint: 'Envie imagens ao projeto e associe-as aos objetos pelo asset.', importAsset: 'Importar imagem', importingAsset: 'Importando imagem...', imageAsset: 'Asset da imagem', asset: 'Asset', noAsset: 'Sem asset',

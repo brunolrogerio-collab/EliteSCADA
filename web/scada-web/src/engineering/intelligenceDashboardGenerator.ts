@@ -27,6 +27,8 @@ export type IntelligenceDashboardAssignmentSource = Readonly<{
   equipmentPath: string;
   /** Canonical Equipment scope identity; required for the optional coverage panel. */
   scopeId?: string;
+  /** Canonical assignment identity; required for a guided single-equipment set. */
+  assignmentId?: string;
   profile: AssetProcessIntelligenceProfileEngineering;
 }>;
 
@@ -110,6 +112,17 @@ export function generateIntelligenceDashboardDraft(
   locale: EngineeringLocale,
   createId: () => string = () => crypto.randomUUID()
 ): ScreenEngineering {
+  return generateDashboardDraft(existingScreens, source, tags, locale, createId, true);
+}
+
+function generateDashboardDraft(
+  existingScreens: readonly ScreenEngineering[],
+  source: IntelligenceDashboardSource,
+  tags: readonly TagEngineering[],
+  locale: EngineeringLocale,
+  createId: () => string,
+  includeProfileCoverage: boolean
+): ScreenEngineering {
   const copy = dashboardText(locale);
   const tagsById = new Map(tags.filter((tag): tag is TagEngineering & { id: string } => Boolean(tag.id?.trim()))
     .map(tag => [tag.id.toLowerCase(), tag]));
@@ -148,12 +161,13 @@ export function generateIntelligenceDashboardDraft(
   const profileAssignment = source.kind === 'equipment-profile' && source.assignments.length === 1
     ? source.assignments[0]
     : null;
-  const hasProfileCoverage = Boolean(profileAssignment &&
+  const profileCoverageAvailable = Boolean(profileAssignment &&
     isCanonicalUuid(profileAssignment.scopeId ?? '') &&
     isCanonicalUuid(profileAssignment.profile.id ?? ''));
+  const hasProfileCoverage = includeProfileCoverage && profileCoverageAvailable;
   const profileCoverage: 'included' | 'unavailable' | 'not-applicable' = hasProfileCoverage
     ? 'included'
-    : profileAssignment ? 'unavailable' : 'not-applicable';
+    : includeProfileCoverage && profileAssignment ? 'unavailable' : 'not-applicable';
   const shownLimit = hasProfileCoverage
     ? INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS
     : INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS;
@@ -316,6 +330,151 @@ export function generateIntelligenceDashboardDraft(
       intelligenceDashboardSummary: summary
     }
   };
+}
+
+export type IntelligenceGuidedDashboardSelections = Readonly<{
+  performance: IntelligencePerformanceDashboardSelection;
+  contextualDeviation: IntelligenceContextualDeviationDashboardSelection;
+}>;
+
+/**
+ * Generates a four-screen, single-Equipment Intelligence set. Every analysis
+ * remains on its existing canonical Screen visual and is connected only by
+ * ordinary Runtime NavigateScreen actions. No report data or query window is
+ * added to Engineering state.
+ */
+export function generateIntelligenceGuidedDashboardDrafts(
+  existingScreens: readonly ScreenEngineering[],
+  source: IntelligenceDashboardSource,
+  tags: readonly TagEngineering[],
+  selections: IntelligenceGuidedDashboardSelections,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): readonly ScreenEngineering[] {
+  const assignment = source.assignments.length === 1 ? source.assignments[0] : null;
+  const scopeId = assignment?.scopeId ?? '';
+  const assignmentId = assignment?.assignmentId ?? '';
+  const profileId = assignment?.profile.id ?? '';
+  if (source.kind !== 'equipment-profile' || !assignment ||
+      [scopeId, assignmentId, profileId].some(value => !isCanonicalUuid(value))) {
+    throw new Error('A guided Intelligence dashboard requires exactly one complete canonical Equipment assignment and profile.');
+  }
+
+  const signalIds = assignment.profile.signals.map(signal => signal.id);
+  const tagIds = assignment.profile.signals.map(signal => signal.tagId.toLowerCase());
+  if (signalIds.some(value => !isCanonicalUuid(value)) ||
+      new Set(signalIds.map(value => value.toLowerCase())).size !== signalIds.length ||
+      new Set(tagIds).size !== tagIds.length) {
+    throw new Error('A guided Intelligence dashboard requires unique stable signal and TAG bindings in the selected profile.');
+  }
+  const profileSignalIds = new Set(signalIds.map(value => value.toLowerCase()));
+  const taggedIds = new Set(tags.filter((tag): tag is TagEngineering & { id: string } => Boolean(tag.id?.trim()))
+    .map(tag => tag.id.toLowerCase()));
+  const resolvedTagCounts = new Map<string, number>();
+  for (const tag of tags) {
+    if (tag.id?.trim()) resolvedTagCounts.set(tag.id.toLowerCase(), (resolvedTagCounts.get(tag.id.toLowerCase()) ?? 0) + 1);
+  }
+  if (assignment.profile.signals.some(signal => signal.required &&
+      (!taggedIds.has(signal.tagId.toLowerCase()) || resolvedTagCounts.get(signal.tagId.toLowerCase()) !== 1))) {
+    throw new Error('A guided Intelligence dashboard cannot be generated while a required profile TAG binding is missing or ambiguous.');
+  }
+
+  if (!selections?.performance || !selections?.contextualDeviation) {
+    throw new Error('A guided Intelligence dashboard requires a valid Performance rule and a complete contextual-deviation selection.');
+  }
+  const performance = selections.performance;
+  if (performance.scopeId.toLowerCase() !== scopeId.toLowerCase() ||
+      performance.assignmentId.toLowerCase() !== assignmentId.toLowerCase() ||
+      performance.profileId.toLowerCase() !== profileId.toLowerCase() ||
+      performance.signalIds.some(id => !profileSignalIds.has(id.toLowerCase()))) {
+    throw new Error('The selected Performance rule or signals do not belong to the current Equipment assignment and profile.');
+  }
+  const deviation = selections.contextualDeviation;
+  const deviationSignalIds = [
+    ...deviation.targetSignalIds,
+    deviation.firstContextSignalId,
+    deviation.secondContextSignalId
+  ];
+  if (deviation.scopeId.toLowerCase() !== scopeId.toLowerCase() ||
+      deviation.assignmentId.toLowerCase() !== assignmentId.toLowerCase() ||
+      deviation.profileId.toLowerCase() !== profileId.toLowerCase() ||
+      deviationSignalIds.some(id => !profileSignalIds.has(id.toLowerCase()))) {
+    throw new Error('The contextual-deviation signals do not belong to the current Equipment assignment and profile.');
+  }
+
+  const usedVisualIds = new Set<string>();
+  const allocateVisualId = () => {
+    const id = createId().trim();
+    if (!id || usedVisualIds.has(id)) throw new Error('Guided dashboard visual identities must be non-empty and unique across all screens.');
+    usedVisualIds.add(id);
+    return id;
+  };
+  const drafts: ScreenEngineering[] = [];
+  const existingAndDrafts = () => [...existingScreens, ...drafts];
+  drafts.push(generateDashboardDraft(existingAndDrafts(), source, tags, locale, allocateVisualId, false));
+  drafts.push(generateIntelligenceProfileCoverageScreenDraft(existingAndDrafts(), {
+    scopeId,
+    profileId,
+    displayName: source.displayName
+  }, locale, allocateVisualId));
+  drafts.push(generateIntelligencePerformanceScreenDraft(existingAndDrafts(), {
+    ...performance,
+    displayName: source.displayName
+  }, locale, allocateVisualId));
+  drafts.push(generateIntelligenceContextualDeviationScreenDraft(existingAndDrafts(), {
+    ...deviation,
+    displayName: source.displayName
+  }, locale, allocateVisualId));
+
+  const navigationLabels = guidedDashboardNavigationLabels(locale);
+  const viewRoles = ['values-trend', 'profile-coverage', 'performance', 'contextual-deviation'] as const;
+  return drafts.map((screen, index) => {
+    const elements = (screen.elements ?? []).map(element => {
+      if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.text ||
+          !(element.key.endsWith('-title') || element.key.endsWith('-source') || element.key.endsWith('-subtitle'))) return element;
+      return { ...element, properties: { ...element.properties, width: 1200 } };
+    });
+    const navigation = drafts.flatMap((target, targetIndex) => targetIndex === index ? [] : [{
+      id: allocateVisualId(),
+      key: `intelligence-guided-navigation-${targetIndex + 1}`,
+      type: BUILTIN_VISUAL_OBJECT_TYPES.button,
+      properties: {
+        x: 1304,
+        y: 40,
+        width: 172,
+        height: 44,
+        [VISUAL_PROPERTY_KEYS.text]: navigationLabels[viewRoles[targetIndex]],
+        [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+        [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+        [VISUAL_PROPERTY_KEYS.backgroundColor]: '#1E293B',
+        [VISUAL_PROPERTY_KEYS.strokeColor]: '#475569',
+        [VISUAL_PROPERTY_KEYS.strokeWidth]: 1,
+        [VISUAL_PROPERTY_KEYS.cornerRadius]: 8,
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      },
+      actions: [{ eventKey: 'click', kind: 'NavigateScreen' as const, targetKey: target.key, version: 1 }]
+    }]);
+    const positionedNavigation = navigation.map((element, buttonIndex) => ({
+      ...element,
+      properties: { ...element.properties, x: 1304 + buttonIndex * 184 }
+    }));
+    const titledElements = elements.map(element => {
+      if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.text || element.key !== 'intelligence-dashboard-scope-note') return element;
+      return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: guidedDashboardSummary(locale) } };
+    });
+    return {
+      ...screen,
+      elements: [...titledElements, ...positionedNavigation],
+      metadata: {
+        ...(screen.metadata ?? {}),
+        intelligenceDashboardGenerator: 'stage5b.9',
+        intelligenceDashboardSetVersion: 'stage5b.9',
+        intelligenceDashboardSetRootKey: drafts[0].key,
+        intelligenceDashboardViewRole: viewRoles[index]
+      }
+    };
+  });
 }
 
 /**
@@ -715,6 +874,35 @@ export function generateIntelligenceContextualDeviationScreenDraft(
 export function isNumericTagDataType(dataType: string | null | undefined): boolean {
   const normalized = dataType?.trim().toLowerCase();
   return normalized !== undefined && NUMERIC_DATA_TYPES.has(normalized);
+}
+
+function guidedDashboardNavigationLabels(locale: EngineeringLocale): Readonly<Record<
+  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation', string
+>> {
+  if (locale === 'en') return {
+    'values-trend': 'Values & trend',
+    'profile-coverage': 'Coverage',
+    performance: 'Performance',
+    'contextual-deviation': 'Contextual deviation'
+  };
+  if (locale === 'es') return {
+    'values-trend': 'Valores y tendencia',
+    'profile-coverage': 'Cobertura',
+    performance: 'Rendimiento',
+    'contextual-deviation': 'Desviación contextual'
+  };
+  return {
+    'values-trend': 'Valores e tendência',
+    'profile-coverage': 'Cobertura',
+    performance: 'Desempenho',
+    'contextual-deviation': 'Desvio contextual'
+  };
+}
+
+function guidedDashboardSummary(locale: EngineeringLocale): string {
+  if (locale === 'en') return 'Values and trend are shown here. Profile coverage, recorded performance and contextual deviation are separate linked screens; each analysis runs only after an explicit Runtime request.';
+  if (locale === 'es') return 'Aquí se muestran valores y tendencia. La cobertura del perfil, el rendimiento registrado y la desviación contextual son pantallas vinculadas independientes; cada análisis solo se ejecuta tras una solicitud explícita en Runtime.';
+  return 'Esta tela mostra valores e tendência. Cobertura do perfil, desempenho registrado e desvio contextual ficam em telas vinculadas separadas; cada análise só é executada após solicitação explícita no Runtime.';
 }
 
 function tagBinding(tag: TagEngineering & { id: string }, destination: string) {

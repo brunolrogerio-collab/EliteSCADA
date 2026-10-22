@@ -270,7 +270,7 @@ jobs:
           done < /tmp/dotnet-projects.txt
 
   intelligence-windows-focus:
-    name: Intelligence Stage 6A focused Windows regression
+    name: Intelligence Stage 6B focused Windows regression and characterization
     needs: classify
     if: needs.classify.outputs.run_intelligence_hardening == 'true'
     runs-on: windows-latest
@@ -295,23 +295,41 @@ jobs:
           $ErrorActionPreference = 'Stop'
           dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests'
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests&FullyQualifiedName!~Stage6BResourceCharacterization'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet test tests/Scada.Security.Tests/Scada.Security.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AuthorityPolicyContractTests'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run isolated Stage 6B resource characterization
+        env:
+          ELITESCADA_INTELLIGENCE_CHARACTERIZATION_OUTPUT: ${{ runner.temp }}/intelligence-stage6b-windows.json
+          ELITESCADA_DOTNET_SDK: '10.0.400'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName=Scada.Drivers.Tests.AssetProcessIntelligenceAnalyticsTests.Stage6BResourceCharacterization_ExercisesBoundedProfileCoveragePathAndEmitsEvidence'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve Windows characterization JSON and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intelligence-stage6b-windows
+          path: |
+            ${{ runner.temp }}/intelligence-stage6b-windows.json
+            ${{ runner.temp }}/intelligence-stage6b-windows.md
+          if-no-files-found: warn
       - name: Record Windows evidence provenance
         if: always()
         shell: pwsh
         run: |
           @(
-            '## Intelligence Stage 6A Windows evidence',
+            '## Intelligence Stage 6B Windows regression and resource characterization',
             "Tested checkout: $(git rev-parse HEAD)",
             "SDK: $(dotnet --version)",
-            'Scope: Core and Drivers Intelligence-focused tests plus Authority policy contract tests; PostgreSQL durable restart is independently required on Linux.'
+            'Scope: Core and Drivers Intelligence-focused tests, isolated synthetic resource characterization, plus Authority policy contract tests; PostgreSQL durable restart is independently required on Linux.'
           ) | Add-Content $env:GITHUB_STEP_SUMMARY
 
   intelligence-postgres-restart:
-    name: Intelligence Stage 6A PostgreSQL durable restart
+    name: Intelligence Stage 6B Linux regression, characterization, and PostgreSQL durable restart
     needs: classify
     if: needs.classify.outputs.run_intelligence_hardening == 'true'
     runs-on: ubuntu-latest
@@ -346,7 +364,7 @@ jobs:
         run: |
           set -euo pipefail
           dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence'
-          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests'
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests&FullyQualifiedName!~Stage6BResourceCharacterization'
           dotnet test tests/Scada.Security.Tests/Scada.Security.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AuthorityPolicyContractTests'
       - name: Run real PostgreSQL revision restart evidence
         shell: bash
@@ -379,7 +397,7 @@ jobs:
         if: always()
         run: |
           {
-            echo '## Intelligence Stage 6A PostgreSQL durable-restart evidence'
+            echo '## Intelligence Stage 6B Linux regression and PostgreSQL durable-restart evidence'
             echo "Tested checkout: $(git rev-parse HEAD)"
             echo "SDK: $(dotnet --version)"
             echo 'Database: isolated Timescale PostgreSQL service; no Preview database, project, volume or port used.'
@@ -393,6 +411,25 @@ jobs:
           path: ${{ runner.temp }}/intelligence-restart-results
           if-no-files-found: ignore
           retention-days: 14
+      - name: Run isolated Stage 6B resource characterization
+        env:
+          ELITESCADA_INTELLIGENCE_CHARACTERIZATION_OUTPUT: ${{ runner.temp }}/intelligence-stage6b-linux.json
+          ELITESCADA_DOTNET_SDK: '10.0.400'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --no-restore --configuration Release --verbosity minimal \
+            --filter 'FullyQualifiedName=Scada.Drivers.Tests.AssetProcessIntelligenceAnalyticsTests.Stage6BResourceCharacterization_ExercisesBoundedProfileCoveragePathAndEmitsEvidence'
+      - name: Preserve Linux characterization JSON and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intelligence-stage6b-linux
+          path: |
+            ${{ runner.temp }}/intelligence-stage6b-linux.json
+            ${{ runner.temp }}/intelligence-stage6b-linux.md
+          if-no-files-found: warn
 
   chromium-focused:
     name: Focused Chromium evidence

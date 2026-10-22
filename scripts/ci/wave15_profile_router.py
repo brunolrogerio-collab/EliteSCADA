@@ -82,6 +82,7 @@ PATH_RULES = (
     ("CI_INFRA", (".github/workflows/", "scripts/ci/", "tests/ci/")),
     ("INTELLIGENCE_HARDENING", (
         "tests/scada.drivers.tests/assetprocessintelligencedurablerestarttests.cs",
+        "tests/scada.drivers.tests/assetprocessintelligencestage6bcharacterizationtests.cs",
     )),
 )
 

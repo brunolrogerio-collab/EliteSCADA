@@ -27,7 +27,7 @@ using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
-public sealed class AssetProcessIntelligenceAnalyticsTests
+public sealed partial class AssetProcessIntelligenceAnalyticsTests
 {
     private static readonly DateTimeOffset FromUtc = DateTimeOffset.Parse("2026-10-14T00:00:00Z");
 
@@ -5853,7 +5853,9 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                 context.RequestAborted);
         }
 
-        public Task<IResult> ExecuteProfileCoverageAsync(Guid? scopeId = null)
+        public Task<IResult> ExecuteProfileCoverageAsync(
+            Guid? scopeId = null,
+            AssetProcessIntelligenceAnalyticsWindow? window = null)
         {
             var profile = Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single();
             var context = CreateContext();
@@ -5863,7 +5865,7 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
                     ScopeKind,
                     scopeId ?? ScopeId,
                     profile.Id,
-                    Window(FromUtc, FromUtc.AddHours(1))),
+                    window ?? Window(FromUtc, FromUtc.AddHours(1))),
                 context.RequestAborted);
         }
 
@@ -6366,20 +6368,40 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     private sealed class RecordingHistoricalQueryService : IHistoricalQueryService
     {
         private int _calls;
+        private int _pageRequests;
+        private long _rowsReturned;
         public int Calls => Volatile.Read(ref _calls);
+        public int PageRequests => Volatile.Read(ref _pageRequests);
+        public long RowsReturned => Interlocked.Read(ref _rowsReturned);
         public List<HistoricalQueryRequest> Requests { get; } = [];
         public Func<HistoricalQueryRequest, HistoricalQueryResponse>? Respond { get; set; }
         public Func<HistoricalQueryRequest, CancellationToken, Task<HistoricalQueryResponse>>? RespondAsync { get; set; }
+
+        public void ResetCounters()
+        {
+            Interlocked.Exchange(ref _calls, 0);
+            Interlocked.Exchange(ref _pageRequests, 0);
+            Interlocked.Exchange(ref _rowsReturned, 0);
+            Requests.Clear();
+        }
 
         public async Task<HistoricalQueryResponse> QueryAsync(
             HistoricalQueryRequest request,
             CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _calls);
+            if (request.Page is not null) Interlocked.Increment(ref _pageRequests);
             Requests.Add(request);
             if (RespondAsync is not null)
-                return await RespondAsync(request, cancellationToken);
-            return Respond?.Invoke(request) ?? Response(request, []);
+            {
+                var response = await RespondAsync(request, cancellationToken);
+                Interlocked.Add(ref _rowsReturned, response.Rows.Count);
+                return response;
+            }
+
+            var synchronousResponse = Respond?.Invoke(request) ?? Response(request, []);
+            Interlocked.Add(ref _rowsReturned, synchronousResponse.Rows.Count);
+            return synchronousResponse;
         }
     }
 

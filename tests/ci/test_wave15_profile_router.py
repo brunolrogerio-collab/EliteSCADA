@@ -160,6 +160,19 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertTrue(result["run_web"])
         self.assertEqual(result["e2e_specs"], ["tests-e2e/database-topology-mounted.spec.ts"])
 
+    def test_intelligence_durable_restart_selects_only_its_cross_platform_hardening_gate(self):
+        result = self.classify(
+            ["tests/Scada.Drivers.Tests/AssetProcessIntelligenceDurableRestartTests.cs"],
+            "VALIDATION_PROFILE: INTELLIGENCE_HARDENING",
+        )
+        self.assertEqual(result["effective_profiles"], ["INTELLIGENCE_HARDENING"])
+        self.assertTrue(result["run_intelligence_hardening"])
+        self.assertFalse(result["run_dotnet"])
+        self.assertFalse(result["run_web"])
+        self.assertFalse(result["run_e2e"])
+        self.assertFalse(result["run_ha_two_process"])
+        self.assertFalse(result["run_ha_d2_acceptance"])
+
     def test_installation_store_name_does_not_trigger_installation_profile(self):
         result = self.classify(
             ["src/Scada.Persistence.PostgreSql/PostgreSqlEngineeringInstallationBindingStore.cs"],

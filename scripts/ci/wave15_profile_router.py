@@ -15,6 +15,7 @@ VOCABULARY = (
     "UI_EDITOR", "SCRIPT_ENGINEERING", "AUTHORITY_UX", "LICENSING_UX",
     "ELITEGO_RUNTIME", "DATABASE_TOPOLOGY", "INSTALLATION", "HA_DISTRIBUTED",
     "DOCS_I18N_HELP", "EEE_PACKAGE", "CI_INFRA", "DRIVER_PROTOCOL",
+    "INTELLIGENCE_HARDENING",
 )
 ORDER = {profile: index for index, profile in enumerate(VOCABULARY)}
 
@@ -79,6 +80,9 @@ PATH_RULES = (
     ("DRIVER_PROTOCOL", ("src/scada.drivers/", "driverhost", "gateway", "interop-lab/", "communication/")),
     ("DOCS_I18N_HELP", ("docs/", "readme", "web/scada-web/src/help/", "contextualhelp")),
     ("CI_INFRA", (".github/workflows/", "scripts/ci/", "tests/ci/")),
+    ("INTELLIGENCE_HARDENING", (
+        "tests/scada.drivers.tests/assetprocessintelligencedurablerestarttests.cs",
+    )),
 )
 
 CORE = "tests/Scada.Core.Tests/Scada.Core.Tests.csproj"
@@ -315,6 +319,7 @@ def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr
         "run_common_sanity": not exempt,
         "run_web": web_changed and bool(effective & WEB_PROFILES),
         "run_dotnet": bool(projects),
+        "run_intelligence_hardening": "INTELLIGENCE_HARDENING" in effective,
         "run_e2e": bool(specs),
         "run_driver": driver,
         "run_ha_two_process": needs_ha_two_process(paths, effective, mode),

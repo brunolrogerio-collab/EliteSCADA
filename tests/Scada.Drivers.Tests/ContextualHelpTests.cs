@@ -594,6 +594,7 @@ public sealed class ContextualHelpTests
             "screens.overview",
             "popups.overview",
             "dynamos.overview",
+            "gateway.overview",
             "tags.overview",
             "sources.data-sources",
             "engineering.lifecycle",
@@ -784,6 +785,46 @@ public sealed class ContextualHelpTests
             Assert.Contains("bindings-commands.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
             Assert.Contains("libraries.reusable-resources", topic.RelatedTopicIds ?? Array.Empty<string>());
             Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void GatewayHelp_ExplainsRouteEndpointsPoliciesPreviewAndRuntimeDiagnosticsInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "serviço de roteamento", "Client Memory", "simulação integrada", "TAG origem", "TAG destino",
+                "OnChange", "Periodic", "Deadband", "Good", "CheckedNumeric", "Apply ao Workspace",
+                "publique e ative", "falhas consecutivas", "qualidade da TAG origem"
+            },
+            ["en"] = new[]
+            {
+                "routing service", "Client Memory", "Built-in simulation", "source TAG", "destination TAG",
+                "OnChange", "Periodic", "Deadband", "Good", "CheckedNumeric", "Apply to Workspace",
+                "publish, and activate", "consecutive failure count", "source TAG quality"
+            },
+            ["es"] = new[]
+            {
+                "servicio de enrutamiento", "Client Memory", "simulación integrada", "TAGs de origen", "TAG destino",
+                "OnChange", "Periodic", "Deadband", "Good", "CheckedNumeric", "Aplicar al Workspace",
+                "publique y active", "fallas consecutivas", "calidad del TAG origen"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "gateway.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("tags.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("tags.writeability", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("sources.data-sources", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("drivers.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("diagnostics.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
         }
     }
 

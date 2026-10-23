@@ -1,0 +1,28 @@
+# Local-only Discourse container definition for the community SSO proof of concept.
+# Copy to containers/scadivopoc.yml in the temporary discourse_docker checkout.
+templates:
+  - "templates/postgres.template.yml"
+  - "templates/redis.template.yml"
+  - "templates/web.template.yml"
+  - "templates/web.ratelimited.template.yml"
+
+expose:
+  - "127.0.0.1:18085:80"
+
+env:
+  LC_ALL: en_US.UTF-8
+  LANG: en_US.UTF-8
+  LANGUAGE: en_US.UTF-8
+  DISCOURSE_HOSTNAME: localhost
+  DISCOURSE_DEFAULT_LOCALE: pt_BR
+  DISCOURSE_DEVELOPER_EMAILS: community-admin@scadivo.local
+  DISCOURSE_SKIP_EMAIL_SETUP: "1"
+  UNICORN_WORKERS: 1
+
+volumes:
+  - volume:
+      host: scadivo_community_homolog_data
+      guest: /shared
+  - volume:
+      host: scadivo_community_homolog_logs
+      guest: /var/log

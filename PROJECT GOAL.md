@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-10-20
+**Last reviewed:** 2026-10-23
 
 ## Mandatory continuity protocol
 
@@ -24,6 +24,10 @@
 ### Current release-sequencing gate
 
 The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 hardening is complete and accepted under issue #201. Wave 15 complete-product delivery remains active under #297; the Product Owner accepted the current SVG factory/catalog and usable Dynamo set, with further visual polish deferred beyond this gate. Productization and final Preview remain under #306/#300, alongside localization/help/manual closure under #379/#424/#425 and the authorized Intelligence sequence. Completed Home/Building and visual-foundation work must not be restarted from stale issue/bootstrap state. Physical driver L4 is human product testing outside GitHub control, not a requirement to keep completed driver issues open. Wave 13 signed Windows x64 + Authenticode/trusted-timestamp release work remains a separate paused stage until the Wave 15 product baseline is accepted.** Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
+
+### Installed Help and complete manuals
+
+The Product Owner requires practical guidance sufficient to build an application without assumed familiarity, including explanations of ordinary fields and actions. Help must explain prerequisites, steps, expected behavior and troubleshooting from the implemented product. Script guidance must cover the supported syntax and commands with several concrete examples appropriate to each execution scope. Verify examples against the corresponding implementation; architecture proposals alone are not evidence that an API is available. Preserve the installed/offline Help foundation and pt-BR/en/es semantic parity, and state confirmed limitations accurately. Exact delivery and residual-defect status belongs in `LAST CHANGE.md` and #379/#424/#425.
 
 ## Product mission
 

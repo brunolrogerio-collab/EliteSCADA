@@ -593,6 +593,7 @@ public sealed class ContextualHelpTests
         {
             "screens.overview",
             "popups.overview",
+            "dynamos.overview",
             "tags.overview",
             "sources.data-sources",
             "engineering.lifecycle",
@@ -744,6 +745,45 @@ public sealed class ContextualHelpTests
             Assert.Contains("tags.addressing", topic.RelatedTopicIds ?? Array.Empty<string>());
             Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
             Assert.Contains("historian.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void DynamoAuthoringHelp_ExplainsSharedDrawingInstanceValuesAndSafePreviewInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "lista definições existentes", "Editar desenho", "alça de rotação", "Interface pública",
+                "Referência TAG", "cada instância", "definição compartilhada", "não salva os ajustes nem envia comandos ao processo",
+                "Preview principal", "Apply ao Workspace", "salve, publique e ative"
+            },
+            ["en"] = new[]
+            {
+                "lists existing definitions", "Edit drawing", "rotation handle", "Public interface",
+                "TAG reference", "each instance", "shared definition", "does not save settings or send commands to the process",
+                "main Preview", "Apply to Workspace", "save, publish, and activate"
+            },
+            ["es"] = new[]
+            {
+                "muestra definiciones existentes", "Editar dibujo", "asa de rotación", "Interfaz pública",
+                "Referencia TAG", "cada instancia", "definición compartida", "no guarda los ajustes ni envía comandos al proceso",
+                "Preview principal", "Aplicar al Workspace", "guarde, publique y active"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "dynamos.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("screens.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("tags.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("bindings-commands.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("libraries.reusable-resources", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
         }
     }
 

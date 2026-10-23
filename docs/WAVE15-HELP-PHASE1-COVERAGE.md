@@ -29,7 +29,7 @@ No second Help system or external documentation dependency was added.
 | Application export/import | `application.export-import`, `packages.escadapkg` | project/recovery entry + related links | yes | yes | yes | COVERED |
 | Data Sources | `sources.data-sources` | `/engineering/dataSources` | yes | yes | yes | TASK GUIDE — schema-driven setup, capability-gated tools, protected credentials, Preview/Apply and lifecycle |
 | Communication Drivers | `drivers.overview` + `driver.<type>` | Data Sources + related links | yes | yes | yes | COVERED |
-| TAG fundamentals | `tags.overview` | `/engineering/tags` | yes | yes | yes | COVERED |
+| TAG fundamentals | `tags.overview` | `/engineering/tags` | yes | yes | yes | TASK GUIDE — name/path, source binding, type, optional capture, transient read test, Preview/Apply and Runtime lifecycle |
 | TAG addressing / quality / timestamps / writeability | existing `tags.*` topics | TAG entry + topic navigation | yes | yes | yes | COVERED |
 | TAG copy/paste/duplicate/sequential | `tags.copy-duplicate-sequential` | TAG contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Screen Editor | `screens.overview` | `/engineering/screens` | yes | yes | yes | TASK GUIDE — stable identity vs route, screen format, object editing, TAG bindings, Preview/Apply and Runtime lifecycle |

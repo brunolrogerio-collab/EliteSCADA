@@ -27,7 +27,7 @@ No second Help system or external documentation dependency was added.
 | Engineering shell | `engineering.shell-navigation` | `/engineering` | yes | yes | yes | COVERED |
 | Working / Save / Revision / Publish / Activate | `engineering.lifecycle` | Engineering + related links | yes | yes | yes | COVERED |
 | Application export/import | `application.export-import`, `packages.escadapkg` | project/recovery entry + related links | yes | yes | yes | COVERED |
-| Data Sources | `sources.data-sources` | `/engineering/dataSources` | yes | yes | yes | COVERED |
+| Data Sources | `sources.data-sources` | `/engineering/dataSources` | yes | yes | yes | TASK GUIDE — schema-driven setup, capability-gated tools, protected credentials, Preview/Apply and lifecycle |
 | Communication Drivers | `drivers.overview` + `driver.<type>` | Data Sources + related links | yes | yes | yes | COVERED |
 | TAG fundamentals | `tags.overview` | `/engineering/tags` | yes | yes | yes | COVERED |
 | TAG addressing / quality / timestamps / writeability | existing `tags.*` topics | TAG entry + topic navigation | yes | yes | yes | COVERED |

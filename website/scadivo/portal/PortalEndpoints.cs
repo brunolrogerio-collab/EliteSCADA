@@ -38,7 +38,6 @@ public static class PortalEndpoints
         app.MapPost("/api/public/contact", (PublicContactInput input, PortalOperations operations) => operations.PublicContact(input))
             .RequireRateLimiting("public-contact");
         app.MapGet("/api/community/sso", DiscourseConnect.HandleAsync)
-            .RequireAuthorization()
             .RequireRateLimiting("community-sso");
 
         var account = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");

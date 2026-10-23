@@ -1,6 +1,7 @@
 'use strict';
 
-const state = { session: null, lang: 'pt-BR', tab: 'home', adminTab: 'accounts', invite: null, confirmEmail: null, resetPassword: null, recover: false, register: false, pendingEmail: '', version: 0 };
+const state = { session: null, lang: 'pt-BR', tab: 'home', adminTab: 'accounts', invite: null, confirmEmail: null, resetPassword: null, communitySso: null, recover: false, register: false, pendingEmail: '', version: 0 };
+const communitySsoStorageKey = 'scadivo.portal.community-sso';
 try {
   const requested = new URLSearchParams(location.search).get('lang');
   const remembered = localStorage.getItem('scadivo.portal.lang') || localStorage.getItem('scadivo-site-language');
@@ -178,6 +179,24 @@ async function session() {
     try { localStorage.setItem('scadivo.portal.lang', state.lang); } catch { /* Account locale remains available for this session. */ }
   }
 }
+function validateCommunitySso(parsed) {
+  if (typeof parsed.sso !== 'string' || parsed.sso.length < 1 || parsed.sso.length > 8192 ||
+      typeof parsed.sig !== 'string' || !/^[a-f\d]{64}$/i.test(parsed.sig)) throw new Error('Invalid community SSO request');
+  return { sso: parsed.sso, sig: parsed.sig };
+}
+function parseCommunitySso(encoded) {
+  const base64 = encoded.replaceAll('-', '+').replaceAll('_', '/') + '='.repeat((4 - encoded.length % 4) % 4);
+  return validateCommunitySso(JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(base64), value => value.charCodeAt(0)))));
+}
+function continueCommunitySso() {
+  const user = state.session?.user;
+  if (!state.communitySso || !user || (!user.owner && !user.profileComplete)) return false;
+  const query = new URLSearchParams(state.communitySso);
+  state.communitySso = null;
+  try { sessionStorage.removeItem(communitySsoStorageKey); } catch { /* The request remains in memory for this navigation. */ }
+  location.assign(`/portal/api/community/sso?${query.toString()}`);
+  return true;
+}
 function form(children, submitText, action) {
   const submit = h('button', { type: 'submit', class: 'button primary' }, submitText);
   const node = h('form', { class: 'form-stack', onsubmit: async event => {
@@ -215,7 +234,7 @@ function login() {
   const card = panel(tr('Entre no portal', 'Sign in to the portal'), p(tr('Use seu e-mail ou nome de usuário.', 'Use your email or username.')), form([
     field(tr('E-mail ou usuário', 'Email or username'), input('username', 'text', state.pendingEmail, { autocomplete: 'username', maxLength: 256 })),
     field(tr('Senha', 'Password'), input('password', 'password', '', { autocomplete: 'current-password', maxLength: 1024 }))
-  ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); state.pendingEmail = ''; render(); }));
+  ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); state.pendingEmail = ''; if (continueCommunitySso()) return; render(); }));
   const registrationEnabled = state.session?.publicRegistrationEnabled === true;
   const recoveryEnabled = state.session?.emailDeliveryConfigured === true;
   const note = h('div', { class: 'login-note' }, [
@@ -338,7 +357,7 @@ function completeProfile() {
       field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), user.locale, { required: true })),
       ...profileFields(user)
     ], tr('Salvar e continuar', 'Save and continue'), async data => {
-      await api('/profile', 'PUT', data); await session(); state.tab = 'home'; render();
+      await api('/profile', 'PUT', data); await session(); state.tab = 'home'; if (continueCommunitySso()) return; render();
     })
   );
   card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
@@ -495,7 +514,16 @@ async function auditAdmin() {
 
 async function start() {
   const fragment = location.hash.slice(1);
-  if (fragment.startsWith('invite=')) {
+  if (fragment.startsWith('community-login=')) {
+    try {
+      state.communitySso = parseCommunitySso(fragment.slice('community-login='.length));
+      sessionStorage.setItem(communitySsoStorageKey, JSON.stringify({ ...state.communitySso, savedAt: Date.now() }));
+    } catch {
+      try { sessionStorage.removeItem(communitySsoStorageKey); } catch { /* Ignore unavailable storage. */ }
+      feedback(tr('O pedido de entrada na comunidade é inválido. Abra novamente o link do fórum.', 'This community sign-in request is invalid. Open the forum link again.'), true);
+    }
+    history.replaceState(null, '', '/portal/');
+  } else if (fragment.startsWith('invite=')) {
     try {
       const encoded = fragment.slice(7).replaceAll('-', '+').replaceAll('_', '/');
       const parsed = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(encoded), x => x.charCodeAt(0))));
@@ -522,6 +550,17 @@ async function start() {
   } else if (fragment === 'forgot-password') state.recover = true;
   else if (fragment === 'register') state.register = true;
   else if (labels()[fragment]) state.tab = fragment;
-  try { await session(); render(); } catch { app.replaceChildren(panel(tr('Portal indisponível', 'Portal unavailable'), p(tr('Não foi possível conectar. Aguarde um momento e tente novamente.', 'Unable to connect. Please wait a moment and try again.')), button(tr('Tentar novamente', 'Try again'), start))); }
+  if (!state.communitySso) {
+    try {
+      const saved = sessionStorage.getItem(communitySsoStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Number.isFinite(parsed.savedAt) && Date.now() - parsed.savedAt >= 0 && Date.now() - parsed.savedAt <= 25 * 60 * 1000)
+          state.communitySso = validateCommunitySso(parsed);
+        else sessionStorage.removeItem(communitySsoStorageKey);
+      }
+    } catch { try { sessionStorage.removeItem(communitySsoStorageKey); } catch { /* Ignore unavailable storage. */ } }
+  }
+  try { await session(); if (continueCommunitySso()) return; render(); } catch { app.replaceChildren(panel(tr('Portal indisponível', 'Portal unavailable'), p(tr('Não foi possível conectar. Aguarde um momento e tente novamente.', 'Unable to connect. Please wait a moment and try again.')), button(tr('Tentar novamente', 'Try again'), start))); }
 }
 start();

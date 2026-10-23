@@ -127,20 +127,45 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 userId = user.Id;
             }
 
+            var nonce = "nonce-" + marker;
+            var callback = "https://community.example.test/session/sso_login";
+            var challenge = Convert.ToBase64String(Encoding.UTF8.GetBytes(
+                $"nonce={Uri.EscapeDataString(nonce)}&return_sso_url={Uri.EscapeDataString(callback)}"));
+            var signature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(challenge))).ToLowerInvariant();
+
             using var anonymous = Client(factory);
-            using (var anonymousResponse = await anonymous.GetAsync("api/community/sso"))
-                Assert.Equal(HttpStatusCode.Unauthorized, anonymousResponse.StatusCode);
+            var challengeQuery = QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
+            {
+                ["sso"] = challenge,
+                ["sig"] = signature
+            });
+            using (var anonymousResponse = await anonymous.GetAsync(challengeQuery))
+            {
+                Assert.Equal(HttpStatusCode.Redirect, anonymousResponse.StatusCode);
+                Assert.NotNull(anonymousResponse.Headers.Location);
+                var loginUrl = new Uri(new Uri("https://localhost"), anonymousResponse.Headers.Location!);
+                var loginFragment = loginUrl.Fragment;
+                Assert.StartsWith("#community-login=", loginFragment);
+                using var resume = JsonDocument.Parse(WebEncoders.Base64UrlDecode(loginFragment["#community-login=".Length..]));
+                Assert.Equal(challenge, resume.RootElement.GetProperty("sso").GetString());
+                Assert.Equal(signature, resume.RootElement.GetProperty("sig").GetString());
+            }
+
+            var anonymousSession = new Session(anonymous, await Csrf(anonymous));
+            using (var loginResponse = await anonymousSession.Raw("/auth/login", HttpMethod.Post, new { username = email, password = Password }))
+                Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+            using (var resumedSso = await anonymous.GetAsync(challengeQuery))
+            {
+                Assert.Equal(HttpStatusCode.Redirect, resumedSso.StatusCode);
+                Assert.NotNull(resumedSso.Headers.Location);
+                Assert.Equal(callback, new Uri(new Uri("https://community.example.test"), resumedSso.Headers.Location).GetLeftPart(UriPartial.Path));
+            }
 
             var member = await Login(factory, email);
             var session = await member.Client.GetFromJsonAsync<JsonElement>("api/session");
             Assert.True(session.GetProperty("communityEnabled").GetBoolean());
             Assert.Equal("https://community.example.test/session/sso", session.GetProperty("communityStartUrl").GetString());
 
-            var nonce = "nonce-" + marker;
-            var callback = "https://community.example.test/session/sso_login";
-            var challenge = Convert.ToBase64String(Encoding.UTF8.GetBytes(
-                $"nonce={Uri.EscapeDataString(nonce)}&return_sso_url={Uri.EscapeDataString(callback)}"));
-            var signature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(challenge))).ToLowerInvariant();
             using var response = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
             {
                 ["sso"] = challenge,

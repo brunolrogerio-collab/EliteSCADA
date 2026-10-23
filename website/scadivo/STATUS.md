@@ -11,7 +11,7 @@ Owner: this Codex conversation. Product licensing and SCADA Authority are outsid
 
 Public registration, email confirmation and password recovery are enabled in production as a limited account pilot by the owner's explicit decision. New users must confirm their email before sign-in; only confirmed eligible accounts receive a one-use reset link. The signup requires profile type, activity area and company/school affiliation; “Autônomo/independente” is the valid value when there is no employer or school. Phone, address and birth date are optional. Finalized privacy/terms and retention policy, offsite backup automation and monitoring/alerting remain open #741 launch work. Public community, payments and product-side license renewal remain subsequent packages. No demo Authority/user database is copied into this portal.
 
-Community SSO bridge is implemented in the current draft PR and is disabled by default. It supports a future Discourse service using the portal login, but no forum service, DNS, proxy, secret or production flag has been configured; community publishing remains closed.
+Community SSO bridge is implemented in the current draft PR and is disabled by default. A direct forum login link can hand an unsigned-in visitor to the portal login and resume the signed forum challenge after sign-in. No forum service, DNS, proxy, secret or production flag has been configured; community publishing remains closed.
 
 ## Validation profile
 

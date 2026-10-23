@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
@@ -43,15 +44,6 @@ public static class DiscourseConnect
         var options = settings.Value;
         if (!options.Enabled) return Results.NotFound();
 
-        var user = await users.GetUserAsync(context.User);
-        if (user is null || string.IsNullOrWhiteSpace(user.Email) ||
-            !await users.IsEmailConfirmedAsync(user) || !user.InvitationAccepted || await users.IsLockedOutAsync(user))
-            return Results.Forbid();
-
-        var isOwner = await users.IsInRoleAsync(user, "Owner");
-        var isMember = await users.IsInRoleAsync(user, "Member");
-        if (!isOwner && (!isMember || !user.ProfileComplete)) return Results.Forbid();
-
         if (!context.Request.Query.TryGetValue("sso", out var ssoValues) || ssoValues.Count != 1 ||
             !context.Request.Query.TryGetValue("sig", out var signatureValues) || signatureValues.Count != 1)
             return Results.BadRequest(new { error = "invalid-community-request" });
@@ -71,6 +63,15 @@ public static class DiscourseConnect
         if (!TryReadChallenge(sso, signature, secret, options.DiscourseUrl, out var nonce, out var returnUrl))
             return Results.BadRequest(new { error = "invalid-community-request" });
 
+        var user = await users.GetUserAsync(context.User);
+        if (user is null) return ResumeAtPortalLogin(sso, signature);
+        if (string.IsNullOrWhiteSpace(user.Email) || !await users.IsEmailConfirmedAsync(user) ||
+            !user.InvitationAccepted || await users.IsLockedOutAsync(user)) return Results.Forbid();
+
+        var isOwner = await users.IsInRoleAsync(user, "Owner");
+        var isMember = await users.IsInRoleAsync(user, "Member");
+        if (!isOwner && (!isMember || !user.ProfileComplete)) return Results.Forbid();
+
         var payload = EncodeQuery(
             new("nonce", nonce),
             new("email", user.Email),
@@ -86,6 +87,12 @@ public static class DiscourseConnect
             ["sig"] = responseSignature
         });
         return Results.Redirect(destination);
+    }
+
+    private static IResult ResumeAtPortalLogin(string sso, string signature)
+    {
+        var resume = WebEncoders.Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(new { sso, sig = signature }));
+        return Results.Redirect($"/portal/#community-login={resume}");
     }
 
     private static bool TryReadChallenge(

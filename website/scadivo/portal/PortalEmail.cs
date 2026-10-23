@@ -235,7 +235,27 @@ public sealed class PortalEmailDispatcher(
             ? string.Empty
             : $"{Encode(footerText)} <a href=\"{Encode(supportLink)}\" style=\"color:#087f7e;text-decoration:underline\">{Encode(supportLabel)}</a>.";
         var tagline = locale == "en" ? "SCADA & industrial automation at every scale" : "Supervisão e automação em qualquer escala";
-        return $"""<!doctype html><html lang="{language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:28px 12px;background:#edf2f5;font-family:Arial,Helvetica,sans-serif;color:#182635"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #d9e2e8;border-radius:12px;overflow:hidden"><tr><td style="padding:24px 30px;background:#101c2a;border-bottom:4px solid #21d0c3"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="width:38px;height:38px;text-align:center;vertical-align:middle;border-radius:10px;background:#14283a;color:#21d0c3;font-size:28px;font-weight:bold">S</td><td style="padding-left:12px;color:#f4f8fc;font-size:20px;font-weight:bold;letter-spacing:1px">SCADIVO<div style="margin-top:3px;color:#9fb2c5;font-size:10px;font-weight:normal;letter-spacing:1px">SCADA &amp; INDUSTRIAL AUTOMATION</div></td></tr></table></td></tr><tr><td style="padding:32px 30px 22px"><h1 style="margin:0 0 22px;color:#142436;font-size:23px;line-height:1.35">{Encode(subject)}</h1><div style="color:#33475b;font-size:15px;line-height:1.75"><p style="margin:0 0 16px">{paragraphs}</p></div></td></tr><tr><td style="padding:18px 30px;background:#f5f8fa;border-top:1px solid #e1e8ed;color:#738395;font-size:12px;line-height:1.6">{footer}<br><span style="color:#0b8d86;font-weight:bold">SCADIVO</span> · {Encode(tagline)}</td></tr></table></body></html>""";
+        return $"""
+            <!doctype html>
+            <html lang="{language}">
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+            <body style="margin:0;padding:28px 12px;background:#edf2f5;font-family:Arial,Helvetica,sans-serif;color:#182635">
+            <!--[if mso]>
+            <table role="presentation" align="center" width="640" cellspacing="0" cellpadding="0"><tr><td>
+            <![endif]-->
+            <table role="presentation" align="center" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;margin:0 auto;background:#fff;border:1px solid #d9e2e8;border-radius:12px;overflow:hidden;mso-table-lspace:0pt;mso-table-rspace:0pt">
+              <tr><td style="padding:24px 30px;background:#101c2a;border-bottom:4px solid #21d0c3">
+                <table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="width:38px;height:38px;text-align:center;vertical-align:middle;border-radius:10px;background:#14283a;color:#21d0c3;font-size:28px;font-weight:bold">S</td><td style="padding-left:12px;color:#f4f8fc;font-size:20px;font-weight:bold;letter-spacing:1px">SCADIVO<div style="margin-top:3px;color:#9fb2c5;font-size:10px;font-weight:normal;letter-spacing:1px">SCADA &amp; INDUSTRIAL AUTOMATION</div></td></tr></table>
+              </td></tr>
+              <tr><td style="padding:32px 30px 22px"><h1 style="margin:0 0 22px;color:#142436;font-size:23px;line-height:1.35">{Encode(subject)}</h1><div style="color:#33475b;font-size:15px;line-height:1.75"><p style="margin:0 0 16px">{paragraphs}</p></div></td></tr>
+              <tr><td style="padding:18px 30px;background:#f5f8fa;border-top:1px solid #e1e8ed;color:#738395;font-size:12px;line-height:1.6">{footer}<br><span style="color:#0b8d86;font-weight:bold">SCADIVO</span> · {Encode(tagline)}</td></tr>
+            </table>
+            <!--[if mso]>
+            </td></tr></table>
+            <![endif]-->
+            </body>
+            </html>
+            """;
     }
 }
 

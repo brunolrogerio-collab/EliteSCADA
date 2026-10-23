@@ -176,7 +176,7 @@ function profileFields(user = {}) {
   return [
     h('div', { class: 'form-row' }, [field(tr('Perfil', 'Profile'), profileType), field(tr('Área de atuação', 'Activity area'), activityArea)]),
     otherField,
-    field(tr('Empresa, escola ou vínculo', 'Company, school or affiliation'), input('organizationOrSchool', 'text', user.organizationOrSchool || '', { maxLength: 200, placeholder: tr('Se não houver, informe “Autônomo/independente”.', 'If none, enter “Independent”.') })),
+    field(tr('Empresa, escola ou vínculo (obrigatório)', 'Company, school or affiliation (required)'), input('organizationOrSchool', 'text', user.organizationOrSchool || '', { maxLength: 200, placeholder: tr('Autônomo/independente', 'Independent') }), tr('Obrigatório. Se não houver empresa ou escola, informe “Autônomo/independente”.', 'Required. If you have no company or school, enter “Independent”.')),
     h('div', { class: 'form-row' }, [field(tr('Telefone (opcional)', 'Phone (optional)'), input('phoneNumber', 'tel', user.phoneNumber || '', { required: false, maxLength: 40, autocomplete: 'tel' })), field(tr('Data de nascimento (opcional)', 'Date of birth (optional)'), input('dateOfBirth', 'date', user.dateOfBirth || '', { required: false }))]),
     field(tr('Endereço (opcional)', 'Address (optional)'), input('address', 'text', user.address || '', { required: false, maxLength: 300, autocomplete: 'street-address' })),
     h('label', { class: 'check-field' }, [marketing, tr('Quero receber novidades e informações comerciais por e-mail (opcional).', 'I would like to receive product news and commercial updates by email (optional).')])

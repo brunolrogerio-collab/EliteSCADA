@@ -34,6 +34,9 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
         var decodedHtml = WebUtility.HtmlDecode(portuguese.HtmlBody!);
         Assert.Equal(1, decodedHtml.Split("Não responda a este e-mail.", StringSplitOptions.None).Length - 1);
         Assert.Contains("href=\"https://scadivo.com/contato?area=suporte\"", portuguese.HtmlBody);
+        Assert.Contains("<!--[if mso]>", portuguese.HtmlBody);
+        Assert.Contains("width=\"640\"", portuguese.HtmlBody);
+        Assert.Contains("max-width:640px", portuguese.HtmlBody);
         Assert.Empty(portuguese.ReplyTo);
 
         using var staffNotification = PortalEmailDispatcher.CreateMessage(settings, Guid.NewGuid(), "support@scadivo.com",

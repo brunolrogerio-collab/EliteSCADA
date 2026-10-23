@@ -612,8 +612,13 @@ public sealed class ContextualHelpTests
             "scripts.python-validation",
             "engineering.object-browser",
             "memory.client",
+            "security.users-roles-capabilities",
             "security.scopes-authority",
             "security.engineering-lock",
+            "historian.overview",
+            "trends.overview",
+            "reports.overview",
+            "licensing.overview",
             "licensing.generator",
             "runtime.session-classes",
             "application.export-import",
@@ -825,6 +830,102 @@ public sealed class ContextualHelpTests
             Assert.Contains("drivers.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
             Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
             Assert.Contains("diagnostics.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void SecurityUsersRolesHelp_ExplainsLocalAccountsGrantsScopesAndSessionImpactInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "usuários locais", "nome para exibição", "invalidam tokens locais anteriores", "sessões locais anteriores",
+                "chave estável", "até o primeiro Apply", "CommandExecute", "ProcessValueWrite", "globalmente",
+                "não é a decisão de autorização", "Capabilities efetivas da sessão atual", "Aplicar política",
+                "fora do Save/Publish/Activate"
+            },
+            ["en"] = new[]
+            {
+                "local users", "display name", "invalidate previously issued local tokens", "previous local sessions",
+                "stable key", "until the first Apply", "CommandExecute", "ProcessValueWrite", "applies globally",
+                "not the authorization decision", "Current session effective capabilities", "Apply policy",
+                "outside the Engineering Workspace Save/Publish/Activate"
+            },
+            ["es"] = new[]
+            {
+                "usuarios locales", "nombre visible", "invalidan tokens locales anteriores", "sesiones locales anteriores",
+                "clave estable", "hasta el primer Apply", "CommandExecute", "ProcessValueWrite", "se aplica globalmente",
+                "no es la decisión de autorización", "Capabilities efectivas de la sesión actual", "Aplicar política",
+                "fuera del ciclo Save/Publish/Activate"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "security.users-roles-capabilities");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("security.scopes-authority", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("security.engineering-lock", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("runtime.session-classes", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("licensing.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("audit.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void StableHistorianTrendReportAndLicensingHelp_ExplainUserWorkflowsInEveryLocale()
+    {
+        var expectations = new Dictionary<string, Dictionary<string, string[]>>(StringComparer.Ordinal)
+        {
+            ["historian.overview"] = new(StringComparer.Ordinal)
+            {
+                ["pt-BR"] = new[] { "onChangeDeadbandMaxInterval requer Deadband e período máximo", "não cria dados retroativos", "revisão Active" },
+                ["en"] = new[] { "onChangeDeadbandMaxInterval requires Deadband and a maximum period", "does not create backfilled data", "Active revision" },
+                ["es"] = new[] { "onChangeDeadbandMaxInterval requiere Deadband y período máximo", "no crea datos retroactivos", "revisión Active" }
+            },
+            ["trends.overview"] = new(StringComparer.Ordinal)
+            {
+                ["pt-BR"] = new[] { "até 16 penas", "TrendUse", "A legenda permite ocultar ou exibir penas temporariamente" },
+                ["en"] = new[] { "up to 16 pens", "TrendUse", "The legend can temporarily hide or show pens" },
+                ["es"] = new[] { "hasta 16 plumas", "TrendUse", "La leyenda permite ocultar o mostrar plumas temporalmente" }
+            },
+            ["reports.overview"] = new(StringComparer.Ordinal)
+            {
+                ["pt-BR"] = new[] { "Não é necessário escrever SQL", "Apply só incorpora a definição validada", "Generate report" },
+                ["en"] = new[] { "You do not need to write SQL", "Apply only adds the validated definition", "Generate report" },
+                ["es"] = new[] { "No es necesario escribir SQL", "Apply solo incorpora la definición validada", "Generate report" }
+            },
+            ["licensing.overview"] = new(StringComparer.Ordinal)
+            {
+                ["pt-BR"] = new[] { "não concede roles ou capabilities de segurança", "Solicitação da máquina", "a próxima ativação usará Demo" },
+                ["en"] = new[] { "does not grant security roles or capabilities", "Machine request", "the next activation will use Demo" },
+                ["es"] = new[] { "no concede roles ni capabilities de seguridad", "Solicitud de la máquina", "la próxima activación utilizará Demo" }
+            }
+        };
+
+        var relatedTopics = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["historian.overview"] = new[] { "tags.overview", "trends.overview", "diagnostics.overview" },
+            ["trends.overview"] = new[] { "screens.overview", "historian.overview", "visual.properties" },
+            ["reports.overview"] = new[] { "historian.overview", "tags.overview", "engineering.lifecycle" },
+            ["licensing.overview"] = new[] { "security.users-roles-capabilities", "runtime.session-classes", "licensing.generator" }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            foreach (var (topicId, localeExpectations) in expectations)
+            {
+                var topic = Assert.Single(catalog.Topics, item => item.Id == topicId);
+                var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+                foreach (var phrase in localeExpectations[locale])
+                    Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+                foreach (var relatedId in relatedTopics[topicId])
+                    Assert.Contains(relatedId, topic.RelatedTopicIds ?? Array.Empty<string>());
+            }
         }
     }
 

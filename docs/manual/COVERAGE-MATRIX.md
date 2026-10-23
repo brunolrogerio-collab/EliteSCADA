@@ -25,16 +25,16 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 17. Revisions | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` lifecycle; Engineering lifecycle services/UI | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 18. Publish | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` lifecycle; Engineering lifecycle services/UI | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 19. Activate | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` lifecycle; Engineering lifecycle services/UI | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 20. Data Sources | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 21. Drivers | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 22. TAGs | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 23. Endereçamento | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 24. Scaling/normalization | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 25. Quality | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 26. Test/commissioning de TAG | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 27. Copy/Paste/Duplicate | DRAFT_STABLE | #425 / #306 | `tagDuplicationModel.ts`; TAG editor/commissioning; Historian profile contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 28. Sequential TAG generation | DRAFT_STABLE | #425 / #306 | `tagDuplicationModel.ts`; TAG editor/commissioning; Historian profile contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 29. Historian profile | DRAFT_STABLE | #425 / #306 | `tagDuplicationModel.ts`; TAG editor/commissioning; Historian profile contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 20. Data Sources | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 21. Drivers | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 22. TAGs | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 23. Endereçamento | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 24. Scaling/normalization | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 25. Quality | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 26. Test/commissioning de TAG | DRAFT_STABLE | #425 / #306 | Data Source catalog; TAG contracts; contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 27. Copy/Paste/Duplicate | DRAFT_STABLE | #425 / #306 | `tagDuplicationModel.ts`; TAG editor/commissioning; Historian profile contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 28. Sequential TAG generation | DRAFT_STABLE | #425 / #306 | `tagDuplicationModel.ts`; TAG editor/commissioning; Historian profile contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 29. Historian profile | DRAFT_STABLE | #425 / #306 | `tagDuplicationModel.ts`; TAG editor/commissioning; Historian profile contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 30. Screen Editor | BLOCKED_PRODUCT | #425 / #306 | #308 + Screen/Popup/Library implementation; #308 Visual Quality / final accepted editor surfaces | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 31. Popup Editor | BLOCKED_PRODUCT | #425 / #306 | #308 + Screen/Popup/Library implementation; #308 Visual Quality / final accepted editor surfaces | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 32. Inserção de objetos | BLOCKED_PRODUCT | #425 / #306 | #308 + Screen/Popup/Library implementation; #308 Visual Quality / final accepted editor surfaces | structure only; pt-BR/en/es after dependency | PENDING_FINAL |

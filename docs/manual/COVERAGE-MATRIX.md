@@ -69,34 +69,34 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 61. Historical Time Range | BLOCKED_PRODUCT | #425 / #306 | #383 + historical consumer contracts; #383 Historical Time Range | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 62. Historical Playback | BLOCKED_PRODUCT | #425 / #306 | #383 + historical consumer contracts; #383 + Historical Playback follow-on | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 63. Reports | DRAFT_STABLE | #425 / #306 | Reports contract + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 64. Runtime | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 64. Runtime | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 65. Navigation | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 66. Interactive | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 67. View Only | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 68. Commands | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 69. Diagnostics | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 70. Communication quality | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 66. Interactive | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 67. View Only | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 68. Commands | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 69. Diagnostics | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 70. Communication quality | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 71. Operational Events | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 72. Audit | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 73. Authority | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 74. Users | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 75. Roles | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 76. Capabilities | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 77. Scopes | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 78. Effective permissions | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 79. Sessions | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 80. Engineering Lock | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 81. Conceitos de licença | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 82. Machine binding | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 83. Request | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 84. Install | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 85. Replace | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 86. Remove | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 87. Demo/no-license | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 88. Runtime session quotas | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 89. Interactive/View Only | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 73. Authority | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 74. Users | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 75. Roles | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 76. Capabilities | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 77. Scopes | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 78. Effective permissions | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 79. Sessions | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 80. Engineering Lock | DRAFT_STABLE | #425 / #306 | Authority/security contracts; Engineering Lock | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 81. Conceitos de licença | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 82. Machine binding | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 83. Request | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 84. Install | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 85. Replace | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 86. Remove | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 87. Demo/no-license | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 88. Runtime session quotas | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 89. Interactive/View Only | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 90. Redundancy entitlement | BLOCKED_PRODUCT | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts; #421/#423 HA licensing entitlement closure | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 91. License Generator | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 91. License Generator | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 92. Export .escadapkg | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 93. Import | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 94. Authority backup | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |

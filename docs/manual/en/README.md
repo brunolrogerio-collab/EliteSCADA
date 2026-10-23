@@ -1,10 +1,12 @@
 # EliteSCADA Manual — English
 
-The English locale is being filled in bounded chapters from verified stable product behavior. The Fundamentals, Engineering/Data Sources/TAGs, and Scripting chapters are available below; this partial translation does not mean the full manual or language parity is complete. Final terminology/localization and semantic-parity review remain required.
+The English locale is being filled in bounded chapters from verified stable product behavior. The Fundamentals, Engineering/Data Sources/TAGs, Operations/Security/Licensing, and Scripting chapters are available below; this partial translation does not mean the full manual or language parity is complete. Final terminology/localization and semantic-parity review remain required.
 
 No security, licensing, HA, write/command, recovery or critical-warning material may be omitted from the PREVIEW-READY English manual.
 
 ## Available translated chapters
+
+- [Operations, Security, and Licensing](08-OPERATIONS-SECURITY-LICENSING.md) — stable Runtime/session, command, diagnostic, Authority/Engineering Lock, licensing, Demo, request/install/remove, TAG-tier, and License Generator guidance; HA operational behavior remains explicitly blocked.
 
 - [EliteSCADA Fundamentals](01-ELITESCADA-FUNDAMENTALS.md) — user-facing architecture, Engineering/Runtime, Authority/License/Historian boundaries, and the project lifecycle.
 

@@ -1,10 +1,12 @@
 # Manual EliteSCADA — Español
 
-El locale español se completa en capítulos acotados basados en comportamiento estable verificado del producto. Los capítulos de Fundamentos, Engineering/Datos/TAGs y Scripting están disponibles abajo; esta traducción parcial no significa que el manual completo ni la paridad de idiomas estén terminados. Aún se requieren la revisión final de terminología/localización y la paridad semántica.
+El locale español se completa en capítulos acotados basados en comportamiento estable verificado del producto. Los capítulos de Fundamentos, Engineering/Datos/TAGs, Operación/Seguridad/Licencias y Scripting están disponibles abajo; esta traducción parcial no significa que el manual completo ni la paridad de idiomas estén terminados. Aún se requieren la revisión final de terminología/localización y la paridad semántica.
 
 Ningún contenido material de seguridad, licencias, HA, escrituras/comandos, recuperación o advertencias críticas puede faltar en el manual español PREVIEW-READY.
 
 ## Capítulos traducidos disponibles
+
+- [Operación, seguridad y licencias](08-OPERACION-SEGURIDAD-LICENCIAS.md) — guía estable de Runtime/sesiones, comandos, diagnóstico, Authority/Engineering Lock, licencias, Demo, request/install/remove, tiers de TAGs y License Generator; el comportamiento operacional de HA sigue explícitamente bloqueado.
 
 - [Fundamentos de EliteSCADA](01-FUNDAMENTOS-ELITESCADA.md) — arquitectura del producto para el usuario, límites entre Engineering/Runtime, Authority/License/Historian y lifecycle del proyecto.
 

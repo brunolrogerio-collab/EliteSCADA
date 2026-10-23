@@ -75,6 +75,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 15, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    options.AddPolicy("public-contact", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
     options.AddPolicy("writes", context => HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)
         ? RateLimitPartition.GetNoLimiter("read")
         : RateLimitPartition.GetFixedWindowLimiter(
@@ -82,6 +85,7 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 40, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddScoped<PortalOperations>();
+builder.Services.AddSingleton<PortalEmailSignal>();
 builder.Services.AddOptions<PortalEmailOptions>().BindConfiguration("Portal:Email")
     .Validate(options => options.Valid(), "SMTP configuration requires TLS, valid addresses and a credential file.")
     .ValidateOnStart();

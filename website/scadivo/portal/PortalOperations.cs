@@ -21,10 +21,12 @@ public sealed record MessageInput(string? Body);
 public sealed record TicketStatusInput(string? Status);
 public sealed record TemplateInput(string? SubjectPt, string? SubjectEn, string? BodyPt, string? BodyEn);
 public sealed record FaqInput(string? Slug, string? Category, string? TitlePt, string? TitleEn, string? BodyPt, string? BodyEn, bool Published);
+public sealed record PublicContactInput(string? Name, string? Email, string? Category, string? SubjectKey,
+    string? OtherSubject, string? Message, string? Locale, string? Website);
 
 public sealed class PortalOperations(
     PortalDb db, UserManager<PortalUser> users, SignInManager<PortalUser> signIn, IConfiguration configuration,
-    IOptions<PortalEmailOptions> emailSettings)
+    IOptions<PortalEmailOptions> emailSettings, PortalEmailSignal emailSignal)
 {
     private static string UserId(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static bool Owner(HttpContext context) => context.User.IsInRole("Owner");
@@ -114,6 +116,7 @@ public sealed class PortalOperations(
         db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = "account.invited", ResourceId = user.Id });
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
+        emailSignal.Notify();
         var publicUrl = configuration["Portal:PublicUrl"] ?? "https://scadivo.com/portal/";
         return Results.Created($"/portal/api/admin/accounts/{user.Id}", new
         {
@@ -171,6 +174,7 @@ public sealed class PortalOperations(
         db.EmailOutbox.Add(Notification(id, "support.created", ticket.Id.ToString()));
         db.Audit.Add(new PortalAudit { ActorId = id, Action = "support.created", ResourceId = ticket.Id.ToString() });
         await db.SaveChangesAsync();
+        emailSignal.Notify();
         return Results.Created($"/portal/api/support/{ticket.Id}", ticket);
     }
 
@@ -186,8 +190,93 @@ public sealed class PortalOperations(
         else ticket.Status = "open";
         db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = "support.replied", ResourceId = id.ToString() });
         await db.SaveChangesAsync();
+        if (staff) emailSignal.Notify();
         return Results.Ok(new { replied = true });
     }
+
+    public async Task<IResult> PublicContact(PublicContactInput input)
+    {
+        if (!emailSettings.Value.Enabled) return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        if (!string.IsNullOrWhiteSpace(input.Website)) return ContactAccepted("SC-" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant());
+        var name = input.Name?.Trim();
+        var email = input.Email?.Trim();
+        var message = input.Message?.Trim();
+        var otherSubject = input.OtherSubject?.Trim();
+        if (!Valid(name, 1, 100) || !Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
+            !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase) || !Valid(message, 10, 4000)) return Invalid();
+
+        var locale = input.Locale == "en" ? "en" : "pt-BR";
+        var category = input.Category;
+        var subjectKey = input.SubjectKey;
+        var allowedSubjects = category switch
+        {
+            "commercial" => new[] { "commercial-info", "license", "demo", "partnership", "other" },
+            "support" => new[] { "installation", "configuration", "integration", "technical-problem", "other" },
+            "contact" => new[] { "general-info", "partnership", "press", "privacy", "other" },
+            _ => []
+        };
+        if (subjectKey is null || !allowedSubjects.Contains(subjectKey, StringComparer.Ordinal) ||
+            (subjectKey == "other" ? !Valid(otherSubject, 3, 120) : !string.IsNullOrWhiteSpace(otherSubject))) return Invalid();
+        if (await db.EmailOutbox.CountAsync(x => x.TemplateKey.StartsWith("contact.") && (x.Status == "queued" || x.Status == "retry")) >= 100)
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        var categoryName = (category, locale) switch
+        {
+            ("commercial", "en") => "Sales",
+            ("support", "en") => "Support",
+            ("contact", "en") => "General contact",
+            ("commercial", _) => "Comercial",
+            ("support", _) => "Suporte",
+            _ => "Contato geral"
+        };
+        var subjectName = subjectKey == "other" ? otherSubject! : (subjectKey, locale) switch
+        {
+            ("commercial-info", "en") => "Commercial information", ("commercial-info", _) => "Informações comerciais",
+            ("license", "en") => "Licensing", ("license", _) => "Licenciamento",
+            ("demo", "en") => "Product demonstration", ("demo", _) => "Demonstração do produto",
+            ("partnership", "en") => "Partnership", ("partnership", _) => "Parceria",
+            ("installation", "en") => "Installation", ("installation", _) => "Instalação",
+            ("configuration", "en") => "Configuration", ("configuration", _) => "Configuração",
+            ("integration", "en") => "Integration", ("integration", _) => "Integração",
+            ("technical-problem", "en") => "Technical issue", ("technical-problem", _) => "Problema técnico",
+            ("general-info", "en") => "General information", ("general-info", _) => "Informações gerais",
+            ("press", "en") => "Press", ("press", _) => "Imprensa",
+            ("privacy", "en") => "Privacy", _ => "Privacidade"
+        };
+        var recipient = category switch
+        {
+            "commercial" => "sales@scadivo.com",
+            "support" => "support@scadivo.com",
+            _ => "contact@scadivo.com"
+        };
+        var reference = "SC-" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        var notificationData = JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["name"] = name!, ["email"] = email!, ["category"] = categoryName,
+            ["subject"] = subjectName, ["message"] = message!, ["reference"] = reference,
+            ["locale"] = locale
+        });
+        var receiptData = JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["name"] = name!, ["category"] = categoryName, ["subject"] = subjectName,
+            ["reference"] = reference, ["locale"] = locale
+        });
+        db.EmailOutbox.Add(new EmailOutbox
+        {
+            TemplateKey = "contact.notification", RecipientAddress = recipient, ReplyToAddress = email,
+            TemplateDataJson = notificationData, Reference = reference, Status = "queued"
+        });
+        db.EmailOutbox.Add(new EmailOutbox
+        {
+            TemplateKey = "contact.received", RecipientAddress = email, ReplyToAddress = recipient,
+            TemplateDataJson = receiptData, Reference = reference, Status = "queued"
+        });
+        await db.SaveChangesAsync();
+        emailSignal.Notify();
+        return ContactAccepted(reference);
+    }
+
+    private static IResult ContactAccepted(string reference) => Results.Json(new { accepted = true, reference }, statusCode: 202);
 
     public async Task<IResult> UpdateTicketStatus(Guid id, TicketStatusInput input, HttpContext context)
     {

@@ -10,7 +10,7 @@ Issue: [#741](https://github.com/brunolrogerio-collab/EliteSCADA/issues/741). Im
 | `https://scadivo.com/demo` | Existing public Runtime demonstration, unchanged by this portal package |
 | `https://scadivo.com/portal/` | Independent invitation-only customer portal, same-origin HTTPS cookie |
 
-The portal includes profile/password management, administrator-issued personal invitations, private support conversations, searchable bilingual FAQ, editable PT/EN message templates, administrator account list and audit records. Organizations and memberships have separate tables, not global administrator privileges.
+The portal includes profile/password management, administrator-issued personal invitations, private support conversations, searchable bilingual FAQ, editable PT/EN message templates, administrator account list and audit records. Organizations and memberships have separate tables, not global administrator privileges. The public site contact form routes Sales, Support and General Contact messages to their respective business mailboxes without creating accounts.
 
 The authenticated download catalog accepts only approved official GitHub release URLs with SHA-256 metadata. It starts empty because no release artifact is currently approved; no placeholder installer is offered. Publication management, the official distribution pipeline (#363/#408), and artifact verification before catalog insertion remain follow-up work.
 
@@ -19,7 +19,7 @@ Community and licensing areas explicitly display their pending state. There is n
 ### Deliberately not activated
 
 - Public registration, email confirmation and password recovery remain disabled. They require separate account-security, legal and product decisions in #741.
-- Transactional SMTP delivery is deployed and enabled for administrative invitations, support-ticket receipts and staff replies. Public registration, confirmation and password recovery remain disabled. The sender creates fresh one-use invitation tokens at send time; it never stores them in the outbox or audit log. Historical `awaiting-transport` rows are deliberately not sent automatically.
+- Transactional SMTP delivery is deployed and enabled for administrative invitations, support-ticket receipts and staff replies. This branch adds branded HTML/text email delivery for public-site contact receipts and team notifications. Public registration, confirmation and password recovery remain disabled. The sender creates fresh one-use invitation tokens at send time; it never stores them in the outbox or audit log. Historical `awaiting-transport` rows are deliberately not sent automatically.
 - Public community: requires moderation rules, account recovery and SSO integration.
 - Commercial licensing: pricing, named/concurrent seats, machine limits/transfers, cancellation/refund and conversion rules are still product-owner decisions. Future remote license transport is HTTPS/TCP 443, with its own contract and coordinator review.
 
@@ -27,7 +27,7 @@ This is a closed pilot, not a claim that all phases of #741 are complete. Indepe
 
 ### Transactional email implementation
 
-The PR adds SMTP delivery for administrative invitations, support-ticket receipts and staff replies. The queue sends one item per worker tick, retries temporary failures up to five attempts, and records only fixed error categories. The initial outbox rows marked `awaiting-transport` remain untouched; only new notifications are queued after SMTP is enabled. Delivery is at-least-once, with a stable message ID for duplicate recognition if the process stops after SMTP acceptance but before the database commit.
+The PR adds SMTP delivery for administrative invitations, support-ticket receipts, staff replies, and public site contact receipts/team notifications. A new contact form submission enters two outbox messages; the worker is signalled to deliver promptly and drains available items. Temporary failures retry up to five attempts, and only fixed error categories are recorded. Contact content/address data is removed from outbox rows after success or terminal failure. The initial outbox rows marked `awaiting-transport` remain untouched; only new notifications are queued after SMTP is enabled. Delivery is at-least-once, with a stable message ID for duplicate recognition if the process stops after SMTP acceptance but before the database commit.
 
 The production mailbox is `noreply@scadivo.com`; replies go to `support@scadivo.com`. The account's official settings use `mail.scadivo.com:465` with implicit TLS and SMTP authentication. A TLS handshake and certificate validation from the VPS succeeded on 23 October 2026; the certificate covered `*.scadivo.com`. An authenticated message sent from the VPS was delivered to Gmail; the received message showed SPF PASS, DKIM PASS (`scadivo.com`), DMARC PASS and TLS. No SPF or DMARC record was changed during this verification.
 

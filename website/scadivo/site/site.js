@@ -15,6 +15,7 @@
     button.setAttribute('aria-pressed', String(language === 'pt'));
     button.setAttribute('aria-label', language === 'en' ? 'Mudar idioma para português' : 'Switch language to English');
     try { localStorage.setItem('scadivo-site-language', language); } catch { /* Keep language switching available when storage is blocked. */ }
+    document.dispatchEvent(new CustomEvent('scadivo:languagechange', { detail: { language } }));
   }
 
   button.addEventListener('click', () => applyLanguage(language === 'en' ? 'pt' : 'en'));

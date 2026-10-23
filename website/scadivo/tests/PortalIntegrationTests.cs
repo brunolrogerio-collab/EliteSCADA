@@ -190,8 +190,11 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal("noreply@scadivo.com", email.From.Mailboxes.Single().Address);
             Assert.Equal("support@scadivo.com", email.ReplyTo.Mailboxes.Single().Address);
             Assert.Equal($"{queued.Id:N}@scadivo.com", email.MessageId);
+            Assert.Contains("<table role=\"presentation\"", email.HtmlBody);
+            Assert.Contains("lang=\"en\"", email.HtmlBody);
             var textBody = Assert.IsType<string>(email.TextBody);
             var link = textBody.Split('\n').Select(x => x.Trim()).Single(x => x.StartsWith("https://localhost/portal/#invite=", StringComparison.Ordinal));
+            Assert.Contains($"<a href=\"{link}\"", email.HtmlBody);
             var payload = Invitation(JsonSerializer.SerializeToElement(new { invitationUrl = link }));
             using var anonymous = Client(factory);
             var invited = new Session(anonymous, await Csrf(anonymous));
@@ -207,6 +210,56 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal(3, transport.Messages.Count);
             Assert.DoesNotContain("Private staff reply", transport.Messages.Last());
             Assert.True((await owner.Get("/admin/overview")).GetProperty("sentMessages").GetInt32() >= 3);
+
+            var usersBeforeContact = await db.Users.CountAsync();
+            using var contactClient = Client(factory);
+            var publicContact = new Session(contactClient, await Csrf(contactClient));
+            using var contactResponse = await publicContact.Raw("/public/contact", HttpMethod.Post, new
+            {
+                name = "Demo Visitor", email = "visitor@example.test", category = "support", subjectKey = "technical-problem",
+                message = "Please review this example: <script>alert('x')</script>", locale = "en", website = ""
+            });
+            Assert.Equal(HttpStatusCode.Accepted, contactResponse.StatusCode);
+            var contactResult = await contactResponse.Content.ReadFromJsonAsync<JsonElement>();
+            var reference = contactResult.GetProperty("reference").GetString()!;
+            Assert.StartsWith("SC-", reference);
+            Assert.Equal(usersBeforeContact, await db.Users.CountAsync()); // A public contact does not register an account.
+            var contactOutbox = await db.EmailOutbox.Where(x => x.Reference == reference).ToListAsync();
+            Assert.Equal(2, contactOutbox.Count);
+            Assert.All(contactOutbox, item => Assert.Null(item.UserId));
+            Assert.Contains(contactOutbox, item => item.TemplateKey == "contact.notification" && item.RecipientAddress == "support@scadivo.com");
+            Assert.Contains(contactOutbox, item => item.TemplateKey == "contact.received" && item.RecipientAddress == "visitor@example.test");
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            Assert.Equal(5, transport.Messages.Count);
+            var contactMessages = transport.Messages.Skip(3)
+                .Select(raw => MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(raw)))).ToArray();
+            var staffNotice = Assert.Single(contactMessages, message => message.To.Mailboxes.Single().Address == "support@scadivo.com");
+            Assert.Equal("visitor@example.test", staffNotice.ReplyTo.Mailboxes.Single().Address);
+            Assert.Contains("Please review this example", staffNotice.TextBody);
+            Assert.Contains("&lt;script&gt;", staffNotice.HtmlBody);
+            Assert.DoesNotContain("<script>", staffNotice.HtmlBody);
+            var receipt = Assert.Single(contactMessages, message => message.To.Mailboxes.Single().Address == "visitor@example.test");
+            Assert.Equal("support@scadivo.com", receipt.ReplyTo.Mailboxes.Single().Address);
+            Assert.Contains(reference, receipt.TextBody);
+            Assert.Contains("SCADIVO", receipt.HtmlBody);
+            Assert.All(await db.EmailOutbox.Where(x => x.Reference == reference).ToListAsync(), item =>
+            {
+                Assert.Equal("sent", item.Status);
+                Assert.Null(item.TemplateDataJson);
+                Assert.Null(item.RecipientAddress);
+                Assert.Null(item.ReplyToAddress);
+            });
+
+            using var honeypotClient = Client(factory);
+            var honeypot = new Session(honeypotClient, await Csrf(honeypotClient));
+            using var ignoredContact = await honeypot.Raw("/public/contact", HttpMethod.Post, new
+            {
+                name = "Bot", email = "bot@example.test", category = "contact", subjectKey = "general-info",
+                message = "Automated spam", locale = "en", website = "http://spam.invalid"
+            });
+            Assert.Equal(HttpStatusCode.Accepted, ignoredContact.StatusCode);
+            Assert.Equal(2, await db.EmailOutbox.CountAsync(x => x.Reference == reference));
         }
         finally { Directory.Delete(root, recursive: true); }
     }

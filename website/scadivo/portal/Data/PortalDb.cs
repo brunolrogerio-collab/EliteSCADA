@@ -72,7 +72,10 @@ public sealed class EmailTemplate
 public sealed class EmailOutbox
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string UserId { get; set; } = "";
+    public string? UserId { get; set; }
+    public string? RecipientAddress { get; set; }
+    public string? ReplyToAddress { get; set; }
+    public string? TemplateDataJson { get; set; }
     public string TemplateKey { get; set; } = "";
     public string? Reference { get; set; }
     public string Status { get; set; } = "awaiting-transport";
@@ -141,6 +144,9 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<EmailOutbox>().HasIndex(x => new { x.Status, x.CreatedAtUtc });
         builder.Entity<EmailOutbox>().HasIndex(x => new { x.Status, x.NextAttemptAtUtc });
         builder.Entity<EmailOutbox>().Property(x => x.LastErrorCode).HasMaxLength(64);
+        builder.Entity<EmailOutbox>().Property(x => x.RecipientAddress).HasMaxLength(256);
+        builder.Entity<EmailOutbox>().Property(x => x.ReplyToAddress).HasMaxLength(256);
+        builder.Entity<EmailOutbox>().Property(x => x.TemplateDataJson).HasColumnType("text");
         builder.Entity<DownloadRelease>().HasIndex(x => new { x.Version, x.Platform }).IsUnique();
         builder.Entity<DownloadRelease>().Property(x => x.Sha256).HasMaxLength(64);
         builder.Entity<PortalAudit>().HasIndex(x => x.CreatedAtUtc);

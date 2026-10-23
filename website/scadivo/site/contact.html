@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101c2a">
+  <link rel="canonical" href="https://scadivo.com/contato">
+  <meta name="description" content="Fale com as equipes Comercial, Suporte ou Contato da SCADIVO." data-pt="Fale com as equipes Comercial, Suporte ou Contato da SCADIVO." data-en="Contact the SCADIVO Sales, Support or General Contact teams.">
+  <title data-pt="Fale com a SCADIVO" data-en="Contact SCADIVO">Fale com a SCADIVO</title>
+  <link rel="icon" type="image/svg+xml" href="scadivo-mark.svg">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="contacts.css">
+  <script src="site.js?v=20261023-contact" defer></script>
+  <script src="contact.js?v=20261023-contact" defer></script>
+</head>
+<body class="contact-page">
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="SCADIVO home"><img src="scadivo-mark.svg" alt="" width="42" height="42"><span>SCADIVO</span></a>
+    <nav class="main-nav" aria-label="Navegação principal">
+      <a href="/#platform" data-pt="Plataforma" data-en="Platform">Plataforma</a>
+      <a href="/#demos" data-pt="Demonstrações" data-en="Demos">Demonstrações</a>
+      <a href="/portal/" data-pt="Área do cliente" data-en="Customer portal">Área do cliente</a>
+    </nav>
+    <div class="header-actions">
+      <button class="language-toggle" type="button" aria-label="Mudar idioma" aria-pressed="false">EN</button>
+      <a class="button button-small button-outline" href="/demo" target="_blank" rel="noopener noreferrer" data-pt="Acessar demo" data-en="Open demo">Acessar demo</a>
+    </div>
+  </header>
+
+  <main class="contact-main">
+    <div class="contact-heading">
+      <p class="eyebrow"><span class="status-dot"></span><span data-pt="FALE COM A NOSSA EQUIPE" data-en="TALK TO OUR TEAM">FALE COM A NOSSA EQUIPE</span></p>
+      <h1 data-pt="Como podemos ajudar?" data-en="How can we help?">Como podemos ajudar?</h1>
+      <p data-pt="Escolha a área, conte um pouco sobre o que precisa e nossa equipe responderá pelo e-mail informado." data-en="Choose a team, tell us what you need and we will reply to the email address you provide.">Escolha a área, conte um pouco sobre o que precisa e nossa equipe responderá pelo e-mail informado.</p>
+    </div>
+
+    <section class="contact-card" aria-labelledby="contact-form-title">
+      <div class="contact-card-heading">
+        <div class="contact-icon" aria-hidden="true">↗</div>
+        <div><h2 id="contact-form-title" data-pt="Envie sua mensagem" data-en="Send us a message">Envie sua mensagem</h2><p data-pt="Você receberá uma confirmação automática com o protocolo." data-en="You will receive an automatic confirmation with a reference number.">Você receberá uma confirmação automática com o protocolo.</p></div>
+      </div>
+      <form id="contact-form" autocomplete="on">
+        <div class="contact-fields-two">
+          <label><span data-pt="Nome" data-en="Name">Nome</span><input name="name" type="text" autocomplete="name" maxlength="100" required></label>
+          <label><span data-pt="E-mail para resposta" data-en="Reply email">E-mail para resposta</span><input name="email" type="email" autocomplete="email" maxlength="256" required></label>
+        </div>
+        <div class="contact-fields-two">
+          <label><span data-pt="Área responsável" data-en="Team">Área responsável</span>
+            <select name="category" id="contact-category" required>
+              <option value="commercial" data-pt="Comercial" data-en="Sales">Comercial</option>
+              <option value="support" data-pt="Suporte" data-en="Support">Suporte</option>
+              <option value="contact" data-pt="Contato geral" data-en="General contact">Contato geral</option>
+            </select>
+          </label>
+          <label><span data-pt="Assunto" data-en="Subject">Assunto</span><select name="subjectKey" id="contact-subject" required></select></label>
+        </div>
+        <label id="other-subject-wrap" class="other-subject-wrap" hidden><span data-pt="Qual é o assunto?" data-en="What is the subject?">Qual é o assunto?</span><input name="otherSubject" id="other-subject" type="text" maxlength="120" autocomplete="off"></label>
+        <label><span data-pt="Mensagem" data-en="Message">Mensagem</span><textarea name="message" rows="7" minlength="10" maxlength="4000" required></textarea><small data-pt="De 10 a 4.000 caracteres." data-en="10 to 4,000 characters.">De 10 a 4.000 caracteres.</small></label>
+        <label class="contact-honeypot" aria-hidden="true" tabindex="-1">Website<input name="website" type="text" tabindex="-1" autocomplete="off"></label>
+        <p class="contact-privacy" data-pt="Usaremos seu nome, e-mail e mensagem somente para encaminhar e responder esta solicitação. Não envie senhas ou chaves. Este formulário não cria uma conta SCADIVO." data-en="We will use your name, email and message only to route and answer this request. Do not send passwords or keys. This form does not create a SCADIVO account.">Usaremos seu nome, e-mail e mensagem somente para encaminhar e responder esta solicitação. Não envie senhas ou chaves. Este formulário não cria uma conta SCADIVO.</p>
+        <div class="contact-submit-row"><button class="button button-primary" id="contact-submit" type="submit"><span data-pt="Enviar mensagem" data-en="Send message">Enviar mensagem</span><span aria-hidden="true">↗</span></button><span id="contact-status" class="contact-status" role="status" aria-live="polite"></span></div>
+      </form>
+    </section>
+
+    <p class="contact-back"><a href="/" data-pt="← Voltar ao site SCADIVO" data-en="← Back to SCADIVO">← Voltar ao site SCADIVO</a></p>
+  </main>
+
+  <footer class="site-footer contact-footer">
+    <a class="brand footer-brand" href="/"><img src="scadivo-mark.svg" alt="" width="34" height="34"><span>SCADIVO</span></a>
+    <span data-pt="SCADA &amp; Automação em qualquer escala" data-en="SCADA &amp; Automation at every scale">SCADA &amp; Automação em qualquer escala</span>
+    <span class="footer-note" data-pt="Residencial, predial e industrial. Local, web e Edge." data-en="Homes, buildings and industry. Local, web and edge.">Residencial, predial e industrial. Local, web e Edge.</span>
+  </footer>
+</body>
+</html>

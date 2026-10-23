@@ -24,6 +24,8 @@ public static class PortalEndpoints
         app.MapPost("/api/auth/login", (LoginInput input, HttpContext context, PortalOperations operations) => operations.Login(input, context)).RequireRateLimiting("auth");
         app.MapPost("/api/auth/accept-invitation", (AcceptInviteInput input, PortalOperations operations) => operations.AcceptInvitation(input)).RequireRateLimiting("auth");
         app.MapPost("/api/auth/logout", (HttpContext context, PortalOperations operations) => operations.Logout(context)).RequireAuthorization();
+        app.MapPost("/api/public/contact", (PublicContactInput input, PortalOperations operations) => operations.PublicContact(input))
+            .RequireRateLimiting("public-contact");
 
         var members = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");
         members.MapGet("/profile", (HttpContext context, PortalOperations operations) => operations.Profile(context));

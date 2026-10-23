@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using System.Text.Encodings.Web;
+using System.Text.RegularExpressions;
+using System.Text.Json;
 using Scadivo.Portal.Data;
 
 namespace Scadivo.Portal;
@@ -75,16 +78,18 @@ public sealed class PortalEmailDispatcher(
         var item = rows.SingleOrDefault();
         if (item is null) return false;
 
-        var user = await users.FindByIdAsync(item.UserId);
+        var user = item.UserId is null ? null : await users.FindByIdAsync(item.UserId);
         var template = await db.EmailTemplates.FindAsync([item.TemplateKey], cancellationToken);
-        var reason = item.TemplateKey is not ("account.invitation" or "support.created" or "support.replied") ? "unsupported-template"
-            : user?.Email is null || !MailboxAddress.TryParse(user.Email, out _) ? "recipient-missing"
+        var recipient = item.RecipientAddress ?? user?.Email;
+        var reason = item.TemplateKey is not ("account.invitation" or "support.created" or "support.replied" or "contact.received" or "contact.notification") ? "unsupported-template"
+            : string.IsNullOrWhiteSpace(recipient) || !MailboxAddress.TryParse(recipient, out _) ? "recipient-missing"
             : template is null ? "template-missing"
-            : item.TemplateKey == "account.invitation" && user.InvitationAccepted ? "invitation-accepted" : null;
+            : item.TemplateKey == "account.invitation" && user?.InvitationAccepted == true ? "invitation-accepted" : null;
         if (reason is not null)
         {
             item.Status = "skipped";
             item.LastErrorCode = reason;
+            if (item.TemplateKey.StartsWith("contact.", StringComparison.Ordinal)) ClearContactData(item);
         }
         else
         {
@@ -94,20 +99,35 @@ public sealed class PortalEmailDispatcher(
                 var publicUrl = configuration["Portal:PublicUrl"] ?? "https://scadivo.com/portal/";
                 var link = item.TemplateKey == "account.invitation"
                     ? await PortalInvitations.LinkAsync(users, user!, publicUrl) : publicUrl;
-                var english = user!.Locale == "en";
-                string Render(string text) => text.Replace("{{name}}", user.DisplayName, StringComparison.Ordinal)
-                    .Replace("{{reference}}", item.Reference ?? "", StringComparison.Ordinal)
-                    .Replace("{{link}}", link, StringComparison.Ordinal);
+                var data = string.IsNullOrWhiteSpace(item.TemplateDataJson)
+                    ? new Dictionary<string, string>()
+                    : JsonSerializer.Deserialize<Dictionary<string, string>>(item.TemplateDataJson) ?? new Dictionary<string, string>();
+                data.TryAdd("name", user?.DisplayName ?? "");
+                data.TryAdd("reference", item.Reference ?? "");
+                data.TryAdd("link", link);
+                data.TryAdd("email", user?.Email ?? "");
+                data.TryAdd("category", "");
+                data.TryAdd("subject", "");
+                data.TryAdd("message", "");
+                var english = data.GetValueOrDefault("locale") == "en" || user?.Locale == "en";
+                string Render(string text)
+                {
+                    foreach (var (key, value) in data)
+                        text = text.Replace("{{" + key + "}}", value, StringComparison.Ordinal);
+                    return text;
+                }
                 var body = Render(english ? template!.BodyEn : template!.BodyPt);
                 // Existing editable invitation templates predate SMTP and may omit {{link}}.
                 if (item.TemplateKey == "account.invitation" && !body.Contains(link, StringComparison.Ordinal)) body += "\n\n" + link;
-                using var message = CreateMessage(settings.Value, item.Id, user.Email!,
-                    Render(english ? template.SubjectEn : template.SubjectPt), body);
+                using var message = CreateMessage(settings.Value, item.Id, recipient!,
+                    Render(english ? template!.SubjectEn : template.SubjectPt), body, item.ReplyToAddress, english ? "en" : "pt-BR");
                 await transport.SendAsync(message, cancellationToken);
                 item.Status = "sent";
                 item.SentAtUtc = DateTimeOffset.UtcNow;
                 item.NextAttemptAtUtc = null;
                 item.LastErrorCode = null;
+                // Contact details are needed only while delivery is pending.
+                if (item.TemplateKey.StartsWith("contact.", StringComparison.Ordinal)) ClearContactData(item);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception exception)
@@ -119,6 +139,10 @@ public sealed class PortalEmailDispatcher(
                 item.Status = item.Attempts >= 5 ? "failed" : "retry";
                 item.NextAttemptAtUtc = item.Status == "retry"
                     ? now.AddMinutes(Math.Min(60, Math.Pow(3, item.Attempts - 1))) : null;
+                if (item.Status == "failed")
+                {
+                    if (item.TemplateKey.StartsWith("contact.", StringComparison.Ordinal)) ClearContactData(item);
+                }
                 logger.LogWarning("Portal email {NotificationId} attempt {Attempt} failed ({Code}).", item.Id, item.Attempts, item.LastErrorCode);
             }
         }
@@ -127,40 +151,89 @@ public sealed class PortalEmailDispatcher(
         return true;
     }
 
-    public static MimeMessage CreateMessage(PortalEmailOptions settings, Guid id, string recipient, string subject, string body)
+    public static MimeMessage CreateMessage(PortalEmailOptions settings, Guid id, string recipient, string subject,
+        string body, string? replyTo = null, string locale = "pt-BR")
     {
+        var safeSubject = subject.Replace('\r', ' ').Replace('\n', ' ');
+        var htmlBody = RenderHtml(safeSubject, body, locale);
         var message = new MimeMessage
         {
             MessageId = $"{id:N}@scadivo.com",
-            Subject = subject.Replace('\r', ' ').Replace('\n', ' '),
-            Body = new TextPart("plain") { Text = body }
+            Subject = safeSubject,
+            Body = new MultipartAlternative
+            {
+                new TextPart("plain") { Text = body },
+                new TextPart("html") { Text = htmlBody }
+            }
         };
         message.From.Add(new MailboxAddress(settings.FromName, settings.FromAddress));
         message.To.Add(MailboxAddress.Parse(recipient));
-        message.ReplyTo.Add(MailboxAddress.Parse(settings.ReplyToAddress));
+        message.ReplyTo.Add(MailboxAddress.Parse(replyTo ?? settings.ReplyToAddress));
         return message;
+    }
+
+    private static void ClearContactData(EmailOutbox item)
+    {
+        item.TemplateDataJson = null;
+        item.RecipientAddress = null;
+        item.ReplyToAddress = null;
+    }
+
+    private static string RenderHtml(string subject, string body, string locale)
+    {
+        static string Encode(string value) => HtmlEncoder.Default.Encode(value);
+        string Format(string value)
+        {
+            var encoded = Encode(value);
+            return Regex.Replace(encoded, @"https://[^\s<]+", match =>
+            {
+                var url = match.Value.TrimEnd('.', ',', ';', ')', ']');
+                var suffix = match.Value[url.Length..];
+                return $"<a href=\"{url}\" style=\"color:#087f7e;text-decoration:underline\">{url}</a>{suffix}";
+            });
+        }
+        var paragraphs = string.Join("</p><p style=\"margin:0 0 16px\">", body.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split("\n\n", StringSplitOptions.None).Select(part => Format(part).Replace("\n", "<br>", StringComparison.Ordinal)));
+        var language = locale == "en" ? "en" : "pt-BR";
+        var footer = locale == "en"
+            ? "Automated message from SCADIVO. Reply to this email if you need help."
+            : "Mensagem automática do SCADIVO. Se precisar de ajuda, responda a este e-mail.";
+        var tagline = locale == "en" ? "SCADA & industrial automation at every scale" : "Supervisão e automação em qualquer escala";
+        return $"""<!doctype html><html lang="{language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:28px 12px;background:#edf2f5;font-family:Arial,Helvetica,sans-serif;color:#182635"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #d9e2e8;border-radius:12px;overflow:hidden"><tr><td style="padding:24px 30px;background:#101c2a;border-bottom:4px solid #21d0c3"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="width:38px;height:38px;text-align:center;vertical-align:middle;border-radius:10px;background:#14283a;color:#21d0c3;font-size:28px;font-weight:bold">S</td><td style="padding-left:12px;color:#f4f8fc;font-size:20px;font-weight:bold;letter-spacing:1px">SCADIVO<div style="margin-top:3px;color:#9fb2c5;font-size:10px;font-weight:normal;letter-spacing:1px">SCADA &amp; INDUSTRIAL AUTOMATION</div></td></tr></table></td></tr><tr><td style="padding:32px 30px 22px"><h1 style="margin:0 0 22px;color:#142436;font-size:23px;line-height:1.35">{Encode(subject)}</h1><div style="color:#33475b;font-size:15px;line-height:1.75"><p style="margin:0 0 16px">{paragraphs}</p></div></td></tr><tr><td style="padding:18px 30px;background:#f5f8fa;border-top:1px solid #e1e8ed;color:#738395;font-size:12px;line-height:1.6">{Encode(footer)}<br><span style="color:#0b8d86;font-weight:bold">SCADIVO</span> · {Encode(tagline)}</td></tr></table></body></html>""";
     }
 }
 
-public sealed class PortalEmailWorker(IServiceScopeFactory scopes, IOptions<PortalEmailOptions> settings,
+public sealed class PortalEmailSignal
+{
+    private readonly SemaphoreSlim signal = new(0, 1);
+    public void Notify()
+    {
+        try { signal.Release(); }
+        catch (SemaphoreFullException) { }
+    }
+    public Task<bool> WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) => signal.WaitAsync(timeout, cancellationToken);
+}
+
+public sealed class PortalEmailWorker(IServiceScopeFactory scopes, IOptions<PortalEmailOptions> settings, PortalEmailSignal signal,
     ILogger<PortalEmailWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!settings.Value.Enabled) return;
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(settings.Value.PollSeconds));
-        do
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 await using var scope = scopes.CreateAsyncScope();
-                await scope.ServiceProvider.GetRequiredService<PortalEmailDispatcher>().ProcessNextAsync(stoppingToken);
+                var dispatcher = scope.ServiceProvider.GetRequiredService<PortalEmailDispatcher>();
+                while (await dispatcher.ProcessNextAsync(stoppingToken)) { }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             catch (Exception exception)
             {
                 logger.LogError("Portal email worker could not process the queue ({ErrorType}).", exception.GetType().Name);
             }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
+            await signal.WaitAsync(TimeSpan.FromSeconds(settings.Value.PollSeconds), stoppingToken);
+        }
     }
 }

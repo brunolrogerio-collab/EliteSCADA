@@ -218,8 +218,16 @@ namespace Scadivo.Portal.Data.Migrations
                     b.Property<DateTimeOffset?>("NextAttemptAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("RecipientAddress")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("Reference")
                         .HasColumnType("text");
+
+                    b.Property<string>("ReplyToAddress")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<DateTimeOffset?>("SentAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -228,12 +236,14 @@ namespace Scadivo.Portal.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("TemplateDataJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("TemplateKey")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("UserId")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");

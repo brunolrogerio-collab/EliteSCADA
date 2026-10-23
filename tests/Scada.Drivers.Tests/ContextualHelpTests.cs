@@ -11,7 +11,7 @@ public sealed class ContextualHelpTests
     [Fact]
     public void RequiredManualTopics_ArePresentInEveryLocale()
     {
-        Assert.Equal(47, ContextualHelpCatalog.RequiredManualTopicIds.Count);
+        Assert.Equal(48, ContextualHelpCatalog.RequiredManualTopicIds.Count);
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {

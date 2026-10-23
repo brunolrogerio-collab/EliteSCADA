@@ -236,7 +236,7 @@ As chamadas de bridge são assíncronas. Use `async def` e `await`. A API não l
 
 Associe `on_click` ao evento Click e declare `Plant.Pump.DischargePressure` como dependência. Use a leitura somente quando a qualidade for `Good`; dado ausente ou quality diferente não é zero nem comprova normalidade.
 
-```python
+```client-visual-python
 from elite_scada import tag_read
 
 async def on_click(event):
@@ -249,7 +249,7 @@ async def on_click(event):
 
 Configure a referência `UI.LastPressure` no provider Client Memory do projeto. Esse valor é local ao Runtime cliente e pode desaparecer quando a sessão/cliente termina.
 
-```python
+```client-visual-python
 from elite_scada import tag_read, client_memory_write
 
 async def on_click(event):
@@ -262,7 +262,7 @@ async def on_click(event):
 
 Declare `on_pointer_enter` como handler `objectInteraction` e associe-o a `Pointer enters object` no painel Events.
 
-```python
+```client-visual-python
 async def on_pointer_enter(event):
     object_id = event["visualObjectId"]
     event_name = event["eventKey"]

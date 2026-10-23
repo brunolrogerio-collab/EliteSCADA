@@ -137,8 +137,10 @@ public sealed class PortalEmailDispatcher(
                 var body = Render(english ? template!.BodyEn : template!.BodyPt);
                 // Keep single-use invitation and confirmation links obvious, including on older editable templates.
                 if (item.TemplateKey is "account.invitation" or "account.confirmation" && !body.Contains("\n" + link, StringComparison.Ordinal)) body += "\n\n" + link;
+                var replyToSubmitter = item.TemplateKey == "contact.notification";
                 using var message = CreateMessage(settings.Value, item.Id, recipient!,
-                    Render(english ? template!.SubjectEn : template.SubjectPt), body, item.ReplyToAddress, english ? "en" : "pt-BR");
+                    Render(english ? template!.SubjectEn : template.SubjectPt), body,
+                    replyToSubmitter ? item.ReplyToAddress : null, english ? "en" : "pt-BR", replyToSubmitter);
                 await transport.SendAsync(message, cancellationToken);
                 item.Status = "sent";
                 item.SentAtUtc = DateTimeOffset.UtcNow;
@@ -170,23 +172,30 @@ public sealed class PortalEmailDispatcher(
     }
 
     public static MimeMessage CreateMessage(PortalEmailOptions settings, Guid id, string recipient, string subject,
-        string body, string? replyTo = null, string locale = "pt-BR")
+        string body, string? replyTo = null, string locale = "pt-BR", bool replyToSubmitter = false)
     {
         var safeSubject = subject.Replace('\r', ' ').Replace('\n', ' ');
-        var htmlBody = RenderHtml(safeSubject, body, locale);
+        var supportLink = locale == "en"
+            ? "https://scadivo.com/contact?area=support"
+            : "https://scadivo.com/contato?area=suporte";
+        var footerText = locale == "en"
+            ? "Please do not reply to this email. If you need help, visit our support page:"
+            : "Não responda a este e-mail. Se precisar de apoio, acesse nossa página de suporte:";
+        var plainBody = replyToSubmitter ? body : $"{body.TrimEnd()}\n\n{footerText}\n{supportLink}";
+        var htmlBody = RenderHtml(safeSubject, body, locale, supportLink, footerText, replyToSubmitter);
         var message = new MimeMessage
         {
             MessageId = $"{id:N}@scadivo.com",
             Subject = safeSubject,
             Body = new MultipartAlternative
             {
-                new TextPart("plain") { Text = body },
+                new TextPart("plain") { Text = plainBody },
                 new TextPart("html") { Text = htmlBody }
             }
         };
         message.From.Add(new MailboxAddress(settings.FromName, settings.FromAddress));
         message.To.Add(MailboxAddress.Parse(recipient));
-        message.ReplyTo.Add(MailboxAddress.Parse(replyTo ?? settings.ReplyToAddress));
+        if (!string.IsNullOrWhiteSpace(replyTo)) message.ReplyTo.Add(MailboxAddress.Parse(replyTo));
         return message;
     }
 
@@ -197,7 +206,8 @@ public sealed class PortalEmailDispatcher(
         item.ReplyToAddress = null;
     }
 
-    private static string RenderHtml(string subject, string body, string locale)
+    private static string RenderHtml(string subject, string body, string locale, string supportLink, string footerText,
+        bool replyToSubmitter)
     {
         static string Encode(string value) => HtmlEncoder.Default.Encode(value);
         string Format(string value)
@@ -213,11 +223,12 @@ public sealed class PortalEmailDispatcher(
         var paragraphs = string.Join("</p><p style=\"margin:0 0 16px\">", body.Replace("\r\n", "\n", StringComparison.Ordinal)
             .Split("\n\n", StringSplitOptions.None).Select(part => Format(part).Replace("\n", "<br>", StringComparison.Ordinal)));
         var language = locale == "en" ? "en" : "pt-BR";
-        var footer = locale == "en"
-            ? "Automated message from SCADIVO. Reply to this email if you need help."
-            : "Mensagem automática do SCADIVO. Se precisar de ajuda, responda a este e-mail.";
+        var supportLabel = locale == "en" ? "SCADIVO support" : "suporte SCADIVO";
+        var footer = replyToSubmitter
+            ? string.Empty
+            : $"{Encode(footerText)} <a href=\"{Encode(supportLink)}\" style=\"color:#087f7e;text-decoration:underline\">{Encode(supportLabel)}</a>.";
         var tagline = locale == "en" ? "SCADA & industrial automation at every scale" : "Supervisão e automação em qualquer escala";
-        return $"""<!doctype html><html lang="{language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:28px 12px;background:#edf2f5;font-family:Arial,Helvetica,sans-serif;color:#182635"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #d9e2e8;border-radius:12px;overflow:hidden"><tr><td style="padding:24px 30px;background:#101c2a;border-bottom:4px solid #21d0c3"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="width:38px;height:38px;text-align:center;vertical-align:middle;border-radius:10px;background:#14283a;color:#21d0c3;font-size:28px;font-weight:bold">S</td><td style="padding-left:12px;color:#f4f8fc;font-size:20px;font-weight:bold;letter-spacing:1px">SCADIVO<div style="margin-top:3px;color:#9fb2c5;font-size:10px;font-weight:normal;letter-spacing:1px">SCADA &amp; INDUSTRIAL AUTOMATION</div></td></tr></table></td></tr><tr><td style="padding:32px 30px 22px"><h1 style="margin:0 0 22px;color:#142436;font-size:23px;line-height:1.35">{Encode(subject)}</h1><div style="color:#33475b;font-size:15px;line-height:1.75"><p style="margin:0 0 16px">{paragraphs}</p></div></td></tr><tr><td style="padding:18px 30px;background:#f5f8fa;border-top:1px solid #e1e8ed;color:#738395;font-size:12px;line-height:1.6">{Encode(footer)}<br><span style="color:#0b8d86;font-weight:bold">SCADIVO</span> · {Encode(tagline)}</td></tr></table></body></html>""";
+        return $"""<!doctype html><html lang="{language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:28px 12px;background:#edf2f5;font-family:Arial,Helvetica,sans-serif;color:#182635"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #d9e2e8;border-radius:12px;overflow:hidden"><tr><td style="padding:24px 30px;background:#101c2a;border-bottom:4px solid #21d0c3"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="width:38px;height:38px;text-align:center;vertical-align:middle;border-radius:10px;background:#14283a;color:#21d0c3;font-size:28px;font-weight:bold">S</td><td style="padding-left:12px;color:#f4f8fc;font-size:20px;font-weight:bold;letter-spacing:1px">SCADIVO<div style="margin-top:3px;color:#9fb2c5;font-size:10px;font-weight:normal;letter-spacing:1px">SCADA &amp; INDUSTRIAL AUTOMATION</div></td></tr></table></td></tr><tr><td style="padding:32px 30px 22px"><h1 style="margin:0 0 22px;color:#142436;font-size:23px;line-height:1.35">{Encode(subject)}</h1><div style="color:#33475b;font-size:15px;line-height:1.75"><p style="margin:0 0 16px">{paragraphs}</p></div></td></tr><tr><td style="padding:18px 30px;background:#f5f8fa;border-top:1px solid #e1e8ed;color:#738395;font-size:12px;line-height:1.6">{footer}<br><span style="color:#0b8d86;font-weight:bold">SCADIVO</span> · {Encode(tagline)}</td></tr></table></body></html>""";
     }
 }
 

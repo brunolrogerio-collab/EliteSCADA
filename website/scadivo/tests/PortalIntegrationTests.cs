@@ -23,6 +23,24 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     private const string Password = "Scad1vo!";
 
     [Fact]
+    public void AutomaticEmailsDirectCustomersToSupportWithoutReplyingToNoReply()
+    {
+        var settings = new PortalEmailOptions();
+        using var portuguese = PortalEmailDispatcher.CreateMessage(settings, Guid.NewGuid(), "visitor@example.test",
+            "Confirme seu e-mail SCADIVO", "Olá, Bruno.");
+        Assert.Contains("Não responda a este e-mail.", portuguese.TextBody);
+        Assert.Contains("https://scadivo.com/contato?area=suporte", portuguese.TextBody);
+        Assert.Contains("href=\"https://scadivo.com/contato?area=suporte\"", portuguese.HtmlBody);
+        Assert.Empty(portuguese.ReplyTo);
+
+        using var staffNotification = PortalEmailDispatcher.CreateMessage(settings, Guid.NewGuid(), "support@scadivo.com",
+            "Novo contato", "Responda a este e-mail para falar com a pessoa.", "visitor@example.test", replyToSubmitter: true);
+        Assert.Equal("visitor@example.test", staffNotification.ReplyTo.Mailboxes.Single().Address);
+        Assert.DoesNotContain("Não responda a este e-mail", staffNotification.TextBody);
+        Assert.DoesNotContain("/contato?area=suporte", staffNotification.HtmlBody);
+    }
+
+    [Fact]
     public async Task CompletePilotEnforcesIdentityCsrfIsolationLockoutAndPersistence()
     {
         var root = Path.Combine(Path.GetTempPath(), "scadivo-portal-tests-" + Guid.NewGuid().ToString("N"));
@@ -195,13 +213,16 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             using var email = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Single())));
             Assert.Equal("Welcome Alex", email.Subject);
             Assert.Equal("noreply@scadivo.com", email.From.Mailboxes.Single().Address);
-            Assert.Equal("support@scadivo.com", email.ReplyTo.Mailboxes.Single().Address);
+            Assert.Empty(email.ReplyTo);
             Assert.Equal($"{queued.Id:N}@scadivo.com", email.MessageId);
             Assert.Contains("<table role=\"presentation\"", email.HtmlBody);
             Assert.Contains("lang=\"en\"", email.HtmlBody);
             var textBody = Assert.IsType<string>(email.TextBody);
+            Assert.Contains("Please do not reply to this email.", textBody);
+            Assert.Contains("https://scadivo.com/contact?area=support", textBody);
             var link = textBody.Split('\n').Select(x => x.Trim()).Single(x => x.StartsWith("https://localhost/portal/#invite=", StringComparison.Ordinal));
             Assert.Contains($"<a href=\"{link}\"", email.HtmlBody);
+            Assert.Contains("href=\"https://scadivo.com/contact?area=support\"", email.HtmlBody);
             var payload = Invitation(JsonSerializer.SerializeToElement(new { invitationUrl = link }));
             using var anonymous = Client(factory);
             var invited = new Session(anonymous, await Csrf(anonymous));
@@ -247,11 +268,15 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var staffNotice = Assert.Single(contactMessages, message => message.To.Mailboxes.Single().Address == "support@scadivo.com");
             Assert.Equal("visitor@example.test", staffNotice.ReplyTo.Mailboxes.Single().Address);
             Assert.Contains("Please review this example", staffNotice.TextBody);
+            Assert.DoesNotContain("Please do not reply to this email.", staffNotice.TextBody);
             Assert.Contains("&lt;script&gt;", staffNotice.HtmlBody);
             Assert.DoesNotContain("<script>", staffNotice.HtmlBody);
             var receipt = Assert.Single(contactMessages, message => message.To.Mailboxes.Single().Address == "visitor@example.test");
-            Assert.Equal("support@scadivo.com", receipt.ReplyTo.Mailboxes.Single().Address);
+            Assert.Empty(receipt.ReplyTo);
             Assert.Contains(reference, receipt.TextBody);
+            Assert.Contains("Please do not reply to this email.", receipt.TextBody);
+            Assert.Contains("https://scadivo.com/contact?area=support", receipt.TextBody);
+            Assert.Contains("href=\"https://scadivo.com/contact?area=support\"", receipt.HtmlBody);
             Assert.Contains("SCADIVO", receipt.HtmlBody);
             Assert.All(await db.EmailOutbox.Where(x => x.Reference == reference).ToListAsync(), item =>
             {
@@ -309,6 +334,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
             Assert.Equal(6, transport.Messages.Count);
             using var confirmationMessage = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Last())));
+            Assert.Empty(confirmationMessage.ReplyTo);
+            Assert.Contains("Please do not reply to this email.", confirmationMessage.TextBody);
+            Assert.Contains("https://scadivo.com/contact?area=support", confirmationMessage.TextBody);
+            Assert.Contains("href=\"https://scadivo.com/contact?area=support\"", confirmationMessage.HtmlBody);
             var confirmationUrl = Assert.IsType<string>(confirmationMessage.TextBody).Split('\n').Select(x => x.Trim())
                 .Single(x => x.StartsWith("https://localhost/portal/#confirm-email=", StringComparison.Ordinal));
             using var confirmationPayload = Confirmation(confirmationUrl);

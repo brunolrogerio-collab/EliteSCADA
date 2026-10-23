@@ -523,6 +523,9 @@ async function start() {
       feedback(tr('O pedido de entrada na comunidade é inválido. Abra novamente o link do fórum.', 'This community sign-in request is invalid. Open the forum link again.'), true);
     }
     history.replaceState(null, '', '/portal/');
+  } else if (fragment === 'community-logout') {
+    state.communitySso = null;
+    try { sessionStorage.removeItem(communitySsoStorageKey); } catch { /* Prevent a stale SSO request from resuming after logout. */ }
   } else if (fragment.startsWith('invite=')) {
     try {
       const encoded = fragment.slice(7).replaceAll('-', '+').replaceAll('_', '/');
@@ -550,7 +553,8 @@ async function start() {
   } else if (fragment === 'forgot-password') state.recover = true;
   else if (fragment === 'register') state.register = true;
   else if (labels()[fragment]) state.tab = fragment;
-  if (!state.communitySso) {
+  const communityLogoutRequested = fragment === 'community-logout';
+  if (!state.communitySso && !communityLogoutRequested) {
     try {
       const saved = sessionStorage.getItem(communitySsoStorageKey);
       if (saved) {
@@ -561,6 +565,21 @@ async function start() {
       }
     } catch { try { sessionStorage.removeItem(communitySsoStorageKey); } catch { /* Ignore unavailable storage. */ } }
   }
-  try { await session(); if (continueCommunitySso()) return; render(); } catch { app.replaceChildren(panel(tr('Portal indisponível', 'Portal unavailable'), p(tr('Não foi possível conectar. Aguarde um momento e tente novamente.', 'Unable to connect. Please wait a moment and try again.')), button(tr('Tentar novamente', 'Try again'), start))); }
+  try {
+    await session();
+    if (communityLogoutRequested) {
+      if (state.session?.authenticated) await api('/auth/logout', 'POST', {});
+      await session();
+      history.replaceState(null, '', '/portal/');
+      state.tab = 'home';
+      render();
+      feedback(tr('Sessão do portal encerrada. Para acessar a comunidade novamente, entre pelo fórum.', 'Portal session ended. To access the community again, sign in from the forum.', 'La sesión del portal se cerró. Para volver a la comunidad, inicia sesión desde el foro.'));
+      return;
+    }
+    if (continueCommunitySso()) return;
+    render();
+  } catch {
+    app.replaceChildren(panel(tr('Portal indisponível', 'Portal unavailable'), p(tr('Não foi possível conectar. Aguarde um momento e tente novamente.', 'Unable to connect. Please wait a moment and try again.')), button(tr('Tentar novamente', 'Try again'), start)));
+  }
 }
 start();

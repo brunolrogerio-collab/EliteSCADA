@@ -29,7 +29,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
         using var portuguese = PortalEmailDispatcher.CreateMessage(settings, Guid.NewGuid(), "visitor@example.test",
             "Confirme seu e-mail SCADIVO", "Olá, Bruno.");
         Assert.Contains("Não responda a este e-mail.", portuguese.TextBody);
+        Assert.Equal(1, portuguese.TextBody!.Split("Não responda a este e-mail.", StringSplitOptions.None).Length - 1);
         Assert.Contains("https://scadivo.com/contato?area=suporte", portuguese.TextBody);
+        var decodedHtml = WebUtility.HtmlDecode(portuguese.HtmlBody!);
+        Assert.Equal(1, decodedHtml.Split("Não responda a este e-mail.", StringSplitOptions.None).Length - 1);
         Assert.Contains("href=\"https://scadivo.com/contato?area=suporte\"", portuguese.HtmlBody);
         Assert.Empty(portuguese.ReplyTo);
 

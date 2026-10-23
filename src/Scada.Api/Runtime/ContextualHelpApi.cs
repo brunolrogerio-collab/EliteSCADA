@@ -702,8 +702,8 @@ public static class ContextualHelpCatalog
             S(Tx("Erros comuns", "Common errors", "Errores comunes"), Tx(
                 "ImportError: confira nome do módulo/função e se a API é do Client Visual. Erro de TAG não declarada: adicione a dependência estável ao Script e valide novamente. Falha ao escrever: confira se TAG aceita escrita e se a sessão possui capacidade. Handler ausente: confira o nome exato no entry point e no Events. Evite loops longos e espera ativa; cada execução tem limite de tempo e falhas são isoladas do restante do Runtime.",
                 "ImportError: check the module/function name and that the API belongs to Client Visual. Undeclared TAG error: add the stable dependency to the Script and validate again. Write failure: check TAG writability and session capability. Missing handler: verify the exact name in the entry point and Events. Avoid long loops and busy waits; each execution is time-bounded and failures are isolated from the rest of Runtime.",
-                "ImportError: compruebe el módulo/función y que la API sea de Client Visual. Error de TAG no declarado: agregue la dependencia estable al Script y valide de nuevo. Fallo de escritura: compruebe escritura TAG y capacidad de sesión. Handler ausente: verifique el nombre exacto en entry point y Events. Evite bucles largos y espera activa; cada ejecución tiene límite de tiempo y los fallos se aíslan del resto de Runtime.")),
-            "scripts.engineering", "scripts.python-validation", "scripts.server", "visual.events"),
+                "ImportError: compruebe el módulo/función y que la API sea de Client Visual. Error de TAG no declarado: agregue la dependencia estable al Script y valide de nuevo. Fallo de escritura: compruebe escritura TAG y capacidad de sesión. Handler ausente: verifique el nombre exacto en entry point y Events. Evite bucles largos y espera activa; cada ejecución tiene límite de tiempo y los fallos se aíslan del resto de Runtime."))
+            ),
 
         TaskGuide(
             "scripts.python-validation", "scripts",

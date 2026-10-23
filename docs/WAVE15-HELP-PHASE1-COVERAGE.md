@@ -68,7 +68,7 @@ No second Help system or external documentation dependency was added.
 
 ## Deterministic gates
 
-The alarm task guide records the current activation-delay limitation in all three locales. Source review at `b04eb9c118220bf47f117acc0e88a7d1a929863a` found that Engineering persists `ActivationDelay`, while `InMemoryAlarmEngine` does not consume it. Product correction is tracked separately in #751; this Help slice does not change alarm Runtime behavior.
+The alarm task guide records current activation-delay and acknowledgement-option limitations in all three locales. Source review and local reproductions at `b04eb9c118220bf47f117acc0e88a7d1a929863a` confirmed that Engineering persists `ActivationDelay` and `RequiresAcknowledgement`, while `InMemoryAlarmEngine` does not consume them. A 10-second delay activated immediately, and a returned alarm configured with `RequiresAcknowledgement=false` remained pending in the active list. Product corrections are tracked separately in #751 and #753; this Help slice does not change alarm Runtime behavior.
 
 PR validation profile: `DOCS_I18N_HELP`.
 

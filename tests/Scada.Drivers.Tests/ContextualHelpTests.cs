@@ -281,6 +281,12 @@ public sealed class ContextualHelpTests
                 "es" => "Runtime actual no lo usa",
                 _ => "Runtime atual não o usa"
             }, alarmText, StringComparison.Ordinal);
+            Assert.Contains(locale switch
+            {
+                "en" => "Clearing Requires acknowledgement also does not yet remove the ACK requirement",
+                "es" => "Desmarcar Requiere reconocimiento tampoco elimina todavía el requisito de ACK",
+                _ => "Desmarcar Requer reconhecimento também ainda não dispensa o ACK"
+            }, alarmText, StringComparison.Ordinal);
             Assert.Contains("emit_operational_event", eventText, StringComparison.Ordinal);
             Assert.Contains("operational.events", eventText, StringComparison.Ordinal);
             Assert.Contains("SystemAdmin", auditText, StringComparison.Ordinal);

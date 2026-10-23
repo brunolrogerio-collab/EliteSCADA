@@ -21,14 +21,18 @@
     min-height: 98px;
     padding-block: 9px;
     gap: 8px;
+    flex-wrap: wrap;
   }
 
   .site-header .brand {
     flex: 0 0 100%;
+    min-width: 0;
   }
 
   .site-header .header-actions {
     width: 100%;
+    flex: 0 0 100%;
+    min-width: 0;
     justify-content: space-between;
   }
 

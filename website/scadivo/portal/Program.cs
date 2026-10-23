@@ -41,7 +41,7 @@ builder.Services.Configure<DataProtectionTokenProviderOptions>(options => option
 builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(5));
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.Cookie.Name = "__Secure-scadivo.portal";
+    options.Cookie.Name = builder.Environment.IsDevelopment() ? "scadivo.portal.dev" : "__Secure-scadivo.portal";
     options.Cookie.Path = "/portal";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
@@ -55,7 +55,7 @@ builder.Services.AddAuthorization(options => options.AddPolicy("Owner", policy =
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";
-    options.Cookie.Name = "__Secure-scadivo.portal.csrf";
+    options.Cookie.Name = builder.Environment.IsDevelopment() ? "scadivo.portal.csrf.dev" : "__Secure-scadivo.portal.csrf";
     options.Cookie.Path = "/portal";
     options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Strict;

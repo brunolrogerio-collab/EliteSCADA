@@ -7,7 +7,7 @@ Esta pasta contém somente a configuração da prova de conceito local do Discou
 - O fórum é executado pelo launcher oficial `discourse_docker` em Docker Desktop. Copie `scadivopoc.yml` para `containers/scadivopoc.yml` no checkout temporário do launcher e use o nome `scadivopoc` no bootstrap.
 - A porta HTTP do fórum (`18085`) e a porta HTTPS do Caddy (`443`) ficam vinculadas a `127.0.0.1`.
 - O endereço `https://localhost` usa certificado interno de homologação; não é um certificado público.
-- `portal-compose.override.yml` deve ser usado somente junto de `deploy/compose.homolog.yml`. Ele habilita SSO apenas na API de homologação já existente.
+- `portal-compose.override.yml` deve ser usado somente junto de `deploy/compose.homolog.yml`. Ele habilita SSO apenas na API de homologação já existente. Em Development, os cookies de sessão/anti-CSRF usam nomes próprios sem o prefixo `__Secure-` para funcionar no HTTP loopback; nos demais ambientes, mantêm prefixo e flag `Secure`. Isso não altera a configuração de produção.
 - Banco, uploads, logs e chave SSO ficam em volumes Docker locais separados. Nenhuma chave deve ser gravada nos arquivos desta pasta, no Git ou em variáveis de produção.
 
 ## Configuração necessária
@@ -18,8 +18,8 @@ No Discourse de homologação, use `https://localhost` como endereço público, 
 
 ## Estado e validação desta prova de conceito
 
-Em 23/10/2026, a instância local concluiu o fluxo com uma conta sintética `example.test`: cadastro, confirmação capturada pelo Mailpit, abertura direta de `/session/sso`, redirecionamento ao login do portal, autenticação e retorno ao fórum. Uma segunda entrada pelo link do fórum manteve a mesma conta. A conta foi criada com alias pseudônimo, idioma português, nível de confiança inicial e sem papel de administrador/moderador. O portal agora processa o retorno `#community-logout` para encerrar a sessão no sentido fórum → portal e elimina um desafio SSO pendente, evitando que a volta ao portal recomece o login automaticamente. Configure o `logout redirect` da instância local conforme acima para validar o caminho completo.
+Em 23/10/2026, a instância local concluiu o fluxo com uma conta sintética `example.test`: cadastro, confirmação capturada pelo Mailpit, abertura direta de `/session/sso`, redirecionamento ao login do portal, autenticação e retorno ao fórum. Uma segunda entrada pelo link do fórum manteve a mesma conta. A conta foi criada com alias pseudônimo, idioma português, nível de confiança inicial e sem papel de administrador/moderador. O `logout redirect` foi configurado na instância local. O retorno `#community-logout` foi validado no navegador integrado: encerra a sessão do portal, remove o desafio SSO pendente e apresenta o login do portal, sem recomeçar a autenticação automaticamente.
 
-O certificado local foi aceito somente pelo cliente de teste em chamadas para `localhost`; isso não valida nem autoriza ignorar avisos de certificado em outros endereços. Os testes restantes para produção incluem logout e reentrada após logout, conta suspensa/desativada, falhas e recuperação, além de backup/restauração, moderação, privacidade, monitoramento e roteamento público.
+A validação visual completa do fórum → portal → fórum após logout continua pendente: o Discourse local usa um certificado interno não confiável pelo navegador integrado. Nenhum aviso de segurança foi ignorado. Os testes restantes para produção incluem o ciclo de logout/reentrada no fórum, conta suspensa/desativada, falhas e recuperação, além de backup/restauração, moderação, privacidade, monitoramento e roteamento público.
 
 Não usar esta configuração como Compose de produção nem abrir o fórum publicamente com base apenas nesta prova de autenticação.

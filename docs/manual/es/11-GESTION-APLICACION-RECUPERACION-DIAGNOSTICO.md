@@ -1,0 +1,139 @@
+# Gestión de aplicaciones, recuperación y diagnóstico
+
+## Exportar .escadapkg
+
+`.escadapkg` es portabilidad autocontenida de la aplicación. No es un backup de Authority, licencia ni base de datos/histórico.
+
+Inspect examina el contenido/metadatos sin mutación. Preview muestra el resultado esperado. Apply incorpora el contenido validado en Engineering; Apply no es Activate.
+
+**Ayuda relacionada:** `/help?topic=packages.escadapkg`.
+
+## Importar
+
+### Procedimiento: importar una aplicación de forma segura
+
+**Objetivo:** incorporar un paquete validado en Engineering sin omitir el lifecycle.
+
+**Requisitos previos:** un paquete compatible y una sesión autorizada.
+
+**Pasos:**
+1. Seleccione el `.escadapkg`.
+2. Ejecute Inspect cuando esté disponible.
+3. Ejecute Preview.
+4. Corrija los issues informados.
+5. Ejecute Apply solamente para el candidato validado.
+6. Guarde la aplicación resultante.
+7. Publique y active por separado cuando corresponda.
+
+**Resultado esperado:** Working recibe el contenido importado; Published/Active no cambian implícitamente.
+
+**Diagnóstico:** si Working cambió después de Preview, vuelva a ejecutar la validación antes de Apply.
+
+## Bibliotecas reutilizables
+
+`.escadalib` es diferente de `.escadapkg`.
+
+Asociar una Library hace que los recursos compatibles estén disponibles en el catálogo, pero no cambia Working por sí solo. Usar un recurso incorpora el elemento seleccionado y su cierre validado de dependencias; el contenido pasa a pertenecer al proyecto.
+
+Desasociar elimina la disponibilidad en el catálogo y no borra el contenido ya incorporado. Runtime y Active no dependen de un archivo `.escadalib` externo.
+
+**Ayuda relacionada:** `/help?topic=libraries.reusable-resources`.
+
+## Backup de Authority
+
+El backup de Authority conserva las identidades locales y asignaciones admitidas en un sobre protegido. No incluye contraseñas en texto plano, tokens, cookies, sesiones, licencia, aplicación ni datos de Historian.
+
+La contraseña del backup de Authority es exclusiva de ese artefacto y no sirve para iniciar sesión ni como contraseña de Engineering Lock.
+
+## Restore-first
+
+Una instalación realmente vacía ofrece Restore backup antes de exigir la creación de un usuario/proyecto desechable.
+
+La recuperación conserva autoridades separadas:
+
+1. aplicación (`.escadapkg`);
+2. Security Authority;
+3. database/Historian;
+4. Licensing como preocupación opcional e independiente.
+
+### Procedimiento: recuperación completa en una instalación vacía
+
+**Objetivo:** restaurar Authority y la aplicación sin crear una identidad/proyecto provisional.
+
+**Requisitos previos:** instalación comprobada como vacía; backup de Authority y contraseña; `.escadapkg`; licencia opcional.
+
+**Pasos de alto nivel comprobados por el contrato:**
+1. seleccione los artefactos;
+2. ejecute Inspect/Preview en todas las entradas antes de la mutación;
+3. vuelva a validar que la instalación está vacía;
+4. restaure Authority de forma atómica;
+5. aplique el paquete validado a Working;
+6. guarde la revisión raíz;
+7. publique;
+8. confirme que la project key configurada para Runtime corresponde a la aplicación restaurada;
+9. active mediante la operación normal;
+10. instale la licencia opcional a través del servicio de Licensing;
+11. valide las invariantes finales.
+
+**Resultado esperado:** existe una Authority utilizable, la aplicación está guardada/publicada/Active y Runtime es coherente con la revisión Active.
+
+**Importante:** la recuperación de database/Historian es una autoridad independiente y su estado debe conocerse de forma explícita.
+
+## Application detach / instalación neutral / cambio A -> B -> A
+
+La estructura de estos procedimientos está reservada en el índice, pero los pasos finales dependen de que se cierre la experiencia de instalación y cambio. No use instrucciones antiguas ni operaciones manuales del store como sustituto.
+
+## Flujo de diagnóstico
+
+Use este mismo orden antes de crear una solución provisional:
+
+1. reproduzca el problema;
+2. identifique la autoridad/capa que debería proporcionar el estado;
+3. compare el backend y la UI;
+4. valide identidad/capabilities;
+5. valide lifecycle/Active;
+6. para datos, valide Data Source -> Driver -> binding -> quality/timestamp;
+7. para el histórico, valide la ingestión antes de la presentación;
+8. para Scripts, valide la referencia, sandbox, timeout y aislamiento de fallos;
+9. para Licensing, distinga Demo, Valid e Invalid;
+10. para la recuperación, identifique la etapa que falló y no declare un éxito parcial como éxito completo.
+
+### Inicio
+
+Confirme el estado del backend y la disponibilidad de la UI. En una instalación vacía, distinga la creación de una instalación nueva de Restore-first.
+
+### Inicio de sesión
+
+Un fallo de inicio de sesión debe tratarse en Authority. Engineering Lock y la licencia no son credenciales de acceso.
+
+### Comunicación del Driver
+
+Use solamente las capabilities declaradas por el Driver y verifique la configuración, endpoint, conexión, binding y diagnósticos.
+
+### Quality del TAG
+
+No fuerce Good. Corrija el origen del estado de quality.
+
+### Runtime
+
+Confirme la revisión Active, el entitlement y la autoridad de la sesión.
+
+### Scripts
+
+Verifique las dependencias declaradas, la API pública, sandbox y los diagnósticos de la instancia.
+
+### Licensing
+
+- licencia ausente: Demo;
+- licencia válida: entitlement del tier;
+- licencia presente pero inválida: Run bloqueado.
+
+### Authority
+
+No restaure tokens/sesiones. Después de la restauración, las identidades restauradas se autentican mediante el mecanismo normal.
+
+### Importar/Restaurar
+
+Preview es obligatorio antes de Apply cuando el flujo lo ofrece. Apply no reemplaza Save/Publish/Activate.
+
+**Ayuda relacionada:** `/help?topic=recovery.backup-system-recovery`, `/help?topic=troubleshooting.overview`, `/help?topic=diagnostics.overview`.

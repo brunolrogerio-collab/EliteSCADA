@@ -47,6 +47,33 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void AutomaticEmailLayoutKeepsLongAccountLinksReadableAndConstrained()
+    {
+        var settings = new PortalEmailOptions();
+        var resetLink = "https://scadivo.com/portal/#reset-password=" + new string('a', 220);
+        using var reset = PortalEmailDispatcher.CreateMessage(settings, Guid.NewGuid(), "visitor@example.test",
+            "Recuperação de acesso SCADIVO", $"Olá. Para redefinir sua senha, acesse:\n{resetLink}", locale: "pt-BR");
+        using var confirmation = PortalEmailDispatcher.CreateMessage(settings, Guid.NewGuid(), "visitor@example.test",
+            "Confirm your SCADIVO email", $"Confirm your email using this link:\n{resetLink}", locale: "en");
+
+        Assert.Contains(resetLink, reset.TextBody);
+        Assert.Contains($"href=\"{resetLink}\"", reset.HtmlBody);
+        Assert.DoesNotContain($">{resetLink}</a>", reset.HtmlBody);
+        Assert.Contains("Redefinir minha senha", reset.HtmlBody);
+        Assert.Contains("Confirm my email", confirmation.HtmlBody);
+        Assert.Contains("width=\"640\" cellspacing=\"0\" cellpadding=\"0\" style=\"width:100%;max-width:640px", reset.HtmlBody);
+        Assert.Contains("width=\"640\" cellspacing=\"0\" cellpadding=\"0\" style=\"width:100%;max-width:640px", confirmation.HtmlBody);
+
+        using var spanish = PortalEmailDispatcher.CreateMessage(settings, Guid.NewGuid(), "visitante@example.test",
+            "Recuperación de acceso a SCADIVO", $"Hola. Restablece tu contraseña aquí:\n{resetLink}", locale: "es");
+        Assert.Contains("No respondas a este correo electrónico.", spanish.TextBody);
+        Assert.Contains("https://scadivo.com/contact?area=support&amp;lang=es", spanish.HtmlBody);
+        Assert.Contains("Restablecer mi contraseña", WebUtility.HtmlDecode(spanish.HtmlBody));
+        Assert.Contains("SCADA Y AUTOMATIZACIÓN INDUSTRIAL", WebUtility.HtmlDecode(spanish.HtmlBody));
+        Assert.Contains("lang=\"es\"", spanish.HtmlBody);
+    }
+
+    [Fact]
     public async Task CompletePilotEnforcesIdentityCsrfIsolationLockoutAndPersistence()
     {
         var root = Path.Combine(Path.GetTempPath(), "scadivo-portal-tests-" + Guid.NewGuid().ToString("N"));
@@ -87,6 +114,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 var payload = Invitation(invitation);
                 var invited = new Session(anonymous, await Csrf(anonymous));
                 await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password,
+                    locale = "es",
                     profileType = "professional", activityArea = "industrial-automation", activityAreaOther = (string?)null,
                     organizationOrSchool = "Example Integration", phoneNumber = (string?)null, address = (string?)null,
                     dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false });
@@ -94,10 +122,13 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 var member = await Login(factory, "member-" + marker);
                 Assert.Equal(HttpStatusCode.Forbidden, (await member.Client.GetAsync("api/admin/accounts")).StatusCode);
                 Assert.False((await member.Get("/profile")).GetProperty("owner").GetBoolean());
+                Assert.Equal("es", (await member.Get("/profile")).GetProperty("locale").GetString());
                 await member.Send("/profile", HttpMethod.Put, new { displayName = "Alex · atualizado", locale = "en" });
                 Assert.Equal("Alex · atualizado", (await member.Get("/profile")).GetProperty("displayName").GetString());
                 var faq = await member.Get("/faq?q=200&lang=en");
                 Assert.Contains(faq.EnumerateArray(), article => article.GetProperty("title").GetString()!.Contains("200"));
+                var faqSpanish = await member.Get("/faq?q=200&lang=es");
+                Assert.Contains(faqSpanish.EnumerateArray(), article => article.GetProperty("title").GetString()!.Contains("200"));
                 Assert.Equal(0, (await member.Get("/downloads")).GetArrayLength());
                 var ticket = await member.Send("/support", HttpMethod.Post, new { subject = "Test " + marker, category = "technical", body = "<script>alert('xss')</script> textual support example" });
                 ticketId = ticket.GetProperty("id").GetGuid();
@@ -105,6 +136,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 var otherInvite = await owner.Send("/admin/invitations", HttpMethod.Post, new { username = "other-" + marker, displayName = "Taylor" });
                 var otherPayload = Invitation(otherInvite);
                 await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { otherPayload.UserId, otherPayload.Token, password = Password,
+                    locale = "pt-BR",
                     profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
                     organizationOrSchool = "Example School", phoneNumber = (string?)null, address = (string?)null,
                     dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false });
@@ -119,9 +151,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 var template = (await owner.Get("/admin/templates"))[0];
                 await owner.Send("/admin/templates/" + template.GetProperty("key").GetString(), HttpMethod.Put, new
                 {
-                    subjectPt = "Olá {{name}}", subjectEn = "Hello {{name}}", bodyPt = "Referência {{reference}}", bodyEn = "Reference {{reference}}"
+                    subjectPt = "Olá {{name}}", subjectEn = "Hello {{name}}", subjectEs = "Hola {{name}}",
+                    bodyPt = "Referência {{reference}}", bodyEn = "Reference {{reference}}", bodyEs = "Referencia {{reference}}"
                 });
-                var article = await owner.Send("/admin/faq", HttpMethod.Post, new { slug = "qa-" + marker, category = "test", titlePt = "Pergunta teste", titleEn = "Test question", bodyPt = "Resposta teste", bodyEn = "Test answer", published = true });
+                var article = await owner.Send("/admin/faq", HttpMethod.Post, new { slug = "qa-" + marker, category = "test", titlePt = "Pergunta teste", titleEn = "Test question", titleEs = "Pregunta de prueba", bodyPt = "Resposta teste", bodyEn = "Test answer", bodyEs = "Respuesta de prueba", published = true });
                 Assert.Equal("qa-" + marker, article.GetProperty("slug").GetString());
                 Assert.False((await owner.Get("/admin/overview")).GetProperty("licenseIntegrationEnabled").GetBoolean());
                 Assert.Contains((await owner.Get("/admin/audit")).EnumerateArray(), entry => entry.GetProperty("action").GetString() == "support.replied");
@@ -229,14 +262,15 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Contains("lang=\"en\"", email.HtmlBody);
             var textBody = Assert.IsType<string>(email.TextBody);
             Assert.Contains("Please do not reply to this email.", textBody);
-            Assert.Contains("https://scadivo.com/contact?area=support", textBody);
-            var link = textBody.Split('\n').Select(x => x.Trim()).Single(x => x.StartsWith("https://localhost/portal/#invite=", StringComparison.Ordinal));
+            Assert.Contains("https://scadivo.com/contact?area=support&lang=en", textBody);
+            var link = textBody.Split('\n').Select(x => x.Trim()).Single(x => x.StartsWith("https://localhost/portal/?lang=en#invite=", StringComparison.Ordinal));
             Assert.Contains($"<a href=\"{link}\"", email.HtmlBody);
-            Assert.Contains("href=\"https://scadivo.com/contact?area=support\"", email.HtmlBody);
+            Assert.Contains("href=\"https://scadivo.com/contact?area=support&amp;lang=en\"", email.HtmlBody);
             var payload = Invitation(JsonSerializer.SerializeToElement(new { invitationUrl = link }));
             using var anonymous = Client(factory);
             var invited = new Session(anonymous, await Csrf(anonymous));
             await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password,
+                locale = "en",
                 profileType = "professional", activityArea = "industrial-automation", activityAreaOther = (string?)null,
                 organizationOrSchool = "Email Test Integration", phoneNumber = (string?)null, address = (string?)null,
                 dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false });
@@ -285,8 +319,8 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Empty(receipt.ReplyTo);
             Assert.Contains(reference, receipt.TextBody);
             Assert.Contains("Please do not reply to this email.", receipt.TextBody);
-            Assert.Contains("https://scadivo.com/contact?area=support", receipt.TextBody);
-            Assert.Contains("href=\"https://scadivo.com/contact?area=support\"", receipt.HtmlBody);
+            Assert.Contains("https://scadivo.com/contact?area=support&lang=en", receipt.TextBody);
+            Assert.Contains("href=\"https://scadivo.com/contact?area=support&amp;lang=en\"", receipt.HtmlBody);
             Assert.Contains("SCADIVO", receipt.HtmlBody);
             Assert.All(await db.EmailOutbox.Where(x => x.Reference == reference).ToListAsync(), item =>
             {
@@ -313,6 +347,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             using (var missingProfileResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
                 displayName = "New Portal User", email = registrationEmail, password = Password,
+                locale = "es",
                 profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
                 organizationOrSchool = (string?)null, phoneNumber = (string?)null, address = (string?)null,
                 dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
@@ -324,6 +359,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             using (var shortPasswordResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
                 displayName = "New Portal User", email = registrationEmail, password = "Scad1vo",
+                locale = "es",
                 profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
                 organizationOrSchool = "Technical University", phoneNumber = (string?)null, address = (string?)null,
                 dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
@@ -337,6 +373,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             using var registrationResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
                 displayName = "New Portal User", email = registrationEmail, password = Password,
+                locale = "es",
                 profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
                 organizationOrSchool = "Technical University", phoneNumber = (string?)null, address = (string?)null,
                 dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
@@ -347,8 +384,8 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.False(pendingAccount.InvitationAccepted);
             Assert.False(pendingAccount.MarketingEmailOptIn);
             Assert.Null(pendingAccount.DateOfBirth); // Optional birth date does not block registration.
-            pendingAccount.Locale = "en";
             await db.SaveChangesAsync();
+            Assert.Equal("es", pendingAccount.Locale);
             var pendingConfirmation = await db.EmailOutbox.SingleAsync(x => x.UserId == pendingAccount.Id && x.TemplateKey == "account.confirmation");
             Assert.Null(pendingConfirmation.TemplateDataJson); // The one-time token is generated only during delivery.
             using (var blockedLogin = await registrationSession.Raw("/auth/login", HttpMethod.Post, new { username = registrationEmail, password = Password }))
@@ -363,11 +400,12 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal(6, transport.Messages.Count);
             using var confirmationMessage = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Last())));
             Assert.Empty(confirmationMessage.ReplyTo);
-            Assert.Contains("Please do not reply to this email.", confirmationMessage.TextBody);
-            Assert.Contains("https://scadivo.com/contact?area=support", confirmationMessage.TextBody);
-            Assert.Contains("href=\"https://scadivo.com/contact?area=support\"", confirmationMessage.HtmlBody);
+            Assert.Contains("No respondas a este correo electrónico.", confirmationMessage.TextBody);
+            Assert.Contains("https://scadivo.com/contact?area=support&lang=es", confirmationMessage.TextBody);
+            Assert.Contains("href=\"https://scadivo.com/contact?area=support&amp;lang=es\"", confirmationMessage.HtmlBody);
             var confirmationUrl = Assert.IsType<string>(confirmationMessage.TextBody).Split('\n').Select(x => x.Trim())
-                .Single(x => x.StartsWith("https://localhost/portal/#confirm-email=", StringComparison.Ordinal));
+                .Single(x => x.StartsWith("https://localhost/portal/?lang=es#confirm-email=", StringComparison.Ordinal));
+            Assert.Equal("es", QueryHelpers.ParseQuery(new Uri(confirmationUrl).Query)["lang"]);
             using var confirmationPayload = Confirmation(confirmationUrl);
             using var confirmationClient = Client(factory);
             var confirmationSession = new Session(confirmationClient, await Csrf(confirmationClient));
@@ -405,10 +443,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             using var resetMessage = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Last())));
             Assert.Equal("noreply@scadivo.com", resetMessage.From.Mailboxes.Single().Address);
             Assert.Empty(resetMessage.ReplyTo);
-            Assert.Contains("Please do not reply to this email.", resetMessage.TextBody);
-            Assert.Contains("expires in 24 hours", resetMessage.TextBody);
-            Assert.Contains("https://scadivo.com/contact?area=support", resetMessage.TextBody);
-            var resetMarker = "https://localhost/portal/#reset-password=";
+            Assert.Contains("No respondas a este correo electrónico.", resetMessage.TextBody);
+            Assert.Contains("caduca en 24 horas", resetMessage.TextBody);
+            Assert.Contains("https://scadivo.com/contact?area=support&lang=es", resetMessage.TextBody);
+            var resetMarker = "https://localhost/portal/?lang=es#reset-password=";
             var resetLine = Assert.IsType<string>(resetMessage.TextBody).Split('\n').Select(x => x.Trim())
                 .Single(x => x.Contains(resetMarker, StringComparison.Ordinal));
             var resetStart = resetLine.IndexOf(resetMarker, StringComparison.Ordinal);
@@ -444,7 +482,9 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             if (Failures-- > 0) throw new IOException("Transient SMTP test failure.");
             Entered?.TrySetResult();
             if (Release is not null) await Release.Task.WaitAsync(cancellationToken);
-            Messages.Add(message.ToString());
+            using var serialized = new MemoryStream();
+            await message.WriteToAsync(serialized, cancellationToken);
+            Messages.Add(Encoding.UTF8.GetString(serialized.ToArray()));
         }
     }
 

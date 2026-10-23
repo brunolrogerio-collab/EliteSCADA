@@ -1,11 +1,109 @@
 'use strict';
 
 const state = { session: null, lang: 'pt-BR', tab: 'home', adminTab: 'accounts', invite: null, confirmEmail: null, resetPassword: null, recover: false, register: false, pendingEmail: '', version: 0 };
-try { state.lang = localStorage.getItem('scadivo.portal.lang') === 'en' ? 'en' : 'pt-BR'; } catch { /* Storage may be disabled. */ }
+try {
+  const requested = new URLSearchParams(location.search).get('lang');
+  const remembered = localStorage.getItem('scadivo.portal.lang') || localStorage.getItem('scadivo-site-language');
+  const preferred = ['en', 'es'].includes(requested) ? requested : remembered;
+  state.lang = ['en', 'es'].includes(preferred) ? preferred : 'pt-BR';
+} catch { /* Portuguese remains the default when storage is unavailable. */ }
 const app = document.querySelector('#app');
-const tr = (pt, en) => state.lang === 'en' ? en : pt;
-const date = value => new Date(value).toLocaleString(state.lang === 'en' ? 'en-US' : 'pt-BR');
-const labels = () => ({ home: tr('Visão geral', 'Overview'), profile: tr('Minha conta', 'My account'), support: tr('Suporte', 'Support'), downloads: 'Downloads', faq: 'FAQ', community: tr('Comunidade', 'Community'), licenses: tr('Licenças', 'Licenses'), admin: tr('Administração', 'Administration') });
+const spanish = {
+  '← Voltar': '← Volver', 'a página de suporte SCADIVO': 'la página de soporte de SCADIVO',
+  'A publicação de tópicos será liberada após a configuração das regras, moderação e recuperação de conta.': 'La publicación de temas se habilitará cuando estén configuradas las reglas, la moderación y la recuperación de cuentas.',
+  'A senha precisa ter ao menos 8 caracteres, incluindo maiúscula, minúscula e número.': 'La contraseña debe tener al menos 8 caracteres e incluir una mayúscula, una minúscula y un número.',
+  'A sessão mudou. Atualize a página e tente novamente.': 'La sesión cambió. Actualiza la página e inténtalo de nuevo.', 'Aberto': 'Abierto', 'Abrir chamado': 'Crear solicitud', 'Ação': 'Acción', 'Acessar →': 'Abrir →',
+  'Acesso reservado à administração.': 'Acceso reservado a la administración.', 'Acompanhe suas conversas com a equipe.': 'Consulta tus conversaciones con el equipo.', 'Administração': 'Administración',
+  'Água, saneamento e energia': 'Agua, saneamiento y energía', 'Aguardando ativação': 'Pendiente de activación', 'Ainda não informado': 'Aún no indicado',
+  'Alterar senha': 'Cambiar contraseña', 'Aplicações residenciais': 'Aplicaciones residenciales', 'Área de atuação': 'Área de actividad', 'ÁREA DO CLIENTE · PILOTO': 'ÁREA DE CLIENTES · PILOTO',
+  'Artigo': 'Artículo', 'Artigo salvo.': 'Artículo guardado.', 'As senhas não coincidem.': 'Las contraseñas no coinciden.', 'Assunto': 'Asunto', 'Ativa': 'Activa',
+  'Ativar minha conta': 'Activar mi cuenta', 'Atualizar estado': 'Actualizar estado', 'Atualizar senha': 'Actualizar contraseña', 'Auditoria': 'Auditoría',
+  'Automação industrial e processos': 'Automatización industrial y procesos', 'Autônomo/independente': 'Autónomo/independiente', 'Bem-vindo ao SCADIVO': 'Te damos la bienvenida a SCADIVO',
+  'Cadastrar e enviar confirmação': 'Registrarme y enviar confirmación', 'Cadastro aberto somente neste ambiente de homologação.': 'El registro público solo está habilitado en este entorno de homologación.',
+  'Cadastro público desativado.': 'El registro público está desactivado.', 'Carregando…': 'Cargando…', 'Categoria': 'Categoría',
+  'Chamado registrado. Acompanhe as respostas aqui no portal.': 'Solicitud registrada. Consulta las respuestas aquí, en el portal.', 'Chamados abertos': 'Solicitudes abiertas',
+  'Cliente': 'Cliente', 'Comercial': 'Ventas', 'Como podemos ajudar?': '¿Cómo podemos ayudarte?', 'Complete seu perfil': 'Completa tu perfil',
+  'Complete seu perfil antes de navegar pelo portal.': 'Completa tu perfil antes de navegar por el portal.', 'Comunidade': 'Comunidad',
+  'Comunidade, compras e licenciamento online estão nas próximas etapas. Nenhuma licença do produto é alterada por este portal nesta fase.': 'La comunidad, las compras y las licencias en línea llegarán en próximas etapas. En esta fase, el portal no modifica ninguna licencia del producto.',
+  'Confira a senha atual. A nova senha precisa ter ao menos 8 caracteres, maiúscula, minúscula e número.': 'Verifica la contraseña actual. La nueva contraseña debe tener al menos 8 caracteres e incluir una mayúscula, una minúscula y un número.',
+  'Confira os campos informados.': 'Revisa los campos indicados.', 'Confirmar e-mail': 'Confirmar correo electrónico', 'Confirme seu e-mail': 'Confirma tu correo electrónico',
+  'Conhecimento e downloads': 'Conocimiento y descargas', 'Conta ativada. Entre com seu usuário e senha.': 'Cuenta activada. Inicia sesión con tu usuario y contraseña.', 'Conta e acesso': 'Cuenta y acceso',
+  'Contas': 'Cuentas', 'Contas do portal': 'Cuentas del portal', 'Contas e convites': 'Cuentas e invitaciones', 'Conversas': 'Conversaciones',
+  'Converse com a equipe e acompanhe seus chamados.': 'Habla con el equipo y consulta tus solicitudes.', 'Convite criado e colocado na fila de e-mail.': 'Invitación creada y añadida a la cola de correo electrónico.',
+  'Convite criado. Compartilhe o link privado.': 'Invitación creada. Comparte el enlace privado.', 'Convite expirado ou senha fora dos requisitos.': 'La invitación ha caducado o la contraseña no cumple los requisitos.',
+  'Convite inválido ou já utilizado.': 'La invitación no es válida o ya se utilizó.', 'Convite pendente': 'Invitación pendiente', 'Copiar link': 'Copiar enlace',
+  'Criada em': 'Creada el', 'Criar conta': 'Crear cuenta', 'Criar conta SCADIVO': 'Crear cuenta SCADIVO', 'Criar convite': 'Crear invitación',
+  'Data de nascimento (opcional)': 'Fecha de nacimiento (opcional)', 'Data/hora': 'Fecha y hora', 'Defina a senha da sua conta convidada. O link é pessoal e válido por 24 horas.': 'Define la contraseña de tu cuenta de invitado. El enlace es personal y válido durante 24 horas.',
+  'Definir nova senha': 'Definir nueva contraseña', 'Demonstração ↗': 'Demostración ↗',
+  'Depois do cadastro, enviaremos um link único para confirmar seu e-mail. O login será liberado somente após a confirmação.': 'Después del registro, te enviaremos un enlace único para confirmar tu correo electrónico. Podrás iniciar sesión después de confirmarlo.',
+  'Descreva sua dúvida': 'Describe tu consulta', 'Distribuição oficial': 'Distribución oficial', 'E-mail': 'Correo electrónico', 'E-mail (opcional)': 'Correo electrónico (opcional)',
+  'E-mail confirmado. Agora você pode entrar com seu e-mail e senha.': 'Correo electrónico confirmado. Ya puedes iniciar sesión con tu correo electrónico y contraseña.',
+  'E-mail ou usuário': 'Correo electrónico o usuario', 'Edificações e instalações': 'Edificios e instalaciones', 'Editar base de conhecimento': 'Editar base de conocimiento',
+  'EM PREPARAÇÃO': 'EN PREPARACIÓN', 'Empresa, escola ou vínculo (obrigatório)': 'Empresa, institución educativa o vínculo (obligatorio)', 'Encerrado': 'Cerrado',
+  'Encontre respostas sobre implantação e uso.': 'Encuentra respuestas sobre la implementación y el uso.', 'Endereço (opcional)': 'Dirección (opcional)', 'Endereço do artigo': 'Dirección del artículo',
+  'Ensino e pesquisa': 'Educación e investigación', 'Entrar': 'Iniciar sesión', 'Entre no portal': 'Accede al portal', 'Enviar link de recuperação': 'Enviar enlace de recuperación',
+  'Enviar resposta': 'Enviar respuesta', 'Esqueceu a senha?': '¿Olvidaste tu contraseña?', 'Esse endereço de artigo já existe.': 'Esta dirección de artículo ya existe.',
+  'Esse usuário ou e-mail já está cadastrado.': 'Este usuario o correo electrónico ya está registrado.', 'Estado do chamado': 'Estado de la solicitud',
+  'Este é seu ponto de encontro com o SCADIVO. Comece pelo conhecimento, abra uma conversa privada ou acompanhe as versões disponibilizadas pela equipe.': 'Este es tu punto de encuentro con SCADIVO. Explora la base de conocimiento, inicia una conversación privada o consulta las versiones publicadas por el equipo.',
+  'Este link é pessoal, de uso único e expira em 24 horas. Pressione o botão para concluir; apenas abrir o link não ativa a conta.': 'Este enlace es personal, de un solo uso y caduca en 24 horas. Pulsa el botón para continuar; abrir el enlace por sí solo no activa la cuenta.',
+  'Este portal tem contas próprias. O acesso à engenharia da demonstração é independente.': 'Este portal tiene sus propias cuentas. El acceso a la ingeniería de la demostración es independiente.', 'Estudante': 'Estudiante',
+  'Ex.: Docker, TAGs, demonstração': 'Ej.: Docker, TAGs, demostración', 'FAQ pesquisável e catálogo de versões oficiais.': 'Preguntas frecuentes con búsqueda y catálogo de versiones oficiales.',
+  'Downloads': 'Descargas', 'Gerar convite': 'Generar invitación', 'Idioma preferido': 'Idioma preferido',
+  'Informe o e-mail da conta. Se houver uma conta apta, enviaremos um link temporário. Por segurança, a resposta será a mesma para qualquer endereço.': 'Indica el correo electrónico de la cuenta. Si existe una cuenta habilitada, enviaremos un enlace temporal. Por seguridad, la respuesta será la misma para cualquier dirección.',
+  'Informe um endereço de e-mail válido.': 'Indica una dirección de correo electrónico válida.', 'Integração e consultoria': 'Integración y consultoría', 'Licenças': 'Licencias',
+  'Licenciamento conectado ao seu projeto': 'Licencias vinculadas a tu proyecto', 'Link copiado.': 'Enlace copiado.', 'Link privado': 'Enlace privado',
+  'Mantenha seu perfil e senha atualizados.': 'Mantén tu perfil y contraseña actualizados.', 'Mensagens': 'Mensajes', 'Minha conta': 'Mi cuenta',
+  'Mínimo de 8 caracteres, com maiúscula, minúscula e número.': 'Al menos 8 caracteres, con una mayúscula, una minúscula y un número.', 'Mínimo de 8 caracteres, maiúscula, minúscula e número.': 'Al menos 8 caracteres, una mayúscula, una minúscula y un número.',
+  'Modelo salvo. O envio permanece desativado.': 'Plantilla guardada. El envío sigue desactivado.', 'Modelos de mensagens automáticas': 'Plantillas de mensajes automáticos',
+  'Muitas tentativas. Aguarde um minuto.': 'Demasiados intentos. Espera un minuto.', 'Não foi possível concluir. Tente novamente.': 'No se pudo completar. Inténtalo de nuevo.',
+  'Não foi possível conectar. Aguarde um momento e tente novamente.': 'No se pudo conectar. Espera un momento e inténtalo de nuevo.',
+  'Não inclua senhas, chaves privadas ou dados sensíveis da sua planta.': 'No incluyas contraseñas, claves privadas ni datos sensibles de tu planta.', 'Nenhum chamado por enquanto.': 'Aún no tienes solicitudes.',
+  'Nenhum instalador publicado nesta etapa. Não há links provisórios ou arquivos não validados.': 'Todavía no hay instaladores publicados. No ofrecemos enlaces provisionales ni archivos sin validar.', 'Nenhum resultado para esta pesquisa.': 'No hay resultados para esta búsqueda.',
+  'Nome': 'Nombre', 'Nome completo': 'Nombre completo', 'Nome de exibição': 'Nombre visible', 'Nova senha': 'Nueva contraseña', 'Novo artigo': 'Nuevo artículo', 'Novo chamado': 'Nueva solicitud',
+  'O cadastro e a recuperação automática não estão disponíveis no momento.': 'El registro y la recuperación automática no están disponibles en este momento.',
+  'O cadastro público está disponível. Após criar a conta, confirme o endereço pelo link enviado.': 'El registro público está disponible. Después de crear tu cuenta, confirma tu dirección mediante el enlace enviado.',
+  'O cadastro público não está disponível no momento. Contas convidadas entram após confirmar o endereço pelo link de ativação.': 'El registro público no está disponible por ahora. Las cuentas invitadas pueden acceder después de confirmar su dirección con el enlace de activación.',
+  'O convidado define a própria senha. Compartilhe o link por um canal privado; o envio por e-mail ainda não está habilitado.': 'El invitado define su propia contraseña. Comparte el enlace por un canal privado; el envío por correo electrónico aún no está habilitado.',
+  'O convidado define a própria senha. Se informar um e-mail, o convite entra na fila de envio automático.': 'El invitado define su propia contraseña. Si indicas un correo electrónico, la invitación se añadirá a la cola de envío automático.',
+  'O envio de confirmação está temporariamente indisponível. Tente mais tarde.': 'El envío de confirmaciones no está disponible temporalmente. Inténtalo más tarde.',
+  'O fórum usará a mesma conta do portal. As categorias previstas incluem primeiros passos, residencial e predial, aplicações industriais, scripts Python e boas práticas.': 'El foro utilizará la misma cuenta del portal. Las categorías previstas incluyen primeros pasos, aplicaciones residenciales y para edificios, aplicaciones industriales, scripts de Python y buenas prácticas.',
+  'O link de confirmação é inválido.': 'El enlace de confirmación no es válido.', 'O link de convite é inválido.': 'El enlace de invitación no es válido.', 'O link de recuperação é inválido.': 'El enlace de recuperación no es válido.',
+  'O link é inválido, já foi usado ou expirou. Solicite um novo e-mail de confirmação.': 'El enlace no es válido, ya se utilizó o ha caducado. Solicita un nuevo correo de confirmación.',
+  'O link é inválido, já foi usado ou expirou. Solicite uma nova recuperação de senha.': 'El enlace no es válido, ya se utilizó o ha caducado. Solicita una nueva recuperación de contraseña.',
+  'O link é pessoal, de uso único e expira em 24 horas. Escolha uma senha com pelo menos 8 caracteres, incluindo maiúscula, minúscula e número.': 'El enlace es personal, de un solo uso y caduca en 24 horas. Elige una contraseña de al menos 8 caracteres que incluya una mayúscula, una minúscula y un número.',
+  'O próximo ciclo prevê catálogo, pagamentos e gestão de licenças. Ainda não há cobrança ou emissão automática por aqui.': 'La próxima etapa contempla el catálogo, los pagos y la gestión de licencias. Todavía no se procesan pagos ni se emiten licencias automáticamente desde aquí.',
+  'O registro não contém senhas nem códigos de convite.': 'El registro no contiene contraseñas ni códigos de invitación.',
+  'O SCADIVO é gratuito para até 200 TAGs. Licenças por máquina sem conexão permanente continuam previstas; o licenciamento online terá integração própria, sem alterar o produto nesta etapa.': 'SCADIVO es gratuito para hasta 200 TAGs. Se mantienen previstas las licencias por máquina sin conexión permanente; las licencias en línea tendrán una integración propia y no modificarán el producto en esta etapa.',
+  'Obrigatório se escolher “Outra área”.': 'Obligatorio si seleccionas «Otra área».', 'Obrigatório. Se não houver empresa ou escola, informe “Autônomo/independente”.': 'Obligatorio. Si no tienes empresa ni centro educativo, indica «Autónomo/independiente».', 'Olá': 'Hola',
+  'Organização': 'Organización', 'Organização (opcional)': 'Organización (opcional)', 'Os instaladores Windows, Linux e as instruções Docker serão publicados aqui quando cada distribuição oficial estiver aprovada.': 'Los instaladores para Windows y Linux y las instrucciones de Docker se publicarán aquí cuando se apruebe cada distribución oficial.',
+  'Outra área': 'Otra área', 'Pagamentos e licenciamento online não estão ativos.': 'Los pagos y las licencias en línea no están activos.',
+  'Para continuar no portal, informe seu perfil, área de atuação e empresa/escola. Os demais campos são opcionais.': 'Para continuar, indica tu perfil, área de actividad y empresa o centro educativo. Los demás campos son opcionales.',
+  'Perfil': 'Perfil', 'Perfil atualizado.': 'Perfil actualizado.', 'Pesquisar': 'Buscar', 'Pesquisar no FAQ': 'Buscar en preguntas frecuentes', 'PILOTO': 'PILOTO', 'Portal do cliente': 'Portal de clientes', 'Portal indisponível': 'Portal no disponible',
+  'Precisa de apoio? Acesse ': '¿Necesitas ayuda? Visita ', 'Preencha os campos obrigatórios do perfil e confira os dados opcionais.': 'Completa los campos obligatorios del perfil y revisa los datos opcionales.',
+  'Prévia no idioma atual': 'Vista previa en el idioma actual', 'Profissional': 'Profesional', 'PRÓXIMA ETAPA': 'PRÓXIMA ETAPA', 'Publicado no FAQ': 'Publicado en preguntas frecuentes',
+  'Qual área?': '¿Qué área?', 'Quero receber novidades e informações comerciais por e-mail (opcional).': 'Quiero recibir novedades e información comercial por correo electrónico (opcional).',
+  'Recuperar acesso': 'Recuperar acceso', 'Redefinir senha': 'Restablecer contraseña', 'Reenviar confirmação': 'Reenviar confirmación', 'Referência': 'Referencia', 'Repita a nova senha': 'Repite la nueva contraseña', 'Repita a senha': 'Repite la contraseña',
+  'Respondido': 'Respondido', 'Sair': 'Cerrar sesión', 'Salvar artigo': 'Guardar artículo', 'Salvar e continuar': 'Guardar y continuar', 'Salvar modelo': 'Guardar plantilla', 'Salvar perfil': 'Guardar perfil',
+  'Se houver uma confirmação pendente para esse endereço, enviaremos um novo link.': 'Si hay una confirmación pendiente para esta dirección, enviaremos un nuevo enlace.',
+  'Se houver uma conta confirmada para esse endereço, enviaremos as instruções. Confira a caixa de entrada e o spam.': 'Si existe una cuenta confirmada para esta dirección, enviaremos las instrucciones. Revisa tu bandeja de entrada y el correo no deseado.',
+  'Se o cadastro foi concluído, confirme o endereço pelo link enviado. Confira também a caixa de spam.': 'Si completaste el registro, confirma tu dirección mediante el enlace enviado. Revisa también el correo no deseado.',
+  'Se o endereço estiver válido e disponível, enviaremos o link de confirmação. Confira também o spam.': 'Si la dirección es válida y está disponible, enviaremos un enlace de confirmación. Revisa también el correo no deseado.',
+  'Selecione e copie o link acima.': 'Selecciona y copia el enlace anterior.', 'Selecione seu perfil': 'Selecciona tu perfil', 'Selecione sua área': 'Selecciona tu área', 'Senha': 'Contraseña', 'Senha atual': 'Contraseña actual',
+  'Senha atualizada.': 'Contraseña actualizada.', 'Senha redefinida. Entre com sua nova senha.': 'Contraseña restablecida. Inicia sesión con tu nueva contraseña.', 'Seu perfil': 'Tu perfil', 'Seu projeto, conectado.': 'Tu proyecto, conectado.',
+  'Situação': 'Estado', 'Somente arquivos de distribuição aprovados.': 'Solo archivos de distribución aprobados.', 'Somente você e a equipe podem acessar seus chamados.': 'Solo tú y el equipo pueden acceder a tus solicitudes.',
+  'Sua mensagem': 'Tu mensaje', 'Suporte': 'Soporte', 'Suporte privado': 'Soporte privado',
+  'Suporte, conhecimento e distribuição oficial do SCADIVO, em um ambiente próprio para clientes e integradores.': 'Soporte, documentación y distribución oficial de SCADIVO en un entorno para clientes e integradores.',
+  'Técnico': 'Técnico', 'Telefone (opcional)': 'Teléfono (opcional)', 'Tentar novamente': 'Intentar de nuevo', 'Tipo de mensagem': 'Tipo de mensaje', 'Últimas 100 ações': 'Últimas 100 acciones',
+  'Uma comunidade em construção': 'Una comunidad en construcción', 'Uma conta. Mais conexão com seu projeto.': 'Una cuenta. Más conexión con tu proyecto.', 'Use seu e-mail ou nome de usuário.': 'Usa tu correo electrónico o nombre de usuario.',
+  'Use um nome de usuário com letras, números, ponto ou hífen.': 'Usa un nombre de usuario con letras, números, punto o guion.', 'Usuário': 'Usuario',
+  'Usuário ou senha inválidos. Após várias tentativas, aguarde 15 minutos.': 'El usuario o la contraseña no son válidos. Después de varios intentos, espera 15 minutos.',
+  'Variáveis: {{name}}, {{link}}, {{reference}}. Somente texto; nenhum script é executado.': 'Variables: {{name}}, {{link}}, {{reference}}. Solo texto; no se ejecuta ningún script.', 'Visão geral': 'Resumen',
+  'Você vê os chamados de todos os clientes como administrador.': 'Como administrador, puedes ver las solicitudes de todos los clientes.', 'Voltar ao login': 'Volver al inicio de sesión'
+};
+const tr = (pt, en, es = spanish[pt] || spanish[en] || en) => state.lang === 'en' ? en : state.lang === 'es' ? es : pt;
+const date = value => new Date(value).toLocaleString(state.lang === 'en' ? 'en-US' : state.lang === 'es' ? 'es-ES' : 'pt-BR');
+const labels = () => ({ home: tr('Visão geral', 'Overview'), profile: tr('Minha conta', 'My account'), support: tr('Suporte', 'Support'), downloads: tr('Downloads', 'Downloads', 'Descargas'), faq: 'FAQ', community: tr('Comunidade', 'Community'), licenses: tr('Licenças', 'Licenses'), admin: tr('Administração', 'Administration') });
+const localeOptions = () => [['pt-BR', 'Português'], ['en', 'English'], ['es', 'Español']];
 
 function h(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
@@ -72,7 +170,14 @@ async function api(path, method = 'GET', body) {
   }
   return result;
 }
-async function session() { state.session = await api('/session'); }
+async function session() {
+  state.session = await api('/session');
+  const accountLocale = state.session?.authenticated ? state.session.user?.locale : null;
+  if (['pt-BR', 'en', 'es'].includes(accountLocale)) {
+    state.lang = accountLocale;
+    try { localStorage.setItem('scadivo.portal.lang', state.lang); } catch { /* Account locale remains available for this session. */ }
+  }
+}
 function form(children, submitText, action) {
   const submit = h('button', { type: 'submit', class: 'button primary' }, submitText);
   const node = h('form', { class: 'form-stack', onsubmit: async event => {
@@ -90,8 +195,10 @@ function navigate(tab) { state.tab = tab; history.replaceState(null, '', `/porta
 function renderHeader() {
   document.documentElement.lang = state.lang;
   document.querySelector('#demo-link').textContent = tr('Demonstração ↗', 'Live demo ↗');
-  document.querySelector('#language-button').textContent = state.lang === 'en' ? 'PT' : 'EN';
-  document.querySelector('#language-button').onclick = () => { state.lang = state.lang === 'en' ? 'pt-BR' : 'en'; try { localStorage.setItem('scadivo.portal.lang', state.lang); } catch { /* Optional storage. */ } render(); };
+  const languageButton = document.querySelector('#language-button');
+  languageButton.textContent = state.lang === 'pt-BR' ? 'EN' : state.lang === 'en' ? 'ES' : 'PT';
+  languageButton.setAttribute('aria-label', state.lang === 'pt-BR' ? 'Switch language to English' : state.lang === 'en' ? 'Cambiar idioma a español' : 'Mudar idioma para português');
+  languageButton.onclick = () => { state.lang = state.lang === 'pt-BR' ? 'en' : state.lang === 'en' ? 'es' : 'pt-BR'; try { localStorage.setItem('scadivo.portal.lang', state.lang); } catch { /* Optional storage. */ } render(); };
   const actions = document.querySelector('#account-actions');
   actions.replaceChildren();
   if (state.session?.authenticated) actions.append(h('span', { class: 'account-chip' }, state.session.user.displayName), button(tr('Sair', 'Sign out'), async () => {
@@ -118,7 +225,7 @@ function login() {
     }),
     recoveryEnabled && button(tr('Esqueceu a senha?', 'Forgot your password?'), () => { state.recover = true; history.replaceState(null, '', '/portal/#forgot-password'); render(); }),
     registrationEnabled && button(tr('Criar conta', 'Create an account'), () => { state.register = true; history.replaceState(null, '', '/portal/#register'); render(); }, 'button primary'),
-    p([tr('Precisa de apoio? Acesse ', 'Need help? Visit '), h('a', { href: state.lang === 'en' ? 'https://scadivo.com/contact?area=support' : 'https://scadivo.com/contato?area=suporte' }, tr('a página de suporte SCADIVO', 'SCADIVO support')), '.']),
+    p([tr('Precisa de apoio? Acesse ', 'Need help? Visit ', '¿Necesitas ayuda? Visita '), h('a', { href: state.lang === 'en' ? 'https://scadivo.com/contact?area=support' : state.lang === 'es' ? 'https://scadivo.com/contact?area=support&lang=es' : 'https://scadivo.com/contato?area=suporte' }, tr('a página de suporte SCADIVO', 'SCADIVO support', 'el soporte de SCADIVO')), '.']),
     !registrationEnabled && !recoveryEnabled && p(tr('O cadastro e a recuperação automática não estão disponíveis no momento.', 'Registration and automatic recovery are not available right now.'))
   ]);
   card.append(note); card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'login-layout' }, [intro, card]));
@@ -188,6 +295,7 @@ function registration() {
     form([
       field(tr('Nome completo', 'Full name'), input('displayName', 'text', '', { maxLength: 160, autocomplete: 'name' })),
       field(tr('E-mail', 'Email'), input('email', 'email', '', { maxLength: 256, autocomplete: 'email' })),
+      field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), state.lang, { required: true })),
       field(tr('Senha', 'Password'), input('password', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' }), tr('Mínimo de 8 caracteres, com maiúscula, minúscula e número.', 'At least 8 characters, with uppercase, lowercase and a number.')),
       field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' })),
       ...profileFields()
@@ -222,7 +330,7 @@ function completeProfile() {
     p(tr('Para continuar no portal, informe seu perfil, área de atuação e empresa/escola. Os demais campos são opcionais.', 'To continue, tell us your profile, activity area and company/school. The remaining fields are optional.')),
     form([
       field(tr('Nome completo', 'Full name'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'name' })),
-      field(tr('Idioma preferido', 'Preferred language'), select('locale', [['pt-BR', 'Português'], ['en', 'English']], user.locale)),
+      field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), user.locale, { required: true })),
       ...profileFields(user)
     ], tr('Salvar e continuar', 'Save and continue'), async data => {
       await api('/profile', 'PUT', data); await session(); state.tab = 'home'; render();
@@ -232,6 +340,7 @@ function completeProfile() {
 }
 function invitation() {
   app.replaceChildren(h('div', { class: 'invite-layout' }, panel(tr('Bem-vindo ao SCADIVO', 'Welcome to SCADIVO'), p(tr('Defina a senha da sua conta convidada. O link é pessoal e válido por 24 horas.', 'Set the password for your invited account. The personal link is valid for 24 hours.')), form([
+    field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), state.lang, { required: true })),
     field(tr('Nova senha', 'New password'), input('password', 'password', '', { autocomplete: 'new-password', minLength: 8, maxLength: 1024 }), tr('Mínimo de 8 caracteres, maiúscula, minúscula e número.', 'At least 8 characters, uppercase, lowercase and a number.')),
     field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 8 })),
     ...profileFields()
@@ -269,7 +378,7 @@ function profile() {
   const user = state.session.user;
   return h('div', { class: 'content-grid' }, [panel(tr('Seu perfil', 'Your profile'), p(`${tr('Usuário', 'Username')}: ${user.userName}`), p(`${tr('E-mail', 'Email')}: ${user.email || tr('Ainda não informado', 'Not provided yet')}`), form([
     field(tr('Nome de exibição', 'Display name'), input('displayName', 'text', user.displayName, { maxLength: 160 })),
-    field(tr('Idioma preferido', 'Preferred language'), select('locale', [['pt-BR', 'Português'], ['en', 'English']], user.locale)),
+    field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), user.locale, { required: true })),
     ...profileFields(user)
   ], tr('Salvar perfil', 'Save profile'), async data => { await api('/profile', 'PUT', data); await session(); feedback(tr('Perfil atualizado.', 'Profile updated.')); render(); }), h('div', { class: 'organization-list' }, user.organizations.map(org => p(`${org.name} · ${org.role}`)))), panel(tr('Alterar senha', 'Change password'), form([
     field(tr('Senha atual', 'Current password'), input('currentPassword', 'password', '', { autocomplete: 'current-password' })),
@@ -298,7 +407,7 @@ async function openTicket(id, target) {
 }
 async function downloads() {
   const releases = await api('/downloads');
-  return panel(tr('Distribuição oficial', 'Official distribution'), p(tr('Os instaladores Windows, Linux e as instruções Docker serão publicados aqui quando cada distribuição oficial estiver aprovada.', 'Windows and Linux installers and Docker instructions will appear here when each official distribution is approved.')), releases.length ? h('div', { class: 'content-grid' }, releases.map(release => panel(`${release.platform} · ${release.version}`, p(state.lang === 'en' ? release.notesEn : release.notesPt), h('code', { class: 'checksum' }, `SHA-256 ${release.sha256}`), h('a', { class: 'button primary', href: `/portal/api/downloads/${release.id}/file` }, 'Download ↗')))) : notice(tr('Nenhum instalador publicado nesta etapa. Não há links provisórios ou arquivos não validados.', 'No installer is published at this stage. There are no placeholder links or unverified files.')));
+  return panel(tr('Distribuição oficial', 'Official distribution'), p(tr('Os instaladores Windows, Linux e as instruções Docker serão publicados aqui quando cada distribuição oficial estiver aprovada.', 'Windows and Linux installers and Docker instructions will appear here when each official distribution is approved.')), releases.length ? h('div', { class: 'content-grid' }, releases.map(release => panel(`${release.platform} · ${release.version}`, p(state.lang === 'en' ? release.notesEn : state.lang === 'es' ? release.notesEs : release.notesPt), h('code', { class: 'checksum' }, `SHA-256 ${release.sha256}`), h('a', { class: 'button primary', href: `/portal/api/downloads/${release.id}/file` }, 'Download ↗')))) : notice(tr('Nenhum instalador publicado nesta etapa. Não há links provisórios ou arquivos não validados.', 'No installer is published at this stage. There are no placeholder links or unverified files.')));
 }
 async function faq() {
   const result = panel(tr('Como podemos ajudar?', 'How can we help?'));
@@ -317,8 +426,8 @@ async function admin() {
   const tabs = h('nav', { class: 'admin-subnav', 'aria-label': tr('Administração', 'Administration') }, Object.entries(items).map(([key, label]) => button(label, () => { state.adminTab = key; render(); }, `button ${state.adminTab === key ? 'primary' : 'secondary'}`)));
   const node = await ({ accounts: accountsAdmin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin })[state.adminTab](); body.append(node);
   const emailStatus = overview.emailDeliveryConfigured
-    ? tr(`Envio de e-mail habilitado: ${overview.queuedMessages} na fila, ${overview.sentMessages} aceitas pelo servidor SMTP e ${overview.failedMessages} com falha.`, `Email delivery enabled: ${overview.queuedMessages} queued, ${overview.sentMessages} accepted by the SMTP server and ${overview.failedMessages} failed.`)
-    : tr(`E-mail ainda sem transporte configurado. ${overview.recordedMessages} notificações registradas, sem envio automático.`, `Email delivery is not configured. ${overview.recordedMessages} notifications recorded without automatic delivery.`);
+    ? tr(`Envio de e-mail habilitado: ${overview.queuedMessages} na fila, ${overview.sentMessages} aceitas pelo servidor SMTP e ${overview.failedMessages} com falha.`, `Email delivery enabled: ${overview.queuedMessages} queued, ${overview.sentMessages} accepted by the SMTP server and ${overview.failedMessages} failed.`, `Envío de correo electrónico habilitado: ${overview.queuedMessages} en cola, ${overview.sentMessages} aceptados por el servidor SMTP y ${overview.failedMessages} con error.`)
+    : tr(`E-mail ainda sem transporte configurado. ${overview.recordedMessages} notificações registradas, sem envio automático.`, `Email delivery is not configured. ${overview.recordedMessages} notifications recorded without automatic delivery.`, `El envío de correo electrónico aún no está configurado. Hay ${overview.recordedMessages} notificaciones registradas sin envío automático.`);
   const registrationStatus = overview.publicRegistrationEnabled
     ? tr('Cadastro aberto somente neste ambiente de homologação.', 'Public registration is enabled only in this homologation environment.')
     : tr('Cadastro público desativado.', 'Public registration is disabled.');
@@ -334,7 +443,7 @@ async function accountsAdmin() {
     h('div', { class: 'form-row' }, [field(tr('E-mail (opcional)', 'Email (optional)'), input('email', 'email', '', { required: false, maxLength: 256 })), field(tr('Organização (opcional)', 'Organization (optional)'), input('organization', 'text', '', { required: false, maxLength: 200 }))])
   ], tr('Gerar convite', 'Generate invitation'), async (data, node) => {
     const result = await api('/admin/invitations', 'POST', data); node.reset();
-    invitationResult.replaceChildren(notice(tr(`Convite de ${result.userName}: válido por 24 horas e uso único. Guarde o nome de usuário junto com o link.`, `Invitation for ${result.userName}: valid for 24 hours and one use. Keep the username with the link.`)), field(tr('Link privado', 'Private link'), textarea('invitationLink', result.invitationUrl, { readOnly: true, rows: 3, class: 'private-link' })), button(tr('Copiar link', 'Copy link'), async () => { try { await navigator.clipboard.writeText(result.invitationUrl); feedback(tr('Link copiado.', 'Link copied.')); } catch { feedback(tr('Selecione e copie o link acima.', 'Select and copy the link above.')); } }));
+    invitationResult.replaceChildren(notice(tr(`Convite de ${result.userName}: válido por 24 horas e uso único. Guarde o nome de usuário junto com o link.`, `Invitation for ${result.userName}: valid for 24 hours and one use. Keep the username with the link.`, `Invitación para ${result.userName}: válida durante 24 horas y de un solo uso. Guarda el nombre de usuario junto con el enlace.`)), field(tr('Link privado', 'Private link'), textarea('invitationLink', result.invitationUrl, { readOnly: true, rows: 3, class: 'private-link' })), button(tr('Copiar link', 'Copy link'), async () => { try { await navigator.clipboard.writeText(result.invitationUrl); feedback(tr('Link copiado.', 'Link copied.')); } catch { feedback(tr('Selecione e copie o link acima.', 'Select and copy the link above.')); } }));
     feedback(result.emailQueued ? tr('Convite criado e colocado na fila de e-mail.', 'Invitation created and queued for email delivery.') : tr('Convite criado. Compartilhe o link privado.', 'Invitation created. Share the private link.'));
   }), invitationResult), panel(tr('Contas do portal', 'Portal accounts'), table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Criada em', 'Created')], accounts.map(account => [account.userName, account.displayName, badge(account.invitationAccepted ? tr('Ativa', 'Active') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), date(account.createdAtUtc)]))));
   return result;
@@ -344,10 +453,10 @@ async function templatesAdmin() {
   function edit(template) {
     const preview = h('pre', { class: 'template-preview' });
     const node = form([
-      h('div', { class: 'content-grid' }, [h('div', {}, [h('h3', {}, 'Português'), field('Assunto', input('subjectPt', 'text', template.subjectPt, { maxLength: 200 })), field('Mensagem', textarea('bodyPt', template.bodyPt, { maxLength: 8000, rows: 8 }))]), h('div', {}, [h('h3', {}, 'English'), field('Subject', input('subjectEn', 'text', template.subjectEn, { maxLength: 200 })), field('Message', textarea('bodyEn', template.bodyEn, { maxLength: 8000, rows: 8 }))])]),
+      h('div', { class: 'content-grid' }, [h('div', {}, [h('h3', {}, 'Português'), field('Assunto', input('subjectPt', 'text', template.subjectPt, { maxLength: 200 })), field('Mensagem', textarea('bodyPt', template.bodyPt, { maxLength: 8000, rows: 8 }))]), h('div', {}, [h('h3', {}, 'English'), field('Subject', input('subjectEn', 'text', template.subjectEn, { maxLength: 200 })), field('Message', textarea('bodyEn', template.bodyEn, { maxLength: 8000, rows: 8 }))]), h('div', {}, [h('h3', {}, 'Español'), field('Asunto', input('subjectEs', 'text', template.subjectEs, { maxLength: 200 })), field('Mensaje', textarea('bodyEs', template.bodyEs, { maxLength: 8000, rows: 8 }))])]),
       p(tr('Variáveis: {{name}}, {{link}}, {{reference}}. Somente texto; nenhum script é executado.', 'Variables: {{name}}, {{link}}, {{reference}}. Text only; no script is executed.')), h('h3', {}, tr('Prévia no idioma atual', 'Preview in current language')), preview
     ], tr('Salvar modelo', 'Save template'), async data => { await api(`/admin/templates/${encodeURIComponent(template.key)}`, 'PUT', data); Object.assign(template, data); feedback(tr('Modelo salvo. O envio permanece desativado.', 'Template saved. Delivery remains disabled.')); });
-    const update = () => { const data = values(node); preview.textContent = `${state.lang === 'en' ? data.subjectEn : data.subjectPt}\n\n${state.lang === 'en' ? data.bodyEn : data.bodyPt}`.replaceAll('{{name}}', 'Alex').replaceAll('{{reference}}', 'SCADIVO-EXAMPLE').replaceAll('{{link}}', 'https://scadivo.com/portal/'); };
+    const update = () => { const data = values(node); const subject = state.lang === 'en' ? data.subjectEn : state.lang === 'es' ? data.subjectEs : data.subjectPt; const body = state.lang === 'en' ? data.bodyEn : state.lang === 'es' ? data.bodyEs : data.bodyPt; preview.textContent = `${subject}\n\n${body}`.replaceAll('{{name}}', 'Alex').replaceAll('{{reference}}', 'SCADIVO-EJEMPLO').replaceAll('{{link}}', 'https://scadivo.com/portal/'); };
     node.addEventListener('input', update); update(); editor.replaceChildren(h('h3', {}, template.key), node);
   }
   const picker = select('template', templates.map(x => [x.key, x.key]), templates[0].key); picker.addEventListener('change', () => edit(templates.find(x => x.key === picker.value))); edit(templates[0]);
@@ -359,11 +468,11 @@ async function faqAdmin() {
     const published = input('published', 'checkbox', 'yes', { required: false, checked: article.published ?? true });
     editor.replaceChildren(form([
       h('div', { class: 'form-row' }, [field(tr('Endereço do artigo', 'Article slug'), input('slug', 'text', article.slug || '', { pattern: '[a-z0-9-]+', maxLength: 100 })), field(tr('Categoria', 'Category'), input('category', 'text', article.category || 'getting-started', { maxLength: 60 }))]),
-      h('div', { class: 'content-grid' }, [h('div', {}, [field('Título (PT)', input('titlePt', 'text', article.titlePt || '', { maxLength: 200 })), field('Texto (PT)', textarea('bodyPt', article.bodyPt || '', { maxLength: 12000, rows: 9 }))]), h('div', {}, [field('Title (EN)', input('titleEn', 'text', article.titleEn || '', { maxLength: 200 })), field('Text (EN)', textarea('bodyEn', article.bodyEn || '', { maxLength: 12000, rows: 9 }))])]),
+      h('div', { class: 'content-grid' }, [h('div', {}, [field('Título (PT)', input('titlePt', 'text', article.titlePt || '', { maxLength: 200 })), field('Texto (PT)', textarea('bodyPt', article.bodyPt || '', { maxLength: 12000, rows: 9 }))]), h('div', {}, [field('Title (EN)', input('titleEn', 'text', article.titleEn || '', { maxLength: 200 })), field('Text (EN)', textarea('bodyEn', article.bodyEn || '', { maxLength: 12000, rows: 9 }))]), h('div', {}, [field('Título (ES)', input('titleEs', 'text', article.titleEs || '', { maxLength: 200 })), field('Texto (ES)', textarea('bodyEs', article.bodyEs || '', { maxLength: 12000, rows: 9 }))])]),
       h('label', { class: 'check-field' }, [published, tr('Publicado no FAQ', 'Published in FAQ')])
     ], tr('Salvar artigo', 'Save article'), async data => { await api(`/admin/faq${article.id ? `/${article.id}` : ''}`, article.id ? 'PUT' : 'POST', { ...data, published: published.checked }); feedback(tr('Artigo salvo.', 'Article saved.')); render(); }));
   }
-  const picker = select('article', [['', tr('Novo artigo', 'New article')], ...articles.map(x => [x.id, state.lang === 'en' ? x.titleEn : x.titlePt])], ''); picker.addEventListener('change', () => edit(articles.find(x => x.id === picker.value))); edit();
+  const picker = select('article', [['', tr('Novo artigo', 'New article')], ...articles.map(x => [x.id, state.lang === 'en' ? x.titleEn : state.lang === 'es' ? x.titleEs : x.titlePt])], ''); picker.addEventListener('change', () => edit(articles.find(x => x.id === picker.value))); edit();
   return panel(tr('Editar base de conhecimento', 'Edit knowledge base'), field(tr('Artigo', 'Article'), picker), editor);
 }
 async function auditAdmin() {

@@ -124,30 +124,40 @@ public sealed class PortalEmailDispatcher(
                     : JsonSerializer.Deserialize<Dictionary<string, string>>(item.TemplateDataJson) ?? new Dictionary<string, string>();
                 data.TryAdd("name", user?.DisplayName ?? "");
                 data.TryAdd("reference", item.Reference ?? "");
-                data.TryAdd("link", link);
                 data.TryAdd("email", user?.Email ?? "");
                 data.TryAdd("category", "");
                 data.TryAdd("subject", "");
                 data.TryAdd("message", "");
-                var english = data.GetValueOrDefault("locale") == "en" || user?.Locale == "en";
+                var locale = data.GetValueOrDefault("locale") ?? user?.Locale ?? "pt-BR";
+                var english = locale == "en";
+                var spanish = locale == "es";
+                if ((locale is "en" or "es") && link.Contains('#'))
+                {
+                    var hash = link.IndexOf('#');
+                    var baseUrl = link[..hash];
+                    if (!baseUrl.Contains("lang=", StringComparison.OrdinalIgnoreCase))
+                        link = $"{baseUrl}{(baseUrl.Contains('?') ? "&" : "?")}lang={locale}{link[hash..]}";
+                }
+                data["link"] = link;
                 string Render(string text)
                 {
                     foreach (var (key, value) in data)
                         text = text.Replace("{{" + key + "}}", value, StringComparison.Ordinal);
                     return text;
                 }
-                var body = Render(english ? template!.BodyEn : template!.BodyPt);
+                var body = Render(english ? template!.BodyEn : spanish ? template!.BodyEs : template!.BodyPt);
                 // Keep single-use links visible in older editable templates without duplicating links they already include.
                 if ((item.TemplateKey is "account.invitation" or "account.confirmation" or "account.password-reset") && !body.Contains(link, StringComparison.Ordinal)) body += "\n\n" + link;
                 if (item.TemplateKey == "account.password-reset" &&
                     !body.Contains(english ? "24 hours" : "24 horas", StringComparison.OrdinalIgnoreCase))
                     body += english
                         ? "\n\nThis link expires in 24 hours and can only be used once."
+                        : spanish ? "\n\nEste enlace caduca en 24 horas y solo se puede usar una vez."
                         : "\n\nO link expira em 24 horas e pode ser usado uma única vez.";
                 var replyToSubmitter = item.TemplateKey == "contact.notification";
                 using var message = CreateMessage(settings.Value, item.Id, recipient!,
-                    Render(english ? template!.SubjectEn : template.SubjectPt), body,
-                    replyToSubmitter ? item.ReplyToAddress : null, english ? "en" : "pt-BR", replyToSubmitter);
+                    Render(english ? template!.SubjectEn : spanish ? template.SubjectEs : template.SubjectPt), body,
+                    replyToSubmitter ? item.ReplyToAddress : null, locale, replyToSubmitter);
                 await transport.SendAsync(message, cancellationToken);
                 item.Status = "sent";
                 item.SentAtUtc = DateTimeOffset.UtcNow;
@@ -182,12 +192,18 @@ public sealed class PortalEmailDispatcher(
         string body, string? replyTo = null, string locale = "pt-BR", bool replyToSubmitter = false)
     {
         var safeSubject = subject.Replace('\r', ' ').Replace('\n', ' ');
-        var supportLink = locale == "en"
-            ? "https://scadivo.com/contact?area=support"
-            : "https://scadivo.com/contato?area=suporte";
-        var footerText = locale == "en"
-            ? "Please do not reply to this email. If you need help, visit our support page:"
-            : "Não responda a este e-mail. Se precisar de apoio, acesse nossa página de suporte:";
+        var supportLink = locale switch
+        {
+            "en" => "https://scadivo.com/contact?area=support&lang=en",
+            "es" => "https://scadivo.com/contact?area=support&lang=es",
+            _ => "https://scadivo.com/contato?area=suporte"
+        };
+        var footerText = locale switch
+        {
+            "en" => "Please do not reply to this email. If you need help, visit our support page:",
+            "es" => "No respondas a este correo electrónico. Si necesitas ayuda, visita nuestra página de soporte:",
+            _ => "Não responda a este e-mail. Se precisar de apoio, acesse nossa página de suporte:"
+        };
         var plainBody = replyToSubmitter ? body : $"{body.TrimEnd()}\n\n{footerText}\n{supportLink}";
         var htmlBody = RenderHtml(safeSubject, body, locale, supportLink, footerText, replyToSubmitter);
         var message = new MimeMessage
@@ -217,6 +233,20 @@ public sealed class PortalEmailDispatcher(
         bool replyToSubmitter)
     {
         static string Encode(string value) => HtmlEncoder.Default.Encode(value);
+        var actionLabel = locale == "es"
+            ? subject.Contains("recuper", StringComparison.OrdinalIgnoreCase) || subject.Contains("restable", StringComparison.OrdinalIgnoreCase) || subject.Contains("contraseña", StringComparison.OrdinalIgnoreCase) ? "Restablecer mi contraseña"
+                : subject.Contains("confirm", StringComparison.OrdinalIgnoreCase) ? "Confirmar mi correo"
+                : subject.Contains("invit", StringComparison.OrdinalIgnoreCase) ? "Abrir invitación"
+                : "Abrir enlace seguro"
+            : locale == "en"
+            ? subject.Contains("recover", StringComparison.OrdinalIgnoreCase) || subject.Contains("reset", StringComparison.OrdinalIgnoreCase) ? "Reset my password"
+                : subject.Contains("confirm", StringComparison.OrdinalIgnoreCase) ? "Confirm my email"
+                : subject.Contains("invitation", StringComparison.OrdinalIgnoreCase) ? "Open invitation"
+                : "Open secure link"
+            : subject.Contains("recuper", StringComparison.OrdinalIgnoreCase) || subject.Contains("senha", StringComparison.OrdinalIgnoreCase) ? "Redefinir minha senha"
+                : subject.Contains("confirm", StringComparison.OrdinalIgnoreCase) ? "Confirmar meu e-mail"
+                : subject.Contains("convite", StringComparison.OrdinalIgnoreCase) ? "Abrir convite"
+                : "Abrir link seguro";
         string Format(string value)
         {
             var encoded = Encode(value);
@@ -224,17 +254,27 @@ public sealed class PortalEmailDispatcher(
             {
                 var url = match.Value.TrimEnd('.', ',', ';', ')', ']');
                 var suffix = match.Value[url.Length..];
+                // Identity links contain long, unbreakable tokens. Keep the actual URL
+                // in the plain-text alternative and href, but never expose it as the
+                // visible HTML label where Outlook can expand the whole message width.
+                if (url.Length >= 100)
+                    return $"<a href=\"{url}\" style=\"display:inline-block;background-color:#21d0c3;border:1px solid #21d0c3;border-radius:8px;color:#052b31;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;line-height:20px;padding:12px 18px;text-align:center;text-decoration:none\">{Encode(actionLabel)}</a>{suffix}";
                 return $"<a href=\"{url}\" style=\"color:#087f7e;text-decoration:underline\">{url}</a>{suffix}";
             });
         }
         var paragraphs = string.Join("</p><p style=\"margin:0 0 16px\">", body.Replace("\r\n", "\n", StringComparison.Ordinal)
             .Split("\n\n", StringSplitOptions.None).Select(part => Format(part).Replace("\n", "<br>", StringComparison.Ordinal)));
-        var language = locale == "en" ? "en" : "pt-BR";
-        var supportLabel = locale == "en" ? "SCADIVO support" : "suporte SCADIVO";
+        var language = locale is "en" or "es" ? locale : "pt-BR";
+        var supportLabel = locale == "en" ? "SCADIVO support" : locale == "es" ? "Soporte SCADIVO" : "suporte SCADIVO";
         var footer = replyToSubmitter
             ? string.Empty
             : $"{Encode(footerText)} <a href=\"{Encode(supportLink)}\" style=\"color:#087f7e;text-decoration:underline\">{Encode(supportLabel)}</a>.";
-        var tagline = locale == "en" ? "SCADA & industrial automation at every scale" : "Supervisão e automação em qualquer escala";
+        var tagline = locale == "en" ? "SCADA & industrial automation at every scale"
+            : locale == "es" ? "SCADA y automatización industrial a cualquier escala"
+            : "Supervisão e automação em qualquer escala";
+        var brandTagline = locale == "en" ? "SCADA & INDUSTRIAL AUTOMATION"
+            : locale == "es" ? "SCADA Y AUTOMATIZACIÓN INDUSTRIAL"
+            : "SCADA E AUTOMAÇÃO INDUSTRIAL";
         return $"""
             <!doctype html>
             <html lang="{language}">
@@ -243,9 +283,9 @@ public sealed class PortalEmailDispatcher(
             <!--[if mso]>
             <table role="presentation" align="center" width="640" cellspacing="0" cellpadding="0"><tr><td>
             <![endif]-->
-            <table role="presentation" align="center" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;margin:0 auto;background:#fff;border:1px solid #d9e2e8;border-radius:12px;overflow:hidden;mso-table-lspace:0pt;mso-table-rspace:0pt">
+            <table role="presentation" align="center" width="640" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;margin:0 auto;background:#fff;border:1px solid #d9e2e8;border-radius:12px;overflow:hidden;table-layout:fixed;mso-table-lspace:0pt;mso-table-rspace:0pt">
               <tr><td style="padding:24px 30px;background:#101c2a;border-bottom:4px solid #21d0c3">
-                <table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="width:38px;height:38px;text-align:center;vertical-align:middle;border-radius:10px;background:#14283a;color:#21d0c3;font-size:28px;font-weight:bold">S</td><td style="padding-left:12px;color:#f4f8fc;font-size:20px;font-weight:bold;letter-spacing:1px">SCADIVO<div style="margin-top:3px;color:#9fb2c5;font-size:10px;font-weight:normal;letter-spacing:1px">SCADA &amp; INDUSTRIAL AUTOMATION</div></td></tr></table>
+                <table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="width:38px;height:38px;text-align:center;vertical-align:middle;border-radius:10px;background:#14283a;color:#21d0c3;font-size:28px;font-weight:bold">S</td><td style="padding-left:12px;color:#f4f8fc;font-size:20px;font-weight:bold;letter-spacing:1px">SCADIVO<div style="margin-top:3px;color:#9fb2c5;font-size:10px;font-weight:normal;letter-spacing:1px">{Encode(brandTagline)}</div></td></tr></table>
               </td></tr>
               <tr><td style="padding:32px 30px 22px"><h1 style="margin:0 0 22px;color:#142436;font-size:23px;line-height:1.35">{Encode(subject)}</h1><div style="color:#33475b;font-size:15px;line-height:1.75"><p style="margin:0 0 16px">{paragraphs}</p></div></td></tr>
               <tr><td style="padding:18px 30px;background:#f5f8fa;border-top:1px solid #e1e8ed;color:#738395;font-size:12px;line-height:1.6">{footer}<br><span style="color:#0b8d86;font-weight:bold">SCADIVO</span> · {Encode(tagline)}</td></tr>

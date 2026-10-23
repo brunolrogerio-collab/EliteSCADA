@@ -13,10 +13,10 @@ namespace Scadivo.Portal;
 
 public sealed record LoginInput(string? Username, string? Password);
 public sealed record InviteInput(string? Username, string? DisplayName, string? Email, string? Organization);
-public sealed record AcceptInviteInput(string? UserId, string? Token, string? Password, string? ProfileType,
+public sealed record AcceptInviteInput(string? UserId, string? Token, string? Password, string? Locale, string? ProfileType,
     string? ActivityArea, string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber,
     string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
-public sealed record RegisterInput(string? DisplayName, string? Email, string? Password, string? ProfileType,
+public sealed record RegisterInput(string? DisplayName, string? Email, string? Password, string? Locale, string? ProfileType,
     string? ActivityArea, string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber,
     string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
 public sealed record ConfirmEmailInput(string? UserId, string? Token);
@@ -30,8 +30,8 @@ public sealed record PasswordInput(string? CurrentPassword, string? NewPassword)
 public sealed record TicketInput(string? Subject, string? Category, string? Body);
 public sealed record MessageInput(string? Body);
 public sealed record TicketStatusInput(string? Status);
-public sealed record TemplateInput(string? SubjectPt, string? SubjectEn, string? BodyPt, string? BodyEn);
-public sealed record FaqInput(string? Slug, string? Category, string? TitlePt, string? TitleEn, string? BodyPt, string? BodyEn, bool Published);
+public sealed record TemplateInput(string? SubjectPt, string? SubjectEn, string? SubjectEs, string? BodyPt, string? BodyEn, string? BodyEs);
+public sealed record FaqInput(string? Slug, string? Category, string? TitlePt, string? TitleEn, string? TitleEs, string? BodyPt, string? BodyEn, string? BodyEs, bool Published);
 public sealed record PublicContactInput(string? Name, string? Email, string? Category, string? SubjectKey,
     string? OtherSubject, string? Message, string? Locale, string? Website);
 
@@ -43,6 +43,7 @@ public sealed class PortalOperations(
     private static readonly HashSet<string> ActivityAreas = ["industrial-automation", "buildings-facilities", "residential", "utilities", "integrator-consulting", "education-research", "other"];
     private static string UserId(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static bool Owner(HttpContext context) => context.User.IsInRole("Owner");
+    private static bool ValidLocale(string? value) => value is "pt-BR" or "en" or "es";
     private static bool Valid(string? value, int minimum, int maximum) => value?.Trim().Length >= minimum && value.Trim().Length <= maximum;
     private static IResult Invalid(string code = "invalid-input") => Results.BadRequest(new { error = code });
 
@@ -89,7 +90,7 @@ public sealed class PortalOperations(
 
     public async Task<IResult> UpdateProfile(ProfileInput input, HttpContext context)
     {
-        if (!Valid(input.DisplayName, 1, 160) || input.Locale is not ("pt-BR" or "en")) return Invalid();
+        if (!Valid(input.DisplayName, 1, 160) || !ValidLocale(input.Locale)) return Invalid();
         var user = await users.GetUserAsync(context.User);
         if (user is null) return Results.Unauthorized();
         var profileType = input.ProfileType ?? user.ProfileType;
@@ -101,7 +102,7 @@ public sealed class PortalOperations(
         var marketingEmailOptIn = input.MarketingEmailOptIn ?? user.MarketingEmailOptIn;
         if (!ValidProfile(profileType, activityArea, activityAreaOther, organizationOrSchool, phoneNumber, address, input.DateOfBirth)) return Invalid("profile-fields-required");
         user.DisplayName = input.DisplayName!.Trim();
-        user.Locale = input.Locale;
+        user.Locale = input.Locale!;
         user.ProfileType = profileType;
         user.ActivityArea = activityArea;
         user.ActivityAreaOther = activityArea == "other" ? activityAreaOther!.Trim() : null;
@@ -137,7 +138,7 @@ public sealed class PortalOperations(
         var email = input.Email?.Trim();
         if (input.Password is null || input.Password.Length < 8 || input.Password.Length > 1024)
             return Invalid("password-requirements");
-        if (!Valid(input.DisplayName, 1, 160) || !Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
+        if (!Valid(input.DisplayName, 1, 160) || !ValidLocale(input.Locale) || !Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
             !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase) ||
             !ValidProfile(input.ProfileType, input.ActivityArea, input.ActivityAreaOther, input.OrganizationOrSchool,
                 input.PhoneNumber, input.Address, input.DateOfBirth)) return Invalid("profile-fields-required");
@@ -151,6 +152,7 @@ public sealed class PortalOperations(
             UserName = email,
             Email = email,
             DisplayName = input.DisplayName!.Trim(),
+            Locale = input.Locale!,
             EmailConfirmed = false,
             InvitationAccepted = false,
             ProfileType = input.ProfileType!,
@@ -313,7 +315,7 @@ public sealed class PortalOperations(
 
     public async Task<IResult> AcceptInvitation(AcceptInviteInput input)
     {
-        if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096) || input.Password is null || input.Password.Length > 1024) return Invalid();
+        if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096) || input.Password is null || input.Password.Length > 1024 || !ValidLocale(input.Locale)) return Invalid();
         var user = await users.FindByIdAsync(input.UserId!);
         if (user is null || user.InvitationAccepted) return Invalid("invalid-invitation");
         if (!ValidProfile(input.ProfileType, input.ActivityArea, input.ActivityAreaOther, input.OrganizationOrSchool,
@@ -325,6 +327,7 @@ public sealed class PortalOperations(
         var result = await users.ResetPasswordAsync(user, token, input.Password);
         if (!result.Succeeded) return Invalid("invalid-invitation-or-password");
         user.InvitationAccepted = true;
+        user.Locale = input.Locale!;
         user.ProfileType = input.ProfileType!;
         user.ActivityArea = input.ActivityArea!;
         user.ActivityAreaOther = input.ActivityArea == "other" ? input.ActivityAreaOther!.Trim() : null;
@@ -400,7 +403,7 @@ public sealed class PortalOperations(
         if (!Valid(name, 1, 100) || !Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
             !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase) || !Valid(message, 10, 4000)) return Invalid();
 
-        var locale = input.Locale == "en" ? "en" : "pt-BR";
+        var locale = input.Locale is "en" or "es" ? input.Locale : "pt-BR";
         var category = input.Category;
         var subjectKey = input.SubjectKey;
         var allowedSubjects = category switch
@@ -418,25 +421,28 @@ public sealed class PortalOperations(
         var categoryName = (category, locale) switch
         {
             ("commercial", "en") => "Sales",
+            ("commercial", "es") => "Ventas",
             ("support", "en") => "Support",
+            ("support", "es") => "Soporte",
             ("contact", "en") => "General contact",
+            ("contact", "es") => "Contacto general",
             ("commercial", _) => "Comercial",
             ("support", _) => "Suporte",
             _ => "Contato geral"
         };
         var subjectName = subjectKey == "other" ? otherSubject! : (subjectKey, locale) switch
         {
-            ("commercial-info", "en") => "Commercial information", ("commercial-info", _) => "Informações comerciais",
-            ("license", "en") => "Licensing", ("license", _) => "Licenciamento",
-            ("demo", "en") => "Product demonstration", ("demo", _) => "Demonstração do produto",
-            ("partnership", "en") => "Partnership", ("partnership", _) => "Parceria",
-            ("installation", "en") => "Installation", ("installation", _) => "Instalação",
-            ("configuration", "en") => "Configuration", ("configuration", _) => "Configuração",
-            ("integration", "en") => "Integration", ("integration", _) => "Integração",
-            ("technical-problem", "en") => "Technical issue", ("technical-problem", _) => "Problema técnico",
-            ("general-info", "en") => "General information", ("general-info", _) => "Informações gerais",
-            ("press", "en") => "Press", ("press", _) => "Imprensa",
-            ("privacy", "en") => "Privacy", _ => "Privacidade"
+            ("commercial-info", "en") => "Commercial information", ("commercial-info", "es") => "Información comercial", ("commercial-info", _) => "Informações comerciais",
+            ("license", "en") => "Licensing", ("license", "es") => "Licencias", ("license", _) => "Licenciamento",
+            ("demo", "en") => "Product demonstration", ("demo", "es") => "Demostración del producto", ("demo", _) => "Demonstração do produto",
+            ("partnership", "en") => "Partnership", ("partnership", "es") => "Asociación", ("partnership", _) => "Parceria",
+            ("installation", "en") => "Installation", ("installation", "es") => "Instalación", ("installation", _) => "Instalação",
+            ("configuration", "en") => "Configuration", ("configuration", "es") => "Configuración", ("configuration", _) => "Configuração",
+            ("integration", "en") => "Integration", ("integration", "es") => "Integración", ("integration", _) => "Integração",
+            ("technical-problem", "en") => "Technical issue", ("technical-problem", "es") => "Problema técnico", ("technical-problem", _) => "Problema técnico",
+            ("general-info", "en") => "General information", ("general-info", "es") => "Información general", ("general-info", _) => "Informações gerais",
+            ("press", "en") => "Press", ("press", "es") => "Prensa", ("press", _) => "Imprensa",
+            ("privacy", "en") => "Privacy", ("privacy", "es") => "Privacidad", _ => "Privacidade"
         };
         var recipient = category switch
         {
@@ -499,15 +505,17 @@ public sealed class PortalOperations(
         if (!string.IsNullOrWhiteSpace(search))
         {
             var match = $"%{search.Replace("%", "\\%").Replace("_", "\\_")}%";
-            query = query.Where(x => EF.Functions.ILike(x.TitlePt, match) || EF.Functions.ILike(x.TitleEn, match) || EF.Functions.ILike(x.BodyPt, match) || EF.Functions.ILike(x.BodyEn, match));
+            query = query.Where(x => EF.Functions.ILike(x.TitlePt, match) || EF.Functions.ILike(x.TitleEn, match) || EF.Functions.ILike(x.TitleEs, match) ||
+                EF.Functions.ILike(x.BodyPt, match) || EF.Functions.ILike(x.BodyEn, match) || EF.Functions.ILike(x.BodyEs, match));
         }
-        var english = lang == "en";
+        var language = lang is "en" or "es" ? lang : "pt-BR";
         return Results.Ok(await query.OrderBy(x => x.Category).ThenBy(x => x.Slug).Take(80)
-            .Select(x => new { x.Id, x.Slug, x.Category, title = english ? x.TitleEn : x.TitlePt, body = english ? x.BodyEn : x.BodyPt }).ToListAsync());
+            .Select(x => new { x.Id, x.Slug, x.Category, title = language == "en" ? x.TitleEn : language == "es" ? x.TitleEs : x.TitlePt,
+                body = language == "en" ? x.BodyEn : language == "es" ? x.BodyEs : x.BodyPt }).ToListAsync());
     }
 
     public async Task<IResult> Releases() => Results.Ok(await db.Releases.AsNoTracking().Where(x => x.Published)
-        .OrderByDescending(x => x.CreatedAtUtc).Take(40).Select(x => new { x.Id, x.Version, x.Platform, x.NotesPt, x.NotesEn, x.Sha256, x.CreatedAtUtc }).ToListAsync());
+        .OrderByDescending(x => x.CreatedAtUtc).Take(40).Select(x => new { x.Id, x.Version, x.Platform, x.NotesPt, x.NotesEn, x.NotesEs, x.Sha256, x.CreatedAtUtc }).ToListAsync());
 
     public async Task<IResult> Download(Guid id, HttpContext context)
     {
@@ -540,11 +548,12 @@ public sealed class PortalOperations(
 
     public async Task<IResult> UpdateTemplate(string key, TemplateInput input, HttpContext context)
     {
-        if (!Valid(input.SubjectPt, 1, 200) || !Valid(input.SubjectEn, 1, 200) || !Valid(input.BodyPt, 1, 8000) || !Valid(input.BodyEn, 1, 8000)) return Invalid();
+        if (!Valid(input.SubjectPt, 1, 200) || !Valid(input.SubjectEn, 1, 200) || !Valid(input.SubjectEs, 1, 200) ||
+            !Valid(input.BodyPt, 1, 8000) || !Valid(input.BodyEn, 1, 8000) || !Valid(input.BodyEs, 1, 8000)) return Invalid();
         var template = await db.EmailTemplates.FindAsync(key);
         if (template is null) return Results.NotFound();
-        template.SubjectPt = input.SubjectPt!.Trim(); template.SubjectEn = input.SubjectEn!.Trim();
-        template.BodyPt = input.BodyPt!.Trim(); template.BodyEn = input.BodyEn!.Trim();
+        template.SubjectPt = input.SubjectPt!.Trim(); template.SubjectEn = input.SubjectEn!.Trim(); template.SubjectEs = input.SubjectEs!.Trim();
+        template.BodyPt = input.BodyPt!.Trim(); template.BodyEn = input.BodyEn!.Trim(); template.BodyEs = input.BodyEs!.Trim();
         template.UpdatedAtUtc = DateTimeOffset.UtcNow;
         db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = "message-template.updated", ResourceId = key });
         await db.SaveChangesAsync();
@@ -554,12 +563,13 @@ public sealed class PortalOperations(
     public async Task<IResult> SaveFaq(Guid? id, FaqInput input, HttpContext context)
     {
         if (!Valid(input.Slug, 1, 100) || !Regex.IsMatch(input.Slug!, "^[a-z0-9-]+$") || !Valid(input.TitlePt, 1, 200) ||
-            !Valid(input.TitleEn, 1, 200) || !Valid(input.BodyPt, 1, 12000) || !Valid(input.BodyEn, 1, 12000) || !Valid(input.Category, 1, 60)) return Invalid();
+            !Valid(input.TitleEn, 1, 200) || !Valid(input.TitleEs, 1, 200) || !Valid(input.BodyPt, 1, 12000) ||
+            !Valid(input.BodyEn, 1, 12000) || !Valid(input.BodyEs, 1, 12000) || !Valid(input.Category, 1, 60)) return Invalid();
         var article = id.HasValue ? await db.FaqArticles.FindAsync(id.Value) : new FaqArticle();
         if (article is null) return Results.NotFound();
         if (await db.FaqArticles.AnyAsync(x => x.Slug == input.Slug && x.Id != article.Id)) return Results.Conflict(new { error = "slug-already-exists" });
-        article.Slug = input.Slug!; article.Category = input.Category!; article.TitlePt = input.TitlePt!.Trim(); article.TitleEn = input.TitleEn!.Trim();
-        article.BodyPt = input.BodyPt!.Trim(); article.BodyEn = input.BodyEn!.Trim(); article.Published = input.Published;
+        article.Slug = input.Slug!; article.Category = input.Category!; article.TitlePt = input.TitlePt!.Trim(); article.TitleEn = input.TitleEn!.Trim(); article.TitleEs = input.TitleEs!.Trim();
+        article.BodyPt = input.BodyPt!.Trim(); article.BodyEn = input.BodyEn!.Trim(); article.BodyEs = input.BodyEs!.Trim(); article.Published = input.Published;
         if (!id.HasValue) db.FaqArticles.Add(article);
         db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = "faq.updated", ResourceId = article.Id.ToString() });
         await db.SaveChangesAsync();

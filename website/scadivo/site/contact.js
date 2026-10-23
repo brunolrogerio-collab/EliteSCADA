@@ -10,35 +10,35 @@
   const submit = document.querySelector('#contact-submit');
   const subjects = {
     commercial: [
-      ['commercial-info', 'Informações comerciais', 'Commercial information'],
-      ['license', 'Licenciamento', 'Licensing'],
-      ['demo', 'Solicitar demonstração', 'Request a demo'],
-      ['partnership', 'Parceria', 'Partnership'],
-      ['other', 'Outro', 'Other']
+      ['commercial-info', 'Informações comerciais', 'Commercial information', 'Información comercial'],
+      ['license', 'Licenciamento', 'Licensing', 'Licencias'],
+      ['demo', 'Solicitar demonstração', 'Request a demo', 'Solicitar una demostración'],
+      ['partnership', 'Parceria', 'Partnership', 'Asociación'],
+      ['other', 'Outro', 'Other', 'Otro']
     ],
     support: [
-      ['installation', 'Instalação', 'Installation'],
-      ['configuration', 'Configuração', 'Configuration'],
-      ['integration', 'Integração', 'Integration'],
-      ['technical-problem', 'Problema técnico', 'Technical issue'],
-      ['other', 'Outro', 'Other']
+      ['installation', 'Instalação', 'Installation', 'Instalación'],
+      ['configuration', 'Configuração', 'Configuration', 'Configuración'],
+      ['integration', 'Integração', 'Integration', 'Integración'],
+      ['technical-problem', 'Problema técnico', 'Technical issue', 'Problema técnico'],
+      ['other', 'Outro', 'Other', 'Otro']
     ],
     contact: [
-      ['general-info', 'Informações gerais', 'General information'],
-      ['partnership', 'Parceria', 'Partnership'],
-      ['press', 'Imprensa', 'Press'],
-      ['privacy', 'Privacidade', 'Privacy'],
-      ['other', 'Outro', 'Other']
+      ['general-info', 'Informações gerais', 'General information', 'Información general'],
+      ['partnership', 'Parceria', 'Partnership', 'Asociación'],
+      ['press', 'Imprensa', 'Press', 'Prensa'],
+      ['privacy', 'Privacidade', 'Privacy', 'Privacidad'],
+      ['other', 'Outro', 'Other', 'Otro']
     ]
   };
 
-  function language() { return document.documentElement.lang === 'en' ? 'en' : 'pt'; }
+  function language() { return document.documentElement.lang === 'en' ? 'en' : document.documentElement.lang === 'es' ? 'es' : 'pt'; }
   function updateSubjects() {
     const previous = subject.value;
-    subject.replaceChildren(...subjects[category.value].map(([value, pt, en]) => {
+    subject.replaceChildren(...subjects[category.value].map(([value, pt, en, es]) => {
       const option = document.createElement('option');
       option.value = value;
-      option.textContent = language() === 'en' ? en : pt;
+      option.textContent = language() === 'en' ? en : language() === 'es' ? es : pt;
       return option;
     }));
     if ([...subject.options].some(option => option.value === previous)) subject.value = previous;
@@ -53,7 +53,7 @@
   }
 
   const requestedCategory = new URLSearchParams(location.search).get('area');
-  const categoryByQuery = { comercial: 'commercial', sales: 'commercial', suporte: 'support', support: 'support', contato: 'contact', contact: 'contact' };
+  const categoryByQuery = { comercial: 'commercial', ventas: 'commercial', sales: 'commercial', suporte: 'support', soporte: 'support', support: 'support', contato: 'contact', contacto: 'contact', 'contacto-general': 'contact', contact: 'contact' };
   if (categoryByQuery[requestedCategory]) category.value = categoryByQuery[requestedCategory];
   category.addEventListener('change', updateSubjects);
   subject.addEventListener('change', updateSubjects);
@@ -64,7 +64,8 @@
     event.preventDefault();
     if (!form.reportValidity()) return;
     submit.disabled = true;
-    setStatus(language() === 'en' ? 'Sending securely…' : 'Enviando com segurança…', 'pending');
+    const activeLanguage = language();
+    setStatus(activeLanguage === 'en' ? 'Sending securely…' : activeLanguage === 'es' ? 'Enviando de forma segura…' : 'Enviando com segurança…', 'pending');
     try {
       const sessionResponse = await fetch('/portal/api/session', { credentials: 'same-origin', cache: 'no-store' });
       if (!sessionResponse.ok) throw new Error('session');
@@ -78,7 +79,7 @@
         body: JSON.stringify({
           name: values.get('name'), email: values.get('email'), category: values.get('category'),
           subjectKey: values.get('subjectKey'), otherSubject: values.get('otherSubject'),
-          message: values.get('message'), locale: language() === 'en' ? 'en' : 'pt-BR', website: values.get('website')
+          message: values.get('message'), locale: activeLanguage === 'en' ? 'en' : activeLanguage === 'es' ? 'es' : 'pt-BR', website: values.get('website')
         })
       });
       if (!response.ok) throw new Error(response.status === 429 ? 'rate' : 'delivery');
@@ -86,13 +87,15 @@
       form.reset();
       if (categoryByQuery[requestedCategory]) category.value = categoryByQuery[requestedCategory];
       updateSubjects();
-      setStatus(language() === 'en'
+      setStatus(activeLanguage === 'en'
         ? `Message received. A confirmation is on its way to your email. Reference: ${result.reference}`
-        : `Mensagem recebida. Uma confirmação está a caminho do seu e-mail. Protocolo: ${result.reference}`, 'success');
+        : activeLanguage === 'es'
+          ? `Mensaje recibido. Recibirás una confirmación por correo electrónico. Referencia: ${result.reference}`
+          : `Mensagem recebida. Uma confirmação está a caminho do seu e-mail. Protocolo: ${result.reference}`, 'success');
     } catch (error) {
       const message = error.message === 'rate'
-        ? (language() === 'en' ? 'Please wait a few minutes before sending another message.' : 'Aguarde alguns minutos antes de enviar outra mensagem.')
-        : (language() === 'en' ? 'We could not send your message right now. Please try again shortly.' : 'Não foi possível enviar sua mensagem agora. Tente novamente em instantes.');
+        ? (activeLanguage === 'en' ? 'Please wait a few minutes before sending another message.' : activeLanguage === 'es' ? 'Espera unos minutos antes de enviar otro mensaje.' : 'Aguarde alguns minutos antes de enviar outra mensagem.')
+        : (activeLanguage === 'en' ? 'We could not send your message right now. Please try again shortly.' : activeLanguage === 'es' ? 'No pudimos enviar tu mensaje ahora. Inténtalo de nuevo en unos minutos.' : 'Não foi possível enviar sua mensagem agora. Tente novamente em instantes.');
       setStatus(message, 'error');
     } finally {
       submit.disabled = false;

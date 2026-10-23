@@ -6,11 +6,11 @@ Issue: [#741](https://github.com/brunolrogerio-collab/EliteSCADA/issues/741). Im
 
 | Address | Purpose |
 | --- | --- |
-| `https://scadivo.com/` | Public PT/EN presentation, real demo captures, free 200-tag offering, local/web/Windows/Linux/Docker/edge positioning |
+| `https://scadivo.com/` | Public PT/EN/ES presentation, real demo captures, free 200-tag offering, local/web/Windows/Linux/Docker/edge positioning |
 | `https://scadivo.com/demo` | Existing public Runtime demonstration, unchanged by this portal package |
 | `https://scadivo.com/portal/` | Independent customer portal with public account pilot, same-origin HTTPS cookie |
 
-The portal includes profile/password management, administrator-issued personal invitations, private support conversations, searchable bilingual FAQ, editable PT/EN message templates, administrator account list and audit records. Public self-registration requires profile type, activity area and company/school affiliation (enter “Autônomo/independente” when applicable); phone, address and date of birth remain optional. New users receive a one-use email-confirmation link and cannot sign in before confirming. Recovery sends a one-use reset link only to eligible confirmed accounts. Organizations and memberships have separate tables, not global administrator privileges. The public site contact form routes Sales, Support and General Contact messages to their respective business mailboxes without creating accounts.
+The portal includes profile/password management, administrator-issued personal invitations, private support conversations, searchable FAQ, editable automatic-message templates, administrator account list and audit records. The public site and portal support Portuguese, English and Spanish. Users choose a preferred interface language during registration and can change it in their profile; confirmation, recovery and account messages follow that preference, while contact receipts follow the language selected on the public site. Public self-registration requires profile type, activity area, company/school affiliation and preferred language (enter “Autônomo/independente” when applicable); phone, address and date of birth remain optional. New users receive a one-use email-confirmation link and cannot sign in before confirming. Recovery sends a one-use reset link only to eligible confirmed accounts. Organizations and memberships have separate tables, not global administrator privileges. The public site contact form routes Sales, Support and General Contact messages to their respective business mailboxes without creating accounts.
 
 The authenticated download catalog accepts only approved official GitHub release URLs with SHA-256 metadata. It starts empty because no release artifact is currently approved; no placeholder installer is offered. Publication management, the official distribution pipeline (#363/#408), and artifact verification before catalog insertion remain follow-up work.
 
@@ -133,8 +133,8 @@ For disaster recovery: provision the same stack without publishing it, decrypt t
 - Standalone Release build and PostgreSQL integration suite: passed.
 - Docker image build and Nginx configuration validation: passed.
 - NuGet vulnerability report (including transitives): none reported by configured official source at verification time; not a security certification.
-- Public portal live HTTPS UI: owner login, all tabs, FAQ search, template preview, PT/EN, logout; desktop 1440 and widths 320/390/768; no page errors or horizontal overflow.
-- Public marketing site: PT/EN at widths 320/390/768/1024/1440, images/links/FAQ checked; no historical commercial branding or evaluation-time messaging.
+- Public portal live HTTPS UI: owner login, all tabs, FAQ search, template preview, PT/EN/ES, logout; desktop 1440 and widths 320/390/768; no page errors or horizontal overflow.
+- Public marketing site: PT/EN/ES at widths 320/390/768/1024/1440, images/links/FAQ checked; no historical commercial branding or evaluation-time messaging.
 - Anonymous APIs enforce authentication; database/API are not host-published; encrypted backup and disposable restore passed.
 - Existing public site and demo routes remain operational. No product application import, demo restart or license change was made.
 - Production portal API currently runs `scadivo-portal:20261023-73b33d2e`; an encrypted backup completed before rollout, and only the API service was recreated. PostgreSQL and the demo were not changed. Post-deploy checks confirmed an anonymous portal session, public registration and SMTP enabled, the updated required-field guidance, and public Runtime with 22 screens. Outlook-specific markup is covered by the portal integration suite; visual confirmation in the owner's Outlook remains a manual follow-up.

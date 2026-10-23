@@ -70,8 +70,10 @@ public sealed class FaqArticle
     public string Category { get; set; } = "getting-started";
     public string TitlePt { get; set; } = "";
     public string TitleEn { get; set; } = "";
+    public string TitleEs { get; set; } = "";
     public string BodyPt { get; set; } = "";
     public string BodyEn { get; set; } = "";
+    public string BodyEs { get; set; } = "";
     public bool Published { get; set; } = true;
 }
 
@@ -80,8 +82,10 @@ public sealed class EmailTemplate
     public string Key { get; set; } = "";
     public string SubjectPt { get; set; } = "";
     public string SubjectEn { get; set; } = "";
+    public string SubjectEs { get; set; } = "";
     public string BodyPt { get; set; } = "";
     public string BodyEn { get; set; } = "";
+    public string BodyEs { get; set; } = "";
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
@@ -109,6 +113,7 @@ public sealed class DownloadRelease
     public string Platform { get; set; } = "";
     public string NotesPt { get; set; } = "";
     public string NotesEn { get; set; } = "";
+    public string NotesEs { get; set; } = "";
     public string OfficialUrl { get; set; } = "";
     public string Sha256 { get; set; } = "";
     public bool Published { get; set; }

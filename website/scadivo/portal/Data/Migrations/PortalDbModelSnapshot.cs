@@ -167,6 +167,10 @@ namespace Scadivo.Portal.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("NotesEs")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("NotesPt")
                         .IsRequired()
                         .HasColumnType("text");
@@ -265,11 +269,19 @@ namespace Scadivo.Portal.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("BodyEs")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("BodyPt")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("SubjectEn")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SubjectEs")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -295,6 +307,10 @@ namespace Scadivo.Portal.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("BodyEs")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("BodyPt")
                         .IsRequired()
                         .HasColumnType("text");
@@ -312,6 +328,10 @@ namespace Scadivo.Portal.Data.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("TitleEn")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TitleEs")
                         .IsRequired()
                         .HasColumnType("text");
 

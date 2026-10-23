@@ -11,7 +11,7 @@ chmod 700 "$destination"
 staging=$(mktemp -d /var/backups/scadivo-portal/staging.XXXXXX)
 trap 'rm -f "$staging/database.dump" "$staging/keys.tar.gz" "$staging/manifest.txt"; rmdir "$staging"' EXIT
 docker compose -f compose.yml exec -T database pg_dump -U scadivo_portal -d scadivo_portal -Fc > "$staging/database.dump"
-docker compose -f compose.yml exec -T api tar czf - -C /app/keys . > "$staging/keys.tar.gz"
+docker compose -f compose.yml exec -T scadivo-portal-api tar czf - -C /app/keys . > "$staging/keys.tar.gz"
 date -u '+SCADIVO portal backup %Y-%m-%dT%H:%M:%SZ' > "$staging/manifest.txt"
 archive="$destination/portal-$(date -u +%Y%m%dT%H%M%SZ).tar.gz.enc"
 tar czf - -C "$staging" database.dump keys.tar.gz manifest.txt | openssl enc -aes-256-cbc -salt -pbkdf2 -iter 200000 -pass file:"$password" -out "$archive"

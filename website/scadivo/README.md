@@ -52,6 +52,7 @@ For local UI development use HTTPS with a development certificate. Secure cookie
 - Site source remains `/etc/easypanel/projects/scadivo/site/code`; the tracked `site/` folder is the corresponding source in this package.
 - Portal is a separate Docker Compose project `scadivo_portal` at `/opt/scadivo/portal`, managed over the existing authorized SSH connection. It is not a new EasyPanel service entry.
 - API and PostgreSQL have **no host-published ports**. Only the existing website exposes the portal through `/portal/`, using the external `easypanel` overlay alias `scadivo_portal_api`.
+- The API Compose service is named `scadivo-portal-api`. Compose automatically publishes its service name on the shared overlay: do not rename it to generic `api`, which shadows the demo API from the demo web container. The explicit site upstream alias remains `scadivo_portal_api`.
 - Database volume: `scadivo_portal_database`. Key-ring volume: `scadivo_portal_keys`. Neither is a demo volume.
 - Root-only environment: `/opt/scadivo/portal/.env`. Initial owner secret: `/opt/scadivo/portal/secrets/portal-owner`, readonly UID 1654. This is only used for a completely empty database; restarting never resets a password.
 - Initial owner username: `scadivo.owner`. Its private password is delivered outside GitHub/repository; change it in **My account**. Demo engineering credentials do not sign in to this portal.
@@ -72,6 +73,14 @@ docker compose -f compose.yml ps
 ```
 
 Database migrations run before serving traffic. Review any subsequent destructive migration separately. An image rollback alone is not a database rollback. Initial schema is additive and does not touch the product database.
+
+After deployment, run the read-only check `node deploy/check-public-services.mjs` from this directory. It verifies the site, portal session, demo API, optional sign-in configuration, anonymous Runtime permissions, and actual demo screen package without credentials. An HTTP 200 for `/demo` or the demo index alone does not verify its API connectivity. Check the portal API's shared-network DNS aliases for generic names before declaring the demo unaffected.
+
+If Node requires the operating system's trusted CA store on Windows, run `node --use-system-ca deploy/check-public-services.mjs`; certificate verification remains enabled.
+
+When upgrading the original portal deployment from service `api` to `scadivo-portal-api`, back up using the existing script before replacing the Compose/backup files, then run `docker compose -f compose.yml up -d --no-deps --remove-orphans --wait --wait-timeout 180 scadivo-portal-api`. This replaces only the portal API container and removes its old conflicting DNS alias; it preserves the portal database, keys, and all demo containers.
+
+The shared DNS collision was corrected in production on 23 October 2026. Before the correction, the demo web container resolved `api` to the portal overlay address and could not connect on its own API's port 5080. After the portal service rename, it resolved its original private API again. Anonymous Runtime served 22 screens; existing-account sign-in and Engineering capabilities passed. Demo container IDs/start times were unchanged, and the portal backup succeeded with the renamed service. No demo configuration, Application, license, or Authority was replaced.
 
 Public site rollback image: `easypanel/scadivo/site:before-portal-20261023`; source archive: `/var/backups/scadivo-site-before-portal-20261023.tar.gz`. Its rollback removes only the portal entry/proxy, not portal data. Never remove the demo or its volumes as part of website deployment.
 

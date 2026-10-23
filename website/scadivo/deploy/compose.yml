@@ -28,7 +28,9 @@ services:
     volumes: [keys:/keys]
     network_mode: none
     restart: 'no'
-  api:
+  # Compose publishes the service name as a DNS alias on every attached network.
+  # A generic `api` here shadows APIs belonging to other EasyPanel applications.
+  scadivo-portal-api:
     image: ${PORTAL_IMAGE:?required}
     environment:
       ASPNETCORE_ENVIRONMENT: Production

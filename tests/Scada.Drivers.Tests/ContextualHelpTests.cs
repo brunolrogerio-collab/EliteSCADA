@@ -593,6 +593,7 @@ public sealed class ContextualHelpTests
         {
             "screens.overview",
             "popups.overview",
+            "tags.overview",
             "sources.data-sources",
             "engineering.lifecycle",
             "packages.escadapkg",
@@ -702,6 +703,47 @@ public sealed class ContextualHelpTests
             Assert.Contains("screens.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
             Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
             Assert.Contains("visual.events", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void TagAuthoringHelp_ExplainsSourceBindingCommissioningAndLifecycleInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "caminho de referência é derivado do nome", "espaços viram _", "caminho não muda",
+                "endereço e binding anteriores são limpos", "assistente", "Somente leitura",
+                "não escreve no processo", "não grava amostras no Historian", "Preview não altera o Working",
+                "Apply ao Workspace", "salve, publique e ative"
+            },
+            ["en"] = new[]
+            {
+                "reference path is derived from the name", "spaces become _", "does not rename its path",
+                "previous address and binding are cleared", "assistant", "read-only",
+                "write the process", "store Historian samples", "Preview does not mutate Working",
+                "Apply to Workspace", "save, publish, and activate"
+            },
+            ["es"] = new[]
+            {
+                "ruta de referencia se deriva del nombre", "los espacios se convierten en _", "no cambia su ruta",
+                "se borran la dirección y el binding anteriores", "asistente", "solo lectura",
+                "escribe en el proceso", "guarda muestras en Historian", "Preview no modifica Working",
+                "Aplicar al Workspace", "guarde, publique y active"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "tags.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sources.data-sources", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("tags.addressing", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("historian.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
         }
     }
 

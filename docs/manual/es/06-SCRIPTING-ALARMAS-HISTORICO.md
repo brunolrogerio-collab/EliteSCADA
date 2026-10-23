@@ -43,14 +43,14 @@ El segundo ejemplo muestra la estructura del evento canónico que usa el host; u
 
 El subconjunto actual acepta:
 
-- `def` sin decorators, valores predeterminados ni parámetros solo posicionales o solo nominales;
+- `def` sin decorators, valores predeterminados ni parámetros solo posicionales (positional-only) o solo por nombre (keyword-only);
 - asignación local y `+=`, `-=`, `*=`;
 - `if`/`else`, `return` y `pass`;
 - listas, tuplas, diccionarios y acceso por índice, por ejemplo `event["payload"]["action"]`;
 - `+`, `-`, `*`, `/`, `//`, `%`, `**`; comparaciones `==`, `!=`, `<`, `<=`, `>`, `>=`, `is`, `is not`;
 - `not`, `and`, `or`, llamadas posicionales a funciones del propio Script y `min`, `max`, `abs`, `round`, `int`, `float`, `bool`, `str`, `len`.
 
-No acepta `import`, código/variables en el nivel principal, `for`, `while`, comprehensions, `class`, `try/except`, `lambda`, f-strings, acceso a atributos, decorators, argumentos nominales ni bibliotecas externas de Python. Incluso el código sintácticamente aceptado puede fallar por tipos incompatibles, división por cero o claves/índices inexistentes.
+No acepta `import`, código/variables en el nivel principal, `for`, `while`, comprensiones de listas/iterables (comprehensions), `class`, `try/except`, `lambda`, f-strings, acceso a atributos, decorators, argumentos nominales ni bibliotecas externas de Python. Incluso el código sintácticamente aceptado puede fallar por tipos incompatibles, división por cero o claves/índices inexistentes.
 
 **Diferencia importante:** en este intérprete, `and` y `or` evalúan todos los operandos; no tienen el cortocircuito de Python normal. No los use para proteger una operación que pueda fallar. Escriba `if` anidados:
 

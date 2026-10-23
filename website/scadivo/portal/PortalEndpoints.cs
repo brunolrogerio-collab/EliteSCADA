@@ -28,6 +28,8 @@ public static class PortalEndpoints
         app.MapPost("/api/auth/register", (RegisterInput input, PortalOperations operations) => operations.Register(input)).RequireRateLimiting("auth");
         app.MapPost("/api/auth/confirm-email", (ConfirmEmailInput input, PortalOperations operations) => operations.ConfirmEmail(input)).RequireRateLimiting("auth");
         app.MapPost("/api/auth/confirmation/resend", (ResendConfirmationInput input, PortalOperations operations) => operations.ResendConfirmation(input)).RequireRateLimiting("auth");
+        app.MapPost("/api/auth/password-recovery", (PasswordRecoveryInput input, PortalOperations operations) => operations.RequestPasswordRecovery(input)).RequireRateLimiting("password-recovery");
+        app.MapPost("/api/auth/reset-password", (ResetPasswordInput input, PortalOperations operations) => operations.ResetPassword(input)).RequireRateLimiting("password-recovery");
         app.MapPost("/api/auth/logout", (HttpContext context, PortalOperations operations) => operations.Logout(context)).RequireAuthorization();
         app.MapPost("/api/public/contact", (PublicContactInput input, PortalOperations operations) => operations.PublicContact(input))
             .RequireRateLimiting("public-contact");

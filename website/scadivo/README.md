@@ -18,13 +18,13 @@ Community and licensing areas explicitly display their pending state. There is n
 
 ### Pilot scope and remaining gates
 
-- Self-service registration and email confirmation are enabled in production as a limited public pilot by the owner's explicit decision on 23 October 2026. New accounts remain unable to sign in until the one-use confirmation link is completed. This opens account creation only; downloads, community publishing, checkout and license services remain unavailable. Password recovery is not implemented; the login screen directs users to support for access help.
-- This is an explicit early-pilot decision while the broader #741 launch gates remain open: finalized privacy/terms and retention policy, self-service password recovery, offsite backup automation and monitoring/alerting. Do not describe this as a full commercial launch. Registration stays configurable in production Compose with a default of `false`; the private production environment opts in.
+- Self-service registration, email confirmation and password recovery are enabled in production as a limited public pilot by the owner's explicit decision. New accounts remain unable to sign in until the one-use confirmation link is completed. Recovery accepts an email address, gives the same response whether or not an eligible account exists, and sends a 24-hour one-use reset link only to confirmed accounts. Reset tokens are generated at delivery time, never stored in the outbox, and password reset invalidates the token. Downloads, community publishing, checkout and license services remain unavailable.
+- This is an explicit early-pilot decision while the broader #741 launch gates remain open: finalized privacy/terms and retention policy, offsite backup automation and monitoring/alerting. Do not describe this as a full commercial launch. Registration stays configurable in production Compose with a default of `false`; the private production environment opts in.
 - Transactional SMTP delivery is deployed and enabled for administrative invitations, support-ticket receipts and staff replies. This branch adds branded HTML/text delivery for public-site contact receipts/team notifications and registration confirmation. The sender creates fresh one-use invitation/confirmation tokens at send time; it never stores them in the outbox or audit log. Historical `awaiting-transport` rows are deliberately not sent automatically.
-- Public community: requires moderation rules, account recovery and SSO integration.
+- Public community: requires moderation rules and SSO integration.
 - Commercial licensing: pricing, named/concurrent seats, machine limits/transfers, cancellation/refund and conversion rules are still product-owner decisions. Future remote license transport is HTTPS/TCP 443, with its own contract and coordinator review.
 
-This is a limited public account-registration pilot, not a claim that all phases of #741 are complete. Account confirmation and authenticated SMTP are covered by integration tests; the SMTP domain and a contact receipt were separately verified with real delivery. Legal/privacy review, recovery, retention, offsite backup automation and monitoring/alerting remain outstanding.
+This is a limited public account-registration pilot, not a claim that all phases of #741 are complete. Account confirmation, indistinguishable recovery responses, confirmed-account eligibility, reset-token non-persistence and one-use password reset are covered by integration tests; the SMTP domain and a contact receipt were separately verified with real delivery. Legal/privacy review, retention, offsite backup automation and monitoring/alerting remain outstanding.
 
 ### Transactional email implementation
 
@@ -40,7 +40,7 @@ The noreply password is installed at `/opt/scadivo/portal/secrets/portal-mail/sm
 docker compose -f compose.yml exec -T scadivo-portal-api dotnet /app/Scadivo.Portal.dll --send-test-email
 ```
 
-The command's test message goes to `support@scadivo.com`. A successful result means the SMTP server accepted it; separately confirm arrival in the mailbox and inspect SPF/DKIM results. The production sender was separately tested end to end as described above. Account confirmation runs through the same authenticated sender; account recovery remains unimplemented.
+The command's test message goes to `support@scadivo.com`. A successful result means the SMTP server accepted it; separately confirm arrival in the mailbox and inspect SPF/DKIM results. The production sender was separately tested end to end as described above. Account confirmation and password recovery use the same authenticated sender; reset tokens are created just before send and are not written to outbox or audit records.
 
 ## Code boundaries
 
@@ -59,7 +59,7 @@ dotnet test tests/Scadivo.Portal.Tests.csproj --configuration Release
 docker build -f portal/Dockerfile -t scadivo-portal:local .
 ```
 
-Tests require a **disposable** PostgreSQL database. Set `PORTAL_TEST_DATABASE`; the default is localhost port 15441 with the explicitly nonproduction test credential in the fixture. Never point tests at the production portal or demo. Tests cover antiforgery, secure cookies, roles, one-use invitation redemption, email confirmation before new-account login, profile requirements, cross-user support isolation, FAQ/templates/audit, login lockout, and database persistence across a fresh host.
+Tests require a **disposable** PostgreSQL database. Set `PORTAL_TEST_DATABASE`; the default is localhost port 15441 with the explicitly nonproduction test credential in the fixture. Never point tests at the production portal or demo. Tests cover antiforgery, secure cookies, roles, one-use invitation redemption, email confirmation before new-account login, non-enumerating recovery responses, confirmed-account eligibility, one-use password reset, reset-email token non-persistence, profile requirements, cross-user support isolation, FAQ/templates/audit, login lockout, and database persistence across a fresh host.
 
 ### Local Docker homologation
 
@@ -72,7 +72,7 @@ docker compose -f deploy/compose.homolog.yml up -d --build
 - Site and portal: `http://localhost:18084/` and `http://localhost:18084/portal/`.
 - Local email inbox: `http://localhost:18083/`; confirmation messages are captured there and are never sent to real mailboxes.
 - The isolated PostgreSQL and Data Protection key volumes are not published to the host. API, database and Mailpit use a private internal network; only the site and local Mailpit UI attach to the loopback-published front network. The stack has separate volumes, aliases and containers from production and the demo.
-- The local preview alone enables self-registration and uses a development-only HTTP cookie policy plus plaintext SMTP to Mailpit. Production stays HTTPS-only and keeps public registration disabled until the legal, recovery, retention and launch gates in #741 are completed.
+- The local preview alone routes email to Mailpit and uses a development-only HTTP cookie policy. Production stays HTTPS-only; public registration is currently opted in as a limited pilot by explicit owner decision, while the Compose default remains disabled so a fresh installation is closed unless deliberately enabled.
 - A local-only owner account is bootstrapped as `scadivo.owner` with the test password shown in this homologation Compose file. Never reuse it outside localhost.
 - `docker compose -f deploy/compose.homolog.yml down` stops the preview while preserving its volumes. Do not add `-v` unless you intend to erase only this homologation database and key ring.
 

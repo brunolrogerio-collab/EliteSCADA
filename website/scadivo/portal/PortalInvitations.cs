@@ -21,4 +21,11 @@ public static class PortalInvitations
         var payload = WebEncoders.Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(new { userId = user.Id, token }));
         return $"{publicUrl.TrimEnd('/')}/#confirm-email={payload}";
     }
+
+    public static async Task<string> PasswordResetLinkAsync(UserManager<PortalUser> users, PortalUser user, string publicUrl)
+    {
+        var token = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(await users.GeneratePasswordResetTokenAsync(user)));
+        var payload = WebEncoders.Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(new { userId = user.Id, token }));
+        return $"{publicUrl.TrimEnd('/')}/#reset-password={payload}";
+    }
 }

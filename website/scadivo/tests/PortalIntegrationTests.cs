@@ -350,6 +350,12 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Null(pendingConfirmation.TemplateDataJson); // The one-time token is generated only during delivery.
             using (var blockedLogin = await registrationSession.Raw("/auth/login", HttpMethod.Post, new { username = registrationEmail, password = Password }))
                 Assert.Equal(HttpStatusCode.Unauthorized, blockedLogin.StatusCode);
+            using (var pendingRecovery = await registrationSession.Raw("/auth/password-recovery", HttpMethod.Post, new { email = registrationEmail }))
+            {
+                Assert.Equal(HttpStatusCode.Accepted, pendingRecovery.StatusCode);
+                Assert.Equal("check-email", (await pendingRecovery.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+            }
+            Assert.Empty(await db.EmailOutbox.Where(x => x.UserId == pendingAccount.Id && x.TemplateKey == "account.password-reset").ToListAsync());
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
             Assert.Equal(6, transport.Messages.Count);
             using var confirmationMessage = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Last())));
@@ -374,6 +380,52 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal("student", registeredProfile.GetProperty("profileType").GetString());
             Assert.Equal("Technical University", registeredProfile.GetProperty("organizationOrSchool").GetString());
             Assert.False(registeredProfile.GetProperty("marketingEmailOptIn").GetBoolean());
+            var legacyRecoveryTemplate = await db.EmailTemplates.SingleAsync(x => x.Key == "account.password-reset");
+            legacyRecoveryTemplate.BodyEn = "Hello {{name}}. To reset your password, use: {{link}}. If you did not request this, ignore this message.";
+            await db.SaveChangesAsync(); // Models an already-seeded production template that predates the new copy.
+
+            using var recoveryClient = Client(factory);
+            var recoverySession = new Session(recoveryClient, await Csrf(recoveryClient));
+            using var unknownRecovery = await recoverySession.Raw("/auth/password-recovery", HttpMethod.Post, new { email = "unknown@example.test" });
+            using var knownRecovery = await recoverySession.Raw("/auth/password-recovery", HttpMethod.Post, new { email = registrationEmail });
+            using var repeatedRecovery = await recoverySession.Raw("/auth/password-recovery", HttpMethod.Post, new { email = registrationEmail });
+            Assert.Equal(HttpStatusCode.Accepted, unknownRecovery.StatusCode);
+            Assert.Equal(HttpStatusCode.Accepted, knownRecovery.StatusCode);
+            Assert.Equal(HttpStatusCode.Accepted, repeatedRecovery.StatusCode);
+            Assert.Equal(await unknownRecovery.Content.ReadAsStringAsync(), await knownRecovery.Content.ReadAsStringAsync());
+            Assert.Equal(await knownRecovery.Content.ReadAsStringAsync(), await repeatedRecovery.Content.ReadAsStringAsync());
+            var resetOutbox = await db.EmailOutbox.SingleAsync(x => x.UserId == pendingAccount.Id && x.TemplateKey == "account.password-reset");
+            Assert.Null(resetOutbox.TemplateDataJson); // Reset token is generated only while sending, never stored.
+            Assert.Equal(pendingAccount.Id, resetOutbox.Reference);
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            Assert.Equal(7, transport.Messages.Count);
+            using var resetMessage = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Last())));
+            Assert.Equal("noreply@scadivo.com", resetMessage.From.Mailboxes.Single().Address);
+            Assert.Empty(resetMessage.ReplyTo);
+            Assert.Contains("Please do not reply to this email.", resetMessage.TextBody);
+            Assert.Contains("expires in 24 hours", resetMessage.TextBody);
+            Assert.Contains("https://scadivo.com/contact?area=support", resetMessage.TextBody);
+            var resetMarker = "https://localhost/portal/#reset-password=";
+            var resetLine = Assert.IsType<string>(resetMessage.TextBody).Split('\n').Select(x => x.Trim())
+                .Single(x => x.Contains(resetMarker, StringComparison.Ordinal));
+            var resetStart = resetLine.IndexOf(resetMarker, StringComparison.Ordinal);
+            var resetEnd = resetLine.IndexOfAny([' ', '\t', '.'], resetStart);
+            var resetUrl = resetLine[resetStart..(resetEnd < 0 ? resetLine.Length : resetEnd)].TrimEnd(',', ';');
+            Assert.Equal(1, resetMessage.TextBody.Split(resetUrl, StringSplitOptions.None).Length - 1);
+            using var resetPayload = PasswordReset(resetUrl);
+            var resetData = new { userId = resetPayload.RootElement.GetProperty("userId").GetString(), token = resetPayload.RootElement.GetProperty("token").GetString() };
+            using (var weakReset = await recoverySession.Raw("/auth/reset-password", HttpMethod.Post, new { resetData.userId, resetData.token, password = "weakpassword" }))
+            {
+                Assert.Equal(HttpStatusCode.BadRequest, weakReset.StatusCode);
+                Assert.Equal("password-requirements", (await weakReset.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+            }
+            await recoverySession.Send("/auth/reset-password", HttpMethod.Post, new { resetData.userId, resetData.token, password = "NewScadivo2!" });
+            using (var reusedReset = await recoverySession.Raw("/auth/reset-password", HttpMethod.Post, new { resetData.userId, resetData.token, password = "AnotherScadivo2!" }))
+                Assert.Equal(HttpStatusCode.BadRequest, reusedReset.StatusCode);
+            using (var oldPasswordLogin = await recoverySession.Raw("/auth/login", HttpMethod.Post, new { username = registrationEmail, password = Password }))
+                Assert.Equal(HttpStatusCode.Unauthorized, oldPasswordLogin.StatusCode);
+            using (var newPasswordLogin = await recoverySession.Raw("/auth/login", HttpMethod.Post, new { username = registrationEmail, password = "NewScadivo2!" }))
+                Assert.Equal(HttpStatusCode.OK, newPasswordLogin.StatusCode);
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -420,6 +472,11 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     {
         var uri = new Uri(url);
         return JsonDocument.Parse(Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(uri.Fragment[15..])));
+    }
+    private static JsonDocument PasswordReset(string url)
+    {
+        var uri = new Uri(url);
+        return JsonDocument.Parse(Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(uri.Fragment[16..])));
     }
     private sealed record Session(HttpClient Client, string Token)
     {

@@ -94,11 +94,12 @@ public sealed class PortalEmailDispatcher(
         var user = item.UserId is null ? null : await users.FindByIdAsync(item.UserId);
         var template = await db.EmailTemplates.FindAsync([item.TemplateKey], cancellationToken);
         var recipient = item.RecipientAddress ?? user?.Email;
-        var reason = item.TemplateKey is not ("account.invitation" or "account.confirmation" or "support.created" or "support.replied" or "contact.received" or "contact.notification") ? "unsupported-template"
+        var reason = item.TemplateKey is not ("account.invitation" or "account.confirmation" or "account.password-reset" or "support.created" or "support.replied" or "contact.received" or "contact.notification") ? "unsupported-template"
             : string.IsNullOrWhiteSpace(recipient) || !MailboxAddress.TryParse(recipient, out _) ? "recipient-missing"
             : template is null ? "template-missing"
             : item.TemplateKey == "account.invitation" && user?.InvitationAccepted == true ? "invitation-accepted"
-            : item.TemplateKey == "account.confirmation" && (user is null || user.EmailConfirmed || user.InvitationAccepted) ? "confirmation-not-required" : null;
+            : item.TemplateKey == "account.confirmation" && (user is null || user.EmailConfirmed || user.InvitationAccepted) ? "confirmation-not-required"
+            : item.TemplateKey == "account.password-reset" && (user is null || !user.EmailConfirmed || !user.InvitationAccepted) ? "password-reset-not-eligible" : null;
         if (reason is not null)
         {
             item.Status = "skipped";
@@ -115,6 +116,7 @@ public sealed class PortalEmailDispatcher(
                 {
                     "account.invitation" => await PortalInvitations.LinkAsync(users, user!, publicUrl),
                     "account.confirmation" => await PortalInvitations.ConfirmationLinkAsync(users, user!, publicUrl),
+                    "account.password-reset" => await PortalInvitations.PasswordResetLinkAsync(users, user!, publicUrl),
                     _ => publicUrl
                 };
                 var data = string.IsNullOrWhiteSpace(item.TemplateDataJson)
@@ -135,8 +137,13 @@ public sealed class PortalEmailDispatcher(
                     return text;
                 }
                 var body = Render(english ? template!.BodyEn : template!.BodyPt);
-                // Keep single-use invitation and confirmation links obvious, including on older editable templates.
-                if (item.TemplateKey is "account.invitation" or "account.confirmation" && !body.Contains("\n" + link, StringComparison.Ordinal)) body += "\n\n" + link;
+                // Keep single-use links visible in older editable templates without duplicating links they already include.
+                if ((item.TemplateKey is "account.invitation" or "account.confirmation" or "account.password-reset") && !body.Contains(link, StringComparison.Ordinal)) body += "\n\n" + link;
+                if (item.TemplateKey == "account.password-reset" &&
+                    !body.Contains(english ? "24 hours" : "24 horas", StringComparison.OrdinalIgnoreCase))
+                    body += english
+                        ? "\n\nThis link expires in 24 hours and can only be used once."
+                        : "\n\nO link expira em 24 horas e pode ser usado uma única vez.";
                 var replyToSubmitter = item.TemplateKey == "contact.notification";
                 using var message = CreateMessage(settings.Value, item.Id, recipient!,
                     Render(english ? template!.SubjectEn : template.SubjectPt), body,

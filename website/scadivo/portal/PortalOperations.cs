@@ -21,6 +21,8 @@ public sealed record RegisterInput(string? DisplayName, string? Email, string? P
     string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
 public sealed record ConfirmEmailInput(string? UserId, string? Token);
 public sealed record ResendConfirmationInput(string? Email);
+public sealed record PasswordRecoveryInput(string? Email);
+public sealed record ResetPasswordInput(string? UserId, string? Token, string? Password);
 public sealed record ProfileInput(string? DisplayName, string? Locale, string? ProfileType, string? ActivityArea,
     string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber, string? Address,
     DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
@@ -216,6 +218,61 @@ public sealed class PortalOperations(
             }
         }
         return Results.Accepted(uri: null, value: new { status = "check-email" });
+    }
+
+    public async Task<IResult> RequestPasswordRecovery(PasswordRecoveryInput input)
+    {
+        // Always return the same result, including for malformed, unknown, unconfirmed,
+        // or ineligible addresses, so this endpoint cannot be used to enumerate accounts.
+        var email = input.Email?.Trim();
+        if (emailSettings.Value.Enabled && Valid(email, 5, 256) && MailAddress.TryCreate(email, out var parsedEmail) &&
+            string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase))
+        {
+            var user = await users.FindByEmailAsync(email!);
+            if (user is not null && user.EmailConfirmed && user.InvitationAccepted)
+            {
+                var cooldown = DateTimeOffset.UtcNow.AddMinutes(-15);
+                var activeStatuses = new[] { "queued", "retry", "sent" };
+                var alreadyQueued = await db.EmailOutbox.AnyAsync(x => x.UserId == user.Id && x.TemplateKey == "account.password-reset" &&
+                    x.CreatedAtUtc >= cooldown && activeStatuses.Contains(x.Status));
+                if (!alreadyQueued)
+                {
+                    db.EmailOutbox.Add(Notification(user.Id, "account.password-reset", user.Id));
+                    await db.SaveChangesAsync();
+                    emailSignal.Notify();
+                }
+            }
+        }
+        return Results.Accepted(uri: null, value: new { status = "check-email" });
+    }
+
+    public async Task<IResult> ResetPassword(ResetPasswordInput input)
+    {
+        if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096) || input.Password is null || input.Password.Length > 1024)
+            return Invalid("invalid-password-reset");
+        var user = await users.FindByIdAsync(input.UserId!);
+        if (user?.Email is null || !user.EmailConfirmed || !user.InvitationAccepted)
+            return Invalid("invalid-password-reset");
+        string token;
+        try { token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(input.Token!)); }
+        catch (FormatException) { return Invalid("invalid-password-reset"); }
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var result = await users.ResetPasswordAsync(user, token, input.Password);
+        if (!result.Succeeded)
+        {
+            var passwordErrors = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "PasswordTooShort", "PasswordRequiresUniqueChars", "PasswordRequiresNonAlphanumeric",
+                "PasswordRequiresDigit", "PasswordRequiresUpper", "PasswordRequiresLower"
+            };
+            return result.Errors.Any(error => passwordErrors.Contains(error.Code))
+                ? Invalid("password-requirements")
+                : Invalid("invalid-password-reset");
+        }
+        await AuditAsync(user.Id, "auth.password.recovered");
+        await transaction.CommitAsync();
+        return Results.Ok(new { reset = true });
     }
 
     public async Task<IResult> Invite(InviteInput input, HttpContext context)

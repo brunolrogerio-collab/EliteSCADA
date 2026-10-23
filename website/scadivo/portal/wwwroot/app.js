@@ -1,6 +1,6 @@
 'use strict';
 
-const state = { session: null, lang: 'pt-BR', tab: 'home', adminTab: 'accounts', invite: null, confirmEmail: null, register: false, pendingEmail: '', version: 0 };
+const state = { session: null, lang: 'pt-BR', tab: 'home', adminTab: 'accounts', invite: null, confirmEmail: null, resetPassword: null, recover: false, register: false, pendingEmail: '', version: 0 };
 try { state.lang = localStorage.getItem('scadivo.portal.lang') === 'en' ? 'en' : 'pt-BR'; } catch { /* Storage may be disabled. */ }
 const app = document.querySelector('#app');
 const tr = (pt, en) => state.lang === 'en' ? en : pt;
@@ -49,6 +49,7 @@ function errorText(code) {
     'email-not-configured': tr('O envio de confirmação está temporariamente indisponível. Tente mais tarde.', 'Email confirmation is temporarily unavailable. Please try again later.'),
     'invalid-email': tr('Informe um endereço de e-mail válido.', 'Enter a valid email address.'),
     'invalid-confirmation': tr('O link é inválido, já foi usado ou expirou. Solicite um novo e-mail de confirmação.', 'This link is invalid, already used or expired. Request a new confirmation email.'),
+    'invalid-password-reset': tr('O link é inválido, já foi usado ou expirou. Solicite uma nova recuperação de senha.', 'This link is invalid, already used or expired. Request a new password reset.'),
     'invalid-request-token': tr('A sessão mudou. Atualize a página e tente novamente.', 'The session changed. Refresh this page and try again.'),
     'account-already-exists': tr('Esse usuário ou e-mail já está cadastrado.', 'This username or email is already registered.'),
     'account-not-created': tr('Use um nome de usuário com letras, números, ponto ou hífen.', 'Use a username with letters, numbers, a dot or a hyphen.'),
@@ -104,6 +105,7 @@ function login() {
     field(tr('Senha', 'Password'), input('password', 'password', '', { autocomplete: 'current-password', maxLength: 1024 }))
   ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); state.pendingEmail = ''; render(); }));
   const registrationEnabled = state.session?.publicRegistrationEnabled === true;
+  const recoveryEnabled = state.session?.emailDeliveryConfigured === true;
   const note = h('div', { class: 'login-note' }, [
     p(state.pendingEmail
       ? tr('Se o cadastro foi concluído, confirme o endereço pelo link enviado. Confira também a caixa de spam.', 'If registration was completed, confirm your address using the link we sent. Check spam as well.')
@@ -114,12 +116,42 @@ function login() {
       try { await api('/auth/confirmation/resend', 'POST', { email: state.pendingEmail }); feedback(tr('Se houver uma confirmação pendente para esse endereço, enviaremos um novo link.', 'If confirmation is pending for that address, a new link will be sent.')); }
       catch (error) { feedback(error.message, true); }
     }),
+    recoveryEnabled && button(tr('Esqueceu a senha?', 'Forgot your password?'), () => { state.recover = true; history.replaceState(null, '', '/portal/#forgot-password'); render(); }),
     registrationEnabled && button(tr('Criar conta', 'Create an account'), () => { state.register = true; history.replaceState(null, '', '/portal/#register'); render(); }, 'button primary'),
-    registrationEnabled && p([tr('A recuperação automática de senha ainda não está disponível. Para ajuda com o acesso, fale com ', 'Automatic password recovery is not available yet. For account access help, contact '), h('a', { href: 'mailto:support@scadivo.com' }, 'support@scadivo.com'), '.']),
-    !registrationEnabled && p(tr('Para solicitar acesso ou ajuda, fale com a equipe SCADIVO.', 'To request access or assistance, contact the SCADIVO team.')),
-    !registrationEnabled && h('a', { href: 'mailto:support@scadivo.com' }, 'support@scadivo.com')
+    p([tr('Precisa de apoio? Acesse ', 'Need help? Visit '), h('a', { href: state.lang === 'en' ? 'https://scadivo.com/contact?area=support' : 'https://scadivo.com/contato?area=suporte' }, tr('a página de suporte SCADIVO', 'SCADIVO support')), '.']),
+    !registrationEnabled && !recoveryEnabled && p(tr('O cadastro e a recuperação automática não estão disponíveis no momento.', 'Registration and automatic recovery are not available right now.'))
   ]);
   card.append(note); card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'login-layout' }, [intro, card]));
+}
+
+function passwordRecovery() {
+  const card = panel(tr('Recuperar acesso', 'Recover account access'),
+    p(tr('Informe o e-mail da conta. Se houver uma conta apta, enviaremos um link temporário. Por segurança, a resposta será a mesma para qualquer endereço.', 'Enter the account email. If an eligible account exists, we will send a temporary link. For security, the response is the same for every address.')),
+    form([field(tr('E-mail', 'Email'), input('email', 'email', state.pendingEmail, { autocomplete: 'email', maxLength: 256 }))], tr('Enviar link de recuperação', 'Send recovery link'), async data => {
+      await api('/auth/password-recovery', 'POST', data);
+      state.recover = false; history.replaceState(null, '', '/portal/'); render();
+      feedback(tr('Se houver uma conta confirmada para esse endereço, enviaremos as instruções. Confira a caixa de entrada e o spam.', 'If a confirmed account exists for this address, we will send instructions. Check your inbox and spam folder.'));
+    }),
+    button(tr('Voltar ao login', 'Back to sign in'), () => { state.recover = false; history.replaceState(null, '', '/portal/'); render(); })
+  );
+  card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
+}
+
+function passwordReset() {
+  const card = panel(tr('Definir nova senha', 'Set a new password'),
+    p(tr('O link é pessoal, de uso único e expira em 24 horas. Escolha uma senha com pelo menos 8 caracteres, incluindo maiúscula, minúscula e número.', 'This personal, single-use link expires in 24 hours. Choose a password with at least 8 characters, including uppercase, lowercase and a number.')),
+    form([
+      field(tr('Nova senha', 'New password'), input('password', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' })),
+      field(tr('Repita a nova senha', 'Repeat new password'), input('confirmation', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' }))
+    ], tr('Redefinir senha', 'Reset password'), async data => {
+      if (data.password !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.'));
+      await api('/auth/reset-password', 'POST', { ...state.resetPassword, password: data.password });
+      state.resetPassword = null; history.replaceState(null, '', '/portal/'); render();
+      feedback(tr('Senha redefinida. Entre com sua nova senha.', 'Password reset. Sign in with your new password.'));
+    }),
+    button(tr('Voltar ao login', 'Back to sign in'), () => { state.resetPassword = null; history.replaceState(null, '', '/portal/'); render(); })
+  );
+  card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
 }
 
 const profileTypeOptions = () => [['', tr('Selecione seu perfil', 'Select your profile')], ['student', tr('Estudante', 'Student')], ['professional', tr('Profissional', 'Professional')], ['organization', tr('Organização', 'Organization')]];
@@ -213,7 +245,9 @@ function invitation() {
 async function render() {
   const version = ++state.version; renderHeader();
   if (state.invite) return invitation();
+  if (state.resetPassword) return passwordReset();
   if (state.confirmEmail) return emailConfirmation();
+  if (state.recover && state.session?.emailDeliveryConfigured) return passwordRecovery();
   if (state.register && state.session?.publicRegistrationEnabled) return registration();
   if (!state.session?.authenticated) return login();
   if (!state.session.user.owner && !state.session.user.profileComplete) return completeProfile();
@@ -355,7 +389,16 @@ async function start() {
       state.confirmEmail = { userId: parsed.userId, token: parsed.token };
     } catch { feedback(tr('O link de confirmação é inválido.', 'This confirmation link is invalid.'), true); }
     history.replaceState(null, '', '/portal/#confirm-email');
-  } else if (fragment === 'register') state.register = true;
+  } else if (fragment.startsWith('reset-password=')) {
+    try {
+      const encoded = fragment.slice('reset-password='.length).replaceAll('-', '+').replaceAll('_', '/');
+      const parsed = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(encoded), x => x.charCodeAt(0))));
+      if (typeof parsed.userId !== 'string' || typeof parsed.token !== 'string') throw new Error('Invalid password reset');
+      state.resetPassword = { userId: parsed.userId, token: parsed.token };
+    } catch { feedback(tr('O link de recuperação é inválido.', 'This recovery link is invalid.'), true); }
+    history.replaceState(null, '', '/portal/#reset-password');
+  } else if (fragment === 'forgot-password') state.recover = true;
+  else if (fragment === 'register') state.register = true;
   else if (labels()[fragment]) state.tab = fragment;
   try { await session(); render(); } catch { app.replaceChildren(panel(tr('Portal indisponível', 'Portal unavailable'), p(tr('Não foi possível conectar. Aguarde um momento e tente novamente.', 'Unable to connect. Please wait a moment and try again.')), button(tr('Tentar novamente', 'Try again'), start))); }
 }

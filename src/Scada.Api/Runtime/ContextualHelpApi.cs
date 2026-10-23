@@ -439,15 +439,6 @@ public static class ContextualHelpCatalog
                 "Screens referencian TAGs, dynamos, popups, bindings y commands mediante contratos válidos. Una pantalla no incorpora conexión privada de driver ni autoridad propia de Runtime.")),
 
         Basic(
-            "popups.overview", "popups",
-            Tx("Popups", "Popups", "Popups"),
-            Tx("Conteúdo reutilizável no contexto operacional.", "Reusable content in operational context.", "Contenido reutilizable en contexto operacional."),
-            Tx(
-                "Passe contexto por contratos suportados. Abrir um Popup não aumenta capabilities; commands e escritas continuam sob a mesma autorização server-side.",
-                "Pass context through supported contracts. Opening a Popup does not increase capabilities; commands and writes remain under the same server-side authorization.",
-                "Pase contexto mediante contratos soportados. Abrir un Popup no aumenta capabilities; commands y escrituras siguen bajo la misma autorización server-side.")),
-
-        Basic(
             "dynamos.overview", "dynamos",
             Tx("Dynamos", "Dynamos", "Dynamos"),
             Tx("Recursos visuais reutilizáveis.", "Reusable visual resources.", "Recursos visuales reutilizables."),
@@ -556,6 +547,39 @@ public static class ContextualHelpCatalog
                 "First confirm the selected Screen and look for the object in the Structure as well. Check format and route separately; do not treat the route as stable identity. Review the TAG and property type in the Inspector; open Dynamics or Events according to the expected behavior. Read Preview diagnostics and, if the Workspace changed, refresh the state and run Preview again before applying. To understand why the Screen is not yet visible in Runtime, check the lifecycle and Active revision.",
                 "Primero confirme la Pantalla seleccionada y busque también el objeto en Estructura. Compruebe por separado el formato y la ruta; no trate la ruta como identidad estable. Revise el TAG y el tipo de propiedad en el Inspector; abra Dynamics o Events según el comportamiento esperado. Lea los diagnósticos de Preview y, si cambió el Workspace, actualice el estado y vuelva a ejecutar Preview antes de aplicar. Para saber por qué la Pantalla aún no aparece en Runtime, compruebe el lifecycle y la revisión Active."),
             "engineering.lifecycle", "tags.overview", "tags.addressing", "visual.properties", "visual.dynamics", "visual.events", "popups.overview", "dynamos.overview", "diagnostics.overview"),
+
+        TaskGuide(
+            "popups.overview", "popups",
+            Tx("Criar e editar um Popup", "Create and edit a Popup", "Crear y editar un Popup"),
+            Tx(
+                "Um Popup é uma composição visual contextual, com identidade própria e referência opcional a Template, aberta no Runtime por uma interação suportada.",
+                "A Popup is a contextual visual composition with its own identity and an optional Template reference, opened in Runtime through a supported interaction.",
+                "Un Popup es una composición visual contextual, con identidad propia y referencia opcional a una Plantilla, que se abre en Runtime mediante una interacción compatible."),
+            Tx(
+                "Use quando uma interação suportada da Screen precisar mostrar conteúdo contextual reutilizável. Abrir um Popup não concede permissões: commands e escritas continuam sujeitos à mesma autorização.",
+                "Use it when a supported Screen interaction needs to show reusable contextual content. Opening a Popup grants no permissions: commands and writes remain subject to the same authorization.",
+                "Úselo cuando una interacción compatible de una Pantalla necesite mostrar contenido contextual reutilizable. Abrir un Popup no concede permisos: commands y escrituras siguen sujetos a la misma autorización."),
+            Tx(
+                "Tenha o projeto correto aberto em Working e uma sessão com acesso de Engineering. Decida se o Popup será independente ou usará um Template; identifique TAGs, assets e interações suportadas antes de configurar referências.",
+                "Have the correct project open in Working and an Engineering-enabled session. Decide whether the Popup is standalone or uses a Template; identify TAGs, assets, and supported interactions before configuring references.",
+                "Tenga abierto el proyecto correcto en Working y una sesión con acceso de Engineering. Decida si el Popup será independiente o usará una Plantilla; identifique TAGs, assets e interacciones compatibles antes de configurar referencias."),
+            Tx(
+                "1. Abra Engineering > Popups e selecione um Popup existente ou Novo Popup. 2. Informe Nome de exibição e Identificador; mantenha o identificador único e estável, pois ele referencia o Popup. 3. Deixe Template vazio para um Popup independente ou informe a referência do Template desejado. 4. Adicione objetos pela paleta à área de edição visual; selecione-os na composição ou em Estrutura e ajuste propriedades, bindings e comportamento no Inspector. Consulte TAGs, Propriedades, Dynamics e Events para esses detalhes. 5. Confira a composição, os limites lógicos e a posição no Runtime apresentados pelo editor. A posição é limitada à área lógica para manter o Popup acessível. 6. Execute Preview e corrija os diagnósticos; Preview não altera o Working. 7. Quando o candidato estiver válido, use Apply ao Workspace. Para abrir o Popup no Runtime, configure uma interação suportada na Screen e, separadamente, salve, publique e ative a revisão apropriada.",
+                "1. Open Engineering > Popups and select an existing Popup or New Popup. 2. Enter the Display name and Identifier; keep the identifier unique and stable because it references the Popup. 3. Leave Template empty for a standalone Popup, or enter the intended Template reference. 4. Add objects from the palette to the design area; select them on the composition or in Structure and edit properties, bindings, and behavior in the Inspector. See TAGs, Properties, Dynamics, and Events for those details. 5. Check the composition, logical bounds, and Runtime position shown by the editor. Position is constrained to the logical area so the Popup remains reachable. 6. Run Preview and resolve its diagnostics; Preview does not mutate Working. 7. When the candidate is valid, select Apply to Workspace. To open the Popup in Runtime, configure a supported interaction on the Screen and separately save, publish, and activate the appropriate revision.",
+                "1. Abra Engineering > Popups y seleccione un Popup existente o Nuevo Popup. 2. Introduzca Nombre visible e Identificador; mantenga el identificador único y estable porque referencia el Popup. 3. Deje Plantilla vacía para un Popup independiente o introduzca la referencia de la Plantilla deseada. 4. Añada objetos desde la paleta al área visual; selecciónelos en la composición o en Estructura y ajuste propiedades, bindings y comportamiento en el Inspector. Consulte TAGs, Propiedades, Dynamics y Events para esos detalles. 5. Compruebe la composición, los límites lógicos y la posición en Runtime que muestra el editor. La posición se limita al área lógica para mantener el Popup accesible. 6. Ejecute Preview y corrija sus diagnósticos; Preview no modifica Working. 7. Cuando el candidato sea válido, seleccione Aplicar al Workspace. Para abrir el Popup en Runtime, configure una interacción compatible en la Pantalla y, por separado, guarde, publique y active la revisión apropiada."),
+            Tx(
+                "O Popup validado é aplicado ao Engineering Workspace e pode ser referenciado por interações suportadas de uma Screen. O Runtime só usa essa edição quando ela faz parte da revisão ativada; abrir o Popup não aumenta as permissões da sessão.",
+                "The validated Popup is applied to the Engineering Workspace and can be referenced by supported Screen interactions. Runtime uses the edit only when it is part of the activated revision; opening the Popup does not increase session permissions.",
+                "El Popup validado se aplica al Engineering Workspace y puede referenciarse desde interacciones compatibles de una Pantalla. Runtime usa la edición solo cuando forma parte de la revisión activada; abrir el Popup no aumenta los permisos de la sesión."),
+            Tx(
+                "Identificador duplicado; Template ou referência inválida; objeto não localizado; binding de TAG incompatível ou asset ausente; Preview com erro; Apply recusado porque o Workspace mudou.",
+                "Duplicate identifier; invalid Template or reference; object not found; incompatible TAG binding or missing asset; Preview errors; Apply rejected because the Workspace changed.",
+                "Identificador duplicado; Plantilla o referencia no válida; objeto no localizado; binding TAG incompatible o asset ausente; error de Preview; Apply rechazado porque cambió el Workspace."),
+            Tx(
+                "Confirme o Popup selecionado e procure o objeto também em Estrutura. Revise se a referência de Template e os bindings apontam para recursos existentes e compatíveis. Leia os erros e avisos do Preview antes de aplicar. Se o Workspace mudou durante a validação, recarregue o estado e execute Preview de novo. Se não aparecer no Runtime, confirme a interação configurada na Screen e a revisão Active; uma rejeição de comando continua sujeita à autorização da sessão.",
+                "Confirm the selected Popup and look for the object in Structure as well. Check that the Template reference and bindings point to existing, compatible resources. Read Preview errors and warnings before applying. If the Workspace changed during validation, reload its state and run Preview again. If the Popup does not appear in Runtime, check the Screen interaction and Active revision; command rejection remains subject to session authorization.",
+                "Confirme el Popup seleccionado y busque también el objeto en Estructura. Revise que la referencia de Plantilla y los bindings apunten a recursos existentes y compatibles. Lea los errores y advertencias de Preview antes de aplicar. Si el Workspace cambió durante la validación, recargue su estado y ejecute Preview de nuevo. Si no aparece en Runtime, compruebe la interacción configurada en la Pantalla y la revisión Active; el rechazo de un command sigue sujeto a la autorización de la sesión."),
+            "engineering.lifecycle", "screens.overview", "tags.overview", "visual.properties", "visual.dynamics", "visual.events", "dynamos.overview", "diagnostics.overview"),
 
         TaskGuide(
             "sources.data-sources", "sources",

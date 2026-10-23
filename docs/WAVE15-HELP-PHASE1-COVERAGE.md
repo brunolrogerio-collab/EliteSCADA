@@ -34,7 +34,7 @@ No second Help system or external documentation dependency was added.
 | TAG copy/paste/duplicate/sequential | `tags.copy-duplicate-sequential` | TAG contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Screen Editor | `screens.overview` | `/engineering/screens` | yes | yes | yes | TASK GUIDE — stable identity vs route, screen format, object editing, TAG bindings, Preview/Apply and Runtime lifecycle |
 | Intelligence — process-stage member insights | `intelligence.process-stage-member-insights` | `/engineering/intelligence` | yes | yes | yes | COVERED — bounded Stage 5B.11 route; independent per-equipment read-only analyses, no process aggregate |
-| Popup Editor | `popups.overview` | `/engineering/popups` | yes | yes | yes | COVERED |
+| Popup Editor | `popups.overview` | `/engineering/popups` | yes | yes | yes | TASK GUIDE — popup identity/template, object authoring, logical bounds, Preview/Apply and Runtime lifecycle |
 | Visual properties | `visual.properties` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Dynamics: Boolean conditions, numeric intervals/maps, Analog Fill | `visual.dynamics` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | TASK GUIDE — configuration choices and validation |
 | Visual Events: quick actions, Script interaction events, permissions | `visual.events` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | TASK GUIDE — stable surface |

@@ -592,6 +592,7 @@ public sealed class ContextualHelpTests
         var taskTopicIds = new[]
         {
             "screens.overview",
+            "popups.overview",
             "sources.data-sources",
             "engineering.lifecycle",
             "packages.escadapkg",
@@ -664,6 +665,43 @@ public sealed class ContextualHelpTests
                 Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
             Assert.Contains("visual.dynamics", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void PopupEditorHelp_ExplainsAuthoringPreviewApplyAndRuntimeLifecycleInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "identificador único e estável", "Template vazio", "área de edição visual", "Estrutura", "Inspector",
+                "limites lógicos", "posição é limitada", "Preview não altera o Working", "Apply ao Workspace",
+                "não concede permissões", "revisão ativada"
+            },
+            ["en"] = new[]
+            {
+                "unique and stable", "Leave Template empty", "design area", "Structure", "Inspector",
+                "logical bounds", "Position is constrained", "Preview does not mutate Working", "Apply to Workspace",
+                "grants no permissions", "activated revision"
+            },
+            ["es"] = new[]
+            {
+                "único y estable", "Deje Plantilla vacía", "área visual", "Estructura", "Inspector",
+                "límites lógicos", "posición se limita", "Preview no modifica Working", "Aplicar al Workspace",
+                "no concede permisos", "revisión activada"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "popups.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("screens.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("visual.events", topic.RelatedTopicIds ?? Array.Empty<string>());
         }
     }
 

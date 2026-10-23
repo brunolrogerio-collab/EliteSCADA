@@ -49,10 +49,6 @@ public sealed class ServerScriptRichCommandBridgeIntegrationTests
             TimeSpan.FromSeconds(2),
             new InMemoryServerMemoryRetentionStore());
         var configuration = new ConfigurationManager();
-        // This test proves an undeclared command is rejected before dispatch; it does
-        // not test the production default handler budget. Allow cold Python startup
-        // so startup scheduling does not pre-empt the authorization assertion.
-        configuration["ServerScripts:HandlerTimeoutMs"] = "2000";
         var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, configuration, interactions);
         var roleKey = ServerScriptCommandIdentity.RoleKey(projectKey, scriptId);
         var policyStore = new InMemoryAuthorityPolicyStore(
@@ -169,6 +165,10 @@ public sealed class ServerScriptRichCommandBridgeIntegrationTests
             TimeSpan.FromSeconds(2),
             new InMemoryServerMemoryRetentionStore());
         var configuration = new ConfigurationManager();
+        // These tests prove unauthorized commands are rejected before dispatch; they
+        // do not test the production default handler budget. Allow cold Python startup
+        // so startup scheduling does not pre-empt the authorization assertion.
+        configuration["ServerScripts:HandlerTimeoutMs"] = "2000";
         var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, configuration, interactions);
         var roleKey = ServerScriptCommandIdentity.RoleKey(projectKey, scriptId);
         var commandScopeId = Guid.NewGuid();

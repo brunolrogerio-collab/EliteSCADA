@@ -47,17 +47,18 @@ No second Help system or external documentation dependency was added.
 | Object Browser / guided authoring | `engineering.object-browser` | Script/Dynamics topic navigation | yes | yes | yes | COVERED |
 | Server Script API/runtime | `scripts.server` | Scripts topic navigation | yes | yes | yes | COVERED |
 | Client Memory | `memory.client`, `sources.internal-memory` | local topic navigation | yes | yes | yes | COVERED |
-| Users / Roles / Capabilities | `security.users-roles-capabilities` | `/engineering/security` | yes | yes | yes | COVERED |
+| Users / Roles / Capabilities | `security.users-roles-capabilities` | `/engineering/security` | yes | yes | yes | TASK GUIDE — local account lifecycle, roles/grants/scopes, backend validation and session impact |
 | Scopes / Authority | `security.scopes-authority` | Security contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Engineering Lock | `security.engineering-lock` | Security contextual entry + local topic navigation | yes | yes | yes | COVERED |
-| Licensing | `licensing.overview` | `/licensing` | yes | yes | yes | COVERED |
+| Licensing | `licensing.overview` | `/licensing` | yes | yes | yes | TASK GUIDE — distinguish installed license from Runtime entitlement; machine request, signed-code installation and safe diagnostics |
 | License Generator | `licensing.generator` | Licensing contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Runtime Interactive / View Only | `runtime.session-classes` | Runtime/Licensing contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Diagnostics | `diagnostics.overview` | Engineering diagnostics routes | yes | yes | yes | COVERED |
 | Troubleshooting | `troubleshooting.overview` | topic navigation / diagnostics | yes | yes | yes | COVERED |
 | Alarms: definition, activation, state, acknowledgement and troubleshooting | `alarms.overview` | `/engineering/alarms` | yes | yes | yes | TASK GUIDE — stable surface |
-| Historian fundamentals | `historian.overview` | `/engineering/historian` | yes | yes | yes | COVERED |
-| Trend fundamentals | `trends.overview` | topic navigation | yes | yes | yes | COVERED |
+| Historian capture | `historian.overview` | `/engineering/historian` + TAG editor | yes | yes | yes | TASK GUIDE — capture strategy, required fields, Preview/Apply, activation and no backfill |
+| Trend authoring | `trends.overview` | topic navigation + visual editor | yes | yes | yes | TASK GUIDE — Live/History, pens, TAG references, scales and Historian/TrendUse prerequisites |
+| Reports: authoring and Runtime execution | `reports.overview` | `/engineering/reports` + `/runtime/reports` | yes | yes | yes | TASK GUIDE — query/dataset, TAG variables, layout, Preview/Validate/Apply, authorized generation and export |
 | Operational Events: definition, Runtime emission and history query | `operational-events.overview` | `/engineering/operationalEvents` | yes | yes | yes | TASK GUIDE — stable surface |
 | Audit: access, filters, outcomes, paging and troubleshooting | `audit.overview` | `/audit` | yes | yes | yes | TASK GUIDE — stable surface |
 | Authority backup / recovery | `recovery.backup-system-recovery` | project/recovery entry + related links | yes | yes | yes | COVERED |

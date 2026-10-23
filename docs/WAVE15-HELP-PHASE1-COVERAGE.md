@@ -53,11 +53,11 @@ No second Help system or external documentation dependency was added.
 | Runtime Interactive / View Only | `runtime.session-classes` | Runtime/Licensing contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Diagnostics | `diagnostics.overview` | Engineering diagnostics routes | yes | yes | yes | COVERED |
 | Troubleshooting | `troubleshooting.overview` | topic navigation / diagnostics | yes | yes | yes | COVERED |
-| Alarm basics | `alarms.overview` | `/engineering/alarms` | yes | yes | yes | COVERED |
+| Alarms: definition, activation, state, acknowledgement and troubleshooting | `alarms.overview` | `/engineering/alarms` | yes | yes | yes | TASK GUIDE — stable surface |
 | Historian fundamentals | `historian.overview` | `/engineering/historian` | yes | yes | yes | COVERED |
 | Trend fundamentals | `trends.overview` | topic navigation | yes | yes | yes | COVERED |
-| Operational Events | `operational-events.overview` | `/engineering/operationalEvents` | yes | yes | yes | COVERED |
-| Audit | `audit.overview` | `/audit` | yes | yes | yes | COVERED |
+| Operational Events: definition, Runtime emission and history query | `operational-events.overview` | `/engineering/operationalEvents` | yes | yes | yes | TASK GUIDE — stable surface |
+| Audit: access, filters, outcomes, paging and troubleshooting | `audit.overview` | `/audit` | yes | yes | yes | TASK GUIDE — stable surface |
 | Authority backup / recovery | `recovery.backup-system-recovery` | project/recovery entry + related links | yes | yes | yes | COVERED |
 | Historical Time Range | Phase 2 placeholder only | none frozen | n/a | n/a | n/a | BLOCKED_BY_PRODUCT / #383 |
 | Historical Playback | Phase 2 placeholder only | none frozen | n/a | n/a | n/a | BLOCKED_BY_PRODUCT |
@@ -67,6 +67,8 @@ No second Help system or external documentation dependency was added.
 | Visual Quality final wording/screenshots | Phase 2 review only | existing stable Help only | n/a | n/a | n/a | BLOCKED_BY_PRODUCT / #308 |
 
 ## Deterministic gates
+
+The alarm task guide records the current activation-delay limitation in all three locales. Source review at `b04eb9c118220bf47f117acc0e88a7d1a929863a` found that Engineering persists `ActivationDelay`, while `InMemoryAlarmEngine` does not consume it. Product correction is tracked separately in #751; this Help slice does not change alarm Runtime behavior.
 
 PR validation profile: `DOCS_I18N_HELP`.
 

@@ -260,6 +260,32 @@ public sealed class ContextualHelpTests
             Assert.NotEqual(alarms.Category, audit.Category);
             Assert.NotEqual(operationalEvents.Category, audit.Category);
 
+            Assert.All(new[] { alarms, operationalEvents, audit }, topic =>
+            {
+                Assert.Equal(8, topic.Sections.Count);
+                Assert.Contains(topic.Sections, section => section.Heading is "Steps" or "Pasos" or "Passos");
+                Assert.Contains(topic.Sections, section => section.Heading is "Prerequisites" or "Requisitos previos" or "Pré-requisitos");
+                Assert.NotEmpty(topic.RelatedTopicIds ?? Array.Empty<string>());
+            });
+
+            var alarmText = string.Join("\n", alarms.Sections.Select(section => section.Body));
+            var eventText = string.Join("\n", operationalEvents.Sections.Select(section => section.Body));
+            var auditText = string.Join("\n", audit.Sections.Select(section => section.Body));
+            Assert.Contains("TAG", alarmText, StringComparison.Ordinal);
+            Assert.Contains("AlarmAcknowledge", alarmText, StringComparison.Ordinal);
+            Assert.Contains("Communication", alarmText, StringComparison.Ordinal);
+            Assert.Contains("System", alarmText, StringComparison.Ordinal);
+            Assert.Contains(locale switch
+            {
+                "en" => "current Runtime does not use it",
+                "es" => "Runtime actual no lo usa",
+                _ => "Runtime atual não o usa"
+            }, alarmText, StringComparison.Ordinal);
+            Assert.Contains("emit_operational_event", eventText, StringComparison.Ordinal);
+            Assert.Contains("operational.events", eventText, StringComparison.Ordinal);
+            Assert.Contains("SystemAdmin", auditText, StringComparison.Ordinal);
+            Assert.Contains("Correlation ID", auditText, StringComparison.Ordinal);
+
             var combined = string.Join("\n", alarms.Sections.Concat(operationalEvents.Sections).Concat(audit.Sections).Select(section => section.Body));
             Assert.Contains("Alarm", combined, StringComparison.Ordinal);
             Assert.Contains("Operational Event", combined, StringComparison.Ordinal);

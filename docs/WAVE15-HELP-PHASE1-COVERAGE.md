@@ -36,11 +36,12 @@ No second Help system or external documentation dependency was added.
 | Intelligence — process-stage member insights | `intelligence.process-stage-member-insights` | `/engineering/intelligence` | yes | yes | yes | COVERED — bounded Stage 5B.11 route; independent per-equipment read-only analyses, no process aggregate |
 | Popup Editor | `popups.overview` | `/engineering/popups` | yes | yes | yes | COVERED |
 | Visual properties | `visual.properties` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |
-| Dynamics | `visual.dynamics` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |
-| Visual Events | `visual.events` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |
+| Dynamics: Boolean conditions, numeric intervals/maps, Analog Fill | `visual.dynamics` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | TASK GUIDE — configuration choices and validation |
+| Visual Events: quick actions, Script interaction events, permissions | `visual.events` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | TASK GUIDE — stable surface |
 | Reusable Library | `libraries.reusable-resources` | `/engineering/libraries` | yes | yes | yes | COVERED |
 | Dynamos | `dynamos.overview` | `/engineering/dynamos` | yes | yes | yes | COVERED |
-| Script Engineering | `scripts.engineering` | `/engineering/scripts` | yes | yes | yes | COVERED |
+| Script Engineering | `scripts.engineering` | `/engineering/scripts` | yes | yes | yes | COVERED — scope selection and lifecycle |
+| Client Visual Python: APIs, TAG/Client Memory reads/writes and interaction examples | `scripts.client-visual` | `/engineering/scripts` + local topic navigation | yes | yes | yes | TASK GUIDE — examples verified against client sandbox bridge |
 | Python validation/diagnostics | `scripts.python-validation` | Scripts contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Object Browser / guided authoring | `engineering.object-browser` | Script/Dynamics topic navigation | yes | yes | yes | COVERED |
 | Server Script API/runtime | `scripts.server` | Scripts topic navigation | yes | yes | yes | COVERED |

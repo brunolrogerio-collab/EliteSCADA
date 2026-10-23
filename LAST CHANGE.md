@@ -1,6 +1,31 @@
-# CURRENT RESUME POINT — STAGE 5A ACCEPTED; #742 INTEGRATED/T2 VERIFIED; PR #744 — 2026-10-22
+# CURRENT RESUME POINT — PRACTICAL HELP INTEGRATED AND T2 VERIFIED — 2026-10-23
 
-Current integration: PR #744 merge `5b036183f6ab21a42a30378a8939fc6f30738377`; exact-head T1 #39852494053 passed on `ec09a6d1d4a5c30d88743e3b77e5358b414b59c4`, and exact-merge T2 #39853452517 passed on the merge SHA (backend build/test/runtime smoke 2,633 passed / 1 skipped; Web build; Chromium integration smoke 13/13). Full-browser E2E was skipped. #742 is closed for its bounded Stage 5B.11 process-stage member-insights route. The six Stage 5A widgets are Product Owner accepted. #588, #306 and Wave 15 remain open; next follow #305/#306 for stable-surface Help/manual and localization work. EEE package finalization and PREVIEW-READY remain gated on remaining product-surface convergence. Owner Preview/DEMO was not accessed or changed.
+Current integration: PR #752 merge `b47861b6ec83421f24c1d1a95c86d5acb388b874`. Candidate `b787b7641c0aba08f209f5eed67cff1758b8a3be` passed T1 #39902194716 (focused .NET 1,696 passed / 1 skipped, classifier, Common sanity and final gate). Local ContextualHelpTests passed 21/21 and Web production build passed. The three installed pt-BR/en/es task guides cover Alarm authoring/state, Operational Event emission/history and Audit access/query/paging. Exact-merge T2 #39902739497 passed on `b47861b6ec83421f24c1d1a95c86d5acb388b874`: Backend build/test/runtime smoke, Web build and Chromium integration gate. Full browser E2E is outside this push workflow. Final Help/manual/i18n acceptance is open under #379/#424/#425.
+
+## Help integration and test diagnosis
+
+- PR #747 header correction merged at `2cac88e27d59fe9a770845eea22421757a92d1ec`; T2 #39865304187 passed.
+- PR #748 practical Server Script Help/manual merged at `f11ddd0b07283ccbc374cf9a7c754f3949be57a9`; T1 #39867024700 and T2 #39867680173 passed. Contextual/manual examples ran through the actual isolated interpreter. This did not complete client-visual script guidance or full manual translations.
+- PR #746 member-insights Help merged at `ff306b850f1c6f2c8878329ae3ebf709850828c7` after T1 #39856225606. T2 #39869832513 failed in `ActiveServerScript_UndeclaredCommandIsRejectedBeforeDispatch`: the fresh Python handler exceeded the fixture's inherited 250 ms budget. The focused failure reproduced locally (~0.42 s). Web and Chromium integration passed; Runtime smoke was skipped after the backend failure.
+- Test-only PR #750 sets a 2-second budget in `AssertCommandRejectedBeforeDispatchAsync` for the two security-denial scenarios. Final candidate `535028276d645d1115c584b46ca0f49e12d6a5fa` passed local 3/3 and T1 #39898015343; merge `b04eb9c118220bf47f117acc0e88a7d1a929863a` passed T2 #39898450583 (backend build/test/runtime smoke, Web build, Chromium integration). Full browser E2E was skipped. The initial PR #750 head `ce405602ff65e33403e24ba30b11ecaea80d9045` placed the setting in the positive test; review corrected that before merge. Its green T1 #39897556351 is superseded and is not evidence for the final fix. Product timeout defaults were unchanged.
+- PR #752's first T1 #39901906308 was cancelled after final content changed; use #39902194716 on `b787b7641c0aba08f209f5eed67cff1758b8a3be`.
+
+## Confirmed alarm residuals discovered by Help review
+
+Both gaps predate the Help changes and reproduced locally against the real alarm engine at base `b04eb9c118220bf47f117acc0e88a7d1a929863a` on Windows/.NET SDK 10.0.402. Engineering maps and persists both settings; `InMemoryAlarmEngine` does not consume them.
+
+- #751: `ActivationDelay=10s` still produced Active immediately (measured 0.4427 ms after the triggering update).
+- #753: `RequiresAcknowledgement=false`, followed by normal samples after activation, still left the alarm Returned and pending in `Snapshot(activeOnly: true)`.
+
+PR #752 documents these limitations in pt-BR/en/es. No alarm-engine correction is included. Product corrections require their own bounded implementation and verification; do not silently change Runtime while working on Help.
+
+## Exact next action and boundaries
+
+Continue practical Help on stable client-visual scripts/Dynamics/events with supported APIs and executable examples. Generic task headings alone do not satisfy the owner's request. Full English/Spanish manuals remain scaffolds and final coverage is still open. #588/#306 and Wave 15 remain open; Stage 4 remains frozen with field evidence deferred to #701, Stage 5A widgets are owner-accepted, and Stage 5B.1–5B.11/6A–6C retain their recorded scope. EEE package finalization and PREVIEW-READY remain late gates. Owner Preview/DEMO was not accessed or changed; preserve HA/S7, driver, licensing and frozen Intelligence boundaries.
+
+## Separate website pilot review
+
+PR #749 remains OPEN / DRAFT at `361f45fcd07cbf288c0fd1fb9e415501bf2e4156`, targeting `main`. Focused portal CI #39897324958 and general CI #39897324986 passed on that head, including Chromium E2E. Main inspected it read-only and did not merge or deploy it. The standalone portal keeps database/keyring and product licensing/Authority boundaries separate. Review findings in `website/scadivo/deploy`: `backup.sh` uses unauthenticated AES-CBC encryption and a POSIX pipeline that can hide tar failure; `restore-check.sh` unconditionally drops fixed database `portal_restore_check` during cleanup even if its creation failed because it already existed. These need the website owner's disposition before promotion. Automated offsite backup/alerts and independent launch review remain explicitly deferred by that PR. No message was sent back to the website chat.
 
 ## Prior snapshot — superseded by PR #744
 

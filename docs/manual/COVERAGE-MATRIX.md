@@ -6,12 +6,12 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 
 | Chapter | Status | Product owner | Source authority | Language status | Screenshot status |
 |---:|---|---|---|---|---|
-| 1. Sobre o EliteSCADA | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 2. Conceitos fundamentais | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 3. Arquitetura do produto para o usuário | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 4. Engineering x Runtime | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 5. Application / Authority / License / Historian | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 6. Lifecycle do projeto | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 1. Sobre o EliteSCADA | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 2. Conceitos fundamentais | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 3. Arquitetura do produto para o usuário | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 4. Engineering x Runtime | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 5. Application / Authority / License / Historian | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 6. Lifecycle do projeto | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 7. Primeiro acesso | BLOCKED_PRODUCT | #425 / #306 | `EngineeringLockGate.tsx`; restore-first architecture; #422 where marked; #422 Installation UX | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 8. Neutral bootstrap | BLOCKED_PRODUCT | #425 / #306 | `EngineeringLockGate.tsx`; restore-first architecture; #422 where marked; #422 Installation UX | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 9. Criar projeto | BLOCKED_PRODUCT | #425 / #306 | `EngineeringLockGate.tsx`; restore-first architecture; #422 where marked; #422 Installation UX | structure only; pt-BR/en/es after dependency | PENDING_FINAL |

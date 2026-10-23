@@ -591,6 +591,7 @@ public sealed class ContextualHelpTests
     {
         var taskTopicIds = new[]
         {
+            "screens.overview",
             "sources.data-sources",
             "engineering.lifecycle",
             "packages.escadapkg",
@@ -630,6 +631,39 @@ public sealed class ContextualHelpTests
                 Assert.Equal(headings[locale], topic.Sections.Select(section => section.Heading).ToArray());
                 Assert.NotEmpty(topic.RelatedTopicIds ?? Array.Empty<string>());
             }
+        }
+    }
+
+    [Fact]
+    public void ScreenEditorHelp_ExplainsIdentityAuthoringPreviewApplyAndLifecycleInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "identidade estável", "endereço de navegação", "Paisagem (1920 × 1080)", "Tela inteira",
+                "binding de propriedade visual", "Preview não altera o Working", "Apply ao Workspace", "salvar, publicar e ativar"
+            },
+            ["en"] = new[]
+            {
+                "stable identity", "navigation route", "Landscape (1920 × 1080)", "complete Screen",
+                "bind a visual property", "Preview does not mutate Working", "Apply to Workspace", "save, publish, and activate"
+            },
+            ["es"] = new[]
+            {
+                "identidad estable", "ruta de navegación", "Paisaje (1920 × 1080)", "toda la Pantalla",
+                "asocie una propiedad visual", "Preview no modifica Working", "Aplicar al Workspace", "guardar, publicar y activar"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "screens.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("visual.dynamics", topic.RelatedTopicIds ?? Array.Empty<string>());
         }
     }
 

@@ -216,6 +216,31 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             }));
             Assert.Equal(HttpStatusCode.BadRequest, externalRedirect.StatusCode);
 
+            using (var logout = await member.Raw("/auth/logout", HttpMethod.Post, new { }))
+                Assert.Equal(HttpStatusCode.OK, logout.StatusCode);
+            Assert.False((await member.Client.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("authenticated").GetBoolean());
+
+            using (var resumeAfterLogout = await member.Client.GetAsync(challengeQuery))
+            {
+                Assert.Equal(HttpStatusCode.Redirect, resumeAfterLogout.StatusCode);
+                Assert.NotNull(resumeAfterLogout.Headers.Location);
+                var loginUrl = new Uri(new Uri("https://localhost"), resumeAfterLogout.Headers.Location!);
+                Assert.StartsWith("#community-login=", loginUrl.Fragment);
+            }
+
+            var reauthentication = new Session(member.Client, await Csrf(member.Client));
+            using (var loginAgain = await reauthentication.Raw("/auth/login", HttpMethod.Post, new { username = email, password }))
+                Assert.Equal(HttpStatusCode.OK, loginAgain.StatusCode);
+            using (var forumAgain = await member.Client.GetAsync(challengeQuery))
+            {
+                Assert.Equal(HttpStatusCode.Redirect, forumAgain.StatusCode);
+                Assert.NotNull(forumAgain.Headers.Location);
+                var destination = forumAgain.Headers.Location!.IsAbsoluteUri
+                    ? forumAgain.Headers.Location
+                    : new Uri(new Uri("https://community.example.test"), forumAgain.Headers.Location);
+                Assert.Equal(callback, destination.GetLeftPart(UriPartial.Path));
+            }
+
             await using (var scope = factory.Services.CreateAsyncScope())
             {
                 var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
@@ -230,6 +255,23 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 ["sig"] = signature
             })))
                 Assert.Equal(HttpStatusCode.Forbidden, unconfirmedEmail.StatusCode);
+
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+                var account = await users.FindByIdAsync(userId);
+                Assert.NotNull(account);
+                account.EmailConfirmed = true;
+                account.LockoutEnabled = true;
+                account.LockoutEnd = DateTimeOffset.UtcNow.AddHours(1);
+                Assert.True((await users.UpdateAsync(account)).Succeeded);
+            }
+            using (var lockedAccount = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
+            {
+                ["sso"] = challenge,
+                ["sig"] = signature
+            })))
+                Assert.Equal(HttpStatusCode.Forbidden, lockedAccount.StatusCode);
         }
         finally
         {

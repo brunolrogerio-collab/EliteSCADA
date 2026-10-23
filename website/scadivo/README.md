@@ -76,7 +76,7 @@ dotnet test tests/Scadivo.Portal.Tests.csproj --configuration Release
 docker build -f portal/Dockerfile -t scadivo-portal:local .
 ```
 
-Tests require a **disposable** PostgreSQL database. Set `PORTAL_TEST_DATABASE`; the default is localhost port 15441 with the explicitly nonproduction test credential in the fixture. Never point tests at the production portal or demo. Tests cover antiforgery, secure cookies, roles, one-use invitation redemption, email confirmation before new-account login, non-enumerating recovery responses, confirmed-account eligibility, one-use password reset, reset-email token non-persistence, profile requirements, cross-user support isolation, FAQ/templates/audit, login lockout, and database persistence across a fresh host.
+Tests require a **disposable** PostgreSQL database. Set `PORTAL_TEST_DATABASE`; the default is localhost port 15441 with the explicitly nonproduction test credential in the fixture. Never point tests at the production portal or demo. Tests cover antiforgery, secure cookies, roles, one-use invitation redemption, email confirmation before new-account login, non-enumerating recovery responses, confirmed-account eligibility, one-use password reset, reset-email token non-persistence, profile requirements, cross-user support isolation, FAQ/templates/audit, login lockout, community SSO challenge/signature/callback validation, logout and re-entry, rejection of unconfirmed/locked accounts, and database persistence across a fresh host.
 
 ### Local Docker homologation
 

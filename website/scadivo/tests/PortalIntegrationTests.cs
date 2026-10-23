@@ -6,11 +6,13 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Scadivo.Portal.Tests;
 
-public sealed class PortalIntegrationTests
+public sealed class PortalIntegrationTests(ITestOutputHelper output)
 {
     private const string Password = "PortalTest-LongPassword22!";
 
@@ -101,9 +103,10 @@ public sealed class PortalIntegrationTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    private static WebApplicationFactory<Program> Factory(Dictionary<string, string?> configuration) => new WebApplicationFactory<Program>()
+    private WebApplicationFactory<Program> Factory(Dictionary<string, string?> configuration) => new WebApplicationFactory<Program>()
         .WithWebHostBuilder(builder => builder.UseEnvironment("Testing").UseContentRoot(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../portal")))
-            .ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(configuration)));
+            .ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(configuration))
+            .ConfigureLogging(logging => logging.AddProvider(new TestLogProvider(output))));
     private static HttpClient Client(WebApplicationFactory<Program> factory) => factory.CreateClient(new WebApplicationFactoryClientOptions
         { BaseAddress = new Uri("https://localhost/portal/"), AllowAutoRedirect = false, HandleCookies = true });
     private static async Task<string> Csrf(HttpClient client) => (await client.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("csrfToken").GetString()!;
@@ -137,6 +140,21 @@ public sealed class PortalIntegrationTests
             using var response = await Raw(path, method, body);
             Assert.True(response.IsSuccessStatusCode, $"{method} {path}: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync()}");
             return await response.Content.ReadFromJsonAsync<JsonElement>();
+        }
+    }
+
+    private sealed class TestLogProvider(ITestOutputHelper output) : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) => new TestLogger(output, categoryName);
+        public void Dispose() { }
+    }
+    private sealed class TestLogger(ITestOutputHelper output, string category) : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel level) => level >= LogLevel.Warning;
+        public void Log<TState>(LogLevel level, EventId id, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (IsEnabled(level)) output.WriteLine($"{level}: {category}: {formatter(state, exception)} {exception}");
         }
     }
 }

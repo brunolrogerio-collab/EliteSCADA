@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Scadivo.Portal.Data;
 
@@ -8,8 +9,23 @@ public sealed class PortalUser : IdentityUser
 {
     public string DisplayName { get; set; } = "";
     public string Locale { get; set; } = "pt-BR";
+    public string ProfileType { get; set; } = "";
+    public string ActivityArea { get; set; } = "";
+    public string? ActivityAreaOther { get; set; }
+    public string OrganizationOrSchool { get; set; } = "";
+    public string? Address { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
+    public bool MarketingEmailOptIn { get; set; }
+    public DateTimeOffset? MarketingEmailOptInAtUtc { get; set; }
     public bool InvitationAccepted { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    [NotMapped]
+    public bool ProfileComplete =>
+        !string.IsNullOrWhiteSpace(ProfileType) &&
+        !string.IsNullOrWhiteSpace(ActivityArea) &&
+        (ActivityArea != "other" || !string.IsNullOrWhiteSpace(ActivityAreaOther)) &&
+        !string.IsNullOrWhiteSpace(OrganizationOrSchool);
 }
 
 public sealed class Organization
@@ -125,6 +141,11 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         base.OnModelCreating(builder);
         builder.Entity<PortalUser>().Property(x => x.DisplayName).HasMaxLength(160);
         builder.Entity<PortalUser>().Property(x => x.Locale).HasMaxLength(10);
+        builder.Entity<PortalUser>().Property(x => x.ProfileType).HasMaxLength(30);
+        builder.Entity<PortalUser>().Property(x => x.ActivityArea).HasMaxLength(80);
+        builder.Entity<PortalUser>().Property(x => x.ActivityAreaOther).HasMaxLength(120);
+        builder.Entity<PortalUser>().Property(x => x.OrganizationOrSchool).HasMaxLength(200);
+        builder.Entity<PortalUser>().Property(x => x.Address).HasMaxLength(300);
         builder.Entity<Organization>().Property(x => x.Name).HasMaxLength(200);
         builder.Entity<Membership>().HasKey(x => new { x.OrganizationId, x.UserId });
         builder.Entity<Membership>().HasOne<Organization>().WithMany().HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);

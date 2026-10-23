@@ -24,11 +24,16 @@ public sealed class PortalEmailOptions
     public string ReplyToAddress { get; set; } = "support@scadivo.com";
     public int PollSeconds { get; set; } = 30;
 
-    public bool Valid() => !Enabled ||
-        (!string.IsNullOrWhiteSpace(Host) && Port is > 0 and <= 65535 &&
-         Security is "SslOnConnect" or "StartTls" && !string.IsNullOrWhiteSpace(Username) &&
-         !string.IsNullOrWhiteSpace(PasswordFile) && File.Exists(PasswordFile) &&
-         Address(FromAddress) && Address(ReplyToAddress) && PollSeconds is >= 10 and <= 300);
+    public bool Valid(bool allowLocalPlaintext = false)
+    {
+        if (!Enabled) return true;
+        var secure = (Security is "SslOnConnect" or "StartTls") && !string.IsNullOrWhiteSpace(Username) &&
+            !string.IsNullOrWhiteSpace(PasswordFile) && File.Exists(PasswordFile);
+        var localSink = allowLocalPlaintext && Security == "None" &&
+            string.IsNullOrWhiteSpace(Username) && string.IsNullOrWhiteSpace(PasswordFile);
+        return !string.IsNullOrWhiteSpace(Host) && Port is > 0 and <= 65535 && (secure || localSink) &&
+            Address(FromAddress) && Address(ReplyToAddress) && PollSeconds is >= 10 and <= 300;
+    }
 
     private static bool Address(string value) => !value.Contains('\r') && !value.Contains('\n') &&
         MailboxAddress.TryParse(value, out var address) && address.Address == value;
@@ -39,18 +44,26 @@ public interface IPortalEmailTransport
     Task SendAsync(MimeMessage message, CancellationToken cancellationToken);
 }
 
-public sealed class SmtpPortalEmailTransport(IOptions<PortalEmailOptions> settings) : IPortalEmailTransport
+public sealed class SmtpPortalEmailTransport(IOptions<PortalEmailOptions> settings, IHostEnvironment environment) : IPortalEmailTransport
 {
     public async Task SendAsync(MimeMessage message, CancellationToken cancellationToken)
     {
         var options = settings.Value;
-        if (!options.Enabled || !options.Valid()) throw new InvalidOperationException("Email transport is not configured.");
-        var password = (await File.ReadAllTextAsync(options.PasswordFile, cancellationToken)).TrimEnd('\r', '\n');
-        if (string.IsNullOrEmpty(password)) throw new InvalidOperationException("Email credential file is empty.");
+        if (!options.Enabled || !options.Valid(environment.IsDevelopment())) throw new InvalidOperationException("Email transport is not configured.");
         using var client = new SmtpClient { Timeout = 30000 };
         await client.ConnectAsync(options.Host, options.Port,
-            options.Security == "StartTls" ? SecureSocketOptions.StartTls : SecureSocketOptions.SslOnConnect, cancellationToken);
-        await client.AuthenticateAsync(options.Username, password, cancellationToken);
+            options.Security switch
+            {
+                "StartTls" => SecureSocketOptions.StartTls,
+                "None" when environment.IsDevelopment() => SecureSocketOptions.None,
+                _ => SecureSocketOptions.SslOnConnect
+            }, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(options.Username))
+        {
+            var password = (await File.ReadAllTextAsync(options.PasswordFile, cancellationToken)).TrimEnd('\r', '\n');
+            if (string.IsNullOrEmpty(password)) throw new InvalidOperationException("Email credential file is empty.");
+            await client.AuthenticateAsync(options.Username, password, cancellationToken);
+        }
         await client.SendAsync(message, cancellationToken);
         // SMTP has accepted the message. A failed QUIT must not trigger a duplicate retry.
         try { await client.DisconnectAsync(true, cancellationToken); }
@@ -81,10 +94,11 @@ public sealed class PortalEmailDispatcher(
         var user = item.UserId is null ? null : await users.FindByIdAsync(item.UserId);
         var template = await db.EmailTemplates.FindAsync([item.TemplateKey], cancellationToken);
         var recipient = item.RecipientAddress ?? user?.Email;
-        var reason = item.TemplateKey is not ("account.invitation" or "support.created" or "support.replied" or "contact.received" or "contact.notification") ? "unsupported-template"
+        var reason = item.TemplateKey is not ("account.invitation" or "account.confirmation" or "support.created" or "support.replied" or "contact.received" or "contact.notification") ? "unsupported-template"
             : string.IsNullOrWhiteSpace(recipient) || !MailboxAddress.TryParse(recipient, out _) ? "recipient-missing"
             : template is null ? "template-missing"
-            : item.TemplateKey == "account.invitation" && user?.InvitationAccepted == true ? "invitation-accepted" : null;
+            : item.TemplateKey == "account.invitation" && user?.InvitationAccepted == true ? "invitation-accepted"
+            : item.TemplateKey == "account.confirmation" && (user is null || user.EmailConfirmed || user.InvitationAccepted) ? "confirmation-not-required" : null;
         if (reason is not null)
         {
             item.Status = "skipped";
@@ -97,8 +111,12 @@ public sealed class PortalEmailDispatcher(
             try
             {
                 var publicUrl = configuration["Portal:PublicUrl"] ?? "https://scadivo.com/portal/";
-                var link = item.TemplateKey == "account.invitation"
-                    ? await PortalInvitations.LinkAsync(users, user!, publicUrl) : publicUrl;
+                var link = item.TemplateKey switch
+                {
+                    "account.invitation" => await PortalInvitations.LinkAsync(users, user!, publicUrl),
+                    "account.confirmation" => await PortalInvitations.ConfirmationLinkAsync(users, user!, publicUrl),
+                    _ => publicUrl
+                };
                 var data = string.IsNullOrWhiteSpace(item.TemplateDataJson)
                     ? new Dictionary<string, string>()
                     : JsonSerializer.Deserialize<Dictionary<string, string>>(item.TemplateDataJson) ?? new Dictionary<string, string>();
@@ -117,8 +135,8 @@ public sealed class PortalEmailDispatcher(
                     return text;
                 }
                 var body = Render(english ? template!.BodyEn : template!.BodyPt);
-                // Existing editable invitation templates predate SMTP and may omit {{link}}.
-                if (item.TemplateKey == "account.invitation" && !body.Contains(link, StringComparison.Ordinal)) body += "\n\n" + link;
+                // Keep single-use invitation and confirmation links obvious, including on older editable templates.
+                if (item.TemplateKey is "account.invitation" or "account.confirmation" && !body.Contains("\n" + link, StringComparison.Ordinal)) body += "\n\n" + link;
                 using var message = CreateMessage(settings.Value, item.Id, recipient!,
                     Render(english ? template!.SubjectEn : template.SubjectPt), body, item.ReplyToAddress, english ? "en" : "pt-BR");
                 await transport.SendAsync(message, cancellationToken);

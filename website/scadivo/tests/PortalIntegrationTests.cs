@@ -58,7 +58,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 Assert.False(invitation.GetProperty("emailDeliveryConfigured").GetBoolean());
                 var payload = Invitation(invitation);
                 var invited = new Session(anonymous, await Csrf(anonymous));
-                await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password });
+                await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password,
+                    profileType = "professional", activityArea = "industrial-automation", activityAreaOther = (string?)null,
+                    organizationOrSchool = "Example Integration", phoneNumber = (string?)null, address = (string?)null,
+                    dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false });
                 Assert.Equal(HttpStatusCode.BadRequest, (await invited.Raw("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password })).StatusCode);
                 var member = await Login(factory, "member-" + marker);
                 Assert.Equal(HttpStatusCode.Forbidden, (await member.Client.GetAsync("api/admin/accounts")).StatusCode);
@@ -73,7 +76,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
 
                 var otherInvite = await owner.Send("/admin/invitations", HttpMethod.Post, new { username = "other-" + marker, displayName = "Taylor" });
                 var otherPayload = Invitation(otherInvite);
-                await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { otherPayload.UserId, otherPayload.Token, password = Password });
+                await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { otherPayload.UserId, otherPayload.Token, password = Password,
+                    profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
+                    organizationOrSchool = "Example School", phoneNumber = (string?)null, address = (string?)null,
+                    dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false });
                 var other = await Login(factory, "other-" + marker);
                 Assert.Equal(HttpStatusCode.NotFound, (await other.Client.GetAsync("api/support/" + ticketId)).StatusCode);
                 Assert.Equal(HttpStatusCode.NotFound, (await other.Raw("/support/" + ticketId + "/messages", HttpMethod.Post, new { body = "Not my ticket" })).StatusCode);
@@ -125,6 +131,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             ["Portal:Bootstrap:PasswordFile"] = passwordFile,
             ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
             ["Portal:PublicUrl"] = "https://localhost/portal/",
+            ["Portal:PublicRegistrationEnabled"] = "true",
             ["Portal:Email:Enabled"] = "true",
             ["Portal:Email:Host"] = "localhost",
             ["Portal:Email:Username"] = "noreply@scadivo.com",
@@ -198,7 +205,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var payload = Invitation(JsonSerializer.SerializeToElement(new { invitationUrl = link }));
             using var anonymous = Client(factory);
             var invited = new Session(anonymous, await Csrf(anonymous));
-            await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password });
+            await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password,
+                profileType = "professional", activityArea = "industrial-automation", activityAreaOther = (string?)null,
+                organizationOrSchool = "Email Test Integration", phoneNumber = (string?)null, address = (string?)null,
+                dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false });
             Assert.Equal(HttpStatusCode.BadRequest, (await invited.Raw("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password })).StatusCode);
             Assert.False(await dispatcher.ProcessNextAsync(CancellationToken.None));
 
@@ -260,6 +270,49 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             });
             Assert.Equal(HttpStatusCode.Accepted, ignoredContact.StatusCode);
             Assert.Equal(2, await db.EmailOutbox.CountAsync(x => x.Reference == reference));
+
+            using var registrationClient = Client(factory);
+            var registrationSession = new Session(registrationClient, await Csrf(registrationClient));
+            var registrationEmail = $"signup-{Guid.NewGuid():N}@example.test";
+            using var registrationResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
+            {
+                displayName = "New Portal User", email = registrationEmail, password = Password,
+                profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
+                organizationOrSchool = "Technical University", phoneNumber = (string?)null, address = (string?)null,
+                dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
+            });
+            Assert.Equal(HttpStatusCode.Accepted, registrationResponse.StatusCode);
+            var pendingAccount = await db.Users.SingleAsync(x => x.Email == registrationEmail);
+            Assert.False(pendingAccount.EmailConfirmed);
+            Assert.False(pendingAccount.InvitationAccepted);
+            Assert.False(pendingAccount.MarketingEmailOptIn);
+            Assert.Null(pendingAccount.DateOfBirth); // Optional birth date does not block registration.
+            pendingAccount.Locale = "en";
+            await db.SaveChangesAsync();
+            var pendingConfirmation = await db.EmailOutbox.SingleAsync(x => x.UserId == pendingAccount.Id && x.TemplateKey == "account.confirmation");
+            Assert.Null(pendingConfirmation.TemplateDataJson); // The one-time token is generated only during delivery.
+            using (var blockedLogin = await registrationSession.Raw("/auth/login", HttpMethod.Post, new { username = registrationEmail, password = Password }))
+                Assert.Equal(HttpStatusCode.Unauthorized, blockedLogin.StatusCode);
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            Assert.Equal(6, transport.Messages.Count);
+            using var confirmationMessage = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Last())));
+            var confirmationUrl = Assert.IsType<string>(confirmationMessage.TextBody).Split('\n').Select(x => x.Trim())
+                .Single(x => x.StartsWith("https://localhost/portal/#confirm-email=", StringComparison.Ordinal));
+            using var confirmationPayload = Confirmation(confirmationUrl);
+            using var confirmationClient = Client(factory);
+            var confirmationSession = new Session(confirmationClient, await Csrf(confirmationClient));
+            var confirmationData = new { userId = confirmationPayload.RootElement.GetProperty("userId").GetString(), token = confirmationPayload.RootElement.GetProperty("token").GetString() };
+            await confirmationSession.Send("/auth/confirm-email", HttpMethod.Post, confirmationData);
+            await db.Entry(pendingAccount).ReloadAsync();
+            Assert.True((await db.Users.SingleAsync(x => x.Id == pendingAccount.Id)).EmailConfirmed);
+            using (var repeatedConfirmation = await confirmationSession.Raw("/auth/confirm-email", HttpMethod.Post, confirmationData))
+                Assert.Equal(HttpStatusCode.BadRequest, repeatedConfirmation.StatusCode);
+            var registered = await Login(factory, registrationEmail);
+            var registeredProfile = await registered.Get("/profile");
+            Assert.True(registeredProfile.GetProperty("profileComplete").GetBoolean());
+            Assert.Equal("student", registeredProfile.GetProperty("profileType").GetString());
+            Assert.Equal("Technical University", registeredProfile.GetProperty("organizationOrSchool").GetString());
+            Assert.False(registeredProfile.GetProperty("marketingEmailOptIn").GetBoolean());
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -301,6 +354,11 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
         var url = new Uri(invitation.GetProperty("invitationUrl").GetString()!);
         using var payload = JsonDocument.Parse(Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(url.Fragment[8..])));
         return (payload.RootElement.GetProperty("userId").GetString()!, payload.RootElement.GetProperty("token").GetString()!);
+    }
+    private static JsonDocument Confirmation(string url)
+    {
+        var uri = new Uri(url);
+        return JsonDocument.Parse(Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(uri.Fragment[15..])));
     }
     private sealed record Session(HttpClient Client, string Token)
     {

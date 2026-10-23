@@ -34,7 +34,8 @@ builder.Services.AddIdentity<PortalUser, IdentityRole>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Lockout.MaxFailedAccessAttempts = 5;
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-    options.User.RequireUniqueEmail = false; // The bootstrap owner can be configured before choosing business email.
+    // The bootstrap owner can exist without a business email. Public registration uses the email as its unique username.
+    options.User.RequireUniqueEmail = false;
 }).AddEntityFrameworkStores<PortalDb>().AddDefaultTokenProviders();
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(24));
 builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(5));
@@ -43,7 +44,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.Name = "__Secure-scadivo.portal";
     options.Cookie.Path = "/portal";
     options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Strict;
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
     options.SlidingExpiration = false;
@@ -56,7 +57,7 @@ builder.Services.AddAntiforgery(options =>
     options.HeaderName = "X-CSRF-TOKEN";
     options.Cookie.Name = "__Secure-scadivo.portal.csrf";
     options.Cookie.Path = "/portal";
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Strict;
 });
 builder.Services.AddDataProtection().SetApplicationName("SCADIVO.Portal");
@@ -87,7 +88,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddScoped<PortalOperations>();
 builder.Services.AddSingleton<PortalEmailSignal>();
 builder.Services.AddOptions<PortalEmailOptions>().BindConfiguration("Portal:Email")
-    .Validate(options => options.Valid(), "SMTP configuration requires TLS, valid addresses and a credential file.")
+    .Validate(options => options.Valid(builder.Environment.IsDevelopment()), "SMTP configuration requires TLS, valid addresses and a credential file.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IPortalEmailTransport, SmtpPortalEmailTransport>();
 builder.Services.AddScoped<PortalEmailDispatcher>();

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using Scadivo.Portal.Data;
 
 namespace Scadivo.Portal;
@@ -17,20 +19,37 @@ public static class PortalEndpoints
                 authenticated = context.User.Identity?.IsAuthenticated == true,
                 user = context.User.Identity?.IsAuthenticated == true ? await operations.Profile(context) : null,
                 csrfToken = token.RequestToken,
-                publicRegistrationEnabled = false,
+                publicRegistrationEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:PublicRegistrationEnabled"),
                 emailDeliveryConfigured = emailSettings.Value.Enabled
             });
         });
         app.MapPost("/api/auth/login", (LoginInput input, HttpContext context, PortalOperations operations) => operations.Login(input, context)).RequireRateLimiting("auth");
         app.MapPost("/api/auth/accept-invitation", (AcceptInviteInput input, PortalOperations operations) => operations.AcceptInvitation(input)).RequireRateLimiting("auth");
+        app.MapPost("/api/auth/register", (RegisterInput input, PortalOperations operations) => operations.Register(input)).RequireRateLimiting("auth");
+        app.MapPost("/api/auth/confirm-email", (ConfirmEmailInput input, PortalOperations operations) => operations.ConfirmEmail(input)).RequireRateLimiting("auth");
+        app.MapPost("/api/auth/confirmation/resend", (ResendConfirmationInput input, PortalOperations operations) => operations.ResendConfirmation(input)).RequireRateLimiting("auth");
         app.MapPost("/api/auth/logout", (HttpContext context, PortalOperations operations) => operations.Logout(context)).RequireAuthorization();
         app.MapPost("/api/public/contact", (PublicContactInput input, PortalOperations operations) => operations.PublicContact(input))
             .RequireRateLimiting("public-contact");
 
+        var account = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");
+        account.MapGet("/profile", (HttpContext context, PortalOperations operations) => operations.Profile(context));
+        account.MapPut("/profile", (ProfileInput input, HttpContext context, PortalOperations operations) => operations.UpdateProfile(input, context));
+        account.MapPost("/profile/password", (PasswordInput input, HttpContext context, PortalOperations operations) => operations.ChangePassword(input, context));
+
         var members = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");
-        members.MapGet("/profile", (HttpContext context, PortalOperations operations) => operations.Profile(context));
-        members.MapPut("/profile", (ProfileInput input, HttpContext context, PortalOperations operations) => operations.UpdateProfile(input, context));
-        members.MapPost("/profile/password", (PasswordInput input, HttpContext context, PortalOperations operations) => operations.ChangePassword(input, context));
+        members.AddEndpointFilter(async (context, next) =>
+        {
+            var http = context.HttpContext;
+            if (http.User.IsInRole("Owner")) return await next(context);
+            var id = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var users = http.RequestServices.GetRequiredService<UserManager<PortalUser>>();
+            var user = id is null ? null : await users.FindByIdAsync(id);
+            if (user is null) return Results.Unauthorized();
+            return user.ProfileComplete
+                ? await next(context)
+                : Results.Json(new { error = "profile-incomplete" }, statusCode: StatusCodes.Status428PreconditionRequired);
+        });
         members.MapGet("/faq", (string? q, string? lang, PortalOperations operations) => operations.Faq(q, lang));
         members.MapGet("/support", (HttpContext context, PortalOperations operations) => operations.Tickets(context));
         members.MapGet("/support/{id:guid}", (Guid id, HttpContext context, PortalOperations operations) => operations.Ticket(id, context));

@@ -13,8 +13,17 @@ namespace Scadivo.Portal;
 
 public sealed record LoginInput(string? Username, string? Password);
 public sealed record InviteInput(string? Username, string? DisplayName, string? Email, string? Organization);
-public sealed record AcceptInviteInput(string? UserId, string? Token, string? Password);
-public sealed record ProfileInput(string? DisplayName, string? Locale);
+public sealed record AcceptInviteInput(string? UserId, string? Token, string? Password, string? ProfileType,
+    string? ActivityArea, string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber,
+    string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
+public sealed record RegisterInput(string? DisplayName, string? Email, string? Password, string? ProfileType,
+    string? ActivityArea, string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber,
+    string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
+public sealed record ConfirmEmailInput(string? UserId, string? Token);
+public sealed record ResendConfirmationInput(string? Email);
+public sealed record ProfileInput(string? DisplayName, string? Locale, string? ProfileType, string? ActivityArea,
+    string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber, string? Address,
+    DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
 public sealed record PasswordInput(string? CurrentPassword, string? NewPassword);
 public sealed record TicketInput(string? Subject, string? Category, string? Body);
 public sealed record MessageInput(string? Body);
@@ -28,6 +37,8 @@ public sealed class PortalOperations(
     PortalDb db, UserManager<PortalUser> users, SignInManager<PortalUser> signIn, IConfiguration configuration,
     IOptions<PortalEmailOptions> emailSettings, PortalEmailSignal emailSignal)
 {
+    private static readonly HashSet<string> ProfileTypes = ["student", "professional", "organization"];
+    private static readonly HashSet<string> ActivityAreas = ["industrial-automation", "buildings-facilities", "residential", "utilities", "integrator-consulting", "education-research", "other"];
     private static string UserId(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static bool Owner(HttpContext context) => context.User.IsInRole("Owner");
     private static bool Valid(string? value, int minimum, int maximum) => value?.Trim().Length >= minimum && value.Trim().Length <= maximum;
@@ -36,7 +47,8 @@ public sealed class PortalOperations(
     public async Task<IResult> Login(LoginInput input, HttpContext context)
     {
         if (!Valid(input.Username, 1, 256) || input.Password is null || input.Password.Length > 1024) return Invalid();
-        var user = await users.FindByNameAsync(input.Username!.Trim());
+        var username = input.Username!.Trim();
+        var user = await users.FindByEmailAsync(username) ?? await users.FindByNameAsync(username);
         if (user is null || !user.InvitationAccepted)
             return Results.Json(new { error = "invalid-credentials" }, statusCode: 401);
         var result = await signIn.PasswordSignInAsync(user, input.Password, false, lockoutOnFailure: true);
@@ -64,7 +76,13 @@ public sealed class PortalOperations(
             join organization in db.Organizations on membership.OrganizationId equals organization.Id
             where membership.UserId == user.Id
             select new { organization.Id, organization.Name, membership.Role }).ToListAsync();
-        return new { user.Id, user.UserName, user.DisplayName, user.Email, user.EmailConfirmed, user.Locale, owner = Owner(context), organizations };
+        return new
+        {
+            user.Id, user.UserName, user.DisplayName, user.Email, user.EmailConfirmed, user.Locale,
+            user.ProfileType, user.ActivityArea, user.ActivityAreaOther, user.OrganizationOrSchool,
+            user.PhoneNumber, user.Address, user.DateOfBirth, user.MarketingEmailOptIn,
+            profileComplete = user.ProfileComplete, owner = Owner(context), organizations
+        };
     }
 
     public async Task<IResult> UpdateProfile(ProfileInput input, HttpContext context)
@@ -72,8 +90,26 @@ public sealed class PortalOperations(
         if (!Valid(input.DisplayName, 1, 160) || input.Locale is not ("pt-BR" or "en")) return Invalid();
         var user = await users.GetUserAsync(context.User);
         if (user is null) return Results.Unauthorized();
+        var profileType = input.ProfileType ?? user.ProfileType;
+        var activityArea = input.ActivityArea ?? user.ActivityArea;
+        var activityAreaOther = input.ActivityAreaOther ?? user.ActivityAreaOther;
+        var organizationOrSchool = input.OrganizationOrSchool ?? user.OrganizationOrSchool;
+        var phoneNumber = input.PhoneNumber ?? user.PhoneNumber;
+        var address = input.Address ?? user.Address;
+        var marketingEmailOptIn = input.MarketingEmailOptIn ?? user.MarketingEmailOptIn;
+        if (!ValidProfile(profileType, activityArea, activityAreaOther, organizationOrSchool, phoneNumber, address, input.DateOfBirth)) return Invalid("profile-fields-required");
         user.DisplayName = input.DisplayName!.Trim();
         user.Locale = input.Locale;
+        user.ProfileType = profileType;
+        user.ActivityArea = activityArea;
+        user.ActivityAreaOther = activityArea == "other" ? activityAreaOther!.Trim() : null;
+        user.OrganizationOrSchool = organizationOrSchool.Trim();
+        user.PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
+        user.Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim();
+        if (input.DateOfBirth is not null) user.DateOfBirth = input.DateOfBirth;
+        if (marketingEmailOptIn && !user.MarketingEmailOptIn) user.MarketingEmailOptInAtUtc = DateTimeOffset.UtcNow;
+        else if (!marketingEmailOptIn) user.MarketingEmailOptInAtUtc = null;
+        user.MarketingEmailOptIn = marketingEmailOptIn;
         var result = await users.UpdateAsync(user);
         if (!result.Succeeded) return Invalid();
         await AuditAsync(user.Id, "profile.updated");
@@ -90,6 +126,95 @@ public sealed class PortalOperations(
         await signIn.RefreshSignInAsync(user);
         await AuditAsync(user.Id, "auth.password.changed");
         return Results.Ok(new { changed = true });
+    }
+
+    public async Task<IResult> Register(RegisterInput input)
+    {
+        if (!configuration.GetValue<bool>("Portal:PublicRegistrationEnabled")) return Results.NotFound();
+        if (!emailSettings.Value.Enabled) return Results.Json(new { error = "email-not-configured" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        var email = input.Email?.Trim();
+        if (!Valid(input.DisplayName, 1, 160) || !Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
+            !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase) || input.Password is null ||
+            input.Password.Length < 12 || input.Password.Length > 1024 ||
+            !ValidProfile(input.ProfileType, input.ActivityArea, input.ActivityAreaOther, input.OrganizationOrSchool,
+                input.PhoneNumber, input.Address, input.DateOfBirth)) return Invalid("profile-fields-required");
+
+        // Keep the response identical for an existing address so public registration cannot enumerate accounts.
+        if (await users.FindByEmailAsync(email!) is not null) return Results.Accepted(uri: null, value: new { status = "check-email" });
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var user = new PortalUser
+        {
+            UserName = email,
+            Email = email,
+            DisplayName = input.DisplayName!.Trim(),
+            EmailConfirmed = false,
+            InvitationAccepted = false,
+            ProfileType = input.ProfileType!,
+            ActivityArea = input.ActivityArea!,
+            ActivityAreaOther = input.ActivityArea == "other" ? input.ActivityAreaOther!.Trim() : null,
+            OrganizationOrSchool = input.OrganizationOrSchool!.Trim(),
+            PhoneNumber = string.IsNullOrWhiteSpace(input.PhoneNumber) ? null : input.PhoneNumber.Trim(),
+            Address = string.IsNullOrWhiteSpace(input.Address) ? null : input.Address.Trim(),
+            DateOfBirth = input.DateOfBirth,
+            MarketingEmailOptIn = input.MarketingEmailOptIn == true,
+            MarketingEmailOptInAtUtc = input.MarketingEmailOptIn == true ? DateTimeOffset.UtcNow : null
+        };
+        var created = await users.CreateAsync(user, input.Password);
+        if (!created.Succeeded)
+        {
+            if (created.Errors.Any(error => error.Code is "DuplicateEmail" or "DuplicateUserName"))
+                return Results.Accepted(uri: null, value: new { status = "check-email" });
+            return Invalid("password-requirements");
+        }
+        PortalSeed.Ensure(await users.AddToRoleAsync(user, "Member"));
+        db.EmailOutbox.Add(Notification(user.Id, "account.confirmation", user.Id));
+        db.Audit.Add(new PortalAudit { ActorId = user.Id, Action = "account.registered" });
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        emailSignal.Notify();
+        return Results.Accepted(uri: null, value: new { status = "check-email" });
+    }
+
+    public async Task<IResult> ConfirmEmail(ConfirmEmailInput input)
+    {
+        if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096)) return Invalid("invalid-confirmation");
+        var user = await users.FindByIdAsync(input.UserId!);
+        if (user?.Email is null || user.EmailConfirmed || user.InvitationAccepted) return Invalid("invalid-confirmation");
+        string token;
+        try { token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(input.Token!)); }
+        catch (FormatException) { return Invalid("invalid-confirmation"); }
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var result = await users.ConfirmEmailAsync(user, token);
+        if (!result.Succeeded) return Invalid("invalid-confirmation");
+        user.InvitationAccepted = true;
+        PortalSeed.Ensure(await users.UpdateAsync(user));
+        db.Audit.Add(new PortalAudit { ActorId = user.Id, Action = "account.email.confirmed" });
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return Results.Ok(new { confirmed = true });
+    }
+
+    public async Task<IResult> ResendConfirmation(ResendConfirmationInput input)
+    {
+        var email = input.Email?.Trim();
+        if (!Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
+            !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase)) return Invalid("invalid-email");
+        var user = await users.FindByEmailAsync(email!);
+        if (emailSettings.Value.Enabled && user is not null && !user.EmailConfirmed && !user.InvitationAccepted)
+        {
+            var cooldown = DateTimeOffset.UtcNow.AddMinutes(-2);
+            var activeStatuses = new[] { "queued", "retry", "sent" };
+            var alreadyQueued = await db.EmailOutbox.AnyAsync(x => x.UserId == user.Id && x.TemplateKey == "account.confirmation" &&
+                x.CreatedAtUtc >= cooldown && activeStatuses.Contains(x.Status));
+            if (!alreadyQueued)
+            {
+                db.EmailOutbox.Add(Notification(user.Id, "account.confirmation", user.Id));
+                await db.SaveChangesAsync();
+                emailSignal.Notify();
+            }
+        }
+        return Results.Accepted(uri: null, value: new { status = "check-email" });
     }
 
     public async Task<IResult> Invite(InviteInput input, HttpContext context)
@@ -133,6 +258,8 @@ public sealed class PortalOperations(
         if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096) || input.Password is null || input.Password.Length > 1024) return Invalid();
         var user = await users.FindByIdAsync(input.UserId!);
         if (user is null || user.InvitationAccepted) return Invalid("invalid-invitation");
+        if (!ValidProfile(input.ProfileType, input.ActivityArea, input.ActivityAreaOther, input.OrganizationOrSchool,
+            input.PhoneNumber, input.Address, input.DateOfBirth)) return Invalid("profile-fields-required");
         string token;
         try { token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(input.Token!)); }
         catch (FormatException) { return Invalid("invalid-invitation"); }
@@ -140,6 +267,16 @@ public sealed class PortalOperations(
         var result = await users.ResetPasswordAsync(user, token, input.Password);
         if (!result.Succeeded) return Invalid("invalid-invitation-or-password");
         user.InvitationAccepted = true;
+        user.ProfileType = input.ProfileType!;
+        user.ActivityArea = input.ActivityArea!;
+        user.ActivityAreaOther = input.ActivityArea == "other" ? input.ActivityAreaOther!.Trim() : null;
+        user.OrganizationOrSchool = input.OrganizationOrSchool!.Trim();
+        user.PhoneNumber = string.IsNullOrWhiteSpace(input.PhoneNumber) ? null : input.PhoneNumber.Trim();
+        user.Address = string.IsNullOrWhiteSpace(input.Address) ? null : input.Address.Trim();
+        user.DateOfBirth = input.DateOfBirth;
+        user.MarketingEmailOptIn = input.MarketingEmailOptIn == true;
+        user.MarketingEmailOptInAtUtc = input.MarketingEmailOptIn == true ? DateTimeOffset.UtcNow : null;
+        if (!string.IsNullOrWhiteSpace(user.Email)) user.EmailConfirmed = true;
         PortalSeed.Ensure(await users.UpdateAsync(user));
         db.Audit.Add(new PortalAudit { ActorId = user.Id, Action = "account.invitation.accepted" });
         await db.SaveChangesAsync();
@@ -336,12 +473,12 @@ public sealed class PortalOperations(
         failedMessages = await db.EmailOutbox.CountAsync(x => x.Status == "failed"),
         publishedDownloads = await db.Releases.CountAsync(x => x.Published),
         emailDeliveryConfigured = emailSettings.Value.Enabled,
-        publicRegistrationEnabled = false,
+        publicRegistrationEnabled = configuration.GetValue<bool>("Portal:PublicRegistrationEnabled"),
         licenseIntegrationEnabled = false
     });
 
     public async Task<IResult> Accounts() => Results.Ok(await db.Users.AsNoTracking().OrderBy(x => x.UserName).Take(100)
-        .Select(x => new { x.Id, x.UserName, x.DisplayName, x.Email, x.InvitationAccepted, x.CreatedAtUtc }).ToListAsync());
+        .Select(x => new { x.Id, x.UserName, x.DisplayName, x.Email, x.EmailConfirmed, x.InvitationAccepted, profileComplete = x.ProfileType != "" && x.ActivityArea != "" && x.OrganizationOrSchool != "", x.CreatedAtUtc }).ToListAsync());
 
     public async Task<IResult> UpdateTemplate(string key, TemplateInput input, HttpContext context)
     {
@@ -382,4 +519,13 @@ public sealed class PortalOperations(
         UserId = userId, TemplateKey = template, Reference = reference,
         Status = emailSettings.Value.Enabled ? "queued" : "awaiting-transport"
     };
+
+    private static bool ValidProfile(string? profileType, string? activityArea, string? activityAreaOther,
+        string? organizationOrSchool, string? phoneNumber, string? address, DateOnly? dateOfBirth) =>
+        ProfileTypes.Contains(profileType ?? "") && ActivityAreas.Contains(activityArea ?? "") &&
+        (activityArea != "other" || Valid(activityAreaOther, 2, 120)) &&
+        Valid(organizationOrSchool, 1, 200) &&
+        ((phoneNumber?.Length ?? 0) <= 40 && (phoneNumber is null || Regex.IsMatch(phoneNumber, @"^[+0-9() .-]*$"))) &&
+        (address?.Length ?? 0) <= 300 &&
+        (dateOfBirth is null || dateOfBirth.Value <= DateOnly.FromDateTime(DateTime.UtcNow));
 }

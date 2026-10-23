@@ -1,6 +1,6 @@
 'use strict';
 
-const state = { session: null, lang: 'pt-BR', tab: 'home', adminTab: 'accounts', invite: null, version: 0 };
+const state = { session: null, lang: 'pt-BR', tab: 'home', adminTab: 'accounts', invite: null, confirmEmail: null, register: false, pendingEmail: '', version: 0 };
 try { state.lang = localStorage.getItem('scadivo.portal.lang') === 'en' ? 'en' : 'pt-BR'; } catch { /* Storage may be disabled. */ }
 const app = document.querySelector('#app');
 const tr = (pt, en) => state.lang === 'en' ? en : pt;
@@ -27,8 +27,8 @@ const panel = (title, ...children) => h('section', { class: 'panel' }, [h('h2', 
 const field = (label, input, hint) => h('label', { class: 'field' }, [h('span', {}, label), input, hint && h('small', {}, hint)]);
 const input = (name, type = 'text', value = '', extra = {}) => h('input', { name, type, value, required: true, ...extra });
 const textarea = (name, value = '', extra = {}) => h('textarea', { name, value, rows: 5, required: true, ...extra });
-const select = (name, entries, value) => h('select', { name }, entries.map(([id, text]) => h('option', { value: id, selected: id === value }, text)));
-const values = form => Object.fromEntries(new FormData(form));
+const select = (name, entries, value, extra = {}) => h('select', { name, value, ...extra }, entries.map(([id, text]) => h('option', { value: id, selected: id === value }, text)));
+const values = form => Object.fromEntries([...form.elements].filter(control => control.name).map(control => [control.name, control.type === 'checkbox' ? control.checked : control.value === '' ? null : control.value]));
 const statusName = status => ({ open: tr('Aberto', 'Open'), answered: tr('Respondido', 'Answered'), closed: tr('Encerrado', 'Closed') })[status] || status;
 
 function feedback(message, error = false) {
@@ -40,6 +40,12 @@ function errorText(code) {
   const errors = {
     'invalid-credentials': tr('Usuário ou senha inválidos. Após várias tentativas, aguarde 15 minutos.', 'Invalid username or password. After repeated attempts, wait 15 minutes.'),
     'invalid-input': tr('Confira os campos informados.', 'Check the information entered.'),
+    'profile-fields-required': tr('Preencha os campos obrigatórios do perfil e confira os dados opcionais.', 'Complete the required profile fields and check the optional information.'),
+    'profile-incomplete': tr('Complete seu perfil antes de navegar pelo portal.', 'Complete your profile before using the portal.'),
+    'password-requirements': tr('A senha precisa ter ao menos 12 caracteres, incluindo maiúscula, minúscula e número.', 'The password needs at least 12 characters, including uppercase, lowercase and a number.'),
+    'email-not-configured': tr('O envio de confirmação está temporariamente indisponível. Tente mais tarde.', 'Email confirmation is temporarily unavailable. Please try again later.'),
+    'invalid-email': tr('Informe um endereço de e-mail válido.', 'Enter a valid email address.'),
+    'invalid-confirmation': tr('O link é inválido, já foi usado ou expirou. Solicite um novo e-mail de confirmação.', 'This link is invalid, already used or expired. Request a new confirmation email.'),
     'invalid-request-token': tr('A sessão mudou. Atualize a página e tente novamente.', 'The session changed. Refresh this page and try again.'),
     'account-already-exists': tr('Esse usuário ou e-mail já está cadastrado.', 'This username or email is already registered.'),
     'account-not-created': tr('Use um nome de usuário com letras, números, ponto ou hífen.', 'Use a username with letters, numbers, a dot or a hyphen.'),
@@ -90,26 +96,120 @@ function renderHeader() {
 }
 function login() {
   const intro = h('section', { class: 'login-intro' }, [badge(tr('ÁREA DO CLIENTE · PILOTO', 'CUSTOMER PORTAL · PILOT')), h('h1', {}, tr('Uma conta. Mais conexão com seu projeto.', 'One account. Closer to your project.')), p(tr('Suporte, conhecimento e distribuição oficial do SCADIVO, em um ambiente próprio para clientes e integradores.', 'SCADIVO support, knowledge and official distribution, in a dedicated environment for customers and integrators.')), h('div', { class: 'intro-features' }, [panel(tr('Suporte privado', 'Private support'), p(tr('Converse com a equipe e acompanhe seus chamados.', 'Talk to the team and track your requests.'))), panel(tr('Conhecimento e downloads', 'Knowledge and downloads'), p(tr('FAQ pesquisável e catálogo de versões oficiais.', 'Searchable FAQ and official release catalog.')))]), notice(tr('Este portal tem contas próprias. O acesso à engenharia da demonstração é independente.', 'This portal has its own accounts. Demo engineering access is separate.'))]);
-  const card = panel(tr('Entre no portal', 'Sign in to the portal'), p(tr('Use a conta criada por convite nesta etapa de implantação.', 'Use your invited account during this rollout.')), form([
-    field(tr('Usuário', 'Username'), input('username', 'text', '', { autocomplete: 'username', maxLength: 100 })),
+  const card = panel(tr('Entre no portal', 'Sign in to the portal'), p(tr('Use seu e-mail ou nome de usuário.', 'Use your email or username.')), form([
+    field(tr('E-mail ou usuário', 'Email or username'), input('username', 'text', state.pendingEmail, { autocomplete: 'username', maxLength: 256 })),
     field(tr('Senha', 'Password'), input('password', 'password', '', { autocomplete: 'current-password', maxLength: 1024 }))
-  ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); render(); }), h('div', { class: 'login-note' }, [p(tr('Cadastro público e recuperação por e-mail ainda não estão ativos. Para solicitar acesso ao portal ou ajuda, fale com a equipe SCADIVO.', 'Public registration and email recovery are not active yet. To request portal access or assistance, contact the SCADIVO team.')), h('a', { href: 'mailto:support@scadivo.com' }, 'support@scadivo.com')]));
-  card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'login-layout' }, [intro, card]));
+  ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); state.pendingEmail = ''; render(); }));
+  const note = h('div', { class: 'login-note' }, [
+    p(state.pendingEmail
+      ? tr('Se o cadastro foi concluído, confirme o endereço pelo link enviado. Confira também a caixa de spam.', 'If registration was completed, confirm your address using the link we sent. Check spam as well.')
+      : tr('O cadastro público está em implantação. Contas convidadas também confirmam o endereço pelo link de ativação.', 'Public registration is being prepared. Invited accounts also verify their address through the activation link.')),
+    state.pendingEmail && button(tr('Reenviar confirmação', 'Resend confirmation'), async () => {
+      try { await api('/auth/confirmation/resend', 'POST', { email: state.pendingEmail }); feedback(tr('Se houver uma confirmação pendente para esse endereço, enviaremos um novo link.', 'If confirmation is pending for that address, a new link will be sent.')); }
+      catch (error) { feedback(error.message, true); }
+    }),
+    state.session?.publicRegistrationEnabled && button(tr('Criar conta', 'Create an account'), () => { state.register = true; history.replaceState(null, '', '/portal/#register'); render(); }, 'button primary'),
+    !state.session?.publicRegistrationEnabled && p(tr('Para solicitar acesso ou ajuda, fale com a equipe SCADIVO.', 'To request access or assistance, contact the SCADIVO team.')),
+    !state.session?.publicRegistrationEnabled && h('a', { href: 'mailto:support@scadivo.com' }, 'support@scadivo.com')
+  ]);
+  card.append(note); card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'login-layout' }, [intro, card]));
+}
+
+const profileTypeOptions = () => [['', tr('Selecione seu perfil', 'Select your profile')], ['student', tr('Estudante', 'Student')], ['professional', tr('Profissional', 'Professional')], ['organization', tr('Organização', 'Organization')]];
+const activityAreaOptions = () => [
+  ['', tr('Selecione sua área', 'Select your area')],
+  ['industrial-automation', tr('Automação industrial e processos', 'Industrial automation and process')],
+  ['buildings-facilities', tr('Edificações e instalações', 'Buildings and facilities')],
+  ['residential', tr('Aplicações residenciais', 'Residential applications')],
+  ['utilities', tr('Água, saneamento e energia', 'Water, sanitation and energy utilities')],
+  ['integrator-consulting', tr('Integração e consultoria', 'Systems integration and consulting')],
+  ['education-research', tr('Ensino e pesquisa', 'Education and research')],
+  ['other', tr('Outra área', 'Other')]
+];
+function profileFields(user = {}) {
+  const profileType = select('profileType', profileTypeOptions(), user.profileType || '', { required: true });
+  const activityArea = select('activityArea', activityAreaOptions(), user.activityArea || '', { required: true });
+  const otherInput = input('activityAreaOther', 'text', user.activityAreaOther || '', { maxLength: 120, required: user.activityArea === 'other' });
+  const otherField = field(tr('Qual área?', 'Which area?'), otherInput, tr('Obrigatório se escolher “Outra área”.', 'Required when “Other” is selected.'));
+  const updateOther = () => { otherField.hidden = activityArea.value !== 'other'; otherInput.required = activityArea.value === 'other'; };
+  activityArea.addEventListener('change', updateOther); updateOther();
+  const marketing = input('marketingEmailOptIn', 'checkbox', 'yes', { checked: user.marketingEmailOptIn === true, required: false });
+  return [
+    h('div', { class: 'form-row' }, [field(tr('Perfil', 'Profile'), profileType), field(tr('Área de atuação', 'Activity area'), activityArea)]),
+    otherField,
+    field(tr('Empresa, escola ou vínculo', 'Company, school or affiliation'), input('organizationOrSchool', 'text', user.organizationOrSchool || '', { maxLength: 200, placeholder: tr('Se não houver, informe “Autônomo/independente”.', 'If none, enter “Independent”.') })),
+    h('div', { class: 'form-row' }, [field(tr('Telefone (opcional)', 'Phone (optional)'), input('phoneNumber', 'tel', user.phoneNumber || '', { required: false, maxLength: 40, autocomplete: 'tel' })), field(tr('Data de nascimento (opcional)', 'Date of birth (optional)'), input('dateOfBirth', 'date', user.dateOfBirth || '', { required: false }))]),
+    field(tr('Endereço (opcional)', 'Address (optional)'), input('address', 'text', user.address || '', { required: false, maxLength: 300, autocomplete: 'street-address' })),
+    h('label', { class: 'check-field' }, [marketing, tr('Quero receber novidades e informações comerciais por e-mail (opcional).', 'I would like to receive product news and commercial updates by email (optional).')])
+  ];
+}
+function registration() {
+  const card = panel(tr('Criar conta SCADIVO', 'Create a SCADIVO account'),
+    p(tr('Depois do cadastro, enviaremos um link único para confirmar seu e-mail. O login será liberado somente após a confirmação.', 'After signup, we will send a unique link to confirm your email. Sign-in is enabled only after confirmation.')),
+    form([
+      field(tr('Nome completo', 'Full name'), input('displayName', 'text', '', { maxLength: 160, autocomplete: 'name' })),
+      field(tr('E-mail', 'Email'), input('email', 'email', '', { maxLength: 256, autocomplete: 'email' })),
+      field(tr('Senha', 'Password'), input('password', 'password', '', { minLength: 12, maxLength: 1024, autocomplete: 'new-password' }), tr('Mínimo de 12 caracteres, com maiúscula, minúscula e número.', 'At least 12 characters, with uppercase, lowercase and a number.')),
+      field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { minLength: 12, maxLength: 1024, autocomplete: 'new-password' })),
+      ...profileFields()
+    ], tr('Cadastrar e enviar confirmação', 'Sign up and send confirmation'), async data => {
+      if (data.password !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.'));
+      const { confirmation, ...registrationData } = data;
+      await api('/auth/register', 'POST', registrationData);
+      state.pendingEmail = data.email; state.register = false;
+      history.replaceState(null, '', '/portal/'); render();
+      feedback(tr('Se o endereço estiver válido e disponível, enviaremos o link de confirmação. Confira também o spam.', 'If the address is valid and available, we will send a confirmation link. Check spam as well.'));
+    }),
+    button(tr('Voltar ao login', 'Back to sign in'), () => { state.register = false; history.replaceState(null, '', '/portal/'); render(); })
+  );
+  card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
+}
+function emailConfirmation() {
+  const token = state.confirmEmail;
+  const card = panel(tr('Confirme seu e-mail', 'Confirm your email'),
+    p(tr('Este link é pessoal, de uso único e expira em 24 horas. Pressione o botão para concluir; apenas abrir o link não ativa a conta.', 'This link is personal, single-use and expires in 24 hours. Press the button to continue; opening the link alone does not activate the account.')),
+    form([], tr('Confirmar e-mail', 'Confirm email'), async () => {
+      await api('/auth/confirm-email', 'POST', token);
+      state.confirmEmail = null; state.pendingEmail = ''; history.replaceState(null, '', '/portal/'); render();
+      feedback(tr('E-mail confirmado. Agora você pode entrar com seu e-mail e senha.', 'Email confirmed. You can now sign in with your email and password.'));
+    }),
+    button(tr('Voltar ao login', 'Back to sign in'), () => { state.confirmEmail = null; history.replaceState(null, '', '/portal/'); render(); })
+  );
+  card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
+}
+function completeProfile() {
+  const user = state.session.user;
+  const card = panel(tr('Complete seu perfil', 'Complete your profile'),
+    p(tr('Para continuar no portal, informe seu perfil, área de atuação e empresa/escola. Os demais campos são opcionais.', 'To continue, tell us your profile, activity area and company/school. The remaining fields are optional.')),
+    form([
+      field(tr('Nome completo', 'Full name'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'name' })),
+      field(tr('Idioma preferido', 'Preferred language'), select('locale', [['pt-BR', 'Português'], ['en', 'English']], user.locale)),
+      ...profileFields(user)
+    ], tr('Salvar e continuar', 'Save and continue'), async data => {
+      await api('/profile', 'PUT', data); await session(); state.tab = 'home'; render();
+    })
+  );
+  card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
 }
 function invitation() {
   app.replaceChildren(h('div', { class: 'invite-layout' }, panel(tr('Bem-vindo ao SCADIVO', 'Welcome to SCADIVO'), p(tr('Defina a senha da sua conta convidada. O link é pessoal e válido por 24 horas.', 'Set the password for your invited account. The personal link is valid for 24 hours.')), form([
     field(tr('Nova senha', 'New password'), input('password', 'password', '', { autocomplete: 'new-password', minLength: 12, maxLength: 1024 }), tr('Mínimo de 12 caracteres, maiúscula, minúscula e número.', 'At least 12 characters, uppercase, lowercase and a number.')),
-    field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 12 }))
+    field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 12 })),
+    ...profileFields()
   ], tr('Ativar minha conta', 'Activate my account'), async data => {
     if (data.password !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.'));
-    await api('/auth/accept-invitation', 'POST', { ...state.invite, password: data.password }); state.invite = null;
+    const { confirmation, ...profileData } = data;
+    await api('/auth/accept-invitation', 'POST', { ...state.invite, ...profileData }); state.invite = null;
     history.replaceState(null, '', '/portal/'); await session(); render(); feedback(tr('Conta ativada. Entre com seu usuário e senha.', 'Account activated. Sign in with your username and password.'));
   }))));
 }
 async function render() {
   const version = ++state.version; renderHeader();
   if (state.invite) return invitation();
+  if (state.confirmEmail) return emailConfirmation();
+  if (state.register && state.session?.publicRegistrationEnabled) return registration();
   if (!state.session?.authenticated) return login();
+  if (!state.session.user.owner && !state.session.user.profileComplete) return completeProfile();
   const tabs = labels();
   if (!tabs[state.tab] || (state.tab === 'admin' && !state.session.user.owner)) state.tab = 'home';
   const nav = h('nav', { class: 'portal-nav', 'aria-label': tr('Portal do cliente', 'Customer portal') }, Object.entries(tabs).filter(([id]) => id !== 'admin' || state.session.user.owner).map(([id, label]) => button(label, () => navigate(id), `nav-item${state.tab === id ? ' active' : ''}`)));
@@ -128,7 +228,8 @@ function profile() {
   const user = state.session.user;
   return h('div', { class: 'content-grid' }, [panel(tr('Seu perfil', 'Your profile'), p(`${tr('Usuário', 'Username')}: ${user.userName}`), p(`${tr('E-mail', 'Email')}: ${user.email || tr('Ainda não informado', 'Not provided yet')}`), form([
     field(tr('Nome de exibição', 'Display name'), input('displayName', 'text', user.displayName, { maxLength: 160 })),
-    field(tr('Idioma preferido', 'Preferred language'), select('locale', [['pt-BR', 'Português'], ['en', 'English']], user.locale))
+    field(tr('Idioma preferido', 'Preferred language'), select('locale', [['pt-BR', 'Português'], ['en', 'English']], user.locale)),
+    ...profileFields(user)
   ], tr('Salvar perfil', 'Save profile'), async data => { await api('/profile', 'PUT', data); await session(); feedback(tr('Perfil atualizado.', 'Profile updated.')); render(); }), h('div', { class: 'organization-list' }, user.organizations.map(org => p(`${org.name} · ${org.role}`)))), panel(tr('Alterar senha', 'Change password'), form([
     field(tr('Senha atual', 'Current password'), input('currentPassword', 'password', '', { autocomplete: 'current-password' })),
     field(tr('Nova senha', 'New password'), input('newPassword', 'password', '', { autocomplete: 'new-password', minLength: 12 }), tr('12 caracteres, maiúscula, minúscula e número.', '12 characters, uppercase, lowercase and a number.')),
@@ -169,7 +270,7 @@ function community() { return panel(tr('Uma comunidade em construção', 'A comm
 function licenses() { return panel(tr('Licenciamento conectado ao seu projeto', 'Licensing connected to your project'), badge(tr('EM PREPARAÇÃO', 'IN PREPARATION')), p(tr('O próximo ciclo prevê catálogo, pagamentos e gestão de licenças. Ainda não há cobrança ou emissão automática por aqui.', 'The next stage covers the catalog, payments and license management. There is no billing or automatic issuance here yet.')), notice(tr('O SCADIVO é gratuito para até 200 TAGs. Licenças por máquina sem conexão permanente continuam previstas; o licenciamento online terá integração própria, sem alterar o produto nesta etapa.', 'SCADIVO is free for up to 200 tags. Machine licenses without a permanent connection remain planned; online licensing will have its own integration, without product changes at this stage.'))); }
 async function admin() {
   const overview = await api('/admin/overview');
-  const metrics = h('div', { class: 'metrics' }, [[tr('Contas', 'Accounts'), overview.accounts], [tr('Chamados abertos', 'Open requests'), overview.openTickets], [tr('Convites pendentes', 'Pending invitations'), overview.pendingInvitations]].map(([label, value]) => h('div', { class: 'metric' }, [h('strong', {}, value), h('span', {}, label)])));
+  const metrics = h('div', { class: 'metrics' }, [[tr('Contas', 'Accounts'), overview.accounts], [tr('Chamados abertos', 'Open requests'), overview.openTickets], [tr('Aguardando ativação', 'Awaiting activation'), overview.pendingInvitations]].map(([label, value]) => h('div', { class: 'metric' }, [h('strong', {}, value), h('span', {}, label)])));
   const body = h('div');
   const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
   const tabs = h('nav', { class: 'admin-subnav', 'aria-label': tr('Administração', 'Administration') }, Object.entries(items).map(([key, label]) => button(label, () => { state.adminTab = key; render(); }, `button ${state.adminTab === key ? 'primary' : 'secondary'}`)));
@@ -177,7 +278,10 @@ async function admin() {
   const emailStatus = overview.emailDeliveryConfigured
     ? tr(`Envio de e-mail habilitado: ${overview.queuedMessages} na fila, ${overview.sentMessages} aceitas pelo servidor SMTP e ${overview.failedMessages} com falha.`, `Email delivery enabled: ${overview.queuedMessages} queued, ${overview.sentMessages} accepted by the SMTP server and ${overview.failedMessages} failed.`)
     : tr(`E-mail ainda sem transporte configurado. ${overview.recordedMessages} notificações registradas, sem envio automático.`, `Email delivery is not configured. ${overview.recordedMessages} notifications recorded without automatic delivery.`);
-  return h('div', {}, [metrics, notice(emailStatus + ' ' + tr('Cadastro público, pagamentos e licenciamento online não estão ativos.', 'Public signup, payments and online licensing are not active.')), tabs, body]);
+  const registrationStatus = overview.publicRegistrationEnabled
+    ? tr('Cadastro aberto somente neste ambiente de homologação.', 'Public registration is enabled only in this homologation environment.')
+    : tr('Cadastro público desativado.', 'Public registration is disabled.');
+  return h('div', {}, [metrics, notice(emailStatus + ' ' + registrationStatus + ' ' + tr('Pagamentos e licenciamento online não estão ativos.', 'Payments and online licensing are not active.')), tabs, body]);
 }
 async function accountsAdmin() {
   const accounts = await api('/admin/accounts');
@@ -191,7 +295,7 @@ async function accountsAdmin() {
     const result = await api('/admin/invitations', 'POST', data); node.reset();
     invitationResult.replaceChildren(notice(tr(`Convite de ${result.userName}: válido por 24 horas e uso único. Guarde o nome de usuário junto com o link.`, `Invitation for ${result.userName}: valid for 24 hours and one use. Keep the username with the link.`)), field(tr('Link privado', 'Private link'), textarea('invitationLink', result.invitationUrl, { readOnly: true, rows: 3, class: 'private-link' })), button(tr('Copiar link', 'Copy link'), async () => { try { await navigator.clipboard.writeText(result.invitationUrl); feedback(tr('Link copiado.', 'Link copied.')); } catch { feedback(tr('Selecione e copie o link acima.', 'Select and copy the link above.')); } }));
     feedback(result.emailQueued ? tr('Convite criado e colocado na fila de e-mail.', 'Invitation created and queued for email delivery.') : tr('Convite criado. Compartilhe o link privado.', 'Invitation created. Share the private link.'));
-  }), invitationResult), panel(tr('Contas do portal', 'Portal accounts'), table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Criada em', 'Created')], accounts.map(account => [account.userName, account.displayName, badge(account.invitationAccepted ? tr('Ativa', 'Active') : tr('Convite pendente', 'Pending invitation')), date(account.createdAtUtc)]))));
+  }), invitationResult), panel(tr('Contas do portal', 'Portal accounts'), table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Criada em', 'Created')], accounts.map(account => [account.userName, account.displayName, badge(account.invitationAccepted ? tr('Ativa', 'Active') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), date(account.createdAtUtc)]))));
   return result;
 }
 async function templatesAdmin() {
@@ -236,7 +340,16 @@ async function start() {
       state.invite = { userId: parsed.userId, token: parsed.token };
     } catch { feedback(tr('O link de convite é inválido.', 'This invitation link is invalid.'), true); }
     history.replaceState(null, '', '/portal/#accept-invite');
-  } else if (labels()[fragment]) state.tab = fragment;
+  } else if (fragment.startsWith('confirm-email=')) {
+    try {
+      const encoded = fragment.slice('confirm-email='.length).replaceAll('-', '+').replaceAll('_', '/');
+      const parsed = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(encoded), x => x.charCodeAt(0))));
+      if (typeof parsed.userId !== 'string' || typeof parsed.token !== 'string') throw new Error('Invalid confirmation');
+      state.confirmEmail = { userId: parsed.userId, token: parsed.token };
+    } catch { feedback(tr('O link de confirmação é inválido.', 'This confirmation link is invalid.'), true); }
+    history.replaceState(null, '', '/portal/#confirm-email');
+  } else if (fragment === 'register') state.register = true;
+  else if (labels()[fragment]) state.tab = fragment;
   try { await session(); render(); } catch { app.replaceChildren(panel(tr('Portal indisponível', 'Portal unavailable'), p(tr('Não foi possível conectar. Aguarde um momento e tente novamente.', 'Unable to connect. Please wait a moment and try again.')), button(tr('Tentar novamente', 'Try again'), start))); }
 }
 start();

@@ -7,7 +7,7 @@ A Ajuda contextual do produto é curta e orientada à tarefa. Este manual aprofu
 ## Organização
 
 - `pt-BR/`: conteúdo-base de autoria da Fase 1.
-- `en/` e `es/`: estrutura de paridade preparada; tradução integral ocorre de forma controlada.
+- `en/` e `es/`: capítulos estáveis traduzidos de forma incremental; os capítulos restantes e a paridade semântica final ainda estão pendentes.
 - `COVERAGE-MATRIX.md`: matriz editorial por capítulo, dependências e estado de screenshot.
 
 ## Regras editoriais

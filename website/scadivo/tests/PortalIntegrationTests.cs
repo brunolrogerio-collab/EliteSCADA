@@ -42,6 +42,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("api/support")).StatusCode);
                 Assert.Equal(HttpStatusCode.BadRequest, (await anonymous.PostAsJsonAsync("api/auth/login", new { username = "scadivo.owner", password = Password })).StatusCode);
                 var owner = await Login(factory, "scadivo.owner");
+                Assert.NotEmpty(Directory.GetFiles(Path.Combine(root, "keys"), "key-*.xml"));
                 Assert.True((await owner.Get("/admin/overview")).GetProperty("accounts").GetInt32() >= 1);
                 var sessionResponse = await owner.Client.GetAsync("api/session");
                 Assert.Contains("no-store", sessionResponse.Headers.CacheControl!.ToString());

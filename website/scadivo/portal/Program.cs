@@ -2,6 +2,8 @@ using System.Net;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -57,8 +59,9 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Strict;
 });
-builder.Services.AddDataProtection().SetApplicationName("SCADIVO.Portal")
-    .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["Portal:KeyDirectory"] ?? "/app/keys"));
+builder.Services.AddDataProtection().SetApplicationName("SCADIVO.Portal");
+builder.Services.AddOptions<KeyManagementOptions>().Configure<IConfiguration, ILoggerFactory>((options, configuration, logging) =>
+    options.XmlRepository = new FileSystemXmlRepository(new DirectoryInfo(configuration["Portal:KeyDirectory"] ?? "/app/keys"), logging));
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;

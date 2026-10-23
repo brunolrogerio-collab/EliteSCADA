@@ -12,7 +12,7 @@ database_password=$(openssl rand -hex 32)
 printf 'Aa1!%s\n' "$(openssl rand -base64 27)" > secrets/portal-owner
 chown 1654:1654 secrets/portal-owner
 chmod 400 secrets/portal-owner
-printf 'DATABASE_PASSWORD=%s\nPORTAL_IMAGE=scadivo-portal:20261023-foundation\n' "$database_password" > .env
+printf 'DATABASE_PASSWORD=%s\nPORTAL_IMAGE=scadivo-portal:20261023-foundation.2\n' "$database_password" > .env
 chmod 600 .env
 if test ! -e /etc/scadivo/portal-backup.key; then
   openssl rand -base64 48 > /etc/scadivo/portal-backup.key

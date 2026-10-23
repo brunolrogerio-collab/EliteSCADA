@@ -591,6 +591,7 @@ public sealed class ContextualHelpTests
     {
         var taskTopicIds = new[]
         {
+            "sources.data-sources",
             "engineering.lifecycle",
             "packages.escadapkg",
             "diagnostics.overview",
@@ -629,6 +630,27 @@ public sealed class ContextualHelpTests
                 Assert.Equal(headings[locale], topic.Sections.Select(section => section.Heading).ToArray());
                 Assert.NotEmpty(topic.RelatedTopicIds ?? Array.Empty<string>());
             }
+        }
+    }
+
+    [Fact]
+    public void DataSourceHelp_ExplainsSchemaToolsPreviewApplyAndRuntimeLifecycleInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[] { "schema", "referência de credencial protegida", "Connection Test", "não aplica alterações", "Preview", "Apply", "revisão Active" },
+            ["en"] = new[] { "schema", "protected credential-reference field", "Connection Test", "does not apply changes", "Preview", "Apply", "Active revision" },
+            ["es"] = new[] { "schema", "referencia de credencial protegida", "Connection Test", "no aplica cambios", "Preview", "Apply", "revisión Active" }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "sources.data-sources");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("drivers.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
         }
     }
 

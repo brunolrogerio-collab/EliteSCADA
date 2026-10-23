@@ -16,7 +16,10 @@ function h(tag, attrs = {}, children = []) {
     else if (key in node && !key.startsWith('aria')) node[key] = value;
     else node.setAttribute(key, value);
   }
-  for (const child of [children].flat(Infinity)) if (child != null) node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  for (const child of [children].flat(Infinity)) {
+    if (child == null || typeof child === 'boolean') continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
   return node;
 }
 const p = text => h('p', {}, text);
@@ -42,14 +45,14 @@ function errorText(code) {
     'invalid-input': tr('Confira os campos informados.', 'Check the information entered.'),
     'profile-fields-required': tr('Preencha os campos obrigatórios do perfil e confira os dados opcionais.', 'Complete the required profile fields and check the optional information.'),
     'profile-incomplete': tr('Complete seu perfil antes de navegar pelo portal.', 'Complete your profile before using the portal.'),
-    'password-requirements': tr('A senha precisa ter ao menos 12 caracteres, incluindo maiúscula, minúscula e número.', 'The password needs at least 12 characters, including uppercase, lowercase and a number.'),
+    'password-requirements': tr('A senha precisa ter ao menos 8 caracteres, incluindo maiúscula, minúscula e número.', 'The password needs at least 8 characters, including uppercase, lowercase and a number.'),
     'email-not-configured': tr('O envio de confirmação está temporariamente indisponível. Tente mais tarde.', 'Email confirmation is temporarily unavailable. Please try again later.'),
     'invalid-email': tr('Informe um endereço de e-mail válido.', 'Enter a valid email address.'),
     'invalid-confirmation': tr('O link é inválido, já foi usado ou expirou. Solicite um novo e-mail de confirmação.', 'This link is invalid, already used or expired. Request a new confirmation email.'),
     'invalid-request-token': tr('A sessão mudou. Atualize a página e tente novamente.', 'The session changed. Refresh this page and try again.'),
     'account-already-exists': tr('Esse usuário ou e-mail já está cadastrado.', 'This username or email is already registered.'),
     'account-not-created': tr('Use um nome de usuário com letras, números, ponto ou hífen.', 'Use a username with letters, numbers, a dot or a hyphen.'),
-    'password-not-changed': tr('Confira a senha atual. A nova senha precisa ter 12 caracteres, maiúscula, minúscula e número.', 'Check your current password. The new password needs 12 characters, uppercase, lowercase and a number.'),
+    'password-not-changed': tr('Confira a senha atual. A nova senha precisa ter ao menos 8 caracteres, maiúscula, minúscula e número.', 'Check your current password. The new password needs at least 8 characters, uppercase, lowercase and a number.'),
     'invalid-invitation': tr('Convite inválido ou já utilizado.', 'Invalid or already used invitation.'),
     'invalid-invitation-or-password': tr('Convite expirado ou senha fora dos requisitos.', 'The invitation expired or the password does not meet the requirements.'),
     'slug-already-exists': tr('Esse endereço de artigo já existe.', 'This article slug already exists.')
@@ -100,17 +103,20 @@ function login() {
     field(tr('E-mail ou usuário', 'Email or username'), input('username', 'text', state.pendingEmail, { autocomplete: 'username', maxLength: 256 })),
     field(tr('Senha', 'Password'), input('password', 'password', '', { autocomplete: 'current-password', maxLength: 1024 }))
   ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); state.pendingEmail = ''; render(); }));
+  const registrationEnabled = state.session?.publicRegistrationEnabled === true;
   const note = h('div', { class: 'login-note' }, [
     p(state.pendingEmail
       ? tr('Se o cadastro foi concluído, confirme o endereço pelo link enviado. Confira também a caixa de spam.', 'If registration was completed, confirm your address using the link we sent. Check spam as well.')
-      : tr('O cadastro público está em implantação. Contas convidadas também confirmam o endereço pelo link de ativação.', 'Public registration is being prepared. Invited accounts also verify their address through the activation link.')),
+      : registrationEnabled
+        ? tr('O cadastro público está disponível. Após criar a conta, confirme o endereço pelo link enviado.', 'Public registration is available. After creating your account, confirm your address using the link sent by email.')
+        : tr('O cadastro público não está disponível no momento. Contas convidadas entram após confirmar o endereço pelo link de ativação.', 'Public registration is not available right now. Invited accounts can sign in after confirming their address using the activation link.')),
     state.pendingEmail && button(tr('Reenviar confirmação', 'Resend confirmation'), async () => {
       try { await api('/auth/confirmation/resend', 'POST', { email: state.pendingEmail }); feedback(tr('Se houver uma confirmação pendente para esse endereço, enviaremos um novo link.', 'If confirmation is pending for that address, a new link will be sent.')); }
       catch (error) { feedback(error.message, true); }
     }),
-    state.session?.publicRegistrationEnabled && button(tr('Criar conta', 'Create an account'), () => { state.register = true; history.replaceState(null, '', '/portal/#register'); render(); }, 'button primary'),
-    !state.session?.publicRegistrationEnabled && p(tr('Para solicitar acesso ou ajuda, fale com a equipe SCADIVO.', 'To request access or assistance, contact the SCADIVO team.')),
-    !state.session?.publicRegistrationEnabled && h('a', { href: 'mailto:support@scadivo.com' }, 'support@scadivo.com')
+    registrationEnabled && button(tr('Criar conta', 'Create an account'), () => { state.register = true; history.replaceState(null, '', '/portal/#register'); render(); }, 'button primary'),
+    !registrationEnabled && p(tr('Para solicitar acesso ou ajuda, fale com a equipe SCADIVO.', 'To request access or assistance, contact the SCADIVO team.')),
+    !registrationEnabled && h('a', { href: 'mailto:support@scadivo.com' }, 'support@scadivo.com')
   ]);
   card.append(note); card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'login-layout' }, [intro, card]));
 }
@@ -149,8 +155,8 @@ function registration() {
     form([
       field(tr('Nome completo', 'Full name'), input('displayName', 'text', '', { maxLength: 160, autocomplete: 'name' })),
       field(tr('E-mail', 'Email'), input('email', 'email', '', { maxLength: 256, autocomplete: 'email' })),
-      field(tr('Senha', 'Password'), input('password', 'password', '', { minLength: 12, maxLength: 1024, autocomplete: 'new-password' }), tr('Mínimo de 12 caracteres, com maiúscula, minúscula e número.', 'At least 12 characters, with uppercase, lowercase and a number.')),
-      field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { minLength: 12, maxLength: 1024, autocomplete: 'new-password' })),
+      field(tr('Senha', 'Password'), input('password', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' }), tr('Mínimo de 8 caracteres, com maiúscula, minúscula e número.', 'At least 8 characters, with uppercase, lowercase and a number.')),
+      field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' })),
       ...profileFields()
     ], tr('Cadastrar e enviar confirmação', 'Sign up and send confirmation'), async data => {
       if (data.password !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.'));
@@ -193,8 +199,8 @@ function completeProfile() {
 }
 function invitation() {
   app.replaceChildren(h('div', { class: 'invite-layout' }, panel(tr('Bem-vindo ao SCADIVO', 'Welcome to SCADIVO'), p(tr('Defina a senha da sua conta convidada. O link é pessoal e válido por 24 horas.', 'Set the password for your invited account. The personal link is valid for 24 hours.')), form([
-    field(tr('Nova senha', 'New password'), input('password', 'password', '', { autocomplete: 'new-password', minLength: 12, maxLength: 1024 }), tr('Mínimo de 12 caracteres, maiúscula, minúscula e número.', 'At least 12 characters, uppercase, lowercase and a number.')),
-    field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 12 })),
+    field(tr('Nova senha', 'New password'), input('password', 'password', '', { autocomplete: 'new-password', minLength: 8, maxLength: 1024 }), tr('Mínimo de 8 caracteres, maiúscula, minúscula e número.', 'At least 8 characters, uppercase, lowercase and a number.')),
+    field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 8 })),
     ...profileFields()
   ], tr('Ativar minha conta', 'Activate my account'), async data => {
     if (data.password !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.'));
@@ -232,8 +238,8 @@ function profile() {
     ...profileFields(user)
   ], tr('Salvar perfil', 'Save profile'), async data => { await api('/profile', 'PUT', data); await session(); feedback(tr('Perfil atualizado.', 'Profile updated.')); render(); }), h('div', { class: 'organization-list' }, user.organizations.map(org => p(`${org.name} · ${org.role}`)))), panel(tr('Alterar senha', 'Change password'), form([
     field(tr('Senha atual', 'Current password'), input('currentPassword', 'password', '', { autocomplete: 'current-password' })),
-    field(tr('Nova senha', 'New password'), input('newPassword', 'password', '', { autocomplete: 'new-password', minLength: 12 }), tr('12 caracteres, maiúscula, minúscula e número.', '12 characters, uppercase, lowercase and a number.')),
-    field(tr('Repita a nova senha', 'Repeat new password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 12 }))
+    field(tr('Nova senha', 'New password'), input('newPassword', 'password', '', { autocomplete: 'new-password', minLength: 8 }), tr('Mínimo de 8 caracteres, maiúscula, minúscula e número.', 'At least 8 characters, uppercase, lowercase and a number.')),
+    field(tr('Repita a nova senha', 'Repeat new password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 8 }))
   ], tr('Atualizar senha', 'Update password'), async (data, node) => { if (data.newPassword !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.')); await api('/profile/password', 'POST', data); await session(); node.reset(); feedback(tr('Senha atualizada.', 'Password updated.')); }))]);
 }
 async function support() {

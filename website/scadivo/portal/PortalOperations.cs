@@ -133,9 +133,10 @@ public sealed class PortalOperations(
         if (!configuration.GetValue<bool>("Portal:PublicRegistrationEnabled")) return Results.NotFound();
         if (!emailSettings.Value.Enabled) return Results.Json(new { error = "email-not-configured" }, statusCode: StatusCodes.Status503ServiceUnavailable);
         var email = input.Email?.Trim();
+        if (input.Password is null || input.Password.Length < 8 || input.Password.Length > 1024)
+            return Invalid("password-requirements");
         if (!Valid(input.DisplayName, 1, 160) || !Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
-            !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase) || input.Password is null ||
-            input.Password.Length < 12 || input.Password.Length > 1024 ||
+            !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase) ||
             !ValidProfile(input.ProfileType, input.ActivityArea, input.ActivityAreaOther, input.OrganizationOrSchool,
                 input.PhoneNumber, input.Address, input.DateOfBirth)) return Invalid("profile-fields-required");
 

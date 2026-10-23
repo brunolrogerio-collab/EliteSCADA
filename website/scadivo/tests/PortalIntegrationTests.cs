@@ -20,7 +20,7 @@ namespace Scadivo.Portal.Tests;
 
 public sealed class PortalIntegrationTests(ITestOutputHelper output)
 {
-    private const string Password = "PortalTest-LongPassword22!";
+    private const string Password = "Scad1vo!";
 
     [Fact]
     public async Task CompletePilotEnforcesIdentityCsrfIsolationLockoutAndPersistence()
@@ -274,6 +274,19 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             using var registrationClient = Client(factory);
             var registrationSession = new Session(registrationClient, await Csrf(registrationClient));
             var registrationEmail = $"signup-{Guid.NewGuid():N}@example.test";
+            using (var shortPasswordResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
+            {
+                displayName = "New Portal User", email = registrationEmail, password = "Scad1vo",
+                profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
+                organizationOrSchool = "Technical University", phoneNumber = (string?)null, address = (string?)null,
+                dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
+            }))
+            {
+                Assert.Equal(HttpStatusCode.BadRequest, shortPasswordResponse.StatusCode);
+                using var error = await JsonDocument.ParseAsync(await shortPasswordResponse.Content.ReadAsStreamAsync());
+                Assert.Equal("password-requirements", error.RootElement.GetProperty("error").GetString());
+                Assert.False(await db.Users.AnyAsync(x => x.Email == registrationEmail));
+            }
             using var registrationResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
                 displayName = "New Portal User", email = registrationEmail, password = Password,

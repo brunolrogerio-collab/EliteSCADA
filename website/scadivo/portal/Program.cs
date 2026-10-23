@@ -30,7 +30,7 @@ builder.Services.AddDbContext<PortalDb>(options => options.UseNpgsql(
     builder.Configuration.GetConnectionString("Portal") ?? throw new InvalidOperationException("Portal database is not configured.")));
 builder.Services.AddIdentity<PortalUser, IdentityRole>(options =>
 {
-    options.Password.RequiredLength = 12;
+    options.Password.RequiredLength = 8;
     options.Password.RequireNonAlphanumeric = false;
     options.Lockout.MaxFailedAccessAttempts = 5;
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);

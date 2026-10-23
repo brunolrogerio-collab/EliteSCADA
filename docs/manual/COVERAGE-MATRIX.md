@@ -97,12 +97,12 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 89. Interactive/View Only | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 90. Redundancy entitlement | BLOCKED_PRODUCT | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts; #421/#423 HA licensing entitlement closure | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 91. License Generator | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
-| 92. Export .escadapkg | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 93. Import | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 94. Authority backup | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 95. Restore | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 96. Portability | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 97. Fragments/library portability | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 92. Export .escadapkg | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 93. Import | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 94. Authority backup | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 95. Restore | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 96. Portability | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 97. Fragments/library portability | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 98. Application detach | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 99. Neutral installation | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 100. A -> B -> A switching | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
@@ -122,22 +122,22 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 114. Diagnostics HA | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 115. Operational procedures | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 116. Application backup | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 117. Authority backup | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 118. Database/Historian considerations | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 119. Restore-first | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 120. Recovery procedures | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 121. Startup | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 122. Login | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 123. Driver communication | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 124. TAG quality | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 125. Runtime | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 117. Authority backup | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 118. Database/Historian considerations | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 119. Restore-first | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 120. Recovery procedures | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 121. Startup | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 122. Login | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 123. Driver communication | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 124. TAG quality | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 125. Runtime | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 126. Historian | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 127. Scripts | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
-| 128. Licensing | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 129. Authority | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 128. Licensing | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 129. Authority | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 130. HA | BLOCKED_PRODUCT | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 131. Import/restore | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 132. Diagnostics workflow | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 131. Import/restore | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 132. Diagnostics workflow | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 133. Glossary | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; #379 final glossary | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 134. Statuses | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; #379 + exact final candidate | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 135. Quality | DRAFT_STABLE | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |

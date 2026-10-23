@@ -68,6 +68,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 using var anonymous = Client(factory);
                 Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("api/support")).StatusCode);
                 Assert.Equal(HttpStatusCode.BadRequest, (await anonymous.PostAsJsonAsync("api/auth/login", new { username = "scadivo.owner", password = Password })).StatusCode);
+                Assert.False((await anonymous.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("publicRegistrationEnabled").GetBoolean());
+                var closedSignup = new Session(anonymous, await Csrf(anonymous));
+                using (var registrationClosed = await closedSignup.Raw("/auth/register", HttpMethod.Post, new { email = "closed@example.test" }))
+                    Assert.Equal(HttpStatusCode.NotFound, registrationClosed.StatusCode);
                 var owner = await Login(factory, "scadivo.owner");
                 Assert.NotEmpty(Directory.GetFiles(Path.Combine(root, "keys"), "key-*.xml"));
                 Assert.True((await owner.Get("/admin/overview")).GetProperty("accounts").GetInt32() >= 1);
@@ -301,7 +305,19 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
 
             using var registrationClient = Client(factory);
             var registrationSession = new Session(registrationClient, await Csrf(registrationClient));
+            Assert.True((await registrationClient.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("publicRegistrationEnabled").GetBoolean());
             var registrationEmail = $"signup-{Guid.NewGuid():N}@example.test";
+            using (var missingProfileResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
+            {
+                displayName = "New Portal User", email = registrationEmail, password = Password,
+                profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
+                organizationOrSchool = (string?)null, phoneNumber = (string?)null, address = (string?)null,
+                dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
+            }))
+            {
+                Assert.Equal(HttpStatusCode.BadRequest, missingProfileResponse.StatusCode);
+                Assert.False(await db.Users.AnyAsync(x => x.Email == registrationEmail));
+            }
             using (var shortPasswordResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
                 displayName = "New Portal User", email = registrationEmail, password = "Scad1vo",

@@ -9,7 +9,7 @@ Owner: this Codex conversation. Product licensing and SCADA Authority are outsid
 - Phase 3 pilot: deployed independent portal accounts, first-party cookie sessions, administrator-issued invitations, account profile/password and editable PT/EN message templates. Bounded SMTP outbox delivery for invitations and support notices is deployed and enabled; the noreply credential is mounted read-only and authenticated delivery passed SPF/DKIM/DMARC checks.
 - Phase 5 foundation: deployed searchable FAQ, private support conversations and an authenticated release catalog (empty until approved official artifacts exist).
 
-Public registration, email confirmation/recovery, public community, payments and product-side license renewal remain subsequent packages. Public registration requires the separate email and legal decisions recorded in #741. No demo Authority/user database is copied into this portal.
+Public registration and email confirmation are enabled in production as a limited account pilot by the owner's explicit decision on 23 October 2026. New users must confirm their email before sign-in. Password recovery is not implemented; the login screen directs users to support. Finalized privacy/terms and retention policy, recovery, offsite backup automation and monitoring/alerting remain open #741 launch work. Public community, payments and product-side license renewal remain subsequent packages. No demo Authority/user database is copied into this portal.
 
 ## Validation profile
 

@@ -115,6 +115,7 @@ function login() {
       catch (error) { feedback(error.message, true); }
     }),
     registrationEnabled && button(tr('Criar conta', 'Create an account'), () => { state.register = true; history.replaceState(null, '', '/portal/#register'); render(); }, 'button primary'),
+    registrationEnabled && p([tr('A recuperação automática de senha ainda não está disponível. Para ajuda com o acesso, fale com ', 'Automatic password recovery is not available yet. For account access help, contact '), h('a', { href: 'mailto:support@scadivo.com' }, 'support@scadivo.com'), '.']),
     !registrationEnabled && p(tr('Para solicitar acesso ou ajuda, fale com a equipe SCADIVO.', 'To request access or assistance, contact the SCADIVO team.')),
     !registrationEnabled && h('a', { href: 'mailto:support@scadivo.com' }, 'support@scadivo.com')
   ]);

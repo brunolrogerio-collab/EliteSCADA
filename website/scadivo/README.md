@@ -16,14 +16,15 @@ The authenticated download catalog accepts only approved official GitHub release
 
 Community and licensing areas explicitly display their pending state. There is no checkout, payment webhook, product activation API, signing key, license emission or automatic product renewal in this package.
 
-### Deliberately not activated
+### Pilot scope and remaining gates
 
-- Self-service registration is implemented behind `Portal:PublicRegistrationEnabled` and remains disabled in production. The isolated homologation enables it and captures confirmation messages in Mailpit. Production activation still requires the account-security, legal, recovery, retention and launch gates in #741; password recovery is not implemented here.
-- Transactional SMTP delivery is deployed and enabled for administrative invitations, support-ticket receipts and staff replies. This branch adds branded HTML/text delivery for public-site contact receipts/team notifications and registration confirmation. Confirmation messages are not sent in production while public registration is off. The sender creates fresh one-use invitation/confirmation tokens at send time; it never stores them in the outbox or audit log. Historical `awaiting-transport` rows are deliberately not sent automatically.
+- Self-service registration and email confirmation are enabled in production as a limited public pilot by the owner's explicit decision on 23 October 2026. New accounts remain unable to sign in until the one-use confirmation link is completed. This opens account creation only; downloads, community publishing, checkout and license services remain unavailable. Password recovery is not implemented; the login screen directs users to support for access help.
+- This is an explicit early-pilot decision while the broader #741 launch gates remain open: finalized privacy/terms and retention policy, self-service password recovery, offsite backup automation and monitoring/alerting. Do not describe this as a full commercial launch. Registration stays configurable in production Compose with a default of `false`; the private production environment opts in.
+- Transactional SMTP delivery is deployed and enabled for administrative invitations, support-ticket receipts and staff replies. This branch adds branded HTML/text delivery for public-site contact receipts/team notifications and registration confirmation. The sender creates fresh one-use invitation/confirmation tokens at send time; it never stores them in the outbox or audit log. Historical `awaiting-transport` rows are deliberately not sent automatically.
 - Public community: requires moderation rules, account recovery and SSO integration.
 - Commercial licensing: pricing, named/concurrent seats, machine limits/transfers, cancellation/refund and conversion rules are still product-owner decisions. Future remote license transport is HTTPS/TCP 443, with its own contract and coordinator review.
 
-This is a closed pilot, not a claim that all phases of #741 are complete. Independent security review, public registration/recovery, legal policies, offsite backup automation and monitoring/alerting are launch gates. Transactional SMTP delivery was verified with an actual message; the registration flow is exercised only in local homologation and is not enabled in production.
+This is a limited public account-registration pilot, not a claim that all phases of #741 are complete. Account confirmation and authenticated SMTP are covered by integration tests; the SMTP domain and a contact receipt were separately verified with real delivery. Legal/privacy review, recovery, retention, offsite backup automation and monitoring/alerting remain outstanding.
 
 ### Transactional email implementation
 
@@ -39,7 +40,7 @@ The noreply password is installed at `/opt/scadivo/portal/secrets/portal-mail/sm
 docker compose -f compose.yml exec -T scadivo-portal-api dotnet /app/Scadivo.Portal.dll --send-test-email
 ```
 
-The command's test message goes to `support@scadivo.com`. A successful result means the SMTP server accepted it; separately confirm arrival in the mailbox and inspect SPF/DKIM results. The production sender was separately tested end to end as described above. Self-service registration remains disabled in production, so confirmation emails are exercised only in homologation; account recovery remains unimplemented.
+The command's test message goes to `support@scadivo.com`. A successful result means the SMTP server accepted it; separately confirm arrival in the mailbox and inspect SPF/DKIM results. The production sender was separately tested end to end as described above. Account confirmation runs through the same authenticated sender; account recovery remains unimplemented.
 
 ## Code boundaries
 

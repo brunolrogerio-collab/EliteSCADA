@@ -19,25 +19,25 @@ Community and licensing areas explicitly display their pending state. There is n
 ### Deliberately not activated
 
 - Public registration, email confirmation and password recovery remain disabled. They require separate account-security, legal and product decisions in #741.
-- A transactional SMTP sender and bounded outbox worker are implemented in the current PR changes, but are not yet deployed or enabled. The sender creates fresh one-use invitation tokens at send time; it never stores them in the outbox or audit log. Historical `awaiting-transport` rows from the earlier pilot are deliberately not sent automatically.
+- Transactional SMTP delivery is deployed and enabled for administrative invitations, support-ticket receipts and staff replies. Public registration, confirmation and password recovery remain disabled. The sender creates fresh one-use invitation tokens at send time; it never stores them in the outbox or audit log. Historical `awaiting-transport` rows are deliberately not sent automatically.
 - Public community: requires moderation rules, account recovery and SSO integration.
 - Commercial licensing: pricing, named/concurrent seats, machine limits/transfers, cancellation/refund and conversion rules are still product-owner decisions. Future remote license transport is HTTPS/TCP 443, with its own contract and coordinator review.
 
-This is a closed pilot, not a claim that all phases of #741 are complete. Independent security review, public registration/recovery, legal policies, offsite backup automation and monitoring/alerting are launch gates. SMTP delivery must be enabled and verified with an actual message before invitation/support emails are described as live.
+This is a closed pilot, not a claim that all phases of #741 are complete. Independent security review, public registration/recovery, legal policies, offsite backup automation and monitoring/alerting are launch gates. Transactional SMTP delivery was verified with an actual message; this does not activate registration or recovery emails.
 
 ### Transactional email implementation
 
 The PR adds SMTP delivery for administrative invitations, support-ticket receipts and staff replies. The queue sends one item per worker tick, retries temporary failures up to five attempts, and records only fixed error categories. The initial outbox rows marked `awaiting-transport` remain untouched; only new notifications are queued after SMTP is enabled. Delivery is at-least-once, with a stable message ID for duplicate recognition if the process stops after SMTP acceptance but before the database commit.
 
-The production mailbox is `noreply@scadivo.com`; replies go to `support@scadivo.com`. The account's official settings use `mail.scadivo.com:465` with implicit TLS and SMTP authentication. A TLS handshake and certificate validation from the VPS succeeded on 23 October 2026; the certificate covered `*.scadivo.com`. Public SPF, DKIM and DMARC DNS records are present. Final sender alignment and receipt still need confirmation with an authenticated delivery.
+The production mailbox is `noreply@scadivo.com`; replies go to `support@scadivo.com`. The account's official settings use `mail.scadivo.com:465` with implicit TLS and SMTP authentication. A TLS handshake and certificate validation from the VPS succeeded on 23 October 2026; the certificate covered `*.scadivo.com`. An authenticated message sent from the VPS was delivered to Gmail; the received message showed SPF PASS, DKIM PASS (`scadivo.com`), DMARC PASS and TLS. No SPF or DMARC record was changed during this verification.
 
-Production delivery remains disabled until the owner enters the noreply password directly into a private provisioning prompt. Store it at `/opt/scadivo/portal/secrets/portal-mail/smtp-password`, owned by UID 1654 and mode 0400; the directory must be UID 1654 and mode 0700. Do not put the password in `.env`, command arguments, terminal output, GitHub or repository files. Set `PORTAL_EMAIL_ENABLED=true` only after the file is installed. To confirm SMTP acceptance without restarting the portal or connecting to PostgreSQL, run this from `/opt/scadivo/portal` after the reviewed image and secret are in place:
+The noreply password is installed at `/opt/scadivo/portal/secrets/portal-mail/smtp-password`, owned by UID 1654 and mode 0400; the directory is UID 1654 and mode 0700. The directory is mounted read-only and `PORTAL_EMAIL_ENABLED=true` in the private environment. Do not put the password in `.env`, command arguments, terminal output, GitHub or repository files. The bounded worker sends one queued item per tick and only for the supported invitation/support templates. Before activation on 23 October 2026, the outbox contained zero rows; no queued or historical message was sent by activation. To confirm SMTP acceptance without restarting the portal or connecting to PostgreSQL, the following one-off command is available from `/opt/scadivo/portal`:
 
 ```sh
 docker compose -f compose.yml exec -T scadivo-portal-api dotnet /app/Scadivo.Portal.dll --send-test-email
 ```
 
-The test message goes to `support@scadivo.com`. A successful result means the SMTP server accepted it; separately confirm arrival in the mailbox and inspect SPF/DKIM results. Public registration, email confirmation and account recovery remain disabled.
+The command's test message goes to `support@scadivo.com`. A successful result means the SMTP server accepted it; separately confirm arrival in the mailbox and inspect SPF/DKIM results. The production sender was separately tested end to end as described above. Public registration, email confirmation and account recovery remain disabled.
 
 ## Code boundaries
 
@@ -121,5 +121,6 @@ For disaster recovery: provision the same stack without publishing it, decrypt t
 - Public marketing site: PT/EN at widths 320/390/768/1024/1440, images/links/FAQ checked; no historical commercial branding or evaluation-time messaging.
 - Anonymous APIs enforce authentication; database/API are not host-published; encrypted backup and disposable restore passed.
 - Existing public site and demo routes remain operational. No product application import, demo restart or license change was made.
+- Production portal API updated to image `20261023-0e00d54a5c13`; only that API service was recreated. PostgreSQL remained healthy and unchanged; the public check passed after deployment with anonymous Runtime and 22 demo screens available. Portal session reports SMTP configured while public registration remains disabled.
 
 Review and future integration remain through the draft PR and umbrella issue #741. Do not close #741 on this foundation package.

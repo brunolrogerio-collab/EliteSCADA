@@ -79,6 +79,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("password-recovery", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("community-sso", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("public-contact", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
@@ -92,6 +95,9 @@ builder.Services.AddScoped<PortalOperations>();
 builder.Services.AddSingleton<PortalEmailSignal>();
 builder.Services.AddOptions<PortalEmailOptions>().BindConfiguration("Portal:Email")
     .Validate(options => options.Valid(builder.Environment.IsDevelopment()), "SMTP configuration requires TLS, valid addresses and a credential file.")
+    .ValidateOnStart();
+builder.Services.AddOptions<CommunitySsoOptions>().BindConfiguration("Portal:Community")
+    .Validate(options => options.Valid(), "Community SSO requires an HTTPS Discourse URL and a readable shared-secret file of at least 32 bytes.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IPortalEmailTransport, SmtpPortalEmailTransport>();
 builder.Services.AddScoped<PortalEmailDispatcher>();

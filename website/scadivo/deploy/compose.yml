@@ -39,6 +39,9 @@ services:
       Portal__KeyDirectory: /app/keys
       Portal__TrustedProxyNetworks: 10.11.0.0/16
       Portal__PublicRegistrationEnabled: ${PORTAL_PUBLIC_REGISTRATION_ENABLED:-false}
+      Portal__Community__Enabled: ${PORTAL_COMMUNITY_ENABLED:-false}
+      Portal__Community__DiscourseUrl: ${PORTAL_COMMUNITY_DISCOURSE_URL:-}
+      Portal__Community__SharedSecretFile: /run/secrets/community-sso/shared-secret
       Portal__Bootstrap__Username: scadivo.owner
       Portal__Bootstrap__PasswordFile: /run/secrets/portal-owner
       Portal__Email__Enabled: ${PORTAL_EMAIL_ENABLED:-false}
@@ -54,6 +57,7 @@ services:
       - keys:/app/keys
       - ./secrets/portal-owner:/run/secrets/portal-owner:ro
       - ./secrets/portal-mail:/run/secrets/portal-mail:ro
+      - ./secrets/community-sso:/run/secrets/community-sso:ro
     depends_on:
       database: {condition: service_healthy}
       keys-init: {condition: service_completed_successfully}

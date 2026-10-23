@@ -14,17 +14,34 @@ The portal includes profile/password management, administrator-issued personal i
 
 The authenticated download catalog accepts only approved official GitHub release URLs with SHA-256 metadata. It starts empty because no release artifact is currently approved; no placeholder installer is offered. Publication management, the official distribution pipeline (#363/#408), and artifact verification before catalog insertion remain follow-up work.
 
-Community and licensing areas explicitly display their pending state. There is no checkout, payment webhook, product activation API, signing key, license emission or automatic product renewal in this package.
+The portal now contains a disabled-by-default DiscourseConnect SSO bridge for the future community. It does not provision or expose a forum; the community remains pending until a separate Discourse service and its moderation, privacy, backup, monitoring and routing gates are ready. There is no checkout, payment webhook, product activation API, signing key, license emission or automatic product renewal in this package.
 
 ### Pilot scope and remaining gates
 
 - Self-service registration, email confirmation and password recovery are enabled in production as a limited public pilot by the owner's explicit decision. New accounts remain unable to sign in until the one-use confirmation link is completed. Recovery accepts an email address, gives the same response whether or not an eligible account exists, and sends a 24-hour one-use reset link only to confirmed accounts. Reset tokens are generated at delivery time, never stored in the outbox, and password reset invalidates the token. Downloads, community publishing, checkout and license services remain unavailable.
 - This is an explicit early-pilot decision while the broader #741 launch gates remain open: finalized privacy/terms and retention policy, offsite backup automation and monitoring/alerting. Do not describe this as a full commercial launch. Registration stays configurable in production Compose with a default of `false`; the private production environment opts in.
 - Transactional SMTP delivery is deployed and enabled for administrative invitations, support-ticket receipts and staff replies. This branch adds branded HTML/text delivery for public-site contact receipts/team notifications and registration confirmation. The sender creates fresh one-use invitation/confirmation tokens at send time; it never stores them in the outbox or audit log. Historical `awaiting-transport` rows are deliberately not sent automatically.
-- Public community: requires moderation rules and SSO integration.
+- Public community: an SSO bridge is implemented and tested, but remains off until Discourse is provisioned and the service's moderation, privacy, backup, monitoring and routing gates pass.
 - Commercial licensing: pricing, named/concurrent seats, machine limits/transfers, cancellation/refund and conversion rules are still product-owner decisions. Future remote license transport is HTTPS/TCP 443, with its own contract and coordinator review.
 
 This is a limited public account-registration pilot, not a claim that all phases of #741 are complete. Account confirmation, indistinguishable recovery responses, confirmed-account eligibility, reset-token non-persistence and one-use password reset are covered by integration tests; the SMTP domain and a contact receipt were separately verified with real delivery. Legal/privacy review, retention, offsite backup automation and monitoring/alerting remain outstanding.
+
+### Community single sign-on bridge
+
+The portal implements the DiscourseConnect provider endpoint at `/portal/api/community/sso`. This endpoint is **disabled unless explicitly configured**. When enabled, it requires an authenticated portal session, accepted/confirmed account, verified email and, for members, a complete required profile. It verifies the incoming HMAC-SHA256 signature, validates the callback as HTTPS on the configured forum host and the exact `/session/sso_login` path, echoes the one-use nonce, signs the response, and applies a per-account rate limit.
+
+The SSO payload contains only the confirmed email, the stable internal portal user ID, a deterministic privacy-preserving `scadivo_…` username and the UI locale. It does not send the password, full display name, organization/school, activity area, phone, address, birth date, marketing preference, memberships or portal roles. Discourse receives no administrator/moderator flags. Configure its SSO overrides so a later forum-selected username is not reset on each login, and ensure email addresses are private in the forum UI.
+
+To activate only after a forum exists and its authentication flow is ready, set these two values in the private portal deployment environment:
+
+```text
+PORTAL_COMMUNITY_ENABLED=true
+PORTAL_COMMUNITY_DISCOURSE_URL=https://community.scadivo.com
+```
+
+The file `./secrets/community-sso/shared-secret` must contain at least 32 UTF-8 bytes; Compose mounts its directory read-only at `/run/secrets/community-sso` in the API container. Configure the same random secret in Discourse's `discourse_connect_secret` and set its `discourse_connect_url` to `https://scadivo.com/portal/api/community/sso`. Keep the secret out of Git, image layers, `.env`, command arguments and logs. Leave `PORTAL_COMMUNITY_ENABLED` unset/false until end-to-end tests and the production gates pass. With the flag off, the portal UI does not show the community link and the SSO endpoint returns not found.
+
+The forum login link starts DiscourseConnect. A signed-in portal user returns to the forum without entering a second password; an unauthenticated user is sent through the portal login and then returned to the original forum challenge. Never enable SSO before testing a separate administrative recovery path, because DiscourseConnect replaces local forum authentication. The portal cookie and the forum identity remain separate; this integration does not merge their databases.
 
 ### Transactional email implementation
 

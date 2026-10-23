@@ -11,16 +11,20 @@ public static class PortalEndpoints
 {
     public static void MapPortalEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/session", async (HttpContext context, IAntiforgery antiforgery, PortalOperations operations, IOptions<PortalEmailOptions> emailSettings) =>
+        app.MapGet("/api/session", async (HttpContext context, IAntiforgery antiforgery, PortalOperations operations,
+            IOptions<PortalEmailOptions> emailSettings, IOptions<CommunitySsoOptions> communitySettings) =>
         {
             var token = antiforgery.GetAndStoreTokens(context);
+            var community = communitySettings.Value;
             return Results.Ok(new
             {
                 authenticated = context.User.Identity?.IsAuthenticated == true,
                 user = context.User.Identity?.IsAuthenticated == true ? await operations.Profile(context) : null,
                 csrfToken = token.RequestToken,
                 publicRegistrationEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:PublicRegistrationEnabled"),
-                emailDeliveryConfigured = emailSettings.Value.Enabled
+                emailDeliveryConfigured = emailSettings.Value.Enabled,
+                communityEnabled = community.Enabled,
+                communityStartUrl = community.Enabled ? community.LoginStartUrl : null
             });
         });
         app.MapPost("/api/auth/login", (LoginInput input, HttpContext context, PortalOperations operations) => operations.Login(input, context)).RequireRateLimiting("auth");
@@ -33,6 +37,9 @@ public static class PortalEndpoints
         app.MapPost("/api/auth/logout", (HttpContext context, PortalOperations operations) => operations.Logout(context)).RequireAuthorization();
         app.MapPost("/api/public/contact", (PublicContactInput input, PortalOperations operations) => operations.PublicContact(input))
             .RequireRateLimiting("public-contact");
+        app.MapGet("/api/community/sso", DiscourseConnect.HandleAsync)
+            .RequireAuthorization()
+            .RequireRateLimiting("community-sso");
 
         var account = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");
         account.MapGet("/profile", (HttpContext context, PortalOperations operations) => operations.Profile(context));

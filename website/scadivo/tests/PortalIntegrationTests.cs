@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
@@ -74,6 +76,142 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task DiscourseConnectUsesConfirmedPortalIdentityAndDoesNotExposeProfileOrRoles()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-community-sso-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "owner");
+        var secretFile = Path.Combine(root, "community-secret");
+        const string password = Password;
+        const string secret = "test-only-discourse-connect-secret-with-more-than-32-bytes";
+        await File.WriteAllTextAsync(passwordFile, password);
+        await File.WriteAllTextAsync(secretFile, secret);
+        var connection = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+            ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!";
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = connection,
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:Community:Enabled"] = "true",
+            ["Portal:Community:DiscourseUrl"] = "https://community.example.test",
+            ["Portal:Community:SharedSecretFile"] = secretFile,
+            ["Logging:LogLevel:Default"] = "Warning"
+        };
+
+        try
+        {
+            await using var factory = Factory(configuration);
+            var marker = Guid.NewGuid().ToString("N")[..8];
+            var email = $"community-{marker}@example.test";
+            string userId;
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+                var user = new PortalUser
+                {
+                    UserName = email,
+                    Email = email,
+                    EmailConfirmed = true,
+                    InvitationAccepted = true,
+                    DisplayName = "Private Legal Name",
+                    Locale = "es",
+                    ProfileType = "student",
+                    ActivityArea = "education-research",
+                    OrganizationOrSchool = "Private School Name"
+                };
+                var created = await users.CreateAsync(user, password);
+                Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(error => error.Code)));
+                var memberRole = await users.AddToRoleAsync(user, "Member");
+                Assert.True(memberRole.Succeeded, string.Join(", ", memberRole.Errors.Select(error => error.Code)));
+                userId = user.Id;
+            }
+
+            using var anonymous = Client(factory);
+            using (var anonymousResponse = await anonymous.GetAsync("api/community/sso"))
+                Assert.Equal(HttpStatusCode.Unauthorized, anonymousResponse.StatusCode);
+
+            var member = await Login(factory, email);
+            var session = await member.Client.GetFromJsonAsync<JsonElement>("api/session");
+            Assert.True(session.GetProperty("communityEnabled").GetBoolean());
+            Assert.Equal("https://community.example.test/session/sso", session.GetProperty("communityStartUrl").GetString());
+
+            var nonce = "nonce-" + marker;
+            var callback = "https://community.example.test/session/sso_login";
+            var challenge = Convert.ToBase64String(Encoding.UTF8.GetBytes(
+                $"nonce={Uri.EscapeDataString(nonce)}&return_sso_url={Uri.EscapeDataString(callback)}"));
+            var signature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(challenge))).ToLowerInvariant();
+            using var response = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
+            {
+                ["sso"] = challenge,
+                ["sig"] = signature
+            }));
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.NotNull(response.Headers.Location);
+            var redirect = response.Headers.Location!.IsAbsoluteUri
+                ? response.Headers.Location
+                : new Uri(new Uri("https://community.example.test"), response.Headers.Location);
+            Assert.Equal(callback, redirect.GetLeftPart(UriPartial.Path));
+
+            var returned = QueryHelpers.ParseQuery(redirect.Query);
+            var returnedSso = returned["sso"].ToString();
+            var returnedSignature = returned["sig"].ToString();
+            var expectedSignature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(returnedSso))).ToLowerInvariant();
+            Assert.Equal(expectedSignature, returnedSignature);
+
+            var fields = QueryHelpers.ParseQuery(Encoding.UTF8.GetString(Convert.FromBase64String(returnedSso)));
+            Assert.Equal(nonce, fields["nonce"].ToString());
+            Assert.Equal(email, fields["email"].ToString());
+            Assert.Equal(userId, fields["external_id"].ToString());
+            Assert.StartsWith("scadivo_", fields["username"].ToString());
+            Assert.Equal("es", fields["locale"].ToString());
+            Assert.False(fields.ContainsKey("name"));
+            Assert.False(fields.ContainsKey("admin"));
+            Assert.False(fields.ContainsKey("moderator"));
+            Assert.False(fields.ContainsKey("groups"));
+            Assert.DoesNotContain("Private Legal Name", returnedSso);
+            Assert.DoesNotContain("Private School Name", returnedSso);
+
+            using var invalidSignature = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
+            {
+                ["sso"] = challenge,
+                ["sig"] = new string('0', 64)
+            }));
+            Assert.Equal(HttpStatusCode.BadRequest, invalidSignature.StatusCode);
+
+            var externalCallback = "https://attacker.example/session/sso_login";
+            var externalChallenge = Convert.ToBase64String(Encoding.UTF8.GetBytes(
+                $"nonce={Uri.EscapeDataString(nonce)}&return_sso_url={Uri.EscapeDataString(externalCallback)}"));
+            var externalSignature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(externalChallenge))).ToLowerInvariant();
+            using var externalRedirect = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
+            {
+                ["sso"] = externalChallenge,
+                ["sig"] = externalSignature
+            }));
+            Assert.Equal(HttpStatusCode.BadRequest, externalRedirect.StatusCode);
+
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+                var account = await users.FindByIdAsync(userId);
+                Assert.NotNull(account);
+                account.EmailConfirmed = false;
+                Assert.True((await users.UpdateAsync(account)).Succeeded);
+            }
+            using (var unconfirmedEmail = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
+            {
+                ["sso"] = challenge,
+                ["sig"] = signature
+            })))
+                Assert.Equal(HttpStatusCode.Forbidden, unconfirmedEmail.StatusCode);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task CompletePilotEnforcesIdentityCsrfIsolationLockoutAndPersistence()
     {
         var root = Path.Combine(Path.GetTempPath(), "scadivo-portal-tests-" + Guid.NewGuid().ToString("N"));
@@ -98,7 +236,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 using var anonymous = Client(factory);
                 Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("api/support")).StatusCode);
                 Assert.Equal(HttpStatusCode.BadRequest, (await anonymous.PostAsJsonAsync("api/auth/login", new { username = "scadivo.owner", password = Password })).StatusCode);
-                Assert.False((await anonymous.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("publicRegistrationEnabled").GetBoolean());
+                var anonymousSession = await anonymous.GetFromJsonAsync<JsonElement>("api/session");
+                Assert.False(anonymousSession.GetProperty("publicRegistrationEnabled").GetBoolean());
+                Assert.False(anonymousSession.GetProperty("communityEnabled").GetBoolean());
+                Assert.Equal(JsonValueKind.Null, anonymousSession.GetProperty("communityStartUrl").ValueKind);
                 var closedSignup = new Session(anonymous, await Csrf(anonymous));
                 using (var registrationClosed = await closedSignup.Raw("/auth/register", HttpMethod.Post, new { email = "closed@example.test" }))
                     Assert.Equal(HttpStatusCode.NotFound, registrationClosed.StatusCode);

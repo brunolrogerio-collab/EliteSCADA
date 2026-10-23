@@ -195,10 +195,15 @@ function navigate(tab) { state.tab = tab; history.replaceState(null, '', `/porta
 function renderHeader() {
   document.documentElement.lang = state.lang;
   document.querySelector('#demo-link').textContent = tr('Demonstração ↗', 'Live demo ↗');
-  const languageButton = document.querySelector('#language-button');
-  languageButton.textContent = state.lang === 'pt-BR' ? 'EN' : state.lang === 'en' ? 'ES' : 'PT';
-  languageButton.setAttribute('aria-label', state.lang === 'pt-BR' ? 'Switch language to English' : state.lang === 'en' ? 'Cambiar idioma a español' : 'Mudar idioma para português');
-  languageButton.onclick = () => { state.lang = state.lang === 'pt-BR' ? 'en' : state.lang === 'en' ? 'es' : 'pt-BR'; try { localStorage.setItem('scadivo.portal.lang', state.lang); } catch { /* Optional storage. */ } render(); };
+  const languageSelect = document.querySelector('#language-select');
+  languageSelect.value = state.lang;
+  languageSelect.setAttribute('aria-label', state.lang === 'pt-BR' ? 'Idioma da interface' : state.lang === 'en' ? 'Interface language' : 'Idioma de la interfaz');
+  languageSelect.onchange = () => {
+    if (!['pt-BR', 'en', 'es'].includes(languageSelect.value)) return;
+    state.lang = languageSelect.value;
+    try { localStorage.setItem('scadivo.portal.lang', state.lang); } catch { /* The selected language remains active for this session. */ }
+    render();
+  };
   const actions = document.querySelector('#account-actions');
   actions.replaceChildren();
   if (state.session?.authenticated) actions.append(h('span', { class: 'account-chip' }, state.session.user.displayName), button(tr('Sair', 'Sign out'), async () => {

@@ -8,12 +8,13 @@
   <title>SCADIVO — Portal</title>
   <link rel="icon" href="/portal/scadivo-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/portal/portal.css">
-  <script src="/portal/app.js?v=20261023-es-final" defer></script>
+  <link rel="stylesheet" href="/portal/language-select.css?v=20261023-language-select">
+  <script src="/portal/app.js?v=20261023-language-select" defer></script>
 </head>
 <body>
   <header class="portal-header">
     <a class="portal-brand" href="/"><img src="/portal/scadivo-mark.svg" width="37" height="37" alt=""><span>SCADIVO<small>PORTAL</small></span></a>
-    <div class="portal-header-actions"><a href="/demo" target="_blank" rel="noopener" id="demo-link">Demonstração ↗</a><button id="language-button" type="button">EN</button><div id="account-actions"></div></div>
+    <div class="portal-header-actions"><a href="/demo" target="_blank" rel="noopener" id="demo-link">Demonstração ↗</a><select class="language-select" id="language-select" aria-label="Idioma da interface"><option value="pt-BR">Português</option><option value="en">English</option><option value="es">Español</option></select><div id="account-actions"></div></div>
   </header>
   <div id="feedback" role="status" aria-live="polite" hidden></div>
   <main id="app"><p class="initial-loading">Carregando o portal SCADIVO…</p></main>

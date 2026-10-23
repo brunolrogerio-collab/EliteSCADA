@@ -1,0 +1,39 @@
+.portal-header-actions > .language-select {
+  width: 148px;
+  min-width: 148px;
+  max-width: 148px;
+  height: 38px;
+  padding: 6px 26px 6px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .portal-header {
+    padding-inline: 10px;
+    gap: 10px;
+  }
+
+  .portal-brand {
+    gap: 6px;
+    font-size: 15px;
+    letter-spacing: 0.6px;
+  }
+
+  #account-actions button {
+    padding-inline: 6px;
+    font-size: 11px;
+  }
+
+  .portal-header-actions > .language-select {
+    width: 116px;
+    min-width: 116px;
+    max-width: 116px;
+    padding-inline: 6px 18px;
+    font-size: 11px;
+  }
+
+  #account-actions button {
+    padding-inline: 8px;
+  }
+}

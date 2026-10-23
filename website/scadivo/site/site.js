@@ -1,5 +1,5 @@
 (() => {
-  const button = document.querySelector('.language-toggle');
+  const languageSelect = document.querySelector('#language-select');
   const nodes = [...document.querySelectorAll('[data-pt][data-en]')];
   const spanish = {
     '· Estação Elevatória de Esgoto': '· Estación de bombeo de aguas residuales',
@@ -122,7 +122,7 @@
   let language = 'pt';
 
   function applyLanguage(next) {
-    language = next;
+    language = ['en', 'es'].includes(next) ? next : 'pt';
     document.documentElement.lang = language === 'pt' ? 'pt-BR' : language;
     for (const node of nodes) {
       const value = language === 'es' ? (spanish[node.dataset.pt] || node.dataset.en) : node.dataset[language];
@@ -130,17 +130,16 @@
       else if (node.dataset.translateAttribute) node.setAttribute(node.dataset.translateAttribute, value);
       else node.textContent = value;
     }
-    if (button) {
-      button.textContent = language === 'pt' ? 'EN' : language === 'en' ? 'ES' : 'PT';
-      const aria = language === 'es' ? 'Cambiar idioma a portugués' : language === 'en' ? 'Switch language to Spanish' : 'Mudar idioma para inglês';
-      button.setAttribute('aria-label', aria);
+    if (languageSelect) {
+      languageSelect.value = language;
+      languageSelect.setAttribute('aria-label', language === 'pt' ? 'Idioma da interface' : language === 'en' ? 'Interface language' : 'Idioma de la interfaz');
     }
     try { localStorage.setItem('scadivo-site-language', language); } catch { /* Keep language switching available when storage is blocked. */ }
     document.dispatchEvent(new CustomEvent('scadivo:languagechange', { detail: { language } }));
   }
 
-  button?.addEventListener('click', () => applyLanguage(language === 'pt' ? 'en' : language === 'en' ? 'es' : 'pt'));
+  languageSelect?.addEventListener('change', () => applyLanguage(languageSelect.value));
   let saved;
   try { saved = new URLSearchParams(location.search).get('lang') || localStorage.getItem('scadivo-site-language'); } catch { /* Portuguese remains the default. */ }
-  applyLanguage(['en', 'es'].includes(saved) ? saved : 'pt');
+  applyLanguage(saved);
 })();

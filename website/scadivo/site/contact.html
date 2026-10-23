@@ -9,9 +9,10 @@
   <title data-pt="Fale com a SCADIVO" data-en="Contact SCADIVO">Fale com a SCADIVO</title>
   <link rel="icon" type="image/svg+xml" href="scadivo-mark.svg">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="language-select.css?v=20261023-language-select">
   <link rel="stylesheet" href="contacts.css">
-  <script src="site.js?v=20261023-es-final" defer></script>
-  <script src="contact.js?v=20261023-es-final" defer></script>
+  <script src="site.js?v=20261023-language-select" defer></script>
+  <script src="contact.js?v=20261023-language-select" defer></script>
 </head>
 <body class="contact-page">
   <header class="site-header">
@@ -22,7 +23,11 @@
       <a href="/portal/" data-pt="Área do cliente" data-en="Customer portal">Área do cliente</a>
     </nav>
     <div class="header-actions">
-      <button class="language-toggle" type="button" aria-label="Mudar idioma" aria-pressed="false">EN</button>
+      <select class="language-select" id="language-select" aria-label="Idioma da interface">
+        <option value="pt">Português</option>
+        <option value="en">English</option>
+        <option value="es">Español</option>
+      </select>
       <a class="button button-small button-outline" href="/demo" target="_blank" rel="noopener noreferrer" data-pt="Acessar demo" data-en="Open demo">Acessar demo</a>
     </div>
   </header>

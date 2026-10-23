@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Scadivo.Portal.Data;
 
 namespace Scadivo.Portal;
@@ -22,7 +23,8 @@ public sealed record TemplateInput(string? SubjectPt, string? SubjectEn, string?
 public sealed record FaqInput(string? Slug, string? Category, string? TitlePt, string? TitleEn, string? BodyPt, string? BodyEn, bool Published);
 
 public sealed class PortalOperations(
-    PortalDb db, UserManager<PortalUser> users, SignInManager<PortalUser> signIn, IConfiguration configuration)
+    PortalDb db, UserManager<PortalUser> users, SignInManager<PortalUser> signIn, IConfiguration configuration,
+    IOptions<PortalEmailOptions> emailSettings)
 {
     private static string UserId(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private static bool Owner(HttpContext context) => context.User.IsInRole("Owner");
@@ -108,19 +110,18 @@ public sealed class PortalOperations(
             if (organization is null) { organization = new Organization { Name = name }; db.Organizations.Add(organization); }
             db.Memberships.Add(new Membership { OrganizationId = organization.Id, UserId = user.Id });
         }
-        db.EmailOutbox.Add(new EmailOutbox { UserId = user.Id, TemplateKey = "account.invitation", Reference = user.Id });
+        db.EmailOutbox.Add(Notification(user.Id, "account.invitation", user.Id));
         db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = "account.invited", ResourceId = user.Id });
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
-        var token = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(await users.GeneratePasswordResetTokenAsync(user)));
-        var payload = WebEncoders.Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(new { userId = user.Id, token }));
         var publicUrl = configuration["Portal:PublicUrl"] ?? "https://scadivo.com/portal/";
         return Results.Created($"/portal/api/admin/accounts/{user.Id}", new
         {
             user.Id, user.UserName,
-            invitationUrl = $"{publicUrl.TrimEnd('/')}/#invite={payload}",
+            invitationUrl = await PortalInvitations.LinkAsync(users, user, publicUrl),
             expiresInHours = 24,
-            emailDeliveryConfigured = false
+            emailDeliveryConfigured = emailSettings.Value.Enabled,
+            emailQueued = emailSettings.Value.Enabled && email is not null
         });
     }
 
@@ -167,7 +168,7 @@ public sealed class PortalOperations(
         var ticket = new SupportTicket { UserId = id, Subject = input.Subject!.Trim(), Category = input.Category };
         db.Tickets.Add(ticket);
         db.TicketMessages.Add(new TicketMessage { TicketId = ticket.Id, UserId = id, Body = input.Body!.Trim(), StaffReply = false });
-        db.EmailOutbox.Add(new EmailOutbox { UserId = id, TemplateKey = "support.created", Reference = ticket.Id.ToString() });
+        db.EmailOutbox.Add(Notification(id, "support.created", ticket.Id.ToString()));
         db.Audit.Add(new PortalAudit { ActorId = id, Action = "support.created", ResourceId = ticket.Id.ToString() });
         await db.SaveChangesAsync();
         return Results.Created($"/portal/api/support/{ticket.Id}", ticket);
@@ -181,7 +182,7 @@ public sealed class PortalOperations(
         var staff = Owner(context);
         db.TicketMessages.Add(new TicketMessage { TicketId = id, UserId = UserId(context), Body = input.Body!.Trim(), StaffReply = staff });
         ticket.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        if (staff) { ticket.Status = "answered"; db.EmailOutbox.Add(new EmailOutbox { UserId = ticket.UserId, TemplateKey = "support.replied", Reference = id.ToString() }); }
+        if (staff) { ticket.Status = "answered"; db.EmailOutbox.Add(Notification(ticket.UserId, "support.replied", id.ToString())); }
         else ticket.Status = "open";
         db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = "support.replied", ResourceId = id.ToString() });
         await db.SaveChangesAsync();
@@ -240,9 +241,12 @@ public sealed class PortalOperations(
         accounts = await db.Users.CountAsync(),
         pendingInvitations = await db.Users.CountAsync(x => !x.InvitationAccepted),
         openTickets = await db.Tickets.CountAsync(x => x.Status != "closed"),
-        queuedMessages = await db.EmailOutbox.CountAsync(x => x.Status == "awaiting-transport"),
+        queuedMessages = await db.EmailOutbox.CountAsync(x => x.Status == "queued" || x.Status == "retry"),
+        recordedMessages = await db.EmailOutbox.CountAsync(x => x.Status == "awaiting-transport"),
+        sentMessages = await db.EmailOutbox.CountAsync(x => x.Status == "sent"),
+        failedMessages = await db.EmailOutbox.CountAsync(x => x.Status == "failed"),
         publishedDownloads = await db.Releases.CountAsync(x => x.Published),
-        emailDeliveryConfigured = false,
+        emailDeliveryConfigured = emailSettings.Value.Enabled,
         publicRegistrationEnabled = false,
         licenseIntegrationEnabled = false
     });
@@ -283,4 +287,10 @@ public sealed class PortalOperations(
         db.Audit.Add(new PortalAudit { ActorId = actor, Action = action, ResourceId = resource });
         await db.SaveChangesAsync();
     }
+
+    private EmailOutbox Notification(string userId, string template, string reference) => new()
+    {
+        UserId = userId, TemplateKey = template, Reference = reference,
+        Status = emailSettings.Value.Enabled ? "queued" : "awaiting-transport"
+    };
 }

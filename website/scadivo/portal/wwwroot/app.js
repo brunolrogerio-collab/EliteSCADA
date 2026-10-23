@@ -93,7 +93,7 @@ function login() {
   const card = panel(tr('Entre no portal', 'Sign in to the portal'), p(tr('Use a conta criada por convite nesta etapa de implantação.', 'Use your invited account during this rollout.')), form([
     field(tr('Usuário', 'Username'), input('username', 'text', '', { autocomplete: 'username', maxLength: 100 })),
     field(tr('Senha', 'Password'), input('password', 'password', '', { autocomplete: 'current-password', maxLength: 1024 }))
-  ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); render(); }), h('div', { class: 'login-note' }, tr('Cadastro público e recuperação por e-mail serão liberados após a configuração do serviço de e-mail e dos termos de uso. Se precisar de acesso, solicite um convite ao responsável SCADIVO.', 'Public registration and email recovery will open after email delivery and terms are configured. To request access, contact your SCADIVO representative.')));
+  ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); render(); }), h('div', { class: 'login-note' }, [p(tr('Cadastro público e recuperação por e-mail ainda não estão ativos. Para solicitar acesso ao portal ou ajuda, fale com a equipe SCADIVO.', 'Public registration and email recovery are not active yet. To request portal access or assistance, contact the SCADIVO team.')), h('a', { href: 'mailto:support@scadivo.com' }, 'support@scadivo.com')]));
   card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'login-layout' }, [intro, card]));
 }
 function invitation() {
@@ -174,18 +174,23 @@ async function admin() {
   const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
   const tabs = h('nav', { class: 'admin-subnav', 'aria-label': tr('Administração', 'Administration') }, Object.entries(items).map(([key, label]) => button(label, () => { state.adminTab = key; render(); }, `button ${state.adminTab === key ? 'primary' : 'secondary'}`)));
   const node = await ({ accounts: accountsAdmin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin })[state.adminTab](); body.append(node);
-  return h('div', {}, [metrics, notice(tr(`E-mail ainda sem transporte configurado. ${overview.queuedMessages} notificações registradas, nenhuma enviada automaticamente. Cadastro público, pagamentos e licenciamento online não estão ativos.`, `Email delivery is not configured. ${overview.queuedMessages} notifications recorded, none automatically sent. Public signup, payments and online licensing are not active.`)), tabs, body]);
+  const emailStatus = overview.emailDeliveryConfigured
+    ? tr(`Envio de e-mail habilitado: ${overview.queuedMessages} na fila, ${overview.sentMessages} aceitas pelo servidor SMTP e ${overview.failedMessages} com falha.`, `Email delivery enabled: ${overview.queuedMessages} queued, ${overview.sentMessages} accepted by the SMTP server and ${overview.failedMessages} failed.`)
+    : tr(`E-mail ainda sem transporte configurado. ${overview.recordedMessages} notificações registradas, sem envio automático.`, `Email delivery is not configured. ${overview.recordedMessages} notifications recorded without automatic delivery.`);
+  return h('div', {}, [metrics, notice(emailStatus + ' ' + tr('Cadastro público, pagamentos e licenciamento online não estão ativos.', 'Public signup, payments and online licensing are not active.')), tabs, body]);
 }
 async function accountsAdmin() {
   const accounts = await api('/admin/accounts');
   const result = h('div'); const invitationResult = h('div');
-  result.append(panel(tr('Criar convite', 'Create invitation'), p(tr('O convidado define a própria senha. Compartilhe o link por um canal privado; ele não é enviado por e-mail nesta fase.', 'The invitee sets their own password. Share the link privately; it is not emailed at this stage.')), form([
+  result.append(panel(tr('Criar convite', 'Create invitation'), p(state.session.emailDeliveryConfigured
+    ? tr('O convidado define a própria senha. Se informar um e-mail, o convite entra na fila de envio automático.', 'The invitee sets their own password. When you enter an email address, the invitation is queued for automatic delivery.')
+    : tr('O convidado define a própria senha. Compartilhe o link por um canal privado; o envio por e-mail ainda não está habilitado.', 'The invitee sets their own password. Share the link privately; email delivery is not enabled yet.')), form([
     h('div', { class: 'form-row' }, [field(tr('Usuário', 'Username'), input('username', 'text', '', { minLength: 3, maxLength: 100, autocomplete: 'off' })), field(tr('Nome', 'Name'), input('displayName', 'text', '', { maxLength: 160 }))]),
     h('div', { class: 'form-row' }, [field(tr('E-mail (opcional)', 'Email (optional)'), input('email', 'email', '', { required: false, maxLength: 256 })), field(tr('Organização (opcional)', 'Organization (optional)'), input('organization', 'text', '', { required: false, maxLength: 200 }))])
   ], tr('Gerar convite', 'Generate invitation'), async (data, node) => {
     const result = await api('/admin/invitations', 'POST', data); node.reset();
     invitationResult.replaceChildren(notice(tr(`Convite de ${result.userName}: válido por 24 horas e uso único. Guarde o nome de usuário junto com o link.`, `Invitation for ${result.userName}: valid for 24 hours and one use. Keep the username with the link.`)), field(tr('Link privado', 'Private link'), textarea('invitationLink', result.invitationUrl, { readOnly: true, rows: 3, class: 'private-link' })), button(tr('Copiar link', 'Copy link'), async () => { try { await navigator.clipboard.writeText(result.invitationUrl); feedback(tr('Link copiado.', 'Link copied.')); } catch { feedback(tr('Selecione e copie o link acima.', 'Select and copy the link above.')); } }));
-    feedback(tr('Convite criado.', 'Invitation created.'));
+    feedback(result.emailQueued ? tr('Convite criado e colocado na fila de e-mail.', 'Invitation created and queued for email delivery.') : tr('Convite criado. Compartilhe o link privado.', 'Invitation created. Share the private link.'));
   }), invitationResult), panel(tr('Contas do portal', 'Portal accounts'), table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Criada em', 'Created')], accounts.map(account => [account.userName, account.displayName, badge(account.invitationAccepted ? tr('Ativa', 'Active') : tr('Convite pendente', 'Pending invitation')), date(account.createdAtUtc)]))));
   return result;
 }

@@ -205,11 +205,24 @@ namespace Scadivo.Portal.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Reference")
                         .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -226,6 +239,8 @@ namespace Scadivo.Portal.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc");
 
                     b.ToTable("EmailOutbox");
                 });

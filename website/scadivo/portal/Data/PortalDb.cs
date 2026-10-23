@@ -77,6 +77,10 @@ public sealed class EmailOutbox
     public string? Reference { get; set; }
     public string Status { get; set; } = "awaiting-transport";
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+    public int Attempts { get; set; }
+    public DateTimeOffset? NextAttemptAtUtc { get; set; }
+    public DateTimeOffset? SentAtUtc { get; set; }
+    public string? LastErrorCode { get; set; }
 }
 
 public sealed class DownloadRelease
@@ -135,6 +139,8 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<EmailTemplate>().HasKey(x => x.Key);
         builder.Entity<EmailTemplate>().Property(x => x.Key).HasMaxLength(100);
         builder.Entity<EmailOutbox>().HasIndex(x => new { x.Status, x.CreatedAtUtc });
+        builder.Entity<EmailOutbox>().HasIndex(x => new { x.Status, x.NextAttemptAtUtc });
+        builder.Entity<EmailOutbox>().Property(x => x.LastErrorCode).HasMaxLength(64);
         builder.Entity<DownloadRelease>().HasIndex(x => new { x.Version, x.Platform }).IsUnique();
         builder.Entity<DownloadRelease>().Property(x => x.Sha256).HasMaxLength(64);
         builder.Entity<PortalAudit>().HasIndex(x => x.CreatedAtUtc);

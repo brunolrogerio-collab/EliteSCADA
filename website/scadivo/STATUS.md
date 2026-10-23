@@ -6,10 +6,10 @@ Owner: this Codex conversation. Product licensing and SCADA Authority are outsid
 
 - Phase 1: public bilingual presentation and unified demo are deployed.
 - Phase 2: deployed independent PostgreSQL database, persistent application keys, same-origin `/portal` hosting, private networking, encrypted daily backup and a successful disposable database restoration check.
-- Phase 3 pilot: deployed independent portal accounts, first-party cookie sessions, administrator-issued invitations, account profile/password, editable PT/EN message templates and an explicit email-transport pending state.
+- Phase 3 pilot: deployed independent portal accounts, first-party cookie sessions, administrator-issued invitations, account profile/password and editable PT/EN message templates. The current PR adds a bounded SMTP outbox worker for invitations and support notices; it is not yet deployed or enabled because the private noreply credential and real delivery confirmation are still pending.
 - Phase 5 foundation: deployed searchable FAQ, private support conversations and an authenticated release catalog (empty until approved official artifacts exist).
 
-Public registration, automated email delivery, public community, payments and product-side license renewal remain subsequent packages. Public registration requires the email and legal decisions recorded in #741. No demo Authority/user database is copied into this portal.
+Public registration, email confirmation/recovery, public community, payments and product-side license renewal remain subsequent packages. The SMTP implementation must be deployed and verified before it is described as active. Public registration requires the separate email and legal decisions recorded in #741. No demo Authority/user database is copied into this portal.
 
 ## Validation profile
 

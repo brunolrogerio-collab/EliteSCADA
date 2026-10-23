@@ -24,7 +24,7 @@ if (args.Contains("--healthcheck"))
     return;
 }
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--send-test-email").ToArray());
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 65536);
 builder.Services.AddDbContext<PortalDb>(options => options.UseNpgsql(
     builder.Configuration.GetConnectionString("Portal") ?? throw new InvalidOperationException("Portal database is not configured.")));
@@ -82,9 +82,33 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 40, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddScoped<PortalOperations>();
+builder.Services.AddOptions<PortalEmailOptions>().BindConfiguration("Portal:Email")
+    .Validate(options => options.Valid(), "SMTP configuration requires TLS, valid addresses and a credential file.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<IPortalEmailTransport, SmtpPortalEmailTransport>();
+builder.Services.AddScoped<PortalEmailDispatcher>();
+builder.Services.AddHostedService<PortalEmailWorker>();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+if (args.Contains("--send-test-email"))
+{
+    try
+    {
+        var settings = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<PortalEmailOptions>>().Value;
+        using var message = PortalEmailDispatcher.CreateMessage(settings, Guid.NewGuid(), settings.ReplyToAddress,
+            "SCADIVO — teste de envio / email delivery test",
+            "O envio autenticado do portal SCADIVO foi aceito pelo servidor SMTP.\nThe SCADIVO portal email was accepted by the SMTP server.");
+        await app.Services.GetRequiredService<IPortalEmailTransport>().SendAsync(message, CancellationToken.None);
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { smtpAccepted = true, messageId = message.MessageId }));
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"SMTP test failed ({exception.GetType().Name}).");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UsePathBase("/portal");

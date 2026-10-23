@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Scadivo.Portal.Data;
 
 namespace Scadivo.Portal;
@@ -8,7 +9,7 @@ public static class PortalEndpoints
 {
     public static void MapPortalEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/session", async (HttpContext context, IAntiforgery antiforgery, PortalOperations operations) =>
+        app.MapGet("/api/session", async (HttpContext context, IAntiforgery antiforgery, PortalOperations operations, IOptions<PortalEmailOptions> emailSettings) =>
         {
             var token = antiforgery.GetAndStoreTokens(context);
             return Results.Ok(new
@@ -17,7 +18,7 @@ public static class PortalEndpoints
                 user = context.User.Identity?.IsAuthenticated == true ? await operations.Profile(context) : null,
                 csrfToken = token.RequestToken,
                 publicRegistrationEnabled = false,
-                emailDeliveryConfigured = false
+                emailDeliveryConfigured = emailSettings.Value.Enabled
             });
         });
         app.MapPost("/api/auth/login", (LoginInput input, HttpContext context, PortalOperations operations) => operations.Login(input, context)).RequireRateLimiting("auth");

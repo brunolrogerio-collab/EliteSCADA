@@ -7,6 +7,12 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Microsoft.EntityFrameworkCore;
+using MimeKit;
+using Scadivo.Portal.Data;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -102,6 +108,122 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             }
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public async Task EmailQueueRetriesWithoutLeakingTokensAndSkipsLockedOrHistoricalNotifications()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-email-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "test-credential");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var transport = new RecordingEmailTransport { Failures = 1 };
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:PublicUrl"] = "https://localhost/portal/",
+            ["Portal:Email:Enabled"] = "true",
+            ["Portal:Email:Host"] = "localhost",
+            ["Portal:Email:Username"] = "noreply@scadivo.com",
+            ["Portal:Email:PasswordFile"] = passwordFile,
+            ["Logging:LogLevel:Default"] = "Warning"
+        };
+        try
+        {
+            await using var factory = Factory(configuration).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IPortalEmailTransport>();
+                services.AddSingleton<IPortalEmailTransport>(transport);
+                var worker = services.Single(x => x.ServiceType == typeof(IHostedService) && x.ImplementationType == typeof(PortalEmailWorker));
+                services.Remove(worker); // Pump deterministically; production keeps the hosted worker.
+            }));
+            var owner = await Login(factory, "scadivo.owner");
+            var marker = Guid.NewGuid().ToString("N")[..8];
+            var invitation = await owner.Send("/admin/invitations", HttpMethod.Post,
+                new { username = "mail-" + marker, displayName = "Alex", email = $"qa-{marker}@example.test" });
+            Assert.True(invitation.GetProperty("emailDeliveryConfigured").GetBoolean());
+            Assert.True(invitation.GetProperty("emailQueued").GetBoolean());
+            var userId = invitation.GetProperty("id").GetString()!;
+            await using var scope = factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+            var dispatcher = scope.ServiceProvider.GetRequiredService<PortalEmailDispatcher>();
+            (await db.Users.SingleAsync(x => x.Id == userId)).Locale = "en";
+            var template = await db.EmailTemplates.SingleAsync(x => x.Key == "account.invitation");
+            template.SubjectEn = "Welcome {{name}}";
+            template.BodyEn = "Hello {{name}}, your invitation is ready."; // Legacy template omits {{link}}.
+            var historical = new EmailOutbox { UserId = userId, TemplateKey = "account.invitation", Reference = userId, CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1) };
+            db.EmailOutbox.Add(historical);
+            await db.SaveChangesAsync();
+
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            var queued = await db.EmailOutbox.SingleAsync(x => x.UserId == userId && x.Id != historical.Id);
+            Assert.Equal("retry", queued.Status);
+            Assert.Equal(1, queued.Attempts);
+            Assert.Equal("smtp-delivery", queued.LastErrorCode);
+            Assert.Null(queued.SentAtUtc);
+            Assert.Empty(transport.Messages);
+            Assert.False(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            queued.NextAttemptAtUtc = DateTimeOffset.UtcNow.AddSeconds(-1);
+            await db.SaveChangesAsync();
+
+            transport.Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            transport.Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            var delivery = dispatcher.ProcessNextAsync(CancellationToken.None);
+            await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await using (var other = factory.Services.CreateAsyncScope())
+                Assert.False(await other.ServiceProvider.GetRequiredService<PortalEmailDispatcher>().ProcessNextAsync(CancellationToken.None));
+            transport.Release.SetResult();
+            Assert.True(await delivery);
+            transport.Entered = transport.Release = null;
+            Assert.Equal("sent", queued.Status);
+            Assert.Equal(2, queued.Attempts);
+            Assert.NotNull(queued.SentAtUtc);
+            Assert.Null(queued.LastErrorCode);
+            Assert.Equal("awaiting-transport", historical.Status);
+            Assert.Equal(userId, queued.Reference); // No invitation token persisted in the outbox.
+
+            using var email = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Single())));
+            Assert.Equal("Welcome Alex", email.Subject);
+            Assert.Equal("noreply@scadivo.com", email.From.Mailboxes.Single().Address);
+            Assert.Equal("support@scadivo.com", email.ReplyTo.Mailboxes.Single().Address);
+            Assert.Equal($"{queued.Id:N}@scadivo.com", email.MessageId);
+            var textBody = Assert.IsType<string>(email.TextBody);
+            var link = textBody.Split('\n').Select(x => x.Trim()).Single(x => x.StartsWith("https://localhost/portal/#invite=", StringComparison.Ordinal));
+            var payload = Invitation(JsonSerializer.SerializeToElement(new { invitationUrl = link }));
+            using var anonymous = Client(factory);
+            var invited = new Session(anonymous, await Csrf(anonymous));
+            await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password });
+            Assert.Equal(HttpStatusCode.BadRequest, (await invited.Raw("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password })).StatusCode);
+            Assert.False(await dispatcher.ProcessNextAsync(CancellationToken.None));
+
+            var member = await Login(factory, "mail-" + marker);
+            var ticket = await member.Send("/support", HttpMethod.Post, new { subject = "Email test", category = "technical", body = "A private support request for delivery verification." });
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            await owner.Send("/support/" + ticket.GetProperty("id").GetGuid() + "/messages", HttpMethod.Post, new { body = "Private staff reply is not copied into email." });
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            Assert.Equal(3, transport.Messages.Count);
+            Assert.DoesNotContain("Private staff reply", transport.Messages.Last());
+            Assert.True((await owner.Get("/admin/overview")).GetProperty("sentMessages").GetInt32() >= 3);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed class RecordingEmailTransport : IPortalEmailTransport
+    {
+        public int Failures { get; set; }
+        public List<string> Messages { get; } = [];
+        public TaskCompletionSource? Entered { get; set; }
+        public TaskCompletionSource? Release { get; set; }
+        public async Task SendAsync(MimeMessage message, CancellationToken cancellationToken)
+        {
+            if (Failures-- > 0) throw new IOException("Transient SMTP test failure.");
+            Entered?.TrySetResult();
+            if (Release is not null) await Release.Task.WaitAsync(cancellationToken);
+            Messages.Add(message.ToString());
+        }
     }
 
     private WebApplicationFactory<Program> Factory(Dictionary<string, string?> configuration) => new WebApplicationFactory<Program>()

@@ -8,6 +8,9 @@ test ! -e secrets/portal-owner
 test -f compose.yml
 mkdir -p secrets /etc/scadivo
 chmod 700 secrets /etc/scadivo
+mkdir -p secrets/portal-mail
+chown 1654:1654 secrets/portal-mail
+chmod 700 secrets/portal-mail
 database_password=$(openssl rand -hex 32)
 printf 'Aa1!%s\n' "$(openssl rand -base64 27)" > secrets/portal-owner
 chown 1654:1654 secrets/portal-owner

@@ -18,12 +18,26 @@ Community and licensing areas explicitly display their pending state. There is n
 
 ### Deliberately not activated
 
-- Public registration, email confirmation and email password recovery: require the email transport/domain authentication and legal decisions in #741.
-- Automatic email delivery: templates and notification references are stored, but there is no sender/worker. The UI states that nothing was automatically sent. A future worker must generate fresh one-use action tokens; invitation tokens are not stored in the outbox or audit log.
+- Public registration, email confirmation and password recovery remain disabled. They require separate account-security, legal and product decisions in #741.
+- A transactional SMTP sender and bounded outbox worker are implemented in the current PR changes, but are not yet deployed or enabled. The sender creates fresh one-use invitation tokens at send time; it never stores them in the outbox or audit log. Historical `awaiting-transport` rows from the earlier pilot are deliberately not sent automatically.
 - Public community: requires moderation rules, account recovery and SSO integration.
 - Commercial licensing: pricing, named/concurrent seats, machine limits/transfers, cancellation/refund and conversion rules are still product-owner decisions. Future remote license transport is HTTPS/TCP 443, with its own contract and coordinator review.
 
-This is a closed pilot, not a claim that all phases of #741 are complete. Independent security review, verified email delivery/recovery, legal policies, offsite backup automation and monitoring/alerting are launch gates.
+This is a closed pilot, not a claim that all phases of #741 are complete. Independent security review, public registration/recovery, legal policies, offsite backup automation and monitoring/alerting are launch gates. SMTP delivery must be enabled and verified with an actual message before invitation/support emails are described as live.
+
+### Transactional email implementation
+
+The PR adds SMTP delivery for administrative invitations, support-ticket receipts and staff replies. The queue sends one item per worker tick, retries temporary failures up to five attempts, and records only fixed error categories. The initial outbox rows marked `awaiting-transport` remain untouched; only new notifications are queued after SMTP is enabled. Delivery is at-least-once, with a stable message ID for duplicate recognition if the process stops after SMTP acceptance but before the database commit.
+
+The production mailbox is `noreply@scadivo.com`; replies go to `support@scadivo.com`. The account's official settings use `mail.scadivo.com:465` with implicit TLS and SMTP authentication. A TLS handshake and certificate validation from the VPS succeeded on 23 October 2026; the certificate covered `*.scadivo.com`. Public SPF, DKIM and DMARC DNS records are present. Final sender alignment and receipt still need confirmation with an authenticated delivery.
+
+Production delivery remains disabled until the owner enters the noreply password directly into a private provisioning prompt. Store it at `/opt/scadivo/portal/secrets/portal-mail/smtp-password`, owned by UID 1654 and mode 0400; the directory must be UID 1654 and mode 0700. Do not put the password in `.env`, command arguments, terminal output, GitHub or repository files. Set `PORTAL_EMAIL_ENABLED=true` only after the file is installed. To confirm SMTP acceptance without restarting the portal or connecting to PostgreSQL, run this from `/opt/scadivo/portal` after the reviewed image and secret are in place:
+
+```sh
+docker compose -f compose.yml exec -T scadivo-portal-api dotnet /app/Scadivo.Portal.dll --send-test-email
+```
+
+The test message goes to `support@scadivo.com`. A successful result means the SMTP server accepted it; separately confirm arrival in the mailbox and inspect SPF/DKIM results. Public registration, email confirmation and account recovery remain disabled.
 
 ## Code boundaries
 
@@ -71,6 +85,8 @@ cd /opt/scadivo/portal
 docker compose -f compose.yml up -d --wait --wait-timeout 180
 docker compose -f compose.yml ps
 ```
+
+The Compose file mounts the optional SMTP password directory read-only. On the existing host, create that directory only if it is absent, owned by UID 1654 and mode 0700; do not rerun `initialize-host.sh`. Keep `PORTAL_EMAIL_ENABLED=false` until the noreply password is securely installed and the test message is accepted. Then enable the worker through the private `.env` and update only the portal API with the normal deployment procedure above.
 
 Database migrations run before serving traffic. Review any subsequent destructive migration separately. An image rollback alone is not a database rollback. Initial schema is additive and does not touch the product database.
 

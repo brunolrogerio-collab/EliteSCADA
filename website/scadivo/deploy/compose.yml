@@ -40,10 +40,19 @@ services:
       Portal__TrustedProxyNetworks: 10.11.0.0/16
       Portal__Bootstrap__Username: scadivo.owner
       Portal__Bootstrap__PasswordFile: /run/secrets/portal-owner
+      Portal__Email__Enabled: ${PORTAL_EMAIL_ENABLED:-false}
+      Portal__Email__Host: ${PORTAL_SMTP_HOST:-mail.scadivo.com}
+      Portal__Email__Port: ${PORTAL_SMTP_PORT:-465}
+      Portal__Email__Security: SslOnConnect
+      Portal__Email__Username: noreply@scadivo.com
+      Portal__Email__PasswordFile: /run/secrets/portal-mail/smtp-password
+      Portal__Email__FromAddress: noreply@scadivo.com
+      Portal__Email__ReplyToAddress: support@scadivo.com
       Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
     volumes:
       - keys:/app/keys
       - ./secrets/portal-owner:/run/secrets/portal-owner:ro
+      - ./secrets/portal-mail:/run/secrets/portal-mail:ro
     depends_on:
       database: {condition: service_healthy}
       keys-init: {condition: service_completed_successfully}

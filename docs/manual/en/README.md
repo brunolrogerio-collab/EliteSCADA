@@ -1,7 +1,11 @@
 # EliteSCADA Manual — English
 
-The English locale tree is reserved now so chapter identity can remain aligned with pt-BR and es. Phase 1 authors the verified stable source content in pt-BR first; translation is not declared complete until the shared terminology/localization pass and final semantic-parity review are accepted.
+The English locale is being filled in bounded chapters from verified stable product behavior. The Scripting chapter is available below; this partial translation does not mean the full manual or language parity is complete. Final terminology/localization and semantic-parity review remain required.
 
 No security, licensing, HA, write/command, recovery or critical-warning material may be omitted from the PREVIEW-READY English manual.
+
+## Available translated chapter
+
+- [Scripting, Alarms, and History](06-SCRIPTING-ALARMS-HISTORY.md) — stable Server Script and Client Visual guidance, APIs, examples, Runtime boundaries, alarms/events/audit distinctions, and current Historian/Trends guidance. Historical Time Range and Playback procedures remain reserved until their product surfaces are accepted.
 
 See [the full table of contents](../README.md) and [coverage matrix](../COVERAGE-MATRIX.md).

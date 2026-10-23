@@ -49,17 +49,17 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 41. Library | BLOCKED_PRODUCT | #425 / #306 | #308 + Screen/Popup/Library implementation; #308 Visual Quality / final accepted editor surfaces | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 42. Dynamos | BLOCKED_PRODUCT | #425 / #306 | #308 + Screen/Popup/Library implementation; #308 Visual Quality / final accepted editor surfaces | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
 | 43. Reusable objects | BLOCKED_PRODUCT | #425 / #306 | #308 + Screen/Popup/Library implementation; #308 Visual Quality / final accepted editor surfaces | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 44. Script Engineering | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 45. Python editor | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 46. Syntax validation | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 47. Reference validation | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 48. Project Object Browser | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 49. Guided authoring | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 50. TAG APIs | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 51. Client Memory | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 52. Visual APIs | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 53. Events | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 54. Safety, sandbox e fault isolation | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 44. Script Engineering | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 45. Python editor | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 46. Syntax validation | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 47. Reference validation | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 48. Project Object Browser | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 49. Guided authoring | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 50. TAG APIs | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 51. Client Memory | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 52. Visual APIs | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 53. Events | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 54. Safety, sandbox e fault isolation | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs` Server Script contract; Script Engineering | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 55. Alarms | DRAFT_STABLE | #425 / #306 | Alarm/Event/Audit/Historian/Trend product contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 56. Alarm states | DRAFT_STABLE | #425 / #306 | Alarm/Event/Audit/Historian/Trend product contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 57. Historian | DRAFT_STABLE | #425 / #306 | Alarm/Event/Audit/Historian/Trend product contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
@@ -132,7 +132,7 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 124. TAG quality | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 125. Runtime | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 126. Historian | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 127. Scripts | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 127. Scripts | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 128. Licensing | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 129. Authority | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 130. HA | BLOCKED_PRODUCT | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
@@ -141,7 +141,7 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 133. Glossary | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; #379 final glossary | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 134. Statuses | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; #379 + exact final candidate | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 135. Quality | DRAFT_STABLE | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 136. Public Script APIs | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; final public Script API sweep | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 136. Public Script APIs | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; final public Script API sweep | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 137. Supported identifiers | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; exact final candidate identifier sweep | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 138. Keyboard shortcuts | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; #308/#379 final UI | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 139. File formats | DRAFT_STABLE | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |

@@ -307,6 +307,22 @@ Historian receives value, quality, and timestamp through the product pipeline. T
 
 **Related Help:** `/help?topic=historian.overview`, `/help?topic=trends.overview`.
 
-## Historical Time Range and Playback
+## History: time range and Playback
 
-The structure of these chapters is reserved, but final procedures are blocked until #383 and the subsequent Playback workstream are accepted. Do not use this manual as an indication that the final UX for these features is frozen.
+In Runtime, History queries recorded TAG values, alarms, or events. The query is read-only: it does not acknowledge alarms, change values, or create backfilled samples. Historian must have captured TAG data during the selected period; alarms and events must also have been recorded. Session authorization still applies.
+
+### Query a time range
+
+1. Open **History** in Runtime and choose **TAG values**, **Alarms**, or **Events**.
+2. Select a relative or absolute period. Use a quick range or enter an amount and unit; for an absolute period, enter **From** and **To** in the displayed time zone.
+3. Confirm that the start precedes the end. The range accepts at most 31 days. If local time is ambiguous because of a time-zone/daylight-saving transition, choose another time.
+4. Select **Query**. After the first query, use search, sorting, and filters only when the dataset exposes those fields; some become available only after Runtime discovers the result shape.
+5. If a query is empty, check the dataset, period, authorization, capture before the interval, quality, and timestamps.
+
+### Review a screen in Playback
+
+Playback is different from the tabular History query. Choose the time range and instant from the operational surface and select **Enter Playback**. Runtime remains Live until you confirm. In Playback, the presentation follows the historical instant and operational actions are blocked; select **Return to Live** before resuming current control. Playback does not turn old values into commands or fill data that was never captured.
+
+**Expected result:** History lists only available records; Playback explicitly shows historical context and provides a return to Live.
+
+**Related Help:** `/help?topic=runtime.history`, `/help?topic=historian.overview`, `/help?topic=trends.overview`.

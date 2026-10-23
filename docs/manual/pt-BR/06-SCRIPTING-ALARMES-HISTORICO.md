@@ -307,6 +307,22 @@ Historian recebe valor, quality e timestamp pelo pipeline do produto. Trends apr
 
 **Ajuda relacionada:** `/help?topic=historian.overview`, `/help?topic=trends.overview`.
 
-## Historical Time Range e Playback
+## Histórico: período e Playback
 
-A estrutura desses capítulos já está reservada, mas os procedimentos finais estão bloqueados até a aceitação de #383 e do workstream de Playback subsequente. Não use este manual como indicação de que a UX final desses recursos já está congelada.
+No Runtime, Histórico consulta registros de TAG, alarmes ou eventos. A consulta é somente leitura: não reconhece alarmes, não altera valores e não cria amostras retroativas. Para valores, Historian precisa ter capturado dados no período; alarmes e eventos também precisam ter sido registrados. A autorização da sessão continua valendo.
+
+### Consultar um período
+
+1. Abra **Histórico** no Runtime e escolha **Valores de TAGs**, **Alarmes** ou **Eventos**.
+2. Selecione um período relativo ou absoluto. Use um atalho ou informe quantidade e unidade; no período absoluto, preencha **De** e **Até** no fuso indicado.
+3. Confirme que o início antecede o fim. A janela aceita no máximo 31 dias. Se o horário local ficar ambíguo por mudança de fuso/horário de verão, escolha outro horário.
+4. Selecione **Consultar**. Depois da primeira consulta, use busca, ordenação e filtros somente quando o conjunto oferecer esses campos; alguns aparecem apenas depois que o Runtime descobre o formato dos resultados.
+5. Para investigar uma consulta vazia, confira conjunto, período, autorização, captura anterior ao intervalo, quality e timestamps.
+
+### Rever a tela no Playback
+
+Playback é diferente da consulta tabular do Histórico. Escolha o período e o instante na superfície operacional e selecione **Entrar no Playback**. O Runtime permanece Live até essa confirmação. No Playback, a apresentação acompanha o instante histórico e as ações operacionais ficam bloqueadas; selecione **Voltar ao Live** antes de retomar o controle atual. Playback não transforma valores antigos em comandos nem preenche dados que não foram capturados.
+
+**Resultado esperado:** Histórico lista somente registros disponíveis; Playback mostra explicitamente o contexto histórico e permite voltar ao Live.
+
+**Ajuda relacionada:** `/help?topic=runtime.history`, `/help?topic=historian.overview`, `/help?topic=trends.overview`.

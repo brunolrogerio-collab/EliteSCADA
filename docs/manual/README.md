@@ -207,6 +207,15 @@ A Ajuda contextual do produto é curta e orientada à tarefa. Este manual aprofu
 139. File formats
 140. Operational limits
 
+### PARTE XVI — INTELIGÊNCIA DE ATIVOS E PROCESSOS
+
+141. Escopo, licença e seleção de ativos
+142. Perfis de medição e associações de equipamento
+143. Contextos operacionais e evidência temporal
+144. Etapas ordenadas do processo
+145. Cobertura, desempenho e desvio contextual
+146. Rascunhos de telas e consulta no Runtime
+
 ## Conteúdo de Fase 1
 
-O núcleo pt-BR já contém fundamentos e procedimentos estáveis para conceitos de produto, lifecycle, dados/TAGs, scripting, alarmes/histórico fundamental, operação, segurança, licenciamento, portabilidade, recovery e troubleshooting. Superfícies ainda em mudança permanecem deliberadamente estruturadas na matriz, sem passos de UI inventados.
+O núcleo pt-BR contém procedimentos para os fluxos disponíveis. Conteúdo de Inteligência descreve a implementação atual e pode ser revisado conforme o produto evoluir. Screenshots finais continuam pendentes da auditoria de interface; não substitua capturas reais por ilustrações inventadas.

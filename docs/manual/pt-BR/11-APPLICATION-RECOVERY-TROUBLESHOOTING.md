@@ -81,7 +81,24 @@ Recovery preserva autoridades separadas:
 
 ## Application detach / neutral installation / A -> B -> A switching
 
-A estrutura desses procedimentos está reservada no TOC, mas os passos finais dependem do fechamento da experiência de instalação e switching. Não use instruções antigas ou operações manuais de store como substituto.
+O fluxo Engineering > Instalação desvincula a Application e a Authority atuais e devolve a instalação a um estado neutral para um novo bootstrap. Não é excluir projeto, desinstalar o produto nem remover automaticamente a licença.
+
+### Procedimento: trocar a Application com segurança
+
+**Pré-requisitos:** acesso autorizado à administração da instalação; decisão sobre o que deve ser preservado; backup da Application e Authority quando forem necessárias para retorno.
+
+**Passos:**
+1. Revise o resumo da instalação, inclusive Working ainda não publicado.
+2. Exporte a Application como `.escadapkg`. Se precisar preservar usuários/identidades, exporte Authority separadamente com a senha solicitada pela tela. `.escadapkg` não contém credenciais.
+3. Abra **Desvincular aplicação desta instalação** e leia as consequências. Confirme os acknowledgements apresentados para Application, Authority, sessões antigas, Historian e Working.
+4. Decida se mantém, remove ou substitui a licença da máquina. A licença candidata é validada antes do detach.
+5. Leia e resolva bloqueios. Se decidir continuar sem um dos backups recomendados, reconheça isso explicitamente na tela.
+6. Selecione **Desvincular e voltar ao neutro** e aguarde a transação do servidor. Não repita a ação sem atualizar e conferir o estado real após uma falha.
+7. No bootstrap neutral, vincule a próxima Application e configure sua Authority pelo fluxo normal.
+
+**Resultado esperado:** a Application e a Authority antigas deixam de estar vinculadas, tokens/sessões antigas deixam de autorizar ações e a instalação retorna ao bootstrap neutral. Historian é preservado; banco de dados e seus backups continuam sendo uma preocupação separada. A licença segue a escolha confirmada.
+
+**Ajuda relacionada:** `/help?topic=installation.switching`, `/help?topic=application.export-import`, `/help?topic=recovery.backup-system-recovery`, `/help?topic=getting-started.neutral-bootstrap`.
 
 ## Troubleshooting workflow
 

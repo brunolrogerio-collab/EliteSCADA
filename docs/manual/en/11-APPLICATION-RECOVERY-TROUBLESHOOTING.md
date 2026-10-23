@@ -81,7 +81,24 @@ Recovery preserves separate authorities:
 
 ## Application detach / neutral installation / A -> B -> A switching
 
-The structure of these procedures is reserved in the table of contents, but final steps depend on completion of the installation and switching experience. Do not use old instructions or manual store operations as a substitute.
+Engineering > Installation detaches the current Application and Authority and returns the installation to a neutral state for a new bootstrap. It is not project deletion, product uninstall, or automatic license removal.
+
+### Procedure: safely switch the Application
+
+**Prerequisites:** authorized access to installation administration; a decision about what to preserve; Application and Authority backups when they are needed for rollback.
+
+**Steps:**
+1. Review the installation summary, including any unpublished Working changes.
+2. Export the Application as `.escadapkg`. If local users/identities must be preserved, export Authority separately using the password requested by the page. `.escadapkg` does not contain credentials.
+3. Open **Detach application from this installation** and read the consequences. Confirm the acknowledgements shown for Application, Authority, old sessions, Historian, and Working changes.
+4. Decide whether to keep, remove, or replace the machine license. A candidate replacement is validated before detach.
+5. Read and resolve blockers. If you choose to continue without a recommended backup, acknowledge that explicitly in the page.
+6. Select **Detach and return to neutral** and wait for the server transaction. After a failure, refresh and inspect the actual state before retrying.
+7. In neutral bootstrap, bind the next Application and configure its Authority through the normal workflow.
+
+**Expected result:** the old Application and Authority are no longer bound, and old tokens/sessions no longer authorize actions; the installation returns to neutral bootstrap. Historian is preserved; the database and its backups remain a separate concern. The license follows the confirmed choice.
+
+**Related Help:** `/help?topic=installation.switching`, `/help?topic=application.export-import`, `/help?topic=recovery.backup-system-recovery`, `/help?topic=getting-started.neutral-bootstrap`.
 
 ## Troubleshooting workflow
 

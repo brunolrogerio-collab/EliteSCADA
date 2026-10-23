@@ -6,14 +6,15 @@ Ningún contenido material de seguridad, licencias, HA, escrituras/comandos, rec
 
 ## Capítulos traducidos disponibles
 
-- [Gestión de aplicaciones, recuperación y diagnóstico](11-GESTION-APLICACION-RECUPERACION-DIAGNOSTICO.md) — límites de exportación/importación de paquetes, bibliotecas reutilizables, backup de Authority, recuperación de alto nivel Restore-first, procedimientos reservados de instalación/cambio y diagnóstico por capas.
+- [Gestión de aplicaciones, recuperación y diagnóstico](11-GESTION-APLICACION-RECUPERACION-DIAGNOSTICO.md) — límites de exportación/importación de paquetes, bibliotecas reutilizables, backup de Authority, recuperación Restore-first, procedimientos actuales de instalación/cambio y diagnóstico por capas.
 
-- [Operación, seguridad y licencias](08-OPERACION-SEGURIDAD-LICENCIAS.md) — guía estable de Runtime/sesiones, comandos, diagnóstico, Authority/Engineering Lock, licencias, Demo, request/install/remove, tiers de TAGs y License Generator; el comportamiento operacional de HA sigue explícitamente bloqueado.
+- [Operación, seguridad y licencias](08-OPERACION-SEGURIDAD-LICENCIAS.md) — Runtime/sesiones, comandos, diagnóstico, Authority/Engineering Lock, licencias, Demo, request/install/remove, tiers de TAGs, License Generator y guía actual de administración HA. Las afirmaciones de failover automático siguen limitadas por la verificación del producto.
 
 - [Fundamentos de EliteSCADA](01-FUNDAMENTOS-ELITESCADA.md) — arquitectura del producto para el usuario, límites entre Engineering/Runtime, Authority/License/Historian y lifecycle del proyecto.
 
 - [Engineering, fuentes de datos y TAGs](03-INGENIERIA-FUENTES-DE-DATOS-TAGS.md) — ciclo de vida estable de Engineering, configuración de Data Sources, direccionamiento/quality/scaling de TAGs, escrituras, commissioning, duplicación, generación secuencial Modbus y límites del perfil de Historian.
 
-- [Scripting, alarmas e histórico](06-SCRIPTING-ALARMAS-HISTORICO.md) — guía estable de Server Script y Client Visual, APIs, ejemplos, límites de Runtime, distinción entre alarmas/eventos/auditoría y orientación actual de Historian/Trends. Los procedimientos de Historical Time Range y Playback siguen reservados hasta la aceptación de esas superficies del producto.
+- [Scripting, alarmas e histórico](06-SCRIPTING-ALARMAS-HISTORICO.md) — guía estable de Server Script y Client Visual, APIs, ejemplos, límites de Runtime, distinción entre alarmas/eventos/auditoría, Historian/Trends y procedimientos actuales de Historical Time Range/Playback.
+- [Inteligencia de Activos y Procesos](12-INTELIGENCIA-ACTIVOS-PROCESOS.md) — flujos actuales de perfiles, contexto, etapas del proceso, análisis y borradores de Pantallas editables; revisar a medida que evolucione el producto.
 
 Consulte el [índice completo](../README.md) y la [matriz de cobertura](../COVERAGE-MATRIX.md).

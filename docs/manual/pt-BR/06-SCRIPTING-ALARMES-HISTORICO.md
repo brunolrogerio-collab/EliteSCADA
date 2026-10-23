@@ -203,6 +203,86 @@ Server Script não fornece acesso arbitrário a filesystem, sistema operacional,
 
 **Ajuda relacionada:** `/help?topic=scripts.server`, `/help?topic=sources.internal-memory`, `/help?topic=operational-events.overview`, `/help?topic=alarms.overview`.
 
+## Client Visual Scripts
+
+Client Visual Script é Python executado no Runtime do cliente para interação com uma Screen/Popup aberta e para apresentação local. Ele tem escopo diferente de Server Script: não substitui automação do backend e não continua trabalhando sem o cliente. Server Script, revisão Active, triggers de backend e suas seis APIs estão descritos na seção anterior.
+
+### Criar e ligar uma interação
+
+1. Em Script Engineering, crie um Script e selecione escopo `Client Visual` e linguagem Python.
+2. Declare um entry point `objectInteraction` com nome de handler, por exemplo `on_click`.
+3. No painel Events do objeto da Screen/Popup, selecione `Click`, o Script e o handler.
+4. Declare nas dependências do Script cada TAG lido ou escrito. O caminho legível usado no código precisa estar ligado à identidade estável do TAG.
+5. Valide, salve no Working e use o fluxo normal de revisão/publicação/ativação antes de conferir no Runtime.
+
+Os eventos de interação aceitos incluem `click`, `pointerenter`, `pointermove` e `pointerleave`. O handler recebe um dicionário de evento. Para uma interação visual, ele inclui chaves como `eventKey`, `visualDefinitionId`, `visualObjectId` e `pointer`.
+
+### API disponível
+
+Importe as funções fornecidas pelo módulo `elite_scada`:
+
+| Função | Uso |
+| --- | --- |
+| `tag_read(reference)` | Lê a TAG permitida e retorna dados como `value`, `quality`, `timestamp` e `source`. |
+| `tag_write(reference, value)` | Solicita escrita de valor Boolean, número finito ou texto. Exige TAG gravável, dependência e autorização Runtime. |
+| `client_memory_read(reference)` / `client_memory_write(reference, value)` | Lê ou altera memória não retentiva do cliente. Não é Historian e não sincroniza clientes. |
+| `visual_property_read(target, property)` / `visual_property_write(target, property, value)` | Lê ou solicita override de propriedade registrada no objeto visual do contexto atual. |
+| `visual_property_clear(target, property)` | Remove o override temporário de Script para aquela propriedade. |
+| `visual_tween_request(arguments)` | Solicita animação pela API visual permitida, sujeita à validação do Runtime. |
+
+As chamadas de bridge são assíncronas. Use `async def` e `await`. A API não libera acesso direto a Drivers, banco, arquivos, sistema operacional, credenciais, DOM ou rede arbitrária. A escrita em TAG segue as permissões da sessão e o serviço normal do Runtime; existir botão ou Script não concede autorização.
+
+### Exemplo: ler TAG e respeitar qualidade
+
+Associe `on_click` ao evento Click e declare `Plant.Pump.DischargePressure` como dependência. Use a leitura somente quando a qualidade for `Good`; dado ausente ou quality diferente não é zero nem comprova normalidade.
+
+```python
+from elite_scada import tag_read
+
+async def on_click(event):
+    sample = await tag_read("Plant.Pump.DischargePressure")
+    if sample["quality"] == "Good":
+        pressure = sample["value"]
+```
+
+### Exemplo: guardar um valor na Client Memory
+
+Configure a referência `UI.LastPressure` no provider Client Memory do projeto. Esse valor é local ao Runtime cliente e pode desaparecer quando a sessão/cliente termina.
+
+```python
+from elite_scada import tag_read, client_memory_write
+
+async def on_click(event):
+    sample = await tag_read("Plant.Pump.DischargePressure")
+    if sample["quality"] == "Good":
+        await client_memory_write("UI.LastPressure", sample["value"])
+```
+
+### Exemplo: identificar a interação
+
+Declare `on_pointer_enter` como handler `objectInteraction` e associe-o a `Pointer enters object` no painel Events.
+
+```python
+async def on_pointer_enter(event):
+    object_id = event["visualObjectId"]
+    event_name = event["eventKey"]
+```
+
+Use pointer handlers para resposta breve. `pointermove` pode disparar repetidamente durante o movimento; não faça processamento demorado nem espere ativamente em cada chamada. Cada execução tem limite de tempo e falhas são isoladas do Runtime restante.
+
+### Problemas comuns
+
+| Sintoma | Verifique |
+| --- | --- |
+| `ImportError` | Use `elite_scada` e confira o nome exato da função oferecida ao Client Visual. Bibliotecas gerais e módulos arbitrários não fazem parte dessa API. |
+| TAG não declarada ou caminho rejeitado | Adicione a dependência estável ao Script; confira binding legível e identidade do TAG. |
+| Leitura existe, mas não deve atualizar a tela | Confira `quality` e `timestamp`; não trate leitura indisponível como zero/estado normal. |
+| Escrita rejeitada | Confira se a TAG permite escrita, a capacidade da sessão, o valor compatível e o feedback do Runtime. |
+| Handler não chamado | Confira escopo `Client Visual`, entry point `objectInteraction`, nome exato e associação Script/evento/objeto. |
+| Interface lenta em interação | Reduza trabalho em `pointermove`, elimine loops/espera ativa e mantenha o handler curto. |
+
+**Ajuda relacionada:** `/help?topic=scripts.client-visual`, `/help?topic=scripts.engineering`, `/help?topic=scripts.python-validation`, `/help?topic=visual.events`.
+
 ## Client Memory
 
 Client Memory é memória não retentiva pertencente ao cliente Runtime. Server Memory é retentiva e pertencente ao servidor. Ambas são source providers internos e não são Drivers de comunicação.

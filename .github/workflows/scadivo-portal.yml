@@ -1,0 +1,39 @@
+name: SCADIVO portal
+on:
+  pull_request:
+    paths: ['website/scadivo/**', '.github/workflows/scadivo-portal.yml']
+  push:
+    branches: [main]
+    paths: ['website/scadivo/**', '.github/workflows/scadivo-portal.yml']
+permissions:
+  contents: read
+jobs:
+  portal:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: scadivo_portal
+          POSTGRES_DB: scadivo_portal
+          POSTGRES_PASSWORD: PortalTestOnly-NotASecret!
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U scadivo_portal -d scadivo_portal"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: website/scadivo
+    env:
+      PORTAL_TEST_DATABASE: Host=localhost;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.402'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check portal/wwwroot/app.js
+      - run: dotnet test tests/Scadivo.Portal.Tests.csproj --configuration Release --logger trx
+      - run: docker build -f portal/Dockerfile -t scadivo-portal:test .

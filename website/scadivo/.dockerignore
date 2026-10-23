@@ -1,0 +1,11 @@
+**/bin
+**/obj
+**/TestResults
+.env*
+secrets
+backups
+tests
+site
+*.pem
+*.pfx
+local-data

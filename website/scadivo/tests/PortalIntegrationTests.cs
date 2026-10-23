@@ -159,7 +159,8 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var expectedSignature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(returnedSso))).ToLowerInvariant();
             Assert.Equal(expectedSignature, returnedSignature);
 
-            var fields = QueryHelpers.ParseQuery(Encoding.UTF8.GetString(Convert.FromBase64String(returnedSso)));
+            var returnedSsoPayload = Encoding.UTF8.GetString(Convert.FromBase64String(returnedSso));
+            var fields = QueryHelpers.ParseQuery(returnedSsoPayload);
             Assert.Equal(nonce, fields["nonce"].ToString());
             Assert.Equal(email, fields["email"].ToString());
             Assert.Equal(userId, fields["external_id"].ToString());
@@ -169,8 +170,8 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.False(fields.ContainsKey("admin"));
             Assert.False(fields.ContainsKey("moderator"));
             Assert.False(fields.ContainsKey("groups"));
-            Assert.DoesNotContain("Private Legal Name", returnedSso);
-            Assert.DoesNotContain("Private School Name", returnedSso);
+            Assert.DoesNotContain("Private Legal Name", returnedSsoPayload);
+            Assert.DoesNotContain("Private School Name", returnedSsoPayload);
 
             using var invalidSignature = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
             {

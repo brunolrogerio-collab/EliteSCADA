@@ -19,6 +19,34 @@ const cookieLocale = () => {
   return entry ? decodeURIComponent(entry.slice("locale=".length)) : "";
 };
 
+const updateLocalizedNavigation = () => {
+  const label = document.querySelector(
+    '[data-link-name="new-chat-dm"] .sidebar-section-link-content-text'
+  );
+  if (!label) {
+    return;
+  }
+
+  const labels = {
+    pt_BR: {
+      visible: "Nova mensagem",
+      accessible: "Nova mensagem direta ou em grupo",
+    },
+    en: {
+      visible: "New message",
+      accessible: "Start a direct message or group chat",
+    },
+    es: {
+      visible: "Nuevo mensaje",
+      accessible: "Iniciar mensaje directo o grupal",
+    },
+  };
+  const localizedLabel = labels[normalizeLocale(document.documentElement.lang)];
+  label.textContent = localizedLabel.visible;
+  label.closest("a")?.setAttribute("aria-label", localizedLabel.accessible);
+  label.closest("a")?.setAttribute("title", localizedLabel.accessible);
+};
+
 export default apiInitializer((api) => {
   const updateBrandAndLanguage = () => {
     const brandLink = document.querySelector(".d-header .title");
@@ -28,6 +56,7 @@ export default apiInitializer((api) => {
       brandLink.setAttribute("title", "SCADIVO");
     }
     brandImage?.setAttribute("alt", "SCADIVO");
+    updateLocalizedNavigation();
 
     const languageBar = document.querySelector(".scadivo-community-language-bar");
     const picker = document.querySelector("#scadivo-community-language");

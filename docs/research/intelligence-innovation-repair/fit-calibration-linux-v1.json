@@ -1,0 +1,88 @@
+{
+  "Identity": "ELITESCADA-INTELLIGENCE-INNOVATION-REPAIR-20261020-v1",
+  "State": "fit-calibration-complete",
+  "Hashes": {
+    "protocol": "C4CC989EA86705E18DB4A03FE77EB649C939C39DE724A0F6B243EC7F33171419",
+    "core": "B3404397DAA1AD8D529AC388458B77108F6E336E4732EDF970E2CEE11614698E",
+    "harness": "A5E5C78EC36F2F2004AFC9FC6C92217860F1C15E296E191179C636F67265AEFD",
+    "unit": "592650C6CBCC56F4D111E3B052E2C11BC26FFF87A8D02CFC69BE38330A8BE7A1"
+  },
+  "SourceCommit": "aff9b50e0cc71ac1dbf34505598eaff5a3c85d09",
+  "Numerical": {
+    "Reference": {
+      "Binding": "synthetic/profile-v1/context-v1/residual-model-v1",
+      "Centers": [
+        -8.286584309361023E-14,
+        -1.460495136287876E-13,
+        -1.9470488860518637E-14
+      ],
+      "Scales": [
+        0.7044474946648869,
+        0.9814248677063075,
+        0.0995495014150868
+      ],
+      "Ar": [
+        0.6500500548167493,
+        0.6383618464332658,
+        0.6604988707838956
+      ],
+      "InnovationCenters": [
+        -0.000379018609378312,
+        -0.0008400242368555269,
+        -0.0010039204493055753
+      ],
+      "Lower": [
+        [
+          0.7607313835404202,
+          0,
+          0
+        ],
+        [
+          0.5105273211286587,
+          0.5786997113399717,
+          0
+        ],
+        [
+          0.18052999281169987,
+          0.03459981543049061,
+          0.731237259045365
+        ]
+      ]
+    },
+    "Regression": [
+      [
+        4.049163509551396,
+        19.907747458956685,
+        0.27116092234073846
+      ],
+      [
+        3.136929473639066,
+        29.69600296932633,
+        0.5481616620926044
+      ],
+      [
+        1.2124392587921793,
+        2.9763077556515127,
+        -0.02869825225923838
+      ]
+    ],
+    "InjectionScales": [
+      0.7018219842657573,
+      0.9847109068429826,
+      0.09922682647901059
+    ],
+    "Threshold": 35.57963109418079,
+    "CalibrationGroups": 2400,
+    "CalibrationGroupsAboveThreshold": 2,
+    "MeanRunEntryPeak": 15.939591704098099,
+    "MaxRunEntryPeak": 36.44052238402045
+  },
+  "Resources": {
+    "wallSeconds": 2.9611441,
+    "cpuSeconds": 2.998758,
+    "peakRssBytes": 68608000,
+    "runtime": ".NET 10.0.11",
+    "os": "Ubuntu 24.04.4 LTS",
+    "linuxImage": "mcr.microsoft.com/dotnet/sdk@sha256:4beef5b8919dcaa2dc924233bd069257e883cc7a061e09088a97d152d6a48510"
+  }
+}

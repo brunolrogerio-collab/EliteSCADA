@@ -2,4 +2,7 @@
   <PropertyGroup>
     <RootNamespace>Scada.Core</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Scada.Core.Tests" />
+  </ItemGroup>
 </Project>

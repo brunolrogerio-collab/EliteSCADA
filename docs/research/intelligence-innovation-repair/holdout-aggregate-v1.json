@@ -1,0 +1,318 @@
+{
+  "identity": "ELITESCADA-INTELLIGENCE-INNOVATION-REPAIR-20261020-v1",
+  "state": "single-consumption-complete",
+  "sourceCommitAtClaim": "e1d5349de2a89686e417a28a812479fcee4d5d79",
+  "frozenSha256": "32B6845E3DA180A62A078E11DBCB56374CAAECCE4DC2B052FB088C4079D96AFB",
+  "hashes": {
+    "protocol": "C4CC989EA86705E18DB4A03FE77EB649C939C39DE724A0F6B243EC7F33171419",
+    "core": "B3404397DAA1AD8D529AC388458B77108F6E336E4732EDF970E2CEE11614698E",
+    "harness": "A5E5C78EC36F2F2004AFC9FC6C92217860F1C15E296E191179C636F67265AEFD",
+    "unit": "592650C6CBCC56F4D111E3B052E2C11BC26FFF87A8D02CFC69BE38330A8BE7A1"
+  },
+  "common": {
+    "pointFalsePositiveRate": 8.75E-05,
+    "falseEpisodesPer24ScoredHours": 0.108,
+    "commonPass": true,
+    "groupOccurrenceWilson95": [
+      0.00017654637062607809,
+      0.0056425585979579355
+    ]
+  },
+  "scenarios": [
+    {
+      "scenario": "nonfault",
+      "groups": 1000,
+      "independentEligibleGroups": 1000,
+      "rawEligibleSeconds": 1200000,
+      "warmupCohorts": 40000,
+      "scoredDecisions": 80000,
+      "scoredEligibleSeconds": 800000,
+      "availability": 0.6666666666666666,
+      "invalidWindows": 0,
+      "exceedances": 7,
+      "episodes": 1,
+      "detectedGroups": null,
+      "timelyGroups": null,
+      "recall": null,
+      "timelyFraction600s": null,
+      "latencySeconds": {
+        "p50": 870,
+        "p95": 870,
+        "max": 870
+      },
+      "interval95": {
+        "recall": null,
+        "timely": null,
+        "pointExceedanceRate": [
+          0,
+          0.0002375
+        ],
+        "episodesPer24ScoredHours": [
+          0,
+          0.324
+        ]
+      },
+      "disposition": "PASS_POINT"
+    },
+    {
+      "scenario": "current-plus-3",
+      "groups": 1000,
+      "independentEligibleGroups": 1000,
+      "rawEligibleSeconds": 1200000,
+      "warmupCohorts": 40000,
+      "scoredDecisions": 80000,
+      "scoredEligibleSeconds": 800000,
+      "availability": 0.6666666666666666,
+      "invalidWindows": 0,
+      "exceedances": 80000,
+      "episodes": 1000,
+      "detectedGroups": 1000,
+      "timelyGroups": 1000,
+      "recall": 1,
+      "timelyFraction600s": 1,
+      "latencySeconds": {
+        "p50": 320,
+        "p95": 320,
+        "max": 320
+      },
+      "interval95": {
+        "recall": [
+          1,
+          1
+        ],
+        "timely": [
+          1,
+          1
+        ],
+        "pointExceedanceRate": [
+          1,
+          1
+        ],
+        "episodesPer24ScoredHours": [
+          108,
+          108
+        ]
+      },
+      "disposition": "PASS_POINT"
+    },
+    {
+      "scenario": "all-plus-3",
+      "groups": 1000,
+      "independentEligibleGroups": 1000,
+      "rawEligibleSeconds": 1200000,
+      "warmupCohorts": 40000,
+      "scoredDecisions": 80000,
+      "scoredEligibleSeconds": 800000,
+      "availability": 0.6666666666666666,
+      "invalidWindows": 0,
+      "exceedances": 80000,
+      "episodes": 1000,
+      "detectedGroups": 1000,
+      "timelyGroups": 1000,
+      "recall": 1,
+      "timelyFraction600s": 1,
+      "latencySeconds": {
+        "p50": 320,
+        "p95": 320,
+        "max": 320
+      },
+      "interval95": {
+        "recall": [
+          1,
+          1
+        ],
+        "timely": [
+          1,
+          1
+        ],
+        "pointExceedanceRate": [
+          1,
+          1
+        ],
+        "episodesPer24ScoredHours": [
+          108,
+          108
+        ]
+      },
+      "disposition": "PASS_POINT"
+    },
+    {
+      "scenario": "relationship-flip",
+      "groups": 1000,
+      "independentEligibleGroups": 1000,
+      "rawEligibleSeconds": 1200000,
+      "warmupCohorts": 40000,
+      "scoredDecisions": 80000,
+      "scoredEligibleSeconds": 800000,
+      "availability": 0.6666666666666666,
+      "invalidWindows": 0,
+      "exceedances": 79924,
+      "episodes": 1000,
+      "detectedGroups": 1000,
+      "timelyGroups": 1000,
+      "recall": 1,
+      "timelyFraction600s": 1,
+      "latencySeconds": {
+        "p50": 320,
+        "p95": 320,
+        "max": 380
+      },
+      "interval95": {
+        "recall": [
+          1,
+          1
+        ],
+        "timely": [
+          1,
+          1
+        ],
+        "pointExceedanceRate": [
+          0.9986375,
+          0.9994125
+        ],
+        "episodesPer24ScoredHours": [
+          108,
+          108
+        ]
+      },
+      "disposition": "PASS_POINT"
+    },
+    {
+      "scenario": "dispersion-2x",
+      "groups": 1000,
+      "independentEligibleGroups": 1000,
+      "rawEligibleSeconds": 1200000,
+      "warmupCohorts": 40000,
+      "scoredDecisions": 80000,
+      "scoredEligibleSeconds": 800000,
+      "availability": 0.6666666666666666,
+      "invalidWindows": 0,
+      "exceedances": 80000,
+      "episodes": 1000,
+      "detectedGroups": 1000,
+      "timelyGroups": 1000,
+      "recall": 1,
+      "timelyFraction600s": 1,
+      "latencySeconds": {
+        "p50": 320,
+        "p95": 320,
+        "max": 320
+      },
+      "interval95": {
+        "recall": [
+          1,
+          1
+        ],
+        "timely": [
+          1,
+          1
+        ],
+        "pointExceedanceRate": [
+          1,
+          1
+        ],
+        "episodesPer24ScoredHours": [
+          108,
+          108
+        ]
+      },
+      "disposition": "PASS_POINT"
+    },
+    {
+      "scenario": "dispersion-0.5x",
+      "groups": 1000,
+      "independentEligibleGroups": 1000,
+      "rawEligibleSeconds": 1200000,
+      "warmupCohorts": 40000,
+      "scoredDecisions": 80000,
+      "scoredEligibleSeconds": 800000,
+      "availability": 0.6666666666666666,
+      "invalidWindows": 0,
+      "exceedances": 78828,
+      "episodes": 1000,
+      "detectedGroups": 1000,
+      "timelyGroups": 1000,
+      "recall": 1,
+      "timelyFraction600s": 1,
+      "latencySeconds": {
+        "p50": 320,
+        "p95": 350,
+        "max": 400
+      },
+      "interval95": {
+        "recall": [
+          1,
+          1
+        ],
+        "timely": [
+          1,
+          1
+        ],
+        "pointExceedanceRate": [
+          0.983875,
+          0.986725
+        ],
+        "episodesPer24ScoredHours": [
+          108,
+          108
+        ]
+      },
+      "disposition": "PASS_POINT"
+    },
+    {
+      "scenario": "mixed",
+      "groups": 1000,
+      "independentEligibleGroups": 1000,
+      "rawEligibleSeconds": 1200000,
+      "warmupCohorts": 40000,
+      "scoredDecisions": 80000,
+      "scoredEligibleSeconds": 800000,
+      "availability": 0.6666666666666666,
+      "invalidWindows": 0,
+      "exceedances": 80000,
+      "episodes": 1000,
+      "detectedGroups": 1000,
+      "timelyGroups": 1000,
+      "recall": 1,
+      "timelyFraction600s": 1,
+      "latencySeconds": {
+        "p50": 320,
+        "p95": 320,
+        "max": 320
+      },
+      "interval95": {
+        "recall": [
+          1,
+          1
+        ],
+        "timely": [
+          1,
+          1
+        ],
+        "pointExceedanceRate": [
+          1,
+          1
+        ],
+        "episodesPer24ScoredHours": [
+          108,
+          108
+        ]
+      },
+      "disposition": "PASS_POINT"
+    }
+  ],
+  "bootstrap": {
+    "replicates": 2000,
+    "unit": "independent-source-group",
+    "pairedIndicesAcrossScenarios": true
+  },
+  "resources": {
+    "wallSeconds": 8.0573774,
+    "cpuSeconds": 7.75,
+    "peakRssBytes": 61272064,
+    "runtime": ".NET 10.0.13",
+    "os": "Microsoft Windows 10.0.26200",
+    "linuxImage": null
+  },
+  "limitation": "SYNTHETIC_ONLY; experimental internal core; product API, field performance, security and persistence NOT VALIDATED"
+}

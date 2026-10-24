@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
@@ -34,6 +35,28 @@ public sealed class CommunitySsoOptions
         (allowHttpLoopbackForDevelopment && uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback && !uri.IsDefaultPort);
 
     public string LoginStartUrl => Enabled ? $"{DiscourseUrl.TrimEnd('/')}/session/sso" : "";
+}
+
+internal static class CommunityUsernames
+{
+    private static readonly Regex Pattern = new("^[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly string[] ConfusingExtensions = [".js", ".json", ".css", ".htm", ".html", ".xml", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".ico", ".tif", ".tiff", ".woff"];
+
+    public static bool IsValid(string? username)
+    {
+        var value = username?.Trim();
+        return value is { Length: >= 3 and <= 20 } && Pattern.IsMatch(value) &&
+            !Regex.IsMatch(value, "[-_.]{2}", RegexOptions.CultureInvariant) &&
+            !ConfusingExtensions.Any(extension => value.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static string ForCommunity(PortalUser user) => IsValid(user.UserName) ? user.UserName!.Trim() : PublicAlias(user.Id);
+
+    private static string PublicAlias(string userId)
+    {
+        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(userId));
+        return "scadivo_" + Convert.ToHexString(digest)[..12].ToLowerInvariant();
+    }
 }
 
 public static class DiscourseConnect
@@ -82,7 +105,8 @@ public static class DiscourseConnect
             new("nonce", nonce),
             new("email", user.Email),
             new("external_id", user.Id),
-            new("username", PublicAlias(user.Id)),
+            new("username", CommunityUsernames.ForCommunity(user)),
+            new("name", user.DisplayName),
             new("locale", DiscourseLocale(user.Locale)),
             new("locale_force_update", "true"));
         var encodedPayload = Convert.ToBase64String(StrictUtf8.GetBytes(payload));
@@ -161,12 +185,6 @@ public static class DiscourseConnect
 
     private static string EncodeQuery(params KeyValuePair<string, string>[] fields) =>
         string.Join('&', fields.Select(field => $"{Uri.EscapeDataString(field.Key)}={Uri.EscapeDataString(field.Value)}"));
-
-    private static string PublicAlias(string userId)
-    {
-        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(userId));
-        return "scadivo_" + Convert.ToHexString(digest)[..12].ToLowerInvariant();
-    }
 
     private static string DiscourseLocale(string? locale) => locale switch
     {

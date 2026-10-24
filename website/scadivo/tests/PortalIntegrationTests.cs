@@ -218,12 +218,30 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.StartsWith("scadivo_", fields["username"].ToString());
             Assert.Equal("es", fields["locale"].ToString());
             Assert.Equal("true", fields["locale_force_update"].ToString());
-            Assert.False(fields.ContainsKey("name"));
+            Assert.Equal("Private Legal Name", fields["name"].ToString());
             Assert.False(fields.ContainsKey("admin"));
             Assert.False(fields.ContainsKey("moderator"));
             Assert.False(fields.ContainsKey("groups"));
-            Assert.DoesNotContain("Private Legal Name", returnedSsoPayload);
             Assert.DoesNotContain("Private School Name", returnedSsoPayload);
+
+            var chosenUsername = "com-" + marker;
+            var profileUpdate = await member.Send("/profile", HttpMethod.Put,
+                new { username = chosenUsername, displayName = "Public Community Name", locale = "es" });
+            Assert.Equal(chosenUsername, profileUpdate.GetProperty("userName").GetString());
+            using var updatedSso = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
+            {
+                ["sso"] = challenge,
+                ["sig"] = signature
+            }));
+            Assert.Equal(HttpStatusCode.Redirect, updatedSso.StatusCode);
+            var updatedRedirect = updatedSso.Headers.Location!.IsAbsoluteUri
+                ? updatedSso.Headers.Location
+                : new Uri(new Uri("https://community.example.test"), updatedSso.Headers.Location);
+            var updatedPayload = QueryHelpers.ParseQuery(Encoding.UTF8.GetString(Convert.FromBase64String(QueryHelpers.ParseQuery(updatedRedirect.Query)["sso"].ToString())));
+            Assert.Equal(chosenUsername, updatedPayload["username"].ToString());
+            Assert.Equal("Public Community Name", updatedPayload["name"].ToString());
+            Assert.Equal(email, updatedPayload["email"].ToString());
+            Assert.DoesNotContain("Private School Name", string.Join("&", updatedPayload.Values.Select(value => value.ToString())));
 
             using var invalidSignature = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
             {
@@ -648,9 +666,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var registrationSession = new Session(registrationClient, await Csrf(registrationClient));
             Assert.True((await registrationClient.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("publicRegistrationEnabled").GetBoolean());
             var registrationEmail = $"signup-{Guid.NewGuid():N}@example.test";
+            var registrationUsername = "signup-" + Guid.NewGuid().ToString("N")[..12];
             using (var missingProfileResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
-                displayName = "New Portal User", email = registrationEmail, password = Password,
+                username = registrationUsername, displayName = "New Portal User", email = registrationEmail, password = Password,
                 locale = "es",
                 profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
                 organizationOrSchool = (string?)null, phoneNumber = (string?)null, address = (string?)null,
@@ -662,7 +681,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             }
             using (var shortPasswordResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
-                displayName = "New Portal User", email = registrationEmail, password = "Scad1vo",
+                username = registrationUsername, displayName = "New Portal User", email = registrationEmail, password = "Scad1vo",
                 locale = "es",
                 profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
                 organizationOrSchool = "Technical University", phoneNumber = (string?)null, address = (string?)null,
@@ -676,7 +695,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             }
             using var registrationResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
-                displayName = "New Portal User", email = registrationEmail, password = Password,
+                username = registrationUsername, displayName = "New Portal User", email = registrationEmail, password = Password,
                 locale = "es",
                 profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
                 organizationOrSchool = "Technical University", phoneNumber = (string?)null, address = (string?)null,
@@ -684,12 +703,24 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             });
             Assert.Equal(HttpStatusCode.Accepted, registrationResponse.StatusCode);
             var pendingAccount = await db.Users.SingleAsync(x => x.Email == registrationEmail);
+            Assert.Equal(registrationUsername, pendingAccount.UserName);
             Assert.False(pendingAccount.EmailConfirmed);
             Assert.False(pendingAccount.InvitationAccepted);
             Assert.False(pendingAccount.MarketingEmailOptIn);
             Assert.Null(pendingAccount.DateOfBirth); // Optional birth date does not block registration.
             await db.SaveChangesAsync();
             Assert.Equal("es", pendingAccount.Locale);
+            using (var duplicateUsername = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
+            {
+                username = registrationUsername.ToUpperInvariant(), displayName = "Another User", email = $"other-{Guid.NewGuid():N}@example.test", password = Password,
+                locale = "es", profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
+                organizationOrSchool = "Another University", phoneNumber = (string?)null, address = (string?)null,
+                dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
+            }))
+            {
+                Assert.Equal(HttpStatusCode.Conflict, duplicateUsername.StatusCode);
+                Assert.Equal("account-already-exists", (await duplicateUsername.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+            }
             var pendingConfirmation = await db.EmailOutbox.SingleAsync(x => x.UserId == pendingAccount.Id && x.TemplateKey == "account.confirmation");
             Assert.Null(pendingConfirmation.TemplateDataJson); // The one-time token is generated only during delivery.
             using (var blockedLogin = await registrationSession.Raw("/auth/login", HttpMethod.Post, new { username = registrationEmail, password = Password }))
@@ -721,10 +752,13 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 Assert.Equal(HttpStatusCode.BadRequest, repeatedConfirmation.StatusCode);
             var registered = await Login(factory, registrationEmail);
             var registeredProfile = await registered.Get("/profile");
+            Assert.Equal(registrationUsername, registeredProfile.GetProperty("userName").GetString());
             Assert.True(registeredProfile.GetProperty("profileComplete").GetBoolean());
             Assert.Equal("student", registeredProfile.GetProperty("profileType").GetString());
             Assert.Equal("Technical University", registeredProfile.GetProperty("organizationOrSchool").GetString());
             Assert.False(registeredProfile.GetProperty("marketingEmailOptIn").GetBoolean());
+            var registeredByUsername = await Login(factory, registrationUsername);
+            Assert.Equal(registrationEmail, (await registeredByUsername.Get("/profile")).GetProperty("email").GetString());
             var legacyRecoveryTemplate = await db.EmailTemplates.SingleAsync(x => x.Key == "account.password-reset");
             legacyRecoveryTemplate.BodyEn = "Hello {{name}}. To reset your password, use: {{link}}. If you did not request this, ignore this message.";
             await db.SaveChangesAsync(); // Models an already-seeded production template that predates the new copy.

@@ -17,14 +17,14 @@ public sealed record InviteInput(string? Username, string? DisplayName, string? 
 public sealed record AcceptInviteInput(string? UserId, string? Token, string? Password, string? Locale, string? ProfileType,
     string? ActivityArea, string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber,
     string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
-public sealed record RegisterInput(string? DisplayName, string? Email, string? Password, string? Locale, string? ProfileType,
+public sealed record RegisterInput(string? Username, string? DisplayName, string? Email, string? Password, string? Locale, string? ProfileType,
     string? ActivityArea, string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber,
     string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
 public sealed record ConfirmEmailInput(string? UserId, string? Token);
 public sealed record ResendConfirmationInput(string? Email);
 public sealed record PasswordRecoveryInput(string? Email);
 public sealed record ResetPasswordInput(string? UserId, string? Token, string? Password);
-public sealed record ProfileInput(string? DisplayName, string? Locale, string? ProfileType, string? ActivityArea,
+public sealed record ProfileInput(string? Username, string? DisplayName, string? Locale, string? ProfileType, string? ActivityArea,
     string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber, string? Address,
     DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
 public sealed record PasswordInput(string? CurrentPassword, string? NewPassword);
@@ -94,6 +94,15 @@ public sealed class PortalOperations(
         if (!Valid(input.DisplayName, 1, 160) || !ValidLocale(input.Locale)) return Invalid();
         var user = await users.GetUserAsync(context.User);
         if (user is null) return Results.Unauthorized();
+        if (input.Username is not null)
+        {
+            var username = input.Username.Trim();
+            if (!CommunityUsernames.IsValid(username)) return Invalid("username-requirements");
+            var usernameOwner = await users.FindByNameAsync(username);
+            if (usernameOwner is not null && usernameOwner.Id != user.Id)
+                return Results.Conflict(new { error = "account-already-exists" });
+            user.UserName = username;
+        }
         var profileType = input.ProfileType ?? user.ProfileType;
         var activityArea = input.ActivityArea ?? user.ActivityArea;
         var activityAreaOther = input.ActivityAreaOther ?? user.ActivityAreaOther;
@@ -137,8 +146,10 @@ public sealed class PortalOperations(
         if (!configuration.GetValue<bool>("Portal:PublicRegistrationEnabled")) return Results.NotFound();
         if (!emailSettings.Value.Enabled) return Results.Json(new { error = "email-not-configured" }, statusCode: StatusCodes.Status503ServiceUnavailable);
         var email = input.Email?.Trim();
+        var username = input.Username?.Trim();
         if (input.Password is null || input.Password.Length < 8 || input.Password.Length > 1024)
             return Invalid("password-requirements");
+        if (!CommunityUsernames.IsValid(username)) return Invalid("username-requirements");
         if (!Valid(input.DisplayName, 1, 160) || !ValidLocale(input.Locale) || !Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
             !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase) ||
             !ValidProfile(input.ProfileType, input.ActivityArea, input.ActivityAreaOther, input.OrganizationOrSchool,
@@ -146,11 +157,12 @@ public sealed class PortalOperations(
 
         // Keep the response identical for an existing address so public registration cannot enumerate accounts.
         if (await users.FindByEmailAsync(email!) is not null) return Results.Accepted(uri: null, value: new { status = "check-email" });
+        if (await users.FindByNameAsync(username!) is not null) return Results.Conflict(new { error = "account-already-exists" });
 
         await using var transaction = await db.Database.BeginTransactionAsync();
         var user = new PortalUser
         {
-            UserName = email,
+            UserName = username!,
             Email = email,
             DisplayName = input.DisplayName!.Trim(),
             Locale = input.Locale!,
@@ -169,8 +181,10 @@ public sealed class PortalOperations(
         var created = await users.CreateAsync(user, input.Password);
         if (!created.Succeeded)
         {
-            if (created.Errors.Any(error => error.Code is "DuplicateEmail" or "DuplicateUserName"))
+            if (created.Errors.Any(error => error.Code == "DuplicateEmail"))
                 return Results.Accepted(uri: null, value: new { status = "check-email" });
+            if (created.Errors.Any(error => error.Code == "DuplicateUserName"))
+                return Results.Conflict(new { error = "account-already-exists" });
             return Invalid("password-requirements");
         }
         PortalSeed.Ensure(await users.AddToRoleAsync(user, "Member"));
@@ -280,7 +294,7 @@ public sealed class PortalOperations(
 
     public async Task<IResult> Invite(InviteInput input, HttpContext context)
     {
-        if (!Valid(input.Username, 3, 100) || !Valid(input.DisplayName, 1, 160) || (input.Organization?.Length ?? 0) > 200) return Invalid();
+        if (!CommunityUsernames.IsValid(input.Username) || !Valid(input.DisplayName, 1, 160) || (input.Organization?.Length ?? 0) > 200) return Invalid();
         var email = string.IsNullOrWhiteSpace(input.Email) ? null : input.Email.Trim();
         if (email is not null && (!MailAddress.TryCreate(email, out var parsed) || !string.Equals(parsed.Address, email, StringComparison.OrdinalIgnoreCase))) return Invalid("invalid-email");
         if (await users.FindByNameAsync(input.Username!.Trim()) is not null || (email is not null && await users.FindByEmailAsync(email) is not null))

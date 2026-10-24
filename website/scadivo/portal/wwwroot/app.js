@@ -147,6 +147,7 @@ function errorText(code) {
     'password-requirements': tr('A senha precisa ter ao menos 8 caracteres, incluindo maiúscula, minúscula e número.', 'The password needs at least 8 characters, including uppercase, lowercase and a number.'),
     'email-not-configured': tr('O envio de confirmação está temporariamente indisponível. Tente mais tarde.', 'Email confirmation is temporarily unavailable. Please try again later.'),
     'invalid-email': tr('Informe um endereço de e-mail válido.', 'Enter a valid email address.'),
+    'username-requirements': tr('Use um nome de usuário disponível com 3 a 20 caracteres, sem espaços ou símbolos repetidos.', 'Choose an available username from 3 to 20 characters, without spaces or repeated symbols.', 'Elige un nombre de usuario disponible de 3 a 20 caracteres, sin espacios ni símbolos repetidos.'),
     'invalid-confirmation': tr('O link é inválido, já foi usado ou expirou. Solicite um novo e-mail de confirmação.', 'This link is invalid, already used or expired. Request a new confirmation email.'),
     'invalid-password-reset': tr('O link é inválido, já foi usado ou expirou. Solicite uma nova recuperação de senha.', 'This link is invalid, already used or expired. Request a new password reset.'),
     'invalid-request-token': tr('A sessão mudou. Atualize a página e tente novamente.', 'The session changed. Refresh this page and try again.'),
@@ -319,7 +320,8 @@ function registration() {
   const card = panel(tr('Criar conta SCADIVO', 'Create a SCADIVO account'),
     p(tr('Depois do cadastro, enviaremos um link único para confirmar seu e-mail. O login será liberado somente após a confirmação.', 'After signup, we will send a unique link to confirm your email. Sign-in is enabled only after confirmation.')),
     form([
-      field(tr('Nome completo', 'Full name'), input('displayName', 'text', '', { maxLength: 160, autocomplete: 'name' })),
+      field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', '', { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
+      field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
       field(tr('E-mail', 'Email'), input('email', 'email', '', { maxLength: 256, autocomplete: 'email' })),
       field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), state.lang, { required: true })),
       field(tr('Senha', 'Password'), input('password', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' }), tr('Mínimo de 8 caracteres, com maiúscula, minúscula e número.', 'At least 8 characters, with uppercase, lowercase and a number.')),
@@ -344,7 +346,7 @@ function emailConfirmation() {
     form([], tr('Confirmar e-mail', 'Confirm email'), async () => {
       await api('/auth/confirm-email', 'POST', token);
       state.confirmEmail = null; state.pendingEmail = ''; history.replaceState(null, '', '/portal/'); render();
-      feedback(tr('E-mail confirmado. Agora você pode entrar com seu e-mail e senha.', 'Email confirmed. You can now sign in with your email and password.'));
+      feedback(tr('E-mail confirmado. Agora você pode entrar com seu nome de usuário ou e-mail e senha.', 'Email confirmed. You can now sign in with your username or email and password.', 'Correo confirmado. Ahora puedes iniciar sesión con tu nombre de usuario o correo y contraseña.'));
     }),
     button(tr('Voltar ao login', 'Back to sign in'), () => { state.confirmEmail = null; history.replaceState(null, '', '/portal/'); render(); })
   );
@@ -352,10 +354,12 @@ function emailConfirmation() {
 }
 function completeProfile() {
   const user = state.session.user;
+  const accountUsername = user.userName?.toLowerCase() === user.email?.toLowerCase() ? '' : user.userName;
   const card = panel(tr('Complete seu perfil', 'Complete your profile'),
     p(tr('Para continuar no portal, informe seu perfil, área de atuação e empresa/escola. Os demais campos são opcionais.', 'To continue, tell us your profile, activity area and company/school. The remaining fields are optional.')),
     form([
-      field(tr('Nome completo', 'Full name'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'name' })),
+      field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
+      field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
       field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), user.locale, { required: true })),
       ...profileFields(user)
     ], tr('Salvar e continuar', 'Save and continue'), async data => {
@@ -402,8 +406,10 @@ function home() {
 }
 function profile() {
   const user = state.session.user;
+  const accountUsername = user.userName?.toLowerCase() === user.email?.toLowerCase() ? '' : user.userName;
   return h('div', { class: 'content-grid' }, [panel(tr('Seu perfil', 'Your profile'), p(`${tr('Usuário', 'Username')}: ${user.userName}`), p(`${tr('E-mail', 'Email')}: ${user.email || tr('Ainda não informado', 'Not provided yet')}`), form([
-    field(tr('Nome de exibição', 'Display name'), input('displayName', 'text', user.displayName, { maxLength: 160 })),
+    field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
+    field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
     field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), user.locale, { required: true })),
     ...profileFields(user)
   ], tr('Salvar perfil', 'Save profile'), async data => { await api('/profile', 'PUT', data); await session(); feedback(tr('Perfil atualizado.', 'Profile updated.')); render(); }), h('div', { class: 'organization-list' }, user.organizations.map(org => p(`${org.name} · ${org.role}`)))), panel(tr('Alterar senha', 'Change password'), form([
@@ -490,7 +496,7 @@ async function accountsAdmin() {
   result.append(panel(tr('Criar convite', 'Create invitation'), p(state.session.emailDeliveryConfigured
     ? tr('O convidado define a própria senha. Se informar um e-mail, o convite entra na fila de envio automático.', 'The invitee sets their own password. When you enter an email address, the invitation is queued for automatic delivery.')
     : tr('O convidado define a própria senha. Compartilhe o link por um canal privado; o envio por e-mail ainda não está habilitado.', 'The invitee sets their own password. Share the link privately; email delivery is not enabled yet.')), form([
-    h('div', { class: 'form-row' }, [field(tr('Usuário', 'Username'), input('username', 'text', '', { minLength: 3, maxLength: 100, autocomplete: 'off' })), field(tr('Nome', 'Name'), input('displayName', 'text', '', { maxLength: 160 }))]),
+    h('div', { class: 'form-row' }, [field(tr('Usuário', 'Username'), input('username', 'text', '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'off' })), field(tr('Nome', 'Name'), input('displayName', 'text', '', { maxLength: 160 }))]),
     h('div', { class: 'form-row' }, [field(tr('E-mail (opcional)', 'Email (optional)'), input('email', 'email', '', { required: false, maxLength: 256 })), field(tr('Organização (opcional)', 'Organization (optional)'), input('organization', 'text', '', { required: false, maxLength: 200 }))])
   ], tr('Gerar convite', 'Generate invitation'), async (data, node) => {
     const result = await api('/admin/invitations', 'POST', data); node.reset();

@@ -8,10 +8,11 @@
       "name": "SCADIVO"
     }
   ],
-  "theme_version": "1.0.1",
+  "theme_version": "1.0.2",
   "minimum_discourse_version": "3.4.0",
   "assets": {
-    "scadivo_logo": "assets/scadivo-wordmark.svg"
+    "scadivo_logo": "assets/scadivo-wordmark.svg",
+    "scadivo_mark": "assets/scadivo-mark.svg"
   },
   "color_schemes": {
     "SCADIVO Noite": {

@@ -59,6 +59,10 @@ a:focus {
   display: none !important;
 }
 
+img.avatar[src*="discourse-logo-sketch-small.png"] {
+  content: url($scadivo_mark);
+}
+
 .d-header .title:focus-visible {
   outline: 2px solid var(--scadivo-teal);
   outline-offset: 3px;

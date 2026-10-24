@@ -98,6 +98,15 @@ test('Authority UX shows localized concurrency guidance for semantic 400 and HTT
   )).toBe('Backend rejected. Invalid role key');
 });
 
+test('Authority UX explains Intelligence resource scopes and the SystemAdmin path', () => {
+  expect(authorityPolicyErrorMessage(
+    new AdministrationHttpError(400, "Authority policy role 'developer' is invalid: INTELLIGENCE_MANAGER_SCOPE_REQUIRED"),
+    'Backend rejected.',
+    'Reload and recreate the change.',
+    'Use an Equipment/Location scope for regular roles; SystemAdmin already has access.'
+  )).toBe("Backend rejected. Authority policy role 'developer' is invalid: Use an Equipment/Location scope for regular roles; SystemAdmin already has access.");
+});
+
 
 test('Authority UX keeps command execution distinct from process-value writing', () => {
   expect(capabilityKey(2)).toBe('CommandExecute');

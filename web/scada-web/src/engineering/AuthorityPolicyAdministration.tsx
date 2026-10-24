@@ -69,6 +69,7 @@ type PolicyStrings = {
   deleteAssigned: string;
   backendRejected: string;
   conflictHint: string;
+  intelligenceScopeRequired: string;
   unknownCapability: string;
   unassigned: string;
   usersWithRole: string;
@@ -127,6 +128,7 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     deleteAssigned: 'Não é possível remover localmente uma role ainda atribuída; o backend também rejeitará a política órfã.',
     backendRejected: 'O backend rejeitou a política.',
     conflictHint: 'A versão da Authority mudou. Recarregue e refaça a alteração.',
+    intelligenceScopeRequired: 'Esta permissão exige escopo de Equipamento/Local para roles comuns. O administrador com SystemAdmin já pode gerenciar todos os recursos; não adicione uma concessão global.',
     unknownCapability: 'Capability desconhecida',
     unassigned: 'Nenhum usuário atribuído',
     usersWithRole: 'Usuários com esta role',
@@ -191,6 +193,7 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     deleteAssigned: 'A role still assigned to a local user cannot be removed here; the backend also rejects an orphaned policy.',
     backendRejected: 'The backend rejected the policy.',
     conflictHint: 'Authority version changed. Reload and recreate the change.',
+    intelligenceScopeRequired: 'This permission needs an Equipment/Location scope for regular roles. An administrator with SystemAdmin can already manage all resources; do not add a global grant.',
     unknownCapability: 'Unknown capability',
     unassigned: 'No assigned users',
     usersWithRole: 'Users with this role',
@@ -255,6 +258,7 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     deleteAssigned: 'No se puede eliminar aquí un rol todavía asignado; el backend también rechaza una política huérfana.',
     backendRejected: 'El backend rechazó la política.',
     conflictHint: 'La versión de Authority cambió. Recargue y rehaga el cambio.',
+    intelligenceScopeRequired: 'Este permiso requiere un alcance de Equipo/Ubicación para los roles comunes. El administrador con SystemAdmin ya puede gestionar todos los recursos; no añada una concesión global.',
     unknownCapability: 'Capability desconocida',
     unassigned: 'Ningún usuario asignado',
     usersWithRole: 'Usuarios con este rol',
@@ -837,5 +841,5 @@ function scopeKindLabel(kind: number | string) {
 }
 
 function policyErrorMessage(reason: unknown, s: PolicyStrings) {
-  return authorityPolicyErrorMessage(reason, s.backendRejected, s.conflictHint);
+  return authorityPolicyErrorMessage(reason, s.backendRejected, s.conflictHint, s.intelligenceScopeRequired);
 }

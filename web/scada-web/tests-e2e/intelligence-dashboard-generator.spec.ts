@@ -19,7 +19,7 @@ import {
   isNumericTagDataType,
   type IntelligenceProfileCoverageDashboardSelection
 } from '../src/engineering/intelligenceDashboardGenerator';
-import { BUILTIN_VISUAL_OBJECT_TYPES, MAX_TREND_PENS } from '../src/visual-runtime';
+import { BUILTIN_VISUAL_OBJECT_TYPES, MAX_TREND_PENS, VISUAL_PROPERTY_KEYS } from '../src/visual-runtime';
 
 const equipmentAssignment = {
   equipmentName: 'Pump P-101',
@@ -72,6 +72,7 @@ test('dashboard generator builds a canonical editable screen from stable TAG ref
   expect(value?.bindings?.[0]).toMatchObject({
     key: 'text', kind: 'Tag', target: 'Plant.P-101.Flow', tagReference: { tagId: 'tag-flow' }
   });
+  expect(value?.properties).not.toHaveProperty(VISUAL_PROPERTY_KEYS.showEngineeringUnit);
   expect(measurement?.properties).toMatchObject({ minimum: 0, maximum: 120 });
   expect(value?.properties).not.toHaveProperty('minimum');
   expect(trend?.properties?.pens).toHaveLength(2);

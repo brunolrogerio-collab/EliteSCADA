@@ -1,0 +1,50 @@
+.language-select {
+  width: 148px;
+  min-width: 148px;
+  height: 40px;
+  padding: 0 30px 0 11px;
+  border: 1px solid #30475b;
+  border-radius: 11px;
+  background-color: #142436;
+  color: #f4f8fc;
+  font: 600 12px "Segoe UI", Arial, sans-serif;
+  cursor: pointer;
+}
+
+.language-select:hover {
+  border-color: #21d0c3;
+}
+
+@media (max-width: 760px) {
+  .site-header {
+    height: auto;
+    min-height: 98px;
+    padding-block: 9px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .site-header .brand {
+    flex: 0 0 100%;
+    min-width: 0;
+  }
+
+  .site-header .header-actions {
+    width: 100%;
+    flex: 0 0 100%;
+    min-width: 0;
+    justify-content: space-between;
+  }
+
+  .contact-page .header-actions {
+    justify-content: flex-end;
+  }
+
+  .language-select {
+    width: 138px;
+    min-width: 138px;
+    height: 36px;
+    padding-left: 9px;
+    font-size: 11px;
+  }
+}

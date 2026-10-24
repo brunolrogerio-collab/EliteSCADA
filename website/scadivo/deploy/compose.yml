@@ -1,0 +1,86 @@
+name: scadivo_portal
+services:
+  database:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: scadivo_portal
+      POSTGRES_USER: scadivo_portal
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?required}
+    volumes:
+      - database:/var/lib/postgresql
+    networks: [private]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U scadivo_portal -d scadivo_portal']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+    deploy:
+      resources:
+        limits: {memory: 768M}
+  keys-init:
+    image: alpine:3.23
+    user: '0'
+    command: [sh, -c, 'chown 1654:1654 /keys && chmod 700 /keys']
+    volumes: [keys:/keys]
+    network_mode: none
+    restart: 'no'
+  # Compose publishes the service name as a DNS alias on every attached network.
+  # A generic `api` here shadows APIs belonging to other EasyPanel applications.
+  scadivo-portal-api:
+    image: ${PORTAL_IMAGE:?required}
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Portal: Host=database;Database=scadivo_portal;Username=scadivo_portal;Password=${DATABASE_PASSWORD:?required}
+      Portal__PublicUrl: https://scadivo.com/portal/
+      Portal__KeyDirectory: /app/keys
+      Portal__TrustedProxyNetworks: 10.11.0.0/16
+      Portal__PublicRegistrationEnabled: ${PORTAL_PUBLIC_REGISTRATION_ENABLED:-false}
+      Portal__Community__Enabled: ${PORTAL_COMMUNITY_ENABLED:-false}
+      Portal__Community__DiscourseUrl: ${PORTAL_COMMUNITY_DISCOURSE_URL:-}
+      Portal__Community__SharedSecretFile: /run/secrets/community-sso/shared-secret
+      Portal__Bootstrap__Username: scadivo.owner
+      Portal__Bootstrap__PasswordFile: /run/secrets/portal-owner
+      Portal__Email__Enabled: ${PORTAL_EMAIL_ENABLED:-false}
+      Portal__Email__Host: ${PORTAL_SMTP_HOST:-mail.scadivo.com}
+      Portal__Email__Port: ${PORTAL_SMTP_PORT:-465}
+      Portal__Email__Security: SslOnConnect
+      Portal__Email__Username: noreply@scadivo.com
+      Portal__Email__PasswordFile: /run/secrets/portal-mail/smtp-password
+      Portal__Email__FromAddress: noreply@scadivo.com
+      Portal__Email__ReplyToAddress: support@scadivo.com
+      Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
+    volumes:
+      - keys:/app/keys
+      - ./secrets/portal-owner:/run/secrets/portal-owner:ro
+      - ./secrets/portal-mail:/run/secrets/portal-mail:ro
+      - ./secrets/community-sso:/run/secrets/community-sso:ro
+    depends_on:
+      database: {condition: service_healthy}
+      keys-init: {condition: service_completed_successfully}
+    networks:
+      private:
+      proxy:
+        aliases: [scadivo_portal_api]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+    deploy:
+      resources:
+        limits: {memory: 512M}
+networks:
+  private: {internal: true}
+  proxy:
+    external: true
+    name: easypanel
+volumes:
+  database:
+  keys:

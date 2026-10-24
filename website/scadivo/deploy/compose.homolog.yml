@@ -1,0 +1,107 @@
+name: scadivo-portal-homolog
+services:
+  portal-database-homolog:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: scadivo_portal_homolog
+      POSTGRES_USER: scadivo_portal_homolog
+      POSTGRES_PASSWORD: ${SCADIVO_HOMOLOG_DB_PASSWORD:-LocalOnly-Portal-Database-2026!}
+    volumes:
+      - portal-database-homolog:/var/lib/postgresql
+    networks: [homolog-private]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U scadivo_portal_homolog -d scadivo_portal_homolog']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+
+  portal-mailpit-homolog:
+    image: axllent/mailpit:v1.27
+    ports:
+      - '127.0.0.1:18083:8025'
+    networks: [homolog-private, homolog-front]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+
+  portal-keys-init-homolog:
+    image: alpine:3.23
+    user: '0'
+    command: [sh, -c, 'chown 1654:1654 /keys && chmod 700 /keys']
+    volumes: [portal-keys-homolog:/keys]
+    network_mode: none
+    restart: 'no'
+
+  scadivo-portal-api-homolog:
+    build:
+      context: ..
+      dockerfile: portal/Dockerfile
+    entrypoint: [/bin/sh, -c]
+    command: ['umask 077; printf "%s" "$$PORTAL_BOOTSTRAP_PASSWORD" > /tmp/portal-owner; exec dotnet Scadivo.Portal.dll']
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Portal: Host=portal-database-homolog;Database=scadivo_portal_homolog;Username=scadivo_portal_homolog;Password=${SCADIVO_HOMOLOG_DB_PASSWORD:-LocalOnly-Portal-Database-2026!}
+      Portal__PublicUrl: http://localhost:18084/portal/
+      Portal__KeyDirectory: /app/keys
+      Portal__TrustedProxyNetworks: 172.16.0.0/12
+      Portal__Bootstrap__Username: scadivo.owner
+      Portal__Bootstrap__PasswordFile: /tmp/portal-owner
+      Portal__PublicRegistrationEnabled: 'true'
+      Portal__Email__Enabled: 'true'
+      Portal__Email__Host: portal-mailpit-homolog
+      Portal__Email__Port: '1025'
+      Portal__Email__Security: None
+      Portal__Email__FromAddress: noreply@scadivo.local
+      Portal__Email__FromName: SCADIVO Homologação
+      Portal__Email__ReplyToAddress: support@scadivo.local
+      PORTAL_BOOTSTRAP_PASSWORD: ${SCADIVO_HOMOLOG_OWNER_PASSWORD:-LocalOnly-Owner-Change-2026!}
+      Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
+    volumes:
+      - portal-keys-homolog:/app/keys
+    depends_on:
+      portal-database-homolog: {condition: service_healthy}
+      portal-keys-init-homolog: {condition: service_completed_successfully}
+      portal-mailpit-homolog: {condition: service_started}
+    networks:
+      homolog-private:
+        aliases: [scadivo_portal_api]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+    deploy:
+      resources:
+        limits: {memory: 512M}
+
+  scadivo-site-homolog:
+    build:
+      context: ../site
+      dockerfile: Dockerfile
+    ports:
+      - '127.0.0.1:18084:8080'
+    depends_on:
+      scadivo-portal-api-homolog: {condition: service_healthy}
+    networks: [homolog-private, homolog-front]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+
+networks:
+  homolog-private:
+    internal: true
+  homolog-front:
+    driver: bridge
+
+volumes:
+  portal-database-homolog:
+  portal-keys-homolog:

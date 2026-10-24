@@ -1,0 +1,15 @@
+# Compose override for the local SSO proof of concept only.
+# Create the referenced Docker volume and seed a random local test key before enabling.
+services:
+  scadivo-portal-api-homolog:
+    environment:
+      Portal__Community__Enabled: ${SCADIVO_COMMUNITY_HOMOLOG_ENABLED:-false}
+      Portal__Community__DiscourseUrl: ${SCADIVO_COMMUNITY_HOMOLOG_DISCOURSE_URL:-http://localhost:18085}
+      Portal__Community__SharedSecretFile: /run/secrets/community-sso/shared-secret
+    volumes:
+      - community-sso-homolog:/run/secrets/community-sso:ro
+
+volumes:
+  community-sso-homolog:
+    external: true
+    name: scadivo-community-homolog-secret

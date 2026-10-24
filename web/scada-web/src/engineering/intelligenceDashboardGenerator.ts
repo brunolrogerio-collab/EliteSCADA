@@ -269,7 +269,6 @@ function generateDashboardDraft(
           x, y: y + 36, width: cardWidth, height: 92,
           [VISUAL_PROPERTY_KEYS.fontSize]: 28,
           [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
-          [VISUAL_PROPERTY_KEYS.showEngineeringUnit]: true,
           [VISUAL_PROPERTY_KEYS.textColorGood]: '#E2E8F0',
           [VISUAL_PROPERTY_KEYS.textColorBad]: '#FCA5A5'
         }

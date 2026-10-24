@@ -752,6 +752,90 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 Assert.Equal(HttpStatusCode.Unauthorized, oldPasswordLogin.StatusCode);
             using (var newPasswordLogin = await recoverySession.Raw("/auth/login", HttpMethod.Post, new { username = registrationEmail, password = "NewScadivo2!" }))
                 Assert.Equal(HttpStatusCode.OK, newPasswordLogin.StatusCode);
+
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public async Task ExistingOwnerCanConfirmEmailWithoutLosingAccess()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-owner-confirmation-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "test-credential");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var transport = new RecordingEmailTransport();
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:PublicUrl"] = "https://localhost/portal/",
+            ["Portal:Email:Enabled"] = "true",
+            ["Portal:Email:Host"] = "localhost",
+            ["Portal:Email:Username"] = "noreply@scadivo.com",
+            ["Portal:Email:PasswordFile"] = passwordFile,
+            ["Logging:LogLevel:Default"] = "Warning"
+        };
+
+        try
+        {
+            await using var factory = Factory(configuration).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IPortalEmailTransport>();
+                services.AddSingleton<IPortalEmailTransport>(transport);
+                var worker = services.Single(x => x.ServiceType == typeof(IHostedService) && x.ImplementationType == typeof(PortalEmailWorker));
+                services.Remove(worker);
+            }));
+            var email = $"existing-owner-{Guid.NewGuid():N}@example.test";
+            await using var scope = factory.Services.CreateAsyncScope();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+            var user = new PortalUser
+            {
+                UserName = email,
+                Email = email,
+                EmailConfirmed = false,
+                InvitationAccepted = true,
+                DisplayName = "Existing Owner",
+                Locale = "pt-BR"
+            };
+            Assert.True((await users.CreateAsync(user, Password)).Succeeded);
+            Assert.True((await users.AddToRoleAsync(user, "Owner")).Succeeded);
+
+            // An existing owner stays signed in and can use administration while the new email is pending confirmation.
+            var ownerSession = await Login(factory, email);
+            Assert.True((await ownerSession.Get("/admin/overview")).GetProperty("accounts").GetInt32() >= 1);
+
+            using var resendClient = Client(factory);
+            var resendSession = new Session(resendClient, await Csrf(resendClient));
+            using var resendResponse = await resendSession.Raw("/auth/confirmation/resend", HttpMethod.Post, new { email });
+            Assert.Equal(HttpStatusCode.Accepted, resendResponse.StatusCode);
+            Assert.Equal("check-email", (await resendResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+
+            var confirmation = await scope.ServiceProvider.GetRequiredService<PortalDb>().EmailOutbox
+                .SingleAsync(x => x.UserId == user.Id && x.TemplateKey == "account.confirmation");
+            Assert.Null(confirmation.TemplateDataJson);
+            var dispatcher = scope.ServiceProvider.GetRequiredService<PortalEmailDispatcher>();
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            using var message = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Single())));
+            Assert.Equal(email, message.To.Mailboxes.Single().Address);
+            var confirmationUrl = Assert.IsType<string>(message.TextBody).Split('\n').Select(x => x.Trim())
+                .Single(x => x.StartsWith("https://localhost/portal/#confirm-email=", StringComparison.Ordinal));
+            using var payload = Confirmation(confirmationUrl);
+
+            using var confirmClient = Client(factory);
+            var confirmSession = new Session(confirmClient, await Csrf(confirmClient));
+            await confirmSession.Send("/auth/confirm-email", HttpMethod.Post, new
+            {
+                userId = payload.RootElement.GetProperty("userId").GetString(),
+                token = payload.RootElement.GetProperty("token").GetString()
+            });
+            await scope.ServiceProvider.GetRequiredService<PortalDb>().Entry(user).ReloadAsync();
+            Assert.True(user.EmailConfirmed);
+            Assert.True(user.InvitationAccepted);
+            Assert.Contains("Owner", await users.GetRolesAsync(user));
+            Assert.True((await ownerSession.Get("/admin/overview")).GetProperty("accounts").GetInt32() >= 1);
         }
         finally { Directory.Delete(root, recursive: true); }
     }

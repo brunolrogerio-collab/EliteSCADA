@@ -186,7 +186,7 @@ public sealed class PortalOperations(
     {
         if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096)) return Invalid("invalid-confirmation");
         var user = await users.FindByIdAsync(input.UserId!);
-        if (user?.Email is null || user.EmailConfirmed || user.InvitationAccepted) return Invalid("invalid-confirmation");
+        if (user?.Email is null || user.EmailConfirmed) return Invalid("invalid-confirmation");
         string token;
         try { token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(input.Token!)); }
         catch (FormatException) { return Invalid("invalid-confirmation"); }
@@ -207,7 +207,7 @@ public sealed class PortalOperations(
         if (!Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
             !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase)) return Invalid("invalid-email");
         var user = await users.FindByEmailAsync(email!);
-        if (emailSettings.Value.Enabled && user is not null && !user.EmailConfirmed && !user.InvitationAccepted)
+        if (emailSettings.Value.Enabled && user is not null && !user.EmailConfirmed)
         {
             var cooldown = DateTimeOffset.UtcNow.AddMinutes(-2);
             var activeStatuses = new[] { "queued", "retry", "sent" };

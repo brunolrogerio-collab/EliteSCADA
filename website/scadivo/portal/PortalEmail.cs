@@ -98,7 +98,7 @@ public sealed class PortalEmailDispatcher(
             : string.IsNullOrWhiteSpace(recipient) || !MailboxAddress.TryParse(recipient, out _) ? "recipient-missing"
             : template is null ? "template-missing"
             : item.TemplateKey == "account.invitation" && user?.InvitationAccepted == true ? "invitation-accepted"
-            : item.TemplateKey == "account.confirmation" && (user is null || user.EmailConfirmed || user.InvitationAccepted) ? "confirmation-not-required"
+            : item.TemplateKey == "account.confirmation" && (user is null || user.EmailConfirmed) ? "confirmation-not-required"
             : item.TemplateKey == "account.password-reset" && (user is null || !user.EmailConfirmed || !user.InvitationAccepted) ? "password-reset-not-eligible" : null;
         if (reason is not null)
         {

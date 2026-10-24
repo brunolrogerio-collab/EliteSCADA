@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Scadivo.Portal.Data;
@@ -63,8 +64,7 @@ public sealed class PortalLicenseOperations
         var note = input.Note?.Trim();
 
         if (!Valid(applicationName, 2, 120) || requestKind is not ("new" or "convert") ||
-            machineRequestCode is null || machineRequestCode.Length is < 20 or > 8192 ||
-            !machineRequestCode.StartsWith("ESREQ1", StringComparison.Ordinal) ||
+            machineRequestCode is null || !ValidMachineRequestCode(machineRequestCode) ||
             (requestKind == "convert" && !Valid(existingLicenseName, 1, 120)) ||
             (requestKind == "new" && !string.IsNullOrWhiteSpace(existingLicenseName)) ||
             (!string.IsNullOrWhiteSpace(note) && note.Length > 800))
@@ -186,6 +186,37 @@ public sealed class PortalLicenseOperations
         NeedsInformation => next is Reviewing or Declined,
         _ => false
     };
+
+    private static bool ValidMachineRequestCode(string? requestCode)
+    {
+        if (requestCode is null || requestCode.Length is < 20 or > 8192) return false;
+        var parts = requestCode.Split('.', StringSplitOptions.None);
+        if (parts.Length != 2 || !string.Equals(parts[0], "ESREQ1", StringComparison.Ordinal) ||
+            parts[1].Length == 0 || parts[1].Length % 4 == 1 ||
+            parts[1].Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ('-' or '_')))
+            return false;
+
+        var base64 = parts[1].Replace('-', '+').Replace('_', '/');
+        base64 += (base64.Length % 4) switch { 0 => "", 2 => "==", 3 => "=", _ => string.Empty };
+        try
+        {
+            using var document = JsonDocument.Parse(Convert.FromBase64String(base64));
+            var payload = document.RootElement;
+            if (payload.ValueKind != JsonValueKind.Object ||
+                !payload.TryGetProperty("schemaVersion", out var schema) ||
+                !schema.TryGetInt32(out var schemaVersion) || schemaVersion != 1 ||
+                !payload.TryGetProperty("machineFingerprint", out var fingerprint) ||
+                fingerprint.ValueKind != JsonValueKind.String)
+                return false;
+
+            var value = fingerprint.GetString();
+            return value is { Length: 64 } && value.All(Uri.IsHexDigit);
+        }
+        catch (Exception exception) when (exception is FormatException or JsonException)
+        {
+            return false;
+        }
+    }
 
     private static bool Valid(string? value, int minimum, int maximum) => value is not null && value.Length >= minimum && value.Length <= maximum;
     private static string UserId(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier)!;

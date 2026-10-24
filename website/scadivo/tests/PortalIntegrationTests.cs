@@ -47,6 +47,13 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             await using var factory = Factory(configuration);
             var owner = await Login(factory, "scadivo.owner");
             var marker = Guid.NewGuid().ToString("N")[..8];
+            string BuildMachineRequestCode(int schemaVersion, string fingerprint)
+            {
+                var payload = JsonSerializer.Serialize(new { schemaVersion, machineFingerprint = fingerprint });
+                var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(payload)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+                return "ESREQ1." + encoded;
+            }
+
             var invite = await owner.Send("/admin/invitations", HttpMethod.Post,
                 new { username = "license-" + marker, displayName = "License Customer" });
             var invitation = Invitation(invite);
@@ -88,7 +95,20 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 machineRequestCode = "ESLIC1.not-a-machine-request"
             })) Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
 
-            var machineRequestCode = "ESREQ1." + Convert.ToBase64String(Encoding.UTF8.GetBytes("machine-request-" + marker));
+            using (var malformed = await customer.Raw("/licenses/offline-requests", HttpMethod.Post, new
+            {
+                applicationName = "Pump station",
+                requestKind = "new",
+                machineRequestCode = "ESREQ1.not-base64!"
+            })) Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
+            using (var unsupportedSchema = await customer.Raw("/licenses/offline-requests", HttpMethod.Post, new
+            {
+                applicationName = "Pump station",
+                requestKind = "new",
+                machineRequestCode = BuildMachineRequestCode(2, new string('a', 64))
+            })) Assert.Equal(HttpStatusCode.BadRequest, unsupportedSchema.StatusCode);
+
+            var machineRequestCode = BuildMachineRequestCode(1, new string('a', 64));
             var created = await customer.Send("/licenses/offline-requests", HttpMethod.Post, new
             {
                 applicationName = "Pump station",

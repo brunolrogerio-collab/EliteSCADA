@@ -554,6 +554,8 @@ public sealed class PortalOperations(
         sentMessages = await db.EmailOutbox.CountAsync(x => x.Status == "sent"),
         failedMessages = await db.EmailOutbox.CountAsync(x => x.Status == "failed"),
         publishedDownloads = await db.Releases.CountAsync(x => x.Published),
+        offlineMachineLicenseRequestsEnabled = configuration.GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"),
+        pendingOfflineMachineLicenseRequests = await db.OfflineMachineLicenseRequests.CountAsync(x => x.Status == "submitted" || x.Status == "reviewing" || x.Status == "needs-information"),
         emailDeliveryConfigured = emailSettings.Value.Enabled,
         publicRegistrationEnabled = configuration.GetValue<bool>("Portal:PublicRegistrationEnabled"),
         licenseIntegrationEnabled = false

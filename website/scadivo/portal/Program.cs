@@ -94,6 +94,7 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 40, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddScoped<PortalOperations>();
+builder.Services.AddScoped<PortalLicenseOperations>();
 builder.Services.AddSingleton<PortalEmailSignal>();
 builder.Services.AddOptions<PortalEmailOptions>().BindConfiguration("Portal:Email")
     .Validate(options => options.Valid(builder.Environment.IsDevelopment()), "SMTP configuration requires TLS, valid addresses and a credential file.")

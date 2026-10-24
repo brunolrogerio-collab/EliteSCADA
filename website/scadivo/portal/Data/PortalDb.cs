@@ -130,6 +130,21 @@ public sealed class PortalAudit
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public sealed class OfflineMachineLicenseRequest
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string UserId { get; set; } = "";
+    public string ApplicationName { get; set; } = "";
+    public string RequestKind { get; set; } = "new";
+    public string? ExistingLicenseName { get; set; }
+    public string MachineRequestCodeProtected { get; set; } = "";
+    public string? RequestNote { get; set; }
+    public string Status { get; set; } = "submitted";
+    public string? ReviewedByUserId { get; set; }
+    public DateTimeOffset SubmittedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbContext<PortalUser>(options)
 {
     public DbSet<Organization> Organizations => Set<Organization>();
@@ -141,6 +156,7 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
     public DbSet<EmailOutbox> EmailOutbox => Set<EmailOutbox>();
     public DbSet<DownloadRelease> Releases => Set<DownloadRelease>();
     public DbSet<PortalAudit> Audit => Set<PortalAudit>();
+    public DbSet<OfflineMachineLicenseRequest> OfflineMachineLicenseRequests => Set<OfflineMachineLicenseRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -178,5 +194,15 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<DownloadRelease>().Property(x => x.Sha256).HasMaxLength(64);
         builder.Entity<PortalAudit>().HasIndex(x => x.CreatedAtUtc);
         builder.Entity<PortalAudit>().Property(x => x.Action).HasMaxLength(100);
+        builder.Entity<OfflineMachineLicenseRequest>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<OfflineMachineLicenseRequest>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.ReviewedByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.ApplicationName).HasMaxLength(120);
+        builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.RequestKind).HasMaxLength(24);
+        builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.ExistingLicenseName).HasMaxLength(120);
+        builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.MachineRequestCodeProtected).HasColumnType("text");
+        builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.RequestNote).HasMaxLength(800);
+        builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.Status).HasMaxLength(40);
+        builder.Entity<OfflineMachineLicenseRequest>().HasIndex(x => new { x.UserId, x.SubmittedAtUtc });
+        builder.Entity<OfflineMachineLicenseRequest>().HasIndex(x => new { x.Status, x.SubmittedAtUtc });
     }
 }

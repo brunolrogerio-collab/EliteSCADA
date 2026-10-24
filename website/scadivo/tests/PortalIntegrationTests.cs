@@ -25,6 +25,101 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     private const string Password = "Scad1vo!";
 
     [Fact]
+    public async Task OfflineMachineLicenseRequestIsEncryptedAndOwnerReviewed()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-license-request-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "owner");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:PublicRegistrationEnabled"] = "true",
+            ["Portal:OfflineMachineLicenseRequestsEnabled"] = "true",
+            ["Logging:LogLevel:Default"] = "Warning"
+        };
+
+        try
+        {
+            await using var factory = Factory(configuration);
+            var owner = await Login(factory, "scadivo.owner");
+            var marker = Guid.NewGuid().ToString("N")[..8];
+            var invite = await owner.Send("/admin/invitations", HttpMethod.Post,
+                new { username = "license-" + marker, displayName = "License Customer" });
+            var invitation = Invitation(invite);
+            using var invitedClient = Client(factory);
+            var invited = new Session(invitedClient, await Csrf(invitedClient));
+            using (var accepted = await invited.Raw("/auth/accept-invitation", HttpMethod.Post, new
+            {
+                userId = invitation.UserId,
+                token = invitation.Token,
+                password = Password,
+                locale = "pt-BR",
+                profileType = "professional",
+                activityArea = "industrial-automation",
+                organizationOrSchool = "Example Automation"
+            })) Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+            var customer = await Login(factory, "license-" + marker);
+
+            using (var invalid = await customer.Raw("/licenses/offline-requests", HttpMethod.Post, new
+            {
+                applicationName = "Pump station",
+                requestKind = "new",
+                machineRequestCode = "ESLIC1.not-a-machine-request"
+            })) Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+
+            var machineRequestCode = "ESREQ1." + Convert.ToBase64String(Encoding.UTF8.GetBytes("machine-request-" + marker));
+            var created = await customer.Send("/licenses/offline-requests", HttpMethod.Post, new
+            {
+                applicationName = "Pump station",
+                requestKind = "convert",
+                existingLicenseName = "Pump station online",
+                machineRequestCode,
+                note = "Preciso operar sem conexão externa."
+            });
+            var requestId = created.GetProperty("id").GetGuid();
+            Assert.Equal("submitted", created.GetProperty("status").GetString());
+            Assert.DoesNotContain("machineRequestCode", created.ToString(), StringComparison.OrdinalIgnoreCase);
+
+            var customerRequests = await customer.Get("/licenses/offline-requests");
+            Assert.Equal(1, customerRequests.GetArrayLength());
+            Assert.Equal(requestId, customerRequests[0].GetProperty("id").GetGuid());
+            Assert.DoesNotContain("machineRequestCode", customerRequests[0].ToString(), StringComparison.OrdinalIgnoreCase);
+
+            using (var denied = await customer.Client.GetAsync($"api/admin/license-requests/offline/{requestId:D}"))
+                Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+            var adminRequests = await owner.Get("/admin/license-requests/offline");
+            Assert.Contains(adminRequests.EnumerateArray(), item => item.GetProperty("id").GetGuid() == requestId);
+            Assert.All(adminRequests.EnumerateArray(), item => Assert.DoesNotContain("machineRequestCode", item.ToString(), StringComparison.OrdinalIgnoreCase));
+
+            var detail = await owner.Get($"/admin/license-requests/offline/{requestId:D}");
+            Assert.Equal(machineRequestCode, detail.GetProperty("machineRequestCode").GetString());
+            Assert.Equal("Preciso operar sem conexão externa.", detail.GetProperty("requestNote").GetString());
+
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                var stored = await db.OfflineMachineLicenseRequests.SingleAsync(x => x.Id == requestId);
+                Assert.NotEqual(machineRequestCode, stored.MachineRequestCodeProtected);
+                Assert.DoesNotContain(machineRequestCode, stored.MachineRequestCodeProtected, StringComparison.Ordinal);
+                Assert.Contains(await db.Audit.AsNoTracking().Where(x => x.ResourceId == requestId.ToString("D")).ToListAsync(),
+                    x => x.Action == "licensing.offline-request.code-viewed");
+            }
+
+            await owner.Send($"/admin/license-requests/offline/{requestId:D}/status", HttpMethod.Put, new { status = "reviewing" });
+            await owner.Send($"/admin/license-requests/offline/{requestId:D}/status", HttpMethod.Put, new { status = "approved-for-signing" });
+            using (var cannotIssue = await owner.Raw($"/admin/license-requests/offline/{requestId:D}/status", HttpMethod.Put, new { status = "issued" }))
+                Assert.Equal(HttpStatusCode.BadRequest, cannotIssue.StatusCode);
+            Assert.Equal("approved-for-signing", (await customer.Get("/licenses/offline-requests"))[0].GetProperty("status").GetString());
+            Assert.True((await customer.Get("/session")).GetProperty("offlineMachineLicenseRequestsEnabled").GetBoolean());
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void CommunitySsoAllowsHttpOnlyForLoopbackInDevelopment()
     {
         var secretFile = Path.GetTempFileName();

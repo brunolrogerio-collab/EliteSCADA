@@ -565,11 +565,30 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var member = await Login(factory, "mail-" + marker);
             var ticket = await member.Send("/support", HttpMethod.Post, new { subject = "Email test", category = "technical", body = "A private support request for delivery verification." });
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            var ticketId = ticket.GetProperty("id").GetGuid();
+            var ticketNotices = transport.Messages.Skip(1).Take(2)
+                .Select(raw => MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(raw)))).ToArray();
+            var customerReceipt = Assert.Single(ticketNotices, message => message.To.Mailboxes.Single().Address != "support@scadivo.com");
+            Assert.Contains("SCADIVO support request received", customerReceipt.Subject);
+            var teamTicketNotice = Assert.Single(ticketNotices, message => message.To.Mailboxes.Single().Address == "support@scadivo.com");
+            Assert.Contains(ticketId.ToString(), teamTicketNotice.TextBody);
+            Assert.Contains("Técnico", teamTicketNotice.TextBody);
+            Assert.Contains("https://localhost/portal/#support", teamTicketNotice.TextBody);
+            Assert.DoesNotContain("A private support request for delivery verification.", teamTicketNotice.TextBody);
             await owner.Send("/support/" + ticket.GetProperty("id").GetGuid() + "/messages", HttpMethod.Post, new { body = "Private staff reply is not copied into email." });
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
-            Assert.Equal(3, transport.Messages.Count);
+            Assert.Equal(4, transport.Messages.Count);
             Assert.DoesNotContain("Private staff reply", transport.Messages.Last());
-            Assert.True((await owner.Get("/admin/overview")).GetProperty("sentMessages").GetInt32() >= 3);
+            await member.Send("/support/" + ticketId + "/messages", HttpMethod.Post, new { body = "Private customer reply is not copied into the staff email either." });
+            Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
+            Assert.Equal(5, transport.Messages.Count);
+            var teamReplyNotice = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Last())));
+            Assert.Equal("support@scadivo.com", teamReplyNotice.To.Mailboxes.Single().Address);
+            Assert.Contains(ticketId.ToString(), teamReplyNotice.TextBody);
+            Assert.Contains("https://localhost/portal/#support", teamReplyNotice.TextBody);
+            Assert.DoesNotContain("Private customer reply is not copied into the staff email either.", teamReplyNotice.TextBody);
+            Assert.True((await owner.Get("/admin/overview")).GetProperty("sentMessages").GetInt32() >= 5);
 
             var usersBeforeContact = await db.Users.CountAsync();
             using var contactClient = Client(factory);
@@ -591,8 +610,8 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Contains(contactOutbox, item => item.TemplateKey == "contact.received" && item.RecipientAddress == "visitor@example.test");
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
-            Assert.Equal(5, transport.Messages.Count);
-            var contactMessages = transport.Messages.Skip(3)
+            Assert.Equal(7, transport.Messages.Count);
+            var contactMessages = transport.Messages.Skip(5)
                 .Select(raw => MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(raw)))).ToArray();
             var staffNotice = Assert.Single(contactMessages, message => message.To.Mailboxes.Single().Address == "support@scadivo.com");
             Assert.Equal("visitor@example.test", staffNotice.ReplyTo.Mailboxes.Single().Address);
@@ -682,7 +701,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             }
             Assert.Empty(await db.EmailOutbox.Where(x => x.UserId == pendingAccount.Id && x.TemplateKey == "account.password-reset").ToListAsync());
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
-            Assert.Equal(6, transport.Messages.Count);
+            Assert.Equal(8, transport.Messages.Count);
             using var confirmationMessage = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Last())));
             Assert.Empty(confirmationMessage.ReplyTo);
             Assert.Contains("No respondas a este correo electrónico.", confirmationMessage.TextBody);
@@ -724,7 +743,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Null(resetOutbox.TemplateDataJson); // Reset token is generated only while sending, never stored.
             Assert.Equal(pendingAccount.Id, resetOutbox.Reference);
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
-            Assert.Equal(7, transport.Messages.Count);
+            Assert.Equal(9, transport.Messages.Count);
             using var resetMessage = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(transport.Messages.Last())));
             Assert.Equal("noreply@scadivo.com", resetMessage.From.Mailboxes.Single().Address);
             Assert.Empty(resetMessage.ReplyTo);

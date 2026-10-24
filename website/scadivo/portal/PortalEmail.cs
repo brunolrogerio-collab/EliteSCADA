@@ -94,7 +94,7 @@ public sealed class PortalEmailDispatcher(
         var user = item.UserId is null ? null : await users.FindByIdAsync(item.UserId);
         var template = await db.EmailTemplates.FindAsync([item.TemplateKey], cancellationToken);
         var recipient = item.RecipientAddress ?? user?.Email;
-        var reason = item.TemplateKey is not ("account.invitation" or "account.confirmation" or "account.password-reset" or "support.created" or "support.replied" or "contact.received" or "contact.notification") ? "unsupported-template"
+        var reason = item.TemplateKey is not ("account.invitation" or "account.confirmation" or "account.password-reset" or "support.created" or "support.replied" or "support.team-ticket" or "support.team-reply" or "contact.received" or "contact.notification") ? "unsupported-template"
             : string.IsNullOrWhiteSpace(recipient) || !MailboxAddress.TryParse(recipient, out _) ? "recipient-missing"
             : template is null ? "template-missing"
             : item.TemplateKey == "account.invitation" && user?.InvitationAccepted == true ? "invitation-accepted"
@@ -112,7 +112,9 @@ public sealed class PortalEmailDispatcher(
             try
             {
                 var publicUrl = configuration["Portal:PublicUrl"] ?? "https://scadivo.com/portal/";
-                var link = item.TemplateKey switch
+                var link = item.TemplateKey is "support.team-ticket" or "support.team-reply"
+                    ? $"{publicUrl.TrimEnd('/')}/#support"
+                    : item.TemplateKey switch
                 {
                     "account.invitation" => await PortalInvitations.LinkAsync(users, user!, publicUrl),
                     "account.confirmation" => await PortalInvitations.ConfirmationLinkAsync(users, user!, publicUrl),
@@ -131,6 +133,20 @@ public sealed class PortalEmailDispatcher(
                 var locale = data.GetValueOrDefault("locale") ?? user?.Locale ?? "pt-BR";
                 var english = locale == "en";
                 var spanish = locale == "es";
+                if ((item.TemplateKey is "support.team-ticket" or "support.team-reply") && data.TryGetValue("category", out var category))
+                    data["category"] = (category, locale) switch
+                    {
+                        ("technical", "en") => "Technical",
+                        ("commercial", "en") => "Commercial",
+                        ("account", "en") => "Account",
+                        ("technical", "es") => "Técnico",
+                        ("commercial", "es") => "Comercial",
+                        ("account", "es") => "Cuenta",
+                        ("technical", _) => "Técnico",
+                        ("commercial", _) => "Comercial",
+                        ("account", _) => "Conta",
+                        _ => category
+                    };
                 if ((locale is "en" or "es") && link.Contains('#'))
                 {
                     var hash = link.IndexOf('#');

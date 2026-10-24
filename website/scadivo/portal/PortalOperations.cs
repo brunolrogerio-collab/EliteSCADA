@@ -371,6 +371,7 @@ public sealed class PortalOperations(
         db.Tickets.Add(ticket);
         db.TicketMessages.Add(new TicketMessage { TicketId = ticket.Id, UserId = id, Body = input.Body!.Trim(), StaffReply = false });
         db.EmailOutbox.Add(Notification(id, "support.created", ticket.Id.ToString()));
+        db.EmailOutbox.Add(TeamNotification("support.team-ticket", ticket.Id, ticket.Category));
         db.Audit.Add(new PortalAudit { ActorId = id, Action = "support.created", ResourceId = ticket.Id.ToString() });
         await db.SaveChangesAsync();
         emailSignal.Notify();
@@ -386,10 +387,10 @@ public sealed class PortalOperations(
         db.TicketMessages.Add(new TicketMessage { TicketId = id, UserId = UserId(context), Body = input.Body!.Trim(), StaffReply = staff });
         ticket.UpdatedAtUtc = DateTimeOffset.UtcNow;
         if (staff) { ticket.Status = "answered"; db.EmailOutbox.Add(Notification(ticket.UserId, "support.replied", id.ToString())); }
-        else ticket.Status = "open";
+        else { ticket.Status = "open"; db.EmailOutbox.Add(TeamNotification("support.team-reply", ticket.Id, ticket.Category)); }
         db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = "support.replied", ResourceId = id.ToString() });
         await db.SaveChangesAsync();
-        if (staff) emailSignal.Notify();
+        emailSignal.Notify();
         return Results.Ok(new { replied = true });
     }
 
@@ -613,6 +614,19 @@ public sealed class PortalOperations(
     private EmailOutbox Notification(string userId, string template, string reference) => new()
     {
         UserId = userId, TemplateKey = template, Reference = reference,
+        Status = emailSettings.Value.Enabled ? "queued" : "awaiting-transport"
+    };
+
+    private EmailOutbox TeamNotification(string template, Guid ticketId, string category) => new()
+    {
+        RecipientAddress = emailSettings.Value.ReplyToAddress,
+        TemplateKey = template,
+        Reference = ticketId.ToString(),
+        TemplateDataJson = JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["locale"] = "pt-BR",
+            ["category"] = category
+        }),
         Status = emailSettings.Value.Enabled ? "queued" : "awaiting-transport"
     };
 

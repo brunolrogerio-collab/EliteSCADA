@@ -11,7 +11,7 @@ public sealed class ContextualHelpTests
     [Fact]
     public void RequiredManualTopics_ArePresentInEveryLocale()
     {
-        Assert.Equal(48, ContextualHelpCatalog.RequiredManualTopicIds.Count);
+        Assert.Equal(52, ContextualHelpCatalog.RequiredManualTopicIds.Count);
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {
@@ -622,7 +622,11 @@ public sealed class ContextualHelpTests
             "licensing.generator",
             "runtime.session-classes",
             "application.export-import",
-            "intelligence.process-stage-member-insights"
+            "intelligence.process-stage-member-insights",
+            "runtime.history",
+            "ha.overview",
+            "installation.switching",
+            "intelligence.overview"
         };
         var headings = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
@@ -996,6 +1000,99 @@ public sealed class ContextualHelpTests
 
             foreach (var phrase in expectedPhrases)
                 Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void NewlyExpandedSurfaceHelp_ExplainsCurrentWorkflowsAndLimitsInEveryLocale()
+    {
+        var expectations = new Dictionary<string, Dictionary<string, string[]>>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new()
+            {
+                ["runtime.history"] = new[] { "31 dias", "Playback", "somente leitura", "não cria amostras retroativas" },
+                ["ha.overview"] = new[] { "Configuração desejada", "Prontidão para HA", "restart necessário", "backend", "Failover automático só pode ser habilitado com a proteção correspondente" },
+                ["installation.switching"] = new[] { "estado neutral", ".escadapkg", "Historian é preservado", "sessões anteriores" },
+                ["intelligence.overview"] = new[] { "Perfil de medição", "etapas do processo", "não inventa valores ou KPIs", "não significa zero" }
+            },
+            ["en"] = new()
+            {
+                ["runtime.history"] = new[] { "31 days", "Playback", "read-only", "does not create backfilled samples" },
+                ["ha.overview"] = new[] { "Save desired configuration", "HA readiness", "restart is required", "backend", "Automatic failover can be enabled only with the corresponding protection" },
+                ["installation.switching"] = new[] { "neutral state", ".escadapkg", "Historian is preserved", "previous sessions" },
+                ["intelligence.overview"] = new[] { "Measurement profile", "process stages", "does not invent values or KPIs", "does not mean zero" }
+            },
+            ["es"] = new()
+            {
+                ["runtime.history"] = new[] { "31 días", "Playback", "solo lectura", "no crea muestras retroactivas" },
+                ["ha.overview"] = new[] { "Guardar configuración deseada", "Preparación para HA", "se necesita reiniciar", "backend", "El failover automático solo puede habilitarse con la protección correspondiente" },
+                ["installation.switching"] = new[] { "estado neutral", ".escadapkg", "Historian se conserva", "sesiones anteriores" },
+                ["intelligence.overview"] = new[] { "Perfil de medición", "etapas del proceso", "no inventa valores ni KPIs", "no significa cero" }
+            }
+        };
+
+        foreach (var (locale, topics) in expectations)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            foreach (var (id, phrases) in topics)
+            {
+                var topic = Assert.Single(catalog.Topics, item => item.Id == id);
+                var text = string.Join("\n", new[] { topic.Title, topic.Summary }
+                    .Concat(topic.Sections.Select(section => section.Body)));
+                foreach (var phrase in phrases)
+                    Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    [Fact]
+    public void FoundationAndTagHelp_ExplainsFirstUseRuntimeAndSignalInterpretationInEveryLocale()
+    {
+        var expectations = new Dictionary<string, Dictionary<string, string[]>>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new()
+            {
+                ["getting-started.startup-authentication"] = new[] { "Restore-first", "conta local", "não use senhas padrão" },
+                ["runtime.overview"] = new[] { "revisão Active", "View Only", "volte ao Live", "não repita automaticamente" },
+                ["tags.quality"] = new[] { "Good", "Uncertain", "BadCommunication", "não converta em zero" },
+                ["tags.timestamps"] = new[] { "horário em que EliteSCADA observou", "Source timestamp", "Server timestamp", "Synchronized" },
+                ["tags.writeability"] = new[] { "ProcessValueWrite", "CommandExecute", "View Only", "processo vivo" },
+                ["tags.addressing"] = new[] { "Data Source", "schema", "Test read/Monitor", "não grava processo" },
+                ["tags.scaling-formatting"] = new[] { "Raw evidence", "Engineering value", "formatação", "não aplica" }
+            },
+            ["en"] = new()
+            {
+                ["getting-started.startup-authentication"] = new[] { "Restore-first", "local account", "Do not use default passwords" },
+                ["runtime.overview"] = new[] { "Active revision", "View Only", "return to Live", "do not automatically repeat" },
+                ["tags.quality"] = new[] { "Good", "Uncertain", "BadCommunication", "do not convert it to zero" },
+                ["tags.timestamps"] = new[] { "locally observed/published", "Source timestamp", "Server timestamp", "Synchronized" },
+                ["tags.writeability"] = new[] { "ProcessValueWrite", "CommandExecute", "View Only", "live process" },
+                ["tags.addressing"] = new[] { "Data Source", "schema", "Test read/Monitor", "does not write to the process" },
+                ["tags.scaling-formatting"] = new[] { "Raw evidence", "Engineering value", "formatting", "does not apply" }
+            },
+            ["es"] = new()
+            {
+                ["getting-started.startup-authentication"] = new[] { "Restore-first", "cuenta local", "No use contraseñas predeterminadas" },
+                ["runtime.overview"] = new[] { "revisión Active", "View Only", "vuelva a Live", "no repita automáticamente" },
+                ["tags.quality"] = new[] { "Good", "Uncertain", "BadCommunication", "no lo convierta en cero" },
+                ["tags.timestamps"] = new[] { "observó/publicó localmente", "Source timestamp", "Server timestamp", "Synchronized" },
+                ["tags.writeability"] = new[] { "ProcessValueWrite", "CommandExecute", "View Only", "proceso real" },
+                ["tags.addressing"] = new[] { "Data Source", "schema", "Test read/Monitor", "no escribe en el proceso" },
+                ["tags.scaling-formatting"] = new[] { "Raw evidence", "Engineering value", "formato", "no aplica" }
+            }
+        };
+
+        foreach (var (locale, topics) in expectations)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            foreach (var (id, phrases) in topics)
+            {
+                var topic = Assert.Single(catalog.Topics, item => item.Id == id);
+                var text = string.Join("\n", new[] { topic.Title, topic.Summary }
+                    .Concat(topic.Sections.Select(section => section.Body)));
+                foreach (var phrase in phrases)
+                    Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            }
         }
     }
 

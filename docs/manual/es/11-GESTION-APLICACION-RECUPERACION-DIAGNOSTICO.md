@@ -81,7 +81,24 @@ La recuperación conserva autoridades separadas:
 
 ## Application detach / instalación neutral / cambio A -> B -> A
 
-La estructura de estos procedimientos está reservada en el índice, pero los pasos finales dependen de que se cierre la experiencia de instalación y cambio. No use instrucciones antiguas ni operaciones manuales del store como sustituto.
+Engineering > Instalación desvincula la Application y Authority actuales y devuelve la instalación a un estado neutral para un nuevo bootstrap. No es eliminar el proyecto, desinstalar el producto ni quitar automáticamente la licencia.
+
+### Procedimiento: cambiar la Application de forma segura
+
+**Requisitos previos:** acceso autorizado a la administración de la instalación; decisión sobre lo que debe conservarse; backups de Application y Authority cuando sean necesarios para volver atrás.
+
+**Pasos:**
+1. Revise el resumen de la instalación, incluidos los cambios Working aún no publicados.
+2. Exporte la Application como `.escadapkg`. Si necesita conservar usuarios/identidades locales, exporte Authority por separado con la contraseña solicitada por la página. `.escadapkg` no contiene credenciales.
+3. Abra **Desvincular aplicación de esta instalación** y lea las consecuencias. Confirme los acknowledgements mostrados para Application, Authority, sesiones antiguas, Historian y cambios Working.
+4. Decida si mantiene, quita o reemplaza la licencia de la máquina. La candidata sustituta se valida antes del detach.
+5. Lea y resuelva los bloqueos. Si decide continuar sin uno de los backups recomendados, reconózcalo explícitamente en la página.
+6. Elija **Desvincular y volver a neutral** y espere la transacción del servidor. Después de un error, actualice y compruebe el estado real antes de repetir.
+7. En el bootstrap neutral, vincule la siguiente Application y configure su Authority mediante el flujo normal.
+
+**Resultado esperado:** la Application y Authority anteriores dejan de estar vinculadas y los tokens/sesiones antiguos dejan de autorizar acciones; la instalación vuelve al bootstrap neutral. Historian se conserva; la base de datos y sus backups siguen siendo una preocupación separada. La licencia sigue la opción confirmada.
+
+**Ayuda relacionada:** `/help?topic=installation.switching`, `/help?topic=application.export-import`, `/help?topic=recovery.backup-system-recovery`, `/help?topic=getting-started.neutral-bootstrap`.
 
 ## Flujo de diagnóstico
 

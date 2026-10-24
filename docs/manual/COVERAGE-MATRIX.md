@@ -1,6 +1,6 @@
 # EliteSCADA Manual — Coverage Matrix
 
-Estados: `COMPLETE`, `DRAFT_STABLE`, `BLOCKED_PRODUCT`, `FINAL_REVIEW_REQUIRED`.
+Estados: `COMPLETE`, `DRAFT_STABLE`, `DRAFT_CURRENT`, `BLOCKED_PRODUCT`, `FINAL_REVIEW_REQUIRED`. `DRAFT_CURRENT` documenta uma interface disponível hoje que pode evoluir; não equivale à aceitação do comportamento do produto.
 
 Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-BR/en/es depende do fechamento do glossário/localização; a estrutura de locales já existe.
 
@@ -66,8 +66,8 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 58. Capture policies | DRAFT_STABLE | #425 / #306 | Alarm/Event/Audit/Historian/Trend product contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 59. Historical Browser | DRAFT_STABLE | #425 / #306 | Alarm/Event/Audit/Historian/Trend product contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 60. Trends | DRAFT_STABLE | #425 / #306 | Alarm/Event/Audit/Historian/Trend product contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 61. Historical Time Range | BLOCKED_PRODUCT | #425 / #306 | #383 + historical consumer contracts; #383 Historical Time Range | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 62. Historical Playback | BLOCKED_PRODUCT | #425 / #306 | #383 + historical consumer contracts; #383 + Historical Playback follow-on | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
+| 61. Historical Time Range | DRAFT_STABLE | #425 / #306 | Runtime Historical Browser controls and `runtime.history` | pt-BR/en/es procedures added; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 62. Historical Playback | DRAFT_STABLE | #425 / #306 | Runtime Playback overlay and read-only operation guard | pt-BR/en/es procedures added; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 63. Reports | DRAFT_STABLE | #425 / #306 | Reports contract + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 64. Runtime | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 65. Navigation | DRAFT_STABLE | #425 / #306 | Runtime/session/diagnostics contracts + contextual Help | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
@@ -95,7 +95,7 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 87. Demo/no-license | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 88. Runtime session quotas | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 89. Interactive/View Only | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
-| 90. Redundancy entitlement | BLOCKED_PRODUCT | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts; #421/#423 HA licensing entitlement closure | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
+| 90. Redundancy entitlement | DRAFT_STABLE | #425 / #306 | Product licensing API; HA entitlement and current administration UI | pt-BR/en/es current guidance added; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 91. License Generator | DRAFT_STABLE | #425 / #306 | Product licensing API; offline license operations; session entitlement contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 92. Export .escadapkg | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 93. Import | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
@@ -106,21 +106,21 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 98. Application detach | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 99. Neutral installation | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 100. A -> B -> A switching | DRAFT_STABLE | #425 / #306 | Project package/recovery/portability contracts | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
-| 101. Conceitos HA | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 102. Cluster | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 103. Nodes | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 104. Active/Standby | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 105. ReadyStandby | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 106. Synchronization | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 107. Manual transfer | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 108. Fencing | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 109. Runtime/TAG mirror | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 110. Session continuity | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 111. Automatic failover | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 112. Failback | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 113. Split-brain/ambiguous conditions | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 114. Diagnostics HA | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
-| 115. Operational procedures | BLOCKED_PRODUCT | #425 / #306 | #421/#423 HA contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
+| 101. Conceitos HA | DRAFT_CURRENT | #425 / #306 | HA admin UI, topology and HA contract | pt-BR/en/es current behavior documented; #423 remains product verification, not a documentation blocker | PENDING_FINAL |
+| 102. Cluster | DRAFT_CURRENT | #425 / #306 | HA admin UI and topology contract | pt-BR/en/es current behavior documented; final review required | PENDING_FINAL |
+| 103. Nodes | DRAFT_CURRENT | #425 / #306 | HA admin UI and node configuration/status | pt-BR/en/es current behavior documented; final review required | PENDING_FINAL |
+| 104. Active/Standby | DRAFT_CURRENT | #425 / #306 | HA admin UI effective Active and peer status | pt-BR/en/es current behavior documented; final review required | PENDING_FINAL |
+| 105. ReadyStandby | DRAFT_CURRENT | #425 / #306 | HA status/readiness fields | pt-BR/en/es current behavior documented; final review required | PENDING_FINAL |
+| 106. Synchronization | DRAFT_CURRENT | #425 / #306 | HA peer, freshness and mirror status | pt-BR/en/es current behavior documented; final review required | PENDING_FINAL |
+| 107. Manual transfer | DRAFT_CURRENT | #425 / #306 | Visible Switchover/Failback actions and backend eligibility | pt-BR/en/es current behavior documented; #423 outcomes are not claimed accepted | PENDING_FINAL |
+| 108. Fencing | DRAFT_CURRENT | #425 / #306 | HA protection and shared-reference controls | pt-BR/en/es current behavior documented; final review required | PENDING_FINAL |
+| 109. Runtime/TAG mirror | DRAFT_CURRENT | #425 / #306 | HA and Runtime surfaces | Describe only the values/state actually exposed; final review required | PENDING_FINAL |
+| 110. Session continuity | DRAFT_CURRENT | #425 / #306 | HA session/lease behavior exposed by current product | Bound to implemented behavior; no new guarantee inferred | PENDING_FINAL |
+| 111. Automatic failover | DRAFT_CURRENT | #425 / #306 | Automatic failover and protection controls | Interface accepted; some backend tests remain in #423; do not imply those tests passed | PENDING_FINAL |
+| 112. Failback | DRAFT_CURRENT | #425 / #306 | Visible Failback action and backend eligibility | Describe the current action, not guaranteed outcome | PENDING_FINAL |
+| 113. Split-brain/ambiguous conditions | DRAFT_CURRENT | #425 / #306 | HA authority/fencing status and blocked state | Describe operator-visible warnings and safe response; final review required | PENDING_FINAL |
+| 114. Diagnostics HA | DRAFT_CURRENT | #425 / #306 | HA status, operation history and diagnostics | pt-BR/en/es current behavior documented; final review required | PENDING_FINAL |
+| 115. Operational procedures | DRAFT_CURRENT | #425 / #306 | HA admin UI and controlled-operation guidance | Use a maintenance plan and controlled topology; do not claim unverified failover proof | PENDING_FINAL |
 | 116. Application backup | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 117. Authority backup | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 118. Database/Historian considerations | DRAFT_STABLE | #425 / #306 | Restore-first / Authority backup architecture + package lifecycle | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
@@ -135,7 +135,7 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 127. Scripts | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR/en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 128. Licensing | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 129. Authority | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
-| 130. HA | BLOCKED_PRODUCT | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts; #421/#423 HA-D1/HA-D2 | structure only; pt-BR/en/es after dependency | PENDING_FINAL |
+| 130. HA | DRAFT_CURRENT | #425 / #306 | HA admin UI, contextual Help and domain-specific product contracts | Interface accepted; backend-test status remains separate; screenshots after interface audit | PENDING_FINAL |
 | 131. Import/restore | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 132. Diagnostics workflow | DRAFT_STABLE | #425 / #306 | Contextual Help diagnostics + domain-specific product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 133. Glossary | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; #379 final glossary | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
@@ -146,12 +146,19 @@ Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-
 | 138. Keyboard shortcuts | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; #308/#379 final UI | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 139. File formats | DRAFT_STABLE | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
 | 140. Operational limits | FINAL_REVIEW_REQUIRED | #425 / #306 | #379 glossary + Help/API catalogs + exact final candidate; exact final candidate | pt-BR Phase 1; en/es parity scaffold; final #379 sweep | PENDING_FINAL |
+| 141. Intelligence scope/license/asset selection | DRAFT_CURRENT | #425 / #306 | Intelligence license and current Engineering workspace | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
+| 142. Measurement profiles/equipment assignments | DRAFT_CURRENT | #425 / #306 | Current profile, TAG signal and assignment UI/contracts | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
+| 143. Operating contexts/temporal evidence | DRAFT_CURRENT | #425 / #306 | Operating-context predicate UI and evidence rules | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
+| 144. Ordered process stages | DRAFT_CURRENT | #425 / #306 | Process-stage and assignment UI | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
+| 145. Coverage/performance/contextual deviation | DRAFT_CURRENT | #425 / #306 | Current read-only Intelligence analytics and bounds | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
+| 146. Screen drafts/Runtime analysis | DRAFT_CURRENT | #425 / #306 | Screen draft generator and Runtime views | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
 
 ## Dependency summary
 
-- Historical Time Range: #383; Historical Playback follows it.
-- HA: #421 and #423.
-- Installation/first-use UI closure: #422.
+- Historical Time Range/Playback: current Runtime interface and its 31-day, authorization, capture and read-only boundaries.
+- HA: current admin interface documented; #423 remains product verification and does not block guidance about visible controls.
+- Installation/switching: #422 UX is closed; document current detach/neutral workflow.
+- Intelligence: current implementation documented; later product evolution may require a content revision.
 - Screen/Popup/Library visual closure: #308.
 - Shared terminology and final multilingual parity: #379.
 - Contextual Help cross-reference convergence: #424.

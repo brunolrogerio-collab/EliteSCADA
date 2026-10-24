@@ -105,7 +105,28 @@ El estado de licenciamiento expone los entitlements de puestos View Only e Inter
 
 ## Entitlement de redundancia
 
-El estado de licencia también puede exponer un entitlement de HA Runtime. El comportamiento operacional completo de redundancia sigue bloqueado por los workstreams #421/#423 y no se describe como terminado en esta fase.
+El estado de licencia puede exponer un entitlement de HA Runtime. El entitlement habilita la superficie, pero no sustituye la configuración correcta, Authority, el transporte entre peers, fencing ni la verificación operacional.
+
+## Alta disponibilidad: configurar y supervisar
+
+La página **Alta disponibilidad** distingue Standalone de HA y presenta la configuración deseada y en ejecución, preparación, estado de nodos y peer, Active efectivo, salud, freshness, referencia de fencing e historial de operaciones. HA usa dos servidores redundantes; la topología de base de datos es una decisión separada y debe comprobarse en cada instalación.
+
+### Preparar la configuración
+
+1. Confirme una licencia con HA Runtime, dos servidores accesibles y una cuenta con `HighAvailabilityObserve`; para guardar u operar también se requiere `HighAvailabilityTransfer`.
+2. En Engineering > Alta disponibilidad, seleccione HA para preparar la topología. Standalone sigue en ejecución mientras la preparación está pendiente.
+3. Indique el endpoint principal de cada servidor. Mantenga el endpoint automático salvo que la red realmente requiera otra dirección externa. Configure la autenticación del peer; nunca incluya el secreto compartido en documentación o tickets de soporte.
+4. Revise el nodo preferido. Si la topología usa protección, habilítela e indique la referencia compartida de fencing. El failover automático depende de esta protección.
+5. Resuelva los requisitos de **Preparación para HA** y elija **Guardar configuración deseada**.
+6. Si la página indica que se necesita reiniciar, la configuración deseada aún no está en ejecución. Programe el reinicio según el procedimiento operativo de la instalación; después actualice y confirme ambos nodos, peer, Active efectivo y protección.
+
+### Transferencias y recuperación
+
+Use **Switchover** para una transición planificada cuando este servidor sea el Active efectivo; el backend sigue validando la elegibilidad y puede rechazar la solicitud. Use **Failback** solo cuando el backend permita regresar al nodo preferido. **Recovery** y **Forzar resincronización** son acciones de recuperación para las condiciones indicadas en la página, no atajos para forzar que un nodo quede Ready. Lea la confirmación y compruebe el resultado/historial de la operación.
+
+Antes de depender del failover automático, ensaye el escenario en la topología real y confirme las consecuencias para Runtime, base de datos y comandos duplicados. Un estado stale, degradado o ambiguo requiere investigar conectividad, freshness y fencing; no fuerce una promoción para quitar el aviso.
+
+**Ayuda relacionada:** `/help?topic=ha.overview`, `/help?topic=licensing.overview`, `/help?topic=security.users-roles-capabilities`, `/help?topic=diagnostics.overview`.
 
 ## License Generator
 

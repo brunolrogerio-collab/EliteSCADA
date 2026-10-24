@@ -42,7 +42,7 @@ public sealed class EngineeringAuthorityCapabilityTests
     }
 
     [Fact]
-    public void BuiltInDeveloperRoleHasFullHighAvailabilityAccess()
+    public void BuiltInDeveloperRoleHasFullAdministrativeAndIntelligenceAccess()
     {
         using var workspace = new EngineeringWorkspace();
         var developer = workspace.SecurityPolicies.FindRoleByKey("developer");
@@ -52,6 +52,8 @@ public sealed class EngineeringAuthorityCapabilityTests
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityObserve);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityTransfer);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityAdmin);
+        Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.SystemAdmin);
+        Assert.DoesNotContain(developer.Grants!, grant => grant.Capability == SecurityCapability.AssetProcessIntelligenceManage);
 
         var exchange = new EngineeringExchangeService(
             workspace.Tags,
@@ -72,6 +74,12 @@ public sealed class EngineeringAuthorityCapabilityTests
         Assert.True(security.CheckWorkspace(context, SecurityCapability.HighAvailabilityAdmin).Allowed);
         Assert.True(security.CheckWorkspace(context, SecurityCapability.UserRoleAdmin).Allowed);
         Assert.True(security.CheckWorkspace(context, SecurityCapability.EngineeringModify).Allowed);
+        Assert.True(security.CheckWorkspace(
+            context,
+            SecurityCapability.AssetProcessIntelligenceManage,
+            new AuthorizationResource(
+                ResourceKind: AuthorizationResourceKind.Equipment,
+                ResourceId: Guid.NewGuid())).Allowed);
     }
 
     [Fact]

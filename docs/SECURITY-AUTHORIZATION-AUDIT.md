@@ -25,7 +25,7 @@ Relevant merged checkpoints include PRs #35–#39 and, for the latest hardening,
 ## Principles
 
 1. Role names are application configuration, not hard-coded security semantics.
-2. Capabilities describe protected operations. A role only has capabilities explicitly granted to it.
+2. Capabilities describe protected operations. A role only has capabilities explicitly granted to it, with the targeted Intelligence administration exception described below.
 3. Authorization is enforced by the backend. UI hiding/disabling is presentation only.
 4. Grants may be scoped to area, equipment, screen, TAG or command.
 5. Authenticated identity with no applicable grant is denied by default.
@@ -56,7 +56,7 @@ Current stable capability vocabulary includes:
 
 These are capabilities, not roles. Customer/application roles remain configurable.
 
-No capability hierarchy is implicit merely from a role/capability name. `SystemAdmin` does not silently imply unrelated capabilities unless the policy explicitly grants them.
+Role names never imply permissions. `SystemAdmin` does not imply unrelated capabilities. One explicit exception supports the initial administrator: a matching `SystemAdmin` grant authorizes Workspace `AssetProcessIntelligenceManage` checks without creating a global Intelligence grant. Ordinary roles still need an explicit Equipment or Location scope for that capability. This exception does not bypass the Intelligence license, runtime capabilities/session classes, exact-command checks, or other route-specific safety checks.
 
 ## Engineering Schema v7 security and command model
 

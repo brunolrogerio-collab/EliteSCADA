@@ -12,7 +12,6 @@ import {
 const developerToken = createE2eJwt('e2e-developer', ['developer'], 'E2E Developer');
 const e2eProtectedMaterialStore = join(tmpdir(), `elitescada-e2e-protected-${randomUUID()}`);
 const e2eProtectedMaterialKey = randomBytes(32).toString('base64');
-const e2eApiNoBuild = process.env.E2E_API_NO_BUILD === 'true';
 process.env.ELITESCADA_E2E_PROTECTED_MATERIAL_STORE = e2eProtectedMaterialStore;
 
 export default defineConfig({
@@ -48,9 +47,9 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `dotnet run ${e2eApiNoBuild ? '--no-build --no-restore ' : ''}--project ../../src/Scada.Api/Scada.Api.csproj --no-launch-profile`,
+      command: 'dotnet run --project ../../src/Scada.Api/Scada.Api.csproj --no-launch-profile',
       url: 'http://127.0.0.1:5080/health',
-      timeout: 60_000,
+      timeout: 120_000,
       reuseExistingServer: false,
       stdout: 'pipe',
       env: {

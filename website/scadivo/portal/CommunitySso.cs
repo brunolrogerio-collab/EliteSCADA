@@ -77,7 +77,8 @@ public static class DiscourseConnect
             new("email", user.Email),
             new("external_id", user.Id),
             new("username", PublicAlias(user.Id)),
-            new("locale", DiscourseLocale(user.Locale)));
+            new("locale", DiscourseLocale(user.Locale)),
+            new("locale_force_update", "true"));
         var encodedPayload = Convert.ToBase64String(StrictUtf8.GetBytes(payload));
         var responseSignature = Convert.ToHexString(HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(encodedPayload))).ToLowerInvariant();

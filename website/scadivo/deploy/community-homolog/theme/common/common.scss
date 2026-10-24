@@ -1,0 +1,213 @@
+:root {
+  color-scheme: dark;
+  --scadivo-ink: #101c2a;
+  --scadivo-ink-deep: #0b1119;
+  --scadivo-panel: #142436;
+  --scadivo-panel-raised: #17283a;
+  --scadivo-line: #30475b;
+  --scadivo-white: #f4f8fc;
+  --scadivo-muted: #9fb2c5;
+  --scadivo-teal: #21d0c3;
+  --scadivo-amber: #ffb454;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+html,
+body {
+  background: var(--scadivo-ink-deep);
+  color: var(--scadivo-white);
+}
+
+body {
+  background-image: radial-gradient(ellipse at 50% 0, rgb(33 208 195 / 5%), transparent 46%);
+}
+
+a,
+a:visited {
+  color: var(--scadivo-teal);
+}
+
+a:hover,
+a:focus {
+  color: var(--scadivo-amber);
+}
+
+.d-header {
+  background: rgb(16 28 42 / 96%);
+  border-bottom: 1px solid rgb(33 208 195 / 28%);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
+  backdrop-filter: blur(14px);
+}
+
+.d-header .title img {
+  content: url($scadivo_logo);
+  width: 184px;
+  height: 48px;
+  max-width: 184px;
+  object-fit: contain;
+}
+
+.d-header-icons .btn,
+.d-header-icons .btn:hover,
+.d-header .header-dropdown-toggle,
+.d-header .header-dropdown-toggle:hover {
+  color: var(--scadivo-white);
+}
+
+.btn-primary,
+.btn-primary:visited {
+  background: var(--scadivo-teal);
+  border-color: var(--scadivo-teal);
+  color: #08202b;
+  font-weight: 700;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background: #50e2d5;
+  border-color: #50e2d5;
+  color: #08202b;
+}
+
+.btn:not(.btn-primary) {
+  border-color: var(--scadivo-line);
+}
+
+.btn:not(.btn-primary):hover,
+.btn:not(.btn-primary):focus {
+  border-color: var(--scadivo-teal);
+  color: var(--scadivo-teal);
+}
+
+.d-sidebar {
+  background: rgb(16 28 42 / 78%);
+  border-right: 1px solid rgb(159 178 197 / 12%);
+}
+
+.d-sidebar .sidebar-section-header-text,
+.d-sidebar .sidebar-section-link-content-text {
+  color: var(--scadivo-muted);
+}
+
+.d-sidebar .sidebar-section-link-wrapper .sidebar-section-link.active,
+.d-sidebar .sidebar-section-link-wrapper .sidebar-section-link:hover {
+  background: rgb(33 208 195 / 12%);
+  color: var(--scadivo-white);
+}
+
+.welcome-banner {
+  background: linear-gradient(135deg, #142b3c, #122235 76%);
+  border: 1px solid #315e6c;
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 16%);
+}
+
+.welcome-banner__title {
+  color: var(--scadivo-white);
+}
+
+.welcome-banner__search-input,
+.search-menu input,
+.search-input,
+input[type="text"],
+input[type="search"],
+textarea,
+select {
+  background-color: #0d1926;
+  border-color: #385168;
+  color: var(--scadivo-white);
+}
+
+.welcome-banner__search-input:focus,
+.search-menu input:focus,
+.search-input:focus,
+input[type="text"]:focus,
+input[type="search"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--scadivo-teal);
+  box-shadow: 0 0 0 2px rgb(33 208 195 / 15%);
+}
+
+.topic-list-item,
+.category-box,
+.category-boxes .category-box {
+  border-color: rgb(159 178 197 / 14%);
+}
+
+.topic-list-item:hover,
+.category-box:hover,
+.category-boxes .category-box:hover {
+  background-color: rgb(20 36 54 / 75%);
+}
+
+.badge-category__wrapper,
+.topic-list .badge-wrapper {
+  color: var(--scadivo-teal);
+}
+
+.composer-popup,
+.d-editor-textarea-wrapper,
+.select-kit .select-kit-header,
+.select-kit .select-kit-body {
+  background: var(--scadivo-panel);
+  border-color: var(--scadivo-line);
+}
+
+.powered-by-discourse,
+.powered-by-link {
+  display: none !important;
+}
+
+.scadivo-community-language-bar {
+  position: relative;
+  z-index: 1;
+  border-bottom: 1px solid rgb(159 178 197 / 10%);
+  background: rgb(11 17 25 / 48%);
+}
+
+.scadivo-community-language-bar.is-authenticated {
+  display: none;
+}
+
+.scadivo-community-language-inner {
+  display: flex;
+  justify-content: flex-end;
+  width: min(1200px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 7px 0;
+}
+
+select.scadivo-community-language {
+  min-width: 160px;
+  min-height: 38px;
+  padding: 6px 32px 6px 11px;
+  border: 1px solid var(--scadivo-line);
+  border-radius: 10px;
+  background-color: var(--scadivo-panel);
+  color: var(--scadivo-white);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+select.scadivo-community-language:hover {
+  border-color: var(--scadivo-teal);
+}
+
+@media (max-width: 600px) {
+  .d-header .title img {
+    width: 150px;
+    max-width: 150px;
+  }
+
+  .scadivo-community-language-inner {
+    width: calc(100% - 28px);
+  }
+
+  select.scadivo-community-language {
+    min-width: 145px;
+    min-height: 36px;
+  }
+}

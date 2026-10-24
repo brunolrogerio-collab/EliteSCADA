@@ -191,6 +191,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal(userId, fields["external_id"].ToString());
             Assert.StartsWith("scadivo_", fields["username"].ToString());
             Assert.Equal("es", fields["locale"].ToString());
+            Assert.Equal("true", fields["locale_force_update"].ToString());
             Assert.False(fields.ContainsKey("name"));
             Assert.False(fields.ContainsKey("admin"));
             Assert.False(fields.ContainsKey("moderator"));

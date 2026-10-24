@@ -10,6 +10,15 @@ Esta pasta contém somente a configuração da prova de conceito local do Discou
 - `portal-compose.override.yml` deve ser usado somente junto de `deploy/compose.homolog.yml`. Ele habilita SSO apenas na API de homologação já existente. Em Development, os cookies de sessão/anti-CSRF usam nomes próprios sem o prefixo `__Secure-` para funcionar no HTTP loopback; nos demais ambientes, mantêm prefixo e flag `Secure`. Isso não altera a configuração de produção.
 - Banco, uploads, logs e chave SSO ficam em volumes Docker locais separados. Nenhuma chave deve ser gravada nos arquivos desta pasta, no Git ou em variáveis de produção.
 
+## Identidade visual e idioma
+
+- O tema versionado está em `theme/`. Ele usa a paleta oficial SCADIVO (azul-marinho, teal e âmbar), a marca em SVG e oculta a assinatura visual padrão da plataforma.
+- A configuração `run` aplica `site_name=SCADIVO` e as opções de seleção de idioma pela interface Rails do fórum. `DISCOURSE_DEFAULT_LOCALE=pt_BR` define Português como padrão. O aviso de instalação inicial desaparece ao concluir o cadastro do primeiro administrador; não o esconda por CSS.
+- Visitantes podem selecionar Português, English ou Español no seletor compacto abaixo do cabeçalho. A escolha usa o parâmetro `tl` e o cookie local do Discourse. Sem seleção anterior, a interface respeita o idioma do navegador e usa Português como padrão.
+- Ao autenticar pelo Portal, o locale salvo no perfil SCADIVO é enviado pelo SSO e atualizado também para contas já existentes. Assim, o Portal é a fonte de idioma para usuários autenticados.
+- O tema substitui a marca do cabeçalho, aplica as cores SCADIVO e esconde a assinatura de plataforma no rodapé. Após a configuração do primeiro administrador, substituir também o tópico padrão de boas-vindas por uma apresentação da comunidade SCADIVO antes de abrir o fórum aos visitantes.
+- O pacote do tema fica pronto para importar no fórum após o primeiro administrador concluir a configuração local. A aplicação do tema e a troca do tópico padrão nesta instância continuam pendentes até essa etapa.
+
 ## Configuração necessária
 
 Crie uma chave aleatória local com pelo menos 32 bytes e monte-a no volume externo `scadivo-community-homolog-secret`, legível somente pelo usuário da API de homologação. Configure exatamente a mesma chave em `discourse_connect_secret` no Discourse local.

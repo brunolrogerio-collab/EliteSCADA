@@ -26,3 +26,7 @@ volumes:
   - volume:
       host: scadivo_community_homolog_logs
       guest: /var/log
+
+# Apply persistent Discourse site settings through its supported Rails interface.
+run:
+  - exec: rails r "SiteSetting.site_name = 'SCADIVO'; SiteSetting.allow_user_locale = true; SiteSetting.set_locale_from_accept_language_header = true; SiteSetting.set_locale_from_cookie = true; SiteSetting.set_locale_from_param = true"

@@ -1,0 +1,32 @@
+{
+  "name": "SCADIVO Community",
+  "component": false,
+  "about_url": "https://scadivo.com",
+  "license_url": null,
+  "authors": [
+    {
+      "name": "SCADIVO"
+    }
+  ],
+  "theme_version": "1.0.0",
+  "minimum_discourse_version": "3.4.0",
+  "assets": {
+    "scadivo_logo": "assets/scadivo-wordmark.svg"
+  },
+  "color_schemes": {
+    "SCADIVO Noite": {
+      "primary": "F4F8FC",
+      "secondary": "0B1119",
+      "tertiary": "21D0C3",
+      "quaternary": "FFB454",
+      "header_background": "101C2A",
+      "header_primary": "F4F8FC",
+      "highlight": "173B47",
+      "danger": "FF6F70",
+      "success": "66D6B4",
+      "love": "21D0C3",
+      "hover": "193044",
+      "selected": "203A50"
+    }
+  }
+}

@@ -16,6 +16,12 @@ The authenticated download catalog accepts only approved official GitHub release
 
 The portal now contains a disabled-by-default DiscourseConnect SSO bridge for the future community. It does not provision or expose a forum; the community remains pending until a separate Discourse service and its moderation, privacy, backup, monitoring and routing gates are ready. There is no checkout, payment webhook, product activation API, signing key, license emission or automatic product renewal in this package.
 
+### Account access administration
+
+Owners can suspend or reactivate a non-owner account from the account list. Suspension preserves the profile and support history, revokes portal sessions on their next request, and blocks password login, password recovery and new DiscourseConnect sign-ins. Reactivation rotates the security stamp again, so a cookie saved before suspension cannot resume the account. Each action is recorded in the audit log. Owner accounts are protected from this control.
+
+The account migration defaults existing accounts to not suspended. Cookie validation checks the current account and security stamp on every authenticated request, with one identity lookup per validation. Discourse retains its own sessions: suspending a portal account does not terminate a forum session that was already open; forum moderation must handle that session separately until administrative session synchronization is implemented.
+
 ### Pilot scope and remaining gates
 
 - Self-service registration, email confirmation and password recovery are enabled in production as a limited public pilot by the owner's explicit decision. New accounts remain unable to sign in until the one-use confirmation link is completed. Recovery accepts an email address, gives the same response whether or not an eligible account exists, and sends a 24-hour one-use reset link only to confirmed accounts. Reset tokens are generated at delivery time, never stored in the outbox, and password reset invalidates the token. Downloads, community publishing, checkout and license services remain unavailable.

@@ -38,7 +38,9 @@ builder.Services.AddIdentity<PortalUser, IdentityRole>(options =>
     options.User.RequireUniqueEmail = false;
 }).AddEntityFrameworkStores<PortalDb>().AddDefaultTokenProviders();
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(24));
-builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(5));
+// Re-check the account on each authenticated request so suspension and revocation take effect immediately.
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
+builder.Services.AddScoped<ISecurityStampValidator, PortalSecurityStampValidator>();
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = builder.Environment.IsDevelopment() ? "scadivo.portal.dev" : "__Secure-scadivo.portal";

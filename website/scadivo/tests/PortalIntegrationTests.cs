@@ -272,6 +272,55 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 ["sig"] = signature
             })))
                 Assert.Equal(HttpStatusCode.Forbidden, lockedAccount.StatusCode);
+
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+                var account = await users.FindByIdAsync(userId);
+                Assert.NotNull(account);
+                account.LockoutEnd = null;
+                Assert.True((await users.UpdateAsync(account)).Succeeded);
+            }
+            using (var memberAdmin = await member.Raw($"/admin/accounts/{userId}/access", HttpMethod.Put, new { suspended = true }))
+                Assert.Equal(HttpStatusCode.Forbidden, memberAdmin.StatusCode);
+            var owner = await Login(factory, "scadivo.owner");
+            var ownerProfile = await owner.Get("/profile");
+            using (var protectOwner = await owner.Raw($"/admin/accounts/{ownerProfile.GetProperty("id").GetString()}/access", HttpMethod.Put, new { suspended = true }))
+                Assert.Equal(HttpStatusCode.Conflict, protectOwner.StatusCode);
+            using (var missingStatus = await owner.Raw($"/admin/accounts/{userId}/access", HttpMethod.Put, new { }))
+                Assert.Equal(HttpStatusCode.BadRequest, missingStatus.StatusCode);
+
+            // Keep another pre-suspension cookie untouched to prove that reactivation does not revive it.
+            var dormantSession = await Login(factory, email);
+            await owner.Send($"/admin/accounts/{userId}/access", HttpMethod.Put, new { suspended = true });
+            var accounts = await owner.Get("/admin/accounts");
+            Assert.True(accounts.EnumerateArray().Single(account => account.GetProperty("id").GetString() == userId).GetProperty("isSuspended").GetBoolean());
+            using (var revokedProfile = await member.Client.GetAsync("api/profile"))
+                Assert.Equal(HttpStatusCode.Unauthorized, revokedProfile.StatusCode);
+            Assert.False((await member.Client.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("authenticated").GetBoolean());
+            using (var suspendedSso = await member.Client.GetAsync(challengeQuery))
+            {
+                Assert.Equal(HttpStatusCode.Redirect, suspendedSso.StatusCode);
+                Assert.StartsWith("/portal/#community-login=", suspendedSso.Headers.Location!.OriginalString);
+            }
+            var suspendedLogin = new Session(member.Client, await Csrf(member.Client));
+            using (var deniedLogin = await suspendedLogin.Raw("/auth/login", HttpMethod.Post, new { username = email, password }))
+                Assert.Equal(HttpStatusCode.Unauthorized, deniedLogin.StatusCode);
+
+            await owner.Send($"/admin/accounts/{userId}/access", HttpMethod.Put, new { suspended = false });
+            using (var dormantCookie = await dormantSession.Client.GetAsync("api/profile"))
+                Assert.Equal(HttpStatusCode.Unauthorized, dormantCookie.StatusCode);
+            var reactivated = await Login(factory, email);
+            using (var restoredSso = await reactivated.Client.GetAsync(challengeQuery))
+            {
+                Assert.Equal(HttpStatusCode.Redirect, restoredSso.StatusCode);
+                Assert.Equal(callback, restoredSso.Headers.Location!.GetLeftPart(UriPartial.Path));
+            }
+            var restoredProfile = await reactivated.Get("/profile");
+            Assert.Equal("Private School Name", restoredProfile.GetProperty("organizationOrSchool").GetString());
+            var audit = await owner.Get("/admin/audit");
+            Assert.Contains(audit.EnumerateArray(), item => item.GetProperty("action").GetString() == "account.suspended" && item.GetProperty("resourceId").GetString() == userId);
+            Assert.Contains(audit.EnumerateArray(), item => item.GetProperty("action").GetString() == "account.reactivated" && item.GetProperty("resourceId").GetString() == userId);
         }
         finally
         {

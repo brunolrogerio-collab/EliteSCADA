@@ -12,6 +12,7 @@ using Scadivo.Portal.Data;
 namespace Scadivo.Portal;
 
 public sealed record LoginInput(string? Username, string? Password);
+public sealed record AccountAccessInput(bool? Suspended);
 public sealed record InviteInput(string? Username, string? DisplayName, string? Email, string? Organization);
 public sealed record AcceptInviteInput(string? UserId, string? Token, string? Password, string? Locale, string? ProfileType,
     string? ActivityArea, string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber,
@@ -52,7 +53,7 @@ public sealed class PortalOperations(
         if (!Valid(input.Username, 1, 256) || input.Password is null || input.Password.Length > 1024) return Invalid();
         var username = input.Username!.Trim();
         var user = await users.FindByEmailAsync(username) ?? await users.FindByNameAsync(username);
-        if (user is null || !user.InvitationAccepted)
+        if (user is null || !user.InvitationAccepted || user.IsSuspended)
             return Results.Json(new { error = "invalid-credentials" }, statusCode: 401);
         var result = await signIn.PasswordSignInAsync(user, input.Password, false, lockoutOnFailure: true);
         if (!result.Succeeded)
@@ -231,7 +232,7 @@ public sealed class PortalOperations(
             string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase))
         {
             var user = await users.FindByEmailAsync(email!);
-            if (user is not null && user.EmailConfirmed && user.InvitationAccepted)
+            if (user is not null && user.EmailConfirmed && user.InvitationAccepted && !user.IsSuspended)
             {
                 var cooldown = DateTimeOffset.UtcNow.AddMinutes(-15);
                 var activeStatuses = new[] { "queued", "retry", "sent" };
@@ -253,7 +254,7 @@ public sealed class PortalOperations(
         if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096) || input.Password is null || input.Password.Length > 1024)
             return Invalid("invalid-password-reset");
         var user = await users.FindByIdAsync(input.UserId!);
-        if (user?.Email is null || !user.EmailConfirmed || !user.InvitationAccepted)
+        if (user?.Email is null || !user.EmailConfirmed || !user.InvitationAccepted || user.IsSuspended)
             return Invalid("invalid-password-reset");
         string token;
         try { token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(input.Token!)); }
@@ -543,8 +544,35 @@ public sealed class PortalOperations(
         licenseIntegrationEnabled = false
     });
 
-    public async Task<IResult> Accounts() => Results.Ok(await db.Users.AsNoTracking().OrderBy(x => x.UserName).Take(100)
-        .Select(x => new { x.Id, x.UserName, x.DisplayName, x.Email, x.EmailConfirmed, x.InvitationAccepted, profileComplete = x.ProfileType != "" && x.ActivityArea != "" && x.OrganizationOrSchool != "", x.CreatedAtUtc }).ToListAsync());
+    public async Task<IResult> Accounts()
+    {
+        var ownerIds = await (from membership in db.UserRoles
+            join role in db.Roles on membership.RoleId equals role.Id
+            where role.Name == "Owner"
+            select membership.UserId).ToArrayAsync();
+        return Results.Ok(await db.Users.AsNoTracking().OrderBy(x => x.UserName).Take(100)
+            .Select(x => new { x.Id, x.UserName, x.DisplayName, x.Email, x.EmailConfirmed, x.InvitationAccepted, x.IsSuspended,
+                owner = ownerIds.Contains(x.Id), profileComplete = x.ProfileType != "" && x.ActivityArea != "" && x.OrganizationOrSchool != "", x.CreatedAtUtc }).ToListAsync());
+    }
+
+    public async Task<IResult> UpdateAccountAccess(string id, AccountAccessInput input, HttpContext context)
+    {
+        if (input.Suspended is null || !Valid(id, 1, 100)) return Invalid();
+        var account = await users.FindByIdAsync(id);
+        if (account is null) return Results.NotFound();
+        if (await users.IsInRoleAsync(account, "Owner"))
+            return Results.Conflict(new { error = "owner-account-protected" });
+        if (account.IsSuspended == input.Suspended.Value)
+            return Results.Ok(new { account.Id, account.IsSuspended });
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        account.IsSuspended = input.Suspended.Value;
+        var updated = await users.UpdateSecurityStampAsync(account);
+        if (!updated.Succeeded) return Results.Conflict(new { error = "account-not-updated" });
+        await AuditAsync(UserId(context), account.IsSuspended ? "account.suspended" : "account.reactivated", account.Id);
+        await transaction.CommitAsync();
+        return Results.Ok(new { account.Id, account.IsSuspended });
+    }
 
     public async Task<IResult> UpdateTemplate(string key, TemplateInput input, HttpContext context)
     {

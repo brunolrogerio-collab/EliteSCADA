@@ -69,6 +69,7 @@ public static class PortalEndpoints
         var admin = app.MapGroup("/api/admin").RequireAuthorization("Owner").RequireRateLimiting("writes");
         admin.MapGet("/overview", (PortalOperations operations) => operations.Overview());
         admin.MapGet("/accounts", (PortalOperations operations) => operations.Accounts());
+        admin.MapPut("/accounts/{id}/access", (string id, AccountAccessInput input, HttpContext context, PortalOperations operations) => operations.UpdateAccountAccess(id, input, context));
         admin.MapPost("/invitations", (InviteInput input, HttpContext context, PortalOperations operations) => operations.Invite(input, context));
         admin.MapPut("/support/{id:guid}/status", (Guid id, TicketStatusInput input, HttpContext context, PortalOperations operations) => operations.UpdateTicketStatus(id, input, context));
         admin.MapGet("/templates", async (PortalDb db) => Results.Ok(await db.EmailTemplates.AsNoTracking().OrderBy(x => x.Key).ToListAsync()));

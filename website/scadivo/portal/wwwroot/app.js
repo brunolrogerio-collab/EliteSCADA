@@ -152,6 +152,8 @@ function errorText(code) {
     'invalid-request-token': tr('A sessão mudou. Atualize a página e tente novamente.', 'The session changed. Refresh this page and try again.'),
     'account-already-exists': tr('Esse usuário ou e-mail já está cadastrado.', 'This username or email is already registered.'),
     'account-not-created': tr('Use um nome de usuário com letras, números, ponto ou hífen.', 'Use a username with letters, numbers, a dot or a hyphen.'),
+    'owner-account-protected': tr('Contas proprietárias não podem ser suspensas por este controle.', 'Owner accounts cannot be suspended with this control.', 'Las cuentas propietarias no se pueden suspender con este control.'),
+    'account-not-updated': tr('A conta mudou durante a operação. Atualize a página e tente novamente.', 'The account changed during this operation. Refresh the page and try again.', 'La cuenta cambió durante la operación. Actualiza la página e inténtalo de nuevo.'),
     'password-not-changed': tr('Confira a senha atual. A nova senha precisa ter ao menos 8 caracteres, maiúscula, minúscula e número.', 'Check your current password. The new password needs at least 8 characters, uppercase, lowercase and a number.'),
     'invalid-invitation': tr('Convite inválido ou já utilizado.', 'Invalid or already used invitation.'),
     'invalid-invitation-or-password': tr('Convite expirado ou senha fora dos requisitos.', 'The invitation expired or the password does not meet the requirements.'),
@@ -465,6 +467,23 @@ async function admin() {
     : tr('Cadastro público desativado.', 'Public registration is disabled.');
   return h('div', {}, [metrics, notice(emailStatus + ' ' + registrationStatus + ' ' + tr('Pagamentos e licenciamento online não estão ativos.', 'Payments and online licensing are not active.')), tabs, body]);
 }
+function accountAccessAction(account) {
+  if (account.owner) return badge(tr('Proprietário', 'Owner', 'Propietario'));
+  const action = button(account.isSuspended ? tr('Reativar', 'Reactivate', 'Reactivar') : tr('Suspender', 'Suspend', 'Suspender'), async () => {
+    const message = account.isSuspended
+      ? tr('Reativar esta conta? Será necessário entrar novamente.', 'Reactivate this account? A new sign-in will be required.', '¿Reactivar esta cuenta? Será necesario iniciar sesión de nuevo.')
+      : tr('Suspender esta conta? As sessões do portal serão encerradas e novas entradas no fórum serão impedidas.', 'Suspend this account? Portal sessions will end and new forum sign-ins will be blocked.', '¿Suspender esta cuenta? Se cerrarán las sesiones del portal y se impedirán nuevos accesos al foro.');
+    if (!window.confirm(`${account.userName}\n\n${message}`)) return;
+    action.disabled = true;
+    try {
+      await api(`/admin/accounts/${encodeURIComponent(account.id)}/access`, 'PUT', { suspended: !account.isSuspended });
+      feedback(tr('Acesso da conta atualizado.', 'Account access updated.', 'Acceso de la cuenta actualizado.'));
+      await render();
+    } catch (error) { feedback(error.message, true); }
+    finally { action.disabled = false; }
+  });
+  return action;
+}
 async function accountsAdmin() {
   const accounts = await api('/admin/accounts');
   const result = h('div'); const invitationResult = h('div');
@@ -477,7 +496,9 @@ async function accountsAdmin() {
     const result = await api('/admin/invitations', 'POST', data); node.reset();
     invitationResult.replaceChildren(notice(tr(`Convite de ${result.userName}: válido por 24 horas e uso único. Guarde o nome de usuário junto com o link.`, `Invitation for ${result.userName}: valid for 24 hours and one use. Keep the username with the link.`, `Invitación para ${result.userName}: válida durante 24 horas y de un solo uso. Guarda el nombre de usuario junto con el enlace.`)), field(tr('Link privado', 'Private link'), textarea('invitationLink', result.invitationUrl, { readOnly: true, rows: 3, class: 'private-link' })), button(tr('Copiar link', 'Copy link'), async () => { try { await navigator.clipboard.writeText(result.invitationUrl); feedback(tr('Link copiado.', 'Link copied.')); } catch { feedback(tr('Selecione e copie o link acima.', 'Select and copy the link above.')); } }));
     feedback(result.emailQueued ? tr('Convite criado e colocado na fila de e-mail.', 'Invitation created and queued for email delivery.') : tr('Convite criado. Compartilhe o link privado.', 'Invitation created. Share the private link.'));
-  }), invitationResult), panel(tr('Contas do portal', 'Portal accounts'), table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Criada em', 'Created')], accounts.map(account => [account.userName, account.displayName, badge(account.invitationAccepted ? tr('Ativa', 'Active') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), date(account.createdAtUtc)]))));
+  }), invitationResult), panel(tr('Contas do portal', 'Portal accounts'),
+    p(tr('Suspender preserva os dados da conta e encerra o acesso ao portal. Sessões já abertas no fórum são administradas no próprio fórum.', 'Suspension preserves account data and ends portal access. Existing forum sessions are managed in the forum itself.', 'La suspensión conserva los datos de la cuenta y cierra el acceso al portal. Las sesiones ya abiertas en el foro se administran en el propio foro.')),
+    table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Criada em', 'Created'), tr('Acesso', 'Access', 'Acceso')], accounts.map(account => [account.userName, account.displayName, badge(account.isSuspended ? tr('Suspensa', 'Suspended', 'Suspendida') : account.invitationAccepted ? tr('Ativa', 'Active') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), date(account.createdAtUtc), accountAccessAction(account)]))));
   return result;
 }
 async function templatesAdmin() {

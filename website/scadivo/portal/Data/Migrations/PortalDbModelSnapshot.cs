@@ -457,6 +457,9 @@ namespace Scadivo.Portal.Data.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsSuspended")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("InvitationAccepted")
                         .HasColumnType("boolean");
 

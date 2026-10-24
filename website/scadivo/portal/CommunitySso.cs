@@ -66,7 +66,7 @@ public static class DiscourseConnect
         var user = await users.GetUserAsync(context.User);
         if (user is null) return ResumeAtPortalLogin(sso, signature);
         if (string.IsNullOrWhiteSpace(user.Email) || !await users.IsEmailConfirmedAsync(user) ||
-            !user.InvitationAccepted || await users.IsLockedOutAsync(user)) return Results.Forbid();
+            !user.InvitationAccepted || user.IsSuspended || await users.IsLockedOutAsync(user)) return Results.Forbid();
 
         var isOwner = await users.IsInRoleAsync(user, "Owner");
         var isMember = await users.IsInRoleAsync(user, "Member");

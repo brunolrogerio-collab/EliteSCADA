@@ -22,4 +22,6 @@ Em 23/10/2026, a instância local concluiu o fluxo com uma conta sintética `exa
 
 A validação visual completa do fórum → portal → fórum após logout continua pendente: o Discourse local usa um certificado interno não confiável pelo navegador integrado. Nenhum aviso de segurança foi ignorado. Os testes restantes para produção incluem o ciclo de logout/reentrada no fórum, conta suspensa/desativada, falhas e recuperação, além de backup/restauração, moderação, privacidade, monitoramento e roteamento público.
 
+O portal agora dispõe de suspensão/reativação administrativa de contas comuns. Os testes de integração cobrem revogação da sessão existente, recusa de login e de nova autorização SSO, preservação do perfil, auditoria e novo login após reativar. Contas proprietárias são protegidas desse controle. Isso não valida a suspensão aplicada pelo próprio Discourse nem encerra sessões já abertas no fórum.
+
 Não usar esta configuração como Compose de produção nem abrir o fórum publicamente com base apenas nesta prova de autenticação.

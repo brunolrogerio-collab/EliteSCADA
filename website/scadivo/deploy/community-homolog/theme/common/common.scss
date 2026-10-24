@@ -39,12 +39,27 @@ a:focus {
   backdrop-filter: blur(14px);
 }
 
-.d-header .title img {
-  content: url($scadivo_logo);
+.d-header .title {
+  display: inline-flex;
+  flex: 0 0 184px;
   width: 184px;
   height: 48px;
   max-width: 184px;
-  object-fit: contain;
+  overflow: hidden;
+  background-image: url($scadivo_logo);
+  background-position: left center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  font-size: 0;
+}
+
+.d-header .title img {
+  display: none !important;
+}
+
+.d-header .title:focus-visible {
+  outline: 2px solid var(--scadivo-teal);
+  outline-offset: 3px;
 }
 
 .d-header-icons .btn,
@@ -197,7 +212,8 @@ select.scadivo-community-language:hover {
 }
 
 @media (max-width: 600px) {
-  .d-header .title img {
+  .d-header .title {
+    flex-basis: 150px;
     width: 150px;
     max-width: 150px;
   }

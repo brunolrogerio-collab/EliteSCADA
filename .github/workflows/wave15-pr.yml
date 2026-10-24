@@ -490,6 +490,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       ConnectionStrings__EliteScada: Host=127.0.0.1;Port=5432;Database=elitescada_e2e;Username=postgres;Password=postgres;Pooling=false
+      E2E_API_NO_BUILD: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -501,6 +502,8 @@ jobs:
           cache: npm
           cache-dependency-path: web/scada-web/package-lock.json
       - run: dotnet restore src/Scada.Api/Scada.Api.csproj
+      - name: Build API before starting Playwright web server
+        run: dotnet build src/Scada.Api/Scada.Api.csproj --no-restore
       - working-directory: web/scada-web
         run: npm ci --no-audit --no-fund
       - name: Cache Playwright browser

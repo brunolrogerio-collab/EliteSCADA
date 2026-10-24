@@ -1011,21 +1011,21 @@ public sealed class ContextualHelpTests
             ["pt-BR"] = new()
             {
                 ["runtime.history"] = new[] { "31 dias", "Playback", "somente leitura", "não cria amostras retroativas" },
-                ["ha.overview"] = new[] { "Configuração desejada", "Prontidão para HA", "restart necessário", "backend" },
+                ["ha.overview"] = new[] { "Configuração desejada", "Prontidão para HA", "restart necessário", "backend", "Failover automático só pode ser habilitado com a proteção correspondente" },
                 ["installation.switching"] = new[] { "estado neutral", ".escadapkg", "Historian é preservado", "sessões anteriores" },
                 ["intelligence.overview"] = new[] { "Perfil de medição", "etapas do processo", "não inventa valores ou KPIs", "não significa zero" }
             },
             ["en"] = new()
             {
                 ["runtime.history"] = new[] { "31 days", "Playback", "read-only", "does not create backfilled samples" },
-                ["ha.overview"] = new[] { "Save desired configuration", "HA readiness", "restart is required", "backend" },
+                ["ha.overview"] = new[] { "Save desired configuration", "HA readiness", "restart is required", "backend", "Automatic failover can be enabled only with the corresponding protection" },
                 ["installation.switching"] = new[] { "neutral state", ".escadapkg", "Historian is preserved", "previous sessions" },
                 ["intelligence.overview"] = new[] { "Measurement profile", "process stages", "does not invent values or KPIs", "does not mean zero" }
             },
             ["es"] = new()
             {
                 ["runtime.history"] = new[] { "31 días", "Playback", "solo lectura", "no crea muestras retroactivas" },
-                ["ha.overview"] = new[] { "Guardar configuración deseada", "Preparación para HA", "se necesita reiniciar", "backend" },
+                ["ha.overview"] = new[] { "Guardar configuración deseada", "Preparación para HA", "se necesita reiniciar", "backend", "El failover automático solo puede habilitarse con la protección correspondiente" },
                 ["installation.switching"] = new[] { "estado neutral", ".escadapkg", "Historian se conserva", "sesiones anteriores" },
                 ["intelligence.overview"] = new[] { "Perfil de medición", "etapas del proceso", "no inventa valores ni KPIs", "no significa cero" }
             }

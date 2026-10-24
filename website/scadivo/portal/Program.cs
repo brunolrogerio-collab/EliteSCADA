@@ -99,7 +99,7 @@ builder.Services.AddOptions<PortalEmailOptions>().BindConfiguration("Portal:Emai
     .Validate(options => options.Valid(builder.Environment.IsDevelopment()), "SMTP configuration requires TLS, valid addresses and a credential file.")
     .ValidateOnStart();
 builder.Services.AddOptions<CommunitySsoOptions>().BindConfiguration("Portal:Community")
-    .Validate(options => options.Valid(), "Community SSO requires an HTTPS Discourse URL and a readable shared-secret file of at least 32 bytes.")
+    .Validate(options => options.Valid(builder.Environment.IsDevelopment()), "Community SSO requires HTTPS (or HTTP loopback in Development) and a readable shared-secret file of at least 32 bytes.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IPortalEmailTransport, SmtpPortalEmailTransport>();
 builder.Services.AddScoped<PortalEmailDispatcher>();

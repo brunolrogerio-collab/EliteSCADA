@@ -15,11 +15,12 @@ public sealed class CommunitySsoOptions
     public string DiscourseUrl { get; set; } = "";
     public string SharedSecretFile { get; set; } = "/run/secrets/community-sso/shared-secret";
 
-    public bool Valid()
+    public bool Valid(bool allowHttpLoopbackForDevelopment = false)
     {
         if (!Enabled) return true;
-        if (!Uri.TryCreate(DiscourseUrl, UriKind.Absolute, out var forum) || forum.Scheme != Uri.UriSchemeHttps ||
-            string.IsNullOrWhiteSpace(forum.Host) || !forum.IsDefaultPort || forum.UserInfo.Length != 0 ||
+        if (!Uri.TryCreate(DiscourseUrl, UriKind.Absolute, out var forum) ||
+            !HasAllowedTransport(forum, allowHttpLoopbackForDevelopment) ||
+            string.IsNullOrWhiteSpace(forum.Host) || forum.UserInfo.Length != 0 ||
             forum.AbsolutePath != "/" || forum.Query.Length != 0 || forum.Fragment.Length != 0 ||
             string.IsNullOrWhiteSpace(SharedSecretFile) || !File.Exists(SharedSecretFile)) return false;
 
@@ -27,6 +28,10 @@ public sealed class CommunitySsoOptions
         catch (IOException) { return false; }
         catch (UnauthorizedAccessException) { return false; }
     }
+
+    internal static bool HasAllowedTransport(Uri uri, bool allowHttpLoopbackForDevelopment) =>
+        (uri.Scheme == Uri.UriSchemeHttps && uri.IsDefaultPort) ||
+        (allowHttpLoopbackForDevelopment && uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback && !uri.IsDefaultPort);
 
     public string LoginStartUrl => Enabled ? $"{DiscourseUrl.TrimEnd('/')}/session/sso" : "";
 }
@@ -39,7 +44,8 @@ public static class DiscourseConnect
     public static async Task<IResult> HandleAsync(
         HttpContext context,
         UserManager<PortalUser> users,
-        IOptions<CommunitySsoOptions> settings)
+        IOptions<CommunitySsoOptions> settings,
+        IHostEnvironment environment)
     {
         var options = settings.Value;
         if (!options.Enabled) return Results.NotFound();
@@ -60,7 +66,7 @@ public static class DiscourseConnect
             return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
         }
 
-        if (!TryReadChallenge(sso, signature, secret, options.DiscourseUrl, out var nonce, out var returnUrl))
+        if (!TryReadChallenge(sso, signature, secret, options.DiscourseUrl, environment.IsDevelopment(), out var nonce, out var returnUrl))
             return Results.BadRequest(new { error = "invalid-community-request" });
 
         var user = await users.GetUserAsync(context.User);
@@ -101,6 +107,7 @@ public static class DiscourseConnect
         string encodedSignature,
         string secret,
         string discourseUrl,
+        bool allowHttpLoopbackForDevelopment,
         out string nonce,
         out string returnUrl)
     {
@@ -133,7 +140,13 @@ public static class DiscourseConnect
             !SingleValue(values, "return_sso_url", out returnUrl) || returnUrl.Length > 2048 ||
             !Uri.TryCreate(returnUrl, UriKind.Absolute, out var callback)) return false;
 
-        return callback.Scheme == Uri.UriSchemeHttps && callback.Host.Equals(forum.Host, StringComparison.OrdinalIgnoreCase) &&
+        var secureTransport = callback.Scheme == Uri.UriSchemeHttps && forum.Scheme == Uri.UriSchemeHttps;
+        var localDevelopmentTransport = allowHttpLoopbackForDevelopment &&
+            callback.Scheme == Uri.UriSchemeHttp && callback.IsLoopback &&
+            forum.Scheme == Uri.UriSchemeHttp && forum.IsLoopback;
+
+        return (secureTransport || localDevelopmentTransport) &&
+            callback.Host.Equals(forum.Host, StringComparison.OrdinalIgnoreCase) &&
             callback.Port == forum.Port && callback.UserInfo.Length == 0 && callback.AbsolutePath == "/session/sso_login" &&
             callback.Query.Length == 0 && callback.Fragment.Length == 0;
     }

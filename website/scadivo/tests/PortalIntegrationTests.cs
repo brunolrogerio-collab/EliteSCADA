@@ -25,6 +25,32 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     private const string Password = "Scad1vo!";
 
     [Fact]
+    public void CommunitySsoAllowsHttpOnlyForLoopbackInDevelopment()
+    {
+        var secretFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(secretFile, new string('s', 32));
+            var options = new CommunitySsoOptions
+            {
+                Enabled = true,
+                DiscourseUrl = "http://localhost:18085",
+                SharedSecretFile = secretFile
+            };
+
+            Assert.True(options.Valid(allowHttpLoopbackForDevelopment: true));
+            Assert.False(options.Valid());
+
+            options.DiscourseUrl = "http://community.example.test:18085";
+            Assert.False(options.Valid(allowHttpLoopbackForDevelopment: true));
+        }
+        finally
+        {
+            File.Delete(secretFile);
+        }
+    }
+
+    [Fact]
     public void AutomaticEmailsDirectCustomersToSupportWithoutReplyingToNoReply()
     {
         var settings = new PortalEmailOptions();

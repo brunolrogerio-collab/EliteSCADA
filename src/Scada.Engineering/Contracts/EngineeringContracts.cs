@@ -50,7 +50,8 @@ public enum ImportEntityKind
     AssetProcessIntelligenceProfile,
     AssetProcessIntelligenceAssignment,
     AssetProcessIntelligenceProcessStage,
-    AssetProcessIntelligenceConfiguration
+    AssetProcessIntelligenceConfiguration,
+    ResourceOrganization
 }
 
 public enum SecurityScopeNodeKind
@@ -680,6 +681,78 @@ public sealed record EngineeringLockEngineeringDto(
     bool Locked = false,
     EngineeringLockVerifierDto? Verifier = null);
 
+/// <summary>
+/// Optional, project-owned folder organization for Engineering resources. Folder
+/// membership is metadata only: resource IDs and Runtime behavior remain unchanged.
+/// </summary>
+public sealed record EngineeringResourceFolderEngineeringDto(
+    string Id,
+    string Name,
+    bool Collapsed = false,
+    string? ParentId = null);
+
+public sealed record EngineeringResourceOrganizationEngineeringDto(
+    int Version,
+    IReadOnlyCollection<EngineeringResourceFolderEngineeringDto> Folders,
+    IReadOnlyDictionary<string, string> Assignments,
+    bool Seeded = false);
+
+public sealed record EngineeringResourceOrganizationEntryEngineeringDto(
+    string Kind,
+    EngineeringResourceOrganizationEngineeringDto Organization);
+
+public static class EngineeringResourceOrganizationContract
+{
+    public static IReadOnlySet<string> SupportedKinds { get; } = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "screens", "templates", "popups", "tags", "dataSources", "mediaSources",
+        "alarms", "operationalEvents", "gatewayRoutes"
+    };
+
+    public static string? Validate(EngineeringResourceOrganizationEntryEngineeringDto? entry)
+    {
+        if (entry is null) return "Resource organization entry cannot be null.";
+        if (!SupportedKinds.Contains(entry.Kind)) return $"Unsupported resource organization kind '{entry.Kind}'.";
+        var organization = entry.Organization;
+        if (organization is null || organization.Version != 1)
+            return "Resource organization version must be 1.";
+        if (organization.Folders is null || organization.Assignments is null)
+            return "Resource organization folders and assignments are required.";
+        if (organization.Folders.Count > 5000 || organization.Assignments.Count > 50000)
+            return "Resource organization exceeds its item safety limit.";
+
+        var folders = new Dictionary<string, EngineeringResourceFolderEngineeringDto>(StringComparer.Ordinal);
+        foreach (var folder in organization.Folders)
+        {
+            if (folder is null || string.IsNullOrWhiteSpace(folder.Id) || folder.Id.Length > 128 ||
+                string.IsNullOrWhiteSpace(folder.Name) || folder.Name.Length > 128 || folder.Name.Any(char.IsControl))
+                return "Resource folder ID/name is invalid.";
+            if (!folders.TryAdd(folder.Id, folder)) return $"Resource folder ID '{folder.Id}' is duplicated.";
+        }
+
+        foreach (var folder in folders.Values)
+        {
+            if (folder.ParentId is not null && (!folders.ContainsKey(folder.ParentId) || folder.ParentId == folder.Id))
+                return $"Resource folder '{folder.Id}' has an invalid parent.";
+            var seen = new HashSet<string>(StringComparer.Ordinal) { folder.Id };
+            var parentId = folder.ParentId;
+            while (parentId is not null)
+            {
+                if (!seen.Add(parentId)) return $"Resource folder '{folder.Id}' participates in a parent cycle.";
+                parentId = folders[parentId].ParentId;
+            }
+        }
+
+        foreach (var assignment in organization.Assignments)
+        {
+            if (string.IsNullOrWhiteSpace(assignment.Key) || assignment.Key.Length > 512 ||
+                string.IsNullOrWhiteSpace(assignment.Value) || !folders.ContainsKey(assignment.Value))
+                return "Resource assignment has an invalid identity or folder reference.";
+        }
+        return null;
+    }
+}
+
 public sealed record EngineeringPackage(
     string Schema,
     int SchemaVersion,
@@ -715,7 +788,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<CapabilityEventReferenceEngineeringDto>? CapabilityEventReferences = null,
     IReadOnlyCollection<RichCommandDefinitionEngineeringDto>? RichCommandDefinitions = null,
     IReadOnlyCollection<DriverCommandBindingEngineeringDto>? DriverCommandBindings = null,
-    AssetProcessIntelligenceEngineeringDto? AssetProcessIntelligence = null);
+    AssetProcessIntelligenceEngineeringDto? AssetProcessIntelligence = null,
+    IReadOnlyCollection<EngineeringResourceOrganizationEntryEngineeringDto>? ResourceOrganizations = null);
 
 public sealed record ImportIssue(
     string Code,

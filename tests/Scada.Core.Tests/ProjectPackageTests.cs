@@ -55,6 +55,40 @@ public sealed class ProjectPackageTests
     }
 
     [Fact]
+    public void ExportAndInspect_RoundTripsSchema30ResourceOrganizations()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var exchange = new EngineeringExchangeService(tags, alarms);
+        const string folderId = "eee-default:tags:TAGs/Processo";
+        var organization = new EngineeringResourceOrganizationEntryEngineeringDto(
+            "tags",
+            new EngineeringResourceOrganizationEngineeringDto(
+                1,
+                [new EngineeringResourceFolderEngineeringDto(folderId, "Processo")],
+                new Dictionary<string, string> { ["id:2ab59109-8fd7-4cd5-9bde-dd3d7e606b7a"] = folderId }));
+        exchange.Apply(
+            new EngineeringPackage(
+                EngineeringExchangeService.CurrentSchema,
+                29,
+                DateTimeOffset.UtcNow,
+                Array.Empty<TagEngineeringDto>(),
+                Array.Empty<AlarmEngineeringDto>())
+            {
+                ResourceOrganizations = [organization]
+            },
+            ImportMode.CreateAndUpdate);
+        var service = new ProjectPackageService(exchange);
+
+        var inspection = service.Inspect(service.Export("schema30-demo", "Schema 30 demo"));
+
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, inspection.Manifest.EngineeringSchemaVersion);
+        Assert.Equal(30, inspection.Engineering.SchemaVersion);
+        Assert.Equal(folderId, Assert.Single(Assert.Single(inspection.Engineering.ResourceOrganizations!).Organization.Folders).Id);
+    }
+
+    [Fact]
     public void ExportAndInspect_RoundTripsLogicalTagBitBindingReference()
     {
         var tags = new InMemoryTagRegistry();

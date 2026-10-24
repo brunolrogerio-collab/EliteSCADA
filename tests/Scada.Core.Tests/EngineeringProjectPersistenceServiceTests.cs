@@ -15,6 +15,40 @@ namespace Scada.Core.Tests;
 public sealed class EngineeringProjectPersistenceServiceTests
 {
     [Fact]
+    public async Task SaveAndApplyRevision_PreservesSchema30ResourceOrganizations()
+    {
+        var organization = new EngineeringResourceOrganizationEngineeringDto(
+            1,
+            [new EngineeringResourceFolderEngineeringDto("pumps", "Pumps")],
+            new Dictionary<string, string> { ["tag-id-1"] = "pumps" });
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = new EngineeringExchangeService(new InMemoryTagRegistry(), sourceAlarms);
+        var package = sourceExchange.ExportPackage() with
+        {
+            ResourceOrganizations = [new EngineeringResourceOrganizationEntryEngineeringDto("tags", organization)]
+        };
+        Assert.True(sourceExchange.Preview(package, ImportMode.CreateAndUpdate).CanApply);
+        sourceExchange.Apply(package, ImportMode.CreateAndUpdate);
+
+        var store = new FakeEngineeringProjectStore();
+        var sourcePersistence = new EngineeringProjectPersistenceService(sourceExchange, store);
+        var saved = await sourcePersistence.SaveCurrentAsync("plant-a", "Plant A", "engineering-user");
+        Assert.Equal(30, saved.EngineeringSchemaVersion);
+
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetExchange = new EngineeringExchangeService(new InMemoryTagRegistry(), targetAlarms);
+        var targetPersistence = new EngineeringProjectPersistenceService(targetExchange, store);
+        var applied = await targetPersistence.ApplyRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+
+        Assert.NotNull(applied);
+        Assert.Empty(applied!.Issues);
+        var restored = Assert.Single(targetExchange.ExportPackage().ResourceOrganizations!);
+        Assert.Equal("tags", restored.Kind);
+        Assert.Equal("pumps", Assert.Single(restored.Organization.Folders).Id);
+        Assert.Equal("pumps", restored.Organization.Assignments["tag-id-1"]);
+    }
+
+    [Fact]
     public async Task SaveCurrentAsync_StoresCanonicalCurrentEngineeringPackage()
     {
         var tags = new InMemoryTagRegistry();

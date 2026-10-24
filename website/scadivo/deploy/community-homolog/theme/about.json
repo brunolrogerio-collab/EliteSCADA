@@ -8,7 +8,7 @@
       "name": "SCADIVO"
     }
   ],
-  "theme_version": "1.0.0",
+  "theme_version": "1.0.1",
   "minimum_discourse_version": "3.4.0",
   "assets": {
     "scadivo_logo": "assets/scadivo-wordmark.svg"

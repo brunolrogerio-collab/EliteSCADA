@@ -9,7 +9,9 @@
   --scadivo-muted: #9fb2c5;
   --scadivo-teal: #21d0c3;
   --scadivo-amber: #ffb454;
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  --scadivo-font-family: Inter, "Segoe UI", Arial, sans-serif;
+  --font-family: var(--scadivo-font-family);
+  font-family: var(--scadivo-font-family);
 }
 
 html,

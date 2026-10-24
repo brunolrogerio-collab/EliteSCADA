@@ -48,12 +48,15 @@ public sealed class EngineeringAuthorityCapabilityTests
         var developer = workspace.SecurityPolicies.FindRoleByKey("developer");
 
         Assert.NotNull(developer);
+        Assert.Equal(Enum.GetValues<SecurityCapability>().OrderBy(capability => capability),
+            developer!.Grants!.Select(grant => grant.Capability).OrderBy(capability => capability));
         Assert.Contains(developer!.Grants!, grant => grant.Capability == SecurityCapability.EngineeringView);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityObserve);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityTransfer);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityAdmin);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.SystemAdmin);
-        Assert.DoesNotContain(developer.Grants!, grant => grant.Capability == SecurityCapability.AssetProcessIntelligenceManage);
+        Assert.Contains(developer.Grants!, grant =>
+            grant.Capability == SecurityCapability.AssetProcessIntelligenceManage && grant.Scope is null);
 
         var exchange = new EngineeringExchangeService(
             workspace.Tags,
@@ -74,12 +77,41 @@ public sealed class EngineeringAuthorityCapabilityTests
         Assert.True(security.CheckWorkspace(context, SecurityCapability.HighAvailabilityAdmin).Allowed);
         Assert.True(security.CheckWorkspace(context, SecurityCapability.UserRoleAdmin).Allowed);
         Assert.True(security.CheckWorkspace(context, SecurityCapability.EngineeringModify).Allowed);
+        Assert.True(security.CheckWorkspace(context, SecurityCapability.AssetProcessIntelligenceManage).Allowed);
         Assert.True(security.CheckWorkspace(
             context,
             SecurityCapability.AssetProcessIntelligenceManage,
             new AuthorizationResource(
                 ResourceKind: AuthorizationResourceKind.Equipment,
                 ResourceId: Guid.NewGuid())).Allowed);
+    }
+
+    [Fact]
+    public async Task IntelligenceManagementRequiresItsExplicitGrantAndSupportsGlobalNonAdministratorRoles()
+    {
+        var role = new SecurityRoleEngineeringDto(
+            Guid.NewGuid(), "process-engineer", "Process Engineer",
+            Grants: [new CapabilityGrantEngineeringDto(SecurityCapability.SystemAdmin)]);
+        var store = new InMemoryAuthorityPolicyStore([role]);
+        var security = new ApiAuthorizationService(new NullServiceProvider(), store,
+            new ConfigurationManager { ["Authentication:Enabled"] = "true" });
+        var context = AuthenticatedContext(role.Key);
+        var equipment = new AuthorizationResource(
+            ResourceKind: AuthorizationResourceKind.Equipment, ResourceId: Guid.NewGuid());
+
+        Assert.False(security.CheckWorkspace(context, SecurityCapability.AssetProcessIntelligenceManage).Allowed);
+        Assert.False(security.CheckWorkspace(context, SecurityCapability.AssetProcessIntelligenceManage, equipment).Allowed);
+
+        var granted = await store.TryReplaceAsync(0,
+            [role with { Grants = [new CapabilityGrantEngineeringDto(SecurityCapability.AssetProcessIntelligenceManage)] }], []);
+        Assert.True(granted.Applied);
+        Assert.True(security.CheckWorkspace(context, SecurityCapability.AssetProcessIntelligenceManage).Allowed);
+        Assert.True(security.CheckWorkspace(context, SecurityCapability.AssetProcessIntelligenceManage, equipment).Allowed);
+        Assert.False(security.CheckWorkspace(context, SecurityCapability.SystemAdmin).Allowed);
+
+        var revoked = await store.TryReplaceAsync(granted.Snapshot.Version, [role with { Grants = [] }], []);
+        Assert.True(revoked.Applied);
+        Assert.False(security.CheckWorkspace(context, SecurityCapability.AssetProcessIntelligenceManage, equipment).Allowed);
     }
 
     [Fact]

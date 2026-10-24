@@ -53,11 +53,14 @@ public static class SecurityPolicyEngineeringValidator
         List<ImportIssue> issues,
         SecurityScopeGraph? scopeGraph)
     {
+        // Like other capabilities, a null scope explicitly grants management of all resources.
+        if (scope is null) return;
+
         if (scope?.ScopeNodeId is not { } scopeNodeId || scopeNodeId == Guid.Empty)
         {
             issues.Add(Error(
                 "INTELLIGENCE_MANAGER_SCOPE_REQUIRED",
-                "AssetProcessIntelligenceManage requires an explicit stable Equipment or Location scope; global grants are forbidden.",
+                "A scoped AssetProcessIntelligenceManage grant requires a stable Equipment or Location node. Use a null scope for a global grant.",
                 roleKey));
             return;
         }

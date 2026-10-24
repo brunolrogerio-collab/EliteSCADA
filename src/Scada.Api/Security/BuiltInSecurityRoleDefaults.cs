@@ -21,14 +21,15 @@ internal static class BuiltInSecurityRoleDefaults
         SecurityCapability.SystemAdmin,
         SecurityCapability.HighAvailabilityObserve,
         SecurityCapability.HighAvailabilityTransfer,
-        SecurityCapability.HighAvailabilityAdmin
+        SecurityCapability.HighAvailabilityAdmin,
+        SecurityCapability.AssetProcessIntelligenceManage
     ];
 
     public static SecurityRoleEngineeringDto CreateInitialDeveloperRole() => new(
         Id: Guid.Parse("46000000-0000-0000-0000-000000000002"),
         Key: "developer",
         Name: "Developer",
-        Description: "Full engineering/development role with application and HA administration capabilities.",
+        Description: "Full engineering/development role with application, HA and Intelligence administration capabilities.",
         Grants: InitialDeveloperCapabilities
             .Select(capability => new CapabilityGrantEngineeringDto(capability))
             .ToArray());

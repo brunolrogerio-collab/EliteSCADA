@@ -117,21 +117,6 @@ public sealed class ApiAuthorizationService
 
         var policies = new InMemoryCapabilityAuthorizationService(SecurityPolicyCompiler.Compile(roles));
         var target = scopes!.Enrich(resource ?? new AuthorizationResource());
-        if (capability == SecurityCapability.AssetProcessIntelligenceManage)
-        {
-            var systemAdmin = policies.Evaluate(principal, SecurityCapability.SystemAdmin, target);
-            if (systemAdmin.Allowed)
-            {
-                return new ApiAuthorizationCheck(
-                    principal,
-                    new AuthorizationDecision(
-                        true,
-                        capability,
-                        "Asset and Process Intelligence management authorized by SystemAdmin grant.",
-                        systemAdmin.MatchedRoles));
-            }
-        }
-
         return new ApiAuthorizationCheck(
             principal,
             policies.Evaluate(principal, capability, target));

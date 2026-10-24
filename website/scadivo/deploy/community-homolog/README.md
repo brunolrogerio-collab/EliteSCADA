@@ -13,7 +13,7 @@ Esta pasta contém somente a configuração da prova de conceito local do Discou
 ## Identidade visual e idioma
 
 - O tema versionado está em `theme/`. Ele usa a paleta oficial SCADIVO (azul-marinho, teal e âmbar), a marca em SVG e oculta a assinatura visual padrão da plataforma.
-- A configuração `run` aplica o nome público SCADIVO, um aviso de configuração inicial sem marca da plataforma, as opções de idioma pela interface Rails e renomeia o tópico inicial para “Boas-vindas à comunidade SCADIVO”. `DISCOURSE_DEFAULT_LOCALE=pt_BR` define Português como padrão.
+- A configuração `run` aplica o nome público SCADIVO, avisos e títulos da configuração inicial sem marca da plataforma, as opções de idioma pela interface Rails e reescreve os tópicos iniciais com conteúdo da comunidade SCADIVO. `DISCOURSE_DEFAULT_LOCALE=pt_BR` define Português como padrão.
 - Visitantes podem selecionar Português, English ou Español no seletor compacto abaixo do cabeçalho. A escolha usa o parâmetro `tl` e o cookie local do Discourse. Sem seleção anterior, a interface respeita o idioma do navegador e usa Português como padrão.
 - Ao autenticar pelo Portal, o locale salvo no perfil SCADIVO é enviado pelo SSO e atualizado também para contas já existentes. Assim, o Portal é a fonte de idioma para usuários autenticados.
 - O tema substitui a marca quebrada do cabeçalho pelo wordmark SCADIVO, aplica a paleta da marca e esconde a assinatura de plataforma no rodapé. Instale e aplique o tema antes de abrir o fórum aos visitantes; confira também cabeçalho, login, rodapé, conteúdo inicial e seletor de idiomas.

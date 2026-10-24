@@ -64,6 +64,23 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             })) Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
             var customer = await Login(factory, "license-" + marker);
 
+            var otherInvite = await owner.Send("/admin/invitations", HttpMethod.Post,
+                new { username = "other-" + marker, displayName = "Other License Customer" });
+            var otherInvitation = Invitation(otherInvite);
+            using var otherClient = Client(factory);
+            var other = new Session(otherClient, await Csrf(otherClient));
+            using (var accepted = await other.Raw("/auth/accept-invitation", HttpMethod.Post, new
+            {
+                userId = otherInvitation.UserId,
+                token = otherInvitation.Token,
+                password = Password,
+                locale = "en",
+                profileType = "professional",
+                activityArea = "industrial-automation",
+                organizationOrSchool = "Other Automation"
+            })) Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+            var otherCustomer = await Login(factory, "other-" + marker);
+
             using (var invalid = await customer.Raw("/licenses/offline-requests", HttpMethod.Post, new
             {
                 applicationName = "Pump station",
@@ -88,6 +105,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal(1, customerRequests.GetArrayLength());
             Assert.Equal(requestId, customerRequests[0].GetProperty("id").GetGuid());
             Assert.DoesNotContain("machineRequestCode", customerRequests[0].ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, (await otherCustomer.Get("/licenses/offline-requests")).GetArrayLength());
 
             using (var denied = await customer.Client.GetAsync($"api/admin/license-requests/offline/{requestId:D}"))
                 Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);

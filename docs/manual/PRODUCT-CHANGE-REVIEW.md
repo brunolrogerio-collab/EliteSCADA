@@ -8,7 +8,7 @@ O inventário é [PRODUCT-CHANGE-REVIEW-MARKERS.json](PRODUCT-CHANGE-REVIEW-MARK
 | --- | --- | --- |
 | [#751 — atraso de ativação](https://github.com/brunolrogerio-collab/EliteSCADA/issues/751) | Campo de atraso e exemplo de configuração, capítulo 17 | Temporização implementada e validada; explicar início, cancelamento e qualidade conforme o comportamento aceito |
 | [#753 — dispensar ACK](https://github.com/brunolrogerio-collab/EliteSCADA/issues/753) | Campo Requer reconhecimento e regras de estado/lista/sons, capítulo 17 | Testar opções com/sem ACK, retorno e novo ciclo antes de mudar as afirmações |
-| [#779 — armazenamento/arquivo](https://github.com/brunolrogerio-collab/EliteSCADA/issues/779) | Banco de Dados e Historian, capítulos 14/07 | Controles realmente entregues, com procedimento de dimensionamento/arquivamento/restauração e limites verificados |
+| [#779 — armazenamento/arquivo](https://github.com/brunolrogerio-collab/EliteSCADA/issues/779) | Banco de Dados, Historian e indicadores de Audit, capítulos 14/07/18 | Controles realmente entregues, com procedimento de dimensionamento/arquivamento/restauração e limites verificados |
 
 Na auditoria posterior, pesquisar `HELP-REVIEW-AFTER-PRODUCT-`, conferir a versão aceita e suas evidências, corrigir a fonte canônica `system-guides.json`, gerar os capítulos e verificar os três idiomas, entradas contextuais, exemplos e imagens afetadas. Fechar uma issue, por si só, não valida a documentação. Ao resolver a revisão, retirar a entrada ativa e registrar o commit/evidência no controle de entrega existente. Novas dependências de funcionalidades futuras devem receber o mesmo marcador quando forem encontradas.
 

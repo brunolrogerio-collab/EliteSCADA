@@ -494,6 +494,7 @@ export function AuthorityPolicyAdministration({
           <span>Security Authority</span>
           <h3>{s.title}</h3>
           <p>{s.subtitle}</p>
+          <a href="/help?topic=security.policy-scopes">{locale === 'pt-BR' ? 'Como configurar papéis e escopos' : locale === 'es' ? 'Cómo configurar roles y alcances' : 'How to configure roles and scopes'}</a>
         </div>
         <div className="authority-policy-version">
           <span>{s.policyVersion}</span>

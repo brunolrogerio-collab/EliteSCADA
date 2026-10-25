@@ -15,14 +15,14 @@ test('routes resolve to stable contextual Help topics with a safe fallback', () 
   expect(contextualHelpTopic('/engineering/highAvailability')).toBe('ha.configuration-operation');
   expect(contextualHelpTopic('/engineering/installation')).toBe('installation.switching');
   expect(contextualHelpTopic('/engineering/libraries')).toBe('libraries.reusable-resources');
-  expect(contextualHelpTopic('/engineering/security')).toBe('security.users-roles-capabilities');
+  expect(contextualHelpTopic('/engineering/security')).toBe('security.local-accounts');
   expect(contextualHelpTopic('/engineering/recovery')).toBe('recovery.backup-system-recovery');
   expect(contextualHelpTopic('/engineering/project')).toBe('recovery.backup-system-recovery');
   expect(contextualHelpTopic('/engineering/screens')).toBe('screens.overview');
   expect(contextualHelpTopic('/engineering/alarms')).toBe('alarms.configuration');
   expect(contextualHelpTopic('/engineering/operationalEvents')).toBe('operational-events.configuration');
   expect(contextualHelpTopic('/engineering')).toBe('engineering.shell-navigation');
-  expect(contextualHelpTopic('/audit/events')).toBe('audit.overview');
+  expect(contextualHelpTopic('/audit/events')).toBe('audit.query-diagnostics');
   expect(contextualHelpTopic('/licensing')).toBe('licensing.overview');
   expect(contextualHelpTopic('/runtime/history')).toBe('runtime.history');
   expect(contextualHelpTopic('/runtime/reports')).toBe('reports.runtime-output');

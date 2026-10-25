@@ -138,10 +138,10 @@ test('contextual entry routes resolve stable Phase 1 topic IDs', () => {
     ['/engineering/popups', 'popups.overview'],
     ['/engineering/historian', 'historian.capture-query'],
     ['/engineering/reports', 'reports.data-designer'],
-    ['/engineering/security', 'security.users-roles-capabilities'],
+    ['/engineering/security', 'security.local-accounts'],
     ['/engineering/diagnostics/tag-monitor', 'diagnostics.overview'],
     ['/engineering', 'engineering.shell-navigation'],
-    ['/audit', 'audit.overview'],
+    ['/audit', 'audit.query-diagnostics'],
     ['/licensing', 'licensing.overview'],
     ['/runtime/history', 'runtime.history'],
     ['/', 'runtime.overview']

@@ -81,6 +81,10 @@ public static partial class ContextualHelpCatalog
         "operational-events.configuration",
         "alarms.overview",
         "operational-events.overview",
+        "audit.query-diagnostics",
+        "security.local-accounts",
+        "security.policy-scopes",
+        "security.lock-workflow",
         "audit.overview",
         "historian.overview",
         "trends.overview",
@@ -972,7 +976,7 @@ public static partial class ContextualHelpCatalog
             Tx("A permissão efetiva reflete a combinação configurada e a ação continua sendo validada pelo serviço.", "Effective permission reflects the configured combination and the action continues to be validated by the service.", "El permiso efectivo refleja la combinación configurada y la acción sigue siendo validada por el servicio."),
             Tx("Role atribuída sem capability necessária, scope que não inclui o recurso ou sessão antiga após mudança administrativa.", "Assigned role without the required capability, scope that does not include the resource, or an old session after an administrative change.", "Role asignada sin la capability necesaria, scope que no incluye el recurso o sesión antigua después de un cambio administrativo."),
             Tx("Use a visão de permissão efetiva e Audit; não tente contornar a restrição alterando a UI.", "Use the effective-permission view and Audit; do not try to bypass the restriction by changing the UI.", "Use la vista de permiso efectivo y Audit; no intente eludir la restricción cambiando la UI."),
-            "security.users-roles-capabilities", "security.engineering-lock", "audit.overview"),
+            "security.policy-scopes", "security.users-roles-capabilities", "security.engineering-lock", "audit.query-diagnostics", "audit.overview"),
 
         TaskGuide(
             "security.users-roles-capabilities", "security",
@@ -1005,7 +1009,7 @@ public static partial class ContextualHelpCatalog
                 "Confirme a identidade conectada e se ela tem autorização administrativa. Selecione a conta correta e confira estado e roles atribuídas. Compare a prévia configurada com o recurso e a ação exatos; use Scopes e Authority para verificar a hierarquia. Não confunda CommandExecute com ProcessValueWrite. Para conferir o usuário conectado, consulte Capabilities efetivas da sessão atual; ela não representa a pessoa selecionada. Leia o erro do Preview; se a versão de Authority mudou, recarregue a política e refaça a alteração antes de validar e aplicar. Se a própria sessão for encerrada após a confirmação, entre novamente com uma conta autorizada.",
                 "Confirm the signed-in identity and its administrative access. Select the correct account and review its state and assigned roles. Compare the configured preview with the exact resource and action; use Scopes and Authority to inspect the hierarchy. Do not confuse CommandExecute with ProcessValueWrite. To check the signed-in user, consult Current session effective capabilities; it does not describe the selected person. Read the Preview error; if the Authority version changed, reload the policy and repeat the change before validating and applying. If your own session ends after confirmation, sign in again with an authorized account.",
                 "Confirme la identidad conectada y su autorización administrativa. Seleccione la cuenta correcta y revise su estado y roles asignadas. Compare la vista configurada con el recurso y la acción exactos; use Scopes y Authority para inspeccionar la jerarquía. No confunda CommandExecute con ProcessValueWrite. Para comprobar el usuario conectado, consulte Capabilities efectivas de la sesión actual; no describe a la persona seleccionada. Lea el error de Preview; si cambió la versión de Authority, vuelva a cargar la política y repita el cambio antes de validar y aplicar. Si su sesión termina después de confirmar, inicie sesión de nuevo con una cuenta autorizada."),
-            "security.scopes-authority", "security.engineering-lock", "runtime.session-classes", "licensing.overview", "audit.overview"),
+            "security.local-accounts", "security.policy-scopes", "security.scopes-authority", "security.engineering-lock", "runtime.session-classes", "licensing.overview", "audit.query-diagnostics", "audit.overview"),
 
         TaskGuide(
             "security.engineering-lock", "security",
@@ -1017,7 +1021,7 @@ public static partial class ContextualHelpCatalog
             Tx("A edição fica disponível apenas durante o estado autorizado e ações protegidas continuam sujeitas às permissões da sessão.", "Editing is available only during the authorized state and protected actions remain subject to session permissions.", "La edición está disponible solo durante el estado autorizado y las acciones protegidas siguen sujetas a los permisos de la sesión."),
             Tx("Lock ativo, credencial rejeitada, sessão expirada ou usuário sem capability necessária.", "Active Lock, rejected credential, expired session, or user without the required capability.", "Lock activo, credencial rechazada, sesión expirada o usuario sin la capability necesaria."),
             Tx("Confirme identidade, estado do Lock e permissão efetiva; não edite arquivos/stores para contornar o bloqueio.", "Confirm identity, Lock state, and effective permission; do not edit files/stores to bypass the protection.", "Confirme identidad, estado del Lock y permiso efectivo; no edite archivos/stores para eludir la protección."),
-            "security.scopes-authority", "engineering.shell-navigation"),
+            "security.lock-workflow", "security.scopes-authority", "engineering.shell-navigation"),
 
         TaskGuide(
             "licensing.generator", "licensing",

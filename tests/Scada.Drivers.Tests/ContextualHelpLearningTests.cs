@@ -5,11 +5,46 @@ using Scada.Core.Events;
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Historian.Policies;
+using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
 public sealed class ContextualHelpLearningTests
 {
+    [Theory]
+    [InlineData("pt-BR")]
+    [InlineData("en")]
+    [InlineData("es")]
+    public void PublishedStationRoleKeepsResourceScopeAndDoesNotGrantOtherActions(string locale)
+    {
+        var guide = ContextualHelpCatalog.Build(locale).Topics.Single(topic => topic.Id == "security.policy-scopes");
+        var actions = guide.Sections.SelectMany(section => section.Fields ?? [])
+            .Where(field => field.Key.StartsWith("capability.", StringComparison.Ordinal)).Select(field => field.Example);
+        Assert.Contains("CommandExecute", actions);
+        Assert.Contains("ProcessValueWrite", actions);
+        Assert.Contains("AssetProcessIntelligenceManage", actions);
+        var station = Guid.NewGuid();
+        var pump = Guid.NewGuid();
+        var anotherStation = Guid.NewGuid();
+        var scope = new AuthorizationScope(ScopeNodeId: station, IncludeDescendants: true);
+        var authorization = new InMemoryCapabilityAuthorizationService([
+            new RolePolicy("operador-estacao01", "Station 01 operator", [
+                new CapabilityGrant(SecurityCapability.TagRead, scope),
+                new CapabilityGrant(SecurityCapability.AlarmAcknowledge, scope)]),
+            new RolePolicy("administration-only", "Administration only", [new CapabilityGrant(SecurityCapability.SystemAdmin)])
+        ]);
+        var principal = new SecurityPrincipal("local-test-user", "Test operator", ["operador-estacao01"]);
+        var child = new AuthorizationResource(ScopeNodeId: pump, ScopeNodeAncestry: [pump, station]);
+        Assert.True(authorization.Evaluate(principal, SecurityCapability.TagRead, child).Allowed);
+        Assert.True(authorization.Evaluate(principal, SecurityCapability.AlarmAcknowledge, child).Allowed);
+        Assert.False(authorization.Evaluate(principal, SecurityCapability.TagRead,
+            new AuthorizationResource(ScopeNodeId: anotherStation, ScopeNodeAncestry: [anotherStation])).Allowed);
+        Assert.False(authorization.Evaluate(principal, SecurityCapability.CommandExecute, child).Allowed);
+        Assert.False(authorization.Evaluate(principal, SecurityCapability.ProcessValueWrite, child).Allowed);
+        var administrationOnly = new SecurityPrincipal("admin-test", "Test administrator", ["administration-only"]);
+        Assert.False(authorization.Evaluate(administrationOnly, SecurityCapability.AssetProcessIntelligenceManage, child).Allowed);
+    }
+
     [Theory]
     [InlineData("pt-BR")]
     [InlineData("en")]

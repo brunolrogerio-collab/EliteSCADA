@@ -150,3 +150,35 @@ test('alarm and operational event guides teach fields, state paths and emission 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('help-alarm-states-mobile.png') });
 });
+
+test('security and Audit guides distinguish account policy session and read-only diagnostics', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=security.local-accounts');
+  const article = page.locator('article');
+  await expect(article.getByRole('rowheader', { name: 'Senha / Nova senha', exact: true })).toBeVisible();
+  await expect(article).toContainText('nome de login é mostrado para identificação');
+  await page.goto('/help?topic=security.policy-scopes');
+  await expect(article).toContainText('não à pessoa selecionada');
+  await expect(article.getByRole('rowheader', { name: 'CommandExecute', exact: true })).toBeVisible();
+  await expect(article.getByRole('rowheader', { name: 'ProcessValueWrite', exact: true })).toBeVisible();
+  await expect(article).toContainText('não oferece formulário para criar ou reorganizar essa árvore');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('not the selected person');
+  await expect(article).toContainText('Unscoped grants this capability globally');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('no a la persona seleccionada');
+  await expect(article).toContainText('Sin alcance concede esa capability globalmente');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.goto('/help?topic=audit.query-diagnostics');
+  await expect(article.getByRole('rowheader', { name: 'Eventos por página', exact: true })).toBeVisible();
+  await expect(article).toContainText('não apaga eventos');
+  await expect(article).toContainText('não há campos para editar política de retenção');
+  await page.screenshot({ path: testInfo.outputPath('help-audit-fields-desktop.png'), fullPage: true });
+  await page.goto('/help?topic=security.lock-workflow');
+  await expect(article).toContainText('Salvar → Publicar → Ativar');
+  await expect(article).toContainText('não concede permissões ausentes');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await article.getByRole('rowheader', { name: 'Remover segredo', exact: true }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-lock-fields-mobile.png') });
+});

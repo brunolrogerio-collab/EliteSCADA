@@ -230,3 +230,6 @@ Os capítulos 07 (Historian: captura e consulta) e 16 (Relatórios: autoria e op
 
 
 Alarm/event field and operating guides (chapter 17): [pt-BR](pt-BR/17-ALARMES-E-EVENTOS.md), [English](en/17-ALARMS-AND-EVENTS.md), [Español](es/17-ALARMAS-Y-EVENTOS.md). Includes current Runtime limitations; not a claim that delay/ACK residuals are fixed.
+
+
+Detailed Security/Audit guide (chapter 18): [pt-BR](pt-BR/18-SEGURANCA-E-AUDITORIA.md), [English](en/18-SECURITY-AND-AUDIT.md), [Español](es/18-SEGURIDAD-Y-AUDITORIA.md). Actual user/role/scope fields, capability reference, Audit queries/diagnostics and Engineering Lock lifecycle; future online licensing is not presented as delivered.

@@ -95,6 +95,7 @@ function LockedEngineeringSurface({ locale, copy, status, onStatus }: {
         <div className="eng-lock-restricted__header-actions">
           <a href="/">{copy.runtime}</a>
           <a href="/licensing">{copy.licensing}</a>
+          <a href="/help?topic=security.lock-workflow">{locale === 'pt-BR' ? 'Ajuda para desbloquear' : locale === 'es' ? 'Ayuda para desbloquear' : 'Unlock Help'}</a>
           <LocalePicker locale={locale} copy={copy} />
         </div>
       </header>
@@ -198,6 +199,7 @@ function EngineeringLockManagement({ locale, copy, status, onStatus }: {
           <button type="button" disabled={Boolean(busy) || !status.configured} onClick={() => void perform('clear', clearEngineeringLock, copy.clearedNotice)}>{copy.clear}</button>
         </div>
         <p className="eng-lock-management__hint">{copy.lifecycleHint}</p>
+        <a href="/help?topic=security.lock-workflow">{locale === 'pt-BR' ? 'Como usar o Engineering Lock' : locale === 'es' ? 'Cómo usar Engineering Lock' : 'How to use Engineering Lock'}</a>
       </div>
       {notice && <p className="eng-lock-notice" role="status">{notice}</p>}
       {error && <p className="eng-lock-error" role="alert">{error}</p>}

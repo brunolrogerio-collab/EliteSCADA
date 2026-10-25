@@ -1,5 +1,9 @@
 # Wave 15 — Main order and execution contract
 
+Active Help continuation 25/10: four Security/Audit guides and chapter 18 share pt-BR/en/es content for local accounts, explicit grants/scopes, exact Audit filters/diagnostics and Lock lifecycle. Marker #779-AUDIT preserves future retention-review criteria; current limitations and explicit Intelligence grants remain. Local .NET 49/49 plus Security 42/42, Web and 27-file alignment passed; final browser/published SHA/run evidence is in live #424/#425/#305 and unique #756. Read newest LAST CHANGE and the depth map. Predecessor f44f3091 passed T1 40200160651, not evidence for later code. No underlying security/audit behavior or Preview changes; PR #772 remains draft and #779–#782 queued.
+
+## Previous Help checkpoint — historical
+
 Active Help continuation 25/10: Alarm/Event field, state/ACK/audio and emission guides now share chapter 17 in pt-BR/en/es. Owner-requested `HELP-REVIEW-AFTER-PRODUCT-*` markers identify pending #751/#753/#779 wording and verification criteria; preserve current limitations until accepted product evidence supports revision. Local .NET 46/46, Chromium 49/49, Web and 24-file manual alignment passed; published head/run/status is in live #424/#425/#305 and unique #756. Read newest LAST CHANGE and the depth map. Predecessor `9c66db4d` passed T1 `40198673983`, not evidence for later code. Keep PR #772 draft, #779–#782 queued and Preview untouched.
 
 ## Previous Help checkpoint — historical

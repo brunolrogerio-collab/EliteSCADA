@@ -1,4 +1,6 @@
-# CURRENT ORDER — HELP ACTIVE; OWNER OPERATIONAL-GAP QUEUE — 2026-10-25
+# CURRENT ORDER — HELP ACTIVE; LICENSING NEXT; OPERATIONAL-GAP QUEUE — 2026-10-25
+
+Portal handoff received on 25 October communicates the Product Owner's sequencing: **complete Help #424/#425 → product online licensing #301 → operational improvements #779–#782**. No immediate front change. [Product handoff and acceptance](WAVE15-ONLINE-LICENSING-AFTER-HELP-HANDOFF-2026-10-25.md) preserves the authoritative #301 contract and the live Portal stack #778 → #783 → #784; #777 remains offline intake. API/client compatibility, ESLEASE1 public-key verification, protected renewal, Demo lifecycle and usage UI are queued, not delivered. Portal issuance/key provisioning remains disabled pending joint validation.
 
 The active front remains practical Help/manual #424/#425 (PR #772). The Product Owner explicitly requested these authorized product improvements in the following development queue, without switching away from the current Help work: **#779 storage capacity/retention/archive → #780 TCP/UDP/service port configuration → #781 multi-monitor Runtime station → #782 optional anonymous View Only Runtime**. See [the authoritative queue plan](WAVE15-OWNER-OPERATIONAL-GAPS-QUEUE-2026-10-25.md) and individual issue acceptance criteria.
 

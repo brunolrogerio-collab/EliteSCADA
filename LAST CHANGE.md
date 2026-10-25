@@ -1,3 +1,19 @@
+# CURRENT COORDINATION — PORTAL HANDOFF RECEIVED; LICENSING AFTER HELP — 2026-10-25
+
+**SPECIFIED / QUEUED, NOT IMPLEMENTED:** the Portal chat resent its handoff communicating the Product Owner's priority: complete Help #424/#425, then product online licensing #301, then existing operational queue #779–#782. Receipt/order is recorded in #301 and linked from live #305/#756; see `docs/WAVE15-ONLINE-LICENSING-AFTER-HELP-HANDOFF-2026-10-25.md`. PROJECT GOAL, ROADMAP and the operational queue preserve this order. Help remains active; this is not full Help acceptance or an immediate front switch.
+
+Live metadata revalidated: #778 API head `3f825c9750eed841d309004af452cb5bff3d0db5` over main `3b520aff3c249d0c7e0b8c2957344226de911ed7`, four checks green; #783 UI head `e5debb2b6a7962cb5cfb470ec1fff4f1b60d5c5c` stacked on #778, Portal green; #784 head `2a2d1e7a33dc9ab8364c7fda53ee44073a8f8b5b` stacked on #783, Portal green; all remain open/draft/unmerged. #777 remains offline ESREQ1 intake. This is a metadata/status check, not completed compatibility/security review of those implementations. The #301 contract comment 6392078669 remains authoritative.
+
+Queued product work: verify actual API/wire compatibility first; preserve offline ESLIC1/schema1, ESLIC2/schema2 and ESLIC3/schema3; add purpose/KeyId/machine/IDs/time/TTL-bounded ESLEASE1 verification with only the online public key; protected cross-platform activation/rotating renewal credentials, product-initiated 48-hour renewal/idempotent recovery, expiry-to-Demo lifecycle, Demo without Run timer and backend-derived usage/limit UX. Revalidate exact bases/heads and canonical lifecycle/session/HA/Intelligence mechanisms before coding. Existing product base still contains the 300-minute Demo timer; the new behavior is not delivered by recording it.
+
+Active Help source checkpoint remains `b4b4bb4f9d4fbd1d01b9e06c239dd784d4f67045` on draft #772 over `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`; exact-head T1 `40204142092` passed (Chromium 38/38; Drivers 1723 passed/1 skipped plus DB 1; Timescale 41; Security 42; Web/gate). This new coordination continuation changes Markdown only, with no runtime/test/source change and no claim that the source gate belongs to a later documentation commit. Its published head/status is in the live issue/PR record. Relative links/diff are checked; no backend/browser rerun is needed for the planning prose.
+
+No Portal/product merges, emission, signature enablement, private-key access/provisioning, Preview/DEMO deployment, account/policy or license behavior changes. Portal issuance remains disabled until product verifier/renewal/lifecycle and key operation are integrated and jointly validated. Commercial activation-count/offline-operation decisions remain pending; do not invent their values. Preserve the Portal's own #756 next action and independent #741 scope.
+
+Next active action: continue Help libraries/resources and Gateway/file workflows according to the depth map; finish the Help convergence/required walkthrough and planned UI audit/captures. Only then activate a separate product licensing PR under #301, not code in the Help PR. Documentation related to future licensing must be revised against the accepted behavior and review markers at that time.
+
+---
+
 # CURRENT HELP — SECURITY/AUDIT FIELDS AND PROTECTION — 2026-10-25
 
 **IMPLEMENTED ON PR BRANCH / NOT MERGED:** continue draft #772 on `work/w15-help-foundation-tag-20261023`, product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`. Four new guides and chapter 18 in pt-BR/en/es explain local-account fields, role/capability/grant/scopes, Audit queries/diagnostics and Engineering Lock. There are 48 explained fields, 17 sections and 16 capability options; inventory does not close teaching-depth acceptance. Installed Help/manual share the same source, old overview IDs remain available, and contextual/direct links reach the guides.

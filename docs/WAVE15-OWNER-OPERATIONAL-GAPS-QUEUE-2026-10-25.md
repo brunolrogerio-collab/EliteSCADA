@@ -4,8 +4,10 @@ Decisão direta do Product Owner: registrar os quatro gaps abaixo para a sequên
 
 ## Sequência e estado
 
+Atualização de 25/10: o handoff do Portal comunica a prioridade do Product Owner **concluir Help → licenciamento do produto #301 → fila operacional abaixo**. A ordem relativa #779 → #780 → #781 → #782 fica preservada. Ver [handoff de licenciamento](WAVE15-ONLINE-LICENSING-AFTER-HELP-HANDOFF-2026-10-25.md). Registro de planejamento, sem implementação ou habilitação de emissão.
+
 1. **Frente ativa:** aprofundamento do Help/manual #424/#425, PR #772. Concluir a redação/revisão em andamento; manter o mapa de profundidade real e os gates existentes.
-2. **Fila de produto:** executar os pacotes abaixo na ordem proposta, um por vez, com base exata revalidada e contratos/dados existentes preservados. Não reabrir paralelismo nem pedir novamente autorização para registrar estes mesmos efeitos.
+2. **Fila de produto após #301:** executar os pacotes abaixo na ordem proposta, um por vez, com base exata revalidada e contratos/dados existentes preservados. Não reabrir paralelismo nem pedir novamente autorização para registrar estes mesmos efeitos.
 3. Cada entrega atualiza sua Ajuda/manual. Coordenar sua entrada no candidato antes de congelar capturas finais; a auditoria #357 e as imagens reais #425 devem representar a versão efetivamente aceita. Não declarar Help, Preview ou Wave 15 completos enquanto os gates correspondentes não forem satisfeitos.
 
 | Ordem | Issue | Entrega | Estado |

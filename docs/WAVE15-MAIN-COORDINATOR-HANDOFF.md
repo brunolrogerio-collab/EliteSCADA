@@ -1,5 +1,7 @@
 # Wave 15 — Main order and execution contract
 
+Coordination receipt 25/10: Portal handoff communicates the Product Owner priority **finish Help → product licensing #301 → #779–#782**. Help remains active; online-client/verifier/renewal/Demo/usage work is queued, not implemented. Read `WAVE15-ONLINE-LICENSING-AFTER-HELP-HANDOFF-2026-10-25.md`, authoritative #301 comment 6392078669, live #301 receipt and newest LAST CHANGE. Revalidate Portal stack #778/#783/#784 and product heads before coding. No emission, key provisioning, merge or front change follows from this receipt. The source Help checkpoint b4b4bb4f passed exact T1 40204142092; a later planning-only commit must not reuse that SHA's gate as its own.
+
 Active Help continuation 25/10: four Security/Audit guides and chapter 18 share pt-BR/en/es content for local accounts, explicit grants/scopes, exact Audit filters/diagnostics and Lock lifecycle. Marker #779-AUDIT preserves future retention-review criteria; current limitations and explicit Intelligence grants remain. Local .NET 49/49 plus Security 42/42, Web and 27-file alignment passed; final browser/published SHA/run evidence is in live #424/#425/#305 and unique #756. Read newest LAST CHANGE and the depth map. Predecessor f44f3091 passed T1 40200160651, not evidence for later code. No underlying security/audit behavior or Preview changes; PR #772 remains draft and #779–#782 queued.
 
 ## Previous Help checkpoint — historical

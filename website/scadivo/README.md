@@ -86,6 +86,18 @@ Tests require a **disposable** PostgreSQL database. Set `PORTAL_TEST_DATABASE`; 
 
 The licensing API routes, `ESLEASE1` payload, activation/renewal contract, replay behavior and disabled-by-default signing boundary are documented in [`portal/LICENSING_API.md`](portal/LICENSING_API.md). Online signing remains off until the verifier and product integration are complete.
 
+The Licenses tab groups entitlements by named application and shows license codes, capacities, terms, expiry and linked installation counts. Accounts can manage their organizations/applications and deactivate their own installations; organization management follows the API's Owner/Admin roles. Portal Owners have an additional Administration → Licenses page for explicitly creating, extending and revoking entitlements. These screens support PT-BR/EN/ES and report activation availability from the server. They do not process payments or activate a product from the browser.
+
+Focused UI checks use synthetic API fixtures, independently of the product's browser tests:
+
+```powershell
+npm ci --prefix tests/browser
+npx --prefix tests/browser playwright install chromium
+npm test --prefix tests/browser
+```
+
+These checks cover member/organization/Portal Owner actions, typed entitlement payloads, confirmed revocation and a 360 px layout in all three languages. Real persistence, authorization and antiforgery remain covered by the PostgreSQL integration suite.
+
 ### Local Docker homologation
 
 Use the isolated stack for a live, persistent preview of site and portal changes:
@@ -100,6 +112,16 @@ docker compose -f deploy/compose.homolog.yml up -d --build
 - The local preview alone routes email to Mailpit and uses a development-only HTTP cookie policy. Production stays HTTPS-only; public registration is currently opted in as a limited pilot by explicit owner decision, while the Compose default remains disabled so a fresh installation is closed unless deliberately enabled.
 - A local-only owner account is bootstrapped as `scadivo.owner` with the test password shown in this homologation Compose file. Never reuse it outside localhost.
 - `docker compose -f deploy/compose.homolog.yml down` stops the preview while preserving its volumes. Do not add `-v` unless you intend to erase only this homologation database and key ring.
+
+To review licensing changes without replacing an existing local preview, use a separate Compose project and loopback ports. It gets its own database/key volumes, synthetic owner and Mailpit inbox; signing stays disabled:
+
+```powershell
+$env:SCADIVO_HOMOLOG_PORT = '18087'
+$env:SCADIVO_HOMOLOG_MAIL_PORT = '18089'
+docker compose -p scadivo-licensing-ui-homolog -f deploy/compose.homolog.yml up -d --build
+```
+
+Open `http://localhost:18087/portal/` and the local email inbox at `http://localhost:18089/`. The same command with `down` in place of `up -d --build` stops only that isolated preview and preserves its volumes. Port defaults remain 18084/18083 for the original preview.
 
 ## Current production layout
 

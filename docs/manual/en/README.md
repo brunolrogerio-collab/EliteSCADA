@@ -1,5 +1,8 @@
 # SCADIVO Manual — English
 
+- [Libraries and assets: reuse and incorporation](19-LIBRARIES-AND-ASSETS.md)
+- [Gateway and CSV/Excel files](20-GATEWAY-CSV-EXCEL.md)
+
 - [Security and Audit: accounts, permissions and protection](18-SECURITY-AND-AUDIT.md)
 
 - [Alarms and events: configuration and operation](17-ALARMS-AND-EVENTS.md) — explained fields, current limits, numeric example, ACK, sounds and Python emission; a definition is not an occurrence.

@@ -51,8 +51,7 @@ Expand Alarm behavior. Some options are saved in the definition but have current
 3. Run Preview, read errors and apply to Workspace. Any further edit requires validation again.
 4. Save, publish and activate the correct revision; applying to Workspace alone does not activate Runtime.
 5. With Good quality, send 9: the condition is Normal. Send 10: it becomes Active because equality reaches the threshold.
-6. Acknowledge in Runtime: it becomes Acknowledged while the TAG remains
-10. Send 9: it becomes Returned and leaves the active list because ACK was already recorded.
+6. Acknowledge in Runtime: it becomes Acknowledged while the TAG remains 10. Send 9: it becomes Returned and leaves the active list because ACK was already recorded.
 7. For another activation, send 10 then 9 without ACK: it becomes Returned pending acknowledgement. Acknowledge and verify removal from the active list. Use history for earlier transitions.
 
 ### If the result differs

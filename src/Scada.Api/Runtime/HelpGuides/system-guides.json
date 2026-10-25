@@ -1973,6 +1973,343 @@
         "engineering.lifecycle",
         "recovery.backup-system-recovery"
       ]
+    },
+    {
+      "id": "libraries.associate-incorporate",
+      "category": "libraries",
+      "title": "Bibliotecas: associar, conferir e incorporar recursos",
+      "summary": "Reutilize recursos sem confundir o catálogo com o conteúdo efetivo do projeto.",
+      "sections": [
+        {
+          "heading": "Escolha o tipo de reutilização",
+          "body": "Abra Engenharia > Bibliotecas. Um arquivo .escadalib reúne recursos reutilizáveis, como Template, Dínamo, Tela, Popup, Script e asset visual, com suas dependências. Não é o projeto completo .escadapkg, um backup de banco nem uma Authority. O catálogo pode mostrar origens de fábrica, do projeto e de bibliotecas associadas. Associar disponibiliza uma biblioteca para consulta; usar/incorporar copia o recurso selecionado e as dependências necessárias para o Working. Só depois ele faz parte do projeto. Preview visual permite conferir a aparência sem incorporar.",
+          "fields": null
+        },
+        {
+          "heading": "Campos, filtros e informações",
+          "body": "Nome, tipo, categoria, origem e palavras-chave ajudam a localizar o recurso certo. Uma busca sem resultados pode ser um filtro combinado; limpe os filtros antes de importar outra cópia. Dados de versão/hash e dependências são informações de inspeção, não campos para digitar referências arbitrárias.",
+          "fields": [
+            {
+              "key": "library.file",
+              "label": "Arquivo para associar",
+              "description": "Selecione o .escadalib recebido. O servidor valida estrutura/conteúdo; renomear outro arquivo para essa extensão não o converte.",
+              "example": "bombas-1.0.escadalib",
+              "constraints": ""
+            },
+            {
+              "key": "library.origin",
+              "label": "Origem / filtros do catálogo",
+              "description": "Separe fábrica, projeto e biblioteca associada antes de usar. Recursos do projeto já pertencem ao Working; os associados ainda podem precisar de incorporação.",
+              "example": "Associada → Template de bomba",
+              "constraints": ""
+            },
+            {
+              "key": "library.dependencies",
+              "label": "Dependências / inspeção",
+              "description": "Confira os recursos que acompanham a seleção. Uma Tela pode depender de Dínamos e imagens; a quantidade incorporada pode ser maior que um. IDs/caminhos internos servem à inspeção, não são nomes para recriar manualmente.",
+              "example": "Tela + Dínamo + imagem",
+              "constraints": ""
+            },
+            {
+              "key": "library.exportName",
+              "label": "Nome da nova biblioteca",
+              "description": "Ao exportar uma seleção, dê um nome que descreva o conjunto. Não é o nome de uma aplicação de Runtime.",
+              "example": "Bombas da estação",
+              "constraints": ""
+            },
+            {
+              "key": "library.exportVersion",
+              "label": "Versão da nova biblioteca",
+              "description": "Informe a versão para reconhecer a entrega. Ela descreve a biblioteca exportada; não muda automaticamente a revisão do projeto nem atualiza cópias já incorporadas.",
+              "example": "1.0",
+              "constraints": ""
+            },
+            {
+              "key": "library.exportSelection",
+              "label": "Recursos para exportar",
+              "description": "Marque recursos existentes no projeto; escolha o item principal e confira a inclusão das dependências. A exportação gera um arquivo, não publica uma revisão.",
+              "example": "Template e Popup de bomba",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento: usar um recurso recebido",
+          "body": "1. Abra Bibliotecas e associe o arquivo. Confira nome, versão e origem. 2. Escolha a biblioteca e filtre o tipo de recurso. Inspecione dependências; quando houver Preview visual, confira a aparência. Associar e Preview não alteram o Working. 3. Use/incorpore o recurso desejado; aguarde a confirmação e a atualização do projeto. Essa ação modifica Working e pode reaproveitar conteúdo equivalente já presente. 4. Abra o recurso na área apropriada. Confira TAGs, comandos, parâmetros e referências: uma imagem de bomba não adivinha o TAG da sua bomba. 5. Insira/configure os objetos nas Telas ou Popups e teste. Salve, publique e ative a revisão antes de conferir no Runtime. 6. Para exportar seu conjunto, informe nome/versão, marque os recursos e baixe o .escadalib. Reabra em um projeto de teste para conferir que as dependências necessárias foram incluídas.",
+          "fields": null
+        },
+        {
+          "heading": "Atualização, desassociação e falhas",
+          "body": "Desassociar remove a biblioteca do catálogo associado; não apaga recursos já incorporados no projeto. A origem registrada é informativa: não constitui sincronização automática com futuras versões. Um mesmo ID de biblioteca com conteúdo diferente pode gerar conflito; confira qual versão precisa antes de desassociar e associar outro arquivo. Preview indisponível não prova que todo o pacote seja inválido: alguns tipos não têm prévia visual. Se o Workspace mudou durante a operação, recarregue antes de repetir. Uma associação não disponibiliza credenciais de Driver, usuários ou licença. O catálogo associado atual é local ao processo e pode desaparecer após reiniciar o serviço; guarde o arquivo para associá-lo de novo. Isso é diferente dos recursos já incorporados e salvos no projeto.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "libraries.reusable-resources",
+        "assets.management",
+        "templates.overview",
+        "dynamos.overview",
+        "visual.first-screen",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "assets.management",
+      "category": "visual-assets",
+      "title": "Assets visuais: importar, nomear e usar imagens",
+      "summary": "Organize os arquivos gráficos e preserve o vínculo ao renomear.",
+      "sections": [
+        {
+          "heading": "Arquivo gráfico e objeto visual",
+          "body": "Abra Engenharia > Assets visuais. O asset é o arquivo de imagem ou modelo; um objeto da Tela é quem o exibe. Importar uma imagem não cria um TAG, comando, Dínamo parametrizado ou instância na Tela. O catálogo de fábrica e os assets do projeto são apresentados separadamente. Artes incorporadas a Dínamos ou de fábrica podem não aparecer na lista de imagens do usuário; procure na origem correspondente antes de importar duplicata.",
+          "fields": null
+        },
+        {
+          "heading": "Campos e ações",
+          "body": "Use a prévia para conferir conteúdo, depois um nome legível para localizá-lo no editor. Tipos aceitos no seletor ainda são validados pelo serviço; não basta trocar a extensão.",
+          "fields": [
+            {
+              "key": "asset.file",
+              "label": "Importar arquivo",
+              "description": "Selecione PNG, JPG, BMP ou SVG para imagens; o seletor também aceita GLB/GLTF para modelos suportados. Confira se o objeto de destino aceita esse tipo, não presuma que todo controle exibe 3D.",
+              "example": "bomba-frente.svg",
+              "constraints": ""
+            },
+            {
+              "key": "asset.name",
+              "label": "Nome de exibição",
+              "description": "Inicialmente vem do nome do arquivo sem extensão. Renomear muda o rótulo e preserva a identidade estável usada pelos vínculos.",
+              "example": "Bomba — vista frontal",
+              "constraints": ""
+            },
+            {
+              "key": "asset.delete",
+              "label": "Excluir / confirmar",
+              "description": "Exige confirmação e pode ser recusado se o asset estiver em uso. Remova ou substitua referências no projeto antes de tentar de novo.",
+              "example": "Excluir imagem não utilizada",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento e conferência",
+          "body": "1. Importe um arquivo e aguarde a confirmação do serviço. 2. Confira prévia e nome; ajuste o rótulo se necessário. 3. Abra a Tela/Popup e insira um objeto compatível, escolhendo o asset pela biblioteca/seletor. Para um fundo ou branding, use o campo correspondente na área de configuração. 4. Ajuste tamanho/proporção na Tela; isso não altera os pixels do arquivo original. 5. Salve, publique e ative antes de conferir no Runtime. Se não aparecer, confira vínculo, tipo suportado, revisão e disponibilidade do conteúdo; não substitua o asset por outro só porque o nome parece igual.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "libraries.associate-incorporate",
+        "visual.first-screen",
+        "visual.properties",
+        "application.presentation"
+      ]
+    },
+    {
+      "id": "gateway.configure-test",
+      "category": "gateway",
+      "title": "Gateway de TAGs: configurar e testar uma rota",
+      "summary": "Transfira valores entre TAGs do servidor, com qualidade, conversão e diagnóstico explícitos.",
+      "sections": [
+        {
+          "heading": "Quando usar",
+          "body": "Abra Engenharia > Gateway. Uma rota lê um TAG de origem e solicita escrita em um TAG de destino pelo Runtime. Permite ligar fontes de protocolos diferentes já configuradas, mas não cria Data Sources, endereços nem conexão por si só. É transferência em uma direção, não sincronização bidirecional automática. Não monte um circuito de rotas de volta sem analisar o efeito. Para aprender, use dois TAGs Server Memory sem conexão física.",
+          "fields": null
+        },
+        {
+          "heading": "Identidade e pontas da rota",
+          "body": "Os seletores oferecem TAGs com fonte habilitada e propriedade do servidor. Client Memory pertence ao navegador e não é ponta de rota. Simulation pode servir de origem, mas não de destino. O destino precisa permitir escrita; origem e destino devem ser diferentes. IDs mantêm identidade interna, caminhos ajudam a conferir o significado.",
+          "fields": [
+            {
+              "key": "gateway.key",
+              "label": "Identificador da rota",
+              "description": "Chave para reconhecer a rota no projeto e nos diagnósticos. O formulário atual mantém o nome da rota junto desse identificador; no arquivo tabular Key e Name aparecem separados.",
+              "example": "copy-speed",
+              "constraints": "Obrigatório, sem espaços."
+            },
+            {
+              "key": "gateway.enabled",
+              "label": "Habilitada",
+              "description": "Define se a rota participa da revisão ativada. Não equivale a corrigir uma falha de destino.",
+              "example": "Sim",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.source",
+              "label": "TAG de origem",
+              "description": "Selecione o valor que deve alimentar o destino. Confira tipo, qualidade e escala no Monitor de TAGs.",
+              "example": "Server.Source",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.destination",
+              "label": "TAG de destino",
+              "description": "Selecione o TAG gravável, já configurado para seu equipamento ou Server Memory. A rota não muda automaticamente sua permissão de escrita.",
+              "example": "Server.Destination",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Disparo, partida e conversão",
+          "body": "GoodOnly é a política de qualidade atual: valor ruim não é transferido como leitura válida. Os campos condicionais mudam conforme o modo e a conversão escolhidos. Períodos são milissegundos; não alteram o ciclo de aquisição do Driver.",
+          "fields": [
+            {
+              "key": "gateway.mode",
+              "label": "OnChange / Periodic",
+              "description": "OnChange reage às atualizações aceitáveis e considera deadband/intervalo mínimo. Periodic verifica o valor corrente no período definido; não fabrica qualidade Good quando a fonte está ruim.",
+              "example": "OnChange",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.startup",
+              "label": "Transferência inicial",
+              "description": "Sincronizar usa o primeiro valor aceitável disponível na partida. Aguardar próximo valor evita essa sincronização inicial e aguarda a condição de transferência seguinte. Avalie o efeito antes de usar destino físico.",
+              "example": "WaitForNextAcceptableValue",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.deadband",
+              "label": "Deadband (OnChange)",
+              "description": "Diferença absoluta na unidade da origem, comparada ao último valor de origem transferido com sucesso. Diferença menor é ignorada; igualdade com o deadband permite prosseguir. Não é porcentagem nem deadband de alarme.",
+              "example": "0.1",
+              "constraints": "Número finito ≥ 0; apenas OnChange."
+            },
+            {
+              "key": "gateway.minimumInterval",
+              "label": "Intervalo mínimo (OnChange, ms)",
+              "description": "Limita frequência de tentativas no modo de mudança. Atualizações rápidas podem ser reunidas e o valor atual é relido antes de escrever; não é fila garantida de cada amostra.",
+              "example": "1000 ms = 1 s",
+              "constraints": "Se configurado: 100 a 86400000 ms."
+            },
+            {
+              "key": "gateway.period",
+              "label": "Período (Periodic, ms)",
+              "description": "Intervalo de transferência periódica. Não combine com deadband ou intervalo mínimo de OnChange no arquivo.",
+              "example": "1000",
+              "constraints": "Obrigatório em Periodic: 100 a 86400000 ms."
+            },
+            {
+              "key": "gateway.conversion",
+              "label": "Exact / CheckedNumeric",
+              "description": "Exact exige compatibilidade direta sem ganho/offset. CheckedNumeric explicita transformação numérica e valida o tipo destino. Estouro de faixa ou fração que seria perdida em inteiro causa falha; não há truncamento silencioso.",
+              "example": "CheckedNumeric",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.gain",
+              "label": "Gain (ganho)",
+              "description": "Multiplicador da fórmula destino = origem × gain + offset. Ausente usa 1. Não é o ajuste de escala do Driver.",
+              "example": "2",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.offset",
+              "label": "Offset",
+              "description": "Parcela somada após o ganho; ausente usa 0. Confirme unidade/faixa do destino antes de publicar.",
+              "example": "5",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento: 11 vira 27 sem equipamento real",
+          "body": "1. Crie dois TAGs graváveis Server Memory: Server.Source Int16 e Server.Destination Int32, sem destino físico. 2. Crie copy-speed com essas pontas, OnChange, Aguardar próximo valor, CheckedNumeric, gain 2 e offset 5. Deixe deadband e intervalo mínimo vazios neste primeiro teste. 3. Execute Preview da configuração; corrija erros e aplique ao Workspace. Salve, publique e ative. 4. No ambiente de teste, atualize a origem para 11 com qualidade Good. Confira 27 no destino: 11 × 2 + 5. 5. Confira diagnóstico de transferência e último erro; uma solicitação aceita não prova que equipamento físico atuou. 6. Só depois avalie faixa, unidade, qualidade, partida e ritmo necessários para trocar as pontas por TAGs reais. Não use uma rota para contornar Authority, licença ou autoridade HA.",
+          "fields": null
+        },
+        {
+          "heading": "CSV equivalente e diagnóstico",
+          "body": "Este CSV usa caminhos legíveis, sem IDs. Os dois TAGs e sua fonte precisam existir antes do Preview/Apply. Em Import/Export, selecione Rotas Gateway e CSV; o arquivo não cria os TAGs. O diagnóstico de Runtime é da revisão ativa, não do rascunho. Aguardando origem pede conferir fonte/qualidade; Degraded e último erro pedem conferir conversão, faixa e destino. Contadores de ignoradas/coalescidas não significam automaticamente defeito: consulte modo e limites. Importar uma rota não executa uma transferência até o lifecycle apropriado.",
+          "fields": null,
+          "code": "Key,Name,SourceTagPath,DestinationTagPath,TransferMode,QualityPolicy,ConversionPolicy,InitialTransferPolicy,Gain,Offset,Enabled\ncopy-speed,Copy speed,Server.Source,Server.Destination,OnChange,GoodOnly,CheckedNumeric,WaitForNextAcceptableValue,2,5,true"
+        }
+      ],
+      "relatedTopicIds": [
+        "gateway.overview",
+        "engineering.tabular-workflow",
+        "sources.internal-memory",
+        "tags.quality",
+        "engineering.lifecycle",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "engineering.tabular-workflow",
+      "category": "engineering",
+      "title": "CSV e Excel: exportar, editar e importar sem perder referências",
+      "summary": "Prepare uma tabela por entidade, valide o candidato e confira o que será criado ou atualizado.",
+      "sections": [
+        {
+          "heading": "Qual arquivo usar",
+          "body": "Na área Import/Export/Gerenciamento do projeto, use a seção CSV/Excel para TAGs, Alarmes, Data Sources, Rotas Gateway ou Eventos Operacionais. Escolha uma entidade por arquivo. Para Telas, Popups, Templates, scripts e dependências compostas, use os mecanismos de projeto/biblioteca adequados; não transforme sua estrutura em colunas inventadas. CSV/XLSX de engenharia não é exportação dos valores históricos nem backup de Authority/banco. Comece exportando o modelo atual para preservar nomes de colunas e convenções.",
+          "fields": null
+        },
+        {
+          "heading": "Controles do fluxo",
+          "body": "O arquivo e a escolha de entidade/formato/modo identificam o candidato. Qualquer alteração deve passar novamente pelo Preview. O resumo informa criações, atualizações, ignorados e erros; ignorado não significa que a linha foi aplicada.",
+          "fields": [
+            {
+              "key": "tabular.entity",
+              "label": "Entidade",
+              "description": "Escolha o tipo de objetos contidos nas linhas. Uma planilha de rotas não pode ser lida como TAGs.",
+              "example": "gateway-routes",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.format",
+              "label": "CSV / XLSX",
+              "description": "CSV usa vírgula entre campos e aspas para textos com vírgula/aspas/quebra. XLSX aceita uma única aba com o nome exportado para a entidade. Arquivo .xls antigo não vira XLSX por renomear.",
+              "example": "GatewayRoutes no XLSX",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.mode",
+              "label": "Modo de mesclagem",
+              "description": "CreateOnly cria os novos e ignora existentes; UpdateExisting atualiza existentes e ignora novos; CreateAndUpdate faz ambos. A correspondência segue a identidade da entidade, não a posição da linha. Não é substituir tudo nem excluir ausentes.",
+              "example": "CreateAndUpdate",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.file",
+              "label": "Arquivo e confirmação",
+              "description": "Selecione o arquivo salvo, execute Preview e leia os diagnósticos antes de confirmar Apply. O conteúdo deve ser o mesmo validado; se o Workspace mudar, recarregue/revalide.",
+              "example": "Exportar → editar → Preview → Apply",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.references",
+              "label": "Chaves e caminhos de referência",
+              "description": "Exportações atuais usam caminhos/chaves legíveis, ocultando IDs internos. Preserve o caminho de TAG ou a chave da entidade ao atualizar; uma chave nova pode criar outro objeto. Referências precisam existir no projeto/candidato adequado.",
+              "example": "SourceTagPath=Server.Source",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Regras para editar no Excel ou editor de texto",
+          "body": "Mantenha os cabeçalhos técnicos exportados, mesmo que a interface esteja traduzida. Coluna desconhecida ou repetida pode impedir a importação. Use ponto decimal (2.5) e booleanos true/false; não acrescente unidade ao número. Campos JSON exigem JSON válido: não são Python nem lista separada por ponto e vírgula. Preserve caminhos/chaves como texto para evitar conversão automática em data/número. Fórmulas XLSX são recusadas, mesmo com resultado calculado: cole valores antes de salvar. A única aba deve ser Tags, Alarms, DataSources, GatewayRoutes ou OperationalEvents conforme a entidade. Não inclua usuários, password hashes, credenciais de login ou segredos; referências protegidas de Data Source não são os segredos em si. Campos complexos devem partir de exportação real, não de um exemplo simplificado.",
+          "fields": null
+        },
+        {
+          "heading": "Exemplo: dois TAGs para o teste de Gateway",
+          "body": "A fonte Server Memory com chave memory.server deve existir. Este CSV mínimo cria os TAGs do exemplo de Gateway; não cria a fonte. Em um projeto de teste, selecione TAGs/CSV e Preview, confira os dois itens e aplique pelo fluxo protegido. Depois importe a rota do guia Gateway. Uma tabela com poucas colunas é para criação guiada: para atualizar objetos completos, preserve a exportação completa, pois colunas omitidas podem assumir valores padrão e não significam necessariamente manter o valor anterior.",
+          "fields": null,
+          "code": "Path,Name,DataType,DataSourceKey,ReadOnly,InitialValueDataType,InitialValueJson\nServer.Source,Source,int16,memory.server,false,int16,0\nServer.Destination,Destination,int32,memory.server,false,int32,0"
+        },
+        {
+          "heading": "Procedimento completo e recuperação de erro",
+          "body": "1. Exporte a entidade atual e guarde uma cópia antes de editar. 2. Edite uma pequena seleção; preserve referências e tipos. Para expansão, use novos caminhos/chaves inequívocos e crie Data Sources antes de TAGs, depois alarmes/rotas/eventos dependentes. 3. Salve apenas valores no formato escolhido e selecione novamente o arquivo. 4. Escolha modo e Preview; confira contagens e linhas com erro. Preview não modifica Working. 5. Confirme Apply do candidato validado; só então confira os objetos no editor. 6. Salve, publique e ative para mudar o Runtime, conforme o ciclo do projeto. 7. Se houver erro de linha, corrija a origem do erro no arquivo, sem apagar linhas para esconder dependências; repita Preview. Se o resultado atualizado perdeu uma opção, compare colunas omitidas/defaults com o arquivo completo original. Exportação é uma cópia de configuração, não reversão automática de uma ativação.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "gateway.configure-test",
+        "tags.overview",
+        "alarms.configuration",
+        "operational-events.configuration",
+        "libraries.associate-incorporate",
+        "engineering.lifecycle",
+        "recovery.backup-system-recovery"
+      ]
     }
   ],
   "en": [
@@ -3949,6 +4286,343 @@
         "engineering.lifecycle",
         "recovery.backup-system-recovery"
       ]
+    },
+    {
+      "id": "libraries.associate-incorporate",
+      "category": "libraries",
+      "title": "Libraries: associate, inspect and incorporate resources",
+      "summary": "Reuse resources without confusing the catalog with actual project content.",
+      "sections": [
+        {
+          "heading": "Choose the reuse mechanism",
+          "body": "Open Engineering > Libraries. An .escadalib file groups reusable resources such as Templates, Dynamos, Screens, Popups, Scripts and visual assets with dependencies. It is not a complete .escadapkg project, database backup or Authority. The catalog can show factory, project and associated-library origins. Association makes a library available for inspection; Use/incorporate copies the selected resource and required dependencies into Working. Only then is it project content. Visual Preview lets you inspect appearance without incorporation.",
+          "fields": null
+        },
+        {
+          "heading": "Fields, filters and information",
+          "body": "Name, type, category, origin and keywords help locate the right resource. No results may come from combined filters; clear them before importing another copy. Version/hash and dependency data are inspection information, not fields for arbitrary references.",
+          "fields": [
+            {
+              "key": "library.file",
+              "label": "File to associate",
+              "description": "Select the received .escadalib. The server validates structure/content; renaming another file to this extension does not convert it.",
+              "example": "bombas-1.0.escadalib",
+              "constraints": ""
+            },
+            {
+              "key": "library.origin",
+              "label": "Origin / catalog filters",
+              "description": "Distinguish factory, project and associated library before use. Project resources already belong to Working; associated resources may still need incorporation.",
+              "example": "Associated → Pump Template",
+              "constraints": ""
+            },
+            {
+              "key": "library.dependencies",
+              "label": "Dependencies / inspection",
+              "description": "Inspect resources accompanying the selection. A Screen may depend on Dynamos and images; incorporation can include more than one resource. Internal IDs/paths aid inspection, not manual recreation.",
+              "example": "Screen + Dynamo + image",
+              "constraints": ""
+            },
+            {
+              "key": "library.exportName",
+              "label": "New library name",
+              "description": "When exporting a selection, name the collection clearly. Not a Runtime application name.",
+              "example": "Station pumps",
+              "constraints": ""
+            },
+            {
+              "key": "library.exportVersion",
+              "label": "New library version",
+              "description": "Enter a version to identify the delivery. It describes the exported library; it neither changes project revision nor automatically updates incorporated copies.",
+              "example": "1.0",
+              "constraints": ""
+            },
+            {
+              "key": "library.exportSelection",
+              "label": "Resources to export",
+              "description": "Select existing project resources; choose the main item and inspect included dependencies. Export creates a file, not a published revision.",
+              "example": "Pump Template and Popup",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedure: use a received resource",
+          "body": "1. Open Libraries and associate the file. Check name, version and origin. 2. Choose the library and filter the resource type. Inspect dependencies; use visual Preview when available. Association and Preview do not change Working. 3. Use/incorporate the desired resource; wait for confirmation and project refresh. This changes Working and may reuse equivalent content already present. 4. Open the resource in its appropriate area. Check TAGs, commands, parameters and references: a pump picture cannot infer your pump TAG. 5. Insert/configure objects in Screens or Popups and test. Save, publish and activate before checking Runtime. 6. To export your collection, enter name/version, select resources and download .escadalib. Reopen it in a test project to verify dependencies were included.",
+          "fields": null
+        },
+        {
+          "heading": "Updates, disassociation and failures",
+          "body": "Disassociate removes the library from the associated catalog; it does not delete incorporated project resources. Recorded origin is informational, not automatic synchronization with future versions. The same library ID with different content can conflict; check the required version before disassociating and associating another file. Unavailable Preview does not prove the whole package invalid: some kinds have no visual preview. If Workspace changed during the operation, reload before retrying. Association supplies no Driver credentials, users or license. The current associated catalog is process-local and may disappear after service restart; retain the file to associate it again. This differs from resources already incorporated and saved in the project.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "libraries.reusable-resources",
+        "assets.management",
+        "templates.overview",
+        "dynamos.overview",
+        "visual.first-screen",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "assets.management",
+      "category": "visual-assets",
+      "title": "Visual assets: import, name and use images",
+      "summary": "Organize graphics files and preserve references when renaming.",
+      "sections": [
+        {
+          "heading": "Graphics file and visual object",
+          "body": "Open Engineering > Visual assets. An asset is the image/model file; a Screen object displays it. Importing an image creates no TAG, command, parameterized Dynamo or Screen instance. Factory catalog and project assets are shown separately. Dynamo artwork or factory content may not appear in the user-image list; check its origin before importing duplicates.",
+          "fields": null
+        },
+        {
+          "heading": "Fields and actions",
+          "body": "Use Preview to check content, then a readable name to find it in the editor. Types offered by the picker are still service-validated; changing extensions is insufficient.",
+          "fields": [
+            {
+              "key": "asset.file",
+              "label": "Import file",
+              "description": "Select PNG, JPG, BMP or SVG for images; the picker also accepts GLB/GLTF for supported models. Check that the target object supports the type; not every control renders 3D.",
+              "example": "bomba-frente.svg",
+              "constraints": ""
+            },
+            {
+              "key": "asset.name",
+              "label": "Display name",
+              "description": "Initially taken from the filename without extension. Rename changes the label and preserves stable identity used by references.",
+              "example": "Pump — front view",
+              "constraints": ""
+            },
+            {
+              "key": "asset.delete",
+              "label": "Delete / confirm",
+              "description": "Requires confirmation and may be rejected when the asset is in use. Remove or replace project references before trying again.",
+              "example": "Delete an unused image",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedure and verification",
+          "body": "1. Import a file and wait for service confirmation. 2. Check Preview and name; adjust the label if needed. 3. Open the Screen/Popup and insert a compatible object, choosing the asset through its library/picker. For background or branding, use the relevant configuration field. 4. Adjust size/aspect ratio on the Screen; this does not alter original image pixels. 5. Save, publish and activate before checking Runtime. If missing, check reference, supported type, revision and content availability; do not replace an asset merely because another has the same-looking name.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "libraries.associate-incorporate",
+        "visual.first-screen",
+        "visual.properties",
+        "application.presentation"
+      ]
+    },
+    {
+      "id": "gateway.configure-test",
+      "category": "gateway",
+      "title": "TAG Gateway: configure and test a route",
+      "summary": "Transfer values between server TAGs with explicit quality, conversion and diagnostics.",
+      "sections": [
+        {
+          "heading": "When to use it",
+          "body": "Open Engineering > Gateway. A route reads a source TAG and requests a destination TAG write through Runtime. It can connect already-configured protocol sources, but creates no Data Source, address or connection by itself. Transfer is one-way, not automatic two-way synchronization. Do not build a return-route loop without analyzing effects. Learn with two Server Memory TAGs disconnected from equipment.",
+          "fields": null
+        },
+        {
+          "heading": "Route identity and endpoints",
+          "body": "Pickers offer TAGs with enabled, server-owned sources. Client Memory belongs to a browser and cannot be a route endpoint. Simulation can be a source but not a destination. The destination must allow writes; source and destination must differ. IDs retain internal identity; paths help check meaning.",
+          "fields": [
+            {
+              "key": "gateway.key",
+              "label": "Route identifier",
+              "description": "Key identifying the route in project and diagnostics. The current form keeps route name alongside this identifier; tabular Key and Name are separate columns.",
+              "example": "copy-speed",
+              "constraints": "Required, no whitespace."
+            },
+            {
+              "key": "gateway.enabled",
+              "label": "Enabled",
+              "description": "Controls route participation in the activated revision. Does not fix a destination failure.",
+              "example": "Yes",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.source",
+              "label": "Source TAG",
+              "description": "Select the value feeding the destination. Check type, quality and scaling in TAG Monitor.",
+              "example": "Server.Source",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.destination",
+              "label": "Destination TAG",
+              "description": "Select a writable TAG already configured for equipment or Server Memory. A route does not automatically change its write permission.",
+              "example": "Server.Destination",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Trigger, startup and conversion",
+          "body": "GoodOnly is the current quality policy: a bad-quality value is not transferred as valid. Conditional fields depend on mode/conversion. Periods are milliseconds and do not change the Driver acquisition cycle.",
+          "fields": [
+            {
+              "key": "gateway.mode",
+              "label": "OnChange / Periodic",
+              "description": "OnChange reacts to acceptable updates with deadband/minimum interval. Periodic checks the current value at its period; it does not manufacture Good quality for a bad source.",
+              "example": "OnChange",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.startup",
+              "label": "Initial transfer",
+              "description": "Synchronize uses the first acceptable value available at startup. Wait for next avoids initial synchronization and awaits the next transfer condition. Assess effects before using physical destinations.",
+              "example": "WaitForNextAcceptableValue",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.deadband",
+              "label": "Deadband (OnChange)",
+              "description": "Absolute source-unit difference from the last successfully transferred source value. A smaller difference is skipped; equality with the deadband can proceed. Neither a percentage nor alarm deadband.",
+              "example": "0.1",
+              "constraints": "Finite number ≥ 0; OnChange only."
+            },
+            {
+              "key": "gateway.minimumInterval",
+              "label": "Minimum interval (OnChange, ms)",
+              "description": "Limits attempt frequency in change mode. Fast updates may coalesce and the current value is reread before writing; not a guaranteed queue of every sample.",
+              "example": "1000 ms = 1 s",
+              "constraints": "If set: 100 to 86400000 ms."
+            },
+            {
+              "key": "gateway.period",
+              "label": "Period (Periodic, ms)",
+              "description": "Periodic transfer interval. Do not combine with OnChange deadband/minimum interval in a file.",
+              "example": "1000",
+              "constraints": "Required in Periodic: 100 to 86400000 ms."
+            },
+            {
+              "key": "gateway.conversion",
+              "label": "Exact / CheckedNumeric",
+              "description": "Exact requires direct compatibility without gain/offset. CheckedNumeric explicitly transforms numerics and validates the target type. Overflow or a fractional value lost in an integer conversion fails; there is no silent truncation.",
+              "example": "CheckedNumeric",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.gain",
+              "label": "Gain",
+              "description": "Multiplier in destination = source × gain + offset. Absent defaults to 1. Not the Driver scaling adjustment.",
+              "example": "2",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.offset",
+              "label": "Offset",
+              "description": "Added after gain; absent defaults to 0. Check target unit/range before publishing.",
+              "example": "5",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedure: 11 becomes 27 without real equipment",
+          "body": "1. Create writable Server Memory TAGs Server.Source Int16 and Server.Destination Int32 with no physical destination. 2. Create copy-speed using these endpoints, OnChange, Wait for next, CheckedNumeric, gain 2 and offset 5. Leave deadband/minimum interval empty for this first test. 3. Preview configuration, fix errors and apply to Workspace. Save, publish and activate. 4. In the test environment update source to 11 with Good quality. Check 27 at destination: 11 × 2 + 5. 5. Inspect transfer diagnostics/last error; acceptance does not prove physical actuation. 6. Only then assess range, unit, quality, startup and rate before choosing real endpoints. Never use a route to bypass Authority, licensing or HA authority.",
+          "fields": null
+        },
+        {
+          "heading": "Equivalent CSV and diagnostics",
+          "body": "This CSV uses readable paths without IDs. Both TAGs and their source must exist before Preview/Apply. In Import/Export choose Gateway routes and CSV; the file does not create TAGs. Runtime diagnostics describe the active revision, not the draft. Waiting for source calls for checking source/quality; Degraded and last error call for conversion/range/destination checks. Skipped/coalesced counters do not automatically mean a defect: inspect mode and limits. Importing a route performs no transfer before the appropriate lifecycle.",
+          "fields": null,
+          "code": "Key,Name,SourceTagPath,DestinationTagPath,TransferMode,QualityPolicy,ConversionPolicy,InitialTransferPolicy,Gain,Offset,Enabled\ncopy-speed,Copy speed,Server.Source,Server.Destination,OnChange,GoodOnly,CheckedNumeric,WaitForNextAcceptableValue,2,5,true"
+        }
+      ],
+      "relatedTopicIds": [
+        "gateway.overview",
+        "engineering.tabular-workflow",
+        "sources.internal-memory",
+        "tags.quality",
+        "engineering.lifecycle",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "engineering.tabular-workflow",
+      "category": "engineering",
+      "title": "CSV and Excel: export, edit and import while preserving references",
+      "summary": "Prepare one entity table, validate the candidate and inspect creates/updates.",
+      "sections": [
+        {
+          "heading": "Choose the file",
+          "body": "In project Import/Export/Management use CSV/Excel for TAGs, Alarms, Data Sources, Gateway routes or Operational Events. Choose one entity per file. For Screens, Popups, Templates, scripts and composite dependencies use appropriate project/library mechanisms rather than invented columns. Engineering CSV/XLSX is neither historical-value export nor Authority/database backup. Start with an export from the current version to preserve column names and conventions.",
+          "fields": null
+        },
+        {
+          "heading": "Workflow controls",
+          "body": "File and entity/format/mode identify the candidate. Any change requires Preview again. The summary reports creates, updates, skips and errors; skipped does not mean applied.",
+          "fields": [
+            {
+              "key": "tabular.entity",
+              "label": "Entity",
+              "description": "Choose the object type contained in rows. A route spreadsheet cannot be read as TAGs.",
+              "example": "gateway-routes",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.format",
+              "label": "CSV / XLSX",
+              "description": "CSV uses commas and quotes text containing commas/quotes/newlines. XLSX accepts one sheet with the entity name used by export. Renaming old .xls does not create XLSX.",
+              "example": "GatewayRoutes in XLSX",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.mode",
+              "label": "Merge mode",
+              "description": "CreateOnly creates new and skips existing; UpdateExisting updates existing and skips new; CreateAndUpdate does both. Matching uses entity identity, not row position. This neither replaces everything nor deletes absent items.",
+              "example": "CreateAndUpdate",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.file",
+              "label": "File and confirmation",
+              "description": "Select the saved file, Preview and read diagnostics before confirming Apply. Content must match what was validated; reload/revalidate if Workspace changes.",
+              "example": "Export → edit → Preview → Apply",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.references",
+              "label": "Reference keys and paths",
+              "description": "Current exports use readable paths/keys and hide internal IDs. Preserve TAG path/entity key for updates; a new key may create another object. References must exist in the appropriate project/candidate.",
+              "example": "SourceTagPath=Server.Source",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Editing rules in Excel or text editors",
+          "body": "Keep exported technical headers even when the UI is translated. Unknown or duplicate columns can block import. Use decimal point (2.5) and booleans true/false; do not append units to numbers. JSON fields require valid JSON, not Python or semicolon lists. Preserve paths/keys as text to prevent automatic date/number conversion. XLSX formulas are rejected even with cached results: paste values before saving. The single sheet must be Tags, Alarms, DataSources, GatewayRoutes or OperationalEvents for the chosen entity. Include no users, password hashes, login credentials or secrets; protected Data Source references are not secrets themselves. Start complex fields from a real export, not a simplified example.",
+          "fields": null
+        },
+        {
+          "heading": "Example: two TAGs for the Gateway test",
+          "body": "A Server Memory source with key memory.server must exist. This minimal CSV creates the Gateway example TAGs, not the source. In a test project select TAGs/CSV and Preview, inspect both items and apply through the protected flow. Then import the route from the Gateway guide. A reduced-column table is for guided creation: preserve full exports when updating complete objects, because omitted columns may assume defaults rather than preserve previous values.",
+          "fields": null,
+          "code": "Path,Name,DataType,DataSourceKey,ReadOnly,InitialValueDataType,InitialValueJson\nServer.Source,Source,int16,memory.server,false,int16,0\nServer.Destination,Destination,int32,memory.server,false,int32,0"
+        },
+        {
+          "heading": "Complete procedure and error recovery",
+          "body": "1. Export the current entity and keep a copy before editing. 2. Edit a small selection; preserve references/types. For expansion use unambiguous new paths/keys and create Data Sources before TAGs, then dependent alarms/routes/events. 3. Save values only in the chosen format and reselect the file. 4. Choose mode and Preview; inspect counts and error rows. Preview does not modify Working. 5. Confirm Apply of the validated candidate, then inspect objects in the editor. 6. Save, publish and activate to change Runtime through project lifecycle. 7. For row errors correct the file cause rather than deleting rows to hide dependencies; Preview again. If an update lost an option, compare omitted/defaulted columns with the original full file. Export is a configuration copy, not automatic activation rollback.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "gateway.configure-test",
+        "tags.overview",
+        "alarms.configuration",
+        "operational-events.configuration",
+        "libraries.associate-incorporate",
+        "engineering.lifecycle",
+        "recovery.backup-system-recovery"
+      ]
     }
   ],
   "es": [
@@ -5922,6 +6596,343 @@
         "security.engineering-lock",
         "security.local-accounts",
         "security.policy-scopes",
+        "engineering.lifecycle",
+        "recovery.backup-system-recovery"
+      ]
+    },
+    {
+      "id": "libraries.associate-incorporate",
+      "category": "libraries",
+      "title": "Bibliotecas: asociar, revisar e incorporar recursos",
+      "summary": "Reutilice recursos sin confundir catálogo con contenido efectivo del proyecto.",
+      "sections": [
+        {
+          "heading": "Elija el mecanismo de reutilización",
+          "body": "Abra Ingeniería > Bibliotecas. Un archivo .escadalib agrupa recursos reutilizables como Templates, Dínamos, Pantallas, Popups, Scripts y assets visuales con dependencias. No es proyecto completo .escadapkg, backup de base ni Authority. El catálogo puede mostrar origen de fábrica, proyecto y bibliotecas asociadas. Asociar permite consultar; Usar/incorporar copia el recurso y dependencias necesarias a Working. Solo entonces forma parte del proyecto. Preview visual permite revisar apariencia sin incorporar.",
+          "fields": null
+        },
+        {
+          "heading": "Campos, filtros e información",
+          "body": "Nombre, tipo, categoría, origen y palabras clave ayudan a localizar el recurso. Sin resultados puede deberse a filtros combinados; límpielos antes de importar otra copia. Versión/hash y dependencias son datos de inspección, no campos para referencias arbitrarias.",
+          "fields": [
+            {
+              "key": "library.file",
+              "label": "Archivo para asociar",
+              "description": "Seleccione el .escadalib recibido. El servidor valida estructura/contenido; renombrar otro archivo no lo convierte.",
+              "example": "bombas-1.0.escadalib",
+              "constraints": ""
+            },
+            {
+              "key": "library.origin",
+              "label": "Origen / filtros del catálogo",
+              "description": "Distinga fábrica, proyecto y biblioteca asociada antes de usar. Recursos del proyecto ya pertenecen a Working; asociados pueden necesitar incorporación.",
+              "example": "Asociada → Template de bomba",
+              "constraints": ""
+            },
+            {
+              "key": "library.dependencies",
+              "label": "Dependencias / inspección",
+              "description": "Revise recursos que acompañan la selección. Una Pantalla puede depender de Dínamos e imágenes; incorporar puede incluir más de uno. IDs/rutas internas sirven para inspección, no para recrear manualmente.",
+              "example": "Pantalla + Dínamo + imagen",
+              "constraints": ""
+            },
+            {
+              "key": "library.exportName",
+              "label": "Nombre de nueva biblioteca",
+              "description": "Al exportar una selección, nombre claramente el conjunto. No es nombre de aplicación Runtime.",
+              "example": "Bombas de estación",
+              "constraints": ""
+            },
+            {
+              "key": "library.exportVersion",
+              "label": "Versión de nueva biblioteca",
+              "description": "Introduzca versión para identificar la entrega. Describe la biblioteca; no cambia revisión del proyecto ni actualiza automáticamente copias incorporadas.",
+              "example": "1.0",
+              "constraints": ""
+            },
+            {
+              "key": "library.exportSelection",
+              "label": "Recursos para exportar",
+              "description": "Seleccione recursos existentes; elija el elemento principal y revise dependencias incluidas. Exportar crea archivo, no publica revisión.",
+              "example": "Template y Popup de bomba",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento: usar un recurso recibido",
+          "body": "1. Abra Bibliotecas y asocie el archivo. Revise nombre, versión y origen. 2. Elija biblioteca y filtre tipo. Revise dependencias; use Preview visual cuando exista. Asociar y Preview no cambian Working. 3. Use/incorpore el recurso y espere confirmación/actualización. Modifica Working y puede reutilizar contenido equivalente presente. 4. Abra el recurso en su área. Revise TAGs, comandos, parámetros y referencias: un dibujo de bomba no adivina su TAG. 5. Inserte/configure objetos en Pantallas o Popups y pruebe. Guarde, publique y active antes de comprobar Runtime. 6. Para exportar, introduzca nombre/versión, marque recursos y descargue .escadalib. Reábralo en un proyecto de prueba para comprobar dependencias.",
+          "fields": null
+        },
+        {
+          "heading": "Actualizaciones, desasociación y fallos",
+          "body": "Desasociar elimina la biblioteca del catálogo asociado; no borra recursos incorporados al proyecto. El origen registrado es informativo, no sincronización automática con futuras versiones. Un mismo ID con contenido distinto puede causar conflicto; revise la versión requerida antes de desasociar/asociar otro archivo. Preview no disponible no prueba paquete inválido: algunos tipos no tienen vista visual. Si cambió Workspace, recargue antes de repetir. Asociar no aporta credenciales de Driver, usuarios ni licencia. El catálogo asociado actual es local al proceso y puede desaparecer al reiniciar el servicio; conserve el archivo para asociarlo de nuevo. Es distinto de recursos ya incorporados y guardados en el proyecto.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "libraries.reusable-resources",
+        "assets.management",
+        "templates.overview",
+        "dynamos.overview",
+        "visual.first-screen",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "assets.management",
+      "category": "visual-assets",
+      "title": "Assets visuales: importar, nombrar y usar imágenes",
+      "summary": "Organice archivos gráficos y conserve vínculos al renombrar.",
+      "sections": [
+        {
+          "heading": "Archivo gráfico y objeto visual",
+          "body": "Abra Ingeniería > Assets visuales. El asset es archivo de imagen/modelo; un objeto de Pantalla lo muestra. Importar no crea TAG, comando, Dínamo parametrizado ni instancia en Pantalla. Catálogo de fábrica y assets del proyecto se presentan por separado. Arte de Dínamos/fábrica puede no aparecer en imágenes del usuario; busque su origen antes de duplicar.",
+          "fields": null
+        },
+        {
+          "heading": "Campos y acciones",
+          "body": "Use la vista previa para revisar contenido y un nombre legible para localizarlo. Tipos del selector siguen validados por el servicio; cambiar extensión no basta.",
+          "fields": [
+            {
+              "key": "asset.file",
+              "label": "Importar archivo",
+              "description": "Seleccione PNG, JPG, BMP o SVG; el selector admite también GLB/GLTF para modelos soportados. Compruebe compatibilidad del objeto; no todo control muestra 3D.",
+              "example": "bomba-frente.svg",
+              "constraints": ""
+            },
+            {
+              "key": "asset.name",
+              "label": "Nombre visible",
+              "description": "Inicialmente procede del archivo sin extensión. Renombrar cambia etiqueta y conserva identidad estable de los vínculos.",
+              "example": "Bomba — vista frontal",
+              "constraints": ""
+            },
+            {
+              "key": "asset.delete",
+              "label": "Eliminar / confirmar",
+              "description": "Exige confirmación y puede rechazarse si está en uso. Elimine o sustituya referencias antes de repetir.",
+              "example": "Eliminar imagen sin uso",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento y comprobación",
+          "body": "1. Importe archivo y espere confirmación. 2. Revise vista previa y nombre; ajuste etiqueta. 3. Abra Pantalla/Popup e inserte objeto compatible, eligiendo asset en biblioteca/selector. Para fondo o branding, use su campo de configuración. 4. Ajuste tamaño/proporción en Pantalla; no altera píxeles originales. 5. Guarde, publique y active antes de revisar Runtime. Si falta, compruebe vínculo, tipo, revisión y disponibilidad; no sustituya por otro solo por tener nombre parecido.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "libraries.associate-incorporate",
+        "visual.first-screen",
+        "visual.properties",
+        "application.presentation"
+      ]
+    },
+    {
+      "id": "gateway.configure-test",
+      "category": "gateway",
+      "title": "Gateway de TAGs: configurar y probar una ruta",
+      "summary": "Transfiera valores entre TAGs del servidor con calidad, conversión y diagnóstico explícitos.",
+      "sections": [
+        {
+          "heading": "Cuándo usarlo",
+          "body": "Abra Ingeniería > Gateway. Una ruta lee TAG origen y solicita escritura al destino mediante Runtime. Puede enlazar protocolos ya configurados, pero no crea Data Source, dirección ni conexión. Es transferencia unidireccional, no sincronización bidireccional automática. No forme circuito de retorno sin analizar efectos. Aprenda con dos TAGs Server Memory sin equipos físicos.",
+          "fields": null
+        },
+        {
+          "heading": "Identidad y extremos de ruta",
+          "body": "Los selectores ofrecen TAGs con fuente habilitada y propiedad del servidor. Client Memory pertenece al navegador y no puede ser extremo. Simulation puede ser origen, no destino. Destino debe permitir escritura; extremos deben ser distintos. IDs conservan identidad interna; rutas ayudan a comprobar significado.",
+          "fields": [
+            {
+              "key": "gateway.key",
+              "label": "Identificador de ruta",
+              "description": "Clave para reconocer ruta en proyecto y diagnóstico. El formulario mantiene nombre junto a identificador; en tabla Key y Name son columnas separadas.",
+              "example": "copy-speed",
+              "constraints": "Obligatorio, sin espacios."
+            },
+            {
+              "key": "gateway.enabled",
+              "label": "Habilitada",
+              "description": "Controla participación en revisión activada. No corrige fallo del destino.",
+              "example": "Sí",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.source",
+              "label": "TAG origen",
+              "description": "Seleccione valor que alimenta destino. Revise tipo, calidad y escala en Monitor de TAGs.",
+              "example": "Server.Source",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.destination",
+              "label": "TAG destino",
+              "description": "Seleccione TAG escribible ya configurado para equipo o Server Memory. La ruta no cambia automáticamente su permiso.",
+              "example": "Server.Destination",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Disparo, inicio y conversión",
+          "body": "GoodOnly es la política actual: mala calidad no se transfiere como lectura válida. Campos condicionales dependen del modo/conversión. Períodos están en milisegundos y no cambian adquisición del Driver.",
+          "fields": [
+            {
+              "key": "gateway.mode",
+              "label": "OnChange / Periodic",
+              "description": "OnChange reacciona a actualizaciones aceptables con deadband/intervalo mínimo. Periodic comprueba valor corriente; no fabrica calidad Good ante fuente mala.",
+              "example": "OnChange",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.startup",
+              "label": "Transferencia inicial",
+              "description": "Sincronizar usa primer valor aceptable disponible al iniciar. Esperar próximo evita sincronización inicial y espera siguiente condición. Evalúe efecto antes de destino físico.",
+              "example": "WaitForNextAcceptableValue",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.deadband",
+              "label": "Deadband (OnChange)",
+              "description": "Diferencia absoluta en unidad origen respecto al último valor transferido con éxito. Menor se omite; igualdad permite continuar. No es porcentaje ni deadband de alarma.",
+              "example": "0.1",
+              "constraints": "Número finito ≥ 0; solo OnChange."
+            },
+            {
+              "key": "gateway.minimumInterval",
+              "label": "Intervalo mínimo (OnChange, ms)",
+              "description": "Limita frecuencia de intentos en modo cambio. Actualizaciones rápidas pueden agruparse y se relee valor actual; no es cola garantizada de cada muestra.",
+              "example": "1000 ms = 1 s",
+              "constraints": "Si se configura: 100 a 86400000 ms."
+            },
+            {
+              "key": "gateway.period",
+              "label": "Período (Periodic, ms)",
+              "description": "Intervalo de transferencia periódica. No combine con deadband/intervalo mínimo OnChange en archivo.",
+              "example": "1000",
+              "constraints": "Obligatorio en Periodic: 100 a 86400000 ms."
+            },
+            {
+              "key": "gateway.conversion",
+              "label": "Exact / CheckedNumeric",
+              "description": "Exact exige compatibilidad directa sin gain/offset. CheckedNumeric transforma numéricos y valida destino. Desbordamiento o fracción perdida al convertir a entero falla; no hay truncado silencioso.",
+              "example": "CheckedNumeric",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.gain",
+              "label": "Gain (ganancia)",
+              "description": "Multiplicador en destino = origen × gain + offset. Ausente usa 1. No es escala del Driver.",
+              "example": "2",
+              "constraints": ""
+            },
+            {
+              "key": "gateway.offset",
+              "label": "Offset",
+              "description": "Se suma tras ganancia; ausente usa 0. Confirme unidad/rango destino antes de publicar.",
+              "example": "5",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento: 11 se convierte en 27 sin equipo real",
+          "body": "1. Cree TAGs Server Memory escribibles Server.Source Int16 y Server.Destination Int32 sin destino físico. 2. Cree copy-speed con esos extremos, OnChange, Esperar próximo, CheckedNumeric, gain 2 y offset 5. Deje deadband/intervalo mínimo vacíos. 3. Ejecute Preview, corrija errores y aplique al Workspace. Guarde, publique y active. 4. En prueba actualice origen a 11 con calidad Good. Compruebe 27 en destino: 11 × 2 + 5. 5. Revise diagnóstico/último error; aceptación no demuestra actuación física. 6. Evalúe rango, unidad, calidad, inicio y ritmo antes de usar TAGs reales. No use rutas para eludir Authority, licencia ni autoridad HA.",
+          "fields": null
+        },
+        {
+          "heading": "CSV equivalente y diagnóstico",
+          "body": "Este CSV usa rutas legibles sin IDs. Ambos TAGs y fuente deben existir antes de Preview/Apply. En Import/Export elija Rutas Gateway y CSV; el archivo no crea TAGs. Diagnóstico Runtime describe revisión activa, no borrador. Esperando origen exige revisar fuente/calidad; Degraded y último error exigen conversión/rango/destino. Contadores omitidos/agrupados no significan automáticamente defecto: revise modo/límites. Importar no transfiere antes del ciclo apropiado.",
+          "fields": null,
+          "code": "Key,Name,SourceTagPath,DestinationTagPath,TransferMode,QualityPolicy,ConversionPolicy,InitialTransferPolicy,Gain,Offset,Enabled\ncopy-speed,Copy speed,Server.Source,Server.Destination,OnChange,GoodOnly,CheckedNumeric,WaitForNextAcceptableValue,2,5,true"
+        }
+      ],
+      "relatedTopicIds": [
+        "gateway.overview",
+        "engineering.tabular-workflow",
+        "sources.internal-memory",
+        "tags.quality",
+        "engineering.lifecycle",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "engineering.tabular-workflow",
+      "category": "engineering",
+      "title": "CSV y Excel: exportar, editar e importar conservando referencias",
+      "summary": "Prepare una tabla por entidad, valide candidato y revise creación/actualización.",
+      "sections": [
+        {
+          "heading": "Qué archivo usar",
+          "body": "En Import/Export/Gestión de proyecto use CSV/Excel para TAGs, Alarmas, Data Sources, Rutas Gateway o Eventos Operacionales. Una entidad por archivo. Para Pantallas, Popups, Templates, scripts y dependencias compuestas use mecanismos de proyecto/biblioteca, no columnas inventadas. CSV/XLSX de ingeniería no exporta valores históricos ni hace backup de Authority/base. Empiece exportando modelo actual para conservar columnas y convenciones.",
+          "fields": null
+        },
+        {
+          "heading": "Controles del flujo",
+          "body": "Archivo y entidad/formato/modo identifican candidato. Cualquier cambio exige Preview de nuevo. El resumen muestra creaciones, actualizaciones, omitidos y errores; omitido no significa aplicado.",
+          "fields": [
+            {
+              "key": "tabular.entity",
+              "label": "Entidad",
+              "description": "Elija tipo de objetos de las filas. Una hoja de rutas no puede leerse como TAGs.",
+              "example": "gateway-routes",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.format",
+              "label": "CSV / XLSX",
+              "description": "CSV usa comas y comillas para texto con comas/comillas/saltos. XLSX admite una hoja con nombre exportado para la entidad. Renombrar .xls antiguo no crea XLSX.",
+              "example": "GatewayRoutes en XLSX",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.mode",
+              "label": "Modo de combinación",
+              "description": "CreateOnly crea nuevos/omite existentes; UpdateExisting actualiza existentes/omite nuevos; CreateAndUpdate hace ambos. Coincide por identidad, no posición de fila. No sustituye todo ni borra ausentes.",
+              "example": "CreateAndUpdate",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.file",
+              "label": "Archivo y confirmación",
+              "description": "Seleccione archivo guardado, Preview y lea diagnósticos antes de confirmar Apply. Contenido debe coincidir con validado; recargue/revalide si cambia Workspace.",
+              "example": "Exportar → editar → Preview → Apply",
+              "constraints": ""
+            },
+            {
+              "key": "tabular.references",
+              "label": "Claves y rutas de referencia",
+              "description": "Exportaciones actuales usan rutas/claves legibles, ocultando IDs internos. Conserve ruta/clave al actualizar; una nueva clave puede crear otro objeto. Referencias deben existir en proyecto/candidato adecuado.",
+              "example": "SourceTagPath=Server.Source",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Reglas al editar en Excel o texto",
+          "body": "Conserve encabezados técnicos aunque la UI esté traducida. Columnas desconocidas/duplicadas pueden bloquear importación. Use punto decimal (2.5) y booleanos true/false; no añada unidades al número. JSON exige JSON válido, no Python ni lista con punto y coma. Conserve rutas/claves como texto para evitar fechas/números automáticos. Fórmulas XLSX se rechazan incluso con resultado guardado: pegue valores antes de guardar. Una sola hoja: Tags, Alarms, DataSources, GatewayRoutes u OperationalEvents según entidad. No incluya usuarios, hashes de contraseñas, credenciales ni secretos; referencias protegidas no son secretos. Para campos complejos parta de exportación real.",
+          "fields": null
+        },
+        {
+          "heading": "Ejemplo: dos TAGs para prueba Gateway",
+          "body": "Debe existir fuente Server Memory con clave memory.server. Este CSV mínimo crea TAGs del ejemplo, no la fuente. En proyecto de prueba seleccione TAGs/CSV y Preview, revise dos elementos y aplique mediante flujo protegido. Luego importe ruta del guía Gateway. Tabla reducida sirve para creación guiada: conserve exportación completa al actualizar objetos, pues columnas omitidas pueden asumir valores predeterminados y no conservar los anteriores.",
+          "fields": null,
+          "code": "Path,Name,DataType,DataSourceKey,ReadOnly,InitialValueDataType,InitialValueJson\nServer.Source,Source,int16,memory.server,false,int16,0\nServer.Destination,Destination,int32,memory.server,false,int32,0"
+        },
+        {
+          "heading": "Procedimiento completo y recuperación de errores",
+          "body": "1. Exporte entidad actual y guarde copia antes de editar. 2. Edite selección pequeña y conserve referencias/tipos. Para ampliar use rutas/claves nuevas inequívocas, cree Data Sources antes de TAGs y luego alarmas/rutas/eventos dependientes. 3. Guarde solo valores en formato elegido y reseleccione archivo. 4. Elija modo y Preview; revise cantidades/errores. Preview no modifica Working. 5. Confirme Apply del candidato validado y compruebe objetos en editor. 6. Guarde, publique y active para cambiar Runtime. 7. Corrija causa de errores en archivo sin borrar filas para ocultar dependencias; repita Preview. Si perdió opción al actualizar, compare columnas omitidas/defaults con archivo completo original. Exportar es copia de configuración, no reversión automática de activación.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "gateway.configure-test",
+        "tags.overview",
+        "alarms.configuration",
+        "operational-events.configuration",
+        "libraries.associate-incorporate",
         "engineering.lifecycle",
         "recovery.backup-system-recovery"
       ]

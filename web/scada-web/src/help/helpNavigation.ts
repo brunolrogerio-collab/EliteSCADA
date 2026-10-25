@@ -24,7 +24,7 @@ export function helpArea(category: string): HelpArea {
   if (category === 'drivers') return 'drivers';
   if (['templates', 'equipment'].includes(category)) return 'assets';
   if (['ha', 'database'].includes(category)) return 'administration';
-  if (['visual', 'visual-objects', 'screens', 'popups', 'dynamos', 'libraries', 'bindings-commands'].includes(category)) return 'visual';
+  if (['visual', 'visual-assets', 'visual-objects', 'screens', 'popups', 'dynamos', 'libraries', 'bindings-commands'].includes(category)) return 'visual';
   if (['scripts', 'memory'].includes(category)) return 'scripts';
   if (category === 'intelligence') return 'intelligence';
   if (['historian', 'trends', 'reports'].includes(category)) return 'history';
@@ -63,7 +63,9 @@ export function helpBodyBlocks(body: string): readonly Readonly<{ ordered: boole
   return body.trim().split(/\n\s*\n/).filter(Boolean).map(paragraph => {
     if (/^1\.\s/.test(paragraph)) return {
       ordered: true,
-      lines: paragraph.split(/\s+(?=\d{1,2}\.\s)/).map(step => step.replace(/^\d{1,2}\.\s+/, ''))
+      // A number ending a sentence (gain 5.) is content, not a list marker.
+      // Published inline steps start after sentence punctuation or a line break.
+      lines: paragraph.split(/(?<=[.!?])\s+(?=\d{1,2}\.\s)|\n\s*(?=\d{1,2}\.\s)/).map(step => step.replace(/^\d{1,2}\.\s+/, ''))
     };
     return { ordered: false, lines: [paragraph] };
   });

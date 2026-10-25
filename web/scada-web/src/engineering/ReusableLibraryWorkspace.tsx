@@ -223,6 +223,7 @@ export function ReusableLibraryWorkspace({
           <span className="eng-eyebrow">{copy.eyebrow}</span>
           <h1>{copy.title}</h1>
           <p>{copy.description}</p>
+          <a href="/help?topic=libraries.associate-incorporate">{locale === 'pt-BR' ? 'Como associar e incorporar recursos' : locale === 'es' ? 'Cómo asociar e incorporar recursos' : 'How to associate and incorporate resources'}</a>
         </div>
         <div className="eng-section-meta">
           <strong>{libraries.length} {copy.libraries}</strong>

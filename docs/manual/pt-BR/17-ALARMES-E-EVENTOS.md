@@ -51,8 +51,7 @@ Expanda Comportamento do alarme. Algumas opções são salvas na definição, ma
 3. Execute Preview, leia erros e aplique ao Workspace. Qualquer nova edição exige outra validação.
 4. Salve, publique e ative a revisão correta; aplicar ao Workspace não ativa o Runtime sozinho.
 5. Com qualidade Good, envie 9: a condição fica Normal. Envie 10: fica Active, pois a igualdade entra no limite.
-6. Reconheça no Runtime: fica Acknowledged e o TAG continua em
-10. Envie 9: fica Returned e deixa a lista ativa porque já teve ACK.
+6. Reconheça no Runtime: fica Acknowledged e o TAG continua em 10. Envie 9: fica Returned e deixa a lista ativa porque já teve ACK.
 7. Em nova ativação, envie 10 e depois 9 sem ACK: fica Returned pendente. Reconheça e confira a saída da lista ativa. Consulte histórico para as transições anteriores.
 
 ### Se o resultado não for o esperado

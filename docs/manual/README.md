@@ -233,3 +233,6 @@ Alarm/event field and operating guides (chapter 17): [pt-BR](pt-BR/17-ALARMES-E-
 
 
 Detailed Security/Audit guide (chapter 18): [pt-BR](pt-BR/18-SEGURANCA-E-AUDITORIA.md), [English](en/18-SECURITY-AND-AUDIT.md), [Español](es/18-SEGURIDAD-Y-AUDITORIA.md). Actual user/role/scope fields, capability reference, Audit queries/diagnostics and Engineering Lock lifecycle; future online licensing is not presented as delivered.
+
+
+Practical reuse and file workflows: [Libraries/assets pt-BR](pt-BR/19-BIBLIOTECAS-E-ASSETS.md), [English](en/19-LIBRARIES-AND-ASSETS.md), [Español](es/19-BIBLIOTECAS-Y-ASSETS.md); [Gateway/CSV/Excel pt-BR](pt-BR/20-GATEWAY-CSV-EXCEL.md), [English](en/20-GATEWAY-CSV-EXCEL.md), [Español](es/20-GATEWAY-CSV-EXCEL.md). CSV examples use readable paths and require existing sources; export current templates before full updates.

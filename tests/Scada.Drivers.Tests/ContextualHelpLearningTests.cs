@@ -6,11 +6,45 @@ using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Historian.Policies;
 using Scada.Security.Authorization;
+using Scada.Engineering.ImportExport;
+using Scada.Engineering.Contracts;
 
 namespace Scada.Drivers.Tests;
 
 public sealed class ContextualHelpLearningTests
 {
+    [Theory]
+    [InlineData("pt-BR")]
+    [InlineData("en")]
+    [InlineData("es")]
+    public void ExactPublishedCsvExamplesParseIntoTypedTagsAndTheMatchingGatewayRoute(string locale)
+    {
+        var catalog = ContextualHelpCatalog.Build(locale);
+        string Example(string id) => Assert.Single(catalog.Topics.Single(topic => topic.Id == id).Sections,
+            section => section.Code is not null).Code!;
+        var current = new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow, [], [],
+            DataSources: [new DataSourceEngineeringDto(Guid.NewGuid(), "memory.server", "Server Memory", "builtin.memory.server")]);
+        var exchange = new EngineeringTabularExchange();
+        var parsed = exchange.ParseCsv(current, EngineeringTabularEntity.Tags, Example("engineering.tabular-workflow"));
+        var source = Assert.Single(parsed.Tags, tag => tag.Path == "Server.Source");
+        var destination = Assert.Single(parsed.Tags, tag => tag.Path == "Server.Destination");
+        Assert.Equal(TagDataType.Int16, source.DataType);
+        Assert.Equal(TagDataType.Int32, destination.DataType);
+        Assert.False(source.ReadOnly);
+        Assert.Equal("memory.server", source.Source);
+        var route = Assert.Single(exchange.ParseCsv(current, EngineeringTabularEntity.GatewayRoutes,
+            Example("gateway.configure-test")).Gateways!);
+        Assert.Equal(source.Path, route.SourceTagPath);
+        Assert.Equal(destination.Path, route.DestinationTagPath);
+        Assert.Equal(GatewayTransferMode.OnChange, route.TransferMode);
+        Assert.Equal(GatewayConversionPolicy.CheckedNumeric, route.ConversionPolicy);
+        Assert.Equal(GatewayInitialTransferPolicy.WaitForNextAcceptableValue, route.InitialTransferPolicy);
+        Assert.Equal(2, route.Gain);
+        Assert.Equal(5, route.Offset);
+        Assert.True(route.Enabled);
+    }
+
     [Theory]
     [InlineData("pt-BR")]
     [InlineData("en")]

@@ -12,6 +12,8 @@ public static partial class ContextualHelpCatalog
     {
         string[] more = topic.Id switch
         {
+            "libraries.reusable-resources" => ["libraries.associate-incorporate", "assets.management"],
+            "gateway.overview" => ["gateway.configure-test", "engineering.tabular-workflow"],
             "screens.overview" or "popups.overview" or "visual.properties" => ["visual.first-screen", "visual.object-selection", "visual.popup-workflow", "visual.object.core.numericinput", "visual.object.core.trend"],
             "scripts.engineering" or "scripts.python-validation" => ["scripts.choose-scope", "scripts.server-syntax", "scripts.triggers-dependencies", "scripts.server-recipes", "scripts.client-recipes"],
             "scripts.server" => ["scripts.server-syntax", "scripts.triggers-dependencies", "scripts.server-recipes", "scripts.commands-feedback"],

@@ -1,5 +1,8 @@
 # Manual SCADIVO — pt-BR
 
+- [Bibliotecas e assets: reutilizar e incorporar](19-BIBLIOTECAS-E-ASSETS.md)
+- [Gateway e arquivos CSV/Excel](20-GATEWAY-CSV-EXCEL.md)
+
 - [Segurança e auditoria: contas, permissões e proteção](18-SEGURANCA-E-AUDITORIA.md)
 
 - [Alarmes e eventos: configuração e operação](17-ALARMES-E-EVENTOS.md) — campos explicados, limites atuais, exemplo numérico, ACK, sons e emissão Python; definição não é ocorrência.

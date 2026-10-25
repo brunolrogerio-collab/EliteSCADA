@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { helpBodyBlocks } from '../src/help/helpNavigation';
+import { helpArea, helpBodyBlocks } from '../src/help/helpNavigation';
 import { installCurrentHelpCatalog } from './helpTestSupport';
 
 test.use({ locale: 'pt-BR' });
@@ -57,8 +57,12 @@ test('property tables remain usable on a narrow viewport and empty search is rec
 });
 
 test('numbered prose keeps decimal values inside the same instruction', () => {
+  expect(helpArea('visual-assets')).toBe('visual');
   expect(helpBodyBlocks('1. Use 3.6 como fator. 2. Confira o valor.')).toEqual([
     { ordered: true, lines: ['Use 3.6 como fator.', 'Confira o valor.'] }
+  ]);
+  expect(helpBodyBlocks('1. Calcule 11 × 2 + 5. 2. Confira 27.')).toEqual([
+    { ordered: true, lines: ['Calcule 11 × 2 + 5.', 'Confira 27.'] }
   ]);
 });
 
@@ -181,4 +185,34 @@ test('security and Audit guides distinguish account policy session and read-only
   await article.getByRole('rowheader', { name: 'Remover segredo', exact: true }).scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('help-lock-fields-mobile.png') });
+});
+
+test('library and Gateway file guides expose usable steps and the exact typed CSV examples', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=libraries.associate-incorporate');
+  const article = page.locator('article');
+  await expect(article).toContainText('Associar e Preview não alteram o Working');
+  await expect(article).toContainText('não apaga recursos já incorporados');
+  await expect(article.getByRole('rowheader', { name: 'Versão da nova biblioteca', exact: true })).toBeVisible();
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('Association and Preview do not change Working');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('Asociar y Preview no cambian Working');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.goto('/help?topic=gateway.configure-test');
+  await expect(article.getByRole('rowheader', { name: 'Gain (ganho)', exact: true })).toBeVisible();
+  await expect(article).toContainText('11 × 2 + 5');
+  await expect(article.locator('pre')).toContainText('SourceTagPath,DestinationTagPath');
+  await expect(article.locator('pre')).toContainText('CheckedNumeric,WaitForNextAcceptableValue,2,5,true');
+  await page.screenshot({ path: testInfo.outputPath('help-gateway-fields-desktop.png'), fullPage: true });
+  await page.goto('/help?topic=engineering.tabular-workflow');
+  await expect(article).toContainText('Fórmulas XLSX são recusadas');
+  await expect(article).toContainText('colunas omitidas podem assumir valores padrão');
+  await expect(article.locator('pre')).toContainText('Server.Destination,Destination,int32,memory.server,false,int32,0');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await article.getByRole('rowheader', { name: 'Modo de mesclagem', exact: true }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-tabular-fields-mobile.png') });
+  await page.goto('/help?topic=assets.management');
+  await expect(article).toContainText('preserva a identidade estável');
 });

@@ -14,7 +14,9 @@ test('routes resolve to stable contextual Help topics with a safe fallback', () 
   expect(contextualHelpTopic('/engineering/intelligence')).toBe('intelligence.overview');
   expect(contextualHelpTopic('/engineering/highAvailability')).toBe('ha.configuration-operation');
   expect(contextualHelpTopic('/engineering/installation')).toBe('installation.switching');
-  expect(contextualHelpTopic('/engineering/libraries')).toBe('libraries.reusable-resources');
+  expect(contextualHelpTopic('/engineering/libraries')).toBe('libraries.associate-incorporate');
+  expect(contextualHelpTopic('/engineering/visualAssets')).toBe('assets.management');
+  expect(contextualHelpTopic('/engineering/gateway')).toBe('gateway.configure-test');
   expect(contextualHelpTopic('/engineering/security')).toBe('security.local-accounts');
   expect(contextualHelpTopic('/engineering/recovery')).toBe('recovery.backup-system-recovery');
   expect(contextualHelpTopic('/engineering/project')).toBe('recovery.backup-system-recovery');

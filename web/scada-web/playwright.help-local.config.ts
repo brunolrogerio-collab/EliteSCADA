@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests-e2e',
-  testMatch: /(audit-workspace|audit-ui-contract|runtime-alarm-center-contract|engineering-alarm-workspace-contract|contextual-help-routing|wave-14-c25-contextual-help|help-learning|help-script-examples|database-topology-mounted|report-designer-workspace|historical-browser-mounted|historical-browser-filters|historical-browser-presentation)\.spec\.ts/,
+  testMatch: /(wave-15-library-catalog-model|wave-14-dynamo-library-model|audit-workspace|audit-ui-contract|runtime-alarm-center-contract|engineering-alarm-workspace-contract|contextual-help-routing|wave-14-c25-contextual-help|help-learning|help-script-examples|database-topology-mounted|report-designer-workspace|historical-browser-mounted|historical-browser-filters|historical-browser-presentation)\.spec\.ts/,
   workers: 1,
   timeout: 60_000,
   expect: { timeout: 10_000 },

@@ -120,3 +120,33 @@ test('report and history tasks explain fields and distinguish retrieval from cap
   await page.goto('/help?topic=reports.runtime-output');
   await expect(article).toContainText('São exportações do resultado, não pacotes');
 });
+
+test('alarm and operational event guides teach fields, state paths and emission in all locales', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=alarms.configuration');
+  const article = page.locator('article');
+  await expect(article.getByRole('rowheader', { name: 'Setpoint (limite)', exact: true })).toBeVisible();
+  await expect(article).toContainText('A igualdade também ativa');
+  await expect(article).toContainText('não retarda a ativação');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('does not delay Runtime activation');
+  await expect(article).toContainText('Send 10: it becomes Active');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('no retrasa la activación');
+  await expect(article).toContainText('La igualdad también activa');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.goto('/help?topic=operational-events.configuration');
+  await expect(article).toContainText('não cria gatilho de mudança');
+  await expect(article).toContainText('não substitua pelo Identificador textual');
+  await expect(article.locator('pre')).toContainText('def initialize(event):');
+  await expect(article.locator('pre')).toContainText('emit_operational_event(');
+  await expect(article.getByRole('rowheader', { name: 'TAG (opcional)', exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('help-operational-event-fields.png'), fullPage: true });
+  await page.goto('/help?topic=alarms.runtime-operation');
+  await expect(article).toContainText('o item deixa a lista ativa após o ACK');
+  await expect(article).toContainText('não reconhece, desabilita ou coloca em shelving');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await article.getByRole('rowheader', { name: 'Returned', exact: true }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-alarm-states-mobile.png') });
+});

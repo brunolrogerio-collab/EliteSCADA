@@ -19,6 +19,8 @@ test('routes resolve to stable contextual Help topics with a safe fallback', () 
   expect(contextualHelpTopic('/engineering/recovery')).toBe('recovery.backup-system-recovery');
   expect(contextualHelpTopic('/engineering/project')).toBe('recovery.backup-system-recovery');
   expect(contextualHelpTopic('/engineering/screens')).toBe('screens.overview');
+  expect(contextualHelpTopic('/engineering/alarms')).toBe('alarms.configuration');
+  expect(contextualHelpTopic('/engineering/operationalEvents')).toBe('operational-events.configuration');
   expect(contextualHelpTopic('/engineering')).toBe('engineering.shell-navigation');
   expect(contextualHelpTopic('/audit/events')).toBe('audit.overview');
   expect(contextualHelpTopic('/licensing')).toBe('licensing.overview');

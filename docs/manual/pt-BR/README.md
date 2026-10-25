@@ -1,5 +1,7 @@
 # Manual SCADIVO — pt-BR
 
+- [Alarmes e eventos: configuração e operação](17-ALARMES-E-EVENTOS.md) — campos explicados, limites atuais, exemplo numérico, ACK, sons e emissão Python; definição não é ocorrência.
+
 ## Conteúdo disponível nesta fase
 
 - [Fundamentos](01-FUNDAMENTOS.md)

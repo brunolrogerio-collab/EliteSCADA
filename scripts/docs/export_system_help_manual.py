@@ -6,16 +6,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / 'src/Scada.Api/Runtime/HelpGuides/system-guides.json'
+REVIEW_MARKERS = json.loads((ROOT / 'docs/manual/PRODUCT-CHANGE-REVIEW-MARKERS.json').read_text(encoding='utf-8'))
 CHAPTERS = {
-    'pt-BR': [('07-HISTORIAN-CAPTURA-CONSULTA.md', 'Historian: captura e consulta', ['historian.capture-query']), ('16-RELATORIOS.md', 'Relatórios: autoria e operação', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-TEMPLATES-E-EQUIPAMENTOS.md', 'Templates e Equipamentos', ['templates.overview', 'equipment.overview']),
+    'pt-BR': [('17-ALARMES-E-EVENTOS.md', 'Alarmes e eventos: configuração e operação', ['alarms.configuration', 'alarms.runtime-operation', 'operational-events.configuration']), ('07-HISTORIAN-CAPTURA-CONSULTA.md', 'Historian: captura e consulta', ['historian.capture-query']), ('16-RELATORIOS.md', 'Relatórios: autoria e operação', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-TEMPLATES-E-EQUIPAMENTOS.md', 'Templates e Equipamentos', ['templates.overview', 'equipment.overview']),
               ('13-ALTA-DISPONIBILIDADE.md', 'Alta disponibilidade: configuração e operação', ['ha.configuration-operation']),
               ('14-BANCO-DE-DADOS.md', 'Banco de dados: configuração, migração e recuperação', ['database.topology']),
               ('15-APRESENTACAO-MIDIA-E-LOCAIS.md', 'Apresentação, mídia e locais', ['application.presentation', 'sources.media', 'home-building.organization'])],
-    'en': [('07-HISTORIAN-CAPTURE-QUERY.md', 'Historian: capture and queries', ['historian.capture-query']), ('16-REPORTS.md', 'Reports: authoring and operation', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-TEMPLATES-AND-EQUIPMENT.md', 'Templates and Equipment', ['templates.overview', 'equipment.overview']),
+    'en': [('17-ALARMS-AND-EVENTS.md', 'Alarms and events: configuration and operation', ['alarms.configuration', 'alarms.runtime-operation', 'operational-events.configuration']), ('07-HISTORIAN-CAPTURE-QUERY.md', 'Historian: capture and queries', ['historian.capture-query']), ('16-REPORTS.md', 'Reports: authoring and operation', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-TEMPLATES-AND-EQUIPMENT.md', 'Templates and Equipment', ['templates.overview', 'equipment.overview']),
            ('13-HIGH-AVAILABILITY.md', 'High Availability: configuration and operation', ['ha.configuration-operation']),
            ('14-DATABASE.md', 'Database: configuration, migration and recovery', ['database.topology']),
            ('15-PRESENTATION-MEDIA-LOCATIONS.md', 'Presentation, media and locations', ['application.presentation', 'sources.media', 'home-building.organization'])],
-    'es': [('07-HISTORIAN-CAPTURA-CONSULTA.md', 'Historian: captura y consulta', ['historian.capture-query']), ('16-INFORMES.md', 'Informes: diseño y operación', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-PLANTILLAS-Y-EQUIPOS.md', 'Plantillas y Equipos', ['templates.overview', 'equipment.overview']),
+    'es': [('17-ALARMAS-Y-EVENTOS.md', 'Alarmas y eventos: configuración y operación', ['alarms.configuration', 'alarms.runtime-operation', 'operational-events.configuration']), ('07-HISTORIAN-CAPTURA-CONSULTA.md', 'Historian: captura y consulta', ['historian.capture-query']), ('16-INFORMES.md', 'Informes: diseño y operación', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-PLANTILLAS-Y-EQUIPOS.md', 'Plantillas y Equipos', ['templates.overview', 'equipment.overview']),
            ('13-ALTA-DISPONIBILIDAD.md', 'Alta disponibilidad: configuración y operación', ['ha.configuration-operation']),
            ('14-BASE-DE-DATOS.md', 'Base de datos: configuración, migración y recuperación', ['database.topology']),
            ('15-PRESENTACION-MULTIMEDIA-UBICACIONES.md', 'Presentación, multimedia y ubicaciones', ['application.presentation', 'sources.media', 'home-building.organization'])]
@@ -28,8 +29,13 @@ def cell(value):
 
 def article(topic, locale):
     text = [f'## {topic["title"]}', '', topic['summary'], '']
+    for marker in REVIEW_MARKERS:
+        if marker['topicId'] == topic['id']:
+            text.extend([f'<!-- {marker["id"]}: https://github.com/brunolrogerio-collab/EliteSCADA/issues/{marker["issue"]}; topic={topic["id"]}; fields={",".join(marker["fieldKeys"])}; status={marker["status"]} -->', ''])
     for section in topic['sections']:
         text.extend([f'### {section["heading"]}', '', re.sub(r'\s+(?=\d{1,2}\.\s)', '\n', section['body']) if section['body'].startswith('1. ') else section['body'], ''])
+        if section.get('code'):
+            text.extend(['```python', section['code'], '```', ''])
         if section.get('fields'):
             headers = {'pt-BR': ('Campo', 'Para que serve e como preencher', 'Exemplo', 'Limites'),
                        'en': ('Field', 'Purpose and how to fill it', 'Example', 'Bounds'),
@@ -47,6 +53,18 @@ def main():
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
     data = json.loads(SOURCE.read_text(encoding='utf-8'))
+    marker_ids = [marker['id'] for marker in REVIEW_MARKERS]
+    if len(marker_ids) != len(set(marker_ids)):
+        raise SystemExit('Duplicate product-change review marker ID.')
+    for locale, topics in data.items():
+        by_id = {topic['id']: topic for topic in topics}
+        for marker in REVIEW_MARKERS:
+            topic = by_id.get(marker['topicId'])
+            if topic is None:
+                raise SystemExit(f'Missing review topic: {locale}/{marker["topicId"]}')
+            field_keys = {field['key'] for section in topic['sections'] for field in section.get('fields') or []}
+            if not set(marker['fieldKeys']).issubset(field_keys):
+                raise SystemExit(f'Missing review field: {locale}/{marker["id"]}')
     stale = []
     for locale, chapters in CHAPTERS.items():
         topics = {topic['id']: topic for topic in data[locale]}

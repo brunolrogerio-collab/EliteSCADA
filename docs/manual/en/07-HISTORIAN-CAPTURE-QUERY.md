@@ -4,6 +4,8 @@
 
 Choose what to record, under which conditions and how to verify storage.
 
+<!-- HELP-REVIEW-AFTER-PRODUCT-779-HISTORIAN: https://github.com/brunolrogerio-collab/EliteSCADA/issues/779; topic=historian.capture-query; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
+
 ### Where to configure and query
 
 Engineering > Historian lists enabled historical TAGs and summarizes strategy, deadband and period. Configure a TAG in Engineering > TAGs by selecting it and expanding History/Historian. Live monitoring reads current values; History, Reports and Intelligence need stored samples. Enabling today does not recover the past.

@@ -1,5 +1,7 @@
 # SCADIVO Manual — English
 
+- [Alarms and events: configuration and operation](17-ALARMS-AND-EVENTS.md) — explained fields, current limits, numeric example, ACK, sounds and Python emission; a definition is not an occurrence.
+
 The English locale is being filled in bounded chapters from verified stable product behavior. The Fundamentals, Engineering/Data Sources/TAGs, Operations/Security/Licensing, Application Management/Recovery, and Scripting chapters are available below; this partial translation does not mean the full manual or language parity is complete. Final terminology/localization and semantic-parity review remain required.
 
 No security, licensing, HA, write/command, recovery or critical-warning material may be omitted from the PREVIEW-READY English manual.

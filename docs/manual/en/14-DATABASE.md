@@ -4,6 +4,8 @@
 
 Understand the active database before validating another target or migrating.
 
+<!-- HELP-REVIEW-AFTER-PRODUCT-779-DATABASE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/779; topic=database.topology; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
+
 ### Where to go and what this page does
 
 Open Engineering > Database. SystemAdmin is required. Local Managed uses installation-managed local storage; Remote uses configured PostgreSQL. This selects storage, not HA server redundancy. Read Current status and Next action first. Healthy Local Managed needs no Remote profile if it suits your installation.

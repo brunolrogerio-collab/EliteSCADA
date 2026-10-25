@@ -1,5 +1,7 @@
 # Manual SCADIVO — Español
 
+- [Alarmas y eventos: configuración y operación](17-ALARMAS-Y-EVENTOS.md) — campos explicados, límites actuales, ejemplo numérico, ACK, sonidos y emisión Python; definición no es ocurrencia.
+
 El locale español se completa en capítulos acotados basados en comportamiento estable verificado del producto. Los capítulos de Fundamentos, Engineering/Datos/TAGs, Operación/Seguridad/Licencias, Gestión de aplicaciones/Recuperación y Scripting están disponibles abajo; esta traducción parcial no significa que el manual completo ni la paridad de idiomas estén terminados. Aún se requieren la revisión final de terminología/localización y la paridad semántica.
 
 Ningún contenido material de seguridad, licencias, HA, escrituras/comandos, recuperación o advertencias críticas puede faltar en el manual español PREVIEW-READY.

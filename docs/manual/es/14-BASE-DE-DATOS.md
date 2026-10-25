@@ -4,6 +4,8 @@
 
 Comprenda la base activa antes de validar otro destino o migrar.
 
+<!-- HELP-REVIEW-AFTER-PRODUCT-779-DATABASE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/779; topic=database.topology; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
+
 ### Dónde entrar y qué resuelve esta página
 
 Abra Ingeniería > Base de datos. Se requiere SystemAdmin. Local Managed usa almacenamiento local administrado; Remote usa PostgreSQL configurado. Esto elige almacenamiento, no redundancia HA. Lea Estado actual y Próxima acción. Un Local Managed saludable no necesita perfil Remote si satisface su instalación.

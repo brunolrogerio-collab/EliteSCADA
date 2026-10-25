@@ -15,8 +15,8 @@ export function contextualHelpTopic(path: string) {
   if (path.startsWith('/engineering/dataSources')) return 'sources.data-sources';
   if (path.startsWith('/engineering/tags')) return 'tags.overview';
   if (path.startsWith('/engineering/gateway')) return 'gateway.overview';
-  if (path.startsWith('/engineering/alarms')) return 'alarms.overview';
-  if (path.startsWith('/engineering/operationalEvents')) return 'operational-events.overview';
+  if (path.startsWith('/engineering/alarms')) return 'alarms.configuration';
+  if (path.startsWith('/engineering/operationalEvents')) return 'operational-events.configuration';
   if (path.startsWith('/engineering/dynamos')) return 'dynamos.overview';
   if (path.startsWith('/engineering/screens')) return 'screens.overview';
   if (path.startsWith('/engineering/popups')) return 'popups.overview';

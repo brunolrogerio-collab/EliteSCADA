@@ -1145,6 +1145,344 @@
           "fields": null
         }
       ]
+    },
+    {
+      "id": "alarms.configuration",
+      "category": "alarms",
+      "title": "Alarmes: configurar condição, prioridade e comportamento",
+      "summary": "Monte um alarme a partir de um TAG e saiba o que cada opção realmente faz.",
+      "sections": [
+        {
+          "heading": "Antes de começar",
+          "body": "Abra Engenharia > Alarmes. Tenha um TAG cuja leitura, tipo, escala e unidade já foram conferidos. Um alarme de pressão alta observa o valor do TAG; não configura o sensor e não desliga a bomba sozinho. Defina limites e resposta operacional com o responsável pelo processo. Para aprender, use um TAG de simulação, sem atuar em equipamento real. Edição requer a permissão e o bloqueio de Engenharia aplicáveis.",
+          "fields": null
+        },
+        {
+          "heading": "Identificação e condição",
+          "body": "Selecione Novo alarme ou uma definição existente. O caminho identifica qual sinal será avaliado; o nome e a mensagem ajudam o operador a entender o problema.",
+          "fields": [
+            {
+              "key": "alarm.name",
+              "label": "Nome",
+              "description": "Use uma descrição legível que distinga equipamento e condição. Renomear não muda o TAG observado.",
+              "example": "Pressão alta — Bomba 01",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.tagPath",
+              "label": "Caminho do TAG",
+              "description": "Informe o caminho de um TAG existente. Confira o valor já escalonado no Monitor de TAGs antes de escolher o limite.",
+              "example": "Planta.Bomba01.Pressao",
+              "constraints": "Não é endereço de Driver nem nome de tela."
+            },
+            {
+              "key": "alarm.type",
+              "label": "Tipo",
+              "description": "Escolhe a regra de comparação; consulte os tipos abaixo. HighHigh é outra definição de limite, não uma prioridade automática.",
+              "example": "high",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.setpoint",
+              "label": "Setpoint (limite)",
+              "description": "Aparece nos tipos analógicos. Informe um número na unidade atual do TAG. High/HighHigh ativam em valor ≥ limite; Low/LowLow em valor ≤ limite.",
+              "example": "10 bar: preencher 10",
+              "constraints": "A igualdade também ativa. Não há campo de histerese neste editor."
+            },
+            {
+              "key": "alarm.digitalActiveValue",
+              "label": "Valor digital ativo",
+              "description": "Só aparece em Digital. Marcado significa que true é a condição de alarme; desmarcado significa false. Confirme a polaridade real do sinal.",
+              "example": "Falha=true / Pronto=false",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.priority",
+              "label": "Prioridade",
+              "description": "Ordena e destaca a atenção: low, medium, high ou critical. Não altera o limite, a permissão nem a lógica de parada.",
+              "example": "high",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.alarmClass",
+              "label": "Classe",
+              "description": "Rótulo de classificação para organizar definições. Não instala uma regra de proteção ao digitar um nome.",
+              "example": "Processo",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.area",
+              "label": "Área",
+              "description": "Contexto do processo usado também na autorização por área das ações. Use o nome previsto na política; digitar uma área não concede acesso.",
+              "example": "Estacao01",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.message",
+              "label": "Mensagem",
+              "description": "Explique condição e local de forma útil para o operador. Uma instrução escrita não executa um comando.",
+              "example": "Bomba 01: conferir pressão de descarga",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Qual tipo escolher",
+          "body": "Digital compara o booleano com o valor ativo escolhido. High e HighHigh usam ≥; Low e LowLow usam ≤. Para dois limites, crie duas definições e escolha suas prioridades separadamente. Communication ativa para qualidade diferente de Good e retorna com Good; não depende de setpoint. Com qualidade ruim, os tipos de processo não avaliam um limite numérico como se a leitura fosse válida: use o alarme de comunicação para acompanhar isso. System aparece no seletor, mas não tem regra genérica de processo neste avaliador; não o use como substituto de High ou Digital. Não se presume temporizador de perda de comunicação apenas por selecionar Communication.",
+          "fields": null
+        },
+        {
+          "heading": "Comportamento e som",
+          "body": "Expanda Comportamento do alarme. Algumas opções são salvas na definição, mas têm limitações no Runtime atual; elas estão descritas junto ao campo.",
+          "fields": [
+            {
+              "key": "alarm.enabled",
+              "label": "Habilitado",
+              "description": "Inclui a definição na avaliação quando a revisão for ativada. Desabilitar não corrige o sinal nem a causa física.",
+              "example": "Marcado",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.activationDelayMilliseconds",
+              "label": "Atraso de ativação (ms)",
+              "description": "Representa o atraso desejado. Limitação atual: o valor é salvo, mas não retarda a ativação no Runtime. Não conte com ele para eliminar oscilações.",
+              "example": "1000 ms = 1 s",
+              "constraints": "Campo inteiro; atraso ainda não aplicado."
+            },
+            {
+              "key": "alarm.requiresAcknowledgement",
+              "label": "Requer reconhecimento",
+              "description": "Indica a intenção de exigir ACK do operador. Limitação atual: desmarcar não elimina a pendência de reconhecimento no Runtime, inclusive após retorno.",
+              "example": "Marcado",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.shelvingAllowed",
+              "label": "Permitir shelving",
+              "description": "Autoriza que esta definição possa ser colocada em estado suprimido pela operação disponível. A ação ainda exige permissão AlarmShelve. O Alarm Center descrito aqui não oferece botão de shelving.",
+              "example": "Conforme procedimento da planta",
+              "constraints": "Não é Silenciar sons; não se promete expiração automática."
+            },
+            {
+              "key": "alarm.soundProfile",
+              "label": "Perfil sonoro / prévia",
+              "description": "Escolha nenhum, pulso curto, duplo, triplo, ascendente ou alternado e teste a prévia. No Runtime, o operador precisa ativar sons no navegador. Volume, saída de áudio e permissão do navegador influenciam a reprodução.",
+              "example": "double",
+              "constraints": "Silenciar no navegador não reconhece o alarme."
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento: testar um limite alto",
+          "body": "1. Crie um alarme high para o TAG de pressão simulado, com setpoint 10 e unidade bar no TAG. 2. Preencha prioridade, área e uma mensagem clara. Para este teste mantenha Requer reconhecimento marcado. 3. Execute Preview, leia erros e aplique ao Workspace. Qualquer nova edição exige outra validação. 4. Salve, publique e ative a revisão correta; aplicar ao Workspace não ativa o Runtime sozinho. 5. Com qualidade Good, envie 9: a condição fica Normal. Envie 10: fica Active, pois a igualdade entra no limite. 6. Reconheça no Runtime: fica Acknowledged e o TAG continua em 10. Envie 9: fica Returned e deixa a lista ativa porque já teve ACK. 7. Em nova ativação, envie 10 e depois 9 sem ACK: fica Returned pendente. Reconheça e confira a saída da lista ativa. Consulte histórico para as transições anteriores.",
+          "fields": null
+        },
+        {
+          "heading": "Se o resultado não for o esperado",
+          "body": "Confira TAG/revisão ativa, escala/unidade, sinal booleano, habilitação e qualidade. Alta prioridade não força ativação. Um limite que oscila não ganha histerese por mudar a mensagem ou a classe. Preview valida o candidato; não comprova leitura de campo. Atraso e dispensa de ACK continuam com as limitações descritas. Caso o projeto mude durante a edição, recarregue e valide de novo em vez de aplicar um candidato antigo.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "alarms.runtime-operation",
+        "alarms.overview",
+        "tags.quality",
+        "operational-events.configuration",
+        "audit.overview",
+        "runtime.history"
+      ]
+    },
+    {
+      "id": "alarms.runtime-operation",
+      "category": "alarms",
+      "title": "Alarmes no Runtime: estados, reconhecimento e sons",
+      "summary": "Leia a condição atual, reconheça com segurança e diferencie silêncio, retorno e histórico.",
+      "sections": [
+        {
+          "heading": "Onde olhar e como interpretar",
+          "body": "Abra a central de alarmes do Runtime. Ela mostra a lista ativa visível para sua sessão, contagens e detalhes do item selecionado. Não é uma lista de todas as ocorrências passadas. Selecione uma linha para ver mensagem/nome, prioridade, área, último valor, ativação, última transição e quem/quando reconheceu. IDs nos detalhes ajudam a identificar exatamente a definição; não é necessário inventar ou digitar um ID para reconhecer.",
+          "fields": null
+        },
+        {
+          "heading": "Estados que aparecem nos detalhes",
+          "body": "A lista ativa inclui Active, Acknowledged e Returned sem ACK. Assim, vazio não significa que nunca houve alarme. Estados fora dela podem ser encontrados em outras consultas apropriadas.",
+          "fields": [
+            {
+              "key": "alarmState.normal",
+              "label": "Normal",
+              "description": "Condição não ativa no momento; um ciclo anterior pode existir no histórico.",
+              "example": "9 < 10",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.active",
+              "label": "Active",
+              "description": "Condição presente e ainda sem reconhecimento desse ciclo.",
+              "example": "10 ≥ 10",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.acknowledged",
+              "label": "Acknowledged",
+              "description": "ACK registrado, mas a condição continua presente. Não significa que a causa foi resolvida.",
+              "example": "ACK com pressão ainda em 10",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.returned",
+              "label": "Returned",
+              "description": "Condição deixou de estar ativa. Se ainda não houve ACK, permanece pendente na lista ativa. Depois de ACK, sai dessa lista.",
+              "example": "10 → 9",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.disabled",
+              "label": "Disabled",
+              "description": "Definição desabilitada para avaliação. Não indica equipamento saudável.",
+              "example": "Habilitado desmarcado",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.shelved",
+              "label": "Shelved",
+              "description": "Notificação suprimida pela operação de shelving. O valor e o estado subjacente continuam sendo acompanhados; ao retirar a supressão, reaparece o estado subjacente atual.",
+              "example": "Manutenção controlada",
+              "constraints": "A central atual não oferece botão para essa ação."
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento: reconhecer uma notificação",
+          "body": "1. Selecione a linha e leia condição, valor e horário; confirme o equipamento. 2. Execute a resposta operacional prevista pela planta. 3. Use Reconhecer alarme se a sessão possui permissão AlarmAcknowledge para a área. Uma sessão View Only não ganha essa ação. 4. Aguarde a confirmação do servidor e a releitura. Se o ACK foi aceito mas a releitura falhou, atualize para conferir o resultado antes de repetir ações. 5. Se a condição persiste, o estado reconhecido continua visível. Se ela já retornou, o item deixa a lista ativa após o ACK. Uma nova ativação abre outra pendência.",
+          "fields": null
+        },
+        {
+          "heading": "Sons, silêncio e indisponibilidade",
+          "body": "Ativar sons de alarmes libera o áudio nesta sessão do navegador; depende de suporte, volume e saída de áudio. Perfis configurados repetem enquanto houver alarme pendente, inclusive Returned sem ACK. Silenciar sons é local e não reconhece, desabilita ou coloca em shelving. Reconhecer não envia comando ao processo. Sem acesso: confirme login, classe de sessão e permissão/área; não tente resolver mudando o TAG. Sem dados ou serviço indisponível: releia e confira diagnóstico do Runtime. Para ocorrências passadas, use Histórico e escolha alarm.events com período adequado; não confunda com operational.events ou Audit.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "alarms.configuration",
+        "operational-events.configuration",
+        "audit.overview",
+        "runtime.history",
+        "security.users-roles-capabilities"
+      ]
+    },
+    {
+      "id": "operational-events.configuration",
+      "category": "operational-events",
+      "title": "Eventos operacionais: cadastrar, emitir e consultar",
+      "summary": "Registre uma ocorrência do processo com contexto, sem confundir definição, ocorrência, alarme e Audit.",
+      "sections": [
+        {
+          "heading": "Escolha o recurso certo",
+          "body": "Evento operacional registra um fato, por exemplo início de lote ou troca de modo. Cada emissão cria uma ocorrência com horário e identidade próprios; não mantém condição ativa nem exige ACK. Alarme acompanha uma condição que pode ativar/retornar. Audit rastreia ações e resultados de segurança/administração. Um clique de objeto visual também se chama evento, mas não é uma ocorrência operacional por si só. Cadastrar a definição abaixo não emite nada automaticamente; associar um TAG só dá contexto, não cria gatilho de mudança.",
+          "fields": null
+        },
+        {
+          "heading": "Campos da definição",
+          "body": "Abra Engenharia > Eventos Operacionais e selecione Novo Evento Operacional. Informe primeiro significado e origem; expanda Contexto opcional somente quando necessário. Os rótulos de tipo/categoria/origem são textos da sua convenção, não configurações de conexão.",
+          "fields": [
+            {
+              "key": "operationalEvent.name",
+              "label": "Nome de exibição",
+              "description": "Nome legível para pessoas.",
+              "example": "Início da simulação",
+              "constraints": "Até 240 caracteres."
+            },
+            {
+              "key": "operationalEvent.key",
+              "label": "Identificador",
+              "description": "Chave textual única entre definições, sem diferenciar maiúsculas. Não é o ID estável usado pela API Python.",
+              "example": "simulation.started",
+              "constraints": "Obrigatório; até 160 caracteres."
+            },
+            {
+              "key": "operationalEvent.type",
+              "label": "Tipo",
+              "description": "Descreve a natureza do fato; não seleciona o tipo de alarme.",
+              "example": "process",
+              "constraints": "Obrigatório; até 120 caracteres."
+            },
+            {
+              "key": "operationalEvent.category",
+              "label": "Categoria",
+              "description": "Agrupa ocorrências segundo sua convenção para busca e análise.",
+              "example": "operation",
+              "constraints": "Obrigatório; até 120 caracteres."
+            },
+            {
+              "key": "operationalEvent.source",
+              "label": "Origem",
+              "description": "Identifica semanticamente quem produz o fato. Digitar server-script não cria nem vincula um script automaticamente.",
+              "example": "server-script",
+              "constraints": "Obrigatório; até 240 caracteres."
+            },
+            {
+              "key": "operationalEvent.enabled",
+              "label": "Habilitado",
+              "description": "Define a disponibilidade da definição na revisão de Runtime. Não remove ocorrências históricas.",
+              "example": "Marcado",
+              "constraints": ""
+            },
+            {
+              "key": "operationalEvent.message",
+              "label": "Mensagem padrão",
+              "description": "Texto usado se a emissão não informar outra mensagem. Uma mensagem da emissão pode substituí-lo.",
+              "example": "Simulação iniciada",
+              "constraints": "Até 4000 caracteres."
+            },
+            {
+              "key": "operationalEvent.area",
+              "label": "Área (opcional)",
+              "description": "Localiza o fato na organização do processo; não concede permissão ao usuário.",
+              "example": "Estacao01",
+              "constraints": "Até 240 caracteres."
+            },
+            {
+              "key": "operationalEvent.equipmentPath",
+              "label": "Caminho do equipamento (opcional)",
+              "description": "Referência de contexto ao equipamento. Não cria equipamento nem desenho.",
+              "example": "Planta.Bomba01",
+              "constraints": "Até 500 caracteres."
+            },
+            {
+              "key": "operationalEvent.tagId",
+              "label": "TAG (opcional)",
+              "description": "Escolha um TAG existente no seletor; o editor guarda a identidade e o caminho. Sem TAG é válido para um fato geral.",
+              "example": "Planta.Bomba01.Estado",
+              "constraints": "Associação não monitora mudanças automaticamente."
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento: preparar a definição e o produtor",
+          "body": "1. Crie a definição com os campos obrigatórios e contexto útil; evite uma chave genérica igual para todos os fatos. 2. Execute Preview e leia os diagnósticos. Corrija chaves duplicadas e referências inválidas. 3. Aplique ao Workspace e depois salve, publique e ative conforme o ciclo do projeto. 4. Configure o produtor: um Server Script pode usar emit_operational_event. Obtenha o ID estável da definição salva nos dados exportados/referências do projeto; não substitua pelo Identificador textual. 5. Associe o handler Python ao gatilho Server apropriado. Evite Timer para registrar apenas uma transição: cada chamada cria outra ocorrência, mesmo que a mensagem seja igual. 6. Ative a revisão que contém tanto definição quanto script. 7. Produza um fato controlado e consulte operational.events no Histórico, com período que inclua a execução.",
+          "fields": null
+        },
+        {
+          "heading": "Exemplo Python: uma ocorrência ao inicializar",
+          "body": "O UUID abaixo é ilustrativo: substitua pelo ID estável da sua definição. No Script Engineering, escolha escopo Server e associe o evento Initialize ao handler initialize; o nome da função sozinho não cria essa associação. O exemplo registra o início da simulação a cada inicialização do script, não a partida física de uma bomba. O argumento event é o contexto do gatilho e pode ficar sem uso. emit_operational_event(definition_id, message=None, context=None) retorna None; não devolve o ID da ocorrência. As chaves e valores do dicionário de contexto são textos: use str(valor) para números calculados.",
+          "fields": null,
+          "code": "def initialize(event):\n    emit_operational_event(\n        \"c1900000-0000-0000-0000-000000000002\",\n        \"Simulation started\",\n        {\"mode\": \"simulation\", \"batch\": \"42\"}\n    )"
+        },
+        {
+          "heading": "Consultar e diagnosticar",
+          "body": "No Histórico selecione operational.events, ajuste início/fim e os filtros disponíveis; confira horário, origem, mensagem e contexto. alarm.events contém transições de alarmes, e Audit possui outra finalidade. Contexto adicional não muda tipo, categoria, origem ou identidade próprios da definição, mesmo que contenha chaves com esses nomes. Até 128 pares de contexto, chaves de até 160 caracteres e valores de até 4000; mensagens também têm limite de 4000. Não inclua senhas ou segredos. Sem ocorrência: confira revisão ativa, definição habilitada, ID correto, associação do handler, diagnóstico do script, período e permissão de consulta. A emissão deve respeitar a autoridade ativa do Runtime; uma falha não autoriza emitir por caminho alternativo. Nada aparecer após apenas cadastrar a definição é esperado.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "alarms.configuration",
+        "alarms.runtime-operation",
+        "operational-events.overview",
+        "scripts.server",
+        "scripts.engineering",
+        "runtime.history",
+        "audit.overview"
+      ]
     }
   ],
   "en": [
@@ -2293,6 +2631,344 @@
           "fields": null
         }
       ]
+    },
+    {
+      "id": "alarms.configuration",
+      "category": "alarms",
+      "title": "Alarms: configure condition, priority and behavior",
+      "summary": "Build an alarm from a TAG and understand what each option actually does.",
+      "sections": [
+        {
+          "heading": "Before you begin",
+          "body": "Open Engineering > Alarms. First verify the TAG reading, type, scaling and unit. A high-pressure alarm observes the TAG value; it neither configures the sensor nor stops the pump by itself. Agree on thresholds and operational response with the process owner. Learn with a simulation TAG without operating real equipment. Editing requires the applicable Engineering permission and lock.",
+          "fields": null
+        },
+        {
+          "heading": "Identity and condition",
+          "body": "Select New alarm or an existing definition. The path identifies the signal to evaluate; the name and message help operators understand the problem.",
+          "fields": [
+            {
+              "key": "alarm.name",
+              "label": "Name",
+              "description": "Use a readable description distinguishing equipment and condition. Renaming does not change the observed TAG.",
+              "example": "High pressure — Pump 01",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.tagPath",
+              "label": "TAG path",
+              "description": "Enter an existing TAG path. Check its already-scaled value in TAG Monitor before choosing the threshold.",
+              "example": "Planta.Bomba01.Pressao",
+              "constraints": "Not a Driver address or screen name."
+            },
+            {
+              "key": "alarm.type",
+              "label": "Type",
+              "description": "Selects the comparison rule; see the types below. HighHigh is another threshold definition, not automatic priority.",
+              "example": "high",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.setpoint",
+              "label": "Setpoint (threshold)",
+              "description": "Shown for analog types. Enter a number in the current TAG unit. High/HighHigh activate at value ≥ threshold; Low/LowLow at value ≤ threshold.",
+              "example": "10 bar: enter 10",
+              "constraints": "Equality also activates. This editor has no hysteresis field."
+            },
+            {
+              "key": "alarm.digitalActiveValue",
+              "label": "Active digital value",
+              "description": "Only shown for Digital. Checked means true is the alarm condition; unchecked means false. Verify actual signal polarity.",
+              "example": "Fault=true / Ready=false",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.priority",
+              "label": "Priority",
+              "description": "Orders and highlights attention: low, medium, high or critical. Does not change the threshold, permission or shutdown logic.",
+              "example": "high",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.alarmClass",
+              "label": "Class",
+              "description": "Classification label for organizing definitions. Typing a name does not install a protection rule.",
+              "example": "Process",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.area",
+              "label": "Area",
+              "description": "Process context also used for area-scoped action authorization. Use the name expected by the policy; entering an area grants no access.",
+              "example": "Estacao01",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.message",
+              "label": "Message",
+              "description": "Explain the condition and location usefully for the operator. A written instruction does not execute a command.",
+              "example": "Pump 01: check discharge pressure",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Choosing a type",
+          "body": "Digital compares the boolean with the selected active value. High and HighHigh use ≥; Low and LowLow use ≤. For two thresholds, create two definitions and choose their priorities separately. Communication activates for quality other than Good and returns with Good; it does not use a setpoint. With bad quality, process types do not evaluate the numeric limit as a valid reading: use a communication alarm to monitor this. System appears in the selector but has no generic process rule in this evaluator; do not use it instead of High or Digital. Selecting Communication does not imply a communication-loss timer.",
+          "fields": null
+        },
+        {
+          "heading": "Behavior and sound",
+          "body": "Expand Alarm behavior. Some options are saved in the definition but have current Runtime limitations, described alongside the field.",
+          "fields": [
+            {
+              "key": "alarm.enabled",
+              "label": "Enabled",
+              "description": "Includes the definition in evaluation when the revision is activated. Disabling fixes neither the signal nor the physical cause.",
+              "example": "Checked",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.activationDelayMilliseconds",
+              "label": "Activation delay (ms)",
+              "description": "Represents the intended delay. Current limitation: the value is saved but does not delay Runtime activation. Do not rely on it to filter chatter.",
+              "example": "1000 ms = 1 s",
+              "constraints": "Integer field; delay not yet applied."
+            },
+            {
+              "key": "alarm.requiresAcknowledgement",
+              "label": "Requires acknowledgement",
+              "description": "Expresses the intent to require operator ACK. Current limitation: clearing it does not remove pending acknowledgement in Runtime, including after return.",
+              "example": "Checked",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.shelvingAllowed",
+              "label": "Allow shelving",
+              "description": "Allows this definition to enter a suppressed state through an available operation. The action still requires AlarmShelve permission. The Alarm Center described here has no shelving button.",
+              "example": "According to plant procedure",
+              "constraints": "Not Mute sounds; no automatic expiry is promised."
+            },
+            {
+              "key": "alarm.soundProfile",
+              "label": "Sound profile / preview",
+              "description": "Choose none, short pulse, double, triple, rising or alternating and try the preview. In Runtime, operators must enable sounds in the browser. Volume, output device and browser permission affect playback.",
+              "example": "double",
+              "constraints": "Muting in the browser does not acknowledge the alarm."
+            }
+          ]
+        },
+        {
+          "heading": "Procedure: test a high threshold",
+          "body": "1. Create a high alarm for the simulated pressure TAG with setpoint 10 and bar as the TAG unit. 2. Fill in priority, area and a clear message. Keep Requires acknowledgement checked for this test. 3. Run Preview, read errors and apply to Workspace. Any further edit requires validation again. 4. Save, publish and activate the correct revision; applying to Workspace alone does not activate Runtime. 5. With Good quality, send 9: the condition is Normal. Send 10: it becomes Active because equality reaches the threshold. 6. Acknowledge in Runtime: it becomes Acknowledged while the TAG remains 10. Send 9: it becomes Returned and leaves the active list because ACK was already recorded. 7. For another activation, send 10 then 9 without ACK: it becomes Returned pending acknowledgement. Acknowledge and verify removal from the active list. Use history for earlier transitions.",
+          "fields": null
+        },
+        {
+          "heading": "If the result differs",
+          "body": "Check the TAG/active revision, scaling/unit, boolean polarity, enablement and quality. High priority does not force activation. A chattering threshold gains no hysteresis from a different message or class. Preview validates a candidate; it does not prove field acquisition. Delay and ACK exemption retain the limitations described. If the project changes while editing, reload and validate again rather than applying an old candidate.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "alarms.runtime-operation",
+        "alarms.overview",
+        "tags.quality",
+        "operational-events.configuration",
+        "audit.overview",
+        "runtime.history"
+      ]
+    },
+    {
+      "id": "alarms.runtime-operation",
+      "category": "alarms",
+      "title": "Runtime alarms: states, acknowledgement and sounds",
+      "summary": "Read the current condition, acknowledge it and distinguish silence, return and history.",
+      "sections": [
+        {
+          "heading": "Where to look and how to interpret",
+          "body": "Open Runtime Alarm Center. It shows the active list visible to your session, counts and details for the selected item. It is not a list of all past occurrences. Select a row to inspect message/name, priority, area, last value, activation, last transition and who/when acknowledged. IDs in details identify the exact definition; you do not need to invent or type an ID to acknowledge.",
+          "fields": null
+        },
+        {
+          "heading": "States shown in details",
+          "body": "The active list includes Active, Acknowledged and Returned without ACK. An empty list therefore does not mean no alarm ever occurred. States outside it can be found through other appropriate queries.",
+          "fields": [
+            {
+              "key": "alarmState.normal",
+              "label": "Normal",
+              "description": "Condition is not active now; a previous cycle may exist in history.",
+              "example": "9 < 10",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.active",
+              "label": "Active",
+              "description": "Condition is present and this cycle is not yet acknowledged.",
+              "example": "10 ≥ 10",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.acknowledged",
+              "label": "Acknowledged",
+              "description": "ACK recorded but the condition remains present. It does not mean the cause was resolved.",
+              "example": "ACK while pressure remains 10",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.returned",
+              "label": "Returned",
+              "description": "Condition is no longer active. Without ACK it remains pending in the active list. After ACK it leaves that list.",
+              "example": "10 → 9",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.disabled",
+              "label": "Disabled",
+              "description": "Definition disabled for evaluation. Does not indicate healthy equipment.",
+              "example": "Enabled unchecked",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.shelved",
+              "label": "Shelved",
+              "description": "Notification suppressed by shelving. Value and underlying state continue to be tracked; removing suppression restores the current underlying state.",
+              "example": "Controlled maintenance",
+              "constraints": "The current center provides no button for this action."
+            }
+          ]
+        },
+        {
+          "heading": "Procedure: acknowledge a notification",
+          "body": "1. Select the row and read the condition, value and time; confirm the equipment. 2. Follow the plant operational response. 3. Use Acknowledge alarm if the session has AlarmAcknowledge permission for the area. A View Only session does not gain this action. 4. Wait for server confirmation and refresh. If ACK was accepted but refresh failed, refresh to verify the result before repeating actions. 5. If the condition persists, the acknowledged state remains visible. If it already returned, it leaves the active list after ACK. A new activation opens another pending acknowledgement.",
+          "fields": null
+        },
+        {
+          "heading": "Sounds, mute and unavailability",
+          "body": "Enable alarm sounds unlocks audio for this browser session, subject to support, volume and output device. Configured profiles repeat while an alarm awaits ACK, including Returned without ACK. Mute sounds is local and does not acknowledge, disable or shelve. Acknowledgement sends no process command. If access is denied, check login, session class and permission/area; do not try to fix access by changing the TAG. If data or service is unavailable, refresh and check Runtime diagnostics. For past transitions, open History and choose alarm.events with an appropriate period; do not confuse it with operational.events or Audit.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "alarms.configuration",
+        "operational-events.configuration",
+        "audit.overview",
+        "runtime.history",
+        "security.users-roles-capabilities"
+      ]
+    },
+    {
+      "id": "operational-events.configuration",
+      "category": "operational-events",
+      "title": "Operational events: define, emit and query",
+      "summary": "Record a process occurrence with context, distinguishing definitions, occurrences, alarms and Audit.",
+      "sections": [
+        {
+          "heading": "Choose the right resource",
+          "body": "An operational event records a fact, such as batch start or mode change. Each emission creates an occurrence with its own time and identity; it maintains no active condition and requires no ACK. An alarm tracks a condition that activates/returns. Audit traces security/administrative actions and outcomes. A visual object click is also called an event but is not itself an operational occurrence. Creating the definition below emits nothing automatically; linking a TAG provides context, not a change trigger.",
+          "fields": null
+        },
+        {
+          "heading": "Definition fields",
+          "body": "Open Engineering > Operational Events and select New Operational Event. Define meaning and source first; expand Optional context when needed. Type/category/source labels are text from your convention, not connection settings.",
+          "fields": [
+            {
+              "key": "operationalEvent.name",
+              "label": "Display name",
+              "description": "Readable name for people.",
+              "example": "Simulation start",
+              "constraints": "Up to 240 characters."
+            },
+            {
+              "key": "operationalEvent.key",
+              "label": "Key",
+              "description": "Text key unique across definitions, case insensitive. Not the stable ID used by the Python API.",
+              "example": "simulation.started",
+              "constraints": "Required; up to 160 characters."
+            },
+            {
+              "key": "operationalEvent.type",
+              "label": "Type",
+              "description": "Describes the nature of the fact; does not select an alarm type.",
+              "example": "process",
+              "constraints": "Required; up to 120 characters."
+            },
+            {
+              "key": "operationalEvent.category",
+              "label": "Category",
+              "description": "Groups occurrences using your convention for search and analysis.",
+              "example": "operation",
+              "constraints": "Required; up to 120 characters."
+            },
+            {
+              "key": "operationalEvent.source",
+              "label": "Source",
+              "description": "Semantically identifies what produces the fact. Entering server-script does not automatically create or bind a script.",
+              "example": "server-script",
+              "constraints": "Required; up to 240 characters."
+            },
+            {
+              "key": "operationalEvent.enabled",
+              "label": "Enabled",
+              "description": "Controls definition availability in the Runtime revision. Does not remove historical occurrences.",
+              "example": "Checked",
+              "constraints": ""
+            },
+            {
+              "key": "operationalEvent.message",
+              "label": "Default message",
+              "description": "Text used if emission supplies no other message. An emission message may override it.",
+              "example": "Simulation started",
+              "constraints": "Up to 4000 characters."
+            },
+            {
+              "key": "operationalEvent.area",
+              "label": "Area (optional)",
+              "description": "Places the fact within the process organization; grants no user permission.",
+              "example": "Estacao01",
+              "constraints": "Up to 240 characters."
+            },
+            {
+              "key": "operationalEvent.equipmentPath",
+              "label": "Equipment path (optional)",
+              "description": "Equipment context reference. Does not create equipment or a drawing.",
+              "example": "Planta.Bomba01",
+              "constraints": "Up to 500 characters."
+            },
+            {
+              "key": "operationalEvent.tagId",
+              "label": "TAG (optional)",
+              "description": "Choose an existing TAG; the editor stores its identity and path. No TAG is valid for a general fact.",
+              "example": "Planta.Bomba01.Estado",
+              "constraints": "Association does not automatically monitor changes."
+            }
+          ]
+        },
+        {
+          "heading": "Procedure: prepare the definition and producer",
+          "body": "1. Create the definition with required fields and useful context; avoid using one generic key for every fact. 2. Run Preview and read diagnostics. Fix duplicate keys and invalid references. 3. Apply to Workspace, then save, publish and activate using the project lifecycle. 4. Configure the producer: a Server Script can call emit_operational_event. Obtain the saved definition stable ID from exported project data/references; do not substitute the text Key. 5. Bind the Python handler to the appropriate Server trigger. Avoid Timer to record a single transition: every call creates another occurrence even with the same message. 6. Activate the revision containing both definition and script. 7. Produce a controlled fact and query operational.events in History with a period covering execution.",
+          "fields": null
+        },
+        {
+          "heading": "Python example: one occurrence at initialization",
+          "body": "The UUID below is illustrative: replace it with your definition stable ID. In Script Engineering choose Server scope and bind the Initialize event to the initialize handler; a function name alone does not create that binding. The example records simulation start at each script initialization, not a physical pump start. The event argument is trigger context and can remain unused. emit_operational_event(definition_id, message=None, context=None) returns None, not an occurrence ID. Context dictionary keys and values are strings: use str(value) for calculated numbers.",
+          "fields": null,
+          "code": "def initialize(event):\n    emit_operational_event(\n        \"c1900000-0000-0000-0000-000000000002\",\n        \"Simulation started\",\n        {\"mode\": \"simulation\", \"batch\": \"42\"}\n    )"
+        },
+        {
+          "heading": "Query and troubleshoot",
+          "body": "In History select operational.events, set start/end and available filters; inspect time, source, message and context. alarm.events contains alarm transitions, while Audit has another purpose. Additional context does not change the definition's own type, category, source or identity, even with keys bearing those names. Context allows up to 128 pairs, keys up to 160 characters and values up to 4000; messages also have a 4000-character limit. Include no passwords or secrets. Missing occurrence: check active revision, enabled definition, correct ID, handler binding, script diagnostics, time range and query permission. Emission must respect active Runtime authority; failure does not authorize an alternative path. Nothing appearing after only creating a definition is expected.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "alarms.configuration",
+        "alarms.runtime-operation",
+        "operational-events.overview",
+        "scripts.server",
+        "scripts.engineering",
+        "runtime.history",
+        "audit.overview"
+      ]
     }
   ],
   "es": [
@@ -3440,6 +4116,344 @@
           "body": "Captura decide observaciones admitidas; retención cuánto permanecen; agregación resume; backup conserva copia recuperable. Campos de captura no son cuota global ni archivo. Playback presenta valores históricos en la visualización actual, no restaura proceso ni autoriza comandos; vuelva en vivo antes de operar. Sin muestras no significa cero ni equipo parado.",
           "fields": null
         }
+      ]
+    },
+    {
+      "id": "alarms.configuration",
+      "category": "alarms",
+      "title": "Alarmas: configurar condición, prioridad y comportamiento",
+      "summary": "Cree una alarma a partir de un TAG y comprenda qué hace cada opción.",
+      "sections": [
+        {
+          "heading": "Antes de empezar",
+          "body": "Abra Ingeniería > Alarmas. Verifique primero lectura, tipo, escala y unidad del TAG. Una alarma de presión alta observa su valor; no configura el sensor ni detiene la bomba por sí sola. Acuerde límites y respuesta con el responsable del proceso. Aprenda con un TAG simulado, sin actuar sobre equipos reales. La edición requiere el permiso y bloqueo de Ingeniería correspondientes.",
+          "fields": null
+        },
+        {
+          "heading": "Identidad y condición",
+          "body": "Seleccione Nueva alarma o una definición existente. La ruta identifica la señal a evaluar; el nombre y mensaje ayudan al operador a entender el problema.",
+          "fields": [
+            {
+              "key": "alarm.name",
+              "label": "Nombre",
+              "description": "Use una descripción legible que distinga equipo y condición. Renombrar no cambia el TAG observado.",
+              "example": "Presión alta — Bomba 01",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.tagPath",
+              "label": "Ruta del TAG",
+              "description": "Introduzca una ruta de TAG existente. Compruebe su valor ya escalado en el Monitor de TAGs antes de elegir el límite.",
+              "example": "Planta.Bomba01.Pressao",
+              "constraints": "No es dirección del Driver ni nombre de pantalla."
+            },
+            {
+              "key": "alarm.type",
+              "label": "Tipo",
+              "description": "Selecciona la comparación; consulte los tipos siguientes. HighHigh es otra definición de límite, no prioridad automática.",
+              "example": "high",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.setpoint",
+              "label": "Setpoint (límite)",
+              "description": "Aparece para tipos analógicos. Introduzca un número en la unidad actual del TAG. High/HighHigh se activan con valor ≥ límite; Low/LowLow con valor ≤ límite.",
+              "example": "10 bar: introducir 10",
+              "constraints": "La igualdad también activa. Este editor no tiene campo de histéresis."
+            },
+            {
+              "key": "alarm.digitalActiveValue",
+              "label": "Valor digital activo",
+              "description": "Solo aparece en Digital. Marcado significa alarma con true; desmarcado con false. Confirme la polaridad real.",
+              "example": "Fallo=true / Listo=false",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.priority",
+              "label": "Prioridad",
+              "description": "Ordena y destaca la atención: low, medium, high o critical. No cambia límite, permiso ni lógica de parada.",
+              "example": "high",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.alarmClass",
+              "label": "Clase",
+              "description": "Etiqueta para organizar definiciones. Escribir un nombre no instala una regla de protección.",
+              "example": "Proceso",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.area",
+              "label": "Área",
+              "description": "Contexto del proceso usado también para autorizar acciones por área. Use el nombre previsto en la política; escribir un área no concede acceso.",
+              "example": "Estacao01",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.message",
+              "label": "Mensaje",
+              "description": "Explique condición y ubicación de forma útil. Una instrucción escrita no ejecuta un comando.",
+              "example": "Bomba 01: comprobar presión de descarga",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Qué tipo elegir",
+          "body": "Digital compara el booleano con el valor activo elegido. High y HighHigh usan ≥; Low y LowLow usan ≤. Para dos límites, cree dos definiciones y asigne prioridades por separado. Communication se activa con calidad distinta de Good y retorna con Good; no usa setpoint. Con mala calidad, los tipos de proceso no evalúan el límite numérico como si la lectura fuera válida: supervise esta situación con una alarma de comunicación. System aparece en el selector, pero no tiene regla genérica de proceso en este evaluador; no lo use en lugar de High o Digital. Seleccionar Communication no implica un temporizador de pérdida de comunicación.",
+          "fields": null
+        },
+        {
+          "heading": "Comportamiento y sonido",
+          "body": "Expanda Comportamiento de la alarma. Algunas opciones se guardan en la definición, pero tienen limitaciones actuales en Runtime, indicadas junto al campo.",
+          "fields": [
+            {
+              "key": "alarm.enabled",
+              "label": "Habilitada",
+              "description": "Incluye la definición en la evaluación al activar la revisión. Deshabilitar no corrige la señal ni la causa física.",
+              "example": "Marcada",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.activationDelayMilliseconds",
+              "label": "Retardo de activación (ms)",
+              "description": "Representa el retardo deseado. Limitación actual: se guarda, pero no retrasa la activación en Runtime. No dependa de él para filtrar oscilaciones.",
+              "example": "1000 ms = 1 s",
+              "constraints": "Campo entero; retardo aún no aplicado."
+            },
+            {
+              "key": "alarm.requiresAcknowledgement",
+              "label": "Requiere reconocimiento",
+              "description": "Indica la intención de exigir ACK del operador. Limitación actual: desmarcar no elimina el reconocimiento pendiente en Runtime, incluso tras el retorno.",
+              "example": "Marcada",
+              "constraints": ""
+            },
+            {
+              "key": "alarm.shelvingAllowed",
+              "label": "Permitir shelving",
+              "description": "Permite suprimir esta definición mediante la operación disponible. La acción sigue requiriendo permiso AlarmShelve. El Alarm Center descrito aquí no tiene botón de shelving.",
+              "example": "Según el procedimiento de planta",
+              "constraints": "No es Silenciar sonidos; no se promete vencimiento automático."
+            },
+            {
+              "key": "alarm.soundProfile",
+              "label": "Perfil sonoro / prueba",
+              "description": "Elija ninguno, pulso corto, doble, triple, ascendente o alternado y pruebe la vista previa. En Runtime, el operador debe activar sonidos en el navegador. Volumen, salida y permiso del navegador afectan la reproducción.",
+              "example": "double",
+              "constraints": "Silenciar en el navegador no reconoce la alarma."
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento: probar un límite alto",
+          "body": "1. Cree una alarma high para el TAG de presión simulado con setpoint 10 y unidad bar en el TAG. 2. Complete prioridad, área y un mensaje claro. Mantenga Requiere reconocimiento marcado para esta prueba. 3. Ejecute Preview, lea errores y aplique al Workspace. Otra edición requiere validar de nuevo. 4. Guarde, publique y active la revisión correcta; aplicar al Workspace no activa Runtime por sí solo. 5. Con calidad Good, envíe 9: queda Normal. Envíe 10: pasa a Active porque la igualdad alcanza el límite. 6. Reconozca en Runtime: pasa a Acknowledged y el TAG sigue en 10. Envíe 9: pasa a Returned y sale de la lista activa porque ya tiene ACK. 7. En otra activación, envíe 10 y luego 9 sin ACK: queda Returned pendiente. Reconozca y compruebe la salida de la lista activa. Consulte el histórico para transiciones anteriores.",
+          "fields": null
+        },
+        {
+          "heading": "Si el resultado es distinto",
+          "body": "Compruebe TAG/revisión activa, escala/unidad, polaridad, habilitación y calidad. La prioridad alta no fuerza activación. Cambiar mensaje o clase no añade histéresis a un límite oscilante. Preview valida un candidato; no demuestra adquisición de campo. Retardo y exención de ACK conservan las limitaciones descritas. Si el proyecto cambia durante la edición, recargue y valide de nuevo en lugar de aplicar un candidato antiguo.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "alarms.runtime-operation",
+        "alarms.overview",
+        "tags.quality",
+        "operational-events.configuration",
+        "audit.overview",
+        "runtime.history"
+      ]
+    },
+    {
+      "id": "alarms.runtime-operation",
+      "category": "alarms",
+      "title": "Alarmas en Runtime: estados, reconocimiento y sonidos",
+      "summary": "Lea la condición actual, reconozca y distinga silencio, retorno e histórico.",
+      "sections": [
+        {
+          "heading": "Dónde mirar y cómo interpretar",
+          "body": "Abra la central de alarmas de Runtime. Muestra la lista activa visible para su sesión, contadores y detalles del elemento seleccionado. No es una lista de todas las ocurrencias pasadas. Seleccione una fila para ver mensaje/nombre, prioridad, área, último valor, activación, última transición y quién/cuándo reconoció. Los IDs identifican la definición exacta; no necesita inventar ni escribir un ID para reconocer.",
+          "fields": null
+        },
+        {
+          "heading": "Estados de los detalles",
+          "body": "La lista activa incluye Active, Acknowledged y Returned sin ACK. Una lista vacía no significa que nunca hubo una alarma. Los estados fuera de ella pueden encontrarse en otras consultas apropiadas.",
+          "fields": [
+            {
+              "key": "alarmState.normal",
+              "label": "Normal",
+              "description": "La condición no está activa ahora; puede existir un ciclo anterior en el histórico.",
+              "example": "9 < 10",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.active",
+              "label": "Active",
+              "description": "Condición presente y ciclo aún sin reconocimiento.",
+              "example": "10 ≥ 10",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.acknowledged",
+              "label": "Acknowledged",
+              "description": "ACK registrado, pero la condición sigue presente. No significa causa resuelta.",
+              "example": "ACK con presión aún en 10",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.returned",
+              "label": "Returned",
+              "description": "La condición dejó de estar activa. Sin ACK queda pendiente en la lista activa. Tras ACK sale de esa lista.",
+              "example": "10 → 9",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.disabled",
+              "label": "Disabled",
+              "description": "Definición deshabilitada para evaluación. No indica equipo sano.",
+              "example": "Habilitada desmarcada",
+              "constraints": ""
+            },
+            {
+              "key": "alarmState.shelved",
+              "label": "Shelved",
+              "description": "Notificación suprimida mediante shelving. Se sigue observando valor y estado subyacente; retirar la supresión restaura el estado subyacente actual.",
+              "example": "Mantenimiento controlado",
+              "constraints": "La central actual no ofrece botón para esta acción."
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento: reconocer una notificación",
+          "body": "1. Seleccione la fila y lea condición, valor y hora; confirme el equipo. 2. Siga la respuesta operativa de la planta. 3. Use Reconocer alarma si la sesión tiene permiso AlarmAcknowledge para el área. Una sesión View Only no adquiere esta acción. 4. Espere confirmación del servidor y actualización. Si el ACK se aceptó pero falló la relectura, actualice para comprobarlo antes de repetir acciones. 5. Si la condición persiste, sigue visible reconocida. Si ya retornó, sale de la lista activa tras ACK. Otra activación genera otro reconocimiento pendiente.",
+          "fields": null
+        },
+        {
+          "heading": "Sonidos, silencio e indisponibilidad",
+          "body": "Activar sonidos de alarmas habilita el audio en esta sesión del navegador; depende de soporte, volumen y salida. Los perfiles configurados se repiten mientras haya alarmas sin ACK, incluso Returned sin ACK. Silenciar sonidos es local y no reconoce, deshabilita ni suprime mediante shelving. Reconocer no envía comandos al proceso. Sin acceso: compruebe login, clase de sesión y permiso/área; no intente corregirlo cambiando el TAG. Sin datos o servicio disponible: actualice y consulte diagnóstico de Runtime. Para transiciones anteriores, abra Histórico y elija alarm.events con un período adecuado; no lo confunda con operational.events ni Audit.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "alarms.configuration",
+        "operational-events.configuration",
+        "audit.overview",
+        "runtime.history",
+        "security.users-roles-capabilities"
+      ]
+    },
+    {
+      "id": "operational-events.configuration",
+      "category": "operational-events",
+      "title": "Eventos operacionales: definir, emitir y consultar",
+      "summary": "Registre una ocurrencia del proceso con contexto, distinguiendo definición, ocurrencia, alarma y Audit.",
+      "sections": [
+        {
+          "heading": "Elija el recurso adecuado",
+          "body": "Un evento operacional registra un hecho, como inicio de lote o cambio de modo. Cada emisión crea una ocurrencia con hora e identidad propias; no mantiene condición activa ni exige ACK. Una alarma sigue una condición que se activa/retorna. Audit rastrea acciones y resultados de seguridad/administración. Un clic visual también se llama evento, pero no es por sí solo una ocurrencia operacional. Crear la definición siguiente no emite nada automáticamente; asociar un TAG aporta contexto, no un disparador de cambio.",
+          "fields": null
+        },
+        {
+          "heading": "Campos de la definición",
+          "body": "Abra Ingeniería > Eventos Operacionales y seleccione Nuevo Evento Operacional. Defina significado y origen primero; expanda Contexto opcional cuando sea necesario. Tipo/categoría/origen son textos de su convención, no configuraciones de conexión.",
+          "fields": [
+            {
+              "key": "operationalEvent.name",
+              "label": "Nombre visible",
+              "description": "Nombre legible para personas.",
+              "example": "Inicio de simulación",
+              "constraints": "Hasta 240 caracteres."
+            },
+            {
+              "key": "operationalEvent.key",
+              "label": "Identificador",
+              "description": "Clave textual única entre definiciones, sin distinguir mayúsculas. No es el ID estable de la API Python.",
+              "example": "simulation.started",
+              "constraints": "Obligatorio; hasta 160 caracteres."
+            },
+            {
+              "key": "operationalEvent.type",
+              "label": "Tipo",
+              "description": "Describe la naturaleza del hecho; no selecciona tipo de alarma.",
+              "example": "process",
+              "constraints": "Obligatorio; hasta 120 caracteres."
+            },
+            {
+              "key": "operationalEvent.category",
+              "label": "Categoría",
+              "description": "Agrupa ocurrencias según su convención para búsqueda y análisis.",
+              "example": "operation",
+              "constraints": "Obligatorio; hasta 120 caracteres."
+            },
+            {
+              "key": "operationalEvent.source",
+              "label": "Origen",
+              "description": "Identifica semánticamente quién produce el hecho. Escribir server-script no crea ni vincula automáticamente un script.",
+              "example": "server-script",
+              "constraints": "Obligatorio; hasta 240 caracteres."
+            },
+            {
+              "key": "operationalEvent.enabled",
+              "label": "Habilitado",
+              "description": "Controla disponibilidad de la definición en la revisión Runtime. No elimina ocurrencias históricas.",
+              "example": "Marcado",
+              "constraints": ""
+            },
+            {
+              "key": "operationalEvent.message",
+              "label": "Mensaje predeterminado",
+              "description": "Texto usado si la emisión no aporta otro mensaje. El mensaje de emisión puede sustituirlo.",
+              "example": "Simulación iniciada",
+              "constraints": "Hasta 4000 caracteres."
+            },
+            {
+              "key": "operationalEvent.area",
+              "label": "Área (opcional)",
+              "description": "Sitúa el hecho en la organización del proceso; no concede permisos.",
+              "example": "Estacao01",
+              "constraints": "Hasta 240 caracteres."
+            },
+            {
+              "key": "operationalEvent.equipmentPath",
+              "label": "Ruta del equipo (opcional)",
+              "description": "Referencia contextual del equipo. No crea equipo ni dibujo.",
+              "example": "Planta.Bomba01",
+              "constraints": "Hasta 500 caracteres."
+            },
+            {
+              "key": "operationalEvent.tagId",
+              "label": "TAG (opcional)",
+              "description": "Elija un TAG existente; el editor guarda identidad y ruta. Sin TAG es válido para un hecho general.",
+              "example": "Planta.Bomba01.Estado",
+              "constraints": "La asociación no supervisa cambios automáticamente."
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento: preparar definición y productor",
+          "body": "1. Cree la definición con los campos obligatorios y contexto útil; evite una misma clave genérica para todos los hechos. 2. Ejecute Preview y lea los diagnósticos. Corrija claves duplicadas y referencias inválidas. 3. Aplique al Workspace; después guarde, publique y active según el ciclo del proyecto. 4. Configure el productor: un Server Script puede llamar emit_operational_event. Obtenga el ID estable de la definición guardada en datos exportados/referencias del proyecto; no lo sustituya por el Identificador textual. 5. Vincule el handler Python al disparador Server adecuado. Evite Timer para registrar una sola transición: cada llamada crea otra ocurrencia aunque el mensaje sea igual. 6. Active la revisión con definición y script. 7. Produzca un hecho controlado y consulte operational.events en Histórico con un período que incluya la ejecución.",
+          "fields": null
+        },
+        {
+          "heading": "Ejemplo Python: una ocurrencia al inicializar",
+          "body": "El UUID siguiente es ilustrativo: sustitúyalo por el ID estable de su definición. En Script Engineering elija ámbito Server y vincule Initialize al handler initialize; el nombre de la función no crea el vínculo. El ejemplo registra inicio de simulación en cada inicialización del script, no arranque físico de bomba. El argumento event es contexto del disparador y puede quedar sin uso. emit_operational_event(definition_id, message=None, context=None) devuelve None, no el ID de la ocurrencia. Claves y valores del contexto son textos: use str(valor) para números calculados.",
+          "fields": null,
+          "code": "def initialize(event):\n    emit_operational_event(\n        \"c1900000-0000-0000-0000-000000000002\",\n        \"Simulation started\",\n        {\"mode\": \"simulation\", \"batch\": \"42\"}\n    )"
+        },
+        {
+          "heading": "Consultar y diagnosticar",
+          "body": "En Histórico seleccione operational.events, ajuste inicio/fin y filtros disponibles; compruebe hora, origen, mensaje y contexto. alarm.events contiene transiciones de alarmas, y Audit tiene otra finalidad. El contexto adicional no cambia tipo, categoría, origen ni identidad propios de la definición, aunque tenga claves con esos nombres. El contexto admite hasta 128 pares, claves de hasta 160 caracteres y valores de hasta 4000; los mensajes también tienen límite de 4000. No incluya contraseñas ni secretos. Sin ocurrencia: compruebe revisión activa, definición habilitada, ID correcto, vínculo del handler, diagnóstico del script, período y permiso de consulta. La emisión debe respetar la autoridad activa del Runtime; un fallo no autoriza una vía alternativa. Que no aparezca nada tras solo crear la definición es normal.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "alarms.configuration",
+        "alarms.runtime-operation",
+        "operational-events.overview",
+        "scripts.server",
+        "scripts.engineering",
+        "runtime.history",
+        "audit.overview"
       ]
     }
   ]

@@ -4,6 +4,8 @@
 
 Escolha o que gravar, em que condições e como verificar o que realmente foi armazenado.
 
+<!-- HELP-REVIEW-AFTER-PRODUCT-779-HISTORIAN: https://github.com/brunolrogerio-collab/EliteSCADA/issues/779; topic=historian.capture-query; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
+
 ### Onde configurar e onde consultar
 
 Engenharia > Historian lista os TAGs com histórico habilitado e resume estratégia, deadband e período. Para alterar a captura de um TAG, abra Engenharia > TAGs, selecione-o e expanda Histórico/Historian no editor. O monitor ao vivo lê o valor corrente; Histórico, Relatórios e Intelligence dependem de amostras armazenadas. Habilitar hoje não recupera o passado.

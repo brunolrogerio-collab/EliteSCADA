@@ -1,5 +1,9 @@
 # Wave 15 — Main order and execution contract
 
+Active Help continuation 25/10: Alarm/Event field, state/ACK/audio and emission guides now share chapter 17 in pt-BR/en/es. Owner-requested `HELP-REVIEW-AFTER-PRODUCT-*` markers identify pending #751/#753/#779 wording and verification criteria; preserve current limitations until accepted product evidence supports revision. Local .NET 46/46, Chromium 49/49, Web and 24-file manual alignment passed; published head/run/status is in live #424/#425/#305 and unique #756. Read newest LAST CHANGE and the depth map. Predecessor `9c66db4d` passed T1 `40198673983`, not evidence for later code. Keep PR #772 draft, #779–#782 queued and Preview untouched.
+
+## Previous Help checkpoint — historical
+
 Active Help continuation 25/10: four detailed Reports/Historian guides and chapters 07/16 now share installed content. Local catalog/admission 38/38, Web build and 21-file manual alignment passed; published head/browser/T1 outcome is in live #424/#425/#305 and unique #756. Prior `3b491670` passed T1 `40197104867`, not evidence for later code. Read newest LAST CHANGE and the whole-product depth map. Keep #779–#782 queued and Preview untouched; no full Help/manual acceptance is inferred.
 
 

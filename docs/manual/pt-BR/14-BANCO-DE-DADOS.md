@@ -4,6 +4,8 @@
 
 Entenda o banco ativo antes de validar outro destino ou iniciar uma migração.
 
+<!-- HELP-REVIEW-AFTER-PRODUCT-779-DATABASE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/779; topic=database.topology; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
+
 ### Onde entrar e qual problema esta tela resolve
 
 Abra Engenharia > Banco de dados. É necessária a capacidade SystemAdmin. Local Managed usa o banco local administrado pela instalação; Remote usa um PostgreSQL configurado. Essa escolha define armazenamento, não cria redundância de servidores HA. Confira Estado atual e Próxima ação antes de preencher qualquer campo. Se Local Managed está saudável e atende sua instalação, não é necessário configurar Remote.

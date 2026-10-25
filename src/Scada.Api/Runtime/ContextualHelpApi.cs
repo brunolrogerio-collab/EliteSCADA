@@ -76,6 +76,9 @@ public static partial class ContextualHelpCatalog
         "sources.internal-memory",
         "gateway.overview",
         "scripts.server",
+        "alarms.configuration",
+        "alarms.runtime-operation",
+        "operational-events.configuration",
         "alarms.overview",
         "operational-events.overview",
         "audit.overview",
@@ -378,7 +381,7 @@ public static partial class ContextualHelpCatalog
                 "Compare o valor atual do TAG com o tipo e setpoint: High/HighHigh ativa no limite ou acima; Low/LowLow ativa no limite ou abaixo. Confirme o horário da última transição, atraso, habilitação e shelving. Se o operador não conseguir reconhecer, confira a sessão e a capacidade AlarmAcknowledge. Use primeiro uma simulação controlada; não altere limites de processo só para silenciar o alarme.",
                 "Compare the current TAG value with the type and setpoint: High/HighHigh activates at or above the limit; Low/LowLow activates at or below it. Check the last-transition time, delay, enablement and shelving. If an operator cannot acknowledge, check the session and AlarmAcknowledge capability. Start with a controlled simulation; do not change process limits merely to silence an alarm.",
                 "Compare el valor actual del TAG con el tipo y el setpoint: High/HighHigh se activa en el límite o por encima; Low/LowLow se activa en el límite o por debajo. Compruebe la hora de la última transición, el retardo, la habilitación y shelving. Si el operador no puede reconocer, revise la sesión y la capacidad AlarmAcknowledge. Empiece con una simulación controlada; no cambie límites del proceso solo para silenciar una alarma."),
-            "operational-events.overview", "historian.overview", "runtime.history"),
+            "alarms.configuration", "alarms.runtime-operation", "operational-events.overview", "historian.overview", "runtime.history"),
 
         TaskGuide(
             "operational-events.overview", "operational-events",
@@ -408,7 +411,7 @@ public static partial class ContextualHelpCatalog
                 "Revise a mensagem de diagnóstico do Runtime e a definição/ID na revisão publicada. Confirme Type, Category e Source e, se usar Server Script, consulte o tópico scripts.server para sintaxe e permissões. Depois filtre pelo horário de emissão e dataset operacional; não procure eventos de processo no Audit.",
                 "Review the Runtime diagnostic and the definition/ID in the published revision. Confirm Type, Category and Source; if you use a Server Script, consult scripts.server for syntax and permissions. Then filter by emission time and the operational dataset; do not look for process events in Audit.",
                 "Revise el diagnóstico de Runtime y la definición/ID en la revisión publicada. Confirme Type, Category y Source; si usa Server Script, consulte scripts.server para sintaxis y permisos. Después filtre por la hora de emisión y el conjunto operacional; no busque eventos de proceso en Audit."),
-            "alarms.overview", "historian.overview", "scripts.server"),
+            "operational-events.configuration", "alarms.overview", "historian.overview", "scripts.server"),
 
         TaskGuide(
             "audit.overview", "audit",

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Scada.Api.Runtime;
 using Scada.Engineering.VisualScripting;
 using Scada.Core.Events;
+using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Historian.Policies;
 
@@ -9,6 +10,43 @@ namespace Scada.Drivers.Tests;
 
 public sealed class ContextualHelpLearningTests
 {
+    [Theory]
+    [InlineData("pt-BR")]
+    [InlineData("en")]
+    [InlineData("es")]
+    public async Task PublishedHighAlarmWalkthroughMatchesRuntimeAtEqualityAndOnBothAcknowledgementPaths(string locale)
+    {
+        var guide = ContextualHelpCatalog.Build(locale).Topics.Single(topic => topic.Id == "alarms.configuration");
+        Assert.Contains(guide.Sections.SelectMany(section => section.Fields ?? []), field =>
+            field.Key == "alarm.setpoint" && field.Description.Contains('≥'));
+        var bus = new InMemoryScadaEventBus();
+        var cache = new CurrentTagCache(bus);
+        using var engine = new InMemoryAlarmEngine(bus);
+        var tag = TagDefinition.Create("Pressure", "Planta.Bomba01.Pressao", TagDataType.Double, engineeringUnit: "bar");
+        var definition = engine.Register(AlarmDefinition.Create("High pressure", tag.Id, AlarmType.High,
+            AlarmPriority.High, setpoint: 10));
+
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 9.0));
+        Assert.Equal(AlarmState.Normal, Assert.Single(engine.Snapshot()).State);
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 10.0));
+        Assert.Equal(AlarmState.Active, Assert.Single(engine.Snapshot(activeOnly: true)).State);
+        Assert.True(await engine.AcknowledgeAsync(definition.Id, "test-operator"));
+        Assert.Equal(AlarmState.Acknowledged, Assert.Single(engine.Snapshot(activeOnly: true)).State);
+        Assert.True(cache.TryGet(tag.Id, out var unchanged));
+        Assert.Equal(10.0, unchanged!.Value);
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 9.0));
+        Assert.Equal(AlarmState.Returned, Assert.Single(engine.Snapshot()).State);
+        Assert.Empty(engine.Snapshot(activeOnly: true));
+
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 10.0));
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 9.0));
+        var pending = Assert.Single(engine.Snapshot(activeOnly: true));
+        Assert.Equal(AlarmState.Returned, pending.State);
+        Assert.Null(pending.AcknowledgedAt);
+        Assert.True(await engine.AcknowledgeAsync(definition.Id, "test-operator"));
+        Assert.Empty(engine.Snapshot(activeOnly: true));
+    }
+
     [Theory]
     [InlineData("pt-BR")]
     [InlineData("en")]

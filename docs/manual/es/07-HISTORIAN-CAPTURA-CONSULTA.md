@@ -4,6 +4,8 @@
 
 Elija qué guardar, en qué condiciones y cómo comprobar almacenamiento.
 
+<!-- HELP-REVIEW-AFTER-PRODUCT-779-HISTORIAN: https://github.com/brunolrogerio-collab/EliteSCADA/issues/779; topic=historian.capture-query; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
+
 ### Dónde configurar y consultar
 
 Ingeniería > Historian lista TAGs habilitados con estrategia/deadband/período. Para configurar abra TAGs, seleccione y expanda Histórico/Historian. Monitor en vivo lee actual; Histórico/Informes/Intelligence necesitan muestras almacenadas. Habilitar hoy no recupera pasado.

@@ -4,6 +4,31 @@ import { installCurrentHelpCatalog } from './helpTestSupport';
 
 test.use({ locale: 'pt-BR' });
 
+test('protocol walkthroughs expose real fields and working examples in every language', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=drivers.mqtt-setup');
+  const article = page.locator('article');
+  await expect(article.getByRole('heading', { name: 'MQTT: tópicos, JSON e atualidade dos valores', exact: true })).toBeVisible();
+  await expect(article.getByRole('rowheader', { name: 'Campo do valor no JSON', exact: false })).toBeVisible();
+  await expect(article.locator('pre')).toContainText('"current":12.5');
+  await expect(article).toContainText('não reconstrói o envelope');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article.getByRole('heading', { name: 'MQTT: topics, JSON and value freshness', exact: true })).toBeVisible();
+  await expect(article.getByRole('rowheader', { name: 'JSON value field', exact: false })).toBeVisible();
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article.getByRole('heading', { name: 'MQTT: tópicos, JSON y vigencia de valores', exact: true })).toBeVisible();
+  await expect(article.getByRole('rowheader', { name: 'Campo del valor en JSON', exact: false })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('help-mqtt-fields-desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/help?topic=drivers.opcua-setup');
+  await expect(page.locator('article h2')).toHaveText('OPC UA: endpoint, certificados e importación de nodos');
+  await expect(article.getByRole('rowheader', { name: 'Confianza temporal en Ingeniería', exact: false })).toBeVisible();
+  await expect(article.locator('pre')).toContainText('"namespaceUri":"urn:example:plant"');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await article.getByRole('rowheader', { name: 'Referencia del certificado cliente', exact: false }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('help-opcua-fields-mobile.png') });
+});
+
 test('a beginner can find a property without knowing an internal topic ID', async ({ page }) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help');

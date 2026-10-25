@@ -35,3 +35,4 @@ Consulte el [índice completo](../README.md) y la [matriz de cobertura](../COVER
 
 - [Historian: captura y consulta](07-HISTORIAN-CAPTURA-CONSULTA.md)
 - [Informes: diseño y operación](16-INFORMES.md)
+- [Conexiones, Modbus, MQTT y OPC UA](21-CONEXIONES-Y-PROTOCOLOS.md)

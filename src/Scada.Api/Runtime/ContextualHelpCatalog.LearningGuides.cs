@@ -12,6 +12,10 @@ public static partial class ContextualHelpCatalog
     {
         string[] more = topic.Id switch
         {
+            "sources.data-sources" => ["sources.connection-workflow", "drivers.modbus-setup", "drivers.mqtt-setup", "drivers.opcua-setup"],
+            "driver.modbus.tcp" or "driver.modbus.rtu" => ["drivers.modbus-setup", "sources.connection-workflow"],
+            "driver.mqtt.raw" => ["drivers.mqtt-setup", "sources.connection-workflow"],
+            "driver.opc-ua" => ["drivers.opcua-setup", "sources.connection-workflow"],
             "libraries.reusable-resources" => ["libraries.associate-incorporate", "assets.management"],
             "gateway.overview" => ["gateway.configure-test", "engineering.tabular-workflow"],
             "screens.overview" or "popups.overview" or "visual.properties" => ["visual.first-screen", "visual.object-selection", "visual.popup-workflow", "visual.object.core.numericinput", "visual.object.core.trend"],

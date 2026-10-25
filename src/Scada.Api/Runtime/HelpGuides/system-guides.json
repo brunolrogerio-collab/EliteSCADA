@@ -2310,6 +2310,640 @@
         "engineering.lifecycle",
         "recovery.backup-system-recovery"
       ]
+    },
+    {
+      "id": "sources.connection-workflow",
+      "category": "sources",
+      "title": "Fonte de dados: da conexão ao TAG conferido",
+      "summary": "Configure uma conexão antes de ligar valores a telas, alarmes e histórico.",
+      "sections": [
+        {
+          "heading": "Antes de preencher",
+          "body": "Em Engenharia → Fontes de dados, tenha o mapa de endereços/nós/tópicos, parâmetros da rede ou serial e uma leitura conhecida. O servidor SCADIVO executa a comunicação; ter acesso pelo navegador não prova que o servidor consegue alcançar o equipamento. Use primeiro um TAG somente leitura.",
+          "fields": [
+            {
+              "key": "key",
+              "label": "Chave da fonte",
+              "description": "Identifica a conexão nas referências dos TAGs. Use uma chave legível, diferente das outras fontes; não é o endereço IP.",
+              "example": "plc.bomba01",
+              "constraints": ""
+            },
+            {
+              "key": "name",
+              "label": "Nome",
+              "description": "Nome apresentado na lista. Descreva qual equipamento ou serviço esta conexão atende.",
+              "example": "Bomba 01",
+              "constraints": ""
+            },
+            {
+              "key": "driver",
+              "label": "Tipo de conexão / driver",
+              "description": "Escolhe o protocolo e seus campos. Modbus TCP, Modbus RTU Master, MQTT Raw e OPC UA são conexões diferentes; trocar o tipo exige revisar os vínculos dos TAGs.",
+              "example": "modbus.tcp",
+              "constraints": ""
+            },
+            {
+              "key": "enabled",
+              "label": "Habilitada",
+              "description": "Inclui a fonte na configuração operacional quando a revisão é ativada. Habilitar não corrige rede, credenciais ou um TAG mal configurado.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "secretReferences",
+              "label": "Referências protegidas",
+              "description": "Campos de senha/certificado recebem a referência de material provisionado no servidor. Peça ao administrador a referência correta; não cole a senha, chave privada ou conteúdo do certificado no campo comum de configuração.",
+              "example": "",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Preparar, conferir e ativar",
+          "body": "1. Crie ou selecione a fonte e escolha o driver correto. 2. Preencha os campos básicos e abra os avançados somente quando precisar alterar seus padrões. 3. Use Testar conexão quando o driver oferecer esse recurso; o teste do rascunho não aplica as alterações. 4. Verifique alterações e leia os diagnósticos; Aplicar ao Workspace atualiza a configuração de trabalho. 5. Configure um TAG com essa fonte, tipo e vínculo do protocolo; teste a leitura quando disponível. 6. Salve/publique e ative a revisão pelo fluxo do projeto para o Runtime usar essa configuração. 7. Confira valor, unidade, qualidade e atualização antes de criar comandos ou alarmes.",
+          "fields": null
+        },
+        {
+          "heading": "Quando conecta, mas não há valor",
+          "body": "Teste de conexão confirma somente sua etapa, não o mapa inteiro nem uma ação física. Verifique fonte habilitada, vínculo do TAG, revisão ativa e diagnósticos. Acesso negado difere de timeout; valor ruim difere de zero. ReadOnly e permissões de escrita continuam válidos mesmo se o protocolo aceitar escrita. Recursos de descoberta/teste dependem do driver; MQTT Raw não anuncia teste de conexão de Engenharia.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "drivers.modbus-setup",
+        "drivers.mqtt-setup",
+        "drivers.opcua-setup",
+        "tags.overview",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "drivers.modbus-setup",
+      "category": "drivers",
+      "title": "Modbus: TCP, serial e mapa de registradores",
+      "summary": "Prepare o cliente TCP ou mestre RTU e entenda o endereço e a representação de cada valor.",
+      "sections": [
+        {
+          "heading": "Escolha cliente ou mestre",
+          "body": "Use Modbus TCP para consultar um servidor/controlador de rede e Modbus RTU Master para consultar escravos no barramento serial do host. Este roteiro não configura o SCADIVO como Modbus Server; esse tipo tem outro papel. Tenha o mapa do fabricante e comece por uma variável conhecida, sem escrita.",
+          "fields": null
+        },
+        {
+          "heading": "Conexão TCP e tempos comuns",
+          "body": "Host e porta são do TCP. Unit ID, varredura, timeout e lacuna também se aplicam ao RTU, com seu limite de Unit ID.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host do controlador",
+              "description": "Nome DNS ou IP acessível pelo servidor SCADIVO, que executa o driver. localhost é esse servidor ou contêiner, não o computador do navegador.",
+              "example": "192.0.2.10",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Porta TCP",
+              "description": "Porta em que o controlador atende Modbus TCP. Não é a porta da interface web nem a da API SCADIVO.",
+              "example": "502",
+              "constraints": "1–65535; padrão 502."
+            },
+            {
+              "key": "unitId",
+              "label": "Unit ID da fonte",
+              "description": "Endereço lógico do dispositivo; em gateway TCP/serial pode selecionar um escravo. Vale para TAGs sem substituição individual. Use o valor do manual do equipamento, não o último número do IP.",
+              "example": "1",
+              "constraints": "TCP: 0–255. RTU: 0–247. Padrão 1; o alvo precisa responder a leituras."
+            },
+            {
+              "key": "scanIntervalMilliseconds",
+              "label": "Intervalo de varredura (ms)",
+              "description": "Tempo solicitado entre ciclos de leitura. 1000 ms equivale a 1 segundo; reduzir aumenta tráfego e carga. Uma resposta atrasada não fica mais rápida por reduzir este campo.",
+              "example": "1000",
+              "constraints": "10–600000; padrão 1000."
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Tempo máximo da resposta (ms)",
+              "description": "Quanto esperar por uma requisição. Diferente da varredura: timeout curto pode provocar falhas em rede ou barramento lento; longo demora mais para detectar ausência.",
+              "example": "3000",
+              "constraints": "50–60000; padrão 3000."
+            },
+            {
+              "key": "maxGapElements",
+              "label": "Lacuna máxima entre endereços",
+              "description": "Avançado: permite reunir leituras próximas em um bloco, incluindo o espaço entre elas. Alguns controladores rejeitam blocos que atravessam endereços não implementados; diminua a lacuna nesse caso. Não altera os endereços dos TAGs.",
+              "example": "8",
+              "constraints": "0–125; padrão 8."
+            }
+          ]
+        },
+        {
+          "heading": "Serial no Windows, Linux e Docker",
+          "body": "Use os parâmetros reais do equipamento. O barramento é administrado pelo host; configurações compartilhadas precisam ser compatíveis. Se a porta não abrir, confira dispositivo, permissão do processo/contêiner e outro programa ocupando a porta antes de alterar o mapa de TAGs.",
+          "fields": [
+            {
+              "key": "serialPort",
+              "label": "Porta serial do servidor",
+              "description": "Dispositivo visível ao servidor/DriverHost: por exemplo COM3 no Windows ou /dev/ttyUSB0 no Linux. Em Docker, o host deve disponibilizar o dispositivo ao contêiner e conceder acesso. A porta do navegador não é usada; a configuração pode ser preparada offline.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "baudRate",
+              "label": "Velocidade (baud)",
+              "description": "Deve coincidir com os dispositivos do mesmo barramento serial. Uma velocidade maior só funciona se o equipamento e a instalação a suportarem.",
+              "example": "9600",
+              "constraints": "300–4000000; padrão 9600."
+            },
+            {
+              "key": "dataBits",
+              "label": "Bits de dados",
+              "description": "Parte do formato serial. Copie o ajuste do equipamento; não é o tamanho do tipo numérico do TAG.",
+              "example": "8",
+              "constraints": "5–8; padrão 8."
+            },
+            {
+              "key": "parity",
+              "label": "Paridade",
+              "description": "Verificação do formato serial; todos os dispositivos que compartilham a linha precisam de configuração compatível.",
+              "example": "None",
+              "constraints": "None / Odd / Even / Mark / Space; padrão None."
+            },
+            {
+              "key": "stopBits",
+              "label": "Bits de parada",
+              "description": "Completa o formato serial junto com baud, bits de dados e paridade. Deve coincidir com o equipamento.",
+              "example": "One",
+              "constraints": "One / OnePointFive / Two; padrão One."
+            }
+          ]
+        },
+        {
+          "heading": "Vínculo do TAG e conversão",
+          "body": "O endereço escolhe onde ler; o tipo no equipamento escolhe como interpretar. São decisões diferentes. discrete/input são de leitura; habilitar escrita no TAG não transforma a área em gravável. Tipo do TAG deve comportar o resultado da conversão.",
+          "fields": [
+            {
+              "key": "address",
+              "label": "Área e endereço do TAG",
+              "description": "Use coil para saída booleana, discrete para entrada booleana, holding para registrador de leitura/escrita e input para registrador de entrada. Endereço canônico começa em zero: holding:0. Se o fabricante chama o primeiro holding de 40001, confirme a convenção antes de converter; não digite 40001 automaticamente como offset.",
+              "example": "holding:0",
+              "constraints": "Offset 0–65535; o valor completo deve caber na área."
+            },
+            {
+              "key": "modbus.unitId",
+              "label": "Unit ID individual",
+              "description": "Substitui o Unit ID da fonte apenas neste TAG. Deixe vazio para herdar; no RTU confirme também os limites do escravo/barramento.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.valueType",
+              "label": "Tipo no equipamento",
+              "description": "Define como os bits do equipamento são interpretados. Sem ajuste, é inferido do tipo do TAG. Int16/UInt16 usam 1 registrador, Int32/UInt32/Float32 usam 2, Int64/UInt64/Float64 usam 4; confirme o mapa do fabricante e compatibilidade do tipo do TAG.",
+              "example": "Int16",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.wordOrder",
+              "label": "Ordem de palavras",
+              "description": "Só afeta valores com vários registradores: HighWordFirst coloca primeiro a palavra mais significativa; LowWordFirst, a menos significativa. Não é a ordem de bytes dentro de cada palavra; não troque aleatoriamente para esconder endereço/tipo errado.",
+              "example": "HighWordFirst",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.scale",
+              "label": "Multiplicador",
+              "description": "Converte o valor lido: valor apresentado = bruto × multiplicador + offset. Para décimos de bar, 253 × 0.1 + 0 = 25.3 bar. Evite aplicar a mesma conversão novamente em outra camada.",
+              "example": "0.1",
+              "constraints": "Finito e diferente de zero; padrão 1."
+            },
+            {
+              "key": "modbus.offset",
+              "label": "Deslocamento",
+              "description": "Soma aplicada depois do multiplicador. Use somente quando o mapa do equipamento exigir correção de origem.",
+              "example": "0",
+              "constraints": "Finito; padrão 0."
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo e diagnóstico por camadas",
+          "body": "1. Configure a fonte TCP com o host real, porta 502, Unit ID do controlador e os tempos iniciais de 1000/3000 ms. 2. Crie TAG Double, somente leitura, holding:0 e tipo no equipamento Int16 para um registrador que represente décimos de bar. 3. Use multiplicador 0.1, offset 0; se o bruto conhecido for 253, espere 25.3 bar. 4. Teste a leitura e confira antes de ativar a revisão. Timeout pede conferir caminho/Unit ID; endereço ilegal pede conferir área e base; valor absurdo pede conferir tipo/ordem/conversão. Não use uma escrita como teste de leitura.",
+          "fields": null,
+          "code": "{\"address\":\"holding:0\",\"wireType\":\"Int16\",\"raw\":253,\"scale\":0.1,\"offset\":0,\"expected\":25.3}"
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.modbus.tcp",
+        "driver.modbus.rtu",
+        "tags.overview"
+      ]
+    },
+    {
+      "id": "drivers.mqtt-setup",
+      "category": "drivers",
+      "title": "MQTT: tópicos, JSON e atualidade dos valores",
+      "summary": "Conecte ao broker e transforme mensagens em valores tipados, separando leitura e publicação.",
+      "sections": [
+        {
+          "heading": "Broker não é sensor",
+          "body": "MQTT Raw recebe mensagens quando publicadas. Não faz varredura Modbus nem descobre automaticamente TAGs a partir de qualquer JSON. Tenha host, porta, TLS, autenticação, tópicos e exemplos reais de payload. Para começar, use um TAG Double somente leitura.",
+          "fields": null
+        },
+        {
+          "heading": "Conexão, sessão e recursos",
+          "body": "Os campos de sessão diferem entre MQTT 3.1.1 e 5. Confirme a versão antes de abrir os ajustes avançados. Limites de tamanho/fila contêm o uso de memória; não constituem um histórico.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host do broker",
+              "description": "Servidor que recebe/publica as mensagens, acessível a partir do servidor SCADIVO. Não é o tópico nem uma URL com caminho.",
+              "example": "mqtt.example.invalid",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Porta do broker",
+              "description": "Use a porta realmente configurada no broker; deve corresponder ao uso de TLS.",
+              "example": "8883",
+              "constraints": "1–65535; padrão 8883."
+            },
+            {
+              "key": "tls",
+              "label": "Conexão TLS",
+              "description": "Ativa transporte protegido. Desabilitar não muda automaticamente a porta nem resolve certificado inválido. Use o modo exigido pelo broker e sua cadeia de confiança.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "clientId",
+              "label": "ID do cliente MQTT",
+              "description": "Identifica esta conexão no broker. Escolha valor único por cliente ativo; reutilizar o mesmo ID em outra conexão pode derrubar a sessão anterior. Não é o login.",
+              "example": "scadivo-pump01",
+              "constraints": ""
+            },
+            {
+              "key": "protocolVersion",
+              "label": "Versão MQTT",
+              "description": "mqtt5 usa Clean Start e expiração da sessão; mqtt311 usa Clean Session. Selecione a versão atendida pelo broker, sem misturar suas opções.",
+              "example": "mqtt5",
+              "constraints": ""
+            },
+            {
+              "key": "username",
+              "label": "Usuário do broker",
+              "description": "Conta autorizada pelo broker para os tópicos usados; não é a conta de acesso ao SCADIVO.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "password",
+              "label": "Referência da senha do broker",
+              "description": "Referência protegida resolvida pelo servidor. Sem material provisionado ou sem permissão no broker, a configuração não autentica; não digite uma senha literal no lugar da referência.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "keepAliveSeconds",
+              "label": "Keep Alive (segundos)",
+              "description": "Intervalo de supervisão da conexão com o broker; não solicita novas medições ao dispositivo.",
+              "example": "30",
+              "constraints": "1–65535; padrão 30."
+            },
+            {
+              "key": "connectTimeoutMilliseconds",
+              "label": "Tempo para conectar (ms)",
+              "description": "Prazo de uma tentativa de conexão, diferente do tempo de validade de um valor do TAG.",
+              "example": "10000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Espera inicial de reconexão (ms)",
+              "description": "Espera mínima entre tentativas após perda de conexão. Ajuste com o limite máximo para evitar tentativas contínuas.",
+              "example": "1000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Espera máxima de reconexão (ms)",
+              "description": "Limita o crescimento da espera. Deve ser maior ou igual à espera mínima.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "mqtt311.cleanSession",
+              "label": "MQTT 3.1.1: limpar sessão",
+              "description": "false solicita continuidade da sessão no broker com o mesmo Client ID. true solicita sessão limpa. Não use esta opção no modo MQTT 5.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt5.cleanStart",
+              "label": "MQTT 5: início limpo",
+              "description": "true inicia sem reaproveitar a sessão anterior; false solicita continuidade. É independente do tempo de expiração posterior à desconexão.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt5.sessionExpirySeconds",
+              "label": "MQTT 5: expiração da sessão (s)",
+              "description": "Quanto o broker mantém a sessão após desconectar. Com Clean Start false precisa ser maior que zero. Não mantém valores sempre atuais nem substitui histórico.",
+              "example": "3600",
+              "constraints": "0–4294967295."
+            },
+            {
+              "key": "maximumInboundPayloadBytes",
+              "label": "Máximo por mensagem (bytes)",
+              "description": "Limite de memória por payload recebido; mensagens maiores são rejeitadas. Dimensione para o documento real, não para o número de TAGs.",
+              "example": "1048576",
+              "constraints": "1–67108864."
+            },
+            {
+              "key": "maximumConsecutiveConnectFailures",
+              "label": "Limite de falhas de conexão",
+              "description": "Limite de falhas consecutivas usado pela supervisão de prontidão. Elevar não corrige credenciais ou broker indisponível.",
+              "example": "5",
+              "constraints": "1–1000."
+            },
+            {
+              "key": "maximumBufferedMessages",
+              "label": "Máximo de mensagens no buffer",
+              "description": "Limita a fila de mensagens do transporte. Buffer maior consome mais memória; não é arquivamento nem garantia de guardar tudo durante uma falha.",
+              "example": "4096",
+              "constraints": "1–1000000."
+            }
+          ]
+        },
+        {
+          "heading": "Leitura, qualidade e escrita",
+          "body": "Cada TAG usa tópico exato e um tipo. Um mesmo documento pode alimentar TAGs distintos com Pointers diferentes. QoS, retenção e freshness têm funções diferentes; o valor pode existir e estar Stale.",
+          "fields": [
+            {
+              "key": "address",
+              "label": "Tópico de leitura",
+              "description": "Tópico exato que alimenta este TAG, respeitando maiúsculas e minúsculas. Não use + ou # para criar identidade de TAG; separe os tópicos e campos em TAGs próprios.",
+              "example": "plant/pump01/state",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.payloadFormat",
+              "label": "Formato do conteúdo",
+              "description": "utf8Scalar lê um único valor textual, como 12.5 ou true. json lê JSON e pode extrair um campo com JSON Pointer. O resultado precisa ser compatível com o tipo do TAG.",
+              "example": "json",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.jsonPointer",
+              "label": "Campo do valor no JSON",
+              "description": "Caminho JSON Pointer, não expressão Python nem JSONPath: /current lê current na raiz; /motor/current lê dentro de motor; /values/0 lê o primeiro item. ~1 representa / dentro do nome; ~0 representa ~. Vazio usa a raiz, que precisa ser um valor escalar compatível.",
+              "example": "/current",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.sourceTimestampJsonPointer",
+              "label": "Campo do instante de medição",
+              "description": "Campo JSON que informa quando a origem mediu o valor. Exemplo UTC com Z; não confunda horário de medição com horário de chegada ao broker.",
+              "example": "/timestamp",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.sourceTimestampRequired",
+              "label": "Exigir instante de origem",
+              "description": "Com true, configure também o Pointer do timestamp e publique um instante válido; sem ele a amostra é rejeitada.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.freshnessTimeoutMilliseconds",
+              "label": "Validade sem nova amostra (ms)",
+              "description": "Opcional: após esse intervalo sem amostra mais recente, o valor passa a Stale. Não solicita publicação ao dispositivo. Escolha uma margem em relação ao período normal de envio.",
+              "example": "5000",
+              "constraints": "1–2147483647 quando preenchido."
+            },
+            {
+              "key": "mqtt.retainedValuePolicy",
+              "label": "Valor retido pelo broker",
+              "description": "staleWithoutSourceTimestamp marca como Stale o retido sem timestamp de origem. acceptAsCurrent aceita-o como atual; escolha apenas se a aplicação puder assumir isso. Mensagem retida não comprova equipamento conectado agora.",
+              "example": "staleWithoutSourceTimestamp",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.qos",
+              "label": "QoS de leitura",
+              "description": "0: no máximo uma entrega; 1: pelo menos uma, podendo repetir; 2: entrega MQTT exatamente uma vez na sessão. QoS não confirma atuação física nem validade do sensor.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.publishTopic",
+              "label": "Tópico de escrita",
+              "description": "Necessário para ponto gravável e deve ser exato. Use tópico de comando do equipamento, separado do feedback quando o contrato exigir. Não publique acidentalmente no tópico de medição.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.publishQos",
+              "label": "QoS de escrita",
+              "description": "Qualidade de entrega solicitada ao publicar, com os mesmos valores 0/1/2. Confirmação do broker não é confirmação do processo.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.publishRetain",
+              "label": "Reter publicação",
+              "description": "false por padrão. true pede ao broker que guarde o último payload publicado; avalie o risco de um novo assinante receber um comando antigo. Só se aplica a ponto gravável.",
+              "example": "false",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo de payload: corrente do motor",
+          "body": "Publique este exemplo no tópico plant/pump01/state do broker de teste. No TAG Double use formato json, Pointer /current, timestamp /timestamp e timestamp obrigatório. O valor decodificado esperado é 12.5. O instante é ilustrativo: em teste ao vivo use um timestamp atual e verifique qualidade/idade, não apenas o número. Não cole este JSON como configuração da fonte.",
+          "fields": null,
+          "code": "{\"current\":12.5,\"timestamp\":\"2026-10-25T12:00:00Z\"}"
+        },
+        {
+          "heading": "Limites da publicação e diagnóstico",
+          "body": "Extrair /current para leitura não cria um modelo de documento de comando. A escrita JSON de um campo interno, com Pointer não vazio, é rejeitada: o produto não reconstrói o envelope. Para escrita, use contrato escalar ou JSON na raiz compatível com o equipamento, TAG gravável, tópico de publicação e autorização. Se conectar sem valor, confira tópico exato, publicação, Pointer, tipo e timestamp. Para Stale, confira retenção, instante de origem e intervalo de freshness; não masque falta de medição aceitando tudo como atual.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.mqtt.raw",
+        "tags.overview",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "drivers.opcua-setup",
+      "category": "drivers",
+      "title": "OPC UA: endpoint, certificados e importação de nós",
+      "summary": "Selecione o servidor, aprove sua identidade e associe variáveis usando os nós corretos.",
+      "sections": [
+        {
+          "heading": "Descoberta não é ativação",
+          "body": "Na fonte OPC UA, use o assistente de descoberta para conhecer endpoints e modos oferecidos. Escolher um candidato preenche parâmetros; não cria credenciais protegidas nem aprova automaticamente certificados. O teste/navegação de Engenharia é temporário e não muda a revisão ativa.",
+          "fields": null
+        },
+        {
+          "heading": "Conexão e identidades",
+          "body": "Canal seguro e autenticação do usuário são configurações distintas. O cliente precisa ser aceito pelo servidor, e o SCADIVO precisa reconhecer o servidor aprovado. Peça ao administrador o provisionamento e as referências; o arquivo de engenharia não deve virar cofre de segredos.",
+          "fields": [
+            {
+              "key": "endpointUrl",
+              "label": "Endpoint do servidor OPC UA",
+              "description": "URL opc.tcp completa, acessível pelo servidor SCADIVO. Descubra os endpoints e escolha um que o servidor realmente ofereça.",
+              "example": "opc.tcp://192.0.2.20:4840",
+              "constraints": ""
+            },
+            {
+              "key": "securityMode",
+              "label": "Modo de segurança",
+              "description": "None não protege o canal; Sign assina; SignAndEncrypt assina e cifra. O modo deve existir no endpoint escolhido e corresponder à política; não reduza apenas para esconder uma falha de certificado.",
+              "example": "SignAndEncrypt",
+              "constraints": ""
+            },
+            {
+              "key": "securityPolicyUri",
+              "label": "URI da política de segurança",
+              "description": "Use a URI completa fornecida pelo endpoint, não apenas o nome curto. None exige política terminada em #None; um modo protegido não aceita essa política.",
+              "example": "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
+              "constraints": ""
+            },
+            {
+              "key": "serverApplicationUri",
+              "label": "ApplicationUri aprovada",
+              "description": "Identidade da aplicação servidora, quando fixada. Não é o endereço de conexão. Compare com a identidade aprovada pelo administrador.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "serverCertificateSha256",
+              "label": "SHA-256 do certificado aprovado",
+              "description": "Runtime protegido exige aprovação explícita do certificado do servidor. Confira a impressão digital por um canal conhecido antes de registrar; mudança do certificado exige nova conferência. Não é uma chave privada.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "authenticationMode",
+              "label": "Autenticação no servidor OPC UA",
+              "description": "Anonymous, UserName ou Certificate conforme o servidor permitir. Anonymous não remove proteção do canal; é diferente do login do SCADIVO.",
+              "example": "Anonymous",
+              "constraints": ""
+            },
+            {
+              "key": "userName",
+              "label": "Usuário OPC UA",
+              "description": "Preencha no modo UserName com a conta autorizada no servidor de origem.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "passwordSecretReference",
+              "label": "Referência da senha OPC UA",
+              "description": "No modo UserName, referência protegida da senha provisionada no host; não é a senha em texto.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "clientCertificateReference",
+              "label": "Referência do certificado cliente",
+              "description": "Identidade da aplicação cliente para o canal protegido. Deve estar provisionada no host e ser aceita pelo servidor. Não confunda com o certificado de usuário.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "userCertificateReference",
+              "label": "Referência do certificado de usuário",
+              "description": "No modo Certificate, identifica o usuário, separadamente do certificado da aplicação cliente. O administrador fornece a referência protegida.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "sessionTimeout",
+              "label": "Timeout da sessão",
+              "description": "Duração solicitada para a sessão; não é intervalo de amostragem. Formato horas:minutos:segundos.",
+              "example": "00:01:00",
+              "constraints": "00:00:05–01:00:00; padrão 00:01:00."
+            },
+            {
+              "key": "publishingInterval",
+              "label": "Intervalo de publicação",
+              "description": "Ritmo solicitado para entrega das notificações da assinatura. Diferente da coleta de cada nó; o servidor pode negociar valores suportados.",
+              "example": "00:00:01",
+              "constraints": "00:00:00.050–00:05:00."
+            },
+            {
+              "key": "trustUntrustedServerCertificateForSession",
+              "label": "Confiança temporária em Engenharia",
+              "description": "Somente para sessão temporária de Engenharia. Não aprova o certificado para Runtime: ativação com auto-trust é rejeitada. Após inspecionar, registre a identidade aprovada e mantenha esta opção desabilitada na configuração operacional.",
+              "example": "false",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Navegar e vincular TAGs",
+          "body": "No navegador OPC UA, selecione as variáveis adequadas, confira tipo e acesso e revise a prévia de importação. Só aplique o candidato depois de conferir conflitos. O vínculo guarda a identidade do nó; renomear o TAG não deve significar apontar para outro nó.",
+          "fields": [
+            {
+              "key": "nodeId",
+              "label": "NodeId",
+              "description": "Identificador do nó no servidor; por exemplo ns=2;s=Pump.Current. Não é o nome exibido nem o caminho do TAG SCADIVO. Prefira selecionar no navegador OPC UA para evitar erros de digitação.",
+              "example": "ns=2;s=Pump.Current",
+              "constraints": ""
+            },
+            {
+              "key": "namespaceUri",
+              "label": "URI do namespace",
+              "description": "Identidade estável do namespace. Quando disponível, permite reconhecer o mesmo nó mesmo se seu índice ns= mudar. Use a URI do servidor, não invente uma a partir do nome do equipamento.",
+              "example": "urn:example:plant",
+              "constraints": ""
+            },
+            {
+              "key": "samplingInterval",
+              "label": "Intervalo de amostragem",
+              "description": "Ritmo solicitado para observar este nó. Formato horas:minutos:segundos; use uma frequência compatível com o processo e confirme o comportamento negociado pelo servidor.",
+              "example": "00:00:01",
+              "constraints": ""
+            },
+            {
+              "key": "queueSize",
+              "label": "Tamanho da fila do nó",
+              "description": "Número de amostras que a fila do item pode reter entre entregas. Maior usa mais recursos; não substitui Historian.",
+              "example": "1",
+              "constraints": "1–10000."
+            },
+            {
+              "key": "discardOldest",
+              "label": "Descartar a mais antiga",
+              "description": "Quando a fila enche, true prioriza as amostras novas; false solicita preservar as antigas em vez de substituir a mais antiga. Confira a política de fila do servidor.",
+              "example": "true",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo de identidade, não arquivo de importação",
+          "body": "Este exemplo mostra dois campos do vínculo: NodeId ns=2;s=Pump.Current e namespaceUri urn:example:plant. Substitua pelos dados do seu servidor ou use o navegador. Se o namespace mudar de índice 2 para 4 mantendo a URI e o identificador s=Pump.Current, a identidade estável continua a mesma. Não use esse nome de exemplo para adivinhar um nó existente.",
+          "fields": null,
+          "code": "{\"nodeId\":\"ns=2;s=Pump.Current\",\"namespaceUri\":\"urn:example:plant\"}"
+        },
+        {
+          "heading": "Conferir e resolver falhas",
+          "body": "1. Descubra e escolha endpoint/modo/política compatíveis. 2. Confira identidade e certificado do servidor e provisione os materiais do cliente conforme a autenticação. 3. Teste a conexão e navegue até uma variável conhecida. 4. Revise/aplique a importação de pelo menos um TAG e confira a leitura. 5. Remova a confiança temporária e confirme a configuração aprovada para Runtime. 6. Salve/publique/ative pelo fluxo do projeto e confira qualidade e timestamps. Certificado rejeitado exige conferir confiança/identidade; nó não encontrado exige NodeId/namespace; acesso negado exige conta/permissão; tipo incompatível exige revisar o TAG. Escrita aceita não prova atuação: confira o feedback do equipamento.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.opc-ua",
+        "tags.overview",
+        "diagnostics.overview"
+      ]
     }
   ],
   "en": [
@@ -4623,6 +5257,640 @@
         "engineering.lifecycle",
         "recovery.backup-system-recovery"
       ]
+    },
+    {
+      "id": "sources.connection-workflow",
+      "category": "sources",
+      "title": "Data Source: from connection to a verified TAG",
+      "summary": "Configure a connection before linking values to screens, alarms and history.",
+      "sections": [
+        {
+          "heading": "Before entering values",
+          "body": "In Engineering → Data Sources, have the address/node/topic map, network or serial settings and a known reading available. The SCADIVO server performs communication; browser access does not prove the server can reach the equipment. Start with one read-only TAG.",
+          "fields": [
+            {
+              "key": "key",
+              "label": "Source key",
+              "description": "Identifies the connection in TAG references. Use a readable key distinct from other sources; this is not an IP address.",
+              "example": "plc.bomba01",
+              "constraints": ""
+            },
+            {
+              "key": "name",
+              "label": "Name",
+              "description": "Name shown in the list. Describe the equipment or service this connection serves.",
+              "example": "Bomba 01",
+              "constraints": ""
+            },
+            {
+              "key": "driver",
+              "label": "Connection type / driver",
+              "description": "Selects the protocol and its fields. Modbus TCP, Modbus RTU Master, MQTT Raw and OPC UA are different connections; changing type requires reviewing TAG bindings.",
+              "example": "modbus.tcp",
+              "constraints": ""
+            },
+            {
+              "key": "enabled",
+              "label": "Enabled",
+              "description": "Includes the source in operational configuration when its revision is activated. Enabling does not repair the network, credentials or an incorrect TAG binding.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "secretReferences",
+              "label": "Protected references",
+              "description": "Password/certificate fields take the reference to material provisioned on the server. Ask the administrator for the correct reference; do not paste the password, private key or certificate contents into ordinary configuration fields.",
+              "example": "",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Prepare, check and activate",
+          "body": "1. Create or select the source and choose the correct driver. 2. Fill basic fields and open advanced fields only when their defaults need changing. 3. Use Test connection where the driver offers it; a draft test does not apply changes. 4. Check changes and read diagnostics; Apply to Workspace updates working configuration. 5. Configure a TAG with this source, type and protocol binding; test its read where available. 6. Save/publish and activate the revision through the project workflow so Runtime uses this configuration. 7. Check value, unit, quality and updates before adding commands or alarms.",
+          "fields": null
+        },
+        {
+          "heading": "Connected but no value",
+          "body": "A connection test confirms its own step, not the whole map or a physical action. Check source enabled state, TAG binding, active revision and diagnostics. Access denied differs from timeout; bad quality differs from zero. ReadOnly and write permissions still apply even if a protocol supports writes. Discovery/testing features depend on the driver; MQTT Raw does not advertise an Engineering connection test.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "drivers.modbus-setup",
+        "drivers.mqtt-setup",
+        "drivers.opcua-setup",
+        "tags.overview",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "drivers.modbus-setup",
+      "category": "drivers",
+      "title": "Modbus: TCP, serial and register maps",
+      "summary": "Prepare a TCP client or RTU master and understand each value address and representation.",
+      "sections": [
+        {
+          "heading": "Choose client or master",
+          "body": "Use Modbus TCP to query a network server/controller and Modbus RTU Master to query slaves on the host serial bus. This walkthrough does not configure SCADIVO as a Modbus Server; that type has a different role. Have the vendor map and start with a known variable without writes.",
+          "fields": null
+        },
+        {
+          "heading": "TCP connection and shared timings",
+          "body": "Host and port belong to TCP. Unit ID, scan, timeout and gap also apply to RTU, with its Unit ID limit.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Controller host",
+              "description": "DNS name or IP reachable from the SCADIVO server running the driver. localhost means that server or container, not the browser computer.",
+              "example": "192.0.2.10",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "TCP port",
+              "description": "Port where the controller serves Modbus TCP. It is not the SCADIVO web or API port.",
+              "example": "502",
+              "constraints": "1–65535; default 502."
+            },
+            {
+              "key": "unitId",
+              "label": "Source Unit ID",
+              "description": "Logical device address; with a TCP/serial gateway it may select a slave. Applies to TAGs without an individual override. Use the equipment manual value, not the last part of its IP address.",
+              "example": "1",
+              "constraints": "TCP: 0–255. RTU: 0–247. Default 1; the target must respond to reads."
+            },
+            {
+              "key": "scanIntervalMilliseconds",
+              "label": "Scan interval (ms)",
+              "description": "Requested time between read cycles. 1000 ms is 1 second; reducing it increases traffic and load. Reducing this field cannot make a slow response faster.",
+              "example": "1000",
+              "constraints": "10–600000; default 1000."
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Response timeout (ms)",
+              "description": "How long to wait for a request. Unlike scan time, a short timeout may fail on a slow network/bus; a long timeout delays absence detection.",
+              "example": "3000",
+              "constraints": "50–60000; default 3000."
+            },
+            {
+              "key": "maxGapElements",
+              "label": "Maximum address gap",
+              "description": "Advanced: combines nearby reads in one block, including the gap. Some controllers reject blocks crossing unimplemented addresses; reduce the gap in that case. It does not change TAG addresses.",
+              "example": "8",
+              "constraints": "0–125; default 8."
+            }
+          ]
+        },
+        {
+          "heading": "Serial on Windows, Linux and Docker",
+          "body": "Use the actual equipment parameters. The host manages the bus; shared settings must be compatible. If the port cannot open, check the device, process/container permission and another program holding the port before changing TAG maps.",
+          "fields": [
+            {
+              "key": "serialPort",
+              "label": "Server serial port",
+              "description": "Device visible to the server/DriverHost: for example COM3 on Windows or /dev/ttyUSB0 on Linux. In Docker the host must expose the device to the container and grant access. The browser serial port is not used; configuration can be prepared offline.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "baudRate",
+              "label": "Baud rate",
+              "description": "Must match devices on the same serial bus. A higher speed works only if the equipment and installation support it.",
+              "example": "9600",
+              "constraints": "300–4000000; default 9600."
+            },
+            {
+              "key": "dataBits",
+              "label": "Data bits",
+              "description": "Part of serial framing. Match the equipment; this is not the TAG numeric type size.",
+              "example": "8",
+              "constraints": "5–8; default 8."
+            },
+            {
+              "key": "parity",
+              "label": "Parity",
+              "description": "Serial frame check; all devices sharing the line need compatible configuration.",
+              "example": "None",
+              "constraints": "None / Odd / Even / Mark / Space; default None."
+            },
+            {
+              "key": "stopBits",
+              "label": "Stop bits",
+              "description": "Completes serial framing with baud, data bits and parity. Match the equipment.",
+              "example": "One",
+              "constraints": "One / OnePointFive / Two; default One."
+            }
+          ]
+        },
+        {
+          "heading": "TAG binding and conversion",
+          "body": "The address selects where to read; wire type selects interpretation. These are separate decisions. discrete/input are read-only; enabling TAG writes does not make the area writable. The TAG type must hold the conversion result.",
+          "fields": [
+            {
+              "key": "address",
+              "label": "TAG area and address",
+              "description": "Use coil for Boolean output, discrete for Boolean input, holding for read/write register and input for input register. Canonical addresses start at zero: holding:0. If the vendor calls its first holding register 40001, confirm that convention before conversion; do not automatically enter 40001 as the offset.",
+              "example": "holding:0",
+              "constraints": "Offset 0–65535; the complete value must fit the area."
+            },
+            {
+              "key": "modbus.unitId",
+              "label": "Individual Unit ID",
+              "description": "Overrides the source Unit ID only for this TAG. Leave empty to inherit; for RTU also check slave/bus limits.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.valueType",
+              "label": "Wire value type",
+              "description": "Defines interpretation of equipment bits. If omitted, inferred from the TAG type. Int16/UInt16 use 1 register, Int32/UInt32/Float32 use 2, Int64/UInt64/Float64 use 4; confirm the vendor map and compatibility with the TAG type.",
+              "example": "Int16",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.wordOrder",
+              "label": "Word order",
+              "description": "Only affects values using several registers: HighWordFirst places the most significant word first, LowWordFirst the least significant. It is not byte order inside a word; do not change randomly to mask an incorrect address/type.",
+              "example": "HighWordFirst",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.scale",
+              "label": "Scale multiplier",
+              "description": "Converts the read value: displayed value = raw × scale + offset. For tenths of bar, 253 × 0.1 + 0 = 25.3 bar. Avoid applying the same conversion again in another layer.",
+              "example": "0.1",
+              "constraints": "Finite and nonzero; default 1."
+            },
+            {
+              "key": "modbus.offset",
+              "label": "Offset",
+              "description": "Addition after scaling. Use only when the equipment map requires an origin correction.",
+              "example": "0",
+              "constraints": "Finite; default 0."
+            }
+          ]
+        },
+        {
+          "heading": "Example and diagnosis by layer",
+          "body": "1. Configure the TCP source with the actual host, port 502, controller Unit ID and initial 1000/3000 ms timings. 2. Create a read-only Double TAG, holding:0, wire type Int16 for a register representing tenths of bar. 3. Use scale 0.1, offset 0; if the known raw value is 253, expect 25.3 bar. 4. Test the read and check before activating the revision. Timeout calls for checking connectivity/Unit ID; illegal address calls for area/base; absurd values call for type/order/conversion. Do not use a write as a read test.",
+          "fields": null,
+          "code": "{\"address\":\"holding:0\",\"wireType\":\"Int16\",\"raw\":253,\"scale\":0.1,\"offset\":0,\"expected\":25.3}"
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.modbus.tcp",
+        "driver.modbus.rtu",
+        "tags.overview"
+      ]
+    },
+    {
+      "id": "drivers.mqtt-setup",
+      "category": "drivers",
+      "title": "MQTT: topics, JSON and value freshness",
+      "summary": "Connect to a broker and turn messages into typed values, separating subscriptions and publication.",
+      "sections": [
+        {
+          "heading": "A broker is not a sensor",
+          "body": "MQTT Raw receives messages when published. It does not poll like Modbus or automatically discover TAGs from arbitrary JSON. Have the host, port, TLS, authentication, topics and actual payload samples. Start with one read-only Double TAG.",
+          "fields": null
+        },
+        {
+          "heading": "Connection, session and resources",
+          "body": "Session fields differ between MQTT 3.1.1 and 5. Check the version before advanced settings. Size/queue limits bound memory use; they are not history storage.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Broker host",
+              "description": "Server receiving/publishing messages, reachable from the SCADIVO server. It is not a topic or a URL path.",
+              "example": "mqtt.example.invalid",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Broker port",
+              "description": "Use the port actually configured on the broker; it must match TLS use.",
+              "example": "8883",
+              "constraints": "1–65535; default 8883."
+            },
+            {
+              "key": "tls",
+              "label": "TLS connection",
+              "description": "Enables protected transport. Disabling does not automatically change the port or repair an invalid certificate. Match the broker mode and trust chain.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "clientId",
+              "label": "MQTT client ID",
+              "description": "Identifies this connection to the broker. Choose a unique value per active client; reusing it in another connection can disconnect the previous session. It is not the login.",
+              "example": "scadivo-pump01",
+              "constraints": ""
+            },
+            {
+              "key": "protocolVersion",
+              "label": "MQTT version",
+              "description": "mqtt5 uses Clean Start and session expiry; mqtt311 uses Clean Session. Select the broker-supported version without mixing their options.",
+              "example": "mqtt5",
+              "constraints": ""
+            },
+            {
+              "key": "username",
+              "label": "Broker user name",
+              "description": "Account authorized by the broker for the topics in use; it is not the SCADIVO login.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "password",
+              "label": "Broker password reference",
+              "description": "Protected reference resolved by the server. Without provisioned material or broker permission, authentication cannot succeed; do not enter a literal password instead of the reference.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "keepAliveSeconds",
+              "label": "Keep Alive (seconds)",
+              "description": "Broker connection supervision interval; it does not request fresh measurements from a device.",
+              "example": "30",
+              "constraints": "1–65535; default 30."
+            },
+            {
+              "key": "connectTimeoutMilliseconds",
+              "label": "Connection timeout (ms)",
+              "description": "Deadline for a connection attempt, separate from TAG value freshness.",
+              "example": "10000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Minimum reconnect wait (ms)",
+              "description": "Minimum wait between attempts after losing connection. Coordinate with the maximum to avoid continuous attempts.",
+              "example": "1000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Maximum reconnect wait (ms)",
+              "description": "Caps the growing wait. Must be greater than or equal to the minimum.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "mqtt311.cleanSession",
+              "label": "MQTT 3.1.1: Clean Session",
+              "description": "false requests session continuity on the broker with the same Client ID. true requests a clean session. Do not use this option in MQTT 5 mode.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt5.cleanStart",
+              "label": "MQTT 5: Clean Start",
+              "description": "true starts without reusing the previous session; false requests continuity. It is separate from expiry time after disconnection.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt5.sessionExpirySeconds",
+              "label": "MQTT 5: session expiry (s)",
+              "description": "How long the broker keeps the session after disconnect. With Clean Start false it must exceed zero. It does not keep values forever fresh or replace history.",
+              "example": "3600",
+              "constraints": "0–4294967295."
+            },
+            {
+              "key": "maximumInboundPayloadBytes",
+              "label": "Maximum message size (bytes)",
+              "description": "Memory limit per received payload; larger messages are rejected. Size for the actual document, not the number of TAGs.",
+              "example": "1048576",
+              "constraints": "1–67108864."
+            },
+            {
+              "key": "maximumConsecutiveConnectFailures",
+              "label": "Consecutive connection failure limit",
+              "description": "Consecutive failure limit used by readiness supervision. Increasing it does not fix credentials or an unavailable broker.",
+              "example": "5",
+              "constraints": "1–1000."
+            },
+            {
+              "key": "maximumBufferedMessages",
+              "label": "Maximum buffered messages",
+              "description": "Limits the transport message queue. A larger buffer consumes more memory; it is not archival or a promise to retain everything through an outage.",
+              "example": "4096",
+              "constraints": "1–1000000."
+            }
+          ]
+        },
+        {
+          "heading": "Read, quality and write",
+          "body": "Each TAG uses an exact topic and a type. One document can feed separate TAGs with different Pointers. QoS, retention and freshness serve different purposes; a value can exist and be Stale.",
+          "fields": [
+            {
+              "key": "address",
+              "label": "Subscribe topic",
+              "description": "Exact topic feeding this TAG, preserving case. Do not use + or # as TAG identity; give separate topics/fields their own TAGs.",
+              "example": "plant/pump01/state",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.payloadFormat",
+              "label": "Payload format",
+              "description": "utf8Scalar reads one textual value, such as 12.5 or true. json reads JSON and can extract a field with JSON Pointer. The result must match the TAG type.",
+              "example": "json",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.jsonPointer",
+              "label": "JSON value field",
+              "description": "JSON Pointer path, not Python or JSONPath: /current reads current at the root; /motor/current reads inside motor; /values/0 reads the first item. ~1 represents / in a name; ~0 represents ~. Empty selects the root, which must be a compatible scalar.",
+              "example": "/current",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.sourceTimestampJsonPointer",
+              "label": "Source timestamp field",
+              "description": "JSON field stating when the source measured the value. Use an explicit UTC Z timestamp in the example; measurement time differs from broker arrival.",
+              "example": "/timestamp",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.sourceTimestampRequired",
+              "label": "Require source timestamp",
+              "description": "With true, also configure the timestamp Pointer and publish a valid instant; otherwise the sample is rejected.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.freshnessTimeoutMilliseconds",
+              "label": "Freshness timeout (ms)",
+              "description": "Optional: after this interval without a fresher sample the value becomes Stale. It does not request a publication from the device. Allow margin above the normal send period.",
+              "example": "5000",
+              "constraints": "1–2147483647 when set."
+            },
+            {
+              "key": "mqtt.retainedValuePolicy",
+              "label": "Broker-retained value",
+              "description": "staleWithoutSourceTimestamp marks a retained value without source timestamp as Stale. acceptAsCurrent treats it as current; choose only if the application can assume that. A retained message does not prove the equipment is connected now.",
+              "example": "staleWithoutSourceTimestamp",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.qos",
+              "label": "Subscribe QoS",
+              "description": "0: at most one delivery; 1: at least one, possible duplicates; 2: exactly-once MQTT delivery within the session. QoS does not confirm physical actuation or sensor validity.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.publishTopic",
+              "label": "Publish topic",
+              "description": "Required for a writable point and must be exact. Use the equipment command topic, separate from feedback where its contract requires. Do not accidentally publish to the measurement topic.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.publishQos",
+              "label": "Publish QoS",
+              "description": "Requested delivery quality when publishing, using the same 0/1/2 values. Broker acknowledgement is not process feedback.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.publishRetain",
+              "label": "Retain publication",
+              "description": "false by default. true asks the broker to retain the last published payload; consider the risk of a new subscriber receiving an old command. Only applies to writable points.",
+              "example": "false",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Payload example: motor current",
+          "body": "Publish this example on plant/pump01/state on the test broker. For a Double TAG use json format, Pointer /current, timestamp /timestamp and required timestamp. Expected decoded value is 12.5. The instant is illustrative: in a live test use a current timestamp and check quality/age, not just the number. Do not paste this JSON as source configuration.",
+          "fields": null,
+          "code": "{\"current\":12.5,\"timestamp\":\"2026-10-25T12:00:00Z\"}"
+        },
+        {
+          "heading": "Publication limits and diagnosis",
+          "body": "Extracting /current for reads does not create a command-document template. JSON writes with a nonempty field Pointer are rejected: the product does not reconstruct an envelope. For writes use a scalar or root-JSON contract compatible with the equipment, a writable TAG, publish topic and authorization. If connected without values, check exact topic, publication, Pointer, type and timestamp. For Stale check retention, source time and freshness interval; do not mask missing measurements by accepting everything as current.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.mqtt.raw",
+        "tags.overview",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "drivers.opcua-setup",
+      "category": "drivers",
+      "title": "OPC UA: endpoints, certificates and node import",
+      "summary": "Select the server, approve its identity and associate variables using the correct nodes.",
+      "sections": [
+        {
+          "heading": "Discovery is not activation",
+          "body": "In the OPC UA source use discovery to inspect offered endpoints and modes. Selecting a candidate fills parameters; it does not create protected credentials or automatically approve certificates. Engineering tests/browsing are temporary and do not change the active revision.",
+          "fields": null
+        },
+        {
+          "heading": "Connection and identities",
+          "body": "Secure channel and user authentication are separate settings. The client must be accepted by the server, and SCADIVO must recognize the approved server. Ask the administrator for provisioning and references; the Engineering file must not become a secret store.",
+          "fields": [
+            {
+              "key": "endpointUrl",
+              "label": "OPC UA server endpoint",
+              "description": "Complete opc.tcp URL reachable from the SCADIVO server. Discover endpoints and select one the server actually offers.",
+              "example": "opc.tcp://192.0.2.20:4840",
+              "constraints": ""
+            },
+            {
+              "key": "securityMode",
+              "label": "Security mode",
+              "description": "None leaves the channel unprotected; Sign signs; SignAndEncrypt signs and encrypts. The mode must exist on the selected endpoint and match the policy; do not downgrade just to hide a certificate failure.",
+              "example": "SignAndEncrypt",
+              "constraints": ""
+            },
+            {
+              "key": "securityPolicyUri",
+              "label": "Security policy URI",
+              "description": "Use the complete URI supplied by the endpoint, not only its short name. None requires a policy ending in #None; a secured mode cannot use that policy.",
+              "example": "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
+              "constraints": ""
+            },
+            {
+              "key": "serverApplicationUri",
+              "label": "Approved ApplicationUri",
+              "description": "Server application identity when pinned. This is not the connection address. Compare with the administrator-approved identity.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "serverCertificateSha256",
+              "label": "Approved certificate SHA-256",
+              "description": "Secured Runtime requires explicit approval of the server certificate. Verify its fingerprint through a known channel before recording it; a changed certificate requires another check. This is not a private key.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "authenticationMode",
+              "label": "OPC UA server authentication",
+              "description": "Anonymous, UserName or Certificate as permitted by the server. Anonymous does not remove channel protection; this is separate from SCADIVO login.",
+              "example": "Anonymous",
+              "constraints": ""
+            },
+            {
+              "key": "userName",
+              "label": "OPC UA user name",
+              "description": "Fill in UserName mode using an account authorized on the source server.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "passwordSecretReference",
+              "label": "OPC UA password reference",
+              "description": "In UserName mode, protected reference to the password provisioned on the host; not the plaintext password.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "clientCertificateReference",
+              "label": "Client certificate reference",
+              "description": "Client application identity for a secured channel. Must be provisioned on the host and accepted by the server. Do not confuse with the user certificate.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "userCertificateReference",
+              "label": "User certificate reference",
+              "description": "In Certificate mode identifies the user separately from the client application certificate. The administrator supplies the protected reference.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "sessionTimeout",
+              "label": "Session timeout",
+              "description": "Requested session duration; not a sampling interval. Format hours:minutes:seconds.",
+              "example": "00:01:00",
+              "constraints": "00:00:05–01:00:00; default 00:01:00."
+            },
+            {
+              "key": "publishingInterval",
+              "label": "Publishing interval",
+              "description": "Requested notification delivery pace for the subscription. Separate from each node sampling interval; the server can negotiate supported values.",
+              "example": "00:00:01",
+              "constraints": "00:00:00.050–00:05:00."
+            },
+            {
+              "key": "trustUntrustedServerCertificateForSession",
+              "label": "Temporary Engineering trust",
+              "description": "For a temporary Engineering session only. Does not approve the Runtime certificate: activation with auto-trust is rejected. After inspection record the approved identity and leave this option disabled in operational configuration.",
+              "example": "false",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Browse and bind TAGs",
+          "body": "In the OPC UA browser select suitable variables, check type/access and review the import preview. Apply the candidate only after checking conflicts. The binding stores node identity; renaming the TAG should not mean selecting another node.",
+          "fields": [
+            {
+              "key": "nodeId",
+              "label": "NodeId",
+              "description": "Server node identifier; for example ns=2;s=Pump.Current. It is neither the display name nor the SCADIVO TAG path. Prefer selecting it in the OPC UA browser to avoid typing errors.",
+              "example": "ns=2;s=Pump.Current",
+              "constraints": ""
+            },
+            {
+              "key": "namespaceUri",
+              "label": "Namespace URI",
+              "description": "Stable namespace identity. When available it identifies the same node even if its ns= index changes. Use the server URI; do not invent one from the equipment name.",
+              "example": "urn:example:plant",
+              "constraints": ""
+            },
+            {
+              "key": "samplingInterval",
+              "label": "Sampling interval",
+              "description": "Requested pace for observing this node. Format hours:minutes:seconds; choose a frequency suitable for the process and check server-negotiated behavior.",
+              "example": "00:00:01",
+              "constraints": ""
+            },
+            {
+              "key": "queueSize",
+              "label": "Node queue size",
+              "description": "Number of samples the item queue can retain between deliveries. Larger uses more resources; it does not replace Historian.",
+              "example": "1",
+              "constraints": "1–10000."
+            },
+            {
+              "key": "discardOldest",
+              "label": "Discard oldest",
+              "description": "When the queue fills, true favors new samples; false requests preserving older samples rather than replacing the oldest. Check the server queue policy.",
+              "example": "true",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Identity example, not an import file",
+          "body": "This example shows two binding fields: NodeId ns=2;s=Pump.Current and namespaceUri urn:example:plant. Replace with your server values or use the browser. If its namespace index changes from 2 to 4 with the same URI and s=Pump.Current identifier, the stable identity remains the same. Do not use the sample name to guess an existing node.",
+          "fields": null,
+          "code": "{\"nodeId\":\"ns=2;s=Pump.Current\",\"namespaceUri\":\"urn:example:plant\"}"
+        },
+        {
+          "heading": "Verify and troubleshoot",
+          "body": "1. Discover and select compatible endpoint/mode/policy. 2. Verify server identity/certificate and provision client material for its authentication. 3. Test connection and browse to a known variable. 4. Review/apply import of at least one TAG and check the read. 5. Remove temporary trust and confirm approved Runtime configuration. 6. Save/publish/activate through the project workflow and check quality/timestamps. Rejected certificates require trust/identity checks; missing nodes require NodeId/namespace checks; denied access requires account/permission checks; incompatible types require TAG review. Accepted writes do not prove actuation: check equipment feedback.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.opc-ua",
+        "tags.overview",
+        "diagnostics.overview"
+      ]
     }
   ],
   "es": [
@@ -6935,6 +8203,640 @@
         "libraries.associate-incorporate",
         "engineering.lifecycle",
         "recovery.backup-system-recovery"
+      ]
+    },
+    {
+      "id": "sources.connection-workflow",
+      "category": "sources",
+      "title": "Fuente de datos: de la conexión al TAG comprobado",
+      "summary": "Configure una conexión antes de enlazar valores con pantallas, alarmas e histórico.",
+      "sections": [
+        {
+          "heading": "Antes de completar",
+          "body": "En Ingeniería → Fuentes de datos, prepare el mapa de direcciones/nodos/tópicos, los parámetros de red o serie y una lectura conocida. El servidor SCADIVO realiza la comunicación; acceder desde el navegador no prueba que el servidor alcance el equipo. Empiece con un TAG de solo lectura.",
+          "fields": [
+            {
+              "key": "key",
+              "label": "Clave de la fuente",
+              "description": "Identifica la conexión en las referencias de TAGs. Use una clave legible distinta de otras fuentes; no es la dirección IP.",
+              "example": "plc.bomba01",
+              "constraints": ""
+            },
+            {
+              "key": "name",
+              "label": "Nombre",
+              "description": "Nombre mostrado en la lista. Describa el equipo o servicio al que sirve esta conexión.",
+              "example": "Bomba 01",
+              "constraints": ""
+            },
+            {
+              "key": "driver",
+              "label": "Tipo de conexión / driver",
+              "description": "Selecciona el protocolo y sus campos. Modbus TCP, Modbus RTU Master, MQTT Raw y OPC UA son conexiones distintas; cambiar el tipo exige revisar los vínculos de TAGs.",
+              "example": "modbus.tcp",
+              "constraints": ""
+            },
+            {
+              "key": "enabled",
+              "label": "Habilitada",
+              "description": "Incluye la fuente en la configuración operativa al activar su revisión. Habilitar no corrige la red, las credenciales ni un TAG incorrecto.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "secretReferences",
+              "label": "Referencias protegidas",
+              "description": "Los campos de contraseña/certificado reciben la referencia de material aprovisionado en el servidor. Solicite la referencia correcta al administrador; no pegue contraseñas, claves privadas ni certificados en los campos comunes.",
+              "example": "",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Preparar, comprobar y activar",
+          "body": "1. Cree o seleccione la fuente y elija el driver correcto. 2. Complete los campos básicos y abra los avanzados solo si necesita cambiar sus valores predeterminados. 3. Use Probar conexión cuando el driver lo ofrezca; probar el borrador no aplica cambios. 4. Verifique cambios y lea diagnósticos; Aplicar al Workspace actualiza la configuración de trabajo. 5. Configure un TAG con esta fuente, tipo y vínculo del protocolo; pruebe su lectura si está disponible. 6. Guarde/publique y active la revisión mediante el flujo del proyecto para usarla en Runtime. 7. Compruebe valor, unidad, calidad y actualización antes de crear comandos o alarmas.",
+          "fields": null
+        },
+        {
+          "heading": "Conecta pero no hay valor",
+          "body": "Una prueba de conexión confirma solo su etapa, no todo el mapa ni una acción física. Compruebe fuente habilitada, vínculo del TAG, revisión activa y diagnósticos. Acceso denegado difiere de timeout; mala calidad difiere de cero. ReadOnly y permisos de escritura siguen vigentes aunque el protocolo admita escritura. Descubrimiento/pruebas dependen del driver; MQTT Raw no anuncia prueba de conexión de Ingeniería.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "drivers.modbus-setup",
+        "drivers.mqtt-setup",
+        "drivers.opcua-setup",
+        "tags.overview",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "drivers.modbus-setup",
+      "category": "drivers",
+      "title": "Modbus: TCP, serie y mapa de registros",
+      "summary": "Prepare el cliente TCP o maestro RTU y comprenda la dirección y representación de cada valor.",
+      "sections": [
+        {
+          "heading": "Elija cliente o maestro",
+          "body": "Use Modbus TCP para consultar un servidor/controlador de red y Modbus RTU Master para consultar esclavos en el bus serie del host. Este recorrido no configura SCADIVO como Modbus Server; ese tipo tiene otro papel. Prepare el mapa del fabricante y empiece con una variable conocida sin escritura.",
+          "fields": null
+        },
+        {
+          "heading": "Conexión TCP y tiempos comunes",
+          "body": "Host y puerto son de TCP. Unit ID, sondeo, timeout y hueco también se aplican a RTU, con su límite de Unit ID.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host del controlador",
+              "description": "Nombre DNS o IP accesible desde el servidor SCADIVO que ejecuta el driver. localhost es ese servidor o contenedor, no el equipo del navegador.",
+              "example": "192.0.2.10",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Puerto TCP",
+              "description": "Puerto donde el controlador atiende Modbus TCP. No es el puerto web ni el de la API SCADIVO.",
+              "example": "502",
+              "constraints": "1–65535; predeterminado 502."
+            },
+            {
+              "key": "unitId",
+              "label": "Unit ID de la fuente",
+              "description": "Dirección lógica del dispositivo; en un gateway TCP/serie puede seleccionar un esclavo. Se aplica a TAGs sin sustitución individual. Use el valor del manual del equipo, no el último número de la IP.",
+              "example": "1",
+              "constraints": "TCP: 0–255. RTU: 0–247. Predeterminado 1; el destino debe responder a lecturas."
+            },
+            {
+              "key": "scanIntervalMilliseconds",
+              "label": "Intervalo de sondeo (ms)",
+              "description": "Tiempo solicitado entre ciclos de lectura. 1000 ms equivale a 1 segundo; reducirlo aumenta tráfico y carga. Una respuesta lenta no se acelera al reducir este campo.",
+              "example": "1000",
+              "constraints": "10–600000; predeterminado 1000."
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Tiempo máximo de respuesta (ms)",
+              "description": "Cuánto esperar por una petición. Es distinto del sondeo: un timeout corto puede fallar con una red/bus lento; uno largo retrasa la detección de ausencia.",
+              "example": "3000",
+              "constraints": "50–60000; predeterminado 3000."
+            },
+            {
+              "key": "maxGapElements",
+              "label": "Hueco máximo entre direcciones",
+              "description": "Avanzado: reúne lecturas cercanas en un bloque, incluido el hueco. Algunos controladores rechazan bloques que atraviesan direcciones no implementadas; reduzca el hueco en ese caso. No cambia las direcciones de TAGs.",
+              "example": "8",
+              "constraints": "0–125; predeterminado 8."
+            }
+          ]
+        },
+        {
+          "heading": "Serie en Windows, Linux y Docker",
+          "body": "Use los parámetros reales del equipo. El host administra el bus; los ajustes compartidos deben ser compatibles. Si no abre el puerto, compruebe dispositivo, permiso del proceso/contenedor y otro programa ocupándolo antes de cambiar el mapa de TAGs.",
+          "fields": [
+            {
+              "key": "serialPort",
+              "label": "Puerto serie del servidor",
+              "description": "Dispositivo visible al servidor/DriverHost: por ejemplo COM3 en Windows o /dev/ttyUSB0 en Linux. En Docker el host debe exponer el dispositivo al contenedor y permitir acceso. No se usa el puerto del navegador; puede preparar la configuración sin conexión.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "baudRate",
+              "label": "Velocidad (baudios)",
+              "description": "Debe coincidir con los dispositivos del mismo bus serie. Una velocidad mayor requiere soporte del equipo y de la instalación.",
+              "example": "9600",
+              "constraints": "300–4000000; predeterminado 9600."
+            },
+            {
+              "key": "dataBits",
+              "label": "Bits de datos",
+              "description": "Parte del formato serie. Copie el ajuste del equipo; no es el tamaño del tipo numérico del TAG.",
+              "example": "8",
+              "constraints": "5–8; predeterminado 8."
+            },
+            {
+              "key": "parity",
+              "label": "Paridad",
+              "description": "Verificación del formato serie; los dispositivos que comparten línea necesitan configuración compatible.",
+              "example": "None",
+              "constraints": "None / Odd / Even / Mark / Space; predeterminado None."
+            },
+            {
+              "key": "stopBits",
+              "label": "Bits de parada",
+              "description": "Completa el formato serie junto con baudios, bits de datos y paridad. Debe coincidir con el equipo.",
+              "example": "One",
+              "constraints": "One / OnePointFive / Two; predeterminado One."
+            }
+          ]
+        },
+        {
+          "heading": "Vínculo del TAG y conversión",
+          "body": "La dirección elige dónde leer; el tipo del equipo elige cómo interpretar. Son decisiones distintas. discrete/input son de lectura; habilitar escritura en el TAG no convierte el área en escribible. El tipo del TAG debe contener el resultado de la conversión.",
+          "fields": [
+            {
+              "key": "address",
+              "label": "Área y dirección del TAG",
+              "description": "Use coil para salida booleana, discrete para entrada booleana, holding para registro de lectura/escritura e input para registro de entrada. La dirección canónica empieza en cero: holding:0. Si el fabricante llama 40001 al primer holding, confirme la convención antes de convertir; no escriba 40001 automáticamente como offset.",
+              "example": "holding:0",
+              "constraints": "Offset 0–65535; el valor completo debe caber en el área."
+            },
+            {
+              "key": "modbus.unitId",
+              "label": "Unit ID individual",
+              "description": "Sustituye el Unit ID de la fuente solo para este TAG. Déjelo vacío para heredar; en RTU compruebe también los límites del esclavo/bus.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.valueType",
+              "label": "Tipo en el equipo",
+              "description": "Define cómo interpretar los bits del equipo. Si se omite se infiere del tipo del TAG. Int16/UInt16 usan 1 registro, Int32/UInt32/Float32 usan 2, Int64/UInt64/Float64 usan 4; confirme el mapa del fabricante y la compatibilidad del tipo del TAG.",
+              "example": "Int16",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.wordOrder",
+              "label": "Orden de palabras",
+              "description": "Solo afecta valores de varios registros: HighWordFirst coloca primero la palabra más significativa y LowWordFirst la menos significativa. No es el orden de bytes dentro de cada palabra; no lo cambie al azar para ocultar una dirección/tipo incorrecto.",
+              "example": "HighWordFirst",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.scale",
+              "label": "Multiplicador",
+              "description": "Convierte el valor leído: valor mostrado = bruto × multiplicador + offset. Para décimas de bar, 253 × 0.1 + 0 = 25.3 bar. Evite repetir la conversión en otra capa.",
+              "example": "0.1",
+              "constraints": "Finito y distinto de cero; predeterminado 1."
+            },
+            {
+              "key": "modbus.offset",
+              "label": "Desplazamiento",
+              "description": "Suma posterior al multiplicador. Úsela solo si el mapa del equipo requiere una corrección de origen.",
+              "example": "0",
+              "constraints": "Finito; predeterminado 0."
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo y diagnóstico por capas",
+          "body": "1. Configure la fuente TCP con host real, puerto 502, Unit ID del controlador y tiempos iniciales 1000/3000 ms. 2. Cree TAG Double, solo lectura, holding:0 y tipo en equipo Int16 para un registro que represente décimas de bar. 3. Use multiplicador 0.1, offset 0; si el bruto conocido es 253, espere 25.3 bar. 4. Pruebe la lectura y compruebe antes de activar la revisión. Timeout exige comprobar conexión/Unit ID; dirección ilegal exige área/base; valores absurdos exigen tipo/orden/conversión. No use una escritura como prueba de lectura.",
+          "fields": null,
+          "code": "{\"address\":\"holding:0\",\"wireType\":\"Int16\",\"raw\":253,\"scale\":0.1,\"offset\":0,\"expected\":25.3}"
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.modbus.tcp",
+        "driver.modbus.rtu",
+        "tags.overview"
+      ]
+    },
+    {
+      "id": "drivers.mqtt-setup",
+      "category": "drivers",
+      "title": "MQTT: tópicos, JSON y vigencia de valores",
+      "summary": "Conecte al broker y convierta mensajes en valores tipados, separando lectura y publicación.",
+      "sections": [
+        {
+          "heading": "Un broker no es un sensor",
+          "body": "MQTT Raw recibe mensajes al publicarse. No sondea como Modbus ni descubre TAGs automáticamente desde cualquier JSON. Prepare host, puerto, TLS, autenticación, tópicos y ejemplos reales de payload. Empiece con un TAG Double de solo lectura.",
+          "fields": null
+        },
+        {
+          "heading": "Conexión, sesión y recursos",
+          "body": "Los campos de sesión difieren entre MQTT 3.1.1 y 5. Compruebe la versión antes de los ajustes avanzados. Los límites de tamaño/cola acotan la memoria; no constituyen un histórico.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host del broker",
+              "description": "Servidor que recibe/publica mensajes, accesible desde el servidor SCADIVO. No es el tópico ni una URL con ruta.",
+              "example": "mqtt.example.invalid",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Puerto del broker",
+              "description": "Use el puerto configurado realmente en el broker; debe corresponder al uso de TLS.",
+              "example": "8883",
+              "constraints": "1–65535; predeterminado 8883."
+            },
+            {
+              "key": "tls",
+              "label": "Conexión TLS",
+              "description": "Activa transporte protegido. Desactivar no cambia automáticamente el puerto ni corrige un certificado inválido. Respete el modo del broker y su cadena de confianza.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "clientId",
+              "label": "ID del cliente MQTT",
+              "description": "Identifica esta conexión ante el broker. Elija un valor único por cliente activo; reutilizarlo en otra conexión puede desconectar la sesión anterior. No es el login.",
+              "example": "scadivo-pump01",
+              "constraints": ""
+            },
+            {
+              "key": "protocolVersion",
+              "label": "Versión MQTT",
+              "description": "mqtt5 usa Clean Start y expiración de sesión; mqtt311 usa Clean Session. Seleccione la versión admitida por el broker sin mezclar sus opciones.",
+              "example": "mqtt5",
+              "constraints": ""
+            },
+            {
+              "key": "username",
+              "label": "Usuario del broker",
+              "description": "Cuenta autorizada por el broker para los tópicos utilizados; no es la cuenta de acceso a SCADIVO.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "password",
+              "label": "Referencia de contraseña del broker",
+              "description": "Referencia protegida resuelta por el servidor. Sin material aprovisionado o permisos en el broker, la autenticación falla; no escriba una contraseña literal en lugar de la referencia.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "keepAliveSeconds",
+              "label": "Keep Alive (segundos)",
+              "description": "Intervalo de supervisión de conexión con el broker; no solicita nuevas mediciones al dispositivo.",
+              "example": "30",
+              "constraints": "1–65535; predeterminado 30."
+            },
+            {
+              "key": "connectTimeoutMilliseconds",
+              "label": "Tiempo para conectar (ms)",
+              "description": "Plazo de un intento de conexión, distinto de la vigencia de un valor de TAG.",
+              "example": "10000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Espera inicial de reconexión (ms)",
+              "description": "Espera mínima entre intentos tras perder la conexión. Ajústela con el máximo para evitar intentos continuos.",
+              "example": "1000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Espera máxima de reconexión (ms)",
+              "description": "Limita el crecimiento de la espera. Debe ser mayor o igual a la mínima.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "mqtt311.cleanSession",
+              "label": "MQTT 3.1.1: limpiar sesión",
+              "description": "false solicita continuidad de sesión en el broker con el mismo Client ID. true solicita una sesión limpia. No use esta opción en modo MQTT 5.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt5.cleanStart",
+              "label": "MQTT 5: inicio limpio",
+              "description": "true inicia sin reutilizar la sesión anterior; false solicita continuidad. Es independiente del tiempo de expiración tras desconectar.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt5.sessionExpirySeconds",
+              "label": "MQTT 5: expiración de sesión (s)",
+              "description": "Cuánto mantiene el broker la sesión tras desconectar. Con Clean Start false debe ser mayor que cero. No mantiene valores siempre actuales ni sustituye al histórico.",
+              "example": "3600",
+              "constraints": "0–4294967295."
+            },
+            {
+              "key": "maximumInboundPayloadBytes",
+              "label": "Máximo por mensaje (bytes)",
+              "description": "Límite de memoria por payload recibido; se rechazan mensajes mayores. Dimensione para el documento real, no para el número de TAGs.",
+              "example": "1048576",
+              "constraints": "1–67108864."
+            },
+            {
+              "key": "maximumConsecutiveConnectFailures",
+              "label": "Límite de fallos de conexión",
+              "description": "Límite de fallos consecutivos utilizado por la supervisión de disponibilidad. Aumentarlo no corrige credenciales ni un broker ausente.",
+              "example": "5",
+              "constraints": "1–1000."
+            },
+            {
+              "key": "maximumBufferedMessages",
+              "label": "Máximo de mensajes en el búfer",
+              "description": "Limita la cola de mensajes del transporte. Un búfer mayor consume más memoria; no es archivado ni garantiza guardar todo durante una avería.",
+              "example": "4096",
+              "constraints": "1–1000000."
+            }
+          ]
+        },
+        {
+          "heading": "Lectura, calidad y escritura",
+          "body": "Cada TAG usa tópico exacto y un tipo. Un documento puede alimentar distintos TAGs con Pointers diferentes. QoS, retención y freshness cumplen funciones distintas; un valor puede existir y estar Stale.",
+          "fields": [
+            {
+              "key": "address",
+              "label": "Tópico de lectura",
+              "description": "Tópico exacto que alimenta este TAG, respetando mayúsculas. No use + ni # como identidad de TAG; cree TAGs propios para tópicos/campos separados.",
+              "example": "plant/pump01/state",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.payloadFormat",
+              "label": "Formato del contenido",
+              "description": "utf8Scalar lee un valor textual, como 12.5 o true. json lee JSON y puede extraer un campo con JSON Pointer. El resultado debe ser compatible con el tipo del TAG.",
+              "example": "json",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.jsonPointer",
+              "label": "Campo del valor en JSON",
+              "description": "Ruta JSON Pointer, no Python ni JSONPath: /current lee current en la raíz; /motor/current lee dentro de motor; /values/0 lee el primer elemento. ~1 representa / dentro del nombre; ~0 representa ~. Vacío usa la raíz, que debe ser un escalar compatible.",
+              "example": "/current",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.sourceTimestampJsonPointer",
+              "label": "Campo del instante de medición",
+              "description": "Campo JSON que indica cuándo midió la fuente el valor. El ejemplo utiliza UTC con Z; el instante de medición difiere de la llegada al broker.",
+              "example": "/timestamp",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.sourceTimestampRequired",
+              "label": "Exigir instante de origen",
+              "description": "Con true, configure también el Pointer del timestamp y publique un instante válido; sin él se rechaza la muestra.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.freshnessTimeoutMilliseconds",
+              "label": "Vigencia sin nueva muestra (ms)",
+              "description": "Opcional: tras este intervalo sin muestra más reciente el valor pasa a Stale. No solicita publicación al dispositivo. Deje margen sobre el período normal de envío.",
+              "example": "5000",
+              "constraints": "1–2147483647 si se indica."
+            },
+            {
+              "key": "mqtt.retainedValuePolicy",
+              "label": "Valor retenido por el broker",
+              "description": "staleWithoutSourceTimestamp marca como Stale un valor retenido sin timestamp de origen. acceptAsCurrent lo acepta como actual; úselo solo si la aplicación puede asumirlo. Un mensaje retenido no prueba conexión actual del equipo.",
+              "example": "staleWithoutSourceTimestamp",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.qos",
+              "label": "QoS de lectura",
+              "description": "0: como máximo una entrega; 1: al menos una, puede repetirse; 2: entrega MQTT exactamente una vez en la sesión. QoS no confirma actuación física ni validez del sensor.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.publishTopic",
+              "label": "Tópico de escritura",
+              "description": "Necesario para un punto escribible y debe ser exacto. Use el tópico de comando del equipo, separado de la confirmación si el contrato lo exige. No publique accidentalmente en el tópico de medición.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.publishQos",
+              "label": "QoS de escritura",
+              "description": "Calidad de entrega solicitada al publicar, con los mismos valores 0/1/2. Confirmación del broker no es confirmación del proceso.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "mqtt.publishRetain",
+              "label": "Retener publicación",
+              "description": "false de forma predeterminada. true pide al broker guardar el último payload publicado; evalúe el riesgo de que un nuevo suscriptor reciba un comando antiguo. Solo para puntos escribibles.",
+              "example": "false",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo de payload: corriente del motor",
+          "body": "Publique este ejemplo en plant/pump01/state del broker de prueba. En el TAG Double use formato json, Pointer /current, timestamp /timestamp y timestamp obligatorio. El valor decodificado esperado es 12.5. El instante es ilustrativo: en una prueba en vivo use timestamp actual y compruebe calidad/edad, no solo el número. No pegue este JSON como configuración de la fuente.",
+          "fields": null,
+          "code": "{\"current\":12.5,\"timestamp\":\"2026-10-25T12:00:00Z\"}"
+        },
+        {
+          "heading": "Límites de publicación y diagnóstico",
+          "body": "Extraer /current para lectura no crea una plantilla de documento de comando. Se rechaza escribir JSON con Pointer no vacío: el producto no reconstruye el envelope. Para escritura use contrato escalar o JSON en la raíz compatible con el equipo, TAG escribible, tópico de publicación y autorización. Si conecta sin valor, compruebe tópico exacto, publicación, Pointer, tipo y timestamp. Para Stale compruebe retención, instante de origen y freshness; no oculte ausencia de medición aceptando todo como actual.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.mqtt.raw",
+        "tags.overview",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "drivers.opcua-setup",
+      "category": "drivers",
+      "title": "OPC UA: endpoint, certificados e importación de nodos",
+      "summary": "Seleccione el servidor, apruebe su identidad y asocie variables mediante los nodos correctos.",
+      "sections": [
+        {
+          "heading": "Descubrimiento no es activación",
+          "body": "En la fuente OPC UA use descubrimiento para conocer endpoints y modos ofrecidos. Seleccionar un candidato completa parámetros; no crea credenciales protegidas ni aprueba certificados automáticamente. Las pruebas/exploración de Ingeniería son temporales y no cambian la revisión activa.",
+          "fields": null
+        },
+        {
+          "heading": "Conexión e identidades",
+          "body": "Canal seguro y autenticación del usuario son ajustes distintos. El servidor debe aceptar al cliente y SCADIVO reconocer al servidor aprobado. Solicite al administrador el aprovisionamiento y las referencias; el archivo de Ingeniería no debe convertirse en almacén de secretos.",
+          "fields": [
+            {
+              "key": "endpointUrl",
+              "label": "Endpoint del servidor OPC UA",
+              "description": "URL opc.tcp completa, accesible desde el servidor SCADIVO. Descubra los endpoints y elija uno ofrecido realmente por el servidor.",
+              "example": "opc.tcp://192.0.2.20:4840",
+              "constraints": ""
+            },
+            {
+              "key": "securityMode",
+              "label": "Modo de seguridad",
+              "description": "None no protege el canal; Sign firma; SignAndEncrypt firma y cifra. El modo debe existir en el endpoint y corresponder a la política; no lo reduzca para ocultar un fallo de certificado.",
+              "example": "SignAndEncrypt",
+              "constraints": ""
+            },
+            {
+              "key": "securityPolicyUri",
+              "label": "URI de política de seguridad",
+              "description": "Use la URI completa ofrecida por el endpoint, no solo el nombre corto. None exige una política terminada en #None; un modo protegido no admite esa política.",
+              "example": "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
+              "constraints": ""
+            },
+            {
+              "key": "serverApplicationUri",
+              "label": "ApplicationUri aprobada",
+              "description": "Identidad de la aplicación servidora cuando se fija. No es la dirección de conexión. Compárela con la identidad aprobada por el administrador.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "serverCertificateSha256",
+              "label": "SHA-256 del certificado aprobado",
+              "description": "Runtime protegido exige aprobación explícita del certificado del servidor. Verifique la huella por un canal conocido antes de registrarla; un cambio de certificado exige nueva comprobación. No es una clave privada.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "authenticationMode",
+              "label": "Autenticación en el servidor OPC UA",
+              "description": "Anonymous, UserName o Certificate según permita el servidor. Anonymous no elimina la protección del canal; es distinto del login de SCADIVO.",
+              "example": "Anonymous",
+              "constraints": ""
+            },
+            {
+              "key": "userName",
+              "label": "Usuario OPC UA",
+              "description": "Complete en modo UserName con una cuenta autorizada en el servidor de origen.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "passwordSecretReference",
+              "label": "Referencia de contraseña OPC UA",
+              "description": "En modo UserName, referencia protegida a la contraseña aprovisionada en el host; no es la contraseña en texto.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "clientCertificateReference",
+              "label": "Referencia del certificado cliente",
+              "description": "Identidad de la aplicación cliente para un canal protegido. Debe estar aprovisionada en el host y ser aceptada por el servidor. No la confunda con el certificado de usuario.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "userCertificateReference",
+              "label": "Referencia del certificado de usuario",
+              "description": "En modo Certificate identifica al usuario por separado del certificado de la aplicación cliente. El administrador proporciona la referencia protegida.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "sessionTimeout",
+              "label": "Timeout de sesión",
+              "description": "Duración solicitada de sesión; no es intervalo de muestreo. Formato horas:minutos:segundos.",
+              "example": "00:01:00",
+              "constraints": "00:00:05–01:00:00; predeterminado 00:01:00."
+            },
+            {
+              "key": "publishingInterval",
+              "label": "Intervalo de publicación",
+              "description": "Ritmo solicitado de entrega de notificaciones de la suscripción. Distinto del muestreo de cada nodo; el servidor puede negociar valores admitidos.",
+              "example": "00:00:01",
+              "constraints": "00:00:00.050–00:05:00."
+            },
+            {
+              "key": "trustUntrustedServerCertificateForSession",
+              "label": "Confianza temporal en Ingeniería",
+              "description": "Solo para una sesión temporal de Ingeniería. No aprueba el certificado para Runtime: se rechaza activar con auto-trust. Tras inspeccionar registre la identidad aprobada y deje esta opción desactivada en la configuración operativa.",
+              "example": "false",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Explorar y vincular TAGs",
+          "body": "En el explorador OPC UA seleccione las variables, compruebe tipo/acceso y revise la vista previa de importación. Aplique el candidato solo tras comprobar conflictos. El vínculo guarda la identidad del nodo; renombrar el TAG no debe significar apuntar a otro nodo.",
+          "fields": [
+            {
+              "key": "nodeId",
+              "label": "NodeId",
+              "description": "Identificador del nodo en el servidor; por ejemplo ns=2;s=Pump.Current. No es el nombre mostrado ni la ruta del TAG SCADIVO. Prefiera seleccionarlo en el explorador OPC UA para evitar errores.",
+              "example": "ns=2;s=Pump.Current",
+              "constraints": ""
+            },
+            {
+              "key": "namespaceUri",
+              "label": "URI del namespace",
+              "description": "Identidad estable del namespace. Si está disponible permite reconocer el mismo nodo aunque cambie el índice ns=. Use la URI del servidor; no la invente a partir del nombre del equipo.",
+              "example": "urn:example:plant",
+              "constraints": ""
+            },
+            {
+              "key": "samplingInterval",
+              "label": "Intervalo de muestreo",
+              "description": "Ritmo solicitado para observar este nodo. Formato horas:minutos:segundos; elija una frecuencia adecuada al proceso y compruebe el comportamiento negociado por el servidor.",
+              "example": "00:00:01",
+              "constraints": ""
+            },
+            {
+              "key": "queueSize",
+              "label": "Tamaño de cola del nodo",
+              "description": "Número de muestras que la cola del elemento puede retener entre entregas. Un tamaño mayor consume más recursos; no sustituye al Historian.",
+              "example": "1",
+              "constraints": "1–10000."
+            },
+            {
+              "key": "discardOldest",
+              "label": "Descartar la más antigua",
+              "description": "Al llenarse la cola, true prioriza muestras nuevas; false solicita preservar las antiguas en lugar de sustituir la más antigua. Compruebe la política de cola del servidor.",
+              "example": "true",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo de identidad, no archivo de importación",
+          "body": "Este ejemplo muestra dos campos del vínculo: NodeId ns=2;s=Pump.Current y namespaceUri urn:example:plant. Sustitúyalos por valores de su servidor o use el explorador. Si el índice cambia de 2 a 4 manteniendo URI e identificador s=Pump.Current, la identidad estable sigue igual. No use el nombre del ejemplo para adivinar un nodo existente.",
+          "fields": null,
+          "code": "{\"nodeId\":\"ns=2;s=Pump.Current\",\"namespaceUri\":\"urn:example:plant\"}"
+        },
+        {
+          "heading": "Comprobar y resolver fallos",
+          "body": "1. Descubra y seleccione endpoint/modo/política compatibles. 2. Verifique identidad/certificado del servidor y aprovisione material del cliente para su autenticación. 3. Pruebe conexión y explore una variable conocida. 4. Revise/aplique la importación de al menos un TAG y compruebe la lectura. 5. Quite confianza temporal y confirme la configuración aprobada para Runtime. 6. Guarde/publique/active mediante el flujo del proyecto y compruebe calidad/timestamps. Certificado rechazado exige confianza/identidad; nodo ausente exige NodeId/namespace; acceso denegado exige cuenta/permiso; tipo incompatible exige revisar el TAG. Escritura aceptada no prueba actuación: compruebe feedback del equipo.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.opc-ua",
+        "tags.overview",
+        "diagnostics.overview"
       ]
     }
   ]

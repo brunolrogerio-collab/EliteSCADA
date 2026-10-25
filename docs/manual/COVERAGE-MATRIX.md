@@ -180,3 +180,5 @@ Presence is not teaching-depth acceptance. See [the whole-product review map](..
 - Contextual Help cross-reference convergence: #424.
 
 The matrix is an authoring control surface; it is not normal end-user prose.
+
+Chapter 21 / protocol continuation — `DRAFT_CURRENT`: Data Source preparation/check/apply/activation plus Modbus TCP/RTU Master, MQTT Raw and OPC UA walkthroughs in pt-BR/en/es. All 68 fields of these human guides match the current connection/binding descriptors; other protocols still need scenario-specific editorial review. Published MQTT/Modbus/OPC UA examples execute actual codecs/identity rules, not a physical equipment test. Final captures remain `PENDING_FINAL`.

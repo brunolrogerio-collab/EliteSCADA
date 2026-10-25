@@ -1,5 +1,9 @@
 # Current coordinator pointer — Wave 15
 
+Active Help continuation 25/10: four connection/Modbus TCP–RTU Master/MQTT Raw/OPC UA guides share chapter 21 in pt-BR/en/es, with 68 actual field explanations and checked code examples. Local .NET 81/81, Chromium 66/66 without retry, Web and 36-file alignment passed; mobile output reviewed. Exact published head and T1 status are in live #424/#425/#305/#756. Read newest LAST CHANGE and whole-product depth map. Predecessor 2f01d548/T1 40245168573 passed, not the new source gate. Remaining protocol scenarios/operation/semantic walkthroughs → #357/final real images; finish Help → product licensing #301 → #779–#782. No merge/deploy, Preview or protocol behavior change; PR #772 stays draft.
+
+## Previous Help checkpoint — historical
+
 Active Help continuation 25/10: four library/asset/Gateway/tabular guides share chapters 19/20 pt-BR/en/es. Association differs from incorporation; process-local catalog limits, actual route fields and CSV/XLSX/merge/default rules are explained. Exact CSV examples run through parser, Preview/Apply, stable endpoint IDs and actual 11-to-27 Runtime transfer in all locales. Local .NET 56/56 plus Core 88/88, Web and 33-file alignment passed; final browser/head/run status in live #424/#425/#305/#756. Read newest LAST CHANGE/depth map. Predecessor 8ba0be65 T1 40230326802 passed, not the new source gate. Finish Help → product licensing #301 → #779–#782. No merge/deploy or Preview/HA/license behavior change; PR stays draft.
 
 ## Previous Help checkpoint — historical

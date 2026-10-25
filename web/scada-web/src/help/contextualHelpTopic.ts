@@ -13,7 +13,7 @@ export function contextualHelpTopic(path: string) {
   if (path.startsWith('/engineering/scripts')) return 'scripts.engineering';
   if (path.startsWith('/engineering/libraries')) return 'libraries.associate-incorporate';
   if (path.startsWith('/engineering/visualAssets')) return 'assets.management';
-  if (path.startsWith('/engineering/dataSources')) return 'sources.data-sources';
+  if (path.startsWith('/engineering/dataSources')) return 'sources.connection-workflow';
   if (path.startsWith('/engineering/tags')) return 'tags.overview';
   if (path.startsWith('/engineering/gateway')) return 'gateway.configure-test';
   if (path.startsWith('/engineering/alarms')) return 'alarms.configuration';

@@ -21,6 +21,9 @@ CHAPTERS = {
            ('14-BASE-DE-DATOS.md', 'Base de datos: configuración, migración y recuperación', ['database.topology']),
            ('15-PRESENTACION-MULTIMEDIA-UBICACIONES.md', 'Presentación, multimedia y ubicaciones', ['application.presentation', 'sources.media', 'home-building.organization'])]
 }
+for locale, (name, title) in {'pt-BR': ('21-CONEXOES-E-PROTOCOLOS.md', 'Conexões, Modbus, MQTT e OPC UA'), 'en': ('21-CONNECTIONS-AND-PROTOCOLS.md', 'Connections, Modbus, MQTT and OPC UA'), 'es': ('21-CONEXIONES-Y-PROTOCOLOS.md', 'Conexiones, Modbus, MQTT y OPC UA')}.items():
+    CHAPTERS[locale].append((name, title, ['sources.connection-workflow', 'drivers.modbus-setup', 'drivers.mqtt-setup', 'drivers.opcua-setup']))
+
 INTELLIGENCE = {'pt-BR': '12-INTELIGENCIA-ATIVOS-PROCESSOS.md', 'en': '12-ASSET-PROCESS-INTELLIGENCE.md', 'es': '12-INTELIGENCIA-ACTIVOS-PROCESOS.md'}
 APPEND_MARKER = '<!-- installed-system-guides -->'
 
@@ -35,7 +38,7 @@ def article(topic, locale):
     for section in topic['sections']:
         text.extend([f'### {section["heading"]}', '', re.sub(r'(?<=[.!?])\s+(?=\d{1,2}\.\s)|\n\s*(?=\d{1,2}\.\s)', '\n', section['body']) if section['body'].startswith('1. ') else section['body'], ''])
         if section.get('code'):
-            language = 'csv' if topic['id'] in ('gateway.configure-test', 'engineering.tabular-workflow') else 'python'
+            language = 'csv' if topic['id'] in ('gateway.configure-test', 'engineering.tabular-workflow') else 'json' if topic['id'] in ('drivers.modbus-setup', 'drivers.mqtt-setup', 'drivers.opcua-setup') else 'python'
             text.extend([f'```{language}', section['code'], '```', ''])
         if section.get('fields'):
             headers = {'pt-BR': ('Campo', 'Para que serve e como preencher', 'Exemplo', 'Limites'),

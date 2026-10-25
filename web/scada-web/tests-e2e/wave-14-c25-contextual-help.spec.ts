@@ -128,7 +128,7 @@ test('contextual entry routes resolve stable Phase 1 topic IDs', () => {
   const cases: Array<[string, string]> = [
     ['/engineering/scripts', 'scripts.engineering'],
     ['/engineering/libraries', 'libraries.associate-incorporate'],
-    ['/engineering/dataSources', 'sources.data-sources'],
+    ['/engineering/dataSources', 'sources.connection-workflow'],
     ['/engineering/tags', 'tags.overview'],
     ['/engineering/gateway', 'gateway.configure-test'],
     ['/engineering/alarms', 'alarms.configuration'],

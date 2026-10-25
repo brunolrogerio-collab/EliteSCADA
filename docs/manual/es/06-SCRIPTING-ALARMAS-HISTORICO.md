@@ -205,6 +205,8 @@ Server Script no proporciona acceso arbitrario al sistema de archivos, sistema o
 
 ## Scripts Client Visual
 
+En Client Visual, el evento y la muestra devuelta por funciones del producto son objetos estructurados: lea campos con punto, como `event.visualObjectId`, `sample.quality` y `sample.value`. No use índices de diccionario en estos objetos. Los diccionarios creados en Python y los eventos Server siguen sus propios contratos.
+
 Un Client Visual Script es Python ejecutado en el Runtime del cliente para interactuar con una Screen/Popup abierta y para la presentación local. Su alcance difiere del Server Script: no sustituye la automatización del backend ni sigue trabajando cuando el cliente no está en ejecución. Los Server Scripts, la revisión Active, los triggers del backend y sus seis APIs se describen arriba.
 
 ### Crear y vincular una interacción
@@ -241,8 +243,8 @@ from elite_scada import tag_read
 
 async def on_click(event):
     sample = await tag_read("Plant.Pump.DischargePressure")
-    if sample["quality"] == "Good":
-        pressure = sample["value"]
+    if sample.quality == "Good":
+        pressure = sample.value
 ```
 
 ### Ejemplo: guardar un valor en Client Memory
@@ -254,8 +256,8 @@ from elite_scada import tag_read, client_memory_write
 
 async def on_click(event):
     sample = await tag_read("Plant.Pump.DischargePressure")
-    if sample["quality"] == "Good":
-        await client_memory_write("UI.LastPressure", sample["value"])
+    if sample.quality == "Good":
+        await client_memory_write("UI.LastPressure", sample.value)
 ```
 
 ### Ejemplo: identificar la interacción
@@ -264,8 +266,8 @@ Declare `on_pointer_enter` como handler `objectInteraction` y vincúlelo a `Poin
 
 ```client-visual-python
 async def on_pointer_enter(event):
-    object_id = event["visualObjectId"]
-    event_name = event["eventKey"]
+    object_id = event.visualObjectId
+    event_name = event.eventKey
 ```
 
 Use handlers de puntero para respuestas breves. `pointermove` puede dispararse repetidamente al mover el puntero; no realice trabajo prolongado ni espere activamente en cada llamada. Cada ejecución tiene un límite de tiempo y los fallos se aíslan del resto de Runtime.

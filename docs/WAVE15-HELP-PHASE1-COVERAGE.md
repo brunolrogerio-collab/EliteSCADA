@@ -4,6 +4,8 @@ Issue: #424 — W15-HELP. Parent: #306. Terminology authority: #379.
 
 This file is implementation evidence for the installed contextual Help. It is not end-user Help content.
 
+**Owner review, 24/10/2026:** presence/`COVERED` is inventory, not acceptance of teaching depth. The owner found the content shallow and navigation disorganized. The expanded implementation and remaining acceptance are recorded in [the learning-guide audit](WAVE15-HELP-LEARNING-GUIDE-AUDIT-2026-10-24.md). PR #772 remains draft; #424/#425 are open.
+
 ## Reused foundation
 
 Phase 1 keeps the Wave 14/C25.8 architecture:
@@ -38,7 +40,7 @@ No second Help system or external documentation dependency was added.
 | TAG scaling/formatting | `tags.scaling-formatting` | TAG entry + topic navigation | yes | yes | yes | TASK GUIDE — separates engineering conversion from display precision and uses transient read evidence |
 | TAG copy/paste/duplicate/sequential | `tags.copy-duplicate-sequential` | TAG contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Screen Editor | `screens.overview` | `/engineering/screens` | yes | yes | yes | TASK GUIDE — stable identity vs route, screen format, object editing, TAG bindings, Preview/Apply and Runtime lifecycle |
-| Intelligence — process-stage member insights | `intelligence.process-stage-member-insights` | `/engineering/intelligence` | yes | yes | yes | COVERED — bounded Stage 5B.11 route; independent per-equipment read-only analyses, no process aggregate |
+| Intelligence — process-stage member insights | `intelligence.process-stage-member-insights` | related from `intelligence.overview` | yes | yes | yes | COVERED — independent per-equipment read-only analyses, no process aggregate |
 | Popup Editor | `popups.overview` | `/engineering/popups` | yes | yes | yes | TASK GUIDE — popup identity/template, object authoring, logical bounds, Preview/Apply and Runtime lifecycle |
 | Visual properties | `visual.properties` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Dynamics: Boolean conditions, numeric intervals/maps, Analog Fill | `visual.dynamics` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | TASK GUIDE — configuration choices and validation |

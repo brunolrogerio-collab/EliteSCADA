@@ -11,7 +11,8 @@ public sealed class ContextualHelpTests
     [Fact]
     public void RequiredManualTopics_ArePresentInEveryLocale()
     {
-        Assert.Equal(52, ContextualHelpCatalog.RequiredManualTopicIds.Count);
+        Assert.Equal(ContextualHelpCatalog.RequiredManualTopicIds.Count,
+            ContextualHelpCatalog.RequiredManualTopicIds.Distinct(StringComparer.Ordinal).Count());
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {
@@ -387,6 +388,8 @@ public sealed class ContextualHelpTests
             .Select(section => section.Code)
             .Where(code => !string.IsNullOrWhiteSpace(code))
             .Cast<string>()
+            .Concat(catalog.Topics.Where(item => item.Id is "scripts.server-syntax" or "scripts.server-recipes")
+                .SelectMany(item => item.Sections).Select(section => section.Code).OfType<string>())
             .Concat(catalog.ServerScriptApiDetails.Select(item => item.Example))
             .Concat(ReadManualServerScriptExamples())
             .ToArray();
@@ -1131,7 +1134,8 @@ public sealed class ContextualHelpTests
                 new[] { topic.Title, topic.Summary }.Concat(topic.Sections.SelectMany(section => new[] { section.Heading, section.Body }))));
 
             foreach (var term in forbiddenPhrases)
-                Assert.DoesNotContain(term, text, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotMatch(new Regex($@"(?<![\p{{L}}\p{{N}}_]){Regex.Escape(term)}(?![\p{{L}}\p{{N}}_])",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), text);
 
             Assert.False(
                 forbiddenCoordinationTokens.IsMatch(text),

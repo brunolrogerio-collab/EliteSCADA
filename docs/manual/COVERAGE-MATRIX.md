@@ -4,6 +4,8 @@ Estados: `COMPLETE`, `DRAFT_STABLE`, `DRAFT_CURRENT`, `BLOCKED_PRODUCT`, `FINAL_
 
 Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-BR/en/es depende do fechamento do glossário/localização; a estrutura de locales já existe.
 
+Atualização de 24/10/2026 na PR #772: a Ajuda instalada ganha áreas, busca, referências por tipo de objeto e guias de aprendizado ([auditoria](../WAVE15-HELP-LEARNING-GUIDE-AUDIT-2026-10-24.md)). Os exemplos Client Visual dos capítulos 06 foram corrigidos em pt-BR/en/es para o formato real de acesso aos campos do Runtime. A ilustração demonstrativa incluída na Ajuda não substitui a rodada final de capturas do manual após #357. Quantidade de tópicos não implica aceite de profundidade.
+
 | Chapter | Status | Product owner | Source authority | Language status | Screenshot status |
 |---:|---|---|---|---|---|
 | 1. Sobre o EliteSCADA | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |

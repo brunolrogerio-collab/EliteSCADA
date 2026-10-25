@@ -205,6 +205,8 @@ Server Script não fornece acesso arbitrário a filesystem, sistema operacional,
 
 ## Client Visual Scripts
 
+No Client Visual, o evento e a amostra retornada pelas funções do produto são objetos estruturados: leia campos com ponto, como `event.visualObjectId`, `sample.quality` e `sample.value`. Não use acesso de dicionário nesses objetos. Dicionários criados no próprio Python e os eventos do Server seguem seus respectivos contratos.
+
 Client Visual Script é Python executado no Runtime do cliente para interação com uma Screen/Popup aberta e para apresentação local. Ele tem escopo diferente de Server Script: não substitui automação do backend e não continua trabalhando sem o cliente. Server Script, revisão Active, triggers de backend e suas seis APIs estão descritos na seção anterior.
 
 ### Criar e ligar uma interação
@@ -241,8 +243,8 @@ from elite_scada import tag_read
 
 async def on_click(event):
     sample = await tag_read("Plant.Pump.DischargePressure")
-    if sample["quality"] == "Good":
-        pressure = sample["value"]
+    if sample.quality == "Good":
+        pressure = sample.value
 ```
 
 ### Exemplo: guardar um valor na Client Memory
@@ -254,8 +256,8 @@ from elite_scada import tag_read, client_memory_write
 
 async def on_click(event):
     sample = await tag_read("Plant.Pump.DischargePressure")
-    if sample["quality"] == "Good":
-        await client_memory_write("UI.LastPressure", sample["value"])
+    if sample.quality == "Good":
+        await client_memory_write("UI.LastPressure", sample.value)
 ```
 
 ### Exemplo: identificar a interação
@@ -264,8 +266,8 @@ Declare `on_pointer_enter` como handler `objectInteraction` e associe-o a `Point
 
 ```client-visual-python
 async def on_pointer_enter(event):
-    object_id = event["visualObjectId"]
-    event_name = event["eventKey"]
+    object_id = event.visualObjectId
+    event_name = event.eventKey
 ```
 
 Use pointer handlers para resposta breve. `pointermove` pode disparar repetidamente durante o movimento; não faça processamento demorado nem espere ativamente em cada chamada. Cada execução tem limite de tempo e falhas são isoladas do Runtime restante.

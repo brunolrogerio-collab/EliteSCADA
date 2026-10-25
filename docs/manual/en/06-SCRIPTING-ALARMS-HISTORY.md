@@ -205,6 +205,8 @@ Server Scripts do not provide arbitrary access to the filesystem, operating syst
 
 ## Client Visual Scripts
 
+In Client Visual, the event and sample returned by product functions are structured objects: read fields with dot access, such as `event.visualObjectId`, `sample.quality` and `sample.value`. Do not use dictionary indexing on these objects. Dictionaries created in Python and Server events follow their own contracts.
+
 A Client Visual Script is Python executed in the client Runtime for interaction with an open Screen/Popup and for local presentation. Its scope differs from Server Script: it does not replace backend automation and does not keep working when the client is not running. Server Scripts, the Active revision, backend triggers, and their six APIs are described above.
 
 ### Create and bind an interaction
@@ -241,8 +243,8 @@ from elite_scada import tag_read
 
 async def on_click(event):
     sample = await tag_read("Plant.Pump.DischargePressure")
-    if sample["quality"] == "Good":
-        pressure = sample["value"]
+    if sample.quality == "Good":
+        pressure = sample.value
 ```
 
 ### Example: store a value in Client Memory
@@ -254,8 +256,8 @@ from elite_scada import tag_read, client_memory_write
 
 async def on_click(event):
     sample = await tag_read("Plant.Pump.DischargePressure")
-    if sample["quality"] == "Good":
-        await client_memory_write("UI.LastPressure", sample["value"])
+    if sample.quality == "Good":
+        await client_memory_write("UI.LastPressure", sample.value)
 ```
 
 ### Example: identify the interaction
@@ -264,8 +266,8 @@ Declare `on_pointer_enter` as an `objectInteraction` handler and bind it to `Poi
 
 ```client-visual-python
 async def on_pointer_enter(event):
-    object_id = event["visualObjectId"]
-    event_name = event["eventKey"]
+    object_id = event.visualObjectId
+    event_name = event.eventKey
 ```
 
 Use pointer handlers for brief responses. `pointermove` may fire repeatedly as the pointer moves; do not perform lengthy work or actively wait in each call. Each execution has a time limit, and failures are isolated from the rest of Runtime.

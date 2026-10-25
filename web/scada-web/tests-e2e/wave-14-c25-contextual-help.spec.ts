@@ -116,7 +116,7 @@ test('contextual Help renders related local topics and keeps an unknown topic ex
   await installHelpContract(page);
 
   await page.goto('/help?topic=driver.modbus.tcp');
-  await expect(page.getByRole('heading', { name: /Tópicos relacionados/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Continue por aqui/ })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Data Sources' }).last()).toHaveAttribute('href', '/help?topic=sources.data-sources');
 
   await page.goto('/help?topic=missing.topic');

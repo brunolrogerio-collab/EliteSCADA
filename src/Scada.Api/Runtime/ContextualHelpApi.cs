@@ -3,7 +3,14 @@ using Scada.DriverHost.Engineering;
 
 namespace Scada.Api.Runtime;
 
-public sealed record ContextualHelpSection(string Heading, string Body, string? Code = null);
+public sealed record ContextualHelpField(string Key, string Label, string Description, string Example, string Constraints);
+
+public sealed record ContextualHelpFigure(string Source, string Alt, string Caption);
+
+public sealed record ContextualHelpSection(
+    string Heading, string Body, string? Code = null,
+    IReadOnlyCollection<ContextualHelpField>? Fields = null,
+    ContextualHelpFigure? Figure = null);
 
 public sealed record ContextualHelpTopic(
     string Id,
@@ -28,7 +35,7 @@ public sealed record ContextualHelpCatalogView(
     IReadOnlyCollection<string> ServerScriptApi,
     IReadOnlyCollection<ContextualHelpScriptApi> ServerScriptApiDetails);
 
-public static class ContextualHelpCatalog
+public static partial class ContextualHelpCatalog
 {
     public const string ExcludedSimulationDriverTypeKey = "builtin.simulation";
 
@@ -106,7 +113,21 @@ public static class ContextualHelpCatalog
         "runtime.history",
         "ha.overview",
         "installation.switching",
-        "intelligence.overview"
+        "intelligence.overview",
+        "help.find-your-way",
+        "visual.first-screen",
+        "visual.object-selection",
+        "visual.popup-workflow",
+        "scripts.choose-scope",
+        "scripts.server-syntax",
+        "scripts.triggers-dependencies",
+        "scripts.server-recipes",
+        "scripts.commands-feedback",
+        "scripts.client-recipes",
+        "scripts.client-api",
+        "intelligence.profiles-equipment",
+        "intelligence.operating-contexts",
+        "intelligence.dashboard-workflow"
     };
 
     private static readonly IReadOnlyCollection<TopicDefinition> ManualTopics = BuildManualTopics()
@@ -140,10 +161,14 @@ public static class ContextualHelpCatalog
             topics.Add(BuildDriverTopic(driver, locale));
         }
 
+        topics.AddRange(BuildLearningGuides(locale));
+        topics.AddRange(BuildVisualObjectGuides(locale));
+
         return new ContextualHelpCatalogView(
             locale,
             SupportedLocales,
-            topics.OrderBy(topic => topic.Id, StringComparer.Ordinal).ToArray(),
+            topics.GroupBy(topic => topic.Id, StringComparer.Ordinal).Select(group => ExpandLearningLinks(group.Last()))
+                .OrderBy(topic => topic.Id, StringComparer.Ordinal).ToArray(),
             ServerScriptApiFunctions,
             BuildServerScriptApi(locale));
     }
@@ -437,7 +462,7 @@ public static class ContextualHelpCatalog
 
         Detailed(
             "bindings-commands.overview", "bindings-commands",
-            Tx("Bindings e Commands", "Bindings and Commands", "Bindings y Commands"),
+            Tx("Vínculos de dados e comandos", "Data bindings and commands", "Vínculos de datos y comandos"),
             Tx("Ligação visual e intenção operacional.", "Visual binding and operational intent.", "Vinculación visual e intención operacional."),
             S(Tx("Bindings", "Bindings", "Bindings"), Tx(
                 "Bindings conectam propriedades da UI a recursos canônicos; não duplicam TAG Engine, scaling ou lógica de Authority no navegador.",
@@ -703,7 +728,7 @@ public static class ContextualHelpCatalog
 
         TaskGuide(
             "engineering.lifecycle", "engineering",
-            Tx("Working, Save, Revision, Publish e Activate", "Working, Save, Revision, Publish and Activate", "Working, Save, Revision, Publish y Activate"),
+            Tx("Editar, salvar, publicar e ativar o projeto", "Edit, save, publish and activate a project", "Editar, guardar, publicar y activar el proyecto"),
             Tx("Ciclo que leva uma edição de Working até a revisão executada no Runtime.", "Lifecycle that takes a Working edit to the revision executed by Runtime.", "Ciclo que lleva una edición de Working hasta la revisión ejecutada por Runtime."),
             Tx("Use ao salvar trabalho, criar uma Revision, publicar ou ativar uma revisão.", "Use when saving work, creating a Revision, publishing, or activating a revision.", "Úselo al guardar trabajo, crear una Revision, publicar o activar una revisión."),
             Tx("Tenha o projeto correto aberto, alterações de Working validadas e permissão para a transição desejada.", "Open the correct project, validate Working changes, and have permission for the intended transition.", "Abra el proyecto correcto, valide los cambios de Working y tenga permiso para la transición deseada."),
@@ -811,7 +836,7 @@ public static class ContextualHelpCatalog
 
         TaskGuide(
             "visual.dynamics", "visual",
-            Tx("Dynamics", "Dynamics", "Dynamics"),
+            Tx("Dinâmicas visuais", "Visual dynamics", "Dinámicas visuales"),
             Tx("Comportamentos Boolean, mapeamento por faixa numérica, preenchimento analógico e expressões tipadas ligam fontes do projeto a propriedades visuais.", "Boolean conditions, numeric range mapping, analog fill, and typed expressions connect project sources to visual properties.", "Condiciones Boolean, mapeo por rangos numéricos, relleno analógico y expresiones tipadas conectan fuentes del proyecto con propiedades visuales."),
             Tx("Use condição Boolean para estado, intervalo numérico para limites, Property Map para estados tipados por faixa ou Analog Fill para nível/escala.", "Use a Boolean condition for state, numeric interval for limits, Property Map for typed range states, or Analog Fill for a level/scale.", "Use condición Boolean para estado, intervalo numérico para límites, Property Map para estados tipados por rango o Analog Fill para nivel/escala."),
             Tx("Selecione objeto e destino suportado; confirme fonte TAG, Client Memory ou expressão e seu tipo Boolean/Number.", "Select an object and supported destination; confirm the TAG, Client Memory, or expression source and its Boolean/Number type.", "Seleccione objeto y destino compatible; confirme la fuente TAG, Client Memory o expresión y su tipo Boolean/Number."),
@@ -865,17 +890,17 @@ public static class ContextualHelpCatalog
                 "Associe `on_click` ao evento Click e declare `Plant.Pump.DischargePressure` como dependência. Faça uma leitura e só use o valor quando quality for Good. Leitura ausente ou qualidade ruim não equivale a zero.",
                 "Associate `on_click` with Click and declare `Plant.Pump.DischargePressure` as a dependency. Read the TAG and use its value only when quality is Good. A missing reading or bad quality is not zero.",
                 "Asocie `on_click` a Click y declare `Plant.Pump.DischargePressure` como dependencia. Lea el TAG y use el valor solo cuando quality sea Good. Una lectura ausente o de mala calidad no equivale a cero."),
-                "from elite_scada import tag_read\n\nasync def on_click(event):\n    sample = await tag_read(\"Plant.Pump.DischargePressure\")\n    if sample[\"quality\"] == \"Good\":\n        pressure = sample[\"value\"]"),
+                HelpExample("client-read")),
             S(Tx("Exemplo: gravar Client Memory", "Example: write Client Memory", "Ejemplo: escribir Client Memory"), Tx(
                 "Configure a referência Client Memory `UI.LastPressure`. Ela guarda estado local do cliente Runtime, não histórico de processo e não sincroniza automaticamente entre clientes.",
                 "Configure the Client Memory reference `UI.LastPressure`. It stores local state for this Runtime client; it is not process history and is not automatically synchronized between clients.",
                 "Configure la referencia Client Memory `UI.LastPressure`. Guarda estado local de este cliente Runtime; no es histórico de proceso ni se sincroniza automáticamente entre clientes."),
-                "from elite_scada import tag_read, client_memory_write\n\nasync def on_click(event):\n    sample = await tag_read(\"Plant.Pump.DischargePressure\")\n    if sample[\"quality\"] == \"Good\":\n        await client_memory_write(\"UI.LastPressure\", sample[\"value\"])"),
+                HelpExample("client-store")),
             S(Tx("Exemplo: receber interação de ponteiro", "Example: receive a pointer interaction", "Ejemplo: recibir una interacción de puntero"), Tx(
                 "Declare `on_pointer_enter` como handler objectInteraction e associe Pointer enters object. O payload do evento contém `eventKey` e `visualObjectId`. Use essa informação para reação visual rápida; processamento demorado em Pointer moves pode deixar a interface lenta.",
                 "Declare `on_pointer_enter` as an objectInteraction handler and associate Pointer enters object. The event payload contains `eventKey` and `visualObjectId`. Use it for a quick visual response; lengthy work on Pointer moves can make the interface sluggish.",
                 "Declare `on_pointer_enter` como handler objectInteraction y asocie Pointer enters object. El payload contiene `eventKey` y `visualObjectId`. Úselo para una reacción visual rápida; trabajo prolongado en Pointer moves puede ralentizar la interfaz."),
-                "async def on_pointer_enter(event):\n    object_id = event[\"visualObjectId\"]\n    event_name = event[\"eventKey\"]"),
+                HelpExample("client-pointer")),
             S(Tx("Erros comuns", "Common errors", "Errores comunes"), Tx(
                 "ImportError: confira nome do módulo/função e se a API é do Client Visual. Erro de TAG não declarada: adicione a dependência estável ao Script e valide novamente. Falha ao escrever: confira se TAG aceita escrita e se a sessão possui capacidade. Handler ausente: confira o nome exato no entry point e no Events. Não use loops longos nem espera ativa; cada execução tem limite de tempo e falhas são isoladas do restante do Runtime.",
                 "ImportError: check the module/function name and that the API belongs to Client Visual. Undeclared TAG error: add the stable dependency to the Script and validate again. Write failure: check TAG writability and session capability. Missing handler: verify the exact name in the entry point and Events. Avoid long loops and busy waits; each execution is time-bounded and failures are isolated from the rest of Runtime.",
@@ -1447,7 +1472,7 @@ public static class ContextualHelpCatalog
 
     private static TopicDefinition BuildReusableLibrariesTopic() => Detailed(
         "libraries.reusable-resources", "libraries",
-        Tx("Reusable Resource Libraries", "Reusable Resource Libraries", "Reusable Resource Libraries"),
+        Tx("Bibliotecas de recursos reutilizáveis", "Reusable resource libraries", "Bibliotecas de recursos reutilizables"),
         Tx("Reuso seletivo em Engineering sem dependência externa de Runtime.", "Selective Engineering reuse without external Runtime dependency.", "Reutilización selectiva en Engineering sin dependencia externa de Runtime."),
         S(Tx("Criar e exportar .escadalib", "Create and export .escadalib", "Crear y exportar .escadalib"), Tx(
             "A exportação cria .escadalib a partir de recursos selecionados do Working e inclui automaticamente o closure de dependências. O build exporta Equipment Template, Dynamo, Screen, Popup, Script e Visual Asset. O pacote contém manifest, hashes de integridade e limites de segurança; Inspect valida formato, manifest, arquivos, hashes e payloads antes do uso.",

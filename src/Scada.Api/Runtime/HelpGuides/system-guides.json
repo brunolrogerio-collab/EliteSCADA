@@ -810,6 +810,341 @@
         "tags.writeability",
         "security.scopes-authority"
       ]
+    },
+    {
+      "id": "reports.data-designer",
+      "category": "reports",
+      "title": "Relatórios: configurar dados, período e resolução",
+      "summary": "Comece pela pergunta que o relatório deve responder, antes de desenhar a página.",
+      "relatedTopicIds": [
+        "reports.layout-variables",
+        "reports.runtime-output",
+        "historian.capture-query",
+        "reports.overview",
+        "tags.timestamps"
+      ],
+      "sections": [
+        {
+          "heading": "Prepare dados que você possa conferir",
+          "body": "Abra Engenharia > Relatórios. Para o primeiro exemplo, use um TAG de pressão com captura histórica já existente e um período curto em que você conhece os valores. O relatório consulta dados armazenados; ele não liga a captura nem recupera o passado que não foi gravado. Tenha autorização para editar e consultar o dataset escolhido. Um relatório de histórico e um de transições de alarme usam fontes diferentes.",
+          "fields": null
+        },
+        {
+          "heading": "Identificação e fonte da consulta",
+          "body": "Crie um relatório ou selecione um existente. Use seletores de referências em vez de inventar IDs. Estes campos configuram a definição; executar uma prévia é uma ação separada.",
+          "fields": [
+            {
+              "key": "report.name",
+              "label": "Nome, identificador e descrição",
+              "description": "Nome aparece na lista; identificador mantém referências estáveis; descrição explica objetivo e contexto. Renomear não cria dados novos.",
+              "example": "Pressão da bomba — turno",
+              "constraints": ""
+            },
+            {
+              "key": "query.dataQueryId",
+              "label": "Data Query guardada ou consulta incorporada",
+              "description": "Uma Data Query reutiliza uma definição existente; incorporada pertence ao relatório. Confira a origem selecionada antes de ajustar o layout. O editor não recebe SQL livre.",
+              "example": "Consulta incorporada para o primeiro exemplo",
+              "constraints": ""
+            },
+            {
+              "key": "query.datasetKey",
+              "label": "Fonte de dados / dataset",
+              "description": "historian.samples consulta amostras; alarm.events consulta ocorrências/transições de alarmes. Os campos disponíveis dependem da escolha. Trocar dataset pode invalidar campos do desenho.",
+              "example": "historian.samples",
+              "constraints": ""
+            },
+            {
+              "key": "timeRange.default",
+              "label": "Período padrão e período da prévia",
+              "description": "O padrão pertence à definição; o período da prévia só escolhe a janela de teste atual. Escolha a unidade oferecida pelo editor. Uma hora equivale a 3600 segundos; não confunda unidade de tempo com quantidade de linhas.",
+              "example": "Última hora para conferir poucas amostras",
+              "constraints": ""
+            },
+            {
+              "key": "variables",
+              "label": "Dados do relatório / variáveis",
+              "description": "Adicione os TAGs pelo navegador de referências. Confira caminho, tipo e unidade. A apresentação de cada variável é configurada separadamente.",
+              "example": "TAG de pressão da Bomba 01",
+              "constraints": ""
+            },
+            {
+              "key": "query.page.limit",
+              "label": "Linhas por página",
+              "description": "Tamanho da página solicitado na consulta; confira a quantidade realmente retornada. Não define por quanto tempo o Historian armazena dados.",
+              "example": "50",
+              "constraints": "1–200"
+            }
+          ]
+        },
+        {
+          "heading": "Escolha como os dados serão apresentados",
+          "body": "A resolução é uma escolha de consulta. Ela não muda o que foi capturado nem elimina dados brutos. Uma agregação de relatório não configura a política permanente de agregação do banco.",
+          "fields": [
+            {
+              "key": "resolution.mode",
+              "label": "Bruto, intervalo fixo ou resumo",
+              "description": "Bruto examina amostras armazenadas. Intervalo fixo organiza recuperação em passos definidos. Resumo calcula a função escolhida por intervalo. Um valor médio pode ocultar um pico; volte ao bruto para investigar.",
+              "example": "Bruto para conferir; resumo horário para visão geral",
+              "constraints": ""
+            },
+            {
+              "key": "resolution.intervalMilliseconds",
+              "label": "Intervalo fixo",
+              "description": "Escolha a distância temporal entre posições de consulta. Não é o polling do Driver nem uma garantia de nova amostra em cada posição. Falta de dados continua relevante.",
+              "example": "5 minutos, se suficiente para a pergunta",
+              "constraints": ""
+            },
+            {
+              "key": "resolution.aggregateFunction",
+              "label": "Agregação e agrupar cada",
+              "description": "Média, mínimo, máximo, soma, contagem, primeiro e último têm significados diferentes. Escolha a largura do intervalo. Somar leituras de vazão não calcula automaticamente volume produzido; isso exigiria integração e unidades apropriadas.",
+              "example": "Máximo por hora para procurar picos",
+              "constraints": ""
+            },
+            {
+              "key": "tableLayout",
+              "label": "Tabela longa ou larga",
+              "description": "Longa organiza amostras em linhas. Larga organiza intervalos para comparar variáveis. No modo bruto, a opção larga fica desabilitada.",
+              "example": "Longa para inspecionar amostras",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Primeiro teste, antes do desenho final",
+          "body": "1. Use consulta incorporada e historian.samples. 2. Adicione um TAG conhecido. 3. Escolha período curto e Bruto. 4. Execute Preview e confira linhas, horários, valores e qualidade disponíveis. 5. Mude para Resumo, Máximo e intervalo horário; compare com os dados brutos, sem assumir que as duas saídas são iguais. 6. Só depois organize a página e valide a definição. Se não houver linhas, confirme TAG, período, captura e permissão antes de mudar fontes, larguras ou cores.",
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "reports.layout-variables",
+      "category": "reports",
+      "title": "Relatórios: página, variáveis, campos e resumos",
+      "summary": "Separe o valor consultado, seu formato e o lugar onde ele será impresso.",
+      "relatedTopicIds": [
+        "reports.data-designer",
+        "reports.runtime-output",
+        "reports.overview",
+        "engineering.lifecycle"
+      ],
+      "sections": [
+        {
+          "heading": "Entenda a página",
+          "body": "No Designer, use Projeto/Design para editar e Prévia/Preview para ver uma execução. Dimensões são em milímetros, não pixels da Tela Runtime. Retrato é vertical; Paisagem é horizontal. O conteúdo precisa caber na largura útil depois das margens. Mudar o zoom da prévia não muda as dimensões impressas.",
+          "fields": null
+        },
+        {
+          "heading": "Como formatar uma variável",
+          "body": "A variável continua ligada ao TAG selecionado. Estes campos mudam a apresentação; não recalibram o instrumento nem convertem dados por simples mudança de rótulo.",
+          "fields": [
+            {
+              "key": "variables.visible",
+              "label": "Mostrar coluna e ordem",
+              "description": "Escolha o que aparece e use Mover acima/abaixo para ordenar. Remover a variável do relatório não exclui o TAG do projeto.",
+              "example": "Pressão antes de corrente",
+              "constraints": ""
+            },
+            {
+              "key": "variables.displayLabel",
+              "label": "Rótulo visível",
+              "description": "Cabeçalho legível da variável, diferente da identidade do TAG.",
+              "example": "Pressão de descarga",
+              "constraints": ""
+            },
+            {
+              "key": "variables.unitMode",
+              "label": "Unidade automática, oculta ou rótulo próprio",
+              "description": "Automática usa a unidade do TAG. Oculta não a mostra. Rótulo próprio só troca o texto: escrever psi num valor em bar não faz a conversão.",
+              "example": "Automática quando a unidade já está correta",
+              "constraints": ""
+            },
+            {
+              "key": "variables.decimalPlaces",
+              "label": "Decimais e formato numérico",
+              "description": "Escolha padrão, fixo ou científico. Decimais afetam leitura, não exatidão nem valor armazenado. Não use arredondamento para esconder variação relevante.",
+              "example": "Uma casa para décimos",
+              "constraints": "0–15 casas no editor"
+            },
+            {
+              "key": "variables.dateTimeFormat",
+              "label": "Data/hora e textos booleanos",
+              "description": "Escolha data/hora local, só data, só hora ou ISO 8601. Para booleanos, informe textos de Verdadeiro/Falso coerentes; não chame falta de dados de Falso.",
+              "example": "Ligado / Desligado somente se esse for o significado",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Seções e controles do desenho",
+          "body": "Cabeçalho e rodapé do relatório valem para o relatório; os de página repetem por página. Detalhe recebe as linhas da consulta. Cabeçalho/rodapé de grupo depende do agrupamento. Se a consulta não retorna linhas, o Detalhe pode ficar vazio mesmo com título visível. Comece com Etiqueta e Campo, os controles oferecidos diretamente para inserção.",
+          "fields": [
+            {
+              "key": "sections.heightMillimeters",
+              "label": "Altura da seção",
+              "description": "Espaço reservado para a faixa. Um controle mais alto pode ser cortado; aumentar a altura não cria linhas de dados.",
+              "example": "Ajustar a faixa ao conteúdo",
+              "constraints": ""
+            },
+            {
+              "key": "controls.geometry",
+              "label": "X, Y, largura e altura (mm)",
+              "description": "Posição e tamanho no layout. Confira limites da seção e largura útil; números não representam coordenadas do monitor.",
+              "example": "Campo dentro da faixa Detalhe",
+              "constraints": ""
+            },
+            {
+              "key": "controls.text",
+              "label": "Etiqueta: texto",
+              "description": "Conteúdo fixo, como um título. Para um valor que muda por linha, use Campo; digitar o caminho do TAG numa etiqueta não cria vínculo.",
+              "example": "Leituras do turno",
+              "constraints": ""
+            },
+            {
+              "key": "controls.queryKey",
+              "label": "Consulta e campo",
+              "description": "Consulta escolhe de qual resultado vêm os dados; Campo precisa existir nesse dataset. Copie o nome exposto pelo schema, por exemplo value ou timestamp para amostras, não um nome inventado.",
+              "example": "Consulta main / campo value",
+              "constraints": ""
+            },
+            {
+              "key": "controls.assetId",
+              "label": "Recurso de imagem",
+              "description": "Um controle de imagem depende de um recurso existente e resolvido. Se o seletor não oferecer o recurso, não invente um ID; comece com os controles editáveis e confira a disponibilidade dessa configuração.",
+              "example": "Recurso existente quando disponível",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Agrupamento não é agregação temporal",
+          "body": "Agrupar por organiza linhas pelo campo escolhido, com ordem ascendente/descendente. Um resumo escolhe campo, função e alcance: grupo ou relatório inteiro. A largura de tempo vem de Resolução, não do nome do grupo. Não some o mesmo conjunto novamente sem saber se a consulta já o agregou. Contagem é quantidade de registros; não significa horas de funcionamento. Confira um grupo pequeno à mão antes de confiar no total.",
+          "fields": null
+        },
+        {
+          "heading": "Da prévia à revisão ativa",
+          "body": "1. Monte título, Detalhe e campos reais. 2. Execute a prévia dos dados e confira paginação/cortes. 3. Use Validar para localizar referências e estrutura inválidas. 4. Aplique somente o candidato válido; se o projeto mudar, atualize e valide novamente. 5. Salve, publique e ative a revisão. 6. Gere o relatório no Runtime com os mesmos parâmetros de teste e compare. A prévia executada não é uma definição salva nem garante que a revisão já esteja ativa.",
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "reports.runtime-output",
+      "category": "reports",
+      "title": "Relatórios no Runtime: gerar, conferir e exportar",
+      "summary": "A saída pertence a uma execução com período e parâmetros próprios.",
+      "relatedTopicIds": [
+        "reports.data-designer",
+        "reports.layout-variables",
+        "runtime.history",
+        "security.users-roles-capabilities"
+      ],
+      "sections": [
+        {
+          "heading": "Encontre o relatório disponível",
+          "body": "Abra Relatórios no Runtime e pesquise pelo nome. A lista depende da revisão ativa e da autorização da sessão. Ter acesso à Engenharia ou ver um objeto de relatório numa Tela não garante permissão de consultar todos os dados. Se a lista estiver vazia, confira revisão e permissões antes de recriar a definição.",
+          "fields": null
+        },
+        {
+          "heading": "Período, parâmetros e execução",
+          "body": "1. Selecione um relatório. 2. Escolha período relativo ou De/Até, conforme os modos permitidos pela definição. Relativo é calculado para a execução; repetir depois pode usar outra janela. 3. Em intervalo absoluto, escolha início anterior ao fim e confira o fuso dos horários. 4. Complete parâmetros com o tipo e as opções exigidos; um campo de número, data ou booleano não aceita qualquer texto. 5. Selecione Gerar relatório e aguarde; cancelar interrompe a solicitação, não apaga a definição. 6. Confira o horário de geração, a janela e os parâmetros usados antes de interpretar a saída.",
+          "fields": null
+        },
+        {
+          "heading": "Prévia, PDF, planilha e impressão",
+          "body": "Use anterior/próxima página e zoom para conferir leitura; ajustar à largura não muda a definição. PDF e impressão servem à apresentação paginada; XLSX e CSV permitem trabalhar com a saída. São exportações do resultado, não pacotes para importar projeto ou alterar TAGs. Para atualizar os dados, gere novamente: abrir um arquivo exportado depois não o transforma numa consulta ao vivo. Confira se a planilha/CSV apresenta unidades, datas e decimais como o destinatário espera.",
+          "fields": null
+        },
+        {
+          "heading": "Problemas que exigem verificações diferentes",
+          "body": "Relatório ausente: revisão e autorização. Cabeçalho visível sem Detalhe: consulta sem linhas, período/filtros/captura. Campo vazio ou erro: campo e consulta referenciados, tipo e parâmetros. Número inesperado: resolução, função, unidade apenas rotulada e escopo de resumo. Layout cortado: milímetros, largura útil e altura da seção. Dados antigos: confira quando a execução foi gerada e gere de novo. Uma falha não deve ser tratada alterando a permissão ou a unidade às cegas.",
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "historian.capture-query",
+      "category": "historian",
+      "title": "Historian: configurar captura e conferir o histórico",
+      "summary": "Escolha o que gravar, em que condições e como verificar o que realmente foi armazenado.",
+      "relatedTopicIds": [
+        "historian.overview",
+        "runtime.history",
+        "reports.data-designer",
+        "tags.quality",
+        "tags.timestamps",
+        "database.topology",
+        "intelligence.analysis-guide"
+      ],
+      "sections": [
+        {
+          "heading": "Onde configurar e onde consultar",
+          "body": "Engenharia > Historian lista os TAGs com histórico habilitado e resume estratégia, deadband e período. Para alterar a captura de um TAG, abra Engenharia > TAGs, selecione-o e expanda Histórico/Historian no editor. O monitor ao vivo lê o valor corrente; Histórico, Relatórios e Intelligence dependem de amostras armazenadas. Habilitar hoje não recupera o passado.",
+          "fields": null
+        },
+        {
+          "heading": "Campos de captura do TAG",
+          "body": "No campo de estratégia atual, use os nomes aceitos abaixo. Texto desconhecido ou configuração incompleta pode manter a captura legada de todas as observações, em vez da redução de volume esperada. Confira a configuração e as amostras; não suponha economia apenas porque preencheu o campo.",
+          "fields": [
+            {
+              "key": "historian.enabled",
+              "label": "Histórico habilitado",
+              "description": "Autoriza a captura desse TAG. Desabilitar não equivale a apagar o que já foi gravado nem cria um backup.",
+              "example": "Habilitar o TAG de pressão usado no teste",
+              "constraints": ""
+            },
+            {
+              "key": "historian.strategy",
+              "label": "Estratégia",
+              "description": "periodic captura observações respeitando o período; onChange registra mudança de valor; onChangeDeadband exige variação numérica; onChangeDeadbandMaxInterval acrescenta intervalo máximo entre aceites quando chegam observações.",
+              "example": "onChangeDeadbandMaxInterval",
+              "constraints": ""
+            },
+            {
+              "key": "historian.deadband",
+              "label": "Deadband",
+              "description": "Variação mínima absoluta em relação ao último valor aceito, na grandeza capturada. Não é porcentagem nem limite de alarme. Use estratégia numérica compatível.",
+              "example": "0.1 se a resolução desejada for um décimo",
+              "constraints": "Número finito ≥ 0"
+            },
+            {
+              "key": "historian.periodMilliseconds",
+              "label": "Período (ms)",
+              "description": "Usado pela estratégia periodic. 1000 ms = 1 segundo. Seleciona observações que chegam; não aumenta o polling do Driver nem inventa uma amostra quando a fonte fica muda.",
+              "example": "1000",
+              "constraints": "Inteiro positivo"
+            },
+            {
+              "key": "historian.maximumPeriodMilliseconds",
+              "label": "Período máximo (ms)",
+              "description": "Usado por onChangeDeadbandMaxInterval para aceitar uma observação mesmo sem atingir o deadband quando o tempo expirou. Não garante captura durante uma interrupção de comunicação.",
+              "example": "60000 para até um minuto entre aceites com observações chegando",
+              "constraints": "Inteiro positivo"
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo que mostra o efeito do deadband",
+          "body": "Com qualidade constante, deadband 0.1 e último valor aceito 1.00, uma observação 1.03 pode ser descartada pela política; 1.12 ultrapassa o limiar e pode ser aceita. A comparação é com o último aceito, não com toda observação rejeitada. A primeira observação e transições de qualidade têm tratamento próprio e podem ser registradas mesmo sem a variação numérica. No modo com intervalo máximo, uma observação posterior também pode ser aceita pelo tempo. Portanto, não espere contagem calculada só pelo deadband.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento de verificação",
+          "body": "1. Confira o TAG ao vivo, tipo, escala e qualidade. 2. Habilite Histórico e escolha estratégia/campos válidos. 3. Execute Preview/Apply e salve/publique/ative. 4. Produza variações conhecidas numa fonte de teste e anote o intervalo. 5. Abra Histórico do Runtime no mesmo período, selecione Amostras e filtre esse TAG. 6. Confira valores, qualidade, horários e quantidade; compare com a estratégia. 7. Repita com sinal estável e mudança de qualidade. Para usar em Intelligence, confira também timestamp de origem e alinhamento exigidos pela análise.",
+          "fields": null
+        },
+        {
+          "heading": "Consultar: período, filtros e páginas",
+          "body": "Escolha o dataset certo: amostras não são transições de alarmes. Use um período relativo curto ou De/Até válido; o navegador histórico atual limita a janela a 31 dias por consulta. Depois adicione filtros pelos campos/operadores oferecidos pelo schema. O tipo do valor precisa corresponder ao campo: número, booleano, data, texto ou enum não são intercambiáveis. Ordenação controla a ordem, não o filtro. Navegar páginas continua a consulta, não aumenta o período. Se ficar vazio, retire um filtro por vez e confirme que havia captura nesse horário.",
+          "fields": null
+        },
+        {
+          "heading": "Captura, retenção, backup e Playback são diferentes",
+          "body": "Captura decide quais observações entram. Retenção decide por quanto tempo os registros permanecem. Agregação resume amostras; backup preserva uma cópia recuperável. Os campos de captura não são uma cota global do banco nem uma configuração de arquivamento. Playback apresenta valores históricos na visualização de consulta, não restaura o processo nem autoriza comandos; volte ao modo ao vivo antes de operar. Falta de amostras não significa valor zero ou equipamento desligado.",
+          "fields": null
+        }
+      ]
     }
   ],
   "en": [
@@ -1623,6 +1958,341 @@
         "tags.writeability",
         "security.scopes-authority"
       ]
+    },
+    {
+      "id": "reports.data-designer",
+      "category": "reports",
+      "title": "Reports: configure data, period and resolution",
+      "summary": "Start with the question the report should answer before drawing the page.",
+      "relatedTopicIds": [
+        "reports.layout-variables",
+        "reports.runtime-output",
+        "historian.capture-query",
+        "reports.overview",
+        "tags.timestamps"
+      ],
+      "sections": [
+        {
+          "heading": "Prepare verifiable data",
+          "body": "Open Engineering > Reports. Start with a pressure TAG that already has historical capture and a short period with known values. A report queries stored data; it neither enables capture nor recovers unstored history. Have permission to edit and query the selected dataset. Sample history and alarm transitions use different datasets.",
+          "fields": null
+        },
+        {
+          "heading": "Identification and query source",
+          "body": "Create or select a report. Use reference selectors instead of inventing IDs. These fields configure the definition; executing a preview is separate.",
+          "fields": [
+            {
+              "key": "report.name",
+              "label": "Name, identifier and description",
+              "description": "Name appears in the list; identifier preserves references; description explains purpose/context. Renaming creates no new data.",
+              "example": "Pump pressure — shift",
+              "constraints": ""
+            },
+            {
+              "key": "query.dataQueryId",
+              "label": "Saved Data Query or embedded query",
+              "description": "A Data Query reuses an existing definition; an embedded query belongs to the report. Check the selection before changing layout. The editor does not accept arbitrary SQL.",
+              "example": "Embedded query for the first example",
+              "constraints": ""
+            },
+            {
+              "key": "query.datasetKey",
+              "label": "Data source / dataset",
+              "description": "historian.samples queries samples; alarm.events queries alarm occurrences/transitions. Fields depend on this choice; switching datasets may invalidate layout fields.",
+              "example": "historian.samples",
+              "constraints": ""
+            },
+            {
+              "key": "timeRange.default",
+              "label": "Default period and preview period",
+              "description": "Default belongs to the definition; preview period selects the current test window. Use the editor unit. One hour is 3600 seconds; this is not a row count.",
+              "example": "Last hour to check a small sample",
+              "constraints": ""
+            },
+            {
+              "key": "variables",
+              "label": "Report data / variables",
+              "description": "Add TAGs through the reference browser. Check path, type and unit; configure each variable presentation separately.",
+              "example": "Pump 01 pressure TAG",
+              "constraints": ""
+            },
+            {
+              "key": "query.page.limit",
+              "label": "Rows per page",
+              "description": "Requested query page size; inspect the returned count. It does not define Historian retention duration.",
+              "example": "50",
+              "constraints": "1–200"
+            }
+          ]
+        },
+        {
+          "heading": "Choose data retrieval/presentation",
+          "body": "Resolution is a query choice; it changes neither capture nor stored raw samples. Report aggregation does not configure permanent database aggregation policy.",
+          "fields": [
+            {
+              "key": "resolution.mode",
+              "label": "Raw, fixed interval or summary",
+              "description": "Raw examines stored samples; fixed interval retrieves on defined steps; summary applies a function per bucket. An average may hide a peak; inspect raw data to investigate.",
+              "example": "Raw for checking; hourly summary for overview",
+              "constraints": ""
+            },
+            {
+              "key": "resolution.intervalMilliseconds",
+              "label": "Fixed interval",
+              "description": "Choose spacing between retrieval positions. It is neither Driver polling nor a guarantee of a sample at every position. Missing data remains significant.",
+              "example": "5 minutes if suitable for the question",
+              "constraints": ""
+            },
+            {
+              "key": "resolution.aggregateFunction",
+              "label": "Aggregation and bucket",
+              "description": "Average, min, max, sum, count, first and last differ. Choose bucket width. Summing flow readings does not automatically calculate production volume; integration and appropriate units would be needed.",
+              "example": "Hourly maximum to look for peaks",
+              "constraints": ""
+            },
+            {
+              "key": "tableLayout",
+              "label": "Long or wide table",
+              "description": "Long organizes sample rows; wide organizes intervals for comparing variables. Wide is disabled for raw mode.",
+              "example": "Long to inspect samples",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "First test before final layout",
+          "body": "1. Use an embedded historian.samples query. 2. Add a known TAG. 3. Choose a short period and Raw. 4. Run Preview; inspect rows, times, values and available quality. 5. Switch to Summary, Maximum and hourly buckets; compare with raw data without expecting identical output. 6. Then arrange the page and validate. For no rows, check TAG, period, capture and permission before changing fonts, widths or colors.",
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "reports.layout-variables",
+      "category": "reports",
+      "title": "Reports: page, variables, fields and summaries",
+      "summary": "Separate the queried value, its format and where it is printed.",
+      "relatedTopicIds": [
+        "reports.data-designer",
+        "reports.runtime-output",
+        "reports.overview",
+        "engineering.lifecycle"
+      ],
+      "sections": [
+        {
+          "heading": "Understand the page",
+          "body": "Use Design to edit and Preview to inspect execution. Dimensions are millimeters, not Runtime screen pixels. Portrait is vertical; Landscape horizontal. Content must fit usable width after margins. Preview zoom does not change print dimensions.",
+          "fields": null
+        },
+        {
+          "heading": "How to format a variable",
+          "body": "The variable remains linked to its selected TAG. These fields change presentation, not calibration or conversion by relabelling.",
+          "fields": [
+            {
+              "key": "variables.visible",
+              "label": "Show column and order",
+              "description": "Choose visibility and use Move up/down for order. Removing a report variable does not delete its TAG.",
+              "example": "Pressure before current",
+              "constraints": ""
+            },
+            {
+              "key": "variables.displayLabel",
+              "label": "Display label",
+              "description": "Readable variable heading, distinct from TAG identity.",
+              "example": "Discharge pressure",
+              "constraints": ""
+            },
+            {
+              "key": "variables.unitMode",
+              "label": "Automatic, hidden or custom unit label",
+              "description": "Automatic uses the TAG unit; Hidden omits it; custom label changes text only. Labelling a bar value psi does not convert it.",
+              "example": "Automatic when the unit is correct",
+              "constraints": ""
+            },
+            {
+              "key": "variables.decimalPlaces",
+              "label": "Decimals and numeric format",
+              "description": "Choose standard, fixed or scientific. Decimals affect display, not accuracy or stored value. Do not round away relevant variation.",
+              "example": "One place for tenths",
+              "constraints": "0–15 places in the editor"
+            },
+            {
+              "key": "variables.dateTimeFormat",
+              "label": "Date/time and Boolean labels",
+              "description": "Choose local date/time, date, time or ISO 8601. Set meaningful True/False labels; missing data is not False.",
+              "example": "Running / Stopped only if that is the meaning",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Layout sections and controls",
+          "body": "Report header/footer apply to the report; page header/footer repeat per page. Detail receives query rows; group header/footer follows grouping. Detail may be empty while the title remains visible if there are no rows. Start with Label and Field, the directly offered insertion controls.",
+          "fields": [
+            {
+              "key": "sections.heightMillimeters",
+              "label": "Section height",
+              "description": "Reserved band space. A taller control can be clipped; increasing height creates no data rows.",
+              "example": "Fit the band to its content",
+              "constraints": ""
+            },
+            {
+              "key": "controls.geometry",
+              "label": "X, Y, width and height (mm)",
+              "description": "Layout position/size. Check section bounds and usable width; these are not monitor coordinates.",
+              "example": "Field inside the Detail band",
+              "constraints": ""
+            },
+            {
+              "key": "controls.text",
+              "label": "Label text",
+              "description": "Fixed content such as a title. Use Field for row values; typing a TAG path into a label creates no binding.",
+              "example": "Shift readings",
+              "constraints": ""
+            },
+            {
+              "key": "controls.queryKey",
+              "label": "Query and field",
+              "description": "Query selects a result; Field must exist in its dataset. Use its exposed schema name, such as value or timestamp for samples, not an invented name.",
+              "example": "Query main / field value",
+              "constraints": ""
+            },
+            {
+              "key": "controls.assetId",
+              "label": "Image asset",
+              "description": "An image control needs an existing resolved asset. If the picker does not offer it, do not invent an ID; use editable controls and check configuration availability.",
+              "example": "Existing asset when available",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Grouping is not temporal aggregation",
+          "body": "Group by organizes rows by a selected field with ascending/descending order. A summary selects field, function and scope: group or entire report. Time bucket width comes from Resolution, not group names. Do not sum already aggregated data blindly. Count means records, not operating hours. Manually check a small group before trusting totals.",
+          "fields": null
+        },
+        {
+          "heading": "From preview to active revision",
+          "body": "1. Build a title, Detail and real fields. 2. Preview data and inspect pagination/clipping. 3. Validate references/structure. 4. Apply only a valid candidate; refresh/revalidate if the project changes. 5. Save/publish/activate. 6. Generate in Runtime with the same test parameters and compare. A preview execution is not a saved definition or an active revision.",
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "reports.runtime-output",
+      "category": "reports",
+      "title": "Runtime reports: generate, check and export",
+      "summary": "Output belongs to one execution with its own period and parameters.",
+      "relatedTopicIds": [
+        "reports.data-designer",
+        "reports.layout-variables",
+        "runtime.history",
+        "security.users-roles-capabilities"
+      ],
+      "sections": [
+        {
+          "heading": "Find the available report",
+          "body": "Open Runtime Reports and search by name. The list depends on active revision and session authorization. Engineering access or a report object on a screen does not grant every data query. For an empty list check revision and permissions before recreating definitions.",
+          "fields": null
+        },
+        {
+          "heading": "Period, parameters and execution",
+          "body": "1. Select a report. 2. Choose relative or From/To where the definition permits. Relative time is resolved for execution; repeating later may use another window. 3. For absolute time choose start before end and check timezone. 4. Enter correctly typed/allowed parameters, not arbitrary text for numbers/dates/Booleans. 5. Generate and wait; cancellation stops the request without deleting the definition. 6. Inspect generation time, window and used parameters before interpreting output.",
+          "fields": null
+        },
+        {
+          "heading": "Preview, PDF, spreadsheet and print",
+          "body": "Use page navigation/zoom for inspection; fit-to-width does not change the definition. PDF/print provide paginated presentation; XLSX/CSV support work on the output. They export results, not Engineering packages or TAG edits. Regenerate for updated data; opening an old export does not make it live. Check spreadsheet/CSV unit, date and decimal interpretation for the recipient.",
+          "fields": null
+        },
+        {
+          "heading": "Problems needing different checks",
+          "body": "Missing report: revision/authorization. Header without Detail: empty query, period/filters/capture. Blank/error field: field/query references, type and parameters. Unexpected number: resolution, function, label-only unit and summary scope. Clipping: millimeters, usable width and band height. Old data: inspect execution time and regenerate. Do not blindly change permissions or units to hide failure.",
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "historian.capture-query",
+      "category": "historian",
+      "title": "Historian: configure capture and check history",
+      "summary": "Choose what to record, under which conditions and how to verify storage.",
+      "relatedTopicIds": [
+        "historian.overview",
+        "runtime.history",
+        "reports.data-designer",
+        "tags.quality",
+        "tags.timestamps",
+        "database.topology",
+        "intelligence.analysis-guide"
+      ],
+      "sections": [
+        {
+          "heading": "Where to configure and query",
+          "body": "Engineering > Historian lists enabled historical TAGs and summarizes strategy, deadband and period. Configure a TAG in Engineering > TAGs by selecting it and expanding History/Historian. Live monitoring reads current values; History, Reports and Intelligence need stored samples. Enabling today does not recover the past.",
+          "fields": null
+        },
+        {
+          "heading": "TAG capture fields",
+          "body": "Use the accepted names below in the current strategy field. Unknown text or incomplete settings may retain legacy all-observation capture rather than expected volume reduction. Inspect configuration/samples instead of assuming savings from filling a field.",
+          "fields": [
+            {
+              "key": "historian.enabled",
+              "label": "History enabled",
+              "description": "Enables this TAG capture. Disabling neither deletes existing history nor creates a backup.",
+              "example": "Enable the pressure TAG used in the test",
+              "constraints": ""
+            },
+            {
+              "key": "historian.strategy",
+              "label": "Strategy",
+              "description": "periodic captures observations respecting a period; onChange records value changes; onChangeDeadband requires numeric variation; onChangeDeadbandMaxInterval adds a maximum interval between accepted arriving observations.",
+              "example": "onChangeDeadbandMaxInterval",
+              "constraints": ""
+            },
+            {
+              "key": "historian.deadband",
+              "label": "Deadband",
+              "description": "Minimum absolute change from the last accepted captured value. It is neither a percentage nor alarm limit. Use a compatible numeric strategy.",
+              "example": "0.1 for a desired tenth-unit change",
+              "constraints": "Finite number ≥ 0"
+            },
+            {
+              "key": "historian.periodMilliseconds",
+              "label": "Period (ms)",
+              "description": "Used by periodic. 1000 ms = 1 second. It selects arriving observations, not faster Driver polling or invented samples when the source is silent.",
+              "example": "1000",
+              "constraints": "Positive integer"
+            },
+            {
+              "key": "historian.maximumPeriodMilliseconds",
+              "label": "Maximum period (ms)",
+              "description": "Used by onChangeDeadbandMaxInterval to accept an arriving observation when time elapses despite small change. Does not guarantee capture during communication outage.",
+              "example": "60000 for up to one minute between accepts while observations arrive",
+              "constraints": "Positive integer"
+            }
+          ]
+        },
+        {
+          "heading": "Example showing deadband effects",
+          "body": "With constant quality, deadband 0.1 and last accepted value 1.00, observation 1.03 can be skipped; 1.12 crosses the threshold and can be accepted. Comparison uses the last accepted value, not each rejected observation. First observation and quality transitions have their own handling and can be recorded without numeric change. Maximum-interval mode may also accept a later observation by elapsed time. Counts therefore cannot be inferred from deadband alone.",
+          "fields": null
+        },
+        {
+          "heading": "Verification procedure",
+          "body": "1. Inspect live TAG type/scale/quality. 2. Enable History and valid strategy/fields. 3. Preview/Apply and save/publish/activate. 4. Produce known test-source changes and note the period. 5. Open Runtime History for that period, select Samples and filter the TAG. 6. Check values, quality, times and count against the strategy. 7. Repeat for steady values and quality change. For Intelligence also check source timestamps and required alignment.",
+          "fields": null
+        },
+        {
+          "heading": "Query: period, filters and pages",
+          "body": "Select the right dataset: samples are not alarm transitions. Use a short relative or valid From/To period; the current history browser limits a query window to 31 days. Add schema-offered fields/operators with correctly typed numeric/Boolean/date/text/enum values. Sorting changes order, not filters. Paging continues the query without enlarging its period. For empty results remove filters one at a time and verify capture existed then.",
+          "fields": null
+        },
+        {
+          "heading": "Capture, retention, backup and Playback differ",
+          "body": "Capture decides admitted observations; retention decides storage duration; aggregation summarizes samples; backup preserves a recoverable copy. Capture fields are neither a global database quota nor archival configuration. Playback displays historical values in the current visualization, not process restoration or command authorization; return to live before operating. Missing samples mean neither zero nor stopped equipment.",
+          "fields": null
+        }
+      ]
     }
   ],
   "es": [
@@ -2435,6 +3105,341 @@
         "tags.overview",
         "tags.writeability",
         "security.scopes-authority"
+      ]
+    },
+    {
+      "id": "reports.data-designer",
+      "category": "reports",
+      "title": "Informes: configurar datos, período y resolución",
+      "summary": "Empiece por la pregunta que debe responder antes de dibujar la página.",
+      "relatedTopicIds": [
+        "reports.layout-variables",
+        "reports.runtime-output",
+        "historian.capture-query",
+        "reports.overview",
+        "tags.timestamps"
+      ],
+      "sections": [
+        {
+          "heading": "Prepare datos comprobables",
+          "body": "Abra Ingeniería > Informes. Empiece con un TAG de presión con captura existente y período corto de valores conocidos. Un informe consulta datos guardados; no habilita captura ni recupera pasado no almacenado. Necesita permisos de edición y consulta. Histórico de muestras y transiciones de alarmas usan fuentes distintas.",
+          "fields": null
+        },
+        {
+          "heading": "Identificación y origen de consulta",
+          "body": "Cree o seleccione informe. Use selectores en lugar de inventar IDs. Estos campos configuran definición; ejecutar vista previa es otra acción.",
+          "fields": [
+            {
+              "key": "report.name",
+              "label": "Nombre, identificador y descripción",
+              "description": "Nombre aparece en lista; identificador conserva referencias; descripción explica objetivo/contexto. Renombrar no crea datos.",
+              "example": "Presión de bomba — turno",
+              "constraints": ""
+            },
+            {
+              "key": "query.dataQueryId",
+              "label": "Data Query guardada o consulta incorporada",
+              "description": "Data Query reutiliza definición existente; incorporada pertenece al informe. Compruebe selección antes del diseño. El editor no admite SQL libre.",
+              "example": "Consulta incorporada para primer ejemplo",
+              "constraints": ""
+            },
+            {
+              "key": "query.datasetKey",
+              "label": "Fuente de datos / dataset",
+              "description": "historian.samples consulta muestras; alarm.events ocurrencias/transiciones de alarmas. Los campos dependen de elección; cambiar dataset puede invalidar campos.",
+              "example": "historian.samples",
+              "constraints": ""
+            },
+            {
+              "key": "timeRange.default",
+              "label": "Período predeterminado y de vista previa",
+              "description": "Predeterminado pertenece a definición; período de vista previa elige ventana actual. Use unidad del editor. Una hora son 3600 segundos; no es número de filas.",
+              "example": "Última hora para comprobar pocas muestras",
+              "constraints": ""
+            },
+            {
+              "key": "variables",
+              "label": "Datos del informe / variables",
+              "description": "Añada TAGs desde navegador de referencias. Compruebe ruta/tipo/unidad; configure presentación por variable.",
+              "example": "TAG de presión Bomba 01",
+              "constraints": ""
+            },
+            {
+              "key": "query.page.limit",
+              "label": "Filas por página",
+              "description": "Tamaño de página solicitado; compruebe cantidad devuelta. No define retención de Historian.",
+              "example": "50",
+              "constraints": "1–200"
+            }
+          ]
+        },
+        {
+          "heading": "Elija cómo presentar datos",
+          "body": "Resolución es elección de consulta; no cambia captura ni elimina muestras brutas. Agregar en informe no configura política permanente de la base.",
+          "fields": [
+            {
+              "key": "resolution.mode",
+              "label": "Bruto, intervalo fijo o resumen",
+              "description": "Bruto examina muestras; intervalo fijo recupera por pasos; resumen aplica función por intervalo. Un promedio puede ocultar pico: revise bruto.",
+              "example": "Bruto para comprobar; resumen horario para visión general",
+              "constraints": ""
+            },
+            {
+              "key": "resolution.intervalMilliseconds",
+              "label": "Intervalo fijo",
+              "description": "Elija separación entre posiciones de consulta. No es polling del Driver ni garantiza muestra en cada posición. Los huecos siguen importando.",
+              "example": "5 minutos si responde a la pregunta",
+              "constraints": ""
+            },
+            {
+              "key": "resolution.aggregateFunction",
+              "label": "Agregación y agrupar cada",
+              "description": "Promedio, mínimo, máximo, suma, conteo, primero y último difieren. Elija intervalo. Sumar caudales no calcula automáticamente volumen; necesitaría integración/unidades adecuadas.",
+              "example": "Máximo por hora para buscar picos",
+              "constraints": ""
+            },
+            {
+              "key": "tableLayout",
+              "label": "Tabla larga o ancha",
+              "description": "Larga organiza muestras por filas; ancha organiza intervalos para comparar variables. En bruto, ancha está deshabilitada.",
+              "example": "Larga para inspeccionar muestras",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Primera prueba antes del diseño final",
+          "body": "1. Use consulta incorporada historian.samples. 2. Añada TAG conocido. 3. Período corto y Bruto. 4. Ejecute Preview y compruebe filas/horas/valores/calidad disponible. 5. Cambie a Resumen, Máximo e intervalo horario; compare sin esperar igualdad. 6. Después diseñe/valide. Sin filas revise TAG/período/captura/permiso antes de fuentes, anchos o colores.",
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "reports.layout-variables",
+      "category": "reports",
+      "title": "Informes: página, variables, campos y resúmenes",
+      "summary": "Separe valor consultado, formato y lugar donde se imprime.",
+      "relatedTopicIds": [
+        "reports.data-designer",
+        "reports.runtime-output",
+        "reports.overview",
+        "engineering.lifecycle"
+      ],
+      "sections": [
+        {
+          "heading": "Comprenda la página",
+          "body": "Use Diseño para editar y Vista previa para ejecución. Dimensiones en milímetros, no píxeles Runtime. Vertical/Horizontal cambian orientación. Contenido debe caber tras márgenes. Zoom de vista previa no cambia dimensiones impresas.",
+          "fields": null
+        },
+        {
+          "heading": "Cómo dar formato a una variable",
+          "body": "La variable sigue vinculada al TAG. Estos campos cambian presentación, no calibración ni conversión por rótulo.",
+          "fields": [
+            {
+              "key": "variables.visible",
+              "label": "Mostrar columna y orden",
+              "description": "Elija visibilidad y Mover arriba/abajo. Quitar variable no elimina TAG.",
+              "example": "Presión antes de corriente",
+              "constraints": ""
+            },
+            {
+              "key": "variables.displayLabel",
+              "label": "Rótulo visible",
+              "description": "Cabecera legible, distinta de identidad TAG.",
+              "example": "Presión de descarga",
+              "constraints": ""
+            },
+            {
+              "key": "variables.unitMode",
+              "label": "Unidad automática, oculta o rótulo propio",
+              "description": "Automática usa unidad TAG; Oculta no muestra; rótulo propio solo cambia texto. Etiquetar psi un valor bar no convierte.",
+              "example": "Automática si la unidad es correcta",
+              "constraints": ""
+            },
+            {
+              "key": "variables.decimalPlaces",
+              "label": "Decimales y formato numérico",
+              "description": "Elija estándar, fijo o científico. Decimales afectan presentación, no exactitud/valor guardado. No oculte variación relevante.",
+              "example": "Una posición para décimas",
+              "constraints": "0–15 posiciones en editor"
+            },
+            {
+              "key": "variables.dateTimeFormat",
+              "label": "Fecha/hora y textos booleanos",
+              "description": "Elija fecha/hora local, fecha, hora o ISO 8601. Rótulos Verdadero/Falso deben tener sentido; falta de datos no es Falso.",
+              "example": "Marcha / Paro solo si corresponde",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Secciones y controles del diseño",
+          "body": "Cabecera/pie de informe son del informe; los de página se repiten. Detalle recibe filas; cabecera/pie de grupo dependen de agrupación. Detalle puede quedar vacío con título visible si no hay filas. Empiece con Etiqueta y Campo, ofrecidos directamente.",
+          "fields": [
+            {
+              "key": "sections.heightMillimeters",
+              "label": "Altura de sección",
+              "description": "Espacio reservado. Un control más alto puede cortarse; ampliar no crea filas.",
+              "example": "Ajustar banda al contenido",
+              "constraints": ""
+            },
+            {
+              "key": "controls.geometry",
+              "label": "X, Y, ancho y alto (mm)",
+              "description": "Posición/tamaño de diseño. Revise sección/ancho útil; no son coordenadas del monitor.",
+              "example": "Campo dentro de Detalle",
+              "constraints": ""
+            },
+            {
+              "key": "controls.text",
+              "label": "Texto de etiqueta",
+              "description": "Contenido fijo, como título. Use Campo para valores por fila; escribir ruta TAG en etiqueta no vincula.",
+              "example": "Lecturas de turno",
+              "constraints": ""
+            },
+            {
+              "key": "controls.queryKey",
+              "label": "Consulta y campo",
+              "description": "Consulta elige resultado; Campo debe existir en dataset. Use nombre expuesto, como value o timestamp para muestras, no uno inventado.",
+              "example": "Consulta main / campo value",
+              "constraints": ""
+            },
+            {
+              "key": "controls.assetId",
+              "label": "Recurso de imagen",
+              "description": "Una imagen necesita recurso existente/resuelto. Si selector no lo ofrece, no invente ID; use controles editables y compruebe disponibilidad. ",
+              "example": "Recurso existente cuando disponible",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Agrupación no es agregación temporal",
+          "body": "Agrupar por organiza filas por campo y orden. Un resumen elige campo, función y alcance: grupo o informe entero. Intervalo temporal viene de Resolución, no del nombre de grupo. No sume datos ya agregados sin comprenderlo. Conteo son registros, no horas de funcionamiento. Compruebe grupo pequeño manualmente.",
+          "fields": null
+        },
+        {
+          "heading": "De vista previa a revisión activa",
+          "body": "1. Dibuje título, Detalle y campos reales. 2. Ejecute vista previa y revise páginas/cortes. 3. Valide referencias/estructura. 4. Aplique candidato válido; actualice/valide si cambia proyecto. 5. Guarde/publique/active. 6. Genere en Runtime con iguales parámetros y compare. La vista previa no es definición guardada ni revisión activa.",
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "reports.runtime-output",
+      "category": "reports",
+      "title": "Informes Runtime: generar, comprobar y exportar",
+      "summary": "La salida pertenece a una ejecución con período y parámetros propios.",
+      "relatedTopicIds": [
+        "reports.data-designer",
+        "reports.layout-variables",
+        "runtime.history",
+        "security.users-roles-capabilities"
+      ],
+      "sections": [
+        {
+          "heading": "Encuentre el informe disponible",
+          "body": "Abra Informes Runtime y busque nombre. La lista depende de revisión activa y autorización. Acceso a Ingeniería u objeto visual no concede todas las consultas. Si vacía, revise revisión/permisos antes de recrear.",
+          "fields": null
+        },
+        {
+          "heading": "Período, parámetros y ejecución",
+          "body": "1. Seleccione informe. 2. Elija relativo o Desde/Hasta si definición permite. Relativo se resuelve para ejecución; repetir después puede cambiar ventana. 3. En absoluto inicio antes de fin y zona horaria correcta. 4. Rellene parámetros con tipo/opciones exigidos; número/fecha/booleano no admite cualquier texto. 5. Genere y espere; cancelar no elimina definición. 6. Revise hora de generación, ventana y parámetros antes de interpretar.",
+          "fields": null
+        },
+        {
+          "heading": "Vista previa, PDF, hoja de cálculo e impresión",
+          "body": "Use páginas/zoom para revisar; ajustar ancho no cambia definición. PDF/impresión ofrecen presentación paginada; XLSX/CSV permiten trabajar salida. Exportan resultados, no paquetes Engineering ni cambios TAG. Regenere para actualizar; abrir exportación antigua no la hace en vivo. Compruebe unidades/fechas/decimales para destinatario.",
+          "fields": null
+        },
+        {
+          "heading": "Problemas con comprobaciones distintas",
+          "body": "Informe ausente: revisión/autorización. Cabecera sin Detalle: consulta vacía, período/filtros/captura. Campo vacío/error: referencias/tipo/parámetros. Número inesperado: resolución/función/rótulo de unidad/alcance resumen. Cortes: milímetros/ancho/altura. Datos antiguos: hora de ejecución y regenerar. No cambie permisos/unidades a ciegas.",
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "historian.capture-query",
+      "category": "historian",
+      "title": "Historian: configurar captura y comprobar histórico",
+      "summary": "Elija qué guardar, en qué condiciones y cómo comprobar almacenamiento.",
+      "relatedTopicIds": [
+        "historian.overview",
+        "runtime.history",
+        "reports.data-designer",
+        "tags.quality",
+        "tags.timestamps",
+        "database.topology",
+        "intelligence.analysis-guide"
+      ],
+      "sections": [
+        {
+          "heading": "Dónde configurar y consultar",
+          "body": "Ingeniería > Historian lista TAGs habilitados con estrategia/deadband/período. Para configurar abra TAGs, seleccione y expanda Histórico/Historian. Monitor en vivo lee actual; Histórico/Informes/Intelligence necesitan muestras almacenadas. Habilitar hoy no recupera pasado.",
+          "fields": null
+        },
+        {
+          "heading": "Campos de captura TAG",
+          "body": "Use los nombres admitidos en estrategia. Texto desconocido/configuración incompleta puede mantener captura legada de todas las observaciones, no la reducción esperada. Compruebe configuración/muestras; rellenar no garantiza ahorro.",
+          "fields": [
+            {
+              "key": "historian.enabled",
+              "label": "Histórico habilitado",
+              "description": "Habilita captura TAG. Deshabilitar no elimina histórico ni crea backup.",
+              "example": "Habilite TAG presión de prueba",
+              "constraints": ""
+            },
+            {
+              "key": "historian.strategy",
+              "label": "Estrategia",
+              "description": "periodic respeta período; onChange registra cambios; onChangeDeadband exige variación numérica; onChangeDeadbandMaxInterval añade intervalo máximo entre observaciones aceptadas que llegan.",
+              "example": "onChangeDeadbandMaxInterval",
+              "constraints": ""
+            },
+            {
+              "key": "historian.deadband",
+              "label": "Deadband",
+              "description": "Cambio absoluto mínimo desde último aceptado. No es porcentaje ni límite de alarma. Use estrategia numérica compatible.",
+              "example": "0.1 para cambio de una décima",
+              "constraints": "Número finito ≥ 0"
+            },
+            {
+              "key": "historian.periodMilliseconds",
+              "label": "Período (ms)",
+              "description": "Usado por periodic. 1000 ms = 1 segundo. Selecciona observaciones entrantes, no aumenta polling ni inventa muestras si fuente calla.",
+              "example": "1000",
+              "constraints": "Entero positivo"
+            },
+            {
+              "key": "historian.maximumPeriodMilliseconds",
+              "label": "Período máximo (ms)",
+              "description": "Usado por onChangeDeadbandMaxInterval para aceptar observación al vencer tiempo pese a cambio pequeño. No garantiza captura durante corte de comunicación.",
+              "example": "60000 para hasta un minuto entre aceptaciones con observaciones llegando",
+              "constraints": "Entero positivo"
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo del efecto de deadband",
+          "body": "Con calidad constante, deadband 0.1 y último aceptado 1.00, 1.03 puede omitirse; 1.12 supera umbral. Se compara con último aceptado, no cada rechazado. Primera observación/transiciones de calidad tienen tratamiento propio y pueden guardarse sin variación. Modo de intervalo máximo también acepta por tiempo. No deduzca conteo solo por deadband.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento de comprobación",
+          "body": "1. Revise TAG en vivo/tipo/escala/calidad. 2. Habilite Histórico y estrategia/campos válidos. 3. Preview/Apply y guarde/publique/active. 4. Produzca cambios conocidos de prueba y anote período. 5. Abra Histórico Runtime, Muestras y filtro TAG. 6. Compare valores/calidad/horas/conteo con estrategia. 7. Repita con valor estable y cambio de calidad. Para Intelligence compruebe origen temporal/alineación.",
+          "fields": null
+        },
+        {
+          "heading": "Consultar: período, filtros y páginas",
+          "body": "Elija dataset correcto: muestras no son transiciones de alarma. Use relativo corto o Desde/Hasta válido; navegador actual limita ventana a 31 días por consulta. Añada campos/operadores del schema con tipo correcto: número/booleano/fecha/texto/enum. Ordenar no filtra. Páginas continúan consulta sin ampliar período. Sin resultados quite filtros uno a uno y confirme captura existente.",
+          "fields": null
+        },
+        {
+          "heading": "Captura, retención, backup y Playback difieren",
+          "body": "Captura decide observaciones admitidas; retención cuánto permanecen; agregación resume; backup conserva copia recuperable. Campos de captura no son cuota global ni archivo. Playback presenta valores históricos en la visualización actual, no restaura proceso ni autoriza comandos; vuelva en vivo antes de operar. Sin muestras no significa cero ni equipo parado.",
+          "fields": null
+        }
       ]
     }
   ]

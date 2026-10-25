@@ -270,7 +270,7 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
       <h1>{text.title}</h1>
       <details className="report-designer-help">
         <summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary>
-        <div><p>{text.description}</p><p>{text.authorityHint}</p></div>
+        <div><p>{text.description}</p><p>{text.authorityHint}</p><a href="/help?topic=reports.data-designer">{locale === 'pt-BR' ? 'Como configurar dados, campos e página' : locale === 'es' ? 'Cómo configurar datos, campos y página' : 'How to configure data, fields and page'}</a></div>
       </details>
     </header>
 

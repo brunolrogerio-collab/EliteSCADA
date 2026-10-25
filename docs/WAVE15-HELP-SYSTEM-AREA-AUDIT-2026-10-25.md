@@ -40,8 +40,8 @@ This is a review map, not a new feature backlog or a declaration of completed ac
 | Alarms / Operational Events / Audit | separate current guides | Existing distinction and known product residuals preserved; configuration field walkthrough remains |
 | Templates / Equipment | dedicated contextual guides, chapter 04 | Expanded with creation, stable identity, optional linkage and shared-change effects |
 | Screens / Popups / object fields | prior 31 type references and chapter 05 | Expanded; final real Editor field-position captures and walkthrough remain |
-| Historian / Trends / Runtime History | capture/history/trend-series guides | Current procedures present; capture-profile/retention/query details still to review |
-| Reports | existing report guide | Report authoring/parameters/scheduling/result workflow still to review |
+| Historian / Trends / Runtime History | chapter 07 and historian.capture-query plus current history/trend guides | Capture fields/strategies, verification, query filters/paging and capture-versus-retention expanded; global capacity/archive is queued #779, not claimed as available |
+| Reports | chapter 16 and three detailed authoring/layout/Runtime guides | Data source, period/resolution, variables, sections, groups/summaries, execution and exports expanded; advanced definition-only features are not claimed as fully authored in the UI |
 | Security / Engineering Lock / Licensing | current guides and chapter 08 | Role/scope fields and installed behavior still require final review; future online licensing is not documented as delivered |
 | Intelligence | profiles/context/stages + three new detailed guides, chapter 12 | Activation, fields, interpretation, generation and failure investigation expanded |
 | HA | existing overview + detailed configuration/operation guide, chapter 13 | Fields/states/actions expanded; no new backend/manual operational acceptance claimed |
@@ -54,3 +54,11 @@ This is a review map, not a new feature backlog or a declaration of completed ac
 Keep local/backend content tests, locale/related-link checks, browser discovery/search/history tests, Web build, generated-manual drift checks and exact-head T1 evidence. Failures must be diagnosed, not hidden by retry/timeout changes. Existing Phase-1 overview URLs/tests remain intact; the new detailed HA guide complements the old overview instead of deleting its accepted structure.
 
 User-facing screenshots must be actual system captures. Local Help component images with exact serialized catalog are QA evidence, not substitutes for real Editor/HA/Intelligence operation captures. Final product-interface audit #357 and manual images #425 remain in the agreed sequence. No count of topics, pages or fields closes #424/#425.
+
+## Report/Historian continuation
+
+The active owner direction resumed after recording #779–#782 without implementing those queued features. Added four localized guides and chapters 07/16, sharing installed content: report data/resolution; layout/variables; Runtime generation/export; Historian capture/query. Source: `ReportDesignerWorkspace.tsx`, `reportDesignerModel.ts`, `reportContracts.ts`, `RuntimeReportCenter.tsx`, `SecuredEngineeringEditors.tsx`, `EngineeringApp.HistorianSection`, historical-browser components and `HistorianCapturePolicy.cs`.
+
+Current UI findings: Historian overview is a list; capture fields are edited in TAGs. Unknown/incomplete strategy can use legacy all-observation capture, so do not promise volume savings from arbitrary text. First observations and quality transitions can be recorded irrespective of deadband. Periodic/bounded capture processes arriving observations; it does not manufacture samples during outages. Report retrieval resolution does not alter stored capture/retention. Raw wide-table mode is unavailable. Unit-label changes are presentation, not conversion. Summing flow samples is not volume integration. Playback displays historical values without restoring a project revision.
+
+The designer exposes Label/Field insertion and typed layout/query controls; DTO support alone is not proof that all advanced parameters, scheduling or image choices can be authored through the current UI. No arbitrary SQL, automatic scheduling or completed image authoring is invented by these guides. Existing overview IDs remain reachable and link to the detailed companions. The new capture example is checked against actual Historian admission, including numeric threshold, quality transition and maximum interval.

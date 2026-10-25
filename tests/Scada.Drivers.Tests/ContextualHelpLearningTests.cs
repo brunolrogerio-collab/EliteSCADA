@@ -1,11 +1,48 @@
 using System.Text.Json;
 using Scada.Api.Runtime;
 using Scada.Engineering.VisualScripting;
+using Scada.Core.Events;
+using Scada.Core.Tags;
+using Scada.Historian.Policies;
 
 namespace Scada.Drivers.Tests;
 
 public sealed class ContextualHelpLearningTests
 {
+    [Theory]
+    [InlineData("pt-BR")]
+    [InlineData("en")]
+    [InlineData("es")]
+    public void PublishedHistorianExampleMatchesActualCaptureAdmission(string locale)
+    {
+        var guide = ContextualHelpCatalog.Build(locale).Topics.Single(topic => topic.Id == "historian.capture-query");
+        var prose = string.Join("\n", guide.Sections.Select(section => section.Body));
+        foreach (var exampleValue in new[] { "0.1", "1.00", "1.03", "1.12" })
+            Assert.Contains(exampleValue, prose, StringComparison.Ordinal);
+        var tag = new TagDefinition(Guid.NewGuid(), "Pressure", "Test.Pump.Pressure", TagDataType.Double,
+            Source: "memory.server", EngineeringUnit: "bar", Description: null, ReadOnly: false,
+            Metadata: new Dictionary<string, string>
+            {
+                [HistorianCapturePolicy.EnabledMetadataKey] = "true",
+                [HistorianCapturePolicy.StrategyMetadataKey] = "onChangeDeadbandMaxInterval",
+                [HistorianCapturePolicy.DeadbandMetadataKey] = "0.1",
+                [HistorianCapturePolicy.MaximumPeriodMetadataKey] = "60000"
+            });
+        var admission = new HistorianCaptureAdmission();
+        var start = DateTimeOffset.Parse("2026-10-25T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+        HistorianCaptureDecision Observe(double value, int seconds, TagQuality quality = TagQuality.Good)
+        {
+            var timestamp = start.AddSeconds(seconds);
+            return admission.Evaluate(new TagValueChanged(tag, null,
+                new TagValue(tag.Id, value, timestamp, quality, tag.Source), timestamp));
+        }
+        Assert.True(Observe(1.00, 0).Accepted);
+        Assert.False(Observe(1.03, 1).Accepted);
+        Assert.True(Observe(1.12, 2).Accepted);
+        Assert.True(Observe(1.12, 3, TagQuality.BadCommunication).Accepted);
+        Assert.True(Observe(1.12, 63, TagQuality.BadCommunication).Accepted);
+    }
+
     [Fact]
     public void EveryBuiltInObjectHasAFieldReferenceForItsActualEditableProperties()
     {

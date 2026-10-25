@@ -25,3 +25,6 @@ Ningún contenido material de seguridad, licencias, HA, escrituras/comandos, rec
 - [Encabezado, Móvil, multimedia y ubicaciones](15-PRESENTACION-MULTIMEDIA-UBICACIONES.md)
 
 Consulte el [índice completo](../README.md) y la [matriz de cobertura](../COVERAGE-MATRIX.md).
+
+- [Historian: captura y consulta](07-HISTORIAN-CAPTURA-CONSULTA.md)
+- [Informes: diseño y operación](16-INFORMES.md)

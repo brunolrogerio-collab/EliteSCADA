@@ -16,3 +16,6 @@
 - [Cabeçalho, Mobile, mídia e locais](15-APRESENTACAO-MIDIA-E-LOCAIS.md)
 
 Consulte o [sumário completo](../README.md) e a [matriz de cobertura](../COVERAGE-MATRIX.md). Screenshots finais serão adicionados depois da auditoria das interfaces e devem ser capturados no produto real.
+
+- [Historian: captura e consulta](07-HISTORIAN-CAPTURA-CONSULTA.md)
+- [Relatórios: autoria e operação](16-RELATORIOS.md)

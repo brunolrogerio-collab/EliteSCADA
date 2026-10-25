@@ -1,5 +1,8 @@
 # Wave 15 — Main order and execution contract
 
+Active Help continuation 25/10: four detailed Reports/Historian guides and chapters 07/16 now share installed content. Local catalog/admission 38/38, Web build and 21-file manual alignment passed; published head/browser/T1 outcome is in live #424/#425/#305 and unique #756. Prior `3b491670` passed T1 `40197104867`, not evidence for later code. Read newest LAST CHANGE and the whole-product depth map. Keep #779–#782 queued and Preview untouched; no full Help/manual acceptance is inferred.
+
+
 Owner interruption 25/10: #779–#782 are recorded as authorized operational improvements in `docs/WAVE15-OWNER-OPERATIONAL-GAPS-QUEUE-2026-10-25.md`; return to Help #424/#425, do not start those implementations yet. Help code head `4f9472f4` passed T1 `40195839328`; the queue-only documentation continuation has its own final published gate in the live coordination record. Read the newest LAST CHANGE entry.
 
 

@@ -173,7 +173,7 @@ export function RuntimeReportCenter({ locale }: { locale: Locale }) {
 
   return <main className="shell report-center">
     <header className="report-center__heading">
-      <div><h1>{t.title}</h1></div>
+      <div><h1>{t.title}</h1><a href="/help?topic=reports.runtime-output">{locale === 'pt-BR' ? 'Ajuda para gerar e exportar' : locale === 'es' ? 'Ayuda para generar y exportar' : 'Help generating and exporting'}</a></div>
       <input aria-label={t.search} placeholder={t.search} value={filter} onChange={e => setFilter(e.target.value)} />
     </header>
     {error && <p role="alert" className="report-center__error">{error}</p>}

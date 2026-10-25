@@ -138,7 +138,11 @@ public static partial class ContextualHelpCatalog
         "intelligence.analysis-guide",
         "application.presentation",
         "sources.media",
-        "home-building.organization"
+        "home-building.organization",
+        "reports.data-designer",
+        "reports.layout-variables",
+        "reports.runtime-output",
+        "historian.capture-query"
     };
 
     private static readonly IReadOnlyCollection<TopicDefinition> ManualTopics = BuildManualTopics()

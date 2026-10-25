@@ -7,15 +7,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / 'src/Scada.Api/Runtime/HelpGuides/system-guides.json'
 CHAPTERS = {
-    'pt-BR': [('04-TEMPLATES-E-EQUIPAMENTOS.md', 'Templates e Equipamentos', ['templates.overview', 'equipment.overview']),
+    'pt-BR': [('07-HISTORIAN-CAPTURA-CONSULTA.md', 'Historian: captura e consulta', ['historian.capture-query']), ('16-RELATORIOS.md', 'Relatórios: autoria e operação', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-TEMPLATES-E-EQUIPAMENTOS.md', 'Templates e Equipamentos', ['templates.overview', 'equipment.overview']),
               ('13-ALTA-DISPONIBILIDADE.md', 'Alta disponibilidade: configuração e operação', ['ha.configuration-operation']),
               ('14-BANCO-DE-DADOS.md', 'Banco de dados: configuração, migração e recuperação', ['database.topology']),
               ('15-APRESENTACAO-MIDIA-E-LOCAIS.md', 'Apresentação, mídia e locais', ['application.presentation', 'sources.media', 'home-building.organization'])],
-    'en': [('04-TEMPLATES-AND-EQUIPMENT.md', 'Templates and Equipment', ['templates.overview', 'equipment.overview']),
+    'en': [('07-HISTORIAN-CAPTURE-QUERY.md', 'Historian: capture and queries', ['historian.capture-query']), ('16-REPORTS.md', 'Reports: authoring and operation', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-TEMPLATES-AND-EQUIPMENT.md', 'Templates and Equipment', ['templates.overview', 'equipment.overview']),
            ('13-HIGH-AVAILABILITY.md', 'High Availability: configuration and operation', ['ha.configuration-operation']),
            ('14-DATABASE.md', 'Database: configuration, migration and recovery', ['database.topology']),
            ('15-PRESENTATION-MEDIA-LOCATIONS.md', 'Presentation, media and locations', ['application.presentation', 'sources.media', 'home-building.organization'])],
-    'es': [('04-PLANTILLAS-Y-EQUIPOS.md', 'Plantillas y Equipos', ['templates.overview', 'equipment.overview']),
+    'es': [('07-HISTORIAN-CAPTURA-CONSULTA.md', 'Historian: captura y consulta', ['historian.capture-query']), ('16-INFORMES.md', 'Informes: diseño y operación', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-PLANTILLAS-Y-EQUIPOS.md', 'Plantillas y Equipos', ['templates.overview', 'equipment.overview']),
            ('13-ALTA-DISPONIBILIDAD.md', 'Alta disponibilidad: configuración y operación', ['ha.configuration-operation']),
            ('14-BASE-DE-DATOS.md', 'Base de datos: configuración, migración y recuperación', ['database.topology']),
            ('15-PRESENTACION-MULTIMEDIA-UBICACIONES.md', 'Presentación, multimedia y ubicaciones', ['application.presentation', 'sources.media', 'home-building.organization'])]
@@ -69,7 +69,8 @@ def main():
             path.write_text(content, encoding='utf-8')
     if stale:
         raise SystemExit('Manual/Help source mismatch: ' + ', '.join(stale))
-    print('Manual/Help source alignment: 15 files checked.' if args.check else 'Updated 15 localized manual files.')
+    total = sum(len(chapters) for chapters in CHAPTERS.values()) + len(INTELLIGENCE)
+    print(f'Manual/Help source alignment: {total} files checked.' if args.check else f'Updated {total} localized manual files.')
 
 if __name__ == '__main__':
     main()

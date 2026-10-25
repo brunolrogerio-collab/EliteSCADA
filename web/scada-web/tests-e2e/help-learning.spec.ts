@@ -98,3 +98,25 @@ test('system tasks are discoverable and their field references stay localized', 
   await page.goto('/help?topic=templates.overview');
   await expect(page.locator('article ol.help-page__steps > li')).toHaveCount(7);
 });
+
+test('report and history tasks explain fields and distinguish retrieval from capture', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=reports.data-designer');
+  const article = page.locator('article');
+  await expect(article.getByRole('rowheader', { name: /Bruto, intervalo fixo ou resumo/ })).toBeVisible();
+  await expect(article).toContainText('Somar leituras de vazão não calcula automaticamente volume');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('Summing flow readings does not automatically calculate production volume');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('Sumar caudales no calcula automáticamente volumen');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.goto('/help?topic=historian.capture-query');
+  await expect(article).toContainText('onChangeDeadbandMaxInterval');
+  await expect(article).toContainText('não aumenta o polling do Driver');
+  await expect(article.getByRole('rowheader', { name: /Período máximo/ })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('help-historian-fields.png'), fullPage: true });
+  await page.goto('/help?topic=reports.layout-variables');
+  await expect(article).toContainText('escrever psi num valor em bar não faz a conversão');
+  await page.goto('/help?topic=reports.runtime-output');
+  await expect(article).toContainText('São exportações do resultado, não pacotes');
+});

@@ -23,5 +23,8 @@ test('routes resolve to stable contextual Help topics with a safe fallback', () 
   expect(contextualHelpTopic('/audit/events')).toBe('audit.overview');
   expect(contextualHelpTopic('/licensing')).toBe('licensing.overview');
   expect(contextualHelpTopic('/runtime/history')).toBe('runtime.history');
+  expect(contextualHelpTopic('/runtime/reports')).toBe('reports.runtime-output');
+  expect(contextualHelpTopic('/engineering/reports')).toBe('reports.data-designer');
+  expect(contextualHelpTopic('/engineering/historian')).toBe('historian.capture-query');
   expect(contextualHelpTopic('/unknown')).toBe('runtime.overview');
 });

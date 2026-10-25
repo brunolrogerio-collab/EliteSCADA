@@ -225,3 +225,5 @@ O núcleo pt-BR contém procedimentos para os fluxos disponíveis. Conteúdo de 
 ## Guias detalhados por área
 
 Além dos capítulos de telas e scripts, os índices pt-BR/en/es incluem Templates/Equipamentos (04), Intelligence (12), HA (13), Banco de Dados (14) e Apresentação/Mídia/Locais (15). A Ajuda instalada contém os mesmos guias de campos e tarefas, com busca, áreas e entradas contextuais. A [matriz de profundidade](../WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md) registra o que ainda precisa de revisão; a existência de um capítulo não significa conclusão do manual.
+
+Os capítulos 07 (Historian: captura e consulta) e 16 (Relatórios: autoria e operação) estão nos três índices. Aprofundam campos, estratégias, resolução, layout, execução e exportação; não apresentam a futura administração global de capacidade/arquivo como disponível.

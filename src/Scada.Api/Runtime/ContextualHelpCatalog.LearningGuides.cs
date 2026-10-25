@@ -20,6 +20,9 @@ public static partial class ContextualHelpCatalog
             "engineering.shell-navigation" or "help.find-your-way" => ["help.application-map", "templates.overview", "equipment.overview", "database.topology", "ha.overview"],
             "dynamos.overview" or "libraries.reusable-resources" => ["templates.overview", "equipment.overview"],
             "ha.overview" => ["ha.configuration-operation", "database.topology"],
+            "reports.overview" => ["reports.data-designer", "reports.layout-variables", "reports.runtime-output", "historian.capture-query"],
+            "historian.overview" or "tags.overview" => ["historian.capture-query", "reports.data-designer"],
+            "runtime.history" => ["historian.capture-query", "reports.runtime-output"],
             "visual.object.core.trend" or "trends.overview" => ["visual.trend-series"],
             "visual.object.core.alarmbrowser" or "visual.object.core.eventbrowser" => ["visual.browser-filters"],
             _ => []

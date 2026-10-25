@@ -25,3 +25,6 @@ No security, licensing, HA, write/command, recovery or critical-warning material
 - [Header, Mobile, media and locations](15-PRESENTATION-MEDIA-LOCATIONS.md)
 
 See [the full table of contents](../README.md) and [coverage matrix](../COVERAGE-MATRIX.md).
+
+- [Historian: capture and queries](07-HISTORIAN-CAPTURE-QUERY.md)
+- [Reports: authoring and operation](16-REPORTS.md)

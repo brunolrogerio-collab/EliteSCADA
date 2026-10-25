@@ -1,4 +1,4 @@
-# EliteSCADA Manual — English
+# SCADIVO Manual — English
 
 The English locale is being filled in bounded chapters from verified stable product behavior. The Fundamentals, Engineering/Data Sources/TAGs, Operations/Security/Licensing, Application Management/Recovery, and Scripting chapters are available below; this partial translation does not mean the full manual or language parity is complete. Final terminology/localization and semantic-parity review remain required.
 
@@ -13,6 +13,8 @@ No security, licensing, HA, write/command, recovery or critical-warning material
 - [EliteSCADA Fundamentals](01-ELITESCADA-FUNDAMENTALS.md) — user-facing architecture, Engineering/Runtime, Authority/License/Historian boundaries, and the project lifecycle.
 
 - [Engineering, Data Sources, and TAGs](03-ENGINEERING-DATA-SOURCES-TAGS.md) — stable Engineering lifecycle, Data Source setup, TAG addressing/quality/scaling, writes, commissioning, duplication, sequential Modbus generation, and Historian profile boundaries.
+
+- [Screens, Popups and objects](05-SCREENS-AND-OBJECTS.md) — editor orientation, a first-screen walkthrough, property choices, readings/writes, dynamics/actions, Popups, arrangement, reusable assets and troubleshooting.
 
 - [Scripting, Alarms, and History](06-SCRIPTING-ALARMS-HISTORY.md) — stable Server Script and Client Visual guidance, APIs, examples, Runtime boundaries, alarms/events/audit distinctions, Historian/Trends, and current Historical Time Range/Playback procedures.
 - [Asset and Process Intelligence](12-ASSET-PROCESS-INTELLIGENCE.md) — current profile, context, process-stage, analysis, and editable Screen-draft workflows; review as the product evolves.

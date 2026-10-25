@@ -1,4 +1,4 @@
-# EliteSCADA — Manual completo
+# SCADIVO — Manual completo
 
 Este diretório é a documentação de produto de longa duração para usuários, engenheiros de automação, autores HMI e de Scripts, administradores, responsáveis por segurança/licenciamento, operação e manutenção.
 
@@ -9,6 +9,8 @@ A Ajuda contextual do produto é curta e orientada à tarefa. Este manual aprofu
 - `pt-BR/`: conteúdo-base de autoria da Fase 1.
 - `en/` e `es/`: capítulos estáveis traduzidos de forma incremental; os capítulos restantes e a paridade semântica final ainda estão pendentes.
 - `COVERAGE-MATRIX.md`: matriz editorial por capítulo, dependências e estado de screenshot.
+
+A parte de Telas e Objetos tem um capítulo de trabalho nos três idiomas: [português](pt-BR/05-TELAS-E-OBJETOS.md), [English](en/05-SCREENS-AND-OBJECTS.md) e [español](es/05-PANTALLAS-Y-OBJETOS.md). O texto cobre o editor disponível e não depende das capturas finais; elas serão acrescentadas após a auditoria visual.
 
 ## Regras editoriais
 

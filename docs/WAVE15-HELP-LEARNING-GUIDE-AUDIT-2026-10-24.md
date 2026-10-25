@@ -46,6 +46,12 @@ A test guard initially matched the implementation-brand token `Vite` inside the 
 
 ## Acceptance still required
 
+### Manual follow-through — 25 October 2026
+
+The continuation audit found an obsolete editorial block: coverage rows 30–43 still called the entire Screen/Popup/object chapter `BLOCKED_PRODUCT`, although current editor sources and installed Help already support writing its procedures. Added chapter 05 in pt-BR/en/es: panel locations, a complete first-screen exercise, field purposes, object selection, Trend series, dynamics, direct actions versus Script handlers, Popup opening, arrangement, assets/Dynamos and symptom-based diagnosis. Rows are now `DRAFT_CURRENT`, not complete or accepted. The field-by-field reference remains in installed Help; final image capture is still pending after #357.
+
+Source review: `VisualEditorAuthoringSidebar.tsx`, `VisualEditorSelectionInspector.tsx`, `canvas/VisualEditorAuthoringToolbar.tsx`, `canvas/VisualDefinitionSurfaceInspector.tsx`, `property-inspector/PropertyInspector.tsx`, `events-editor/EventsEditor.tsx`, `popupVisualEditorText.ts`, current visual schemas and Help guides. The three chapter versions retain the same section, procedure, table and technical-reference structure. Relative file links and installed topic IDs are checked against actual files/catalog. This is documentation validation; no new live Editor/Popup walkthrough or owner acceptance is claimed.
+
 - Owner review of teaching depth and discoverability on the updated installed build; no automatic claim that #424/#425 are complete.
 - Final #379 terminology/semantic sweep, including legacy/descriptor-derived wording beyond the new authoring guides.
 - Real Editor/Script field-location captures after browser access and the accepted UI build are available; final manual illustrations and worked examples remain #425 work.

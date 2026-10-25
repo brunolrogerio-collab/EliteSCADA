@@ -1,4 +1,4 @@
-# Manual EliteSCADA — Español
+# Manual SCADIVO — Español
 
 El locale español se completa en capítulos acotados basados en comportamiento estable verificado del producto. Los capítulos de Fundamentos, Engineering/Datos/TAGs, Operación/Seguridad/Licencias, Gestión de aplicaciones/Recuperación y Scripting están disponibles abajo; esta traducción parcial no significa que el manual completo ni la paridad de idiomas estén terminados. Aún se requieren la revisión final de terminología/localización y la paridad semántica.
 
@@ -13,6 +13,8 @@ Ningún contenido material de seguridad, licencias, HA, escrituras/comandos, rec
 - [Fundamentos de EliteSCADA](01-FUNDAMENTOS-ELITESCADA.md) — arquitectura del producto para el usuario, límites entre Engineering/Runtime, Authority/License/Historian y lifecycle del proyecto.
 
 - [Engineering, fuentes de datos y TAGs](03-INGENIERIA-FUENTES-DE-DATOS-TAGS.md) — ciclo de vida estable de Engineering, configuración de Data Sources, direccionamiento/quality/scaling de TAGs, escrituras, commissioning, duplicación, generación secuencial Modbus y límites del perfil de Historian.
+
+- [Pantallas, Popups y objetos](05-PANTALLAS-Y-OBJETOS.md) — orientación del editor, primera pantalla, propiedades, lecturas/escrituras, dinámicas/acciones, Popups, organización, recursos reutilizables y diagnóstico.
 
 - [Scripting, alarmas e histórico](06-SCRIPTING-ALARMAS-HISTORICO.md) — guía estable de Server Script y Client Visual, APIs, ejemplos, límites de Runtime, distinción entre alarmas/eventos/auditoría, Historian/Trends y procedimientos actuales de Historical Time Range/Playback.
 - [Inteligencia de Activos y Procesos](12-INTELIGENCIA-ACTIVOS-PROCESOS.md) — flujos actuales de perfiles, contexto, etapas del proceso, análisis y borradores de Pantallas editables; revisar a medida que evolucione el producto.

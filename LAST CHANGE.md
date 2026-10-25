@@ -1,3 +1,10 @@
+# OWNER INTERRUPTION — OPERATIONAL-GAP QUEUE RECORDED; RETURN TO HELP — 2026-10-25
+
+The owner explicitly kept the Help/manual task active but first asked to register four product gaps. Created **#779** (time/size/no-expiry storage and archive), **#780** (UI-managed TCP/UDP/service ports), **#781** (1–4-monitor stations, independent Runtime windows) and **#782** (optional anonymous View Only Runtime). All are AUTHORIZED_QUEUED, not new delivered features; current retention/downsampling is reused. Plan/source/acceptance are in `docs/WAVE15-OWNER-OPERATIONAL-GAPS-QUEUE-2026-10-25.md`; PROJECT GOAL and ROADMAP are synchronized. No database, port, security or Preview change was made.
+
+**Return to active work:** Help candidate `4f9472f480429c78ddad3d4ad11c095c5cc2e47f` passed exact-head T1 **40195839328** (read final job details in GitHub). Its local evidence is 35/35 Help, 17/17 browser and Web/manual checks as recorded below. This queue-record continuation is documentation only. Its final publication/head/run are recorded in the live #424/#425/#305 delivery and unique #756 resume comment; do not apply predecessor CI to a later commit. PR #772 remains draft, not merged/deployed, and the whole-product depth map remains open. Next is the active Help sequence; do not start queued feature implementation now.
+
+## Help implementation snapshot before this queue-record continuation
 # CURRENT RESUME POINT — WHOLE-PRODUCT HELP DEPTH — 2026-10-25
 
 **IMPLEMENTED IN PR/BRANCH, NOT MERGED:** continue draft PR #772, `work/w15-help-foundation-tag-20261023`, product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`. The owner explicitly rejected treating the Screen/Script expansion as full manual completion. All material areas need actual field explanations and complete tasks; stable direction is in `PROJECT GOAL.md`. Read `docs/WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md` for the sources, whole-product review map and residual teaching-depth work. Do not close #424/#425 based on an inventory or green CI.

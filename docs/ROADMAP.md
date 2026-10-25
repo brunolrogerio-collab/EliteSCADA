@@ -1,3 +1,10 @@
+# CURRENT ORDER — HELP ACTIVE; OWNER OPERATIONAL-GAP QUEUE — 2026-10-25
+
+The active front remains practical Help/manual #424/#425 (PR #772). The Product Owner explicitly requested these authorized product improvements in the following development queue, without switching away from the current Help work: **#779 storage capacity/retention/archive → #780 TCP/UDP/service port configuration → #781 multi-monitor Runtime station → #782 optional anonymous View Only Runtime**. See [the authoritative queue plan](WAVE15-OWNER-OPERATIONAL-GAPS-QUEUE-2026-10-25.md) and individual issue acceptance criteria.
+
+These are queued requirements, not delivered features or a claim that retention has no existing implementation. Reuse Historian/Audit policies, installation configuration, canonical Runtime session/licensing and Authority. The multi-monitor direction is independent Runtime windows per client display with optional browser automation and manual placement fallback, not a Windows-only oversized canvas. Do not alter Preview/DEMO or enable public access as part of recording the request. Per-package exact bases are assigned when implementation starts. Keep the planned interface audit and final real captures aligned with the accepted candidate.
+
+## Prior roadmap snapshot — historical
 # CURRENT INTELLIGENCE DEVELOPMENT ORDER — 2026-10-21
 
 **Product Owner decision:** Stage 4 engineering is **COMPLETE / VERIFIED / FROZEN within the documented experimental scope**. This includes the bounded 4D/4E evidence/context contracts, 4F's simulation-validated unclassified joint score and its protected read-only API, and 4G's non-field software/mechanics verification. Current product code checkpoint is PR #699 merge `19e5889a5326c094e11d1c8d980d6881c29ae5ee`, with exact T1 #39629728933 and exact-merge CI #39630463943 passed. Local Windows/.NET 10.0.402 reruns passed 268/268 Intelligence-focused tests and 37/37 focused experimental score/API-contract tests. Full-browser E2E was skipped in the push-profile T2 and is not claimed.

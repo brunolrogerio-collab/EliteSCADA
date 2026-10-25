@@ -33,6 +33,10 @@ The 24 October owner review clarifies that topic presence alone does not satisfy
 
 The 25 October owner correction explicitly includes every material product area: Intelligence, HA, Database, Templates, Equipment and the remaining workflows. Do not stop at Screen/object or Script coverage. Explain how to reach each feature, the actual fields and conditional choices, examples, ordered actions, expected results and recovery from common mistakes. An area inventory or a passing test is not acceptance of teaching depth. Maintain an honest whole-product depth map, and keep installed Help easy to find from the relevant UI.
 
+### Authorized operational improvements — queued after active Help work
+
+The Product Owner requested four queued improvements on 25 October: (1) storage time/size budgets, no automatic expiry and managed archival for modest hardware, reusing existing retention/downsampling; (2) UI-managed TCP/UDP/service ports with validated administrative application/rollback, without editing product source or giving application Scripts arbitrary OS privileges; (3) 1–4-monitor operator stations using independent Runtime windows, navigable/fixed roles and optional placement automation, usable locally or through the web across platforms; (4) explicitly enabled anonymous View Only Runtime with backend-scoped reads, no writes/commands/Engineering, revocation and existing licensing quotas. These are specified/authorized, not implemented. Issues #779–#782 and `docs/WAVE15-OWNER-OPERATIONAL-GAPS-QUEUE-2026-10-25.md` own the detailed plan. Continue the current Help/manual front first; no implicit Preview, port, storage or public-access mutation is authorized by recording the queue.
+
 ## Product mission
 
 EliteSCADA is intended to become a serious industrial SCADA/supervisory platform, not merely a monitoring dashboard.

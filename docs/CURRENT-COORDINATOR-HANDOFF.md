@@ -1,5 +1,8 @@
 # Current coordinator pointer — Wave 15
 
+Owner interruption 25/10: #779–#782 are recorded as authorized operational improvements in `docs/WAVE15-OWNER-OPERATIONAL-GAPS-QUEUE-2026-10-25.md`; return to Help #424/#425, do not start those implementations yet. Help code head `4f9472f4` passed T1 `40195839328`; the queue-only documentation continuation has its own final published gate in the live coordination record. Read the newest LAST CHANGE entry.
+
+
 Snapshot: 2026-10-25 — owner's whole-product Help depth correction is the active order. Continue PR #772 over product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`; eleven new system guides and shared-source manual chapters now explain Templates/Equipment, Database, HA, Intelligence and supplementary surfaces. Local Help 35/35, browser 17/17, Web build and manual alignment/links passed. The new code is not merged/deployed; predecessor CI on `2361d615` is not this candidate's gate. See live #424/#425/#305 and #756's unique resume comment for final published head/run/status. Read the first entry of `LAST CHANGE.md` and `docs/WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md`; the whole-product map explicitly retains unfinished teaching-depth reviews. Do not claim the full Help/manual is complete, start licensing/HA development or reuse an obsolete generic next-action note.
 
 ## Previous snapshot — historical

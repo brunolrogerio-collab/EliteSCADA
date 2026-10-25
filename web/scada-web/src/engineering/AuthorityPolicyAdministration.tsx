@@ -69,6 +69,7 @@ type PolicyStrings = {
   deleteAssigned: string;
   backendRejected: string;
   conflictHint: string;
+  intelligenceScopeRequired: string;
   unknownCapability: string;
   unassigned: string;
   usersWithRole: string;
@@ -127,6 +128,7 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     deleteAssigned: 'Não é possível remover localmente uma role ainda atribuída; o backend também rejeitará a política órfã.',
     backendRejected: 'O backend rejeitou a política.',
     conflictHint: 'A versão da Authority mudou. Recarregue e refaça a alteração.',
+    intelligenceScopeRequired: 'Selecione Sem escopo para conceder Intelligence globalmente, ou um nó válido de Equipamento/Local para limitar o acesso.',
     unknownCapability: 'Capability desconhecida',
     unassigned: 'Nenhum usuário atribuído',
     usersWithRole: 'Usuários com esta role',
@@ -191,6 +193,7 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     deleteAssigned: 'A role still assigned to a local user cannot be removed here; the backend also rejects an orphaned policy.',
     backendRejected: 'The backend rejected the policy.',
     conflictHint: 'Authority version changed. Reload and recreate the change.',
+    intelligenceScopeRequired: 'Choose Unscoped to grant Intelligence globally, or a valid Equipment/Location node to limit access.',
     unknownCapability: 'Unknown capability',
     unassigned: 'No assigned users',
     usersWithRole: 'Users with this role',
@@ -255,6 +258,7 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     deleteAssigned: 'No se puede eliminar aquí un rol todavía asignado; el backend también rechaza una política huérfana.',
     backendRejected: 'El backend rechazó la política.',
     conflictHint: 'La versión de Authority cambió. Recargue y rehaga el cambio.',
+    intelligenceScopeRequired: 'Seleccione Sin alcance para conceder Inteligencia globalmente, o un nodo válido de Equipo/Ubicación para limitar el acceso.',
     unknownCapability: 'Capability desconocida',
     unassigned: 'Ningún usuario asignado',
     usersWithRole: 'Usuarios con este rol',
@@ -837,5 +841,5 @@ function scopeKindLabel(kind: number | string) {
 }
 
 function policyErrorMessage(reason: unknown, s: PolicyStrings) {
-  return authorityPolicyErrorMessage(reason, s.backendRejected, s.conflictHint);
+  return authorityPolicyErrorMessage(reason, s.backendRejected, s.conflictHint, s.intelligenceScopeRequired);
 }

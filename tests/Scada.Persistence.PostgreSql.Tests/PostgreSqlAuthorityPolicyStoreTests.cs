@@ -22,7 +22,8 @@ public sealed class PostgreSqlAuthorityPolicyStoreTests
         var roles = new[]
         {
             new SecurityRoleEngineeringDto(roleId, "arbitrary-role", "Arbitrary", Grants:
-            [new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringView, new AuthorizationScopeEngineeringDto(ScopeNodeId: scopeId))])
+            [new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringView, new AuthorizationScopeEngineeringDto(ScopeNodeId: scopeId)),
+             new CapabilityGrantEngineeringDto(SecurityCapability.AssetProcessIntelligenceManage)])
         };
 
         await using (var first = new PostgreSqlAuthorityPolicyStore(ConnectionString))
@@ -40,6 +41,13 @@ public sealed class PostgreSqlAuthorityPolicyStoreTests
             Assert.Equal(1, loaded.Version);
             Assert.Equal(roleId, Assert.Single(loaded.Roles).Id);
             Assert.Equal(scopeId, Assert.Single(loaded.Scopes).Id);
+            var loadedRole = Assert.Single(loaded.Roles);
+            Assert.Contains(loadedRole.Grants!, grant =>
+                grant.Capability == SecurityCapability.AssetProcessIntelligenceManage && grant.Scope is null);
+            var evaluator = new InMemoryCapabilityAuthorizationService([SecurityPolicyCompiler.Compile(loadedRole)]);
+            var principal = new SecurityPrincipal("process-engineer", "Process Engineer", [loadedRole.Key]);
+            Assert.True(evaluator.Evaluate(principal, SecurityCapability.AssetProcessIntelligenceManage).Allowed);
+            Assert.False(evaluator.Evaluate(principal, SecurityCapability.SystemAdmin).Allowed);
 
             var stale = await restarted.TryReplaceAsync(0, roles, scopes);
             Assert.False(stale.Applied);

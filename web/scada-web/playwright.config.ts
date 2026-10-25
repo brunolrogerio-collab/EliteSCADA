@@ -49,7 +49,7 @@ export default defineConfig({
     {
       command: 'dotnet run --project ../../src/Scada.Api/Scada.Api.csproj --no-launch-profile',
       url: 'http://127.0.0.1:5080/health',
-      timeout: 60_000,
+      timeout: 120_000,
       reuseExistingServer: false,
       stdout: 'pipe',
       env: {

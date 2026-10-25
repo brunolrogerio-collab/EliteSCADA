@@ -26,7 +26,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 28;
+    public const int CurrentSchemaVersion = 30;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -46,6 +46,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IDriverInteractionEngineeringRegistry _driverInteractions;
     private readonly IAssetProcessIntelligenceEngineeringRegistry _assetProcessIntelligence;
     private RuntimePresentationEngineeringDto _runtimePresentation = new();
+    private readonly object _resourceOrganizationGate = new();
+    private readonly Dictionary<string, EngineeringResourceOrganizationEngineeringDto> _resourceOrganizations = new(StringComparer.Ordinal);
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
@@ -287,7 +289,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             CapabilityEventReferences: _driverInteractions.SnapshotCapabilityEventReferences(),
             RichCommandDefinitions: _driverInteractions.SnapshotRichCommandDefinitions(),
             DriverCommandBindings: _driverInteractions.SnapshotDriverCommandBindings(),
-            AssetProcessIntelligence: _assetProcessIntelligence.Snapshot());
+            AssetProcessIntelligence: _assetProcessIntelligence.Snapshot(),
+            ResourceOrganizations: SnapshotResourceOrganizations());
     }
 
     public string ExportJson(bool indented = true)
@@ -333,6 +336,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             (package.AssetProcessIntelligence?.Version >= 3 ||
              (package.AssetProcessIntelligence?.OperatingContextProfiles?.Count ?? 0) != 0))
             throw new InvalidDataException("INTELLIGENCE_OPERATING_CONTEXT_SCHEMA_VERSION_REQUIRED: operating-context profiles require Engineering package schema version 28 or newer.");
+        if (package.SchemaVersion < 29 && package.ResourceOrganizations is { Count: > 0 })
+            throw new InvalidDataException("ENGINEERING_RESOURCE_ORGANIZATION_SCHEMA_VERSION_REQUIRED: resource folders require Engineering package schema version 29 or newer.");
 
         var normalized = package with
         {
@@ -508,6 +513,28 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _reportHandler.Preview(package, mode, items);
         _mediaSourceHandler.Preview(package, mode, items);
         _driverInteractionHandler.Preview(package, mode, items);
+        if (package.SchemaVersion < 29 && SnapshotResourceOrganizations().Count > 0 && package.ResourceOrganizations is null)
+        {
+            var issue = new ImportIssue(
+                "ENGINEERING_RESOURCE_ORGANIZATION_IMPORT_CONFLICT",
+                "This package predates resource-folder organization and would omit the saved folders. Re-export with schema 29 or newer before applying it.",
+                ImportEntityKind.ResourceOrganization,
+                "resource-organizations",
+                true);
+            items.Add(new ImportPreviewItem(ImportEntityKind.ResourceOrganization, "resource-organizations", ImportOperation.Error, [issue]));
+        }
+        if (package.SchemaVersion < 29 && package.ResourceOrganizations is { Count: > 0 })
+        {
+            var issue = new ImportIssue(
+                "ENGINEERING_RESOURCE_ORGANIZATION_SCHEMA_VERSION_REQUIRED",
+                "Resource folder organization requires Engineering package schema 29 or newer.",
+                ImportEntityKind.ResourceOrganization,
+                "resource-organizations",
+                true);
+            items.Add(new ImportPreviewItem(ImportEntityKind.ResourceOrganization, "resource-organizations", ImportOperation.Error, [issue]));
+        }
+        if (package.ResourceOrganizations is { } organizations)
+            PreviewResourceOrganizations(organizations, items);
         PreviewAssetProcessIntelligence(package, mode, items);
         _securityScopeHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
@@ -655,7 +682,86 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _engineeringLock.Replace(package.EngineeringLock);
 
+        if (package.ResourceOrganizations is null) skipped++;
+        else
+        {
+            var before = SnapshotResourceOrganizations();
+            var after = package.ResourceOrganizations.OrderBy(entry => entry.Kind, StringComparer.Ordinal).ToArray();
+            var currentByKind = before.ToDictionary(entry => entry.Kind, StringComparer.Ordinal);
+            var changed = after.Any(entry =>
+                !currentByKind.TryGetValue(entry.Kind, out var current) ||
+                JsonSerializer.Serialize(current, _json) != JsonSerializer.Serialize(entry, _json));
+            if (!changed) skipped++;
+            else
+            {
+                lock (_resourceOrganizationGate)
+                {
+                    foreach (var entry in after) _resourceOrganizations[entry.Kind] = entry.Organization;
+                }
+                updated++;
+            }
+        }
+
         return new ImportResult(mode, created, updated, skipped, Array.Empty<ImportIssue>());
+    }
+
+    private IReadOnlyCollection<EngineeringResourceOrganizationEntryEngineeringDto> SnapshotResourceOrganizations()
+    {
+        lock (_resourceOrganizationGate)
+            return _resourceOrganizations
+                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => new EngineeringResourceOrganizationEntryEngineeringDto(pair.Key, pair.Value))
+                .ToArray();
+    }
+
+    private void PreviewResourceOrganizations(
+        IReadOnlyCollection<EngineeringResourceOrganizationEntryEngineeringDto> organizations,
+        List<ImportPreviewItem> items)
+    {
+        var issues = new List<ImportIssue>();
+        var seenKinds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in organizations)
+        {
+            var kind = entry?.Kind ?? "<null>";
+            if (entry is null)
+            {
+                issues.Add(new ImportIssue(
+                    "ENGINEERING_RESOURCE_ORGANIZATION_NULL",
+                    "Resource organization entry cannot be null.",
+                    ImportEntityKind.ResourceOrganization,
+                    kind,
+                    true));
+                continue;
+            }
+            if (!seenKinds.Add(kind))
+                issues.Add(new ImportIssue(
+                    "ENGINEERING_RESOURCE_ORGANIZATION_KIND_DUPLICATE",
+                    $"Resource organization kind '{kind}' is duplicated.",
+                    ImportEntityKind.ResourceOrganization,
+                    kind,
+                    true));
+            var validation = EngineeringResourceOrganizationContract.Validate(entry);
+            if (validation is not null)
+                issues.Add(new ImportIssue(
+                    "ENGINEERING_RESOURCE_ORGANIZATION_INVALID",
+                    validation,
+                    ImportEntityKind.ResourceOrganization,
+                    kind,
+                    true));
+        }
+
+        var currentByKind = SnapshotResourceOrganizations().ToDictionary(entry => entry.Kind, StringComparer.Ordinal);
+        var requested = organizations.OrderBy(entry => entry?.Kind, StringComparer.Ordinal).ToArray();
+        var operation = requested.All(entry => entry is not null &&
+            currentByKind.TryGetValue(entry.Kind, out var current) &&
+            JsonSerializer.Serialize(current, _json) == JsonSerializer.Serialize(entry, _json))
+            ? ImportOperation.Skip
+            : ImportOperation.Update;
+        items.Add(new ImportPreviewItem(
+            ImportEntityKind.ResourceOrganization,
+            "resource-organizations",
+            issues.Count > 0 ? ImportOperation.Error : operation,
+            issues));
     }
 
     private void PreviewAssetProcessIntelligence(

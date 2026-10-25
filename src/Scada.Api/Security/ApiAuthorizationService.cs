@@ -116,9 +116,10 @@ public sealed class ApiAuthorizationService
         }
 
         var policies = new InMemoryCapabilityAuthorizationService(SecurityPolicyCompiler.Compile(roles));
+        var target = scopes!.Enrich(resource ?? new AuthorizationResource());
         return new ApiAuthorizationCheck(
             principal,
-            policies.Evaluate(principal, capability, scopes!.Enrich(resource ?? new AuthorizationResource())));
+            policies.Evaluate(principal, capability, target));
     }
 
     /// <summary>

@@ -28,6 +28,10 @@ public sealed class CapabilityAuthorizationTests
 
         Assert.True(authorization.Evaluate(nightShift, SecurityCapability.CommandExecute).Allowed);
         Assert.False(authorization.Evaluate(unprivileged, SecurityCapability.CommandExecute).Allowed);
+        Assert.False(authorization.Evaluate(
+            unprivileged,
+            SecurityCapability.AssetProcessIntelligenceManage,
+            new AuthorizationResource(ResourceKind: AuthorizationResourceKind.Equipment, ResourceId: Guid.NewGuid())).Allowed);
     }
 
     [Fact]

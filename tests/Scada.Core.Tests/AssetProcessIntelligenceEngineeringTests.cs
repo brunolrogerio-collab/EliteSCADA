@@ -388,7 +388,7 @@ public sealed class AssetProcessIntelligenceEngineeringTests
     }
 
     [Fact]
-    public void ManagerCapabilityRequiresStableEquipmentOrLocationScopeAndDoesNotInheritGlobally()
+    public void ManagerCapabilitySupportsGlobalGrantsAndRestrictsOptionalEquipmentOrLocationScope()
     {
         var locationId = Guid.Parse("a4000000-0000-0000-0000-000000000001");
         var locationNode = Guid.Parse("a4000000-0000-0000-0000-000000000002");
@@ -421,14 +421,25 @@ public sealed class AssetProcessIntelligenceEngineeringTests
             graph.Enrich(new AuthorizationResource(
                 ResourceKind: AuthorizationResourceKind.Location,
                 ResourceId: Guid.NewGuid())));
-        var invalidGlobal = SecurityPolicyEngineeringValidator.Validate(role with
+        var globalRole = role with
         {
             Grants = [new(SecurityCapability.AssetProcessIntelligenceManage)]
-        }, graph);
+        };
+        var globalIssues = SecurityPolicyEngineeringValidator.Validate(globalRole, graph, requiresStableScopeNode: true);
+        var globalPolicies = new InMemoryCapabilityAuthorizationService([SecurityPolicyCompiler.Compile(globalRole)]);
 
         Assert.True(allowed.Allowed);
         Assert.False(deniedForOtherLocation.Allowed);
-        Assert.Contains(invalidGlobal, issue => issue.Code == "INTELLIGENCE_MANAGER_SCOPE_REQUIRED");
+        Assert.Empty(globalIssues);
+        Assert.True(globalPolicies.Evaluate(principal, SecurityCapability.AssetProcessIntelligenceManage).Allowed);
+        Assert.True(globalPolicies.Evaluate(principal, SecurityCapability.AssetProcessIntelligenceManage,
+            new AuthorizationResource(ResourceKind: AuthorizationResourceKind.Location, ResourceId: Guid.NewGuid())).Allowed);
+
+        var invalidScoped = SecurityPolicyEngineeringValidator.Validate(role with
+        {
+            Grants = [new(SecurityCapability.AssetProcessIntelligenceManage, new AuthorizationScopeEngineeringDto())]
+        }, graph, requiresStableScopeNode: true);
+        Assert.Contains(invalidScoped, issue => issue.Code == "INTELLIGENCE_MANAGER_SCOPE_REQUIRED");
     }
 
     [Fact]

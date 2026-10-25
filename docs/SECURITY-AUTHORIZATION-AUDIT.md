@@ -56,7 +56,7 @@ Current stable capability vocabulary includes:
 
 These are capabilities, not roles. Customer/application roles remain configurable.
 
-No capability hierarchy is implicit merely from a role/capability name. `SystemAdmin` does not silently imply unrelated capabilities unless the policy explicitly grants them.
+Role names never imply permissions. `SystemAdmin` does not imply unrelated capabilities. Intelligence management requires an explicit `AssetProcessIntelligenceManage` grant, just like HA requires its own capabilities. A null scope grants it globally to any role; an optional scope restricts it to a stable Equipment or Location Authority node. The initial `developer` role includes the explicit global grant. Existing Authority policies remain editable through the canonical policy API; updates do not silently restore revoked grants. Intelligence licensing, runtime/session restrictions and route-specific safety checks still apply.
 
 ## Engineering Schema v7 security and command model
 

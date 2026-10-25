@@ -33,6 +33,167 @@ public sealed class EngineeringExchangeTests
     }
 
     [Fact]
+    public void Schema29ResourceOrganizations_ApplyAndReExportAsSchema30WithoutLoss()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms);
+        var folderId = "eee-default:tags:TAGs/Equipamentos/Bombas/Bomba 01";
+        var tagId = Guid.NewGuid();
+        var organization = new EngineeringResourceOrganizationEntryEngineeringDto(
+            "tags",
+            new EngineeringResourceOrganizationEngineeringDto(
+                1,
+                [new EngineeringResourceFolderEngineeringDto(folderId, "Bomba 01")],
+                new Dictionary<string, string> { [$"id:{tagId:D}"] = folderId },
+                Seeded: true));
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            29,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>())
+        {
+            ResourceOrganizations = [organization]
+        };
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        Assert.True(preview.CanApply);
+
+        var result = service.Apply(package, ImportMode.CreateAndUpdate);
+        var exported = service.ParseJson(service.ExportJson());
+
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, exported.SchemaVersion);
+        Assert.Equal(30, exported.SchemaVersion);
+        Assert.Equal(1, result.Updated);
+        var restored = Assert.Single(exported.ResourceOrganizations!);
+        Assert.Equal("tags", restored.Kind);
+        Assert.Equal(folderId, Assert.Single(restored.Organization.Folders).Id);
+        Assert.Equal(folderId, restored.Organization.Assignments[$"id:{tagId:D}"]);
+    }
+
+    [Fact]
+    public void PreSchema29PackageCannotSilentlyRemoveSavedResourceOrganizations()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms);
+        var folderId = "eee-default:tags:TAGs/Processo";
+        var current = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            29,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>())
+        {
+            ResourceOrganizations =
+            [
+                new EngineeringResourceOrganizationEntryEngineeringDto(
+                    "tags",
+                    new EngineeringResourceOrganizationEngineeringDto(
+                        1,
+                        [new EngineeringResourceFolderEngineeringDto(folderId, "Processo")],
+                        new Dictionary<string, string>()))
+            ]
+        };
+        service.Apply(current, ImportMode.CreateAndUpdate);
+
+        var older = current with { SchemaVersion = 28, ResourceOrganizations = null };
+        var preview = service.Preview(older, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items.SelectMany(item => item.Issues), issue =>
+            issue.Code == "ENGINEERING_RESOURCE_ORGANIZATION_IMPORT_CONFLICT");
+    }
+
+    [Fact]
+    public void Schema29PackageUpdatesIncludedResourceKindsAndKeepsOmittedKinds()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms);
+        var screenFolderId = "eee-default:screens:Screens/EEE";
+        var tagFolderId = "eee-default:tags:TAGs/Processo";
+        var screenOrganization = new EngineeringResourceOrganizationEntryEngineeringDto(
+            "screens",
+            new EngineeringResourceOrganizationEngineeringDto(
+                1,
+                [new EngineeringResourceFolderEngineeringDto(screenFolderId, "EEE")],
+                new Dictionary<string, string>()));
+        var initial = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>())
+        {
+            ResourceOrganizations = [screenOrganization]
+        };
+        service.Apply(initial, ImportMode.CreateAndUpdate);
+
+        var incoming = initial with
+        {
+            SchemaVersion = 29,
+            ResourceOrganizations =
+            [
+                new EngineeringResourceOrganizationEntryEngineeringDto(
+                    "tags",
+                    new EngineeringResourceOrganizationEngineeringDto(
+                        1,
+                        [new EngineeringResourceFolderEngineeringDto(tagFolderId, "Processo")],
+                        new Dictionary<string, string>()))
+            ]
+        };
+        service.Apply(incoming, ImportMode.CreateAndUpdate);
+
+        var organizations = service.ExportPackage().ResourceOrganizations!;
+        Assert.Equal(2, organizations.Count);
+        Assert.Contains(organizations, entry => entry.Kind == "screens" && entry.Organization.Folders.Single().Id == screenFolderId);
+        Assert.Contains(organizations, entry => entry.Kind == "tags" && entry.Organization.Folders.Single().Id == tagFolderId);
+    }
+
+    [Fact]
+    public void ResourceOrganizationPreview_FailsClosedForCyclesAndUnknownKinds()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            29,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>())
+        {
+            ResourceOrganizations =
+            [
+                new EngineeringResourceOrganizationEntryEngineeringDto(
+                    "tags",
+                    new EngineeringResourceOrganizationEngineeringDto(
+                        1,
+                        [
+                            new EngineeringResourceFolderEngineeringDto("a", "A", ParentId: "b"),
+                            new EngineeringResourceFolderEngineeringDto("b", "B", ParentId: "a")
+                        ],
+                        new Dictionary<string, string>())),
+                new EngineeringResourceOrganizationEntryEngineeringDto(
+                    "unknownKind",
+                    new EngineeringResourceOrganizationEngineeringDto(1, [], new Dictionary<string, string>()))
+            ]
+        };
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items, item => item.EntityKind == ImportEntityKind.ResourceOrganization && item.Operation == ImportOperation.Error);
+        Assert.Contains(preview.Items.SelectMany(item => item.Issues), issue => issue.Code == "ENGINEERING_RESOURCE_ORGANIZATION_INVALID");
+    }
+
+    [Fact]
     public void Preview_DetectsDuplicateTagPaths()
     {
         var tags = new InMemoryTagRegistry();

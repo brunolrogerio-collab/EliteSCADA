@@ -9,7 +9,8 @@ import {
 export function authorityPolicyErrorMessage(
   reason: unknown,
   backendRejected: string,
-  conflictHint: string
+  conflictHint: string,
+  intelligenceScopeRequired?: string
 ) {
   if (!(reason instanceof AdministrationHttpError)) {
     return reason instanceof Error ? reason.message : backendRejected;
@@ -19,7 +20,10 @@ export function authorityPolicyErrorMessage(
   // replacement CAS. A later CAS race can still return HTTP 409.
   const conflict = reason.status === 409 ||
     reason.message === 'AUTHORITY_POLICY_CONCURRENCY_CONFLICT';
-  return `${backendRejected} ${reason.message}${conflict ? ' ' + conflictHint : ''}`;
+  const message = intelligenceScopeRequired
+    ? reason.message.replaceAll('INTELLIGENCE_MANAGER_SCOPE_REQUIRED', intelligenceScopeRequired)
+    : reason.message;
+  return `${backendRejected} ${message}${conflict ? ' ' + conflictHint : ''}`;
 }
 
 type CapabilityDefinition = (typeof SECURITY_CAPABILITIES)[number];

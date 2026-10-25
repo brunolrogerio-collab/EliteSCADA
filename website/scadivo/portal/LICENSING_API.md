@@ -14,9 +14,9 @@ This Portal API is a separate layer from the offline request intake in PR #777. 
 
 - An account can belong to several organizations. An organization can own several named applications, and each application can have several license entitlements.
 - `LicenseId` is the human-visible license code that selects an entitlement; it is not an authentication secret.
-- A Portal `Owner` administers organizations, issues/extends/revokes entitlements, and revokes activations. An organization `Owner` or `Admin` manages that organization's application list and members. Members can see their organization's licenses and manage their own device activations.
+- A Portal `Owner` or delegated Portal `Admin` administers organizations, issues/extends/revokes entitlements, and revokes activations. These are global SCADIVO staff roles, separate from an organization `Owner` or `Admin`, which manages only that organization's application list and members. Members can see their organization's licenses and manage their own device activations.
 - A license is bound to one organization and one application. Composite database constraints prevent an activation or license from referencing an application in another organization.
-- The `MaxActivations` value is required when a Portal Owner creates an entitlement. Its commercial value remains a business decision; the API does not guess a default.
+- The `MaxActivations` value is required when a Portal administrator creates an entitlement. Its commercial value remains a business decision; the API does not guess a default.
 - `perpetual` means the account entitlement has no commercial expiry. Online use still requires a new signed lease at least every 48 hours; every lease expires within 72 hours. Monthly and annual terms have an entitlement expiry and leases end no later than that expiry.
 
 ## Portal endpoints
@@ -33,12 +33,12 @@ The API is under `/portal/api` on the public site. Customer write calls require 
 | `GET` | `/licensing/licenses` | Portal account; returns only licenses in its organizations |
 | `GET` | `/licensing/activations` | Portal account; returns its device activations |
 | `DELETE` | `/licensing/activations/{activationId}` | Activation's Portal account |
-| `GET` | `/admin/licensing/organizations` | Portal Owner |
-| `GET` / `POST` | `/admin/licensing/licenses` | Portal Owner; create an entitlement |
-| `POST` | `/admin/licensing/licenses/{licenseId}/extend` | Portal Owner; subscription term only |
-| `POST` | `/admin/licensing/licenses/{licenseId}/revoke` | Portal Owner |
-| `GET` | `/admin/licensing/licenses/{licenseId}/activations` | Portal Owner |
-| `POST` | `/admin/licensing/activations/{activationId}/revoke` | Portal Owner |
+| `GET` | `/admin/licensing/organizations` | Portal Owner/Admin |
+| `GET` / `POST` | `/admin/licensing/licenses` | Portal Owner/Admin; create an entitlement |
+| `POST` | `/admin/licensing/licenses/{licenseId}/extend` | Portal Owner/Admin; subscription term only |
+| `POST` | `/admin/licensing/licenses/{licenseId}/revoke` | Portal Owner/Admin |
+| `GET` | `/admin/licensing/licenses/{licenseId}/activations` | Portal Owner/Admin |
+| `POST` | `/admin/licensing/activations/{activationId}/revoke` | Portal Owner/Admin |
 
 An administrator-created entitlement is not itself a signed machine license. It becomes usable by the product only after the product performs an authenticated device activation while the dedicated online signer is enabled.
 

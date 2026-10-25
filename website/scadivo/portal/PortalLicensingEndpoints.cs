@@ -21,7 +21,7 @@ public static class PortalLicensingEndpoints
         customer.MapGet("/activations", (HttpContext context, PortalLicensingOperations operations) => operations.MyActivations(context));
         customer.MapDelete("/activations/{activationId:guid}", (Guid activationId, HttpContext context, PortalLicensingOperations operations) => operations.DeactivateMyActivation(activationId, context));
 
-        var admin = app.MapGroup("/api/admin/licensing").RequireAuthorization("Owner").RequireRateLimiting("writes");
+        var admin = app.MapGroup("/api/admin/licensing").RequireAuthorization(PortalAccess.AdministratorPolicy).RequireRateLimiting("writes");
         admin.MapGet("/organizations", (PortalLicensingOperations operations) => operations.AdminOrganizations());
         admin.MapGet("/licenses", (PortalLicensingOperations operations) => operations.AdminLicenses());
         admin.MapPost("/licenses", (IssueProductLicenseInput input, HttpContext context, PortalLicensingOperations operations) => operations.IssueLicense(input, context));

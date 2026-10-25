@@ -56,7 +56,8 @@ async function fixture(page, { owner = false, locale = 'en', role = 'Member', te
     else if (path.endsWith('/applications')) result = [{ id: applicationId, name: license.applicationName }];
     else if (path.endsWith('/members') && method === 'GET') result = [{ id: 'account-1', userName: 'portal.user', displayName: 'Portal User', role }];
     else if (path === '/licensing/licenses' || path === '/admin/licensing/licenses' && method === 'GET') result = { asOfUtc: '2026-10-25T12:00:00Z', licenses: [license] };
-    else if (path === '/licensing/activations' || path.endsWith(`/licenses/${license.id}/activations`)) result = [activation];
+    else if (path === '/licensing/activations') result = { asOfUtc: '2026-10-25T12:00:00Z', activations: [activation] };
+    else if (path.endsWith(`/licenses/${license.id}/activations`)) result = [activation];
     else if (path === '/admin/overview') result = { accounts: 1, openTickets: 0, pendingInvitations: 0, emailDeliveryConfigured: true, publicRegistrationEnabled: true, queuedMessages: 0, sentMessages: 0, failedMessages: 0 };
     else if (path === '/admin/accounts') result = [];
     else if (method === 'DELETE' || path.endsWith('/revoke')) {

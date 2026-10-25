@@ -54,7 +54,11 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
     options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
 });
-builder.Services.AddAuthorization(options => options.AddPolicy("Owner", policy => policy.RequireRole("Owner")));
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Owner", policy => policy.RequireRole("Owner"));
+    options.AddPolicy(PortalAccess.AdministratorPolicy, policy => policy.RequireRole("Owner", "Admin"));
+});
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";

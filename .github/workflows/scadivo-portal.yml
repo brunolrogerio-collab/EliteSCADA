@@ -36,6 +36,7 @@ jobs:
           node-version: '22'
       - run: node --check portal/wwwroot/app.js
       - run: node --check portal/wwwroot/licensing.js
+      - run: node --check portal/wwwroot/downloads.js
       - run: npm ci --prefix tests/browser
       - run: npx --prefix tests/browser playwright install --with-deps chromium
       - run: npm test --prefix tests/browser

@@ -32,11 +32,15 @@ The resulting catalog contains 123 topics in each locale. Forty-seven additional
 
 `web/scada-web/public/help/eee-runtime-screen.jpg` is copied byte-for-byte from the existing real public demonstration capture at `website/scadivo/site/assets/eee-runtime-screen.jpg`, `main@3b520aff3c249d0c7e0b8c2957344226de911ed7`. The image shows the EEE application dated 22/10/2026, in Portuguese, with simulated data. Its installed caption identifies it as a customizable demonstration composition, not a mandatory layout or current final-build acceptance capture. It illustrates the relationship between labels, values, process drawing, buttons and trend.
 
+Image SHA-256: `6b6d1e5b936ad5b01d4ed51acfe0931a0ab15465791da1d938f548f97c1e0e14`.
+
 The current browser-control inventory reported `Local browser use is disabled in Work settings`. No fabricated editor or Script screenshot was substituted. Browser test captures verify the real updated Help component using the exact serialized catalog, with synthetic shell identity only. They are QA artifacts and are not represented as editor/product-operation captures. Final manual images still follow the #357 interface audit and #425 sequence.
 
 ## Validation
 
 The final local checks are recorded in `LAST CHANGE.md` and the PR. Backend coverage verifies every editable scalar property against the registered object schemas, locale/field/code parity and serialization. Existing Server examples plus the new Server recipes run in the actual isolated interpreter. Browser coverage uses the exact embedded Client examples in the actual worker, including normal/below-reference/bad-quality behavior, visual override/clear and Client Memory; it also covers search, real-catalog rendering, language changes, local illustration loading, narrow layout and contextual routing.
+
+Final code `01153c2f3b7cb561d52bd57f1c4079659c0515d0`: Help/catalog 35/35 and Chromium 10/10 passed; Web production build and diff checks passed. The six exact Client examples produced nine completed handler executions with asserted effects. Local Help UI tests consumed the exact JSON exported by the .NET catalog test through `SCADIVO_HELP_CATALOG_OUTPUT`; shell identity was a fixture. This does not claim a production/API deployment. The ordinary CI configuration uses the actual API instead of that local file route.
 
 A test guard initially matched the implementation-brand token `Vite` inside the ordinary Portuguese word `evite`. The guard now checks word boundaries while retaining the actual brand/jargon exclusions; natural writing is not distorted to satisfy a substring false positive. The browser check caught repeated links across subareas; the renderer was corrected to filter each subarea's own topics. The mobile table pass showed clipped descriptions; rows now stack into readable field cards on narrow screens.
 

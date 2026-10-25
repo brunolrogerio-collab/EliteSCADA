@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-10-23
+**Last reviewed:** 2026-10-24
 
 ## Mandatory continuity protocol
 

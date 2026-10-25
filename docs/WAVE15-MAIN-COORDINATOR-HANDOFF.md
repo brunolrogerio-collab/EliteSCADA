@@ -1,5 +1,9 @@
 # Wave 15 — Main order and execution contract
 
+Snapshot: 2026-10-24. Active front is practical Help #424 / manual alignment #425 in draft PR #772. Code candidate `01153c2f3b7cb561d52bd57f1c4079659c0515d0` adds grouped/searchable Help, 47 additional topics, per-object property references (31 types / 96 scalar keys), explained scripting and Intelligence authoring, and corrects Client bridge-object examples in Help/manual. Final local Help tests 35/35, Chromium 10/10 and Web production build passed; desktop/mobile output was inspected. The branch contains normal base-sync merge `e0706e162fb1a5557d067102118a26aa59e7e8f1` over product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`. Not merged/deployed; exact-final-head CI is the next gate. #424/#425 acceptance remains open. Read `LAST CHANGE.md` and `docs/WAVE15-HELP-LEARNING-GUIDE-AUDIT-2026-10-24.md` before acting. #774 permits the explicit global or restricted Intelligence grant and supersedes #773; do not apply the earlier erroneous review recommendation. Licensing remains separate in #301/#741/#756.
+
+## Prior pointer details — historical
+
 Snapshot: 2026-10-23. This is the live Main order. Replace this current order rather than stacking historical CURRENT/LATEST sections. Use [the short pointer](CURRENT-COORDINATOR-HANDOFF.md) for the accepted product checkpoint and evidence.
 
 ## Current status — practical Help active; Intelligence scopes preserved; Wave 15 remains open

@@ -22,6 +22,8 @@ No second Help system or external documentation dependency was added.
 
 ## Coverage matrix
 
+The 24/10 learning expansion adds `help.find-your-way`; `visual.first-screen`, `visual.object-selection`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters`; `visual.object.<lowercase registered type>` for all 31 built-in schemas; `scripts.choose-scope`, `scripts.server-syntax`, `scripts.triggers-dependencies`, `scripts.server-recipes`, `scripts.commands-feedback`, `scripts.client-api`, `scripts.client-recipes`; and `intelligence.profiles-equipment`, `intelligence.operating-contexts`, `intelligence.dashboard-workflow`. All share pt-BR/en/es content/field/code structure. Object fields are inventory-derived and explanations are authored; no editable scalar key is silently omitted. `engineering.overview` and `troubleshooting.overview` replace the last two generic Basic articles in the served catalog.
+
 | Feature | Help topic | Context entry | pt-BR | en | es | Status |
 | --- | --- | --- | :---: | :---: | :---: | --- |
 | First start / authentication | `getting-started.startup-authentication` | global Help / Runtime | yes | yes | yes | TASK GUIDE — first-use vs neutral bootstrap, local sign-in, safe recovery and access troubleshooting |

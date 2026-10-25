@@ -46,8 +46,8 @@ const ui = {
     error: 'Não foi possível carregar a ajuda local.',
     empty: 'Tópico de ajuda não encontrado.',
     api: 'Referência das funções de Server Script', parameters: 'Parâmetros', result: 'Resultado', safety: 'Cuidados', related: 'Continue por aqui',
-    search: 'O que você quer fazer?', searchHint: 'Busque uma tarefa, campo ou comando', clear: 'Limpar busca', noResults: 'Nenhum tópico corresponde à busca. Tente uma palavra mais simples ou o nome do campo.', outline: 'Neste artigo', field: 'Campo', meaning: 'Para que serve e como preencher', example: 'Exemplo', constraints: 'Valores e limites', technical: 'Chave para Scripts', results: 'tópicos encontrados',
-    start: 'Primeiros passos e projeto', data: 'Fontes de dados e TAGs', drivers: 'Conexão com equipamentos', visual: 'Telas, popups e objetos', scripts: 'Scripts e memória', intelligence: 'Inteligência de ativos e processos', history: 'Histórico, tendências e relatórios', events: 'Alarmes, eventos e auditoria', security: 'Usuários e permissões', licensing: 'Licenciamento', runtime: 'Operação e diagnóstico',
+    search: 'O que você quer fazer?', searchHint: 'Busque uma tarefa, campo ou comando', clear: 'Limpar busca', noResults: 'Nenhum tópico corresponde à busca. Tente uma palavra mais simples ou o nome do campo.', outline: 'Neste artigo', field: 'Campo', meaning: 'Para que serve e como preencher', example: 'Exemplo', constraints: 'Valores e limites', technical: 'Referência técnica', results: 'tópicos encontrados',
+    assets: 'Templates e equipamentos', administration: 'Banco de dados e HA', start: 'Primeiros passos e projeto', data: 'Fontes de dados e TAGs', drivers: 'Conexão com equipamentos', visual: 'Telas, popups e objetos', scripts: 'Scripts e memória', intelligence: 'Inteligência de ativos e processos', history: 'Histórico, tendências e relatórios', events: 'Alarmes, eventos e auditoria', security: 'Usuários e permissões', licensing: 'Licenciamento', runtime: 'Operação e diagnóstico',
     guides: 'Guias e procedimentos', shapes: 'Formas e texto', media: 'Imagens e mídia', controls: 'Valores, controles e navegadores', gauges: 'Medidores', analysisObjects: 'Objetos de análise'
   },
   en: {
@@ -59,8 +59,8 @@ const ui = {
     error: 'The local help could not be loaded.',
     empty: 'Help topic not found.',
     api: 'Server Script function reference', parameters: 'Parameters', result: 'Result', safety: 'Considerations', related: 'Continue here',
-    search: 'What do you want to do?', searchHint: 'Search for a task, field or command', clear: 'Clear search', noResults: 'No topics match your search. Try a simpler word or the field name.', outline: 'In this article', field: 'Field', meaning: 'Purpose and how to fill it', example: 'Example', constraints: 'Values and limits', technical: 'Script key', results: 'topics found',
-    start: 'First steps and projects', data: 'Data Sources and TAGs', drivers: 'Equipment connections', visual: 'Screens, popups and objects', scripts: 'Scripts and memory', intelligence: 'Asset and Process Intelligence', history: 'History, trends and reports', events: 'Alarms, events and audit', security: 'Users and permissions', licensing: 'Licensing', runtime: 'Operation and diagnostics',
+    search: 'What do you want to do?', searchHint: 'Search for a task, field or command', clear: 'Clear search', noResults: 'No topics match your search. Try a simpler word or the field name.', outline: 'In this article', field: 'Field', meaning: 'Purpose and how to fill it', example: 'Example', constraints: 'Values and limits', technical: 'Technical reference', results: 'topics found',
+    assets: 'Templates and equipment', administration: 'Database and HA', start: 'First steps and projects', data: 'Data Sources and TAGs', drivers: 'Equipment connections', visual: 'Screens, popups and objects', scripts: 'Scripts and memory', intelligence: 'Asset and Process Intelligence', history: 'History, trends and reports', events: 'Alarms, events and audit', security: 'Users and permissions', licensing: 'Licensing', runtime: 'Operation and diagnostics',
     guides: 'Guides and procedures', shapes: 'Shapes and text', media: 'Images and media', controls: 'Values, controls and browsers', gauges: 'Gauges', analysisObjects: 'Analysis objects'
   },
   es: {
@@ -72,8 +72,8 @@ const ui = {
     error: 'No fue posible cargar la ayuda local.',
     empty: 'Tema de ayuda no encontrado.',
     api: 'Referencia de funciones de Server Script', parameters: 'Parámetros', result: 'Resultado', safety: 'Cuidados', related: 'Continúe por aquí',
-    search: '¿Qué desea hacer?', searchHint: 'Busque una tarea, campo o comando', clear: 'Limpiar búsqueda', noResults: 'Ningún tema coincide. Pruebe una palabra más sencilla o el nombre del campo.', outline: 'En este artículo', field: 'Campo', meaning: 'Para qué sirve y cómo completarlo', example: 'Ejemplo', constraints: 'Valores y límites', technical: 'Clave para Scripts', results: 'temas encontrados',
-    start: 'Primeros pasos y proyectos', data: 'Fuentes de datos y TAGs', drivers: 'Conexión con equipos', visual: 'Pantallas, popups y objetos', scripts: 'Scripts y memoria', intelligence: 'Inteligencia de activos y procesos', history: 'Histórico, tendencias e informes', events: 'Alarmas, eventos y auditoría', security: 'Usuarios y permisos', licensing: 'Licenciamiento', runtime: 'Operación y diagnóstico',
+    search: '¿Qué desea hacer?', searchHint: 'Busque una tarea, campo o comando', clear: 'Limpiar búsqueda', noResults: 'Ningún tema coincide. Pruebe una palabra más sencilla o el nombre del campo.', outline: 'En este artículo', field: 'Campo', meaning: 'Para qué sirve y cómo completarlo', example: 'Ejemplo', constraints: 'Valores y límites', technical: 'Referencia técnica', results: 'temas encontrados',
+    assets: 'Plantillas y equipos', administration: 'Base de datos y HA', start: 'Primeros pasos y proyectos', data: 'Fuentes de datos y TAGs', drivers: 'Conexión con equipos', visual: 'Pantallas, popups y objetos', scripts: 'Scripts y memoria', intelligence: 'Inteligencia de activos y procesos', history: 'Histórico, tendencias e informes', events: 'Alarmas, eventos y auditoría', security: 'Usuarios y permisos', licensing: 'Licenciamiento', runtime: 'Operación y diagnóstico',
     guides: 'Guías y procedimientos', shapes: 'Formas y texto', media: 'Imágenes y multimedia', controls: 'Valores, controles y navegadores', gauges: 'Medidores', analysisObjects: 'Objetos de análisis'
   }
 } as const;
@@ -81,11 +81,24 @@ const ui = {
 export function ContextualHelpApp() {
   const locale = useAppShellLocale();
   const text = ui[locale];
-  const requestedTopic = new URLSearchParams(window.location.search).get('topic');
+  const [requestedTopic, setRequestedTopic] = useState(() => new URLSearchParams(window.location.search).get('topic'));
   const [catalog, setCatalog] = useState<HelpCatalog | null>(null);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState('');
   const visibleTopics = useMemo(() => filterHelpTopics(catalog?.topics ?? [], query), [catalog, query]);
+
+  useEffect(() => {
+    const restoreTopic = () => setRequestedTopic(new URLSearchParams(window.location.search).get('topic'));
+    window.addEventListener('popstate', restoreTopic);
+    return () => window.removeEventListener('popstate', restoreTopic);
+  }, []);
+
+  const openTopic = (event: React.MouseEvent<HTMLAnchorElement>, topicId: string) => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (topicId !== requestedTopic) window.history.pushState(null, '', `/help?topic=${encodeURIComponent(topicId)}`);
+    setRequestedTopic(topicId);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -163,7 +176,7 @@ export function ContextualHelpApp() {
               <summary>{text[area]} <span aria-hidden="true">({topics.length})</span></summary>
               {subareas.map(subarea => <div key={subarea} className="help-page__subarea">
                 {subareas.length > 1 ? <h3>{text[subarea as keyof typeof text]}</h3> : null}
-                {topics.filter(topic => helpSubarea(topic) === subarea).map(topic => <a key={topic.id} href={`/help?topic=${encodeURIComponent(topic.id)}`}
+                {topics.filter(topic => helpSubarea(topic) === subarea).map(topic => <a key={topic.id} href={`/help?topic=${encodeURIComponent(topic.id)}`} onClick={event => openTopic(event, topic.id)}
                   className={selected?.id === topic.id ? 'active' : undefined} aria-current={selected?.id === topic.id ? 'page' : undefined}>
                   {topic.title}
                 </a>)}
@@ -200,7 +213,7 @@ export function ContextualHelpApp() {
               <ul>
                 {selected.relatedTopicIds.map(topicId => {
                   const related = catalog.topics.find(topic => topic.id === topicId);
-                  return related ? <li key={topicId}><a href={`/help?topic=${encodeURIComponent(topicId)}`}>{related.title}</a></li> : null;
+                  return related ? <li key={topicId}><a href={`/help?topic=${encodeURIComponent(topicId)}`} onClick={event => openTopic(event, topicId)}>{related.title}</a></li> : null;
                 })}
               </ul>
             </section> : null}

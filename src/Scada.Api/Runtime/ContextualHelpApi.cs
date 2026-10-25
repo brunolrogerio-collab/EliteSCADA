@@ -127,7 +127,18 @@ public static partial class ContextualHelpCatalog
         "scripts.client-api",
         "intelligence.profiles-equipment",
         "intelligence.operating-contexts",
-        "intelligence.dashboard-workflow"
+        "intelligence.dashboard-workflow",
+        "help.application-map",
+        "templates.overview",
+        "equipment.overview",
+        "database.topology",
+        "ha.configuration-operation",
+        "intelligence.activation",
+        "intelligence.semantics",
+        "intelligence.analysis-guide",
+        "application.presentation",
+        "sources.media",
+        "home-building.organization"
     };
 
     private static readonly IReadOnlyCollection<TopicDefinition> ManualTopics = BuildManualTopics()
@@ -163,6 +174,7 @@ public static partial class ContextualHelpCatalog
 
         topics.AddRange(BuildLearningGuides(locale));
         topics.AddRange(BuildVisualObjectGuides(locale));
+        topics.AddRange(BuildSystemGuides(locale));
 
         return new ContextualHelpCatalogView(
             locale,

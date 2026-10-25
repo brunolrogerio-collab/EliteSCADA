@@ -19,4 +19,9 @@ No security, licensing, HA, write/command, recovery or critical-warning material
 - [Scripting, Alarms, and History](06-SCRIPTING-ALARMS-HISTORY.md) — stable Server Script and Client Visual guidance, APIs, examples, Runtime boundaries, alarms/events/audit distinctions, Historian/Trends, and current Historical Time Range/Playback procedures.
 - [Asset and Process Intelligence](12-ASSET-PROCESS-INTELLIGENCE.md) — current profile, context, process-stage, analysis, and editable Screen-draft workflows; review as the product evolves.
 
+- [Templates and Equipment](04-TEMPLATES-AND-EQUIPMENT.md)
+- [High Availability](13-HIGH-AVAILABILITY.md)
+- [Database](14-DATABASE.md)
+- [Header, Mobile, media and locations](15-PRESENTATION-MEDIA-LOCATIONS.md)
+
 See [the full table of contents](../README.md) and [coverage matrix](../COVERAGE-MATRIX.md).

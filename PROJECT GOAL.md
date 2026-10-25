@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-10-24
+**Last reviewed:** 2026-10-25
 
 ## Mandatory continuity protocol
 
@@ -30,6 +30,8 @@ The seven communication Drivers completed the integrated L3 interoperability gat
 The Product Owner requires practical guidance sufficient to build an application without assumed familiarity, including explanations of ordinary fields and actions. Help must explain prerequisites, steps, expected behavior and troubleshooting from the implemented product. Script guidance must cover the supported syntax and commands with several concrete examples appropriate to each execution scope. Verify examples against the corresponding implementation; architecture proposals alone are not evidence that an API is available. Preserve the installed/offline Help foundation and pt-BR/en/es semantic parity, and state confirmed limitations accurately. Exact delivery and residual-defect status belongs in `LAST CHANGE.md` and #379/#424/#425.
 
 The 24 October owner review clarifies that topic presence alone does not satisfy this goal. Organize Help into understandable areas and subtopics with search and article navigation. Explain object-specific fields, their purpose, units/options, examples and effects; do not assume all Screen/Popup objects share one property set. Introduce the situation before technical instructions, distinguish Server and Client Visual syntax/APIs, and execute the actual published examples. Images used for instruction must be real product captures with known provenance and an accurate caption; never invent a product interface. Final manual illustration follows the queued interface audit.
+
+The 25 October owner correction explicitly includes every material product area: Intelligence, HA, Database, Templates, Equipment and the remaining workflows. Do not stop at Screen/object or Script coverage. Explain how to reach each feature, the actual fields and conditional choices, examples, ordered actions, expected results and recovery from common mistakes. An area inventory or a passing test is not acceptance of teaching depth. Maintain an honest whole-product depth map, and keep installed Help easy to find from the relevant UI.
 
 ## Product mission
 

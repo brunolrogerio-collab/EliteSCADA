@@ -8,7 +8,7 @@ This chapter describes the workflows available today. Intelligence is optional: 
 
 Before creating a profile, identify the stable Equipment resource and TAGs that represent useful measurements, such as current, voltage, pressure, flow, or temperature. Check unit, type, quality, timestamp, and Historian capture for the period to be analyzed. Do not include a signal merely because it is available; state which operational question it helps answer.
 
-Editing requires `EngineeringModify` and `AssetProcessIntelligenceManage` within the resource scope. Intelligence features also require the corresponding license.
+Editing requires `EngineeringModify` and an explicit `AssetProcessIntelligenceManage` grant, global or covering the resource. Intelligence features also require the corresponding license.
 
 ## 2. Create a measurement profile and assignment
 
@@ -54,3 +54,96 @@ Choose a profile or stage and generate an available Screen. Generation uses TAG 
 - **Result differs after editing:** save the correct configuration, check the Active revision, and explicitly run a new query.
 
 **Related Help:** `/help?topic=historian.overview`, `/help?topic=tags.quality`, `/help?topic=tags.timestamps`, `/help?topic=screens.overview`, `/help?topic=engineering.lifecycle`.
+
+<!-- installed-system-guides -->
+
+## Intelligence: enable, pause and resolve blocks
+
+Available licensing, selected resources and active execution are different conditions.
+
+### Follow the full sequence
+
+Open Engineering > Asset Intelligence. First create Equipment and TAGs, then signal profiles, Equipment/profile assignments, useful contexts and stages. Save configuration and selected scopes; publish/activate the revision. Then explicitly activate the resource for analysis. Creating a profile, checking a box or holding a license does not automatically arm execution.
+
+### Permissions and resource selection
+
+EngineeringModify permits configuration; AssetProcessIntelligenceManage must be explicit, global or covering the Equipment/Location. The Developer name or SystemAdmin alone does not replace that grant. Queries also need TrendUse and Intelligence licensing. Grant through Security and inspect effective session capabilities. Select resources rather than memorizing IDs, preserving their identity.
+
+### Activate only where useful
+
+1. Select Equipment/Locations under Eligible scopes.
+2. Save scopes and configuration.
+3. Publish/activate the revision and resolve pending changes before arming execution.
+4. Use Activate on the resource and confirm its execution permit is armed.
+5. Open an assignment query and choose the period.
+6. Use Pause to stop analysis; pending work is cancelled without deleting TAGs/history. Pause before removing a resource from selection.
+
+### Configured active does not mean armed
+
+After authorization revocation the execution permit can stay closed while configuration remains active. Restoring a grant does not silently rearm work: inspect state and explicitly Activate again, including after restart when indicated. This avoids restarting analysis without an owner decision. Distinguish this from Historian errors or missing data.
+
+### Example: start small
+
+Start with Pump 01 in one area. Configure current and speed if available; do not invent missing vibration. Add measurements and analyses supported by their catalogs. Keep unused resources paused. Selective configuration controls eligible execution, not a fixed CPU/RAM promise.
+
+[Open this guide in installed Help](/help?topic=intelligence.activation)
+
+## Intelligence: signal meaning and units
+
+Describe what was measured, not just the TAG name.
+
+### Why a name is not enough
+
+A TAG named Power may mean active/apparent power or a calculated value; pressure may mean suction, discharge or differential. Rules must not guess from names. In the profile select the controlled semantic role when required and complete its shown qualifiers. Legacy role text is descriptive only.
+
+### Fields and choices
+
+Choose only meaning supported by the instrument and process. Selectors list choices accepted by the current catalog.
+
+| Field | Purpose and how to fill it | Example | Bounds |
+| --- | --- | --- | --- |
+| Required | Marks signals whose absence compromises requested coverage. Do not mark essential signals optional just to obtain a result. | Current needed for comparison |  |
+| Semantic role | Controlled quantity/function; analysis matches it rather than a similar TAG name. | Active input power, if measured |  |
+| Current basis | Distinguishes the role-accepted basis, such as instrument-appropriate RMS current; do not infer from a generic label. | Select the documented instrument option |  |
+| Signal kind | Distinguishes measurement, reference and the role-required function. A setpoint does not prove a measured value. | Actual measurement when required |  |
+| Pressure reference | Identifies required basis/source; outlet-minus-inlet differential differs from discharge pressure alone. | Measured outlet − inlet differential |  |
+| Flow direction | Identifies transfer direction; the opposite direction may invalidate a rule. | Pump to process, when applicable |  |
+| Frequency reference | Identifies frequency meaning per catalog; distinguish electrical reference from physical speed. | Check instrument source |  |
+| TAG and unit | Select the actual TAG and check its controlled engineering unit. A profile label change does not convert data. Some calculations require specific catalog units/versions. | kW for power when it matches actual data |  |
+
+### Example: do not confuse a proxy with efficiency
+
+Increasing current at the same speed may justify investigation but is not physical motor-efficiency calculation. Input electrical power, flow and differential pressure may enable other rules when roles, units and required alignment exist. If an instrument/qualifier is missing, read the unavailable-rule reason rather than entering fictional values.
+
+[Open this guide in installed Help](/help?topic=intelligence.semantics)
+
+## Intelligence: query results and build dashboards
+
+Choose the question, check available data, then interpret the indicator.
+
+### Start with coverage
+
+With saved assignment and authorized execution, open profile coverage. Enter start/end and explicitly query. Form times are local and the response identifies the UTC window; end must follow start. Inspect required signals with data, accepted/rejected samples, quality and temporal alignment before min/max/mean. Sample counts alone prove neither cadence, completeness nor synchronized acquisition.
+
+### Performance: choose an eligible rule
+
+Open Performance and select a catalog rule. Disabled options explain missing signals, roles or units. Do not choose a different quantity just to obtain a number. Fill From/To, query and inspect status, unit, window and limitations. Unavailable is not zero; a proxy must not be labelled physical efficiency. Assignment/revision/parameter changes require a fresh query rather than reuse of an old number.
+
+### Two context types with different bounds
+
+Saved operating contexts use inclusive numeric bounds in the current engineering unit and evidence at the same exact UTC source timestamp. The contextual-deviation screen generator uses separate selections: 2–8 target signals and two distinct numeric context signals, different from targets. At least four usable numeric signals are needed. Generator ranges use the displayed controlled unit and lower ≤ value < upper. Do not automatically copy operating-profile bounds: units and upper-bound inclusion may differ.
+
+### Generate the screen and check the full chain
+
+1. Choose assignment/stage and screen type.
+2. Complete required selections; read field reasons if blocked.
+3. Generate the draft; this arranges objects/references without querying Historian or activating a screen.
+4. Review name, dimensions, objects, bindings and navigation in the editor; Preview and Apply.
+5. Save/publish/activate and open in Runtime.
+6. Configure/run the object query and check window/result. A stage screen groups members without automatically creating an aggregate KPI or proving causality.
+
+### How to investigate an empty result
+
+Check in order: license/permissions; saved scope/armed permit; active project/revision; assignment/TAGs; period; Historian capture; quality; roles/units; alignment/context. Fix the first evidenced missing condition and query again. Do not broaden limits or change signal meaning just to make a result appear. Analyses support investigation, not confirmed defects or field-validated failure prediction.
+
+[Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

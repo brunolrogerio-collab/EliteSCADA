@@ -16,7 +16,10 @@ public static partial class ContextualHelpCatalog
             "scripts.engineering" or "scripts.python-validation" => ["scripts.choose-scope", "scripts.server-syntax", "scripts.triggers-dependencies", "scripts.server-recipes", "scripts.client-recipes"],
             "scripts.server" => ["scripts.server-syntax", "scripts.triggers-dependencies", "scripts.server-recipes", "scripts.commands-feedback"],
             "scripts.client-visual" => ["scripts.choose-scope", "scripts.client-api", "scripts.client-recipes", "visual.events"],
-            "intelligence.overview" => ["intelligence.profiles-equipment", "intelligence.operating-contexts", "intelligence.dashboard-workflow"],
+            "intelligence.overview" => ["equipment.overview", "intelligence.activation", "intelligence.profiles-equipment", "intelligence.semantics", "intelligence.operating-contexts", "intelligence.analysis-guide", "intelligence.dashboard-workflow"],
+            "engineering.shell-navigation" or "help.find-your-way" => ["help.application-map", "templates.overview", "equipment.overview", "database.topology", "ha.overview"],
+            "dynamos.overview" or "libraries.reusable-resources" => ["templates.overview", "equipment.overview"],
+            "ha.overview" => ["ha.configuration-operation", "database.topology"],
             "visual.object.core.trend" or "trends.overview" => ["visual.trend-series"],
             "visual.object.core.alarmbrowser" or "visual.object.core.eventbrowser" => ["visual.browser-filters"],
             _ => []

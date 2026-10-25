@@ -1,0 +1,2441 @@
+{
+  "pt-BR": [
+    {
+      "id": "templates.overview",
+      "category": "templates",
+      "title": "Templates: criar um faceplate reutilizável",
+      "summary": "Desenhe uma vez e entenda como a alteração chega aos equipamentos vinculados.",
+      "sections": [
+        {
+          "heading": "Entenda o que está criando",
+          "body": "Um Template Faceplate é uma definição gráfica compartilhada: por exemplo, o desenho de uma bomba com nome, estado e leitura. Equipamento é a identidade de uma bomba concreta. Você pode ter Bomba 01 e Bomba 02 usando o mesmo Template, e pode criar um equipamento sem Template. Um perfil da Intelligence organiza medições e não substitui esse desenho.",
+          "fields": null
+        },
+        {
+          "heading": "Onde entrar e o que preencher",
+          "body": "Abra Engenharia > Templates. O editor usa os mesmos objetos, Propriedades, Dinâmicas e Eventos das Telas. Tenha permissão de edição e o bloqueio de edição quando solicitado.",
+          "fields": [
+            {
+              "key": "template.name",
+              "label": "Nome do Template",
+              "description": "Nome legível na biblioteca. Descreva a finalidade, não uma única instância física.",
+              "example": "Bomba com estado e pressão",
+              "constraints": ""
+            },
+            {
+              "key": "template.key",
+              "label": "Identificador",
+              "description": "Referência estável usada pelos vínculos. Preserve-a ao atualizar o desenho; mudar só o nome não exige criar outro equipamento.",
+              "example": "pump-faceplate",
+              "constraints": ""
+            },
+            {
+              "key": "template.elements",
+              "label": "Objetos e vínculos",
+              "description": "Composição do desenho. Um TAG fixo continua apontando para o mesmo TAG quando o desenho é reutilizado. Confira as referências de cada instância antes de representar outro equipamento.",
+              "example": "Título, estado e valor exibido",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento: criar e reutilizar",
+          "body": "1. Selecione Novo Template e preencha nome e identificador. 2. Insira um conjunto pequeno de objetos e configure suas propriedades. 3. Adicione vínculos/dinâmicas/eventos necessários; não presuma substituição automática de TAGs pelo nome do equipamento. 4. Execute Preview, corrija erros e aplique ao projeto. 5. Abra Equipamentos, crie ou selecione uma instância e escolha esse Template opcional. Salve a associação. 6. No editor de Tela, use a biblioteca de equipamentos/faceplates para inserir a instância, quando disponível. 7. Salve, publique e ative a revisão. Confira duas instâncias e suas leituras no Runtime.",
+          "fields": null
+        },
+        {
+          "heading": "Atualizar sem confundir definição e instância",
+          "body": "Editar o Template compartilhado atualiza o desenho acompanhado por todas as instâncias vinculadas na revisão correspondente. Revise o impacto antes de aplicar; para uma aparência específica, considere outro Template. Alterar o vínculo do equipamento muda seu desenho associado e preserva a identidade do equipamento. Um Dínamo é outra forma de conjunto visual reutilizável; um Grupo apenas organiza objetos.",
+          "fields": null
+        },
+        {
+          "heading": "Se não encontrar ou não atualizar",
+          "body": "Confira se o Template foi aplicado ao projeto, se o equipamento aponta para a definição correta e se a revisão foi ativada. Uma cópia independente de objetos não ganha vínculo por ter o mesmo nome. Quando a validação informar mudança do projeto, atualize e valide novamente. Se aparecer o valor de outra bomba, confira referências, não apenas o título.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "equipment.overview",
+        "visual.first-screen",
+        "visual.properties",
+        "dynamos.overview",
+        "libraries.reusable-resources",
+        "intelligence.profiles-equipment"
+      ]
+    },
+    {
+      "id": "equipment.overview",
+      "category": "equipment",
+      "title": "Equipamentos: criar, identificar e associar",
+      "summary": "Cadastre o ativo real, depois escolha desenho e medições que pertencem a ele.",
+      "sections": [
+        {
+          "heading": "Comece pela identidade do ativo",
+          "body": "Abra Engenharia > Equipamentos. Equipamento representa uma instância real, como Bomba 01. Não é o Driver, o TAG nem o desenho. Você pode criá-lo sem faceplate e associar um Template depois. Intelligence usa essa identidade nas associações de perfil; desenhar uma bomba numa Tela não cadastra esse equipamento.",
+          "fields": null
+        },
+        {
+          "heading": "Campos da instância",
+          "body": "O formulário mostra nome e Template opcional. O caminho é gerado pelo produto, não precisa ser inventado nem digitado para criar a instância.",
+          "fields": [
+            {
+              "key": "equipment.name",
+              "label": "Nome do equipamento",
+              "description": "Rótulo para encontrar o ativo. Use nomes que diferenciem instâncias.",
+              "example": "Bomba 01",
+              "constraints": ""
+            },
+            {
+              "key": "equipment.path",
+              "label": "Caminho gerado",
+              "description": "Referência estável mostrada para conferência. Ao editar o nome de uma instância existente, o caminho é preservado. Um nome que gere caminho já usado bloqueia uma nova criação.",
+              "example": "Conferir a prévia do caminho",
+              "constraints": ""
+            },
+            {
+              "key": "equipment.templateId",
+              "label": "Template Faceplate (opcional)",
+              "description": "Seleciona o desenho compartilhado. Sem Template é válido; remover o vínculo não exclui o equipamento. A troca não escolhe automaticamente TAGs nem perfis da Intelligence.",
+              "example": "Template Bomba ou Sem Template",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento: cadastrar e conferir",
+          "body": "1. Informe um nome distinto. 2. Confira o caminho gerado; escolha Template ou deixe Sem Template. 3. Selecione Criar equipamento. O produto valida a alteração antes de aplicá-la ao projeto. 4. Selecione a instância na lista para editar nome ou vínculo; use Salvar alterações. 5. Salve/publique/ative a revisão quando o equipamento precisar estar disponível no Runtime. 6. Na Intelligence, escolha a identidade desse equipamento e associe o perfil de medições. Configure TAGs e captura antes de consultar análise.",
+          "fields": null
+        },
+        {
+          "heading": "Verificação e erros frequentes",
+          "body": "A instância deve aparecer na lista com nome, caminho e vínculo correto. Sem Template não significa equipamento inválido. Template indisponível indica vínculo sem definição resolvida; selecione um Template existente ou retire a associação. Caminho duplicado exige um nome distinto para a nova instância. Conflito de edição exige atualizar e revisar, não criar cópias até a mensagem desaparecer.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "templates.overview",
+        "intelligence.profiles-equipment",
+        "intelligence.activation",
+        "visual.object-selection",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "database.topology",
+      "category": "database",
+      "title": "Banco de dados: configurar, migrar e recuperar",
+      "summary": "Entenda o banco ativo antes de validar outro destino ou iniciar uma migração.",
+      "sections": [
+        {
+          "heading": "Onde entrar e qual problema esta tela resolve",
+          "body": "Abra Engenharia > Banco de dados. É necessária a capacidade SystemAdmin. Local Managed usa o banco local administrado pela instalação; Remote usa um PostgreSQL configurado. Essa escolha define armazenamento, não cria redundância de servidores HA. Confira Estado atual e Próxima ação antes de preencher qualquer campo. Se Local Managed está saudável e atende sua instalação, não é necessário configurar Remote.",
+          "fields": null
+        },
+        {
+          "heading": "Prepare o destino",
+          "body": "Combine com o administrador o servidor, banco, conta, certificados e permissões. O endereço deve ser acessível pelo serviço SCADIVO, não apenas pelo navegador. Em Docker, localhost dentro do contêiner significa o próprio contêiner; use o nome/endereço realmente alcançável pelo serviço. Em Windows/Linux, caminhos de certificados pertencem ao servidor onde o serviço executa. Faça backup e escolha uma janela de manutenção antes de migrar.",
+          "fields": null
+        },
+        {
+          "heading": "Campos básicos e avançados",
+          "body": "Comece por host, usuário e segredo. Abra Configurações avançadas somente se precisar alterar os valores já preenchidos. Os exemplos são ilustrativos e não são credenciais de uma instalação.",
+          "fields": [
+            {
+              "key": "primary.host",
+              "label": "Host / FQDN",
+              "description": "Nome DNS ou endereço do PostgreSQL alcançável pelo serviço. Não é a URL da interface web.",
+              "example": "db.example.invalid",
+              "constraints": ""
+            },
+            {
+              "key": "primary.username",
+              "label": "Usuário / identidade",
+              "description": "Conta PostgreSQL provisionada para a aplicação. Não é seu login na Authority do SCADIVO.",
+              "example": "Conta fornecida pelo administrador",
+              "constraints": ""
+            },
+            {
+              "key": "primary.password",
+              "label": "Senha / segredo",
+              "description": "Usado no envio e não recuperado na leitura do estado. Sumir do formulário após enviar não significa perder a credencial. Nunca cole em chamado ou captura.",
+              "example": "Preencher apenas no formulário protegido",
+              "constraints": ""
+            },
+            {
+              "key": "primary.database",
+              "label": "Database",
+              "description": "Nome do banco de destino, não nome do projeto. O valor inicial é elitescada; confirme com o administrador.",
+              "example": "elitescada",
+              "constraints": ""
+            },
+            {
+              "key": "primary.port",
+              "label": "Porta",
+              "description": "Porta do PostgreSQL. O valor inicial é 5432; é diferente da porta HTTPS da aplicação.",
+              "example": "5432",
+              "constraints": ""
+            },
+            {
+              "key": "primary.tlsMode",
+              "label": "Modo TLS",
+              "description": "Require exige conexão criptografada. VerifyCa verifica a cadeia da CA; VerifyFull também verifica o nome do servidor. Prefer e Disable não garantem o mesmo nível de proteção. Use o modo acordado com TI, sem desabilitar TLS apenas para apagar um erro.",
+              "example": "Require ou VerifyFull com CA válida",
+              "constraints": ""
+            },
+            {
+              "key": "primary.rootCertificatePath",
+              "label": "Caminho do certificado CA",
+              "description": "Arquivo de CA legível pelo serviço; exigido pelo formulário para VerifyCa/VerifyFull. Caminho do computador do navegador não atende um serviço em outro host/contêiner.",
+              "example": "Caminho provisionado no servidor",
+              "constraints": ""
+            },
+            {
+              "key": "primary.timeoutSeconds",
+              "label": "Timeout (s)",
+              "description": "Tempo de espera da conexão; o valor inicial é 15 segundos. Aumentar não corrige usuário, DNS ou certificado errado.",
+              "example": "15 s",
+              "constraints": ""
+            },
+            {
+              "key": "historianOverride",
+              "label": "Historian usa Primary / dedicado",
+              "description": "Marcado, o histórico usa o banco principal. Desmarque somente para um destino Historian dedicado e preencha seu endpoint completo; a compatibilidade desse destino também precisa passar.",
+              "example": "Usar Primary na configuração simples",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Migrar dados para outro banco",
+          "body": "1. Confira o banco ativo e tenha backup. 2. Preencha Remote e selecione Validar destino. O produto testa conexão, autenticação, TLS e compatibilidade; conectividade sozinha não basta. 3. Prepare a migração e confira origem, destino e dados incluídos no plano. A configuração fica bloqueada após preparar. 4. Durante a janela de manutenção, selecione Iniciar migração. Gravações duráveis podem ficar pausadas. 5. Aguarde cópia e verificação automática; confira o resultado. 6. Somente após verificação bem-sucedida, selecione Ativar banco Remote e confirme. 7. Se houver restart necessário, reinicie/reabra o serviço conforme a instalação. Confira novamente topologia ativa, saúde, projeto e revisão antes de retomar a operação.",
+          "fields": null
+        },
+        {
+          "heading": "Conectar a banco existente não é migrar",
+          "body": "Conectar a banco existente (sem cópia) não copia nem mescla registros. Só deve ser usado para o destino já preparado com o mesmo projeto e a mesma revisão ativa exigidos pela instalação. Leia a confirmação. Incompatibilidade de projeto/revisão bloqueia a troca; não esvazie nem altere o banco para contornar a conferência. Para transportar os dados atuais, use o fluxo de migração.",
+          "fields": null
+        },
+        {
+          "heading": "Reverter e voltar ao banco local",
+          "body": "Se a operação indicar Recovery/Rollback necessário, confira diagnóstico e use Reverter operação quando disponível. Voltar para Local Managed valida e reativa o banco local preservado, podendo exigir reinício. Isso não mescla automaticamente gravações feitas depois no Remote com o banco local. O banco anterior é preservado; voltar não equivale a restaurar um backup nem a apagar o Remote. Confira os dados e a revisão realmente ativos após a troca.",
+          "fields": null
+        },
+        {
+          "heading": "Erros que merecem ações diferentes",
+          "body": "Sem conexão: confira DNS, porta e acesso do serviço. Autenticação recusada: confirme a conta PostgreSQL e seu segredo. TLS: confira CA, nome e validade do certificado. Incompatibilidade: leia versão PostgreSQL, capacidade TimescaleDB quando exigida e schema. Fase inválida: atualize o estado e siga Próxima ação; não repita Iniciar durante uma cópia. Banco indisponível: o Runtime pode ficar degradado; o produto não deve fingir persistência em memória. Registre horário, fase e ID da operação para suporte, sem senha.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "ha.overview",
+        "historian.overview",
+        "recovery.backup-system-recovery",
+        "installation.switching",
+        "security.users-roles-capabilities"
+      ]
+    },
+    {
+      "id": "ha.configuration-operation",
+      "category": "ha",
+      "title": "HA: configurar dois servidores e acompanhar a operação",
+      "summary": "Distinga configuração salva, servidor ativo, parceiro pronto e proteção contra execução duplicada.",
+      "sections": [
+        {
+          "heading": "O que preparar antes",
+          "body": "HA significa Alta Disponibilidade: dois servidores podem assumir o Runtime de forma controlada. Abra Engenharia > Alta disponibilidade. Precisa de licença HA Runtime e de HighAvailabilityObserve para observar; salvar e operar também exigem HighAvailabilityTransfer. Confirme rede entre serviços, autenticação, relógios e armazenamento de cada nó. Bancos compartilhados ou separados precisam ter sua topologia conferida; marcar HA não cria sozinho replicação nem prova disponibilidade de banco.",
+          "fields": null
+        },
+        {
+          "heading": "Preencha somente o que depende da instalação",
+          "body": "A tela distingue Este servidor e Servidor parceiro. As identidades internas e o transporte automático não precisam ser inventados pelo operador.",
+          "fields": [
+            {
+              "key": "nodes.localEndpoint",
+              "label": "Endereço principal de cada servidor",
+              "description": "Endpoint alcançável pelos serviços. O endereço detectado no navegador só serve se o parceiro também o alcançar; localhost em dois hosts não é o mesmo servidor.",
+              "example": "Endereços reais dos dois serviços",
+              "constraints": ""
+            },
+            {
+              "key": "nodes.remoteEndpoint",
+              "label": "Endereço externo alternativo",
+              "description": "Abra somente quando a rede exigir endereço anunciado diferente. Sem necessidade, mantenha o automático para evitar destinos inconsistentes.",
+              "example": "Sem override numa rede simples",
+              "constraints": ""
+            },
+            {
+              "key": "initialActiveNodeId",
+              "label": "Servidor preferencial",
+              "description": "Preferência para início/failback; não promove um nó à força e não garante que ele esteja pronto.",
+              "example": "Este servidor ou parceiro",
+              "constraints": ""
+            },
+            {
+              "key": "peerSharedSecret",
+              "label": "Autenticação entre servidores",
+              "description": "Configure o segredo compartilhado pelo fluxo protegido de ambos os nós. O valor enviado é limpo da tela; confira o estado de autenticação, sem copiar o segredo para capturas.",
+              "example": "Configurar autenticação",
+              "constraints": ""
+            },
+            {
+              "key": "protection.referencePath",
+              "label": "Proteção e referência compartilhada",
+              "description": "Fencing impede que dois nós executem como Active. A referência precisa representar o mesmo armazenamento externo compartilhado visto por ambos; dois arquivos locais com nomes iguais não são uma referência comum.",
+              "example": "Recurso compartilhado provisionado pela instalação",
+              "constraints": ""
+            },
+            {
+              "key": "protection.automaticFailoverEnabled",
+              "label": "Failover automático",
+              "description": "Permite a transição automática elegível e exige proteção habilitada. A opção não dispensa prontidão do parceiro, dados disponíveis e condições de segurança.",
+              "example": "Habilitar após conferir prontidão",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento de preparação",
+          "body": "1. Confira o modo Em execução. 2. Prepare HA, informe os dois endereços e escolha o preferencial. 3. Configure autenticação e proteção compartilhada; resolva os itens da Prontidão para HA. 4. Salve configuração desejada. Salvo não significa Em execução. 5. Se exigido, planeje reinício dos serviços e confira a configuração realmente carregada. 6. Atualize o estado e confirme Active efetivo, parceiro, banco e proteção. Standby não deve ser tratado como Ready Standby. 7. Antes de usar no processo, faça o ensaio manual acordado com o responsável pela instalação; os testes do manual não substituem essa avaliação.",
+          "fields": null
+        },
+        {
+          "heading": "Leia os estados antes de operar",
+          "body": "Active efetivo é quem está autorizado a executar, não apenas o nó preferido. Synchronizing ainda está recebendo/verificando estado. Ready Standby indica a condição de prontidão avaliada pelo backend; Standby sozinho não a prova. Promoting/Demoting são transições: aguarde o resultado. Stale significa observação antiga; Isolated, Faulted, degradado ou autoridade ambígua exigem diagnóstico. Banco disponível e peer alcançável são informações diferentes. Não esconda uma falha de banco aumentando tolerâncias de rede.",
+          "fields": null
+        },
+        {
+          "heading": "Escolha a operação certa",
+          "body": "Switchover é transferência planejada a partir do Active efetivo para parceiro elegível. Failback pede retorno ao preferencial quando permitido. Recovery reconcilia uma falha/bloqueio. Forçar ressincronização é recuperação específica, disponível quando não há Active e a autoridade anterior foi cercada; não é um botão para declarar um parceiro pronto. Leia alvo, confirmação e resultado; depois confira o histórico e quem ficou Active. Uma solicitação rejeitada não deve ser repetida até a causa mudar.",
+          "fields": null
+        },
+        {
+          "heading": "Ajustes avançados: significado e limites",
+          "body": "Os valores já preenchidos são o ponto de partida. Ajustar tempos altera a proteção e a reação a falhas; faça isso apenas com análise da rede, relógios e operação. Não use os limites do formulário como recomendação de desempenho.",
+          "fields": [
+            {
+              "key": "freshnessSeconds",
+              "label": "Freshness (s)",
+              "description": "Idade máxima de uma observação considerada recente.",
+              "example": "Manter valor preenchido",
+              "constraints": "1–120 s"
+            },
+            {
+              "key": "protection.leaseSeconds",
+              "label": "Lease (s)",
+              "description": "Validade da autoridade de execução antes de expirar; não é licença comercial.",
+              "example": "Manter valor preenchido",
+              "constraints": "3–120 s"
+            },
+            {
+              "key": "protection.pollMilliseconds",
+              "label": "Poll (ms)",
+              "description": "Intervalo de consulta da referência compartilhada; menor aumenta frequência de consultas.",
+              "example": "Manter valor preenchido",
+              "constraints": "100–10000 ms"
+            },
+            {
+              "key": "protection.readyWitnessMaximumAgeSeconds",
+              "label": "Witness máximo (s)",
+              "description": "Idade máxima da evidência de parceiro pronto. Não cria prontidão por si só.",
+              "example": "Manter valor preenchido",
+              "constraints": "Pelo menos Lease; até 600 s"
+            },
+            {
+              "key": "protection.clockSkewSafetyMarginSeconds",
+              "label": "Margem de clock (s)",
+              "description": "Margem para diferença entre relógios. Não substitui sincronização de tempo.",
+              "example": "Manter valor preenchido",
+              "constraints": "0 até piso(Lease/3)"
+            }
+          ]
+        },
+        {
+          "heading": "Se houver problema",
+          "body": "403: confira permissão de observação/operação. Configuração salva diferente da executada: confira reinício pendente. Peer indisponível: endereços, rede e autenticação dos serviços. Referência indisponível: investigue o armazenamento externo compartilhado. Parceiro não pronto: consulte sincronização, banco e diagnóstico, sem forçar promoção. Acompanhe um problema por vez e registre horário, ação, resultado e nó efetivo; nunca o segredo.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "database.topology",
+        "diagnostics.overview",
+        "licensing.overview",
+        "security.users-roles-capabilities"
+      ]
+    },
+    {
+      "id": "intelligence.activation",
+      "category": "intelligence",
+      "title": "Intelligence: habilitar, pausar e resolver bloqueios",
+      "summary": "Licença disponível, recurso selecionado e execução ativa são três condições diferentes.",
+      "sections": [
+        {
+          "heading": "Siga a sequência completa",
+          "body": "Abra Engenharia > Inteligência de ativos. Primeiro crie Equipamento e TAGs. Depois configure perfil de sinais, associação Equipamento/perfil, contextos e etapas que fizerem sentido. Salve a configuração e os escopos escolhidos; publique/ative a revisão. Só então ative explicitamente o recurso para executar análises. Criar um perfil, marcar uma caixa ou possuir licença não arma a execução automaticamente.",
+          "fields": null
+        },
+        {
+          "heading": "Permissões e seleção de recursos",
+          "body": "EngineeringModify permite configurar; AssetProcessIntelligenceManage precisa ser um grant explícito, global ou com alcance no Equipamento/Local correspondente. O nome Developer ou SystemAdmin por si só não substitui esse grant. Consultas também exigem TrendUse e licença Intelligence. Conceda pela tela Segurança e confira as capacidades efetivas da sessão. Não exponha IDs para o operador decorar: escolha os recursos pelo seletor e preserve sua identidade.",
+          "fields": null
+        },
+        {
+          "heading": "Ativar apenas onde for útil",
+          "body": "1. Em Escopos elegíveis, selecione os equipamentos/locais desejados. 2. Salve os escopos e a configuração. 3. Publique/ative a revisão; resolva alterações pendentes antes de armar execução. 4. Na linha do recurso use Ativar e confira a permissão de processo armada. 5. Abra a consulta de uma associação e escolha o período. 6. Para deixar de analisar, use Pausar; o trabalho pendente é cancelado. A pausa não apaga TAGs nem histórico. Para retirar um recurso da seleção, pause-o primeiro.",
+          "fields": null
+        },
+        {
+          "heading": "Ativo configurado não significa permissão armada",
+          "body": "Se a autorização foi revogada, a permissão de execução pode ficar fechada mesmo com Ativo na configuração. Restaurar o grant não rearma o trabalho silenciosamente: confira o estado e use Ativar novamente, inclusive após reinício quando a tela exigir. Isso evita reiniciar análise sem decisão do responsável. Não confunda esse estado com erro do Historian ou ausência de dados.",
+          "fields": null
+        },
+        {
+          "heading": "Exemplo de implantação pequena",
+          "body": "Comece por Bomba 01 em uma área. Configure corrente e velocidade se existirem; não invente vibração ausente. Depois adicione medições e análises cujo catálogo aceite seus sinais. Deixe outros recursos pausados se não serão utilizados. A configuração seletiva controla o que está autorizado a executar; não é uma promessa de consumo fixo de CPU/RAM.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "equipment.overview",
+        "intelligence.profiles-equipment",
+        "intelligence.semantics",
+        "intelligence.analysis-guide",
+        "security.users-roles-capabilities",
+        "intelligence.dashboard-workflow"
+      ]
+    },
+    {
+      "id": "intelligence.semantics",
+      "category": "intelligence",
+      "title": "Intelligence: significado dos sinais e unidades",
+      "summary": "Diga o que foi medido, não apenas como o TAG foi chamado.",
+      "sections": [
+        {
+          "heading": "Por que o nome não basta",
+          "body": "Um TAG chamado Potência pode representar potência ativa, aparente ou um valor calculado. Uma pressão pode ser sucção, descarga ou diferencial. As regras não devem adivinhar isso pelo texto. Abra o perfil e selecione o papel semântico controlado quando a análise o exigir; complete os qualificadores mostrados para esse papel. O texto de papel legado é apenas descritivo.",
+          "fields": null
+        },
+        {
+          "heading": "Campos e escolhas",
+          "body": "Escolha somente o significado sustentado pelo instrumento e pelo processo. Os seletores oferecem as opções aceitas pelo catálogo atual.",
+          "fields": [
+            {
+              "key": "signals.required",
+              "label": "Obrigatório",
+              "description": "Marca sinais cuja ausência compromete a cobertura pedida. Não transforme um sinal essencial em opcional apenas para obter resultado.",
+              "example": "Corrente necessária à comparação",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.roleCode",
+              "label": "Papel semântico",
+              "description": "Grandeza e função controladas; a análise compara esse papel, não a semelhança do nome do TAG.",
+              "example": "Potência ativa de entrada, se medida",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.currentBasis",
+              "label": "Base de corrente",
+              "description": "Distingue a base admitida pelo papel, como corrente RMS apropriada ao instrumento; não deduza de uma etiqueta genérica.",
+              "example": "Selecionar a opção documentada do instrumento",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.signalKind",
+              "label": "Tipo de sinal",
+              "description": "Diferencia medição, referência e função exigida pelo papel. Um setpoint não comprova o valor medido.",
+              "example": "Medição real quando a regra exigir",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.pressureReference",
+              "label": "Referência de pressão",
+              "description": "Identifica base/origem exigida; pressão diferencial de saída menos entrada é diferente de pressão de descarga isolada.",
+              "example": "Diferencial medido saída − entrada",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.flowDirection",
+              "label": "Direção do fluxo",
+              "description": "Diz em que sentido a vazão representa a transferência. Sentido oposto pode invalidar uma regra.",
+              "example": "Bomba para processo, quando corresponder",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.frequencyReference",
+              "label": "Referência de frequência",
+              "description": "Explica qual frequência o sinal representa conforme o catálogo; não confunda referência elétrica e velocidade física.",
+              "example": "Conferir a origem do instrumento",
+              "constraints": ""
+            },
+            {
+              "key": "signals.tagId",
+              "label": "TAG e unidade",
+              "description": "Selecione o TAG real e confira sua unidade de engenharia controlada. Alterar apenas rótulo no perfil não converte os dados. Alguns cálculos exigem versões/unidades específicas do catálogo.",
+              "example": "kW para potência, se esse for o dado real",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo: não confundir proxy com eficiência",
+          "body": "Corrente aumentando na mesma velocidade pode justificar investigação, mas não é cálculo de eficiência física do motor. Potência elétrica de entrada, vazão e diferencial de pressão podem habilitar outras regras se os papéis, unidades e alinhamento exigidos existirem. Sem instrumento ou qualificador necessário, leia a razão de regra indisponível em vez de preencher um valor fictício.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "intelligence.profiles-equipment",
+        "intelligence.analysis-guide",
+        "tags.scaling-formatting",
+        "tags.quality",
+        "tags.timestamps"
+      ]
+    },
+    {
+      "id": "intelligence.analysis-guide",
+      "category": "intelligence",
+      "title": "Intelligence: consultar resultados e montar dashboards",
+      "summary": "Escolha a pergunta, confirme os dados disponíveis e só então interprete o indicador.",
+      "sections": [
+        {
+          "heading": "Comece pela cobertura",
+          "body": "Com associação salva e execução autorizada, abra a consulta de cobertura do perfil. Informe início e fim e solicite a consulta explicitamente. Os horários do formulário são locais e a consulta identifica sua janela UTC. O fim deve ser posterior ao início. Confira sinais obrigatórios com dados, amostras aceitas/rejeitadas, qualidade e alinhamento temporal antes de ler mínimos, máximos ou médias. Contagens de amostras por si só não provam cadência, completude nem aquisição sincronizada.",
+          "fields": null
+        },
+        {
+          "heading": "Desempenho: escolha uma regra elegível",
+          "body": "Abra Desempenho e selecione a regra do catálogo. Uma opção desabilitada explica o sinal, papel ou unidade ausente. Não escolha outra grandeza apenas por produzir um número. Preencha De/Até, consulte e leia status, unidade, janela e limitações do resultado. Resultado indisponível não equivale a zero; um indicador substituto não deve ser chamado de eficiência física. Mudar associação, revisão ou parâmetros exige nova consulta, não reaproveitar o número anterior.",
+          "fields": null
+        },
+        {
+          "heading": "Dois tipos de contexto, com limites diferentes",
+          "body": "O contexto operacional salvo no perfil usa intervalo numérico inclusivo na unidade de engenharia atual e exige evidência no mesmo timestamp UTC de origem exato. O gerador de tela de desvio contextual tem seleções próprias: 2 a 8 sinais-alvo e dois sinais numéricos de contexto distintos, também distintos dos alvos. São pelo menos quatro sinais numéricos utilizáveis. As faixas desse gerador usam a unidade controlada exibida e a regra limite inferior ≤ valor < limite superior. Não copie automaticamente limites do perfil operacional: unidade e extremidade superior podem ser diferentes.",
+          "fields": null
+        },
+        {
+          "heading": "Gere a tela e confira a cadeia completa",
+          "body": "1. Escolha a associação ou etapa e o tipo de tela. 2. Complete as seleções exigidas; se o botão estiver bloqueado, leia o motivo junto do campo. 3. Gere o rascunho. Esse passo organiza objetos e referências, não consulta o Historian nem ativa a tela. 4. No editor, revise nome, dimensões, objetos, vínculos e navegação. Execute Preview e Apply. 5. Salve/publique/ative a revisão e abra a tela pelo Runtime. 6. Configure/execute a consulta do objeto e confira janela e resultado. Uma tela de etapa reúne membros; não cria automaticamente um KPI agregado nem prova causalidade entre equipamentos.",
+          "fields": null
+        },
+        {
+          "heading": "Roteiro para investigar resultado vazio",
+          "body": "Confira nesta ordem: licença e permissões; escopo salvo e permissão armada; projeto/revisão ativa; associação e TAGs; período; captura Historian; qualidade; papéis/unidades; alinhamento/contexto. Corrija a primeira condição comprovadamente ausente e refaça a consulta. Não amplie limites nem altere o significado do sinal apenas para fazer o resultado aparecer. As análises disponíveis ajudam a investigar; não confirmam defeito nem antecipam falhas com validade de campo ainda não demonstrada.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "intelligence.activation",
+        "intelligence.semantics",
+        "intelligence.operating-contexts",
+        "intelligence.dashboard-workflow",
+        "intelligence.process-stage-member-insights",
+        "historian.overview",
+        "templates.overview"
+      ]
+    },
+    {
+      "id": "help.application-map",
+      "category": "getting-started",
+      "title": "Por onde começar em cada área",
+      "summary": "Encontre a tarefa e siga os guias relacionados ao fim do artigo.",
+      "sections": [
+        {
+          "heading": "Uma ordem para construir sua aplicação",
+          "body": "Comece pela conexão com dados, confira TAGs, represente equipamentos, monte Telas/Popups, configure alarmes e histórico e só então analise dados com Intelligence. Scripts entram quando uma regra ou interação precisa de lógica. Segurança, licença, banco e HA são administrações distintas. Você não precisa configurar todas as funções para montar uma primeira aplicação.",
+          "fields": null
+        },
+        {
+          "heading": "Projeto e comunicação",
+          "body": "Visão geral mostra o projeto; salvar/publicar/ativar controla sua revisão. Instalação trata troca e recuperação. Fontes de dados escolhe conexão/protocolo; TAGs descreve valores, endereços e unidades; TAG Gateway cria rotas de dados. Home/Building organiza dispositivos e capacidades onde disponível. Fontes de mídia trata os recursos de mídia, não sinais industriais. Confira cada guia antes de enviar escritas a um equipamento real.",
+          "fields": null
+        },
+        {
+          "heading": "Desenho e reutilização",
+          "body": "Templates cria faceplates compartilhados; Equipamentos cadastra instâncias reais. Dínamos organiza conjuntos visuais parametrizados. Assets visuais são arquivos como imagens. Bibliotecas transporta recursos reutilizáveis entre aplicações. Telas ocupa a visualização principal; Popups abre detalhes. Cabeçalho e Mobile ajustam apresentação/navegação nas superfícies próprias, sem substituir o desenho de uma tela. Os guias de objetos explicam propriedades distintas de cada tipo.",
+          "fields": null
+        },
+        {
+          "heading": "Histórico, ocorrências e Intelligence",
+          "body": "Historian configura captura; Tendências e Histórico consultam o que foi armazenado. Relatórios usa definições e parâmetros próprios. Alarmes acompanha condições; Eventos Operacionais registra ocorrências; Auditoria registra ações administrativas/operacionais auditadas. Intelligence organiza perfis, equipamentos, contextos e análises. Não trate essas funções como listas equivalentes: cada uma responde a uma pergunta diferente.",
+          "fields": null
+        },
+        {
+          "heading": "Administração e diagnóstico",
+          "body": "Segurança controla usuários e permissões. Licenciamento controla recursos e cotas comerciais; não concede permissões de usuário. Banco de dados administra armazenamento. Alta disponibilidade configura os dois servidores. TAG Monitor ajuda a conferir valores e qualidade; Monitoramento acompanha o desenvolvimento; Diagnósticos ajuda a localizar falhas; Informações identifica a versão e o projeto. Comece pelo sintoma e evite mudar banco, licença ou HA para tentar corrigir uma leitura sem antes conferir sua origem.",
+          "fields": null
+        },
+        {
+          "heading": "Use a Ajuda no lugar onde a dúvida aparece",
+          "body": "Abra Ajuda a partir da área em uso. Para Templates, Equipamentos, Banco de dados, HA e Intelligence, o destino é o guia específico. Na Ajuda, use busca por tarefa ou campo e o índice Neste artigo. A seção Continue por aqui reúne os próximos guias. Se não souber o nome técnico, procure pela pergunta: por exemplo, migrar, bomba, pausar, certificado ou pressão.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.data-sources",
+        "tags.overview",
+        "gateway.overview",
+        "templates.overview",
+        "equipment.overview",
+        "visual.first-screen",
+        "visual.popup-workflow",
+        "scripts.choose-scope",
+        "historian.overview",
+        "runtime.history",
+        "alarms.overview",
+        "operational-events.overview",
+        "audit.overview",
+        "reports.overview",
+        "intelligence.activation",
+        "intelligence.analysis-guide",
+        "database.topology",
+        "ha.overview",
+        "security.users-roles-capabilities",
+        "licensing.overview",
+        "installation.switching",
+        "application.export-import",
+        "libraries.reusable-resources",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "application.presentation",
+      "category": "application",
+      "title": "Cabeçalho e Mobile: apresentar e navegar",
+      "summary": "Configure a identidade visual e escolha a tela adequada ao dispositivo.",
+      "sections": [
+        {
+          "heading": "Cabeçalho não é a tela de processo",
+          "body": "Abra Engenharia > Cabeçalho. A marca, os títulos, os atalhos e o relógio ficam acima da tela de processo. Alterar esse conjunto não muda os TAGs nem cria objetos no desenho. A configuração passa por Validar prévia e Aplicar ao Working; depois ainda é necessário salvar, publicar e ativar.",
+          "fields": [
+            {
+              "key": "branding.mode",
+              "label": "Apresentação da marca",
+              "description": "Padrão usa SCADIVO; Texto usa o texto informado; Imagem usa um recurso do projeto; Oculta retira a marca.",
+              "example": "Texto: Estação de bombeamento",
+              "constraints": ""
+            },
+            {
+              "key": "branding.text",
+              "label": "Texto e subtítulo",
+              "description": "Título identifica a aplicação; subtítulo complementa. Em imagem, o texto também serve como identificação acessível.",
+              "example": "Captação / Unidade 1",
+              "constraints": "Texto até 128; subtítulo até 256 caracteres"
+            },
+            {
+              "key": "branding.visualAssetId",
+              "label": "Imagem do projeto",
+              "description": "Escolha ou importe um arquivo admitido. Não é campo para URL de câmera; use Fontes de mídia para isso.",
+              "example": "Logotipo da aplicação",
+              "constraints": ""
+            },
+            {
+              "key": "header.height",
+              "label": "Altura e cores",
+              "description": "A altura ocupa parte da área útil. Seguir tema mantém as cores do tema; cor personalizada passa a ser sua escolha explícita.",
+              "example": "Conferir leitura em desktop e celular",
+              "constraints": "Altura 56–168 px"
+            },
+            {
+              "key": "header.titleStyle",
+              "label": "Título, nome da tela e tipografia",
+              "description": "Escolha alinhamento e fonte/tamanho/peso/cor. Mostrar nome da tela acompanha a navegação; não renomeia a tela.",
+              "example": "Título à esquerda; nome da tela abaixo",
+              "constraints": ""
+            },
+            {
+              "key": "header.controls",
+              "label": "Posição e ordem dos controles",
+              "description": "Move o conjunto de navegação para o lado escolhido; ordem organiza sua posição relativa. O menu do usuário permanece à direita.",
+              "example": "Controles à direita",
+              "constraints": ""
+            },
+            {
+              "key": "header.dateTime",
+              "label": "Data e hora",
+              "description": "Habilite se útil, escolha modo, formato, posição e ordem. Esse relógio não é o timestamp de aquisição dos TAGs.",
+              "example": "Data e hora no cabeçalho",
+              "constraints": ""
+            },
+            {
+              "key": "header.links",
+              "label": "Atalhos de telas",
+              "description": "Para cada botão informe rótulo, tela existente e imagem opcional. A tela precisa estar na revisão ativa.",
+              "example": "Bombas → Tela Bombeamento",
+              "constraints": "Até 16 atalhos no editor"
+            }
+          ]
+        },
+        {
+          "heading": "Mobile: orientação e variante",
+          "body": "Abra Engenharia > Mobile. Orientação define Paisagem ou Retrato para dispositivos com toque; o bloqueio físico depende do navegador. Para cada tela desktop, escolha Mesma tela do desktop ou uma tela alternativa existente. Você precisa desenhar a alternativa: selecionar Retrato não reorganiza sozinho todos os objetos. As versões usam os mesmos TAGs e Runtime, não uma cópia separada dos dados. Para cabeçalho, volte à área Cabeçalho.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento e conferência",
+          "body": "1. Configure a marca e somente os atalhos necessários. 2. Valide e aplique ao projeto. 3. Se houver variante mobile, desenhe-a em Telas e selecione-a em Mobile. 4. Valide/aplique Mobile. 5. Salve, publique e ative. 6. Abra o Runtime em desktop e celular, confira acesso aos botões, retorno entre telas, leitura dos valores e orientação. Se aparecer a versão antiga, confira a revisão ativa; se faltar uma imagem, confira o recurso selecionado.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "visual.first-screen",
+        "screens.overview",
+        "runtime.history",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "sources.media",
+      "category": "sources",
+      "title": "Fontes de mídia: câmera, endereço e credencial",
+      "summary": "Cadastre a fonte e depois escolha como apresentá-la no objeto visual.",
+      "sections": [
+        {
+          "heading": "Fonte e objeto são etapas distintas",
+          "body": "Abra Engenharia > Fontes de mídia. A fonte descreve de onde vem o conteúdo; o objeto de vídeo/imagem na Tela define onde ele aparece. Cadastrar uma fonte RTSP não garante reprodução nativa no navegador: ela depende do relay do servidor. Confirme a infraestrutura de reprodução antes de trocar parâmetros repetidamente.",
+          "fields": [
+            {
+              "key": "mediaSource.name",
+              "label": "Nome de exibição",
+              "description": "Identifica a câmera/fonte na lista.",
+              "example": "Câmera entrada",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.key",
+              "label": "Chave estável",
+              "description": "Referência única; use letras, números, ponto, hífen ou sublinhado.",
+              "example": "camera-entrada",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.protocol",
+              "label": "Protocolo",
+              "description": "Escolha o formato fornecido pela fonte: HTTP/HTTPS, HLS, MJPEG ou RTSP/RTSPS. Mudar a opção não converte o conteúdo.",
+              "example": "HLS quando a fonte fornece HLS",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.endpoint",
+              "label": "Endereço",
+              "description": "URL absoluta sem usuário, senha, parâmetros de consulta ou fragmento. Credenciais pertencem ao formulário protegido.",
+              "example": "https://camera.example.invalid/stream",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.enabled",
+              "label": "Habilitada",
+              "description": "Define se a fonte está habilitada na configuração. Não comprova que está acessível ou que o vídeo já está aparecendo.",
+              "example": "Habilitar a fonte em uso",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.credentials",
+              "label": "Credenciais protegidas",
+              "description": "Após criar a fonte, escolha Basic com usuário/senha ou Bearer com token. Salve separadamente. São somente de escrita e não são exportadas no pacote; reconfigure no host de destino.",
+              "example": "Preencher no painel protegido, sem URL com senha",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento e problemas comuns",
+          "body": "1. Crie a fonte e preencha nome, chave, protocolo, endereço e habilitação. 2. Salve e configure a credencial, se necessária, no painel da fonte criada. 3. Configure o objeto visual correspondente com a fonte suportada. 4. Salve/publique/ative e confira reprodução no Runtime. Se falhar, confira endpoint e protocolo, acesso do serviço, credencial do host, relay quando exigido e a revisão ativa. Remover a credencial pode impedir reprodução autenticada. Exportar o projeto não transporta a senha da câmera.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "visual.object.core.videoplayer",
+        "visual.object.core.image",
+        "application.export-import",
+        "visual.first-screen"
+      ]
+    },
+    {
+      "id": "home-building.organization",
+      "category": "equipment",
+      "title": "Home/Building: locais e dispositivos",
+      "summary": "Organize onde o dispositivo está e confira quais capacidades ele realmente oferece.",
+      "sections": [
+        {
+          "heading": "Separe local, dispositivo e conexão",
+          "body": "Abra Engenharia > Home/Building. Local descreve onde o ativo está; dispositivo/equipamento descreve a instância; Data Source fornece a conexão. Uma sala não é um Driver, e mudar o local não troca o protocolo. Comece com os dispositivos e TAGs que o provedor realmente disponibiliza.",
+          "fields": [
+            {
+              "key": "location.name",
+              "label": "Nome do local",
+              "description": "Nome legível dentro da hierarquia.",
+              "example": "Sala de bombas",
+              "constraints": ""
+            },
+            {
+              "key": "location.kind",
+              "label": "Tipo do local",
+              "description": "Escolha Site, Prédio, Andar, Área/Sala ou Zona conforme a organização. O tipo não concede permissões nem cria automação.",
+              "example": "Área/Sala",
+              "constraints": ""
+            },
+            {
+              "key": "location.parentLocationId",
+              "label": "Local pai",
+              "description": "Onde o local se encaixa. Escolha um local existente e evite relações circulares; sem pai representa raiz quando permitido.",
+              "example": "Prédio 1 → Andar 1 → Sala de bombas",
+              "constraints": ""
+            },
+            {
+              "key": "device.locationId",
+              "label": "Local do dispositivo",
+              "description": "Associa a instância ao local existente. Essa associação organiza o projeto, não testa a comunicação.",
+              "example": "Bomba 01 na Sala de bombas",
+              "constraints": ""
+            },
+            {
+              "key": "device.path",
+              "label": "Nome e caminho do dispositivo",
+              "description": "Nome é rótulo; caminho é referência estável. Confira o candidato antes de aplicar e preserve a identidade ao reorganizar.",
+              "example": "Conferir instância e referência na prévia",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimento e conferência",
+          "body": "1. Configure a conexão e confira TAGs/capacidades fornecidas. 2. Crie a hierarquia de locais preenchendo nome, tipo e pai. 3. Associe o dispositivo ao local correto e revise sua identidade. 4. Confira o Preview e aplique apenas o candidato validado. 5. Salve/publique/ative. 6. Teste leitura e ações disponíveis numa instalação de teste. Uma capacidade ou comando ausente não surge porque a interface mostra um equipamento; confira provedor, mapeamento e permissões. Para apenas um faceplate gráfico, consulte Equipamentos e Templates.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "equipment.overview",
+        "templates.overview",
+        "sources.data-sources",
+        "tags.overview",
+        "tags.writeability",
+        "security.scopes-authority"
+      ]
+    }
+  ],
+  "en": [
+    {
+      "id": "templates.overview",
+      "category": "templates",
+      "title": "Templates: create a reusable faceplate",
+      "summary": "Draw once and understand how changes reach linked equipment.",
+      "sections": [
+        {
+          "heading": "Understand what you are creating",
+          "body": "A Faceplate Template is a shared graphical definition, such as a pump drawing with name, state and reading. Equipment identifies a particular pump. Pump 01 and Pump 02 can use the same Template, and equipment can exist without a Template. An Intelligence profile organizes measurements and does not replace the drawing.",
+          "fields": null
+        },
+        {
+          "heading": "Where to go and what to enter",
+          "body": "Open Engineering > Templates. The editor uses the same objects, Properties, Dynamics and Events as Screens. Have editing permission and the editing lock when requested.",
+          "fields": [
+            {
+              "key": "template.name",
+              "label": "Template name",
+              "description": "Readable library name. Describe its purpose rather than one physical instance.",
+              "example": "Pump with state and pressure",
+              "constraints": ""
+            },
+            {
+              "key": "template.key",
+              "label": "Identifier",
+              "description": "Stable reference used by links. Preserve it when updating the drawing; changing the display name does not require another equipment instance.",
+              "example": "pump-faceplate",
+              "constraints": ""
+            },
+            {
+              "key": "template.elements",
+              "label": "Objects and bindings",
+              "description": "Drawing composition. A fixed TAG reference still points to that TAG when reused. Check each instance reference before representing different equipment.",
+              "example": "Title, state and value display",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedure: create and reuse",
+          "body": "1. Select New Template and enter name and identifier. 2. Insert a small assembly and configure properties. 3. Add bindings/dynamics/events; do not assume TAGs are replaced automatically from equipment names. 4. Preview, resolve errors and apply to the project. 5. Open Equipment, create or select an instance and choose this optional Template. Save the link. 6. In the Screen editor, insert the instance from the equipment/faceplate library where available. 7. Save, publish and activate. Check two instances and their readings in Runtime.",
+          "fields": null
+        },
+        {
+          "heading": "Update without confusing definition and instance",
+          "body": "Editing the shared Template updates the drawing followed by all linked instances in that revision. Review the impact before applying; use another Template for a separate appearance. Changing the equipment link changes its associated drawing while preserving equipment identity. A Dynamo is another reusable visual assembly; a Group only arranges objects.",
+          "fields": null
+        },
+        {
+          "heading": "If it is missing or does not update",
+          "body": "Check the Template was applied, equipment points to the correct definition and the revision was activated. An independent object copy does not gain a link from sharing a name. Refresh and revalidate if the project changed. If another pump reading appears, inspect references rather than only the title.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "equipment.overview",
+        "visual.first-screen",
+        "visual.properties",
+        "dynamos.overview",
+        "libraries.reusable-resources",
+        "intelligence.profiles-equipment"
+      ]
+    },
+    {
+      "id": "equipment.overview",
+      "category": "equipment",
+      "title": "Equipment: create, identify and link",
+      "summary": "Register the actual asset, then choose its drawing and measurements.",
+      "sections": [
+        {
+          "heading": "Start with asset identity",
+          "body": "Open Engineering > Equipment. Equipment represents a real instance such as Pump 01. It is neither a Driver, TAG nor drawing. Create it without a faceplate and attach a Template later if needed. Intelligence uses this identity in profile assignments; drawing a pump does not register equipment.",
+          "fields": null
+        },
+        {
+          "heading": "Instance fields",
+          "body": "The form shows a name and optional Template. The product generates the path; you do not invent or type it to create an instance.",
+          "fields": [
+            {
+              "key": "equipment.name",
+              "label": "Equipment name",
+              "description": "Label for finding the asset. Use names that distinguish instances.",
+              "example": "Pump 01",
+              "constraints": ""
+            },
+            {
+              "key": "equipment.path",
+              "label": "Generated path",
+              "description": "Stable reference shown for review. Renaming an existing instance preserves its path. A name generating an existing path blocks a new instance.",
+              "example": "Check the generated-path preview",
+              "constraints": ""
+            },
+            {
+              "key": "equipment.templateId",
+              "label": "Faceplate Template (optional)",
+              "description": "Selects the shared drawing. No Template is valid; removing the link does not delete equipment. Changing it does not select TAGs or Intelligence profiles automatically.",
+              "example": "Pump Template or No Template",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedure: register and check",
+          "body": "1. Enter a distinct name. 2. Check the generated path and choose a Template or No Template. 3. Select Create equipment; the product validates before applying to the project. 4. Select it in the list to edit name/link; choose Save changes. 5. Save/publish/activate when Runtime needs the equipment. 6. In Intelligence select this equipment identity and assign a measurement profile. Configure TAGs and capture before analysis.",
+          "fields": null
+        },
+        {
+          "heading": "Verification and common errors",
+          "body": "The instance should appear with name, path and correct link. No Template does not mean invalid equipment. Template unavailable indicates an unresolved drawing link; select an existing Template or detach it. A duplicate path needs a distinct new-instance name. Refresh/review editing conflicts rather than creating repeated copies.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "templates.overview",
+        "intelligence.profiles-equipment",
+        "intelligence.activation",
+        "visual.object-selection",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "database.topology",
+      "category": "database",
+      "title": "Database: configure, migrate and recover",
+      "summary": "Understand the active database before validating another target or migrating.",
+      "sections": [
+        {
+          "heading": "Where to go and what this page does",
+          "body": "Open Engineering > Database. SystemAdmin is required. Local Managed uses installation-managed local storage; Remote uses configured PostgreSQL. This selects storage, not HA server redundancy. Read Current status and Next action first. Healthy Local Managed needs no Remote profile if it suits your installation.",
+          "fields": null
+        },
+        {
+          "heading": "Prepare the target",
+          "body": "Agree on server, database, account, certificates and privileges with the administrator. The address must be reachable by the SCADIVO service, not merely the browser. In Docker, localhost inside a container means that container; use a service-reachable address. On Windows/Linux certificate paths belong to the service host. Back up and plan maintenance before migration.",
+          "fields": null
+        },
+        {
+          "heading": "Basic and advanced fields",
+          "body": "Start with host, user and secret. Open Advanced settings only to change supplied values. Examples are illustrative, not installation credentials.",
+          "fields": [
+            {
+              "key": "primary.host",
+              "label": "Host / FQDN",
+              "description": "Service-reachable PostgreSQL DNS name/address, not the web UI URL.",
+              "example": "db.example.invalid",
+              "constraints": ""
+            },
+            {
+              "key": "primary.username",
+              "label": "User / identity",
+              "description": "PostgreSQL application account; not your SCADIVO Authority login.",
+              "example": "Account supplied by the administrator",
+              "constraints": ""
+            },
+            {
+              "key": "primary.password",
+              "label": "Password / secret",
+              "description": "Sent without being returned in status. Clearing after submission does not mean the credential was lost. Never paste into tickets or captures.",
+              "example": "Enter only in the protected form",
+              "constraints": ""
+            },
+            {
+              "key": "primary.database",
+              "label": "Database",
+              "description": "Target database name, not project name. Initial value is elitescada; confirm with the administrator.",
+              "example": "elitescada",
+              "constraints": ""
+            },
+            {
+              "key": "primary.port",
+              "label": "Port",
+              "description": "PostgreSQL port. Initial value 5432 differs from the application HTTPS port.",
+              "example": "5432",
+              "constraints": ""
+            },
+            {
+              "key": "primary.tlsMode",
+              "label": "TLS mode",
+              "description": "Require demands encryption. VerifyCa validates the CA chain; VerifyFull also checks the server name. Prefer and Disable do not provide equivalent protection. Use the IT-approved mode, not disabled TLS to hide an error.",
+              "example": "Require or VerifyFull with valid CA",
+              "constraints": ""
+            },
+            {
+              "key": "primary.rootCertificatePath",
+              "label": "CA certificate path",
+              "description": "CA file readable by the service; required by the form for VerifyCa/VerifyFull. A browser-computer path does not serve another host/container.",
+              "example": "Path provisioned on the server",
+              "constraints": ""
+            },
+            {
+              "key": "primary.timeoutSeconds",
+              "label": "Timeout (s)",
+              "description": "Connection wait; initially 15 seconds. Increasing it does not fix credentials, DNS or certificates.",
+              "example": "15 s",
+              "constraints": ""
+            },
+            {
+              "key": "historianOverride",
+              "label": "Historian uses Primary / dedicated",
+              "description": "Selected, history uses the primary database. Clear only for a dedicated Historian target and fill its endpoint completely; it must also pass compatibility.",
+              "example": "Use Primary for a simple setup",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Migrate data to another database",
+          "body": "1. Check the active database and back up. 2. Fill Remote and Validate target. Connection, authentication, TLS and compatibility are tested; reachability alone is insufficient. 3. Prepare migration and review source, target and included data. Configuration locks after preparation. 4. During maintenance, Start migration; durable writes may pause. 5. Wait for copy and automatic verification. 6. Only after successful verification select Activate Remote database and confirm. 7. If restart is required, restart/reopen the service for your installation. Recheck active topology, health, project and revision before resuming operations.",
+          "fields": null
+        },
+        {
+          "heading": "Connecting an existing database is not migration",
+          "body": "Connect to existing database (without copy) does not copy or merge records. Use it only for a prepared target with the same project and active revision required by the installation. Read confirmation. Project/revision mismatch blocks switching; do not empty or alter the database to bypass the check. Use migration to transport current data.",
+          "fields": null
+        },
+        {
+          "heading": "Rollback and return to local storage",
+          "body": "If Recovery/Rollback is required, review diagnostics and use Roll back operation when available. Return to Local Managed validates and reactivates preserved local storage and may need restart. It does not automatically merge later Remote writes into local storage. The previous database is preserved; returning is neither backup restoration nor Remote deletion. Check actual active data and revision afterward.",
+          "fields": null
+        },
+        {
+          "heading": "Errors requiring different actions",
+          "body": "No connection: check service DNS/port/access. Authentication rejected: verify PostgreSQL account/secret. TLS: inspect CA, certificate name and validity. Incompatibility: read PostgreSQL version, required TimescaleDB capability and schema. Invalid phase: refresh and follow Next action rather than starting another copy. Unavailable storage may degrade Runtime; memory must not pretend to be durable storage. Record time, phase and operation ID for support without passwords.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "ha.overview",
+        "historian.overview",
+        "recovery.backup-system-recovery",
+        "installation.switching",
+        "security.users-roles-capabilities"
+      ]
+    },
+    {
+      "id": "ha.configuration-operation",
+      "category": "ha",
+      "title": "HA: configure two servers and monitor operation",
+      "summary": "Distinguish saved configuration, active server, ready partner and duplicate-execution protection.",
+      "sections": [
+        {
+          "heading": "What to prepare first",
+          "body": "HA means High Availability: two servers can take over Runtime in a controlled way. Open Engineering > High Availability. HA Runtime licensing and HighAvailabilityObserve are needed; saving/operations also require HighAvailabilityTransfer. Check service networking, authentication, clocks and each node storage. Shared or separate databases need topology verification; enabling HA alone neither creates replication nor proves storage availability.",
+          "fields": null
+        },
+        {
+          "heading": "Enter only installation-dependent settings",
+          "body": "The page distinguishes This server and Partner server. Operators do not need to invent internal identities or automatic transport.",
+          "fields": [
+            {
+              "key": "nodes.localEndpoint",
+              "label": "Each server main address",
+              "description": "Endpoint reachable by services. A browser-detected address is useful only if the partner reaches it too; localhost on two hosts is not one server.",
+              "example": "Actual addresses of both services",
+              "constraints": ""
+            },
+            {
+              "key": "nodes.remoteEndpoint",
+              "label": "External address override",
+              "description": "Open only when the network requires a different advertised address. Otherwise keep automatic values to avoid inconsistent targets.",
+              "example": "No override on a simple network",
+              "constraints": ""
+            },
+            {
+              "key": "initialActiveNodeId",
+              "label": "Preferred server",
+              "description": "Startup/failback preference; does not force promotion or establish readiness.",
+              "example": "This server or partner",
+              "constraints": ""
+            },
+            {
+              "key": "peerSharedSecret",
+              "label": "Inter-server authentication",
+              "description": "Configure the shared secret through the protected flow on both nodes. Submitted values clear from the form; inspect authentication state without capturing the secret.",
+              "example": "Configure authentication",
+              "constraints": ""
+            },
+            {
+              "key": "protection.referencePath",
+              "label": "Protection and shared reference",
+              "description": "Fencing prevents two Active executors. Both nodes must see the same external shared reference; two local files with equal names are not shared authority.",
+              "example": "Shared resource provisioned for the installation",
+              "constraints": ""
+            },
+            {
+              "key": "protection.automaticFailoverEnabled",
+              "label": "Automatic failover",
+              "description": "Allows eligible automatic takeover and requires protection. It does not replace partner readiness, available data or safety conditions.",
+              "example": "Enable after checking readiness",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Preparation procedure",
+          "body": "1. Check Running mode. 2. Prepare HA, enter both addresses and select preference. 3. Configure authentication/shared protection and resolve HA readiness items. 4. Save desired configuration; Saved is not Running. 5. If required, plan service restarts and inspect what actually loaded. 6. Refresh and check effective Active, partner, database and protection. Standby is not Ready Standby. 7. Before process use, conduct the manual trial agreed with the installation owner; documentation checks do not replace it.",
+          "fields": null
+        },
+        {
+          "heading": "Read states before operating",
+          "body": "Effective Active is authorized to execute, not merely preferred. Synchronizing is still receiving/checking state. Ready Standby denotes backend-assessed readiness; Standby alone does not prove it. Promoting/Demoting are transitions: await the result. Stale means old observation; Isolated, Faulted, degraded or ambiguous authority require diagnosis. Database availability differs from peer reachability. Do not hide storage failure by increasing network tolerances.",
+          "fields": null
+        },
+        {
+          "heading": "Choose the right operation",
+          "body": "Switchover is planned transfer from effective Active to an eligible partner. Failback requests return to preference when allowed. Recovery reconciles a failure/block. Force resynchronization is specific recovery when no Active exists and previous authority was fenced; it does not declare a partner ready. Read target, confirmation and result; check history and resulting Active. Do not repeat a rejected request until its cause changes.",
+          "fields": null
+        },
+        {
+          "heading": "Advanced settings: meaning and bounds",
+          "body": "Use prefilled values as the starting point. Timing changes affect protection and failure response; assess network, clocks and operations first. Form bounds are not performance recommendations.",
+          "fields": [
+            {
+              "key": "freshnessSeconds",
+              "label": "Freshness (s)",
+              "description": "Maximum age of an observation considered recent.",
+              "example": "Keep prefilled value",
+              "constraints": "1–120 s"
+            },
+            {
+              "key": "protection.leaseSeconds",
+              "label": "Lease (s)",
+              "description": "Execution-authority validity before expiry; not a commercial license.",
+              "example": "Keep prefilled value",
+              "constraints": "3–120 s"
+            },
+            {
+              "key": "protection.pollMilliseconds",
+              "label": "Poll (ms)",
+              "description": "Shared-reference polling interval; smaller means more frequent reads.",
+              "example": "Keep prefilled value",
+              "constraints": "100–10000 ms"
+            },
+            {
+              "key": "protection.readyWitnessMaximumAgeSeconds",
+              "label": "Maximum witness age (s)",
+              "description": "Maximum age of partner-ready evidence; does not create readiness.",
+              "example": "Keep prefilled value",
+              "constraints": "At least Lease; up to 600 s"
+            },
+            {
+              "key": "protection.clockSkewSafetyMarginSeconds",
+              "label": "Clock margin (s)",
+              "description": "Allowance for clock difference; not a substitute for time synchronization.",
+              "example": "Keep prefilled value",
+              "constraints": "0 to floor(Lease/3)"
+            }
+          ]
+        },
+        {
+          "heading": "If there is a problem",
+          "body": "403: inspect observe/operate permissions. Saved differs from running: check pending restart. Unreachable peer: inspect service addresses, network and authentication. Unavailable reference: investigate external shared storage. Partner not ready: inspect synchronization, database and diagnostics without forcing promotion. Record time, action, result and effective node, never the secret.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "database.topology",
+        "diagnostics.overview",
+        "licensing.overview",
+        "security.users-roles-capabilities"
+      ]
+    },
+    {
+      "id": "intelligence.activation",
+      "category": "intelligence",
+      "title": "Intelligence: enable, pause and resolve blocks",
+      "summary": "Available licensing, selected resources and active execution are different conditions.",
+      "sections": [
+        {
+          "heading": "Follow the full sequence",
+          "body": "Open Engineering > Asset Intelligence. First create Equipment and TAGs, then signal profiles, Equipment/profile assignments, useful contexts and stages. Save configuration and selected scopes; publish/activate the revision. Then explicitly activate the resource for analysis. Creating a profile, checking a box or holding a license does not automatically arm execution.",
+          "fields": null
+        },
+        {
+          "heading": "Permissions and resource selection",
+          "body": "EngineeringModify permits configuration; AssetProcessIntelligenceManage must be explicit, global or covering the Equipment/Location. The Developer name or SystemAdmin alone does not replace that grant. Queries also need TrendUse and Intelligence licensing. Grant through Security and inspect effective session capabilities. Select resources rather than memorizing IDs, preserving their identity.",
+          "fields": null
+        },
+        {
+          "heading": "Activate only where useful",
+          "body": "1. Select Equipment/Locations under Eligible scopes. 2. Save scopes and configuration. 3. Publish/activate the revision and resolve pending changes before arming execution. 4. Use Activate on the resource and confirm its execution permit is armed. 5. Open an assignment query and choose the period. 6. Use Pause to stop analysis; pending work is cancelled without deleting TAGs/history. Pause before removing a resource from selection.",
+          "fields": null
+        },
+        {
+          "heading": "Configured active does not mean armed",
+          "body": "After authorization revocation the execution permit can stay closed while configuration remains active. Restoring a grant does not silently rearm work: inspect state and explicitly Activate again, including after restart when indicated. This avoids restarting analysis without an owner decision. Distinguish this from Historian errors or missing data.",
+          "fields": null
+        },
+        {
+          "heading": "Example: start small",
+          "body": "Start with Pump 01 in one area. Configure current and speed if available; do not invent missing vibration. Add measurements and analyses supported by their catalogs. Keep unused resources paused. Selective configuration controls eligible execution, not a fixed CPU/RAM promise.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "equipment.overview",
+        "intelligence.profiles-equipment",
+        "intelligence.semantics",
+        "intelligence.analysis-guide",
+        "security.users-roles-capabilities",
+        "intelligence.dashboard-workflow"
+      ]
+    },
+    {
+      "id": "intelligence.semantics",
+      "category": "intelligence",
+      "title": "Intelligence: signal meaning and units",
+      "summary": "Describe what was measured, not just the TAG name.",
+      "sections": [
+        {
+          "heading": "Why a name is not enough",
+          "body": "A TAG named Power may mean active/apparent power or a calculated value; pressure may mean suction, discharge or differential. Rules must not guess from names. In the profile select the controlled semantic role when required and complete its shown qualifiers. Legacy role text is descriptive only.",
+          "fields": null
+        },
+        {
+          "heading": "Fields and choices",
+          "body": "Choose only meaning supported by the instrument and process. Selectors list choices accepted by the current catalog.",
+          "fields": [
+            {
+              "key": "signals.required",
+              "label": "Required",
+              "description": "Marks signals whose absence compromises requested coverage. Do not mark essential signals optional just to obtain a result.",
+              "example": "Current needed for comparison",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.roleCode",
+              "label": "Semantic role",
+              "description": "Controlled quantity/function; analysis matches it rather than a similar TAG name.",
+              "example": "Active input power, if measured",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.currentBasis",
+              "label": "Current basis",
+              "description": "Distinguishes the role-accepted basis, such as instrument-appropriate RMS current; do not infer from a generic label.",
+              "example": "Select the documented instrument option",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.signalKind",
+              "label": "Signal kind",
+              "description": "Distinguishes measurement, reference and the role-required function. A setpoint does not prove a measured value.",
+              "example": "Actual measurement when required",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.pressureReference",
+              "label": "Pressure reference",
+              "description": "Identifies required basis/source; outlet-minus-inlet differential differs from discharge pressure alone.",
+              "example": "Measured outlet − inlet differential",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.flowDirection",
+              "label": "Flow direction",
+              "description": "Identifies transfer direction; the opposite direction may invalidate a rule.",
+              "example": "Pump to process, when applicable",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.frequencyReference",
+              "label": "Frequency reference",
+              "description": "Identifies frequency meaning per catalog; distinguish electrical reference from physical speed.",
+              "example": "Check instrument source",
+              "constraints": ""
+            },
+            {
+              "key": "signals.tagId",
+              "label": "TAG and unit",
+              "description": "Select the actual TAG and check its controlled engineering unit. A profile label change does not convert data. Some calculations require specific catalog units/versions.",
+              "example": "kW for power when it matches actual data",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Example: do not confuse a proxy with efficiency",
+          "body": "Increasing current at the same speed may justify investigation but is not physical motor-efficiency calculation. Input electrical power, flow and differential pressure may enable other rules when roles, units and required alignment exist. If an instrument/qualifier is missing, read the unavailable-rule reason rather than entering fictional values.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "intelligence.profiles-equipment",
+        "intelligence.analysis-guide",
+        "tags.scaling-formatting",
+        "tags.quality",
+        "tags.timestamps"
+      ]
+    },
+    {
+      "id": "intelligence.analysis-guide",
+      "category": "intelligence",
+      "title": "Intelligence: query results and build dashboards",
+      "summary": "Choose the question, check available data, then interpret the indicator.",
+      "sections": [
+        {
+          "heading": "Start with coverage",
+          "body": "With saved assignment and authorized execution, open profile coverage. Enter start/end and explicitly query. Form times are local and the response identifies the UTC window; end must follow start. Inspect required signals with data, accepted/rejected samples, quality and temporal alignment before min/max/mean. Sample counts alone prove neither cadence, completeness nor synchronized acquisition.",
+          "fields": null
+        },
+        {
+          "heading": "Performance: choose an eligible rule",
+          "body": "Open Performance and select a catalog rule. Disabled options explain missing signals, roles or units. Do not choose a different quantity just to obtain a number. Fill From/To, query and inspect status, unit, window and limitations. Unavailable is not zero; a proxy must not be labelled physical efficiency. Assignment/revision/parameter changes require a fresh query rather than reuse of an old number.",
+          "fields": null
+        },
+        {
+          "heading": "Two context types with different bounds",
+          "body": "Saved operating contexts use inclusive numeric bounds in the current engineering unit and evidence at the same exact UTC source timestamp. The contextual-deviation screen generator uses separate selections: 2–8 target signals and two distinct numeric context signals, different from targets. At least four usable numeric signals are needed. Generator ranges use the displayed controlled unit and lower ≤ value < upper. Do not automatically copy operating-profile bounds: units and upper-bound inclusion may differ.",
+          "fields": null
+        },
+        {
+          "heading": "Generate the screen and check the full chain",
+          "body": "1. Choose assignment/stage and screen type. 2. Complete required selections; read field reasons if blocked. 3. Generate the draft; this arranges objects/references without querying Historian or activating a screen. 4. Review name, dimensions, objects, bindings and navigation in the editor; Preview and Apply. 5. Save/publish/activate and open in Runtime. 6. Configure/run the object query and check window/result. A stage screen groups members without automatically creating an aggregate KPI or proving causality.",
+          "fields": null
+        },
+        {
+          "heading": "How to investigate an empty result",
+          "body": "Check in order: license/permissions; saved scope/armed permit; active project/revision; assignment/TAGs; period; Historian capture; quality; roles/units; alignment/context. Fix the first evidenced missing condition and query again. Do not broaden limits or change signal meaning just to make a result appear. Analyses support investigation, not confirmed defects or field-validated failure prediction.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "intelligence.activation",
+        "intelligence.semantics",
+        "intelligence.operating-contexts",
+        "intelligence.dashboard-workflow",
+        "intelligence.process-stage-member-insights",
+        "historian.overview",
+        "templates.overview"
+      ]
+    },
+    {
+      "id": "help.application-map",
+      "category": "getting-started",
+      "title": "Where to start in each area",
+      "summary": "Find the task and follow the related guides at the end.",
+      "sections": [
+        {
+          "heading": "An order for building your application",
+          "body": "Start with data connections, check TAGs, represent equipment, build Screens/Popups, configure alarms/history, then analyze data with Intelligence. Scripts add logic to rules/interactions. Security, licensing, database and HA are separate administrations. A first application does not require every feature.",
+          "fields": null
+        },
+        {
+          "heading": "Project and communication",
+          "body": "Overview shows the project; save/publish/activate controls revisions. Installation handles switching/recovery. Data Sources selects connections/protocols; TAGs describes values, addresses and units; TAG Gateway routes data. Home/Building organizes devices/capabilities where available. Media Sources handles media rather than industrial signals. Read the appropriate guide before writing to real equipment.",
+          "fields": null
+        },
+        {
+          "heading": "Drawing and reuse",
+          "body": "Templates creates shared faceplates; Equipment registers actual instances. Dynamos organizes parameterized visual assemblies. Visual Assets are files such as images. Libraries transfers reusable resources. Screens occupy the main view; Popups open details. Header and Mobile adjust their presentation/navigation without replacing screen design. Object guides explain each type’s distinct properties.",
+          "fields": null
+        },
+        {
+          "heading": "History, occurrences and Intelligence",
+          "body": "Historian configures capture; Trends and History query stored data. Reports uses its own definitions/parameters. Alarms tracks conditions; Operational Events records occurrences; Audit records audited actions. Intelligence organizes profiles, equipment, contexts and analyses. These functions answer different questions and are not interchangeable lists.",
+          "fields": null
+        },
+        {
+          "heading": "Administration and diagnostics",
+          "body": "Security controls users/permissions. Licensing controls commercial features/quotas, not user permissions. Database administers storage. High Availability configures two servers. TAG Monitor checks values/quality; Development Monitor follows development; Diagnostics locates failures; Information identifies version/project. Start with the symptom rather than changing storage, licensing or HA before checking a reading’s source.",
+          "fields": null
+        },
+        {
+          "heading": "Use Help where the question arises",
+          "body": "Open Help from the area in use. Templates, Equipment, Database, HA and Intelligence route to specific guides. Search by task/field and use the article outline. Continue here lists related guides. If you do not know the technical term, search for the question: migrate, pump, pause, certificate or pressure.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.data-sources",
+        "tags.overview",
+        "gateway.overview",
+        "templates.overview",
+        "equipment.overview",
+        "visual.first-screen",
+        "visual.popup-workflow",
+        "scripts.choose-scope",
+        "historian.overview",
+        "runtime.history",
+        "alarms.overview",
+        "operational-events.overview",
+        "audit.overview",
+        "reports.overview",
+        "intelligence.activation",
+        "intelligence.analysis-guide",
+        "database.topology",
+        "ha.overview",
+        "security.users-roles-capabilities",
+        "licensing.overview",
+        "installation.switching",
+        "application.export-import",
+        "libraries.reusable-resources",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "application.presentation",
+      "category": "application",
+      "title": "Header and Mobile: presentation and navigation",
+      "summary": "Configure visual identity and choose the right screen for a device.",
+      "sections": [
+        {
+          "heading": "The header is not the process screen",
+          "body": "Open Engineering > Header. Branding, titles, shortcuts and clock sit above the process screen. Changing them does not alter TAGs or draw process objects. Validate preview and Apply to Working, then save, publish and activate.",
+          "fields": [
+            {
+              "key": "branding.mode",
+              "label": "Brand presentation",
+              "description": "Default uses SCADIVO; Text uses entered text; Image uses a project asset; Hidden removes branding.",
+              "example": "Text: Pumping station",
+              "constraints": ""
+            },
+            {
+              "key": "branding.text",
+              "label": "Text and subtitle",
+              "description": "Title identifies the application; subtitle adds context. With an image the text also provides accessible identification.",
+              "example": "Intake / Unit 1",
+              "constraints": "Text up to 128; subtitle up to 256 characters"
+            },
+            {
+              "key": "branding.visualAssetId",
+              "label": "Project image",
+              "description": "Select/import a supported file. This is not a camera URL; use Media Sources for that.",
+              "example": "Application logo",
+              "constraints": ""
+            },
+            {
+              "key": "header.height",
+              "label": "Height and colors",
+              "description": "Height occupies usable space. Follow theme retains theme colors; custom colors override that choice.",
+              "example": "Check readability on desktop and mobile",
+              "constraints": "Height 56–168 px"
+            },
+            {
+              "key": "header.titleStyle",
+              "label": "Title, screen name and typography",
+              "description": "Select alignment and font/size/weight/color. Showing screen name follows navigation without renaming the screen.",
+              "example": "Title left; screen name below",
+              "constraints": ""
+            },
+            {
+              "key": "header.controls",
+              "label": "Control position and order",
+              "description": "Moves navigation as a group to the chosen side; order arranges relative position. User menu remains rightmost.",
+              "example": "Controls right",
+              "constraints": ""
+            },
+            {
+              "key": "header.dateTime",
+              "label": "Date and time",
+              "description": "Enable if useful; select mode, format, position and order. This clock is not TAG acquisition time.",
+              "example": "Date and time in header",
+              "constraints": ""
+            },
+            {
+              "key": "header.links",
+              "label": "Screen shortcuts",
+              "description": "For each button choose label, existing screen and optional image. The screen must exist in the active revision.",
+              "example": "Pumps → Pumping screen",
+              "constraints": "Up to 16 editor shortcuts"
+            }
+          ]
+        },
+        {
+          "heading": "Mobile: orientation and variant",
+          "body": "Open Engineering > Mobile. Select Landscape or Portrait for touch devices; physical orientation lock depends on the browser. For each desktop screen choose Same desktop screen or an existing alternate. You must design that alternate; Portrait does not rearrange all objects automatically. Variants use the same TAGs/Runtime, not a separate data copy. Header settings remain under Header.",
+          "fields": null
+        },
+        {
+          "heading": "Procedure and verification",
+          "body": "1. Configure branding and necessary shortcuts. 2. Validate/apply. 3. Design a mobile variant in Screens and select it in Mobile if needed. 4. Validate/apply Mobile. 5. Save/publish/activate. 6. Check Runtime on desktop/mobile for buttons, navigation, readability and orientation. For an old layout inspect active revision; for a missing image inspect the selected asset.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "visual.first-screen",
+        "screens.overview",
+        "runtime.history",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "sources.media",
+      "category": "sources",
+      "title": "Media Sources: camera, address and credential",
+      "summary": "Register the source, then choose its visual presentation.",
+      "sections": [
+        {
+          "heading": "Source and object are separate steps",
+          "body": "Open Engineering > Media Sources. The source describes where content comes from; a screen video/image object defines presentation. Registering RTSP does not guarantee native browser playback: it depends on the server relay. Check playback infrastructure before repeatedly changing settings.",
+          "fields": [
+            {
+              "key": "mediaSource.name",
+              "label": "Display name",
+              "description": "Identifies the camera/source in the list.",
+              "example": "Entrance camera",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.key",
+              "label": "Stable key",
+              "description": "Unique reference; use letters, numbers, dot, hyphen or underscore.",
+              "example": "entrance-camera",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.protocol",
+              "label": "Protocol",
+              "description": "Choose the source format: HTTP/HTTPS, HLS, MJPEG or RTSP/RTSPS. Changing this option does not convert content.",
+              "example": "HLS when the source provides HLS",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.endpoint",
+              "label": "Address",
+              "description": "Absolute URL without username, password, query parameters or fragment. Credentials belong in the protected form.",
+              "example": "https://camera.example.invalid/stream",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.enabled",
+              "label": "Enabled",
+              "description": "Controls source enablement in configuration; does not prove reachability or playback.",
+              "example": "Enable the source in use",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.credentials",
+              "label": "Protected credentials",
+              "description": "After creating the source select Basic user/password or Bearer token. Save separately. They are write-only and excluded from packages; configure again on the target host.",
+              "example": "Use the protected panel, not a password URL",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedure and common problems",
+          "body": "1. Create the source with name, key, protocol, address and enablement. 2. Save and configure credentials in the created source panel if needed. 3. Configure the corresponding visual object with its supported source. 4. Save/publish/activate and check Runtime playback. On failure inspect endpoint/protocol, service access, host credential, required relay and active revision. Removing credentials may block authenticated playback. Project export does not transfer camera passwords.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "visual.object.core.videoplayer",
+        "visual.object.core.image",
+        "application.export-import",
+        "visual.first-screen"
+      ]
+    },
+    {
+      "id": "home-building.organization",
+      "category": "equipment",
+      "title": "Home/Building: locations and devices",
+      "summary": "Organize device locations and inspect their actual capabilities.",
+      "sections": [
+        {
+          "heading": "Separate location, device and connection",
+          "body": "Open Engineering > Home/Building. A Location describes where an asset is; device/equipment identifies an instance; Data Source supplies the connection. A room is not a Driver, and moving location does not switch protocols. Start with devices/TAGs actually exposed by the provider.",
+          "fields": [
+            {
+              "key": "location.name",
+              "label": "Location name",
+              "description": "Readable name within the hierarchy.",
+              "example": "Pump room",
+              "constraints": ""
+            },
+            {
+              "key": "location.kind",
+              "label": "Location kind",
+              "description": "Choose Site, Building, Floor, Area/Room or Zone. The kind grants no permissions and creates no automation.",
+              "example": "Area/Room",
+              "constraints": ""
+            },
+            {
+              "key": "location.parentLocationId",
+              "label": "Parent location",
+              "description": "Where it belongs. Choose an existing parent and avoid circular relationships; no parent represents a root where allowed.",
+              "example": "Building 1 → Floor 1 → Pump room",
+              "constraints": ""
+            },
+            {
+              "key": "device.locationId",
+              "label": "Device location",
+              "description": "Assigns an instance to an existing Location; organizes the project rather than testing communication.",
+              "example": "Pump 01 in Pump room",
+              "constraints": ""
+            },
+            {
+              "key": "device.path",
+              "label": "Device name and path",
+              "description": "Name is a label; path is a stable reference. Review the candidate before applying and preserve identity when reorganizing.",
+              "example": "Check instance and reference in preview",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedure and verification",
+          "body": "1. Configure connectivity and inspect supplied TAGs/capabilities. 2. Create location hierarchy with name, kind and parent. 3. Assign devices to locations and review identity. 4. Preview and apply only the validated candidate. 5. Save/publish/activate. 6. Test readings/actions in a test installation. Displaying equipment does not create missing capabilities/commands; inspect provider, mapping and permissions. For graphical faceplates see Equipment and Templates.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "equipment.overview",
+        "templates.overview",
+        "sources.data-sources",
+        "tags.overview",
+        "tags.writeability",
+        "security.scopes-authority"
+      ]
+    }
+  ],
+  "es": [
+    {
+      "id": "templates.overview",
+      "category": "templates",
+      "title": "Plantillas: crear un faceplate reutilizable",
+      "summary": "Dibuje una vez y comprenda cómo los cambios llegan a equipos vinculados.",
+      "sections": [
+        {
+          "heading": "Comprenda qué está creando",
+          "body": "Una Plantilla Faceplate es una definición gráfica compartida, como una bomba con nombre, estado y lectura. Equipo identifica una bomba concreta. Bomba 01 y Bomba 02 pueden usar la misma plantilla; un equipo también puede existir sin ella. Un perfil de Intelligence organiza mediciones y no sustituye al dibujo.",
+          "fields": null
+        },
+        {
+          "heading": "Dónde entrar y qué rellenar",
+          "body": "Abra Ingeniería > Plantillas. El editor usa los mismos objetos, Propiedades, Dinámicas y Eventos que Pantallas. Necesita permiso de edición y bloqueo cuando se solicite.",
+          "fields": [
+            {
+              "key": "template.name",
+              "label": "Nombre de plantilla",
+              "description": "Nombre legible en biblioteca. Describa su finalidad, no una instancia física.",
+              "example": "Bomba con estado y presión",
+              "constraints": ""
+            },
+            {
+              "key": "template.key",
+              "label": "Identificador",
+              "description": "Referencia estable de los vínculos. Consérvela al actualizar el dibujo; cambiar el nombre visible no exige otro equipo.",
+              "example": "pump-faceplate",
+              "constraints": ""
+            },
+            {
+              "key": "template.elements",
+              "label": "Objetos y vínculos",
+              "description": "Composición gráfica. Una referencia TAG fija sigue apuntando al mismo TAG al reutilizarse. Revise referencias de cada instancia antes de representar otro equipo.",
+              "example": "Título, estado y valor mostrado",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento: crear y reutilizar",
+          "body": "1. Seleccione Nueva plantilla y complete nombre e identificador. 2. Inserte un conjunto pequeño y configure propiedades. 3. Añada vínculos/dinámicas/eventos; no suponga sustitución automática de TAGs por nombre de equipo. 4. Ejecute Preview, corrija errores y aplique. 5. Abra Equipos, cree o seleccione una instancia y elija esta plantilla opcional. Guarde el vínculo. 6. En Pantallas insértela desde la biblioteca de equipos/faceplates, cuando esté disponible. 7. Guarde, publique y active. Compruebe dos instancias y sus lecturas en Runtime.",
+          "fields": null
+        },
+        {
+          "heading": "Actualizar sin confundir definición e instancia",
+          "body": "Editar la plantilla compartida actualiza el dibujo de todas las instancias vinculadas en esa revisión. Revise el impacto; use otra plantilla si necesita apariencia distinta. Cambiar el vínculo cambia el dibujo asociado y conserva la identidad del equipo. Un Dínamo es otro conjunto visual reutilizable; un Grupo solo organiza objetos.",
+          "fields": null
+        },
+        {
+          "heading": "Si falta o no se actualiza",
+          "body": "Compruebe plantilla aplicada, vínculo correcto y revisión activa. Una copia independiente no se vincula por compartir nombre. Actualice y valide si cambió el proyecto. Si aparece la lectura de otra bomba, revise referencias y no solo el título.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "equipment.overview",
+        "visual.first-screen",
+        "visual.properties",
+        "dynamos.overview",
+        "libraries.reusable-resources",
+        "intelligence.profiles-equipment"
+      ]
+    },
+    {
+      "id": "equipment.overview",
+      "category": "equipment",
+      "title": "Equipos: crear, identificar y asociar",
+      "summary": "Registre el activo real y después elija su dibujo y mediciones.",
+      "sections": [
+        {
+          "heading": "Empiece por la identidad del activo",
+          "body": "Abra Ingeniería > Equipos. Equipo representa una instancia real, como Bomba 01. No es Driver, TAG ni dibujo. Puede crearlo sin faceplate y asociar plantilla después. Intelligence usa esta identidad; dibujar una bomba no registra el equipo.",
+          "fields": null
+        },
+        {
+          "heading": "Campos de instancia",
+          "body": "El formulario muestra nombre y plantilla opcional. El producto genera la ruta; no necesita inventarla ni escribirla.",
+          "fields": [
+            {
+              "key": "equipment.name",
+              "label": "Nombre del equipo",
+              "description": "Rótulo para encontrar el activo. Distinga las instancias.",
+              "example": "Bomba 01",
+              "constraints": ""
+            },
+            {
+              "key": "equipment.path",
+              "label": "Ruta generada",
+              "description": "Referencia estable para comprobar. Renombrar una instancia conserva su ruta. Una ruta generada duplicada impide crear otra.",
+              "example": "Compruebe la vista previa de ruta",
+              "constraints": ""
+            },
+            {
+              "key": "equipment.templateId",
+              "label": "Plantilla Faceplate (opcional)",
+              "description": "Selecciona dibujo compartido. Sin plantilla es válido; quitar el vínculo no elimina equipo. Cambiarlo no elige TAGs ni perfiles de Intelligence automáticamente.",
+              "example": "Plantilla Bomba o Sin plantilla",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento: registrar y comprobar",
+          "body": "1. Introduzca un nombre distinto. 2. Compruebe ruta y elija plantilla o Sin plantilla. 3. Pulse Crear equipo; el producto valida antes de aplicar. 4. Selecciónelo en la lista para editar nombre/vínculo y guarde cambios. 5. Guarde/publique/active cuando se necesite en Runtime. 6. En Intelligence seleccione esta identidad y asigne perfil. Configure TAGs y captura antes de analizar.",
+          "fields": null
+        },
+        {
+          "heading": "Verificación y errores frecuentes",
+          "body": "La instancia debe aparecer con nombre, ruta y vínculo correcto. Sin plantilla no significa equipo inválido. Plantilla no disponible indica vínculo no resuelto: elija una existente o quite la asociación. Ruta duplicada requiere nombre distinto. Ante conflicto actualice y revise; no cree copias repetidas.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "templates.overview",
+        "intelligence.profiles-equipment",
+        "intelligence.activation",
+        "visual.object-selection",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "database.topology",
+      "category": "database",
+      "title": "Base de datos: configurar, migrar y recuperar",
+      "summary": "Comprenda la base activa antes de validar otro destino o migrar.",
+      "sections": [
+        {
+          "heading": "Dónde entrar y qué resuelve esta página",
+          "body": "Abra Ingeniería > Base de datos. Se requiere SystemAdmin. Local Managed usa almacenamiento local administrado; Remote usa PostgreSQL configurado. Esto elige almacenamiento, no redundancia HA. Lea Estado actual y Próxima acción. Un Local Managed saludable no necesita perfil Remote si satisface su instalación.",
+          "fields": null
+        },
+        {
+          "heading": "Prepare el destino",
+          "body": "Acuerde servidor, base, cuenta, certificados y permisos con el administrador. La dirección debe ser accesible por el servicio SCADIVO, no solo el navegador. En Docker localhost dentro del contenedor es ese contenedor. En Windows/Linux los certificados deben existir en el servidor del servicio. Haga backup y planifique mantenimiento.",
+          "fields": null
+        },
+        {
+          "heading": "Campos básicos y avanzados",
+          "body": "Empiece con host, usuario y secreto. Abra Configuración avanzada solo para cambiar valores propuestos. Los ejemplos son demostrativos, no credenciales.",
+          "fields": [
+            {
+              "key": "primary.host",
+              "label": "Host / FQDN",
+              "description": "DNS/dirección de PostgreSQL accesible al servicio, no la URL web.",
+              "example": "db.example.invalid",
+              "constraints": ""
+            },
+            {
+              "key": "primary.username",
+              "label": "Usuario / identidad",
+              "description": "Cuenta PostgreSQL de aplicación; no su login de Authority SCADIVO.",
+              "example": "Cuenta facilitada por el administrador",
+              "constraints": ""
+            },
+            {
+              "key": "primary.password",
+              "label": "Contraseña / secreto",
+              "description": "Se envía sin devolverse en el estado. Limpiarse al enviar no significa perder credencial. No incluya en incidencias ni capturas.",
+              "example": "Introducir solo en formulario protegido",
+              "constraints": ""
+            },
+            {
+              "key": "primary.database",
+              "label": "Database",
+              "description": "Nombre de base destino, no de proyecto. Inicialmente elitescada; confírmelo.",
+              "example": "elitescada",
+              "constraints": ""
+            },
+            {
+              "key": "primary.port",
+              "label": "Puerto",
+              "description": "Puerto PostgreSQL. Inicialmente 5432, distinto del HTTPS de aplicación.",
+              "example": "5432",
+              "constraints": ""
+            },
+            {
+              "key": "primary.tlsMode",
+              "label": "Modo TLS",
+              "description": "Require exige cifrado. VerifyCa valida cadena CA; VerifyFull también el nombre del servidor. Prefer y Disable no ofrecen igual protección. Use el modo acordado con TI; no desactive TLS para ocultar un error.",
+              "example": "Require o VerifyFull con CA válida",
+              "constraints": ""
+            },
+            {
+              "key": "primary.rootCertificatePath",
+              "label": "Ruta del certificado CA",
+              "description": "Archivo CA legible por el servicio; exigido para VerifyCa/VerifyFull. Una ruta del equipo del navegador no sirve a otro host/contenedor.",
+              "example": "Ruta provisionada en servidor",
+              "constraints": ""
+            },
+            {
+              "key": "primary.timeoutSeconds",
+              "label": "Timeout (s)",
+              "description": "Espera de conexión; inicialmente 15 segundos. Aumentarla no corrige usuario, DNS ni certificado.",
+              "example": "15 s",
+              "constraints": ""
+            },
+            {
+              "key": "historianOverride",
+              "label": "Historian usa Primary / dedicado",
+              "description": "Marcado, histórico usa base principal. Desmarque solo para destino Historian dedicado y complete su endpoint; también debe superar compatibilidad.",
+              "example": "Usar Primary en configuración simple",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Migrar datos a otra base",
+          "body": "1. Compruebe base activa y haga backup. 2. Complete Remote y Valide destino: conexión, autenticación, TLS y compatibilidad; accesibilidad no basta. 3. Prepare migración y revise origen, destino y datos. La configuración queda bloqueada. 4. En mantenimiento Inicie migración; escrituras durables pueden pausarse. 5. Espere copia y verificación automática. 6. Tras verificación correcta, Active banco Remote y confirme. 7. Si se exige reinicio, reinicie/reabra el servicio y compruebe topología, salud, proyecto y revisión antes de operar.",
+          "fields": null
+        },
+        {
+          "heading": "Conectar a base existente no es migrar",
+          "body": "Conectar a base existente (sin copia) no copia ni mezcla registros. Úselo solo con destino preparado del mismo proyecto y revisión activa exigidos. Lea confirmación. La incompatibilidad bloquea cambio; no vacíe ni modifique base para evitar comprobación. Para transportar datos actuales use migración.",
+          "fields": null
+        },
+        {
+          "heading": "Revertir y volver al banco local",
+          "body": "Si se exige Recovery/Rollback, revise diagnóstico y Revierta operación cuando esté disponible. Volver a Local Managed valida/reactiva almacenamiento local conservado y puede exigir reinicio. No mezcla automáticamente escrituras posteriores de Remote con el local. Conserva la base anterior; volver no restaura un backup ni elimina Remote. Compruebe datos y revisión activos.",
+          "fields": null
+        },
+        {
+          "heading": "Errores que requieren acciones diferentes",
+          "body": "Sin conexión: revise DNS/puerto/acceso del servicio. Autenticación rechazada: cuenta PostgreSQL/secreto. TLS: CA, nombre y validez. Incompatibilidad: versión PostgreSQL, capacidad TimescaleDB exigida y schema. Fase inválida: actualice y siga Próxima acción; no inicie otra copia. Almacenamiento indisponible puede degradar Runtime; memoria no debe simular persistencia. Para soporte registre hora, fase e ID sin contraseñas.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "ha.overview",
+        "historian.overview",
+        "recovery.backup-system-recovery",
+        "installation.switching",
+        "security.users-roles-capabilities"
+      ]
+    },
+    {
+      "id": "ha.configuration-operation",
+      "category": "ha",
+      "title": "HA: configurar dos servidores y seguir la operación",
+      "summary": "Distinga configuración guardada, servidor activo, compañero listo y protección contra ejecución duplicada.",
+      "sections": [
+        {
+          "heading": "Qué preparar primero",
+          "body": "HA significa Alta Disponibilidad: dos servidores pueden asumir Runtime de forma controlada. Abra Ingeniería > Alta disponibilidad. Requiere licencia HA Runtime y HighAvailabilityObserve; guardar/operar también HighAvailabilityTransfer. Compruebe red entre servicios, autenticación, relojes y almacenamiento de cada nodo. Bases compartidas o separadas necesitan comprobar topología; habilitar HA no crea replicación ni prueba disponibilidad.",
+          "fields": null
+        },
+        {
+          "heading": "Rellene solo lo que depende de la instalación",
+          "body": "La página distingue Este servidor y Servidor compañero. El operador no necesita inventar identidades internas ni transporte automático.",
+          "fields": [
+            {
+              "key": "nodes.localEndpoint",
+              "label": "Dirección principal de cada servidor",
+              "description": "Endpoint accesible entre servicios. La dirección detectada solo sirve si el compañero la alcanza; localhost en dos hosts no es un servidor.",
+              "example": "Direcciones reales de ambos servicios",
+              "constraints": ""
+            },
+            {
+              "key": "nodes.remoteEndpoint",
+              "label": "Dirección externa alternativa",
+              "description": "Abra solo si la red exige otra dirección anunciada. En otro caso conserve automática para evitar destinos inconsistentes.",
+              "example": "Sin alternativa en red simple",
+              "constraints": ""
+            },
+            {
+              "key": "initialActiveNodeId",
+              "label": "Servidor preferente",
+              "description": "Preferencia de inicio/failback; no fuerza promoción ni establece preparación.",
+              "example": "Este servidor o compañero",
+              "constraints": ""
+            },
+            {
+              "key": "peerSharedSecret",
+              "label": "Autenticación entre servidores",
+              "description": "Configure secreto compartido mediante flujo protegido en ambos nodos. Se limpia del formulario; compruebe estado sin capturarlo.",
+              "example": "Configurar autenticación",
+              "constraints": ""
+            },
+            {
+              "key": "protection.referencePath",
+              "label": "Protección y referencia compartida",
+              "description": "Fencing evita dos ejecutores Active. Ambos deben ver la misma referencia externa compartida; dos archivos locales con igual nombre no son autoridad compartida.",
+              "example": "Recurso compartido provisionado",
+              "constraints": ""
+            },
+            {
+              "key": "protection.automaticFailoverEnabled",
+              "label": "Failover automático",
+              "description": "Permite cambio automático elegible y exige protección. No sustituye compañero preparado, datos disponibles ni seguridad.",
+              "example": "Habilitar tras comprobar preparación",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento de preparación",
+          "body": "1. Compruebe modo En ejecución. 2. Prepare HA con dos direcciones y preferencia. 3. Configure autenticación/protección compartida y resuelva preparación. 4. Guarde configuración deseada; Guardado no equivale a En ejecución. 5. Si se exige, planifique reinicios y compruebe configuración cargada. 6. Actualice y revise Active efectivo, compañero, base y protección. Standby no equivale a Ready Standby. 7. Antes de operar haga ensayo manual acordado con responsable; las comprobaciones del manual no lo sustituyen.",
+          "fields": null
+        },
+        {
+          "heading": "Lea estados antes de operar",
+          "body": "Active efectivo está autorizado a ejecutar, no es solo preferido. Synchronizing aún recibe/verifica estado. Ready Standby indica preparación evaluada; Standby no la prueba. Promoting/Demoting son transiciones. Stale es observación antigua; Isolated, Faulted, degradación o autoridad ambigua exigen diagnóstico. Banco disponible difiere de compañero accesible. No oculte fallo de base aumentando tolerancias de red.",
+          "fields": null
+        },
+        {
+          "heading": "Elija la operación correcta",
+          "body": "Switchover transfiere de Active efectivo a compañero elegible. Failback solicita volver al preferente cuando se permite. Recovery reconcilia fallo/bloqueo. Forzar resincronización es recuperación específica sin Active y con autoridad anterior cercada; no declara listo a un compañero. Lea destino, confirmación y resultado; compruebe historial y Active resultante. No repita rechazo sin cambiar su causa.",
+          "fields": null
+        },
+        {
+          "heading": "Ajustes avanzados: significado y límites",
+          "body": "Parta de valores propuestos. Cambiar tiempos afecta protección y respuesta; evalúe red, relojes y operación. Los límites del formulario no son recomendaciones de rendimiento.",
+          "fields": [
+            {
+              "key": "freshnessSeconds",
+              "label": "Freshness (s)",
+              "description": "Edad máxima de observación reciente.",
+              "example": "Conservar valor propuesto",
+              "constraints": "1–120 s"
+            },
+            {
+              "key": "protection.leaseSeconds",
+              "label": "Lease (s)",
+              "description": "Validez de autoridad de ejecución; no es licencia comercial.",
+              "example": "Conservar valor propuesto",
+              "constraints": "3–120 s"
+            },
+            {
+              "key": "protection.pollMilliseconds",
+              "label": "Poll (ms)",
+              "description": "Intervalo de consulta de referencia; menor aumenta frecuencia.",
+              "example": "Conservar valor propuesto",
+              "constraints": "100–10000 ms"
+            },
+            {
+              "key": "protection.readyWitnessMaximumAgeSeconds",
+              "label": "Edad máxima de witness (s)",
+              "description": "Edad máxima de evidencia de compañero listo; no crea preparación.",
+              "example": "Conservar valor propuesto",
+              "constraints": "Al menos Lease; hasta 600 s"
+            },
+            {
+              "key": "protection.clockSkewSafetyMarginSeconds",
+              "label": "Margen de reloj (s)",
+              "description": "Margen por diferencia de relojes; no sustituye sincronización.",
+              "example": "Conservar valor propuesto",
+              "constraints": "0 hasta floor(Lease/3)"
+            }
+          ]
+        },
+        {
+          "heading": "Si hay problemas",
+          "body": "403: revise permisos. Guardado difiere de ejecución: reinicio pendiente. Compañero inaccesible: direcciones/red/autenticación. Referencia indisponible: almacenamiento externo compartido. Compañero no listo: sincronización/base/diagnóstico sin forzar promoción. Registre hora, acción, resultado y nodo efectivo; nunca secreto.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "database.topology",
+        "diagnostics.overview",
+        "licensing.overview",
+        "security.users-roles-capabilities"
+      ]
+    },
+    {
+      "id": "intelligence.activation",
+      "category": "intelligence",
+      "title": "Intelligence: habilitar, pausar y resolver bloqueos",
+      "summary": "Licencia disponible, recurso seleccionado y ejecución activa son condiciones diferentes.",
+      "sections": [
+        {
+          "heading": "Siga la secuencia completa",
+          "body": "Abra Ingeniería > Inteligencia de activos. Cree Equipo y TAGs, después perfiles, asociaciones Equipo/perfil, contextos y etapas útiles. Guarde configuración y alcances; publique/active revisión. Después active explícitamente el recurso para análisis. Crear perfil, marcar casilla o tener licencia no habilita ejecución automáticamente.",
+          "fields": null
+        },
+        {
+          "heading": "Permisos y selección de recursos",
+          "body": "EngineeringModify permite configurar; AssetProcessIntelligenceManage debe ser explícito, global o sobre Equipo/Ubicación. El nombre Developer o SystemAdmin por sí solo no sustituye ese permiso. Consultas también necesitan TrendUse y licencia Intelligence. Conceda en Seguridad y revise capacidades efectivas. Seleccione recursos sin memorizar IDs y conserve identidad.",
+          "fields": null
+        },
+        {
+          "heading": "Activar solo donde sea útil",
+          "body": "1. Seleccione Equipos/Ubicaciones en Alcances elegibles. 2. Guarde alcances y configuración. 3. Publique/active y resuelva cambios pendientes. 4. Pulse Activar en el recurso y confirme permiso habilitado. 5. Abra consulta de asociación y elija período. 6. Pausar cancela trabajo pendiente sin eliminar TAGs/histórico. Pause antes de quitar un recurso de selección.",
+          "fields": null
+        },
+        {
+          "heading": "Activo configurado no significa habilitado",
+          "body": "Tras revocación, el permiso puede quedar cerrado aunque configuración siga activa. Restaurar permiso no rearma silenciosamente: revise y Active otra vez, también tras reinicio cuando se indique. Evita reiniciar análisis sin decisión del responsable. Distíngalo de errores Historian o falta de datos.",
+          "fields": null
+        },
+        {
+          "heading": "Ejemplo: empezar pequeño",
+          "body": "Empiece con Bomba 01 en un área. Configure corriente y velocidad si existen; no invente vibración. Añada mediciones/análisis admitidos por catálogo. Mantenga pausado lo no utilizado. La selección controla ejecución elegible, no promete consumo fijo de CPU/RAM.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "equipment.overview",
+        "intelligence.profiles-equipment",
+        "intelligence.semantics",
+        "intelligence.analysis-guide",
+        "security.users-roles-capabilities",
+        "intelligence.dashboard-workflow"
+      ]
+    },
+    {
+      "id": "intelligence.semantics",
+      "category": "intelligence",
+      "title": "Intelligence: significado de señales y unidades",
+      "summary": "Describa qué se midió, no solo el nombre del TAG.",
+      "sections": [
+        {
+          "heading": "Por qué no basta el nombre",
+          "body": "Un TAG Potencia puede ser activa/aparente o calculada; presión puede ser aspiración, descarga o diferencial. Las reglas no deben adivinar por nombre. Seleccione papel semántico controlado requerido y complete calificadores mostrados. El papel legado es descriptivo.",
+          "fields": null
+        },
+        {
+          "heading": "Campos y elecciones",
+          "body": "Elija solo significado sustentado por instrumento y proceso. Los selectores muestran opciones del catálogo actual.",
+          "fields": [
+            {
+              "key": "signals.required",
+              "label": "Obligatorio",
+              "description": "Marca señales cuya ausencia compromete cobertura. No haga opcional una señal esencial solo para obtener resultado.",
+              "example": "Corriente necesaria para comparación",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.roleCode",
+              "label": "Papel semántico",
+              "description": "Magnitud/función controlada; análisis usa ese papel, no semejanza de nombre.",
+              "example": "Potencia activa de entrada, si se mide",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.currentBasis",
+              "label": "Base de corriente",
+              "description": "Distingue base admitida, como corriente RMS apropiada; no deduzca de etiqueta genérica.",
+              "example": "Seleccione opción documentada del instrumento",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.signalKind",
+              "label": "Tipo de señal",
+              "description": "Distingue medición, referencia y función exigida. Una consigna no prueba valor medido.",
+              "example": "Medición real cuando se exija",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.pressureReference",
+              "label": "Referencia de presión",
+              "description": "Identifica base/origen; diferencial salida menos entrada difiere de solo descarga.",
+              "example": "Diferencial medido salida − entrada",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.flowDirection",
+              "label": "Dirección del flujo",
+              "description": "Identifica sentido de transferencia; el opuesto puede invalidar regla.",
+              "example": "Bomba hacia proceso, si corresponde",
+              "constraints": ""
+            },
+            {
+              "key": "signals.semanticBinding.frequencyReference",
+              "label": "Referencia de frecuencia",
+              "description": "Explica frecuencia según catálogo; distinga referencia eléctrica y velocidad física.",
+              "example": "Compruebe origen del instrumento",
+              "constraints": ""
+            },
+            {
+              "key": "signals.tagId",
+              "label": "TAG y unidad",
+              "description": "Seleccione TAG real y unidad controlada. Cambiar rótulo no convierte datos. Algunos cálculos exigen unidades/versiones específicas.",
+              "example": "kW para potencia si corresponde al dato real",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo: no confundir indicador con eficiencia",
+          "body": "Corriente creciente a igual velocidad puede justificar investigación, pero no calcula eficiencia física. Potencia de entrada, caudal y diferencial pueden habilitar otras reglas con papeles/unidades/alineación adecuados. Si falta instrumento/calificador, lea motivo de indisponibilidad; no invente valores.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "intelligence.profiles-equipment",
+        "intelligence.analysis-guide",
+        "tags.scaling-formatting",
+        "tags.quality",
+        "tags.timestamps"
+      ]
+    },
+    {
+      "id": "intelligence.analysis-guide",
+      "category": "intelligence",
+      "title": "Intelligence: consultar resultados y crear dashboards",
+      "summary": "Elija la pregunta, compruebe datos disponibles y después interprete el indicador.",
+      "sections": [
+        {
+          "heading": "Empiece por cobertura",
+          "body": "Con asociación guardada y ejecución autorizada, abra cobertura. Introduzca inicio/fin y consulte explícitamente. El formulario usa hora local y respuesta identifica ventana UTC; fin debe seguir inicio. Revise señales obligatorias, muestras aceptadas/rechazadas, calidad y alineación antes de mínimos/máximos/media. Contar muestras no prueba cadencia, completitud ni sincronización.",
+          "fields": null
+        },
+        {
+          "heading": "Rendimiento: elija regla elegible",
+          "body": "Abra Rendimiento y elija regla del catálogo. Opciones deshabilitadas explican señales/papeles/unidades ausentes. No elija otra magnitud solo para obtener número. Complete Desde/Hasta, consulte y revise estado/unidad/ventana/límites. Indisponible no es cero; un indicador no es eficiencia física. Cambiar asociación/revisión/parámetros exige nueva consulta.",
+          "fields": null
+        },
+        {
+          "heading": "Dos tipos de contexto con límites distintos",
+          "body": "Contextos operativos guardados usan límites numéricos inclusivos en unidad actual y evidencia del mismo timestamp UTC exacto de origen. El generador de pantalla de desviación usa selección distinta: 2–8 objetivos y dos contextos numéricos distintos entre sí y de objetivos; al menos cuatro señales utilizables. Sus rangos usan unidad controlada mostrada y límite inferior ≤ valor < superior. No copie automáticamente límites del perfil: unidad y extremo superior pueden diferir.",
+          "fields": null
+        },
+        {
+          "heading": "Genere pantalla y compruebe la cadena completa",
+          "body": "1. Elija asociación/etapa y tipo de pantalla. 2. Complete selecciones y lea motivos si se bloquea. 3. Genere borrador: organiza objetos/referencias, no consulta Historian ni activa. 4. Revise nombre, dimensiones, objetos, vínculos y navegación; Preview y Apply. 5. Guarde/publique/active y abra en Runtime. 6. Configure/ejecute consulta y revise ventana/resultado. Una etapa agrupa miembros sin crear automáticamente KPI agregado ni probar causalidad.",
+          "fields": null
+        },
+        {
+          "heading": "Cómo investigar resultado vacío",
+          "body": "Compruebe en orden: licencia/permisos; alcance guardado/permiso habilitado; proyecto/revisión activa; asociación/TAGs; período; captura Historian; calidad; papeles/unidades; alineación/contexto. Corrija la primera carencia comprobada y consulte. No amplíe límites ni cambie significado solo para obtener resultado. El análisis apoya investigación; no confirma defectos ni predicción validada en campo.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "intelligence.activation",
+        "intelligence.semantics",
+        "intelligence.operating-contexts",
+        "intelligence.dashboard-workflow",
+        "intelligence.process-stage-member-insights",
+        "historian.overview",
+        "templates.overview"
+      ]
+    },
+    {
+      "id": "help.application-map",
+      "category": "getting-started",
+      "title": "Por dónde empezar en cada área",
+      "summary": "Encuentre la tarea y siga las guías relacionadas al final.",
+      "sections": [
+        {
+          "heading": "Un orden para construir su aplicación",
+          "body": "Empiece con conexión de datos, compruebe TAGs, represente equipos, construya Pantallas/Popups, configure alarmas/histórico y después analice con Intelligence. Scripts añaden lógica. Seguridad, licencia, base y HA son administraciones distintas. La primera aplicación no requiere todas las funciones.",
+          "fields": null
+        },
+        {
+          "heading": "Proyecto y comunicación",
+          "body": "Resumen muestra proyecto; guardar/publicar/activar controla revisiones. Instalación trata cambio/recuperación. Fuentes de datos elige conexión/protocolo; TAGs describe valores/direcciones/unidades; TAG Gateway enruta datos. Home/Building organiza dispositivos/capacidades donde existe. Fuentes multimedia no son señales industriales. Lea la guía antes de escribir a equipo real.",
+          "fields": null
+        },
+        {
+          "heading": "Dibujo y reutilización",
+          "body": "Plantillas crea faceplates compartidos; Equipos registra instancias reales. Dínamos organiza conjuntos parametrizados. Recursos visuales son archivos, como imágenes. Bibliotecas transfiere recursos reutilizables. Pantallas ocupa vista principal; Popups abre detalles. Encabezado y Móvil ajustan presentación/navegación sin sustituir diseño de pantalla. Las guías explican propiedades de cada tipo.",
+          "fields": null
+        },
+        {
+          "heading": "Histórico, ocurrencias e Intelligence",
+          "body": "Historian configura captura; Tendencias e Histórico consultan datos guardados. Informes usa definiciones/parámetros propios. Alarmas sigue condiciones; Eventos Operacionales registra ocurrencias; Auditoría registra acciones auditadas. Intelligence organiza perfiles/equipos/contextos/análisis. Responden preguntas distintas, no son listas equivalentes.",
+          "fields": null
+        },
+        {
+          "heading": "Administración y diagnóstico",
+          "body": "Seguridad controla usuarios/permisos. Licencia controla funciones/cupos comerciales, no permisos de usuario. Base administra almacenamiento. Alta disponibilidad configura dos servidores. TAG Monitor comprueba valores/calidad; Monitor sigue desarrollo; Diagnóstico localiza fallos; Información identifica versión/proyecto. Empiece por síntoma; no cambie base/licencia/HA sin comprobar origen de lectura.",
+          "fields": null
+        },
+        {
+          "heading": "Use Ayuda donde surge la duda",
+          "body": "Abra Ayuda desde el área en uso. Plantillas, Equipos, Base, HA e Intelligence llevan a guías específicas. Busque tarea/campo y use índice del artículo. Continúe aquí enlaza próximas guías. Sin conocer término técnico, busque migrar, bomba, pausar, certificado o presión.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.data-sources",
+        "tags.overview",
+        "gateway.overview",
+        "templates.overview",
+        "equipment.overview",
+        "visual.first-screen",
+        "visual.popup-workflow",
+        "scripts.choose-scope",
+        "historian.overview",
+        "runtime.history",
+        "alarms.overview",
+        "operational-events.overview",
+        "audit.overview",
+        "reports.overview",
+        "intelligence.activation",
+        "intelligence.analysis-guide",
+        "database.topology",
+        "ha.overview",
+        "security.users-roles-capabilities",
+        "licensing.overview",
+        "installation.switching",
+        "application.export-import",
+        "libraries.reusable-resources",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "application.presentation",
+      "category": "application",
+      "title": "Encabezado y Móvil: presentación y navegación",
+      "summary": "Configure identidad visual y elija pantalla adecuada al dispositivo.",
+      "sections": [
+        {
+          "heading": "El encabezado no es la pantalla del proceso",
+          "body": "Abra Ingeniería > Encabezado. Marca, títulos, accesos y reloj están sobre la pantalla de proceso. Cambiarlos no altera TAGs ni dibuja objetos. Valide vista previa y Aplique a Working, después guarde, publique y active.",
+          "fields": [
+            {
+              "key": "branding.mode",
+              "label": "Presentación de marca",
+              "description": "Predeterminada usa SCADIVO; Texto usa texto indicado; Imagen usa recurso; Oculta quita marca.",
+              "example": "Texto: Estación de bombeo",
+              "constraints": ""
+            },
+            {
+              "key": "branding.text",
+              "label": "Texto y subtítulo",
+              "description": "Título identifica aplicación; subtítulo añade contexto. Con imagen, texto también identifica de forma accesible.",
+              "example": "Captación / Unidad 1",
+              "constraints": "Texto hasta 128; subtítulo hasta 256 caracteres"
+            },
+            {
+              "key": "branding.visualAssetId",
+              "label": "Imagen del proyecto",
+              "description": "Seleccione/importe archivo admitido. No es URL de cámara; use Fuentes multimedia.",
+              "example": "Logotipo de aplicación",
+              "constraints": ""
+            },
+            {
+              "key": "header.height",
+              "label": "Altura y colores",
+              "description": "Altura ocupa espacio útil. Seguir tema mantiene colores; color personalizado los sustituye.",
+              "example": "Compruebe lectura en escritorio y móvil",
+              "constraints": "Altura 56–168 px"
+            },
+            {
+              "key": "header.titleStyle",
+              "label": "Título, nombre de pantalla y tipografía",
+              "description": "Elija alineación y fuente/tamaño/peso/color. Mostrar nombre sigue navegación sin renombrar pantalla.",
+              "example": "Título izquierda; nombre debajo",
+              "constraints": ""
+            },
+            {
+              "key": "header.controls",
+              "label": "Posición y orden de controles",
+              "description": "Mueve grupo de navegación al lado elegido; orden organiza posición relativa. Menú de usuario sigue a la derecha.",
+              "example": "Controles a la derecha",
+              "constraints": ""
+            },
+            {
+              "key": "header.dateTime",
+              "label": "Fecha y hora",
+              "description": "Habilite si es útil; elija modo, formato, posición y orden. Este reloj no es timestamp de adquisición TAG.",
+              "example": "Fecha y hora en encabezado",
+              "constraints": ""
+            },
+            {
+              "key": "header.links",
+              "label": "Accesos a pantallas",
+              "description": "Para cada botón elija rótulo, pantalla existente e imagen opcional. La pantalla debe existir en revisión activa.",
+              "example": "Bombas → Pantalla Bombeo",
+              "constraints": "Hasta 16 accesos en editor"
+            }
+          ]
+        },
+        {
+          "heading": "Móvil: orientación y variante",
+          "body": "Abra Ingeniería > Móvil. Elija Horizontal o Vertical para dispositivos táctiles; bloqueo físico depende del navegador. Para cada pantalla elija Misma pantalla del escritorio o alternativa existente. Debe diseñar alternativa: Vertical no reorganiza automáticamente objetos. Comparten TAGs/Runtime, no copia de datos. Encabezado se configura en su área.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento y comprobación",
+          "body": "1. Configure marca y accesos necesarios. 2. Valide/aplique. 3. Diseñe variante en Pantallas y selecciónela en Móvil si hace falta. 4. Valide/aplique Móvil. 5. Guarde/publique/active. 6. Compruebe botones, navegación, lectura y orientación en escritorio/móvil. Diseño anterior: revisión activa; imagen ausente: recurso seleccionado.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "visual.first-screen",
+        "screens.overview",
+        "runtime.history",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "sources.media",
+      "category": "sources",
+      "title": "Fuentes multimedia: cámara, dirección y credencial",
+      "summary": "Registre la fuente y después elija su presentación visual.",
+      "sections": [
+        {
+          "heading": "Fuente y objeto son pasos distintos",
+          "body": "Abra Ingeniería > Fuentes multimedia. La fuente describe origen; un objeto vídeo/imagen define presentación. Registrar RTSP no garantiza reproducción nativa: depende del relay del servidor. Compruebe infraestructura antes de cambiar parámetros repetidamente.",
+          "fields": [
+            {
+              "key": "mediaSource.name",
+              "label": "Nombre visible",
+              "description": "Identifica cámara/fuente en lista.",
+              "example": "Cámara entrada",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.key",
+              "label": "Clave estable",
+              "description": "Referencia única; use letras, números, punto, guion o subrayado.",
+              "example": "camara-entrada",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.protocol",
+              "label": "Protocolo",
+              "description": "Elija formato de origen: HTTP/HTTPS, HLS, MJPEG o RTSP/RTSPS. Cambiar opción no convierte contenido.",
+              "example": "HLS si la fuente lo proporciona",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.endpoint",
+              "label": "Dirección",
+              "description": "URL absoluta sin usuario, contraseña, parámetros ni fragmento. Credenciales van en formulario protegido.",
+              "example": "https://camera.example.invalid/stream",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.enabled",
+              "label": "Habilitada",
+              "description": "Habilita en configuración; no prueba acceso ni reproducción.",
+              "example": "Habilitar fuente en uso",
+              "constraints": ""
+            },
+            {
+              "key": "mediaSource.credentials",
+              "label": "Credenciales protegidas",
+              "description": "Tras crear fuente elija Basic con usuario/contraseña o Bearer con token. Guarde por separado. Son de solo escritura, fuera de paquetes; configure de nuevo en host destino.",
+              "example": "Use panel protegido, no URL con contraseña",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento y problemas comunes",
+          "body": "1. Cree fuente con nombre, clave, protocolo, dirección y habilitación. 2. Guarde y configure credenciales si necesita. 3. Configure objeto visual con fuente admitida. 4. Guarde/publique/active y compruebe reproducción. Si falla revise endpoint/protocolo, acceso del servicio, credencial del host, relay exigido y revisión activa. Quitar credencial puede bloquear reproducción. Exportar proyecto no transfiere contraseñas de cámara.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "visual.object.core.videoplayer",
+        "visual.object.core.image",
+        "application.export-import",
+        "visual.first-screen"
+      ]
+    },
+    {
+      "id": "home-building.organization",
+      "category": "equipment",
+      "title": "Home/Building: ubicaciones y dispositivos",
+      "summary": "Organice ubicación y compruebe capacidades reales del dispositivo.",
+      "sections": [
+        {
+          "heading": "Separe ubicación, dispositivo y conexión",
+          "body": "Abra Ingeniería > Home/Building. Ubicación describe dónde está; dispositivo/equipo identifica instancia; Fuente de datos conecta. Una sala no es Driver; cambiar ubicación no cambia protocolo. Empiece con dispositivos/TAGs realmente expuestos.",
+          "fields": [
+            {
+              "key": "location.name",
+              "label": "Nombre de ubicación",
+              "description": "Nombre legible en jerarquía.",
+              "example": "Sala de bombas",
+              "constraints": ""
+            },
+            {
+              "key": "location.kind",
+              "label": "Tipo de ubicación",
+              "description": "Elija Site, Edificio, Planta, Área/Sala o Zona. No concede permisos ni crea automatización.",
+              "example": "Área/Sala",
+              "constraints": ""
+            },
+            {
+              "key": "location.parentLocationId",
+              "label": "Ubicación superior",
+              "description": "Dónde pertenece. Elija superior existente sin relaciones circulares; sin superior es raíz cuando se permite.",
+              "example": "Edificio 1 → Planta 1 → Sala de bombas",
+              "constraints": ""
+            },
+            {
+              "key": "device.locationId",
+              "label": "Ubicación del dispositivo",
+              "description": "Asocia instancia a ubicación; organiza proyecto, no prueba comunicación.",
+              "example": "Bomba 01 en Sala de bombas",
+              "constraints": ""
+            },
+            {
+              "key": "device.path",
+              "label": "Nombre y ruta de dispositivo",
+              "description": "Nombre es rótulo; ruta referencia estable. Revise candidato y conserve identidad al reorganizar.",
+              "example": "Compruebe instancia y referencia en vista previa",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Procedimiento y comprobación",
+          "body": "1. Configure conexión y revise TAGs/capacidades. 2. Cree jerarquía con nombre/tipo/superior. 3. Asigne dispositivos y revise identidad. 4. Preview y aplique candidato validado. 5. Guarde/publique/active. 6. Pruebe lecturas/acciones en instalación de prueba. Mostrar equipo no crea capacidades/comandos ausentes; revise proveedor/mapeo/permisos. Para faceplates vea Equipos y Plantillas.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "equipment.overview",
+        "templates.overview",
+        "sources.data-sources",
+        "tags.overview",
+        "tags.writeability",
+        "security.scopes-authority"
+      ]
+    }
+  ]
+}

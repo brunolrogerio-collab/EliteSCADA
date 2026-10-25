@@ -19,4 +19,9 @@ Ningún contenido material de seguridad, licencias, HA, escrituras/comandos, rec
 - [Scripting, alarmas e histórico](06-SCRIPTING-ALARMAS-HISTORICO.md) — guía estable de Server Script y Client Visual, APIs, ejemplos, límites de Runtime, distinción entre alarmas/eventos/auditoría, Historian/Trends y procedimientos actuales de Historical Time Range/Playback.
 - [Inteligencia de Activos y Procesos](12-INTELIGENCIA-ACTIVOS-PROCESOS.md) — flujos actuales de perfiles, contexto, etapas del proceso, análisis y borradores de Pantallas editables; revisar a medida que evolucione el producto.
 
+- [Plantillas y Equipos](04-PLANTILLAS-Y-EQUIPOS.md)
+- [Alta disponibilidad](13-ALTA-DISPONIBILIDAD.md)
+- [Base de datos](14-BASE-DE-DATOS.md)
+- [Encabezado, Móvil, multimedia y ubicaciones](15-PRESENTACION-MULTIMEDIA-UBICACIONES.md)
+
 Consulte el [índice completo](../README.md) y la [matriz de cobertura](../COVERAGE-MATRIX.md).

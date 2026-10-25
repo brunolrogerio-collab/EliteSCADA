@@ -221,3 +221,7 @@ A parte de Telas e Objetos tem um capítulo de trabalho nos três idiomas: [port
 ## Conteúdo de Fase 1
 
 O núcleo pt-BR contém procedimentos para os fluxos disponíveis. Conteúdo de Inteligência descreve a implementação atual e pode ser revisado conforme o produto evoluir. Screenshots finais continuam pendentes da auditoria de interface; não substitua capturas reais por ilustrações inventadas.
+
+## Guias detalhados por área
+
+Além dos capítulos de telas e scripts, os índices pt-BR/en/es incluem Templates/Equipamentos (04), Intelligence (12), HA (13), Banco de Dados (14) e Apresentação/Mídia/Locais (15). A Ajuda instalada contém os mesmos guias de campos e tarefas, com busca, áreas e entradas contextuais. A [matriz de profundidade](../WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md) registra o que ainda precisa de revisão; a existência de um capítulo não significa conclusão do manual.

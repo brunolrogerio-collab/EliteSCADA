@@ -18,7 +18,7 @@ test('a beginner can find a property without knowing an internal topic ID', asyn
   await expect(article.getByRole('table')).toBeVisible();
   await expect(article.getByRole('rowheader', { name: /Mostrar Aplicar/ })).toBeVisible();
   await expect(article.getByText('showApplyButton', { exact: true })).not.toBeVisible();
-  await article.getByRole('rowheader', { name: /Mostrar Aplicar/ }).getByText('Chave para Scripts').click();
+  await article.getByRole('rowheader', { name: /Mostrar Aplicar/ }).getByText('Referência técnica').click();
   await expect(article.getByText('showApplyButton', { exact: true })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Neste artigo' })).toBeVisible();
 });
@@ -60,4 +60,41 @@ test('numbered prose keeps decimal values inside the same instruction', () => {
   expect(helpBodyBlocks('1. Use 3.6 como fator. 2. Confira o valor.')).toEqual([
     { ordered: true, lines: ['Use 3.6 como fator.', 'Confira o valor.'] }
   ]);
+});
+
+test('system tasks are discoverable and their field references stay localized', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=database.topology');
+  await expect(page.locator('article h2')).toHaveText('Banco de dados: configurar, migrar e recuperar');
+  await expect(page.locator('article ol.help-page__steps > li')).toHaveCount(7);
+  await expect(page.locator('article').getByRole('rowheader', { name: 'Host / FQDN', exact: false })).toBeVisible();
+  await expect(page.locator('article')).toContainText('não copia nem mescla');
+  await page.getByRole('searchbox').fill('lease');
+  const nav = page.locator('nav.help-page__topics');
+  await nav.locator('a[href="/help?topic=ha.configuration-operation"]').click();
+  await expect(page.locator('article')).toContainText('não é licença comercial');
+  await expect(page.getByRole('searchbox')).toHaveValue('lease');
+  await page.goBack();
+  await expect(page.locator('article h2')).toHaveText('Banco de dados: configurar, migrar e recuperar');
+  await page.goForward();
+  await expect(page.locator('article h2')).toHaveText('HA: configurar dois servidores e acompanhar a operação');
+  await page.getByRole('button', { name: 'Limpar busca' }).click();
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(page.locator('article h2')).toHaveText('HA: configure two servers and monitor operation');
+  await expect(page.locator('article')).toContainText('not a commercial license');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(page.locator('article h2')).toHaveText('HA: configurar dos servidores y seguir la operación');
+  await expect(page.locator('article')).toContainText('no es licencia comercial');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/help?topic=equipment.overview');
+  await expect(page.locator('article')).toContainText('Template Faceplate (opcional)');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-equipment-mobile.png') });
+  await page.goto('/help?topic=intelligence.activation');
+  await expect(page.locator('article')).toContainText('Restaurar o grant não rearma');
+  await page.goto('/help?topic=intelligence.analysis-guide');
+  await expect(page.locator('article')).toContainText('limite inferior ≤ valor < limite superior');
+  await page.goto('/help?topic=templates.overview');
+  await expect(page.locator('article ol.help-page__steps > li')).toHaveCount(7);
 });

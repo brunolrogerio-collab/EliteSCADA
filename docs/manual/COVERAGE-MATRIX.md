@@ -157,6 +157,18 @@ Atualização de 24/10/2026 na PR #772: a Ajuda instalada ganha áreas, busca, r
 | 145. Coverage/performance/contextual deviation | DRAFT_CURRENT | #425 / #306 | Current read-only Intelligence analytics and bounds | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
 | 146. Screen drafts/Runtime analysis | DRAFT_CURRENT | #425 / #306 | Screen draft generator and Runtime views | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
 
+## Whole-product depth correction — 25/10/2026
+
+Presence is not teaching-depth acceptance. See [the whole-product review map](../WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md) for every material user area and the remaining editorial work. Chapters 04/13/14/15 and the additions to chapter 12 are derived from the same localized content as installed Help. They explain actual fields and procedures; final walkthroughs/real interface captures remain pending. None of these entries is COMPLETE.
+
+| Area | Current material | Remaining acceptance |
+| --- | --- | --- |
+| Templates and Equipment | Chapter 04: authoring, generated identity, optional faceplate, shared-change effects | Walkthrough and final images |
+| Intelligence | Chapter 12: activation/permit, semantic qualifiers, queries, bounds and interpretation | Full workflow review and final images |
+| HA | Chapter 13: desired/running settings, fields/units, readiness, transitions, recovery | Manual installation/backend verification remains separate; final images |
+| Database | Chapter 14: Local/Remote, TLS, fields, migration, attach without copy, rollback/restart | Installation walkthrough and final images |
+| Header/Mobile, Media, Home/Building | Chapter 15: conditional fields, sequences and limitations | Capability-specific scenarios and final images |
+
 ## Dependency summary
 
 - Historical Time Range/Playback: current Runtime interface and its 31-day, authorization, capture and read-only boundaries.

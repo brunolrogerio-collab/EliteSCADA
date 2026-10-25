@@ -38,7 +38,7 @@ public sealed record PublicContactInput(string? Name, string? Email, string? Cat
 
 public sealed class PortalOperations(
     PortalDb db, UserManager<PortalUser> users, SignInManager<PortalUser> signIn, IConfiguration configuration,
-    IOptions<PortalEmailOptions> emailSettings, PortalEmailSignal emailSignal)
+    IOptions<PortalEmailOptions> emailSettings, PortalEmailSignal emailSignal, PortalLicensingOperations licensing)
 {
     private static readonly HashSet<string> ProfileTypes = ["student", "professional", "organization"];
     private static readonly HashSet<string> ActivityAreas = ["industrial-automation", "buildings-facilities", "residential", "utilities", "integrator-consulting", "education-research", "other"];
@@ -134,10 +134,13 @@ public sealed class PortalOperations(
         if (input.CurrentPassword is null || input.NewPassword is null || input.CurrentPassword.Length > 1024 || input.NewPassword.Length > 1024) return Invalid();
         var user = await users.GetUserAsync(context.User);
         if (user is null) return Results.Unauthorized();
+        await using var transaction = await db.Database.BeginTransactionAsync();
         var result = await users.ChangePasswordAsync(user, input.CurrentPassword, input.NewPassword);
         if (!result.Succeeded) return Invalid("password-not-changed");
-        await signIn.RefreshSignInAsync(user);
+        await licensing.InvalidateUserActivationsAsync(user.Id, DateTimeOffset.UtcNow, "password-changed");
         await AuditAsync(user.Id, "auth.password.changed");
+        await transaction.CommitAsync();
+        await signIn.RefreshSignInAsync(user);
         return Results.Ok(new { changed = true });
     }
 
@@ -287,6 +290,7 @@ public sealed class PortalOperations(
                 ? Invalid("password-requirements")
                 : Invalid("invalid-password-reset");
         }
+        await licensing.InvalidateUserActivationsAsync(user.Id, DateTimeOffset.UtcNow, "password-reset");
         await AuditAsync(user.Id, "auth.password.recovered");
         await transaction.CommitAsync();
         return Results.Ok(new { reset = true });
@@ -584,6 +588,8 @@ public sealed class PortalOperations(
         account.IsSuspended = input.Suspended.Value;
         var updated = await users.UpdateSecurityStampAsync(account);
         if (!updated.Succeeded) return Results.Conflict(new { error = "account-not-updated" });
+        if (account.IsSuspended)
+            await licensing.InvalidateUserActivationsAsync(account.Id, DateTimeOffset.UtcNow, "account-suspended");
         await AuditAsync(UserId(context), account.IsSuspended ? "account.suspended" : "account.reactivated", account.Id);
         await transaction.CommitAsync();
         return Results.Ok(new { account.Id, account.IsSuspended });

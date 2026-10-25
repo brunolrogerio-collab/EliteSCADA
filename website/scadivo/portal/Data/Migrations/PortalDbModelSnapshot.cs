@@ -529,6 +529,247 @@ namespace Scadivo.Portal.Data.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Scadivo.Portal.Data.ProductApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("ProductApplications");
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.ProductLicense", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AssetProcessIntelligence")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("EntitlementExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("HaRuntime")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("InteractiveSeats")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxActivations")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PublicCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevokedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("Term")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Tier")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("ViewOnlySeats")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("PublicCode")
+                        .IsUnique();
+
+                    b.HasIndex("RevokedByUserId");
+
+                    b.HasIndex("OrganizationId", "ApplicationId", "Status");
+
+                    b.ToTable("ProductLicenses");
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.ProductLicenseActivation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActivationLeaseEnvelope")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastActivationCredentialHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("LastActivationRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LastLeaseEnvelope")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastLeaseIssuedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastRenewalInputCredentialHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("LastRenewalOutputCredentialHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("LastRenewalRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastRenewedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LicenseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MachineFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevokedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastActivationRequestId")
+                        .IsUnique()
+                        .HasFilter("\"LastActivationRequestId\" IS NOT NULL");
+
+                    b.HasIndex("LastRenewalRequestId")
+                        .IsUnique()
+                        .HasFilter("\"LastRenewalRequestId\" IS NOT NULL");
+
+                    b.HasIndex("RevokedByUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("LicenseId", "Status");
+
+                    b.HasIndex("OrganizationId", "ApplicationId", "LicenseId");
+
+                    b.ToTable("ProductLicenseActivations");
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.ProductLicenseRefreshCredential", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActivationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CredentialHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTimeOffset?>("SupersededAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CredentialHash")
+                        .IsUnique();
+
+                    b.HasIndex("ActivationId", "State");
+
+                    b.ToTable("ProductLicenseRefreshCredentials");
+                });
+
             modelBuilder.Entity("Scadivo.Portal.Data.SupportTicket", b =>
                 {
                     b.Property<Guid>("Id")
@@ -662,6 +903,71 @@ namespace Scadivo.Portal.Data.Migrations
                     b.HasOne("Scadivo.Portal.Data.PortalUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.ProductApplication", b =>
+                {
+                    b.HasOne("Scadivo.Portal.Data.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.ProductLicense", b =>
+                {
+                    b.HasOne("Scadivo.Portal.Data.PortalUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Scadivo.Portal.Data.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Scadivo.Portal.Data.PortalUser", null)
+                        .WithMany()
+                        .HasForeignKey("RevokedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Scadivo.Portal.Data.ProductApplication", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "ApplicationId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.ProductLicenseActivation", b =>
+                {
+                    b.HasOne("Scadivo.Portal.Data.PortalUser", null)
+                        .WithMany()
+                        .HasForeignKey("RevokedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Scadivo.Portal.Data.PortalUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Scadivo.Portal.Data.ProductLicense", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "ApplicationId", "LicenseId")
+                        .HasPrincipalKey("OrganizationId", "ApplicationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.ProductLicenseRefreshCredential", b =>
+                {
+                    b.HasOne("Scadivo.Portal.Data.ProductLicenseActivation", null)
+                        .WithMany()
+                        .HasForeignKey("ActivationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -1,3 +1,9 @@
+# OWNER CORRECTION PROGRAM — QUEUED; HELP ACTIVE, LICENSING NEXT — 2026-10-26
+
+Owner-authorized [program #788](https://github.com/brunolrogerio-collab/EliteSCADA/issues/788) consolidates #789 alarm suppression by alarm/area/subarea, #790 authorable CheckBox/ComboBox, #791 Intelligence contract/API/UI adherence audit and #792 Matter exact-artifact upstream qualification, alongside existing alarm/driver/HA findings. See [scope, evidence and documentation criteria](WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md). These are authorized queued tasks, not delivered behavior or a new active lane. **Finish Help/manual → product licensing #301 → post-licensing queue**. Preserve the previously fixed internal order #779 → #780 → #781 → #782. Every accepted product correction updates installed Help/manual/examples and actual affected figures; no future feature is presented as available. Runtime dashboard generation is accepted for Intelligence; adherence still requires an end-user/API/contracts audit. Field validation remains deferred under #701.
+
+## Previous ordering snapshot
+
 # CURRENT ORDER — HELP ACTIVE; LICENSING NEXT; OPERATIONAL-GAP QUEUE — 2026-10-25
 
 Help review identified product residuals [#785](https://github.com/brunolrogerio-collab/EliteSCADA/issues/785) (explicit Home Assistant and Zigbee2MQTT selection), [#786](https://github.com/brunolrogerio-collab/EliteSCADA/issues/786) (generic KNX/Native Zigbee/Z-Wave/Siemens/Logix TAG authoring) and [#787](https://github.com/brunolrogerio-collab/EliteSCADA/issues/787) (official nested Zigbee2MQTT inventory parsing). They are queued for subsequent product-correction planning, not implemented by Help or a reason to reopen completed physical-driver gates. Current Help/manual limitations carry field-specific verification markers. Help → product licensing #301 and #779–#782 sequencing remain unchanged.

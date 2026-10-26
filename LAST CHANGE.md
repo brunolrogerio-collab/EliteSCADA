@@ -1,3 +1,15 @@
+# OWNER CORRECTION PROGRAM RECORDED; HELP CONTINUES — 2026-10-26
+
+**SPECIFIED / AUTHORIZED / QUEUED, NOT IMPLEMENTED:** #788 consolidates #789 suppression by alarm/area/subarea, #790 editor/Runtime CheckBox/ComboBox and motor-popup linkage, #791 Intelligence adherence audit against original premises/contracts/APIs/UI and #792 Matter upstream/artifact qualification. Existing #751/#753 alarm defects, #785–#787 driver authoring/inventory gaps, #423 HA-D2 occurrence and #779–#782 operational queue are referenced rather than duplicated. Read `docs/WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md`. PROJECT GOAL and ROADMAP now preserve the new owner requirements and unchanged priority **Help/manual → #301 licensing → post-licensing queue**, including the existing internal #779–#782 order. No new lane or product implementation is activated.
+
+Intelligence dashboards in Runtime are accepted; a later audit must establish actual user value and original scope, not infer completeness from stages/test counts. Stage 4 bounded acceptance, owner-accepted widgets and field deferral #701 remain. Supression must reuse existing per-alarm shelving when appropriate and define hierarchical effects/persistence/authorization before implementation. Generic visual controls must not require Intelligence licensing.
+
+Official Matter revalidation is recorded in #792 and the ADR: upstream states changed since the old snapshot; current package/lock were not upgraded. Experimental label and qualification limits remain. A declared upstream fix is not exact-artifact or product acceptance. No provisioning, real-device execution, HA, license or Preview/DEMO change was made.
+
+Help stays active on draft/NO_MERGE #772. Current verified source predecessor is 97832859558e06d723e2b999ddddc818cd0c91f7 / T1 40340409686 attempt 1 success. A later candidate must have its own head/run/status; prior HA-D2 failure 4433d392/T1 40333665886 stays recorded under #423. Next Help work: organize the crowded driver-topic navigation, then remaining conditional/operational guides and semantic walkthrough; final actual captures follow the agreed audit. Each future correction updates Help/manual in the same accepted candidate, with review markers where needed. No full Help/manual/Wave completion, merge or deploy follows from this plan.
+
+---
+
 # CURRENT HELP — DNP3 / IEC 104 / MODBUS SERVER — 2026-10-26
 
 **IMPLEMENTED IN BRANCH / PR #772, NOT MERGED OR ACCEPTED AS THE COMPLETE MANUAL.** Three guides / four connections / chapter 25 in pt-BR/en/es provide 81 field explanations per locale for DNP3, IEC 104 and Modbus TCP/RTU Server. Association, event/integrity classes, observed points, CA/IOA, native types, commands, local listening, register maps, external client access and initialization are explained. Previous guide objects and ordering are unchanged. All 21 current default driver references reach practical companions; conditional connectors and overall manual acceptance remain separate.

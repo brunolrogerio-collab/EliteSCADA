@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-10-25
+**Last reviewed:** 2026-10-26
 
 ## Mandatory continuity protocol
 
@@ -761,3 +761,12 @@ Architecture candidate and phased validation plan:
 
 Current state:
 `STRATEGIC DIRECTION / TECHNICAL VALIDATION REQUIRED / NOT YET A RELEASE CONTRACT`.
+
+
+## Requisitos do proprietário — supressão e autoria operacional (26/10/2026)
+
+Requisitos autorizados para a fila de desenvolvimento, ainda não declarados implementados: supressão de alarmes por alarme/área/subárea com estado efetivo canônico e auditável; objetos genéricos CheckBox e ComboBox no editor e Runtime, inclusive CheckBox num popup de motor ligado à supressão real de seus alarmes. Reutilizar a árvore visual e políticas existentes, manter interação tipada/autorizada e não exigir licença Intelligence para controles genéricos.
+
+A aderência de Intelligence deve ser avaliada contra as premissas originais de análise de ativos/processos, contratos, APIs e percurso real do gestor. Geração automática de dashboards no Runtime é aceita; não é razão para exigir outro subsistema de visualização nem prova suficiente de que a experiência completa foi entregue. Preservar aceites delimitados, widgets aceitos, arquitetura multiplataforma, licença/habilitação opcionais e adiamento de campo.
+
+Help/manual devem acompanhar cada correção aceita, com propriedades, procedimentos, exemplos e capturas reais consistentes. Ordem vigente: concluir Help, executar licenciamento do produto como próxima etapa, depois a fila autorizada. O [programa consolidado](docs/WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md) reúne esse trabalho sem ativar outra frente.

@@ -16,3 +16,9 @@ O inventário é [PRODUCT-CHANGE-REVIEW-MARKERS.json](PRODUCT-CHANGE-REVIEW-MARK
 Na auditoria posterior, pesquisar `HELP-REVIEW-AFTER-PRODUCT-`, conferir a versão aceita e suas evidências, corrigir a fonte canônica `system-guides.json`, gerar os capítulos e verificar os três idiomas, entradas contextuais, exemplos e imagens afetadas. Fechar uma issue, por si só, não valida a documentação. Ao resolver a revisão, retirar a entrada ativa e registrar o commit/evidência no controle de entrega existente. Novas dependências de funcionalidades futuras devem receber o mesmo marcador quando forem encontradas.
 
 Os demais recursos da fila #780–#782 ainda não são ensinados como disponíveis. Ao escrever seus guias ou encontrar trechos que dependam deles, registrar tópicos/campos específicos neste inventário. Não criar texto de uso para uma interface ainda inexistente.
+
+## Programa de correções pós-licenciamento
+
+O [plano #788](https://github.com/brunolrogerio-collab/EliteSCADA/issues/788) e o [registro no repositório](../WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md) incluem #789 supressão por alarme/área/subárea, #790 CheckBox/ComboBox, #791 auditoria funcional de Intelligence e #792 revalidação Matter. São tarefas autorizadas na fila; não são instruções de funcionalidades já disponíveis.
+
+Cada entrega identifica os tópicos/campos existentes afetados ou cria os guias dos novos controles, com exemplos, procedimentos e capturas reais. Os marcadores detalhados entram junto dos alvos válidos; não inserir referências a tópicos inexistentes só para preencher a fila. Para Intelligence, o resultado da auditoria determina quais campos e percursos precisam de correção. Para Matter, uma correção upstream declarada não basta para remover a indicação experimental do produto. Help/manual devem acompanhar o candidato aceito, mantendo a distinção entre futuro, implementado e validado.

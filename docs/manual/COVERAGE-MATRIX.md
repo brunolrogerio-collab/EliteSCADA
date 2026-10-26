@@ -182,3 +182,5 @@ Presence is not teaching-depth acceptance. See [the whole-product review map](..
 The matrix is an authoring control surface; it is not normal end-user prose.
 
 Chapter 21 / protocol continuation — `DRAFT_CURRENT`: Data Source preparation/check/apply/activation plus Modbus TCP/RTU Master, MQTT Raw and OPC UA walkthroughs in pt-BR/en/es. All 68 fields of these human guides match the current connection/binding descriptors; other protocols still need scenario-specific editorial review. Published MQTT/Modbus/OPC UA examples execute actual codecs/identity rules, not a physical equipment test. Final captures remain `PENDING_FINAL`.
+
+Chapter 22 / Home/Building continuation — `DRAFT_CURRENT`: six practical guides and 63 fields in pt-BR/en/es; incorporation steps, BACnet/IP, KNX/IP Secure, HAB, ESPHome and Shelly. UI gaps #785 (HAB selection) and #786 (generic KNX binding) remain `BLOCKED_PRODUCT` for their specific steps; the rest of the guides describe current implemented contracts. Markers retain revision criteria. No physical L4 or final-image acceptance is inferred.

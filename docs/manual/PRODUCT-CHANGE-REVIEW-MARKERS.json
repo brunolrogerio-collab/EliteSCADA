@@ -60,5 +60,27 @@
     "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
     "reviewWhen": "Accepted storage/archiving administration defines how Audit retention is exposed to users.",
     "review": "Recheck read-only diagnostics versus actual retention controls and link the verified administration procedure. Do not turn the current indicators into claimed editable controls without an implemented UI."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-785",
+    "issue": 785,
+    "topicId": "drivers.homeassistant-setup",
+    "fieldKeys": [
+      "selectedEntityIds"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The accepted Home/Building UI supplies explicit Home Assistant entity selection to the existing discovery contract.",
+    "review": "Replace the empty-selection limitation with the verified selection/preview/apply procedure; verify empty, missing and selected entities, no whole-instance import and all locales."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-786",
+    "issue": 786,
+    "topicId": "drivers.knx-setup",
+    "fieldKeys": [
+      "writeGroupAddress"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The accepted TAG assistant emits a canonical KNX/IP binding that is accepted by the unchanged strict Runtime planner.",
+    "review": "Remove the incompatible-authoring limitation only after real assistant output, saved/reopened binding and planner acceptance are checked. Keep command/state separation and unsupported-field rejection in all locales."
   }
 ]

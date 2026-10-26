@@ -2944,6 +2944,660 @@
         "tags.overview",
         "diagnostics.overview"
       ]
+    },
+    {
+      "id": "home-building.device-workflow",
+      "category": "sources",
+      "title": "Home/Building: incorporar um dispositivo",
+      "summary": "Transforme descoberta em Equipamento, TAGs e comandos, conferindo o que realmente será criado.",
+      "sections": [
+        {
+          "heading": "Fonte, dispositivo e Local são diferentes",
+          "body": "A Fonte de dados guarda como comunicar; Equipamento representa o dispositivo; Local organiza onde ele está. Capacidades funcionais como OnOff, Temperature ou Cover descrevem funções do equipamento, não permissões da Authority. Um dispositivo descoberto não ganha autorização para comandar pelo simples fato de ser incorporado.",
+          "fields": [
+            {
+              "key": "dataSource",
+              "label": "Fonte de integração",
+              "description": "Fonte já configurada em Fontes de dados. O tipo precisa oferecer descoberta para aparecer neste fluxo; uma lista vazia não prova que a rede inteira está vazia.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "candidate",
+              "label": "Dispositivo encontrado",
+              "description": "Escolha um candidato e confira TAGs, comandos, capacidades e avisos. Encontrado não significa incorporado; candidatos sem materialização não podem ser incorporados por este formulário.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "equipmentName",
+              "label": "Nome do dispositivo",
+              "description": "Nome legível para o Equipamento que será criado. Não renomeia o dispositivo físico nem sua identidade de origem.",
+              "example": "Luz da sala",
+              "constraints": ""
+            },
+            {
+              "key": "equipmentPath",
+              "label": "Caminho do dispositivo",
+              "description": "Organiza o Equipamento no projeto. Confira conflitos na prévia; não é IP, NodeId nem tópico.",
+              "example": "Home/Sala/Luz",
+              "constraints": ""
+            },
+            {
+              "key": "locationId",
+              "label": "Local",
+              "description": "Opcional: selecione um Local existente para situar o dispositivo. Cadastre os Locais na área correspondente antes de associar. Não cria permissão de acesso.",
+              "example": "",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Da descoberta à revisão ativa",
+          "body": "1. Configure e aplique a fonte em Engenharia → Fontes de dados, com materiais protegidos disponíveis no servidor. 2. Abra Home/Building → Dispositivos, selecione a fonte e descubra os candidatos quando o driver oferecer descoberta. 3. Escolha um dispositivo e leia os avisos e a lista de TAGs/comandos/capacidades. 4. Ajuste nome, caminho e Local e confira a prévia; isso ainda não altera a configuração. 5. Aplique somente uma prévia válida; se o Workspace mudar, refaça a prévia antes de tentar aplicar. 6. Salve/publique/ative pelo fluxo do projeto e confira estado, qualidade, unidade e comandos autorizados.",
+          "fields": null
+        },
+        {
+          "heading": "Sem candidato ou sem a função esperada",
+          "body": "Confira fonte salva, comunicação a partir do servidor e recursos anunciados pelo driver. KNX/IP Secure não anuncia descoberta de Engenharia; Home Assistant tem a limitação de seleção descrita em seu guia. Um recurso não mapeado não deve ser tratado como entregue: veja avisos e campos realmente gerados. Um gateway ou bridge pode oferecer um dispositivo sem que o SCADIVO tenha seu protocolo nativo. Não importe repetidamente para tentar corrigir rede ou permissões.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "home-building.organization",
+        "drivers.bacnet-setup",
+        "drivers.knx-setup",
+        "drivers.homeassistant-setup",
+        "drivers.esphome-setup",
+        "drivers.shelly-setup"
+      ]
+    },
+    {
+      "id": "drivers.bacnet-setup",
+      "category": "drivers",
+      "title": "BACnet/IP: dispositivo, objetos e propriedades",
+      "summary": "Configure a rede UDP e selecione a identidade do objeto; nome e endereço de rede não substituem o vínculo.",
+      "sections": [
+        {
+          "heading": "Antes de conectar",
+          "body": "Este driver é BACnet/IP sobre UDP; não anuncia BACnet Secure Connect. Tenha instância do dispositivo, rota/IP/porta e acesso à rede a partir do servidor SCADIVO. Em Docker confira a rede e o UDP; descoberta por broadcast depende da topologia, não do navegador. Comece por um objeto somente leitura conhecido.",
+          "fields": null
+        },
+        {
+          "heading": "Campos da conexão e do vínculo",
+          "body": "A identidade do vínculo contém dispositivo, tipo/instância do objeto e propriedade, com índice opcional. Configuração de COV e prioridade não altera essa identidade.",
+          "fields": [
+            {
+              "key": "deviceInstance",
+              "label": "Instância do dispositivo",
+              "description": "Identidade BACnet do equipamento, não seu IP nem a instância de um objeto. A instância do vínculo do TAG precisa corresponder à fonte. Confirme no controlador ou na descoberta.",
+              "example": "1201",
+              "constraints": "0–4194302."
+            },
+            {
+              "key": "targetAddress",
+              "label": "Endereço manual do alvo",
+              "description": "Opcional: IPv4 do equipamento com porta UDP. Útil quando o alvo é conhecido; não substitui a identidade deviceInstance.",
+              "example": "192.0.2.20:47808",
+              "constraints": ""
+            },
+            {
+              "key": "localPort",
+              "label": "Porta UDP local",
+              "description": "Porta em que o processo SCADIVO atende BACnet/IP. Outra aplicação ou contêiner pode já ocupá-la; confira firewall e exposição UDP no ambiente do servidor.",
+              "example": "47808",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "scanIntervalMilliseconds",
+              "label": "Intervalo de leitura (ms)",
+              "description": "Ritmo solicitado de varredura para pontos consultados. Não é a frequência garantida dos eventos COV.",
+              "example": "1000",
+              "constraints": "50–600000."
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Timeout BACnet (ms)",
+              "description": "Tempo de espera de uma solicitação BACnet. Diferente da janela de descoberta e da varredura.",
+              "example": "3000",
+              "constraints": "100–60000."
+            },
+            {
+              "key": "discoveryWindowMilliseconds",
+              "label": "Janela de descoberta (ms)",
+              "description": "Quanto aguardar respostas durante a descoberta. Aumentar pode ajudar numa rede lenta, mas não faz broadcasts atravessarem uma sub-rede bloqueada.",
+              "example": "1500",
+              "constraints": "100–30000."
+            },
+            {
+              "key": "bbmdAddress",
+              "label": "Endereço do BBMD",
+              "description": "Opcional: ponto de distribuição BACnet configurado pelo administrador para o cenário de rede. Não é necessário inventar um BBMD numa rede local simples.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "foreignDeviceTtlSeconds",
+              "label": "Registro Foreign Device: validade (s)",
+              "description": "Opcional: duração do registro no BBMD. Exige bbmdAddress; não é validade do valor do TAG nem retenção histórica.",
+              "example": "600",
+              "constraints": "30–32767."
+            },
+            {
+              "key": "objectType",
+              "label": "Tipo do objeto",
+              "description": "Código numérico do objeto BACnet. No exemplo, 0 identifica Analog Input; use o tipo mostrado pelo navegador ou pelo mapa do fabricante, não o tipo Double do TAG.",
+              "example": "0",
+              "constraints": ""
+            },
+            {
+              "key": "objectInstance",
+              "label": "Instância do objeto",
+              "description": "Número do objeto dentro do dispositivo. Analog Input 37 é diferente de outro tipo de objeto com instância 37.",
+              "example": "37",
+              "constraints": "0–4194303."
+            },
+            {
+              "key": "propertyIdentifier",
+              "label": "Propriedade",
+              "description": "Código da propriedade a ler. O exemplo 85 é Present Value. Nome, descrição e valor são propriedades diferentes; prefira seleção no navegador para evitar códigos errados.",
+              "example": "85",
+              "constraints": ""
+            },
+            {
+              "key": "arrayIndex",
+              "label": "Índice do array",
+              "description": "Preencha apenas quando a propriedade for um array e você precisar de um elemento específico. Vazio preserva a propriedade inteira; não acrescente índice a um valor escalar.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "useCov",
+              "label": "Usar COV quando disponível",
+              "description": "Solicita notificações por mudança em vez de depender apenas de varredura. Depende do servidor/objeto e há verificação por leitura no driver; ausência de mudança não significa conexão perdida.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "writePriority",
+              "label": "Prioridade de escrita BACnet",
+              "description": "Opcional, para objeto gravável que aceite prioridade. Não é prioridade de alarme nem permissão SCADIVO. Uma escrita aceita pode não alterar o valor efetivo se outro comando tiver precedência; confira feedback e a política do equipamento.",
+              "example": "8",
+              "constraints": "1–16."
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo: valor de uma entrada analógica",
+          "body": "O exemplo identifica Present Value do Analog Input 37 no dispositivo 1201. É uma descrição de vínculo, não um pacote completo para importar. Use a descoberta/navegação e confirme o tipo e a unidade antes de ativar; substitua as identidades pelas do seu equipamento.",
+          "fields": null,
+          "code": "{\"deviceInstance\":1201,\"objectType\":0,\"objectInstance\":37,\"propertyIdentifier\":85,\"useCov\":true}"
+        },
+        {
+          "heading": "Conferência e diagnóstico",
+          "body": "Teste a conexão, descubra/navegue os objetos e revise a prévia antes de aplicar; ative pelo fluxo do projeto. Sem resposta: confira UDP, instância, alvo e topologia/BBMD. Objeto encontrado mas valor inválido: confira propriedade, índice e tipo. COV não suportado pede revisar as notificações e a leitura de verificação; não interprete ausência de mudança como valor zero. Escrita recusada pede acesso, objeto gravável e prioridade, além da autorização SCADIVO.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.bacnet.ip",
+        "tags.overview",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "drivers.knx-setup",
+      "category": "drivers",
+      "title": "KNX/IP Secure: túnel, DPT e estado confirmado",
+      "summary": "Use os endereços do projeto KNX e mantenha comando e feedback separados.",
+      "sections": [
+        {
+          "heading": "Requisitos e alcance",
+          "body": "A implementação usa um processo auxiliar gerenciado XKNX para túnel KNX IP Secure TCP e Data Secure. A instalação precisa incluir seu runtime compatível para Windows ou Linux x64 e o material protegido provisionado no host; um contêiner também precisa desses recursos. Este tipo não é uma promessa de túnel IP sem segurança, roteamento multicast ou descoberta automática de Engenharia. Obtenha parâmetros e endereços do projeto KNX/administrador.",
+          "fields": null
+        },
+        {
+          "heading": "Campos do gateway e do ponto",
+          "body": "O assistente genérico de TAG ainda produz um vínculo incompatível com o contrato KNX/IP. A correção da autoria pela interface está pendente; os campos abaixo explicam o contrato, mas não há um roteiro validado para concluir esse vínculo pelo assistente atual. Não tente resolver alterando DPTs ou desabilitando segurança.\n\nConfigure a fonte e o vínculo usando o DPT real. Senhas e chaveiro são referências protegidas, não arquivos secretos dentro da aplicação.",
+          "fields": [
+            {
+              "key": "gatewayHost",
+              "label": "Host do gateway KNX",
+              "description": "IP ou nome do gateway KNX/IP Secure acessível pelo servidor SCADIVO. Não é endereço de grupo nem endereço individual.",
+              "example": "192.0.2.40",
+              "constraints": ""
+            },
+            {
+              "key": "gatewayPort",
+              "label": "Porta do túnel Secure",
+              "description": "Porta do endpoint Secure TCP configurado no gateway. Não presuma que um gateway de túnel IP não seguro oferece este serviço.",
+              "example": "3671",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "individualAddress",
+              "label": "Endereço individual",
+              "description": "Endereço atribuído ao cliente KNX, na notação área.linha.dispositivo. Obtenha no projeto KNX/administrador para evitar duplicidade.",
+              "example": "1.1.250",
+              "constraints": ""
+            },
+            {
+              "key": "userId",
+              "label": "Usuário do túnel Secure",
+              "description": "Identificador de usuário Secure do gateway, não usuário de login SCADIVO. Deve corresponder ao material de autenticação provisionado.",
+              "example": "1",
+              "constraints": "1–127."
+            },
+            {
+              "key": "userPassword",
+              "label": "Referência da senha Secure",
+              "description": "Referência do material protegido provisionado no servidor para esta integração. Peça a referência ao administrador; não cole senha, token ou chave secreta em configurações comuns nem no manual da aplicação.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "deviceAuthentication",
+              "label": "Referência de autenticação do dispositivo",
+              "description": "Referência do material protegido provisionado no servidor para esta integração. Peça a referência ao administrador; não cole senha, token ou chave secreta em configurações comuns nem no manual da aplicação.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "dataSecureKeyring",
+              "label": "Referência do chaveiro Data Secure",
+              "description": "Referência do material protegido provisionado no servidor para esta integração. Peça a referência ao administrador; não cole senha, token ou chave secreta em configurações comuns nem no manual da aplicação.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "writeGroupAddress",
+              "label": "Grupo de comando / endereço do vínculo",
+              "description": "Endereço em principal/intermediário/subgrupo para a escrita. No vínculo portátil este é o Address do TAG; para TAG somente leitura, confira o mapeamento do projeto KNX. O assistente genérico de TAG ainda produz um vínculo incompatível com o contrato KNX/IP. A correção da autoria pela interface está pendente; os campos abaixo explicam o contrato, mas não há um roteiro validado para concluir esse vínculo pelo assistente atual. Não tente resolver alterando DPTs ou desabilitando segurança.",
+              "example": "1/2/3",
+              "constraints": ""
+            },
+            {
+              "key": "stateGroupAddress",
+              "label": "Grupo do estado confirmado",
+              "description": "Origem do feedback. Para TAG gravável deve ser diferente do grupo de comando; o driver não considera o envio do comando como confirmação de estado.",
+              "example": "1/2/4",
+              "constraints": ""
+            },
+            {
+              "key": "dpt",
+              "label": "Tipo de ponto KNX (DPT)",
+              "description": "Define como interpretar o telegrama. 1.001/1.002 usam TAG Boolean; 5.001 e 9.001/9.004/9.007/9.024 usam Float ou Double neste driver. O exemplo usa 9.001 para temperatura. Não escolha DPT apenas pelo tamanho aparente do valor.",
+              "example": "9.001",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo: comando e retorno distintos",
+          "body": "O exemplo descreve um TAG Double DPT 9.001 com grupo de comando 1/2/3 e retorno 1/2/4. Substitua pelos grupos existentes no projeto KNX. Não é pacote de importação e não contém material de segurança. Para ponto gravável, grupos iguais são rejeitados; o retorno precisa existir no equipamento.",
+          "fields": null,
+          "code": "{\"writeGroupAddress\":\"1/2/3\",\"stateGroupAddress\":\"1/2/4\",\"dpt\":\"9.001\",\"tagType\":\"Double\"}"
+        },
+        {
+          "heading": "Verifique por etapas",
+          "body": "Confira primeiro disponibilidade do processo auxiliar e referências protegidas, depois host/porta/usuário/endereço individual e grupos/DPT/tipo do TAG. A autoria pelo assistente atual precisa da correção indicada acima. Com vínculo corretamente validado, salve/publique/ative pelo projeto e confira o retorno antes de escrever. Um envio aceito sem retorno não deve atualizar artificialmente o estado. Este driver não anuncia descoberta de Engenharia.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.knx.ip",
+        "home-building.device-workflow",
+        "tags.overview"
+      ]
+    },
+    {
+      "id": "drivers.homeassistant-setup",
+      "category": "drivers",
+      "title": "Home Assistant Bridge: conectar e escolher entidades",
+      "summary": "Uma fonte conecta ao Home Assistant gerenciado pelo usuário; somente entidades selecionadas entram no projeto.",
+      "sections": [
+        {
+          "heading": "Bridge local, com identidade explícita",
+          "body": "HAB significa Home Assistant Bridge; HA no SCADIVO continua significando Alta Disponibilidade. Use Home Assistant alcançável pelo servidor e token autorizado, provisionado como material protegido. A integração não gerencia contas Home Assistant, não copia sua base interna e não transforma todas as suas integrações em drivers nativos SCADIVO.",
+          "fields": null
+        },
+        {
+          "heading": "Conexão, identidade e limite atual da seleção",
+          "body": "Teste de conexão confirma transporte/autenticação, não incorporação. Na versão atual, a tela genérica de descoberta não fornece seleção de entidades; uma seleção vazia não significa necessariamente falha de rede. Para um TAG conhecido, configure sua fonte e vínculo explicitamente no editor de TAGs e confira a leitura antes de ativar. Não há importação automática da instância inteira.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host Home Assistant",
+              "description": "Nome DNS ou IP acessível pelo servidor SCADIVO. Use o equipamento ou serviço de origem, sem caminho de URL; localhost é o servidor/contêiner, não o navegador.",
+              "example": "192.0.2.30",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Porta",
+              "description": "Porta do serviço de origem, diferente das portas da interface e API SCADIVO. Ao mudar TLS, confirme também a porta real do serviço.",
+              "example": "8123",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "tls",
+              "label": "Usar TLS",
+              "description": "Protege o transporte quando o serviço oferecer TLS. Não instala certificados nem muda a porta automaticamente.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "basePath",
+              "label": "Caminho base",
+              "description": "Opcional: prefixo de caminho quando Home Assistant está publicado por proxy. O cliente acrescenta /api/websocket. Sem prefixo, deixe vazio; não repita o endpoint completo.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "accessToken",
+              "label": "Referência do token Home Assistant",
+              "description": "Referência do material protegido provisionado no servidor para esta integração. Peça a referência ao administrador; não cole senha, token ou chave secreta em configurações comuns nem no manual da aplicação.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "connectTimeoutMilliseconds",
+              "label": "Tempo para conectar (ms)",
+              "description": "Prazo de estabelecimento da conexão WebSocket. Separado do timeout de cada solicitação.",
+              "example": "10000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Timeout de resposta (ms)",
+              "description": "Prazo para a resposta de uma solicitação; não é o período de medição nem a prova de atuação física. Um valor pequeno demais pode recusar uma origem lenta.",
+              "example": "10000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Espera mínima para reconectar (ms)",
+              "description": "Pausa mínima após perda de conexão; evite tentativas contínuas. Não resolve autenticação recusada.",
+              "example": "1000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Espera máxima para reconectar (ms)",
+              "description": "Limite da espera progressiva; precisa ser maior ou igual à espera mínima.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "address",
+              "label": "Entidade e campo",
+              "description": "Use entidade exata e campo: entity:sensor.temperature:state para estado; entity:light.room:attribute:brightness para atributo. Nome de exibição não é entity_id. Renomear entity_id no Home Assistant exige revisar o vínculo.",
+              "example": "entity:sensor.temperature:state",
+              "constraints": ""
+            },
+            {
+              "key": "selectedEntityIds",
+              "label": "Seleção de entidades para incorporar",
+              "description": "O driver exige uma seleção explícita, mas a tela Home/Building desta versão ainda não permite escolher as entidades. A descoberta pode devolver seleção vazia sem dispositivo para incorporar, mesmo com conexão válida. Não há seletor pronto nessa tela; a correção está pendente.",
+              "example": "",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Exemplos de endereço",
+          "body": "Use state para o estado da entidade e attribute para um atributo existente. O exemplo mostra uma leitura de sensor e brilho de uma luz; não é arquivo de importação. Confira tipo e unidade: leitura numérica não é texto de apresentação, e os comandos de brilho usam a conversão suportada pelo driver. Renomear a entidade na origem exige revisar vínculos.",
+          "fields": null,
+          "code": "{\"state\":\"entity:sensor.temperature:state\",\"attribute\":\"entity:light.room:attribute:brightness\"}"
+        },
+        {
+          "heading": "Comandos e indisponibilidade",
+          "body": "O suporte é limitado aos vínculos implementados: switch/light state, brilho e cor de light e posição de cover, conforme o equipamento. Não existe chamada arbitrária de qualquer serviço Home Assistant por este formulário. unknown e unavailable não equivalem a zero ou desligado. Após comando, confira o estado autoritativo; sucesso da solicitação não comprova atuação física.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.homeassistant.websocket",
+        "home-building.device-workflow",
+        "tags.overview"
+      ]
+    },
+    {
+      "id": "drivers.esphome-setup",
+      "category": "drivers",
+      "title": "ESPHome: API nativa, entidades e suspensão",
+      "summary": "Conecte diretamente ao dispositivo e incorpore somente as funções que o driver mapeia.",
+      "sections": [
+        {
+          "heading": "O que precisa estar disponível",
+          "body": "O firmware precisa oferecer a API nativa ESPHome. O driver se conecta pela rede local sem exigir Home Assistant, Dashboard ESPHome ou processo Python auxiliar. No modo Noise, a chave da API deve estar provisionada no servidor; o navegador não conversa diretamente com o microcontrolador.",
+          "fields": null
+        },
+        {
+          "heading": "Conexão e vínculo",
+          "body": "Prepare a fonte, teste a conexão e use a descoberta para obter as chaves reais das entidades. Os campos avançados não corrigem uma API desabilitada ou chave incompatível.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host ESPHome",
+              "description": "Nome DNS ou IP acessível pelo servidor SCADIVO. Use o equipamento ou serviço de origem, sem caminho de URL; localhost é o servidor/contêiner, não o navegador.",
+              "example": "192.0.2.30",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Porta",
+              "description": "Porta do serviço de origem, diferente das portas da interface e API SCADIVO. Ao mudar TLS, confirme também a porta real do serviço.",
+              "example": "6053",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "encryptionMode",
+              "label": "Criptografia da API",
+              "description": "noise é o modo preferido com chave provisionada. plaintext é opção explícita para compatibilidade em rede confiável e precisa corresponder ao firmware. Não confunda a chave Noise com senha Wi-Fi.",
+              "example": "noise",
+              "constraints": ""
+            },
+            {
+              "key": "encryptionKey",
+              "label": "Referência da chave Noise",
+              "description": "Referência do material protegido provisionado no servidor para esta integração. Peça a referência ao administrador; não cole senha, token ou chave secreta em configurações comuns nem no manual da aplicação.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Timeout de resposta (ms)",
+              "description": "Prazo para a resposta de uma solicitação; não é o período de medição nem a prova de atuação física. Um valor pequeno demais pode recusar uma origem lenta.",
+              "example": "5000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "writeReconcileTimeoutMilliseconds",
+              "label": "Prazo de confirmação da escrita (ms)",
+              "description": "Quanto aguardar o estado autoritativo após comando. Aceitação do envio não é feedback; aumentar o prazo não garante movimento/atuação.",
+              "example": "3000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Espera mínima para reconectar (ms)",
+              "description": "Pausa mínima após perda de conexão; evite tentativas contínuas. Não resolve autenticação recusada.",
+              "example": "500",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Espera máxima para reconectar (ms)",
+              "description": "Limite da espera progressiva; precisa ser maior ou igual à espera mínima.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "keepAliveMilliseconds",
+              "label": "Keep Alive (ms)",
+              "description": "Intervalo de supervisão da conexão; não aumenta a frequência de medição do sensor.",
+              "example": "30000",
+              "constraints": "1000–300000."
+            },
+            {
+              "key": "deepSleepPolicy",
+              "label": "Política de suspensão",
+              "description": "normal para dispositivos contínuos; expected somente para nós que dormem de propósito. Muda os padrões de reconexão: mínimo 500→10000 ms, máximo 30000→60000 ms. Ausência continua indisponível, nunca saudável.",
+              "example": "normal",
+              "constraints": ""
+            },
+            {
+              "key": "address",
+              "label": "Endereço da entidade",
+              "description": "Formato tipo:device-id:chave-hex.campo. A descoberta fornece a chave de 8 dígitos hexadecimais; não use o nome de exibição como chave. Exemplo switch:0:00000010.state.",
+              "example": "switch:0:00000010.state",
+              "constraints": ""
+            },
+            {
+              "key": "writeKind",
+              "label": "Tipo de escrita",
+              "description": "Define uma escrita suportada para a entidade, não um serviço arbitrário: switchstate, lightstate, lightbrightness, coverposition, fanstate, fanspeedlevel, numberstate ou selectstate. Prefira o vínculo gerado pela descoberta. O tipo de entidade/valor e ReadOnly continuam sendo conferidos.",
+              "example": "switchstate",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo de entidade",
+          "body": "Este endereço representa state de uma entidade Switch, device-id 0, chave hexadecimal 00000010. Use a chave retornada pelo seu dispositivo; não invente IDs. Um TAG Boolean gravável exige o tipo de escrita compatível. Não é pacote de importação.",
+          "fields": null,
+          "code": "{\"address\":\"switch:0:00000010.state\",\"writeKind\":\"switchstate\"}"
+        },
+        {
+          "heading": "Mapa de funções e diagnóstico",
+          "body": "A materialização inclui entidades de processo suportadas, como sensor, binary sensor, switch, light, cover, fan, number e select. Entidades de configuração/diagnóstico e funções não mapeadas podem ser omitidas com aviso; encontrar climate, lock ou button no inventário não significa controle completo dessas funções. Primeiro confira API, modo/chave e conexão; depois endereço/tipo e avisos da descoberta. Para nó em suspensão, expected evita tratar o ciclo como conexão contínua, mas continua mostrando ausência como indisponível.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.esphome.native",
+        "home-building.device-workflow",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "drivers.shelly-setup",
+      "category": "drivers",
+      "title": "Shelly Gen2+: componentes, medição e comandos",
+      "summary": "Use RPC local e revise os canais e campos efetivamente oferecidos pelo dispositivo.",
+      "sections": [
+        {
+          "heading": "Conexão local, com geração compatível",
+          "body": "Este driver usa RPC de Shelly Gen2+ por HTTP/WebSocket; não é API de nuvem e não promete compatibilidade com todo Shelly Gen1. Tenha o host local, porta e autenticação do dispositivo. Um componente representa um canal/função do dispositivo, não um usuário ou Local do SCADIVO.",
+          "fields": null
+        },
+        {
+          "heading": "Campos da fonte e do TAG",
+          "body": "Teste a conexão e descubra o dispositivo para obter os componentes reais. A prévia mostra somente as medições e comandos mapeados; nome amigável não substitui component key.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host do Shelly",
+              "description": "Nome DNS ou IP acessível pelo servidor SCADIVO. Use o equipamento ou serviço de origem, sem caminho de URL; localhost é o servidor/contêiner, não o navegador.",
+              "example": "192.0.2.30",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Porta",
+              "description": "Porta do serviço de origem, diferente das portas da interface e API SCADIVO. Ao mudar TLS, confirme também a porta real do serviço.",
+              "example": "80",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "tls",
+              "label": "Usar TLS",
+              "description": "Protege o transporte quando o serviço oferecer TLS. Não instala certificados nem muda a porta automaticamente.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "username",
+              "label": "Usuário do dispositivo",
+              "description": "Conta de autenticação RPC do Shelly; padrão admin. Não é o usuário do SCADIVO nem a conta de nuvem Shelly.",
+              "example": "admin",
+              "constraints": ""
+            },
+            {
+              "key": "password",
+              "label": "Referência da senha Shelly",
+              "description": "Referência do material protegido provisionado no servidor para esta integração. Peça a referência ao administrador; não cole senha, token ou chave secreta em configurações comuns nem no manual da aplicação.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Timeout de resposta (ms)",
+              "description": "Prazo para a resposta de uma solicitação; não é o período de medição nem a prova de atuação física. Um valor pequeno demais pode recusar uma origem lenta.",
+              "example": "5000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Espera mínima para reconectar (ms)",
+              "description": "Pausa mínima após perda de conexão; evite tentativas contínuas. Não resolve autenticação recusada.",
+              "example": "1000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Espera máxima para reconectar (ms)",
+              "description": "Limite da espera progressiva; precisa ser maior ou igual à espera mínima.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "address",
+              "label": "Componente e campo",
+              "description": "Formato componente.campo, por exemplo switch:0.output ou switch:0.aenergy.total. O número identifica o canal; não use o nome amigável como endereço.",
+              "example": "switch:0.output",
+              "constraints": ""
+            },
+            {
+              "key": "writeMethod",
+              "label": "Método RPC de escrita",
+              "description": "Para vínculo gravável, método suportado pelo equipamento e pelo driver; no exemplo Switch.Set. Prefira o vínculo gerado pela descoberta, sem assumir que qualquer método pode virar um comando.",
+              "example": "Switch.Set",
+              "constraints": ""
+            },
+            {
+              "key": "writeParameter",
+              "label": "Parâmetro RPC de escrita",
+              "description": "Campo que recebe o valor da escrita; Switch.Set usa on para o Boolean. Exige TAG gravável, método compatível e autorização. O estado confirmado é lido separadamente.",
+              "example": "on",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo: saída do canal zero",
+          "body": "O exemplo vincula output de switch:0 a um TAG Boolean; a escrita compatível usa Switch.Set com parâmetro on. Confira o canal real antes de criar comandos. O JSON ilustra o vínculo, não é requisição para enviar diretamente nem pacote de importação.",
+          "fields": null,
+          "code": "{\"address\":\"switch:0.output\",\"writeMethod\":\"Switch.Set\",\"writeParameter\":\"on\"}"
+        },
+        {
+          "heading": "Conferir medição e feedback",
+          "body": "Os campos dependem do modelo: por exemplo output, potência apower, tensão voltage, corrente current e energia aenergy.total quando presentes. O driver também mapeia funções limitadas de light/cover e sensores suportados. Campo ausente não vira leitura zero; veja avisos e tipo/unidade. Na escrita, confira resposta e estado confirmado separadamente. Se falhar a autenticação, confira a referência protegida e a conta do dispositivo, sem trocar para credenciais de nuvem.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.shelly.rpc",
+        "home-building.device-workflow",
+        "tags.overview"
+      ]
     }
   ],
   "en": [
@@ -5891,6 +6545,660 @@
         "tags.overview",
         "diagnostics.overview"
       ]
+    },
+    {
+      "id": "home-building.device-workflow",
+      "category": "sources",
+      "title": "Home/Building: incorporate a device",
+      "summary": "Turn discovery into Equipment, TAGs and commands while checking what will actually be created.",
+      "sections": [
+        {
+          "heading": "Source, device and Location differ",
+          "body": "A Data Source stores communication settings; Equipment represents the device; Location organizes where it is. Functional capabilities such as OnOff, Temperature or Cover describe equipment functions, not Authority permissions. Discovering/incorporating a device does not automatically authorize commands.",
+          "fields": [
+            {
+              "key": "dataSource",
+              "label": "Integration source",
+              "description": "Source already configured in Data Sources. Its type must offer discovery to appear in this workflow; an empty list does not prove the entire network is empty.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "candidate",
+              "label": "Discovered device",
+              "description": "Select a candidate and inspect TAGs, commands, capabilities and warnings. Discovered does not mean incorporated; this form cannot incorporate candidates without materialization.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "equipmentName",
+              "label": "Device name",
+              "description": "Readable name for the Equipment to create. Does not rename the physical device or its source identity.",
+              "example": "Luz da sala",
+              "constraints": ""
+            },
+            {
+              "key": "equipmentPath",
+              "label": "Device path",
+              "description": "Organizes Equipment in the project. Check conflicts in preview; it is not an IP, NodeId or topic.",
+              "example": "Home/Sala/Luz",
+              "constraints": ""
+            },
+            {
+              "key": "locationId",
+              "label": "Location",
+              "description": "Optional: select an existing Location for the device. Create Locations in their area before association. This does not grant access permission.",
+              "example": "",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "From discovery to active revision",
+          "body": "1. Configure and apply the source in Engineering → Data Sources with protected material available on the server. 2. Open Home/Building → Devices, select the source and discover candidates where supported. 3. Choose a device and read warnings plus TAG/command/capability lists. 4. Set name, path and Location and check preview; configuration has not changed yet. 5. Apply only a valid preview; if Workspace changes, generate a new preview before applying. 6. Save/publish/activate through the project workflow and check state, quality, unit and authorized commands.",
+          "fields": null
+        },
+        {
+          "heading": "No candidate or missing function",
+          "body": "Check saved source, server-side connectivity and driver-advertised features. KNX/IP Secure advertises no Engineering discovery; Home Assistant has the selection limitation in its guide. An unmapped function is not delivered: inspect warnings and actual generated fields. A gateway/bridge can expose a device without SCADIVO having its native protocol. Do not repeatedly import to repair network or permissions.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "home-building.organization",
+        "drivers.bacnet-setup",
+        "drivers.knx-setup",
+        "drivers.homeassistant-setup",
+        "drivers.esphome-setup",
+        "drivers.shelly-setup"
+      ]
+    },
+    {
+      "id": "drivers.bacnet-setup",
+      "category": "drivers",
+      "title": "BACnet/IP: device, objects and properties",
+      "summary": "Configure the UDP network and select object identity; names and network addresses do not replace the binding.",
+      "sections": [
+        {
+          "heading": "Before connecting",
+          "body": "This driver is BACnet/IP over UDP; it does not advertise BACnet Secure Connect. Have device instance, route/IP/port and server-side network access. In Docker check networking and UDP; broadcast discovery depends on topology, not the browser. Start with a known read-only object.",
+          "fields": null
+        },
+        {
+          "heading": "Connection and binding fields",
+          "body": "Binding identity contains device, object type/instance and property with optional index. COV and priority configuration do not change that identity.",
+          "fields": [
+            {
+              "key": "deviceInstance",
+              "label": "Device instance",
+              "description": "BACnet device identity, not its IP or an object instance. The TAG binding device instance must match the source. Check it on the controller or through discovery.",
+              "example": "1201",
+              "constraints": "0–4194302."
+            },
+            {
+              "key": "targetAddress",
+              "label": "Manual target address",
+              "description": "Optional: device IPv4 with UDP port. Useful for a known target; does not replace deviceInstance identity.",
+              "example": "192.0.2.20:47808",
+              "constraints": ""
+            },
+            {
+              "key": "localPort",
+              "label": "Local UDP port",
+              "description": "Port where the SCADIVO process listens for BACnet/IP. Another application/container may already use it; check firewall and UDP exposure on the server.",
+              "example": "47808",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "scanIntervalMilliseconds",
+              "label": "Polling interval (ms)",
+              "description": "Requested polling pace for polled points. It is not a guaranteed COV-event frequency.",
+              "example": "1000",
+              "constraints": "50–600000."
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "BACnet timeout (ms)",
+              "description": "Wait for a BACnet request. Separate from discovery window and polling interval.",
+              "example": "3000",
+              "constraints": "100–60000."
+            },
+            {
+              "key": "discoveryWindowMilliseconds",
+              "label": "Discovery window (ms)",
+              "description": "How long to collect discovery responses. Increasing may help a slow network but does not make broadcasts cross a blocked subnet.",
+              "example": "1500",
+              "constraints": "100–30000."
+            },
+            {
+              "key": "bbmdAddress",
+              "label": "BBMD address",
+              "description": "Optional: administrator-configured BACnet distribution point for the network scenario. Do not invent a BBMD for a simple local network.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "foreignDeviceTtlSeconds",
+              "label": "Foreign Device registration lifetime (s)",
+              "description": "Optional: registration duration at the BBMD. Requires bbmdAddress; not TAG freshness or history retention.",
+              "example": "600",
+              "constraints": "30–32767."
+            },
+            {
+              "key": "objectType",
+              "label": "Object type",
+              "description": "Numeric BACnet object code. In the example, 0 identifies Analog Input; use the browser/vendor map type, not the TAG Double type.",
+              "example": "0",
+              "constraints": ""
+            },
+            {
+              "key": "objectInstance",
+              "label": "Object instance",
+              "description": "Object number within the device. Analog Input 37 differs from another object type with instance 37.",
+              "example": "37",
+              "constraints": "0–4194303."
+            },
+            {
+              "key": "propertyIdentifier",
+              "label": "Property",
+              "description": "Code of the property to read. Example 85 is Present Value. Name, description and value are different properties; prefer browser selection to avoid incorrect codes.",
+              "example": "85",
+              "constraints": ""
+            },
+            {
+              "key": "arrayIndex",
+              "label": "Array index",
+              "description": "Fill only for an array property when a specific element is needed. Empty preserves the whole property; do not add an index to a scalar value.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "useCov",
+              "label": "Use COV when available",
+              "description": "Requests change notifications rather than relying solely on polling. Depends on the server/object and the driver retains read checks; no change does not imply lost connection.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "writePriority",
+              "label": "BACnet write priority",
+              "description": "Optional for a writable object accepting priority. Not an alarm priority or SCADIVO permission. An accepted write may not change the effective value if another command takes precedence; check feedback and equipment policy.",
+              "example": "8",
+              "constraints": "1–16."
+            }
+          ]
+        },
+        {
+          "heading": "Example: analog input value",
+          "body": "The example identifies Present Value of Analog Input 37 on device 1201. It describes a binding, not a complete import package. Use discovery/browse and check type/unit before activation; replace identities with those of your equipment.",
+          "fields": null,
+          "code": "{\"deviceInstance\":1201,\"objectType\":0,\"objectInstance\":37,\"propertyIdentifier\":85,\"useCov\":true}"
+        },
+        {
+          "heading": "Verification and diagnosis",
+          "body": "Test connection, discover/browse objects and review preview before applying; activate through the project workflow. No response: check UDP, instance, target and topology/BBMD. Found object but invalid value: check property, index and type. Unsupported COV calls for reviewing notifications and read checks; lack of change is not zero. Rejected writes require checking access, writable object and priority as well as SCADIVO authorization.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.bacnet.ip",
+        "tags.overview",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "drivers.knx-setup",
+      "category": "drivers",
+      "title": "KNX/IP Secure: tunnel, DPT and confirmed state",
+      "summary": "Use KNX project addresses and keep commands separate from feedback.",
+      "sections": [
+        {
+          "heading": "Requirements and scope",
+          "body": "The implementation uses a managed XKNX sidecar for KNX IP Secure TCP tunneling and Data Secure. Installation needs its compatible runtime for Windows or Linux x64 and protected host material; a container needs those resources too. This type does not promise unsecured IP tunneling, multicast routing or automatic Engineering discovery. Obtain settings/addresses from the KNX project/administrator.",
+          "fields": null
+        },
+        {
+          "heading": "Gateway and point fields",
+          "body": "The generic TAG assistant still produces a binding incompatible with the KNX/IP contract. UI authoring correction is pending; the fields below explain the contract, but there is no validated walkthrough to complete this binding with the current assistant. Do not attempt to fix it by changing DPTs or disabling security.\n\nConfigure the source and binding using the actual DPT. Passwords/keyring are protected references, not secret files inside the application.",
+          "fields": [
+            {
+              "key": "gatewayHost",
+              "label": "KNX gateway host",
+              "description": "IP/name of the KNX/IP Secure gateway reachable from the SCADIVO server. Not a group or individual address.",
+              "example": "192.0.2.40",
+              "constraints": ""
+            },
+            {
+              "key": "gatewayPort",
+              "label": "Secure tunnel port",
+              "description": "Port of the Secure TCP endpoint configured on the gateway. Do not assume an unsecured IP tunneling gateway offers this service.",
+              "example": "3671",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "individualAddress",
+              "label": "Individual address",
+              "description": "Assigned KNX client address in area.line.device notation. Obtain from the KNX project/administrator to avoid duplication.",
+              "example": "1.1.250",
+              "constraints": ""
+            },
+            {
+              "key": "userId",
+              "label": "Secure tunnel user ID",
+              "description": "Gateway Secure user ID, not a SCADIVO login. Must match the provisioned authentication material.",
+              "example": "1",
+              "constraints": "1–127."
+            },
+            {
+              "key": "userPassword",
+              "label": "Secure password reference",
+              "description": "Reference to protected material provisioned on the server for this integration. Ask the administrator for the reference; do not paste a password, token or secret key into ordinary settings or the application manual.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "deviceAuthentication",
+              "label": "Device authentication reference",
+              "description": "Reference to protected material provisioned on the server for this integration. Ask the administrator for the reference; do not paste a password, token or secret key into ordinary settings or the application manual.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "dataSecureKeyring",
+              "label": "Data Secure keyring reference",
+              "description": "Reference to protected material provisioned on the server for this integration. Ask the administrator for the reference; do not paste a password, token or secret key into ordinary settings or the application manual.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "writeGroupAddress",
+              "label": "Command group / binding address",
+              "description": "Address in main/middle/subgroup notation for writes. In the portable binding this is the TAG Address; for a read-only TAG check the KNX project mapping. The generic TAG assistant still produces a binding incompatible with the KNX/IP contract. UI authoring correction is pending; the fields below explain the contract, but there is no validated walkthrough to complete this binding with the current assistant. Do not attempt to fix it by changing DPTs or disabling security.",
+              "example": "1/2/3",
+              "constraints": ""
+            },
+            {
+              "key": "stateGroupAddress",
+              "label": "Authoritative state group",
+              "description": "Feedback source. For a writable TAG it must differ from the command group; the driver does not treat sending a command as confirmed state.",
+              "example": "1/2/4",
+              "constraints": ""
+            },
+            {
+              "key": "dpt",
+              "label": "KNX datapoint type (DPT)",
+              "description": "Defines telegram interpretation. 1.001/1.002 use Boolean TAGs; 5.001 and 9.001/9.004/9.007/9.024 use Float or Double in this driver. The example uses 9.001 for temperature. Do not choose DPT solely by apparent value size.",
+              "example": "9.001",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Example: separate command and return",
+          "body": "The example describes a Double TAG, DPT 9.001, with command group 1/2/3 and state group 1/2/4. Replace with groups existing in the KNX project. This is not an import package and contains no security material. Equal groups are rejected for writable points; feedback must exist on the device.",
+          "fields": null,
+          "code": "{\"writeGroupAddress\":\"1/2/3\",\"stateGroupAddress\":\"1/2/4\",\"dpt\":\"9.001\",\"tagType\":\"Double\"}"
+        },
+        {
+          "heading": "Verify in stages",
+          "body": "Check sidecar availability and protected references first, then host/port/user/individual address and groups/DPT/TAG type. Authoring with the current assistant requires the correction noted above. With a correctly validated binding, save/publish/activate through the project and check feedback before writing. Accepted sending without feedback must not artificially update state. This driver advertises no Engineering discovery.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.knx.ip",
+        "home-building.device-workflow",
+        "tags.overview"
+      ]
+    },
+    {
+      "id": "drivers.homeassistant-setup",
+      "category": "drivers",
+      "title": "Home Assistant Bridge: connect and select entities",
+      "summary": "One source connects to a user-managed Home Assistant; only selected entities enter the project.",
+      "sections": [
+        {
+          "heading": "Local bridge with explicit identity",
+          "body": "HAB means Home Assistant Bridge; HA in SCADIVO still means High Availability. Use Home Assistant reachable from the server and an authorized token provisioned as protected material. The integration does not manage Home Assistant accounts, copy its internal database or turn all its integrations into native SCADIVO drivers.",
+          "fields": null
+        },
+        {
+          "heading": "Connection, identity and current selection limit",
+          "body": "Connection testing verifies transport/authentication, not incorporation. In the current version the generic discovery page does not supply entity selection; empty selection does not necessarily mean network failure. For a known TAG, configure its source/binding explicitly in the TAG editor and check the read before activation. There is no automatic whole-instance import.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Home Assistant host",
+              "description": "DNS name or IP reachable from the SCADIVO server. Use the source device or service without a URL path; localhost means the server/container, not the browser.",
+              "example": "192.0.2.30",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Port",
+              "description": "Source service port, separate from SCADIVO UI/API ports. When changing TLS also check the actual service port.",
+              "example": "8123",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "tls",
+              "label": "Use TLS",
+              "description": "Protects transport where the service offers TLS. Does not install certificates or automatically change the port.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "basePath",
+              "label": "Base path",
+              "description": "Optional path prefix when Home Assistant is exposed through a proxy. The client appends /api/websocket. With no prefix leave empty; do not repeat the complete endpoint.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "accessToken",
+              "label": "Home Assistant token reference",
+              "description": "Reference to protected material provisioned on the server for this integration. Ask the administrator for the reference; do not paste a password, token or secret key into ordinary settings or the application manual.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "connectTimeoutMilliseconds",
+              "label": "Connection timeout (ms)",
+              "description": "Deadline for establishing the WebSocket connection. Separate from each request timeout.",
+              "example": "10000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Response timeout (ms)",
+              "description": "Deadline for a request response; neither the measurement period nor proof of physical actuation. A value that is too small can reject a slow source.",
+              "example": "10000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Minimum reconnect wait (ms)",
+              "description": "Minimum wait after connection loss; avoid continuous attempts. It does not repair rejected authentication.",
+              "example": "1000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Maximum reconnect wait (ms)",
+              "description": "Limit on increasing wait; must be greater than or equal to the minimum.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "address",
+              "label": "Entity and field",
+              "description": "Use the exact entity and field: entity:sensor.temperature:state for state; entity:light.room:attribute:brightness for an attribute. A display name is not entity_id. Renaming entity_id in Home Assistant requires reviewing the binding.",
+              "example": "entity:sensor.temperature:state",
+              "constraints": ""
+            },
+            {
+              "key": "selectedEntityIds",
+              "label": "Entity selection for incorporation",
+              "description": "The driver requires explicit selection, but this version of the Home/Building page does not yet let you choose entities. Discovery can return an empty selection with no device to incorporate even with a valid connection. There is no ready selector on that page; the correction is pending.",
+              "example": "",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Address examples",
+          "body": "Use state for entity state and attribute for an existing attribute. The example shows a sensor read and light brightness; not an import file. Check type/unit: numeric readings are not display text, and brightness commands use the driver-supported conversion. Renaming the source entity requires reviewing bindings.",
+          "fields": null,
+          "code": "{\"state\":\"entity:sensor.temperature:state\",\"attribute\":\"entity:light.room:attribute:brightness\"}"
+        },
+        {
+          "heading": "Commands and unavailability",
+          "body": "Support is limited to implemented bindings: switch/light state, light brightness/color and cover position as supported by equipment. This form does not offer arbitrary calls to every Home Assistant service. unknown and unavailable are not zero or off. After commands check authoritative state; request success does not prove physical actuation.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.homeassistant.websocket",
+        "home-building.device-workflow",
+        "tags.overview"
+      ]
+    },
+    {
+      "id": "drivers.esphome-setup",
+      "category": "drivers",
+      "title": "ESPHome: native API, entities and deep sleep",
+      "summary": "Connect directly to the device and incorporate only functions the driver maps.",
+      "sections": [
+        {
+          "heading": "What must be available",
+          "body": "Firmware must offer the ESPHome Native API. The driver connects on the local network without requiring Home Assistant, ESPHome Dashboard or a Python sidecar. In Noise mode the API key must be provisioned on the server; the browser does not connect directly to the microcontroller.",
+          "fields": null
+        },
+        {
+          "heading": "Connection and binding",
+          "body": "Prepare the source, test connection and use discovery to obtain actual entity keys. Advanced fields do not repair a disabled API or incompatible key.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "ESPHome host",
+              "description": "DNS name or IP reachable from the SCADIVO server. Use the source device or service without a URL path; localhost means the server/container, not the browser.",
+              "example": "192.0.2.30",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Port",
+              "description": "Source service port, separate from SCADIVO UI/API ports. When changing TLS also check the actual service port.",
+              "example": "6053",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "encryptionMode",
+              "label": "API encryption",
+              "description": "noise is preferred with a provisioned key. plaintext is an explicit compatibility option on a trusted network and must match firmware. Do not confuse the Noise key with a Wi-Fi password.",
+              "example": "noise",
+              "constraints": ""
+            },
+            {
+              "key": "encryptionKey",
+              "label": "Noise key reference",
+              "description": "Reference to protected material provisioned on the server for this integration. Ask the administrator for the reference; do not paste a password, token or secret key into ordinary settings or the application manual.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Response timeout (ms)",
+              "description": "Deadline for a request response; neither the measurement period nor proof of physical actuation. A value that is too small can reject a slow source.",
+              "example": "5000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "writeReconcileTimeoutMilliseconds",
+              "label": "Write reconciliation timeout (ms)",
+              "description": "How long to wait for authoritative state after a command. Accepted sending is not feedback; increasing the deadline does not guarantee movement/actuation.",
+              "example": "3000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Minimum reconnect wait (ms)",
+              "description": "Minimum wait after connection loss; avoid continuous attempts. It does not repair rejected authentication.",
+              "example": "500",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Maximum reconnect wait (ms)",
+              "description": "Limit on increasing wait; must be greater than or equal to the minimum.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "keepAliveMilliseconds",
+              "label": "Keep Alive (ms)",
+              "description": "Connection supervision interval; does not increase sensor measurement frequency.",
+              "example": "30000",
+              "constraints": "1000–300000."
+            },
+            {
+              "key": "deepSleepPolicy",
+              "label": "Deep-sleep policy",
+              "description": "normal for continuously running devices; expected only for intentionally sleeping nodes. Changes reconnect defaults: minimum 500→10000 ms, maximum 30000→60000 ms. Absence remains unavailable, never healthy.",
+              "example": "normal",
+              "constraints": ""
+            },
+            {
+              "key": "address",
+              "label": "Entity address",
+              "description": "Format kind:device-id:hex-key.field. Discovery supplies the 8-digit hexadecimal key; do not use the display name as a key. Example switch:0:00000010.state.",
+              "example": "switch:0:00000010.state",
+              "constraints": ""
+            },
+            {
+              "key": "writeKind",
+              "label": "Write kind",
+              "description": "Defines a supported entity write, not an arbitrary service: switchstate, lightstate, lightbrightness, coverposition, fanstate, fanspeedlevel, numberstate or selectstate. Prefer the discovery-generated binding. Entity/value type and ReadOnly remain checked.",
+              "example": "switchstate",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Entity example",
+          "body": "This address represents state of a Switch entity, device-id 0, hexadecimal key 00000010. Use the key returned by your device; do not invent IDs. A writable Boolean TAG requires the compatible write kind. This is not an import package.",
+          "fields": null,
+          "code": "{\"address\":\"switch:0:00000010.state\",\"writeKind\":\"switchstate\"}"
+        },
+        {
+          "heading": "Function map and diagnosis",
+          "body": "Materialization includes supported process entities such as sensor, binary sensor, switch, light, cover, fan, number and select. Configuration/diagnostic entities and unmapped functions can be omitted with warnings; finding climate, lock or button in inventory does not imply full control of them. Check API, mode/key and connection first, then address/type and discovery warnings. For a sleeping node expected adjusts the connection cycle but still shows absence as unavailable.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.esphome.native",
+        "home-building.device-workflow",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "drivers.shelly-setup",
+      "category": "drivers",
+      "title": "Shelly Gen2+: components, measurements and commands",
+      "summary": "Use local RPC and review channels/fields actually offered by the device.",
+      "sections": [
+        {
+          "heading": "Local connection with a compatible generation",
+          "body": "This driver uses Shelly Gen2+ RPC over HTTP/WebSocket; it is not a cloud API and does not promise compatibility with every Gen1 device. Have local host, port and device authentication. A component represents a device channel/function, not a SCADIVO user or Location.",
+          "fields": null
+        },
+        {
+          "heading": "Source and TAG fields",
+          "body": "Test connection and discover the device to obtain actual components. Preview shows only mapped measurements/commands; a friendly name does not replace the component key.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Shelly host",
+              "description": "DNS name or IP reachable from the SCADIVO server. Use the source device or service without a URL path; localhost means the server/container, not the browser.",
+              "example": "192.0.2.30",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Port",
+              "description": "Source service port, separate from SCADIVO UI/API ports. When changing TLS also check the actual service port.",
+              "example": "80",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "tls",
+              "label": "Use TLS",
+              "description": "Protects transport where the service offers TLS. Does not install certificates or automatically change the port.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "username",
+              "label": "Device user",
+              "description": "Shelly RPC authentication account; default admin. Neither the SCADIVO user nor a Shelly cloud account.",
+              "example": "admin",
+              "constraints": ""
+            },
+            {
+              "key": "password",
+              "label": "Shelly password reference",
+              "description": "Reference to protected material provisioned on the server for this integration. Ask the administrator for the reference; do not paste a password, token or secret key into ordinary settings or the application manual.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Response timeout (ms)",
+              "description": "Deadline for a request response; neither the measurement period nor proof of physical actuation. A value that is too small can reject a slow source.",
+              "example": "5000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Minimum reconnect wait (ms)",
+              "description": "Minimum wait after connection loss; avoid continuous attempts. It does not repair rejected authentication.",
+              "example": "1000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Maximum reconnect wait (ms)",
+              "description": "Limit on increasing wait; must be greater than or equal to the minimum.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "address",
+              "label": "Component and field",
+              "description": "Format component.field, for example switch:0.output or switch:0.aenergy.total. The number identifies the channel; do not use the friendly name as an address.",
+              "example": "switch:0.output",
+              "constraints": ""
+            },
+            {
+              "key": "writeMethod",
+              "label": "Write RPC method",
+              "description": "For a writable binding, method supported by the equipment and driver; in the example Switch.Set. Prefer the discovery-generated binding without assuming every method can become a command.",
+              "example": "Switch.Set",
+              "constraints": ""
+            },
+            {
+              "key": "writeParameter",
+              "label": "Write RPC parameter",
+              "description": "Field receiving the write value; Switch.Set uses on for the Boolean. Requires a writable TAG, compatible method and authorization. Confirmed state is read separately.",
+              "example": "on",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Example: output of channel zero",
+          "body": "The example binds switch:0 output to a Boolean TAG; the compatible write uses Switch.Set with parameter on. Check the actual channel before creating commands. JSON illustrates the binding; it is neither a direct request nor an import package.",
+          "fields": null,
+          "code": "{\"address\":\"switch:0.output\",\"writeMethod\":\"Switch.Set\",\"writeParameter\":\"on\"}"
+        },
+        {
+          "heading": "Check measurements and feedback",
+          "body": "Fields depend on model: for example output, apower power, voltage, current and aenergy.total when present. The driver also maps bounded light/cover functions and supported sensors. A missing field is not a zero reading; inspect warnings and type/unit. For writes check response and confirmed state separately. For authentication failures check the protected reference and device account rather than switching to cloud credentials.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.shelly.rpc",
+        "home-building.device-workflow",
+        "tags.overview"
+      ]
     }
   ],
   "es": [
@@ -8837,6 +10145,660 @@
         "driver.opc-ua",
         "tags.overview",
         "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "home-building.device-workflow",
+      "category": "sources",
+      "title": "Home/Building: incorporar un dispositivo",
+      "summary": "Convierta descubrimiento en Equipo, TAGs y comandos comprobando lo que realmente se creará.",
+      "sections": [
+        {
+          "heading": "Fuente, dispositivo y Ubicación son distintos",
+          "body": "La Fuente de datos guarda cómo comunicar; Equipo representa el dispositivo; Ubicación organiza dónde está. Capacidades funcionales como OnOff, Temperature o Cover describen funciones del equipo, no permisos de Authority. Descubrir/incorporar un dispositivo no autoriza comandos automáticamente.",
+          "fields": [
+            {
+              "key": "dataSource",
+              "label": "Fuente de integración",
+              "description": "Fuente configurada en Fuentes de datos. Su tipo debe ofrecer descubrimiento para aparecer en este flujo; una lista vacía no prueba que toda la red esté vacía.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "candidate",
+              "label": "Dispositivo encontrado",
+              "description": "Elija un candidato y revise TAGs, comandos, capacidades y avisos. Encontrado no significa incorporado; este formulario no incorpora candidatos sin materialización.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "equipmentName",
+              "label": "Nombre del dispositivo",
+              "description": "Nombre legible del Equipo que se creará. No renombra el dispositivo físico ni su identidad de origen.",
+              "example": "Luz da sala",
+              "constraints": ""
+            },
+            {
+              "key": "equipmentPath",
+              "label": "Ruta del dispositivo",
+              "description": "Organiza el Equipo en el proyecto. Compruebe conflictos en la vista previa; no es IP, NodeId ni tópico.",
+              "example": "Home/Sala/Luz",
+              "constraints": ""
+            },
+            {
+              "key": "locationId",
+              "label": "Ubicación",
+              "description": "Opcional: seleccione una Ubicación existente. Cree las Ubicaciones en su área antes de asociar. No concede permisos de acceso.",
+              "example": "",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Del descubrimiento a la revisión activa",
+          "body": "1. Configure y aplique la fuente en Ingeniería → Fuentes de datos con material protegido disponible en el servidor. 2. Abra Home/Building → Dispositivos, seleccione la fuente y descubra candidatos si el driver lo admite. 3. Elija dispositivo y lea avisos y listas de TAGs/comandos/capacidades. 4. Ajuste nombre, ruta y Ubicación y compruebe la vista previa; todavía no cambia la configuración. 5. Aplique solo una vista previa válida; si cambia el Workspace genere otra antes de aplicar. 6. Guarde/publique/active mediante el flujo del proyecto y compruebe estado, calidad, unidad y comandos autorizados.",
+          "fields": null
+        },
+        {
+          "heading": "Sin candidato o función esperada",
+          "body": "Compruebe fuente guardada, conectividad desde el servidor y funciones anunciadas por el driver. KNX/IP Secure no anuncia descubrimiento de Ingeniería; Home Assistant tiene la limitación de selección de su guía. Una función no mapeada no se considera entregada: revise avisos y campos realmente generados. Un gateway/bridge puede exponer un dispositivo sin protocolo nativo en SCADIVO. No importe repetidamente para corregir red o permisos.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "home-building.organization",
+        "drivers.bacnet-setup",
+        "drivers.knx-setup",
+        "drivers.homeassistant-setup",
+        "drivers.esphome-setup",
+        "drivers.shelly-setup"
+      ]
+    },
+    {
+      "id": "drivers.bacnet-setup",
+      "category": "drivers",
+      "title": "BACnet/IP: dispositivo, objetos y propiedades",
+      "summary": "Configure la red UDP y seleccione identidad del objeto; nombre y dirección de red no sustituyen el vínculo.",
+      "sections": [
+        {
+          "heading": "Antes de conectar",
+          "body": "Este driver es BACnet/IP sobre UDP; no anuncia BACnet Secure Connect. Prepare instancia de dispositivo, ruta/IP/puerto y acceso a la red desde el servidor SCADIVO. En Docker compruebe red y UDP; el descubrimiento broadcast depende de la topología, no del navegador. Empiece con un objeto conocido de solo lectura.",
+          "fields": null
+        },
+        {
+          "heading": "Campos de conexión y vínculo",
+          "body": "La identidad del vínculo contiene dispositivo, tipo/instancia de objeto y propiedad, con índice opcional. COV y prioridad no cambian esa identidad.",
+          "fields": [
+            {
+              "key": "deviceInstance",
+              "label": "Instancia del dispositivo",
+              "description": "Identidad BACnet del equipo, no su IP ni la instancia de un objeto. La instancia del dispositivo del vínculo TAG debe coincidir con la fuente. Confírmela en el controlador o mediante descubrimiento.",
+              "example": "1201",
+              "constraints": "0–4194302."
+            },
+            {
+              "key": "targetAddress",
+              "label": "Dirección manual del destino",
+              "description": "Opcional: IPv4 del equipo con puerto UDP. Útil para un destino conocido; no sustituye la identidad deviceInstance.",
+              "example": "192.0.2.20:47808",
+              "constraints": ""
+            },
+            {
+              "key": "localPort",
+              "label": "Puerto UDP local",
+              "description": "Puerto donde el proceso SCADIVO escucha BACnet/IP. Otra aplicación/contenedor puede ocuparlo; compruebe firewall y exposición UDP en el servidor.",
+              "example": "47808",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "scanIntervalMilliseconds",
+              "label": "Intervalo de lectura (ms)",
+              "description": "Ritmo solicitado de sondeo para puntos consultados. No es la frecuencia garantizada de eventos COV.",
+              "example": "1000",
+              "constraints": "50–600000."
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Timeout BACnet (ms)",
+              "description": "Espera de una solicitud BACnet. Distinta de la ventana de descubrimiento y del sondeo.",
+              "example": "3000",
+              "constraints": "100–60000."
+            },
+            {
+              "key": "discoveryWindowMilliseconds",
+              "label": "Ventana de descubrimiento (ms)",
+              "description": "Cuánto esperar respuestas durante descubrimiento. Aumentar puede ayudar en una red lenta, pero no hace que broadcasts crucen una subred bloqueada.",
+              "example": "1500",
+              "constraints": "100–30000."
+            },
+            {
+              "key": "bbmdAddress",
+              "label": "Dirección del BBMD",
+              "description": "Opcional: punto de distribución BACnet configurado por el administrador para la red. No invente un BBMD para una red local simple.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "foreignDeviceTtlSeconds",
+              "label": "Registro Foreign Device: vigencia (s)",
+              "description": "Opcional: duración del registro en el BBMD. Exige bbmdAddress; no es vigencia del valor TAG ni retención histórica.",
+              "example": "600",
+              "constraints": "30–32767."
+            },
+            {
+              "key": "objectType",
+              "label": "Tipo del objeto",
+              "description": "Código numérico del objeto BACnet. En el ejemplo, 0 identifica Analog Input; use el tipo del explorador/mapa del fabricante, no el tipo Double del TAG.",
+              "example": "0",
+              "constraints": ""
+            },
+            {
+              "key": "objectInstance",
+              "label": "Instancia del objeto",
+              "description": "Número del objeto dentro del dispositivo. Analog Input 37 difiere de otro tipo con instancia 37.",
+              "example": "37",
+              "constraints": "0–4194303."
+            },
+            {
+              "key": "propertyIdentifier",
+              "label": "Propiedad",
+              "description": "Código de propiedad a leer. El ejemplo 85 es Present Value. Nombre, descripción y valor son propiedades distintas; prefiera selección en el explorador para evitar códigos incorrectos.",
+              "example": "85",
+              "constraints": ""
+            },
+            {
+              "key": "arrayIndex",
+              "label": "Índice del array",
+              "description": "Complete solo para una propiedad array si necesita un elemento concreto. Vacío conserva la propiedad completa; no añada índice a un valor escalar.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "useCov",
+              "label": "Usar COV si está disponible",
+              "description": "Solicita notificaciones por cambio en lugar de depender solo del sondeo. Depende del servidor/objeto y el driver conserva comprobaciones por lectura; ausencia de cambio no implica desconexión.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "writePriority",
+              "label": "Prioridad de escritura BACnet",
+              "description": "Opcional para objeto escribible que acepte prioridad. No es prioridad de alarma ni permiso SCADIVO. Una escritura aceptada puede no cambiar el valor efectivo si otro comando tiene precedencia; compruebe feedback y política del equipo.",
+              "example": "8",
+              "constraints": "1–16."
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo: valor de entrada analógica",
+          "body": "El ejemplo identifica Present Value del Analog Input 37 en el dispositivo 1201. Describe un vínculo, no un paquete completo de importación. Use descubrimiento/exploración y compruebe tipo/unidad antes de activar; sustituya las identidades por las de su equipo.",
+          "fields": null,
+          "code": "{\"deviceInstance\":1201,\"objectType\":0,\"objectInstance\":37,\"propertyIdentifier\":85,\"useCov\":true}"
+        },
+        {
+          "heading": "Comprobación y diagnóstico",
+          "body": "Pruebe conexión, descubra/explore objetos y revise la vista previa antes de aplicar; active mediante el flujo del proyecto. Sin respuesta: compruebe UDP, instancia, destino y topología/BBMD. Objeto encontrado con valor inválido: compruebe propiedad, índice y tipo. COV no admitido exige revisar notificaciones y lectura de comprobación; ausencia de cambio no es cero. Escritura rechazada exige acceso, objeto escribible y prioridad además de autorización SCADIVO.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.bacnet.ip",
+        "tags.overview",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "drivers.knx-setup",
+      "category": "drivers",
+      "title": "KNX/IP Secure: túnel, DPT y estado confirmado",
+      "summary": "Use direcciones del proyecto KNX y separe comando y feedback.",
+      "sections": [
+        {
+          "heading": "Requisitos y alcance",
+          "body": "La implementación usa un proceso auxiliar XKNX administrado para túnel KNX IP Secure TCP y Data Secure. La instalación necesita su runtime compatible para Windows o Linux x64 y material protegido del host; un contenedor también necesita esos recursos. Este tipo no promete túnel IP sin seguridad, enrutamiento multicast ni descubrimiento automático de Ingeniería. Obtenga parámetros/direcciones del proyecto KNX/administrador.",
+          "fields": null
+        },
+        {
+          "heading": "Campos del gateway y del punto",
+          "body": "El asistente genérico de TAG todavía genera un vínculo incompatible con el contrato KNX/IP. La corrección de autoría por interfaz está pendiente; los campos siguientes explican el contrato, pero no hay recorrido validado para completarlo con el asistente actual. No intente resolverlo cambiando DPTs ni desactivando seguridad.\n\nConfigure la fuente y vínculo con el DPT real. Contraseñas/llavero son referencias protegidas, no archivos secretos dentro de la aplicación.",
+          "fields": [
+            {
+              "key": "gatewayHost",
+              "label": "Host del gateway KNX",
+              "description": "IP/nombre del gateway KNX/IP Secure accesible desde el servidor SCADIVO. No es dirección de grupo ni individual.",
+              "example": "192.0.2.40",
+              "constraints": ""
+            },
+            {
+              "key": "gatewayPort",
+              "label": "Puerto del túnel Secure",
+              "description": "Puerto del endpoint Secure TCP configurado en el gateway. No suponga que un gateway de túnel IP sin seguridad ofrece este servicio.",
+              "example": "3671",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "individualAddress",
+              "label": "Dirección individual",
+              "description": "Dirección asignada al cliente KNX, en notación área.línea.dispositivo. Obténgala del proyecto KNX/administrador para evitar duplicados.",
+              "example": "1.1.250",
+              "constraints": ""
+            },
+            {
+              "key": "userId",
+              "label": "ID de usuario del túnel Secure",
+              "description": "ID de usuario Secure del gateway, no un login SCADIVO. Debe corresponder al material de autenticación aprovisionado.",
+              "example": "1",
+              "constraints": "1–127."
+            },
+            {
+              "key": "userPassword",
+              "label": "Referencia de contraseña Secure",
+              "description": "Referencia del material protegido aprovisionado en el servidor para esta integración. Solicite la referencia al administrador; no pegue contraseñas, tokens ni claves secretas en ajustes comunes ni en el manual de la aplicación.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "deviceAuthentication",
+              "label": "Referencia de autenticación del dispositivo",
+              "description": "Referencia del material protegido aprovisionado en el servidor para esta integración. Solicite la referencia al administrador; no pegue contraseñas, tokens ni claves secretas en ajustes comunes ni en el manual de la aplicación.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "dataSecureKeyring",
+              "label": "Referencia del llavero Data Secure",
+              "description": "Referencia del material protegido aprovisionado en el servidor para esta integración. Solicite la referencia al administrador; no pegue contraseñas, tokens ni claves secretas en ajustes comunes ni en el manual de la aplicación.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "writeGroupAddress",
+              "label": "Grupo de comando / dirección del vínculo",
+              "description": "Dirección en principal/intermedio/subgrupo para escritura. En el vínculo portable es Address del TAG; para un TAG de solo lectura compruebe el mapa del proyecto KNX. El asistente genérico de TAG todavía genera un vínculo incompatible con el contrato KNX/IP. La corrección de autoría por interfaz está pendiente; los campos siguientes explican el contrato, pero no hay recorrido validado para completarlo con el asistente actual. No intente resolverlo cambiando DPTs ni desactivando seguridad.",
+              "example": "1/2/3",
+              "constraints": ""
+            },
+            {
+              "key": "stateGroupAddress",
+              "label": "Grupo de estado confirmado",
+              "description": "Origen del feedback. Para un TAG escribible debe diferir del grupo de comando; el driver no considera el envío como confirmación de estado.",
+              "example": "1/2/4",
+              "constraints": ""
+            },
+            {
+              "key": "dpt",
+              "label": "Tipo de punto KNX (DPT)",
+              "description": "Define la interpretación del telegrama. 1.001/1.002 usan TAG Boolean; 5.001 y 9.001/9.004/9.007/9.024 usan Float o Double en este driver. El ejemplo usa 9.001 para temperatura. No elija DPT solo por el tamaño aparente del valor.",
+              "example": "9.001",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo: comando y retorno distintos",
+          "body": "El ejemplo describe un TAG Double DPT 9.001 con grupo de comando 1/2/3 y retorno 1/2/4. Sustituya por grupos existentes en el proyecto KNX. No es paquete de importación ni contiene material de seguridad. Para punto escribible se rechazan grupos iguales; el retorno debe existir en el equipo.",
+          "fields": null,
+          "code": "{\"writeGroupAddress\":\"1/2/3\",\"stateGroupAddress\":\"1/2/4\",\"dpt\":\"9.001\",\"tagType\":\"Double\"}"
+        },
+        {
+          "heading": "Compruebe por etapas",
+          "body": "Compruebe primero proceso auxiliar y referencias protegidas, después host/puerto/usuario/dirección individual y grupos/DPT/tipo del TAG. La autoría con el asistente actual requiere la corrección indicada. Con vínculo correctamente validado guarde/publique/active mediante el proyecto y compruebe retorno antes de escribir. Un envío aceptado sin retorno no debe actualizar artificialmente el estado. Este driver no anuncia descubrimiento de Ingeniería.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.knx.ip",
+        "home-building.device-workflow",
+        "tags.overview"
+      ]
+    },
+    {
+      "id": "drivers.homeassistant-setup",
+      "category": "drivers",
+      "title": "Home Assistant Bridge: conectar y elegir entidades",
+      "summary": "Una fuente conecta a Home Assistant administrado por el usuario; solo entidades seleccionadas entran en el proyecto.",
+      "sections": [
+        {
+          "heading": "Bridge local con identidad explícita",
+          "body": "HAB significa Home Assistant Bridge; HA en SCADIVO sigue significando Alta Disponibilidad. Use Home Assistant accesible desde el servidor y token autorizado aprovisionado como material protegido. La integración no administra cuentas Home Assistant, copia su base interna ni convierte todas sus integraciones en drivers nativos SCADIVO.",
+          "fields": null
+        },
+        {
+          "heading": "Conexión, identidad y límite actual de selección",
+          "body": "Probar conexión verifica transporte/autenticación, no incorporación. En la versión actual la pantalla genérica de descubrimiento no proporciona selección de entidades; una selección vacía no significa necesariamente fallo de red. Para un TAG conocido configure fuente/vínculo explícitamente en el editor de TAGs y compruebe lectura antes de activar. No hay importación automática de toda la instancia.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host Home Assistant",
+              "description": "Nombre DNS o IP accesible desde el servidor SCADIVO. Use el equipo o servicio de origen sin ruta de URL; localhost es el servidor/contenedor, no el navegador.",
+              "example": "192.0.2.30",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Puerto",
+              "description": "Puerto del servicio de origen, distinto de los puertos de interfaz/API SCADIVO. Al cambiar TLS compruebe también el puerto real del servicio.",
+              "example": "8123",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "tls",
+              "label": "Usar TLS",
+              "description": "Protege el transporte si el servicio ofrece TLS. No instala certificados ni cambia el puerto automáticamente.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "basePath",
+              "label": "Ruta base",
+              "description": "Prefijo opcional si Home Assistant se publica por proxy. El cliente añade /api/websocket. Sin prefijo déjelo vacío; no repita el endpoint completo.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "accessToken",
+              "label": "Referencia del token Home Assistant",
+              "description": "Referencia del material protegido aprovisionado en el servidor para esta integración. Solicite la referencia al administrador; no pegue contraseñas, tokens ni claves secretas en ajustes comunes ni en el manual de la aplicación.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "connectTimeoutMilliseconds",
+              "label": "Tiempo para conectar (ms)",
+              "description": "Plazo de establecimiento de conexión WebSocket. Distinto del timeout de cada solicitud.",
+              "example": "10000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Timeout de respuesta (ms)",
+              "description": "Plazo de respuesta de una solicitud; no es el período de medición ni prueba de actuación física. Un valor demasiado pequeño puede rechazar una fuente lenta.",
+              "example": "10000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Espera mínima de reconexión (ms)",
+              "description": "Pausa mínima tras perder conexión; evite intentos continuos. No corrige autenticación rechazada.",
+              "example": "1000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Espera máxima de reconexión (ms)",
+              "description": "Límite de espera progresiva; debe ser mayor o igual a la mínima.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "address",
+              "label": "Entidad y campo",
+              "description": "Use entidad y campo exactos: entity:sensor.temperature:state para estado; entity:light.room:attribute:brightness para atributo. El nombre mostrado no es entity_id. Renombrar entity_id en Home Assistant exige revisar el vínculo.",
+              "example": "entity:sensor.temperature:state",
+              "constraints": ""
+            },
+            {
+              "key": "selectedEntityIds",
+              "label": "Selección de entidades para incorporar",
+              "description": "El driver exige selección explícita, pero esta versión de la pantalla Home/Building todavía no permite elegir entidades. El descubrimiento puede devolver selección vacía sin dispositivo para incorporar aunque la conexión sea válida. Esa pantalla todavía no tiene selector; la corrección está pendiente.",
+              "example": "",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplos de dirección",
+          "body": "Use state para estado de entidad y attribute para un atributo existente. El ejemplo muestra lectura de sensor y brillo de luz; no es archivo de importación. Compruebe tipo/unidad: lectura numérica no es texto de presentación y los comandos de brillo usan la conversión del driver. Renombrar la entidad en origen exige revisar vínculos.",
+          "fields": null,
+          "code": "{\"state\":\"entity:sensor.temperature:state\",\"attribute\":\"entity:light.room:attribute:brightness\"}"
+        },
+        {
+          "heading": "Comandos e indisponibilidad",
+          "body": "El soporte se limita a vínculos implementados: estado switch/light, brillo/color de light y posición de cover según equipo. Este formulario no ofrece llamadas arbitrarias a cualquier servicio Home Assistant. unknown y unavailable no equivalen a cero o apagado. Tras un comando compruebe el estado autoritativo; éxito de solicitud no prueba actuación física.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.homeassistant.websocket",
+        "home-building.device-workflow",
+        "tags.overview"
+      ]
+    },
+    {
+      "id": "drivers.esphome-setup",
+      "category": "drivers",
+      "title": "ESPHome: API nativa, entidades y suspensión",
+      "summary": "Conecte directamente al dispositivo e incorpore solo las funciones mapeadas por el driver.",
+      "sections": [
+        {
+          "heading": "Qué debe estar disponible",
+          "body": "El firmware debe ofrecer la API nativa ESPHome. El driver conecta por red local sin exigir Home Assistant, Dashboard ESPHome ni proceso Python auxiliar. En modo Noise la clave API debe estar aprovisionada en el servidor; el navegador no conecta directamente al microcontrolador.",
+          "fields": null
+        },
+        {
+          "heading": "Conexión y vínculo",
+          "body": "Prepare la fuente, pruebe conexión y use descubrimiento para obtener las claves reales de entidades. Los campos avanzados no corrigen una API desactivada ni una clave incompatible.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host ESPHome",
+              "description": "Nombre DNS o IP accesible desde el servidor SCADIVO. Use el equipo o servicio de origen sin ruta de URL; localhost es el servidor/contenedor, no el navegador.",
+              "example": "192.0.2.30",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Puerto",
+              "description": "Puerto del servicio de origen, distinto de los puertos de interfaz/API SCADIVO. Al cambiar TLS compruebe también el puerto real del servicio.",
+              "example": "6053",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "encryptionMode",
+              "label": "Cifrado de API",
+              "description": "noise es preferido con clave aprovisionada. plaintext es una opción explícita de compatibilidad en una red confiable y debe corresponder al firmware. No confunda la clave Noise con la contraseña Wi-Fi.",
+              "example": "noise",
+              "constraints": ""
+            },
+            {
+              "key": "encryptionKey",
+              "label": "Referencia de clave Noise",
+              "description": "Referencia del material protegido aprovisionado en el servidor para esta integración. Solicite la referencia al administrador; no pegue contraseñas, tokens ni claves secretas en ajustes comunes ni en el manual de la aplicación.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Timeout de respuesta (ms)",
+              "description": "Plazo de respuesta de una solicitud; no es el período de medición ni prueba de actuación física. Un valor demasiado pequeño puede rechazar una fuente lenta.",
+              "example": "5000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "writeReconcileTimeoutMilliseconds",
+              "label": "Plazo de confirmación de escritura (ms)",
+              "description": "Cuánto esperar el estado autoritativo tras un comando. Envío aceptado no es feedback; aumentar el plazo no garantiza movimiento/actuación.",
+              "example": "3000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Espera mínima de reconexión (ms)",
+              "description": "Pausa mínima tras perder conexión; evite intentos continuos. No corrige autenticación rechazada.",
+              "example": "500",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Espera máxima de reconexión (ms)",
+              "description": "Límite de espera progresiva; debe ser mayor o igual a la mínima.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "keepAliveMilliseconds",
+              "label": "Keep Alive (ms)",
+              "description": "Intervalo de supervisión de conexión; no aumenta la frecuencia de medición del sensor.",
+              "example": "30000",
+              "constraints": "1000–300000."
+            },
+            {
+              "key": "deepSleepPolicy",
+              "label": "Política de suspensión",
+              "description": "normal para dispositivos continuos; expected solo para nodos que duermen intencionadamente. Cambia valores de reconexión: mínimo 500→10000 ms, máximo 30000→60000 ms. La ausencia sigue no disponible, nunca saludable.",
+              "example": "normal",
+              "constraints": ""
+            },
+            {
+              "key": "address",
+              "label": "Dirección de la entidad",
+              "description": "Formato tipo:device-id:clave-hex.campo. El descubrimiento proporciona la clave hexadecimal de 8 dígitos; no use el nombre mostrado como clave. Ejemplo switch:0:00000010.state.",
+              "example": "switch:0:00000010.state",
+              "constraints": ""
+            },
+            {
+              "key": "writeKind",
+              "label": "Tipo de escritura",
+              "description": "Define una escritura admitida para la entidad, no un servicio arbitrario: switchstate, lightstate, lightbrightness, coverposition, fanstate, fanspeedlevel, numberstate o selectstate. Prefiera el vínculo generado por descubrimiento. Se siguen comprobando tipo de entidad/valor y ReadOnly.",
+              "example": "switchstate",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo de entidad",
+          "body": "Esta dirección representa state de una entidad Switch, device-id 0 y clave hexadecimal 00000010. Use la clave devuelta por su dispositivo; no invente IDs. Un TAG Boolean escribible exige tipo de escritura compatible. No es paquete de importación.",
+          "fields": null,
+          "code": "{\"address\":\"switch:0:00000010.state\",\"writeKind\":\"switchstate\"}"
+        },
+        {
+          "heading": "Mapa de funciones y diagnóstico",
+          "body": "La materialización incluye entidades de proceso admitidas como sensor, binary sensor, switch, light, cover, fan, number y select. Entidades de configuración/diagnóstico y funciones no mapeadas pueden omitirse con aviso; encontrar climate, lock o button en inventario no implica control completo. Compruebe primero API, modo/clave y conexión; después dirección/tipo y avisos. Para nodos dormidos expected ajusta el ciclo de conexión, pero mantiene la ausencia como no disponible.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.esphome.native",
+        "home-building.device-workflow",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "drivers.shelly-setup",
+      "category": "drivers",
+      "title": "Shelly Gen2+: componentes, medición y comandos",
+      "summary": "Use RPC local y revise canales/campos realmente ofrecidos por el dispositivo.",
+      "sections": [
+        {
+          "heading": "Conexión local con generación compatible",
+          "body": "Este driver usa RPC Shelly Gen2+ por HTTP/WebSocket; no es API de nube ni promete compatibilidad con todo Shelly Gen1. Prepare host local, puerto y autenticación del dispositivo. Un componente representa un canal/función del dispositivo, no usuario ni Ubicación SCADIVO.",
+          "fields": null
+        },
+        {
+          "heading": "Campos de fuente y TAG",
+          "body": "Pruebe conexión y descubra el dispositivo para obtener componentes reales. La vista previa muestra solo mediciones/comandos mapeados; un nombre amigable no sustituye component key.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host Shelly",
+              "description": "Nombre DNS o IP accesible desde el servidor SCADIVO. Use el equipo o servicio de origen sin ruta de URL; localhost es el servidor/contenedor, no el navegador.",
+              "example": "192.0.2.30",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Puerto",
+              "description": "Puerto del servicio de origen, distinto de los puertos de interfaz/API SCADIVO. Al cambiar TLS compruebe también el puerto real del servicio.",
+              "example": "80",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "tls",
+              "label": "Usar TLS",
+              "description": "Protege el transporte si el servicio ofrece TLS. No instala certificados ni cambia el puerto automáticamente.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "username",
+              "label": "Usuario del dispositivo",
+              "description": "Cuenta de autenticación RPC del Shelly; predeterminada admin. No es el usuario SCADIVO ni una cuenta de nube Shelly.",
+              "example": "admin",
+              "constraints": ""
+            },
+            {
+              "key": "password",
+              "label": "Referencia de contraseña Shelly",
+              "description": "Referencia del material protegido aprovisionado en el servidor para esta integración. Solicite la referencia al administrador; no pegue contraseñas, tokens ni claves secretas en ajustes comunes ni en el manual de la aplicación.",
+              "example": "",
+              "constraints": ""
+            },
+            {
+              "key": "requestTimeoutMilliseconds",
+              "label": "Timeout de respuesta (ms)",
+              "description": "Plazo de respuesta de una solicitud; no es el período de medición ni prueba de actuación física. Un valor demasiado pequeño puede rechazar una fuente lenta.",
+              "example": "5000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMinimumMilliseconds",
+              "label": "Espera mínima de reconexión (ms)",
+              "description": "Pausa mínima tras perder conexión; evite intentos continuos. No corrige autenticación rechazada.",
+              "example": "1000",
+              "constraints": "100–300000."
+            },
+            {
+              "key": "reconnectMaximumMilliseconds",
+              "label": "Espera máxima de reconexión (ms)",
+              "description": "Límite de espera progresiva; debe ser mayor o igual a la mínima.",
+              "example": "30000",
+              "constraints": "100–3600000."
+            },
+            {
+              "key": "address",
+              "label": "Componente y campo",
+              "description": "Formato componente.campo, por ejemplo switch:0.output o switch:0.aenergy.total. El número identifica el canal; no use el nombre amigable como dirección.",
+              "example": "switch:0.output",
+              "constraints": ""
+            },
+            {
+              "key": "writeMethod",
+              "label": "Método RPC de escritura",
+              "description": "Para vínculo escribible, método admitido por equipo y driver; en el ejemplo Switch.Set. Prefiera el vínculo generado por descubrimiento sin asumir que cualquier método pueda ser comando.",
+              "example": "Switch.Set",
+              "constraints": ""
+            },
+            {
+              "key": "writeParameter",
+              "label": "Parámetro RPC de escritura",
+              "description": "Campo que recibe el valor de escritura; Switch.Set usa on para el Boolean. Exige TAG escribible, método compatible y autorización. El estado confirmado se lee por separado.",
+              "example": "on",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo: salida del canal cero",
+          "body": "El ejemplo vincula output de switch:0 a un TAG Boolean; la escritura compatible usa Switch.Set con parámetro on. Compruebe el canal real antes de crear comandos. El JSON ilustra el vínculo; no es una solicitud directa ni paquete de importación.",
+          "fields": null,
+          "code": "{\"address\":\"switch:0.output\",\"writeMethod\":\"Switch.Set\",\"writeParameter\":\"on\"}"
+        },
+        {
+          "heading": "Comprobar medición y feedback",
+          "body": "Los campos dependen del modelo: por ejemplo output, potencia apower, voltage, current y aenergy.total si existen. El driver también mapea funciones limitadas light/cover y sensores admitidos. Campo ausente no es lectura cero; revise avisos y tipo/unidad. Para escritura compruebe respuesta y estado confirmado por separado. Si falla autenticación compruebe referencia protegida y cuenta del dispositivo sin usar credenciales de nube.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "driver.shelly.rpc",
+        "home-building.device-workflow",
+        "tags.overview"
       ]
     }
   ]

@@ -4,6 +4,33 @@ import { installCurrentHelpCatalog } from './helpTestSupport';
 
 test.use({ locale: 'pt-BR' });
 
+test('Home Building guidance keeps unavailable authoring steps honest in every locale', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=drivers.homeassistant-setup');
+  const article = page.locator('article');
+  await expect(article.locator('h2')).toHaveText('Home Assistant Bridge: conectar e escolher entidades');
+  await expect(article.getByRole('rowheader', { name: 'Seleção de entidades para incorporar', exact: false })).toBeVisible();
+  await expect(article).toContainText('não há seletor pronto', { ignoreCase: true });
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article.locator('h2')).toHaveText('Home Assistant Bridge: connect and select entities');
+  await expect(article).toContainText('There is no ready selector');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article.locator('h2')).toHaveText('Home Assistant Bridge: conectar y elegir entidades');
+  await expect(article).toContainText('todavía no tiene selector');
+  await page.goto('/help?topic=drivers.knx-setup');
+  await expect(article.locator('h2')).toHaveText('KNX/IP Secure: túnel, DPT y estado confirmado');
+  await expect(article).toContainText('genera un vínculo incompatible');
+  await expect(article.locator('pre')).toContainText('"stateGroupAddress":"1/2/4"');
+  await page.screenshot({ path: testInfo.outputPath('help-knx-limit-desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/help?topic=drivers.esphome-setup');
+  await expect(article.getByRole('rowheader', { name: 'Política de suspensión', exact: false })).toBeVisible();
+  await expect(article).toContainText('La ausencia sigue no disponible');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await article.getByRole('rowheader', { name: 'Política de suspensión', exact: false }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('help-esphome-mobile.png') });
+});
+
 test('protocol walkthroughs expose real fields and working examples in every language', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=drivers.mqtt-setup');

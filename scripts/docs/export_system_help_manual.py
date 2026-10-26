@@ -24,6 +24,9 @@ CHAPTERS = {
 for locale, (name, title) in {'pt-BR': ('21-CONEXOES-E-PROTOCOLOS.md', 'Conexões, Modbus, MQTT e OPC UA'), 'en': ('21-CONNECTIONS-AND-PROTOCOLS.md', 'Connections, Modbus, MQTT and OPC UA'), 'es': ('21-CONEXIONES-Y-PROTOCOLOS.md', 'Conexiones, Modbus, MQTT y OPC UA')}.items():
     CHAPTERS[locale].append((name, title, ['sources.connection-workflow', 'drivers.modbus-setup', 'drivers.mqtt-setup', 'drivers.opcua-setup']))
 
+for locale, (name, title) in {'pt-BR': ('22-HOME-BUILDING-CONEXOES.md', 'Home/Building: dispositivos e conexões'), 'en': ('22-HOME-BUILDING-CONNECTIONS.md', 'Home/Building: devices and connections'), 'es': ('22-HOME-BUILDING-CONEXIONES.md', 'Home/Building: dispositivos y conexiones')}.items():
+    CHAPTERS[locale].append((name, title, ['home-building.device-workflow', 'drivers.bacnet-setup', 'drivers.knx-setup', 'drivers.homeassistant-setup', 'drivers.esphome-setup', 'drivers.shelly-setup']))
+
 INTELLIGENCE = {'pt-BR': '12-INTELIGENCIA-ATIVOS-PROCESSOS.md', 'en': '12-ASSET-PROCESS-INTELLIGENCE.md', 'es': '12-INTELIGENCIA-ACTIVOS-PROCESOS.md'}
 APPEND_MARKER = '<!-- installed-system-guides -->'
 
@@ -38,7 +41,7 @@ def article(topic, locale):
     for section in topic['sections']:
         text.extend([f'### {section["heading"]}', '', re.sub(r'(?<=[.!?])\s+(?=\d{1,2}\.\s)|\n\s*(?=\d{1,2}\.\s)', '\n', section['body']) if section['body'].startswith('1. ') else section['body'], ''])
         if section.get('code'):
-            language = 'csv' if topic['id'] in ('gateway.configure-test', 'engineering.tabular-workflow') else 'json' if topic['id'] in ('drivers.modbus-setup', 'drivers.mqtt-setup', 'drivers.opcua-setup') else 'python'
+            language = 'csv' if topic['id'] in ('gateway.configure-test', 'engineering.tabular-workflow') else 'json' if topic['id'] in ('drivers.modbus-setup', 'drivers.mqtt-setup', 'drivers.opcua-setup', 'drivers.bacnet-setup', 'drivers.knx-setup', 'drivers.homeassistant-setup', 'drivers.esphome-setup', 'drivers.shelly-setup') else 'python'
             text.extend([f'```{language}', section['code'], '```', ''])
         if section.get('fields'):
             headers = {'pt-BR': ('Campo', 'Para que serve e como preencher', 'Exemplo', 'Limites'),

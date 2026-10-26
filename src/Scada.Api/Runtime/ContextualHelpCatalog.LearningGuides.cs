@@ -12,6 +12,12 @@ public static partial class ContextualHelpCatalog
     {
         string[] more = topic.Id switch
         {
+            "home-building.organization" => ["home-building.device-workflow", "drivers.homeassistant-setup", "drivers.esphome-setup", "drivers.shelly-setup"],
+            "driver.bacnet.ip" => ["drivers.bacnet-setup", "sources.connection-workflow"],
+            "driver.knx.ip" => ["drivers.knx-setup", "sources.connection-workflow"],
+            "driver.homeassistant.websocket" => ["drivers.homeassistant-setup", "home-building.device-workflow"],
+            "driver.esphome.native" => ["drivers.esphome-setup", "home-building.device-workflow"],
+            "driver.shelly.rpc" => ["drivers.shelly-setup", "home-building.device-workflow"],
             "sources.data-sources" => ["sources.connection-workflow", "drivers.modbus-setup", "drivers.mqtt-setup", "drivers.opcua-setup"],
             "driver.modbus.tcp" or "driver.modbus.rtu" => ["drivers.modbus-setup", "sources.connection-workflow"],
             "driver.mqtt.raw" => ["drivers.mqtt-setup", "sources.connection-workflow"],

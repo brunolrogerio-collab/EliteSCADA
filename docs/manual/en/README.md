@@ -36,3 +36,4 @@ See [the full table of contents](../README.md) and [coverage matrix](../COVERAGE
 - [Historian: capture and queries](07-HISTORIAN-CAPTURE-QUERY.md)
 - [Reports: authoring and operation](16-REPORTS.md)
 - [Connections, Modbus, MQTT and OPC UA](21-CONNECTIONS-AND-PROTOCOLS.md)
+- [Home/Building: devices and connections](22-HOME-BUILDING-CONNECTIONS.md)

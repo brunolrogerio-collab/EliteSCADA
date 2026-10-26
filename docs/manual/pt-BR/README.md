@@ -28,3 +28,5 @@ Consulte o [sumário completo](../README.md) e a [matriz de cobertura](../COVERA
 - [Relatórios: autoria e operação](16-RELATORIOS.md)
 - [Conexões, Modbus, MQTT e OPC UA](21-CONEXOES-E-PROTOCOLOS.md)
 - [Home/Building: dispositivos e conexões](22-HOME-BUILDING-CONEXOES.md)
+
+- [Zigbee e Z-Wave: conexão e operação](23-ZIGBEE-E-ZWAVE.md)

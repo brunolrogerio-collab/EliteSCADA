@@ -37,3 +37,5 @@ See [the full table of contents](../README.md) and [coverage matrix](../COVERAGE
 - [Reports: authoring and operation](16-REPORTS.md)
 - [Connections, Modbus, MQTT and OPC UA](21-CONNECTIONS-AND-PROTOCOLS.md)
 - [Home/Building: devices and connections](22-HOME-BUILDING-CONNECTIONS.md)
+
+- [Zigbee and Z-Wave: connection and operation](23-ZIGBEE-AND-ZWAVE.md)

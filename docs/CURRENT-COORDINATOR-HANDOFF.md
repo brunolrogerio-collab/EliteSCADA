@@ -1,5 +1,9 @@
 # Current coordinator pointer — Wave 15
 
+Active Help continuation 26/10: four radio guides / chapter 23 pt-BR/en/es, 66 field explanations per locale, cover Native Zigbee, Z-Wave and external Zigbee2MQTT. Local .NET 113/113, Chromium 68/68 without retry, Web and 42-file alignment passed; mobile inspected. #785 selection and #786 generic binding gaps are expanded; new #787 proves nested external inventory parsing produces no TAGs. Current limits and later-review markers remain explicit; no driver fix or physical acceptance is claimed. Published head/exact T1 evidence is in live #424/#425/#305/#756. Predecessor e4c1713d/T1 40252480073 attempt 2 passed with attempt 1 timeout history retained. Read newest LAST CHANGE/depth map. Remaining industrial protocols/operation/semantic walkthroughs → #357/final real images. Finish Help → product licensing #301 → #779–#782; #785–#787 queued. No merge/deploy, behavior or Preview change; PR #772 stays draft.
+
+## Previous Help checkpoint — historical
+
 Active Help continuation 25/10: six Home/Building incorporation/BACnet/KNX/HAB/ESPHome/Shelly guides share chapter 22 pt-BR/en/es, with 63 actual fields. Local final .NET 103/103, browser 67/67 without retry plus final focused locale check, Web and 39-file alignment passed; mobile inspected. Current UI limits #785 (HAB selection) and #786 (generic KNX binding) are queued, visible and covered by future-review markers; drivers are not reopened. Published head/exact T1 evidence is in live #424/#425/#305/#756. Read newest LAST CHANGE/depth map. Predecessor c90de327/T1 40247218007 passed, not the new source gate. Remaining protocols/operation/semantic walkthroughs → #357/final real images. Finish Help → product licensing #301 → #779–#782; no merge/deploy, product behavior or Preview change; PR stays draft.
 
 ## Previous Help checkpoint — historical

@@ -4,6 +4,37 @@ import { installCurrentHelpCatalog } from './helpTestSupport';
 
 test.use({ locale: 'pt-BR' });
 
+test('radio guides explain prepared networks, current UI limits and source freshness in all locales', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=drivers.radio-connections');
+  const article = page.locator('article');
+  await expect(article.locator('h2')).toHaveText('Zigbee e Z-Wave: escolher o caminho da conexão');
+  await article.getByRole('link', { name: 'Zigbee nativo: coordenador e estado On/Off', exact: true }).click();
+  await expect(article.getByRole('rowheader', { name: 'Cluster suportado', exact: false })).toBeVisible();
+  await expect(article).toContainText('O Runtime recusa o objeto gerado');
+  await expect(article.locator('pre')).toContainText('"cluster":"genOnOff"');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article.locator('h2')).toHaveText('Native Zigbee: coordinator and On/Off state');
+  await expect(article).toContainText('UI authoring awaits correction');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article.locator('h2')).toHaveText('Zigbee nativo: coordinador y estado On/Off');
+  await expect(article).toContainText('La autoría por interfaz espera corrección');
+  await article.getByRole('rowheader', { name: 'Autoría del vínculo en esta versión', exact: false }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('help-native-zigbee-limit-desktop.png') });
+  await page.goto('/help?topic=drivers.zwave-setup');
+  await expect(article).toContainText('Escribir solo la dirección de un TAG nuevo no basta');
+  await expect(article.locator('pre')).toContainText('"readOnly":true');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/help?topic=drivers.zigbee2mqtt-setup');
+  await expect(article.locator('h2')).toHaveText('Zigbee2MQTT Bridge: inventario, selección y actualidad');
+  await expect(article.locator('pre')).toHaveCount(2);
+  await expect(article).toContainText('Sin selección el descubrimiento lista inventario');
+  await expect(article).toContainText('puede ser Uncertain aunque retain sea false');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await article.getByRole('rowheader', { name: 'Identidad interna de fuente — automática', exact: false }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('help-z2m-generated-identity-mobile.png') });
+});
+
 test('Home Building guidance keeps unavailable authoring steps honest in every locale', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=drivers.homeassistant-setup');

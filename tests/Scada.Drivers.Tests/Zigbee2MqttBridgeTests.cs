@@ -20,6 +20,39 @@ public sealed class Zigbee2MqttBridgeTests
 {
     private const string Ieee = "0x00124b0024cafe01";
 
+    [Theory]
+    [InlineData("pt-BR")]
+    [InlineData("en")]
+    [InlineData("es")]
+    public async Task PublishedHelpStateExampleUsesRetainAndSourceFreshnessThroughTheActualDriver(string locale)
+    {
+        var guide = Scada.Api.Runtime.ContextualHelpCatalog.Build(locale).Topics.Single(t => t.Id == "drivers.zigbee2mqtt-setup");
+        var code = guide.Sections.Where(s => s.Code is not null).Select(s => s.Code!).Single(s => s.TrimStart().StartsWith('{'));
+        var sourceId = Guid.NewGuid();
+        var tag = Tag("Zigbee2Mqtt/Help/State", TagDataType.Boolean, readOnly: true);
+        var point = new Zigbee2MqttPoint(tag, Ieee, null, "state", Zigbee2MqttValueKind.Boolean, 7, null, null, null, null, "\"ON\"", "\"OFF\"", "OnOff");
+        var transport = new FakeMqttTransport("lamp-main", confirmWrites: false);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        await using var driver = new Zigbee2MqttDriver("help-state", "Help state", sourceId, Settings(sourceId), cache,
+            new InMemoryTagRegistry(), [point], () => transport, _ => ValueTask.FromResult(MqttResolvedCredentials.None));
+        await driver.StartAsync();
+        await EventuallyAsync(() => driver.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Ready);
+        transport.EmitState(code, retained: true);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var v) && v?.Quality == TagQuality.Stale);
+        var report = System.Text.Json.Nodes.JsonNode.Parse(code)!.AsObject();
+        report.Remove("last_seen");
+        transport.EmitState(report.ToJsonString(), retained: false);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var v) && v?.Quality == TagQuality.Uncertain);
+        report["last_seen"] = DateTimeOffset.UtcNow.AddMinutes(-1).ToString("O", CultureInfo.InvariantCulture);
+        transport.EmitState(report.ToJsonString(), retained: false);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var v) && v?.Quality == TagQuality.Uncertain);
+        report["last_seen"] = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        transport.EmitState(report.ToJsonString(), retained: false);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var v) && v?.Quality == TagQuality.Good);
+        Assert.True(cache.TryGet(tag.Id, out var current));
+        Assert.Equal(false, current!.Value);
+    }
+
     [Fact]
     public void Composition_RegistersTheDedicatedDriverAndEngineeringDescriptor()
     {

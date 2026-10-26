@@ -12,6 +12,10 @@ public static partial class ContextualHelpCatalog
     {
         string[] more = topic.Id switch
         {
+            "home-building.device-workflow" or "drivers.overview" => ["drivers.radio-connections", "drivers.zigbee-native-setup", "drivers.zigbee2mqtt-setup", "drivers.zwave-setup"],
+            "driver.zigbee.native" => ["drivers.zigbee-native-setup", "drivers.radio-connections"],
+            "driver.zigbee2mqtt.bridge" => ["drivers.zigbee2mqtt-setup", "drivers.radio-connections"],
+            "driver.zwave.js.controller" => ["drivers.zwave-setup", "drivers.radio-connections"],
             "home-building.organization" => ["home-building.device-workflow", "drivers.homeassistant-setup", "drivers.esphome-setup", "drivers.shelly-setup"],
             "driver.bacnet.ip" => ["drivers.bacnet-setup", "sources.connection-workflow"],
             "driver.knx.ip" => ["drivers.knx-setup", "sources.connection-workflow"],

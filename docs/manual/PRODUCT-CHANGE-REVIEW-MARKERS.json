@@ -82,5 +82,49 @@
     "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
     "reviewWhen": "The accepted TAG assistant emits a canonical KNX/IP binding that is accepted by the unchanged strict Runtime planner.",
     "review": "Remove the incompatible-authoring limitation only after real assistant output, saved/reopened binding and planner acceptance are checked. Keep command/state separation and unsupported-field rejection in all locales."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-785-Z2M",
+    "issue": 785,
+    "topicId": "drivers.zigbee2mqtt-setup",
+    "fieldKeys": [
+      "selectedIeeeAddresses"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The accepted Home/Building flow forwards explicit IEEE selection and materializes only the selected Zigbee2MQTT devices.",
+    "review": "Replace inventory-only limitation with verified selection/preview/apply steps. Check empty inventory-only discovery, missing IEEE, identity metadata and all locales."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-786-ZIGBEE",
+    "issue": 786,
+    "topicId": "drivers.zigbee-native-setup",
+    "fieldKeys": [
+      "communicationBinding"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The accepted TAG assistant emits a Native Zigbee binding with identity in PortableAddress and no duplicated Settings.",
+    "review": "Review the creation limitation only after actual assistant output, persistence and strict Runtime planner admission are verified in all locales. Retain network/host provisioning and onOff-only scope."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-786-ZWAVE",
+    "issue": 786,
+    "topicId": "drivers.zwave-setup",
+    "fieldKeys": [
+      "communicationBinding"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The accepted TAG assistant can create the required typed Z-Wave binding even when the descriptor has no extra fields.",
+    "review": "Replace new-binding authoring limitation after component/persistence/planner verification. Preserve typed property/key identity, persistent-value scope and externally commissioned-network prerequisites."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-787",
+    "issue": 787,
+    "topicId": "drivers.zigbee2mqtt-setup",
+    "fieldKeys": [
+      "inventoryFormat"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The accepted decoder and provider/Runtime paths consume the published nested definition.exposes inventory.",
+    "review": "Replace the format incompatibility limitation after testing the exact external example and preserving source/IEEE/endpoint/property identity, selection and bounds. Update documentation-characterization tests and all locales; closing the issue alone is insufficient."
   }
 ]

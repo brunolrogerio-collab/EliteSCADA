@@ -45,3 +45,6 @@ Consulte el [índice completo](../README.md) y la [matriz de cobertura](../COVER
 - [DNP3, IEC 104 y Modbus Server](25-TELECONTROL-Y-MODBUS-SERVER.md)
 
 - [Matter Wi-Fi: preparar y entender la versión en prueba](26-MATTER-VERSION-EN-PRUEBA.md)
+
+- [Sesiones Runtime y diagnóstico](27-SESIONES-Y-DIAGNOSTICO.md)
+- [Backup y recuperación: Authority, aplicación y datos](28-BACKUP-Y-RECUPERACION.md)

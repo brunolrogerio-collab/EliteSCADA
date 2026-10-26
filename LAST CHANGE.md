@@ -1,3 +1,19 @@
+# HELP RUNTIME SESSIONS, DIAGNOSTICS AND RECOVERY — 2026-10-26
+
+Chapters 27/28 expand three existing Topic IDs in pt-BR/en/es: runtime.session-classes, diagnostics.overview and recovery.backup-system-recovery. 41 explained fields per locale (8 session, 23 diagnostics, 10 recovery) now accompany ordered procedures, examples, expected results and diagnosis. Reuses installed/offline Help, with generated manual and stable links; no second help system.
+
+Sessions: account menu, requested versus granted class, interactive fallback, Authority/capacity distinction, release-before-readmission, end versus closing menu/sign-out, invalidation and failure feedback. Diagnostics: Active versus Working, host freshness, search/filter, manual/3-second panel refresh versus acquisition scan, source state/data age/counters/quality, server-side single-target TCP and ICMP, actual bounds and interpretation. Recovery: separate application/Authority/license/database/host-secret artifacts; protected export without proceeding to detach; bootstrap versus application-only flow, validation, restored administrator login, mandatory revalidation, retained/lost file selections, partial durable stages, optional license failure, and verification without promising database/Historian restoration.
+
+Final local checks: .NET selected Help/recovery/admission/network/Authority session suites 146/146, zero skipped; Chromium 73/73, one worker and no retries; Web production build passed (existing bundle warning). Manual alignment 57 files, 121 relative links; prior source guides preserved. Actual Help desktop PT and 390 px mobile ES inspected; not final system-operation manual figures. The exact published loopback probe request executes real validation/target selection with injected TCP recording, no remote device socket; ordinary ICMP is local loopback. Invalid host/port fail before connection. Existing recovery and session test suites execute actual service/permission/state behavior, not a live Preview restoration.
+
+The legacy Help test required eight identical generic headings. These three expanded guides now have dedicated checks for ordered steps, localized section/field structure, meaningful fields, related IDs and the executable example; remaining legacy topics keep their original check. No backend behavior, HA test, timeout, retry, selection filter or CI profile changed. An intermediate authoring check failed only that obsolete heading-shape assumption; the final selected suite passes without weakening recovery/session checks.
+
+Predecessor 531ca1be55a0264c84613bc6ac28e817027733d6 / T1 40355198651 attempt 1 passed (.NET, Chromium, Web, gate). Exact new head/run/status belong in live #424/#425/#305/#756, not inherited from that green. Older HA-D2 failure 4433d392/T1 40333665886 remains under #423, root cause unconfirmed and not fixed by Help.
+
+Remaining: semantic first-project/operation walkthrough, separate Monitor/TAG Monitor/Information coverage and final #357/real product figures. Help/manual remain open; product licensing #301 remains next. Post-license #788 program and #779–#782 order are preserved. #772 draft/NO_MERGE; no Preview/DEMO, Authority, HA, driver/dependency/license behavior change, merge or deployment.
+
+---
+
 # HELP MATTER TEST GUIDE AND ARTICLE NAVIGATION — 2026-10-26
 
 Chapter 26 adds one practical guide / 12 explained fields per locale pt-BR/en/es. It distinguishes product multiplatform support from the isolated Linux x64 Matter connector, default availability from opt-in Development/Test, host-key preparation from commissioning, and attribute read/write from device commands. Explains node/endpoint/cluster/attribute, source/key steps, explicit versioned binding, canonical address form, supported types, read-only behavior, count bounds, diagnosis and host recovery limits. No secret appears in its partial JSON example; planner admission is not host/device readiness. Existing guide content is preserved.

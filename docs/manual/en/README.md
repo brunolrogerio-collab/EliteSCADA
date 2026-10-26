@@ -45,3 +45,6 @@ See [the full table of contents](../README.md) and [coverage matrix](../COVERAGE
 - [DNP3, IEC 104 and Modbus Server](25-TELECONTROL-AND-MODBUS-SERVER.md)
 
 - [Matter Wi-Fi: prepare and understand the test version](26-MATTER-TEST-VERSION.md)
+
+- [Runtime sessions and diagnostics](27-SESSIONS-AND-DIAGNOSTICS.md)
+- [Backup and recovery: Authority, application and data](28-BACKUP-AND-RECOVERY.md)

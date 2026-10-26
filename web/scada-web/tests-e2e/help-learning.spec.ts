@@ -4,6 +4,46 @@ import { installCurrentHelpCatalog } from './helpTestSupport';
 
 test.use({ locale: 'pt-BR' });
 
+test('operational Help explains session outcomes, server diagnostics and separate recovery stages in every locale', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=runtime.session-classes');
+  const article = page.locator('article');
+  await expect(article.getByRole('rowheader', { name: 'Concedida', exact: true })).toBeVisible();
+  await expect(article).toContainText('não promete conservar a anterior');
+  await expect(article).toContainText('CommandExecute');
+  await expect(article).toContainText('fechar o menu também não encerra');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('fallback is not interactive success');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('Capacidad no equivale a permiso');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.goto('/help?topic=diagnostics.overview');
+  await expect(article.getByRole('rowheader', { name: 'Host ou IP', exact: true })).toBeVisible();
+  await expect(article).toContainText('origem é o host do servidor, não seu navegador');
+  await expect(article).toContainText('não é teste UDP nem serial');
+  await expect(article).toContainText('ICMP bloqueado não prova indisponibilidade TCP');
+  await expect(article.locator('pre')).toContainText('"timeoutMilliseconds": 3000');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('server host, not your browser');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('No autentica, negocia protocolo ni lee registros');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.screenshot({ path: testInfo.outputPath('help-diagnostics-desktop.png'), fullPage: true });
+  await page.goto('/help?topic=recovery.backup-system-recovery');
+  await expect(article.getByRole('rowheader', { name: 'Senha do backup da Authority', exact: true })).toBeVisible();
+  await expect(article).toContainText('sem executar a troca');
+  await expect(article).toContainText('não uma promessa de transação única');
+  await expect(article).toContainText('não deve ser presumida desfeita');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('Retained selection is not a file backup');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('La selección retenida no es copia');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await article.getByRole('rowheader', { name: 'Continuar sin licencia', exact: true }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-recovery-mobile.png') });
+});
+
 test('Matter help is reachable without advertising a production driver or a complete graphical binding flow', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=drivers.overview');

@@ -5761,6 +5761,431 @@
         "ha.configuration-operation",
         "packages.escadapkg"
       ]
+    },
+    {
+      "id": "runtime.session-classes",
+      "category": "runtime",
+      "title": "Sessão Runtime: visualizar, interagir e encerrar",
+      "summary": "Escolha a classe da sua sessão e confira o que o servidor realmente concedeu antes de operar.",
+      "sections": [
+        {
+          "heading": "Entenda as três condições para operar",
+          "body": "Entrar com usuário identifica a pessoa. A Authority define as ações e os recursos que ela pode usar. A licença e a classe de sessão limitam a capacidade disponível. As três condições precisam permitir a operação: uma sessão Interativa não concede uma permissão ausente, e uma permissão de administrador não transforma uma sessão Visualização em Interativa. Um exemplo: ler o estado de uma bomba é visualização; escrever um valor exige ProcessValueWrite; executar um comando exige CommandExecute. Essas duas permissões são distintas. Não se obtém autorização escolhendo um nome de papel na tela."
+        },
+        {
+          "heading": "Abrir e conferir sua sessão",
+          "body": "1. Entre com sua conta e abra o Runtime da aplicação ativa. 2. Abra o menu da sua conta, no cabeçalho. Onde os controles Runtime estiverem disponíveis, localize Classe da sessão Runtime. 3. Escolha Visualização para acompanhar ou Interativa para solicitar operação. 4. Aguarde a resposta; os controles ficam indisponíveis durante a solicitação. 5. Compare Solicitada e Concedida. Leia o aviso se houver redução para Visualização. 6. Só teste uma ação operacional quando Concedida for Interativa e sua conta tiver a permissão necessária. Não use um botão de processo para descobrir por tentativa se a sessão permite operação."
+        },
+        {
+          "heading": "Controles e resultados",
+          "body": "Os campos de resultado são preenchidos pelo servidor. Você não precisa digitar um ID de sessão ou de cliente.",
+          "fields": [
+            {
+              "key": "viewOnly",
+              "label": "Visualização",
+              "description": "Solicita uma sessão para acompanhar a aplicação, sem comandos ou escritas operacionais.",
+              "example": "Acompanhar estado da bomba",
+              "constraints": "Não é login anônimo nem altera as permissões da conta."
+            },
+            {
+              "key": "interactive",
+              "label": "Interativa",
+              "description": "Solicita capacidade interativa ao servidor. Confira a classe concedida antes de operar.",
+              "example": "Operar com conta autorizada",
+              "constraints": "Pode ser recusada ou receber Visualização como alternativa; não garante a ação."
+            },
+            {
+              "key": "requestedClass",
+              "label": "Solicitada",
+              "description": "Mostra qual classe foi pedida pelo cliente.",
+              "example": "Interativa",
+              "constraints": "Não comprova a classe efetiva."
+            },
+            {
+              "key": "grantedClass",
+              "label": "Concedida",
+              "description": "Mostra a classe efetiva da sessão admitida. É o resultado a conferir.",
+              "example": "Visualização",
+              "constraints": "Se difere de Solicitada, leia o aviso; não trate fallback como sucesso interativo."
+            },
+            {
+              "key": "admissionReasonCode",
+              "label": "Motivo de admissão",
+              "description": "Detalhe técnico da decisão do servidor. Abra Detalhes técnicos quando precisar explicar a admissão.",
+              "example": "Código retornado pelo servidor",
+              "constraints": "Código é diagnóstico, não um campo para configurar ou contornar a decisão."
+            },
+            {
+              "key": "capacityReasonCode",
+              "label": "Motivo de capacidade",
+              "description": "Ajuda a explicar disponibilidade/limites de sessões. Consulte o licenciamento e as sessões em uso quando houver recusa.",
+              "example": "Capacidade interativa indisponível",
+              "constraints": "Capacidade não equivale a permissão da Authority."
+            },
+            {
+              "key": "end",
+              "label": "Encerrar sessão",
+              "description": "Libera a sessão Runtime atual após confirmação do servidor.",
+              "example": "Sem sessão Runtime ativa",
+              "constraints": "Não é Sair da conta; fechar o menu também não encerra a sessão."
+            },
+            {
+              "key": "sessionError",
+              "label": "Erro ou aviso",
+              "description": "Leia a mensagem da solicitação, encerramento ou redução de classe antes de repetir.",
+              "example": "Solicitação recusada",
+              "constraints": "Uma falha de rede não deve ser interpretada como liberação ou concessão confirmada."
+            }
+          ]
+        },
+        {
+          "heading": "Trocar de classe ou terminar",
+          "body": "Para trocar, selecione a outra classe no mesmo painel. O cliente libera a sessão anterior antes de pedir a nova; não promete conservar a anterior se a nova solicitação falhar. Confira novamente Concedida. Para parar de consumir aquela sessão, use Encerrar sessão e aguarde Sem sessão Runtime ativa. Fechar o menu apenas esconde os controles. Sair da conta é outra ação, de autenticação. Não dependa de fechar abruptamente o navegador para confirmar que uma vaga foi liberada: se houver falha, peça ao administrador que confira o estado no servidor."
+        },
+        {
+          "heading": "Exemplo: a bomba aparece, mas o comando não funciona",
+          "body": "Solicitada mostra Interativa e Concedida mostra Visualização: o servidor admitiu acompanhamento, não operação. Leia o aviso e verifique capacidade antes de solicitar novamente. Se Concedida já é Interativa, confira a permissão específica e o escopo do recurso; depois confirme aplicação/revisão ativa, vínculo de comando, estado do TAG e retorno do equipamento. Interativa não corrige configuração, comunicação ou qualidade. Uma leitura aceita também não prova que uma escrita está autorizada."
+        },
+        {
+          "heading": "Sessão recusada ou invalidada",
+          "body": "Não compartilhe IDs ou cabeçalhos de sessão para contornar a recusa. Confirme conexão com o servidor, identidade atual, classe concedida e mensagem de capacidade. Mudanças de política/Authority e restaurações podem invalidar sessões antigas; use o fluxo normal de entrada e admissão novamente. Se a troca ou o encerramento falhar, registre horário, ação, mensagem e a classe exibida. Não declare que a sessão foi encerrada só porque um painel fechou."
+        }
+      ],
+      "relatedTopicIds": [
+        "runtime.overview",
+        "security.policy-scopes",
+        "licensing.overview",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "diagnostics.overview",
+      "category": "runtime",
+      "title": "Diagnóstico: localizar a primeira causa da falha",
+      "summary": "Interprete saúde do host, comunicação, rede e qualidade do TAG antes de alterar uma tela ou um driver.",
+      "sections": [
+        {
+          "heading": "Escolha a camada certa",
+          "body": "Uma tela parada pode resultar de sessão, revisão ativa, comunicação, TAG ou apresentação. Diagnóstico reúne evidências; abrir o painel não reinicia a fonte nem muda o processo. No Engineering, abra Diagnóstico de comunicação. Ele observa Runtime / Active Revision: uma fonte criada só no Working ainda não precisa aparecer. Comece pelo host API/DriverHost; depois examine a fonte, rede/protocolo, amostra e tela. A falha mais próxima da origem deve ser tratada antes de trocar a cor ou colocar um valor fixo na interface."
+        },
+        {
+          "heading": "Conferir uma fonte passo a passo",
+          "body": "1. Anote nome do TAG/fonte, horário, usuário e ação que falhou; confirme a revisão ativa. 2. Confira o sinal Host API / DriverHost e Observado. Se estiver indisponível ou desatualizado, os estados antigos das fontes não são confirmação atual. 3. Limpe a busca ou use parte do nome da fonte, driver ou endpoint. Em Filtro, comece por Todos ou Requer atenção. 4. Selecione a fonte na lista. Leia estado, Último erro, último sucesso/falha e idade dos dados. 5. Compare qualidade e contadores em duas observações; um total acumulado não informa quando ocorreu cada falha. 6. Use alcance de rede, Connection Test ou Test Read apenas no contexto disponível e necessário. 7. Volte ao TAG e confirme valor, qualidade, horário e atualização; só então confira a dinâmica da tela."
+        },
+        {
+          "heading": "Busca, atualização e confiança da observação",
+          "body": "Os filtros mudam somente a lista apresentada. Parar a atualização do painel não desativa o driver nem muda a aquisição.",
+          "fields": [
+            {
+              "key": "query",
+              "label": "Buscar Data Source, driver ou endpoint",
+              "description": "Filtra por parte do nome/chave da fonte, tipo de driver ou endpoint.",
+              "example": "Parte do nome da bomba",
+              "constraints": "Busca não cria fonte; limpe-a se a lista parecer vazia."
+            },
+            {
+              "key": "filter",
+              "label": "Filtro",
+              "description": "Todos mostra a lista disponível; Requer atenção inclui estados que não são saudáveis; Somente saudáveis reduz aos confirmados como saudáveis.",
+              "example": "Requer atenção",
+              "constraints": "Sem resultado pode ser apenas filtro. Fonte não ativa é diferente de fonte filtrada."
+            },
+            {
+              "key": "autoRefresh",
+              "label": "Atualização automática",
+              "description": "Atualiza as observações do painel a cada 3 segundos enquanto habilitada.",
+              "example": "Habilitada durante o diagnóstico",
+              "constraints": "Não altera scan do driver; não é controle de retenção ou aquisição."
+            },
+            {
+              "key": "refresh",
+              "label": "Atualizar agora",
+              "description": "Solicita uma nova leitura do diagnóstico. Aguarde terminar antes de comparar.",
+              "example": "Duas observações consecutivas",
+              "constraints": "Atualização do painel não reinicia nem reconecta manualmente o driver."
+            },
+            {
+              "key": "observedAtUtc",
+              "label": "Host API / DriverHost — Observado",
+              "description": "Confirme se a saúde do processo que fornece os dados ainda é recente.",
+              "example": "Horário da observação",
+              "constraints": "Host desatualizado/indisponível faz o painel tratar o estado das fontes como não confirmado."
+            },
+            {
+              "key": "summary",
+              "label": "Totais do painel",
+              "description": "Fontes, saudáveis, atenção, falha e TAGs Good dão uma visão geral antes de selecionar uma fonte.",
+              "example": "2 fontes, 1 exige atenção",
+              "constraints": "Contagens não substituem leitura de cada erro nem comprovam saúde de todos os pontos."
+            }
+          ]
+        },
+        {
+          "heading": "Ler o estado operacional e os contadores",
+          "body": "Ausência de valor aparece como traço em diversos indicadores; não interprete o traço como zero ou como sucesso. Instância Runtime distingue execuções: ao reiniciar ou recriar, uma comparação de totais pode deixar de representar o mesmo intervalo. Ciclos contam execuções de aquisição; requests são solicitações de protocolo. Sucessos/falhas contam resultados de operações, e falhas consecutivas destacam a sequência recente sem recuperação. Timeouts são operações que não concluíram no prazo. Conexões, desconexões e reconexões ajudam a observar estabilidade do enlace. Leituras/escritas contam operações, não necessariamente TAGs distintos. Atualizações publicadas indicam valores encaminhados ao Runtime, não persistência garantida no Historian. Compare cada indicador com o driver e o mesmo período/instância; nem todo protocolo conta tudo da mesma forma.",
+          "fields": [
+            {
+              "key": "state",
+              "label": "Estado",
+              "description": "Saudável, degradado, reconectando, falha ou parado orientam onde aprofundar; leia também Último erro.",
+              "example": "Reconectando",
+              "constraints": "Um endpoint acessível não substitui o estado do driver."
+            },
+            {
+              "key": "endpoint",
+              "label": "Endpoint",
+              "description": "Mostra o destino associado à fonte selecionada. Confira se é o equipamento esperado.",
+              "example": "Destino configurado",
+              "constraints": "Pode ser serial ou ponte local; nem todo endpoint é um host/porta TCP."
+            },
+            {
+              "key": "lastSuccessfulCommunicationAt",
+              "label": "Último sucesso",
+              "description": "Indica quando houve comunicação bem-sucedida. Compare com agora e com a cadência esperada.",
+              "example": "Sucesso há poucos segundos",
+              "constraints": "Sucesso antigo não prova que o ponto está atual."
+            },
+            {
+              "key": "lastFailedCommunicationAt",
+              "label": "Última falha",
+              "description": "Ajuda a situar temporalmente uma falha informada. Compare com sucesso posterior.",
+              "example": "Falha anterior ao último sucesso",
+              "constraints": "Não informa sozinho se a falha continua."
+            },
+            {
+              "key": "stateChangedAt",
+              "label": "Mudança de estado",
+              "description": "Indica quando o estado informado foi alterado.",
+              "example": "Passou a reconectar",
+              "constraints": "Não é necessariamente o horário de uma amostra de processo."
+            },
+            {
+              "key": "dataAge",
+              "label": "Idade dos dados",
+              "description": "Ajuda a detectar falta de atualização. Compare com o comportamento e scan esperados da fonte.",
+              "example": "Idade aumentando",
+              "constraints": "Nem toda fonte é cíclica; verifique o modo de aquisição antes de concluir defeito."
+            },
+            {
+              "key": "configuredScanInterval",
+              "label": "Scan configurado",
+              "description": "Mostra a cadência configurada quando existe.",
+              "example": "Intervalo do driver",
+              "constraints": "Não se edita o scan neste painel; atualizações por evento podem ter outra dinâmica."
+            },
+            {
+              "key": "latency",
+              "label": "Latência e último ciclo",
+              "description": "Latência média/última e duração do último ciclo ajudam a separar lentidão de ausência de atualização.",
+              "example": "Duração maior que o habitual",
+              "constraints": "Duração de operação não é atraso completo entre sensor e pixel da tela."
+            },
+            {
+              "key": "recentFailureRate",
+              "label": "Taxa recente de falha",
+              "description": "Observe a proporção recente de operações que falharam.",
+              "example": "Tendência aumentando",
+              "constraints": "Não é indicador de eficiência do equipamento nem percentual de TAGs ruins."
+            },
+            {
+              "key": "counters",
+              "label": "Atividade e contadores",
+              "description": "Compare ciclos, requests, sucessos, falhas consecutivas, timeouts, conexões/reconexões, leituras, escritas e atualizações publicadas.",
+              "example": "Falhas aumentam entre observações",
+              "constraints": "Totais acumulados e mudanças de instância exigem contexto; não zere o sistema para interpretar."
+            },
+            {
+              "key": "tagQuality",
+              "label": "Qualidade das TAGs",
+              "description": "Separe Good, BadCommunication, Outras e Sem amostra. Confira o TAG específico mesmo que outros estejam Good.",
+              "example": "1 ponto sem amostra",
+              "constraints": "Sem amostra não é valor zero; qualidade Good não comprova que a física do sensor está correta."
+            },
+            {
+              "key": "protocolDetails",
+              "label": "Detalhes do protocolo",
+              "description": "Leia os detalhes que esse driver realmente fornece e leve a mensagem exata ao responsável.",
+              "example": "Erro específico do protocolo",
+              "constraints": "A ausência de detalhes extras não autoriza inventar um diagnóstico; campos variam por driver."
+            }
+          ]
+        },
+        {
+          "heading": "Testar alcance da rede",
+          "body": "A seção Alcance da rede (origem: servidor) faz uma tentativa TCP e uma tentativa ICMP para um destino. A origem é o host do servidor, não seu navegador; localhost/127.0.0.1 aponta para esse ambiente, inclusive o contêiner quando aplicável. Teste apenas o destino necessário e autorizado. O painel usa timeout de 3 segundos por tentativa; TCP e ICMP são resultados separados e a operação total pode levar mais tempo. A ação exige permissão de modificar Engineering e pode ser limitada por frequência.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host ou IP",
+              "description": "Informe um nome DNS ou IP, sem protocolo, caminho, senha ou faixa de endereços.",
+              "example": "127.0.0.1 em um ensaio local",
+              "constraints": "Não usar http://, URLs ou varredura. Confira se está testando a origem correta."
+            },
+            {
+              "key": "port",
+              "label": "Porta única",
+              "description": "Informe a porta TCP do serviço esperado. Altera só o alvo do teste, não a configuração do produto.",
+              "example": "502 para um serviço Modbus TCP conhecido",
+              "constraints": "Inteiro de 1 a 65535; não é teste UDP nem serial."
+            },
+            {
+              "key": "tcp",
+              "label": "TCP",
+              "description": "Connected significa que uma conexão TCP foi aceita; Refused indica recusa; Timeout indica ausência de conclusão no prazo.",
+              "example": "Connected",
+              "constraints": "Não faz autenticação, handshake do protocolo ou leitura de registrador."
+            },
+            {
+              "key": "icmp",
+              "label": "ICMP",
+              "description": "Success confirma resposta ao teste ICMP. Timeout/Unavailable pode ocorrer por rede ou política do host.",
+              "example": "Unavailable com TCP Connected",
+              "constraints": "ICMP bloqueado não prova indisponibilidade TCP; examine cada resultado."
+            },
+            {
+              "key": "elapsedMilliseconds",
+              "label": "Duração e horário do teste",
+              "description": "Use para situar a observação e repetir de forma dirigida após corrigir a causa.",
+              "example": "Resultado observado agora",
+              "constraints": "Não é garantia de disponibilidade futura nem latência de processo de ponta a ponta."
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo de interpretação",
+          "body": "Uma fonte Modbus mostra timeouts e um TAG sem amostra. TCP Connected com ICMP Unavailable comprova apenas que a porta aceitou conexão; não comprova unidade Modbus, registrador ou valor. Confira host/porta/unidade, permissões do destino e vínculo do ponto. Se o host API/DriverHost estiver desatualizado, recupere essa observação antes de afirmar que o driver está saudável. Depois de corrigir, compare novas amostras e o retorno do TAG. O trecho abaixo é a requisição técnica de um ensaio local, não um script de varredura nem uma alteração de porta do produto.",
+          "code": "{\n  \"host\": \"127.0.0.1\",\n  \"port\": 502,\n  \"timeoutMilliseconds\": 3000\n}"
+        },
+        {
+          "heading": "Outras falhas e evidência para suporte",
+          "body": "Para permissão negada, confira conta e ação exata; não troque o usuário para mascarar. Para revisão divergente, compare Working, Published e Active. Para erro de Script, leia o diagnóstico do Script e os tipos/valores usados; rede saudável não valida sintaxe. Para uma tela diferente do TAG, confira binding, escala, unidade e qualidade. Registre horário, projeto/revisão ativa, fonte/TAG, mensagem, duas observações e passos para reproduzir. Não inclua senha, token ou chave em prints e chamados. A coleta é evidência do sintoma, não uma causa confirmada."
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "tags.quality",
+        "tags.timestamps",
+        "engineering.lifecycle",
+        "runtime.session-classes",
+        "scripts.server-syntax"
+      ]
+    },
+    {
+      "id": "recovery.backup-system-recovery",
+      "category": "recovery",
+      "title": "Backup e recuperação: Authority, aplicação e dados",
+      "summary": "Separe os arquivos necessários, valide antes de aplicar e saiba o que cada etapa efetivamente restaura.",
+      "sections": [
+        {
+          "heading": "Escolha o que precisa recuperar",
+          "body": "Aplicação é a engenharia: TAGs, telas, scripts e demais objetos portáteis do pacote .escadapkg. Security Authority mantém usuários, credenciais e política de acesso em um backup protegido separado. Licença é outro artefato. Banco de dados, Historian e material protegido de drivers pertencem aos seus procedimentos próprios. Um arquivo de aplicação não é uma imagem completa da instalação e não contém usuários/password hashes/senhas de login. Não conclua que ter o .escadapkg basta para recuperar acessos, histórico ou as chaves de um driver."
+        },
+        {
+          "heading": "Preparar e conferir os backups",
+          "body": "Exporte a aplicação pelo fluxo suportado e confira projeto/revisão e local de destino. Alterações não salvas precisam ser tratadas antes de considerar uma cópia como ponto recuperável. O fluxo Trocar a aplicação desta instalação oferece Backup da Application e Backup da Authority antes do detach: você pode exportar a cópia necessária e voltar, sem executar a troca. Na Authority, Nova senha do backup protege o arquivo exportado; não é a senha de login. Guarde essa senha por um meio protegido separado do arquivo e confirme que o download terminou. Não avance para o detach só para testar um backup. Mantenha cópias e plano de recuperação próprios do banco/Historian e das chaves protegidas; este guia não cria política de retenção/arquivamento nem promete incluí-los no pacote."
+        },
+        {
+          "heading": "Entenda os campos dos arquivos",
+          "body": "Na entrada neutra elegível, Restaurar backup permite preparar Authority e aplicação. Se já existe Authority e falta apenas a aplicação, use Importar aplicação com a Authority atual; não force uma nova configuração inicial para contornar o estado existente.",
+          "fields": [
+            {
+              "key": "applicationFile",
+              "label": "Pacote da aplicação (.escadapkg)",
+              "description": "Escolha o arquivo exportado da aplicação que pretende recuperar. Confira identidade e compatibilidade na validação.",
+              "example": "Arquivo da aplicação exportada",
+              "constraints": "Selecionar não importa nem ativa; extensão/nome sozinhos não provam validade."
+            },
+            {
+              "key": "authorityFile",
+              "label": "Backup da Authority (.json)",
+              "description": "No bootstrap de recuperação, selecione o backup protegido da Authority.",
+              "example": "Backup separado da Authority",
+              "constraints": "Não substituir por um JSON editado nem pelo pacote da aplicação."
+            },
+            {
+              "key": "authorityPassword",
+              "label": "Senha do backup da Authority",
+              "description": "Use a senha escolhida ao exportar esse backup. Ela abre o arquivo protegido, não autentica um usuário.",
+              "example": "Senha guardada separadamente",
+              "constraints": "De 12 a 1024 caracteres. Não existe senha de exemplo ou recuperação por edição do arquivo. Erro exige conferir origem/credencial."
+            },
+            {
+              "key": "licenseFile",
+              "label": "Licença (opcional)",
+              "description": "Selecione a licença se também quiser tentar instalá-la após a recuperação da aplicação.",
+              "example": "Arquivo de licença compatível",
+              "constraints": "Opcional; falha de licença pode deixar a aplicação recuperada sem a licença desejada."
+            },
+            {
+              "key": "validateBackups",
+              "label": "Validar backups",
+              "description": "Confere o backup da Authority e o pacote antes de permitir restaurar a Authority.",
+              "example": "Backups válidos",
+              "constraints": "Preview não restaura. Troca de arquivo/senha exige validação novamente."
+            },
+            {
+              "key": "restoreAuthority",
+              "label": "Restaurar Authority",
+              "description": "Aplica a Authority validada quando o bootstrap é permitido. Depois entre com um Administrador restaurado.",
+              "example": "Authority restaurada",
+              "constraints": "Restauração de acesso não equivale a aplicação já importada; sessões antigas não devem ser reutilizadas."
+            },
+            {
+              "key": "validateApplication",
+              "label": "Validar aplicação",
+              "description": "Confere o pacote contra o estado/Authority atuais, inclusive após restaurar a Authority.",
+              "example": "Pacote válido e compatível",
+              "constraints": "Uma validação anterior ao restore da Authority não substitui a nova validação."
+            },
+            {
+              "key": "restoreApplication",
+              "label": "Importar aplicação",
+              "description": "Executa a recuperação aceita pelo servidor: substituição do Working, revisão raiz persistida, publicação e ativação pelo lifecycle.",
+              "example": "Application importada, publicada e ativada",
+              "constraints": "O resultado completo exige todas as etapas; um estágio intermediário não é sucesso integral."
+            },
+            {
+              "key": "continueRecovery",
+              "label": "Continuar recuperação",
+              "description": "Retoma após login com os mesmos arquivos conservados pelo navegador.",
+              "example": "Arquivos já selecionados",
+              "constraints": "Se o navegador perdeu os arquivos, selecione novamente e valide; nomes/tamanhos exibidos não substituem a verificação do servidor."
+            },
+            {
+              "key": "continueWithoutLicense",
+              "label": "Continuar sem licença",
+              "description": "Prossegue quando a aplicação foi recuperada, mas a licença opcional falhou.",
+              "example": "Aviso de licença separado",
+              "constraints": "Não comprova capacidade/licença para operar; confira Licenciamento e sessão Runtime depois."
+            }
+          ]
+        },
+        {
+          "heading": "Recuperar Authority e aplicação em uma instalação neutra",
+          "body": "1. Confirme que a instalação está no estado neutro elegível e que você está no servidor de destino correto; não faça detach só para abrir este fluxo. 2. Na configuração inicial, escolha Restaurar backup. Selecione aplicação, Authority, senha do backup e licença opcional. 3. Escolha Validar backups. Se houver rejeição, pare e corrija arquivo/compatibilidade/credencial; nenhum aceite de extensão substitui a validação. 4. Com os arquivos válidos, escolha Restaurar Authority. 5. Entre com um Administrador restaurado. A conta precisa estar habilitada e ter as permissões efetivas de engenharia/administração exigidas para o pacote; o nome developer sozinho não basta. 6. Continue a recuperação; o servidor valida novamente a aplicação com a Authority restaurada. 7. Quando a validação permitir, escolha Importar aplicação e aguarde o resultado completo. A restauração da Authority e a recuperação da aplicação são etapas distintas, não uma promessa de transação única entre todos os arquivos."
+        },
+        {
+          "heading": "Recuperar apenas a aplicação com Authority existente",
+          "body": "Se a instalação não tem projeto persistido mas já tem Authority, entre com um Administrador compatível e use Importar aplicação. Selecione o .escadapkg, use Validar aplicação, leia o resultado e só então importe. O fluxo exige compatibilidade do pacote, catálogo de projeto/estado de destino apropriados e autorização; não é uma função genérica para sobrescrever qualquer aplicação ativa. Para modificar uma aplicação já instalada, use os fluxos normais de engenharia/portabilidade correspondentes ou o procedimento específico de troca. Não apague usuários/banco para fazer a opção aparecer."
+        },
+        {
+          "heading": "Interrupção, falha parcial e licença",
+          "body": "Após restaurar a Authority, a aplicação pode ainda não estar recuperada. Se os arquivos continuam em memória do navegador, a continuação conserva a seleção e impede trocá-la silenciosamente. Se a página perdeu os arquivos, escolha novamente os artefatos solicitados; uma nova prévia é obrigatória antes de Apply. Não confunda a memória da seleção com backup dos arquivos. Se o servidor retornar estágio/erro intermediário, registre o resultado e confira o estado persistido antes de repetir: o fluxo envolve revisão, publicação e ativação, e uma etapa concluída não deve ser presumida desfeita. Se a aplicação foi recuperada e a licença opcional falhou, leia o aviso e use Continuar sem licença quando apropriado; trate a licença depois, sem repetir o restore inteiro só por esse aviso."
+        },
+        {
+          "heading": "Confirmar o resultado e os limites",
+          "body": "Confira autenticação com a Authority esperada, projeto/revisão ativos, telas, scripts e fontes no destino. No Runtime, confirme classe de sessão, valores, qualidade e horários. Banco/Historian são recuperação separada pelo procedimento nativo suportado; não invente histórico a partir de TAG atual. Material protegido de drivers pode exigir preparação no host. Arquivo corrompido, senha errada, usuário restaurado desabilitado, referência de Authority incompatível ou falta de permissões devem ser resolvidos na origem correta. Nunca edite stores, tokens ou arquivos assinados para forçar aceitação. Faça o ensaio de recuperação em ambiente controlado antes de depender da cópia para uma operação real."
+        }
+      ],
+      "relatedTopicIds": [
+        "packages.escadapkg",
+        "security.local-accounts",
+        "security.policy-scopes",
+        "engineering.lifecycle",
+        "database.topology",
+        "runtime.session-classes",
+        "licensing.overview"
+      ]
     }
   ],
   "en": [
@@ -11525,6 +11950,431 @@
         "ha.configuration-operation",
         "packages.escadapkg"
       ]
+    },
+    {
+      "id": "runtime.session-classes",
+      "category": "runtime",
+      "title": "Runtime session: view, interact and end",
+      "summary": "Choose a session class and check what the server actually granted before operating.",
+      "sections": [
+        {
+          "heading": "Understand the three conditions for operation",
+          "body": "Signing in identifies the person. Authority defines which actions and resources that person may use. Licensing and session class restrict available capacity. All three must allow the operation: Interactive does not grant a missing permission, and administrator permission does not turn a View-only session into Interactive. For example, watching a pump state is viewing; writing a value requires ProcessValueWrite; executing a command requires CommandExecute. Those permissions are distinct. Selecting a role name on a screen does not create authorization."
+        },
+        {
+          "heading": "Open and check your session",
+          "body": "1. Sign in and open the active application Runtime. 2. Open your account menu in the header. Where Runtime controls are available, find Runtime session class. 3. Choose View only to monitor or Interactive to request operation. 4. Wait for the response; controls are unavailable while the request runs. 5. Compare Requested and Granted. Read the notice if the server falls back to View only. 6. Test an operational action only when Granted is Interactive and your account has the required permission. Do not use a process button to discover session rights by trial."
+        },
+        {
+          "heading": "Controls and results",
+          "body": "The server supplies result fields. You do not need to type session or client IDs.",
+          "fields": [
+            {
+              "key": "viewOnly",
+              "label": "View only",
+              "description": "Requests a session for monitoring the application, without operational commands or writes.",
+              "example": "Watch the pump state",
+              "constraints": "Not anonymous login; does not change account permissions."
+            },
+            {
+              "key": "interactive",
+              "label": "Interactive",
+              "description": "Requests interactive capacity from the server. Check the granted class before operating.",
+              "example": "Operate with an authorized account",
+              "constraints": "May be rejected or fall back to View only; does not guarantee the action."
+            },
+            {
+              "key": "requestedClass",
+              "label": "Requested",
+              "description": "Shows the class requested by this client.",
+              "example": "Interactive",
+              "constraints": "Does not prove the effective class."
+            },
+            {
+              "key": "grantedClass",
+              "label": "Granted",
+              "description": "Shows the effective class of the admitted session. This is the result to check.",
+              "example": "View only",
+              "constraints": "If different from Requested, read the notice; fallback is not interactive success."
+            },
+            {
+              "key": "admissionReasonCode",
+              "label": "Admission reason",
+              "description": "Technical detail of the server decision. Open Technical details when investigating admission.",
+              "example": "Server-returned code",
+              "constraints": "Diagnostic code, not an editable configuration or bypass."
+            },
+            {
+              "key": "capacityReasonCode",
+              "label": "Capacity reason",
+              "description": "Helps explain session availability/limits. Check licensing and occupied sessions after a capacity rejection.",
+              "example": "Interactive capacity unavailable",
+              "constraints": "Capacity is not Authority permission."
+            },
+            {
+              "key": "end",
+              "label": "End session",
+              "description": "Releases the current Runtime session after the server confirms.",
+              "example": "No active Runtime session",
+              "constraints": "Not Sign out; closing the menu does not end the session either."
+            },
+            {
+              "key": "sessionError",
+              "label": "Error or notice",
+              "description": "Read the admission, end or fallback message before repeating the action.",
+              "example": "Admission rejected",
+              "constraints": "A network failure does not confirm release or a new grant."
+            }
+          ]
+        },
+        {
+          "heading": "Change class or finish",
+          "body": "Select the other class in the same panel to change. The client releases the old session before requesting the new one; it does not promise to keep the old session if the new request fails. Check Granted again. To stop occupying that session, choose End session and wait for No active Runtime session. Closing the menu only hides controls. Sign out is a separate authentication action. Do not rely on abruptly closing the browser as confirmation that a seat was released; if an operation fails, ask the administrator to check server state."
+        },
+        {
+          "heading": "Example: the pump is visible but its command fails",
+          "body": "Requested says Interactive but Granted says View only: the server admitted monitoring, not operation. Read the notice and check capacity before requesting again. If Granted is already Interactive, check the specific permission and resource scope; then active application/revision, command binding, TAG state and device feedback. Interactive fixes neither configuration, communication nor quality. An accepted read also does not prove write authorization."
+        },
+        {
+          "heading": "Rejected or invalidated session",
+          "body": "Do not share session IDs or headers to bypass rejection. Check server connectivity, current identity, granted class and capacity message. Policy/Authority changes and restores can invalidate old sessions; use normal sign-in and admission again. If change/end fails, record time, action, message and displayed class. A closed panel does not prove the session ended."
+        }
+      ],
+      "relatedTopicIds": [
+        "runtime.overview",
+        "security.policy-scopes",
+        "licensing.overview",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "diagnostics.overview",
+      "category": "runtime",
+      "title": "Diagnostics: locate the first cause of failure",
+      "summary": "Interpret host health, communication, network and TAG quality before changing a screen or driver.",
+      "sections": [
+        {
+          "heading": "Choose the right layer",
+          "body": "A frozen screen may result from session, active revision, communication, TAG or presentation. Diagnostics gathers evidence; opening the panel neither restarts a source nor changes the process. In Engineering, open communication diagnostics. It observes Runtime / Active Revision: a source created only in Working need not appear yet. Start with the API/DriverHost host, then source, network/protocol, sample and screen. Address the first upstream divergence before changing a color or inserting a fixed display value."
+        },
+        {
+          "heading": "Check a source step by step",
+          "body": "1. Record TAG/source name, time, user and failed action; confirm the active revision. 2. Check API / DriverHost host and Observed. Unavailable/stale host evidence does not confirm current source states. 3. Clear search or enter part of the source, driver or endpoint. Start with All or Needs attention. 4. Select the source. Read state, Last error, last success/failure and data age. 5. Compare quality and counters across two observations; an accumulated total does not date each failure. 6. Use network reachability, Connection Test or Test Read only where available and needed. 7. Return to the TAG and confirm value, quality, time and updates; then check the screen dynamics."
+        },
+        {
+          "heading": "Search, refresh and observation trust",
+          "body": "Filters affect the displayed list only. Disabling panel refresh does not stop a driver or acquisition.",
+          "fields": [
+            {
+              "key": "query",
+              "label": "Search Data Source, driver or endpoint",
+              "description": "Matches part of source name/key, driver type or endpoint.",
+              "example": "Part of the pump name",
+              "constraints": "Does not create a source; clear it when the list seems empty."
+            },
+            {
+              "key": "filter",
+              "label": "Filter",
+              "description": "All shows available sources; Needs attention includes nonhealthy states; Healthy only shows confirmed healthy sources.",
+              "example": "Needs attention",
+              "constraints": "No match can be just a filter. Inactive and filtered-out sources differ."
+            },
+            {
+              "key": "autoRefresh",
+              "label": "Automatic refresh",
+              "description": "Updates panel observations every 3 seconds while enabled.",
+              "example": "Enabled during investigation",
+              "constraints": "Does not change driver scan, retention or acquisition."
+            },
+            {
+              "key": "refresh",
+              "label": "Refresh now",
+              "description": "Requests a fresh diagnostic reading. Wait before comparing.",
+              "example": "Two successive observations",
+              "constraints": "Does not restart or manually reconnect the driver."
+            },
+            {
+              "key": "observedAtUtc",
+              "label": "API / DriverHost host — Observed",
+              "description": "Check whether the process-health observation is still recent.",
+              "example": "Observation timestamp",
+              "constraints": "Stale/unavailable host evidence makes source states unconfirmed in the panel."
+            },
+            {
+              "key": "summary",
+              "label": "Panel totals",
+              "description": "Source, healthy, attention, fault and Good TAG totals orient the initial review.",
+              "example": "2 sources, 1 needs attention",
+              "constraints": "Do not replace individual errors or prove every point is healthy."
+            }
+          ]
+        },
+        {
+          "heading": "Read operational state and counters",
+          "body": "Missing values appear as a dash in several indicators; a dash is neither zero nor success. Runtime instance distinguishes executions: restarting/recreating can make accumulated totals incomparable. Cycles count acquisition executions; requests are protocol requests. Successes/failures count operation outcomes, while consecutive failures highlight the recent sequence without recovery. Timeouts are operations that did not finish by their deadline. Connections, disconnections and reconnects help assess link stability. Reads/writes count operations, not necessarily distinct TAGs. Published updates count values passed to Runtime, not guaranteed Historian persistence. Interpret each indicator for that driver and the same interval/instance; protocols need not count everything identically.",
+          "fields": [
+            {
+              "key": "state",
+              "label": "State",
+              "description": "Healthy, degraded, reconnecting, faulted or stopped directs investigation; also read Last error.",
+              "example": "Reconnecting",
+              "constraints": "A reachable endpoint does not replace driver state."
+            },
+            {
+              "key": "endpoint",
+              "label": "Endpoint",
+              "description": "Destination associated with the selected source. Check it is the intended device.",
+              "example": "Configured destination",
+              "constraints": "May be serial or a local bridge; not every endpoint is TCP host/port."
+            },
+            {
+              "key": "lastSuccessfulCommunicationAt",
+              "label": "Last success",
+              "description": "When communication succeeded. Compare with now and the expected cadence.",
+              "example": "Success a few seconds ago",
+              "constraints": "An old success does not prove a current point."
+            },
+            {
+              "key": "lastFailedCommunicationAt",
+              "label": "Last failure",
+              "description": "Locates a reported failure in time. Compare with later success.",
+              "example": "Failure before latest success",
+              "constraints": "Alone does not say whether failure continues."
+            },
+            {
+              "key": "stateChangedAt",
+              "label": "State change",
+              "description": "When the reported state changed.",
+              "example": "Started reconnecting",
+              "constraints": "Not necessarily a process-sample timestamp."
+            },
+            {
+              "key": "dataAge",
+              "label": "Data age",
+              "description": "Helps detect missing updates. Compare with expected source behavior/scan.",
+              "example": "Increasing age",
+              "constraints": "Not every source is cyclic; check acquisition mode before declaring a defect."
+            },
+            {
+              "key": "configuredScanInterval",
+              "label": "Configured scan",
+              "description": "Configured cadence where applicable.",
+              "example": "Driver interval",
+              "constraints": "Not edited here; event-driven updates may behave differently."
+            },
+            {
+              "key": "latency",
+              "label": "Latency and last cycle",
+              "description": "Average/last latency and last scan duration help distinguish slowness from absent updates.",
+              "example": "Longer than usual",
+              "constraints": "Operation duration is not full sensor-to-pixel delay."
+            },
+            {
+              "key": "recentFailureRate",
+              "label": "Recent failure rate",
+              "description": "Observe the recent proportion of failed operations.",
+              "example": "Increasing trend",
+              "constraints": "Not equipment efficiency or the percentage of bad TAGs."
+            },
+            {
+              "key": "counters",
+              "label": "Activity and counters",
+              "description": "Compare cycles, requests, successes, consecutive failures, timeouts, connections/reconnects, reads, writes and published updates.",
+              "example": "Failures increase between observations",
+              "constraints": "Accumulated totals and instance changes need context; do not reset the system to interpret them."
+            },
+            {
+              "key": "tagQuality",
+              "label": "TAG quality",
+              "description": "Separate Good, BadCommunication, Other and No sample. Inspect the affected TAG even if others are Good.",
+              "example": "1 point has no sample",
+              "constraints": "No sample is not zero; Good does not prove a physically accurate sensor."
+            },
+            {
+              "key": "protocolDetails",
+              "label": "Protocol details",
+              "description": "Read what that driver actually provides and report the exact message.",
+              "example": "Protocol-specific error",
+              "constraints": "Missing extra detail does not justify inventing a diagnosis; fields vary by driver."
+            }
+          ]
+        },
+        {
+          "heading": "Test network reachability",
+          "body": "Network reachability (server-side) attempts TCP and ICMP against one destination. The origin is the server host, not your browser; localhost/127.0.0.1 means that environment, including a container where applicable. Test only the necessary authorized target. The panel uses a 3-second timeout per attempt; TCP/ICMP are separate results and total elapsed time may be longer. The action requires Engineering modification permission and can be rate-limited.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host or IP",
+              "description": "Enter one DNS name or IP without protocol, path, password or range.",
+              "example": "127.0.0.1 in a local exercise",
+              "constraints": "No http://, URLs or scanning. Check the test origin."
+            },
+            {
+              "key": "port",
+              "label": "Single port",
+              "description": "Enter the expected service TCP port. Changes only the probe target, not product configuration.",
+              "example": "502 for a known Modbus TCP service",
+              "constraints": "Integer 1 through 65535; not a UDP or serial test."
+            },
+            {
+              "key": "tcp",
+              "label": "TCP",
+              "description": "Connected means a TCP connection was accepted; Refused means rejection; Timeout means no completion before the deadline.",
+              "example": "Connected",
+              "constraints": "No authentication, protocol handshake or register read."
+            },
+            {
+              "key": "icmp",
+              "label": "ICMP",
+              "description": "Success confirms an ICMP response. Timeout/Unavailable may reflect network or host policy.",
+              "example": "Unavailable while TCP is Connected",
+              "constraints": "Blocked ICMP does not prove TCP unavailable; assess each result."
+            },
+            {
+              "key": "elapsedMilliseconds",
+              "label": "Probe duration and time",
+              "description": "Situate the observation and repeat purposefully after addressing the cause.",
+              "example": "Observed now",
+              "constraints": "Not future availability or full process latency."
+            }
+          ]
+        },
+        {
+          "heading": "Interpretation example",
+          "body": "A Modbus source reports timeouts and a TAG has no sample. TCP Connected with ICMP Unavailable proves only that a port accepted the connection; not a Modbus unit, register or value. Check host/port/unit, destination permissions and point binding. If API/DriverHost evidence is stale, recover that observation before asserting driver health. After correction compare fresh samples and TAG feedback. This excerpt is a technical request for a local exercise, not a scanning script or product port change.",
+          "code": "{\n  \"host\": \"127.0.0.1\",\n  \"port\": 502,\n  \"timeoutMilliseconds\": 3000\n}"
+        },
+        {
+          "heading": "Other failures and support evidence",
+          "body": "For permission denied, check account and exact action; do not change user to conceal it. For revision mismatch, compare Working, Published and Active. For a Script error, read its diagnostics and input types/values; a healthy network does not validate syntax. If a screen differs from the TAG, check binding, scale, unit and quality. Record time, project/active revision, source/TAG, message, two observations and reproduction steps. Exclude passwords, tokens and keys from screenshots/support tickets. A symptom record is evidence, not a confirmed cause."
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "tags.quality",
+        "tags.timestamps",
+        "engineering.lifecycle",
+        "runtime.session-classes",
+        "scripts.server-syntax"
+      ]
+    },
+    {
+      "id": "recovery.backup-system-recovery",
+      "category": "recovery",
+      "title": "Backup and recovery: Authority, application and data",
+      "summary": "Separate required files, validate before applying and understand what each stage actually restores.",
+      "sections": [
+        {
+          "heading": "Choose what must be recovered",
+          "body": "Application means engineering: TAGs, screens, scripts and other portable .escadapkg objects. Security Authority holds users, credentials and access policy in a separate protected backup. Licensing is another artifact. Database, Historian and protected driver material follow their own procedures. An application file is not an installation image and contains no users/password hashes/login passwords. Having an .escadapkg alone does not recover access, history or driver keys."
+        },
+        {
+          "heading": "Prepare and check backups",
+          "body": "Export the application through the supported flow and check project/revision and destination. Address unsaved edits before treating a copy as a recovery point. Switch this installation application offers Application backup and Authority backup before detach: export what is needed and return without executing the switch. For Authority, New backup password protects the exported file; it is not a login password. Store that password through a protected channel separate from the file and confirm download completion. Do not proceed with detach just to test a backup. Keep separate database/Historian and protected-key copies/recovery plans; this guide neither creates retention/archiving policy nor promises they are included in the package."
+        },
+        {
+          "heading": "Understand artifact fields",
+          "body": "On an eligible neutral installation, Restore backup prepares Authority and application. If Authority already exists and only the application is missing, use Import application with the current Authority; do not force initial setup to bypass existing state.",
+          "fields": [
+            {
+              "key": "applicationFile",
+              "label": "Application package (.escadapkg)",
+              "description": "Choose the exported application to recover. Check identity/compatibility during validation.",
+              "example": "Exported application file",
+              "constraints": "Selecting neither imports nor activates; filename/extension alone is not validity."
+            },
+            {
+              "key": "authorityFile",
+              "label": "Authority backup (.json)",
+              "description": "During recovery bootstrap select the protected Authority backup.",
+              "example": "Separate Authority backup",
+              "constraints": "Do not substitute edited JSON or an application package."
+            },
+            {
+              "key": "authorityPassword",
+              "label": "Authority backup password",
+              "description": "Use the password chosen for that backup export. It opens the protected file, not a user session.",
+              "example": "Separately stored password",
+              "constraints": "12 through 1024 characters. No sample password or file-edit recovery. Check origin/credential on rejection."
+            },
+            {
+              "key": "licenseFile",
+              "label": "License (optional)",
+              "description": "Select it if you also want to attempt installation after application recovery.",
+              "example": "Compatible license file",
+              "constraints": "Optional; license failure may leave the application recovered without the intended license."
+            },
+            {
+              "key": "validateBackups",
+              "label": "Validate backups",
+              "description": "Checks Authority backup and application before allowing Authority restoration.",
+              "example": "Valid backups",
+              "constraints": "Preview does not restore. Changed file/password requires validation again."
+            },
+            {
+              "key": "restoreAuthority",
+              "label": "Restore Authority",
+              "description": "Applies validated Authority when bootstrap is permitted. Then sign in with a restored Administrator.",
+              "example": "Authority restored",
+              "constraints": "Restored access is not an imported application; do not reuse old sessions."
+            },
+            {
+              "key": "validateApplication",
+              "label": "Validate application",
+              "description": "Checks the package against current state/Authority, including after Authority restoration.",
+              "example": "Valid compatible package",
+              "constraints": "Pre-restore validation does not replace the new validation."
+            },
+            {
+              "key": "restoreApplication",
+              "label": "Import application",
+              "description": "Runs server-accepted recovery: replace Working, persist root revision, publish and activate through lifecycle.",
+              "example": "Application imported, published and activated",
+              "constraints": "Complete success requires every stage; an intermediate stage is not full recovery."
+            },
+            {
+              "key": "continueRecovery",
+              "label": "Continue recovery",
+              "description": "Resumes after sign-in with files retained by the browser.",
+              "example": "Already selected files",
+              "constraints": "If the browser lost files, reselect and validate; shown names/sizes do not replace server checks."
+            },
+            {
+              "key": "continueWithoutLicense",
+              "label": "Continue without license",
+              "description": "Continues when the application recovered but optional license installation failed.",
+              "example": "Separate license warning",
+              "constraints": "Does not prove operating capacity/license; check Licensing and Runtime session afterward."
+            }
+          ]
+        },
+        {
+          "heading": "Recover Authority and application on a neutral installation",
+          "body": "1. Confirm an eligible neutral installation and the correct destination server; do not detach merely to open this flow. 2. In initial setup choose Restore backup. Select application, Authority, backup password and optional license. 3. Choose Validate backups. Stop on rejection and correct file/compatibility/credential; extension acceptance is not validation. 4. With valid files, choose Restore Authority. 5. Sign in with a restored Administrator. The account must be enabled and hold effective engineering/administration permissions required for the package; the name developer alone is insufficient. 6. Continue recovery; the server validates the application again against restored Authority. 7. When validation permits, choose Import application and wait for complete results. Authority restore and application recovery are separate stages, not a promise of one transaction across every file."
+        },
+        {
+          "heading": "Recover only the application with existing Authority",
+          "body": "If the installation has no persisted project but already has Authority, sign in with a compatible Administrator and choose Import application. Select the .escadapkg, Validate application, read the result and then import. The flow requires compatible package, appropriate destination project catalog/state and authorization; it is not generic overwrite of any running application. To modify an installed application use the corresponding engineering/portability flows or the specific switching procedure. Do not delete users/database to make the option appear."
+        },
+        {
+          "heading": "Interruption, partial failure and license",
+          "body": "After Authority restoration the application may still be unrecovered. If browser memory retains files, continuation keeps the selection and prevents silent replacement. If the page lost files, reselect the requested artifacts; a new preview is mandatory before Apply. Retained selection is not a file backup. If the server returns an intermediate stage/error, record it and check persisted state before repeating: revision, publication and activation are distinct stages, and a completed stage must not be assumed rolled back. If the application recovered but optional license installation failed, read the warning and choose Continue without license where appropriate; address licensing separately rather than repeating the whole restore only for that warning."
+        },
+        {
+          "heading": "Confirm results and limits",
+          "body": "Check authentication with expected Authority, active project/revision, screens, scripts and sources on the destination. In Runtime check session class, values, quality and timestamps. Database/Historian recovery remains separate through supported native procedures; current TAG values cannot recreate history. Protected driver material may require host preparation. Corrupt file, wrong password, disabled restored user, incompatible Authority reference or missing permissions must be resolved at the correct source. Never edit stores, tokens or signed files to force acceptance. Rehearse recovery in a controlled environment before relying on the copy for real operation."
+        }
+      ],
+      "relatedTopicIds": [
+        "packages.escadapkg",
+        "security.local-accounts",
+        "security.policy-scopes",
+        "engineering.lifecycle",
+        "database.topology",
+        "runtime.session-classes",
+        "licensing.overview"
+      ]
     }
   ],
   "es": [
@@ -17288,6 +18138,431 @@
         "tags.writeability",
         "ha.configuration-operation",
         "packages.escadapkg"
+      ]
+    },
+    {
+      "id": "runtime.session-classes",
+      "category": "runtime",
+      "title": "Sesión Runtime: visualizar, interactuar y finalizar",
+      "summary": "Elija la clase de sesión y compruebe lo que el servidor concedió antes de operar.",
+      "sections": [
+        {
+          "heading": "Entienda las tres condiciones para operar",
+          "body": "Iniciar sesión identifica a la persona. Authority define las acciones y recursos permitidos. La licencia y la clase de sesión restringen la capacidad disponible. Las tres condiciones deben permitir la operación: Interactiva no concede un permiso ausente y el permiso de administrador no convierte Visualización en Interactiva. Ver el estado de una bomba es visualización; escribir un valor exige ProcessValueWrite; ejecutar un comando exige CommandExecute. Son permisos distintos. Seleccionar un nombre de rol en pantalla no crea autorización."
+        },
+        {
+          "heading": "Abrir y comprobar su sesión",
+          "body": "1. Inicie sesión y abra el Runtime de la aplicación activa. 2. Abra el menú de su cuenta en la cabecera. Donde estén disponibles los controles Runtime, localice Clase de sesión Runtime. 3. Elija Visualización para observar o Interactiva para solicitar operación. 4. Espere la respuesta; los controles se deshabilitan durante la solicitud. 5. Compare Solicitada y Concedida. Lea el aviso si se reduce a Solo visualización. 6. Pruebe una acción operativa solo si Concedida es Interactiva y la cuenta tiene el permiso necesario. No utilice un botón de proceso para averiguar derechos por ensayo."
+        },
+        {
+          "heading": "Controles y resultados",
+          "body": "El servidor proporciona los resultados. No necesita introducir IDs de sesión o cliente.",
+          "fields": [
+            {
+              "key": "viewOnly",
+              "label": "Visualización",
+              "description": "Solicita observar la aplicación sin comandos ni escrituras operativas.",
+              "example": "Ver el estado de la bomba",
+              "constraints": "No es acceso anónimo ni cambia permisos de cuenta."
+            },
+            {
+              "key": "interactive",
+              "label": "Interactiva",
+              "description": "Solicita capacidad interactiva al servidor. Compruebe la clase concedida antes de operar.",
+              "example": "Operar con cuenta autorizada",
+              "constraints": "Puede rechazarse o reducirse a Solo visualización; no garantiza la acción."
+            },
+            {
+              "key": "requestedClass",
+              "label": "Solicitada",
+              "description": "Clase pedida por este cliente.",
+              "example": "Interactiva",
+              "constraints": "No demuestra la clase efectiva."
+            },
+            {
+              "key": "grantedClass",
+              "label": "Concedida",
+              "description": "Clase efectiva de la sesión admitida. Es el resultado que debe comprobar.",
+              "example": "Solo visualización",
+              "constraints": "Si difiere de Solicitada, lea el aviso; la alternativa no es éxito interactivo."
+            },
+            {
+              "key": "admissionReasonCode",
+              "label": "Motivo de admisión",
+              "description": "Detalle técnico de la decisión. Abra Detalles técnicos al investigar.",
+              "example": "Código del servidor",
+              "constraints": "Diagnóstico, no campo editable ni forma de eludir la decisión."
+            },
+            {
+              "key": "capacityReasonCode",
+              "label": "Motivo de capacidad",
+              "description": "Explica disponibilidad/límites de sesiones. Revise licencia y sesiones ocupadas tras una denegación de capacidad.",
+              "example": "Capacidad interactiva no disponible",
+              "constraints": "Capacidad no equivale a permiso de Authority."
+            },
+            {
+              "key": "end",
+              "label": "Finalizar sesión",
+              "description": "Libera la sesión Runtime actual tras confirmación del servidor.",
+              "example": "Sin sesión Runtime activa",
+              "constraints": "No es Salir de la cuenta; cerrar el menú tampoco finaliza la sesión."
+            },
+            {
+              "key": "sessionError",
+              "label": "Error o aviso",
+              "description": "Lea el mensaje de solicitud, finalización o reducción antes de repetir.",
+              "example": "Solicitud rechazada",
+              "constraints": "Un fallo de red no confirma liberación ni nueva concesión."
+            }
+          ]
+        },
+        {
+          "heading": "Cambiar de clase o terminar",
+          "body": "Seleccione la otra clase en el mismo panel. El cliente libera la sesión anterior antes de solicitar la nueva; no promete conservarla si la nueva solicitud falla. Compruebe Concedida otra vez. Para dejar de ocuparla, elija Finalizar sesión y espere Sin sesión Runtime activa. Cerrar el menú solo oculta controles. Salir de la cuenta es otra acción de autenticación. No dependa del cierre abrupto del navegador para confirmar una plaza liberada; si falla una operación, pida al administrador verificar el estado del servidor."
+        },
+        {
+          "heading": "Ejemplo: la bomba aparece pero su comando falla",
+          "body": "Solicitada indica Interactiva y Concedida indica Solo visualización: el servidor admitió observación, no operación. Lea el aviso y compruebe capacidad antes de solicitar otra vez. Si Concedida ya es Interactiva, revise el permiso y alcance del recurso; luego aplicación/revisión activa, vínculo del comando, TAG y retorno del equipo. Interactiva no corrige configuración, comunicación ni calidad. Una lectura aceptada tampoco demuestra permiso de escritura."
+        },
+        {
+          "heading": "Sesión rechazada o invalidada",
+          "body": "No comparta IDs ni cabeceras para eludir una denegación. Revise conexión al servidor, identidad actual, clase concedida y mensaje de capacidad. Cambios de política/Authority y restauraciones pueden invalidar sesiones antiguas; vuelva al flujo normal de entrada y admisión. Si cambiar/finalizar falla, registre hora, acción, mensaje y clase mostrada. Cerrar un panel no demuestra finalización de sesión."
+        }
+      ],
+      "relatedTopicIds": [
+        "runtime.overview",
+        "security.policy-scopes",
+        "licensing.overview",
+        "diagnostics.overview"
+      ]
+    },
+    {
+      "id": "diagnostics.overview",
+      "category": "runtime",
+      "title": "Diagnóstico: localizar la primera causa del fallo",
+      "summary": "Interprete salud del host, comunicación, red y calidad del TAG antes de cambiar una pantalla o driver.",
+      "sections": [
+        {
+          "heading": "Elija la capa correcta",
+          "body": "Una pantalla detenida puede deberse a sesión, revisión activa, comunicación, TAG o presentación. Diagnóstico reúne evidencias; abrir el panel no reinicia una fuente ni cambia el proceso. En Ingeniería, abra Diagnóstico de comunicación. Observa Runtime / Active Revision: una fuente creada solo en Working aún puede no aparecer. Empiece por el host API/DriverHost; después fuente, red/protocolo, muestra y pantalla. Corrija la primera divergencia de origen antes de cambiar colores o insertar valores fijos."
+        },
+        {
+          "heading": "Comprobar una fuente paso a paso",
+          "body": "1. Registre TAG/fuente, hora, usuario y acción fallida; confirme revisión activa. 2. Compruebe Host API / DriverHost y Observado. Host no disponible/desactualizado no confirma estados actuales. 3. Limpie la búsqueda o introduzca parte de fuente, driver o endpoint. Empiece con Todos o Requiere atención. 4. Seleccione la fuente. Lea estado, Último error, último éxito/fallo y edad de datos. 5. Compare calidad y contadores en dos observaciones; un total acumulado no fecha cada fallo. 6. Use alcance de red, Connection Test o Test Read solo si están disponibles y son necesarios. 7. Vuelva al TAG y confirme valor, calidad, hora y actualización; después revise la dinámica de pantalla."
+        },
+        {
+          "heading": "Búsqueda, actualización y confianza",
+          "body": "Los filtros solo cambian la lista mostrada. Detener la actualización del panel no desactiva el driver ni la adquisición.",
+          "fields": [
+            {
+              "key": "query",
+              "label": "Buscar Data Source, driver o endpoint",
+              "description": "Filtra por parte de nombre/clave de fuente, driver o endpoint.",
+              "example": "Parte del nombre de la bomba",
+              "constraints": "No crea fuentes; limpie la búsqueda si parece no haber datos."
+            },
+            {
+              "key": "filter",
+              "label": "Filtro",
+              "description": "Todos muestra las fuentes disponibles; Requiere atención incluye estados no saludables; Solo saludables reduce a los confirmados.",
+              "example": "Requiere atención",
+              "constraints": "Sin coincidencias puede ser solo el filtro. Inactiva no es lo mismo que filtrada."
+            },
+            {
+              "key": "autoRefresh",
+              "label": "Actualización automática",
+              "description": "Actualiza observaciones cada 3 segundos mientras esté habilitada.",
+              "example": "Habilitada durante la investigación",
+              "constraints": "No cambia scan, retención ni adquisición."
+            },
+            {
+              "key": "refresh",
+              "label": "Actualizar ahora",
+              "description": "Solicita una nueva lectura del diagnóstico. Espere antes de comparar.",
+              "example": "Dos observaciones consecutivas",
+              "constraints": "No reinicia ni reconecta manualmente el driver."
+            },
+            {
+              "key": "observedAtUtc",
+              "label": "Host API / DriverHost — Observado",
+              "description": "Compruebe si la observación de salud del proceso sigue reciente.",
+              "example": "Hora de la observación",
+              "constraints": "Host desactualizado/no disponible deja sin confirmar los estados de fuentes."
+            },
+            {
+              "key": "summary",
+              "label": "Totales del panel",
+              "description": "Fuentes, saludables, atención, fallo y TAGs Good orientan la revisión inicial.",
+              "example": "2 fuentes, 1 requiere atención",
+              "constraints": "No sustituyen errores individuales ni demuestran salud de todos los puntos."
+            }
+          ]
+        },
+        {
+          "heading": "Leer estado operativo y contadores",
+          "body": "La ausencia de datos aparece como guion en varios indicadores; no significa cero ni éxito. Instancia Runtime distingue ejecuciones: reiniciar/recrear puede volver incomparables los totales. Ciclos cuentan ejecuciones de adquisición; requests son solicitudes de protocolo. Éxitos/fallos cuentan resultados de operaciones; fallos consecutivos destacan la secuencia reciente sin recuperación. Timeouts son operaciones que no terminaron en plazo. Conexiones, desconexiones y reconexiones ayudan a observar estabilidad del enlace. Lecturas/escrituras cuentan operaciones, no necesariamente TAGs distintos. Actualizaciones publicadas indican valores enviados a Runtime, no persistencia garantizada en Historian. Compare con el driver y el mismo período/instancia; no todos los protocolos cuentan igual.",
+          "fields": [
+            {
+              "key": "state",
+              "label": "Estado",
+              "description": "Saludable, degradado, reconectando, fallo o detenido orienta la investigación; lea también Último error.",
+              "example": "Reconectando",
+              "constraints": "Endpoint accesible no sustituye el estado del driver."
+            },
+            {
+              "key": "endpoint",
+              "label": "Endpoint",
+              "description": "Destino de la fuente seleccionada. Compruebe que sea el equipo esperado.",
+              "example": "Destino configurado",
+              "constraints": "Puede ser serie o puente local; no todo endpoint es host/puerto TCP."
+            },
+            {
+              "key": "lastSuccessfulCommunicationAt",
+              "label": "Último éxito",
+              "description": "Cuándo hubo comunicación correcta. Compare con ahora y cadencia esperada.",
+              "example": "Éxito hace pocos segundos",
+              "constraints": "Éxito antiguo no demuestra actualidad del punto."
+            },
+            {
+              "key": "lastFailedCommunicationAt",
+              "label": "Último fallo",
+              "description": "Sitúa temporalmente un fallo informado. Compare con un éxito posterior.",
+              "example": "Fallo anterior al último éxito",
+              "constraints": "Solo no indica si el fallo continúa."
+            },
+            {
+              "key": "stateChangedAt",
+              "label": "Cambio de estado",
+              "description": "Cuándo cambió el estado informado.",
+              "example": "Empezó a reconectar",
+              "constraints": "No necesariamente es la hora de una muestra de proceso."
+            },
+            {
+              "key": "dataAge",
+              "label": "Edad de los datos",
+              "description": "Ayuda a detectar falta de actualización. Compare con comportamiento/scan esperados.",
+              "example": "Edad creciente",
+              "constraints": "No toda fuente es cíclica; revise adquisición antes de declarar defecto."
+            },
+            {
+              "key": "configuredScanInterval",
+              "label": "Scan configurado",
+              "description": "Cadencia configurada cuando corresponde.",
+              "example": "Intervalo del driver",
+              "constraints": "No se edita aquí; las actualizaciones por evento pueden diferir."
+            },
+            {
+              "key": "latency",
+              "label": "Latencia y último ciclo",
+              "description": "Media/última latencia y duración de ciclo ayudan a separar lentitud de falta de actualización.",
+              "example": "Mayor de lo habitual",
+              "constraints": "Duración de operación no es retraso completo sensor-píxel."
+            },
+            {
+              "key": "recentFailureRate",
+              "label": "Tasa reciente de fallo",
+              "description": "Observe la proporción reciente de operaciones fallidas.",
+              "example": "Tendencia creciente",
+              "constraints": "No es eficiencia del equipo ni porcentaje de TAGs malos."
+            },
+            {
+              "key": "counters",
+              "label": "Actividad y contadores",
+              "description": "Compare ciclos, requests, éxitos, fallos consecutivos, timeouts, conexiones/reconexiones, lecturas, escrituras y actualizaciones publicadas.",
+              "example": "Fallos aumentan entre observaciones",
+              "constraints": "Los acumulados y cambios de instancia requieren contexto; no reinicie el sistema para interpretarlos."
+            },
+            {
+              "key": "tagQuality",
+              "label": "Calidad de los TAGs",
+              "description": "Separe Good, BadCommunication, Otras y Sin muestra. Revise el TAG afectado aunque otros sean Good.",
+              "example": "1 punto sin muestra",
+              "constraints": "Sin muestra no es cero; Good no demuestra exactitud física del sensor."
+            },
+            {
+              "key": "protocolDetails",
+              "label": "Detalles del protocolo",
+              "description": "Lea lo que proporciona ese driver y comunique el mensaje exacto.",
+              "example": "Error propio del protocolo",
+              "constraints": "Ausencia de detalles no permite inventar diagnóstico; varían entre drivers."
+            }
+          ]
+        },
+        {
+          "heading": "Probar alcance de red",
+          "body": "Alcance de red (origen: servidor) intenta TCP e ICMP sobre un destino. El origen es el host servidor, no el navegador; localhost/127.0.0.1 significa ese entorno, incluido el contenedor cuando corresponda. Pruebe solo el destino necesario y autorizado. El panel usa timeout de 3 segundos por intento; TCP/ICMP son resultados separados y el total puede tardar más. Requiere permiso de modificar Engineering y puede limitarse por frecuencia.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Host o IP",
+              "description": "Un nombre DNS o IP sin protocolo, ruta, contraseña ni rango.",
+              "example": "127.0.0.1 en un ensayo local",
+              "constraints": "Sin http://, URLs ni barridos. Compruebe el origen."
+            },
+            {
+              "key": "port",
+              "label": "Puerto único",
+              "description": "Puerto TCP del servicio esperado. Solo cambia el destino del ensayo, no la configuración del producto.",
+              "example": "502 para un servicio Modbus TCP conocido",
+              "constraints": "Entero de 1 a 65535; no es prueba UDP ni serie."
+            },
+            {
+              "key": "tcp",
+              "label": "TCP",
+              "description": "Connected significa conexión aceptada; Refused indica rechazo; Timeout significa que no terminó en plazo.",
+              "example": "Connected",
+              "constraints": "No autentica, negocia protocolo ni lee registros."
+            },
+            {
+              "key": "icmp",
+              "label": "ICMP",
+              "description": "Success confirma respuesta ICMP. Timeout/Unavailable puede deberse a red o política del host.",
+              "example": "Unavailable con TCP Connected",
+              "constraints": "ICMP bloqueado no demuestra TCP no disponible; revise cada resultado."
+            },
+            {
+              "key": "elapsedMilliseconds",
+              "label": "Duración y hora del ensayo",
+              "description": "Sitúe la observación y repita de forma dirigida después de corregir la causa.",
+              "example": "Observado ahora",
+              "constraints": "No garantiza disponibilidad futura ni latencia completa de proceso."
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo de interpretación",
+          "body": "Una fuente Modbus muestra timeouts y un TAG sin muestra. TCP Connected con ICMP Unavailable solo demuestra que un puerto aceptó la conexión, no unidad Modbus, registro ni valor. Revise host/puerto/unidad, permisos del destino y vínculo. Si el host API/DriverHost está desactualizado, recupere esa observación antes de afirmar salud del driver. Tras corregir, compare muestras nuevas y retorno del TAG. El fragmento es una petición técnica de ensayo local, no script de barrido ni cambio de puerto del producto.",
+          "code": "{\n  \"host\": \"127.0.0.1\",\n  \"port\": 502,\n  \"timeoutMilliseconds\": 3000\n}"
+        },
+        {
+          "heading": "Otros fallos y evidencia para soporte",
+          "body": "Ante permiso denegado, revise cuenta y acción exacta; no cambie usuario para ocultarlo. Ante revisión divergente, compare Working, Published y Active. Ante error de Script, lea su diagnóstico y tipos/valores; red saludable no valida sintaxis. Si pantalla y TAG difieren, compruebe vínculo, escala, unidad y calidad. Registre hora, proyecto/revisión activa, fuente/TAG, mensaje, dos observaciones y reproducción. Excluya contraseñas, tokens y claves de capturas/soporte. Un síntoma documentado es evidencia, no causa confirmada."
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "tags.quality",
+        "tags.timestamps",
+        "engineering.lifecycle",
+        "runtime.session-classes",
+        "scripts.server-syntax"
+      ]
+    },
+    {
+      "id": "recovery.backup-system-recovery",
+      "category": "recovery",
+      "title": "Backup y recuperación: Authority, aplicación y datos",
+      "summary": "Separe archivos, valide antes de aplicar y entienda lo que restaura cada etapa.",
+      "sections": [
+        {
+          "heading": "Elija qué recuperar",
+          "body": "Aplicación significa ingeniería: TAGs, pantallas, scripts y objetos portables del .escadapkg. Security Authority conserva usuarios, credenciales y política en un backup protegido separado. Licencia es otro artefacto. Base de datos, Historian y material protegido de drivers siguen sus propios procedimientos. El paquete no es imagen completa de instalación y no contiene usuarios/password hashes/contraseñas de acceso. Tener .escadapkg no basta para recuperar accesos, historia o claves de drivers."
+        },
+        {
+          "heading": "Preparar y comprobar backups",
+          "body": "Exporte mediante el flujo soportado y compruebe proyecto/revisión y destino. Trate cambios sin guardar antes de considerar una copia recuperable. Cambiar la aplicación de esta instalación ofrece Backup de Application y Backup de Authority antes del detach: exporte lo necesario y vuelva sin ejecutar el cambio. Nueva contraseña del backup protege la exportación de Authority; no es contraseña de acceso. Guárdela de forma protegida separada del archivo y confirme la descarga. No avance al detach solo para probar un backup. Mantenga copias y planes propios de base/Historian y claves protegidas; esta guía no crea retención/archivado ni promete incluirlos en el paquete."
+        },
+        {
+          "heading": "Entienda los campos de archivos",
+          "body": "En instalación neutra elegible, Restaurar backup prepara Authority y aplicación. Si Authority existe y solo falta la aplicación, use Importar aplicación con Authority actual; no fuerce la configuración inicial para eludir el estado existente.",
+          "fields": [
+            {
+              "key": "applicationFile",
+              "label": "Paquete de aplicación (.escadapkg)",
+              "description": "Elija la aplicación exportada a recuperar. Compruebe identidad/compatibilidad al validar.",
+              "example": "Archivo de aplicación exportada",
+              "constraints": "Seleccionar no importa ni activa; nombre/extensión no demuestran validez."
+            },
+            {
+              "key": "authorityFile",
+              "label": "Backup de Authority (.json)",
+              "description": "En bootstrap seleccione el backup protegido de Authority.",
+              "example": "Backup separado de Authority",
+              "constraints": "No sustituya por JSON editado ni paquete de aplicación."
+            },
+            {
+              "key": "authorityPassword",
+              "label": "Contraseña del backup de Authority",
+              "description": "Use la contraseña elegida al exportar. Abre el archivo, no una sesión de usuario.",
+              "example": "Contraseña guardada separadamente",
+              "constraints": "De 12 a 1024 caracteres. Sin contraseña de ejemplo ni recuperación editando archivos. Revise origen/credencial si se rechaza."
+            },
+            {
+              "key": "licenseFile",
+              "label": "Licencia (opcional)",
+              "description": "Seleccione para intentar instalar después de recuperar la aplicación.",
+              "example": "Archivo de licencia compatible",
+              "constraints": "Opcional; puede fallar quedando la aplicación recuperada sin la licencia deseada."
+            },
+            {
+              "key": "validateBackups",
+              "label": "Validar backups",
+              "description": "Comprueba Authority y paquete antes de permitir restaurar Authority.",
+              "example": "Backups válidos",
+              "constraints": "Preview no restaura. Cambiar archivo/contraseña exige validar otra vez."
+            },
+            {
+              "key": "restoreAuthority",
+              "label": "Restaurar Authority",
+              "description": "Aplica Authority validada si bootstrap está permitido. Después entre con Administrador restaurado.",
+              "example": "Authority restaurada",
+              "constraints": "Acceso restaurado no equivale a aplicación importada; no reutilice sesiones antiguas."
+            },
+            {
+              "key": "validateApplication",
+              "label": "Validar aplicación",
+              "description": "Comprueba el paquete contra estado/Authority actuales, incluso después de restaurar Authority.",
+              "example": "Paquete válido compatible",
+              "constraints": "La validación anterior a restaurar no sustituye la nueva."
+            },
+            {
+              "key": "restoreApplication",
+              "label": "Importar aplicación",
+              "description": "Ejecuta recuperación aceptada: sustituir Working, persistir revisión raíz, publicar y activar por lifecycle.",
+              "example": "Application importada, publicada y activada",
+              "constraints": "El éxito completo exige todas las etapas; un estado intermedio no es recuperación integral."
+            },
+            {
+              "key": "continueRecovery",
+              "label": "Continuar recuperación",
+              "description": "Retoma tras login con archivos conservados por el navegador.",
+              "example": "Archivos ya seleccionados",
+              "constraints": "Si se perdieron, seleccione y valide otra vez; nombres/tamaños no sustituyen comprobación del servidor."
+            },
+            {
+              "key": "continueWithoutLicense",
+              "label": "Continuar sin licencia",
+              "description": "Prosigue si aplicación recuperada pero licencia opcional falló.",
+              "example": "Aviso de licencia separado",
+              "constraints": "No demuestra capacidad/licencia para operar; compruebe Licenciamiento y sesión Runtime después."
+            }
+          ]
+        },
+        {
+          "heading": "Recuperar Authority y aplicación en instalación neutra",
+          "body": "1. Confirme instalación neutra elegible y servidor de destino correcto; no haga detach solo para abrir este flujo. 2. En configuración inicial elija Restaurar backup. Seleccione aplicación, Authority, contraseña y licencia opcional. 3. Elija Validar backups. Pare ante rechazo y corrija archivo/compatibilidad/credencial; aceptar extensión no valida. 4. Con archivos válidos, elija Restaurar Authority. 5. Entre con Administrador restaurado habilitado y con permisos efectivos de ingeniería/administración requeridos para el paquete; el nombre developer no basta. 6. Continúe; el servidor vuelve a validar aplicación con Authority restaurada. 7. Si se permite, elija Importar aplicación y espere resultado completo. Restaurar Authority y recuperar aplicación son etapas separadas, no promesa de una transacción única entre todos los archivos."
+        },
+        {
+          "heading": "Recuperar solo aplicación con Authority existente",
+          "body": "Si no hay proyecto persistido pero sí Authority, entre con Administrador compatible y elija Importar aplicación. Seleccione .escadapkg, Valide, lea el resultado y después importe. Exige paquete compatible, catálogo/estado de destino apropiados y autorización; no es sobreescritura genérica de cualquier aplicación activa. Para modificar una aplicación instalada use ingeniería/portabilidad correspondientes o el procedimiento de cambio. No elimine usuarios/base para que aparezca la opción."
+        },
+        {
+          "heading": "Interrupción, fallo parcial y licencia",
+          "body": "Tras restaurar Authority, la aplicación puede seguir sin recuperar. Si el navegador conserva archivos en memoria, la continuación mantiene selección e impide sustitución silenciosa. Si perdió archivos, seleccione los solicitados otra vez; una nueva previa es obligatoria antes de Apply. La selección retenida no es copia de los archivos. Si el servidor devuelve etapa/error intermedio, registre y compruebe estado persistido antes de repetir: revisión, publicación y activación son etapas distintas y no debe suponer revertida una completada. Si aplicación recuperada pero licencia opcional falló, lea el aviso y use Continuar sin licencia si corresponde; atienda licencia por separado sin repetir todo solo por ese aviso."
+        },
+        {
+          "heading": "Confirmar resultado y límites",
+          "body": "Compruebe autenticación con Authority esperada, proyecto/revisión activos, pantallas, scripts y fuentes del destino. En Runtime revise clase, valores, calidad y hora. Base/Historian se recuperan aparte mediante procedimientos nativos soportados; valores actuales de TAG no recrean historia. Material protegido de drivers puede requerir preparación local. Archivo corrupto, contraseña incorrecta, usuario restaurado deshabilitado, referencia Authority incompatible o permisos ausentes deben resolverse en su origen. Nunca edite stores, tokens ni archivos firmados para forzar aceptación. Ensaye en entorno controlado antes de depender de la copia para operación real."
+        }
+      ],
+      "relatedTopicIds": [
+        "packages.escadapkg",
+        "security.local-accounts",
+        "security.policy-scopes",
+        "engineering.lifecycle",
+        "database.topology",
+        "runtime.session-classes",
+        "licensing.overview"
       ]
     }
   ]

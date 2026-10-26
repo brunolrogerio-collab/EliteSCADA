@@ -602,8 +602,7 @@ public sealed class ContextualHelpTests
             "sources.data-sources",
             "engineering.lifecycle",
             "packages.escadapkg",
-            "diagnostics.overview",
-            "recovery.backup-system-recovery",
+            // Expanded operations guides use task-specific headings and field/example checks in ContextualHelpOperationsExamplesTests.
             "getting-started.neutral-bootstrap",
             "engineering.shell-navigation",
             "drivers.overview",
@@ -623,7 +622,6 @@ public sealed class ContextualHelpTests
             "reports.overview",
             "licensing.overview",
             "licensing.generator",
-            "runtime.session-classes",
             "application.export-import",
             "intelligence.process-stage-member-insights",
             "runtime.history",

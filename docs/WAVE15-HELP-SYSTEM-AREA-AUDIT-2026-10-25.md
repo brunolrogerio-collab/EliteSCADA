@@ -29,7 +29,7 @@ This is a review map, not a new feature backlog or a declaration of completed ac
 | User area | Help entry / material | Review disposition |
 | --- | --- | --- |
 | First start, Overview, project lifecycle | existing first-start/lifecycle guides, application map | Expanded in prior batch; end-to-end first-project walkthrough still required |
-| Installation, restore/import/switch | `installation.switching`, recovery/export guides | Current interface described; detailed recovery walkthrough still to review |
+| Installation, restore/import/switch | `installation.switching`, recovery/export guides | Recovery file/state/permission/continuation steps expanded in chapter 28; installation-switch/semantic walkthrough still to review |
 | Header / Mobile | `application.presentation`, chapter 15 | Expanded with conditional fields and procedure in this batch |
 | Scripts / Object Browser / Client Memory | Server/Client guides and tested examples, chapter 06 | Expanded in prior batch; retain full syntax/API and recipe review |
 | Libraries / Dynamos / Visual Assets | four related library/asset/object guides, chapter 19 plus 04/05 | Association/incorporation/dependencies/version/export and asset usage/rename/delete expanded; process-local association described, final walkthrough pending |
@@ -48,8 +48,8 @@ This is a review map, not a new feature backlog or a declaration of completed ac
 | Intelligence | profiles/context/stages + three new detailed guides, chapter 12 | Activation, fields, interpretation, generation and failure investigation expanded |
 | HA | existing overview + detailed configuration/operation guide, chapter 13 | Fields/states/actions expanded; no new backend/manual operational acceptance claimed |
 | Database | dedicated guide/link and chapter 14 | Fields, TLS, migrate/attach/rollback/restart and symptoms expanded |
-| Monitor / TAG Monitor / Diagnostics / Information | existing diagnosis and signal guides | Separate purpose/status/action field review remains |
-| Runtime operation / session / navigation | existing Runtime/session/history/object guides | Recheck discoverability and actions with final accepted UI |
+| Monitor / TAG Monitor / Diagnostics / Information | existing diagnosis and signal guides | Communication host/source/probe fields expanded in chapter 27; separate Monitor/TAG Monitor/Information purpose/actions still to review |
+| Runtime operation / session / navigation | existing Runtime/session/history/object guides | Session account-menu controls/results/fallback/release expanded in chapter 27; final operation/navigation walkthrough remains |
 
 ## Validation and acceptance boundary
 
@@ -176,3 +176,12 @@ Published partial read-only JSON is parsed into actual source/TAG/binding contra
 An actual browser reproduction exposed a Help navigation defect: clicking a related link near the article bottom left the new heading off-screen (viewport ratio 0). Fixed explicit topic selections to focus/scroll the heading; Back/Forward does not trigger forced focus. Final Chromium 72/72 without retry; Web build, 51-file alignment and 109 relative links passed. Actual Help desktop/mobile QA inspected; not final manual product-operation figures. Exact new CI evidence belongs to live #424/#425/#305/#756, predecessor 27ec3db7/T1 40347627268 passed. Existing #423 HA-D2 failure remains separate and uncorrected by this change.
 
 Remaining operational/semantic review precedes #357 and final real captures. #788 correction program stays queued; licensing #301 remains next after Help. No full Help/manual acceptance, driver implementation, opt-in enablement, HA/license/dependency/Preview/DEMO change or deployment.
+
+
+## Session, diagnostics and recovery continuation — 26 October 2026
+
+Chapters 27/28 expand existing installed Topic IDs runtime.session-classes, diagnostics.overview and recovery.backup-system-recovery; 41 field explanations per locale (8/23/10). Actual sources reviewed: RuntimeSessionClassPanel/runtimeSessionAdmissionApi/UserSessionMenu; CommunicationDiagnosticsPanel/NetworkReachabilityDiagnosticsApi; RestoreFirstPanel/AuthGate/InstallationSwitchingWorkspace, AuthorityBackupApi/AuthorityBackupService and SystemRecoveryApplicationService/Endpoints/AuthorityAdmissionEvaluator. Distinct requested/granted class, capacity/Authority, release-before-readmission, menu/session/logout, server TCP/ICMP versus device protocol, Active versus Working, host freshness and quality/counters are explicit. Recovery does not promise one atomic operation across Authority/application/license/database: restored login, revalidation, partial stages and license warning have separate outcomes. Protected export need not proceed to detach; source files/credentials/native data recovery remain separate.
+
+Final local .NET selected Help/recovery/admission/network/session Authority suites 146/146, zero skipped; Chromium 73/73, zero retries; Web build passed with existing bundle warning. Published probe request uses actual validator/target selection and injected TCP record; ICMP local loopback, no remote-device socket. Invalid host/port rejected before connection. Service recovery and session tests are existing behavioral tests, not live Preview restore. Dedicated expanded-guide parity/steps/field/link/example checks replace the legacy generic-heading assumption for exactly these three topics; no timeout, backend/HA test, CI filter or profile changed. Manual alignment 57 files and 121 relative links passed; earlier source guides unchanged. Help desktop/mobile QA inspected; final real product-operation figures remain pending.
+
+Predecessor 531ca1be/T1 40355198651 attempt 1 passed; exact new candidate evidence remains live in #424/#425/#305/#756. Existing HA-D2 failure #423 is preserved, root cause unconfirmed, not corrected by this text or later green. Remaining semantic first-project/operation walkthrough and Monitor/TAG Monitor/Information coverage precede final #357/real captures. Help remains active, #301 licensing next, #788 queued with #779–#782 order preserved. No merge/deploy, Preview/DEMO or product behavior/dependency/licensing/HA mutation, no full Help/manual/Wave acceptance.

@@ -30,3 +30,5 @@ Consulte o [sumário completo](../README.md) e a [matriz de cobertura](../COVERA
 - [Home/Building: dispositivos e conexões](22-HOME-BUILDING-CONEXOES.md)
 
 - [Zigbee e Z-Wave: conexão e operação](23-ZIGBEE-E-ZWAVE.md)
+
+- [CLPs: Siemens, Logix, Mitsubishi e Panasonic](24-CLPS-E-MEMORIA.md)

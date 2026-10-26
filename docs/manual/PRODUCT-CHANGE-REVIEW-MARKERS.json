@@ -126,5 +126,29 @@
     "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
     "reviewWhen": "The accepted decoder and provider/Runtime paths consume the published nested definition.exposes inventory.",
     "review": "Replace the format incompatibility limitation after testing the exact external example and preserving source/IEEE/endpoint/property identity, selection and bounds. Update documentation-characterization tests and all locales; closing the issue alone is insufficient."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-786-S7",
+    "issue": 786,
+    "topicId": "drivers.siemens-setup",
+    "fieldKeys": [
+      "communicationBinding",
+      "valueOrder"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The actual catalog and assistant emit the S7 binding schema and project ordering into the shared physical transform, without legacy order settings or address tokens.",
+    "review": "Replace the creation limitation only after real assistant output, save/reopen and strict planner acceptance are checked. Update the characterization test and all three locales; do not instruct users to invent schema IDs."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-786-LOGIX",
+    "issue": 786,
+    "topicId": "drivers.logix-setup",
+    "fieldKeys": [
+      "communicationBinding",
+      "bitIndex"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The actual assistant projects Logix symbolic fields into PortableAddress, leaves Settings empty and projects integer bits into the shared selector.",
+    "review": "Review the creation limitation only after component output, persistence and strict planner admission are proven, including native-type, bit-width and read-only restrictions in all locales."
   }
 ]

@@ -39,3 +39,5 @@ Consulte el [índice completo](../README.md) y la [matriz de cobertura](../COVER
 - [Home/Building: dispositivos y conexiones](22-HOME-BUILDING-CONEXIONES.md)
 
 - [Zigbee y Z-Wave: conexión y operación](23-ZIGBEE-Y-ZWAVE.md)
+
+- [PLCs: Siemens, Logix, Mitsubishi y Panasonic](24-PLCS-Y-MEMORIA.md)

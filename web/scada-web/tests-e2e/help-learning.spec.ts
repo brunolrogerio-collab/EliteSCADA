@@ -4,6 +4,37 @@ import { installCurrentHelpCatalog } from './helpTestSupport';
 
 test.use({ locale: 'pt-BR' });
 
+test('PLC guides distinguish routing, native types and conditional serial fields across locales', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=drivers.siemens-setup');
+  const article = page.locator('article');
+  await expect(article.locator('h2')).toHaveText('Siemens S7: CPU, memória e primeira leitura');
+  await expect(article.getByRole('rowheader', { name: 'Número do DB', exact: false })).toBeVisible();
+  await expect(article).toContainText('o acesso a DB e cada ponto ainda precisa ser conferido');
+  await expect(article).toContainText('A criação por esse caminho é recusada');
+  await expect(article.locator('pre')).toContainText('s7iso:v1;area=DataBlock;db=1');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article.locator('h2')).toHaveText('Siemens S7: CPU, memory and first reading');
+  await page.goto('/help?topic=drivers.logix-setup');
+  await expect(article).toContainText('native Bool writing is not enabled');
+  await expect(article).toContainText('CipSecurityRequired is an explicit requirement rejected');
+  await article.getByRole('rowheader', { name: 'Native symbol type', exact: false }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('help-logix-type-limits-desktop.png') });
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await page.goto('/help?topic=drivers.melsec-setup');
+  await expect(article.locator('h2')).toHaveText('Mitsubishi MELSEC: perfil, ruta y dispositivos');
+  await expect(article).toContainText('X10 es hexadecimal 10');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/help?topic=drivers.panasonic-setup');
+  await expect(article.locator('h2')).toHaveText('Panasonic MEWTOCOL: TCP o serie y mapa de memoria');
+  await expect(article).toContainText('Solo Host Serial');
+  await expect(article).toContainText('9094 es ejemplo');
+  await expect(article.locator('pre')).toContainText('"address": "DT100"');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await article.getByRole('rowheader', { name: 'Puerto serie del servidor', exact: false }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('help-panasonic-serial-fields-mobile.png') });
+});
+
 test('radio guides explain prepared networks, current UI limits and source freshness in all locales', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=drivers.radio-connections');

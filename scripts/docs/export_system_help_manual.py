@@ -30,6 +30,9 @@ for locale, (name, title) in {'pt-BR': ('22-HOME-BUILDING-CONEXOES.md', 'Home/Bu
 for locale, (name, title) in {'pt-BR': ('23-ZIGBEE-E-ZWAVE.md', 'Zigbee e Z-Wave: conexão, identidade e operação'), 'en': ('23-ZIGBEE-AND-ZWAVE.md', 'Zigbee and Z-Wave: connection, identity and operation'), 'es': ('23-ZIGBEE-Y-ZWAVE.md', 'Zigbee y Z-Wave: conexión, identidad y operación')}.items():
     CHAPTERS[locale].append((name, title, ['drivers.radio-connections', 'drivers.zigbee-native-setup', 'drivers.zwave-setup', 'drivers.zigbee2mqtt-setup']))
 
+for locale, (name, title) in {'pt-BR': ('24-CLPS-E-MEMORIA.md', 'CLPs: conexão, símbolos e memória'), 'en': ('24-PLCS-AND-MEMORY.md', 'PLCs: connections, symbols and memory'), 'es': ('24-PLCS-Y-MEMORIA.md', 'PLCs: conexiones, símbolos y memoria')}.items():
+    CHAPTERS[locale].append((name, title, ['drivers.siemens-setup', 'drivers.logix-setup', 'drivers.melsec-setup', 'drivers.panasonic-setup']))
+
 INTELLIGENCE = {'pt-BR': '12-INTELIGENCIA-ATIVOS-PROCESSOS.md', 'en': '12-ASSET-PROCESS-INTELLIGENCE.md', 'es': '12-INTELIGENCIA-ACTIVOS-PROCESOS.md'}
 APPEND_MARKER = '<!-- installed-system-guides -->'
 

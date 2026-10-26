@@ -12,7 +12,12 @@ public static partial class ContextualHelpCatalog
     {
         string[] more = topic.Id switch
         {
-            "home-building.device-workflow" or "drivers.overview" => ["drivers.radio-connections", "drivers.zigbee-native-setup", "drivers.zigbee2mqtt-setup", "drivers.zwave-setup"],
+            "home-building.device-workflow" => ["drivers.radio-connections", "drivers.zigbee-native-setup", "drivers.zigbee2mqtt-setup", "drivers.zwave-setup"],
+            "drivers.overview" => ["sources.connection-workflow", "drivers.siemens-setup", "drivers.logix-setup", "drivers.melsec-setup", "drivers.panasonic-setup", "drivers.radio-connections"],
+            "driver.siemens.s7.iso" => ["drivers.siemens-setup", "sources.connection-workflow"],
+            "driver.rockwell.logix.eip" => ["drivers.logix-setup", "sources.connection-workflow"],
+            "driver.mitsubishi.melsec.mc" => ["drivers.melsec-setup", "sources.connection-workflow"],
+            "driver.panasonic.mewtocol.tcp" or "driver.panasonic.mewtocol.serial" => ["drivers.panasonic-setup", "sources.connection-workflow"],
             "driver.zigbee.native" => ["drivers.zigbee-native-setup", "drivers.radio-connections"],
             "driver.zigbee2mqtt.bridge" => ["drivers.zigbee2mqtt-setup", "drivers.radio-connections"],
             "driver.zwave.js.controller" => ["drivers.zwave-setup", "drivers.radio-connections"],

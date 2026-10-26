@@ -1,5 +1,9 @@
 # Current coordinator pointer — Wave 15
 
+Active Help continuation 26/10: four PLC guides / five connections / chapter 24 pt-BR/en/es, 77 fields per locale: Siemens S7, Logix, Mitsubishi and Panasonic TCP/serial. Local final .NET 147/147, Chromium 69/69 without retry, Web and 45-file alignment passed; desktop/mobile inspected. #786 now includes proven S7 identity/order projection and Logix forbidden-Settings authoring gaps, explicitly marked, not fixed. Positive examples execute actual planners/codecs; physical acceptance is not claimed. Published head/exact T1 evidence is in live #424/#425/#305/#756. Predecessor 4f00bdfe/T1 40325677182 attempt 1 passed. Read newest LAST CHANGE/depth map. Remaining DNP3/IEC 104/Modbus Server/conditional connectors/operation/semantic review → #357/final real images. Finish Help → #301 → #779–#782; #785–#787 queued. No merge/deploy or product/Preview change; #772 remains draft.
+
+## Previous Help checkpoint — historical
+
 Active Help continuation 26/10: four radio guides / chapter 23 pt-BR/en/es, 66 field explanations per locale, cover Native Zigbee, Z-Wave and external Zigbee2MQTT. Local .NET 113/113, Chromium 68/68 without retry, Web and 42-file alignment passed; mobile inspected. #785 selection and #786 generic binding gaps are expanded; new #787 proves nested external inventory parsing produces no TAGs. Current limits and later-review markers remain explicit; no driver fix or physical acceptance is claimed. Published head/exact T1 evidence is in live #424/#425/#305/#756. Predecessor e4c1713d/T1 40252480073 attempt 2 passed with attempt 1 timeout history retained. Read newest LAST CHANGE/depth map. Remaining industrial protocols/operation/semantic walkthroughs → #357/final real images. Finish Help → product licensing #301 → #779–#782; #785–#787 queued. No merge/deploy, behavior or Preview change; PR #772 stays draft.
 
 ## Previous Help checkpoint — historical

@@ -40,6 +40,8 @@ INTELLIGENCE = {'pt-BR': '12-INTELIGENCIA-ATIVOS-PROCESSOS.md', 'en': '12-ASSET-
 for locale, (name, title) in {'pt-BR': ('26-MATTER-VERSAO-EM-TESTE.md', 'Matter Wi-Fi: versão em teste'), 'en': ('26-MATTER-TEST-VERSION.md', 'Matter Wi-Fi: test version'), 'es': ('26-MATTER-VERSION-EN-PRUEBA.md', 'Matter Wi-Fi: versión en prueba')}.items():
     CHAPTERS[locale].append((name, title, ['drivers.matter-test-workflow']))
 APPEND_MARKER = '<!-- installed-system-guides -->'
+for locale, (name, title) in {'pt-BR': ('29-MONITORES-E-INFORMACOES.md', 'Monitores e Informações'), 'en': ('29-MONITORS-AND-INFORMATION.md', 'Monitors and Information'), 'es': ('29-MONITORES-E-INFORMACION.md', 'Monitores e Información')}.items():
+    CHAPTERS[locale].append((name, title, ['engineering.development-monitor', 'engineering.tag-monitor', 'engineering.information']))
 for locale, (name, title) in {'pt-BR': ('27-SESSOES-E-DIAGNOSTICO.md', 'Sessões Runtime e diagnóstico'), 'en': ('27-SESSIONS-AND-DIAGNOSTICS.md', 'Runtime sessions and diagnostics'), 'es': ('27-SESIONES-Y-DIAGNOSTICO.md', 'Sesiones Runtime y diagnóstico')}.items():
     CHAPTERS[locale].append((name, title, ['runtime.session-classes', 'diagnostics.overview']))
 for locale, (name, title) in {'pt-BR': ('28-BACKUP-E-RECUPERACAO.md', 'Backup e recuperação'), 'en': ('28-BACKUP-AND-RECOVERY.md', 'Backup and recovery'), 'es': ('28-BACKUP-Y-RECUPERACION.md', 'Backup y recuperación')}.items():
@@ -56,7 +58,7 @@ def article(topic, locale):
     for section in topic['sections']:
         text.extend([f'### {section["heading"]}', '', re.sub(r'(?<=[.!?])\s+(?=\d{1,2}\.\s)|\n\s*(?=\d{1,2}\.\s)', '\n', section['body']) if section['body'].startswith('1. ') else section['body'], ''])
         if section.get('code'):
-            language = 'csv' if topic['id'] in ('gateway.configure-test', 'engineering.tabular-workflow') else 'json' if topic['id'].startswith('drivers.') or topic['id'] == 'diagnostics.overview' else 'python'
+            language = 'csv' if topic['id'] in ('gateway.configure-test', 'engineering.tabular-workflow') else 'json' if topic['id'].startswith('drivers.') or topic['id'] in ('diagnostics.overview', 'engineering.development-monitor') else 'python'
             text.extend([f'```{language}', section['code'], '```', ''])
         if section.get('fields'):
             headers = {'pt-BR': ('Campo', 'Para que serve e como preencher', 'Exemplo', 'Limites'),

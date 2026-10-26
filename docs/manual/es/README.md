@@ -48,3 +48,5 @@ Consulte el [índice completo](../README.md) y la [matriz de cobertura](../COVER
 
 - [Sesiones Runtime y diagnóstico](27-SESIONES-Y-DIAGNOSTICO.md)
 - [Backup y recuperación: Authority, aplicación y datos](28-BACKUP-Y-RECUPERACION.md)
+
+- [Monitor de desarrollo, TAG Monitor e Información](29-MONITORES-E-INFORMACION.md)

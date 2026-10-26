@@ -2,6 +2,10 @@ import { expect, test } from '@playwright/test';
 import { contextualHelpTopic } from '../src/help/contextualHelpTopic';
 
 test('routes resolve to stable contextual Help topics with a safe fallback', () => {
+  expect(contextualHelpTopic('/engineering/diagnostics/tag-monitor')).toBe('engineering.tag-monitor');
+  expect(contextualHelpTopic('/engineering/monitor')).toBe('engineering.development-monitor');
+  expect(contextualHelpTopic('/engineering/information')).toBe('engineering.information');
+  expect(contextualHelpTopic('/engineering/diagnostics')).toBe('diagnostics.overview');
   expect(contextualHelpTopic('/engineering/database-topology')).toBe('database.topology');
   expect(contextualHelpTopic('/engineering/databaseTopology')).toBe('database.topology');
   expect(contextualHelpTopic('/engineering/templates')).toBe('templates.overview');

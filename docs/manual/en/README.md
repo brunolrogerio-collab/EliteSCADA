@@ -48,3 +48,5 @@ See [the full table of contents](../README.md) and [coverage matrix](../COVERAGE
 
 - [Runtime sessions and diagnostics](27-SESSIONS-AND-DIAGNOSTICS.md)
 - [Backup and recovery: Authority, application and data](28-BACKUP-AND-RECOVERY.md)
+
+- [Development Monitor, TAG Monitor and Information](29-MONITORS-AND-INFORMATION.md)

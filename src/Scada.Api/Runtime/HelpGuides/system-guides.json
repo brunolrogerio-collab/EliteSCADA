@@ -6186,6 +6186,384 @@
         "runtime.session-classes",
         "licensing.overview"
       ]
+    },
+    {
+      "id": "engineering.development-monitor",
+      "category": "runtime",
+      "title": "Monitor de desenvolvimento: acompanhar referências",
+      "summary": "Monte uma lista de observação de TAGs, memórias e diagnósticos sem escrever ou forçar valores.",
+      "sections": [
+        {
+          "heading": "Escolha este monitor para comparar variáveis",
+          "body": "No Engineering, abra Monitoramento. Ele reúne referências que você escolhe em uma tabela somente leitura. O catálogo usa a engenharia aberta, mas valores de TAGs e Memória do Servidor vêm do Runtime acessível; uma definição no Working não cria uma amostra ativa. Memória do Cliente pertence ao contexto local deste navegador. Estados de sistema/driver são diagnósticos, não medições físicas. Para detalhes e histórico de um TAG, use TAG Monitor; para saúde de conexão, use Diagnóstico de comunicação."
+        },
+        {
+          "heading": "Adicionar e acompanhar",
+          "body": "1. Confira o projeto aberto e a aplicação ativa. 2. Em Procurar referências do projeto, busque e expanda as famílias/pastas até a referência desejada; selecione-a para adicionar. 3. Como alternativa, use Adicionar referência exata e pressione Adicionar ou Enter. Esse campo exige referência/caminho exato; não é busca por trecho. 4. Leia Fonte, Tipo, Valor, Qualidade / Estado e Última atualização em conjunto. 5. Acrescente outras referências para comparar e aguarde novas observações. 6. Remova a linha ou use Limpar quando não precisar da lista. Isso não apaga TAGs ou definições do projeto."
+        },
+        {
+          "heading": "Campos e ações",
+          "body": "Use a árvore para evitar digitação e resolver nomes ambíguos. A lista de observação é guardada na sessão do navegador; não é configuração publicada nem garantia de persistência após fechar a sessão.",
+          "fields": [
+            {
+              "key": "quickAdd",
+              "label": "Adicionar referência exata",
+              "description": "Recebe caminho/referência completo. O mesmo rótulo de dois recursos é ambíguo; escolha na árvore.",
+              "example": "Plant.Motor.Status",
+              "constraints": "Não cria TAG nem busca parcial; referência inexistente/ambígua gera mensagem."
+            },
+            {
+              "key": "referenceBrowser",
+              "label": "Procurar referências do projeto",
+              "description": "Busca e árvore por famílias para escolher TAG, memória, sistema, driver ou asset existente.",
+              "example": "Escolher uma referência na árvore",
+              "constraints": "Estar no catálogo não garante valor vivo; assets não se tornam sinais de processo."
+            },
+            {
+              "key": "reference",
+              "label": "Nome / Referência",
+              "description": "Mostra rótulo e referência da linha. Confira o recurso antes de comparar.",
+              "example": "Plant.Motor.Status.03",
+              "constraints": "Referência de bit não é um novo TAG físico."
+            },
+            {
+              "key": "source",
+              "label": "Fonte",
+              "description": "Distingue TAG, Memória do Servidor, Memória do Cliente, Sistema, Driver e Asset.",
+              "example": "Memória do Cliente",
+              "constraints": "Memória local de um navegador não é o valor de outro cliente."
+            },
+            {
+              "key": "value",
+              "label": "Valor",
+              "description": "Mostra o valor disponível ou um traço quando ausente/não representável.",
+              "example": "8 ou true",
+              "constraints": "Traço não é zero/false; números Int64 devem manter precisão."
+            },
+            {
+              "key": "dataType",
+              "label": "Tipo",
+              "description": "Tipo da referência ou amostra; uma vista de bit é Boolean.",
+              "example": "Int16 → bit Boolean",
+              "constraints": "Não converte a definição original ao observar."
+            },
+            {
+              "key": "quality",
+              "label": "Qualidade / Estado",
+              "description": "TAGs mostram qualidade; referências locais/diagnósticas podem mostrar LocalSession, Available ou Unavailable.",
+              "example": "Good / LocalSession",
+              "constraints": "São conceitos distintos; estado local não prova aquisição física Good."
+            },
+            {
+              "key": "timestamp",
+              "label": "Última atualização",
+              "description": "Mostra horário de origem quando disponível; caso contrário, horário da observação.",
+              "example": "Horário da leitura observada",
+              "constraints": "Memória local não ganha um timestamp de sensor; confira a origem."
+            },
+            {
+              "key": "remove",
+              "label": "Remover",
+              "description": "Tira uma referência da lista de observação.",
+              "example": "Remover uma linha",
+              "constraints": "Não exclui recurso, amostra nem histórico."
+            },
+            {
+              "key": "clear",
+              "label": "Limpar",
+              "description": "Esvazia a lista observada desta sessão.",
+              "example": "Tabela sem itens",
+              "constraints": "Não apaga aplicação nem interrompe aquisição."
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo: observar o bit de uma palavra",
+          "body": "Uma palavra Int16 de valor 8 tem o bit de índice 3 ligado: 8 = 2³. O sufixo .03 seleciona esse bit, contando a partir de zero; .00 é o primeiro bit. Adicione a palavra e sua vista para comparar. O tipo base deve permitir seleção de bit, dentro de sua largura. Não interprete .03 como casa decimal, endereço de bobina ou campo independente. O exemplo abaixo usa nomes fictícios; só funciona se o TAG existir e tiver amostra inteira válida. Observar o bit não escreve na palavra.",
+          "code": "{\n  \"reference\": \"Plant.Motor.Status\",\n  \"dataType\": \"Int16\",\n  \"value\": 8,\n  \"bitReference\": \"Plant.Motor.Status.03\",\n  \"expectedBit\": true\n}"
+        },
+        {
+          "heading": "Falta de valor ou atualização",
+          "body": "Referência não encontrada: confira caminho e projeto; nomes ambíguos exigem seleção explícita. Definição só no Working: confirme o Active antes de esperar valores. Unavailable/sem amostra: confira permissões, servidor, fonte e qualidade; não coloque zero para esconder a ausência. A tabela combina atualização agrupada e realtime; uma desconexão não permite afirmar que o último valor está atual. Client Memory observa o contexto local, não outro Runtime. Use o diagnóstico do recurso para aprofundar e anote referência, estado e horário. Não há comando de escrita/force neste monitor."
+        }
+      ],
+      "relatedTopicIds": [
+        "engineering.tag-monitor",
+        "diagnostics.overview",
+        "memory.client",
+        "sources.internal-memory",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "engineering.tag-monitor",
+      "category": "runtime",
+      "title": "TAG Monitor: conferir valor, qualidade e histórico",
+      "summary": "Compare Working e Active e investigue um TAG no Runtime real, sem confundir edição com dados em execução.",
+      "sections": [
+        {
+          "heading": "Identifique o que está sendo observado",
+          "body": "Abra Engineering → Diagnósticos → TAG Monitor. O topo identifica a engenharia aberta e a aplicação ativa; o Inspector abaixo consulta TAGs visíveis do Active Runtime. Working serve de contexto e não substitui a origem dos valores. Se houver simulação/demo ativa, essa é a origem informada; não é prova de comunicação com equipamento físico. O monitor é somente leitura: mesmo um TAG marcado Gravável não pode ser escrito por esse painel."
+        },
+        {
+          "heading": "Conferir um TAG passo a passo",
+          "body": "1. Compare Contexto Engineering, Revisão Working e Identidade ativa. Se Working difere do Active, não assuma que a edição já está em execução. 2. Em Buscar TAGs, digite parte do path, nome, tipo, unidade, origem ou valor. 3. Use Qualidade e Acesso para reduzir a lista; limpe filtros se faltar uma TAG esperada. 4. Selecione a TAG. Confira valor, tipo, unidade, qualidade, origem, horários e Atualização do valor. 5. Leia Histórico recente; use Atualizar histórico para consultar novamente. 6. Confira se há permissão, captura e amostras no intervalo antes de concluir que histórico vazio é defeito. Para busca completa, períodos/Playback e exportação, use os recursos de Histórico correspondentes."
+        },
+        {
+          "heading": "Contexto e filtros",
+          "body": "O indicador Working vs Active compara projeto, revisão e alterações não salvas. É uma conferência de contexto; não publica nem ativa o projeto.",
+          "fields": [
+            {
+              "key": "workingProject",
+              "label": "Contexto Engineering",
+              "description": "Projeto aberto para edição.",
+              "example": "Projeto da estação",
+              "constraints": "Não garante que esse projeto esteja ativo."
+            },
+            {
+              "key": "workingRevision",
+              "label": "Revisão Working",
+              "description": "Revisão base aberta na engenharia; alterações não salvas podem diferir dela.",
+              "example": "Revisão 12",
+              "constraints": "Não é automaticamente a revisão em execução."
+            },
+            {
+              "key": "activeIdentity",
+              "label": "Identidade ativa",
+              "description": "Projeto/revisão do Runtime observado; ou indicação de simulação/ausência de Active.",
+              "example": "Projeto · rev 11",
+              "constraints": "Sem identidade disponível, não invente uma comparação confirmada."
+            },
+            {
+              "key": "alignment",
+              "label": "Working vs Active",
+              "description": "Alinhado ou diferente orienta a comparação; leia os avisos de modo e indisponibilidade.",
+              "example": "Working difere do Active",
+              "constraints": "Salvar não implica Publicar/Ativar."
+            },
+            {
+              "key": "activatedAtUtc",
+              "label": "Ativado em",
+              "description": "Momento informado de ativação da revisão.",
+              "example": "Horário de ativação",
+              "constraints": "Não é horário de amostra."
+            },
+            {
+              "key": "query",
+              "label": "Buscar TAGs",
+              "description": "Filtra os metadados/valor dos TAGs visíveis.",
+              "example": "Parte do path ou unidade",
+              "constraints": "Uma TAG pode existir mas não estar visível à sua conta."
+            },
+            {
+              "key": "qualityFilter",
+              "label": "Qualidade",
+              "description": "Todos, Good, Atenção, Bad ou Sem amostra para localizar a condição desejada.",
+              "example": "Sem amostra",
+              "constraints": "Não altera a qualidade; ausência de resultado pode ser filtro."
+            },
+            {
+              "key": "accessFilter",
+              "label": "Acesso",
+              "description": "Todos, Somente leitura ou Gravável conforme o atributo do TAG.",
+              "example": "Gravável",
+              "constraints": "Não é permissão efetiva de escrita; painel continua somente leitura."
+            },
+            {
+              "key": "refresh",
+              "label": "Atualizar",
+              "description": "Reconsulta a lista. Observe também o estado realtime/periódico.",
+              "example": "Nova consulta",
+              "constraints": "Não reinicia aquisição nem limpa histórico."
+            }
+          ]
+        },
+        {
+          "heading": "Detalhes e histórico recente",
+          "body": "Leia qualidade e atualização com o valor. Há diferença entre um valor antigo, uma consulta recente que voltou válida e um novo valor de processo.",
+          "fields": [
+            {
+              "key": "currentValue",
+              "label": "Valor atual",
+              "description": "Valor exibido com a unidade quando existe.",
+              "example": "Pressão medida",
+              "constraints": "Sem amostra não é zero; aparência do valor não comprova saúde."
+            },
+            {
+              "key": "quality",
+              "label": "Qualidade",
+              "description": "Condição informada da amostra, como Good ou BadCommunication.",
+              "example": "BadCommunication",
+              "constraints": "Good não comprova calibração do sensor nem atualização recente sozinho."
+            },
+            {
+              "key": "dataType",
+              "label": "Tipo e unidade",
+              "description": "Tipo do dado e unidade configurada.",
+              "example": "Double · bar",
+              "constraints": "Não converte a física do sensor pelo texto da unidade."
+            },
+            {
+              "key": "source",
+              "label": "Origem / Data Source",
+              "description": "Fonte do ponto. Compare com o equipamento esperado.",
+              "example": "Fonte configurada",
+              "constraints": "Não substituir pelo nome da tela."
+            },
+            {
+              "key": "timestamp",
+              "label": "Timestamp SCADIVO",
+              "description": "Horário associado à amostra apresentada pelo Runtime.",
+              "example": "Horário da amostra",
+              "constraints": "Compare com os demais horários; não é hora de abrir a página."
+            },
+            {
+              "key": "sourceTimestamp",
+              "label": "Timestamp da origem",
+              "description": "Horário da origem quando ela o fornece.",
+              "example": "Horário informado pelo dispositivo",
+              "constraints": "Pode estar ausente; relógios/driver precisam de contexto."
+            },
+            {
+              "key": "serverTimestamp",
+              "label": "Timestamp do servidor",
+              "description": "Horário do servidor quando disponível na amostra.",
+              "example": "Horário de servidor",
+              "constraints": "Não significa que o sensor mediu nesse instante."
+            },
+            {
+              "key": "freshness",
+              "label": "Atualização do valor",
+              "description": "Atualizada, envelhecendo, desatualizada ou sem timestamp, com Motivo.",
+              "example": "Dados desatualizados",
+              "constraints": "Não confundir sucesso de requisição com uma amostra nova."
+            },
+            {
+              "key": "requestTimes",
+              "label": "Última solicitação / resposta válida",
+              "description": "Ajuda a separar falha de consulta de ausência de avanço da amostra.",
+              "example": "Resposta recebida agora",
+              "constraints": "Pode retornar valor já existente; confira timestamp do valor."
+            },
+            {
+              "key": "identity",
+              "label": "Path, ID estável e descrição",
+              "description": "Identificam o recurso para comparação/diagnóstico.",
+              "example": "Path legível da TAG",
+              "constraints": "Não há ID a preencher aqui; não edite identidade para resolver falha."
+            },
+            {
+              "key": "recentHistory",
+              "label": "Histórico recente",
+              "description": "Consulta limitada do ponto selecionado; janela padrão de 15 minutos e até 120 amostras solicitadas.",
+              "example": "Valores do intervalo recente",
+              "constraints": "Não é todo o histórico nem configura retenção/captura; não é controle de janela editável neste painel."
+            },
+            {
+              "key": "historyRefresh",
+              "label": "Atualizar histórico",
+              "description": "Reconsulta o ponto e seu histórico recente.",
+              "example": "Nova consulta do intervalo",
+              "constraints": "Não cria amostras ausentes e não força gravação."
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo: Working novo e Runtime antigo",
+          "body": "Você edita a revisão 12, mas Identidade ativa mostra revisão 11. O valor observado pertence ao Runtime ativo, não à nova definição do Working. Confira o que mudou, valide e use Salvar → Publicar → Ativar pelo lifecycle quando estiver pronto; depois confira identidade e amostra novamente. Não force o monitor a mostrar a revisão em edição. Em simulação, identifique a origem de teste no topo antes de usar números como evidência de campo."
+        },
+        {
+          "heading": "Falhas e vazios",
+          "body": "Lista vazia difere de nenhum resultado por filtro. Permissão negada exige conferir conta e recurso; não é prova de TAG inexistente. TAG removida da revisão ativa pode deixar detalhes indisponíveis. Realtime conectado informa transporte, não saúde do sensor; atualização periódica pode continuar quando realtime falha. Histórico vazio pode decorrer de captura não habilitada, ausência no intervalo, permissão ou serviço indisponível. Confira a mensagem e o Historian antes de alterar dados. Uma resposta antiga visível após falha não deve ser considerada nova amostra."
+        }
+      ],
+      "relatedTopicIds": [
+        "engineering.development-monitor",
+        "diagnostics.overview",
+        "tags.timestamps",
+        "tags.quality",
+        "historian.capture-query",
+        "runtime.history",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "engineering.information",
+      "category": "engineering",
+      "title": "Informações: identificar produto e projeto",
+      "summary": "Saiba qual versão está instalada e diferencie versão do produto, esquema e revisão da aplicação.",
+      "sections": [
+        {
+          "heading": "Quando usar",
+          "body": "No Engineering, abra Informações para identificar o produto e o contexto de engenharia em atendimento, comparação de versões ou análise de pacote. É uma página de consulta. Não ativa revisão, atualiza software, muda schema ou revela consumo de licença; esses assuntos têm fluxos próprios."
+        },
+        {
+          "heading": "Consultar e interpretar",
+          "body": "1. Confira Versão do produto. Se estiver indisponível, registre essa condição; não deduza versão pelo nome do projeto. 2. Abra Detalhes técnicos quando precisar comparar pacote/contexto ou informar suporte. 3. Confira Projeto, Revisão base e Snapshot carregado. 4. Consulte o Active em TAG Monitor/Runtime quando a dúvida for o que está executando. 5. Ao reportar problema, leve versão, projeto/revisão, horário e mensagem; evite publicar detalhes privados da aplicação."
+        },
+        {
+          "heading": "O que cada informação significa",
+          "body": "Os dados abaixo são apresentados pelo sistema; não são campos que o usuário precisa preencher.",
+          "fields": [
+            {
+              "key": "displayVersion",
+              "label": "Versão do produto",
+              "description": "Versão do SCADIVO instalado, distinta da revisão do projeto.",
+              "example": "Versão exibida pelo produto",
+              "constraints": "Não identifica sozinha a aplicação e a revisão ativas."
+            },
+            {
+              "key": "schema",
+              "label": "Schema de Engineering",
+              "description": "Identifica formato e versão da estrutura do pacote de engenharia.",
+              "example": "Identificação do formato",
+              "constraints": "Não é versão do PostgreSQL nem número da revisão do projeto."
+            },
+            {
+              "key": "baseRevision",
+              "label": "Revisão base",
+              "description": "Revisão na qual o Working carregado se baseia; pode indicar não salvo.",
+              "example": "Revisão base exibida",
+              "constraints": "Edições posteriores podem não estar salvas/publicadas/ativas."
+            },
+            {
+              "key": "exportedAt",
+              "label": "Snapshot carregado",
+              "description": "Data/hora do retrato de engenharia carregado.",
+              "example": "Horário exibido do snapshot",
+              "constraints": "Não é timestamp de sensor, backup completo ou prova de ativação."
+            },
+            {
+              "key": "project",
+              "label": "Projeto",
+              "description": "Nome/chave que identifica o contexto de engenharia aberto.",
+              "example": "Nome do projeto",
+              "constraints": "Confirme Active em seu painel próprio; nome legível não é chave de licença."
+            },
+            {
+              "key": "buildCommit",
+              "label": "Commit do build",
+              "description": "Identificação técnica da compilação, quando fornecida.",
+              "example": "Identificação exibida",
+              "constraints": "Pode não aparecer; não invente um identificador nem o confunda com revisão da aplicação."
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo de comparação",
+          "body": "Duas estações podem ter a mesma versão do produto e projetos/revisões diferentes. Também podem ter o mesmo projeto com versões de produto diferentes. Compare cada informação no seu papel e confirme o Active antes de atribuir uma diferença à tela, ao driver ou à licença."
+        },
+        {
+          "heading": "Se faltar informação",
+          "body": "Versão indisponível ou commit ausente não deve ser preenchido manualmente pelo operador. Registre a condição e confira a instalação com o responsável. Se a dúvida é consumo/capacidade, abra Licenciamento; se é valor/qualidade, use TAG Monitor; se é comunicação, use Diagnóstico. Não conclua defeito de processo a partir de um campo de identificação."
+        }
+      ],
+      "relatedTopicIds": [
+        "engineering.shell-navigation",
+        "engineering.tag-monitor",
+        "engineering.lifecycle",
+        "licensing.overview"
+      ]
     }
   ],
   "en": [
@@ -12375,6 +12753,384 @@
         "runtime.session-classes",
         "licensing.overview"
       ]
+    },
+    {
+      "id": "engineering.development-monitor",
+      "category": "runtime",
+      "title": "Development Monitor: watch references",
+      "summary": "Build a watch list of TAGs, memories and diagnostics without writing or forcing values.",
+      "sections": [
+        {
+          "heading": "Choose this monitor to compare variables",
+          "body": "In Engineering, open Development Monitor. It brings selected references into a read-only table. The catalog uses the open engineering project, but TAG and Server Memory values come from accessible Runtime; a Working definition does not create an active sample. Client Memory belongs to this browser context. System/driver states are diagnostics, not physical measurements. Use TAG Monitor for point details/history and communication diagnostics for connection health."
+        },
+        {
+          "heading": "Add and observe",
+          "body": "1. Check the open project and active application. 2. In Browse project references, search/expand families and folders and select the desired item to add it. 3. Alternatively use Exact quick-add, then Add or Enter. It requires an exact reference/path, not a substring. 4. Read Source, Type, Value, Quality / State and Last update together. 5. Add references to compare and wait for new observations. 6. Remove a row or Clear the list when finished. Neither action deletes project TAGs or definitions."
+        },
+        {
+          "heading": "Fields and actions",
+          "body": "Use the reference browser to avoid typing and resolve ambiguous names. The watch list is kept in the browser session; it is not published configuration or guaranteed persistence after that session closes.",
+          "fields": [
+            {
+              "key": "quickAdd",
+              "label": "Exact quick-add",
+              "description": "Accepts a complete path/reference. A shared label is ambiguous; select in the reference browser.",
+              "example": "Plant.Motor.Status",
+              "constraints": "Does not create a TAG or perform substring search; missing/ambiguous input reports a message."
+            },
+            {
+              "key": "referenceBrowser",
+              "label": "Browse project references",
+              "description": "Search/family reference browser for existing TAG, memory, system, driver or asset references.",
+              "example": "Select in the reference browser",
+              "constraints": "Catalog presence does not guarantee a live value; assets do not become process signals."
+            },
+            {
+              "key": "reference",
+              "label": "Name / Reference",
+              "description": "Row label and reference. Verify the resource before comparing.",
+              "example": "Plant.Motor.Status.03",
+              "constraints": "A bit view is not a new physical TAG."
+            },
+            {
+              "key": "source",
+              "label": "Source",
+              "description": "Distinguishes TAG, Server Memory, Client Memory, System, Driver and Asset.",
+              "example": "Client Memory",
+              "constraints": "Local browser memory is not another client value."
+            },
+            {
+              "key": "value",
+              "label": "Value",
+              "description": "Available value or a dash when absent/not representable.",
+              "example": "8 or true",
+              "constraints": "A dash is not zero/false; Int64 must retain precision."
+            },
+            {
+              "key": "dataType",
+              "label": "Type",
+              "description": "Reference/sample type; a bit view is Boolean.",
+              "example": "Int16 → Boolean bit",
+              "constraints": "Observation does not convert the original definition."
+            },
+            {
+              "key": "quality",
+              "label": "Quality / State",
+              "description": "TAG quality; local/diagnostic references can show LocalSession, Available or Unavailable.",
+              "example": "Good / LocalSession",
+              "constraints": "Different concepts; local state is not physical Good acquisition."
+            },
+            {
+              "key": "timestamp",
+              "label": "Last update",
+              "description": "Source timestamp where available, otherwise observation time.",
+              "example": "Observed read time",
+              "constraints": "Local memory does not gain a sensor timestamp; check origin."
+            },
+            {
+              "key": "remove",
+              "label": "Remove",
+              "description": "Removes a reference from the watch list.",
+              "example": "Remove one row",
+              "constraints": "Does not delete resource, sample or history."
+            },
+            {
+              "key": "clear",
+              "label": "Clear",
+              "description": "Empties this session watch list.",
+              "example": "Table without entries",
+              "constraints": "Does not delete the application or stop acquisition."
+            }
+          ]
+        },
+        {
+          "heading": "Example: observe a word bit",
+          "body": "An Int16 word with value 8 has bit index 3 on: 8 = 2³. Suffix .03 selects that zero-based bit; .00 is the first bit. Add the word and bit view for comparison. The base type must support bit selection within its width. .03 is not a decimal digit, coil address or separate field. Names in this example are fictional; the TAG must exist with a valid integer sample. Observing a bit does not write the word.",
+          "code": "{\n  \"reference\": \"Plant.Motor.Status\",\n  \"dataType\": \"Int16\",\n  \"value\": 8,\n  \"bitReference\": \"Plant.Motor.Status.03\",\n  \"expectedBit\": true\n}"
+        },
+        {
+          "heading": "Missing values or updates",
+          "body": "Not found: check path/project; ambiguous names require explicit selection. Working-only definition: confirm Active before expecting values. Unavailable/no sample: check permission, server, source and quality; do not hide absence with zero. The table combines batched updates and realtime; disconnection does not prove the last value remains current. Client Memory observes this local context, not another Runtime. Investigate the resource diagnostics and record reference, state and time. This monitor offers no write/force command."
+        }
+      ],
+      "relatedTopicIds": [
+        "engineering.tag-monitor",
+        "diagnostics.overview",
+        "memory.client",
+        "sources.internal-memory",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "engineering.tag-monitor",
+      "category": "runtime",
+      "title": "TAG Monitor: inspect value, quality and history",
+      "summary": "Compare Working and Active and investigate a TAG in real Runtime without confusing edits and running data.",
+      "sections": [
+        {
+          "heading": "Identify the observed source",
+          "body": "Open Engineering → Diagnostics → TAG Monitor. The top identifies the engineering context and active application; the Inspector queries visible Active Runtime TAGs. Working is context and does not replace value origin. When simulation/demo is active, that is the reported source, not proof of physical-device communication. This monitor is read-only: even a Writable TAG cannot be written through this panel."
+        },
+        {
+          "heading": "Check a TAG step by step",
+          "body": "1. Compare Engineering context, Working revision and Active identity. If Working differs from Active, do not assume the edit is running. 2. Search TAGs by part of path, name, type, unit, source or value. 3. Use Quality/Access filters; clear them if an expected TAG is missing. 4. Select the TAG and inspect value, type, unit, quality, source, times and Value freshness. 5. Read Recent history; Refresh history to query again. 6. Check permission, capture and samples in that interval before treating empty history as a defect. Use the full History tools for broader periods/Playback and exports."
+        },
+        {
+          "heading": "Context and filters",
+          "body": "Working vs Active compares project, revision and unsaved changes. It checks context; it neither publishes nor activates.",
+          "fields": [
+            {
+              "key": "workingProject",
+              "label": "Engineering context",
+              "description": "Open editing project.",
+              "example": "Station project",
+              "constraints": "Does not guarantee this project is active."
+            },
+            {
+              "key": "workingRevision",
+              "label": "Working revision",
+              "description": "Base revision loaded in Engineering; unsaved edits can differ.",
+              "example": "Revision 12",
+              "constraints": "Not automatically the running revision."
+            },
+            {
+              "key": "activeIdentity",
+              "label": "Active identity",
+              "description": "Observed Runtime project/revision, simulation or no Active.",
+              "example": "Project · rev 11",
+              "constraints": "Unavailable identity is not a confirmed comparison."
+            },
+            {
+              "key": "alignment",
+              "label": "Working vs Active",
+              "description": "Aligned/different guides comparison; read mode/unavailability notices.",
+              "example": "Working differs from Active",
+              "constraints": "Save does not imply Publish/Activate."
+            },
+            {
+              "key": "activatedAtUtc",
+              "label": "Activated at",
+              "description": "Reported revision activation time.",
+              "example": "Activation time",
+              "constraints": "Not sample time."
+            },
+            {
+              "key": "query",
+              "label": "Search TAGs",
+              "description": "Filters visible TAG metadata/value.",
+              "example": "Part of path or unit",
+              "constraints": "A TAG may exist but be invisible to your account."
+            },
+            {
+              "key": "qualityFilter",
+              "label": "Quality",
+              "description": "All, Good, Attention, Bad or No sample finds the relevant condition.",
+              "example": "No sample",
+              "constraints": "Does not change quality; no matches may reflect filters."
+            },
+            {
+              "key": "accessFilter",
+              "label": "Access",
+              "description": "All, Read-only or Writable according to TAG attribute.",
+              "example": "Writable",
+              "constraints": "Not effective write permission; panel stays read-only."
+            },
+            {
+              "key": "refresh",
+              "label": "Refresh",
+              "description": "Reloads the list. Also observe realtime/periodic status.",
+              "example": "Fresh query",
+              "constraints": "Does not restart acquisition or clear history."
+            }
+          ]
+        },
+        {
+          "heading": "Details and recent history",
+          "body": "Read quality and freshness together with value. An old value, a recent valid query and a newly sampled process value differ.",
+          "fields": [
+            {
+              "key": "currentValue",
+              "label": "Current value",
+              "description": "Displayed value with unit where configured.",
+              "example": "Measured pressure",
+              "constraints": "No sample is not zero; appearance does not prove health."
+            },
+            {
+              "key": "quality",
+              "label": "Quality",
+              "description": "Sample condition such as Good or BadCommunication.",
+              "example": "BadCommunication",
+              "constraints": "Good alone proves neither sensor calibration nor recent updates."
+            },
+            {
+              "key": "dataType",
+              "label": "Type and unit",
+              "description": "Data type and configured unit.",
+              "example": "Double · bar",
+              "constraints": "A unit label does not convert sensor physics."
+            },
+            {
+              "key": "source",
+              "label": "Source / Data Source",
+              "description": "Point source; compare with intended device.",
+              "example": "Configured source",
+              "constraints": "Not the screen name."
+            },
+            {
+              "key": "timestamp",
+              "label": "SCADIVO timestamp",
+              "description": "Time associated with the displayed Runtime sample.",
+              "example": "Sample time",
+              "constraints": "Compare with other timestamps; not page-opening time."
+            },
+            {
+              "key": "sourceTimestamp",
+              "label": "Source timestamp",
+              "description": "Source-provided time where available.",
+              "example": "Device-reported time",
+              "constraints": "May be absent; clocks/driver require context."
+            },
+            {
+              "key": "serverTimestamp",
+              "label": "Server timestamp",
+              "description": "Server time where present in the sample.",
+              "example": "Server time",
+              "constraints": "Does not mean the sensor measured then."
+            },
+            {
+              "key": "freshness",
+              "label": "Value freshness",
+              "description": "Fresh, aging, stale or without update timestamp, with Reason.",
+              "example": "Stale data",
+              "constraints": "Successful request is not necessarily a new sample."
+            },
+            {
+              "key": "requestTimes",
+              "label": "Last request / valid response",
+              "description": "Separates query failure from a sample that does not advance.",
+              "example": "Response received now",
+              "constraints": "May return an existing value; check sample time."
+            },
+            {
+              "key": "identity",
+              "label": "Path, stable ID and description",
+              "description": "Identifies the resource for comparison/diagnosis.",
+              "example": "Readable TAG path",
+              "constraints": "No ID to fill in; do not change identity to fix a fault."
+            },
+            {
+              "key": "recentHistory",
+              "label": "Recent history",
+              "description": "Bounded query of the selected point; default 15-minute window, up to 120 requested samples.",
+              "example": "Recent interval values",
+              "constraints": "Not all history or retention/capture configuration; no editable window control here."
+            },
+            {
+              "key": "historyRefresh",
+              "label": "Refresh history",
+              "description": "Queries the selected point and recent history again.",
+              "example": "New interval query",
+              "constraints": "Does not create absent samples or force recording."
+            }
+          ]
+        },
+        {
+          "heading": "Example: new Working and older Runtime",
+          "body": "You edit revision 12 but Active identity says revision 11. Observed values belong to active Runtime, not the new Working definition. Review changes, validate and follow Save → Publish → Activate when ready; then check identity/sample again. Do not force the monitor to show the editing revision. In simulation, identify the test origin before using numbers as field evidence."
+        },
+        {
+          "heading": "Failures and empty results",
+          "body": "Empty list differs from no filtered matches. Permission denied requires checking account/resource; it does not prove nonexistence. A TAG removed from Active can leave details unavailable. Realtime connected describes transport, not sensor health; periodic updates can continue when realtime fails. Empty history can reflect disabled capture, absent interval samples, permission or unavailable service. Read the message and check Historian before changing data. A visible old response after a failure is not a new sample."
+        }
+      ],
+      "relatedTopicIds": [
+        "engineering.development-monitor",
+        "diagnostics.overview",
+        "tags.timestamps",
+        "tags.quality",
+        "historian.capture-query",
+        "runtime.history",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "engineering.information",
+      "category": "engineering",
+      "title": "Information: identify product and project",
+      "summary": "Find the installed version and distinguish product version, schema and application revision.",
+      "sections": [
+        {
+          "heading": "When to use it",
+          "body": "In Engineering open Information to identify product and engineering context for support, version comparison or package analysis. It is read-only. It does not activate a revision, update software, change schema or reveal license consumption; those have separate workflows."
+        },
+        {
+          "heading": "Read and interpret",
+          "body": "1. Check Product version. If unavailable, record that condition rather than infer from project name. 2. Open Technical details for package/context comparison or support. 3. Check Project, Base revision and Loaded snapshot. 4. Inspect Active in TAG Monitor/Runtime to learn what is running. 5. Report version, project/revision, time and message; avoid publishing private application details."
+        },
+        {
+          "heading": "What each item means",
+          "body": "The system supplies these items; users do not need to fill them in.",
+          "fields": [
+            {
+              "key": "displayVersion",
+              "label": "Product version",
+              "description": "Installed SCADIVO version, distinct from project revision.",
+              "example": "Displayed product version",
+              "constraints": "Does not alone identify the active application or revision."
+            },
+            {
+              "key": "schema",
+              "label": "Engineering schema",
+              "description": "Engineering package format identity/version.",
+              "example": "Format identity",
+              "constraints": "Not PostgreSQL version or project revision number."
+            },
+            {
+              "key": "baseRevision",
+              "label": "Base revision",
+              "description": "Revision underlying loaded Working; can be unsaved.",
+              "example": "Displayed base revision",
+              "constraints": "Later edits may not be saved/published/active."
+            },
+            {
+              "key": "exportedAt",
+              "label": "Loaded snapshot",
+              "description": "Time of the loaded engineering snapshot.",
+              "example": "Displayed snapshot time",
+              "constraints": "Not sensor time, full backup or activation evidence."
+            },
+            {
+              "key": "project",
+              "label": "Project",
+              "description": "Name/key identifying the open Engineering context.",
+              "example": "Project name",
+              "constraints": "Check Active separately; readable name is not a license key."
+            },
+            {
+              "key": "buildCommit",
+              "label": "Build commit",
+              "description": "Technical build identity when provided.",
+              "example": "Displayed identity",
+              "constraints": "May be absent; do not invent an identifier or confuse it with application revision."
+            }
+          ]
+        },
+        {
+          "heading": "Comparison example",
+          "body": "Two stations can share product version but have different projects/revisions. They can also share a project with different product versions. Compare each item in its own role and confirm Active before blaming a screen, driver or license."
+        },
+        {
+          "heading": "Missing information",
+          "body": "Unavailable version or absent commit is not manually filled in by the operator. Record it and ask the installation owner to check. For consumption/capacity use Licensing; for value/quality use TAG Monitor; for communication use Diagnostics. An identification field does not establish a process defect."
+        }
+      ],
+      "relatedTopicIds": [
+        "engineering.shell-navigation",
+        "engineering.tag-monitor",
+        "engineering.lifecycle",
+        "licensing.overview"
+      ]
     }
   ],
   "es": [
@@ -18562,6 +19318,384 @@
         "engineering.lifecycle",
         "database.topology",
         "runtime.session-classes",
+        "licensing.overview"
+      ]
+    },
+    {
+      "id": "engineering.development-monitor",
+      "category": "runtime",
+      "title": "Monitor de desarrollo: observar referencias",
+      "summary": "Prepare una lista de TAGs, memorias y diagnósticos sin escribir ni forzar valores.",
+      "sections": [
+        {
+          "heading": "Elija este monitor para comparar variables",
+          "body": "En Ingeniería abra Monitor de Desarrollo. Reúne referencias elegidas en una tabla de solo lectura. El catálogo usa la ingeniería abierta, pero valores de TAG y Memoria del Servidor vienen del Runtime accesible; definir en Working no crea muestra activa. Memoria del Cliente pertenece a este navegador. Estados de sistema/driver son diagnósticos, no medidas físicas. Use TAG Monitor para detalles/historia del punto y Diagnóstico de comunicación para salud de conexión."
+        },
+        {
+          "heading": "Añadir y observar",
+          "body": "1. Compruebe proyecto abierto y aplicación activa. 2. En Explorar referencias del proyecto busque/expanda familias y carpetas y seleccione para añadir. 3. Alternativamente use Agregar referencia exacta y Agregar o Enter. Exige referencia/path exacto, no búsqueda parcial. 4. Lea Fuente, Tipo, Valor, Calidad / Estado y Última actualización juntos. 5. Añada otras referencias y espere observaciones nuevas. 6. Elimine una fila o Limpie la lista al terminar. No elimina TAGs ni definiciones del proyecto."
+        },
+        {
+          "heading": "Campos y acciones",
+          "body": "Use el árbol para evitar errores y resolver nombres ambiguos. La lista se guarda en la sesión del navegador; no es configuración publicada ni persistencia garantizada después de cerrarla.",
+          "fields": [
+            {
+              "key": "quickAdd",
+              "label": "Agregar referencia exacta",
+              "description": "Recibe path/referencia completa. Etiqueta compartida es ambigua; elija en el árbol.",
+              "example": "Plant.Motor.Status",
+              "constraints": "No crea TAG ni busca fragmentos; ausente/ambigua produce mensaje."
+            },
+            {
+              "key": "referenceBrowser",
+              "label": "Explorar referencias del proyecto",
+              "description": "Búsqueda/árbol de familias para TAG, memoria, sistema, driver o asset existente.",
+              "example": "Elegir en el árbol",
+              "constraints": "Presencia en catálogo no garantiza valor vivo; assets no se convierten en señales de proceso."
+            },
+            {
+              "key": "reference",
+              "label": "Nombre / Referencia",
+              "description": "Etiqueta y referencia de la fila. Verifique antes de comparar.",
+              "example": "Plant.Motor.Status.03",
+              "constraints": "Una vista de bit no es nuevo TAG físico."
+            },
+            {
+              "key": "source",
+              "label": "Fuente",
+              "description": "Distingue TAG, Memoria del Servidor, Memoria del Cliente, Sistema, Driver y Asset.",
+              "example": "Memoria del Cliente",
+              "constraints": "Memoria local no es valor de otro navegador."
+            },
+            {
+              "key": "value",
+              "label": "Valor",
+              "description": "Valor disponible o guion si falta/no es representable.",
+              "example": "8 o true",
+              "constraints": "Guion no es cero/false; Int64 debe conservar precisión."
+            },
+            {
+              "key": "dataType",
+              "label": "Tipo",
+              "description": "Tipo de referencia/muestra; una vista de bit es Boolean.",
+              "example": "Int16 → bit Boolean",
+              "constraints": "Observar no convierte la definición original."
+            },
+            {
+              "key": "quality",
+              "label": "Calidad / Estado",
+              "description": "Calidad de TAG; referencias locales/diagnósticas pueden mostrar LocalSession, Available o Unavailable.",
+              "example": "Good / LocalSession",
+              "constraints": "Son conceptos distintos; estado local no demuestra adquisición física Good."
+            },
+            {
+              "key": "timestamp",
+              "label": "Última actualización",
+              "description": "Hora de origen si existe; si no, hora de observación.",
+              "example": "Hora de lectura observada",
+              "constraints": "Memoria local no obtiene timestamp de sensor; compruebe origen."
+            },
+            {
+              "key": "remove",
+              "label": "Eliminar",
+              "description": "Quita una referencia de la lista.",
+              "example": "Eliminar una fila",
+              "constraints": "No borra recurso, muestra ni historia."
+            },
+            {
+              "key": "clear",
+              "label": "Limpiar",
+              "description": "Vacía la lista de esta sesión.",
+              "example": "Tabla sin elementos",
+              "constraints": "No elimina aplicación ni detiene adquisición."
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo: observar un bit de palabra",
+          "body": "Una palabra Int16 de valor 8 tiene encendido el bit de índice 3: 8 = 2³. El sufijo .03 elige ese bit contando desde cero; .00 es el primero. Añada palabra y vista para comparar. El tipo base debe permitir bits dentro de su anchura. .03 no es decimal, dirección de bobina ni campo independiente. Nombres ficticios: el TAG debe existir con muestra entera válida. Observar no escribe en la palabra.",
+          "code": "{\n  \"reference\": \"Plant.Motor.Status\",\n  \"dataType\": \"Int16\",\n  \"value\": 8,\n  \"bitReference\": \"Plant.Motor.Status.03\",\n  \"expectedBit\": true\n}"
+        },
+        {
+          "heading": "Sin valor o actualización",
+          "body": "Referencia no encontrada: revise path/proyecto; nombre ambiguo exige selección explícita. Definición solo Working: compruebe Active antes de esperar valores. Unavailable/sin muestra: revise permiso, servidor, fuente y calidad; no oculte ausencia con cero. La tabla combina actualización agrupada y realtime; desconexión no demuestra actualidad del último valor. Client Memory observa contexto local, no otro Runtime. Revise diagnóstico del recurso y registre referencia, estado y hora. No hay comando de escritura/force aquí."
+        }
+      ],
+      "relatedTopicIds": [
+        "engineering.tag-monitor",
+        "diagnostics.overview",
+        "memory.client",
+        "sources.internal-memory",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "engineering.tag-monitor",
+      "category": "runtime",
+      "title": "TAG Monitor: comprobar valor, calidad e historia",
+      "summary": "Compare Working y Active e investigue un TAG del Runtime real sin confundir edición y ejecución.",
+      "sections": [
+        {
+          "heading": "Identifique la fuente observada",
+          "body": "Abra Ingeniería → Diagnósticos → TAG Monitor. Arriba se identifica ingeniería y aplicación activa; el Inspector consulta TAGs visibles del Active Runtime. Working es contexto, no origen sustituto de valores. Si está activa simulación/demo, ese es el origen informado, no prueba de comunicación física. Solo lectura: incluso un TAG Grabable no puede escribirse desde este panel."
+        },
+        {
+          "heading": "Comprobar paso a paso",
+          "body": "1. Compare Contexto Engineering, Revisión Working e Identidad activa. Si Working difiere, no suponga que la edición corre. 2. En Buscar TAGs escriba parte de path, nombre, tipo, unidad, fuente o valor. 3. Filtre Calidad/Acceso; limpie si falta un punto esperado. 4. Seleccione y revise valor, tipo, unidad, calidad, fuente, horas y Actualización del valor. 5. Consulte Histórico reciente y Actualizar histórico. 6. Compruebe permiso, captura y muestras del intervalo antes de declarar defecto por historia vacía. Use Histórico completo para períodos/Playback y exportación."
+        },
+        {
+          "heading": "Contexto y filtros",
+          "body": "Working vs Active compara proyecto, revisión y cambios sin guardar. Es comprobación de contexto; no publica ni activa.",
+          "fields": [
+            {
+              "key": "workingProject",
+              "label": "Contexto Engineering",
+              "description": "Proyecto abierto para editar.",
+              "example": "Proyecto de estación",
+              "constraints": "No garantiza que esté activo."
+            },
+            {
+              "key": "workingRevision",
+              "label": "Revisión Working",
+              "description": "Revisión base cargada; cambios sin guardar pueden diferir.",
+              "example": "Revisión 12",
+              "constraints": "No es automáticamente la ejecutada."
+            },
+            {
+              "key": "activeIdentity",
+              "label": "Identidad activa",
+              "description": "Proyecto/revisión observados, simulación o ausencia de Active.",
+              "example": "Proyecto · rev 11",
+              "constraints": "Identidad no disponible no es comparación confirmada."
+            },
+            {
+              "key": "alignment",
+              "label": "Working vs Active",
+              "description": "Alineado/diferente orienta comparación; lea avisos de modo/disponibilidad.",
+              "example": "Working difiere del Active",
+              "constraints": "Guardar no implica Publicar/Activar."
+            },
+            {
+              "key": "activatedAtUtc",
+              "label": "Activado en",
+              "description": "Hora informada de activación.",
+              "example": "Hora de activación",
+              "constraints": "No es hora de muestra."
+            },
+            {
+              "key": "query",
+              "label": "Buscar TAGs",
+              "description": "Filtra metadatos/valor de TAGs visibles.",
+              "example": "Parte del path o unidad",
+              "constraints": "Puede existir sin ser visible a su cuenta."
+            },
+            {
+              "key": "qualityFilter",
+              "label": "Calidad",
+              "description": "Todos, Good, Atención, Bad o Sin muestra localizan la condición.",
+              "example": "Sin muestra",
+              "constraints": "No cambia calidad; ausencia puede ser filtro."
+            },
+            {
+              "key": "accessFilter",
+              "label": "Acceso",
+              "description": "Todos, Solo lectura o Grabable según atributo del TAG.",
+              "example": "Grabable",
+              "constraints": "No es permiso efectivo de escritura; panel sigue solo lectura."
+            },
+            {
+              "key": "refresh",
+              "label": "Actualizar",
+              "description": "Consulta de nuevo la lista y observa estado realtime/periódico.",
+              "example": "Nueva consulta",
+              "constraints": "No reinicia adquisición ni borra historia."
+            }
+          ]
+        },
+        {
+          "heading": "Detalles e historia reciente",
+          "body": "Lea calidad y actualización junto al valor. Valor antiguo, consulta reciente válida y nueva muestra de proceso son cosas distintas.",
+          "fields": [
+            {
+              "key": "currentValue",
+              "label": "Valor actual",
+              "description": "Valor mostrado con unidad si existe.",
+              "example": "Presión medida",
+              "constraints": "Sin muestra no es cero; aspecto no demuestra salud."
+            },
+            {
+              "key": "quality",
+              "label": "Calidad",
+              "description": "Condición informada como Good o BadCommunication.",
+              "example": "BadCommunication",
+              "constraints": "Good solo no demuestra calibración ni actualización reciente."
+            },
+            {
+              "key": "dataType",
+              "label": "Tipo y unidad",
+              "description": "Tipo de dato y unidad configurada.",
+              "example": "Double · bar",
+              "constraints": "Texto de unidad no convierte la física del sensor."
+            },
+            {
+              "key": "source",
+              "label": "Origen / Data Source",
+              "description": "Fuente del punto, a comparar con el equipo esperado.",
+              "example": "Fuente configurada",
+              "constraints": "No es el nombre de pantalla."
+            },
+            {
+              "key": "timestamp",
+              "label": "Timestamp SCADIVO",
+              "description": "Hora asociada a muestra mostrada por Runtime.",
+              "example": "Hora de muestra",
+              "constraints": "Compare horas; no es apertura de página."
+            },
+            {
+              "key": "sourceTimestamp",
+              "label": "Timestamp de origen",
+              "description": "Hora de origen cuando la proporciona.",
+              "example": "Hora del dispositivo",
+              "constraints": "Puede faltar; relojes/driver requieren contexto."
+            },
+            {
+              "key": "serverTimestamp",
+              "label": "Timestamp del servidor",
+              "description": "Hora del servidor cuando consta en muestra.",
+              "example": "Hora del servidor",
+              "constraints": "No significa medición del sensor en ese instante."
+            },
+            {
+              "key": "freshness",
+              "label": "Actualización del valor",
+              "description": "Actualizado, envejeciendo, desactualizado o sin timestamp, con Motivo.",
+              "example": "Datos desactualizados",
+              "constraints": "Consulta correcta no equivale a muestra nueva."
+            },
+            {
+              "key": "requestTimes",
+              "label": "Última solicitud / respuesta válida",
+              "description": "Separa fallo de consulta de muestra que no avanza.",
+              "example": "Respuesta recibida ahora",
+              "constraints": "Puede devolver valor existente; revise hora de muestra."
+            },
+            {
+              "key": "identity",
+              "label": "Path, ID estable y descripción",
+              "description": "Identifica recurso para comparar/diagnosticar.",
+              "example": "Path legible",
+              "constraints": "No hay ID que completar; no cambie identidad para resolver fallos."
+            },
+            {
+              "key": "recentHistory",
+              "label": "Histórico reciente",
+              "description": "Consulta limitada del punto; ventana predeterminada de 15 minutos, hasta 120 muestras solicitadas.",
+              "example": "Valores recientes",
+              "constraints": "No es toda la historia ni configura retención/captura; no hay control editable de ventana aquí."
+            },
+            {
+              "key": "historyRefresh",
+              "label": "Actualizar histórico",
+              "description": "Consulta de nuevo punto e historia reciente.",
+              "example": "Nueva consulta",
+              "constraints": "No crea muestras ausentes ni fuerza grabación."
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo: Working nuevo y Runtime anterior",
+          "body": "Edita revisión 12, pero Identidad activa muestra 11. Los valores pertenecen al Runtime activo, no a la nueva definición Working. Revise, valide y siga Guardar → Publicar → Activar cuando esté listo; luego compruebe identidad/muestra. No fuerce el monitor a mostrar la revisión editada. En simulación confirme origen de prueba antes de usar números como evidencia de campo."
+        },
+        {
+          "heading": "Fallos y resultados vacíos",
+          "body": "Lista vacía difiere de ningún resultado filtrado. Permiso denegado exige revisar cuenta/recurso, no prueba inexistencia. TAG eliminado de Active puede dejar detalles no disponibles. Realtime conectado describe transporte, no salud del sensor; actualización periódica puede seguir si falla realtime. Historia vacía puede ser captura deshabilitada, sin muestras en intervalo, permiso o servicio no disponible. Lea mensaje y revise Historian antes de cambiar datos. Respuesta antigua visible tras fallo no es muestra nueva."
+        }
+      ],
+      "relatedTopicIds": [
+        "engineering.development-monitor",
+        "diagnostics.overview",
+        "tags.timestamps",
+        "tags.quality",
+        "historian.capture-query",
+        "runtime.history",
+        "engineering.lifecycle"
+      ]
+    },
+    {
+      "id": "engineering.information",
+      "category": "engineering",
+      "title": "Información: identificar producto y proyecto",
+      "summary": "Compruebe versión instalada y distinga versión del producto, esquema y revisión de aplicación.",
+      "sections": [
+        {
+          "heading": "Cuándo usarlo",
+          "body": "En Ingeniería abra Información para identificar producto y contexto en soporte, comparación o análisis de paquete. Es consulta: no activa revisión, actualiza software, cambia esquema ni revela consumo de licencia; tienen sus propios flujos."
+        },
+        {
+          "heading": "Consultar e interpretar",
+          "body": "1. Compruebe Versión del producto. Si falta, registre la condición, no deduzca del nombre de proyecto. 2. Abra Detalles técnicos para comparar paquete/contexto o informar soporte. 3. Compruebe Proyecto, Revisión base y Snapshot cargado. 4. Consulte Active en TAG Monitor/Runtime para saber qué ejecuta. 5. Informe versión, proyecto/revisión, hora y mensaje evitando publicar detalles privados."
+        },
+        {
+          "heading": "Qué significa cada dato",
+          "body": "Los presenta el sistema; no son campos para rellenar.",
+          "fields": [
+            {
+              "key": "displayVersion",
+              "label": "Versión del producto",
+              "description": "Versión SCADIVO instalada, distinta de revisión de proyecto.",
+              "example": "Versión mostrada",
+              "constraints": "Por sí sola no identifica la aplicación y la revisión activas."
+            },
+            {
+              "key": "schema",
+              "label": "Schema de Engineering",
+              "description": "Formato/versión de estructura del paquete.",
+              "example": "Identificación del formato",
+              "constraints": "No es versión PostgreSQL ni revisión de proyecto."
+            },
+            {
+              "key": "baseRevision",
+              "label": "Revisión base",
+              "description": "Base del Working cargado; puede no estar guardado.",
+              "example": "Revisión mostrada",
+              "constraints": "Cambios posteriores pueden no estar guardados/publicados/activos."
+            },
+            {
+              "key": "exportedAt",
+              "label": "Snapshot cargado",
+              "description": "Hora del retrato de ingeniería cargado.",
+              "example": "Hora mostrada",
+              "constraints": "No es sensor, backup completo ni prueba de activación."
+            },
+            {
+              "key": "project",
+              "label": "Proyecto",
+              "description": "Nombre/clave del contexto Engineering abierto.",
+              "example": "Nombre del proyecto",
+              "constraints": "Compruebe Active aparte; nombre no es clave de licencia."
+            },
+            {
+              "key": "buildCommit",
+              "label": "Commit de build",
+              "description": "Identidad técnica de compilación si está disponible.",
+              "example": "Identificación mostrada",
+              "constraints": "Puede faltar; no invente un identificador ni confunda con revisión de aplicación."
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo de comparación",
+          "body": "Dos estaciones pueden compartir versión del producto y tener proyectos/revisiones diferentes; o compartir proyecto con distintas versiones de producto. Compare cada dato en su función y confirme Active antes de atribuir diferencia a pantalla, driver o licencia."
+        },
+        {
+          "heading": "Si falta información",
+          "body": "El operador no rellena manualmente versión no disponible o commit ausente. Registre y consulte al responsable de instalación. Para consumo/capacidad abra Licenciamiento; para valor/calidad use TAG Monitor; para comunicación use Diagnóstico. Un dato de identidad no demuestra defecto de proceso."
+        }
+      ],
+      "relatedTopicIds": [
+        "engineering.shell-navigation",
+        "engineering.tag-monitor",
+        "engineering.lifecycle",
         "licensing.overview"
       ]
     }

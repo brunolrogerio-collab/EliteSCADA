@@ -1,8 +1,56 @@
 import { expect, test } from '@playwright/test';
 import { helpArea, helpBodyBlocks } from '../src/help/helpNavigation';
 import { installCurrentHelpCatalog } from './helpTestSupport';
+import { resolveProjectReference, type ProjectReferenceDescriptor } from '../src/engineering/project-reference/projectReferenceModel';
+import { mergeMonitorBatchSamples, resolveMonitorQuickAdd } from '../src/engineering/development-monitor/developmentMonitorModel';
 
 test.use({ locale: 'pt-BR' });
+
+test('monitor guides distinguish watch references Active identity and product version with an executable bit example', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=engineering.development-monitor');
+  const article = page.locator('article');
+  await expect(article.getByRole('rowheader', { name: 'Adicionar referência exata', exact: true })).toBeVisible();
+  await expect(article).toContainText('não apaga TAGs');
+  await expect(article).toContainText('não há comando de escrita/force', { ignoreCase: true });
+  const example = JSON.parse(await article.locator('pre').innerText());
+  const base: ProjectReferenceDescriptor = {
+    reference: example.reference, label: 'Status', family: 'tag', dataType: example.dataType,
+    bindingKind: 'Tag', pathSegments: ['Plant', 'Motor', 'Status'], tagReference: { tagId: 'example-status' },
+    selectorCapability: { kind: 'bit', minIndex: 0, maxIndex: 15 }
+  };
+  const bit = resolveProjectReference([base], example.bitReference);
+  expect(resolveMonitorQuickAdd([base], example.bitReference)).toEqual({ status: 'found', reference: example.bitReference });
+  expect(resolveMonitorQuickAdd([base], `${example.reference}.16`).status).toBe('notFound');
+  expect(resolveMonitorQuickAdd([base, { ...base, reference: 'Another.Status' }], 'Status').status).toBe('ambiguous');
+  const selected = [example.reference, example.bitReference];
+  const observed = mergeMonitorBatchSamples(new Map(), selected, new Map([[base.reference, base], [example.bitReference, bit.descriptor!]]),
+    [{ id: 'example-status', name: 'Status', path: base.reference, dataType: example.dataType, readOnly: true,
+      current: { tagId: 'example-status', value: example.value, quality: 'Good', timestamp: '2026-10-26T12:00:00Z' } }], [], [], () => null);
+  expect(observed.get(example.reference)?.value).toBe(8);
+  expect(observed.get(example.bitReference)?.value).toBe(example.expectedBit);
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('does not write the word');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('No hay comando de escritura/force');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.goto('/help?topic=engineering.tag-monitor');
+  await expect(article).toContainText('não é controle de janela editável');
+  await expect(article).toContainText('não confundir sucesso de requisição', { ignoreCase: true });
+  await expect(article.getByRole('rowheader', { name: 'Identidade ativa', exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('help-tag-monitor-desktop.png'), fullPage: true });
+  await page.goto('/help?topic=engineering.information');
+  await expect(article.getByRole('rowheader', { name: 'Schema de Engineering', exact: true })).toBeVisible();
+  await expect(article).toContainText('Não é versão do PostgreSQL');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('Not PostgreSQL version');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('No es versión PostgreSQL');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await article.getByRole('rowheader', { name: 'Commit de build', exact: true }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-information-mobile.png') });
+});
 
 test('operational Help explains session outcomes, server diagnostics and separate recovery stages in every locale', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);

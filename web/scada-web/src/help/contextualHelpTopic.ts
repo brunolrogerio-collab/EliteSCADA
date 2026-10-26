@@ -5,7 +5,9 @@ export function contextualHelpTopic(path: string) {
   if (path.startsWith('/engineering/branding') || path.startsWith('/engineering/mobile')) return 'application.presentation';
   if (path.startsWith('/engineering/mediaSources')) return 'sources.media';
   if (path.startsWith('/engineering/homeBuilding')) return 'home-building.organization';
-  if (path.startsWith('/engineering/diagnostics/tag-monitor')) return 'diagnostics.overview';
+  if (path.startsWith('/engineering/diagnostics/tag-monitor')) return 'engineering.tag-monitor';
+  if (path.startsWith('/engineering/monitor')) return 'engineering.development-monitor';
+  if (path.startsWith('/engineering/information')) return 'engineering.information';
   if (path.startsWith('/engineering/diagnostics')) return 'diagnostics.overview';
   if (path.startsWith('/engineering/intelligence')) return 'intelligence.overview';
   if (path.startsWith('/engineering/highAvailability')) return 'ha.configuration-operation';

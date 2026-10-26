@@ -1,3 +1,17 @@
+# HELP DEVELOPMENT MONITOR, TAG MONITOR AND INFORMATION — 2026-10-26
+
+Chapter 29 adds three installed guides in pt-BR/en/es: engineering.development-monitor, engineering.tag-monitor and engineering.information, with 37 explained fields per locale (10/21/6). Direct contextual routes now lead to each page's own guide; general communication diagnostics and all old Topic IDs/content remain available. Uses existing Help/framework and generated manual, not another help system.
+
+Development Monitor: exact quick-add versus browse/filter, ambiguous/missing references, watch-list remove/clear/session persistence, TAG/Server Memory versus browser-local Client Memory, quality/state, source/observation timestamp and nonmutating bit views. TAG Monitor: Engineering/Working versus Active project/revision/dirty/simulation context, read-only Inspector, search/quality/access filters, current value, freshness versus successful query, source/server/sample times and bounded recent history (15 minutes/120 requested samples, not a new editable control). Information: product version versus Engineering schema/base revision/loaded snapshot/project/build identity, fields provided by the system, not a form or license-usage page.
+
+Final local Help .NET 117/117, zero skipped; Chromium 74/74, one worker and zero retries; Web build passed with existing bundle warning; manual alignment 60 files and 127 relative links. Exact guide JSON example is parsed from installed Help and executed through the real TypeScript reference resolver/sample projection: Int16 value 8 -> .03 true, base unchanged, out-of-range bit rejected, ambiguous label rejected. Actual Help desktop PT/mobile ES inspected; these are not final system-operation manual figures. Existing JSON topics preserved. An intermediate editorial check rejected English word choice, corrected in prose; an old routing expectation was updated to the newly supplied specific guide. No product defect, hidden retry/timeout change or backend change inferred.
+
+Predecessor 63964372dd93ea541d4bb06d8f56ac3332211f80 / T1 40395764050 attempt 1 passed; exact new head/run/status live in #424/#425/#305/#756. No transferred green. Older HA-D2 4433d392/T1 40333665886 stays under #423, root cause unconfirmed and not fixed by Help.
+
+Remaining: first-project and installation-switch walkthrough plus final semantic review of the already expanded surfaces; then #357/final real product figures per acceptance flow. #424/#425 remain open, #772 draft/NO_MERGE. Product licensing #301 remains next; queued #788 program and #779–#782 order preserved. No write/force, sample transport, project state, license/Authority/HA/driver/dependency/Preview/DEMO behavior change, merge or deployment.
+
+---
+
 # HELP RUNTIME SESSIONS, DIAGNOSTICS AND RECOVERY — 2026-10-26
 
 Chapters 27/28 expand three existing Topic IDs in pt-BR/en/es: runtime.session-classes, diagnostics.overview and recovery.backup-system-recovery. 41 explained fields per locale (8 session, 23 diagnostics, 10 recovery) now accompany ordered procedures, examples, expected results and diagnosis. Reuses installed/offline Help, with generated manual and stable links; no second help system.

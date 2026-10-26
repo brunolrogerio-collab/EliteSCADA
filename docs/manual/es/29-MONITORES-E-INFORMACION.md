@@ -56,24 +56,27 @@ Referencia no encontrada: revise path/proyecto; nombre ambiguo exige selección 
 
 ## TAG Monitor: comprobar valor, calidad e historia
 
-Compare Working y Active e investigue un TAG del Runtime real sin confundir edición y ejecución.
+Compruebe si llega una variable, si es válida y qué muestras recientes se guardaron.
 
-### Identifique la fuente observada
+### Empiece por el valor en ejecución
 
-Abra Ingeniería → Diagnósticos → TAG Monitor. Arriba se identifica ingeniería y aplicación activa; el Inspector consulta TAGs visibles del Active Runtime. Working es contexto, no origen sustituto de valores. Si está activa simulación/demo, ese es el origen informado, no prueba de comunicación física. Solo lectura: incluso un TAG Grabable no puede escribirse desde este panel.
+TAG es una variable, como presión de bomba. TAG Monitor la comprueba sin depender del dibujo. Abra Ingeniería, Diagnósticos, TAG Monitor. Es consulta: no cambia/fuerza valores incluso si indica Grabable.
 
-### Comprobar paso a paso
+### Encontrar y comprobar TAG
 
-1. Compare Contexto Engineering, Revisión Working e Identidad activa. Si Working difiere, no suponga que la edición corre.
-2. En Buscar TAGs escriba parte de path, nombre, tipo, unidad, fuente o valor.
-3. Filtre Calidad/Acceso; limpie si falta un punto esperado.
-4. Seleccione y revise valor, tipo, unidad, calidad, fuente, horas y Actualización del valor.
-5. Consulte Histórico reciente y Actualizar histórico.
-6. Compruebe permiso, captura y muestras del intervalo antes de declarar defecto por historia vacía. Use Histórico completo para períodos/Playback y exportación.
+1. Revise proyecto e Identidad activa arriba: identifica la aplicación que aporta valores.
+2. Busque parte del nombre/path.
+3. Si falta, limpie filtros Calidad/Acceso.
+4. Seleccione y lea Valor actual, Calidad y horas juntos: un número no demuestra validez ni actualidad.
+5. Consulte Histórico reciente y Actualizar histórico. Aquí no se ajusta ventana; use Histórico para otros períodos.
 
-### Contexto y filtros
+### Ejemplo: editó y el valor sigue igual
 
-Working vs Active compara proyecto, revisión y cambios sin guardar. Es comprobación de contexto; no publica ni activa.
+Edita revisión 12, pero Identidad activa muestra 11. El monitor lee la versión que sigue ejecutando. Es esperado: editar/guardar no sustituye Active. Cuando esté listo Guarde, Publique y Active; vuelva a comprobar identidad/lectura. Si muestra simulación, valores vienen del modo de prueba, no de equipo físico.
+
+### Entender contexto y filtros
+
+Working es el trabajo abierto para editar; Active la revisión ejecutada. Pueden diferir. El contexto ayuda a comprobar edición y origen de valores esperados. Use tablas para consultar campos cuando necesite.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -87,9 +90,9 @@ Working vs Active compara proyecto, revisión y cambios sin guardar. Es comproba
 | Acceso | Todos, Solo lectura o Grabable según atributo del TAG. | Grabable | No es permiso efectivo de escritura; panel sigue solo lectura. |
 | Actualizar | Consulta de nuevo la lista y observa estado realtime/periódico. | Nueva consulta | No reinicia adquisición ni borra historia. |
 
-### Detalles e historia reciente
+### Entender valor, calidad y horas
 
-Lea calidad y actualización junto al valor. Valor antiguo, consulta reciente válida y nueva muestra de proceso son cosas distintas.
+Valor actual es la lectura disponible. Calidad indica cómo se clasifica. Horas muestran cuándo se produjo/recibió. Una consulta que responde ahora puede devolver muestra antigua: revise Actualización del valor y hora de muestra.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -106,13 +109,9 @@ Lea calidad y actualización junto al valor. Valor antiguo, consulta reciente v�
 | Histórico reciente | Consulta limitada del punto; ventana predeterminada de 15 minutos, hasta 120 muestras solicitadas. | Valores recientes | No es toda la historia ni configura retención/captura; no hay control editable de ventana aquí. |
 | Actualizar histórico | Consulta de nuevo punto e historia reciente. | Nueva consulta | No crea muestras ausentes ni fuerza grabación. |
 
-### Ejemplo: Working nuevo y Runtime anterior
+### Si falta valor o historia
 
-Edita revisión 12, pero Identidad activa muestra 11. Los valores pertenecen al Runtime activo, no a la nueva definición Working. Revise, valide y siga Guardar → Publicar → Activar cuando esté listo; luego compruebe identidad/muestra. No fuerce el monitor a mostrar la revisión editada. En simulación confirme origen de prueba antes de usar números como evidencia de campo.
-
-### Fallos y resultados vacíos
-
-Lista vacía difiere de ningún resultado filtrado. Permiso denegado exige revisar cuenta/recurso, no prueba inexistencia. TAG eliminado de Active puede dejar detalles no disponibles. Realtime conectado describe transporte, no salud del sensor; actualización periódica puede seguir si falla realtime. Historia vacía puede ser captura deshabilitada, sin muestras en intervalo, permiso o servicio no disponible. Lea mensaje y revise Historian antes de cambiar datos. Respuesta antigua visible tras fallo no es muestra nueva.
+Limpie búsqueda/filtros primero. Acceso denegado requiere comprobar permiso. Sin muestra no es cero: revise fuente. Si solo falta historia, compruebe grabación y muestras del período; Historian las guarda. Realtime conectado indica transporte, no salud de sensor. Lea aviso de actualización periódica si falta conexión.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=engineering.tag-monitor)
 

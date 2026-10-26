@@ -56,24 +56,27 @@ Referência não encontrada: confira caminho e projeto; nomes ambíguos exigem s
 
 ## TAG Monitor: conferir valor, qualidade e histórico
 
-Compare Working e Active e investigue um TAG no Runtime real, sem confundir edição com dados em execução.
+Confira se uma variável está chegando, se o valor está válido e quais amostras recentes foram guardadas.
 
-### Identifique o que está sendo observado
+### Comece pelo valor que está em execução
 
-Abra Engineering → Diagnósticos → TAG Monitor. O topo identifica a engenharia aberta e a aplicação ativa; o Inspector abaixo consulta TAGs visíveis do Active Runtime. Working serve de contexto e não substitui a origem dos valores. Se houver simulação/demo ativa, essa é a origem informada; não é prova de comunicação com equipamento físico. O monitor é somente leitura: mesmo um TAG marcado Gravável não pode ser escrito por esse painel.
+Uma TAG é uma variável, como a pressão de uma bomba. O TAG Monitor ajuda a conferir essa variável sem precisar olhar o desenho da tela. Abra Engineering, Diagnósticos e TAG Monitor. O painel é de consulta: ele não altera nem força valores, mesmo quando informa que a TAG é Gravável.
 
-### Conferir um TAG passo a passo
+### Encontrar e conferir uma TAG
 
-1. Compare Contexto Engineering, Revisão Working e Identidade ativa. Se Working difere do Active, não assuma que a edição já está em execução.
-2. Em Buscar TAGs, digite parte do path, nome, tipo, unidade, origem ou valor.
-3. Use Qualidade e Acesso para reduzir a lista; limpe filtros se faltar uma TAG esperada.
-4. Selecione a TAG. Confira valor, tipo, unidade, qualidade, origem, horários e Atualização do valor.
-5. Leia Histórico recente; use Atualizar histórico para consultar novamente.
-6. Confira se há permissão, captura e amostras no intervalo antes de concluir que histórico vazio é defeito. Para busca completa, períodos/Playback e exportação, use os recursos de Histórico correspondentes.
+1. Confira o projeto mostrado no topo e a Identidade ativa. A identidade ativa indica qual aplicação está fornecendo os valores.
+2. Em Buscar TAGs, escreva parte do nome ou do caminho da variável.
+3. Se a variável não aparecer, limpe os filtros Qualidade e Acesso e tente novamente.
+4. Selecione a TAG. Leia Valor atual, Qualidade e os horários. Um número na tela, sozinho, não mostra se a leitura é válida ou recente.
+5. Veja Histórico recente se quiser comparar as amostras do intervalo mostrado. Use Atualizar histórico para consultar de novo. Não há um ajuste de janela nesse painel; para outros períodos, use Histórico.
 
-### Contexto e filtros
+### Exemplo: você editou, mas o valor continua igual
 
-O indicador Working vs Active compara projeto, revisão e alterações não salvas. É uma conferência de contexto; não publica nem ativa o projeto.
+Imagine que você está editando a revisão 12 e o topo informa que a revisão ativa é a 11. O monitor está mostrando os valores da versão que continua em execução. Isso é esperado: editar ou salvar não troca a versão ativa. Quando o trabalho estiver pronto, siga Salvar, Publicar e Ativar no fluxo do projeto. Depois confira novamente a identidade ativa e a leitura. Se o topo indicar simulação, os valores vêm desse modo de teste, não de um equipamento físico.
+
+### Entender o contexto e os filtros
+
+Working é o trabalho aberto para edição. Active é a revisão que está em execução. Eles podem ser diferentes. Use os dados de contexto para saber se está comparando a edição com os valores da revisão esperada. As tabelas a seguir servem para consultar um campo quando precisar.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -87,9 +90,9 @@ O indicador Working vs Active compara projeto, revisão e alterações não salv
 | Acesso | Todos, Somente leitura ou Gravável conforme o atributo do TAG. | Gravável | Não é permissão efetiva de escrita; painel continua somente leitura. |
 | Atualizar | Reconsulta a lista. Observe também o estado realtime/periódico. | Nova consulta | Não reinicia aquisição nem limpa histórico. |
 
-### Detalhes e histórico recente
+### Entender valor, qualidade e horários
 
-Leia qualidade e atualização com o valor. Há diferença entre um valor antigo, uma consulta recente que voltou válida e um novo valor de processo.
+Valor atual é a leitura disponível. Qualidade indica como o sistema classifica essa leitura. Os horários ajudam a saber quando ela foi produzida ou recebida. Uma consulta que respondeu agora pode devolver uma amostra antiga; por isso, confira também Atualização do valor e o horário da própria amostra.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -106,13 +109,9 @@ Leia qualidade e atualização com o valor. Há diferença entre um valor antigo
 | Histórico recente | Consulta limitada do ponto selecionado; janela padrão de 15 minutos e até 120 amostras solicitadas. | Valores do intervalo recente | Não é todo o histórico nem configura retenção/captura; não é controle de janela editável neste painel. |
 | Atualizar histórico | Reconsulta o ponto e seu histórico recente. | Nova consulta do intervalo | Não cria amostras ausentes e não força gravação. |
 
-### Exemplo: Working novo e Runtime antigo
+### Quando faltar valor ou histórico
 
-Você edita a revisão 12, mas Identidade ativa mostra revisão 11. O valor observado pertence ao Runtime ativo, não à nova definição do Working. Confira o que mudou, valide e use Salvar → Publicar → Ativar pelo lifecycle quando estiver pronto; depois confira identidade e amostra novamente. Não force o monitor a mostrar a revisão em edição. Em simulação, identifique a origem de teste no topo antes de usar números como evidência de campo.
-
-### Falhas e vazios
-
-Lista vazia difere de nenhum resultado por filtro. Permissão negada exige conferir conta e recurso; não é prova de TAG inexistente. TAG removida da revisão ativa pode deixar detalhes indisponíveis. Realtime conectado informa transporte, não saúde do sensor; atualização periódica pode continuar quando realtime falha. Histórico vazio pode decorrer de captura não habilitada, ausência no intervalo, permissão ou serviço indisponível. Confira a mensagem e o Historian antes de alterar dados. Uma resposta antiga visível após falha não deve ser considerada nova amostra.
+Se não há resultado, comece limpando a busca e os filtros. Se aparece acesso negado, peça a conferência da permissão para aquele recurso. Se aparece Sem amostra, não interprete como zero. Confira o diagnóstico da fonte. Se só o histórico está vazio, veja se a gravação estava habilitada e se houve amostras no período; o Historian é o recurso que guarda essas amostras. Realtime conectado informa a conexão de atualização, mas não comprova a saúde do sensor. Leia o aviso de atualização periódica quando essa conexão não estiver disponível.
 
 [Abrir este guia na Ajuda instalada](/help?topic=engineering.tag-monitor)
 

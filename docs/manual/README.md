@@ -23,6 +23,11 @@ A parte de Telas e Objetos tem um capítulo de trabalho nos três idiomas: [port
 5. Screenshots só são finais depois da aceitação visual da superfície correspondente.
 6. O texto do produto descreve função, não biblioteca/framework de implementação.
 7. Termos técnicos estáveis permanecem idênticos nos três idiomas quando fizerem parte da identidade técnica; IDs, TAG paths, endereços, enums e APIs não são traduzidos.
+8. Começar pela tarefa e pelo resultado que a pessoa quer obter. Explicar o conceito necessário antes de usar seu nome técnico; não exigir que o leitor já conheça outras áreas.
+9. Ensinar em uma sequência curta: o que será feito, como fazer, como conferir e o que verificar se não funcionar. Tabelas e detalhes técnicos complementam o percurso, sem interromper o primeiro contato.
+10. Preferir frases diretas, exemplos pequenos e uma decisão por vez. Links relacionados são caminhos para aprofundar, não pré-requisitos implícitos para entender o artigo.
+11. A revisão de linguagem não pode apagar limites, requisitos de segurança ou instruções de recuperação. Essas condições devem ser explicadas no momento em que influenciam a decisão do usuário.
+12. Quantidade de páginas, campos ou testes não comprova clareza. A repassada de linguagem deve conferir se alguém que ainda não conhece o sistema entende a tarefa sem depender da memória do projeto.
 
 ## Sumário completo
 

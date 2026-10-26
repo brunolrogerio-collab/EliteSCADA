@@ -2,24 +2,31 @@
 
 ## Runtime session: view, interact and end
 
-Choose a session class and check what the server actually granted before operating.
+Understand when you can watch the application and when you can operate its controls.
 
-### Understand the three conditions for operation
+### Watch or operate
 
-Signing in identifies the person. Authority defines which actions and resources that person may use. Licensing and session class restrict available capacity. All three must allow the operation: Interactive does not grant a missing permission, and administrator permission does not turn a View-only session into Interactive. For example, watching a pump state is viewing; writing a value requires ProcessValueWrite; executing a command requires CommandExecute. Those permissions are distinct. Selecting a role name on a screen does not create authorization.
+Choose View only to follow values/states. Request Interactive to use process controls. This is a request to the server: always check Granted for the actual result. Your account must also have permission for the action. Interactive does not give a person access to equipment they were not authorized to use.
 
-### Open and check your session
+### Check your session
 
-1. Sign in and open the active application Runtime.
-2. Open your account menu in the header. Where Runtime controls are available, find Runtime session class.
-3. Choose View only to monitor or Interactive to request operation.
-4. Wait for the response; controls are unavailable while the request runs.
-5. Compare Requested and Granted. Read the notice if the server falls back to View only.
-6. Test an operational action only when Granted is Interactive and your account has the required permission. Do not use a process button to discover session rights by trial.
+1. Sign in and open Runtime.
+2. Open the account menu in the header and find Runtime session class.
+3. Choose View only to observe or Interactive to operate.
+4. Wait. Requested shows your request; Granted shows the effective response.
+5. If you requested Interactive but received View only, read the notice before attempting a command. Interactive capacity may be unavailable. Ask the owner to check the reason when needed.
 
-### Controls and results
+### Example: you see the pump but cannot command it
 
-The server supplies result fields. You do not need to type session or client IDs.
+First check Granted. View only allows observation, not operation. If it says Interactive, check your account’s permission for that pump/action. If both are correct, inspect the command message and communication diagnostics. Work through one cause at a time: session class does not fix a TAG binding or equipment failure.
+
+### Change class or end
+
+Choose another class in the same panel to change it. The previous session is released before the new request. If that fails, you may need to request a session again; the previous one is not automatically retained. To finish, choose End session and wait for confirmation. Closing the menu only hides the panel. Signing out is separate. After a connection failure, confirm release with the owner; closing a window is not confirmation.
+
+### Look up controls and notices
+
+The server supplies results. You do not type session numbers or IDs. Open technical details only when explaining a rejection to the person responsible.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -32,17 +39,9 @@ The server supplies result fields. You do not need to type session or client IDs
 | End session | Releases the current Runtime session after the server confirms. | No active Runtime session | Not Sign out; closing the menu does not end the session either. |
 | Error or notice | Read the admission, end or fallback message before repeating the action. | Admission rejected | A network failure does not confirm release or a new grant. |
 
-### Change class or finish
+### When admission is rejected
 
-Select the other class in the same panel to change. The client releases the old session before requesting the new one; it does not promise to keep the old session if the new request fails. Check Granted again. To stop occupying that session, choose End session and wait for No active Runtime session. Closing the menu only hides controls. Sign out is a separate authentication action. Do not rely on abruptly closing the browser as confirmation that a seat was released; if an operation fails, ask the administrator to check server state.
-
-### Example: the pump is visible but its command fails
-
-Requested says Interactive but Granted says View only: the server admitted monitoring, not operation. Read the notice and check capacity before requesting again. If Granted is already Interactive, check the specific permission and resource scope; then active application/revision, command binding, TAG state and device feedback. Interactive fixes neither configuration, communication nor quality. An accepted read also does not prove write authorization.
-
-### Rejected or invalidated session
-
-Do not share session IDs or headers to bypass rejection. Check server connectivity, current identity, granted class and capacity message. Policy/Authority changes and restores can invalidate old sessions; use normal sign-in and admission again. If change/end fails, record time, action, message and displayed class. A closed panel does not prove the session ended.
+Record message, time and attempted action. Permission changes or restoration may require signing in/requesting a session again. Do not copy session IDs/headers to obtain access. In permission details, ProcessValueWrite means value writing and CommandExecute means command execution. They are different authorizations. Licensing limits available features; account permissions determine which actions you may use.
 
 [Open this guide in installed Help](/help?topic=runtime.session-classes)
 

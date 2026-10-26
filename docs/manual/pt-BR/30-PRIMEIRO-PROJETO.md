@@ -2,22 +2,47 @@
 
 ## Primeiro projeto: da entrada à primeira leitura
 
-Siga um pequeno ensaio de engenharia até conferir uma amostra conhecida no Runtime, sem conectar um equipamento.
+Crie uma variável de teste, mostre o valor 42 em uma tela e confira se a aplicação está funcionando.
 
-### Prepare o ambiente do ensaio
+### O que você vai montar
 
-Use uma instalação de teste destinada a este exercício e uma conta autorizada. Confirme o endereço e o projeto antes de editar; não use uma planta em operação para aprender a ativar revisões. Este exercício mostra uma leitura em memória interna, não um sensor real. Se já existe uma aplicação, não faça detach para forçar a tela inicial: use o projeto de teste autorizado ou peça ao responsável para preparar o ambiente.
+Neste exercício, uma pequena função coloca o número 42 em uma variável chamada Demo.Level. Uma tela mostra esse valor. Assim, você aprende o caminho completo sem ligar um equipamento. Use uma instalação de teste e uma conta autorizada. Se já houver uma aplicação em operação, confirme o ambiente com o responsável antes de editar.
 
-### Entrar e criar o projeto
+### Entrar e abrir o projeto de teste
 
-1. Abra o endereço correto. Em uma instalação nova elegível, conclua Criar Administrador inicial; se está recuperando dados existentes, use Restaurar backup. Não suponha login/senha padrão.
-2. Entre com a conta autorizada.
-3. Se Criar novo projeto for oferecido, informe Chave do projeto e Nome do projeto. Escolha Criar projeto e abrir Engineering.
-4. Confirme o projeto aberto. Se a opção não aparece, confira se já há projeto e siga o fluxo correspondente. Criar o projeto não equivale a uma nova aplicação Active. Se outro usuário criou um projeto enquanto o formulário estava aberto, recarregue e confira o estado em vez de repetir por tentativa.
+1. Abra o endereço fornecido para a instalação de teste.
+2. Se for o primeiro acesso, siga a criação do Administrador inicial. Se estiver recuperando uma aplicação existente, use Restaurar backup. Não há uma senha padrão a presumir.
+3. Entre com sua conta. Se aparecer Criar novo projeto, informe a chave planta-piloto e o nome Planta piloto. A chave identifica o projeto; o nome é o título que você verá na tela.
+4. Clique em Criar projeto e abrir Engineering. Confira o nome do projeto aberto. Se a instalação já tiver um projeto ou informar que outro usuário acabou de criá-lo, recarregue e confira a situação; não apague dados para fazer a opção aparecer.
 
-### Campos para este exercício
+### Colocar um valor na variável
 
-Os nomes abaixo são exemplos de um projeto de teste. Escolha referências legíveis; IDs internos são selecionados/gerados pelos fluxos do produto.
+1. Em Fontes de dados, prepare uma fonte de Memória do Servidor. Ela guarda o valor no servidor, sem endereço de equipamento.
+2. Em TAGs, crie Demo.Level, do tipo Double, e associe à fonte preparada. Double permite usar um número com casas decimais. Aplique as alterações conforme os controles do editor.
+3. Em Scripts, crie um Script Python com execução no servidor: escolha Server e habilite o Script. Declare Demo.Level nas referências como ServerMemoryTag, ou seja, um TAG de memória do servidor.
+4. Nas entradas do Script, escolha Initialize e informe initialize_demo como nome da função. Initialize executa na inicialização da revisão.
+5. Cole o exemplo e valide. Quando a função rodar, publicará 42.0 com qualidade Good, que indica uma amostra considerada válida neste exercício. Ela publica uma vez na inicialização; não produz atualização contínua nem leitura de sensor.
+
+```python
+def initialize_demo():
+    publish_server_memory_sample("Demo.Level", 42.0, "Good")
+```
+
+### Mostrar o valor na tela
+
+1. Em Telas, crie uma tela para o dispositivo que usará no teste.
+2. Adicione um Texto com o título Ensaio de nível.
+3. Adicione uma Exibição de valor. Selecione o objeto e ajuste tamanho, posição e casas decimais no Inspetor.
+4. No vínculo de dados do objeto, escolha Demo.Level. Esse vínculo faz o objeto acompanhar a variável; deixar 42 como texto fixo não testa a leitura.
+5. Abra a Pré-visualização, confira os avisos e aplique a edição. Prepare a navegação ou a forma de abertura da tela conforme o modo de apresentação usado. Não é preciso criar um comando para esse exercício.
+
+### Colocar a versão pronta em execução
+
+Enquanto você edita, o trabalho fica no rascunho chamado Working. Salvar cria uma revisão, que é uma cópia identificada do trabalho. Publicar prepara uma revisão para uso. Ativar coloca a revisão publicada em execução; essa passa a ser a Active. No lifecycle/revisões do projeto, siga Salvar, selecione a revisão correta, Publique e então Ative no ambiente de teste. Aguarde as confirmações. Abra TAG Monitor e confira a revisão ativa, a TAG Demo.Level e a amostra 42 com qualidade Good. Depois abra a tela no Runtime e compare o valor. Se o objeto mostra um 42 fixo e o TAG está sem amostra, o exercício ainda não passou.
+
+### Consulte os campos se precisar
+
+Você pode seguir o exercício e voltar a esta tabela quando surgir uma dúvida. Os nomes técnicos servem para identificar campos; os IDs internos são gerados ou escolhidos pelos próprios seletores do sistema.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -32,33 +57,8 @@ Os nomes abaixo são exemplos de um projeto de teste. Escolha referências legí
 | Vínculo da Exibição de valor | Selecione a TAG Demo.Level no seletor de dados do objeto. | Valor de Demo.Level | Não digite GUID nem deixe 42 como valor fixo fingindo uma amostra. |
 | Tela | Crie uma tela simples com título e Exibição de valor; configure o modo de abertura/navegação disponível. | Tela de ensaio | Criar uma tela não garante que ela abrirá sozinha no Runtime. |
 
-### Produzir uma amostra conhecida
+### Se algo não aparecer
 
-1. Em Fontes de dados/TAGs, prepare Server Memory e a TAG Double Demo.Level. Aplique as alterações válidas ao Working.
-2. Crie um Server Script em Python, habilitado, e declare a referência Demo.Level como ServerMemoryTag.
-3. Cadastre Initialize com handler initialize_demo.
-4. Use o código abaixo e valide. A função publica 42.0 com qualidade Good porque é um valor conhecido deste ensaio; isso não mede equipamento. Não é uma atualização contínua: Initialize publica quando a entrada é executada na inicialização da revisão. Para atualização periódica, estude Timer e cadência no guia de Scripts, sem acrescentar um laço infinito.
-
-```python
-def initialize_demo():
-    publish_server_memory_sample("Demo.Level", 42.0, "Good")
-```
-
-### Montar a primeira tela
-
-1. Abra Telas e crie uma tela para o dispositivo pretendido.
-2. Adicione Texto com o título Ensaio de nível.
-3. Adicione Exibição de valor e ajuste posição, tamanho e casas decimais no Inspetor.
-4. No vínculo de dados, escolha Demo.Level. Use um texto de unidade apenas se ele corresponder ao significado do valor; neste exercício pode deixar sem unidade.
-5. Use Pré-visualização, leia diagnósticos e aplique a edição.
-6. Configure a navegação/modo de apresentação para abrir essa tela conforme o fluxo disponível. Não adicione comando de escrita para testar uma leitura.
-
-### Salvar, publicar, ativar e conferir
-
-Abra o lifecycle/revisões do projeto e confira alterações e validação. Salvar cria uma revisão persistida; selecione a revisão correta e Publique. Publicar prepara a revisão, sem torná-la automaticamente Active. Ative a publicada quando quiser executar este candidato no ambiente de teste. Confira o resultado e a revisão Active. Em TAG Monitor, selecione Demo.Level e espere a amostra 42 com qualidade Good; confira os horários e a origem de memória interna. Abra a tela pelo Runtime e compare. Se a tela mostra 42 fixo mas o TAG não tem amostra, o ensaio não passou. A edição aplicada ao Working, sozinha, não comprova execução.
-
-### Se o resultado não aparecer
-
-Confirme o projeto e a revisão Active antes de mexer no desenho. Sem amostra: confira fonte/TAG, referência declarada, Script habilitado, Initialize/handler e diagnóstico do Script. TAG válido mas tela vazia: confira tela aberta, vínculo, objeto e formatação. Sessão Visualização basta para observar; uma ação interativa requer classe/permissão próprias. Se Salvar/Publicar/Ativar falhar, leia a mensagem e confira o estado atual antes de repetir; uma etapa concluída não implica as seguintes. Para um dispositivo físico, substitua o ensaio pelo guia do driver correspondente e valide valor/qualidade com uma fonte independente. Não trate esse exemplo como teste de campo.
+Comece pelo TAG Monitor. Se Demo.Level não tem amostra, confira a fonte, o Script habilitado, a referência declarada e a entrada Initialize com a função initialize_demo. Leia o diagnóstico do Script. Se o TAG está correto, mas a tela não, confira se abriu a tela certa e se o objeto está ligado à TAG. Se uma ação de Salvar, Publicar ou Ativar foi recusada, leia a mensagem e confira o estado antes de repetir. Não é necessário pedir uma sessão Interativa só para observar a leitura. Para conectar um equipamento real depois, use o guia do driver correspondente e verifique a leitura com uma fonte independente.
 
 [Abrir este guia na Ajuda instalada](/help?topic=getting-started.first-project)

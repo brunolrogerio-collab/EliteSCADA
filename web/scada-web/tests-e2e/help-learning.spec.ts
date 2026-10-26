@@ -6,6 +6,30 @@ import { mergeMonitorBatchSamples, resolveMonitorQuickAdd } from '../src/enginee
 
 test.use({ locale: 'pt-BR' });
 
+test('first-time guidance explains the task and draft terminology before technical lookup', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=help.application-map');
+  const article = page.locator('article');
+  await expect(article.getByRole('heading', { level: 2 })).toHaveText('Por onde começar no SCADIVO');
+  await expect(article).toContainText('Você não precisa configurar todas as áreas');
+  await expect(article).toContainText('não uma lista de leituras obrigatórias');
+  await article.getByRole('link', { name: 'Primeiro projeto: da entrada à primeira leitura', exact: true }).click();
+  await expect(article).toContainText('rascunho chamado Working');
+  await expect(article).toContainText('cópia identificada do trabalho');
+  const headings = await article.locator('section h3').allTextContents();
+  expect(headings.indexOf('Colocar a versão pronta em execução')).toBeLessThan(headings.indexOf('Consulte os campos se precisar'));
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: testInfo.outputPath('help-readable-first-project-desktop.png') });
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('a draft called Working');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('borrador llamado Working');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-readable-first-project-mobile.png') });
+});
+
 test('first-project and installation-switch journeys connect concrete setup fields to explicit lifecycle and consequences', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=getting-started.neutral-bootstrap');
@@ -13,13 +37,13 @@ test('first-project and installation-switch journeys connect concrete setup fiel
   const article = page.locator('article');
   await expect(article.getByRole('heading', { level: 2 })).toBeInViewport();
   await expect(article.getByRole('rowheader', { name: 'Chave do projeto', exact: true })).toBeVisible();
-  await expect(article).toContainText('Não é uma atualização contínua', { ignoreCase: true });
-  await expect(article).toContainText('não comprova execução');
+  await expect(article).toContainText('não produz atualização contínua');
+  await expect(article).toContainText('Salvar cria uma revisão');
   await expect(article.locator('pre')).toContainText('publish_server_memory_sample("Demo.Level", 42.0, "Good")');
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
   await expect(article).toContainText('Function name alone does not configure a trigger');
   await page.getByLabel('Language', { exact: true }).selectOption('es');
-  await expect(article).toContainText('No es prueba de campo');
+  await expect(article).toContainText('no continuamente ni desde sensor');
   await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
   await page.screenshot({ path: testInfo.outputPath('help-first-project-desktop.png'), fullPage: true });
   await page.goto('/help?topic=installation.switching');
@@ -27,9 +51,9 @@ test('first-project and installation-switch journeys connect concrete setup fiel
   await expect(article.getByRole('heading', { level: 2 })).toBeInViewport();
   await expect(article.getByRole('rowheader', { name: 'Licença da máquina', exact: true })).toBeVisible();
   await expect(article).toContainText('Cancelar / Voltar');
-  await expect(article).toContainText('não suponha sucesso, cancelamento ou rollback');
+  await expect(article).toContainText('Uma queda de conexão não diz, por si só, se a troca terminou');
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
-  await expect(article).toContainText('Checking a box creates neither', { ignoreCase: true });
+  await expect(article).toContainText('Checking a box creates no copy');
   await page.getByLabel('Language', { exact: true }).selectOption('es');
   await expect(article).toContainText('No es cerrar la interfaz');
   await page.setViewportSize({ width: 390, height: 844 });
@@ -89,7 +113,7 @@ test('operational Help explains session outcomes, server diagnostics and separat
   await page.goto('/help?topic=runtime.session-classes');
   const article = page.locator('article');
   await expect(article.getByRole('rowheader', { name: 'Concedida', exact: true })).toBeVisible();
-  await expect(article).toContainText('não promete conservar a anterior');
+  await expect(article).toContainText('A sessão anterior é liberada antes de pedir a nova');
   await expect(article).toContainText('CommandExecute');
   await expect(article).toContainText('fechar o menu também não encerra');
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');

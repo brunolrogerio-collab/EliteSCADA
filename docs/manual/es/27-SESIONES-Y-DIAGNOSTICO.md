@@ -2,24 +2,31 @@
 
 ## Sesión Runtime: visualizar, interactuar y finalizar
 
-Elija la clase de sesión y compruebe lo que el servidor concedió antes de operar.
+Entienda cuándo puede observar la aplicación y cuándo puede operar sus controles.
 
-### Entienda las tres condiciones para operar
+### Observar u operar
 
-Iniciar sesión identifica a la persona. Authority define las acciones y recursos permitidos. La licencia y la clase de sesión restringen la capacidad disponible. Las tres condiciones deben permitir la operación: Interactiva no concede un permiso ausente y el permiso de administrador no convierte Visualización en Interactiva. Ver el estado de una bomba es visualización; escribir un valor exige ProcessValueWrite; ejecutar un comando exige CommandExecute. Son permisos distintos. Seleccionar un nombre de rol en pantalla no crea autorización.
+Elija Visualización para seguir valores/estados. Solicite Interactiva para usar controles de proceso. Es una solicitud: compruebe siempre Concedida. La cuenta también necesita permiso para la acción. Interactiva no da acceso a equipos no autorizados.
 
-### Abrir y comprobar su sesión
+### Comprobar sesión
 
-1. Inicie sesión y abra el Runtime de la aplicación activa.
-2. Abra el menú de su cuenta en la cabecera. Donde estén disponibles los controles Runtime, localice Clase de sesión Runtime.
-3. Elija Visualización para observar o Interactiva para solicitar operación.
-4. Espere la respuesta; los controles se deshabilitan durante la solicitud.
-5. Compare Solicitada y Concedida. Lea el aviso si se reduce a Solo visualización.
-6. Pruebe una acción operativa solo si Concedida es Interactiva y la cuenta tiene el permiso necesario. No utilice un botón de proceso para averiguar derechos por ensayo.
+1. Entre y abra Runtime.
+2. Abra menú de cuenta y Clase de sesión Runtime.
+3. Elija Visualización para observar o Interactiva para operar.
+4. Espere: Solicitada muestra pedido y Concedida la respuesta efectiva.
+5. Si pidió Interactiva y recibió Visualización, lea aviso antes de comandar. Puede faltar capacidad interactiva. Consulte al responsable si lo necesita.
 
-### Controles y resultados
+### Ejemplo: ve la bomba pero no puede comandarla
 
-El servidor proporciona los resultados. No necesita introducir IDs de sesión o cliente.
+Compruebe Concedida. Visualización permite observar, no operar. Si indica Interactiva, revise permiso para esa bomba/acción. Si ambos son correctos, consulte mensaje de comando y diagnóstico de comunicación. Vaya por partes: clase no corrige vínculo de TAG ni avería de equipo.
+
+### Cambiar o finalizar
+
+Elija otra clase en el panel. La anterior se libera antes del nuevo pedido. Si falla, puede tener que solicitar otra sesión; no se conserva automáticamente la anterior. Para terminar elija Finalizar sesión y espere confirmación. Cerrar menú solo oculta panel; salir de cuenta es otra acción. Si falla conexión, confirme liberación; cerrar ventana no es confirmación.
+
+### Consultar controles y avisos
+
+Servidor proporciona resultados; no se escriben números/IDs de sesión. Abra detalles técnicos solo para explicar un rechazo al responsable.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -32,17 +39,9 @@ El servidor proporciona los resultados. No necesita introducir IDs de sesión o 
 | Finalizar sesión | Libera la sesión Runtime actual tras confirmación del servidor. | Sin sesión Runtime activa | No es Salir de la cuenta; cerrar el menú tampoco finaliza la sesión. |
 | Error o aviso | Lea el mensaje de solicitud, finalización o reducción antes de repetir. | Solicitud rechazada | Un fallo de red no confirma liberación ni nueva concesión. |
 
-### Cambiar de clase o terminar
+### Si se rechaza la sesión
 
-Seleccione la otra clase en el mismo panel. El cliente libera la sesión anterior antes de solicitar la nueva; no promete conservarla si la nueva solicitud falla. Compruebe Concedida otra vez. Para dejar de ocuparla, elija Finalizar sesión y espere Sin sesión Runtime activa. Cerrar el menú solo oculta controles. Salir de la cuenta es otra acción de autenticación. No dependa del cierre abrupto del navegador para confirmar una plaza liberada; si falla una operación, pida al administrador verificar el estado del servidor.
-
-### Ejemplo: la bomba aparece pero su comando falla
-
-Solicitada indica Interactiva y Concedida indica Solo visualización: el servidor admitió observación, no operación. Lea el aviso y compruebe capacidad antes de solicitar otra vez. Si Concedida ya es Interactiva, revise el permiso y alcance del recurso; luego aplicación/revisión activa, vínculo del comando, TAG y retorno del equipo. Interactiva no corrige configuración, comunicación ni calidad. Una lectura aceptada tampoco demuestra permiso de escritura.
-
-### Sesión rechazada o invalidada
-
-No comparta IDs ni cabeceras para eludir una denegación. Revise conexión al servidor, identidad actual, clase concedida y mensaje de capacidad. Cambios de política/Authority y restauraciones pueden invalidar sesiones antiguas; vuelva al flujo normal de entrada y admisión. Si cambiar/finalizar falla, registre hora, acción, mensaje y clase mostrada. Cerrar un panel no demuestra finalización de sesión.
+Anote mensaje, hora y acción. Cambiar permisos/restaurar puede exigir entrar y solicitar sesión otra vez. No copie IDs/cabeceras para obtener acceso. En permisos ProcessValueWrite es escritura de valor y CommandExecute ejecución de comando: autorizaciones distintas. Licencia limita recursos; permisos de cuenta definen acciones.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=runtime.session-classes)
 

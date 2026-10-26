@@ -2,22 +2,47 @@
 
 ## Primer proyecto: de la entrada a la primera lectura
 
-Siga un ensayo de ingeniería hasta comprobar una muestra conocida en Runtime sin conectar equipos.
+Cree una variable de prueba, muestre 42 en pantalla y compruebe que la aplicación funciona.
 
-### Prepare el entorno
+### Qué va a montar
 
-Use instalación de prueba dedicada y cuenta autorizada. Compruebe dirección/proyecto; no aprenda activación en una planta operativa. El ensayo lee memoria interna, no sensor real. Si hay aplicación, no haga detach para forzar inicio: use proyecto de prueba autorizado o pida preparar el entorno.
+Una pequeña función coloca 42 en Demo.Level y una pantalla lo muestra. Aprende el recorrido sin conectar equipos. Use instalación de prueba y cuenta autorizada. Si hay aplicación operativa, confirme el entorno con su responsable antes de editar.
 
-### Entrar y crear proyecto
+### Entrar y abrir proyecto de prueba
 
-1. Abra dirección correcta. En instalación nueva elegible complete Administrador inicial; para recuperar datos use Restaurar backup. No suponga credenciales predeterminadas.
-2. Entre con cuenta autorizada.
-3. Si se ofrece Crear nuevo proyecto, introduzca Clave y Nombre del proyecto y Crear proyecto y abrir Engineering.
-4. Confirme contexto. Si no aparece, revise si existe proyecto y siga su flujo. Crear no equivale a nueva aplicación Active. Si otro usuario creó mientras estaba abierto, recargue/compruebe en vez de repetir a ciegas.
+1. Abra la dirección de prueba proporcionada.
+2. En primer acceso siga Administrador inicial; para recuperar aplicación use Restaurar backup. No suponga contraseña predeterminada.
+3. Entre con su cuenta. Si aparece Crear nuevo proyecto, introduzca clave planta-piloto y nombre Planta piloto. La clave identifica; el nombre es el título mostrado.
+4. Elija Crear proyecto y abrir Engineering y compruebe el nombre. Si existe proyecto o alguien acaba de crearlo, recargue/compruebe; no borre datos para mostrar la opción.
 
-### Campos del ensayo
+### Poner un valor en la variable
 
-Los nombres son ejemplos de prueba. Use referencias legibles; los flujos del producto seleccionan/generan IDs internos.
+1. En Fuentes prepare Memoria del Servidor: guarda el valor sin dirección de equipo.
+2. En TAGs cree Demo.Level tipo Double y asocie la fuente. Double admite decimales. Aplique mediante el editor.
+3. En Scripts cree Python habilitado con ejecución Server. Declare Demo.Level como ServerMemoryTag: TAG de memoria del servidor.
+4. En entradas elija Initialize y función initialize_demo. Initialize ejecuta al iniciar revisión.
+5. Pegue código y valide. Publica 42.0/Good, una muestra conocida válida para este ejercicio. Publica una vez al inicio, no continuamente ni desde sensor.
+
+```python
+def initialize_demo():
+    publish_server_memory_sample("Demo.Level", 42.0, "Good")
+```
+
+### Mostrar el valor en pantalla
+
+1. Cree Pantalla para el dispositivo de prueba.
+2. Añada Texto titulado Ensayo de nivel.
+3. Añada Visualización de valor y ajuste tamaño/posición/decimales en Inspector.
+4. En vínculo de datos elija Demo.Level. El vínculo sigue la variable; texto fijo 42 no prueba lectura.
+5. Previsualice, revise avisos y aplique. Prepare navegación/apertura según presentación. No hace falta un comando.
+
+### Ejecutar la versión preparada
+
+La edición es un borrador llamado Working. Guardar crea una copia identificada: revisión. Publicar prepara una revisión para uso. Activar ejecuta la publicada: se convierte en Active. En lifecycle/revisiones Guarde, elija la correcta, Publique y Active en prueba. Espere confirmaciones. En TAG Monitor revise Active, Demo.Level y 42/Good. Abra pantalla Runtime y compare. Texto fijo 42 sin muestra no pasa el ejercicio.
+
+### Consulte campos cuando necesite
+
+Siga el ejercicio y vuelva a la tabla si un campo no está claro. Nombres técnicos identifican campos; los selectores generan/eligen IDs internos.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -32,33 +57,8 @@ Los nombres son ejemplos de prueba. Use referencias legibles; los flujos del pro
 | Vínculo de visualización de valor | Seleccione Demo.Level en selector del objeto. | Valor Demo.Level | No adivine GUID ni deje 42 fijo aparentando muestra. |
 | Pantalla | Cree título/visualización y configure apertura/navegación disponibles. | Pantalla de ensayo | Crear no garantiza apertura automática en Runtime. |
 
-### Producir muestra conocida
+### Si falta algo
 
-1. Prepare Server Memory y TAG Double Demo.Level en Fuentes/TAGs y aplique cambios válidos a Working.
-2. Cree Server Script Python habilitado y declare Demo.Level como ServerMemoryTag.
-3. Añada Initialize con handler initialize_demo.
-4. Use código y valide. Publica 42.0/Good por ser valor conocido del ensayo; no mide equipo. No es continuo: Initialize publica al ejecutarse la entrada al iniciar revisión. Para actualizaciones periódicas estudie Timer/cadencia en Scripts, sin bucle infinito.
-
-```python
-def initialize_demo():
-    publish_server_memory_sample("Demo.Level", 42.0, "Good")
-```
-
-### Montar primera pantalla
-
-1. Abra Pantallas y cree una para el dispositivo.
-2. Añada Texto con título Ensayo de nivel.
-3. Añada Visualización de valor, ajuste posición/tamaño/decimales en Inspector.
-4. Elija Demo.Level en vínculo. Unidad solo si corresponde al significado; aquí puede quedar vacía.
-5. Previsualice, lea diagnósticos y aplique edición.
-6. Configure presentación/navegación soportadas para abrirla. No añada escritura para probar lectura.
-
-### Guardar, publicar, activar y comprobar
-
-Abra lifecycle/revisiones y compruebe cambios/validación. Guardar crea revisión persistida; seleccione correcta y Publique. Publicar prepara sin hacer Active automáticamente. Active la publicada cuando deba ejecutarse en prueba. Compruebe resultado/revisión Active. En TAG Monitor elija Demo.Level y espere 42/Good, revisando horas y origen de memoria interna. Abra pantalla en Runtime y compare. Texto fijo 42 sin muestra del TAG no pasa el ensayo. Aplicar al Working no demuestra ejecución.
-
-### Si no aparece
-
-Compruebe proyecto/Active antes de cambiar dibujo. Sin muestra: fuente/TAG, referencia declarada, Script habilitado, Initialize/handler y diagnóstico. TAG válido/pantalla vacía: pantalla abierta, vínculo, objeto/formato. Visualización basta para observar; acciones interactivas exigen clase/permiso. Si Guardar/Publicar/Activar falla, lea mensaje/estado antes de repetir; una etapa no implica siguientes. Para equipo físico use guía de su driver y verifique valor/calidad independientemente. No es prueba de campo.
+Empiece en TAG Monitor. Sin muestra: fuente, Script habilitado, referencia declarada, Initialize y función initialize_demo; lea diagnóstico. TAG correcto/pantalla incorrecta: revise pantalla/vínculo. Si Guardar/Publicar/Activar fue rechazado, lea mensaje/estado antes de repetir. Visualización basta para observar. Después use guía del driver y comprobación independiente para conectar equipo real.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=getting-started.first-project)

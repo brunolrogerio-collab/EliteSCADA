@@ -2,24 +2,31 @@
 
 ## Sessão Runtime: visualizar, interagir e encerrar
 
-Escolha a classe da sua sessão e confira o que o servidor realmente concedeu antes de operar.
+Entenda quando você pode apenas acompanhar a aplicação e quando pode operar seus controles.
 
-### Entenda as três condições para operar
+### Visualizar ou operar
 
-Entrar com usuário identifica a pessoa. A Authority define as ações e os recursos que ela pode usar. A licença e a classe de sessão limitam a capacidade disponível. As três condições precisam permitir a operação: uma sessão Interativa não concede uma permissão ausente, e uma permissão de administrador não transforma uma sessão Visualização em Interativa. Um exemplo: ler o estado de uma bomba é visualização; escrever um valor exige ProcessValueWrite; executar um comando exige CommandExecute. Essas duas permissões são distintas. Não se obtém autorização escolhendo um nome de papel na tela.
+Para acompanhar valores e estados, escolha Visualização. Para usar controles que comandam o processo, solicite Interativa. A escolha é um pedido ao servidor: confira sempre o campo Concedida para saber o que ficou disponível. Sua conta também precisa ter permissão para a ação. Mesmo com sessão Interativa, uma pessoa não ganha acesso a um equipamento que não lhe foi autorizado.
 
-### Abrir e conferir sua sessão
+### Conferir sua sessão
 
-1. Entre com sua conta e abra o Runtime da aplicação ativa.
-2. Abra o menu da sua conta, no cabeçalho. Onde os controles Runtime estiverem disponíveis, localize Classe da sessão Runtime.
-3. Escolha Visualização para acompanhar ou Interativa para solicitar operação.
-4. Aguarde a resposta; os controles ficam indisponíveis durante a solicitação.
-5. Compare Solicitada e Concedida. Leia o aviso se houver redução para Visualização.
-6. Só teste uma ação operacional quando Concedida for Interativa e sua conta tiver a permissão necessária. Não use um botão de processo para descobrir por tentativa se a sessão permite operação.
+1. Entre na aplicação e abra o Runtime.
+2. Abra o menu da sua conta no cabeçalho. Procure Classe da sessão Runtime.
+3. Escolha Visualização para acompanhar ou Interativa se precisar operar.
+4. Aguarde a resposta. Veja Solicitada, que mostra seu pedido, e Concedida, que mostra a resposta efetiva.
+5. Se pediu Interativa e recebeu Visualização, leia o aviso antes de tentar um comando. Pode não haver capacidade interativa disponível. Peça ao responsável para conferir o motivo quando necessário.
 
-### Controles e resultados
+### Exemplo: você vê a bomba, mas não consegue comandá-la
 
-Os campos de resultado são preenchidos pelo servidor. Você não precisa digitar um ID de sessão ou de cliente.
+Primeiro olhe Concedida. Se aparece Visualização, a sessão permite acompanhar, mas não operar. Se aparece Interativa, confira a permissão da sua conta para aquela bomba e para aquele comando. Se sessão e permissão estão corretas, verifique a mensagem do comando e o diagnóstico da comunicação. Vá por partes: mudar a classe da sessão não corrige uma ligação de TAG ou uma falha do equipamento.
+
+### Trocar de classe ou encerrar
+
+Para mudar, escolha a outra classe no mesmo painel. A sessão anterior é liberada antes de pedir a nova. Se o pedido falhar, pode ser necessário solicitar uma sessão novamente; a anterior não é conservada automaticamente. Para terminar, clique em Encerrar sessão e espere a confirmação. Fechar o menu só esconde o painel. Sair da conta é outra ação. Se a conexão falhar, confira com o responsável se a sessão foi realmente liberada; fechar a janela não é uma confirmação.
+
+### Consultar os controles e os avisos
+
+Os resultados são preenchidos pelo servidor. Você não precisa digitar um número ou ID de sessão. Abra os detalhes técnicos apenas quando precisar explicar uma recusa ao responsável.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -32,17 +39,9 @@ Os campos de resultado são preenchidos pelo servidor. Você não precisa digita
 | Encerrar sessão | Libera a sessão Runtime atual após confirmação do servidor. | Sem sessão Runtime ativa | Não é Sair da conta; fechar o menu também não encerra a sessão. |
 | Erro ou aviso | Leia a mensagem da solicitação, encerramento ou redução de classe antes de repetir. | Solicitação recusada | Uma falha de rede não deve ser interpretada como liberação ou concessão confirmada. |
 
-### Trocar de classe ou terminar
+### Quando a sessão é recusada
 
-Para trocar, selecione a outra classe no mesmo painel. O cliente libera a sessão anterior antes de pedir a nova; não promete conservar a anterior se a nova solicitação falhar. Confira novamente Concedida. Para parar de consumir aquela sessão, use Encerrar sessão e aguarde Sem sessão Runtime ativa. Fechar o menu apenas esconde os controles. Sair da conta é outra ação, de autenticação. Não dependa de fechar abruptamente o navegador para confirmar que uma vaga foi liberada: se houver falha, peça ao administrador que confira o estado no servidor.
-
-### Exemplo: a bomba aparece, mas o comando não funciona
-
-Solicitada mostra Interativa e Concedida mostra Visualização: o servidor admitiu acompanhamento, não operação. Leia o aviso e verifique capacidade antes de solicitar novamente. Se Concedida já é Interativa, confira a permissão específica e o escopo do recurso; depois confirme aplicação/revisão ativa, vínculo de comando, estado do TAG e retorno do equipamento. Interativa não corrige configuração, comunicação ou qualidade. Uma leitura aceita também não prova que uma escrita está autorizada.
-
-### Sessão recusada ou invalidada
-
-Não compartilhe IDs ou cabeçalhos de sessão para contornar a recusa. Confirme conexão com o servidor, identidade atual, classe concedida e mensagem de capacidade. Mudanças de política/Authority e restaurações podem invalidar sessões antigas; use o fluxo normal de entrada e admissão novamente. Se a troca ou o encerramento falhar, registre horário, ação, mensagem e a classe exibida. Não declare que a sessão foi encerrada só porque um painel fechou.
+Anote a mensagem, o horário e a ação que tentou fazer. Uma mudança de permissões ou uma restauração pode exigir que você entre e solicite a sessão novamente. Não copie IDs ou cabeçalhos de outra sessão para tentar obter acesso. Nos detalhes de permissão, ProcessValueWrite significa escrita de valor e CommandExecute significa execução de comando. São autorizações diferentes. A licença limita os recursos disponíveis; as permissões da conta definem quais ações você pode usar.
 
 [Abrir este guia na Ajuda instalada](/help?topic=runtime.session-classes)
 

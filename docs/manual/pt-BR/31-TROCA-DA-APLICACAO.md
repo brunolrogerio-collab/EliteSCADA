@@ -2,23 +2,31 @@
 
 ## Trocar a aplicação: conferir, preservar e desvincular
 
-Entenda a decisão de detach e cada confirmação antes de devolver esta instalação ao estado neutro.
+Prepare as cópias e entenda o que muda antes de retirar a aplicação atual desta instalação.
 
-### Quando essa troca é apropriada
+### O que esta operação faz
 
-Abra Engineering → Instalação para preparar esta mesma instalação para outra aplicação. Não é a rotina de editar uma tela ou ativar a próxima revisão do mesmo projeto. O detach desvincula a aplicação e a Authority, invalida sessões antigas e interrompe seus efeitos de Runtime. Não desinstala o produto nem apaga silenciosamente o Historian. A escolha de licença é explícita. Faça a operação somente no destino e na parada autorizados; este texto não executa a troca.
+Use Engineering, Instalação quando precisar preparar este servidor para outra aplicação. A operação retira o vínculo da aplicação atual, encerra a validade dos acessos antigos e volta à configuração inicial. A aplicação deixa de operar nesse servidor. O produto continua instalado e o Historian não é apagado por esse fluxo. Para apenas editar uma tela ou colocar outra revisão do mesmo projeto em uso, siga o lifecycle do projeto; não faça esta troca.
 
-### Conferir o estado e preparar cópias
+### Preparar as cópias antes de decidir
 
-1. Confira Application atual, Working, Published, Active, Authority, licença, Historian e proteção de engenharia. Atualize se a situação mudou.
-2. Se há alterações Working não salvas, salve uma revisão quando necessário antes de considerar a cópia recuperável. Working salvo mas não publicado é outra condição; compare os números.
-3. Use Exportar Application para obter o .escadapkg e confirme o download.
-4. Para preservar usuários/credenciais/policy, informe Nova senha do backup e use Exportar Authority. Guarde a senha separadamente do arquivo. O pacote da Application não carrega esses acessos.
-5. Trate separadamente backup de banco/Historian e material protegido de host; preservar no detach não equivale a ter uma cópia de recuperação.
+1. Confira Application atual, Working e Active para ter certeza de que está na instalação correta.
+2. Veja se há alterações não salvas. Salve uma revisão se precisar preservar esse trabalho; salvar ainda não coloca as alterações em execução.
+3. Use Exportar Application e confirme o download do arquivo .escadapkg. Ele contém a engenharia da aplicação.
+4. Para levar também usuários e permissões, use Exportar Authority. A Authority é a parte que guarda esses acessos; seu backup é separado e usa a Nova senha do backup. Guarde a senha separadamente do arquivo.
+5. Confirme com o responsável as cópias de banco, histórico e chaves de drivers. A tela não inclui tudo isso no pacote da aplicação.
 
-### Resumo e preservação
+### Confirmar a decisão e aguardar
 
-Estes dados identificam o alvo atual; leia-os antes de abrir a confirmação.
+1. Com as cópias conferidas, abra Desvincular aplicação desta instalação.
+2. Leia as confirmações sobre aplicação, usuários/sessões, histórico e trabalho não salvo. Confirme somente o que compreendeu e decidiu fazer.
+3. Escolha o que fazer com a licença da máquina: Manter conserva a atual; Remover a retira; Substituir pede um código novo válido. Essa escolha é separada da aplicação.
+4. Se houver bloqueios, resolva-os e atualize o estado.
+5. Clique em Desvincular e voltar ao neutro uma vez e aguarde. O servidor confere a situação novamente antes de aplicar. Com sucesso, a página volta à configuração inicial. Você ainda precisará criar, importar ou recuperar a próxima aplicação.
+
+### Consultar o resumo e os campos de cópia
+
+Use esta tabela quando precisar esclarecer um dos campos da preparação. Exportar uma cópia não exige executar a troca.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -31,9 +39,9 @@ Estes dados identificam o alvo atual; leia-os antes de abrir a confirmação.
 | Exportar Application | Produz a cópia portátil da engenharia pelo fluxo suportado. | Download .escadapkg | Confira arquivo/revisão/destino; download cancelado não é cópia concluída. |
 | Nova senha do backup / Exportar Authority | Exporta Authority protegida, com senha própria. | Backup separado concluído | Senha do backup de 12 a 1024 caracteres; não publicar arquivo/senha nem confundir com login. |
 
-### Ler as confirmações e a licença
+### Consultar confirmações e licença
 
-Abra Desvincular aplicação desta instalação. Verifique cada item de forma deliberada; marcar uma caixa não faz backup nem valida um novo ambiente.
+As confirmações existem para você reconhecer o que será afetado. Marcar uma caixa não cria uma cópia. Se uma mensagem não estiver clara, volte à preparação e confira antes de continuar.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -48,12 +56,8 @@ Abra Desvincular aplicação desta instalação. Verifique cada item de forma de
 | Desvincular e voltar ao neutro | Envia a decisão ao servidor, que faz prévia/revalidação antes de aplicar o detach. | Instalação neutra | A operação pode ser recusada por mudança de estado entre as etapas. |
 | Cancelar / Voltar | Antes da execução, permite retornar à preparação sem confirmar o detach. | Revisar cópias | Não promete desfazer uma operação já recebida/concluída pelo servidor. |
 
-### Executar e confirmar o resultado
+### Se a conexão cair ou surgir um erro
 
-Depois de conferir cópias, consequências e escolha de licença, use Desvincular e voltar ao neutro uma vez e aguarde. A interface primeiro valida o estado e depois pede o detach; o servidor revalida a condição atual. Com sucesso, a página retorna à entrada neutra. Confirme o novo estado antes de iniciar criação/importação/recuperação. A próxima aplicação e a Authority precisam ser preparadas pelo fluxo normal; as sessões antigas não autorizam o novo vínculo. Este guia não introduz outro lock, transporte ou contrato de detach.
-
-### Falha, interrupção ou estado incerto
-
-Se houver bloqueio, leia a causa e atualize após resolvê-la. Licença substituta rejeitada não deve ser contornada removendo a válida por tentativa. Se perder a conexão ou fechar a página durante a ação, não suponha sucesso, cancelamento ou rollback: reabra o endereço correto e confira o estado real. Anote etapa, mensagem e horário. Não faça uma segunda troca até reconciliar o resultado. Para recuperar aplicação/Authority de cópias, use o guia de recuperação; para banco/Historian, o procedimento nativo separado. Nenhum desses procedimentos deve ser substituído por edição manual do banco.
+Não repita a operação imediatamente. Reabra o endereço correto e confira se ainda está a aplicação anterior ou se a instalação voltou à configuração inicial. Uma queda de conexão não diz, por si só, se a troca terminou. Anote mensagem, etapa e horário e peça a conferência do estado se houver dúvida. Cancelar ou voltar antes da confirmação não desfaz uma operação que o servidor já concluiu. Uma licença substituta inválida precisa ser corrigida; não remova a válida como tentativa de resolver o erro. Para recuperar cópias, use Backup e recuperação.
 
 [Abrir este guia na Ajuda instalada](/help?topic=installation.switch-workflow)

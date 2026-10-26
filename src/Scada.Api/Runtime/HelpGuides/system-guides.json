@@ -535,41 +535,42 @@
     {
       "id": "help.application-map",
       "category": "getting-started",
-      "title": "Por onde começar em cada área",
-      "summary": "Encontre a tarefa e siga os guias relacionados ao fim do artigo.",
+      "title": "Por onde começar no SCADIVO",
+      "summary": "Escolha o que quer fazer agora. Você não precisa configurar todas as áreas para criar sua primeira tela.",
       "sections": [
         {
-          "heading": "Uma ordem para construir sua aplicação",
-          "body": "Comece pela conexão com dados, confira TAGs, represente equipamentos, monte Telas/Popups, configure alarmes e histórico e só então analise dados com Intelligence. Scripts entram quando uma regra ou interação precisa de lógica. Segurança, licença, banco e HA são administrações distintas. Você não precisa configurar todas as funções para montar uma primeira aplicação.",
+          "heading": "Se esta é sua primeira aplicação",
+          "body": "Comece pelo guia Primeiro projeto. Ele mostra como criar uma variável de teste, colocar seu valor em uma tela e conferir o resultado. Faça esse primeiro percurso antes de configurar alarmes, relatórios ou análises. Depois, acrescente os recursos de que sua aplicação precisa.",
           "fields": null
         },
         {
-          "heading": "Projeto e comunicação",
-          "body": "Visão geral mostra o projeto; salvar/publicar/ativar controla sua revisão. Instalação trata troca e recuperação. Fontes de dados escolhe conexão/protocolo; TAGs descreve valores, endereços e unidades; TAG Gateway cria rotas de dados. Home/Building organiza dispositivos e capacidades onde disponível. Fontes de mídia trata os recursos de mídia, não sinais industriais. Confira cada guia antes de enviar escritas a um equipamento real.",
+          "heading": "Trazer uma leitura para o sistema",
+          "body": "Uma TAG é uma variável com nome, como temperatura ou estado de uma bomba. Em Fontes de dados, você escolhe de onde a leitura virá. Em TAGs, informa qual leitura quer usar. Antes de desenhar a tela, confira no TAG Monitor se o valor chega e se está válido. Para aprender sem equipamento, o guia Primeiro projeto usa uma variável de teste.",
           "fields": null
         },
         {
-          "heading": "Desenho e reutilização",
-          "body": "Templates cria faceplates compartilhados; Equipamentos cadastra instâncias reais. Dínamos organiza conjuntos visuais parametrizados. Assets visuais são arquivos como imagens. Bibliotecas transporta recursos reutilizáveis entre aplicações. Telas ocupa a visualização principal; Popups abre detalhes. Cabeçalho e Mobile ajustam apresentação/navegação nas superfícies próprias, sem substituir o desenho de uma tela. Os guias de objetos explicam propriedades distintas de cada tipo.",
+          "heading": "Montar a tela que o operador vai usar",
+          "body": "Em Telas, coloque textos, desenhos e valores. Um Popup é uma janela de apoio, como os detalhes de uma bomba. Quando várias bombas usam o mesmo desenho, um Template ajuda a reutilizá-lo. Você pode aprender essas formas de reutilização depois de montar a primeira tela simples.",
           "fields": null
         },
         {
-          "heading": "Histórico, ocorrências e Intelligence",
-          "body": "Historian configura captura; Tendências e Histórico consultam o que foi armazenado. Relatórios usa definições e parâmetros próprios. Alarmes acompanha condições; Eventos Operacionais registra ocorrências; Auditoria registra ações administrativas/operacionais auditadas. Intelligence organiza perfis, equipamentos, contextos e análises. Não trate essas funções como listas equivalentes: cada uma responde a uma pergunta diferente.",
+          "heading": "Guardar dados e acompanhar ocorrências",
+          "body": "Se precisa consultar valores de ontem, configure a gravação no Historian e use Histórico ou Tendências para consultar. Se precisa avisar sobre uma condição, como pressão alta, configure um alarme. Relatórios organizam resultados para consulta ou exportação. Intelligence ajuda a analisar equipamentos e processos; não é uma etapa obrigatória para mostrar uma leitura.",
           "fields": null
         },
         {
-          "heading": "Administração e diagnóstico",
-          "body": "Segurança controla usuários e permissões. Licenciamento controla recursos e cotas comerciais; não concede permissões de usuário. Banco de dados administra armazenamento. Alta disponibilidade configura os dois servidores. TAG Monitor ajuda a conferir valores e qualidade; Monitoramento acompanha o desenvolvimento; Diagnósticos ajuda a localizar falhas; Informações identifica a versão e o projeto. Comece pelo sintoma e evite mudar banco, licença ou HA para tentar corrigir uma leitura sem antes conferir sua origem.",
+          "heading": "Preparar acesso e manutenção",
+          "body": "Segurança define quem pode entrar e o que cada pessoa pode fazer. Licenciamento mostra os recursos e limites disponíveis na instalação. As páginas de banco de dados e alta disponibilidade ajudam a preparar a infraestrutura. Consulte essas áreas quando a tarefa exigir; você não precisa estudá-las todas antes do primeiro exercício.",
           "fields": null
         },
         {
-          "heading": "Use a Ajuda no lugar onde a dúvida aparece",
-          "body": "Abra Ajuda a partir da área em uso. Para Templates, Equipamentos, Banco de dados, HA e Intelligence, o destino é o guia específico. Na Ajuda, use busca por tarefa ou campo e o índice Neste artigo. A seção Continue por aqui reúne os próximos guias. Se não souber o nome técnico, procure pela pergunta: por exemplo, migrar, bomba, pausar, certificado ou pressão.",
+          "heading": "Encontrar a explicação de um campo",
+          "body": "Abra Ajuda na página onde surgiu a dúvida. Você também pode buscar o nome do campo ou uma tarefa, como criar tela. Leia primeiro os passos do guia. Use as tabelas para consultar um campo específico e a Referência técnica somente quando precisar identificar o nome interno. Os links ao fim do artigo indicam o próximo assunto, não uma lista de leituras obrigatórias.",
           "fields": null
         }
       ],
       "relatedTopicIds": [
+        "getting-started.first-project",
         "sources.data-sources",
         "tags.overview",
         "gateway.overview",
@@ -5766,19 +5767,27 @@
       "id": "runtime.session-classes",
       "category": "runtime",
       "title": "Sessão Runtime: visualizar, interagir e encerrar",
-      "summary": "Escolha a classe da sua sessão e confira o que o servidor realmente concedeu antes de operar.",
+      "summary": "Entenda quando você pode apenas acompanhar a aplicação e quando pode operar seus controles.",
       "sections": [
         {
-          "heading": "Entenda as três condições para operar",
-          "body": "Entrar com usuário identifica a pessoa. A Authority define as ações e os recursos que ela pode usar. A licença e a classe de sessão limitam a capacidade disponível. As três condições precisam permitir a operação: uma sessão Interativa não concede uma permissão ausente, e uma permissão de administrador não transforma uma sessão Visualização em Interativa. Um exemplo: ler o estado de uma bomba é visualização; escrever um valor exige ProcessValueWrite; executar um comando exige CommandExecute. Essas duas permissões são distintas. Não se obtém autorização escolhendo um nome de papel na tela."
+          "heading": "Visualizar ou operar",
+          "body": "Para acompanhar valores e estados, escolha Visualização. Para usar controles que comandam o processo, solicite Interativa. A escolha é um pedido ao servidor: confira sempre o campo Concedida para saber o que ficou disponível. Sua conta também precisa ter permissão para a ação. Mesmo com sessão Interativa, uma pessoa não ganha acesso a um equipamento que não lhe foi autorizado."
         },
         {
-          "heading": "Abrir e conferir sua sessão",
-          "body": "1. Entre com sua conta e abra o Runtime da aplicação ativa. 2. Abra o menu da sua conta, no cabeçalho. Onde os controles Runtime estiverem disponíveis, localize Classe da sessão Runtime. 3. Escolha Visualização para acompanhar ou Interativa para solicitar operação. 4. Aguarde a resposta; os controles ficam indisponíveis durante a solicitação. 5. Compare Solicitada e Concedida. Leia o aviso se houver redução para Visualização. 6. Só teste uma ação operacional quando Concedida for Interativa e sua conta tiver a permissão necessária. Não use um botão de processo para descobrir por tentativa se a sessão permite operação."
+          "heading": "Conferir sua sessão",
+          "body": "1. Entre na aplicação e abra o Runtime. 2. Abra o menu da sua conta no cabeçalho. Procure Classe da sessão Runtime. 3. Escolha Visualização para acompanhar ou Interativa se precisar operar. 4. Aguarde a resposta. Veja Solicitada, que mostra seu pedido, e Concedida, que mostra a resposta efetiva. 5. Se pediu Interativa e recebeu Visualização, leia o aviso antes de tentar um comando. Pode não haver capacidade interativa disponível. Peça ao responsável para conferir o motivo quando necessário."
         },
         {
-          "heading": "Controles e resultados",
-          "body": "Os campos de resultado são preenchidos pelo servidor. Você não precisa digitar um ID de sessão ou de cliente.",
+          "heading": "Exemplo: você vê a bomba, mas não consegue comandá-la",
+          "body": "Primeiro olhe Concedida. Se aparece Visualização, a sessão permite acompanhar, mas não operar. Se aparece Interativa, confira a permissão da sua conta para aquela bomba e para aquele comando. Se sessão e permissão estão corretas, verifique a mensagem do comando e o diagnóstico da comunicação. Vá por partes: mudar a classe da sessão não corrige uma ligação de TAG ou uma falha do equipamento."
+        },
+        {
+          "heading": "Trocar de classe ou encerrar",
+          "body": "Para mudar, escolha a outra classe no mesmo painel. A sessão anterior é liberada antes de pedir a nova. Se o pedido falhar, pode ser necessário solicitar uma sessão novamente; a anterior não é conservada automaticamente. Para terminar, clique em Encerrar sessão e espere a confirmação. Fechar o menu só esconde o painel. Sair da conta é outra ação. Se a conexão falhar, confira com o responsável se a sessão foi realmente liberada; fechar a janela não é uma confirmação."
+        },
+        {
+          "heading": "Consultar os controles e os avisos",
+          "body": "Os resultados são preenchidos pelo servidor. Você não precisa digitar um número ou ID de sessão. Abra os detalhes técnicos apenas quando precisar explicar uma recusa ao responsável.",
           "fields": [
             {
               "key": "viewOnly",
@@ -5839,16 +5848,8 @@
           ]
         },
         {
-          "heading": "Trocar de classe ou terminar",
-          "body": "Para trocar, selecione a outra classe no mesmo painel. O cliente libera a sessão anterior antes de pedir a nova; não promete conservar a anterior se a nova solicitação falhar. Confira novamente Concedida. Para parar de consumir aquela sessão, use Encerrar sessão e aguarde Sem sessão Runtime ativa. Fechar o menu apenas esconde os controles. Sair da conta é outra ação, de autenticação. Não dependa de fechar abruptamente o navegador para confirmar que uma vaga foi liberada: se houver falha, peça ao administrador que confira o estado no servidor."
-        },
-        {
-          "heading": "Exemplo: a bomba aparece, mas o comando não funciona",
-          "body": "Solicitada mostra Interativa e Concedida mostra Visualização: o servidor admitiu acompanhamento, não operação. Leia o aviso e verifique capacidade antes de solicitar novamente. Se Concedida já é Interativa, confira a permissão específica e o escopo do recurso; depois confirme aplicação/revisão ativa, vínculo de comando, estado do TAG e retorno do equipamento. Interativa não corrige configuração, comunicação ou qualidade. Uma leitura aceita também não prova que uma escrita está autorizada."
-        },
-        {
-          "heading": "Sessão recusada ou invalidada",
-          "body": "Não compartilhe IDs ou cabeçalhos de sessão para contornar a recusa. Confirme conexão com o servidor, identidade atual, classe concedida e mensagem de capacidade. Mudanças de política/Authority e restaurações podem invalidar sessões antigas; use o fluxo normal de entrada e admissão novamente. Se a troca ou o encerramento falhar, registre horário, ação, mensagem e a classe exibida. Não declare que a sessão foi encerrada só porque um painel fechou."
+          "heading": "Quando a sessão é recusada",
+          "body": "Anote a mensagem, o horário e a ação que tentou fazer. Uma mudança de permissões ou uma restauração pode exigir que você entre e solicite a sessão novamente. Não copie IDs ou cabeçalhos de outra sessão para tentar obter acesso. Nos detalhes de permissão, ProcessValueWrite significa escrita de valor e CommandExecute significa execução de comando. São autorizações diferentes. A licença limita os recursos disponíveis; as permissões da conta definem quais ações você pode usar."
         }
       ],
       "relatedTopicIds": [
@@ -6299,19 +6300,23 @@
       "id": "engineering.tag-monitor",
       "category": "runtime",
       "title": "TAG Monitor: conferir valor, qualidade e histórico",
-      "summary": "Compare Working e Active e investigue um TAG no Runtime real, sem confundir edição com dados em execução.",
+      "summary": "Confira se uma variável está chegando, se o valor está válido e quais amostras recentes foram guardadas.",
       "sections": [
         {
-          "heading": "Identifique o que está sendo observado",
-          "body": "Abra Engineering → Diagnósticos → TAG Monitor. O topo identifica a engenharia aberta e a aplicação ativa; o Inspector abaixo consulta TAGs visíveis do Active Runtime. Working serve de contexto e não substitui a origem dos valores. Se houver simulação/demo ativa, essa é a origem informada; não é prova de comunicação com equipamento físico. O monitor é somente leitura: mesmo um TAG marcado Gravável não pode ser escrito por esse painel."
+          "heading": "Comece pelo valor que está em execução",
+          "body": "Uma TAG é uma variável, como a pressão de uma bomba. O TAG Monitor ajuda a conferir essa variável sem precisar olhar o desenho da tela. Abra Engineering, Diagnósticos e TAG Monitor. O painel é de consulta: ele não altera nem força valores, mesmo quando informa que a TAG é Gravável."
         },
         {
-          "heading": "Conferir um TAG passo a passo",
-          "body": "1. Compare Contexto Engineering, Revisão Working e Identidade ativa. Se Working difere do Active, não assuma que a edição já está em execução. 2. Em Buscar TAGs, digite parte do path, nome, tipo, unidade, origem ou valor. 3. Use Qualidade e Acesso para reduzir a lista; limpe filtros se faltar uma TAG esperada. 4. Selecione a TAG. Confira valor, tipo, unidade, qualidade, origem, horários e Atualização do valor. 5. Leia Histórico recente; use Atualizar histórico para consultar novamente. 6. Confira se há permissão, captura e amostras no intervalo antes de concluir que histórico vazio é defeito. Para busca completa, períodos/Playback e exportação, use os recursos de Histórico correspondentes."
+          "heading": "Encontrar e conferir uma TAG",
+          "body": "1. Confira o projeto mostrado no topo e a Identidade ativa. A identidade ativa indica qual aplicação está fornecendo os valores. 2. Em Buscar TAGs, escreva parte do nome ou do caminho da variável. 3. Se a variável não aparecer, limpe os filtros Qualidade e Acesso e tente novamente. 4. Selecione a TAG. Leia Valor atual, Qualidade e os horários. Um número na tela, sozinho, não mostra se a leitura é válida ou recente. 5. Veja Histórico recente se quiser comparar as amostras do intervalo mostrado. Use Atualizar histórico para consultar de novo. Não há um ajuste de janela nesse painel; para outros períodos, use Histórico."
         },
         {
-          "heading": "Contexto e filtros",
-          "body": "O indicador Working vs Active compara projeto, revisão e alterações não salvas. É uma conferência de contexto; não publica nem ativa o projeto.",
+          "heading": "Exemplo: você editou, mas o valor continua igual",
+          "body": "Imagine que você está editando a revisão 12 e o topo informa que a revisão ativa é a 11. O monitor está mostrando os valores da versão que continua em execução. Isso é esperado: editar ou salvar não troca a versão ativa. Quando o trabalho estiver pronto, siga Salvar, Publicar e Ativar no fluxo do projeto. Depois confira novamente a identidade ativa e a leitura. Se o topo indicar simulação, os valores vêm desse modo de teste, não de um equipamento físico."
+        },
+        {
+          "heading": "Entender o contexto e os filtros",
+          "body": "Working é o trabalho aberto para edição. Active é a revisão que está em execução. Eles podem ser diferentes. Use os dados de contexto para saber se está comparando a edição com os valores da revisão esperada. As tabelas a seguir servem para consultar um campo quando precisar.",
           "fields": [
             {
               "key": "workingProject",
@@ -6379,8 +6384,8 @@
           ]
         },
         {
-          "heading": "Detalhes e histórico recente",
-          "body": "Leia qualidade e atualização com o valor. Há diferença entre um valor antigo, uma consulta recente que voltou válida e um novo valor de processo.",
+          "heading": "Entender valor, qualidade e horários",
+          "body": "Valor atual é a leitura disponível. Qualidade indica como o sistema classifica essa leitura. Os horários ajudam a saber quando ela foi produzida ou recebida. Uma consulta que respondeu agora pode devolver uma amostra antiga; por isso, confira também Atualização do valor e o horário da própria amostra.",
           "fields": [
             {
               "key": "currentValue",
@@ -6469,12 +6474,8 @@
           ]
         },
         {
-          "heading": "Exemplo: Working novo e Runtime antigo",
-          "body": "Você edita a revisão 12, mas Identidade ativa mostra revisão 11. O valor observado pertence ao Runtime ativo, não à nova definição do Working. Confira o que mudou, valide e use Salvar → Publicar → Ativar pelo lifecycle quando estiver pronto; depois confira identidade e amostra novamente. Não force o monitor a mostrar a revisão em edição. Em simulação, identifique a origem de teste no topo antes de usar números como evidência de campo."
-        },
-        {
-          "heading": "Falhas e vazios",
-          "body": "Lista vazia difere de nenhum resultado por filtro. Permissão negada exige conferir conta e recurso; não é prova de TAG inexistente. TAG removida da revisão ativa pode deixar detalhes indisponíveis. Realtime conectado informa transporte, não saúde do sensor; atualização periódica pode continuar quando realtime falha. Histórico vazio pode decorrer de captura não habilitada, ausência no intervalo, permissão ou serviço indisponível. Confira a mensagem e o Historian antes de alterar dados. Uma resposta antiga visível após falha não deve ser considerada nova amostra."
+          "heading": "Quando faltar valor ou histórico",
+          "body": "Se não há resultado, comece limpando a busca e os filtros. Se aparece acesso negado, peça a conferência da permissão para aquele recurso. Se aparece Sem amostra, não interprete como zero. Confira o diagnóstico da fonte. Se só o histórico está vazio, veja se a gravação estava habilitada e se houve amostras no período; o Historian é o recurso que guarda essas amostras. Realtime conectado informa a conexão de atualização, mas não comprova a saúde do sensor. Leia o aviso de atualização periódica quando essa conexão não estiver disponível."
         }
       ],
       "relatedTopicIds": [
@@ -6569,19 +6570,32 @@
       "id": "getting-started.first-project",
       "category": "getting-started",
       "title": "Primeiro projeto: da entrada à primeira leitura",
-      "summary": "Siga um pequeno ensaio de engenharia até conferir uma amostra conhecida no Runtime, sem conectar um equipamento.",
+      "summary": "Crie uma variável de teste, mostre o valor 42 em uma tela e confira se a aplicação está funcionando.",
       "sections": [
         {
-          "heading": "Prepare o ambiente do ensaio",
-          "body": "Use uma instalação de teste destinada a este exercício e uma conta autorizada. Confirme o endereço e o projeto antes de editar; não use uma planta em operação para aprender a ativar revisões. Este exercício mostra uma leitura em memória interna, não um sensor real. Se já existe uma aplicação, não faça detach para forçar a tela inicial: use o projeto de teste autorizado ou peça ao responsável para preparar o ambiente."
+          "heading": "O que você vai montar",
+          "body": "Neste exercício, uma pequena função coloca o número 42 em uma variável chamada Demo.Level. Uma tela mostra esse valor. Assim, você aprende o caminho completo sem ligar um equipamento. Use uma instalação de teste e uma conta autorizada. Se já houver uma aplicação em operação, confirme o ambiente com o responsável antes de editar."
         },
         {
-          "heading": "Entrar e criar o projeto",
-          "body": "1. Abra o endereço correto. Em uma instalação nova elegível, conclua Criar Administrador inicial; se está recuperando dados existentes, use Restaurar backup. Não suponha login/senha padrão. 2. Entre com a conta autorizada. 3. Se Criar novo projeto for oferecido, informe Chave do projeto e Nome do projeto. Escolha Criar projeto e abrir Engineering. 4. Confirme o projeto aberto. Se a opção não aparece, confira se já há projeto e siga o fluxo correspondente. Criar o projeto não equivale a uma nova aplicação Active. Se outro usuário criou um projeto enquanto o formulário estava aberto, recarregue e confira o estado em vez de repetir por tentativa."
+          "heading": "Entrar e abrir o projeto de teste",
+          "body": "1. Abra o endereço fornecido para a instalação de teste. 2. Se for o primeiro acesso, siga a criação do Administrador inicial. Se estiver recuperando uma aplicação existente, use Restaurar backup. Não há uma senha padrão a presumir. 3. Entre com sua conta. Se aparecer Criar novo projeto, informe a chave planta-piloto e o nome Planta piloto. A chave identifica o projeto; o nome é o título que você verá na tela. 4. Clique em Criar projeto e abrir Engineering. Confira o nome do projeto aberto. Se a instalação já tiver um projeto ou informar que outro usuário acabou de criá-lo, recarregue e confira a situação; não apague dados para fazer a opção aparecer."
         },
         {
-          "heading": "Campos para este exercício",
-          "body": "Os nomes abaixo são exemplos de um projeto de teste. Escolha referências legíveis; IDs internos são selecionados/gerados pelos fluxos do produto.",
+          "heading": "Colocar um valor na variável",
+          "body": "1. Em Fontes de dados, prepare uma fonte de Memória do Servidor. Ela guarda o valor no servidor, sem endereço de equipamento. 2. Em TAGs, crie Demo.Level, do tipo Double, e associe à fonte preparada. Double permite usar um número com casas decimais. Aplique as alterações conforme os controles do editor. 3. Em Scripts, crie um Script Python com execução no servidor: escolha Server e habilite o Script. Declare Demo.Level nas referências como ServerMemoryTag, ou seja, um TAG de memória do servidor. 4. Nas entradas do Script, escolha Initialize e informe initialize_demo como nome da função. Initialize executa na inicialização da revisão. 5. Cole o exemplo e valide. Quando a função rodar, publicará 42.0 com qualidade Good, que indica uma amostra considerada válida neste exercício. Ela publica uma vez na inicialização; não produz atualização contínua nem leitura de sensor.",
+          "code": "def initialize_demo():\n    publish_server_memory_sample(\"Demo.Level\", 42.0, \"Good\")"
+        },
+        {
+          "heading": "Mostrar o valor na tela",
+          "body": "1. Em Telas, crie uma tela para o dispositivo que usará no teste. 2. Adicione um Texto com o título Ensaio de nível. 3. Adicione uma Exibição de valor. Selecione o objeto e ajuste tamanho, posição e casas decimais no Inspetor. 4. No vínculo de dados do objeto, escolha Demo.Level. Esse vínculo faz o objeto acompanhar a variável; deixar 42 como texto fixo não testa a leitura. 5. Abra a Pré-visualização, confira os avisos e aplique a edição. Prepare a navegação ou a forma de abertura da tela conforme o modo de apresentação usado. Não é preciso criar um comando para esse exercício."
+        },
+        {
+          "heading": "Colocar a versão pronta em execução",
+          "body": "Enquanto você edita, o trabalho fica no rascunho chamado Working. Salvar cria uma revisão, que é uma cópia identificada do trabalho. Publicar prepara uma revisão para uso. Ativar coloca a revisão publicada em execução; essa passa a ser a Active. No lifecycle/revisões do projeto, siga Salvar, selecione a revisão correta, Publique e então Ative no ambiente de teste. Aguarde as confirmações. Abra TAG Monitor e confira a revisão ativa, a TAG Demo.Level e a amostra 42 com qualidade Good. Depois abra a tela no Runtime e compare o valor. Se o objeto mostra um 42 fixo e o TAG está sem amostra, o exercício ainda não passou."
+        },
+        {
+          "heading": "Consulte os campos se precisar",
+          "body": "Você pode seguir o exercício e voltar a esta tabela quando surgir uma dúvida. Os nomes técnicos servem para identificar campos; os IDs internos são gerados ou escolhidos pelos próprios seletores do sistema.",
           "fields": [
             {
               "key": "projectKey",
@@ -6656,21 +6670,8 @@
           ]
         },
         {
-          "heading": "Produzir uma amostra conhecida",
-          "body": "1. Em Fontes de dados/TAGs, prepare Server Memory e a TAG Double Demo.Level. Aplique as alterações válidas ao Working. 2. Crie um Server Script em Python, habilitado, e declare a referência Demo.Level como ServerMemoryTag. 3. Cadastre Initialize com handler initialize_demo. 4. Use o código abaixo e valide. A função publica 42.0 com qualidade Good porque é um valor conhecido deste ensaio; isso não mede equipamento. Não é uma atualização contínua: Initialize publica quando a entrada é executada na inicialização da revisão. Para atualização periódica, estude Timer e cadência no guia de Scripts, sem acrescentar um laço infinito.",
-          "code": "def initialize_demo():\n    publish_server_memory_sample(\"Demo.Level\", 42.0, \"Good\")"
-        },
-        {
-          "heading": "Montar a primeira tela",
-          "body": "1. Abra Telas e crie uma tela para o dispositivo pretendido. 2. Adicione Texto com o título Ensaio de nível. 3. Adicione Exibição de valor e ajuste posição, tamanho e casas decimais no Inspetor. 4. No vínculo de dados, escolha Demo.Level. Use um texto de unidade apenas se ele corresponder ao significado do valor; neste exercício pode deixar sem unidade. 5. Use Pré-visualização, leia diagnósticos e aplique a edição. 6. Configure a navegação/modo de apresentação para abrir essa tela conforme o fluxo disponível. Não adicione comando de escrita para testar uma leitura."
-        },
-        {
-          "heading": "Salvar, publicar, ativar e conferir",
-          "body": "Abra o lifecycle/revisões do projeto e confira alterações e validação. Salvar cria uma revisão persistida; selecione a revisão correta e Publique. Publicar prepara a revisão, sem torná-la automaticamente Active. Ative a publicada quando quiser executar este candidato no ambiente de teste. Confira o resultado e a revisão Active. Em TAG Monitor, selecione Demo.Level e espere a amostra 42 com qualidade Good; confira os horários e a origem de memória interna. Abra a tela pelo Runtime e compare. Se a tela mostra 42 fixo mas o TAG não tem amostra, o ensaio não passou. A edição aplicada ao Working, sozinha, não comprova execução."
-        },
-        {
-          "heading": "Se o resultado não aparecer",
-          "body": "Confirme o projeto e a revisão Active antes de mexer no desenho. Sem amostra: confira fonte/TAG, referência declarada, Script habilitado, Initialize/handler e diagnóstico do Script. TAG válido mas tela vazia: confira tela aberta, vínculo, objeto e formatação. Sessão Visualização basta para observar; uma ação interativa requer classe/permissão próprias. Se Salvar/Publicar/Ativar falhar, leia a mensagem e confira o estado atual antes de repetir; uma etapa concluída não implica as seguintes. Para um dispositivo físico, substitua o ensaio pelo guia do driver correspondente e valide valor/qualidade com uma fonte independente. Não trate esse exemplo como teste de campo."
+          "heading": "Se algo não aparecer",
+          "body": "Comece pelo TAG Monitor. Se Demo.Level não tem amostra, confira a fonte, o Script habilitado, a referência declarada e a entrada Initialize com a função initialize_demo. Leia o diagnóstico do Script. Se o TAG está correto, mas a tela não, confira se abriu a tela certa e se o objeto está ligado à TAG. Se uma ação de Salvar, Publicar ou Ativar foi recusada, leia a mensagem e confira o estado antes de repetir. Não é necessário pedir uma sessão Interativa só para observar a leitura. Para conectar um equipamento real depois, use o guia do driver correspondente e verifique a leitura com uma fonte independente."
         }
       ],
       "relatedTopicIds": [
@@ -6689,19 +6690,23 @@
       "id": "installation.switch-workflow",
       "category": "getting-started",
       "title": "Trocar a aplicação: conferir, preservar e desvincular",
-      "summary": "Entenda a decisão de detach e cada confirmação antes de devolver esta instalação ao estado neutro.",
+      "summary": "Prepare as cópias e entenda o que muda antes de retirar a aplicação atual desta instalação.",
       "sections": [
         {
-          "heading": "Quando essa troca é apropriada",
-          "body": "Abra Engineering → Instalação para preparar esta mesma instalação para outra aplicação. Não é a rotina de editar uma tela ou ativar a próxima revisão do mesmo projeto. O detach desvincula a aplicação e a Authority, invalida sessões antigas e interrompe seus efeitos de Runtime. Não desinstala o produto nem apaga silenciosamente o Historian. A escolha de licença é explícita. Faça a operação somente no destino e na parada autorizados; este texto não executa a troca."
+          "heading": "O que esta operação faz",
+          "body": "Use Engineering, Instalação quando precisar preparar este servidor para outra aplicação. A operação retira o vínculo da aplicação atual, encerra a validade dos acessos antigos e volta à configuração inicial. A aplicação deixa de operar nesse servidor. O produto continua instalado e o Historian não é apagado por esse fluxo. Para apenas editar uma tela ou colocar outra revisão do mesmo projeto em uso, siga o lifecycle do projeto; não faça esta troca."
         },
         {
-          "heading": "Conferir o estado e preparar cópias",
-          "body": "1. Confira Application atual, Working, Published, Active, Authority, licença, Historian e proteção de engenharia. Atualize se a situação mudou. 2. Se há alterações Working não salvas, salve uma revisão quando necessário antes de considerar a cópia recuperável. Working salvo mas não publicado é outra condição; compare os números. 3. Use Exportar Application para obter o .escadapkg e confirme o download. 4. Para preservar usuários/credenciais/policy, informe Nova senha do backup e use Exportar Authority. Guarde a senha separadamente do arquivo. O pacote da Application não carrega esses acessos. 5. Trate separadamente backup de banco/Historian e material protegido de host; preservar no detach não equivale a ter uma cópia de recuperação."
+          "heading": "Preparar as cópias antes de decidir",
+          "body": "1. Confira Application atual, Working e Active para ter certeza de que está na instalação correta. 2. Veja se há alterações não salvas. Salve uma revisão se precisar preservar esse trabalho; salvar ainda não coloca as alterações em execução. 3. Use Exportar Application e confirme o download do arquivo .escadapkg. Ele contém a engenharia da aplicação. 4. Para levar também usuários e permissões, use Exportar Authority. A Authority é a parte que guarda esses acessos; seu backup é separado e usa a Nova senha do backup. Guarde a senha separadamente do arquivo. 5. Confirme com o responsável as cópias de banco, histórico e chaves de drivers. A tela não inclui tudo isso no pacote da aplicação."
         },
         {
-          "heading": "Resumo e preservação",
-          "body": "Estes dados identificam o alvo atual; leia-os antes de abrir a confirmação.",
+          "heading": "Confirmar a decisão e aguardar",
+          "body": "1. Com as cópias conferidas, abra Desvincular aplicação desta instalação. 2. Leia as confirmações sobre aplicação, usuários/sessões, histórico e trabalho não salvo. Confirme somente o que compreendeu e decidiu fazer. 3. Escolha o que fazer com a licença da máquina: Manter conserva a atual; Remover a retira; Substituir pede um código novo válido. Essa escolha é separada da aplicação. 4. Se houver bloqueios, resolva-os e atualize o estado. 5. Clique em Desvincular e voltar ao neutro uma vez e aguarde. O servidor confere a situação novamente antes de aplicar. Com sucesso, a página volta à configuração inicial. Você ainda precisará criar, importar ou recuperar a próxima aplicação."
+        },
+        {
+          "heading": "Consultar o resumo e os campos de cópia",
+          "body": "Use esta tabela quando precisar esclarecer um dos campos da preparação. Exportar uma cópia não exige executar a troca.",
           "fields": [
             {
               "key": "application",
@@ -6762,8 +6767,8 @@
           ]
         },
         {
-          "heading": "Ler as confirmações e a licença",
-          "body": "Abra Desvincular aplicação desta instalação. Verifique cada item de forma deliberada; marcar uma caixa não faz backup nem valida um novo ambiente.",
+          "heading": "Consultar confirmações e licença",
+          "body": "As confirmações existem para você reconhecer o que será afetado. Marcar uma caixa não cria uma cópia. Se uma mensagem não estiver clara, volte à preparação e confira antes de continuar.",
           "fields": [
             {
               "key": "backupDecision",
@@ -6838,12 +6843,8 @@
           ]
         },
         {
-          "heading": "Executar e confirmar o resultado",
-          "body": "Depois de conferir cópias, consequências e escolha de licença, use Desvincular e voltar ao neutro uma vez e aguarde. A interface primeiro valida o estado e depois pede o detach; o servidor revalida a condição atual. Com sucesso, a página retorna à entrada neutra. Confirme o novo estado antes de iniciar criação/importação/recuperação. A próxima aplicação e a Authority precisam ser preparadas pelo fluxo normal; as sessões antigas não autorizam o novo vínculo. Este guia não introduz outro lock, transporte ou contrato de detach."
-        },
-        {
-          "heading": "Falha, interrupção ou estado incerto",
-          "body": "Se houver bloqueio, leia a causa e atualize após resolvê-la. Licença substituta rejeitada não deve ser contornada removendo a válida por tentativa. Se perder a conexão ou fechar a página durante a ação, não suponha sucesso, cancelamento ou rollback: reabra o endereço correto e confira o estado real. Anote etapa, mensagem e horário. Não faça uma segunda troca até reconciliar o resultado. Para recuperar aplicação/Authority de cópias, use o guia de recuperação; para banco/Historian, o procedimento nativo separado. Nenhum desses procedimentos deve ser substituído por edição manual do banco."
+          "heading": "Se a conexão cair ou surgir um erro",
+          "body": "Não repita a operação imediatamente. Reabra o endereço correto e confira se ainda está a aplicação anterior ou se a instalação voltou à configuração inicial. Uma queda de conexão não diz, por si só, se a troca terminou. Anote mensagem, etapa e horário e peça a conferência do estado se houver dúvida. Cancelar ou voltar antes da confirmação não desfaz uma operação que o servidor já concluiu. Uma licença substituta inválida precisa ser corrigida; não remova a válida como tentativa de resolver o erro. Para recuperar cópias, use Backup e recuperação."
         }
       ],
       "relatedTopicIds": [
@@ -7392,41 +7393,42 @@
     {
       "id": "help.application-map",
       "category": "getting-started",
-      "title": "Where to start in each area",
-      "summary": "Find the task and follow the related guides at the end.",
+      "title": "Where to start in SCADIVO",
+      "summary": "Choose what you need to do now. You do not need to configure every area before building your first screen.",
       "sections": [
         {
-          "heading": "An order for building your application",
-          "body": "Start with data connections, check TAGs, represent equipment, build Screens/Popups, configure alarms/history, then analyze data with Intelligence. Scripts add logic to rules/interactions. Security, licensing, database and HA are separate administrations. A first application does not require every feature.",
+          "heading": "If this is your first application",
+          "body": "Start with First project. It shows how to create a test variable, display its value and check the result. Complete that small exercise before adding alarms, reports or analysis. Then add the features your application needs.",
           "fields": null
         },
         {
-          "heading": "Project and communication",
-          "body": "Overview shows the project; save/publish/activate controls revisions. Installation handles switching/recovery. Data Sources selects connections/protocols; TAGs describes values, addresses and units; TAG Gateway routes data. Home/Building organizes devices/capabilities where available. Media Sources handles media rather than industrial signals. Read the appropriate guide before writing to real equipment.",
+          "heading": "Bring a reading into the system",
+          "body": "A TAG is a named variable, such as temperature or pump state. Data Sources selects where readings come from; TAGs specifies which reading to use. Before drawing a screen, check the value and its validity in TAG Monitor. First project uses a test variable so you can learn without equipment.",
           "fields": null
         },
         {
-          "heading": "Drawing and reuse",
-          "body": "Templates creates shared faceplates; Equipment registers actual instances. Dynamos organizes parameterized visual assemblies. Visual Assets are files such as images. Libraries transfers reusable resources. Screens occupy the main view; Popups open details. Header and Mobile adjust their presentation/navigation without replacing screen design. Object guides explain each type’s distinct properties.",
+          "heading": "Build the operator screen",
+          "body": "Use Screens to place text, drawings and values. A Popup is a supporting window, such as pump details. When several pumps share a drawing, a Template helps reuse it. Learn those reuse options after building a simple first screen.",
           "fields": null
         },
         {
-          "heading": "History, occurrences and Intelligence",
-          "body": "Historian configures capture; Trends and History query stored data. Reports uses its own definitions/parameters. Alarms tracks conditions; Operational Events records occurrences; Audit records audited actions. Intelligence organizes profiles, equipment, contexts and analyses. These functions answer different questions and are not interchangeable lists.",
+          "heading": "Store data and follow events",
+          "body": "To inspect yesterday’s values, configure Historian recording and query History or Trends. To warn about a condition such as high pressure, configure an alarm. Reports organize results for viewing/export. Intelligence helps analyze equipment and processes; it is not required to display a reading.",
           "fields": null
         },
         {
-          "heading": "Administration and diagnostics",
-          "body": "Security controls users/permissions. Licensing controls commercial features/quotas, not user permissions. Database administers storage. High Availability configures two servers. TAG Monitor checks values/quality; Development Monitor follows development; Diagnostics locates failures; Information identifies version/project. Start with the symptom rather than changing storage, licensing or HA before checking a reading’s source.",
+          "heading": "Prepare access and maintenance",
+          "body": "Security defines who can sign in and which actions they may perform. Licensing shows available installation features/limits. Database and high-availability pages support infrastructure setup. Visit them when the task requires it; you do not need to learn them all before the first exercise.",
           "fields": null
         },
         {
-          "heading": "Use Help where the question arises",
-          "body": "Open Help from the area in use. Templates, Equipment, Database, HA and Intelligence route to specific guides. Search by task/field and use the article outline. Continue here lists related guides. If you do not know the technical term, search for the question: migrate, pump, pause, certificate or pressure.",
+          "heading": "Find a field explanation",
+          "body": "Open Help from the page where the question arose. You can also search for a field or task, such as creating a screen. Read the procedure first. Use tables to look up a field and Technical reference only when you need its internal name. Related links suggest another subject; they are not compulsory reading.",
           "fields": null
         }
       ],
       "relatedTopicIds": [
+        "getting-started.first-project",
         "sources.data-sources",
         "tags.overview",
         "gateway.overview",
@@ -12623,19 +12625,27 @@
       "id": "runtime.session-classes",
       "category": "runtime",
       "title": "Runtime session: view, interact and end",
-      "summary": "Choose a session class and check what the server actually granted before operating.",
+      "summary": "Understand when you can watch the application and when you can operate its controls.",
       "sections": [
         {
-          "heading": "Understand the three conditions for operation",
-          "body": "Signing in identifies the person. Authority defines which actions and resources that person may use. Licensing and session class restrict available capacity. All three must allow the operation: Interactive does not grant a missing permission, and administrator permission does not turn a View-only session into Interactive. For example, watching a pump state is viewing; writing a value requires ProcessValueWrite; executing a command requires CommandExecute. Those permissions are distinct. Selecting a role name on a screen does not create authorization."
+          "heading": "Watch or operate",
+          "body": "Choose View only to follow values/states. Request Interactive to use process controls. This is a request to the server: always check Granted for the actual result. Your account must also have permission for the action. Interactive does not give a person access to equipment they were not authorized to use."
         },
         {
-          "heading": "Open and check your session",
-          "body": "1. Sign in and open the active application Runtime. 2. Open your account menu in the header. Where Runtime controls are available, find Runtime session class. 3. Choose View only to monitor or Interactive to request operation. 4. Wait for the response; controls are unavailable while the request runs. 5. Compare Requested and Granted. Read the notice if the server falls back to View only. 6. Test an operational action only when Granted is Interactive and your account has the required permission. Do not use a process button to discover session rights by trial."
+          "heading": "Check your session",
+          "body": "1. Sign in and open Runtime. 2. Open the account menu in the header and find Runtime session class. 3. Choose View only to observe or Interactive to operate. 4. Wait. Requested shows your request; Granted shows the effective response. 5. If you requested Interactive but received View only, read the notice before attempting a command. Interactive capacity may be unavailable. Ask the owner to check the reason when needed."
         },
         {
-          "heading": "Controls and results",
-          "body": "The server supplies result fields. You do not need to type session or client IDs.",
+          "heading": "Example: you see the pump but cannot command it",
+          "body": "First check Granted. View only allows observation, not operation. If it says Interactive, check your account’s permission for that pump/action. If both are correct, inspect the command message and communication diagnostics. Work through one cause at a time: session class does not fix a TAG binding or equipment failure."
+        },
+        {
+          "heading": "Change class or end",
+          "body": "Choose another class in the same panel to change it. The previous session is released before the new request. If that fails, you may need to request a session again; the previous one is not automatically retained. To finish, choose End session and wait for confirmation. Closing the menu only hides the panel. Signing out is separate. After a connection failure, confirm release with the owner; closing a window is not confirmation."
+        },
+        {
+          "heading": "Look up controls and notices",
+          "body": "The server supplies results. You do not type session numbers or IDs. Open technical details only when explaining a rejection to the person responsible.",
           "fields": [
             {
               "key": "viewOnly",
@@ -12696,16 +12706,8 @@
           ]
         },
         {
-          "heading": "Change class or finish",
-          "body": "Select the other class in the same panel to change. The client releases the old session before requesting the new one; it does not promise to keep the old session if the new request fails. Check Granted again. To stop occupying that session, choose End session and wait for No active Runtime session. Closing the menu only hides controls. Sign out is a separate authentication action. Do not rely on abruptly closing the browser as confirmation that a seat was released; if an operation fails, ask the administrator to check server state."
-        },
-        {
-          "heading": "Example: the pump is visible but its command fails",
-          "body": "Requested says Interactive but Granted says View only: the server admitted monitoring, not operation. Read the notice and check capacity before requesting again. If Granted is already Interactive, check the specific permission and resource scope; then active application/revision, command binding, TAG state and device feedback. Interactive fixes neither configuration, communication nor quality. An accepted read also does not prove write authorization."
-        },
-        {
-          "heading": "Rejected or invalidated session",
-          "body": "Do not share session IDs or headers to bypass rejection. Check server connectivity, current identity, granted class and capacity message. Policy/Authority changes and restores can invalidate old sessions; use normal sign-in and admission again. If change/end fails, record time, action, message and displayed class. A closed panel does not prove the session ended."
+          "heading": "When admission is rejected",
+          "body": "Record message, time and attempted action. Permission changes or restoration may require signing in/requesting a session again. Do not copy session IDs/headers to obtain access. In permission details, ProcessValueWrite means value writing and CommandExecute means command execution. They are different authorizations. Licensing limits available features; account permissions determine which actions you may use."
         }
       ],
       "relatedTopicIds": [
@@ -13156,19 +13158,23 @@
       "id": "engineering.tag-monitor",
       "category": "runtime",
       "title": "TAG Monitor: inspect value, quality and history",
-      "summary": "Compare Working and Active and investigate a TAG in real Runtime without confusing edits and running data.",
+      "summary": "Check whether a variable is arriving, whether its value is valid and which recent samples were stored.",
       "sections": [
         {
-          "heading": "Identify the observed source",
-          "body": "Open Engineering → Diagnostics → TAG Monitor. The top identifies the engineering context and active application; the Inspector queries visible Active Runtime TAGs. Working is context and does not replace value origin. When simulation/demo is active, that is the reported source, not proof of physical-device communication. This monitor is read-only: even a Writable TAG cannot be written through this panel."
+          "heading": "Start with the running value",
+          "body": "A TAG is a variable, such as pump pressure. TAG Monitor checks it without relying on the screen drawing. Open Engineering, Diagnostics, TAG Monitor. This is read-only: it does not change/force values, even for a TAG labeled Writable."
         },
         {
-          "heading": "Check a TAG step by step",
-          "body": "1. Compare Engineering context, Working revision and Active identity. If Working differs from Active, do not assume the edit is running. 2. Search TAGs by part of path, name, type, unit, source or value. 3. Use Quality/Access filters; clear them if an expected TAG is missing. 4. Select the TAG and inspect value, type, unit, quality, source, times and Value freshness. 5. Read Recent history; Refresh history to query again. 6. Check permission, capture and samples in that interval before treating empty history as a defect. Use the full History tools for broader periods/Playback and exports."
+          "heading": "Find and check a TAG",
+          "body": "1. Check project and Active identity at the top: this identifies the application supplying values. 2. Search by part of name/path. 3. If missing, clear Quality/Access filters and try again. 4. Select the TAG. Read Current value, Quality and times together. A number alone says neither valid nor recent. 5. Review Recent history to compare stored samples in the shown interval. Refresh history queries again. This panel has no window adjustment; use History for other periods."
         },
         {
-          "heading": "Context and filters",
-          "body": "Working vs Active compares project, revision and unsaved changes. It checks context; it neither publishes nor activates.",
+          "heading": "Example: you edited but the value stayed the same",
+          "body": "You are editing revision 12 while Active identity shows revision 11. The monitor reads the version still running. That is expected: editing/saving does not replace Active. When ready, follow Save, Publish and Activate, then check identity and reading again. If simulation is shown, values come from that test mode, not physical equipment."
+        },
+        {
+          "heading": "Understand context and filters",
+          "body": "Working is the work open for editing. Active is the running revision. They may differ. Context fields help check that the editing project and observed values are the versions you intended. Use these tables to look up a field when needed.",
           "fields": [
             {
               "key": "workingProject",
@@ -13236,8 +13242,8 @@
           ]
         },
         {
-          "heading": "Details and recent history",
-          "body": "Read quality and freshness together with value. An old value, a recent valid query and a newly sampled process value differ.",
+          "heading": "Understand value, quality and times",
+          "body": "Current value is the available reading. Quality describes how the system classifies it. Times indicate when it was produced or received. A query that answered now may return an old sample; also inspect Value freshness and sample time.",
           "fields": [
             {
               "key": "currentValue",
@@ -13326,12 +13332,8 @@
           ]
         },
         {
-          "heading": "Example: new Working and older Runtime",
-          "body": "You edit revision 12 but Active identity says revision 11. Observed values belong to active Runtime, not the new Working definition. Review changes, validate and follow Save → Publish → Activate when ready; then check identity/sample again. Do not force the monitor to show the editing revision. In simulation, identify the test origin before using numbers as field evidence."
-        },
-        {
-          "heading": "Failures and empty results",
-          "body": "Empty list differs from no filtered matches. Permission denied requires checking account/resource; it does not prove nonexistence. A TAG removed from Active can leave details unavailable. Realtime connected describes transport, not sensor health; periodic updates can continue when realtime fails. Empty history can reflect disabled capture, absent interval samples, permission or unavailable service. Read the message and check Historian before changing data. A visible old response after a failure is not a new sample."
+          "heading": "Missing value or history",
+          "body": "Clear search/filters first. For access denied, ask for the resource permission check. No sample is not zero; inspect source diagnostics. If only history is empty, check recording and whether samples existed in that period; Historian stores those samples. Realtime connected describes update transport, not sensor health. Read periodic-update notices when that connection is unavailable."
         }
       ],
       "relatedTopicIds": [
@@ -13426,19 +13428,32 @@
       "id": "getting-started.first-project",
       "category": "getting-started",
       "title": "First project: from sign-in to the first reading",
-      "summary": "Follow a small engineering exercise through a known Runtime sample without connecting equipment.",
+      "summary": "Create a test variable, display 42 on a screen and check that your application is working.",
       "sections": [
         {
-          "heading": "Prepare the exercise environment",
-          "body": "Use a dedicated test installation and an authorized account. Check address/project before editing; do not learn revision activation on an operating plant. This exercise reads internal memory, not a real sensor. If an application exists, do not detach just to force initial setup: use the authorized test project or ask its owner to prepare the environment."
+          "heading": "What you will build",
+          "body": "A small function puts 42 into a variable named Demo.Level. A screen displays it. This teaches the full path without connecting equipment. Use a test installation and an authorized account. If an application is already operating, confirm the environment with its owner before editing."
         },
         {
-          "heading": "Sign in and create the project",
-          "body": "1. Open the correct address. On an eligible new installation complete initial Administrator setup; to recover existing data use Restore backup. Never assume default credentials. 2. Sign in with the authorized account. 3. If Create New Project is offered, enter Project key and Project name, then Create project and open Engineering. 4. Confirm the opened project. If absent, check whether a project already exists and use its corresponding flow. Creation is not a new Active application. If another user created a project while this form was open, reload/check state instead of repeating blindly."
+          "heading": "Sign in and open the test project",
+          "body": "1. Open the address supplied for the test installation. 2. On first access, follow initial Administrator setup. To recover an existing application, use Restore backup. Do not assume a default password. 3. Sign in. If Create New Project appears, enter key pilot-plant and name Pilot plant. The key identifies the project; the name is its displayed title. 4. Choose Create project and open Engineering. Check the opened name. If a project already exists or another user just created one, reload/check state rather than delete data to expose the option."
         },
         {
-          "heading": "Fields for this exercise",
-          "body": "Names below describe a test project. Use readable references; product workflows select/generate internal IDs.",
+          "heading": "Put a value in the variable",
+          "body": "1. In Data Sources, prepare Server Memory. It stores the value on the server without an equipment address. 2. In TAGs, create Demo.Level of type Double and associate the prepared source. Double supports decimal numbers. Apply changes through the editor controls. 3. In Scripts, create an enabled Python Script running on the server: select Server. Declare Demo.Level as ServerMemoryTag, meaning a server-memory TAG. 4. In Script entries, choose Initialize and enter initialize_demo as function name. Initialize runs when the revision starts. 5. Paste the example and validate. It publishes 42.0 with Good quality, a valid known sample for this exercise. It publishes once at startup, not continuous updates or a sensor reading.",
+          "code": "def initialize_demo():\n    publish_server_memory_sample(\"Demo.Level\", 42.0, \"Good\")"
+        },
+        {
+          "heading": "Show the value on screen",
+          "body": "1. Create a Screen for the intended test device. 2. Add Text titled Exercise level. 3. Add Value Display, select it and set size, position and decimals in Inspector. 4. Select Demo.Level in its data binding. The binding makes it follow the variable; fixed text 42 does not test a reading. 5. Preview, check messages and apply the edit. Prepare navigation/opening for the selected presentation mode. No command is needed for this exercise."
+        },
+        {
+          "heading": "Run the prepared version",
+          "body": "While editing, your work is a draft called Working. Save creates an identified copy, a revision. Publish prepares a revision for use. Activate runs the published revision; it becomes Active. In project lifecycle/revisions, Save, select the correct revision, Publish and Activate in the test environment. Wait for confirmation. In TAG Monitor check Active revision, Demo.Level and sample 42/Good. Then open the Runtime screen and compare. Fixed screen text 42 with no TAG sample is not a passing exercise."
+        },
+        {
+          "heading": "Look up fields when needed",
+          "body": "Follow the exercise and return to this table when a field is unclear. Technical names identify fields; internal IDs are generated or chosen through the product’s selectors.",
           "fields": [
             {
               "key": "projectKey",
@@ -13513,21 +13528,8 @@
           ]
         },
         {
-          "heading": "Produce a known sample",
-          "body": "1. Prepare Server Memory and Double TAG Demo.Level in Data Sources/TAGs, applying valid edits to Working. 2. Create an enabled Python Server Script and declare Demo.Level as ServerMemoryTag. 3. Add Initialize with handler initialize_demo. 4. Use this code and validate. It publishes 42.0/Good because this is a known exercise value; no equipment is measured. It is not continuous: Initialize publishes when that entry executes as the revision starts. For periodic updates study Timer/cadence in Script Help rather than add an infinite loop.",
-          "code": "def initialize_demo():\n    publish_server_memory_sample(\"Demo.Level\", 42.0, \"Good\")"
-        },
-        {
-          "heading": "Build the first screen",
-          "body": "1. Open Screens and create one for the intended device. 2. Add Text with Exercise level title. 3. Add Value Display and adjust position, size and decimals in Inspector. 4. Select Demo.Level in its data binding. Add a unit only if it matches the value meaning; it can remain blank here. 5. Preview, read diagnostics and apply the edit. 6. Configure supported presentation/navigation to open it. Do not add a write command to test a reading."
-        },
-        {
-          "heading": "Save, publish, activate and check",
-          "body": "Open project lifecycle/revisions and check edits/validation. Save creates a persisted revision; select the correct one and Publish. Publication prepares it without automatically making it Active. Activate the published revision when this candidate should run in the test environment. Check result/Active revision. In TAG Monitor select Demo.Level and wait for 42/Good, checking timestamps and internal-memory source. Open the screen through Runtime and compare. Fixed screen text 42 with no TAG sample is not a passing exercise. Applying an edit to Working alone does not prove execution."
-        },
-        {
-          "heading": "If the result is missing",
-          "body": "Check project/Active revision before changing the drawing. No sample: check source/TAG, declared reference, enabled Script, Initialize/handler and Script diagnostics. Valid TAG but blank screen: check opened screen, binding, object and formatting. View-only session is enough to observe; interactive actions require their own class/permission. If Save/Publish/Activate fails, read the message and current state before repeating; one completed stage does not imply the next. For physical equipment replace the exercise with its driver guide and verify value/quality independently. This example is not a field test."
+          "heading": "If something is missing",
+          "body": "Start in TAG Monitor. No Demo.Level sample: check source, enabled Script, declared reference and Initialize entry/function initialize_demo; read Script diagnostics. Correct TAG but incorrect screen: check screen and object binding. If Save/Publish/Activate was rejected, read the message and current state before repeating. View only is sufficient to observe. Later, use the matching driver guide and independent checks to connect real equipment."
         }
       ],
       "relatedTopicIds": [
@@ -13546,19 +13548,23 @@
       "id": "installation.switch-workflow",
       "category": "getting-started",
       "title": "Switch application: check, preserve and detach",
-      "summary": "Understand detach and each confirmation before returning this installation to neutral.",
+      "summary": "Prepare copies and understand the effects before removing the current application from this installation.",
       "sections": [
         {
-          "heading": "When switching is appropriate",
-          "body": "Open Engineering → Installation to prepare this installation for another application. It is not ordinary screen editing or activating the next revision of the same project. Detach unbinds application/Authority, invalidates old sessions and stops their Runtime effects. It neither uninstalls the product nor silently erases Historian. Licensing is an explicit choice. Operate only on the authorized destination and outage; reading this guide does not execute the switch."
+          "heading": "What this operation does",
+          "body": "Use Engineering, Installation when preparing this server for another application. It removes the current application binding, invalidates old access and returns to initial setup. That application stops operating on this server. The product stays installed and this flow does not erase Historian. To edit a screen or run another revision of the same project, use project lifecycle instead."
         },
         {
-          "heading": "Check state and prepare copies",
-          "body": "1. Review current Application, Working, Published, Active, Authority, license, Historian and engineering protection; refresh if state changed. 2. Save unsaved Working edits when needed before considering a copy recoverable. Saved-but-unpublished is different; compare revision numbers. 3. Export Application as .escadapkg and confirm download. 4. To retain users/credentials/policy, enter New backup password and Export Authority. Store password separately; the application package carries no such access. 5. Handle database/Historian and protected host-material backups separately; detach preservation is not a recovery copy."
+          "heading": "Prepare copies before deciding",
+          "body": "1. Check Current Application, Working and Active to confirm the correct installation. 2. Check unsaved changes and save a revision if needed to retain them; saving does not start running those edits. 3. Export Application and confirm the .escadapkg download; it contains application engineering. 4. To retain users/permissions too, Export Authority. Authority stores that access; its backup is separate and uses New backup password. Keep password separately. 5. Confirm database/history/driver-key copies with the owner; this screen does not include all of them in the application package."
         },
         {
-          "heading": "Summary and preservation",
-          "body": "These values identify the current target; read them before confirmation.",
+          "heading": "Confirm and wait",
+          "body": "1. With copies checked, open Detach this installation application. 2. Read confirmations about application, users/sessions, history and unsaved work. Confirm only what you understand and chose. 3. Choose machine license handling: Keep retains it, Remove removes it, Replace requires a valid new code. This choice is separate from the application. 4. Resolve any blockers and refresh state. 5. Choose Detach and return to neutral once and wait. The server checks state again before applying. Success returns to initial setup. You must still create, import or recover the next application."
+        },
+        {
+          "heading": "Look up summary and copy fields",
+          "body": "Use this table when a preparation field is unclear. Exporting a copy does not require executing the switch.",
           "fields": [
             {
               "key": "application",
@@ -13619,8 +13625,8 @@
           ]
         },
         {
-          "heading": "Read confirmations and licensing",
-          "body": "Open Detach this installation application. Review each item deliberately; checking a box creates neither a backup nor a validated new environment.",
+          "heading": "Look up confirmations and licensing",
+          "body": "Confirmations ensure you understand what is affected. Checking a box creates no copy. If a message is unclear, return to preparation and check before continuing.",
           "fields": [
             {
               "key": "backupDecision",
@@ -13695,12 +13701,8 @@
           ]
         },
         {
-          "heading": "Execute and verify",
-          "body": "After checking copies, consequences and license choice, choose Detach and return to neutral once and wait. The UI validates then requests detach; the server revalidates current state. Success returns to neutral entry. Confirm that state before creation/import/recovery. The next application/Authority require normal preparation; old sessions do not authorize the new binding. This guide adds no lock, transport or detach contract."
-        },
-        {
-          "heading": "Failure, interruption or uncertain state",
-          "body": "Read blockers and refresh after resolution. Do not work around a rejected replacement license by removing a valid one as an experiment. If connection/page is lost during execution, assume neither success, cancellation nor rollback: reopen the correct address and check actual state. Record stage, message and time. Do not request another switch until reconciled. Recover application/Authority from copies using recovery Help; database/Historian use separate native procedures. Never replace these with manual database edits."
+          "heading": "Connection loss or error",
+          "body": "Do not immediately repeat. Reopen the correct address and check whether the old application remains or initial setup is shown. Connection loss alone does not tell you whether the switch finished. Record message/stage/time and ask for state confirmation if uncertain. Cancel/Back before confirmation does not undo an already completed server operation. Correct an invalid replacement license rather than remove the valid one experimentally. Use Backup and recovery to restore copies."
         }
       ],
       "relatedTopicIds": [
@@ -14249,41 +14251,42 @@
     {
       "id": "help.application-map",
       "category": "getting-started",
-      "title": "Por dónde empezar en cada área",
-      "summary": "Encuentre la tarea y siga las guías relacionadas al final.",
+      "title": "Por dónde empezar en SCADIVO",
+      "summary": "Elija qué necesita hacer ahora. No tiene que configurar todas las áreas antes de crear su primera pantalla.",
       "sections": [
         {
-          "heading": "Un orden para construir su aplicación",
-          "body": "Empiece con conexión de datos, compruebe TAGs, represente equipos, construya Pantallas/Popups, configure alarmas/histórico y después analice con Intelligence. Scripts añaden lógica. Seguridad, licencia, base y HA son administraciones distintas. La primera aplicación no requiere todas las funciones.",
+          "heading": "Si es su primera aplicación",
+          "body": "Empiece por Primer proyecto. Muestra cómo crear una variable de prueba, visualizar su valor y comprobar el resultado. Haga ese recorrido antes de añadir alarmas, informes o análisis. Después incorpore lo que necesite su aplicación.",
           "fields": null
         },
         {
-          "heading": "Proyecto y comunicación",
-          "body": "Resumen muestra proyecto; guardar/publicar/activar controla revisiones. Instalación trata cambio/recuperación. Fuentes de datos elige conexión/protocolo; TAGs describe valores/direcciones/unidades; TAG Gateway enruta datos. Home/Building organiza dispositivos/capacidades donde existe. Fuentes multimedia no son señales industriales. Lea la guía antes de escribir a equipo real.",
+          "heading": "Traer una lectura al sistema",
+          "body": "Un TAG es una variable con nombre, como temperatura o estado de bomba. Fuentes de datos elige de dónde viene la lectura; TAGs indica qué lectura utilizar. Antes de dibujar, compruebe valor y validez en TAG Monitor. Primer proyecto usa una variable de prueba para aprender sin equipos.",
           "fields": null
         },
         {
-          "heading": "Dibujo y reutilización",
-          "body": "Plantillas crea faceplates compartidos; Equipos registra instancias reales. Dínamos organiza conjuntos parametrizados. Recursos visuales son archivos, como imágenes. Bibliotecas transfiere recursos reutilizables. Pantallas ocupa vista principal; Popups abre detalles. Encabezado y Móvil ajustan presentación/navegación sin sustituir diseño de pantalla. Las guías explican propiedades de cada tipo.",
+          "heading": "Montar la pantalla del operador",
+          "body": "En Pantallas coloque textos, dibujos y valores. Popup es una ventana de apoyo, como detalles de bomba. Template ayuda a reutilizar el dibujo cuando hay varias bombas iguales. Puede aprender reutilización después de la primera pantalla sencilla.",
           "fields": null
         },
         {
-          "heading": "Histórico, ocurrencias e Intelligence",
-          "body": "Historian configura captura; Tendencias e Histórico consultan datos guardados. Informes usa definiciones/parámetros propios. Alarmas sigue condiciones; Eventos Operacionales registra ocurrencias; Auditoría registra acciones auditadas. Intelligence organiza perfiles/equipos/contextos/análisis. Responden preguntas distintas, no son listas equivalentes.",
+          "heading": "Guardar datos y seguir sucesos",
+          "body": "Para ver valores de ayer configure grabación en Historian y consulte Histórico/Tendencias. Para avisar de presión alta configure una alarma. Informes organiza resultados para consultar/exportar. Intelligence analiza equipos/procesos; no es necesario para mostrar una lectura.",
           "fields": null
         },
         {
-          "heading": "Administración y diagnóstico",
-          "body": "Seguridad controla usuarios/permisos. Licencia controla funciones/cupos comerciales, no permisos de usuario. Base administra almacenamiento. Alta disponibilidad configura dos servidores. TAG Monitor comprueba valores/calidad; Monitor sigue desarrollo; Diagnóstico localiza fallos; Información identifica versión/proyecto. Empiece por síntoma; no cambie base/licencia/HA sin comprobar origen de lectura.",
+          "heading": "Preparar acceso y mantenimiento",
+          "body": "Seguridad define quién entra y qué puede hacer. Licenciamiento muestra recursos/límites disponibles. Base de datos y alta disponibilidad ayudan con infraestructura. Consulte cuando corresponda; no necesita estudiar todo antes del primer ejercicio.",
           "fields": null
         },
         {
-          "heading": "Use Ayuda donde surge la duda",
-          "body": "Abra Ayuda desde el área en uso. Plantillas, Equipos, Base, HA e Intelligence llevan a guías específicas. Busque tarea/campo y use índice del artículo. Continúe aquí enlaza próximas guías. Sin conocer término técnico, busque migrar, bomba, pausar, certificado o presión.",
+          "heading": "Encontrar la explicación de un campo",
+          "body": "Abra Ayuda desde la página de la duda o busque campo/tarea. Lea primero los pasos. Use tablas para consultar un campo y Referencia técnica solo para identificar su nombre interno. Enlaces finales sugieren otro asunto, no lecturas obligatorias.",
           "fields": null
         }
       ],
       "relatedTopicIds": [
+        "getting-started.first-project",
         "sources.data-sources",
         "tags.overview",
         "gateway.overview",
@@ -19480,19 +19483,27 @@
       "id": "runtime.session-classes",
       "category": "runtime",
       "title": "Sesión Runtime: visualizar, interactuar y finalizar",
-      "summary": "Elija la clase de sesión y compruebe lo que el servidor concedió antes de operar.",
+      "summary": "Entienda cuándo puede observar la aplicación y cuándo puede operar sus controles.",
       "sections": [
         {
-          "heading": "Entienda las tres condiciones para operar",
-          "body": "Iniciar sesión identifica a la persona. Authority define las acciones y recursos permitidos. La licencia y la clase de sesión restringen la capacidad disponible. Las tres condiciones deben permitir la operación: Interactiva no concede un permiso ausente y el permiso de administrador no convierte Visualización en Interactiva. Ver el estado de una bomba es visualización; escribir un valor exige ProcessValueWrite; ejecutar un comando exige CommandExecute. Son permisos distintos. Seleccionar un nombre de rol en pantalla no crea autorización."
+          "heading": "Observar u operar",
+          "body": "Elija Visualización para seguir valores/estados. Solicite Interactiva para usar controles de proceso. Es una solicitud: compruebe siempre Concedida. La cuenta también necesita permiso para la acción. Interactiva no da acceso a equipos no autorizados."
         },
         {
-          "heading": "Abrir y comprobar su sesión",
-          "body": "1. Inicie sesión y abra el Runtime de la aplicación activa. 2. Abra el menú de su cuenta en la cabecera. Donde estén disponibles los controles Runtime, localice Clase de sesión Runtime. 3. Elija Visualización para observar o Interactiva para solicitar operación. 4. Espere la respuesta; los controles se deshabilitan durante la solicitud. 5. Compare Solicitada y Concedida. Lea el aviso si se reduce a Solo visualización. 6. Pruebe una acción operativa solo si Concedida es Interactiva y la cuenta tiene el permiso necesario. No utilice un botón de proceso para averiguar derechos por ensayo."
+          "heading": "Comprobar sesión",
+          "body": "1. Entre y abra Runtime. 2. Abra menú de cuenta y Clase de sesión Runtime. 3. Elija Visualización para observar o Interactiva para operar. 4. Espere: Solicitada muestra pedido y Concedida la respuesta efectiva. 5. Si pidió Interactiva y recibió Visualización, lea aviso antes de comandar. Puede faltar capacidad interactiva. Consulte al responsable si lo necesita."
         },
         {
-          "heading": "Controles y resultados",
-          "body": "El servidor proporciona los resultados. No necesita introducir IDs de sesión o cliente.",
+          "heading": "Ejemplo: ve la bomba pero no puede comandarla",
+          "body": "Compruebe Concedida. Visualización permite observar, no operar. Si indica Interactiva, revise permiso para esa bomba/acción. Si ambos son correctos, consulte mensaje de comando y diagnóstico de comunicación. Vaya por partes: clase no corrige vínculo de TAG ni avería de equipo."
+        },
+        {
+          "heading": "Cambiar o finalizar",
+          "body": "Elija otra clase en el panel. La anterior se libera antes del nuevo pedido. Si falla, puede tener que solicitar otra sesión; no se conserva automáticamente la anterior. Para terminar elija Finalizar sesión y espere confirmación. Cerrar menú solo oculta panel; salir de cuenta es otra acción. Si falla conexión, confirme liberación; cerrar ventana no es confirmación."
+        },
+        {
+          "heading": "Consultar controles y avisos",
+          "body": "Servidor proporciona resultados; no se escriben números/IDs de sesión. Abra detalles técnicos solo para explicar un rechazo al responsable.",
           "fields": [
             {
               "key": "viewOnly",
@@ -19553,16 +19564,8 @@
           ]
         },
         {
-          "heading": "Cambiar de clase o terminar",
-          "body": "Seleccione la otra clase en el mismo panel. El cliente libera la sesión anterior antes de solicitar la nueva; no promete conservarla si la nueva solicitud falla. Compruebe Concedida otra vez. Para dejar de ocuparla, elija Finalizar sesión y espere Sin sesión Runtime activa. Cerrar el menú solo oculta controles. Salir de la cuenta es otra acción de autenticación. No dependa del cierre abrupto del navegador para confirmar una plaza liberada; si falla una operación, pida al administrador verificar el estado del servidor."
-        },
-        {
-          "heading": "Ejemplo: la bomba aparece pero su comando falla",
-          "body": "Solicitada indica Interactiva y Concedida indica Solo visualización: el servidor admitió observación, no operación. Lea el aviso y compruebe capacidad antes de solicitar otra vez. Si Concedida ya es Interactiva, revise el permiso y alcance del recurso; luego aplicación/revisión activa, vínculo del comando, TAG y retorno del equipo. Interactiva no corrige configuración, comunicación ni calidad. Una lectura aceptada tampoco demuestra permiso de escritura."
-        },
-        {
-          "heading": "Sesión rechazada o invalidada",
-          "body": "No comparta IDs ni cabeceras para eludir una denegación. Revise conexión al servidor, identidad actual, clase concedida y mensaje de capacidad. Cambios de política/Authority y restauraciones pueden invalidar sesiones antiguas; vuelva al flujo normal de entrada y admisión. Si cambiar/finalizar falla, registre hora, acción, mensaje y clase mostrada. Cerrar un panel no demuestra finalización de sesión."
+          "heading": "Si se rechaza la sesión",
+          "body": "Anote mensaje, hora y acción. Cambiar permisos/restaurar puede exigir entrar y solicitar sesión otra vez. No copie IDs/cabeceras para obtener acceso. En permisos ProcessValueWrite es escritura de valor y CommandExecute ejecución de comando: autorizaciones distintas. Licencia limita recursos; permisos de cuenta definen acciones."
         }
       ],
       "relatedTopicIds": [
@@ -20013,19 +20016,23 @@
       "id": "engineering.tag-monitor",
       "category": "runtime",
       "title": "TAG Monitor: comprobar valor, calidad e historia",
-      "summary": "Compare Working y Active e investigue un TAG del Runtime real sin confundir edición y ejecución.",
+      "summary": "Compruebe si llega una variable, si es válida y qué muestras recientes se guardaron.",
       "sections": [
         {
-          "heading": "Identifique la fuente observada",
-          "body": "Abra Ingeniería → Diagnósticos → TAG Monitor. Arriba se identifica ingeniería y aplicación activa; el Inspector consulta TAGs visibles del Active Runtime. Working es contexto, no origen sustituto de valores. Si está activa simulación/demo, ese es el origen informado, no prueba de comunicación física. Solo lectura: incluso un TAG Grabable no puede escribirse desde este panel."
+          "heading": "Empiece por el valor en ejecución",
+          "body": "TAG es una variable, como presión de bomba. TAG Monitor la comprueba sin depender del dibujo. Abra Ingeniería, Diagnósticos, TAG Monitor. Es consulta: no cambia/fuerza valores incluso si indica Grabable."
         },
         {
-          "heading": "Comprobar paso a paso",
-          "body": "1. Compare Contexto Engineering, Revisión Working e Identidad activa. Si Working difiere, no suponga que la edición corre. 2. En Buscar TAGs escriba parte de path, nombre, tipo, unidad, fuente o valor. 3. Filtre Calidad/Acceso; limpie si falta un punto esperado. 4. Seleccione y revise valor, tipo, unidad, calidad, fuente, horas y Actualización del valor. 5. Consulte Histórico reciente y Actualizar histórico. 6. Compruebe permiso, captura y muestras del intervalo antes de declarar defecto por historia vacía. Use Histórico completo para períodos/Playback y exportación."
+          "heading": "Encontrar y comprobar TAG",
+          "body": "1. Revise proyecto e Identidad activa arriba: identifica la aplicación que aporta valores. 2. Busque parte del nombre/path. 3. Si falta, limpie filtros Calidad/Acceso. 4. Seleccione y lea Valor actual, Calidad y horas juntos: un número no demuestra validez ni actualidad. 5. Consulte Histórico reciente y Actualizar histórico. Aquí no se ajusta ventana; use Histórico para otros períodos."
         },
         {
-          "heading": "Contexto y filtros",
-          "body": "Working vs Active compara proyecto, revisión y cambios sin guardar. Es comprobación de contexto; no publica ni activa.",
+          "heading": "Ejemplo: editó y el valor sigue igual",
+          "body": "Edita revisión 12, pero Identidad activa muestra 11. El monitor lee la versión que sigue ejecutando. Es esperado: editar/guardar no sustituye Active. Cuando esté listo Guarde, Publique y Active; vuelva a comprobar identidad/lectura. Si muestra simulación, valores vienen del modo de prueba, no de equipo físico."
+        },
+        {
+          "heading": "Entender contexto y filtros",
+          "body": "Working es el trabajo abierto para editar; Active la revisión ejecutada. Pueden diferir. El contexto ayuda a comprobar edición y origen de valores esperados. Use tablas para consultar campos cuando necesite.",
           "fields": [
             {
               "key": "workingProject",
@@ -20093,8 +20100,8 @@
           ]
         },
         {
-          "heading": "Detalles e historia reciente",
-          "body": "Lea calidad y actualización junto al valor. Valor antiguo, consulta reciente válida y nueva muestra de proceso son cosas distintas.",
+          "heading": "Entender valor, calidad y horas",
+          "body": "Valor actual es la lectura disponible. Calidad indica cómo se clasifica. Horas muestran cuándo se produjo/recibió. Una consulta que responde ahora puede devolver muestra antigua: revise Actualización del valor y hora de muestra.",
           "fields": [
             {
               "key": "currentValue",
@@ -20183,12 +20190,8 @@
           ]
         },
         {
-          "heading": "Ejemplo: Working nuevo y Runtime anterior",
-          "body": "Edita revisión 12, pero Identidad activa muestra 11. Los valores pertenecen al Runtime activo, no a la nueva definición Working. Revise, valide y siga Guardar → Publicar → Activar cuando esté listo; luego compruebe identidad/muestra. No fuerce el monitor a mostrar la revisión editada. En simulación confirme origen de prueba antes de usar números como evidencia de campo."
-        },
-        {
-          "heading": "Fallos y resultados vacíos",
-          "body": "Lista vacía difiere de ningún resultado filtrado. Permiso denegado exige revisar cuenta/recurso, no prueba inexistencia. TAG eliminado de Active puede dejar detalles no disponibles. Realtime conectado describe transporte, no salud del sensor; actualización periódica puede seguir si falla realtime. Historia vacía puede ser captura deshabilitada, sin muestras en intervalo, permiso o servicio no disponible. Lea mensaje y revise Historian antes de cambiar datos. Respuesta antigua visible tras fallo no es muestra nueva."
+          "heading": "Si falta valor o historia",
+          "body": "Limpie búsqueda/filtros primero. Acceso denegado requiere comprobar permiso. Sin muestra no es cero: revise fuente. Si solo falta historia, compruebe grabación y muestras del período; Historian las guarda. Realtime conectado indica transporte, no salud de sensor. Lea aviso de actualización periódica si falta conexión."
         }
       ],
       "relatedTopicIds": [
@@ -20283,19 +20286,32 @@
       "id": "getting-started.first-project",
       "category": "getting-started",
       "title": "Primer proyecto: de la entrada a la primera lectura",
-      "summary": "Siga un ensayo de ingeniería hasta comprobar una muestra conocida en Runtime sin conectar equipos.",
+      "summary": "Cree una variable de prueba, muestre 42 en pantalla y compruebe que la aplicación funciona.",
       "sections": [
         {
-          "heading": "Prepare el entorno",
-          "body": "Use instalación de prueba dedicada y cuenta autorizada. Compruebe dirección/proyecto; no aprenda activación en una planta operativa. El ensayo lee memoria interna, no sensor real. Si hay aplicación, no haga detach para forzar inicio: use proyecto de prueba autorizado o pida preparar el entorno."
+          "heading": "Qué va a montar",
+          "body": "Una pequeña función coloca 42 en Demo.Level y una pantalla lo muestra. Aprende el recorrido sin conectar equipos. Use instalación de prueba y cuenta autorizada. Si hay aplicación operativa, confirme el entorno con su responsable antes de editar."
         },
         {
-          "heading": "Entrar y crear proyecto",
-          "body": "1. Abra dirección correcta. En instalación nueva elegible complete Administrador inicial; para recuperar datos use Restaurar backup. No suponga credenciales predeterminadas. 2. Entre con cuenta autorizada. 3. Si se ofrece Crear nuevo proyecto, introduzca Clave y Nombre del proyecto y Crear proyecto y abrir Engineering. 4. Confirme contexto. Si no aparece, revise si existe proyecto y siga su flujo. Crear no equivale a nueva aplicación Active. Si otro usuario creó mientras estaba abierto, recargue/compruebe en vez de repetir a ciegas."
+          "heading": "Entrar y abrir proyecto de prueba",
+          "body": "1. Abra la dirección de prueba proporcionada. 2. En primer acceso siga Administrador inicial; para recuperar aplicación use Restaurar backup. No suponga contraseña predeterminada. 3. Entre con su cuenta. Si aparece Crear nuevo proyecto, introduzca clave planta-piloto y nombre Planta piloto. La clave identifica; el nombre es el título mostrado. 4. Elija Crear proyecto y abrir Engineering y compruebe el nombre. Si existe proyecto o alguien acaba de crearlo, recargue/compruebe; no borre datos para mostrar la opción."
         },
         {
-          "heading": "Campos del ensayo",
-          "body": "Los nombres son ejemplos de prueba. Use referencias legibles; los flujos del producto seleccionan/generan IDs internos.",
+          "heading": "Poner un valor en la variable",
+          "body": "1. En Fuentes prepare Memoria del Servidor: guarda el valor sin dirección de equipo. 2. En TAGs cree Demo.Level tipo Double y asocie la fuente. Double admite decimales. Aplique mediante el editor. 3. En Scripts cree Python habilitado con ejecución Server. Declare Demo.Level como ServerMemoryTag: TAG de memoria del servidor. 4. En entradas elija Initialize y función initialize_demo. Initialize ejecuta al iniciar revisión. 5. Pegue código y valide. Publica 42.0/Good, una muestra conocida válida para este ejercicio. Publica una vez al inicio, no continuamente ni desde sensor.",
+          "code": "def initialize_demo():\n    publish_server_memory_sample(\"Demo.Level\", 42.0, \"Good\")"
+        },
+        {
+          "heading": "Mostrar el valor en pantalla",
+          "body": "1. Cree Pantalla para el dispositivo de prueba. 2. Añada Texto titulado Ensayo de nivel. 3. Añada Visualización de valor y ajuste tamaño/posición/decimales en Inspector. 4. En vínculo de datos elija Demo.Level. El vínculo sigue la variable; texto fijo 42 no prueba lectura. 5. Previsualice, revise avisos y aplique. Prepare navegación/apertura según presentación. No hace falta un comando."
+        },
+        {
+          "heading": "Ejecutar la versión preparada",
+          "body": "La edición es un borrador llamado Working. Guardar crea una copia identificada: revisión. Publicar prepara una revisión para uso. Activar ejecuta la publicada: se convierte en Active. En lifecycle/revisiones Guarde, elija la correcta, Publique y Active en prueba. Espere confirmaciones. En TAG Monitor revise Active, Demo.Level y 42/Good. Abra pantalla Runtime y compare. Texto fijo 42 sin muestra no pasa el ejercicio."
+        },
+        {
+          "heading": "Consulte campos cuando necesite",
+          "body": "Siga el ejercicio y vuelva a la tabla si un campo no está claro. Nombres técnicos identifican campos; los selectores generan/eligen IDs internos.",
           "fields": [
             {
               "key": "projectKey",
@@ -20370,21 +20386,8 @@
           ]
         },
         {
-          "heading": "Producir muestra conocida",
-          "body": "1. Prepare Server Memory y TAG Double Demo.Level en Fuentes/TAGs y aplique cambios válidos a Working. 2. Cree Server Script Python habilitado y declare Demo.Level como ServerMemoryTag. 3. Añada Initialize con handler initialize_demo. 4. Use código y valide. Publica 42.0/Good por ser valor conocido del ensayo; no mide equipo. No es continuo: Initialize publica al ejecutarse la entrada al iniciar revisión. Para actualizaciones periódicas estudie Timer/cadencia en Scripts, sin bucle infinito.",
-          "code": "def initialize_demo():\n    publish_server_memory_sample(\"Demo.Level\", 42.0, \"Good\")"
-        },
-        {
-          "heading": "Montar primera pantalla",
-          "body": "1. Abra Pantallas y cree una para el dispositivo. 2. Añada Texto con título Ensayo de nivel. 3. Añada Visualización de valor, ajuste posición/tamaño/decimales en Inspector. 4. Elija Demo.Level en vínculo. Unidad solo si corresponde al significado; aquí puede quedar vacía. 5. Previsualice, lea diagnósticos y aplique edición. 6. Configure presentación/navegación soportadas para abrirla. No añada escritura para probar lectura."
-        },
-        {
-          "heading": "Guardar, publicar, activar y comprobar",
-          "body": "Abra lifecycle/revisiones y compruebe cambios/validación. Guardar crea revisión persistida; seleccione correcta y Publique. Publicar prepara sin hacer Active automáticamente. Active la publicada cuando deba ejecutarse en prueba. Compruebe resultado/revisión Active. En TAG Monitor elija Demo.Level y espere 42/Good, revisando horas y origen de memoria interna. Abra pantalla en Runtime y compare. Texto fijo 42 sin muestra del TAG no pasa el ensayo. Aplicar al Working no demuestra ejecución."
-        },
-        {
-          "heading": "Si no aparece",
-          "body": "Compruebe proyecto/Active antes de cambiar dibujo. Sin muestra: fuente/TAG, referencia declarada, Script habilitado, Initialize/handler y diagnóstico. TAG válido/pantalla vacía: pantalla abierta, vínculo, objeto/formato. Visualización basta para observar; acciones interactivas exigen clase/permiso. Si Guardar/Publicar/Activar falla, lea mensaje/estado antes de repetir; una etapa no implica siguientes. Para equipo físico use guía de su driver y verifique valor/calidad independientemente. No es prueba de campo."
+          "heading": "Si falta algo",
+          "body": "Empiece en TAG Monitor. Sin muestra: fuente, Script habilitado, referencia declarada, Initialize y función initialize_demo; lea diagnóstico. TAG correcto/pantalla incorrecta: revise pantalla/vínculo. Si Guardar/Publicar/Activar fue rechazado, lea mensaje/estado antes de repetir. Visualización basta para observar. Después use guía del driver y comprobación independiente para conectar equipo real."
         }
       ],
       "relatedTopicIds": [
@@ -20403,19 +20406,23 @@
       "id": "installation.switch-workflow",
       "category": "getting-started",
       "title": "Cambiar aplicación: comprobar, preservar y desvincular",
-      "summary": "Entienda detach y confirmaciones antes de devolver esta instalación al estado neutro.",
+      "summary": "Prepare copias y entienda los efectos antes de retirar la aplicación actual de esta instalación.",
       "sections": [
         {
-          "heading": "Cuándo corresponde",
-          "body": "Abra Ingeniería → Instalación para preparar esta instalación para otra aplicación. No es editar pantalla o activar revisión siguiente del mismo proyecto. Detach desvincula aplicación/Authority, invalida sesiones y detiene efectos Runtime. No desinstala ni borra Historian silenciosamente. Licencia es decisión explícita. Opere solo en destino/parada autorizados; leer esta guía no ejecuta cambio."
+          "heading": "Qué hace la operación",
+          "body": "Use Ingeniería, Instalación para preparar este servidor para otra aplicación. Retira el vínculo actual, invalida accesos antiguos y vuelve a configuración inicial. La aplicación deja de operar aquí. Producto sigue instalado y no se borra Historian por este flujo. Para editar pantalla o ejecutar otra revisión del mismo proyecto use lifecycle, no este cambio."
         },
         {
-          "heading": "Comprobar y preparar copias",
-          "body": "1. Revise Application actual, Working, Published, Active, Authority, licencia, Historian y protección; actualice si cambió. 2. Guarde cambios sin guardar cuando corresponda antes de considerar copia recuperable. Guardado/no publicado es distinto; compare revisiones. 3. Exporte Application .escadapkg y confirme descarga. 4. Para conservar usuarios/credenciales/policy use Nueva contraseña del backup y Exportar Authority. Guarde contraseña aparte; paquete no incluye accesos. 5. Respalde base/Historian y material protegido aparte; preservar en detach no es copia de recuperación."
+          "heading": "Preparar copias antes de decidir",
+          "body": "1. Revise Application actual, Working y Active para confirmar instalación. 2. Compruebe cambios sin guardar y Guarde si debe conservarlos; guardar no los ejecuta. 3. Exporte Application y confirme .escadapkg: contiene ingeniería. 4. Para usuarios/permisos exporte Authority. Authority guarda accesos; backup separado con Nueva contraseña del backup. Guárdela aparte. 5. Confirme copias de base, historia y claves con responsable; no todo se incluye en el paquete."
         },
         {
-          "heading": "Resumen y preservación",
-          "body": "Identifican el destino actual; léalos antes de confirmar.",
+          "heading": "Confirmar y esperar",
+          "body": "1. Con copias revisadas abra Desvincular aplicación de esta instalación. 2. Lea consecuencias de aplicación, usuarios/sesiones, historia y trabajo sin guardar. Confirme solo lo entendido/decidido. 3. Elija licencia de máquina: Mantener conserva, Quitar retira, Sustituir exige código válido. Es decisión separada. 4. Resuelva bloqueos y actualice. 5. Elija Desvincular y volver al neutro una vez y espere. Servidor comprueba de nuevo antes de aplicar. Éxito vuelve a configuración inicial; aún debe crear/importar/recuperar la próxima aplicación."
+        },
+        {
+          "heading": "Consultar resumen y copias",
+          "body": "Consulte si un campo no está claro. Exportar una copia no requiere ejecutar el cambio.",
           "fields": [
             {
               "key": "application",
@@ -20476,8 +20483,8 @@
           ]
         },
         {
-          "heading": "Confirmaciones y licencia",
-          "body": "Abra Desvincular aplicación de esta instalación. Lea cada elemento; marcar no crea backup ni valida entorno nuevo.",
+          "heading": "Consultar confirmaciones y licencia",
+          "body": "Confirmaciones permiten reconocer consecuencias. Marcar no crea copia. Si un mensaje no está claro, vuelva a preparar/comprobar antes de continuar.",
           "fields": [
             {
               "key": "backupDecision",
@@ -20552,12 +20559,8 @@
           ]
         },
         {
-          "heading": "Ejecutar y verificar",
-          "body": "Tras copias, consecuencias y licencia, elija Desvincular y volver al neutro una vez y espere. Interfaz valida y solicita detach; servidor revalida estado. Éxito vuelve a entrada neutra. Confirme antes de crear/importar/recuperar. Próxima aplicación/Authority exigen preparación normal; sesiones anteriores no autorizan nuevo vínculo. No añade lock, transporte ni contrato de detach."
-        },
-        {
-          "heading": "Fallo, interrupción o incertidumbre",
-          "body": "Lea bloqueos y actualice tras resolver. No sustituya rechazo de licencia candidata quitando la válida por ensayo. Si pierde conexión/página, no suponga éxito, cancelación ni rollback: reabra dirección correcta y revise estado real. Registre etapa, mensaje y hora. No solicite otro cambio hasta reconciliar. Recuperación de aplicación/Authority usa copias; base/Historian usan procedimiento nativo separado. No sustituya por edición manual de base."
+          "heading": "Si cae conexión o aparece error",
+          "body": "No repita inmediatamente. Reabra dirección correcta y compruebe aplicación anterior o configuración inicial. Una caída no confirma finalización. Registre mensaje/etapa/hora y consulte estado si hay duda. Cancelar/Volver antes de confirmar no deshace operación ya completada. Corrija licencia candidata inválida; no quite la válida por ensayo. Para restaurar copias use Backup y recuperación."
         }
       ],
       "relatedTopicIds": [

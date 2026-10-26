@@ -2,22 +2,47 @@
 
 ## First project: from sign-in to the first reading
 
-Follow a small engineering exercise through a known Runtime sample without connecting equipment.
+Create a test variable, display 42 on a screen and check that your application is working.
 
-### Prepare the exercise environment
+### What you will build
 
-Use a dedicated test installation and an authorized account. Check address/project before editing; do not learn revision activation on an operating plant. This exercise reads internal memory, not a real sensor. If an application exists, do not detach just to force initial setup: use the authorized test project or ask its owner to prepare the environment.
+A small function puts 42 into a variable named Demo.Level. A screen displays it. This teaches the full path without connecting equipment. Use a test installation and an authorized account. If an application is already operating, confirm the environment with its owner before editing.
 
-### Sign in and create the project
+### Sign in and open the test project
 
-1. Open the correct address. On an eligible new installation complete initial Administrator setup; to recover existing data use Restore backup. Never assume default credentials.
-2. Sign in with the authorized account.
-3. If Create New Project is offered, enter Project key and Project name, then Create project and open Engineering.
-4. Confirm the opened project. If absent, check whether a project already exists and use its corresponding flow. Creation is not a new Active application. If another user created a project while this form was open, reload/check state instead of repeating blindly.
+1. Open the address supplied for the test installation.
+2. On first access, follow initial Administrator setup. To recover an existing application, use Restore backup. Do not assume a default password.
+3. Sign in. If Create New Project appears, enter key pilot-plant and name Pilot plant. The key identifies the project; the name is its displayed title.
+4. Choose Create project and open Engineering. Check the opened name. If a project already exists or another user just created one, reload/check state rather than delete data to expose the option.
 
-### Fields for this exercise
+### Put a value in the variable
 
-Names below describe a test project. Use readable references; product workflows select/generate internal IDs.
+1. In Data Sources, prepare Server Memory. It stores the value on the server without an equipment address.
+2. In TAGs, create Demo.Level of type Double and associate the prepared source. Double supports decimal numbers. Apply changes through the editor controls.
+3. In Scripts, create an enabled Python Script running on the server: select Server. Declare Demo.Level as ServerMemoryTag, meaning a server-memory TAG.
+4. In Script entries, choose Initialize and enter initialize_demo as function name. Initialize runs when the revision starts.
+5. Paste the example and validate. It publishes 42.0 with Good quality, a valid known sample for this exercise. It publishes once at startup, not continuous updates or a sensor reading.
+
+```python
+def initialize_demo():
+    publish_server_memory_sample("Demo.Level", 42.0, "Good")
+```
+
+### Show the value on screen
+
+1. Create a Screen for the intended test device.
+2. Add Text titled Exercise level.
+3. Add Value Display, select it and set size, position and decimals in Inspector.
+4. Select Demo.Level in its data binding. The binding makes it follow the variable; fixed text 42 does not test a reading.
+5. Preview, check messages and apply the edit. Prepare navigation/opening for the selected presentation mode. No command is needed for this exercise.
+
+### Run the prepared version
+
+While editing, your work is a draft called Working. Save creates an identified copy, a revision. Publish prepares a revision for use. Activate runs the published revision; it becomes Active. In project lifecycle/revisions, Save, select the correct revision, Publish and Activate in the test environment. Wait for confirmation. In TAG Monitor check Active revision, Demo.Level and sample 42/Good. Then open the Runtime screen and compare. Fixed screen text 42 with no TAG sample is not a passing exercise.
+
+### Look up fields when needed
+
+Follow the exercise and return to this table when a field is unclear. Technical names identify fields; internal IDs are generated or chosen through the product’s selectors.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -32,33 +57,8 @@ Names below describe a test project. Use readable references; product workflows 
 | Value Display binding | Select Demo.Level in the object data picker. | Demo.Level value | Do not guess a GUID or leave fixed 42 pretending to be a sample. |
 | Screen | Create a simple title/Value Display screen and configure supported opening/navigation. | Exercise screen | Creating a screen does not guarantee automatic Runtime opening. |
 
-### Produce a known sample
+### If something is missing
 
-1. Prepare Server Memory and Double TAG Demo.Level in Data Sources/TAGs, applying valid edits to Working.
-2. Create an enabled Python Server Script and declare Demo.Level as ServerMemoryTag.
-3. Add Initialize with handler initialize_demo.
-4. Use this code and validate. It publishes 42.0/Good because this is a known exercise value; no equipment is measured. It is not continuous: Initialize publishes when that entry executes as the revision starts. For periodic updates study Timer/cadence in Script Help rather than add an infinite loop.
-
-```python
-def initialize_demo():
-    publish_server_memory_sample("Demo.Level", 42.0, "Good")
-```
-
-### Build the first screen
-
-1. Open Screens and create one for the intended device.
-2. Add Text with Exercise level title.
-3. Add Value Display and adjust position, size and decimals in Inspector.
-4. Select Demo.Level in its data binding. Add a unit only if it matches the value meaning; it can remain blank here.
-5. Preview, read diagnostics and apply the edit.
-6. Configure supported presentation/navigation to open it. Do not add a write command to test a reading.
-
-### Save, publish, activate and check
-
-Open project lifecycle/revisions and check edits/validation. Save creates a persisted revision; select the correct one and Publish. Publication prepares it without automatically making it Active. Activate the published revision when this candidate should run in the test environment. Check result/Active revision. In TAG Monitor select Demo.Level and wait for 42/Good, checking timestamps and internal-memory source. Open the screen through Runtime and compare. Fixed screen text 42 with no TAG sample is not a passing exercise. Applying an edit to Working alone does not prove execution.
-
-### If the result is missing
-
-Check project/Active revision before changing the drawing. No sample: check source/TAG, declared reference, enabled Script, Initialize/handler and Script diagnostics. Valid TAG but blank screen: check opened screen, binding, object and formatting. View-only session is enough to observe; interactive actions require their own class/permission. If Save/Publish/Activate fails, read the message and current state before repeating; one completed stage does not imply the next. For physical equipment replace the exercise with its driver guide and verify value/quality independently. This example is not a field test.
+Start in TAG Monitor. No Demo.Level sample: check source, enabled Script, declared reference and Initialize entry/function initialize_demo; read Script diagnostics. Correct TAG but incorrect screen: check screen and object binding. If Save/Publish/Activate was rejected, read the message and current state before repeating. View only is sufficient to observe. Later, use the matching driver guide and independent checks to connect real equipment.
 
 [Open this guide in installed Help](/help?topic=getting-started.first-project)

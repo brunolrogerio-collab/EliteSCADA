@@ -56,24 +56,27 @@ Not found: check path/project; ambiguous names require explicit selection. Worki
 
 ## TAG Monitor: inspect value, quality and history
 
-Compare Working and Active and investigate a TAG in real Runtime without confusing edits and running data.
+Check whether a variable is arriving, whether its value is valid and which recent samples were stored.
 
-### Identify the observed source
+### Start with the running value
 
-Open Engineering → Diagnostics → TAG Monitor. The top identifies the engineering context and active application; the Inspector queries visible Active Runtime TAGs. Working is context and does not replace value origin. When simulation/demo is active, that is the reported source, not proof of physical-device communication. This monitor is read-only: even a Writable TAG cannot be written through this panel.
+A TAG is a variable, such as pump pressure. TAG Monitor checks it without relying on the screen drawing. Open Engineering, Diagnostics, TAG Monitor. This is read-only: it does not change/force values, even for a TAG labeled Writable.
 
-### Check a TAG step by step
+### Find and check a TAG
 
-1. Compare Engineering context, Working revision and Active identity. If Working differs from Active, do not assume the edit is running.
-2. Search TAGs by part of path, name, type, unit, source or value.
-3. Use Quality/Access filters; clear them if an expected TAG is missing.
-4. Select the TAG and inspect value, type, unit, quality, source, times and Value freshness.
-5. Read Recent history; Refresh history to query again.
-6. Check permission, capture and samples in that interval before treating empty history as a defect. Use the full History tools for broader periods/Playback and exports.
+1. Check project and Active identity at the top: this identifies the application supplying values.
+2. Search by part of name/path.
+3. If missing, clear Quality/Access filters and try again.
+4. Select the TAG. Read Current value, Quality and times together. A number alone says neither valid nor recent.
+5. Review Recent history to compare stored samples in the shown interval. Refresh history queries again. This panel has no window adjustment; use History for other periods.
 
-### Context and filters
+### Example: you edited but the value stayed the same
 
-Working vs Active compares project, revision and unsaved changes. It checks context; it neither publishes nor activates.
+You are editing revision 12 while Active identity shows revision 11. The monitor reads the version still running. That is expected: editing/saving does not replace Active. When ready, follow Save, Publish and Activate, then check identity and reading again. If simulation is shown, values come from that test mode, not physical equipment.
+
+### Understand context and filters
+
+Working is the work open for editing. Active is the running revision. They may differ. Context fields help check that the editing project and observed values are the versions you intended. Use these tables to look up a field when needed.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -87,9 +90,9 @@ Working vs Active compares project, revision and unsaved changes. It checks cont
 | Access | All, Read-only or Writable according to TAG attribute. | Writable | Not effective write permission; panel stays read-only. |
 | Refresh | Reloads the list. Also observe realtime/periodic status. | Fresh query | Does not restart acquisition or clear history. |
 
-### Details and recent history
+### Understand value, quality and times
 
-Read quality and freshness together with value. An old value, a recent valid query and a newly sampled process value differ.
+Current value is the available reading. Quality describes how the system classifies it. Times indicate when it was produced or received. A query that answered now may return an old sample; also inspect Value freshness and sample time.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -106,13 +109,9 @@ Read quality and freshness together with value. An old value, a recent valid que
 | Recent history | Bounded query of the selected point; default 15-minute window, up to 120 requested samples. | Recent interval values | Not all history or retention/capture configuration; no editable window control here. |
 | Refresh history | Queries the selected point and recent history again. | New interval query | Does not create absent samples or force recording. |
 
-### Example: new Working and older Runtime
+### Missing value or history
 
-You edit revision 12 but Active identity says revision 11. Observed values belong to active Runtime, not the new Working definition. Review changes, validate and follow Save → Publish → Activate when ready; then check identity/sample again. Do not force the monitor to show the editing revision. In simulation, identify the test origin before using numbers as field evidence.
-
-### Failures and empty results
-
-Empty list differs from no filtered matches. Permission denied requires checking account/resource; it does not prove nonexistence. A TAG removed from Active can leave details unavailable. Realtime connected describes transport, not sensor health; periodic updates can continue when realtime fails. Empty history can reflect disabled capture, absent interval samples, permission or unavailable service. Read the message and check Historian before changing data. A visible old response after a failure is not a new sample.
+Clear search/filters first. For access denied, ask for the resource permission check. No sample is not zero; inspect source diagnostics. If only history is empty, check recording and whether samples existed in that period; Historian stores those samples. Realtime connected describes update transport, not sensor health. Read periodic-update notices when that connection is unavailable.
 
 [Open this guide in installed Help](/help?topic=engineering.tag-monitor)
 

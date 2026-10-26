@@ -2,23 +2,31 @@
 
 ## Cambiar aplicación: comprobar, preservar y desvincular
 
-Entienda detach y confirmaciones antes de devolver esta instalación al estado neutro.
+Prepare copias y entienda los efectos antes de retirar la aplicación actual de esta instalación.
 
-### Cuándo corresponde
+### Qué hace la operación
 
-Abra Ingeniería → Instalación para preparar esta instalación para otra aplicación. No es editar pantalla o activar revisión siguiente del mismo proyecto. Detach desvincula aplicación/Authority, invalida sesiones y detiene efectos Runtime. No desinstala ni borra Historian silenciosamente. Licencia es decisión explícita. Opere solo en destino/parada autorizados; leer esta guía no ejecuta cambio.
+Use Ingeniería, Instalación para preparar este servidor para otra aplicación. Retira el vínculo actual, invalida accesos antiguos y vuelve a configuración inicial. La aplicación deja de operar aquí. Producto sigue instalado y no se borra Historian por este flujo. Para editar pantalla o ejecutar otra revisión del mismo proyecto use lifecycle, no este cambio.
 
-### Comprobar y preparar copias
+### Preparar copias antes de decidir
 
-1. Revise Application actual, Working, Published, Active, Authority, licencia, Historian y protección; actualice si cambió.
-2. Guarde cambios sin guardar cuando corresponda antes de considerar copia recuperable. Guardado/no publicado es distinto; compare revisiones.
-3. Exporte Application .escadapkg y confirme descarga.
-4. Para conservar usuarios/credenciales/policy use Nueva contraseña del backup y Exportar Authority. Guarde contraseña aparte; paquete no incluye accesos.
-5. Respalde base/Historian y material protegido aparte; preservar en detach no es copia de recuperación.
+1. Revise Application actual, Working y Active para confirmar instalación.
+2. Compruebe cambios sin guardar y Guarde si debe conservarlos; guardar no los ejecuta.
+3. Exporte Application y confirme .escadapkg: contiene ingeniería.
+4. Para usuarios/permisos exporte Authority. Authority guarda accesos; backup separado con Nueva contraseña del backup. Guárdela aparte.
+5. Confirme copias de base, historia y claves con responsable; no todo se incluye en el paquete.
 
-### Resumen y preservación
+### Confirmar y esperar
 
-Identifican el destino actual; léalos antes de confirmar.
+1. Con copias revisadas abra Desvincular aplicación de esta instalación.
+2. Lea consecuencias de aplicación, usuarios/sesiones, historia y trabajo sin guardar. Confirme solo lo entendido/decidido.
+3. Elija licencia de máquina: Mantener conserva, Quitar retira, Sustituir exige código válido. Es decisión separada.
+4. Resuelva bloqueos y actualice.
+5. Elija Desvincular y volver al neutro una vez y espere. Servidor comprueba de nuevo antes de aplicar. Éxito vuelve a configuración inicial; aún debe crear/importar/recuperar la próxima aplicación.
+
+### Consultar resumen y copias
+
+Consulte si un campo no está claro. Exportar una copia no requiere ejecutar el cambio.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -31,9 +39,9 @@ Identifican el destino actual; léalos antes de confirmar.
 | Exportar Application | Copia portable de ingeniería por flujo soportado. | Descarga .escadapkg | Compruebe archivo/revisión/destino; descarga cancelada no es copia. |
 | Nueva contraseña del backup / Exportar Authority | Exporta Authority protegida con contraseña propia. | Backup separado | 12–1024 caracteres; no publicar archivo/contraseña ni confundir con login. |
 
-### Confirmaciones y licencia
+### Consultar confirmaciones y licencia
 
-Abra Desvincular aplicación de esta instalación. Lea cada elemento; marcar no crea backup ni valida entorno nuevo.
+Confirmaciones permiten reconocer consecuencias. Marcar no crea copia. Si un mensaje no está claro, vuelva a preparar/comprobar antes de continuar.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -48,12 +56,8 @@ Abra Desvincular aplicación de esta instalación. Lea cada elemento; marcar no 
 | Desvincular y volver al neutro | Envía decisión; servidor previsualiza/revalida antes de aplicar. | Instalación neutra | Cambios entre etapas pueden causar rechazo. |
 | Cancelar / Volver | Vuelve a preparar antes de confirmar ejecución. | Revisar copias | No promete deshacer operación ya recibida/completada. |
 
-### Ejecutar y verificar
+### Si cae conexión o aparece error
 
-Tras copias, consecuencias y licencia, elija Desvincular y volver al neutro una vez y espere. Interfaz valida y solicita detach; servidor revalida estado. Éxito vuelve a entrada neutra. Confirme antes de crear/importar/recuperar. Próxima aplicación/Authority exigen preparación normal; sesiones anteriores no autorizan nuevo vínculo. No añade lock, transporte ni contrato de detach.
-
-### Fallo, interrupción o incertidumbre
-
-Lea bloqueos y actualice tras resolver. No sustituya rechazo de licencia candidata quitando la válida por ensayo. Si pierde conexión/página, no suponga éxito, cancelación ni rollback: reabra dirección correcta y revise estado real. Registre etapa, mensaje y hora. No solicite otro cambio hasta reconciliar. Recuperación de aplicación/Authority usa copias; base/Historian usan procedimiento nativo separado. No sustituya por edición manual de base.
+No repita inmediatamente. Reabra dirección correcta y compruebe aplicación anterior o configuración inicial. Una caída no confirma finalización. Registre mensaje/etapa/hora y consulte estado si hay duda. Cancelar/Volver antes de confirmar no deshace operación ya completada. Corrija licencia candidata inválida; no quite la válida por ensayo. Para restaurar copias use Backup y recuperación.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=installation.switch-workflow)

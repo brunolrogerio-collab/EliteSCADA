@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppShellLocale } from '../appShellI18n';
 import { setStoredLocale, type EngineeringLocale } from '../engineering/i18n';
-import { filterHelpTopics, helpArea, helpAreas, helpBodyBlocks, helpSubarea, helpTopicPriority } from './helpNavigation';
+import { filterHelpTopics, helpArea, helpAreas, helpBodyBlocks, helpSubarea, helpSubareas, helpTopicPriority } from './helpNavigation';
 import './contextual-help.css';
 
 type HelpSection = Readonly<{
@@ -48,7 +48,9 @@ const ui = {
     api: 'Referência das funções de Server Script', parameters: 'Parâmetros', result: 'Resultado', safety: 'Cuidados', related: 'Continue por aqui',
     search: 'O que você quer fazer?', searchHint: 'Busque uma tarefa, campo ou comando', clear: 'Limpar busca', noResults: 'Nenhum tópico corresponde à busca. Tente uma palavra mais simples ou o nome do campo.', outline: 'Neste artigo', field: 'Campo', meaning: 'Para que serve e como preencher', example: 'Exemplo', constraints: 'Valores e limites', technical: 'Referência técnica', results: 'tópicos encontrados',
     assets: 'Templates e equipamentos', administration: 'Banco de dados e HA', start: 'Primeiros passos e projeto', data: 'Fontes de dados e TAGs', drivers: 'Conexão com equipamentos', visual: 'Telas, popups e objetos', scripts: 'Scripts e memória', intelligence: 'Inteligência de ativos e processos', history: 'Histórico, tendências e relatórios', events: 'Alarmes, eventos e auditoria', security: 'Usuários e permissões', licensing: 'Licenciamento', runtime: 'Operação e diagnóstico',
-    guides: 'Guias e procedimentos', shapes: 'Formas e texto', media: 'Imagens e mídia', controls: 'Valores, controles e navegadores', gauges: 'Medidores', analysisObjects: 'Objetos de análise'
+    guides: 'Guias e procedimentos', shapes: 'Formas e texto', media: 'Imagens e mídia', controls: 'Valores, controles e navegadores', gauges: 'Medidores', analysisObjects: 'Objetos de análise',
+    driverBasics: 'Preparar a conexão', driverPlcs: 'CLPs industriais', driverProtocols: 'Modbus, MQTT e OPC UA', driverTelecontrol: 'Telecontrole',
+    driverBuildings: 'Automação predial e residencial', driverRadios: 'Zigbee e Z-Wave', driverReference: 'Referência detalhada dos drivers'
   },
   en: {
     title: 'SCADIVO Help',
@@ -61,7 +63,9 @@ const ui = {
     api: 'Server Script function reference', parameters: 'Parameters', result: 'Result', safety: 'Considerations', related: 'Continue here',
     search: 'What do you want to do?', searchHint: 'Search for a task, field or command', clear: 'Clear search', noResults: 'No topics match your search. Try a simpler word or the field name.', outline: 'In this article', field: 'Field', meaning: 'Purpose and how to fill it', example: 'Example', constraints: 'Values and limits', technical: 'Technical reference', results: 'topics found',
     assets: 'Templates and equipment', administration: 'Database and HA', start: 'First steps and projects', data: 'Data Sources and TAGs', drivers: 'Equipment connections', visual: 'Screens, popups and objects', scripts: 'Scripts and memory', intelligence: 'Asset and Process Intelligence', history: 'History, trends and reports', events: 'Alarms, events and audit', security: 'Users and permissions', licensing: 'Licensing', runtime: 'Operation and diagnostics',
-    guides: 'Guides and procedures', shapes: 'Shapes and text', media: 'Images and media', controls: 'Values, controls and browsers', gauges: 'Gauges', analysisObjects: 'Analysis objects'
+    guides: 'Guides and procedures', shapes: 'Shapes and text', media: 'Images and media', controls: 'Values, controls and browsers', gauges: 'Gauges', analysisObjects: 'Analysis objects',
+    driverBasics: 'Prepare the connection', driverPlcs: 'Industrial PLCs', driverProtocols: 'Modbus, MQTT and OPC UA', driverTelecontrol: 'Telecontrol',
+    driverBuildings: 'Building and home automation', driverRadios: 'Zigbee and Z-Wave', driverReference: 'Detailed driver reference'
   },
   es: {
     title: 'Ayuda de SCADIVO',
@@ -74,7 +78,9 @@ const ui = {
     api: 'Referencia de funciones de Server Script', parameters: 'Parámetros', result: 'Resultado', safety: 'Cuidados', related: 'Continúe por aquí',
     search: '¿Qué desea hacer?', searchHint: 'Busque una tarea, campo o comando', clear: 'Limpiar búsqueda', noResults: 'Ningún tema coincide. Pruebe una palabra más sencilla o el nombre del campo.', outline: 'En este artículo', field: 'Campo', meaning: 'Para qué sirve y cómo completarlo', example: 'Ejemplo', constraints: 'Valores y límites', technical: 'Referencia técnica', results: 'temas encontrados',
     assets: 'Plantillas y equipos', administration: 'Base de datos y HA', start: 'Primeros pasos y proyectos', data: 'Fuentes de datos y TAGs', drivers: 'Conexión con equipos', visual: 'Pantallas, popups y objetos', scripts: 'Scripts y memoria', intelligence: 'Inteligencia de activos y procesos', history: 'Histórico, tendencias e informes', events: 'Alarmas, eventos y auditoría', security: 'Usuarios y permisos', licensing: 'Licenciamiento', runtime: 'Operación y diagnóstico',
-    guides: 'Guías y procedimientos', shapes: 'Formas y texto', media: 'Imágenes y multimedia', controls: 'Valores, controles y navegadores', gauges: 'Medidores', analysisObjects: 'Objetos de análisis'
+    guides: 'Guías y procedimientos', shapes: 'Formas y texto', media: 'Imágenes y multimedia', controls: 'Valores, controles y navegadores', gauges: 'Medidores', analysisObjects: 'Objetos de análisis',
+    driverBasics: 'Preparar la conexión', driverPlcs: 'PLCs industriales', driverProtocols: 'Modbus, MQTT y OPC UA', driverTelecontrol: 'Telecontrol',
+    driverBuildings: 'Automatización de edificios y hogares', driverRadios: 'Zigbee y Z-Wave', driverReference: 'Referencia detallada de drivers'
   }
 } as const;
 
@@ -171,15 +177,20 @@ export function ContextualHelpApp() {
             const topics = visibleTopics.filter(topic => helpArea(topic.category) === area)
               .sort((left, right) => helpTopicPriority(left.id) - helpTopicPriority(right.id) || left.title.localeCompare(right.title, locale));
             if (!topics.length) return null;
-            const subareas = ['guides', 'shapes', 'media', 'controls', 'gauges', 'analysisObjects'].filter(subarea => topics.some(topic => helpSubarea(topic) === subarea));
+            const subareas = helpSubareas.filter(subarea => topics.some(topic => helpSubarea(topic) === subarea));
+            const topicLinks = (subarea: typeof subareas[number]) => topics.filter(topic => helpSubarea(topic) === subarea).map(topic => <a key={topic.id} href={`/help?topic=${encodeURIComponent(topic.id)}`} onClick={event => openTopic(event, topic.id)}
+              className={selected?.id === topic.id ? 'active' : undefined} aria-current={selected?.id === topic.id ? 'page' : undefined}>
+              {topic.title}
+            </a>);
             return <details key={area} open={!!query || (!!selected && helpArea(selected.category) === area)} className="help-page__area">
               <summary>{text[area]} <span aria-hidden="true">({topics.length})</span></summary>
-              {subareas.map(subarea => <div key={subarea} className="help-page__subarea">
+              {subareas.map(subarea => area === 'drivers' ? <details key={subarea} data-help-group={subarea} className="help-page__subarea help-page__driver-group"
+                open={!!query || subarea === 'driverBasics' || (!!selected && topics.some(topic => topic.id === selected.id && helpSubarea(topic) === subarea))}>
+                <summary>{text[subarea]} <span aria-hidden="true">({topics.filter(topic => helpSubarea(topic) === subarea).length})</span></summary>
+                {topicLinks(subarea)}
+              </details> : <div key={subarea} className="help-page__subarea">
                 {subareas.length > 1 ? <h3>{text[subarea as keyof typeof text]}</h3> : null}
-                {topics.filter(topic => helpSubarea(topic) === subarea).map(topic => <a key={topic.id} href={`/help?topic=${encodeURIComponent(topic.id)}`} onClick={event => openTopic(event, topic.id)}
-                  className={selected?.id === topic.id ? 'active' : undefined} aria-current={selected?.id === topic.id ? 'page' : undefined}>
-                  {topic.title}
-                </a>)}
+                {topicLinks(subarea)}
               </div>)}
             </details>;
           })}

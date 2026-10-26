@@ -156,6 +156,9 @@
 }
 
 .help-page__script-api h4 { margin: 0 0 .6rem; }
+.help-page__driver-group { margin: .35rem 0 .35rem .45rem; }
+.help-page__driver-group > summary { cursor: pointer; padding: .4rem .2rem; font-size: .94rem; font-weight: 650; }
+.help-page__driver-group > a { margin-left: .45rem; }
 .help-page__script-api dl { display: grid; gap: .2rem; margin: 0; }
 .help-page__script-api dt { font-weight: 700; }
 .help-page__script-api dd { margin: 0 0 .45rem; }

@@ -34,7 +34,19 @@ export function helpArea(category: string): HelpArea {
   return 'runtime';
 }
 
-export function helpSubarea(topic: Pick<SearchableHelpTopic, 'id' | 'category'>): string {
+export const helpSubareas = ['guides', 'driverBasics', 'driverPlcs', 'driverProtocols', 'driverTelecontrol',
+  'driverBuildings', 'driverRadios', 'driverReference', 'shapes', 'media', 'controls', 'gauges', 'analysisObjects'] as const;
+
+export function helpSubarea(topic: Pick<SearchableHelpTopic, 'id' | 'category'>): typeof helpSubareas[number] {
+  if (topic.category === 'drivers') {
+    if (topic.id.startsWith('driver.')) return 'driverReference';
+    if (['drivers.siemens-setup', 'drivers.logix-setup', 'drivers.melsec-setup', 'drivers.panasonic-setup'].includes(topic.id)) return 'driverPlcs';
+    if (['drivers.modbus-setup', 'drivers.modbus-server-setup', 'drivers.mqtt-setup', 'drivers.opcua-setup'].includes(topic.id)) return 'driverProtocols';
+    if (['drivers.dnp3-setup', 'drivers.iec104-setup'].includes(topic.id)) return 'driverTelecontrol';
+    if (['home-building.device-workflow', 'drivers.bacnet-setup', 'drivers.knx-setup', 'drivers.homeassistant-setup', 'drivers.esphome-setup', 'drivers.shelly-setup'].includes(topic.id)) return 'driverBuildings';
+    if (['drivers.radio-connections', 'drivers.zigbee-native-setup', 'drivers.zigbee2mqtt-setup', 'drivers.zwave-setup'].includes(topic.id)) return 'driverRadios';
+    return 'driverBasics';
+  }
   if (topic.category !== 'visual-objects') return 'guides';
   if (topic.id.includes('measurement')) return 'gauges';
   if (topic.id.includes('intelligence')) return 'analysisObjects';

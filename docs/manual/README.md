@@ -6,6 +6,8 @@ A Ajuda contextual do produto é curta e orientada à tarefa. Este manual aprofu
 
 ## Organização
 
+Na Ajuda instalada, abra **Conexão com equipamentos** e escolha a família desejada: preparação, CLPs, Modbus/MQTT/OPC UA, telecontrole, automação predial/residencial ou Zigbee/Z-Wave. Os procedimentos práticos ficam nessas famílias; os detalhes do catálogo ficam em **Referência detalhada dos drivers**. A busca e os links de tópicos abrem automaticamente o grupo correspondente.
+
 - `pt-BR/`: conteúdo-base de autoria da Fase 1.
 - `en/` e `es/`: capítulos estáveis traduzidos de forma incremental; os capítulos restantes e a paridade semântica final ainda estão pendentes.
 - `COVERAGE-MATRIX.md`: matriz editorial por capítulo, dependências e estado de screenshot.

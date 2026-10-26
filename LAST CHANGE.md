@@ -1,3 +1,13 @@
+# HELP CONNECTION NAVIGATION ORGANIZED — 2026-10-26
+
+The installed Help now separates its 41 current equipment-connection topics into connection preparation, industrial PLCs, Modbus/MQTT/OPC UA, telecontrol, home/building, Zigbee/Z-Wave and detailed driver references. Practical guides precede legacy references. Groups can be expanded with keyboard/touch; an active deep link or search opens its matching group. Topic IDs, URLs, browser history, translated content and offline availability are preserved.
+
+Local validation: Chromium 71/71, one worker and zero retries, against the serialized installed catalog; production Web build passed with the existing large-bundle warning. Desktop English and 390 px Spanish screenshots inspected. Search, keyboard expansion, reference selection, Back/Forward and locale switching are exercised. Generated Help/manual alignment remains 48 files. Backend/catalog sources are unchanged from 97832859; that predecessor's .NET/T1 results are not claimed for this new head. New SHA/run/status belong in live #424/#425/#305/#756. The earlier HA-D2 failure remains recorded under #423, regardless of a later green run.
+
+The owner correction program #788 and children #789–#792 are queued, not implemented. Help continues with conditional connectors, operational depth and semantic walkthroughs before #357/final real product captures. Licensing #301 remains next. PR #772 remains draft/NO_MERGE; no HA, driver, Authority, licensing, Preview or DEMO behavior changed. This is navigation delivery, not complete manual acceptance.
+
+---
+
 # OWNER CORRECTION PROGRAM RECORDED; HELP CONTINUES — 2026-10-26
 
 **SPECIFIED / AUTHORIZED / QUEUED, NOT IMPLEMENTED:** #788 consolidates #789 suppression by alarm/area/subarea, #790 editor/Runtime CheckBox/ComboBox and motor-popup linkage, #791 Intelligence adherence audit against original premises/contracts/APIs/UI and #792 Matter upstream/artifact qualification. Existing #751/#753 alarm defects, #785–#787 driver authoring/inventory gaps, #423 HA-D2 occurrence and #779–#782 operational queue are referenced rather than duplicated. Read `docs/WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md`. PROJECT GOAL and ROADMAP now preserve the new owner requirements and unchanged priority **Help/manual → #301 licensing → post-licensing queue**, including the existing internal #779–#782 order. No new lane or product implementation is activated.

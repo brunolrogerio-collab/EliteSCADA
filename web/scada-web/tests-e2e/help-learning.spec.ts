@@ -4,6 +4,47 @@ import { installCurrentHelpCatalog } from './helpTestSupport';
 
 test.use({ locale: 'pt-BR' });
 
+test('connection navigation separates practical families from references and preserves search and history', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=drivers.overview');
+  const navigation = page.locator('.help-page__topics');
+  const plcGroup = navigation.locator('[data-help-group="driverPlcs"]');
+  const references = navigation.locator('[data-help-group="driverReference"]');
+  await expect(plcGroup.locator('summary')).toContainText('CLPs industriais');
+  await expect(references).not.toHaveAttribute('open');
+  const oldReference = references.getByRole('link', { name: 'Siemens S7 ISO-on-TCP', exact: true });
+  await expect(oldReference).toBeHidden();
+  await plcGroup.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  await plcGroup.getByRole('link', { name: 'Siemens S7: CPU, memória e primeira leitura', exact: true }).click();
+  await expect(page.locator('article h2')).toHaveText('Siemens S7: CPU, memória e primeira leitura');
+  await references.locator('summary').click();
+  await oldReference.click();
+  await expect(page).toHaveURL(/topic=driver\.siemens\.s7\.iso/);
+  await expect(oldReference).toHaveAttribute('aria-current', 'page');
+  await page.goBack();
+  await expect(page.locator('article h2')).toHaveText('Siemens S7: CPU, memória e primeira leitura');
+  await page.goForward();
+  await expect(oldReference).toHaveAttribute('aria-current', 'page');
+  const search = navigation.getByRole('searchbox');
+  await search.fill('G32V7');
+  const telecontrol = navigation.locator('[data-help-group="driverTelecontrol"]');
+  await expect(telecontrol).toHaveAttribute('open', '');
+  await telecontrol.getByRole('link', { name: 'DNP3: associação, eventos e comandos', exact: true }).click();
+  await expect(page.locator('article h2')).toHaveText('DNP3: associação, eventos e comandos');
+  await search.fill('');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(plcGroup.locator('summary')).toContainText('Industrial PLCs');
+  await expect(references.locator('summary')).toContainText('Detailed driver reference');
+  await page.screenshot({ path: testInfo.outputPath('help-connection-groups-desktop.png') });
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(plcGroup.locator('summary')).toContainText('PLCs industriales');
+  await expect(telecontrol.getByRole('link', { name: 'DNP3: asociación, eventos y comandos', exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('help-connection-groups-mobile.png') });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test('telecontrol and server guides distinguish observations, commands and external writes', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=drivers.dnp3-setup');

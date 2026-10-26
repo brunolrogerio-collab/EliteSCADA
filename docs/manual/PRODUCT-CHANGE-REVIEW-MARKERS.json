@@ -150,5 +150,28 @@
     "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
     "reviewWhen": "The actual assistant projects Logix symbolic fields into PortableAddress, leaves Settings empty and projects integer bits into the shared selector.",
     "review": "Review the creation limitation only after component output, persistence and strict planner admission are proven, including native-type, bit-width and read-only restrictions in all locales."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-786-MATTER",
+    "issue": 786,
+    "topicId": "drivers.matter-test-workflow",
+    "fieldKeys": [
+      "communicationBinding"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "An accepted graphical authoring flow emits and persists the required explicit Matter binding despite its current empty point-field schema.",
+    "review": "Replace the incomplete-authoring limitation only after real component output passes the strict planner and survives reopening. Address text and host-key provisioning alone do not create the binding; review all locales and screenshots."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-792-MATTER",
+    "issue": 792,
+    "topicId": "drivers.matter-test-workflow",
+    "fieldKeys": [
+      "address",
+      "settings"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The exact installed Matter artifacts and their supported availability/platform/operation subset have been requalified and accepted.",
+    "review": "Review the test-version availability and operational bounds against the accepted artifact, not an upstream closed issue or release number. Preserve unsupported commissioning/Thread/HA limits unless separately implemented and validated."
   }
 ]

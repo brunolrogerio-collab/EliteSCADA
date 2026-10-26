@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppShellLocale } from '../appShellI18n';
 import { setStoredLocale, type EngineeringLocale } from '../engineering/i18n';
 import { filterHelpTopics, helpArea, helpAreas, helpBodyBlocks, helpSubarea, helpSubareas, helpTopicPriority } from './helpNavigation';
@@ -91,10 +91,15 @@ export function ContextualHelpApp() {
   const [catalog, setCatalog] = useState<HelpCatalog | null>(null);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState('');
+  const topicHeading = useRef<HTMLHeadingElement>(null);
+  const pendingTopicFocus = useRef(false);
   const visibleTopics = useMemo(() => filterHelpTopics(catalog?.topics ?? [], query), [catalog, query]);
 
   useEffect(() => {
-    const restoreTopic = () => setRequestedTopic(new URLSearchParams(window.location.search).get('topic'));
+    const restoreTopic = () => {
+      pendingTopicFocus.current = false;
+      setRequestedTopic(new URLSearchParams(window.location.search).get('topic'));
+    };
     window.addEventListener('popstate', restoreTopic);
     return () => window.removeEventListener('popstate', restoreTopic);
   }, []);
@@ -102,7 +107,13 @@ export function ContextualHelpApp() {
   const openTopic = (event: React.MouseEvent<HTMLAnchorElement>, topicId: string) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    if (topicId !== requestedTopic) window.history.pushState(null, '', `/help?topic=${encodeURIComponent(topicId)}`);
+    if (topicId !== requestedTopic) {
+      pendingTopicFocus.current = true;
+      window.history.pushState(null, '', `/help?topic=${encodeURIComponent(topicId)}`);
+    } else {
+      topicHeading.current?.focus({ preventScroll: true });
+      topicHeading.current?.scrollIntoView({ block: 'start' });
+    }
     setRequestedTopic(topicId);
   };
 
@@ -128,6 +139,13 @@ export function ContextualHelpApp() {
     if (requestedTopic) return catalog.topics.find(topic => topic.id === requestedTopic) ?? null;
     return catalog.topics.find(topic => topic.id === 'help.find-your-way') ?? catalog.topics[0] ?? null;
   }, [catalog, requestedTopic]);
+
+  useEffect(() => {
+    if (!topicHeading.current || !pendingTopicFocus.current) return;
+    pendingTopicFocus.current = false;
+    topicHeading.current?.focus({ preventScroll: true });
+    topicHeading.current?.scrollIntoView({ block: 'start' });
+  }, [selected?.id]);
 
   const selectLocale = (nextLocale: EngineeringLocale) => {
     setStoredLocale(nextLocale);
@@ -198,7 +216,7 @@ export function ContextualHelpApp() {
 
         <article className="help-page__content" data-help-topic={selected?.id ?? ''}>
           {selected ? <>
-            <h2>{selected.title}</h2>
+            <h2 ref={topicHeading} tabIndex={-1}>{selected.title}</h2>
             <p className="help-page__summary">{selected.summary}</p>
             <nav className="help-page__outline" aria-label={text.outline}><strong>{text.outline}</strong><ul>
               {articleSections.map((section, index) => <li key={index}><a href={`#help-section-${index}`}>{section.heading}</a></li>)}

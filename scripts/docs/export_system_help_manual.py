@@ -37,6 +37,8 @@ for locale, (name, title) in {'pt-BR': ('25-TELECONTROLE-E-MODBUS-SERVER.md', 'T
     CHAPTERS[locale].append((name, title, ['drivers.dnp3-setup', 'drivers.iec104-setup', 'drivers.modbus-server-setup']))
 
 INTELLIGENCE = {'pt-BR': '12-INTELIGENCIA-ATIVOS-PROCESSOS.md', 'en': '12-ASSET-PROCESS-INTELLIGENCE.md', 'es': '12-INTELIGENCIA-ACTIVOS-PROCESOS.md'}
+for locale, (name, title) in {'pt-BR': ('26-MATTER-VERSAO-EM-TESTE.md', 'Matter Wi-Fi: versão em teste'), 'en': ('26-MATTER-TEST-VERSION.md', 'Matter Wi-Fi: test version'), 'es': ('26-MATTER-VERSION-EN-PRUEBA.md', 'Matter Wi-Fi: versión en prueba')}.items():
+    CHAPTERS[locale].append((name, title, ['drivers.matter-test-workflow']))
 APPEND_MARKER = '<!-- installed-system-guides -->'
 
 def cell(value):

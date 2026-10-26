@@ -1,5 +1,9 @@
 # Current coordinator pointer — Wave 15
 
+Help continuation 26/10: chapter 26 documents Matter test-version availability, host-key steps, node/endpoint/cluster/attribute, explicit binding and 12 fields per locale. #786 includes empty-schema graphical authoring gap; #792 remains exact-artifact qualification; both have manual review markers. Also fixed Help related-link selection leaving the next title outside the viewport (reproduced before fix, heading visible/focused after). Local final .NET 119/119 zero skipped, Chromium 72/72 no retry, Web, 51 aligned files and 109 relative links passed; desktop/mobile QA inspected. Previous 27ec3db7/T1 40347627268 attempt 1 passed; exact new head/run/status in live #424/#425/#305/#756. Earlier HA-D2 failure stays in #423, not corrected by Help. Remaining operational depth/semantic walkthrough → #357/final real figures. Help → #301 next; #788 program queued, #779–#782 order preserved. #772 draft/NO_MERGE; no driver/HA/license/dependency/Preview/DEMO mutation or deploy.
+
+## Previous checkpoint — historical
+
 Help navigation continuation 26/10: the 41 connection topics now use seven expandable families, practical guides before detailed references, pt-BR/en/es. Active topic/search auto-expands its group; IDs, links and Back/Forward remain stable. Local browser 71/71 without retries and Web production build passed; desktop/mobile inspected; 48-file manual alignment preserved. Catalog/backend unchanged from 97832859; no transferred .NET/CI green. Exact new head/run/status live in #424/#425/#305/#756. #788/#789–#792 queued, not implemented; Help → #301 next, then post-license queue preserving #779–#782 order. Earlier HA-D2 failure remains in #423. Next: conditional connectors/operational depth/semantic walkthroughs → #357/final real captures. #772 draft/NO_MERGE; no Preview/DEMO or product behavior change.
 
 ## Previous checkpoint — historical

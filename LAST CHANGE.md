@@ -1,3 +1,17 @@
+# HELP MATTER TEST GUIDE AND ARTICLE NAVIGATION — 2026-10-26
+
+Chapter 26 adds one practical guide / 12 explained fields per locale pt-BR/en/es. It distinguishes product multiplatform support from the isolated Linux x64 Matter connector, default availability from opt-in Development/Test, host-key preparation from commissioning, and attribute read/write from device commands. Explains node/endpoint/cluster/attribute, source/key steps, explicit versioned binding, canonical address form, supported types, read-only behavior, count bounds, diagnosis and host recovery limits. No secret appears in its partial JSON example; planner admission is not host/device readiness. Existing guide content is preserved.
+
+The code review also exposes incomplete graphical binding authoring: Matter declares no point fields; GenericTagBindingAssistant returns no authoring UI for that schema; the Runtime planner still requires CommunicationBinding. This specific conditional limitation is recorded for #786, with review markers; source/key preparation is not advertised as a full point-authoring wizard. #792 separately retains exact-artifact qualification and test-version limits. No driver/sidecar/dependency/HA/Authority/license behavior changed or preview opt-in enabled.
+
+Fixed a reproduced Help-only reading defect: following a related link from the end of a long article kept the new title outside the viewport. The exact browser assertion failed with viewport ratio 0 before the fix. New topic selection now focuses and scrolls its heading; repeat selection returns to the heading, while native modified clicks and Back/Forward handling remain. Final local Chromium 72/72 without retry, including title visibility/focus and localized guide navigation; desktop/mobile inspected. Full selected Help/Matter .NET suites 119/119, zero skipped; published JSON executes the actual planner and absent key/binding, bad address, mismatch, forbidden settings, unsupported type and HA are rejected. No device or socket is contacted.
+
+Web production build passed with the existing bundle-size warning; Help/manual alignment 51 files and 109 relative links passed. Predecessor 27ec3db79c563843e121880243cb6ebbadfd1ece / T1 40347627268 attempt 1 passed (.NET, Chromium 45/45, Web and gate). Exact new head/run/status belong in live #424/#425/#305/#756; no predecessor green is transferred. Earlier HA-D2 failure 4433d392/T1 40333665886 remains under #423, root cause unconfirmed.
+
+Help remains active: remaining session/monitoring/recovery operational depth and semantic walkthroughs → #357/final real product figures. #424/#425 stay open; #772 draft/NO_MERGE. Help → #301 licensing next → post-license queue including #788/#789–#792, preserving #779–#782 order. No Preview/DEMO mutation or deployment; no full manual/Wave acceptance.
+
+---
+
 # HELP CONNECTION NAVIGATION ORGANIZED — 2026-10-26
 
 The installed Help now separates its 41 current equipment-connection topics into connection preparation, industrial PLCs, Modbus/MQTT/OPC UA, telecontrol, home/building, Zigbee/Z-Wave and detailed driver references. Practical guides precede legacy references. Groups can be expanded with keyboard/touch; an active deep link or search opens its matching group. Topic IDs, URLs, browser history, translated content and offline availability are preserved.

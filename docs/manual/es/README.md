@@ -43,3 +43,5 @@ Consulte el [índice completo](../README.md) y la [matriz de cobertura](../COVER
 - [PLCs: Siemens, Logix, Mitsubishi y Panasonic](24-PLCS-Y-MEMORIA.md)
 
 - [DNP3, IEC 104 y Modbus Server](25-TELECONTROL-Y-MODBUS-SERVER.md)
+
+- [Matter Wi-Fi: preparar y entender la versión en prueba](26-MATTER-VERSION-EN-PRUEBA.md)

@@ -88,6 +88,7 @@ public static partial class ContextualHelpCatalog
         "drivers.zigbee-native-setup",
         "drivers.zigbee2mqtt-setup",
         "drivers.zwave-setup",
+        "drivers.matter-test-workflow",
         "tags.overview",
         "tags.quality",
         "tags.timestamps",

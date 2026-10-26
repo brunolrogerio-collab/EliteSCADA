@@ -13,7 +13,7 @@ public static partial class ContextualHelpCatalog
         string[] more = topic.Id switch
         {
             "home-building.device-workflow" => ["drivers.radio-connections", "drivers.zigbee-native-setup", "drivers.zigbee2mqtt-setup", "drivers.zwave-setup"],
-            "drivers.overview" => ["sources.connection-workflow", "drivers.siemens-setup", "drivers.logix-setup", "drivers.melsec-setup", "drivers.panasonic-setup", "drivers.dnp3-setup", "drivers.iec104-setup", "drivers.modbus-server-setup", "drivers.radio-connections"],
+            "drivers.overview" => ["sources.connection-workflow", "drivers.siemens-setup", "drivers.logix-setup", "drivers.melsec-setup", "drivers.panasonic-setup", "drivers.dnp3-setup", "drivers.iec104-setup", "drivers.modbus-server-setup", "drivers.radio-connections", "drivers.matter-test-workflow"],
             "driver.dnp3.master" => ["drivers.dnp3-setup", "sources.connection-workflow"],
             "driver.iec60870.5.104" => ["drivers.iec104-setup", "sources.connection-workflow"],
             "driver.modbus.tcp.server" or "driver.modbus.rtu.server" => ["drivers.modbus-server-setup", "gateway.configure-test"],

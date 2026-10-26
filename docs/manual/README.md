@@ -2,7 +2,7 @@
 
 Este diretório é a documentação de produto de longa duração para usuários, engenheiros de automação, autores HMI e de Scripts, administradores, responsáveis por segurança/licenciamento, operação e manutenção.
 
-A Ajuda contextual do produto é curta e orientada à tarefa. Este manual aprofunda os mesmos conceitos e usa, quando disponível, links por Topic ID para `/help?topic=<id>`.
+A Ajuda contextual reúne procedimentos, explicações de campos, exemplos e diagnóstico dentro do próprio produto. Este manual aprofunda os mesmos conceitos e usa, quando disponível, links por Topic ID para `/help?topic=<id>`.
 
 ## Organização
 
@@ -248,3 +248,5 @@ Radio connection walkthroughs (chapter 23): [pt-BR](pt-BR/23-ZIGBEE-E-ZWAVE.md),
 PLC connection and memory walkthroughs (chapter 24): [pt-BR](pt-BR/24-CLPS-E-MEMORIA.md), [English](en/24-PLCS-AND-MEMORY.md), [Español](es/24-PLCS-Y-MEMORIA.md). Siemens S7, Allen-Bradley Logix, Mitsubishi MELSEC and Panasonic TCP/Host Serial: source fields, native/SCADIVO type mapping, addresses, prerequisites, examples and diagnosis. S7/Logix generic-authoring limitations remain explicit under #786; this is not a claim that the assistant paths or physical interoperability are accepted.
 
 Telecontrol and local Server walkthroughs (chapter 25): [pt-BR](pt-BR/25-TELECONTROLE-E-MODBUS-SERVER.md), [English](en/25-TELECONTROL-AND-MODBUS-SERVER.md), [Español](es/25-TELECONTROL-Y-MODBUS-SERVER.md). DNP3 association/classes/representations/commands, IEC 104 observed points/CA/IOA/types/clock and Modbus TCP/RTU Server maps and external access. Actual connection-test scope, incomplete observations, feedback and initialization limits are explicit. All 21 driver references in the current default catalog now link to a practical companion; this is editorial navigation coverage, not complete product or physical acceptance.
+
+Matter Wi-Fi / chapter 26: [pt-BR](pt-BR/26-MATTER-VERSAO-EM-TESTE.md), [English](en/26-MATTER-TEST-VERSION.md), [Español](es/26-MATTER-VERSION-EN-PRUEBA.md). Conditional availability, host-key preparation, explicit attribute bindings, planner-checked read example and operational failure diagnosis; incomplete graphical binding authoring and experimental limits remain explicit. This guide does not enable the connector or qualify devices. Review markers follow #786/#792.

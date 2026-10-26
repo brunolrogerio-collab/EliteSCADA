@@ -4,6 +4,35 @@ import { installCurrentHelpCatalog } from './helpTestSupport';
 
 test.use({ locale: 'pt-BR' });
 
+test('Matter help is reachable without advertising a production driver or a complete graphical binding flow', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=drivers.overview');
+  await page.locator('article').getByRole('link', { name: 'Matter Wi-Fi: preparar e entender a versão em teste', exact: true }).click();
+  const article = page.locator('article');
+  await expect(page).toHaveURL(/topic=drivers\.matter-test-workflow/);
+  await expect(article.getByRole('heading', { level: 2 })).toBeInViewport();
+  await expect(article.getByRole('heading', { level: 2 })).toBeFocused();
+  await expect(page.locator('[data-help-group="driverBuildings"]')).toHaveAttribute('open');
+  await expect(article).toContainText('O SCADIVO é multiplataforma');
+  await expect(article).toContainText('não há passo gráfico completo prometido aqui');
+  await expect(article).toContainText('Criar chave no host');
+  await expect(article).toContainText('não contata dispositivos');
+  await expect(article.getByRole('rowheader', { name: 'Endereço do atributo', exact: true })).toBeVisible();
+  await expect(article.locator('pre')).toContainText('node/123/endpoint/1/cluster/6/attribute/0');
+  await expect(article.locator('pre')).not.toContainText('fabricStorageKey');
+  await expect(page.locator('a[href="/help?topic=driver.matter.wifi"]')).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('help-matter-desktop.png'), fullPage: true });
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('no complete graphical procedure is promised here');
+  await expect(article).toContainText('Creating/verifying a key does not contact devices');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('no se promete un procedimiento gráfico completo');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await article.getByRole('rowheader', { name: 'Vínculo de comunicación', exact: true }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-matter-mobile.png') });
+});
+
 test('connection navigation separates practical families from references and preserves search and history', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=drivers.overview');

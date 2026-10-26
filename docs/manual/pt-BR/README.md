@@ -34,3 +34,5 @@ Consulte o [sumário completo](../README.md) e a [matriz de cobertura](../COVERA
 - [CLPs: Siemens, Logix, Mitsubishi e Panasonic](24-CLPS-E-MEMORIA.md)
 
 - [DNP3, IEC 104 e Modbus Server](25-TELECONTROLE-E-MODBUS-SERVER.md)
+
+- [Matter Wi-Fi: preparar e entender a versão em teste](26-MATTER-VERSAO-EM-TESTE.md)

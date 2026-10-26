@@ -11,7 +11,7 @@ export function contextualHelpTopic(path: string) {
   if (path.startsWith('/engineering/diagnostics')) return 'diagnostics.overview';
   if (path.startsWith('/engineering/intelligence')) return 'intelligence.overview';
   if (path.startsWith('/engineering/highAvailability')) return 'ha.configuration-operation';
-  if (path.startsWith('/engineering/installation')) return 'installation.switching';
+  if (path.startsWith('/engineering/installation')) return 'installation.switch-workflow';
   if (path.startsWith('/engineering/scripts')) return 'scripts.engineering';
   if (path.startsWith('/engineering/libraries')) return 'libraries.associate-incorporate';
   if (path.startsWith('/engineering/visualAssets')) return 'assets.management';

@@ -50,3 +50,6 @@ See [the full table of contents](../README.md) and [coverage matrix](../COVERAGE
 - [Backup and recovery: Authority, application and data](28-BACKUP-AND-RECOVERY.md)
 
 - [Development Monitor, TAG Monitor and Information](29-MONITORS-AND-INFORMATION.md)
+
+- [First project: from sign-in to Runtime](30-FIRST-PROJECT.md)
+- [Switching the installation application](31-SWITCHING-APPLICATION.md)

@@ -40,6 +40,10 @@ INTELLIGENCE = {'pt-BR': '12-INTELIGENCIA-ATIVOS-PROCESSOS.md', 'en': '12-ASSET-
 for locale, (name, title) in {'pt-BR': ('26-MATTER-VERSAO-EM-TESTE.md', 'Matter Wi-Fi: versão em teste'), 'en': ('26-MATTER-TEST-VERSION.md', 'Matter Wi-Fi: test version'), 'es': ('26-MATTER-VERSION-EN-PRUEBA.md', 'Matter Wi-Fi: versión en prueba')}.items():
     CHAPTERS[locale].append((name, title, ['drivers.matter-test-workflow']))
 APPEND_MARKER = '<!-- installed-system-guides -->'
+for locale, (name, title) in {'pt-BR': ('30-PRIMEIRO-PROJETO.md', 'Primeiro projeto: da entrada ao Runtime'), 'en': ('30-FIRST-PROJECT.md', 'First project: from sign-in to Runtime'), 'es': ('30-PRIMER-PROYECTO.md', 'Primer proyecto: de la entrada al Runtime')}.items():
+    CHAPTERS[locale].append((name, title, ['getting-started.first-project']))
+for locale, (name, title) in {'pt-BR': ('31-TROCA-DA-APLICACAO.md', 'Trocar a aplicação da instalação'), 'en': ('31-SWITCHING-APPLICATION.md', 'Switching the installation application'), 'es': ('31-CAMBIO-DE-APLICACION.md', 'Cambiar la aplicación de la instalación')}.items():
+    CHAPTERS[locale].append((name, title, ['installation.switch-workflow']))
 for locale, (name, title) in {'pt-BR': ('29-MONITORES-E-INFORMACOES.md', 'Monitores e Informações'), 'en': ('29-MONITORS-AND-INFORMATION.md', 'Monitors and Information'), 'es': ('29-MONITORES-E-INFORMACION.md', 'Monitores e Información')}.items():
     CHAPTERS[locale].append((name, title, ['engineering.development-monitor', 'engineering.tag-monitor', 'engineering.information']))
 for locale, (name, title) in {'pt-BR': ('27-SESSOES-E-DIAGNOSTICO.md', 'Sessões Runtime e diagnóstico'), 'en': ('27-SESSIONS-AND-DIAGNOSTICS.md', 'Runtime sessions and diagnostics'), 'es': ('27-SESIONES-Y-DIAGNOSTICO.md', 'Sesiones Runtime y diagnóstico')}.items():

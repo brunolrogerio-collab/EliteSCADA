@@ -6,6 +6,38 @@ import { mergeMonitorBatchSamples, resolveMonitorQuickAdd } from '../src/enginee
 
 test.use({ locale: 'pt-BR' });
 
+test('first-project and installation-switch journeys connect concrete setup fields to explicit lifecycle and consequences', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=getting-started.neutral-bootstrap');
+  await page.locator('article').getByRole('link', { name: 'Primeiro projeto: da entrada à primeira leitura', exact: true }).click();
+  const article = page.locator('article');
+  await expect(article.getByRole('heading', { level: 2 })).toBeInViewport();
+  await expect(article.getByRole('rowheader', { name: 'Chave do projeto', exact: true })).toBeVisible();
+  await expect(article).toContainText('Não é uma atualização contínua', { ignoreCase: true });
+  await expect(article).toContainText('não comprova execução');
+  await expect(article.locator('pre')).toContainText('publish_server_memory_sample("Demo.Level", 42.0, "Good")');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('Function name alone does not configure a trigger');
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('No es prueba de campo');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.screenshot({ path: testInfo.outputPath('help-first-project-desktop.png'), fullPage: true });
+  await page.goto('/help?topic=installation.switching');
+  await article.getByRole('link', { name: 'Trocar a aplicação: conferir, preservar e desvincular', exact: true }).click();
+  await expect(article.getByRole('heading', { level: 2 })).toBeInViewport();
+  await expect(article.getByRole('rowheader', { name: 'Licença da máquina', exact: true })).toBeVisible();
+  await expect(article).toContainText('Cancelar / Voltar');
+  await expect(article).toContainText('não suponha sucesso, cancelamento ou rollback');
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await expect(article).toContainText('Checking a box creates neither', { ignoreCase: true });
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await expect(article).toContainText('No es cerrar la interfaz');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await article.getByRole('rowheader', { name: 'Código de licencia sustituta', exact: true }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-installation-switch-mobile.png') });
+});
+
 test('monitor guides distinguish watch references Active identity and product version with an executable bit example', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=engineering.development-monitor');

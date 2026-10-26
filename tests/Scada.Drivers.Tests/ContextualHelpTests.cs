@@ -388,7 +388,7 @@ public sealed class ContextualHelpTests
             .Select(section => section.Code)
             .Where(code => !string.IsNullOrWhiteSpace(code))
             .Cast<string>()
-            .Concat(catalog.Topics.Where(item => item.Id is "scripts.server-syntax" or "scripts.server-recipes")
+            .Concat(catalog.Topics.Where(item => item.Id is "scripts.server-syntax" or "scripts.server-recipes" or "getting-started.first-project")
                 .SelectMany(item => item.Sections).Select(section => section.Code).OfType<string>())
             .Concat(catalog.ServerScriptApiDetails.Select(item => item.Example))
             .Concat(ReadManualServerScriptExamples())
@@ -443,6 +443,13 @@ public sealed class ContextualHelpTests
                 Assert.True(
                     response.GetProperty("succeeded").GetBoolean(),
                     $"Server Script example handler '{handler}' failed in the actual interpreter: {response.GetProperty("error").GetString()}");
+                if (handler == "initialize_demo")
+                {
+                    var write = Assert.Single(response.GetProperty("writes").EnumerateArray());
+                    Assert.Equal(42.0, write.GetProperty("value").GetDouble());
+                    Assert.True(write.GetProperty("serverMemoryOnly").GetBoolean());
+                    Assert.Equal("Good", write.GetProperty("quality").GetString());
+                }
             }
         }
     }

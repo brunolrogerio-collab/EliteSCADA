@@ -41,3 +41,6 @@ Consulte o [sumário completo](../README.md) e a [matriz de cobertura](../COVERA
 - [Backup e recuperação: Authority, aplicação e dados](28-BACKUP-E-RECUPERACAO.md)
 
 - [Monitoramento, TAG Monitor e Informações](29-MONITORES-E-INFORMACOES.md)
+
+- [Primeiro projeto: da entrada ao Runtime](30-PRIMEIRO-PROJETO.md)
+- [Trocar a aplicação da instalação](31-TROCA-DA-APLICACAO.md)

@@ -6564,6 +6564,296 @@
         "engineering.lifecycle",
         "licensing.overview"
       ]
+    },
+    {
+      "id": "getting-started.first-project",
+      "category": "getting-started",
+      "title": "Primeiro projeto: da entrada à primeira leitura",
+      "summary": "Siga um pequeno ensaio de engenharia até conferir uma amostra conhecida no Runtime, sem conectar um equipamento.",
+      "sections": [
+        {
+          "heading": "Prepare o ambiente do ensaio",
+          "body": "Use uma instalação de teste destinada a este exercício e uma conta autorizada. Confirme o endereço e o projeto antes de editar; não use uma planta em operação para aprender a ativar revisões. Este exercício mostra uma leitura em memória interna, não um sensor real. Se já existe uma aplicação, não faça detach para forçar a tela inicial: use o projeto de teste autorizado ou peça ao responsável para preparar o ambiente."
+        },
+        {
+          "heading": "Entrar e criar o projeto",
+          "body": "1. Abra o endereço correto. Em uma instalação nova elegível, conclua Criar Administrador inicial; se está recuperando dados existentes, use Restaurar backup. Não suponha login/senha padrão. 2. Entre com a conta autorizada. 3. Se Criar novo projeto for oferecido, informe Chave do projeto e Nome do projeto. Escolha Criar projeto e abrir Engineering. 4. Confirme o projeto aberto. Se a opção não aparece, confira se já há projeto e siga o fluxo correspondente. Criar o projeto não equivale a uma nova aplicação Active. Se outro usuário criou um projeto enquanto o formulário estava aberto, recarregue e confira o estado em vez de repetir por tentativa."
+        },
+        {
+          "heading": "Campos para este exercício",
+          "body": "Os nomes abaixo são exemplos de um projeto de teste. Escolha referências legíveis; IDs internos são selecionados/gerados pelos fluxos do produto.",
+          "fields": [
+            {
+              "key": "projectKey",
+              "label": "Chave do projeto",
+              "description": "Identificação estável do projeto, distinta do título de apresentação.",
+              "example": "planta-piloto",
+              "constraints": "De 1 a 200 caracteres após ajuste de espaços nas pontas; não é chave de licença nem um ID a inventar por tentativa."
+            },
+            {
+              "key": "projectName",
+              "label": "Nome do projeto",
+              "description": "Nome legível apresentado na engenharia.",
+              "example": "Planta piloto",
+              "constraints": "De 1 a 300 caracteres após ajuste de espaços nas pontas; confirme que abriu o destino certo."
+            },
+            {
+              "key": "source",
+              "label": "Fonte da TAG",
+              "description": "Para este ensaio, selecione/crie uma fonte Server Memory pelo catálogo, sem host ou porta.",
+              "example": "Memória do Servidor",
+              "constraints": "Provider interno, não driver de equipamento nem memória do navegador."
+            },
+            {
+              "key": "tagPath",
+              "label": "Path da TAG",
+              "description": "Crie a referência de engenharia usada pelo Script e pela tela.",
+              "example": "Demo.Level",
+              "constraints": "Associe à fonte de memória preparada; caminho sozinho não produz amostras."
+            },
+            {
+              "key": "dataType",
+              "label": "Tipo",
+              "description": "Use um tipo numérico compatível com a amostra deste exercício.",
+              "example": "Double",
+              "constraints": "Não usar String para esconder incompatibilidade de valor."
+            },
+            {
+              "key": "scriptScope",
+              "label": "Scope do Script",
+              "description": "Escolha Server para publicar a amostra no servidor.",
+              "example": "Server",
+              "constraints": "Client Visual executa no cliente e não substitui esse publicador."
+            },
+            {
+              "key": "entryPoint",
+              "label": "Gatilho e handler",
+              "description": "Cadastre uma entrada Initialize com o nome exato da função definida abaixo.",
+              "example": "Initialize / initialize_demo",
+              "constraints": "O nome da função sozinho não configura o gatilho; habilite o Script e a entrada conforme o editor."
+            },
+            {
+              "key": "scriptBinding",
+              "label": "Referência declarada do Script",
+              "description": "Declare Demo.Level como ServerMemoryTag pelo fluxo de referências do Script.",
+              "example": "Demo.Level",
+              "constraints": "A API exige memória do servidor declarada; texto no código não substitui configuração válida."
+            },
+            {
+              "key": "displayBinding",
+              "label": "Vínculo da Exibição de valor",
+              "description": "Selecione a TAG Demo.Level no seletor de dados do objeto.",
+              "example": "Valor de Demo.Level",
+              "constraints": "Não digite GUID nem deixe 42 como valor fixo fingindo uma amostra."
+            },
+            {
+              "key": "screen",
+              "label": "Tela",
+              "description": "Crie uma tela simples com título e Exibição de valor; configure o modo de abertura/navegação disponível.",
+              "example": "Tela de ensaio",
+              "constraints": "Criar uma tela não garante que ela abrirá sozinha no Runtime."
+            }
+          ]
+        },
+        {
+          "heading": "Produzir uma amostra conhecida",
+          "body": "1. Em Fontes de dados/TAGs, prepare Server Memory e a TAG Double Demo.Level. Aplique as alterações válidas ao Working. 2. Crie um Server Script em Python, habilitado, e declare a referência Demo.Level como ServerMemoryTag. 3. Cadastre Initialize com handler initialize_demo. 4. Use o código abaixo e valide. A função publica 42.0 com qualidade Good porque é um valor conhecido deste ensaio; isso não mede equipamento. Não é uma atualização contínua: Initialize publica quando a entrada é executada na inicialização da revisão. Para atualização periódica, estude Timer e cadência no guia de Scripts, sem acrescentar um laço infinito.",
+          "code": "def initialize_demo():\n    publish_server_memory_sample(\"Demo.Level\", 42.0, \"Good\")"
+        },
+        {
+          "heading": "Montar a primeira tela",
+          "body": "1. Abra Telas e crie uma tela para o dispositivo pretendido. 2. Adicione Texto com o título Ensaio de nível. 3. Adicione Exibição de valor e ajuste posição, tamanho e casas decimais no Inspetor. 4. No vínculo de dados, escolha Demo.Level. Use um texto de unidade apenas se ele corresponder ao significado do valor; neste exercício pode deixar sem unidade. 5. Use Pré-visualização, leia diagnósticos e aplique a edição. 6. Configure a navegação/modo de apresentação para abrir essa tela conforme o fluxo disponível. Não adicione comando de escrita para testar uma leitura."
+        },
+        {
+          "heading": "Salvar, publicar, ativar e conferir",
+          "body": "Abra o lifecycle/revisões do projeto e confira alterações e validação. Salvar cria uma revisão persistida; selecione a revisão correta e Publique. Publicar prepara a revisão, sem torná-la automaticamente Active. Ative a publicada quando quiser executar este candidato no ambiente de teste. Confira o resultado e a revisão Active. Em TAG Monitor, selecione Demo.Level e espere a amostra 42 com qualidade Good; confira os horários e a origem de memória interna. Abra a tela pelo Runtime e compare. Se a tela mostra 42 fixo mas o TAG não tem amostra, o ensaio não passou. A edição aplicada ao Working, sozinha, não comprova execução."
+        },
+        {
+          "heading": "Se o resultado não aparecer",
+          "body": "Confirme o projeto e a revisão Active antes de mexer no desenho. Sem amostra: confira fonte/TAG, referência declarada, Script habilitado, Initialize/handler e diagnóstico do Script. TAG válido mas tela vazia: confira tela aberta, vínculo, objeto e formatação. Sessão Visualização basta para observar; uma ação interativa requer classe/permissão próprias. Se Salvar/Publicar/Ativar falhar, leia a mensagem e confira o estado atual antes de repetir; uma etapa concluída não implica as seguintes. Para um dispositivo físico, substitua o ensaio pelo guia do driver correspondente e valide valor/qualidade com uma fonte independente. Não trate esse exemplo como teste de campo."
+        }
+      ],
+      "relatedTopicIds": [
+        "getting-started.startup-authentication",
+        "getting-started.neutral-bootstrap",
+        "sources.internal-memory",
+        "scripts.server",
+        "scripts.triggers-dependencies",
+        "visual.first-screen",
+        "engineering.lifecycle",
+        "engineering.tag-monitor",
+        "runtime.session-classes"
+      ]
+    },
+    {
+      "id": "installation.switch-workflow",
+      "category": "getting-started",
+      "title": "Trocar a aplicação: conferir, preservar e desvincular",
+      "summary": "Entenda a decisão de detach e cada confirmação antes de devolver esta instalação ao estado neutro.",
+      "sections": [
+        {
+          "heading": "Quando essa troca é apropriada",
+          "body": "Abra Engineering → Instalação para preparar esta mesma instalação para outra aplicação. Não é a rotina de editar uma tela ou ativar a próxima revisão do mesmo projeto. O detach desvincula a aplicação e a Authority, invalida sessões antigas e interrompe seus efeitos de Runtime. Não desinstala o produto nem apaga silenciosamente o Historian. A escolha de licença é explícita. Faça a operação somente no destino e na parada autorizados; este texto não executa a troca."
+        },
+        {
+          "heading": "Conferir o estado e preparar cópias",
+          "body": "1. Confira Application atual, Working, Published, Active, Authority, licença, Historian e proteção de engenharia. Atualize se a situação mudou. 2. Se há alterações Working não salvas, salve uma revisão quando necessário antes de considerar a cópia recuperável. Working salvo mas não publicado é outra condição; compare os números. 3. Use Exportar Application para obter o .escadapkg e confirme o download. 4. Para preservar usuários/credenciais/policy, informe Nova senha do backup e use Exportar Authority. Guarde a senha separadamente do arquivo. O pacote da Application não carrega esses acessos. 5. Trate separadamente backup de banco/Historian e material protegido de host; preservar no detach não equivale a ter uma cópia de recuperação."
+        },
+        {
+          "heading": "Resumo e preservação",
+          "body": "Estes dados identificam o alvo atual; leia-os antes de abrir a confirmação.",
+          "fields": [
+            {
+              "key": "application",
+              "label": "Application atual",
+              "description": "Identifica o projeto que deixará de estar vinculado a esta instalação.",
+              "example": "Projeto atual",
+              "constraints": "Não é escolha de um servidor remoto ou de um novo projeto."
+            },
+            {
+              "key": "working",
+              "label": "Working",
+              "description": "Mostra revisão e alterações ainda não salvas.",
+              "example": "Alterações não salvas",
+              "constraints": "Salvar não publica nem ativa; exporte a cópia necessária."
+            },
+            {
+              "key": "publishedActive",
+              "label": "Published e Active",
+              "description": "Compare revisão publicada e revisão executada para entender o que precisa preservar/parar.",
+              "example": "Revisões exibidas",
+              "constraints": "Não presuma que o Working contém exatamente o Active."
+            },
+            {
+              "key": "authority",
+              "label": "Security Authority",
+              "description": "Identidades e política que serão desvinculadas; sessões antigas perderão validade.",
+              "example": "Authority presente",
+              "constraints": "Backup separado; não se recupera senha de login pelo .escadapkg."
+            },
+            {
+              "key": "historian",
+              "label": "Historian",
+              "description": "Indica que o histórico/banco é preservado por este fluxo.",
+              "example": "Preservado",
+              "constraints": "Não é exportação de dados nem promessa de compatibilidade/ligação automática da próxima aplicação."
+            },
+            {
+              "key": "engineeringProtection",
+              "label": "Proteção de engenharia",
+              "description": "Mostra a proteção atual e eventuais condições que precisam ser resolvidas pelo fluxo autorizado.",
+              "example": "Estado da proteção",
+              "constraints": "Não remova proteção/credenciais para contornar bloqueios."
+            },
+            {
+              "key": "exportApplication",
+              "label": "Exportar Application",
+              "description": "Produz a cópia portátil da engenharia pelo fluxo suportado.",
+              "example": "Download .escadapkg",
+              "constraints": "Confira arquivo/revisão/destino; download cancelado não é cópia concluída."
+            },
+            {
+              "key": "exportAuthority",
+              "label": "Nova senha do backup / Exportar Authority",
+              "description": "Exporta Authority protegida, com senha própria.",
+              "example": "Backup separado concluído",
+              "constraints": "Senha do backup de 12 a 1024 caracteres; não publicar arquivo/senha nem confundir com login."
+            }
+          ]
+        },
+        {
+          "heading": "Ler as confirmações e a licença",
+          "body": "Abra Desvincular aplicação desta instalação. Verifique cada item de forma deliberada; marcar uma caixa não faz backup nem valida um novo ambiente.",
+          "fields": [
+            {
+              "key": "backupDecision",
+              "label": "Decisão sobre backups",
+              "description": "Confirma exportação feita nesta revisão ou escolha explícita de continuar sem uma das cópias.",
+              "example": "Backups exportados",
+              "constraints": "Continuar sem exportar assume a falta daquela cópia; não é backup automático."
+            },
+            {
+              "key": "ackUnsavedWorking",
+              "label": "Perda de Working não salvo",
+              "description": "Exigido quando existem alterações não salvas e você decide prosseguir.",
+              "example": "Reconhecimento da consequência",
+              "constraints": "Não salva as alterações nem garante poder recuperá-las."
+            },
+            {
+              "key": "acknowledgeApplicationRemoval",
+              "label": "Desvincular Application",
+              "description": "Reconhece que a aplicação atual deixa de operar vinculada à instalação.",
+              "example": "Consequência lida",
+              "constraints": "Não é um simples fechamento da interface."
+            },
+            {
+              "key": "acknowledgeAuthorityRemoval",
+              "label": "Desvincular Authority e sessões",
+              "description": "Reconhece a retirada do vínculo e a invalidação da autorização das sessões anteriores.",
+              "example": "Consequência lida",
+              "constraints": "Usuários/policy novos ou restaurados devem seguir bootstrap/recuperação próprios."
+            },
+            {
+              "key": "acknowledgeHistorianPreserved",
+              "label": "Preservação do Historian/banco",
+              "description": "Reconhece a separação dos dados históricos e a ausência de limpeza silenciosa.",
+              "example": "Dados preservados",
+              "constraints": "Não executa migração, descarte ou restauração de histórico."
+            },
+            {
+              "key": "licenseAction",
+              "label": "Licença da máquina",
+              "description": "Manter preserva a licença atual; Remover retira deliberadamente; Substituir exige uma candidata válida.",
+              "example": "Manter licença",
+              "constraints": "Licença pertence à instalação, não é arquivo embutido na aplicação. Confira o resultado após a ação."
+            },
+            {
+              "key": "replacementLicenseCode",
+              "label": "Código da licença substituta",
+              "description": "Preencha somente quando selecionar Substituir licença. A candidata é validada antes do detach.",
+              "example": "Código obtido pelo fluxo autorizado",
+              "constraints": "Não use chave criptográfica; candidata inválida deve ser corrigida antes de prosseguir."
+            },
+            {
+              "key": "blockers",
+              "label": "Bloqueios e diagnóstico",
+              "description": "Leia os motivos de recusa e a etapa informada; revalide o estado depois de corrigir a causa.",
+              "example": "Bloqueio exibido",
+              "constraints": "Botão indisponível não deve ser contornado por editar store ou repetir requisições."
+            },
+            {
+              "key": "detach",
+              "label": "Desvincular e voltar ao neutro",
+              "description": "Envia a decisão ao servidor, que faz prévia/revalidação antes de aplicar o detach.",
+              "example": "Instalação neutra",
+              "constraints": "A operação pode ser recusada por mudança de estado entre as etapas."
+            },
+            {
+              "key": "cancel",
+              "label": "Cancelar / Voltar",
+              "description": "Antes da execução, permite retornar à preparação sem confirmar o detach.",
+              "example": "Revisar cópias",
+              "constraints": "Não promete desfazer uma operação já recebida/concluída pelo servidor."
+            }
+          ]
+        },
+        {
+          "heading": "Executar e confirmar o resultado",
+          "body": "Depois de conferir cópias, consequências e escolha de licença, use Desvincular e voltar ao neutro uma vez e aguarde. A interface primeiro valida o estado e depois pede o detach; o servidor revalida a condição atual. Com sucesso, a página retorna à entrada neutra. Confirme o novo estado antes de iniciar criação/importação/recuperação. A próxima aplicação e a Authority precisam ser preparadas pelo fluxo normal; as sessões antigas não autorizam o novo vínculo. Este guia não introduz outro lock, transporte ou contrato de detach."
+        },
+        {
+          "heading": "Falha, interrupção ou estado incerto",
+          "body": "Se houver bloqueio, leia a causa e atualize após resolvê-la. Licença substituta rejeitada não deve ser contornada removendo a válida por tentativa. Se perder a conexão ou fechar a página durante a ação, não suponha sucesso, cancelamento ou rollback: reabra o endereço correto e confira o estado real. Anote etapa, mensagem e horário. Não faça uma segunda troca até reconciliar o resultado. Para recuperar aplicação/Authority de cópias, use o guia de recuperação; para banco/Historian, o procedimento nativo separado. Nenhum desses procedimentos deve ser substituído por edição manual do banco."
+        }
+      ],
+      "relatedTopicIds": [
+        "installation.switching",
+        "recovery.backup-system-recovery",
+        "engineering.lifecycle",
+        "getting-started.first-project",
+        "security.lock-workflow",
+        "licensing.overview"
+      ]
     }
   ],
   "en": [
@@ -13131,6 +13421,296 @@
         "engineering.lifecycle",
         "licensing.overview"
       ]
+    },
+    {
+      "id": "getting-started.first-project",
+      "category": "getting-started",
+      "title": "First project: from sign-in to the first reading",
+      "summary": "Follow a small engineering exercise through a known Runtime sample without connecting equipment.",
+      "sections": [
+        {
+          "heading": "Prepare the exercise environment",
+          "body": "Use a dedicated test installation and an authorized account. Check address/project before editing; do not learn revision activation on an operating plant. This exercise reads internal memory, not a real sensor. If an application exists, do not detach just to force initial setup: use the authorized test project or ask its owner to prepare the environment."
+        },
+        {
+          "heading": "Sign in and create the project",
+          "body": "1. Open the correct address. On an eligible new installation complete initial Administrator setup; to recover existing data use Restore backup. Never assume default credentials. 2. Sign in with the authorized account. 3. If Create New Project is offered, enter Project key and Project name, then Create project and open Engineering. 4. Confirm the opened project. If absent, check whether a project already exists and use its corresponding flow. Creation is not a new Active application. If another user created a project while this form was open, reload/check state instead of repeating blindly."
+        },
+        {
+          "heading": "Fields for this exercise",
+          "body": "Names below describe a test project. Use readable references; product workflows select/generate internal IDs.",
+          "fields": [
+            {
+              "key": "projectKey",
+              "label": "Project key",
+              "description": "Stable project identity, distinct from presentation title.",
+              "example": "pilot-plant",
+              "constraints": "1–200 characters after trimming; not a license key or an ID to guess."
+            },
+            {
+              "key": "projectName",
+              "label": "Project name",
+              "description": "Readable name shown in Engineering.",
+              "example": "Pilot plant",
+              "constraints": "1–300 characters after trimming; confirm destination."
+            },
+            {
+              "key": "source",
+              "label": "TAG source",
+              "description": "For this exercise select/create Server Memory from the catalog, without host/port.",
+              "example": "Server Memory",
+              "constraints": "Internal provider, not an equipment driver or browser memory."
+            },
+            {
+              "key": "tagPath",
+              "label": "TAG path",
+              "description": "Engineering reference used by Script and screen.",
+              "example": "Demo.Level",
+              "constraints": "Associate with prepared memory source; a path alone creates no sample."
+            },
+            {
+              "key": "dataType",
+              "label": "Type",
+              "description": "Choose a numeric type compatible with this sample.",
+              "example": "Double",
+              "constraints": "Do not use String to conceal a value incompatibility."
+            },
+            {
+              "key": "scriptScope",
+              "label": "Script scope",
+              "description": "Choose Server to publish the server-owned sample.",
+              "example": "Server",
+              "constraints": "Client Visual runs in the client and does not replace this publisher."
+            },
+            {
+              "key": "entryPoint",
+              "label": "Trigger and handler",
+              "description": "Add Initialize with the exact function name below.",
+              "example": "Initialize / initialize_demo",
+              "constraints": "Function name alone does not configure a trigger; enable Script/entry as required by the editor."
+            },
+            {
+              "key": "scriptBinding",
+              "label": "Declared Script reference",
+              "description": "Declare Demo.Level as ServerMemoryTag through Script references.",
+              "example": "Demo.Level",
+              "constraints": "API requires declared Server Memory; code text does not replace valid configuration."
+            },
+            {
+              "key": "displayBinding",
+              "label": "Value Display binding",
+              "description": "Select Demo.Level in the object data picker.",
+              "example": "Demo.Level value",
+              "constraints": "Do not guess a GUID or leave fixed 42 pretending to be a sample."
+            },
+            {
+              "key": "screen",
+              "label": "Screen",
+              "description": "Create a simple title/Value Display screen and configure supported opening/navigation.",
+              "example": "Exercise screen",
+              "constraints": "Creating a screen does not guarantee automatic Runtime opening."
+            }
+          ]
+        },
+        {
+          "heading": "Produce a known sample",
+          "body": "1. Prepare Server Memory and Double TAG Demo.Level in Data Sources/TAGs, applying valid edits to Working. 2. Create an enabled Python Server Script and declare Demo.Level as ServerMemoryTag. 3. Add Initialize with handler initialize_demo. 4. Use this code and validate. It publishes 42.0/Good because this is a known exercise value; no equipment is measured. It is not continuous: Initialize publishes when that entry executes as the revision starts. For periodic updates study Timer/cadence in Script Help rather than add an infinite loop.",
+          "code": "def initialize_demo():\n    publish_server_memory_sample(\"Demo.Level\", 42.0, \"Good\")"
+        },
+        {
+          "heading": "Build the first screen",
+          "body": "1. Open Screens and create one for the intended device. 2. Add Text with Exercise level title. 3. Add Value Display and adjust position, size and decimals in Inspector. 4. Select Demo.Level in its data binding. Add a unit only if it matches the value meaning; it can remain blank here. 5. Preview, read diagnostics and apply the edit. 6. Configure supported presentation/navigation to open it. Do not add a write command to test a reading."
+        },
+        {
+          "heading": "Save, publish, activate and check",
+          "body": "Open project lifecycle/revisions and check edits/validation. Save creates a persisted revision; select the correct one and Publish. Publication prepares it without automatically making it Active. Activate the published revision when this candidate should run in the test environment. Check result/Active revision. In TAG Monitor select Demo.Level and wait for 42/Good, checking timestamps and internal-memory source. Open the screen through Runtime and compare. Fixed screen text 42 with no TAG sample is not a passing exercise. Applying an edit to Working alone does not prove execution."
+        },
+        {
+          "heading": "If the result is missing",
+          "body": "Check project/Active revision before changing the drawing. No sample: check source/TAG, declared reference, enabled Script, Initialize/handler and Script diagnostics. Valid TAG but blank screen: check opened screen, binding, object and formatting. View-only session is enough to observe; interactive actions require their own class/permission. If Save/Publish/Activate fails, read the message and current state before repeating; one completed stage does not imply the next. For physical equipment replace the exercise with its driver guide and verify value/quality independently. This example is not a field test."
+        }
+      ],
+      "relatedTopicIds": [
+        "getting-started.startup-authentication",
+        "getting-started.neutral-bootstrap",
+        "sources.internal-memory",
+        "scripts.server",
+        "scripts.triggers-dependencies",
+        "visual.first-screen",
+        "engineering.lifecycle",
+        "engineering.tag-monitor",
+        "runtime.session-classes"
+      ]
+    },
+    {
+      "id": "installation.switch-workflow",
+      "category": "getting-started",
+      "title": "Switch application: check, preserve and detach",
+      "summary": "Understand detach and each confirmation before returning this installation to neutral.",
+      "sections": [
+        {
+          "heading": "When switching is appropriate",
+          "body": "Open Engineering → Installation to prepare this installation for another application. It is not ordinary screen editing or activating the next revision of the same project. Detach unbinds application/Authority, invalidates old sessions and stops their Runtime effects. It neither uninstalls the product nor silently erases Historian. Licensing is an explicit choice. Operate only on the authorized destination and outage; reading this guide does not execute the switch."
+        },
+        {
+          "heading": "Check state and prepare copies",
+          "body": "1. Review current Application, Working, Published, Active, Authority, license, Historian and engineering protection; refresh if state changed. 2. Save unsaved Working edits when needed before considering a copy recoverable. Saved-but-unpublished is different; compare revision numbers. 3. Export Application as .escadapkg and confirm download. 4. To retain users/credentials/policy, enter New backup password and Export Authority. Store password separately; the application package carries no such access. 5. Handle database/Historian and protected host-material backups separately; detach preservation is not a recovery copy."
+        },
+        {
+          "heading": "Summary and preservation",
+          "body": "These values identify the current target; read them before confirmation.",
+          "fields": [
+            {
+              "key": "application",
+              "label": "Current Application",
+              "description": "Project to be unbound from this installation.",
+              "example": "Current project",
+              "constraints": "Not selection of a remote server or new project."
+            },
+            {
+              "key": "working",
+              "label": "Working",
+              "description": "Revision and unsaved edits.",
+              "example": "Unsaved changes",
+              "constraints": "Save does not publish/activate; export the needed copy."
+            },
+            {
+              "key": "publishedActive",
+              "label": "Published and Active",
+              "description": "Compare prepared/running revisions to understand preservation/shutdown.",
+              "example": "Shown revisions",
+              "constraints": "Do not assume Working exactly matches Active."
+            },
+            {
+              "key": "authority",
+              "label": "Security Authority",
+              "description": "Identity/policy binding to detach; old sessions become invalid.",
+              "example": "Present Authority",
+              "constraints": "Separate backup; .escadapkg does not recover login passwords."
+            },
+            {
+              "key": "historian",
+              "label": "Historian",
+              "description": "History/database is preserved by this flow.",
+              "example": "Preserved",
+              "constraints": "Not data export or guaranteed automatic compatibility/attachment of the next application."
+            },
+            {
+              "key": "engineeringProtection",
+              "label": "Engineering protection",
+              "description": "Current protection and conditions requiring authorized resolution.",
+              "example": "Protection state",
+              "constraints": "Do not remove protection/credentials to bypass a blocker."
+            },
+            {
+              "key": "exportApplication",
+              "label": "Export Application",
+              "description": "Creates a portable engineering copy through the supported flow.",
+              "example": ".escadapkg download",
+              "constraints": "Check file/revision/destination; cancelled download is not a completed copy."
+            },
+            {
+              "key": "exportAuthority",
+              "label": "New backup password / Export Authority",
+              "description": "Exports protected Authority with its own password.",
+              "example": "Completed separate backup",
+              "constraints": "12–1024 password characters; never publish file/password or confuse with login."
+            }
+          ]
+        },
+        {
+          "heading": "Read confirmations and licensing",
+          "body": "Open Detach this installation application. Review each item deliberately; checking a box creates neither a backup nor a validated new environment.",
+          "fields": [
+            {
+              "key": "backupDecision",
+              "label": "Backup decision",
+              "description": "Confirms export for this revision or an explicit choice to continue without a copy.",
+              "example": "Backups exported",
+              "constraints": "Skipping export accepts the missing copy; not automatic backup."
+            },
+            {
+              "key": "ackUnsavedWorking",
+              "label": "Loss of unsaved Working",
+              "description": "Required when unsaved edits exist and you proceed.",
+              "example": "Acknowledged consequence",
+              "constraints": "Does not save edits or guarantee recovery."
+            },
+            {
+              "key": "acknowledgeApplicationRemoval",
+              "label": "Detach Application",
+              "description": "Acknowledges the current application stops operating bound to this installation.",
+              "example": "Reviewed consequence",
+              "constraints": "Not simply closing the UI."
+            },
+            {
+              "key": "acknowledgeAuthorityRemoval",
+              "label": "Detach Authority and sessions",
+              "description": "Acknowledges unbinding and invalidating prior session authorization.",
+              "example": "Reviewed consequence",
+              "constraints": "New/restored identities/policy follow bootstrap/recovery flows."
+            },
+            {
+              "key": "acknowledgeHistorianPreserved",
+              "label": "Preserve Historian/database",
+              "description": "Acknowledges separate historical data and absence of silent deletion.",
+              "example": "Data preserved",
+              "constraints": "Not migration, disposal or historical restore."
+            },
+            {
+              "key": "licenseAction",
+              "label": "Machine license",
+              "description": "Keep retains current license; Remove deliberately removes it; Replace requires a valid candidate.",
+              "example": "Keep license",
+              "constraints": "Installation-owned, not embedded in application. Check post-action result."
+            },
+            {
+              "key": "replacementLicenseCode",
+              "label": "Replacement license code",
+              "description": "Fill only for Replace; candidate is validated before detach.",
+              "example": "Code from authorized flow",
+              "constraints": "Not a cryptographic key; correct an invalid candidate before proceeding."
+            },
+            {
+              "key": "blockers",
+              "label": "Blockers and diagnostics",
+              "description": "Read rejection reasons/stage and revalidate after addressing cause.",
+              "example": "Displayed blocker",
+              "constraints": "Do not bypass disabled buttons through store edits or repeated requests."
+            },
+            {
+              "key": "detach",
+              "label": "Detach and return to neutral",
+              "description": "Submits the decision; server previews/revalidates before applying.",
+              "example": "Neutral installation",
+              "constraints": "State changes between stages can cause rejection."
+            },
+            {
+              "key": "cancel",
+              "label": "Cancel / Back",
+              "description": "Returns to preparation before confirming execution.",
+              "example": "Review copies",
+              "constraints": "Does not promise undo of an already received/completed server operation."
+            }
+          ]
+        },
+        {
+          "heading": "Execute and verify",
+          "body": "After checking copies, consequences and license choice, choose Detach and return to neutral once and wait. The UI validates then requests detach; the server revalidates current state. Success returns to neutral entry. Confirm that state before creation/import/recovery. The next application/Authority require normal preparation; old sessions do not authorize the new binding. This guide adds no lock, transport or detach contract."
+        },
+        {
+          "heading": "Failure, interruption or uncertain state",
+          "body": "Read blockers and refresh after resolution. Do not work around a rejected replacement license by removing a valid one as an experiment. If connection/page is lost during execution, assume neither success, cancellation nor rollback: reopen the correct address and check actual state. Record stage, message and time. Do not request another switch until reconciled. Recover application/Authority from copies using recovery Help; database/Historian use separate native procedures. Never replace these with manual database edits."
+        }
+      ],
+      "relatedTopicIds": [
+        "installation.switching",
+        "recovery.backup-system-recovery",
+        "engineering.lifecycle",
+        "getting-started.first-project",
+        "security.lock-workflow",
+        "licensing.overview"
+      ]
     }
   ],
   "es": [
@@ -19696,6 +20276,296 @@
         "engineering.shell-navigation",
         "engineering.tag-monitor",
         "engineering.lifecycle",
+        "licensing.overview"
+      ]
+    },
+    {
+      "id": "getting-started.first-project",
+      "category": "getting-started",
+      "title": "Primer proyecto: de la entrada a la primera lectura",
+      "summary": "Siga un ensayo de ingeniería hasta comprobar una muestra conocida en Runtime sin conectar equipos.",
+      "sections": [
+        {
+          "heading": "Prepare el entorno",
+          "body": "Use instalación de prueba dedicada y cuenta autorizada. Compruebe dirección/proyecto; no aprenda activación en una planta operativa. El ensayo lee memoria interna, no sensor real. Si hay aplicación, no haga detach para forzar inicio: use proyecto de prueba autorizado o pida preparar el entorno."
+        },
+        {
+          "heading": "Entrar y crear proyecto",
+          "body": "1. Abra dirección correcta. En instalación nueva elegible complete Administrador inicial; para recuperar datos use Restaurar backup. No suponga credenciales predeterminadas. 2. Entre con cuenta autorizada. 3. Si se ofrece Crear nuevo proyecto, introduzca Clave y Nombre del proyecto y Crear proyecto y abrir Engineering. 4. Confirme contexto. Si no aparece, revise si existe proyecto y siga su flujo. Crear no equivale a nueva aplicación Active. Si otro usuario creó mientras estaba abierto, recargue/compruebe en vez de repetir a ciegas."
+        },
+        {
+          "heading": "Campos del ensayo",
+          "body": "Los nombres son ejemplos de prueba. Use referencias legibles; los flujos del producto seleccionan/generan IDs internos.",
+          "fields": [
+            {
+              "key": "projectKey",
+              "label": "Clave del proyecto",
+              "description": "Identidad estable distinta del título.",
+              "example": "planta-piloto",
+              "constraints": "1–200 caracteres tras recortar extremos; no es clave de licencia ni ID para adivinar."
+            },
+            {
+              "key": "projectName",
+              "label": "Nombre del proyecto",
+              "description": "Nombre legible de Ingeniería.",
+              "example": "Planta piloto",
+              "constraints": "1–300 caracteres tras recortar extremos; confirme destino."
+            },
+            {
+              "key": "source",
+              "label": "Fuente del TAG",
+              "description": "Seleccione/cree Server Memory del catálogo, sin host/puerto.",
+              "example": "Memoria del Servidor",
+              "constraints": "Provider interno, no driver de equipo ni memoria del navegador."
+            },
+            {
+              "key": "tagPath",
+              "label": "Path del TAG",
+              "description": "Referencia usada por Script y pantalla.",
+              "example": "Demo.Level",
+              "constraints": "Asocie a fuente preparada; path solo no produce muestra."
+            },
+            {
+              "key": "dataType",
+              "label": "Tipo",
+              "description": "Tipo numérico compatible con la muestra.",
+              "example": "Double",
+              "constraints": "No use String para ocultar incompatibilidad."
+            },
+            {
+              "key": "scriptScope",
+              "label": "Scope del Script",
+              "description": "Server publica la muestra del servidor.",
+              "example": "Server",
+              "constraints": "Client Visual ejecuta en cliente y no sustituye el publicador."
+            },
+            {
+              "key": "entryPoint",
+              "label": "Gatillo y handler",
+              "description": "Entrada Initialize con nombre exacto de función.",
+              "example": "Initialize / initialize_demo",
+              "constraints": "El nombre solo no configura gatillo; habilite Script/entrada según editor."
+            },
+            {
+              "key": "scriptBinding",
+              "label": "Referencia declarada",
+              "description": "Declare Demo.Level como ServerMemoryTag en referencias del Script.",
+              "example": "Demo.Level",
+              "constraints": "La API exige memoria declarada; texto de código no sustituye configuración."
+            },
+            {
+              "key": "displayBinding",
+              "label": "Vínculo de visualización de valor",
+              "description": "Seleccione Demo.Level en selector del objeto.",
+              "example": "Valor Demo.Level",
+              "constraints": "No adivine GUID ni deje 42 fijo aparentando muestra."
+            },
+            {
+              "key": "screen",
+              "label": "Pantalla",
+              "description": "Cree título/visualización y configure apertura/navegación disponibles.",
+              "example": "Pantalla de ensayo",
+              "constraints": "Crear no garantiza apertura automática en Runtime."
+            }
+          ]
+        },
+        {
+          "heading": "Producir muestra conocida",
+          "body": "1. Prepare Server Memory y TAG Double Demo.Level en Fuentes/TAGs y aplique cambios válidos a Working. 2. Cree Server Script Python habilitado y declare Demo.Level como ServerMemoryTag. 3. Añada Initialize con handler initialize_demo. 4. Use código y valide. Publica 42.0/Good por ser valor conocido del ensayo; no mide equipo. No es continuo: Initialize publica al ejecutarse la entrada al iniciar revisión. Para actualizaciones periódicas estudie Timer/cadencia en Scripts, sin bucle infinito.",
+          "code": "def initialize_demo():\n    publish_server_memory_sample(\"Demo.Level\", 42.0, \"Good\")"
+        },
+        {
+          "heading": "Montar primera pantalla",
+          "body": "1. Abra Pantallas y cree una para el dispositivo. 2. Añada Texto con título Ensayo de nivel. 3. Añada Visualización de valor, ajuste posición/tamaño/decimales en Inspector. 4. Elija Demo.Level en vínculo. Unidad solo si corresponde al significado; aquí puede quedar vacía. 5. Previsualice, lea diagnósticos y aplique edición. 6. Configure presentación/navegación soportadas para abrirla. No añada escritura para probar lectura."
+        },
+        {
+          "heading": "Guardar, publicar, activar y comprobar",
+          "body": "Abra lifecycle/revisiones y compruebe cambios/validación. Guardar crea revisión persistida; seleccione correcta y Publique. Publicar prepara sin hacer Active automáticamente. Active la publicada cuando deba ejecutarse en prueba. Compruebe resultado/revisión Active. En TAG Monitor elija Demo.Level y espere 42/Good, revisando horas y origen de memoria interna. Abra pantalla en Runtime y compare. Texto fijo 42 sin muestra del TAG no pasa el ensayo. Aplicar al Working no demuestra ejecución."
+        },
+        {
+          "heading": "Si no aparece",
+          "body": "Compruebe proyecto/Active antes de cambiar dibujo. Sin muestra: fuente/TAG, referencia declarada, Script habilitado, Initialize/handler y diagnóstico. TAG válido/pantalla vacía: pantalla abierta, vínculo, objeto/formato. Visualización basta para observar; acciones interactivas exigen clase/permiso. Si Guardar/Publicar/Activar falla, lea mensaje/estado antes de repetir; una etapa no implica siguientes. Para equipo físico use guía de su driver y verifique valor/calidad independientemente. No es prueba de campo."
+        }
+      ],
+      "relatedTopicIds": [
+        "getting-started.startup-authentication",
+        "getting-started.neutral-bootstrap",
+        "sources.internal-memory",
+        "scripts.server",
+        "scripts.triggers-dependencies",
+        "visual.first-screen",
+        "engineering.lifecycle",
+        "engineering.tag-monitor",
+        "runtime.session-classes"
+      ]
+    },
+    {
+      "id": "installation.switch-workflow",
+      "category": "getting-started",
+      "title": "Cambiar aplicación: comprobar, preservar y desvincular",
+      "summary": "Entienda detach y confirmaciones antes de devolver esta instalación al estado neutro.",
+      "sections": [
+        {
+          "heading": "Cuándo corresponde",
+          "body": "Abra Ingeniería → Instalación para preparar esta instalación para otra aplicación. No es editar pantalla o activar revisión siguiente del mismo proyecto. Detach desvincula aplicación/Authority, invalida sesiones y detiene efectos Runtime. No desinstala ni borra Historian silenciosamente. Licencia es decisión explícita. Opere solo en destino/parada autorizados; leer esta guía no ejecuta cambio."
+        },
+        {
+          "heading": "Comprobar y preparar copias",
+          "body": "1. Revise Application actual, Working, Published, Active, Authority, licencia, Historian y protección; actualice si cambió. 2. Guarde cambios sin guardar cuando corresponda antes de considerar copia recuperable. Guardado/no publicado es distinto; compare revisiones. 3. Exporte Application .escadapkg y confirme descarga. 4. Para conservar usuarios/credenciales/policy use Nueva contraseña del backup y Exportar Authority. Guarde contraseña aparte; paquete no incluye accesos. 5. Respalde base/Historian y material protegido aparte; preservar en detach no es copia de recuperación."
+        },
+        {
+          "heading": "Resumen y preservación",
+          "body": "Identifican el destino actual; léalos antes de confirmar.",
+          "fields": [
+            {
+              "key": "application",
+              "label": "Application actual",
+              "description": "Proyecto que quedará desvinculado de esta instalación.",
+              "example": "Proyecto actual",
+              "constraints": "No selecciona servidor remoto ni proyecto nuevo."
+            },
+            {
+              "key": "working",
+              "label": "Working",
+              "description": "Revisión y cambios sin guardar.",
+              "example": "Cambios sin guardar",
+              "constraints": "Guardar no publica/activa; exporte copia necesaria."
+            },
+            {
+              "key": "publishedActive",
+              "label": "Published y Active",
+              "description": "Compare preparada/ejecutada para preservar/parar.",
+              "example": "Revisiones mostradas",
+              "constraints": "Working no necesariamente coincide con Active."
+            },
+            {
+              "key": "authority",
+              "label": "Security Authority",
+              "description": "Identidades/policy a desvincular; sesiones antiguas se invalidan.",
+              "example": "Authority presente",
+              "constraints": "Backup separado; .escadapkg no recupera contraseñas de acceso."
+            },
+            {
+              "key": "historian",
+              "label": "Historian",
+              "description": "Historia/base preservadas por este flujo.",
+              "example": "Preservado",
+              "constraints": "No exporta ni garantiza compatibilidad/vínculo automático de próxima aplicación."
+            },
+            {
+              "key": "engineeringProtection",
+              "label": "Protección de ingeniería",
+              "description": "Protección y condiciones a resolver por flujo autorizado.",
+              "example": "Estado de protección",
+              "constraints": "No quite protección/credenciales para eludir bloqueos."
+            },
+            {
+              "key": "exportApplication",
+              "label": "Exportar Application",
+              "description": "Copia portable de ingeniería por flujo soportado.",
+              "example": "Descarga .escadapkg",
+              "constraints": "Compruebe archivo/revisión/destino; descarga cancelada no es copia."
+            },
+            {
+              "key": "exportAuthority",
+              "label": "Nueva contraseña del backup / Exportar Authority",
+              "description": "Exporta Authority protegida con contraseña propia.",
+              "example": "Backup separado",
+              "constraints": "12–1024 caracteres; no publicar archivo/contraseña ni confundir con login."
+            }
+          ]
+        },
+        {
+          "heading": "Confirmaciones y licencia",
+          "body": "Abra Desvincular aplicación de esta instalación. Lea cada elemento; marcar no crea backup ni valida entorno nuevo.",
+          "fields": [
+            {
+              "key": "backupDecision",
+              "label": "Decisión de backups",
+              "description": "Confirma exportación de esta revisión o decisión explícita de omitir copia.",
+              "example": "Backups exportados",
+              "constraints": "Omitir acepta falta de copia; no es automático."
+            },
+            {
+              "key": "ackUnsavedWorking",
+              "label": "Pérdida de Working sin guardar",
+              "description": "Exigido si hay cambios sin guardar al continuar.",
+              "example": "Consecuencia aceptada",
+              "constraints": "No guarda ni garantiza recuperar."
+            },
+            {
+              "key": "acknowledgeApplicationRemoval",
+              "label": "Desvincular Application",
+              "description": "Reconoce que dejará de operar vinculada aquí.",
+              "example": "Consecuencia leída",
+              "constraints": "No es cerrar la interfaz."
+            },
+            {
+              "key": "acknowledgeAuthorityRemoval",
+              "label": "Desvincular Authority y sesiones",
+              "description": "Reconoce desvinculación e invalidación de autorización anterior.",
+              "example": "Consecuencia leída",
+              "constraints": "Identidades/policy nuevas o restauradas siguen bootstrap/recuperación."
+            },
+            {
+              "key": "acknowledgeHistorianPreserved",
+              "label": "Preservar Historian/base",
+              "description": "Reconoce datos históricos separados sin borrado silencioso.",
+              "example": "Datos preservados",
+              "constraints": "No migra, descarta ni restaura historia."
+            },
+            {
+              "key": "licenseAction",
+              "label": "Licencia de máquina",
+              "description": "Mantener conserva; Quitar retira deliberadamente; Sustituir exige candidata válida.",
+              "example": "Mantener licencia",
+              "constraints": "De instalación, no embebida en aplicación; compruebe resultado."
+            },
+            {
+              "key": "replacementLicenseCode",
+              "label": "Código de licencia sustituta",
+              "description": "Solo al Sustituir; se valida antes de detach.",
+              "example": "Código autorizado",
+              "constraints": "No es clave criptográfica; corrija candidata inválida antes de continuar."
+            },
+            {
+              "key": "blockers",
+              "label": "Bloqueos y diagnóstico",
+              "description": "Lea motivos/etapa y revalide tras resolver causa.",
+              "example": "Bloqueo mostrado",
+              "constraints": "No eluda botón editando store o repitiendo solicitudes."
+            },
+            {
+              "key": "detach",
+              "label": "Desvincular y volver al neutro",
+              "description": "Envía decisión; servidor previsualiza/revalida antes de aplicar.",
+              "example": "Instalación neutra",
+              "constraints": "Cambios entre etapas pueden causar rechazo."
+            },
+            {
+              "key": "cancel",
+              "label": "Cancelar / Volver",
+              "description": "Vuelve a preparar antes de confirmar ejecución.",
+              "example": "Revisar copias",
+              "constraints": "No promete deshacer operación ya recibida/completada."
+            }
+          ]
+        },
+        {
+          "heading": "Ejecutar y verificar",
+          "body": "Tras copias, consecuencias y licencia, elija Desvincular y volver al neutro una vez y espere. Interfaz valida y solicita detach; servidor revalida estado. Éxito vuelve a entrada neutra. Confirme antes de crear/importar/recuperar. Próxima aplicación/Authority exigen preparación normal; sesiones anteriores no autorizan nuevo vínculo. No añade lock, transporte ni contrato de detach."
+        },
+        {
+          "heading": "Fallo, interrupción o incertidumbre",
+          "body": "Lea bloqueos y actualice tras resolver. No sustituya rechazo de licencia candidata quitando la válida por ensayo. Si pierde conexión/página, no suponga éxito, cancelación ni rollback: reabra dirección correcta y revise estado real. Registre etapa, mensaje y hora. No solicite otro cambio hasta reconciliar. Recuperación de aplicación/Authority usa copias; base/Historian usan procedimiento nativo separado. No sustituya por edición manual de base."
+        }
+      ],
+      "relatedTopicIds": [
+        "installation.switching",
+        "recovery.backup-system-recovery",
+        "engineering.lifecycle",
+        "getting-started.first-project",
+        "security.lock-workflow",
         "licensing.overview"
       ]
     }

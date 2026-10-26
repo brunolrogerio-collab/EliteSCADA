@@ -126,6 +126,8 @@ public static partial class ContextualHelpCatalog
         "troubleshooting.overview",
         "libraries.reusable-resources",
         "getting-started.neutral-bootstrap",
+        "getting-started.first-project",
+        "installation.switch-workflow",
         "engineering.shell-navigation",
         "drivers.overview",
         "tags.copy-duplicate-sequential",

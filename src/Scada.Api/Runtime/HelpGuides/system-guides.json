@@ -4926,6 +4926,706 @@
         "driver.panasonic.mewtocol.tcp",
         "driver.panasonic.mewtocol.serial"
       ]
+    },
+    {
+      "id": "drivers.dnp3-setup",
+      "category": "drivers",
+      "title": "DNP3: associação, eventos e comandos",
+      "summary": "Configure a outstation e diferencie identidade, consulta, representação e confirmação.",
+      "sections": [
+        {
+          "heading": "Prepare a associação",
+          "body": "O SCADIVO atua como mestre/cliente DNP3 TCP. Obtenha com o responsável pela outstation: IP/porta, endereços de enlace, lista de pontos, variações, classes e operações permitidas. Um ponto estático pode chegar por consulta e eventos podem chegar espontaneamente. Não há Browse ou Testar conexão de Engenharia anunciado neste descritor; avalie a associação e o ponto conhecido no Runtime/Diagnóstico após a ativação. Não interprete a falta desse botão como ausência do driver.",
+          "fields": null
+        },
+        {
+          "heading": "Campos da fonte",
+          "body": "Tempos DNP3 usam duração hh:mm:ss, não os milissegundos de outros drivers. Classes de evento não são prioridades de alarme. Preserve o perfil da associação remota ao ajustar opções avançadas.",
+          "fields": [
+            {
+              "key": "transport",
+              "label": "Transporte DNP3",
+              "description": "Selecione tcp, o transporte implementado neste perfil. Porta serial não pode ser digitada como host para converter este driver em DNP3 serial.",
+              "example": "tcp",
+              "constraints": ""
+            },
+            {
+              "key": "host",
+              "label": "Endereço da estação remota",
+              "description": "IP ou nome alcançável pelo servidor SCADIVO. O navegador não é quem abre a conexão de protocolo.",
+              "example": "192.0.2.10",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Porta TCP",
+              "description": "Porta do serviço remoto. Padrão 20000; confirme a configuração da estação e o caminho de rede.",
+              "example": "20000",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "masterAddress",
+              "label": "Endereço DNP3 do mestre",
+              "description": "Endereço de enlace local que a outstation deve reconhecer como mestre. Não é IP, porta TCP ou índice de TAG.",
+              "example": "1",
+              "constraints": "0–65519; corresponda à associação remota."
+            },
+            {
+              "key": "outstationAddress",
+              "label": "Endereço DNP3 da outstation",
+              "description": "Endereço de enlace da estação remota. Mesmo com IP/porta corretos, um endereço DNP3 incorreto impede a associação esperada.",
+              "example": "10",
+              "constraints": "0–65519."
+            },
+            {
+              "key": "connectTimeout",
+              "label": "Tempo para conectar",
+              "description": "Tempo máximo para estabelecer TCP; padrão 5 s. Não é intervalo de leitura.",
+              "example": "00:00:05",
+              "constraints": "Duração positiva em hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "responseTimeout",
+              "label": "Tempo para resposta DNP3",
+              "description": "Espera por uma resposta de protocolo, padrão 5 s. Aumentar não corrige endereço de enlace ou índice errado.",
+              "example": "00:00:05",
+              "constraints": "Duração positiva em hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "reconnectMinDelay",
+              "label": "Espera mínima de reconexão",
+              "description": "Primeira espera após desconexão, padrão 1 s. Deve ser menor ou igual ao máximo.",
+              "example": "00:00:01",
+              "constraints": "Duração positiva em hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "reconnectMaxDelay",
+              "label": "Espera máxima de reconexão",
+              "description": "Teto da espera progressiva, padrão 30 s. Comandos antigos não são guardados para repetição na reconexão.",
+              "example": "00:00:30",
+              "constraints": "Duração positiva em hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "keepAliveTimeout",
+              "label": "Supervisão de enlace",
+              "description": "Padrão 1 minuto para supervisão de enlace. Conexão viva não comprova ponto atualizado. Zero é inválido; limpar um campo não deve ser interpretado automaticamente como desativação do recurso.",
+              "example": "00:01:00",
+              "constraints": "Duração positiva em hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "integrityPollInterval",
+              "label": "Consulta periódica de integridade",
+              "description": "Padrão 15 minutos. Reconsulta dados para ressincronizar a imagem da estação; não é retenção do Historian nem frequência de todos os eventos.",
+              "example": "00:15:00",
+              "constraints": "Duração positiva em hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "class1PollInterval",
+              "label": "Consulta periódica da classe 1",
+              "description": "Opcional, sem intervalo padrão: consulta eventos dessa classe como complemento ao tráfego espontâneo. A classe vem da configuração da outstation, não da prioridade de alarme no SCADIVO.",
+              "example": "00:01:00",
+              "constraints": "Duração positiva em hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "class2PollInterval",
+              "label": "Consulta periódica da classe 2",
+              "description": "Opcional, sem intervalo padrão: consulta eventos dessa classe como complemento ao tráfego espontâneo. A classe vem da configuração da outstation, não da prioridade de alarme no SCADIVO.",
+              "example": "00:01:00",
+              "constraints": "Duração positiva em hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "class3PollInterval",
+              "label": "Consulta periódica da classe 3",
+              "description": "Opcional, sem intervalo padrão: consulta eventos dessa classe como complemento ao tráfego espontâneo. A classe vem da configuração da outstation, não da prioridade de alarme no SCADIVO.",
+              "example": "00:01:00",
+              "constraints": "Duração positiva em hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "startupIntegrityClass0",
+              "label": "Integridade inicial — classe 0",
+              "description": "Inclui esta classe na ressincronização inicial; padrão true. Classe 0 representa dados estáticos; 1–3 representam classes de eventos. Pelo menos uma classe inicial deve permanecer habilitada.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "startupIntegrityClass1",
+              "label": "Integridade inicial — classe 1",
+              "description": "Inclui esta classe na ressincronização inicial; padrão true. Classe 0 representa dados estáticos; 1–3 representam classes de eventos. Pelo menos uma classe inicial deve permanecer habilitada.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "startupIntegrityClass2",
+              "label": "Integridade inicial — classe 2",
+              "description": "Inclui esta classe na ressincronização inicial; padrão true. Classe 0 representa dados estáticos; 1–3 representam classes de eventos. Pelo menos uma classe inicial deve permanecer habilitada.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "startupIntegrityClass3",
+              "label": "Integridade inicial — classe 3",
+              "description": "Inclui esta classe na ressincronização inicial; padrão true. Classe 0 representa dados estáticos; 1–3 representam classes de eventos. Pelo menos uma classe inicial deve permanecer habilitada.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "disableUnsolicitedClass1OnStartup",
+              "label": "Suspender espontâneos da classe 1 ao iniciar",
+              "description": "Padrão true: solicita suspender espontâneos durante a preparação da associação. Não exclui eventos da outstation nem altera sua classe.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "enableUnsolicitedClass1AfterIntegrity",
+              "label": "Reativar espontâneos da classe 1",
+              "description": "Padrão true: solicita reativação após a integridade inicial. Exige suporte e configuração compatíveis na estação; marcar não faz um ponto gerar eventos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "eventScanClass1OnEventsAvailable",
+              "label": "Buscar eventos disponíveis da classe 1",
+              "description": "Padrão true: reage à indicação de eventos disponíveis consultando a classe. Não muda a frequência de amostragem do sensor nem substitui a fila de eventos remota.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "disableUnsolicitedClass2OnStartup",
+              "label": "Suspender espontâneos da classe 2 ao iniciar",
+              "description": "Padrão true: solicita suspender espontâneos durante a preparação da associação. Não exclui eventos da outstation nem altera sua classe.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "enableUnsolicitedClass2AfterIntegrity",
+              "label": "Reativar espontâneos da classe 2",
+              "description": "Padrão true: solicita reativação após a integridade inicial. Exige suporte e configuração compatíveis na estação; marcar não faz um ponto gerar eventos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "eventScanClass2OnEventsAvailable",
+              "label": "Buscar eventos disponíveis da classe 2",
+              "description": "Padrão true: reage à indicação de eventos disponíveis consultando a classe. Não muda a frequência de amostragem do sensor nem substitui a fila de eventos remota.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "disableUnsolicitedClass3OnStartup",
+              "label": "Suspender espontâneos da classe 3 ao iniciar",
+              "description": "Padrão true: solicita suspender espontâneos durante a preparação da associação. Não exclui eventos da outstation nem altera sua classe.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "enableUnsolicitedClass3AfterIntegrity",
+              "label": "Reativar espontâneos da classe 3",
+              "description": "Padrão true: solicita reativação após a integridade inicial. Exige suporte e configuração compatíveis na estação; marcar não faz um ponto gerar eventos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "eventScanClass3OnEventsAvailable",
+              "label": "Buscar eventos disponíveis da classe 3",
+              "description": "Padrão true: reage à indicação de eventos disponíveis consultando a classe. Não muda a frequência de amostragem do sensor nem substitui a fila de eventos remota.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "integrityOnEventBufferOverflow",
+              "label": "Ressincronizar após estouro de eventos",
+              "description": "Padrão true: solicita integridade quando a outstation informa estouro do buffer. Recupera a imagem atual disponível, não eventos já perdidos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "timeSyncMode",
+              "label": "Sincronização do relógio remoto",
+              "description": "disabled é o padrão. lan ou nonLan selecionam o método DNP3 compatível com a outstation. Isto pode ajustar o relógio remoto; combine com o responsável da estação. Não define fuso horário nem valida automaticamente sensores.",
+              "example": "disabled",
+              "constraints": ""
+            },
+            {
+              "key": "maxQueuedUserRequests",
+              "label": "Limite de solicitações pendentes",
+              "description": "Padrão 16: limita a fila de solicitações/comandos do usuário para a associação. Não é licença de usuários e não permite reaplicar comandos antigos depois de reconectar.",
+              "example": "16",
+              "constraints": "1–1024."
+            }
+          ]
+        },
+        {
+          "heading": "Campos do ponto e do comando",
+          "body": "Em TAGs, selecione a fonte DNP3 e use o assistente de família/índice. Confira o tipo do TAG e aplique o vínculo; os campos avançados descrevem o contrato do ponto e podem exigir a definição ou os arquivos de Engenharia do projeto, pois o assistente visível não oferece todos os perfis avançados. Endereço, família e índice precisam concordar.",
+          "fields": [
+            {
+              "key": "address",
+              "label": "Endereço do ponto DNP3",
+              "description": "Formato dnp3:tipo:índice, por exemplo dnp3:analogInput:7. A fonte identifica a outstation; não repita IP ou endereço de enlace no ponto.",
+              "example": "dnp3:analogInput:7",
+              "constraints": ""
+            },
+            {
+              "key": "pointKind",
+              "label": "Família do ponto",
+              "description": "binaryInput/binaryOutputStatus usam Boolean; doubleBitBinaryInput usa Enum; analogInput/analogOutputStatus usam tipo numérico compatível; counter/frozenCounter usam Int32 ou Int64. A família e o índice identificam o ponto, não o número do grupo de mensagem.",
+              "example": "analogInput",
+              "constraints": ""
+            },
+            {
+              "key": "index",
+              "label": "Índice na família",
+              "description": "Índice publicado pela outstation, de 0 a 65535; lacunas são permitidas. Índice 7 de analogInput não é o mesmo ponto que índice 7 de binaryInput.",
+              "example": "7",
+              "constraints": ""
+            },
+            {
+              "key": "staticVariation",
+              "label": "Representação estática",
+              "description": "Opcional, formato GxVy. Deve corresponder à família e ao tipo do TAG: G30V5 é analógico Float; G30V6 é Double. Variação 0 pede padrão do dispositivo quando suportado; não é garantia de um tipo arbitrário.",
+              "example": "G30V5",
+              "constraints": ""
+            },
+            {
+              "key": "eventVariation",
+              "label": "Representação de evento",
+              "description": "Opcional. Exemplo G32V7 é analógico Float com tempo. Representação estática e de evento devem concordar com a família/tipo. A variação não troca a identidade do ponto.",
+              "example": "G32V7",
+              "constraints": ""
+            },
+            {
+              "key": "expectedEventClass",
+              "label": "Classe de evento esperada",
+              "description": "Opcional: class1, class2 ou class3 para conferência/diagnóstico. Não reclassifica o ponto remoto nem corresponde à prioridade do alarme SCADIVO.",
+              "example": "class1",
+              "constraints": ""
+            },
+            {
+              "key": "writable",
+              "label": "Habilitar comando neste ponto",
+              "description": "Padrão false. Somente binaryOutputStatus/analogOutputStatus admitem comando. Também depende de ReadOnly, permissão e vínculo de comando; um input não vira saída ao marcar true.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "commandMode",
+              "label": "Seleção antes da operação",
+              "description": "selectBeforeOperate é o padrão; directOperate só quando a estação e o procedimento permitirem. Não há opção Direct Operate No Response. Confirmação de protocolo não comprova atuação física.",
+              "example": "selectBeforeOperate",
+              "constraints": ""
+            },
+            {
+              "key": "binaryTrueOperation",
+              "label": "Operação para verdadeiro",
+              "description": "Comando binário: latchOn, latchOff, pulseOn ou pulseOff. Padrão latchOn. true é o valor pedido pelo usuário; a operação real depende deste mapeamento.",
+              "example": "latchOn",
+              "constraints": ""
+            },
+            {
+              "key": "binaryFalseOperation",
+              "label": "Operação para falso",
+              "description": "Mesmo conjunto de operações; padrão latchOff. Confira com a lógica remota antes de inverter significados, especialmente abertura/fechamento ou partida/parada.",
+              "example": "latchOff",
+              "constraints": ""
+            },
+            {
+              "key": "tripCloseCode",
+              "label": "Indicação Trip/Close",
+              "description": "none, trip ou close conforme o equipamento. Padrão none. Este qualificador não é intertravamento nem autorização adicional para manobra.",
+              "example": "none",
+              "constraints": ""
+            },
+            {
+              "key": "commandCount",
+              "label": "Contagem da operação",
+              "description": "Padrão 1; quantidade transportada no comando binário. Não é número de novas tentativas do SCADIVO. Combine a interpretação com a outstation.",
+              "example": "1",
+              "constraints": "1–255."
+            },
+            {
+              "key": "commandOnTime",
+              "label": "Tempo ligado do comando",
+              "description": "Duração hh:mm:ss do comando binário, padrão 00:00:00. Para pulso use a duração prevista pelo equipamento; não confunda com timeout da resposta.",
+              "example": "00:00:00",
+              "constraints": ""
+            },
+            {
+              "key": "commandOffTime",
+              "label": "Tempo desligado do comando",
+              "description": "Duração complementar de comando binário, padrão 00:00:00. Não representa atraso de alarme ou intervalo de aquisição.",
+              "example": "00:00:00",
+              "constraints": ""
+            },
+            {
+              "key": "analogCommandVariation",
+              "label": "Tipo do comando analógico",
+              "description": "int16, int32, float32 ou float64; deve corresponder ao TAG Int16, Int32, Float ou Double. A representação de comando G41 é distinta da representação do estado recebido.",
+              "example": "float32",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Exemplo de leitura analógica",
+          "body": "Exemplo de parâmetros, não pacote completo. A outstation deve publicar ponto analógico 7 nas representações indicadas. Crie TAG Float de leitura; após publicar/ativar o projeto, compare valor, qualidade e origem do tempo com uma medição conhecida. Não invente um valor esperado apenas porque a associação conectou.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"transport\": \"tcp\",\n    \"host\": \"192.0.2.10\",\n    \"port\": \"20000\",\n    \"masterAddress\": \"1\",\n    \"outstationAddress\": \"10\"\n  },\n  \"address\": \"dnp3:analogInput:7\",\n  \"binding\": {\n    \"pointKind\": \"analogInput\",\n    \"index\": \"7\",\n    \"staticVariation\": \"G30V5\",\n    \"eventVariation\": \"G32V7\",\n    \"expectedEventClass\": \"class1\",\n    \"writable\": \"false\"\n  },\n  \"tagDataType\": \"Float\",\n  \"readOnly\": true\n}"
+        },
+        {
+          "heading": "Exemplo de saída binária",
+          "body": "Define o perfil de comando de uma saída real já acordada com a outstation. Não é autorização para testar manobra em equipamento ativo. O Runtime precisa admitir o comando e a sessão precisa da capacidade correspondente. Comando aceito no protocolo e atualização do estado são evidências distintas; confira o retorno publicado pelo ponto.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"transport\": \"tcp\",\n    \"host\": \"192.0.2.10\",\n    \"port\": \"20000\",\n    \"masterAddress\": \"1\",\n    \"outstationAddress\": \"10\"\n  },\n  \"address\": \"dnp3:binaryOutputStatus:1\",\n  \"binding\": {\n    \"pointKind\": \"binaryOutputStatus\",\n    \"index\": \"1\",\n    \"writable\": \"true\",\n    \"commandMode\": \"selectBeforeOperate\",\n    \"binaryTrueOperation\": \"latchOn\",\n    \"binaryFalseOperation\": \"latchOff\",\n    \"tripCloseCode\": \"none\",\n    \"commandCount\": \"1\",\n    \"commandOnTime\": \"00:00:00\",\n    \"commandOffTime\": \"00:00:00\"\n  },\n  \"tagDataType\": \"Boolean\",\n  \"readOnly\": false\n}"
+        },
+        {
+          "heading": "Investigue por sintoma",
+          "body": "Sem associação: confira IP/20000, mestre/outstation e rede a partir do servidor. Associado sem valor: confira família/índice e integridade inicial. Eventos ausentes: confira classe, suporte a espontâneos, consultas e configuração remota. Valor incompatível: compare variação e tipo do TAG, sem trocar classe para corrigir tipo. Um evento sem tempo de origem não ganha precisão de relógio por ser recebido agora. Comando recusado: confira saída, tipo, modo, permissões e estado da associação; não repita automaticamente após desconexão.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "tags.quality",
+        "tags.timestamps",
+        "driver.dnp3.master",
+        "engineering.tabular-workflow"
+      ]
+    },
+    {
+      "id": "drivers.iec104-setup",
+      "category": "drivers",
+      "title": "IEC 104: estações, pontos observados e comandos",
+      "summary": "Configure CA/IOA e tipos sem tratar a observação como uma lista completa de pontos.",
+      "sections": [
+        {
+          "heading": "O que preparar e o que Browse comprova",
+          "body": "O SCADIVO é cliente/mestre IEC 60870-5-104. Tenha a lista de CA/IOA, tipos, relógio e comandos fornecida pela estação remota. Testar conexão comprova o alcance informado pelo resultado; Browse faz uma observação limitada com interrogação geral e tráfego recebido, não uma varredura garantida de todo o mapa. O resultado é parcial; ausência na lista não prova que um ponto inexista.",
+          "fields": null
+        },
+        {
+          "heading": "Campos da fonte e do ponto",
+          "body": "Os tempos desta fonte usam segundos. CA/IOA é a identidade do ponto; Type ID define interpretação e o perfil de comando é separado. Não acrescente Type ID ao endereço para contornar um conflito de configuração.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Endereço da estação remota",
+              "description": "IP ou nome alcançável pelo servidor SCADIVO. O navegador não é quem abre a conexão de protocolo.",
+              "example": "192.0.2.10",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Porta TCP",
+              "description": "Porta do serviço remoto. Padrão 2404; confirme a configuração da estação e o caminho de rede.",
+              "example": "2404",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "commonAddresses",
+              "label": "Estações — Common Addresses",
+              "description": "Lista decimal de endereços CA separados por vírgula, por exemplo 1,2. É o endereço lógico da estação, não IP ou IOA de um ponto. O CA do TAG deve pertencer a esta lista.",
+              "example": "1",
+              "constraints": "CA 0–65535 conforme o perfil remoto."
+            },
+            {
+              "key": "stationTimeZone",
+              "label": "Fuso do relógio da estação",
+              "description": "Identificador de fuso reconhecido pelo servidor para interpretar CP56Time2a. UTC só é correto se a estação usar UTC. Se usar horário local, configure seu fuso real; não use o fuso do navegador por conveniência. Confira o identificador na instalação Windows/Linux.",
+              "example": "UTC",
+              "constraints": ""
+            },
+            {
+              "key": "originatorAddress",
+              "label": "Originador da solicitação",
+              "description": "Identificador de origem no protocolo; padrão 0. Não é usuário de login nem capacidade da Authority. Use o valor previsto no perfil da estação.",
+              "example": "0",
+              "constraints": "0–255."
+            },
+            {
+              "key": "t0Seconds",
+              "label": "t0 — conexão",
+              "description": "Tempo para estabelecer conexão, em segundos. Padrão 30.",
+              "example": "30",
+              "constraints": "0.1–3600 s."
+            },
+            {
+              "key": "t1Seconds",
+              "label": "t1 — supervisão de transmissão",
+              "description": "Espera supervisionada por confirmação, padrão 15 s. Deve ser maior que t2.",
+              "example": "15",
+              "constraints": "0.1–3600 s."
+            },
+            {
+              "key": "t2Seconds",
+              "label": "t2 — confirmação de recepção",
+              "description": "Limite para confirmação retardada, padrão 10 s; obrigatoriamente menor que t1. Não é atraso do alarme.",
+              "example": "10",
+              "constraints": "0.1–3600 s."
+            },
+            {
+              "key": "t3Seconds",
+              "label": "t3 — supervisão ociosa",
+              "description": "Supervisão da sessão ociosa, padrão 20 s. Não é prazo de validade de uma medição.",
+              "example": "20",
+              "constraints": "0.1–86400 s."
+            },
+            {
+              "key": "k",
+              "label": "k — janela de envio",
+              "description": "Quantidade máxima de unidades de informação sem confirmação. Padrão 12; não é número de TAGs. Ajuste com o perfil remoto.",
+              "example": "12",
+              "constraints": "1–32767."
+            },
+            {
+              "key": "w",
+              "label": "w — janela de confirmação",
+              "description": "Limiar de recepções para confirmar, padrão 8; deve ser menor ou igual a k. Não aumenta a quantidade de pontos disponíveis.",
+              "example": "8",
+              "constraints": "1–32767; w ≤ k."
+            },
+            {
+              "key": "ca",
+              "label": "CA do ponto",
+              "description": "Common Address que contém o ponto. Use um dos endereços configurados na fonte; dois pontos com mesmo IOA e CA distintos não são o mesmo ponto.",
+              "example": "1",
+              "constraints": "0–65535."
+            },
+            {
+              "key": "ioa",
+              "label": "IOA do ponto",
+              "description": "Endereço do objeto de informação, conforme a lista da estação. O assistente gera ca=1;ioa=100 para o exemplo; não é número de linha da tabela.",
+              "example": "100",
+              "constraints": "0–16777215."
+            },
+            {
+              "key": "iec104.typeId",
+              "label": "Tipo da informação monitorada",
+              "description": "MSpNa1/MSpTb1 usam Boolean; MDpNa1/MDpTb1 usam Enum; MBoNa1/MBoTb1 usam Int32; MMeNb1/MMeTe1 usam Int16; MMeNa1/MMeTd1 e MMeNc1/MMeTf1 usam Float. A família normalizada não é automaticamente uma grandeza em volts ou bar. Tipos com tempo e sem tempo continuam referindo-se ao mesmo CA/IOA compatível.",
+              "example": "MMeNc1",
+              "constraints": ""
+            },
+            {
+              "key": "iec104.commandTypeId",
+              "label": "Tipo do comando",
+              "description": "Somente para TAG gravável: CScNa1 Boolean, CDcNa1 Enum, CSeNa1/CSeNc1 Float ou CSeNb1 Int16. Deve ser compatível com o tipo monitorado e o perfil remoto; não transforma uma entrada em saída.",
+              "example": "CSeNc1",
+              "constraints": ""
+            },
+            {
+              "key": "iec104.commandMode",
+              "label": "Modo de execução do comando",
+              "description": "direct ou sbo, conforme a estação. O assistente inicia em sbo quando não há opção salva; o descritor de configuração declara direct como padrão. Escolha explicitamente o modo pretendido. sbo seleciona antes de operar; não substitui intertravamento de processo.",
+              "example": "sbo",
+              "constraints": ""
+            },
+            {
+              "key": "iec104.qualifier",
+              "label": "Qualificador de comando",
+              "description": "Valor 0–31, padrão 0, conforme a operação remota. Não é prioridade de alarme ou papel de usuário.",
+              "example": "0",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Primeira leitura de ponto conhecido",
+          "body": "1. Crie/salve a fonte e teste a conexão a partir do servidor.\n2. Use Browse para conferir pontos realmente observados, ou a lista técnica remota para autoria manual. Revise os candidatos antes de aplicar.\n3. Em TAGs, selecione a fonte e abra o assistente IEC 104; informe CA, IOA e tipo monitorado compatível. Para começar, mantenha o TAG somente leitura.\n4. Publique/ative pelo fluxo do projeto e confira valor, qualidade e tempo no Monitor de TAGs. A estação precisa realmente fornecer o ponto do exemplo; os parâmetros não geram uma medição fictícia.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"host\": \"192.0.2.10\",\n    \"port\": \"2404\",\n    \"commonAddresses\": \"1\",\n    \"stationTimeZone\": \"UTC\"\n  },\n  \"address\": \"ca=1;ioa=100\",\n  \"binding\": {\n    \"iec104.typeId\": \"MMeNc1\"\n  },\n  \"tagDataType\": \"Float\",\n  \"readOnly\": true\n}"
+        },
+        {
+          "heading": "Perfil de comando compatível",
+          "body": "Este exemplo muda o mesmo ponto para um setpoint Float por seleção antes de operação. Só use se a estação definir esse CA/IOA para o comando. Permissão, admissão do Runtime, confirmação de protocolo e retorno de processo são verificações distintas. Não habilite escrita só para eliminar uma mensagem de tipo incompatível.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"host\": \"192.0.2.10\",\n    \"port\": \"2404\",\n    \"commonAddresses\": \"1\",\n    \"stationTimeZone\": \"UTC\"\n  },\n  \"address\": \"ca=1;ioa=100\",\n  \"binding\": {\n    \"iec104.typeId\": \"MMeNc1\",\n    \"iec104.commandTypeId\": \"CSeNc1\",\n    \"iec104.commandMode\": \"sbo\",\n    \"iec104.qualifier\": \"0\"\n  },\n  \"tagDataType\": \"Float\",\n  \"readOnly\": false\n}"
+        },
+        {
+          "heading": "Diagnóstico por camada",
+          "body": "Sem sessão: confira IP/2404 e parâmetros APCI, incluindo t2 < t1 e w ≤ k. Sessão sem pontos: confira CA solicitado, conclusão da interrogação geral, janela de observação e lista remota. Valor incompatível: confira IOA e família do Type ID; normalizado, inteiro escalado e Float não são intercambiáveis. Tempo deslocado: confira relógio da estação, fuso configurado e validade do CP56Time2a, sem corrigir o dado alterando apenas o relógio do navegador. Comando recusado/ambíguo: confira tipo, modo, qualificador e estado da sessão; timeout não comprova que a estação deixou de operar.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "tags.quality",
+        "tags.timestamps",
+        "driver.iec60870.5.104"
+      ]
+    },
+    {
+      "id": "drivers.modbus-server-setup",
+      "category": "drivers",
+      "title": "Modbus Server: publicar TAGs por TCP ou RTU",
+      "summary": "Monte um mapa limitado e distinga cliente externo, escrita interna e valor atualizado.",
+      "sections": [
+        {
+          "heading": "Servidor é diferente de mestre",
+          "body": "No perfil Server o SCADIVO atende outro mestre/cliente e publica seus TAGs mapeados em Holding Registers. Ele não consulta um CLP remoto por essa fonte. Para publicar um valor de outro driver, crie o TAG de destino Server e uma rota Gateway compatível; um TAG não passa a ter duas fontes. TCP escuta uma interface/porta; RTU responde pelo dispositivo serial do servidor.",
+          "fields": null
+        },
+        {
+          "heading": "Campos da fonte e do mapa",
+          "body": "Os campos de rede pertencem ao TCP; os de linha, ao RTU. Faixas e vínculos definem o mesmo modelo de mapa. O editor de faixas não converte automaticamente rótulos 40001 de ferramentas externas.",
+          "fields": [
+            {
+              "key": "bindAddress",
+              "label": "Interface local do servidor TCP",
+              "description": "Endereço local de escuta, não IP de um CLP remoto. Padrão 0.0.0.0 atende interfaces IPv4; 127.0.0.1 restringe ao próprio host. No Docker confira também portas publicadas e rede do contêiner. Dentro de um contêiner, 127.0.0.1 é o loopback do contêiner, não o do computador host.",
+              "example": "127.0.0.1",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Porta de escuta TCP",
+              "description": "Padrão 502. O exemplo usa 1502 para uma instalação de teste; o cliente externo deve usar a mesma porta acessível. Outra fonte/processo não pode ocupar o mesmo endpoint.",
+              "example": "1502",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "unitId",
+              "label": "Unit ID servido",
+              "description": "Identificador aceito pelo servidor, padrão 1. TCP aceita 0–247; RTU usa 1–247. O Unit ID do vínculo deve coincidir com a fonte. Não é endereço IP.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "holdingRanges",
+              "label": "Faixas de Holding Registers",
+              "description": "Use o editor estruturado de início/fim. Intervalos inclusivos, base zero, sem sobreposição: v1:0-9 representa dez registradores. Todos os registradores de um valor devem caber na mesma faixa; ela não cria TAGs automaticamente.",
+              "example": "v1:0-9",
+              "constraints": "Até 32 faixas e 16384 registradores no total; endereços 0–65535."
+            },
+            {
+              "key": "maxClients",
+              "label": "Clientes TCP simultâneos",
+              "description": "Somente TCP: máximo de conexões, padrão 16. Não é quantidade de Views de licença ou autorização de usuário.",
+              "example": "16",
+              "constraints": "1–128."
+            },
+            {
+              "key": "clientIdleTimeoutMilliseconds",
+              "label": "Tempo de cliente TCP ocioso",
+              "description": "Somente TCP: espera máxima pela próxima requisição, padrão 30000 ms. Não é taxa de atualização de um TAG.",
+              "example": "30000",
+              "constraints": "1000–600000 ms."
+            },
+            {
+              "key": "serialPort",
+              "label": "Porta RTU no servidor",
+              "description": "Somente RTU: dispositivo acessível ao serviço no Windows/Linux/contêiner, como COM4 ou /dev/ttyUSB0. A porta fica exclusiva enquanto o servidor estiver ativo; não compartilhe com um mestre que controle a mesma porta física.",
+              "example": "/dev/ttyUSB0",
+              "constraints": ""
+            },
+            {
+              "key": "baudRate",
+              "label": "Velocidade da linha RTU",
+              "description": "Bits por segundo iguais aos do mestre e demais dispositivos. Padrão 9600; não é polling do servidor.",
+              "example": "9600",
+              "constraints": "300–4000000."
+            },
+            {
+              "key": "dataBits",
+              "label": "Bits de dados RTU",
+              "description": "Padrão 8; deve corresponder à linha real. O intervalo do campo não garante que toda combinação seja aceita pelo adaptador/host.",
+              "example": "8",
+              "constraints": "5–8; confira a instalação."
+            },
+            {
+              "key": "parity",
+              "label": "Paridade RTU",
+              "description": "None, Odd, Even, Mark ou Space; padrão None. Deve coincidir com o mestre e ser suportada pela porta.",
+              "example": "None",
+              "constraints": ""
+            },
+            {
+              "key": "stopBits",
+              "label": "Bits de parada RTU",
+              "description": "One, OnePointFive ou Two; padrão One. Use a combinação válida para a linha e o host, não o número de registradores.",
+              "example": "One",
+              "constraints": ""
+            },
+            {
+              "key": "frameTimeoutMilliseconds",
+              "label": "Tempo para completar quadro RTU",
+              "description": "Padrão 1000 ms para receber o restante do quadro após início do tráfego. Não é intervalo de medição.",
+              "example": "1000",
+              "constraints": "50–10000 ms."
+            },
+            {
+              "key": "address",
+              "label": "Endereço do TAG no mapa",
+              "description": "Neste servidor use holding:N, base zero. holding:0 costuma ser chamado 40001 por ferramentas que usam rótulo de referência; confirme a convenção do cliente. Coils/Input Registers não fazem parte deste perfil.",
+              "example": "holding:0",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.unitId",
+              "label": "Unit ID no vínculo",
+              "description": "Opcional: sem valor usa a fonte. Em Server, uma substituição precisa ser igual ao Unit ID servido; não cria várias estações no mesmo mapa.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.valueType",
+              "label": "Tipo nos registradores",
+              "description": "Boolean/Int16/UInt16 usam um registrador; Int32/UInt32/Float32 usam dois; Int64/UInt64/Float64 usam quatro. Tipo físico, tipo do TAG e largura precisam ser compatíveis. O exemplo usa Int16 físico e TAG Int16 sem conversão.",
+              "example": "Int16",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.wordOrder",
+              "label": "Ordem de palavras",
+              "description": "HighWordFirst é padrão; LowWordFirst inverte palavras de valores com múltiplos registradores. Use a mesma ordem no cliente. Em Int16 de uma palavra não há duas palavras para inverter.",
+              "example": "HighWordFirst",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.scale",
+              "label": "Multiplicador do valor",
+              "description": "Padrão 1: valor de Engenharia = bruto × scale + offset. Deve ser finito e diferente de zero. Na publicação para registradores o adaptador aplica a conversão inversa; não aplique escala duplicada no cliente.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.offset",
+              "label": "Deslocamento do valor",
+              "description": "Parcela somada após multiplicar, padrão 0. Não é offset do endereço e não altera holding:0.",
+              "example": "0",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.server.clientAccess",
+              "label": "Escrita por cliente externo",
+              "description": "ReadOnly é o padrão; ReadWrite habilita a escrita externa nesse TAG mapeado. É um controle separado de ReadOnly para escritas internas do SCADIVO. Modbus não pede login SCADIVO a cada requisição; planeje acesso de rede e mapa autorizado antes de abrir ReadWrite.",
+              "example": "ReadOnly",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Publicar e conferir uma leitura",
+          "body": "1. Crie a fonte Server TCP ou RTU e configure a interface/linha, Unit ID e faixas.\n2. Testar conexão TCP tenta reservar temporariamente a interface/porta local e a libera; RTU testa abertura/reserva exclusiva da linha e a libera. Nenhum desses testes comprova leitura por um cliente remoto nem deixa o servidor ativo.\n3. Em TAGs, selecione a fonte Server e o assistente Modbus. Escolha Holding Register, endereço base zero e tipo; mantenha o acesso externo ReadOnly inicialmente. Permita escrita interna no TAG se ele receber dados por Gateway ou comandos internos autorizados.\n4. Publique/ative. Alimente um valor conhecido no TAG e confira sua atualização no Monitor. No cliente externo leia o Unit ID e endereço correspondentes; confirme tipo e ordem.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"bindAddress\": \"127.0.0.1\",\n    \"port\": \"1502\",\n    \"unitId\": \"1\",\n    \"holdingRanges\": \"v1:0-9\"\n  },\n  \"address\": \"holding:0\",\n  \"metadata\": {\n    \"modbus.valueType\": \"Int16\",\n    \"modbus.wordOrder\": \"HighWordFirst\",\n    \"modbus.scale\": \"1\",\n    \"modbus.offset\": \"0\",\n    \"modbus.server.clientAccess\": \"ReadOnly\"\n  },\n  \"tagDataType\": \"Int16\",\n  \"readOnly\": false,\n  \"internalValue\": 123\n}"
+        },
+        {
+          "heading": "O que esperar do exemplo e de um reinício",
+          "body": "Depois de uma escrita interna autorizada de 123, o cliente deve ler 123 em holding:0, Unit ID 1, porta 1502. O valor não aparece automaticamente por constar no exemplo. O mapa em memória nasce zerado: uma leitura zero não comprova que o TAG recebeu uma amostra atual, e os registradores não carregam automaticamente a qualidade/tempo do TAG. Após reinício confira a alimentação do mapa; ele não é o Historian nem garantia de memória retentiva.",
+          "fields": null
+        },
+        {
+          "heading": "Escrita externa e diagnóstico",
+          "body": "Faixa permitida não significa escrita livre: cada registrador escrito deve pertencer a TAG mapeado e ReadWrite externo. O servidor recusa escrever parte de um valor de múltiplos registradores, atravessar lacunas não mapeadas, sobrepor TAGs ou ultrapassar faixas. Leituras FC03 aceitam 1–125 registradores; FC06 escreve um registrador e FC16 escreve 1–123 registradores; uma operação deve respeitar cada valor completo. Sem escuta: confira porta ocupada, interface, firewall e Docker. Leitura errada: confira Unit ID, base zero, tipo/ordem e valor realmente alimentado. Escrita interna recusada: confira ReadOnly/permissão; escrita externa recusada: confira clientAccess e mapa completo.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "drivers.modbus-setup",
+        "gateway.configure-test",
+        "tags.writeability",
+        "driver.modbus.tcp.server",
+        "driver.modbus.rtu.server"
+      ]
     }
   ],
   "en": [
@@ -9855,6 +10555,706 @@
         "driver.panasonic.mewtocol.tcp",
         "driver.panasonic.mewtocol.serial"
       ]
+    },
+    {
+      "id": "drivers.dnp3-setup",
+      "category": "drivers",
+      "title": "DNP3: association, events and commands",
+      "summary": "Configure the outstation and distinguish identity, scanning, representation and confirmation.",
+      "sections": [
+        {
+          "heading": "Prepare the association",
+          "body": "SCADIVO acts as a DNP3 TCP master/client. Obtain IP/port, link addresses, point list, variations, classes and permitted operations from the outstation owner. Static points can arrive by scan and events can arrive unsolicited. This descriptor advertises neither Engineering Browse nor Test connection; inspect the association and a known point in Runtime/Diagnostics after activation. A missing button does not mean the driver is absent.",
+          "fields": null
+        },
+        {
+          "heading": "Data Source fields",
+          "body": "DNP3 times use hh:mm:ss durations, not other drivers’ milliseconds. Event classes are not alarm priorities. Preserve the remote association profile when adjusting advanced options.",
+          "fields": [
+            {
+              "key": "transport",
+              "label": "DNP3 transport",
+              "description": "Select tcp, the transport implemented by this profile. Entering a serial port as host does not turn it into serial DNP3.",
+              "example": "tcp",
+              "constraints": ""
+            },
+            {
+              "key": "host",
+              "label": "Remote station address",
+              "description": "IP or name reachable from the SCADIVO server. The browser does not open the protocol connection.",
+              "example": "192.0.2.10",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "TCP port",
+              "description": "Remote service port. Default 20000; check the station configuration and network path.",
+              "example": "20000",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "masterAddress",
+              "label": "DNP3 master address",
+              "description": "Local link-layer address the outstation must recognize as master. This is neither an IP, TCP port nor TAG index.",
+              "example": "1",
+              "constraints": "0–65519; match the remote association."
+            },
+            {
+              "key": "outstationAddress",
+              "label": "DNP3 outstation address",
+              "description": "Remote station link-layer address. Even with correct IP/port, an incorrect DNP3 address prevents the expected association.",
+              "example": "10",
+              "constraints": "0–65519."
+            },
+            {
+              "key": "connectTimeout",
+              "label": "Connection timeout",
+              "description": "Maximum time to establish TCP; default 5 s. This is not the read interval.",
+              "example": "00:00:05",
+              "constraints": "Positive duration in hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "responseTimeout",
+              "label": "DNP3 response timeout",
+              "description": "Protocol response wait, default 5 s. Increasing it does not fix an incorrect link address or point index.",
+              "example": "00:00:05",
+              "constraints": "Positive duration in hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "reconnectMinDelay",
+              "label": "Minimum reconnect delay",
+              "description": "Initial wait after disconnect, default 1 s. Must not exceed the maximum.",
+              "example": "00:00:01",
+              "constraints": "Positive duration in hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "reconnectMaxDelay",
+              "label": "Maximum reconnect delay",
+              "description": "Upper bound for progressive delay, default 30 s. Old commands are not retained for replay after reconnect.",
+              "example": "00:00:30",
+              "constraints": "Positive duration in hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "keepAliveTimeout",
+              "label": "Link supervision",
+              "description": "Default 1 minute for link supervision. A live connection does not prove a current point value. Zero is invalid; clearing a field should not automatically be interpreted as disabling the feature.",
+              "example": "00:01:00",
+              "constraints": "Positive duration in hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "integrityPollInterval",
+              "label": "Periodic integrity scan",
+              "description": "Default 15 minutes. Rescans data to resynchronize the station image; this is neither Historian retention nor every event’s frequency.",
+              "example": "00:15:00",
+              "constraints": "Positive duration in hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "class1PollInterval",
+              "label": "Periodic Class 1 scan",
+              "description": "Optional, with no default interval: scans events of this class alongside unsolicited traffic. The class comes from outstation configuration, not SCADIVO alarm priority.",
+              "example": "00:01:00",
+              "constraints": "Positive duration in hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "class2PollInterval",
+              "label": "Periodic Class 2 scan",
+              "description": "Optional, with no default interval: scans events of this class alongside unsolicited traffic. The class comes from outstation configuration, not SCADIVO alarm priority.",
+              "example": "00:01:00",
+              "constraints": "Positive duration in hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "class3PollInterval",
+              "label": "Periodic Class 3 scan",
+              "description": "Optional, with no default interval: scans events of this class alongside unsolicited traffic. The class comes from outstation configuration, not SCADIVO alarm priority.",
+              "example": "00:01:00",
+              "constraints": "Positive duration in hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "startupIntegrityClass0",
+              "label": "Startup integrity — Class 0",
+              "description": "Includes this class in startup resynchronization; default true. Class 0 is static data; 1–3 are event classes. At least one startup class must remain enabled.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "startupIntegrityClass1",
+              "label": "Startup integrity — Class 1",
+              "description": "Includes this class in startup resynchronization; default true. Class 0 is static data; 1–3 are event classes. At least one startup class must remain enabled.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "startupIntegrityClass2",
+              "label": "Startup integrity — Class 2",
+              "description": "Includes this class in startup resynchronization; default true. Class 0 is static data; 1–3 are event classes. At least one startup class must remain enabled.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "startupIntegrityClass3",
+              "label": "Startup integrity — Class 3",
+              "description": "Includes this class in startup resynchronization; default true. Class 0 is static data; 1–3 are event classes. At least one startup class must remain enabled.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "disableUnsolicitedClass1OnStartup",
+              "label": "Disable unsolicited Class 1 at startup",
+              "description": "Default true: requests disabling unsolicited traffic while the association is prepared. It does not delete outstation events or change their class.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "enableUnsolicitedClass1AfterIntegrity",
+              "label": "Enable unsolicited Class 1 after integrity",
+              "description": "Default true: requests re-enabling after startup integrity. Requires station support/configuration; selecting it does not cause a point to generate events.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "eventScanClass1OnEventsAvailable",
+              "label": "Scan available Class 1 events",
+              "description": "Default true: scans the class when events are reported available. It neither changes sensor sampling nor replaces the remote event queue.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "disableUnsolicitedClass2OnStartup",
+              "label": "Disable unsolicited Class 2 at startup",
+              "description": "Default true: requests disabling unsolicited traffic while the association is prepared. It does not delete outstation events or change their class.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "enableUnsolicitedClass2AfterIntegrity",
+              "label": "Enable unsolicited Class 2 after integrity",
+              "description": "Default true: requests re-enabling after startup integrity. Requires station support/configuration; selecting it does not cause a point to generate events.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "eventScanClass2OnEventsAvailable",
+              "label": "Scan available Class 2 events",
+              "description": "Default true: scans the class when events are reported available. It neither changes sensor sampling nor replaces the remote event queue.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "disableUnsolicitedClass3OnStartup",
+              "label": "Disable unsolicited Class 3 at startup",
+              "description": "Default true: requests disabling unsolicited traffic while the association is prepared. It does not delete outstation events or change their class.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "enableUnsolicitedClass3AfterIntegrity",
+              "label": "Enable unsolicited Class 3 after integrity",
+              "description": "Default true: requests re-enabling after startup integrity. Requires station support/configuration; selecting it does not cause a point to generate events.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "eventScanClass3OnEventsAvailable",
+              "label": "Scan available Class 3 events",
+              "description": "Default true: scans the class when events are reported available. It neither changes sensor sampling nor replaces the remote event queue.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "integrityOnEventBufferOverflow",
+              "label": "Resynchronize after event-buffer overflow",
+              "description": "Default true: requests integrity when the outstation reports event-buffer overflow. It recovers the available current image, not events already lost.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "timeSyncMode",
+              "label": "Remote clock synchronization",
+              "description": "disabled is the default. lan or nonLan select the outstation-compatible DNP3 method. This can adjust the remote clock; coordinate with the station owner. It neither sets a time zone nor validates sensors automatically.",
+              "example": "disabled",
+              "constraints": ""
+            },
+            {
+              "key": "maxQueuedUserRequests",
+              "label": "Pending request limit",
+              "description": "Default 16: bounds user requests/commands queued for the association. This is not a user-license limit and does not allow replaying old commands after reconnect.",
+              "example": "16",
+              "constraints": "1–1024."
+            }
+          ]
+        },
+        {
+          "heading": "Point and command fields",
+          "body": "In TAGs select the DNP3 source and use the family/index assistant. Check TAG type and apply the binding; advanced fields describe the point contract and may require the project Engineering definition/files because the visible assistant does not expose every advanced profile. Address, family and index must agree.",
+          "fields": [
+            {
+              "key": "address",
+              "label": "DNP3 point address",
+              "description": "Format dnp3:kind:index, for example dnp3:analogInput:7. The source identifies the outstation; do not repeat IP or link address in the point.",
+              "example": "dnp3:analogInput:7",
+              "constraints": ""
+            },
+            {
+              "key": "pointKind",
+              "label": "Point family",
+              "description": "binaryInput/binaryOutputStatus use Boolean; doubleBitBinaryInput uses Enum; analogInput/analogOutputStatus use a compatible numeric type; counter/frozenCounter use Int32 or Int64. Family and index identify the point, not the message group number.",
+              "example": "analogInput",
+              "constraints": ""
+            },
+            {
+              "key": "index",
+              "label": "Index within the family",
+              "description": "Outstation index from 0 to 65535; gaps are allowed. analogInput index 7 is not binaryInput index 7.",
+              "example": "7",
+              "constraints": ""
+            },
+            {
+              "key": "staticVariation",
+              "label": "Static representation",
+              "description": "Optional GxVy format. Must match family and TAG type: G30V5 is analog Float; G30V6 is Double. Variation 0 requests the device default where supported; it does not guarantee an arbitrary type.",
+              "example": "G30V5",
+              "constraints": ""
+            },
+            {
+              "key": "eventVariation",
+              "label": "Event representation",
+              "description": "Optional. G32V7 is a timestamped analog Float example. Static and event representations must agree with family/type. Variation does not change point identity.",
+              "example": "G32V7",
+              "constraints": ""
+            },
+            {
+              "key": "expectedEventClass",
+              "label": "Expected event class",
+              "description": "Optional class1, class2 or class3 for validation/diagnostics. It neither reclassifies the remote point nor represents SCADIVO alarm priority.",
+              "example": "class1",
+              "constraints": ""
+            },
+            {
+              "key": "writable",
+              "label": "Enable commands for this point",
+              "description": "Default false. Only binaryOutputStatus/analogOutputStatus accept commands. ReadOnly, permission and command binding still apply; setting true does not turn an input into an output.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "commandMode",
+              "label": "Select before operate",
+              "description": "selectBeforeOperate is the default; use directOperate only when the station and procedure permit. Direct Operate No Response is not exposed. Protocol acknowledgement does not prove physical actuation.",
+              "example": "selectBeforeOperate",
+              "constraints": ""
+            },
+            {
+              "key": "binaryTrueOperation",
+              "label": "Operation for true",
+              "description": "Binary command: latchOn, latchOff, pulseOn or pulseOff. Default latchOn. true is the user-requested value; actual operation depends on this mapping.",
+              "example": "latchOn",
+              "constraints": ""
+            },
+            {
+              "key": "binaryFalseOperation",
+              "label": "Operation for false",
+              "description": "Same operation set; default latchOff. Check remote logic before reversing meanings, especially open/close or start/stop.",
+              "example": "latchOff",
+              "constraints": ""
+            },
+            {
+              "key": "tripCloseCode",
+              "label": "Trip/Close indication",
+              "description": "none, trip or close to match equipment. Default none. This qualifier is neither an interlock nor additional switching authorization.",
+              "example": "none",
+              "constraints": ""
+            },
+            {
+              "key": "commandCount",
+              "label": "Operation count",
+              "description": "Default 1; count carried in the binary command. This is not the SCADIVO retry count. Agree interpretation with the outstation.",
+              "example": "1",
+              "constraints": "1–255."
+            },
+            {
+              "key": "commandOnTime",
+              "label": "Command on-time",
+              "description": "Binary-command duration in hh:mm:ss, default 00:00:00. For pulses use the equipment-specified duration; this is not response timeout.",
+              "example": "00:00:00",
+              "constraints": ""
+            },
+            {
+              "key": "commandOffTime",
+              "label": "Command off-time",
+              "description": "Complementary binary-command duration, default 00:00:00. This is neither alarm delay nor acquisition interval.",
+              "example": "00:00:00",
+              "constraints": ""
+            },
+            {
+              "key": "analogCommandVariation",
+              "label": "Analog command type",
+              "description": "int16, int32, float32 or float64 must match TAG Int16, Int32, Float or Double. Command representation G41 differs from received status representation.",
+              "example": "float32",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Analog reading example",
+          "body": "Parameter example, not a complete package. The outstation must publish analog point 7 in the stated representations. Create a read-only Float TAG; after project publication/activation compare value, quality and timestamp origin with a known measurement. Do not invent an expected value just because the association connected.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"transport\": \"tcp\",\n    \"host\": \"192.0.2.10\",\n    \"port\": \"20000\",\n    \"masterAddress\": \"1\",\n    \"outstationAddress\": \"10\"\n  },\n  \"address\": \"dnp3:analogInput:7\",\n  \"binding\": {\n    \"pointKind\": \"analogInput\",\n    \"index\": \"7\",\n    \"staticVariation\": \"G30V5\",\n    \"eventVariation\": \"G32V7\",\n    \"expectedEventClass\": \"class1\",\n    \"writable\": \"false\"\n  },\n  \"tagDataType\": \"Float\",\n  \"readOnly\": true\n}"
+        },
+        {
+          "heading": "Binary output example",
+          "body": "Defines the command profile of a real output agreed with the outstation. It is not authorization to test switching on active equipment. Runtime must admit the command and the session needs the corresponding capability. Protocol command acceptance and status update are distinct evidence; check the point’s reported feedback.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"transport\": \"tcp\",\n    \"host\": \"192.0.2.10\",\n    \"port\": \"20000\",\n    \"masterAddress\": \"1\",\n    \"outstationAddress\": \"10\"\n  },\n  \"address\": \"dnp3:binaryOutputStatus:1\",\n  \"binding\": {\n    \"pointKind\": \"binaryOutputStatus\",\n    \"index\": \"1\",\n    \"writable\": \"true\",\n    \"commandMode\": \"selectBeforeOperate\",\n    \"binaryTrueOperation\": \"latchOn\",\n    \"binaryFalseOperation\": \"latchOff\",\n    \"tripCloseCode\": \"none\",\n    \"commandCount\": \"1\",\n    \"commandOnTime\": \"00:00:00\",\n    \"commandOffTime\": \"00:00:00\"\n  },\n  \"tagDataType\": \"Boolean\",\n  \"readOnly\": false\n}"
+        },
+        {
+          "heading": "Investigate by symptom",
+          "body": "No association: check IP/20000, master/outstation and network from the server. Associated without value: check family/index and startup integrity. Missing events: check class, unsolicited support, scans and remote configuration. Incompatible value: compare variation and TAG type; changing class does not fix type. An event without source time does not gain clock precision from being received now. Rejected command: check output, type, mode, permissions and association state; do not replay automatically after disconnect.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "tags.quality",
+        "tags.timestamps",
+        "driver.dnp3.master",
+        "engineering.tabular-workflow"
+      ]
+    },
+    {
+      "id": "drivers.iec104-setup",
+      "category": "drivers",
+      "title": "IEC 104: stations, observed points and commands",
+      "summary": "Configure CA/IOA and types without treating observation as a complete point list.",
+      "sections": [
+        {
+          "heading": "Preparation and what Browse proves",
+          "body": "SCADIVO is an IEC 60870-5-104 client/master. Obtain CA/IOA, types, clock and command lists from the remote station. Test connection proves only the scope stated in its result; Browse performs bounded observation of general interrogation and received traffic, not a guaranteed sweep of the full map. Results are partial; absence does not prove a point does not exist.",
+          "fields": null
+        },
+        {
+          "heading": "Source and point fields",
+          "body": "Source timers use seconds. CA/IOA is point identity; Type ID determines interpretation and command profile is separate. Do not add Type ID to the address to bypass a configuration conflict.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Remote station address",
+              "description": "IP or name reachable from the SCADIVO server. The browser does not open the protocol connection.",
+              "example": "192.0.2.10",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "TCP port",
+              "description": "Remote service port. Default 2404; check the station configuration and network path.",
+              "example": "2404",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "commonAddresses",
+              "label": "Stations — Common Addresses",
+              "description": "Comma-separated decimal CA list, for example 1,2. This is the logical station address, not IP or a point IOA. A TAG’s CA must belong to this list.",
+              "example": "1",
+              "constraints": "CA 0–65535 matching the remote profile."
+            },
+            {
+              "key": "stationTimeZone",
+              "label": "Station clock time zone",
+              "description": "Time-zone identifier recognized by the server for CP56Time2a interpretation. UTC is correct only when the station uses UTC. For local time configure the actual station zone; do not use the browser zone for convenience. Verify the identifier on the Windows/Linux installation.",
+              "example": "UTC",
+              "constraints": ""
+            },
+            {
+              "key": "originatorAddress",
+              "label": "Request originator",
+              "description": "Protocol originator identifier; default 0. This is neither a login user nor an Authority capability. Match the station profile.",
+              "example": "0",
+              "constraints": "0–255."
+            },
+            {
+              "key": "t0Seconds",
+              "label": "t0 — connection",
+              "description": "Connection-establishment timeout in seconds. Default 30.",
+              "example": "30",
+              "constraints": "0.1–3600 s."
+            },
+            {
+              "key": "t1Seconds",
+              "label": "t1 — transmission supervision",
+              "description": "Supervised acknowledgement wait, default 15 s. Must exceed t2.",
+              "example": "15",
+              "constraints": "0.1–3600 s."
+            },
+            {
+              "key": "t2Seconds",
+              "label": "t2 — receive acknowledgement",
+              "description": "Delayed acknowledgement limit, default 10 s; must be lower than t1. This is not alarm delay.",
+              "example": "10",
+              "constraints": "0.1–3600 s."
+            },
+            {
+              "key": "t3Seconds",
+              "label": "t3 — idle supervision",
+              "description": "Idle-session supervision, default 20 s. This is not measurement expiry.",
+              "example": "20",
+              "constraints": "0.1–86400 s."
+            },
+            {
+              "key": "k",
+              "label": "k — send window",
+              "description": "Maximum unacknowledged information units. Default 12; not a TAG count. Match the remote profile.",
+              "example": "12",
+              "constraints": "1–32767."
+            },
+            {
+              "key": "w",
+              "label": "w — acknowledgement window",
+              "description": "Reception acknowledgement threshold, default 8; must not exceed k. It does not increase the available point count.",
+              "example": "8",
+              "constraints": "1–32767; w ≤ k."
+            },
+            {
+              "key": "ca",
+              "label": "Point CA",
+              "description": "Common Address containing the point. Use an address configured in the source; points with the same IOA and different CA are distinct.",
+              "example": "1",
+              "constraints": "0–65535."
+            },
+            {
+              "key": "ioa",
+              "label": "Point IOA",
+              "description": "Information Object Address from the station point list. The assistant generates ca=1;ioa=100 for the example; this is not the table row number.",
+              "example": "100",
+              "constraints": "0–16777215."
+            },
+            {
+              "key": "iec104.typeId",
+              "label": "Monitored information type",
+              "description": "MSpNa1/MSpTb1 use Boolean; MDpNa1/MDpTb1 use Enum; MBoNa1/MBoTb1 use Int32; MMeNb1/MMeTe1 use Int16; MMeNa1/MMeTd1 and MMeNc1/MMeTf1 use Float. A normalized family is not automatically volts or bar. Compatible timestamped/untimestamped types still refer to the same CA/IOA.",
+              "example": "MMeNc1",
+              "constraints": ""
+            },
+            {
+              "key": "iec104.commandTypeId",
+              "label": "Command type",
+              "description": "For writable TAGs only: CScNa1 Boolean, CDcNa1 Enum, CSeNa1/CSeNc1 Float or CSeNb1 Int16. Must match the monitored type and remote profile; it does not turn an input into an output.",
+              "example": "CSeNc1",
+              "constraints": ""
+            },
+            {
+              "key": "iec104.commandMode",
+              "label": "Command execution mode",
+              "description": "direct or sbo to match the station. The assistant starts with sbo when no option is saved; the configuration descriptor declares direct as default. Choose the intended mode explicitly. sbo selects before operating; it does not replace process interlocks.",
+              "example": "sbo",
+              "constraints": ""
+            },
+            {
+              "key": "iec104.qualifier",
+              "label": "Command qualifier",
+              "description": "Value 0–31, default 0, matching remote operation. This is neither alarm priority nor a user role.",
+              "example": "0",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "First reading of a known point",
+          "body": "1. Create/save the source and test the server-side connection.\n2. Use Browse to check observed points, or the station point list for manual authoring. Review candidates before applying.\n3. In TAGs select the source and open the IEC 104 assistant; enter CA, IOA and a compatible monitored type. Start with a read-only TAG.\n4. Publish/activate through the project workflow and inspect value, quality and time in TAG Monitor. The station must actually supply the example point; parameters do not generate a fictitious measurement.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"host\": \"192.0.2.10\",\n    \"port\": \"2404\",\n    \"commonAddresses\": \"1\",\n    \"stationTimeZone\": \"UTC\"\n  },\n  \"address\": \"ca=1;ioa=100\",\n  \"binding\": {\n    \"iec104.typeId\": \"MMeNc1\"\n  },\n  \"tagDataType\": \"Float\",\n  \"readOnly\": true\n}"
+        },
+        {
+          "heading": "Compatible command profile",
+          "body": "This example configures the same point as a Float setpoint using select before operate. Use it only if the station defines that CA/IOA for the command. Permission, Runtime admission, protocol confirmation and process feedback are distinct checks. Do not enable writing just to remove an incompatible-type message.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"host\": \"192.0.2.10\",\n    \"port\": \"2404\",\n    \"commonAddresses\": \"1\",\n    \"stationTimeZone\": \"UTC\"\n  },\n  \"address\": \"ca=1;ioa=100\",\n  \"binding\": {\n    \"iec104.typeId\": \"MMeNc1\",\n    \"iec104.commandTypeId\": \"CSeNc1\",\n    \"iec104.commandMode\": \"sbo\",\n    \"iec104.qualifier\": \"0\"\n  },\n  \"tagDataType\": \"Float\",\n  \"readOnly\": false\n}"
+        },
+        {
+          "heading": "Layered diagnosis",
+          "body": "No session: check IP/2404 and APCI parameters, including t2 < t1 and w ≤ k. Session without points: check requested CA, general-interrogation completion, observation window and station point list. Incompatible value: check IOA and Type ID family; normalized, scaled integer and Float are not interchangeable. Shifted time: check station clock, configured zone and CP56Time2a validity; changing only the browser clock does not correct data. Rejected/ambiguous command: check type, mode, qualifier and session state; timeout does not prove the station did not operate.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "tags.quality",
+        "tags.timestamps",
+        "driver.iec60870.5.104"
+      ]
+    },
+    {
+      "id": "drivers.modbus-server-setup",
+      "category": "drivers",
+      "title": "Modbus Server: publish TAGs over TCP or RTU",
+      "summary": "Build a bounded map and distinguish external clients, internal writes and current values.",
+      "sections": [
+        {
+          "heading": "Server differs from master",
+          "body": "In Server mode SCADIVO serves another master/client and publishes mapped TAGs in Holding Registers. This source does not poll a remote PLC. To publish a value from another driver create a destination Server TAG and a compatible Gateway route; a TAG does not acquire two sources. TCP listens on an interface/port; RTU responds through the server’s serial device.",
+          "fields": null
+        },
+        {
+          "heading": "Source and map fields",
+          "body": "Network fields belong to TCP; line fields belong to RTU. Ranges and bindings define the same map model. The range editor does not automatically convert other tools’ 40001 reference labels.",
+          "fields": [
+            {
+              "key": "bindAddress",
+              "label": "TCP server local interface",
+              "description": "Local listening address, not a remote PLC IP. Default 0.0.0.0 listens on IPv4 interfaces; 127.0.0.1 restricts to the host. In Docker also check published ports and container networking. Inside a container, 127.0.0.1 is the container loopback, not the host computer loopback.",
+              "example": "127.0.0.1",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "TCP listening port",
+              "description": "Default 502. The example uses 1502 for a test installation; the external client must use the same reachable port. Another source/process cannot occupy the same endpoint.",
+              "example": "1502",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "unitId",
+              "label": "Served Unit ID",
+              "description": "Identifier accepted by the server, default 1. TCP accepts 0–247; RTU uses 1–247. Binding Unit ID must match the source. This is not an IP address.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "holdingRanges",
+              "label": "Holding Register ranges",
+              "description": "Use the structured start/end editor. Inclusive zero-based ranges without overlap: v1:0-9 represents ten registers. Every register of a value must fit in one range; a range does not create TAGs automatically.",
+              "example": "v1:0-9",
+              "constraints": "Up to 32 ranges and 16384 total registers; addresses 0–65535."
+            },
+            {
+              "key": "maxClients",
+              "label": "Concurrent TCP clients",
+              "description": "TCP only: maximum connections, default 16. This is neither licensed View count nor user authorization.",
+              "example": "16",
+              "constraints": "1–128."
+            },
+            {
+              "key": "clientIdleTimeoutMilliseconds",
+              "label": "TCP client idle timeout",
+              "description": "TCP only: maximum wait for the next request, default 30000 ms. This is not TAG update rate.",
+              "example": "30000",
+              "constraints": "1000–600000 ms."
+            },
+            {
+              "key": "serialPort",
+              "label": "Server RTU port",
+              "description": "RTU only: device accessible to the service on Windows/Linux/container, such as COM4 or /dev/ttyUSB0. It is exclusive while the server is active; do not share it with a master controlling the same physical port.",
+              "example": "/dev/ttyUSB0",
+              "constraints": ""
+            },
+            {
+              "key": "baudRate",
+              "label": "RTU line speed",
+              "description": "Bits per second matching the master and other devices. Default 9600; not server polling.",
+              "example": "9600",
+              "constraints": "300–4000000."
+            },
+            {
+              "key": "dataBits",
+              "label": "RTU data bits",
+              "description": "Default 8; match the actual line. The field range does not guarantee every combination is accepted by the adapter/host.",
+              "example": "8",
+              "constraints": "5–8; check the installation."
+            },
+            {
+              "key": "parity",
+              "label": "RTU parity",
+              "description": "None, Odd, Even, Mark or Space; default None. Must match the master and port support.",
+              "example": "None",
+              "constraints": ""
+            },
+            {
+              "key": "stopBits",
+              "label": "RTU stop bits",
+              "description": "One, OnePointFive or Two; default One. Use a combination valid for the line and host, not the register count.",
+              "example": "One",
+              "constraints": ""
+            },
+            {
+              "key": "frameTimeoutMilliseconds",
+              "label": "RTU frame completion timeout",
+              "description": "Default 1000 ms to receive the rest of a frame after traffic starts. This is not measurement interval.",
+              "example": "1000",
+              "constraints": "50–10000 ms."
+            },
+            {
+              "key": "address",
+              "label": "TAG address in the map",
+              "description": "Use zero-based holding:N in this server. Tools using reference labels often call holding:0 40001; verify the client convention. Coils/Input Registers are outside this profile.",
+              "example": "holding:0",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.unitId",
+              "label": "Binding Unit ID",
+              "description": "Optional: uses the source when omitted. In Server mode an override must equal the served Unit ID; it does not create multiple stations in one map.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.valueType",
+              "label": "Register value type",
+              "description": "Boolean/Int16/UInt16 use one register; Int32/UInt32/Float32 use two; Int64/UInt64/Float64 use four. Physical type, TAG type and width must be compatible. The example uses physical Int16 and an Int16 TAG without conversion.",
+              "example": "Int16",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.wordOrder",
+              "label": "Word order",
+              "description": "HighWordFirst is default; LowWordFirst reverses words of multiregister values. Match the client. A one-word Int16 has no two words to reverse.",
+              "example": "HighWordFirst",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.scale",
+              "label": "Value multiplier",
+              "description": "Default 1: engineering value = raw × scale + offset. Must be finite and nonzero. Publishing to registers uses the inverse conversion; do not apply the same scale again in the client.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.offset",
+              "label": "Value offset",
+              "description": "Amount added after multiplication, default 0. This is not an address offset and does not change holding:0.",
+              "example": "0",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.server.clientAccess",
+              "label": "External client writes",
+              "description": "ReadOnly is default; ReadWrite enables external writes to this mapped TAG. It is separate from ReadOnly governing internal SCADIVO writes. Modbus does not request a SCADIVO login on each request; plan network access and the permitted map before enabling ReadWrite.",
+              "example": "ReadOnly",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Publish and verify a read",
+          "body": "1. Create the TCP or RTU Server source and configure interface/line, Unit ID and ranges.\n2. TCP Test connection temporarily reserves and releases the local interface/port; RTU tests opening/exclusive line reservation and releases it. Neither proves a remote client read nor leaves the server active.\n3. In TAGs select the Server source and Modbus assistant. Choose Holding Register, zero-based address and type; start with external access ReadOnly. Allow internal TAG writes if it receives Gateway data or authorized internal writes.\n4. Publish/activate. Feed a known value into the TAG and verify its update in Monitor. In the external client read the corresponding Unit ID/address; check type and order.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"bindAddress\": \"127.0.0.1\",\n    \"port\": \"1502\",\n    \"unitId\": \"1\",\n    \"holdingRanges\": \"v1:0-9\"\n  },\n  \"address\": \"holding:0\",\n  \"metadata\": {\n    \"modbus.valueType\": \"Int16\",\n    \"modbus.wordOrder\": \"HighWordFirst\",\n    \"modbus.scale\": \"1\",\n    \"modbus.offset\": \"0\",\n    \"modbus.server.clientAccess\": \"ReadOnly\"\n  },\n  \"tagDataType\": \"Int16\",\n  \"readOnly\": false,\n  \"internalValue\": 123\n}"
+        },
+        {
+          "heading": "Expected example and restart behavior",
+          "body": "After an authorized internal write of 123, the client should read 123 at holding:0, Unit ID 1, port 1502. A value does not appear automatically because it is in the example. The in-memory map starts at zero: reading zero does not prove the TAG received a current sample, and registers do not automatically carry TAG quality/time. After restart check map feeding; this is neither Historian nor guaranteed retentive memory.",
+          "fields": null
+        },
+        {
+          "heading": "External writes and diagnosis",
+          "body": "An allowed range does not permit arbitrary writes: every written register must belong to an externally ReadWrite mapped TAG. The server rejects partial multiregister values, unmapped gaps, overlapping TAGs and out-of-range spans. FC03 reads allow 1–125 registers; FC06 writes one register and FC16 writes 1–123 registers; an operation must preserve each complete value. No listener: check port conflicts, interface, firewall and Docker. Incorrect reads: check Unit ID, zero base, type/order and actual fed value. Rejected internal write: check ReadOnly/permission; rejected external write: check clientAccess and complete map.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "drivers.modbus-setup",
+        "gateway.configure-test",
+        "tags.writeability",
+        "driver.modbus.tcp.server",
+        "driver.modbus.rtu.server"
+      ]
     }
   ],
   "es": [
@@ -14783,6 +16183,706 @@
         "drivers.melsec-setup",
         "driver.panasonic.mewtocol.tcp",
         "driver.panasonic.mewtocol.serial"
+      ]
+    },
+    {
+      "id": "drivers.dnp3-setup",
+      "category": "drivers",
+      "title": "DNP3: asociación, eventos y comandos",
+      "summary": "Configure outstation y distinga identidad, consulta, representación y confirmación.",
+      "sections": [
+        {
+          "heading": "Preparar la asociación",
+          "body": "SCADIVO actúa como maestro/cliente DNP3 TCP. Obtenga del responsable IP/puerto, direcciones de enlace, lista de puntos, variaciones, clases y operaciones permitidas. Un punto estático puede llegar por consulta y eventos espontáneamente. Este descriptor no anuncia Browse ni Probar conexión de Ingeniería; revise asociación y punto conocido en Runtime/Diagnóstico tras activar. La ausencia de botón no significa ausencia del driver.",
+          "fields": null
+        },
+        {
+          "heading": "Campos de la fuente",
+          "body": "Los tiempos DNP3 usan duración hh:mm:ss, no milisegundos de otros drivers. Las clases de evento no son prioridades de alarma. Respete el perfil de asociación remota al ajustar opciones avanzadas.",
+          "fields": [
+            {
+              "key": "transport",
+              "label": "Transporte DNP3",
+              "description": "Seleccione tcp, transporte implementado en este perfil. Introducir un puerto serie como host no lo convierte en DNP3 serie.",
+              "example": "tcp",
+              "constraints": ""
+            },
+            {
+              "key": "host",
+              "label": "Dirección de estación remota",
+              "description": "IP o nombre accesible desde el servidor SCADIVO. El navegador no abre la conexión de protocolo.",
+              "example": "192.0.2.10",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Puerto TCP",
+              "description": "Puerto del servicio remoto. Por defecto 20000; compruebe configuración de estación y ruta de red.",
+              "example": "20000",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "masterAddress",
+              "label": "Dirección DNP3 del maestro",
+              "description": "Dirección de enlace local que la outstation debe reconocer como maestro. No es IP, puerto TCP ni índice de TAG.",
+              "example": "1",
+              "constraints": "0–65519; debe coincidir con la asociación remota."
+            },
+            {
+              "key": "outstationAddress",
+              "label": "Dirección DNP3 de outstation",
+              "description": "Dirección de enlace de estación remota. Aunque IP/puerto sean correctos, una dirección DNP3 incorrecta impide la asociación esperada.",
+              "example": "10",
+              "constraints": "0–65519."
+            },
+            {
+              "key": "connectTimeout",
+              "label": "Tiempo para conectar",
+              "description": "Tiempo máximo para establecer TCP; por defecto 5 s. No es intervalo de lectura.",
+              "example": "00:00:05",
+              "constraints": "Duración positiva en hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "responseTimeout",
+              "label": "Tiempo de respuesta DNP3",
+              "description": "Espera de respuesta de protocolo, por defecto 5 s. Aumentarla no corrige dirección de enlace o índice incorrectos.",
+              "example": "00:00:05",
+              "constraints": "Duración positiva en hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "reconnectMinDelay",
+              "label": "Espera mínima de reconexión",
+              "description": "Espera inicial tras desconexión, por defecto 1 s. No debe superar el máximo.",
+              "example": "00:00:01",
+              "constraints": "Duración positiva en hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "reconnectMaxDelay",
+              "label": "Espera máxima de reconexión",
+              "description": "Límite de espera progresiva, por defecto 30 s. Los comandos anteriores no se conservan para repetirse tras reconectar.",
+              "example": "00:00:30",
+              "constraints": "Duración positiva en hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "keepAliveTimeout",
+              "label": "Supervisión de enlace",
+              "description": "Por defecto 1 minuto para supervisar enlace. Una conexión activa no demuestra un punto actualizado. Cero es inválido; vaciar un campo no debe interpretarse automáticamente como desactivación.",
+              "example": "00:01:00",
+              "constraints": "Duración positiva en hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "integrityPollInterval",
+              "label": "Consulta periódica de integridad",
+              "description": "Por defecto 15 minutos. Vuelve a consultar datos para resincronizar la imagen de estación; no es retención de Historian ni frecuencia de todos los eventos.",
+              "example": "00:15:00",
+              "constraints": "Duración positiva en hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "class1PollInterval",
+              "label": "Consulta periódica de clase 1",
+              "description": "Opcional, sin intervalo predeterminado: consulta eventos de esa clase como complemento al tráfico espontáneo. La clase depende de la outstation, no de la prioridad de alarma SCADIVO.",
+              "example": "00:01:00",
+              "constraints": "Duración positiva en hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "class2PollInterval",
+              "label": "Consulta periódica de clase 2",
+              "description": "Opcional, sin intervalo predeterminado: consulta eventos de esa clase como complemento al tráfico espontáneo. La clase depende de la outstation, no de la prioridad de alarma SCADIVO.",
+              "example": "00:01:00",
+              "constraints": "Duración positiva en hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "class3PollInterval",
+              "label": "Consulta periódica de clase 3",
+              "description": "Opcional, sin intervalo predeterminado: consulta eventos de esa clase como complemento al tráfico espontáneo. La clase depende de la outstation, no de la prioridad de alarma SCADIVO.",
+              "example": "00:01:00",
+              "constraints": "Duración positiva en hh:mm:ss; 00:00:05 = 5 s."
+            },
+            {
+              "key": "startupIntegrityClass0",
+              "label": "Integridad inicial — clase 0",
+              "description": "Incluye esta clase en resincronización inicial; por defecto true. Clase 0 representa datos estáticos; 1–3 clases de eventos. Debe quedar habilitada al menos una clase inicial.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "startupIntegrityClass1",
+              "label": "Integridad inicial — clase 1",
+              "description": "Incluye esta clase en resincronización inicial; por defecto true. Clase 0 representa datos estáticos; 1–3 clases de eventos. Debe quedar habilitada al menos una clase inicial.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "startupIntegrityClass2",
+              "label": "Integridad inicial — clase 2",
+              "description": "Incluye esta clase en resincronización inicial; por defecto true. Clase 0 representa datos estáticos; 1–3 clases de eventos. Debe quedar habilitada al menos una clase inicial.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "startupIntegrityClass3",
+              "label": "Integridad inicial — clase 3",
+              "description": "Incluye esta clase en resincronización inicial; por defecto true. Clase 0 representa datos estáticos; 1–3 clases de eventos. Debe quedar habilitada al menos una clase inicial.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "disableUnsolicitedClass1OnStartup",
+              "label": "Suspender espontáneos de clase 1 al iniciar",
+              "description": "Por defecto true: solicita suspender tráfico espontáneo al preparar la asociación. No elimina eventos de outstation ni cambia su clase.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "enableUnsolicitedClass1AfterIntegrity",
+              "label": "Reactivar espontáneos de clase 1",
+              "description": "Por defecto true: solicita reactivación después de integridad inicial. Requiere soporte/configuración en estación; marcarlo no hace que un punto genere eventos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "eventScanClass1OnEventsAvailable",
+              "label": "Consultar eventos disponibles de clase 1",
+              "description": "Por defecto true: consulta la clase cuando se indican eventos disponibles. No cambia muestreo del sensor ni sustituye la cola remota de eventos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "disableUnsolicitedClass2OnStartup",
+              "label": "Suspender espontáneos de clase 2 al iniciar",
+              "description": "Por defecto true: solicita suspender tráfico espontáneo al preparar la asociación. No elimina eventos de outstation ni cambia su clase.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "enableUnsolicitedClass2AfterIntegrity",
+              "label": "Reactivar espontáneos de clase 2",
+              "description": "Por defecto true: solicita reactivación después de integridad inicial. Requiere soporte/configuración en estación; marcarlo no hace que un punto genere eventos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "eventScanClass2OnEventsAvailable",
+              "label": "Consultar eventos disponibles de clase 2",
+              "description": "Por defecto true: consulta la clase cuando se indican eventos disponibles. No cambia muestreo del sensor ni sustituye la cola remota de eventos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "disableUnsolicitedClass3OnStartup",
+              "label": "Suspender espontáneos de clase 3 al iniciar",
+              "description": "Por defecto true: solicita suspender tráfico espontáneo al preparar la asociación. No elimina eventos de outstation ni cambia su clase.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "enableUnsolicitedClass3AfterIntegrity",
+              "label": "Reactivar espontáneos de clase 3",
+              "description": "Por defecto true: solicita reactivación después de integridad inicial. Requiere soporte/configuración en estación; marcarlo no hace que un punto genere eventos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "eventScanClass3OnEventsAvailable",
+              "label": "Consultar eventos disponibles de clase 3",
+              "description": "Por defecto true: consulta la clase cuando se indican eventos disponibles. No cambia muestreo del sensor ni sustituye la cola remota de eventos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "integrityOnEventBufferOverflow",
+              "label": "Resincronizar tras desbordamiento de eventos",
+              "description": "Por defecto true: solicita integridad cuando outstation informa desbordamiento. Recupera la imagen actual disponible, no eventos ya perdidos.",
+              "example": "true",
+              "constraints": ""
+            },
+            {
+              "key": "timeSyncMode",
+              "label": "Sincronización de reloj remoto",
+              "description": "disabled es predeterminado. lan o nonLan seleccionan el método DNP3 compatible. Puede ajustar el reloj remoto; coordine con responsable de estación. No define zona horaria ni valida sensores automáticamente.",
+              "example": "disabled",
+              "constraints": ""
+            },
+            {
+              "key": "maxQueuedUserRequests",
+              "label": "Límite de solicitudes pendientes",
+              "description": "Por defecto 16: limita solicitudes/comandos de usuario en cola para la asociación. No es límite de licencias de usuario ni permite repetir comandos antiguos tras reconectar.",
+              "example": "16",
+              "constraints": "1–1024."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de punto y comando",
+          "body": "En TAGs seleccione fuente DNP3 y use asistente de familia/índice. Compruebe tipo y aplique vínculo; campos avanzados describen el contrato y pueden requerir la definición o archivos de Ingeniería del proyecto porque el asistente visible no ofrece todos los perfiles avanzados. Dirección, familia e índice deben coincidir.",
+          "fields": [
+            {
+              "key": "address",
+              "label": "Dirección de punto DNP3",
+              "description": "Formato dnp3:tipo:índice, por ejemplo dnp3:analogInput:7. La fuente identifica outstation; no repita IP ni dirección de enlace en el punto.",
+              "example": "dnp3:analogInput:7",
+              "constraints": ""
+            },
+            {
+              "key": "pointKind",
+              "label": "Familia del punto",
+              "description": "binaryInput/binaryOutputStatus usan Boolean; doubleBitBinaryInput usa Enum; analogInput/analogOutputStatus usan tipo numérico compatible; counter/frozenCounter usan Int32 o Int64. Familia e índice identifican el punto, no el grupo de mensaje.",
+              "example": "analogInput",
+              "constraints": ""
+            },
+            {
+              "key": "index",
+              "label": "Índice dentro de la familia",
+              "description": "Índice publicado por outstation, de 0 a 65535; se admiten huecos. Índice 7 de analogInput no es índice 7 de binaryInput.",
+              "example": "7",
+              "constraints": ""
+            },
+            {
+              "key": "staticVariation",
+              "label": "Representación estática",
+              "description": "Opcional, formato GxVy. Debe corresponder a familia y tipo de TAG: G30V5 es analógico Float; G30V6 es Double. Variación 0 pide valor del dispositivo cuando se admite; no garantiza un tipo arbitrario.",
+              "example": "G30V5",
+              "constraints": ""
+            },
+            {
+              "key": "eventVariation",
+              "label": "Representación de evento",
+              "description": "Opcional. G32V7 es ejemplo de analógico Float con tiempo. Representaciones estática y de evento deben coincidir con familia/tipo. La variación no cambia identidad del punto.",
+              "example": "G32V7",
+              "constraints": ""
+            },
+            {
+              "key": "expectedEventClass",
+              "label": "Clase de evento esperada",
+              "description": "Opcional: class1, class2 o class3 para validación/diagnóstico. No reclasifica el punto remoto ni representa prioridad de alarma SCADIVO.",
+              "example": "class1",
+              "constraints": ""
+            },
+            {
+              "key": "writable",
+              "label": "Habilitar comando en este punto",
+              "description": "Por defecto false. Solo binaryOutputStatus/analogOutputStatus admiten comandos. También aplican ReadOnly, permiso y vínculo de comando; marcar true no convierte entrada en salida.",
+              "example": "false",
+              "constraints": ""
+            },
+            {
+              "key": "commandMode",
+              "label": "Seleccionar antes de operar",
+              "description": "selectBeforeOperate es predeterminado; use directOperate solo si estación y procedimiento lo permiten. No se ofrece Direct Operate No Response. Confirmación de protocolo no demuestra actuación física.",
+              "example": "selectBeforeOperate",
+              "constraints": ""
+            },
+            {
+              "key": "binaryTrueOperation",
+              "label": "Operación para verdadero",
+              "description": "Comando binario: latchOn, latchOff, pulseOn o pulseOff. Por defecto latchOn. true es el valor solicitado; la operación real depende de este mapeo.",
+              "example": "latchOn",
+              "constraints": ""
+            },
+            {
+              "key": "binaryFalseOperation",
+              "label": "Operación para falso",
+              "description": "Mismo conjunto de operaciones; por defecto latchOff. Compruebe lógica remota antes de invertir significados, especialmente abrir/cerrar o arrancar/parar.",
+              "example": "latchOff",
+              "constraints": ""
+            },
+            {
+              "key": "tripCloseCode",
+              "label": "Indicación Trip/Close",
+              "description": "none, trip o close según equipo. Por defecto none. Este calificador no es enclavamiento ni autorización adicional para maniobrar.",
+              "example": "none",
+              "constraints": ""
+            },
+            {
+              "key": "commandCount",
+              "label": "Conteo de operación",
+              "description": "Por defecto 1; conteo transportado en el comando binario. No es cantidad de reintentos SCADIVO. Acuerde interpretación con outstation.",
+              "example": "1",
+              "constraints": "1–255."
+            },
+            {
+              "key": "commandOnTime",
+              "label": "Tiempo activo del comando",
+              "description": "Duración hh:mm:ss del comando binario, por defecto 00:00:00. Para pulsos use la duración prevista por equipo; no es timeout de respuesta.",
+              "example": "00:00:00",
+              "constraints": ""
+            },
+            {
+              "key": "commandOffTime",
+              "label": "Tiempo inactivo del comando",
+              "description": "Duración complementaria de comando binario, por defecto 00:00:00. No es retardo de alarma ni intervalo de adquisición.",
+              "example": "00:00:00",
+              "constraints": ""
+            },
+            {
+              "key": "analogCommandVariation",
+              "label": "Tipo de comando analógico",
+              "description": "int16, int32, float32 o float64 debe corresponder a TAG Int16, Int32, Float o Double. Representación de comando G41 difiere del estado recibido.",
+              "example": "float32",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Ejemplo de lectura analógica",
+          "body": "Ejemplo de parámetros, no paquete completo. Outstation debe publicar punto analógico 7 en representaciones indicadas. Cree TAG Float de lectura; tras publicar/activar compare valor, calidad y origen de tiempo con una medición conocida. No suponga valor esperado solo porque conectó la asociación.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"transport\": \"tcp\",\n    \"host\": \"192.0.2.10\",\n    \"port\": \"20000\",\n    \"masterAddress\": \"1\",\n    \"outstationAddress\": \"10\"\n  },\n  \"address\": \"dnp3:analogInput:7\",\n  \"binding\": {\n    \"pointKind\": \"analogInput\",\n    \"index\": \"7\",\n    \"staticVariation\": \"G30V5\",\n    \"eventVariation\": \"G32V7\",\n    \"expectedEventClass\": \"class1\",\n    \"writable\": \"false\"\n  },\n  \"tagDataType\": \"Float\",\n  \"readOnly\": true\n}"
+        },
+        {
+          "heading": "Ejemplo de salida binaria",
+          "body": "Define el perfil de comando de una salida real acordada con outstation. No autoriza probar maniobras en equipo activo. Runtime debe admitir el comando y la sesión necesita capacidad correspondiente. Aceptación de protocolo y actualización de estado son evidencias distintas; compruebe retorno publicado por el punto.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"transport\": \"tcp\",\n    \"host\": \"192.0.2.10\",\n    \"port\": \"20000\",\n    \"masterAddress\": \"1\",\n    \"outstationAddress\": \"10\"\n  },\n  \"address\": \"dnp3:binaryOutputStatus:1\",\n  \"binding\": {\n    \"pointKind\": \"binaryOutputStatus\",\n    \"index\": \"1\",\n    \"writable\": \"true\",\n    \"commandMode\": \"selectBeforeOperate\",\n    \"binaryTrueOperation\": \"latchOn\",\n    \"binaryFalseOperation\": \"latchOff\",\n    \"tripCloseCode\": \"none\",\n    \"commandCount\": \"1\",\n    \"commandOnTime\": \"00:00:00\",\n    \"commandOffTime\": \"00:00:00\"\n  },\n  \"tagDataType\": \"Boolean\",\n  \"readOnly\": false\n}"
+        },
+        {
+          "heading": "Investigar por síntoma",
+          "body": "Sin asociación: revise IP/20000, maestro/outstation y red desde servidor. Asociado sin valor: familia/índice e integridad inicial. Eventos ausentes: clase, soporte espontáneo, consultas y configuración remota. Valor incompatible: variación y tipo de TAG; cambiar clase no corrige tipo. Un evento sin tiempo de origen no gana precisión por recibirse ahora. Comando rechazado: salida, tipo, modo, permisos y asociación; no repita automáticamente tras desconexión.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "tags.quality",
+        "tags.timestamps",
+        "driver.dnp3.master",
+        "engineering.tabular-workflow"
+      ]
+    },
+    {
+      "id": "drivers.iec104-setup",
+      "category": "drivers",
+      "title": "IEC 104: estaciones, puntos observados y comandos",
+      "summary": "Configure CA/IOA y tipos sin tratar observación como lista completa de puntos.",
+      "sections": [
+        {
+          "heading": "Preparación y qué demuestra Browse",
+          "body": "SCADIVO es cliente/maestro IEC 60870-5-104. Obtenga de estación remota listas CA/IOA, tipos, reloj y comandos. Probar conexión demuestra solo el alcance de su resultado; Browse observa de forma limitada interrogación general y tráfico recibido, no garantiza barrido del mapa completo. El resultado es parcial; ausencia no demuestra que un punto no exista.",
+          "fields": null
+        },
+        {
+          "heading": "Campos de fuente y punto",
+          "body": "Los tiempos de fuente usan segundos. CA/IOA es identidad; Type ID define interpretación y perfil de comando es separado. No añada Type ID a dirección para eludir conflicto de configuración.",
+          "fields": [
+            {
+              "key": "host",
+              "label": "Dirección de estación remota",
+              "description": "IP o nombre accesible desde el servidor SCADIVO. El navegador no abre la conexión de protocolo.",
+              "example": "192.0.2.10",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Puerto TCP",
+              "description": "Puerto del servicio remoto. Por defecto 2404; compruebe configuración de estación y ruta de red.",
+              "example": "2404",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "commonAddresses",
+              "label": "Estaciones — Common Addresses",
+              "description": "Lista decimal de CA separados por coma, por ejemplo 1,2. Es dirección lógica de estación, no IP ni IOA de punto. El CA del TAG debe pertenecer a esta lista.",
+              "example": "1",
+              "constraints": "CA 0–65535 según perfil remoto."
+            },
+            {
+              "key": "stationTimeZone",
+              "label": "Zona horaria de estación",
+              "description": "Identificador de zona reconocido por servidor para interpretar CP56Time2a. UTC solo corresponde si la estación usa UTC. Si usa hora local configure su zona real, no la del navegador por conveniencia. Compruebe identificador en instalación Windows/Linux.",
+              "example": "UTC",
+              "constraints": ""
+            },
+            {
+              "key": "originatorAddress",
+              "label": "Originador de solicitud",
+              "description": "Identificador de origen del protocolo; por defecto 0. No es usuario de login ni capacidad de Authority. Use el perfil de estación.",
+              "example": "0",
+              "constraints": "0–255."
+            },
+            {
+              "key": "t0Seconds",
+              "label": "t0 — conexión",
+              "description": "Tiempo para establecer conexión, en segundos. Por defecto 30.",
+              "example": "30",
+              "constraints": "0.1–3600 s."
+            },
+            {
+              "key": "t1Seconds",
+              "label": "t1 — supervisión de transmisión",
+              "description": "Espera supervisada de confirmación, por defecto 15 s. Debe superar t2.",
+              "example": "15",
+              "constraints": "0.1–3600 s."
+            },
+            {
+              "key": "t2Seconds",
+              "label": "t2 — confirmación de recepción",
+              "description": "Límite para confirmación diferida, por defecto 10 s; debe ser menor que t1. No es retardo de alarma.",
+              "example": "10",
+              "constraints": "0.1–3600 s."
+            },
+            {
+              "key": "t3Seconds",
+              "label": "t3 — supervisión en reposo",
+              "description": "Supervisión de sesión en reposo, por defecto 20 s. No es caducidad de una medición.",
+              "example": "20",
+              "constraints": "0.1–86400 s."
+            },
+            {
+              "key": "k",
+              "label": "k — ventana de envío",
+              "description": "Máximo de unidades de información sin confirmar. Por defecto 12; no es cantidad de TAGs. Ajuste según perfil remoto.",
+              "example": "12",
+              "constraints": "1–32767."
+            },
+            {
+              "key": "w",
+              "label": "w — ventana de confirmación",
+              "description": "Umbral de recepciones para confirmar, por defecto 8; no debe superar k. No aumenta cantidad de puntos disponibles.",
+              "example": "8",
+              "constraints": "1–32767; w ≤ k."
+            },
+            {
+              "key": "ca",
+              "label": "CA del punto",
+              "description": "Common Address que contiene el punto. Use uno configurado en fuente; puntos con igual IOA y diferente CA son distintos.",
+              "example": "1",
+              "constraints": "0–65535."
+            },
+            {
+              "key": "ioa",
+              "label": "IOA del punto",
+              "description": "Dirección del objeto de información según lista de estación. El asistente genera ca=1;ioa=100 en el ejemplo; no es número de fila de tabla.",
+              "example": "100",
+              "constraints": "0–16777215."
+            },
+            {
+              "key": "iec104.typeId",
+              "label": "Tipo de información monitorizada",
+              "description": "MSpNa1/MSpTb1 usan Boolean; MDpNa1/MDpTb1 usan Enum; MBoNa1/MBoTb1 usan Int32; MMeNb1/MMeTe1 usan Int16; MMeNa1/MMeTd1 y MMeNc1/MMeTf1 usan Float. La familia normalizada no se convierte automáticamente en voltios o bar. Tipos compatibles con/sin tiempo siguen refiriéndose al mismo CA/IOA.",
+              "example": "MMeNc1",
+              "constraints": ""
+            },
+            {
+              "key": "iec104.commandTypeId",
+              "label": "Tipo de comando",
+              "description": "Solo para TAG escribible: CScNa1 Boolean, CDcNa1 Enum, CSeNa1/CSeNc1 Float o CSeNb1 Int16. Debe ser compatible con tipo monitorizado y perfil remoto; no convierte entrada en salida.",
+              "example": "CSeNc1",
+              "constraints": ""
+            },
+            {
+              "key": "iec104.commandMode",
+              "label": "Modo de ejecución de comando",
+              "description": "direct o sbo según estación. El asistente comienza en sbo si no hay opción guardada; el descriptor declara direct como predeterminado. Elija explícitamente el modo deseado. sbo selecciona antes de operar; no sustituye enclavamientos de proceso.",
+              "example": "sbo",
+              "constraints": ""
+            },
+            {
+              "key": "iec104.qualifier",
+              "label": "Calificador de comando",
+              "description": "Valor 0–31, por defecto 0, según operación remota. No es prioridad de alarma ni rol de usuario.",
+              "example": "0",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Primera lectura de punto conocido",
+          "body": "1. Cree/guarde fuente y pruebe conexión desde servidor.\n2. Use Browse para revisar puntos observados, o lista remota para autoría manual. Revise candidatos antes de aplicar.\n3. En TAGs seleccione fuente y abra asistente IEC 104; introduzca CA, IOA y tipo monitorizado compatible. Empiece con TAG de solo lectura.\n4. Publique/active por flujo del proyecto y compruebe valor, calidad y tiempo en Monitor de TAGs. La estación debe suministrar realmente el punto; los parámetros no generan medición ficticia.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"host\": \"192.0.2.10\",\n    \"port\": \"2404\",\n    \"commonAddresses\": \"1\",\n    \"stationTimeZone\": \"UTC\"\n  },\n  \"address\": \"ca=1;ioa=100\",\n  \"binding\": {\n    \"iec104.typeId\": \"MMeNc1\"\n  },\n  \"tagDataType\": \"Float\",\n  \"readOnly\": true\n}"
+        },
+        {
+          "heading": "Perfil compatible de comando",
+          "body": "Este ejemplo configura el mismo punto como setpoint Float con selección antes de operación. Úselo solo si estación define ese CA/IOA para comando. Permiso, admisión Runtime, confirmación de protocolo y retorno de proceso son comprobaciones distintas. No habilite escritura solo para eliminar mensaje de tipo incompatible.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"host\": \"192.0.2.10\",\n    \"port\": \"2404\",\n    \"commonAddresses\": \"1\",\n    \"stationTimeZone\": \"UTC\"\n  },\n  \"address\": \"ca=1;ioa=100\",\n  \"binding\": {\n    \"iec104.typeId\": \"MMeNc1\",\n    \"iec104.commandTypeId\": \"CSeNc1\",\n    \"iec104.commandMode\": \"sbo\",\n    \"iec104.qualifier\": \"0\"\n  },\n  \"tagDataType\": \"Float\",\n  \"readOnly\": false\n}"
+        },
+        {
+          "heading": "Diagnóstico por capas",
+          "body": "Sin sesión: revise IP/2404 y parámetros APCI, incluidos t2 < t1 y w ≤ k. Sesión sin puntos: CA solicitado, finalización de interrogación general, ventana de observación y lista remota. Valor incompatible: IOA y familia Type ID; normalizado, entero escalado y Float no son intercambiables. Hora desplazada: reloj de estación, zona configurada y validez de CP56Time2a; cambiar solo reloj del navegador no corrige datos. Comando rechazado/ambiguo: tipo, modo, calificador y sesión; timeout no demuestra que estación no operó.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "sources.connection-workflow",
+        "tags.quality",
+        "tags.timestamps",
+        "driver.iec60870.5.104"
+      ]
+    },
+    {
+      "id": "drivers.modbus-server-setup",
+      "category": "drivers",
+      "title": "Modbus Server: publicar TAGs por TCP o RTU",
+      "summary": "Construya un mapa limitado y distinga cliente externo, escritura interna y valor actualizado.",
+      "sections": [
+        {
+          "heading": "Servidor difiere de maestro",
+          "body": "En Server SCADIVO atiende otro maestro/cliente y publica TAGs mapeados en Holding Registers. Esta fuente no consulta un PLC remoto. Para publicar valor de otro driver cree TAG destino Server y ruta Gateway compatible; un TAG no adquiere dos fuentes. TCP escucha interfaz/puerto; RTU responde mediante dispositivo serie del servidor.",
+          "fields": null
+        },
+        {
+          "heading": "Campos de fuente y mapa",
+          "body": "Campos de red pertenecen a TCP; de línea a RTU. Rangos y vínculos definen el mismo modelo de mapa. Editor no convierte automáticamente etiquetas 40001 de otras herramientas.",
+          "fields": [
+            {
+              "key": "bindAddress",
+              "label": "Interfaz local de servidor TCP",
+              "description": "Dirección local de escucha, no IP de PLC remoto. Por defecto 0.0.0.0 escucha interfaces IPv4; 127.0.0.1 restringe al propio host. En Docker compruebe también puertos publicados y red del contenedor. Dentro de un contenedor, 127.0.0.1 es loopback del contenedor, no del ordenador host.",
+              "example": "127.0.0.1",
+              "constraints": ""
+            },
+            {
+              "key": "port",
+              "label": "Puerto de escucha TCP",
+              "description": "Por defecto 502. El ejemplo usa 1502 para instalación de prueba; el cliente externo debe usar el mismo puerto accesible. Otra fuente/proceso no puede ocupar el mismo endpoint.",
+              "example": "1502",
+              "constraints": "1–65535."
+            },
+            {
+              "key": "unitId",
+              "label": "Unit ID servido",
+              "description": "Identificador admitido por servidor, por defecto 1. TCP acepta 0–247; RTU usa 1–247. Unit ID del vínculo debe coincidir con fuente. No es IP.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "holdingRanges",
+              "label": "Rangos de Holding Registers",
+              "description": "Use editor estructurado de inicio/fin. Rangos inclusivos desde cero, sin solaparse: v1:0-9 representa diez registros. Todos los registros de un valor deben caber en un mismo rango; no crea TAGs automáticamente.",
+              "example": "v1:0-9",
+              "constraints": "Hasta 32 rangos y 16384 registros totales; direcciones 0–65535."
+            },
+            {
+              "key": "maxClients",
+              "label": "Clientes TCP simultáneos",
+              "description": "Solo TCP: máximo de conexiones, por defecto 16. No es cantidad de Views de licencia ni autorización de usuario.",
+              "example": "16",
+              "constraints": "1–128."
+            },
+            {
+              "key": "clientIdleTimeoutMilliseconds",
+              "label": "Tiempo de cliente TCP inactivo",
+              "description": "Solo TCP: espera máxima de siguiente solicitud, por defecto 30000 ms. No es frecuencia de actualización de TAG.",
+              "example": "30000",
+              "constraints": "1000–600000 ms."
+            },
+            {
+              "key": "serialPort",
+              "label": "Puerto RTU en servidor",
+              "description": "Solo RTU: dispositivo accesible al servicio en Windows/Linux/contenedor, como COM4 o /dev/ttyUSB0. Es exclusivo mientras servidor esté activo; no lo comparta con un maestro que controle el mismo puerto físico.",
+              "example": "/dev/ttyUSB0",
+              "constraints": ""
+            },
+            {
+              "key": "baudRate",
+              "label": "Velocidad de línea RTU",
+              "description": "Bits por segundo iguales al maestro y demás dispositivos. Por defecto 9600; no es polling del servidor.",
+              "example": "9600",
+              "constraints": "300–4000000."
+            },
+            {
+              "key": "dataBits",
+              "label": "Bits de datos RTU",
+              "description": "Por defecto 8; use la línea real. El rango del campo no garantiza que adaptador/host admita toda combinación.",
+              "example": "8",
+              "constraints": "5–8; compruebe instalación."
+            },
+            {
+              "key": "parity",
+              "label": "Paridad RTU",
+              "description": "None, Odd, Even, Mark o Space; por defecto None. Debe coincidir con maestro y soporte del puerto.",
+              "example": "None",
+              "constraints": ""
+            },
+            {
+              "key": "stopBits",
+              "label": "Bits de parada RTU",
+              "description": "One, OnePointFive o Two; por defecto One. Use combinación válida para línea y host, no cantidad de registros.",
+              "example": "One",
+              "constraints": ""
+            },
+            {
+              "key": "frameTimeoutMilliseconds",
+              "label": "Tiempo para completar trama RTU",
+              "description": "Por defecto 1000 ms para recibir resto de trama tras comenzar tráfico. No es intervalo de medición.",
+              "example": "1000",
+              "constraints": "50–10000 ms."
+            },
+            {
+              "key": "address",
+              "label": "Dirección de TAG en el mapa",
+              "description": "Use holding:N desde cero. Herramientas con etiquetas de referencia suelen llamar holding:0 40001; compruebe convención del cliente. Coils/Input Registers no forman parte de este perfil.",
+              "example": "holding:0",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.unitId",
+              "label": "Unit ID del vínculo",
+              "description": "Opcional: si falta usa fuente. En Server, sustituirlo exige coincidir con Unit ID servido; no crea varias estaciones en un mapa.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.valueType",
+              "label": "Tipo en registros",
+              "description": "Boolean/Int16/UInt16 usan un registro; Int32/UInt32/Float32 usan dos; Int64/UInt64/Float64 usan cuatro. Tipo físico, tipo de TAG y anchura deben ser compatibles. Ejemplo usa Int16 físico y TAG Int16 sin conversión.",
+              "example": "Int16",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.wordOrder",
+              "label": "Orden de palabras",
+              "description": "HighWordFirst es predeterminado; LowWordFirst invierte palabras de valores multirregistro. Debe coincidir con cliente. Un Int16 de una palabra no tiene dos palabras para invertir.",
+              "example": "HighWordFirst",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.scale",
+              "label": "Multiplicador del valor",
+              "description": "Por defecto 1: valor de Ingeniería = bruto × scale + offset. Debe ser finito y distinto de cero. Publicar en registros usa conversión inversa; no aplique escala duplicada en cliente.",
+              "example": "1",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.offset",
+              "label": "Desplazamiento del valor",
+              "description": "Cantidad sumada tras multiplicar, por defecto 0. No es desplazamiento de dirección ni cambia holding:0.",
+              "example": "0",
+              "constraints": ""
+            },
+            {
+              "key": "modbus.server.clientAccess",
+              "label": "Escritura de cliente externo",
+              "description": "ReadOnly es predeterminado; ReadWrite habilita escritura externa en este TAG mapeado. Es separado de ReadOnly para escrituras internas SCADIVO. Modbus no solicita login SCADIVO en cada petición; planifique acceso de red y mapa autorizado antes de habilitar ReadWrite.",
+              "example": "ReadOnly",
+              "constraints": ""
+            }
+          ]
+        },
+        {
+          "heading": "Publicar y comprobar lectura",
+          "body": "1. Cree fuente Server TCP o RTU y configure interfaz/línea, Unit ID y rangos.\n2. Probar conexión TCP reserva temporalmente interfaz/puerto local y lo libera; RTU prueba apertura/reserva exclusiva y libera línea. Ninguno demuestra lectura por cliente remoto ni deja servidor activo.\n3. En TAGs seleccione fuente Server y asistente Modbus. Elija Holding Register, dirección desde cero y tipo; empiece con acceso externo ReadOnly. Permita escritura interna si recibe datos Gateway o escrituras internas autorizadas.\n4. Publique/active. Alimente valor conocido y revise actualización en Monitor. En cliente externo lea Unit ID/dirección correspondientes; compruebe tipo y orden.",
+          "fields": null,
+          "code": "{\n  \"source\": {\n    \"bindAddress\": \"127.0.0.1\",\n    \"port\": \"1502\",\n    \"unitId\": \"1\",\n    \"holdingRanges\": \"v1:0-9\"\n  },\n  \"address\": \"holding:0\",\n  \"metadata\": {\n    \"modbus.valueType\": \"Int16\",\n    \"modbus.wordOrder\": \"HighWordFirst\",\n    \"modbus.scale\": \"1\",\n    \"modbus.offset\": \"0\",\n    \"modbus.server.clientAccess\": \"ReadOnly\"\n  },\n  \"tagDataType\": \"Int16\",\n  \"readOnly\": false,\n  \"internalValue\": 123\n}"
+        },
+        {
+          "heading": "Resultado esperado y reinicio",
+          "body": "Después de escritura interna autorizada de 123, cliente debe leer 123 en holding:0, Unit ID 1, puerto 1502. El valor no aparece automáticamente por constar en ejemplo. El mapa en memoria empieza en cero: leer cero no demuestra muestra actual del TAG y registros no transportan automáticamente calidad/tiempo. Tras reinicio compruebe alimentación; no es Historian ni memoria retentiva garantizada.",
+          "fields": null
+        },
+        {
+          "heading": "Escritura externa y diagnóstico",
+          "body": "Un rango permitido no autoriza escritura libre: cada registro escrito debe pertenecer a TAG mapeado con ReadWrite externo. Servidor rechaza valores multirregistro parciales, huecos no mapeados, TAGs solapados y tramos fuera de rango. FC03 admite 1–125 registros; FC06 escribe un registro y FC16 escribe 1–123 registros; la operación debe respetar cada valor completo. Sin escucha: puerto ocupado, interfaz, firewall y Docker. Lectura incorrecta: Unit ID, base cero, tipo/orden y valor alimentado. Escritura interna rechazada: ReadOnly/permiso; externa rechazada: clientAccess y mapa completo.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "drivers.modbus-setup",
+        "gateway.configure-test",
+        "tags.writeability",
+        "driver.modbus.tcp.server",
+        "driver.modbus.rtu.server"
       ]
     }
   ]

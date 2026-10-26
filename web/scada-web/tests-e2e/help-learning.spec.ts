@@ -4,6 +4,33 @@ import { installCurrentHelpCatalog } from './helpTestSupport';
 
 test.use({ locale: 'pt-BR' });
 
+test('telecontrol and server guides distinguish observations, commands and external writes', async ({ page }, testInfo) => {
+  await installCurrentHelpCatalog(page);
+  await page.goto('/help?topic=drivers.dnp3-setup');
+  const article = page.locator('article');
+  await expect(article.locator('h2')).toHaveText('DNP3: associação, eventos e comandos');
+  await expect(article.locator('pre')).toHaveCount(2);
+  await expect(article).toContainText('Não há Browse ou Testar conexão de Engenharia anunciado');
+  await expect(article.getByRole('rowheader', { name: 'Consulta periódica da classe 1', exact: false })).toBeVisible();
+  await page.getByLabel('Idioma', { exact: true }).selectOption('en');
+  await page.goto('/help?topic=drivers.iec104-setup');
+  await expect(article.locator('h2')).toHaveText('IEC 104: stations, observed points and commands');
+  await expect(article).toContainText('Results are partial');
+  await expect(article.locator('pre')).toHaveCount(2);
+  await article.getByRole('rowheader', { name: 'Station clock time zone', exact: false }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('help-iec104-observation-desktop.png') });
+  await page.getByLabel('Language', { exact: true }).selectOption('es');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/help?topic=drivers.modbus-server-setup');
+  await expect(article.locator('h2')).toHaveText('Modbus Server: publicar TAGs por TCP o RTU');
+  await expect(article).toContainText('leer cero no demuestra muestra actual');
+  await expect(article).toContainText('loopback del contenedor');
+  await expect(article.locator('pre')).toContainText('"modbus.server.clientAccess": "ReadOnly"');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await article.getByRole('rowheader', { name: 'Escritura de cliente externo', exact: false }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('help-modbus-server-client-access-mobile.png') });
+});
+
 test('PLC guides distinguish routing, native types and conditional serial fields across locales', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=drivers.siemens-setup');

@@ -1,3 +1,15 @@
+# CURRENT HELP — DNP3 / IEC 104 / MODBUS SERVER — 2026-10-26
+
+**IMPLEMENTED IN BRANCH / PR #772, NOT MERGED OR ACCEPTED AS THE COMPLETE MANUAL.** Three guides / four connections / chapter 25 in pt-BR/en/es provide 81 field explanations per locale for DNP3, IEC 104 and Modbus TCP/RTU Server. Association, event/integrity classes, observed points, CA/IOA, native types, commands, local listening, register maps, external client access and initialization are explained. Previous guide objects and ordering are unchanged. All 21 current default driver references reach practical companions; conditional connectors and overall manual acceptance remain separate.
+
+**Local evidence:** .NET Help and selected protocol suites 127/127, zero skipped; Chromium 70/70 without retry, real serialized Help catalog, desktop/mobile inspected; Web build passed with existing bundle warning. 48 localized manual files aligned, review markers, relative links and unchanged prior guides checked. Exact published read/command examples pass actual planners; strict invalid input/timer/identity guards remain. Actual Modbus map verifies zero initialization, internal 123 publication, external ReadOnly rejection without mutation, zero recreation and partial-multiword rejection. These checks do not certify hardware, live Preview or final manual images.
+
+**Previous gate remains FAILED:** head 4433d392a6ff726a64d7759541f97705d7151bf0 / T1 40333665886 attempt 1 failed the existing HA-D2 shared-database process case; standby stayed synchronization-incomplete, root cause not established. Chromium 43/43 and Web passed; general .NET suites were not reached. See live #423 comment 6418083919. No HA/test/timeout/filter or Preview/DEMO change is made by this continuation; a later green must not be called a fix for that occurrence.
+
+New exact candidate SHA/run/status are recorded in live #424/#425/#305 and #756 product reference. PROJECT GOAL reviewed unchanged. Remaining conditional connectors and operational licensing/monitoring/recovery/session depth plus semantic walkthroughs → #357/final real screenshots. Finish Help → product licensing #301 → #779–#782; #785–#787 queued product corrections. PR stays draft/NO_MERGE. No full Help/manual/Wave closure, deployment, protocol, Authority, HA or licensing behavior change.
+
+---
+
 # CURRENT HELP — PLC CONNECTIONS, NATIVE TYPES AND AUTHORING LIMITS — 2026-10-26
 
 **IMPLEMENTED IN BRANCH / PR #772, NOT MERGED OR ACCEPTED AS THE COMPLETE MANUAL.** Four guides / five PLC connections / 77 field explanations per locale (pt-BR/en/es) cover Siemens S7, Allen-Bradley Logix, Mitsubishi MELSEC and Panasonic MEWTOCOL TCP/Host Serial. Shared installed Help source generates chapter 24. Source, conditional fields, routes/addresses, native versus TAG type, worked examples, write restrictions and diagnosis are explained. Existing guide objects and ordering are unchanged.

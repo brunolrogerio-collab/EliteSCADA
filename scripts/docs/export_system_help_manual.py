@@ -33,6 +33,9 @@ for locale, (name, title) in {'pt-BR': ('23-ZIGBEE-E-ZWAVE.md', 'Zigbee e Z-Wave
 for locale, (name, title) in {'pt-BR': ('24-CLPS-E-MEMORIA.md', 'CLPs: conexão, símbolos e memória'), 'en': ('24-PLCS-AND-MEMORY.md', 'PLCs: connections, symbols and memory'), 'es': ('24-PLCS-Y-MEMORIA.md', 'PLCs: conexiones, símbolos y memoria')}.items():
     CHAPTERS[locale].append((name, title, ['drivers.siemens-setup', 'drivers.logix-setup', 'drivers.melsec-setup', 'drivers.panasonic-setup']))
 
+for locale, (name, title) in {'pt-BR': ('25-TELECONTROLE-E-MODBUS-SERVER.md', 'Telecontrole e Modbus Server'), 'en': ('25-TELECONTROL-AND-MODBUS-SERVER.md', 'Telecontrol and Modbus Server'), 'es': ('25-TELECONTROL-Y-MODBUS-SERVER.md', 'Telecontrol y Modbus Server')}.items():
+    CHAPTERS[locale].append((name, title, ['drivers.dnp3-setup', 'drivers.iec104-setup', 'drivers.modbus-server-setup']))
+
 INTELLIGENCE = {'pt-BR': '12-INTELIGENCIA-ATIVOS-PROCESSOS.md', 'en': '12-ASSET-PROCESS-INTELLIGENCE.md', 'es': '12-INTELIGENCIA-ACTIVOS-PROCESOS.md'}
 APPEND_MARKER = '<!-- installed-system-guides -->'
 

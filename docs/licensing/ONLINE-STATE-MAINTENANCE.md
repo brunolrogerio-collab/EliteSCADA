@@ -1,6 +1,6 @@
 # Online state maintenance (#301)
 
-Bounded slice `work/w15-online-license-maintenance-20261027`, based on verified integration `8de815d724a02cc5f0fa9ad1b867156d3fd9bf41`. [Design/activation](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6449628468). Candidate/PR/CI disposition is recorded in #301; this document does not declare integration. The journal/client still have no DI registration, public API, worker, Runtime entitlement or UI integration. Issuance/signing remains disabled.
+Bounded slice `work/w15-online-license-maintenance-20261027`, based on verified integration `8de815d724a02cc5f0fa9ad1b867156d3fd9bf41`. [Design/activation](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6449628468). PR #798 integrated at `67a290ff208b7aa4a9029fd71f428e93c4b9d895`. Exact-head T1 40556425486 and exact-merge T2 40557263409 passed on first attempts. T2 backend2900/1skip, Runtime smoke, Web and Chromium13/13. [Evidence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6449810628). The journal/client still have no DI registration, public API, worker, Runtime entitlement or UI integration. Issuance/signing remains disabled.
 
 ## Scoped ciphertext retention
 

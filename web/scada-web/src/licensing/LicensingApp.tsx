@@ -56,7 +56,7 @@ const messages = {
     title: 'Licenciamento', subtitle: 'Estado da licença, modo Demo e ativação desta máquina.',
     refresh: 'Atualizar', license: 'Licença', runtime: 'Runtime', state: 'Estado', tier: 'Faixa', tags: 'Limite de TAGs',
     licenseId: 'ID da licença', schema: 'Esquema da licença', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime View Only', haRuntime: 'Redundância / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
-    expires: 'Validade', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
+    expires: 'Validade', diagnostic: 'Diagnóstico', demoDuration: 'Duração do Demo', noTimeLimit: 'Sem limite de tempo',
     unlimited: 'Ilimitado', none: 'Não informado', legacy: 'legado', legacyNotSpecified: 'Não especificado pela ESLIC1', yes: 'Licenciado', no: 'Não licenciado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento SCADIVO. Identificadores brutos de hardware não são exibidos.',
     copy: 'Copiar código', copied: 'Código da máquina copiado.', install: 'Instalar licença', licenseCode: 'Código de licença assinado',
     validateInstall: 'Validar e instalar', remove: 'Remover licença', installed: 'Licença validada e instalada.', removed: 'Licença removida. As próximas ativações usarão o modo Demo.',
@@ -66,7 +66,7 @@ const messages = {
     title: 'Licensing', subtitle: 'License state, Demo mode and activation for this machine.',
     refresh: 'Refresh', license: 'License', runtime: 'Runtime', state: 'State', tier: 'Tier', tags: 'TAG limit',
     licenseId: 'License ID', schema: 'License schema', interactiveTotal: 'Interactive Runtime clients', viewOnlyTotal: 'View Only Runtime clients', haRuntime: 'Runtime redundancy / HA', assetProcessIntelligence: 'Asset & Process Intelligence',
-    expires: 'Expiry', diagnostic: 'Diagnostic', demoRemaining: 'Demo remaining',
+    expires: 'Expiry', diagnostic: 'Diagnostic', demoDuration: 'Demo duration', noTimeLimit: 'No time limit',
     unlimited: 'Unlimited', none: 'Not provided', legacy: 'legacy', legacyNotSpecified: 'Not specified by ESLIC1', yes: 'Licensed', no: 'Not licensed', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the SCADIVO licensing authority. Raw hardware identifiers are not exposed.',
     copy: 'Copy request', copied: 'Machine request copied.', install: 'Install license', licenseCode: 'Signed license code',
     validateInstall: 'Validate and install', remove: 'Remove license', installed: 'License validated and installed.', removed: 'License removed. Future activations will use Demo mode.',
@@ -76,7 +76,7 @@ const messages = {
     title: 'Licenciamiento', subtitle: 'Estado de licencia, modo Demo y activación de esta máquina.',
     refresh: 'Actualizar', license: 'Licencia', runtime: 'Runtime', state: 'Estado', tier: 'Nivel', tags: 'Límite de TAGs',
     licenseId: 'ID de licencia', schema: 'Esquema de licencia', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime Solo visualización', haRuntime: 'Redundancia / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
-    expires: 'Validez', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
+    expires: 'Validez', diagnostic: 'Diagnóstico', demoDuration: 'Duración de Demo', noTimeLimit: 'Sin límite de tiempo',
     unlimited: 'Ilimitado', none: 'No informado', legacy: 'legado', legacyNotSpecified: 'No especificado por ESLIC1', yes: 'Licenciado', no: 'No licenciado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento SCADIVO. No se muestran identificadores brutos de hardware.',
     copy: 'Copiar código', copied: 'Código de máquina copiado.', install: 'Instalar licencia', licenseCode: 'Código de licencia firmado',
     validateInstall: 'Validar e instalar', remove: 'Eliminar licencia', installed: 'Licencia validada e instalada.', removed: 'Licencia eliminada. Las próximas activaciones usarán el modo Demo.',
@@ -204,6 +204,9 @@ export function LicensingApp() {
               <dt>{t.state}</dt><dd><strong>{status.license.state}</strong></dd>
               <dt>{t.tier}</dt><dd>{status.license.tier ?? t.none}</dd>
               <dt>{t.tags}</dt><dd>{displayTags(status.license.maximumTags, status.license.state, t.unlimited, t.none)}</dd>
+              {status.license.state === 'Demo' && <>
+                <dt>{t.demoDuration}</dt><dd data-testid="demo-duration">{status.license.demoMaximumContinuousMinutes === null ? t.noTimeLimit : t.none}</dd>
+              </>}
               <dt>{t.schema}</dt><dd data-testid="license-schema">{displayLicenseSchema(status.license, t)}</dd>
               <dt>{t.interactiveTotal}</dt><dd data-testid="license-interactive-total">{displaySignedSeatTotal(status.license.interactiveSeats, status.license, t)}</dd>
               <dt>{t.viewOnlyTotal}</dt><dd data-testid="license-view-only-total">{displaySignedSeatTotal(status.license.viewOnlySeats, status.license, t)}</dd>
@@ -221,8 +224,9 @@ export function LicensingApp() {
               <dt>{t.state}</dt><dd><strong>{status.runtime.state}</strong></dd>
               <dt>{t.tier}</dt><dd>{status.runtime.activeTier ?? t.none}</dd>
               <dt>{t.tags}</dt><dd>{displayTags(status.runtime.maximumTags, status.runtime.activeLicenseState ?? '', t.unlimited, t.none)}</dd>
-              <dt>{t.demoRemaining}</dt><dd>{status.runtime.demoRemaining ?? t.none}</dd>
-              <dt>{t.expires}</dt><dd>{displayDate(status.runtime.demoExpiresAtUtc, t.none)}</dd>
+              {status.runtime.demoExpiresAtUtc && <>
+                <dt>{t.expires}</dt><dd>{displayDate(status.runtime.demoExpiresAtUtc, t.none)}</dd>
+              </>}
               <dt>{t.diagnostic}</dt><dd>{status.runtime.lastDiagnostic ?? t.none}</dd>
             </dl>
           </section>

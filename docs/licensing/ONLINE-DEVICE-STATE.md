@@ -1,6 +1,6 @@
 # Online device state and transport - second product slice (#301)
 
-Maintenance continuation: [scoped retention, local reset and reauthentication](ONLINE-STATE-MAINTENANCE.md) is implemented in a bounded candidate based on `8de815d724a02cc5f0fa9ad1b867156d3fd9bf41`. It supersedes this historical slice's retention/reset gaps only after its own review/CI/integration; live #301 owns the disposition. Components remain unconnected to product lifecycle/API/UI/worker.
+Maintenance continuation: [scoped retention, local reset and reauthentication](ONLINE-STATE-MAINTENANCE.md) is integrated/verified through PR #798 at `67a290ff208b7aa4a9029fd71f428e93c4b9d895`; T1 40556425486 and T2 40557263409 passed on first attempts. It supersedes the historical slice's retention/reset gaps below. Components remain unconnected to product lifecycle/API/UI/worker; #301 records the current Demo-policy continuation.
 
 Verifier #793 is integrated at `a1a2f692a6de9215c06a3c66f3ad9547f9158ca2`; exact-head T1 40522156453 passed. Exact-merge T2 40523138500 passed on attempt 2 (backend 2846 passed/1 skipped, Runtime smoke, Web, Chromium 13/13). Attempt 1 failed in the existing separate-database HA-D2 process test; cause remains unknown in [#423](https://github.com/brunolrogerio-collab/EliteSCADA/issues/423#issuecomment-6445217358). The retry did not alter HA or replace manual Preview acceptance.
 

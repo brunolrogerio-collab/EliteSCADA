@@ -1,6 +1,8 @@
-# Online state maintenance candidate - 2026-10-27
+# Demo without time limit candidate - 2026-10-27
 
-Active #301 branch `work/w15-online-license-maintenance-20261027`, base `8de815d724a02cc5f0fa9ad1b867156d3fd9bf41`: canonical scoped ciphertext collection, local reset/CAS/UTC tombstone, durable HTTP 401/403 rejection and exact-intent login retry preserving ActivationId. Local focused Drivers 122/122 and Security 42/42 pass. See `docs/licensing/ONLINE-STATE-MAINTENANCE.md`; live #301 owns PR/head/CI disposition. No endpoints/worker/Runtime/signing are enabled. Next review/CI/integration, then lifecycle/Demo/worker/usage/UI/platform validation. #796/#797 remain queued under #788; preserve Portal lane and owner preview. Codex handoff follows completed licensing.
+Active #301 `work/w15-demo-unlimited-time-20261027`, base `67a290ff208b7aa4a9029fd71f428e93c4b9d895`: remove canonical 300-minute policy/helper; null duration in API; unlimited Demo recovers without historical time-anchor requirements; Licensing/Help/manual pt-BR/en/es reflect it. Local Drivers 80/80, browser 11/11 without retries and Web production build passed. Core825/825; PR/head/CI disposition is in #301; no candidate integration is claimed here. 200 TAGs, 2+2 sessions and no HA/Intelligence remain; invalid offline license blocks Run. Generic explicit-duration guard tests remain separate. Next review/CI/integration, then online lifecycle/worker/time/usage/UI/Portal/platform work. Preserve Portal/Preview/DEMO; signing disabled; Codex handoff after completed licensing.
+
+Maintenance #798 integrated/verified at `67a290ff208b7aa4a9029fd71f428e93c4b9d895`: T1 40556425486 and T2 40557263409 passed first attempts; backend2900/1skip, smoke, Web, Chromium13/13. Retention/reset/reauth remain protocol components, requiring lifecycle integration before user exposure. #796/#797 queued in#788.
 
 ## Previous integration regularization - 2026-10-27
 

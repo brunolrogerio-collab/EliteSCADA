@@ -64,16 +64,18 @@ La licencia controla el entitlement comercial; no reemplaza Authority, Engineeri
 
 ### Demo/sin licencia
 
-<!-- HELP-REVIEW-301: Demo sin límite de tiempo; revisar también licencias online y presentación de consumo tras su entrega. -->
-**En revisión — Demo y licencias:** la decisión de producto es ofrecer Demo sin límite de tiempo. El plazo de 300 minutos y las referencias a timeout abajo pertenecen al texto anterior y se revisarán junto con la entrega de licencias. No trate ese plazo antiguo como regla comercial definitiva; compruebe versión y estado mostrados por la instalación. Flujo online y consumo de cuotas deben seguir las opciones realmente disponibles en la versión documentada.
+<!-- HELP-REVIEW-301: Revisar activación online y presentación de consumo tras su entrega. La duración ilimitada de Demo ya está descrita abajo. -->
+**Próximas actualizaciones:** la activación online por cuenta y los indicadores de consumo siguen en desarrollo. Use las opciones disponibles en su versión; este texto no declara completo el flujo online.
 
-Según el contrato operacional implementado:
+Sin una licencia instalada, puede usar Runtime en Demo sin límite de tiempo:
 
-- Engineering puede contener más de 200 TAGs;
-- se permite Run en Demo para proyectos de hasta 200 TAGs;
-- cada Run Demo exitoso inicia una sesión continua de hasta 300 minutos;
-- al expirar, Runtime industrial termina de forma controlada y Engineering se conserva;
-- un nuevo Run explícito inicia una nueva sesión Demo.
+- Engineering puede contener más de 200 TAGs, pero Run en Demo admite hasta 200 definiciones de TAG;
+- Demo no tiene cuenta regresiva: no necesita detener e iniciar Run periódicamente;
+- Runtime puede recuperarse después de un reinicio sin exigir la hora de inicio de una antigua sesión Demo;
+- las cuotas son 2 clientes Interactive y 2 Solo visualización, compartidas por los clientes Runtime; HA e Inteligencia requieren su propia licencia;
+- Licenciamiento muestra **Duración de Demo: Sin límite de tiempo**. Se siguen comprobando los permisos del usuario y los demás requisitos de operación.
+
+Por encima de 200 TAGs, el producto rechaza Run completo y explica el límite; no elige silenciosamente solo una parte de las TAGs. El proyecto de Engineering y sus datos siguen disponibles.
 
 Una licencia instalada pero inválida/tampered/wrong-hardware bloquea Run; no debe tratarse silenciosamente como si no hubiera licencia.
 
@@ -100,7 +102,7 @@ Remove elimina la licencia instalada; las activaciones futuras vuelven a las reg
 
 ## TAG tiers
 
-Tiers documentados: 500, 1000, 1500, 3000, 5000 e Unlimited. Una licencia válida elimina el timeout de Demo y aplica el límite de TAGs correspondiente.
+Tiers documentados: 500, 1000, 1500, 3000, 5000 e Unlimited. Una licencia válida aplica el límite de TAGs y las funciones firmadas del nivel adquirido.
 
 ## Cuotas de sesión Runtime / Interactive / View Only
 

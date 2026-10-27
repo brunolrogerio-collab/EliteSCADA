@@ -1,10 +1,12 @@
 # Current coordinator pointer - Wave 15
 
-## Active product slice - online state maintenance, 27 October 2026
+## Active product slice - Demo without time limit, 27 October 2026
 
-Continuing #301 from verified integration `8de815d724a02cc5f0fa9ad1b867156d3fd9bf41`, branch `work/w15-online-license-maintenance-20261027` adds canonical scoped ciphertext collection, local reset/CAS/UTC tombstone, and explicit reauthentication after durable HTTP 401/403 rejection. [Design/activation](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6449628468); [implementation/limits](licensing/ONLINE-STATE-MAINTENANCE.md). Local focused Drivers 122/122 and Security 42/42 pass; exact PR/head/CI disposition belongs in #301. This note does not claim integration or CI completion.
+Maintenance #798 is integrated/verified at `67a290ff208b7aa4a9029fd71f428e93c4b9d895`: exact T1 40556425486 and exact-merge T2 40557263409 passed on first attempts; T2 backend 2900 passed/1 skipped, Runtime smoke, Web and Chromium 13/13. Its protocol components remain unconnected to DI/API/worker/Runtime; reset needs lifecycle fencing and semantic audit. [Maintenance evidence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6449810628).
 
-Next: review/CI/integrate this bounded slice, then canonical lifecycle/expiry-to-Demo without timer, authorized worker/continuous time/retention scheduling, status/usage API/UI and Portal/platform validation. No public reset/login endpoint, DI, worker or Runtime change is enabled. Product-facing reset still needs lifecycle fencing and semantic audit; it does not revoke/free a Portal activation. Online signing stays disabled. Codex/Preview/EEE RHO handoff follows completed licensing; #796/#797 are queued under #788. Portal lane, HA and owner preview remain separate.
+Current #301 branch `work/w15-demo-unlimited-time-20261027` is based on that merge. It implements the owner-approved no-time-limit Demo: canonical Run decision has no duration; API exposes null duration; no expiry timer/anchor requirement under that policy; Licensing, installed Help and manual pt-BR/en/es explain it. Explicit-duration fixture tests retain generic budget guards, independently from real Demo-policy tests. Local Drivers 80/80, browser 11/11 without retries and Web production build passed; final Core825/825; PR/head/CI evidence belongs in #301. No integration/CI pass for this candidate is inferred from the base. [Scope](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6450217290).
+
+Next: review/CI/integrate this Demo-policy slice, then online lifecycle/epoch/expiry-to-Demo, authorized worker/continuous time/retention, status/usage API/UI and Portal/platform validation. Demo remains 200 TAGs and shared 2 Interactive + 2 View Only, without HA/Intelligence; invalid offline license still blocks Run. No online endpoints/worker/signing enabled. Codex/Preview/EEE RHO handoff follows completed licensing. #796/#797 remain queued under #788. Preserve Portal lane, HA and owner preview.
 
 ## Completed integration sequence - 27 October 2026
 

@@ -827,7 +827,12 @@
       "sections": [
         {
           "heading": "Prepare dados que você possa conferir",
-          "body": "Abra Engenharia > Relatórios. Para o primeiro exemplo, use um TAG de pressão com captura histórica já existente e um período curto em que você conhece os valores. O relatório consulta dados armazenados; ele não liga a captura nem recupera o passado que não foi gravado. Tenha autorização para editar e consultar o dataset escolhido. Um relatório de histórico e um de transições de alarme usam fontes diferentes.",
+          "body": "Comece pela pergunta: quais leituras precisam aparecer e de qual período? Em Engenharia > Relatórios, use primeiro um TAG de pressão cujo histórico já exista e um intervalo curto com valores conhecidos. Assim você confere os dados antes de desenhar a página.\n\nO relatório consulta registros armazenados. Ele não habilita captura nem recupera um passado não gravado. Sua conta precisa de autorização para editar e consultar a fonte escolhida. Para valores use o conjunto de amostras; para transições de alarme, o conjunto próprio de alarmes.",
+          "fields": null
+        },
+        {
+          "heading": "Primeiro teste, antes do desenho final",
+          "body": "1. Escolha consulta incorporada, que pertence ao relatório, e historian.samples, o conjunto de amostras.\n2. Adicione um TAG conhecido pelo seletor de referências.\n3. Escolha um período curto e resolução Bruto.\n4. Execute Preview. Confira linhas, horários, valores e qualidade disponíveis.\n5. Mude para Resumo com Máximo e intervalo horário. Compare cada saída com os dados brutos: o máximo do intervalo não é uma lista de todas as leituras.\n6. Depois organize a página e valide a definição. Se a prévia não tem linhas, confira TAG, período, captura e permissão antes de mudar cores ou larguras.",
           "fields": null
         },
         {
@@ -880,7 +885,7 @@
         },
         {
           "heading": "Escolha como os dados serão apresentados",
-          "body": "A resolução é uma escolha de consulta. Ela não muda o que foi capturado nem elimina dados brutos. Uma agregação de relatório não configura a política permanente de agregação do banco.",
+          "body": "Resolução define como recuperar e resumir os registros para esta consulta. Bruto permite ver as amostras armazenadas; as outras opções organizam ou resumem a saída. Confira os valores brutos antes de usar um resumo.\n\nEssa escolha não muda o que já foi capturado, não elimina registros brutos e não configura uma política permanente de agregação do banco.",
           "fields": [
             {
               "key": "resolution.mode",
@@ -911,11 +916,6 @@
               "constraints": ""
             }
           ]
-        },
-        {
-          "heading": "Primeiro teste, antes do desenho final",
-          "body": "1. Use consulta incorporada e historian.samples. 2. Adicione um TAG conhecido. 3. Escolha período curto e Bruto. 4. Execute Preview e confira linhas, horários, valores e qualidade disponíveis. 5. Mude para Resumo, Máximo e intervalo horário; compare com os dados brutos, sem assumir que as duas saídas são iguais. 6. Só depois organize a página e valide a definição. Se não houver linhas, confirme TAG, período, captura e permissão antes de mudar fontes, larguras ou cores.",
-          "fields": null
         }
       ]
     },
@@ -933,7 +933,7 @@
       "sections": [
         {
           "heading": "Entenda a página",
-          "body": "No Designer, use Projeto/Design para editar e Prévia/Preview para ver uma execução. Dimensões são em milímetros, não pixels da Tela Runtime. Retrato é vertical; Paisagem é horizontal. O conteúdo precisa caber na largura útil depois das margens. Mudar o zoom da prévia não muda as dimensões impressas.",
+          "body": "No Designer, Projeto/Design é onde você monta a página; Prévia/Preview mostra uma execução com dados. Comece com um título e um campo de leitura antes de acrescentar grupos e totais.\n\nAs dimensões são em milímetros, como numa página impressa, e não em pixels da Tela Runtime. Retrato é vertical; Paisagem é horizontal. Reserve as margens e faça o conteúdo caber na largura restante. O zoom só muda como você vê a prévia, não o tamanho da impressão.",
           "fields": null
         },
         {
@@ -979,7 +979,7 @@
         },
         {
           "heading": "Seções e controles do desenho",
-          "body": "Cabeçalho e rodapé do relatório valem para o relatório; os de página repetem por página. Detalhe recebe as linhas da consulta. Cabeçalho/rodapé de grupo depende do agrupamento. Se a consulta não retorna linhas, o Detalhe pode ficar vazio mesmo com título visível. Comece com Etiqueta e Campo, os controles oferecidos diretamente para inserção.",
+          "body": "Etiqueta é um texto fixo, como Pressão de descarga. Campo mostra um dado da consulta. Esses são os controles oferecidos diretamente para inserção; comece por eles.\n\nColoque o título no cabeçalho do relatório e os campos de registros em Detalhe, a seção que recebe as linhas da consulta. Cabeçalho e rodapé de página repetem em cada página; os de relatório pertencem ao relatório. Os de grupo dependem do agrupamento configurado.\n\nSe a consulta não tem linhas, o título pode aparecer e Detalhe ficar vazio. Confira primeiro os dados antes de tentar resolver esse caso aumentando a altura da seção.",
           "fields": [
             {
               "key": "sections.heightMillimeters",
@@ -1020,12 +1020,12 @@
         },
         {
           "heading": "Agrupamento não é agregação temporal",
-          "body": "Agrupar por organiza linhas pelo campo escolhido, com ordem ascendente/descendente. Um resumo escolhe campo, função e alcance: grupo ou relatório inteiro. A largura de tempo vem de Resolução, não do nome do grupo. Não some o mesmo conjunto novamente sem saber se a consulta já o agregou. Contagem é quantidade de registros; não significa horas de funcionamento. Confira um grupo pequeno à mão antes de confiar no total.",
+          "body": "Agrupar por junta linhas pelo campo escolhido e permite ordenar dentro dessa organização. Resolução define os intervalos de tempo usados na consulta. São escolhas diferentes: dar nome a um grupo não muda o intervalo.\n\nPara um resumo, escolha campo, função e alcance: somente o grupo ou o relatório inteiro. Confira se a consulta já resumiu os dados antes de somar de novo. Contagem informa quantidade de registros; não representa horas de funcionamento. Teste um grupo pequeno e confira o total manualmente.",
           "fields": null
         },
         {
           "heading": "Da prévia à revisão ativa",
-          "body": "1. Monte título, Detalhe e campos reais. 2. Execute a prévia dos dados e confira paginação/cortes. 3. Use Validar para localizar referências e estrutura inválidas. 4. Aplique somente o candidato válido; se o projeto mudar, atualize e valide novamente. 5. Salve, publique e ative a revisão. 6. Gere o relatório no Runtime com os mesmos parâmetros de teste e compare. A prévia executada não é uma definição salva nem garante que a revisão já esteja ativa.",
+          "body": "1. Monte um título, a seção Detalhe e campos ligados a dados reais.\n2. Execute a prévia e confira dados, páginas e cortes.\n3. Use Validar e corrija referências ou estrutura inválidas.\n4. Aplique somente o candidato válido. Se o projeto mudou durante a edição, atualize e valide novamente.\n5. Salve, publique e ative a revisão pelos controles do projeto.\n6. Gere o relatório no Runtime com os mesmos parâmetros do teste e compare. A prévia mostra uma execução; ela não salva a definição nem prova que a nova revisão está ativa.",
           "fields": null
         }
       ]
@@ -1044,22 +1044,22 @@
       "sections": [
         {
           "heading": "Encontre o relatório disponível",
-          "body": "Abra Relatórios no Runtime e pesquise pelo nome. A lista depende da revisão ativa e da autorização da sessão. Ter acesso à Engenharia ou ver um objeto de relatório numa Tela não garante permissão de consultar todos os dados. Se a lista estiver vazia, confira revisão e permissões antes de recriar a definição.",
+          "body": "Abra Relatórios no Runtime e procure pelo nome. A lista usa a revisão ativa e as permissões da sua sessão. Se o relatório não aparece, confira essas duas condições antes de recriá-lo.\n\nTer acesso à Engenharia ou ver um objeto de relatório numa tela não concede acesso a todos os dados. O usuário que gera também precisa poder consultar a fonte escolhida.",
           "fields": null
         },
         {
           "heading": "Período, parâmetros e execução",
-          "body": "1. Selecione um relatório. 2. Escolha período relativo ou De/Até, conforme os modos permitidos pela definição. Relativo é calculado para a execução; repetir depois pode usar outra janela. 3. Em intervalo absoluto, escolha início anterior ao fim e confira o fuso dos horários. 4. Complete parâmetros com o tipo e as opções exigidos; um campo de número, data ou booleano não aceita qualquer texto. 5. Selecione Gerar relatório e aguarde; cancelar interrompe a solicitação, não apaga a definição. 6. Confira o horário de geração, a janela e os parâmetros usados antes de interpretar a saída.",
+          "body": "1. Selecione o relatório que deseja gerar.\n2. Escolha período relativo ou De/Até entre os modos permitidos. Relativo é calculado na hora da execução: repetir mais tarde pode trazer outra janela.\n3. Para intervalo absoluto, informe início anterior ao fim e confira o fuso mostrado.\n4. Complete os parâmetros com os tipos e opções pedidos. Número, data e booleano não aceitam qualquer texto.\n5. Use Gerar relatório e aguarde. Cancelar interrompe a solicitação; não apaga a definição.\n6. Antes de interpretar, confira quando foi gerado, qual período foi consultado e quais parâmetros foram usados.",
           "fields": null
         },
         {
           "heading": "Prévia, PDF, planilha e impressão",
-          "body": "Use anterior/próxima página e zoom para conferir leitura; ajustar à largura não muda a definição. PDF e impressão servem à apresentação paginada; XLSX e CSV permitem trabalhar com a saída. São exportações do resultado, não pacotes para importar projeto ou alterar TAGs. Para atualizar os dados, gere novamente: abrir um arquivo exportado depois não o transforma numa consulta ao vivo. Confira se a planilha/CSV apresenta unidades, datas e decimais como o destinatário espera.",
+          "body": "Confira o resultado com anterior/próxima página e zoom. Ajustar à largura muda só a visualização. Use PDF ou impressão para a apresentação em páginas; XLSX e CSV permitem trabalhar com os dados da saída.\n\nSão exportações do resultado, não pacotes para importar projeto ou alterar TAGs. Um arquivo exportado representa aquela execução. Para atualizar os dados, gere novamente; abrir o arquivo depois não faz uma consulta ao vivo.\n\nAntes de enviar a planilha ou CSV, confira unidades, datas e decimais no formato que o destinatário espera.",
           "fields": null
         },
         {
           "heading": "Problemas que exigem verificações diferentes",
-          "body": "Relatório ausente: revisão e autorização. Cabeçalho visível sem Detalhe: consulta sem linhas, período/filtros/captura. Campo vazio ou erro: campo e consulta referenciados, tipo e parâmetros. Número inesperado: resolução, função, unidade apenas rotulada e escopo de resumo. Layout cortado: milímetros, largura útil e altura da seção. Dados antigos: confira quando a execução foi gerada e gere de novo. Uma falha não deve ser tratada alterando a permissão ou a unidade às cegas.",
+          "body": "Si el informe no aparece, revise publicación/activación y autorización. Si aparece el título sin filas, revise período, filtros y captura. Para un campo vacío o error, confirme campo y consulta referenciados, tipo y parámetros.\n\nUn número inesperado pide revisar resolución, función, unidad y alcance del resumen. Un rótulo distinto no convierte la unidad. Para contenido cortado, revise milímetros, ancho disponible y altura de sección.\n\nSi los datos parecen antiguos, mire la hora de generación y genere de nuevo. No cambie permisos o unidades a ciegas para intentar corregir una salida.",
           "fields": null
         }
       ]
@@ -1081,7 +1081,17 @@
       "sections": [
         {
           "heading": "Onde configurar e onde consultar",
-          "body": "Engenharia > Historian lista os TAGs com histórico habilitado e resume estratégia, deadband e período. Para alterar a captura de um TAG, abra Engenharia > TAGs, selecione-o e expanda Histórico/Historian no editor. O monitor ao vivo lê o valor corrente; Histórico, Relatórios e Intelligence dependem de amostras armazenadas. Habilitar hoje não recupera o passado.",
+          "body": "Para ver o que aconteceu antes, o SCADIVO precisa ter gravado os dados. Historian é esse histórico de amostras dos TAGs. O monitor ao vivo mostra o valor corrente; Histórico, Relatórios e Intelligence usam o que foi armazenado. Habilitar hoje não recupera um passado não gravado.\n\nEm Engenharia > Historian, veja os TAGs com captura habilitada e seu resumo. Para mudar como um TAG grava, abra Engenharia > TAGs, selecione-o e expanda Histórico/Historian no editor.",
+          "fields": null
+        },
+        {
+          "heading": "Exemplo que mostra o efeito do deadband",
+          "body": "Deadband é a variação mínima usada para decidir se uma nova observação numérica deve ser gravada. Ele é comparado com o último valor aceito.\n\nCom qualidade constante, deadband 0.1 e último aceito 1.00, uma observação 1.03 pode ser descartada. Já 1.12 ultrapassa o limiar e pode ser aceita. A próxima comparação parte do último aceito, não de cada observação descartada.\n\nA primeira observação e mudanças de qualidade têm tratamento próprio e podem ser gravadas mesmo sem essa variação. Na estratégia com intervalo máximo, uma observação recebida depois do prazo também pode ser aceita. Por isso, não calcule a quantidade esperada de registros usando apenas o deadband.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento de verificação",
+          "body": "1. Confira o TAG ao vivo: valor, tipo, escala e qualidade.\n2. No editor do TAG, habilite Histórico e escolha uma estratégia com seus campos válidos.\n3. Execute Preview e Apply; salve, publique e ative a revisão. A edição no rascunho não muda sozinha a captura em execução.\n4. Numa fonte de teste, produza variações conhecidas e anote quando ocorreram.\n5. Abra Histórico do Runtime, escolha Amostras e filtre o TAG no mesmo período.\n6. Compare valores, qualidade, horários e quantidade com a estratégia configurada.\n7. Repita com o sinal estável e com mudança de qualidade. Para usar em Intelligence, confira também o timestamp de origem e o alinhamento pedido pela análise.",
           "fields": null
         },
         {
@@ -1126,23 +1136,13 @@
           ]
         },
         {
-          "heading": "Exemplo que mostra o efeito do deadband",
-          "body": "Com qualidade constante, deadband 0.1 e último valor aceito 1.00, uma observação 1.03 pode ser descartada pela política; 1.12 ultrapassa o limiar e pode ser aceita. A comparação é com o último aceito, não com toda observação rejeitada. A primeira observação e transições de qualidade têm tratamento próprio e podem ser registradas mesmo sem a variação numérica. No modo com intervalo máximo, uma observação posterior também pode ser aceita pelo tempo. Portanto, não espere contagem calculada só pelo deadband.",
-          "fields": null
-        },
-        {
-          "heading": "Procedimento de verificação",
-          "body": "1. Confira o TAG ao vivo, tipo, escala e qualidade. 2. Habilite Histórico e escolha estratégia/campos válidos. 3. Execute Preview/Apply e salve/publique/ative. 4. Produza variações conhecidas numa fonte de teste e anote o intervalo. 5. Abra Histórico do Runtime no mesmo período, selecione Amostras e filtre esse TAG. 6. Confira valores, qualidade, horários e quantidade; compare com a estratégia. 7. Repita com sinal estável e mudança de qualidade. Para usar em Intelligence, confira também timestamp de origem e alinhamento exigidos pela análise.",
-          "fields": null
-        },
-        {
           "heading": "Consultar: período, filtros e páginas",
-          "body": "Escolha o dataset certo: amostras não são transições de alarmes. Use um período relativo curto ou De/Até válido; o navegador histórico atual limita a janela a 31 dias por consulta. Depois adicione filtros pelos campos/operadores oferecidos pelo schema. O tipo do valor precisa corresponder ao campo: número, booleano, data, texto ou enum não são intercambiáveis. Ordenação controla a ordem, não o filtro. Navegar páginas continua a consulta, não aumenta o período. Se ficar vazio, retire um filtro por vez e confirme que havia captura nesse horário.",
+          "body": "Comece escolhendo o conjunto de registros, chamado dataset. Amostras de valores e transições de alarmes são conjuntos diferentes. Selecione um período relativo curto ou preencha De/Até; a janela atual permite até 31 dias por consulta.\n\nDepois use os filtros oferecidos para esse conjunto. Cada campo espera um tipo de valor: número, booleano, data, texto ou enum. Escolha o operador disponível e preencha o tipo correto, em vez de escrever qualquer texto.\n\nOrdenar muda a ordem de apresentação, não seleciona outros registros. Passar de página continua a consulta, não amplia o período. Se não houver resultado, retire um filtro por vez e confira se havia captura no horário.",
           "fields": null
         },
         {
           "heading": "Captura, retenção, backup e Playback são diferentes",
-          "body": "Captura decide quais observações entram. Retenção decide por quanto tempo os registros permanecem. Agregação resume amostras; backup preserva uma cópia recuperável. Os campos de captura não são uma cota global do banco nem uma configuração de arquivamento. Playback apresenta valores históricos na visualização de consulta, não restaura o processo nem autoriza comandos; volte ao modo ao vivo antes de operar. Falta de amostras não significa valor zero ou equipamento desligado.",
+          "body": "São decisões diferentes. Captura escolhe quais observações gravar. Retenção define por quanto tempo guardá-las. Agregação resume amostras; backup guarda uma cópia recuperável. Configurar a captura de um TAG não define cota global do banco nem arquivamento.\n\nPlayback é a visualização de valores históricos. Ele não restaura o processo nem permite comandar a partir do passado. Volte ao modo ao vivo antes de operar. Falta de amostras não significa zero nem equipamento desligado.",
           "fields": null
         }
       ]
@@ -1151,11 +1151,21 @@
       "id": "alarms.configuration",
       "category": "alarms",
       "title": "Alarmes: configurar condição, prioridade e comportamento",
-      "summary": "Monte um alarme a partir de um TAG e saiba o que cada opção realmente faz.",
+      "summary": "Configure um aviso para uma condição conhecida e teste o que o operador verá. O exemplo usa pressão alta sem comandar equipamento.",
       "sections": [
         {
           "heading": "Antes de começar",
-          "body": "Abra Engenharia > Alarmes. Tenha um TAG cuja leitura, tipo, escala e unidade já foram conferidos. Um alarme de pressão alta observa o valor do TAG; não configura o sensor e não desliga a bomba sozinho. Defina limites e resposta operacional com o responsável pelo processo. Para aprender, use um TAG de simulação, sem atuar em equipamento real. Edição requer a permissão e o bloqueio de Engenharia aplicáveis.",
+          "body": "Comece por uma condição simples: avisar quando a pressão chegar ao limite alto. Em Engenharia > Alarmes, use um TAG de teste cujo valor, tipo, escala e unidade você já conferiu. Um TAG é a variável que fornece a leitura.\n\nO alarme observa essa variável; ele não configura o sensor nem desliga a bomba sozinho. Combine limite e resposta operacional com o responsável pelo processo. Para aprender, use simulação, com permissão e bloqueio de Engenharia aplicáveis, sem atuar em equipamento real.",
+          "fields": null
+        },
+        {
+          "heading": "Qual tipo escolher",
+          "body": "Escolha o tipo pela pergunta que o alarme deve responder:\n\nDigital acompanha um booleano: você escolhe se true ou false significa condição de alarme. High e HighHigh ativam quando o valor é maior ou igual ao limite (≥). Low e LowLow ativam quando é menor ou igual (≤). Para dois limites, crie duas definições e escolha a prioridade de cada uma.\n\nCommunication acompanha a qualidade da leitura: ativa quando ela é diferente de Good e retorna com Good. Não usa setpoint, o limite numérico, nem cria um temporizador de perda de comunicação só por ser selecionado. Com qualidade ruim, os alarmes de processo não tratam o número como leitura válida; use Communication para acompanhar essa condição.\n\nSystem aparece no seletor, mas não tem uma regra genérica de processo neste avaliador. Para limite alto ou estado booleano, escolha o tipo próprio, em vez de usar System como substituto.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento: testar um limite alto",
+          "body": "Neste teste, 10 bar é apenas um valor didático. ACK significa reconhecimento: o operador confirma que tomou ciência da notificação.\n\n1. Crie um alarme high para o TAG de pressão simulado, com setpoint 10. Confira a unidade bar no TAG.\n2. Preencha prioridade, área e mensagem clara. Mantenha Requer reconhecimento marcado neste teste.\n3. Execute Preview, leia os erros e aplique ao Workspace, o rascunho de edição. Se editar de novo, valide de novo.\n4. Salve, publique e ative a revisão correta. Aplicar ao Workspace não ativa o Runtime sozinho.\n5. Com qualidade Good, envie 9: a condição fica Normal. Envie 10: fica Active. A igualdade também ativa.\n6. Reconheça no Runtime mantendo 10 no TAG: o estado fica Acknowledged, mas a pressão não mudou. Envie 9: fica Returned e sai da lista ativa porque já teve ACK.\n7. Repita a ativação com 10 e volte a 9 sem reconhecer: Returned continua pendente. Reconheça e confira a saída da lista ativa. Consulte o histórico para ver as transições anteriores.",
           "fields": null
         },
         {
@@ -1179,7 +1189,7 @@
             {
               "key": "alarm.type",
               "label": "Tipo",
-              "description": "Escolhe a regra de comparação; consulte os tipos abaixo. HighHigh é outra definição de limite, não uma prioridade automática.",
+              "description": "Escolhe a regra de comparação; consulte a explicação dos tipos neste artigo. HighHigh é outra definição de limite, não uma prioridade automática.",
               "example": "high",
               "constraints": ""
             },
@@ -1228,11 +1238,6 @@
           ]
         },
         {
-          "heading": "Qual tipo escolher",
-          "body": "Digital compara o booleano com o valor ativo escolhido. High e HighHigh usam ≥; Low e LowLow usam ≤. Para dois limites, crie duas definições e escolha suas prioridades separadamente. Communication ativa para qualidade diferente de Good e retorna com Good; não depende de setpoint. Com qualidade ruim, os tipos de processo não avaliam um limite numérico como se a leitura fosse válida: use o alarme de comunicação para acompanhar isso. System aparece no seletor, mas não tem regra genérica de processo neste avaliador; não o use como substituto de High ou Digital. Não se presume temporizador de perda de comunicação apenas por selecionar Communication.",
-          "fields": null
-        },
-        {
           "heading": "Comportamento e som",
           "body": "Expanda Comportamento do alarme. Algumas opções são salvas na definição, mas têm limitações no Runtime atual; elas estão descritas junto ao campo.",
           "fields": [
@@ -1274,11 +1279,6 @@
           ]
         },
         {
-          "heading": "Procedimento: testar um limite alto",
-          "body": "1. Crie um alarme high para o TAG de pressão simulado, com setpoint 10 e unidade bar no TAG. 2. Preencha prioridade, área e uma mensagem clara. Para este teste mantenha Requer reconhecimento marcado. 3. Execute Preview, leia erros e aplique ao Workspace. Qualquer nova edição exige outra validação. 4. Salve, publique e ative a revisão correta; aplicar ao Workspace não ativa o Runtime sozinho. 5. Com qualidade Good, envie 9: a condição fica Normal. Envie 10: fica Active, pois a igualdade entra no limite. 6. Reconheça no Runtime: fica Acknowledged e o TAG continua em 10. Envie 9: fica Returned e deixa a lista ativa porque já teve ACK. 7. Em nova ativação, envie 10 e depois 9 sem ACK: fica Returned pendente. Reconheça e confira a saída da lista ativa. Consulte histórico para as transições anteriores.",
-          "fields": null
-        },
-        {
           "heading": "Se o resultado não for o esperado",
           "body": "Confira TAG/revisão ativa, escala/unidade, sinal booleano, habilitação e qualidade. Alta prioridade não força ativação. Um limite que oscila não ganha histerese por mudar a mensagem ou a classe. Preview valida o candidato; não comprova leitura de campo. Atraso e dispensa de ACK continuam com as limitações descritas. Caso o projeto mude durante a edição, recarregue e valide de novo em vez de aplicar um candidato antigo.",
           "fields": null
@@ -1301,12 +1301,12 @@
       "sections": [
         {
           "heading": "Onde olhar e como interpretar",
-          "body": "Abra a central de alarmes do Runtime. Ela mostra a lista ativa visível para sua sessão, contagens e detalhes do item selecionado. Não é uma lista de todas as ocorrências passadas. Selecione uma linha para ver mensagem/nome, prioridade, área, último valor, ativação, última transição e quem/quando reconheceu. IDs nos detalhes ajudam a identificar exatamente a definição; não é necessário inventar ou digitar um ID para reconhecer.",
+          "body": "A central de alarmes do Runtime ajuda a decidir o que precisa de atenção agora. Ela mostra a lista ativa permitida para sua sessão, contagens e detalhes da linha selecionada. Não é o histórico de tudo que já aconteceu.\n\nSelecione uma linha e confira equipamento, mensagem, prioridade, área, valor e horários. Os detalhes também informam quem reconheceu e quando. IDs identificam a definição exata para consulta ou suporte; reconhecer não exige inventar nem digitar um ID.",
           "fields": null
         },
         {
           "heading": "Estados que aparecem nos detalhes",
-          "body": "A lista ativa inclui Active, Acknowledged e Returned sem ACK. Assim, vazio não significa que nunca houve alarme. Estados fora dela podem ser encontrados em outras consultas apropriadas.",
+          "body": "ACK é a confirmação de que o operador tomou ciência do alarme. Ela é separada da condição física. Por isso, um alarme pode já estar reconhecido e continuar ativo.\n\nA lista ativa inclui Active, Acknowledged e Returned ainda sem ACK. Ela pode ficar vazia depois de resolver e reconhecer os itens, embora as transições anteriores continuem no histórico. A tabela explica os estados que aparecem nos detalhes.",
           "fields": [
             {
               "key": "alarmState.normal",
@@ -1354,12 +1354,12 @@
         },
         {
           "heading": "Procedimento: reconhecer uma notificação",
-          "body": "1. Selecione a linha e leia condição, valor e horário; confirme o equipamento. 2. Execute a resposta operacional prevista pela planta. 3. Use Reconhecer alarme se a sessão possui permissão AlarmAcknowledge para a área. Uma sessão View Only não ganha essa ação. 4. Aguarde a confirmação do servidor e a releitura. Se o ACK foi aceito mas a releitura falhou, atualize para conferir o resultado antes de repetir ações. 5. Se a condição persiste, o estado reconhecido continua visível. Se ela já retornou, o item deixa a lista ativa após o ACK. Uma nova ativação abre outra pendência.",
+          "body": "1. Selecione a linha. Leia condição, valor e horário e confirme o equipamento.\n2. Siga a resposta operacional prevista pela planta para aquela condição.\n3. Use Reconhecer alarme se sua sessão permitir a ação na área correspondente. A permissão técnica é AlarmAcknowledge; uma sessão View Only continua sem essa ação.\n4. Aguarde confirmação e atualização da lista. Se o servidor aceitou o ACK, mas a releitura falhou, atualize para conferir antes de repetir ações.\n5. Se a condição ainda existe, o alarme reconhecido permanece visível. Se já retornou, o item deixa a lista ativa após o ACK. Uma nova ativação cria outra pendência de reconhecimento.",
           "fields": null
         },
         {
           "heading": "Sons, silêncio e indisponibilidade",
-          "body": "Ativar sons de alarmes libera o áudio nesta sessão do navegador; depende de suporte, volume e saída de áudio. Perfis configurados repetem enquanto houver alarme pendente, inclusive Returned sem ACK. Silenciar sons é local e não reconhece, desabilita ou coloca em shelving. Reconhecer não envia comando ao processo. Sem acesso: confirme login, classe de sessão e permissão/área; não tente resolver mudando o TAG. Sem dados ou serviço indisponível: releia e confira diagnóstico do Runtime. Para ocorrências passadas, use Histórico e escolha alarm.events com período adequado; não confunda com operational.events ou Audit.",
+          "body": "Para ouvir avisos, use Ativar sons de alarmes nesta sessão do navegador. Confira suporte, volume e saída de áudio. Os perfis repetem enquanto houver alarme pendente, inclusive Returned sem ACK.\n\nSilenciar sons é local: não reconhece, desabilita ou coloca em shelving. Shelving é a supressão da notificação. Reconhecer também não envia comando ao processo. São efeitos diferentes.\n\nSem acesso, confira login, classe de sessão e permissão para a área. Sem dados ou serviço disponível, atualize e consulte o diagnóstico do Runtime; mudar o TAG não resolve uma recusa de autorização. Para o passado, abra Histórico e escolha alarm.events no período desejado. Esse conjunto é de alarmes; operational.events e Audit têm outras finalidades.",
           "fields": null
         }
       ],
@@ -1379,8 +1379,19 @@
       "sections": [
         {
           "heading": "Escolha o recurso certo",
-          "body": "Evento operacional registra um fato, por exemplo início de lote ou troca de modo. Cada emissão cria uma ocorrência com horário e identidade próprios; não mantém condição ativa nem exige ACK. Alarme acompanha uma condição que pode ativar/retornar. Audit rastreia ações e resultados de segurança/administração. Um clique de objeto visual também se chama evento, mas não é uma ocorrência operacional por si só. Cadastrar a definição abaixo não emite nada automaticamente; associar um TAG só dá contexto, não cria gatilho de mudança.",
+          "body": "Use um evento operacional para registrar um fato, como início de lote ou troca de modo. Cada emissão cria uma ocorrência com horário e identidade próprios. Ela não mantém uma condição ativa nem pede ACK.\n\nEscolha alarme quando precisar acompanhar uma condição que ativa e retorna. Audit serve para rastrear ações e resultados de segurança ou administração. Um clique na tela também é chamado evento, mas não vira ocorrência operacional sozinho.\n\nPrimeiro você cadastra a definição do fato; depois configura quem o emite. Cadastrar não emite automaticamente. Associar um TAG só dá contexto, não cria gatilho de mudança.",
           "fields": null
+        },
+        {
+          "heading": "Procedimento: preparar a definição e o produtor",
+          "body": "1. Crie a definição com os campos obrigatórios e um nome/chave que distingam o fato. Acrescente contexto útil.\n2. Execute Preview e corrija chaves duplicadas ou referências inválidas indicadas nos diagnósticos.\n3. Aplique ao Workspace e depois salve, publique e ative a revisão pelos controles do projeto.\n4. Prepare quem emitirá a ocorrência. Um Server Script pode chamar emit_operational_event. Obtenha o ID estável da definição salva nas referências ou dados exportados do projeto; não substitua pelo Identificador textual.\n5. Associe o handler, a função Python, ao gatilho Server adequado. Evite Timer para registrar uma única transição: cada chamada cria outra ocorrência, mesmo com mensagem igual.\n6. Ative a revisão que contém a definição e o Script.\n7. Produza um fato de teste controlado e consulte operational.events no Histórico, incluindo o horário da execução no período.",
+          "fields": null
+        },
+        {
+          "heading": "Exemplo Python: uma ocorrência ao inicializar",
+          "body": "Este exemplo registra o início da simulação, não a partida física de uma bomba. O UUID ilustrativo é o ID da definição: substitua pelo ID estável da sua definição salva.\n\nNo editor de Scripts, escolha Server e associe Initialize ao handler initialize. Escrever a função não cria essa associação. A função executa a cada inicialização do Script; o argumento event traz o contexto do gatilho e pode ficar sem uso.\n\nA chamada emit_operational_event(definition_id, message=None, context=None) retorna None, não o ID da ocorrência. No dicionário context, chaves e valores são textos. Use str(valor) para transformar um número calculado em texto antes de incluí-lo.",
+          "fields": null,
+          "code": "def initialize(event):\n    emit_operational_event(\n        \"c1900000-0000-0000-0000-000000000002\",\n        \"Simulation started\",\n        {\"mode\": \"simulation\", \"batch\": \"42\"}\n    )"
         },
         {
           "heading": "Campos da definição",
@@ -1459,19 +1470,8 @@
           ]
         },
         {
-          "heading": "Procedimento: preparar a definição e o produtor",
-          "body": "1. Crie a definição com os campos obrigatórios e contexto útil; evite uma chave genérica igual para todos os fatos. 2. Execute Preview e leia os diagnósticos. Corrija chaves duplicadas e referências inválidas. 3. Aplique ao Workspace e depois salve, publique e ative conforme o ciclo do projeto. 4. Configure o produtor: um Server Script pode usar emit_operational_event. Obtenha o ID estável da definição salva nos dados exportados/referências do projeto; não substitua pelo Identificador textual. 5. Associe o handler Python ao gatilho Server apropriado. Evite Timer para registrar apenas uma transição: cada chamada cria outra ocorrência, mesmo que a mensagem seja igual. 6. Ative a revisão que contém tanto definição quanto script. 7. Produza um fato controlado e consulte operational.events no Histórico, com período que inclua a execução.",
-          "fields": null
-        },
-        {
-          "heading": "Exemplo Python: uma ocorrência ao inicializar",
-          "body": "O UUID abaixo é ilustrativo: substitua pelo ID estável da sua definição. No Script Engineering, escolha escopo Server e associe o evento Initialize ao handler initialize; o nome da função sozinho não cria essa associação. O exemplo registra o início da simulação a cada inicialização do script, não a partida física de uma bomba. O argumento event é o contexto do gatilho e pode ficar sem uso. emit_operational_event(definition_id, message=None, context=None) retorna None; não devolve o ID da ocorrência. As chaves e valores do dicionário de contexto são textos: use str(valor) para números calculados.",
-          "fields": null,
-          "code": "def initialize(event):\n    emit_operational_event(\n        \"c1900000-0000-0000-0000-000000000002\",\n        \"Simulation started\",\n        {\"mode\": \"simulation\", \"batch\": \"42\"}\n    )"
-        },
-        {
           "heading": "Consultar e diagnosticar",
-          "body": "No Histórico selecione operational.events, ajuste início/fim e os filtros disponíveis; confira horário, origem, mensagem e contexto. alarm.events contém transições de alarmes, e Audit possui outra finalidade. Contexto adicional não muda tipo, categoria, origem ou identidade próprios da definição, mesmo que contenha chaves com esses nomes. Até 128 pares de contexto, chaves de até 160 caracteres e valores de até 4000; mensagens também têm limite de 4000. Não inclua senhas ou segredos. Sem ocorrência: confira revisão ativa, definição habilitada, ID correto, associação do handler, diagnóstico do script, período e permissão de consulta. A emissão deve respeitar a autoridade ativa do Runtime; uma falha não autoriza emitir por caminho alternativo. Nada aparecer após apenas cadastrar a definição é esperado.",
+          "body": "No Histórico, escolha operational.events, o conjunto de ocorrências operacionais. Ajuste início/fim e filtros e confira horário, origem, mensagem e contexto. alarm.events contém transições de alarmes; Audit registra outro tipo de ação.\n\nO contexto adicional não muda tipo, categoria, origem ou identidade da definição, mesmo que use chaves com esses nomes. São permitidos até 128 pares, com chaves de até 160 caracteres e valores de até 4000; a mensagem também tem limite de 4000. Não inclua senhas ou segredos.\n\nSe não apareceu ocorrência, confira revisão ativa, definição habilitada, ID, ligação do handler, diagnóstico do Script, período e permissão. Somente cadastrar a definição não produz registros. Uma falha de emissão não autoriza outro caminho: a emissão precisa respeitar a autoridade ativa do Runtime.",
           "fields": null
         }
       ],
@@ -7685,7 +7685,12 @@
       "sections": [
         {
           "heading": "Prepare verifiable data",
-          "body": "Open Engineering > Reports. Start with a pressure TAG that already has historical capture and a short period with known values. A report queries stored data; it neither enables capture nor recovers unstored history. Have permission to edit and query the selected dataset. Sample history and alarm transitions use different datasets.",
+          "body": "Start with the question: which readings should appear, and for what period? In Engineering > Reports, first use a pressure TAG with existing history and a short interval with known values. This lets you check data before designing the page.\n\nThe report queries stored records. It does not enable capture or recover an unrecorded past. Your account needs permission to edit and query the chosen source. Use the samples dataset for values and the alarm dataset for alarm transitions.",
+          "fields": null
+        },
+        {
+          "heading": "First test before final layout",
+          "body": "1. Choose an embedded query, which belongs to the report, and historian.samples, the samples dataset.\n2. Add a known TAG through the reference picker.\n3. Choose a short period and Raw resolution.\n4. Run Preview. Check available rows, times, values and quality.\n5. Switch to Summary with Maximum and an hourly interval. Compare each output with raw data: an interval maximum is not a list of every reading.\n6. Then arrange the page and validate the definition. For no preview rows, check TAG, period, capture and permission before changing colors or widths.",
           "fields": null
         },
         {
@@ -7738,7 +7743,7 @@
         },
         {
           "heading": "Choose data retrieval/presentation",
-          "body": "Resolution is a query choice; it changes neither capture nor stored raw samples. Report aggregation does not configure permanent database aggregation policy.",
+          "body": "Resolution defines how to retrieve and summarize records for this query. Raw shows stored samples; other options organize or summarize output. Check raw values before using a summary.\n\nThis choice does not change captured data, remove raw records or configure permanent database aggregation policy.",
           "fields": [
             {
               "key": "resolution.mode",
@@ -7769,11 +7774,6 @@
               "constraints": ""
             }
           ]
-        },
-        {
-          "heading": "First test before final layout",
-          "body": "1. Use an embedded historian.samples query. 2. Add a known TAG. 3. Choose a short period and Raw. 4. Run Preview; inspect rows, times, values and available quality. 5. Switch to Summary, Maximum and hourly buckets; compare with raw data without expecting identical output. 6. Then arrange the page and validate. For no rows, check TAG, period, capture and permission before changing fonts, widths or colors.",
-          "fields": null
         }
       ]
     },
@@ -7791,7 +7791,7 @@
       "sections": [
         {
           "heading": "Understand the page",
-          "body": "Use Design to edit and Preview to inspect execution. Dimensions are millimeters, not Runtime screen pixels. Portrait is vertical; Landscape horizontal. Content must fit usable width after margins. Preview zoom does not change print dimensions.",
+          "body": "In the Designer, Project/Design is where you build the page; Preview shows a run with data. Start with a title and one reading field before adding groups and totals.\n\nDimensions use millimeters, as on a printed page, not Runtime-screen pixels. Portrait is vertical; Landscape is horizontal. Reserve margins and fit content in the remaining width. Zoom only changes how you see Preview, not print size.",
           "fields": null
         },
         {
@@ -7837,7 +7837,7 @@
         },
         {
           "heading": "Layout sections and controls",
-          "body": "Report header/footer apply to the report; page header/footer repeat per page. Detail receives query rows; group header/footer follows grouping. Detail may be empty while the title remains visible if there are no rows. Start with Label and Field, the directly offered insertion controls.",
+          "body": "Label is fixed text, such as Discharge pressure. Field shows a query value. These are the controls directly offered for insertion; start with them.\n\nPut the title in the report header and record fields in Detail, the section receiving query rows. Page header/footer repeat on each page; report header/footer belong to the report. Group headers/footers depend on configured grouping.\n\nWith no query rows, a title can appear while Detail stays empty. Check data first rather than trying to fix this by increasing section height.",
           "fields": [
             {
               "key": "sections.heightMillimeters",
@@ -7878,12 +7878,12 @@
         },
         {
           "heading": "Grouping is not temporal aggregation",
-          "body": "Group by organizes rows by a selected field with ascending/descending order. A summary selects field, function and scope: group or entire report. Time bucket width comes from Resolution, not group names. Do not sum already aggregated data blindly. Count means records, not operating hours. Manually check a small group before trusting totals.",
+          "body": "Group by brings rows together by the chosen field and lets you order that organization. Resolution defines query time intervals. These are different choices: naming a group does not change the interval.\n\nFor a summary, choose field, function and scope: just the group or the whole report. Check whether the query already summarized data before summing again. Count reports record quantity, not running hours. Test a small group and check its total manually.",
           "fields": null
         },
         {
           "heading": "From preview to active revision",
-          "body": "1. Build a title, Detail and real fields. 2. Preview data and inspect pagination/clipping. 3. Validate references/structure. 4. Apply only a valid candidate; refresh/revalidate if the project changes. 5. Save/publish/activate. 6. Generate in Runtime with the same test parameters and compare. A preview execution is not a saved definition or an active revision.",
+          "body": "1. Build a title, Detail section and fields linked to real data.\n2. Run Preview and check data, pages and clipping.\n3. Use Validate and correct invalid references or structure.\n4. Apply only the valid candidate. If the project changed during editing, refresh and validate again.\n5. Save, publish and activate the revision through project controls.\n6. Generate the report in Runtime with the same test parameters and compare. Preview shows a run; it does not save the definition or prove the new revision is active.",
           "fields": null
         }
       ]
@@ -7902,22 +7902,22 @@
       "sections": [
         {
           "heading": "Find the available report",
-          "body": "Open Runtime Reports and search by name. The list depends on active revision and session authorization. Engineering access or a report object on a screen does not grant every data query. For an empty list check revision and permissions before recreating definitions.",
+          "body": "Open Reports in Runtime and search by name. The list uses the active revision and your session’s permissions. If a report is missing, check those two conditions before recreating it.\n\nEngineering access or seeing a report object on a screen does not grant access to every dataset. The generating user also needs permission to query the chosen source.",
           "fields": null
         },
         {
           "heading": "Period, parameters and execution",
-          "body": "1. Select a report. 2. Choose relative or From/To where the definition permits. Relative time is resolved for execution; repeating later may use another window. 3. For absolute time choose start before end and check timezone. 4. Enter correctly typed/allowed parameters, not arbitrary text for numbers/dates/Booleans. 5. Generate and wait; cancellation stops the request without deleting the definition. 6. Inspect generation time, window and used parameters before interpreting output.",
+          "body": "1. Select the report to generate.\n2. Choose relative period or From/To from allowed modes. Relative is calculated at execution time: repeating later can use a different window.\n3. For an absolute interval, enter start before end and check the displayed time zone.\n4. Complete parameters with the requested types and options. Numbers, dates and booleans do not accept arbitrary text.\n5. Use Generate report and wait. Cancel interrupts the request; it does not delete the definition.\n6. Before interpreting, check generation time, queried period and parameters used.",
           "fields": null
         },
         {
           "heading": "Preview, PDF, spreadsheet and print",
-          "body": "Use page navigation/zoom for inspection; fit-to-width does not change the definition. PDF/print provide paginated presentation; XLSX/CSV support work on the output. They export results, not Engineering packages or TAG edits. Regenerate for updated data; opening an old export does not make it live. Check spreadsheet/CSV unit, date and decimal interpretation for the recipient.",
+          "body": "Check output with previous/next page and zoom. Fit to width changes only the view. Use PDF or print for paginated presentation; XLSX and CSV let you work with output data.\n\nThese export the result, not project-import packages or TAG edits. An exported file represents that run. Generate again to update data; reopening the file does not make a live query.\n\nBefore sharing a spreadsheet or CSV, check units, dates and decimal formatting expected by the recipient.",
           "fields": null
         },
         {
           "heading": "Problems needing different checks",
-          "body": "Missing report: revision/authorization. Header without Detail: empty query, period/filters/capture. Blank/error field: field/query references, type and parameters. Unexpected number: resolution, function, label-only unit and summary scope. Clipping: millimeters, usable width and band height. Old data: inspect execution time and regenerate. Do not blindly change permissions or units to hide failure.",
+          "body": "For a missing report, review publication/activation and authorization. For a title with no rows, check period, filters and capture. For an empty field or error, confirm referenced field/query, type and parameters.\n\nAn unexpected number calls for checking resolution, function, unit and summary scope. A different label does not convert units. For clipping, check millimeters, usable width and section height.\n\nIf data looks old, check generation time and generate again. Do not change permissions or units blindly to try to fix output.",
           "fields": null
         }
       ]
@@ -7939,7 +7939,17 @@
       "sections": [
         {
           "heading": "Where to configure and query",
-          "body": "Engineering > Historian lists enabled historical TAGs and summarizes strategy, deadband and period. Configure a TAG in Engineering > TAGs by selecting it and expanding History/Historian. Live monitoring reads current values; History, Reports and Intelligence need stored samples. Enabling today does not recover the past.",
+          "body": "To see what happened earlier, SCADIVO must have recorded the data. Historian is that history of TAG samples. The live monitor shows the current value; History, Reports and Intelligence use what was stored. Enabling today does not recover an unrecorded past.\n\nIn Engineering > Historian, review TAGs with capture enabled and their summary. To change how a TAG records, open Engineering > TAGs, select it and expand History/Historian in the editor.",
+          "fields": null
+        },
+        {
+          "heading": "Example showing deadband effects",
+          "body": "Deadband is the minimum change used to decide whether a new numeric observation should be recorded. It is compared with the last accepted value.\n\nWith constant quality, deadband 0.1 and last accepted value 1.00, observation 1.03 may be discarded. Value 1.12 exceeds the threshold and may be accepted. The next comparison starts from the last accepted value, not every discarded observation.\n\nThe first observation and quality changes have their own handling and may be recorded without that change. With a maximum-interval strategy, an observation received after the deadline may also be accepted. Do not calculate expected record count from deadband alone.",
+          "fields": null
+        },
+        {
+          "heading": "Verification procedure",
+          "body": "1. Check the live TAG: value, type, scale and quality.\n2. In the TAG editor, enable History and choose a strategy with valid required fields.\n3. Run Preview and Apply; save, publish and activate the revision. Editing the draft alone does not change running capture.\n4. On a test source, produce known changes and note when they occurred.\n5. Open Runtime History, choose Samples and filter the TAG for that same period.\n6. Compare values, quality, times and count against the configured strategy.\n7. Repeat with a stable signal and a quality change. For Intelligence, also check source timestamp and the analysis’s alignment requirement.",
           "fields": null
         },
         {
@@ -7984,23 +7994,13 @@
           ]
         },
         {
-          "heading": "Example showing deadband effects",
-          "body": "With constant quality, deadband 0.1 and last accepted value 1.00, observation 1.03 can be skipped; 1.12 crosses the threshold and can be accepted. Comparison uses the last accepted value, not each rejected observation. First observation and quality transitions have their own handling and can be recorded without numeric change. Maximum-interval mode may also accept a later observation by elapsed time. Counts therefore cannot be inferred from deadband alone.",
-          "fields": null
-        },
-        {
-          "heading": "Verification procedure",
-          "body": "1. Inspect live TAG type/scale/quality. 2. Enable History and valid strategy/fields. 3. Preview/Apply and save/publish/activate. 4. Produce known test-source changes and note the period. 5. Open Runtime History for that period, select Samples and filter the TAG. 6. Check values, quality, times and count against the strategy. 7. Repeat for steady values and quality change. For Intelligence also check source timestamps and required alignment.",
-          "fields": null
-        },
-        {
           "heading": "Query: period, filters and pages",
-          "body": "Select the right dataset: samples are not alarm transitions. Use a short relative or valid From/To period; the current history browser limits a query window to 31 days. Add schema-offered fields/operators with correctly typed numeric/Boolean/date/text/enum values. Sorting changes order, not filters. Paging continues the query without enlarging its period. For empty results remove filters one at a time and verify capture existed then.",
+          "body": "Start by choosing the record collection, called a dataset. Value samples and alarm transitions are different collections. Select a short relative period or fill From/To; the current window allows up to 31 days per query.\n\nThen use filters offered for that dataset. Each field expects a value type: number, boolean, date, text or enum. Choose an available operator and enter the right type rather than arbitrary text.\n\nSorting changes presentation order, not record selection. Moving pages continues the query; it does not extend its period. For no result, remove one filter at a time and check that capture existed at that time.",
           "fields": null
         },
         {
           "heading": "Capture, retention, backup and Playback differ",
-          "body": "Capture decides admitted observations; retention decides storage duration; aggregation summarizes samples; backup preserves a recoverable copy. Capture fields are neither a global database quota nor archival configuration. Playback displays historical values in the current visualization, not process restoration or command authorization; return to live before operating. Missing samples mean neither zero nor stopped equipment.",
+          "body": "These are different decisions. Capture selects observations to record. Retention defines how long to keep them. Aggregation summarizes samples; backup keeps a recoverable copy. Configuring TAG capture does not define a global database quota or archiving.\n\nPlayback displays historical values. It does not restore the process or allow commands from the past. Return to live mode before operating. Missing samples do not mean zero or stopped equipment.",
           "fields": null
         }
       ]
@@ -8009,11 +8009,21 @@
       "id": "alarms.configuration",
       "category": "alarms",
       "title": "Alarms: configure condition, priority and behavior",
-      "summary": "Build an alarm from a TAG and understand what each option actually does.",
+      "summary": "Configure a notice for a known condition and test what the operator will see. The example uses high pressure without commanding equipment.",
       "sections": [
         {
           "heading": "Before you begin",
-          "body": "Open Engineering > Alarms. First verify the TAG reading, type, scaling and unit. A high-pressure alarm observes the TAG value; it neither configures the sensor nor stops the pump by itself. Agree on thresholds and operational response with the process owner. Learn with a simulation TAG without operating real equipment. Editing requires the applicable Engineering permission and lock.",
+          "body": "Start with one simple condition: notify when pressure reaches its high limit. In Engineering > Alarms, use a test TAG whose value, type, scale and unit you have checked. A TAG is the variable providing the reading.\n\nThe alarm observes that variable; it does not configure the sensor or stop the pump by itself. Agree the limit and operating response with the process owner. For learning, use simulation with the applicable Engineering permission and lock, without acting on real equipment.",
+          "fields": null
+        },
+        {
+          "heading": "Choosing a type",
+          "body": "Choose the type by the question the alarm must answer:\n\nDigital follows a boolean: choose whether true or false means an alarm condition. High and HighHigh activate when the value is greater than or equal to the limit (≥). Low and LowLow activate when less than or equal (≤). For two limits, create two definitions and choose each priority separately.\n\nCommunication follows reading quality: it activates when quality differs from Good and returns with Good. It uses no setpoint, the numeric limit, and selecting it alone creates no communication-loss timer. With poor quality, process alarms do not treat the number as a valid reading; use Communication to follow that condition.\n\nSystem appears in the picker but has no generic process rule in this evaluator. For a high limit or boolean state, choose its own type rather than System as a substitute.",
+          "fields": null
+        },
+        {
+          "heading": "Procedure: test a high threshold",
+          "body": "Here, 10 bar is only a teaching value. ACK means acknowledgement: the operator confirms awareness of the notice.\n\n1. Create a high alarm for the simulated pressure TAG, with setpoint 10. Check the TAG’s bar unit.\n2. Fill priority, area and a clear message. Keep Requires acknowledgement checked for this test.\n3. Run Preview, read errors and apply to Workspace, the editing draft. If you edit again, validate again.\n4. Save, publish and activate the correct revision. Applying to Workspace does not activate Runtime by itself.\n5. With Good quality, send 9: the condition is Normal. Send 10: it becomes Active. Equality also activates.\n6. Acknowledge in Runtime while keeping the TAG at 10: it becomes Acknowledged, but pressure has not changed. Send 9: it becomes Returned and leaves the active list because it already had ACK.\n7. Activate again with 10 and return to 9 without acknowledging: Returned remains pending. Acknowledge and check that it leaves the active list. Query history for previous transitions.",
           "fields": null
         },
         {
@@ -8037,7 +8047,7 @@
             {
               "key": "alarm.type",
               "label": "Type",
-              "description": "Selects the comparison rule; see the types below. HighHigh is another threshold definition, not automatic priority.",
+              "description": "Chooses the comparison rule; consult the type explanation in this article. HighHigh is another limit definition, not an automatic priority.",
               "example": "high",
               "constraints": ""
             },
@@ -8086,11 +8096,6 @@
           ]
         },
         {
-          "heading": "Choosing a type",
-          "body": "Digital compares the boolean with the selected active value. High and HighHigh use ≥; Low and LowLow use ≤. For two thresholds, create two definitions and choose their priorities separately. Communication activates for quality other than Good and returns with Good; it does not use a setpoint. With bad quality, process types do not evaluate the numeric limit as a valid reading: use a communication alarm to monitor this. System appears in the selector but has no generic process rule in this evaluator; do not use it instead of High or Digital. Selecting Communication does not imply a communication-loss timer.",
-          "fields": null
-        },
-        {
           "heading": "Behavior and sound",
           "body": "Expand Alarm behavior. Some options are saved in the definition but have current Runtime limitations, described alongside the field.",
           "fields": [
@@ -8132,11 +8137,6 @@
           ]
         },
         {
-          "heading": "Procedure: test a high threshold",
-          "body": "1. Create a high alarm for the simulated pressure TAG with setpoint 10 and bar as the TAG unit. 2. Fill in priority, area and a clear message. Keep Requires acknowledgement checked for this test. 3. Run Preview, read errors and apply to Workspace. Any further edit requires validation again. 4. Save, publish and activate the correct revision; applying to Workspace alone does not activate Runtime. 5. With Good quality, send 9: the condition is Normal. Send 10: it becomes Active because equality reaches the threshold. 6. Acknowledge in Runtime: it becomes Acknowledged while the TAG remains 10. Send 9: it becomes Returned and leaves the active list because ACK was already recorded. 7. For another activation, send 10 then 9 without ACK: it becomes Returned pending acknowledgement. Acknowledge and verify removal from the active list. Use history for earlier transitions.",
-          "fields": null
-        },
-        {
           "heading": "If the result differs",
           "body": "Check the TAG/active revision, scaling/unit, boolean polarity, enablement and quality. High priority does not force activation. A chattering threshold gains no hysteresis from a different message or class. Preview validates a candidate; it does not prove field acquisition. Delay and ACK exemption retain the limitations described. If the project changes while editing, reload and validate again rather than applying an old candidate.",
           "fields": null
@@ -8159,12 +8159,12 @@
       "sections": [
         {
           "heading": "Where to look and how to interpret",
-          "body": "Open Runtime Alarm Center. It shows the active list visible to your session, counts and details for the selected item. It is not a list of all past occurrences. Select a row to inspect message/name, priority, area, last value, activation, last transition and who/when acknowledged. IDs in details identify the exact definition; you do not need to invent or type an ID to acknowledge.",
+          "body": "Runtime Alarm Center helps identify what needs attention now. It shows the active list allowed for your session, counts and selected-row details. It is not the history of everything that happened.\n\nSelect a row and check equipment, message, priority, area, value and times. Details also show who acknowledged and when. IDs identify the exact definition for lookup or support; acknowledging does not require inventing or typing an ID.",
           "fields": null
         },
         {
           "heading": "States shown in details",
-          "body": "The active list includes Active, Acknowledged and Returned without ACK. An empty list therefore does not mean no alarm ever occurred. States outside it can be found through other appropriate queries.",
+          "body": "ACK confirms that the operator is aware of the alarm. It is separate from the physical condition, so an acknowledged alarm can still be active.\n\nThe active list includes Active, Acknowledged and Returned still without ACK. It can become empty after items return and are acknowledged, while previous transitions remain in history. The table explains the states shown in details.",
           "fields": [
             {
               "key": "alarmState.normal",
@@ -8212,12 +8212,12 @@
         },
         {
           "heading": "Procedure: acknowledge a notification",
-          "body": "1. Select the row and read the condition, value and time; confirm the equipment. 2. Follow the plant operational response. 3. Use Acknowledge alarm if the session has AlarmAcknowledge permission for the area. A View Only session does not gain this action. 4. Wait for server confirmation and refresh. If ACK was accepted but refresh failed, refresh to verify the result before repeating actions. 5. If the condition persists, the acknowledged state remains visible. If it already returned, it leaves the active list after ACK. A new activation opens another pending acknowledgement.",
+          "body": "1. Select the row. Read condition, value and time and confirm the equipment.\n2. Follow the plant’s operating response for that condition.\n3. Use Acknowledge alarm if your session permits it for that area. The technical permission is AlarmAcknowledge; a View Only session still cannot perform it.\n4. Wait for confirmation and list refresh. If the server accepted ACK but rereading failed, refresh to check before repeating actions.\n5. If the condition remains, the acknowledged alarm stays visible. If it has returned, it leaves the active list after ACK. A new activation creates another acknowledgement pending.",
           "fields": null
         },
         {
           "heading": "Sounds, mute and unavailability",
-          "body": "Enable alarm sounds unlocks audio for this browser session, subject to support, volume and output device. Configured profiles repeat while an alarm awaits ACK, including Returned without ACK. Mute sounds is local and does not acknowledge, disable or shelve. Acknowledgement sends no process command. If access is denied, check login, session class and permission/area; do not try to fix access by changing the TAG. If data or service is unavailable, refresh and check Runtime diagnostics. For past transitions, open History and choose alarm.events with an appropriate period; do not confuse it with operational.events or Audit.",
+          "body": "To hear notices, use Enable alarm sounds in this browser session. Check support, volume and audio output. Profiles repeat while an alarm is pending, including Returned without ACK.\n\nMuting is local: it does not acknowledge, disable or shelve. Shelving suppresses the notification. Acknowledging does not send a process command either. These are different effects.\n\nFor denied access, check login, session class and area permission. For missing data or unavailable service, refresh and consult Runtime diagnostics; changing a TAG does not resolve an authorization refusal. For past records, open History and choose alarm.events for the period. This dataset concerns alarms; operational.events and Audit serve other purposes.",
           "fields": null
         }
       ],
@@ -8237,8 +8237,19 @@
       "sections": [
         {
           "heading": "Choose the right resource",
-          "body": "An operational event records a fact, such as batch start or mode change. Each emission creates an occurrence with its own time and identity; it maintains no active condition and requires no ACK. An alarm tracks a condition that activates/returns. Audit traces security/administrative actions and outcomes. A visual object click is also called an event but is not itself an operational occurrence. Creating the definition below emits nothing automatically; linking a TAG provides context, not a change trigger.",
+          "body": "Use an operational event to record a fact, such as batch start or a mode change. Each emission creates an occurrence with its own time and identity. It maintains no active condition and requests no ACK.\n\nChoose an alarm to follow a condition that activates and returns. Audit tracks security or administration actions and outcomes. A screen click is also called an event, but does not become an operational occurrence by itself.\n\nFirst register the fact’s definition, then configure what emits it. Registration does not automatically emit. Associating a TAG only provides context; it creates no change trigger.",
           "fields": null
+        },
+        {
+          "heading": "Procedure: prepare the definition and producer",
+          "body": "1. Create the definition with required fields and a name/key distinguishing the fact. Add useful context.\n2. Run Preview and fix duplicate keys or invalid references reported in diagnostics.\n3. Apply to Workspace, then save, publish and activate the revision through project controls.\n4. Prepare what will emit the occurrence. A Server Script can call emit_operational_event. Obtain the saved definition’s stable ID from project references or exported data; do not substitute its textual identifier.\n5. Associate the handler, the Python function, with the appropriate Server trigger. Avoid Timer for a single transition: each call creates another occurrence, even with the same message.\n6. Activate the revision containing the definition and Script.\n7. Produce one controlled test fact and query operational.events in History, including execution time in the period.",
+          "fields": null
+        },
+        {
+          "heading": "Python example: one occurrence at initialization",
+          "body": "This example records simulation initialization, not a pump’s physical start. The illustrative UUID is a definition ID: replace it with your saved definition’s stable ID.\n\nIn the Script editor, choose Server and associate Initialize with handler initialize. Writing the function does not create that association. It runs at each Script initialization; event carries trigger context and may be unused.\n\nemit_operational_event(definition_id, message=None, context=None) returns None, not the occurrence ID. In the context dictionary, keys and values are text. Use str(value) to turn a calculated number into text before including it.",
+          "fields": null,
+          "code": "def initialize(event):\n    emit_operational_event(\n        \"c1900000-0000-0000-0000-000000000002\",\n        \"Simulation started\",\n        {\"mode\": \"simulation\", \"batch\": \"42\"}\n    )"
         },
         {
           "heading": "Definition fields",
@@ -8317,19 +8328,8 @@
           ]
         },
         {
-          "heading": "Procedure: prepare the definition and producer",
-          "body": "1. Create the definition with required fields and useful context; avoid using one generic key for every fact. 2. Run Preview and read diagnostics. Fix duplicate keys and invalid references. 3. Apply to Workspace, then save, publish and activate using the project lifecycle. 4. Configure the producer: a Server Script can call emit_operational_event. Obtain the saved definition stable ID from exported project data/references; do not substitute the text Key. 5. Bind the Python handler to the appropriate Server trigger. Avoid Timer to record a single transition: every call creates another occurrence even with the same message. 6. Activate the revision containing both definition and script. 7. Produce a controlled fact and query operational.events in History with a period covering execution.",
-          "fields": null
-        },
-        {
-          "heading": "Python example: one occurrence at initialization",
-          "body": "The UUID below is illustrative: replace it with your definition stable ID. In Script Engineering choose Server scope and bind the Initialize event to the initialize handler; a function name alone does not create that binding. The example records simulation start at each script initialization, not a physical pump start. The event argument is trigger context and can remain unused. emit_operational_event(definition_id, message=None, context=None) returns None, not an occurrence ID. Context dictionary keys and values are strings: use str(value) for calculated numbers.",
-          "fields": null,
-          "code": "def initialize(event):\n    emit_operational_event(\n        \"c1900000-0000-0000-0000-000000000002\",\n        \"Simulation started\",\n        {\"mode\": \"simulation\", \"batch\": \"42\"}\n    )"
-        },
-        {
           "heading": "Query and troubleshoot",
-          "body": "In History select operational.events, set start/end and available filters; inspect time, source, message and context. alarm.events contains alarm transitions, while Audit has another purpose. Additional context does not change the definition's own type, category, source or identity, even with keys bearing those names. Context allows up to 128 pairs, keys up to 160 characters and values up to 4000; messages also have a 4000-character limit. Include no passwords or secrets. Missing occurrence: check active revision, enabled definition, correct ID, handler binding, script diagnostics, time range and query permission. Emission must respect active Runtime authority; failure does not authorize an alternative path. Nothing appearing after only creating a definition is expected.",
+          "body": "In History, choose operational.events, the operational-occurrence dataset. Adjust start/end and filters and check time, source, message and context. alarm.events contains alarm transitions; Audit records a different kind of action.\n\nExtra context does not change definition type, category, source or identity, even with keys using those names. Up to 128 pairs are allowed, with keys up to 160 characters and values up to 4000; messages also have a 4000 limit. Include no passwords or secrets.\n\nFor a missing occurrence, check active revision, enabled definition, ID, handler connection, Script diagnostics, period and permission. Registering the definition alone produces no records. Emission failure does not authorize another route: emission must respect Runtime’s active authority.",
           "fields": null
         }
       ],
@@ -14543,7 +14543,12 @@
       "sections": [
         {
           "heading": "Prepare datos comprobables",
-          "body": "Abra Ingeniería > Informes. Empiece con un TAG de presión con captura existente y período corto de valores conocidos. Un informe consulta datos guardados; no habilita captura ni recupera pasado no almacenado. Necesita permisos de edición y consulta. Histórico de muestras y transiciones de alarmas usan fuentes distintas.",
+          "body": "Empiece por la pregunta: ¿qué lecturas deben aparecer y de qué período? En Ingeniería > Informes use primero un TAG de presión con histórico existente y un intervalo corto de valores conocidos. Así comprueba datos antes de diseñar la página.\n\nEl informe consulta registros guardados. No habilita captura ni recupera un pasado no grabado. Su cuenta necesita autorización para editar y consultar la fuente. Para valores use muestras; para transiciones de alarma, el conjunto de alarmas.",
+          "fields": null
+        },
+        {
+          "heading": "Primera prueba antes del diseño final",
+          "body": "1. Elija consulta incorporada, propia del informe, e historian.samples, el conjunto de muestras.\n2. Añada un TAG conocido con el selector de referencias.\n3. Elija período corto y resolución Bruto.\n4. Ejecute Preview. Compruebe filas, horas, valores y calidad disponibles.\n5. Cambie a Resumen con Máximo e intervalo horario. Compare con datos brutos: el máximo de un intervalo no es la lista de todas las lecturas.\n6. Después organice la página y valide. Sin filas en la vista previa, compruebe TAG, período, captura y permiso antes de cambiar colores o anchos.",
           "fields": null
         },
         {
@@ -14596,7 +14601,7 @@
         },
         {
           "heading": "Elija cómo presentar datos",
-          "body": "Resolución es elección de consulta; no cambia captura ni elimina muestras brutas. Agregar en informe no configura política permanente de la base.",
+          "body": "Resolución define cómo recuperar y resumir registros en esta consulta. Bruto muestra muestras guardadas; otras opciones organizan o resumen la salida. Compruebe valores brutos antes de usar un resumen.\n\nNo cambia los datos capturados, elimina registros brutos ni configura una política permanente de agregación de la base.",
           "fields": [
             {
               "key": "resolution.mode",
@@ -14627,11 +14632,6 @@
               "constraints": ""
             }
           ]
-        },
-        {
-          "heading": "Primera prueba antes del diseño final",
-          "body": "1. Use consulta incorporada historian.samples. 2. Añada TAG conocido. 3. Período corto y Bruto. 4. Ejecute Preview y compruebe filas/horas/valores/calidad disponible. 5. Cambie a Resumen, Máximo e intervalo horario; compare sin esperar igualdad. 6. Después diseñe/valide. Sin filas revise TAG/período/captura/permiso antes de fuentes, anchos o colores.",
-          "fields": null
         }
       ]
     },
@@ -14649,7 +14649,7 @@
       "sections": [
         {
           "heading": "Comprenda la página",
-          "body": "Use Diseño para editar y Vista previa para ejecución. Dimensiones en milímetros, no píxeles Runtime. Vertical/Horizontal cambian orientación. Contenido debe caber tras márgenes. Zoom de vista previa no cambia dimensiones impresas.",
+          "body": "En el Designer, Proyecto/Design permite montar la página; Vista previa/Preview muestra una ejecución con datos. Empiece por un título y un campo de lectura antes de añadir grupos y totales.\n\nLas dimensiones usan milímetros, como una página impresa, no píxeles de Runtime. Vertical es retrato; horizontal es paisaje. Reserve márgenes y ajuste contenido al ancho restante. El zoom cambia la visualización, no el tamaño impreso.",
           "fields": null
         },
         {
@@ -14695,7 +14695,7 @@
         },
         {
           "heading": "Secciones y controles del diseño",
-          "body": "Cabecera/pie de informe son del informe; los de página se repiten. Detalle recibe filas; cabecera/pie de grupo dependen de agrupación. Detalle puede quedar vacío con título visible si no hay filas. Empiece con Etiqueta y Campo, ofrecidos directamente.",
+          "body": "Etiqueta es texto fijo, como Presión de descarga. Campo muestra un dato de la consulta. Son los controles ofrecidos directamente para insertar; empiece por ellos.\n\nColoque el título en el encabezado del informe y campos de registros en Detalle, sección que recibe filas de la consulta. Encabezado/pie de página repiten en cada página; los de informe pertenecen al informe. Los de grupo dependen del agrupamiento.\n\nSin filas, puede aparecer el título y quedar vacío Detalle. Compruebe primero los datos en vez de intentar resolverlo aumentando la altura de sección.",
           "fields": [
             {
               "key": "sections.heightMillimeters",
@@ -14736,12 +14736,12 @@
         },
         {
           "heading": "Agrupación no es agregación temporal",
-          "body": "Agrupar por organiza filas por campo y orden. Un resumen elige campo, función y alcance: grupo o informe entero. Intervalo temporal viene de Resolución, no del nombre de grupo. No sume datos ya agregados sin comprenderlo. Conteo son registros, no horas de funcionamiento. Compruebe grupo pequeño manualmente.",
+          "body": "Agrupar por reúne filas según el campo elegido y permite ordenarlas. Resolución define intervalos de tiempo de la consulta. Son elecciones distintas: nombrar un grupo no cambia el intervalo.\n\nPara un resumen elija campo, función y alcance: solo el grupo o todo el informe. Compruebe si la consulta ya resumió datos antes de sumar otra vez. Recuento indica cantidad de registros, no horas de funcionamiento. Pruebe un grupo pequeño y compruebe el total a mano.",
           "fields": null
         },
         {
           "heading": "De vista previa a revisión activa",
-          "body": "1. Dibuje título, Detalle y campos reales. 2. Ejecute vista previa y revise páginas/cortes. 3. Valide referencias/estructura. 4. Aplique candidato válido; actualice/valide si cambia proyecto. 5. Guarde/publique/active. 6. Genere en Runtime con iguales parámetros y compare. La vista previa no es definición guardada ni revisión activa.",
+          "body": "1. Monte título, sección Detalle y campos vinculados a datos reales.\n2. Ejecute vista previa y compruebe datos, páginas y cortes.\n3. Use Validar y corrija referencias o estructura inválidas.\n4. Aplique solo el candidato válido. Si el proyecto cambió mientras editaba, actualice y valide de nuevo.\n5. Guarde, publique y active con los controles del proyecto.\n6. Genere en Runtime con iguales parámetros y compare. La vista previa muestra una ejecución; no guarda la definición ni demuestra que esté activa la nueva revisión.",
           "fields": null
         }
       ]
@@ -14760,22 +14760,22 @@
       "sections": [
         {
           "heading": "Encuentre el informe disponible",
-          "body": "Abra Informes Runtime y busque nombre. La lista depende de revisión activa y autorización. Acceso a Ingeniería u objeto visual no concede todas las consultas. Si vacía, revise revisión/permisos antes de recrear.",
+          "body": "Abra Informes en Runtime y busque por nombre. La lista usa la revisión activa y los permisos de su sesión. Si falta un informe, compruebe esas condiciones antes de recrearlo.\n\nAcceder a Ingeniería o ver un objeto de informe no concede acceso a todos los datos. Quien genera necesita también permiso de consulta de la fuente elegida.",
           "fields": null
         },
         {
           "heading": "Período, parámetros y ejecución",
-          "body": "1. Seleccione informe. 2. Elija relativo o Desde/Hasta si definición permite. Relativo se resuelve para ejecución; repetir después puede cambiar ventana. 3. En absoluto inicio antes de fin y zona horaria correcta. 4. Rellene parámetros con tipo/opciones exigidos; número/fecha/booleano no admite cualquier texto. 5. Genere y espere; cancelar no elimina definición. 6. Revise hora de generación, ventana y parámetros antes de interpretar.",
+          "body": "1. Seleccione el informe que desea generar.\n2. Elija período relativo o Desde/Hasta entre modos permitidos. Relativo se calcula al ejecutar: repetir después puede usar otra ventana.\n3. Para intervalo absoluto indique inicio anterior al fin y compruebe el huso mostrado.\n4. Complete parámetros con tipos y opciones pedidos. Número, fecha y booleano no aceptan cualquier texto.\n5. Use Generar informe y espere. Cancelar interrumpe la solicitud; no elimina la definición.\n6. Antes de interpretar compruebe hora de generación, período consultado y parámetros usados.",
           "fields": null
         },
         {
           "heading": "Vista previa, PDF, hoja de cálculo e impresión",
-          "body": "Use páginas/zoom para revisar; ajustar ancho no cambia definición. PDF/impresión ofrecen presentación paginada; XLSX/CSV permiten trabajar salida. Exportan resultados, no paquetes Engineering ni cambios TAG. Regenere para actualizar; abrir exportación antigua no la hace en vivo. Compruebe unidades/fechas/decimales para destinatario.",
+          "body": "Compruebe el resultado con página anterior/siguiente y zoom. Ajustar al ancho cambia solo la visualización. Use PDF o impresión para páginas; XLSX y CSV permiten trabajar con datos de salida.\n\nSon exportaciones del resultado, no paquetes para importar proyectos o cambiar TAGs. Un archivo representa esa ejecución. Para actualizar datos genere de nuevo; abrirlo después no consulta en vivo.\n\nAntes de compartir planilla o CSV, compruebe unidades, fechas y decimales esperados por el destinatario.",
           "fields": null
         },
         {
           "heading": "Problemas con comprobaciones distintas",
-          "body": "Informe ausente: revisión/autorización. Cabecera sin Detalle: consulta vacía, período/filtros/captura. Campo vacío/error: referencias/tipo/parámetros. Número inesperado: resolución/función/rótulo de unidad/alcance resumen. Cortes: milímetros/ancho/altura. Datos antiguos: hora de ejecución y regenerar. No cambie permisos/unidades a ciegas.",
+          "body": "Si falta el informe, revise publicación/activación y autorización. Con título sin filas, compruebe período, filtros y captura. Ante campo vacío o error, confirme campo/consulta referenciados, tipo y parámetros.\n\nUn número inesperado requiere revisar resolución, función, unidad y alcance del resumen. Cambiar rótulo no convierte unidades. Ante cortes, compruebe milímetros, ancho útil y altura de sección.\n\nSi parecen datos antiguos, compruebe hora de generación y genere de nuevo. No cambie permisos o unidades a ciegas para intentar corregir la salida.",
           "fields": null
         }
       ]
@@ -14797,7 +14797,17 @@
       "sections": [
         {
           "heading": "Dónde configurar y consultar",
-          "body": "Ingeniería > Historian lista TAGs habilitados con estrategia/deadband/período. Para configurar abra TAGs, seleccione y expanda Histórico/Historian. Monitor en vivo lee actual; Histórico/Informes/Intelligence necesitan muestras almacenadas. Habilitar hoy no recupera pasado.",
+          "body": "Para ver qué ocurrió antes, SCADIVO debe haber guardado los datos. Historian es ese histórico de muestras de TAGs. El monitor en vivo muestra el valor actual; Histórico, Informes e Intelligence usan lo almacenado. Habilitar hoy no recupera un pasado no guardado.\n\nEn Ingeniería > Historian vea TAGs con captura habilitada y su resumen. Para cambiar cómo graba un TAG, abra Ingeniería > TAGs, selecciónelo y expanda Histórico/Historian en el editor.",
+          "fields": null
+        },
+        {
+          "heading": "Ejemplo del efecto de deadband",
+          "body": "Deadband es la variación mínima para decidir si se guarda una nueva observación numérica. Se compara con el último valor aceptado.\n\nCon calidad constante, deadband 0.1 y último aceptado 1.00, una observación 1.03 puede descartarse. El valor 1.12 supera el umbral y puede aceptarse. La próxima comparación parte del último aceptado, no de cada observación descartada.\n\nLa primera observación y los cambios de calidad tienen tratamiento propio y pueden guardarse sin esa variación. Con intervalo máximo, una observación recibida después del plazo también puede aceptarse. No calcule la cantidad esperada de registros solo con deadband.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento de comprobación",
+          "body": "1. Compruebe el TAG en vivo: valor, tipo, escala y calidad.\n2. En el editor del TAG, habilite Histórico y elija estrategia con sus campos válidos.\n3. Ejecute Preview y Apply; guarde, publique y active. Editar el borrador no cambia por sí solo la captura en ejecución.\n4. En una fuente de prueba produzca variaciones conocidas y anote cuándo ocurrieron.\n5. Abra Histórico del Runtime, elija Muestras y filtre el TAG en ese período.\n6. Compare valores, calidad, horarios y cantidad con la estrategia configurada.\n7. Repita con señal estable y cambio de calidad. Para Intelligence compruebe también timestamp de origen y alineación exigida.",
           "fields": null
         },
         {
@@ -14842,23 +14852,13 @@
           ]
         },
         {
-          "heading": "Ejemplo del efecto de deadband",
-          "body": "Con calidad constante, deadband 0.1 y último aceptado 1.00, 1.03 puede omitirse; 1.12 supera umbral. Se compara con último aceptado, no cada rechazado. Primera observación/transiciones de calidad tienen tratamiento propio y pueden guardarse sin variación. Modo de intervalo máximo también acepta por tiempo. No deduzca conteo solo por deadband.",
-          "fields": null
-        },
-        {
-          "heading": "Procedimiento de comprobación",
-          "body": "1. Revise TAG en vivo/tipo/escala/calidad. 2. Habilite Histórico y estrategia/campos válidos. 3. Preview/Apply y guarde/publique/active. 4. Produzca cambios conocidos de prueba y anote período. 5. Abra Histórico Runtime, Muestras y filtro TAG. 6. Compare valores/calidad/horas/conteo con estrategia. 7. Repita con valor estable y cambio de calidad. Para Intelligence compruebe origen temporal/alineación.",
-          "fields": null
-        },
-        {
           "heading": "Consultar: período, filtros y páginas",
-          "body": "Elija dataset correcto: muestras no son transiciones de alarma. Use relativo corto o Desde/Hasta válido; navegador actual limita ventana a 31 días por consulta. Añada campos/operadores del schema con tipo correcto: número/booleano/fecha/texto/enum. Ordenar no filtra. Páginas continúan consulta sin ampliar período. Sin resultados quite filtros uno a uno y confirme captura existente.",
+          "body": "Empiece eligiendo el conjunto de registros, llamado dataset. Muestras de valores y transiciones de alarmas son conjuntos distintos. Elija un período relativo corto o complete Desde/Hasta; la ventana actual permite hasta 31 días por consulta.\n\nUse después los filtros ofrecidos para ese conjunto. Cada campo espera un tipo: número, booleano, fecha, texto o enum. Elija un operador disponible y el tipo correcto, no cualquier texto.\n\nOrdenar cambia el orden de presentación, no selecciona otros registros. Cambiar página continúa la consulta; no amplía el período. Sin resultado, retire un filtro por vez y compruebe que existía captura en ese horario.",
           "fields": null
         },
         {
           "heading": "Captura, retención, backup y Playback difieren",
-          "body": "Captura decide observaciones admitidas; retención cuánto permanecen; agregación resume; backup conserva copia recuperable. Campos de captura no son cuota global ni archivo. Playback presenta valores históricos en la visualización actual, no restaura proceso ni autoriza comandos; vuelva en vivo antes de operar. Sin muestras no significa cero ni equipo parado.",
+          "body": "Son decisiones diferentes. Captura elige observaciones para guardar. Retención define cuánto tiempo conservarlas. Agregación resume muestras; backup guarda una copia recuperable. Configurar captura de un TAG no define cuota global de base ni archivado.\n\nPlayback muestra valores históricos. No restaura el proceso ni permite comandar desde el pasado. Vuelva al modo en vivo antes de operar. La falta de muestras no significa cero ni equipo detenido.",
           "fields": null
         }
       ]
@@ -14867,11 +14867,21 @@
       "id": "alarms.configuration",
       "category": "alarms",
       "title": "Alarmas: configurar condición, prioridad y comportamiento",
-      "summary": "Cree una alarma a partir de un TAG y comprenda qué hace cada opción.",
+      "summary": "Configure un aviso para una condición conocida y pruebe qué verá el operador. El ejemplo usa presión alta sin comandar equipos.",
       "sections": [
         {
           "heading": "Antes de empezar",
-          "body": "Abra Ingeniería > Alarmas. Verifique primero lectura, tipo, escala y unidad del TAG. Una alarma de presión alta observa su valor; no configura el sensor ni detiene la bomba por sí sola. Acuerde límites y respuesta con el responsable del proceso. Aprenda con un TAG simulado, sin actuar sobre equipos reales. La edición requiere el permiso y bloqueo de Ingeniería correspondientes.",
+          "body": "Empiece por una condición sencilla: avisar cuando la presión alcance el límite alto. En Ingeniería > Alarmas, use un TAG de prueba con valor, tipo, escala y unidad comprobados. Un TAG es la variable que proporciona la lectura.\n\nLa alarma observa esa variable; no configura el sensor ni detiene la bomba sola. Acuerde límite y respuesta operacional con el responsable. Para aprender, use simulación con permiso y bloqueo de Ingeniería aplicables, sin actuar en equipos reales.",
+          "fields": null
+        },
+        {
+          "heading": "Qué tipo elegir",
+          "body": "Elija el tipo según la pregunta que debe responder la alarma:\n\nDigital sigue un booleano: elija si true o false representa alarma. High y HighHigh activan con valor mayor o igual al límite (≥). Low y LowLow activan con menor o igual (≤). Para dos límites, cree dos definiciones y elija la prioridad de cada una.\n\nCommunication sigue la calidad: activa cuando difiere de Good y retorna con Good. No usa setpoint, el límite numérico, ni crea un temporizador de pérdida de comunicación solo por seleccionarlo. Con calidad mala, las alarmas de proceso no tratan el número como lectura válida; use Communication para esa condición.\n\nSystem aparece en el selector, pero no tiene regla genérica de proceso en este evaluador. Para límite alto o estado booleano, elija su tipo propio en vez de usar System como sustituto.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento: probar un límite alto",
+          "body": "Aquí, 10 bar es solo un valor didáctico. ACK significa reconocimiento: el operador confirma que ha visto el aviso.\n\n1. Cree una alarma high para el TAG de presión simulado con setpoint 10. Compruebe unidad bar en el TAG.\n2. Complete prioridad, área y mensaje claro. Mantenga Requiere reconocimiento marcado para esta prueba.\n3. Ejecute Preview, lea errores y aplique al Workspace, el borrador de edición. Si edita de nuevo, valide de nuevo.\n4. Guarde, publique y active la revisión correcta. Aplicar al Workspace no activa Runtime por sí solo.\n5. Con calidad Good envíe 9: queda Normal. Envíe 10: queda Active. La igualdad también activa.\n6. Reconozca en Runtime manteniendo 10 en el TAG: queda Acknowledged, pero la presión no cambió. Envíe 9: queda Returned y sale de la lista activa porque ya tuvo ACK.\n7. Active otra vez con 10 y vuelva a 9 sin reconocer: Returned sigue pendiente. Reconozca y compruebe la salida de la lista activa. Consulte histórico para las transiciones anteriores.",
           "fields": null
         },
         {
@@ -14895,7 +14905,7 @@
             {
               "key": "alarm.type",
               "label": "Tipo",
-              "description": "Selecciona la comparación; consulte los tipos siguientes. HighHigh es otra definición de límite, no prioridad automática.",
+              "description": "Elige la regla de comparación; consulte la explicación de tipos en este artículo. HighHigh es otra definición de límite, no una prioridad automática.",
               "example": "high",
               "constraints": ""
             },
@@ -14944,11 +14954,6 @@
           ]
         },
         {
-          "heading": "Qué tipo elegir",
-          "body": "Digital compara el booleano con el valor activo elegido. High y HighHigh usan ≥; Low y LowLow usan ≤. Para dos límites, cree dos definiciones y asigne prioridades por separado. Communication se activa con calidad distinta de Good y retorna con Good; no usa setpoint. Con mala calidad, los tipos de proceso no evalúan el límite numérico como si la lectura fuera válida: supervise esta situación con una alarma de comunicación. System aparece en el selector, pero no tiene regla genérica de proceso en este evaluador; no lo use en lugar de High o Digital. Seleccionar Communication no implica un temporizador de pérdida de comunicación.",
-          "fields": null
-        },
-        {
           "heading": "Comportamiento y sonido",
           "body": "Expanda Comportamiento de la alarma. Algunas opciones se guardan en la definición, pero tienen limitaciones actuales en Runtime, indicadas junto al campo.",
           "fields": [
@@ -14990,11 +14995,6 @@
           ]
         },
         {
-          "heading": "Procedimiento: probar un límite alto",
-          "body": "1. Cree una alarma high para el TAG de presión simulado con setpoint 10 y unidad bar en el TAG. 2. Complete prioridad, área y un mensaje claro. Mantenga Requiere reconocimiento marcado para esta prueba. 3. Ejecute Preview, lea errores y aplique al Workspace. Otra edición requiere validar de nuevo. 4. Guarde, publique y active la revisión correcta; aplicar al Workspace no activa Runtime por sí solo. 5. Con calidad Good, envíe 9: queda Normal. Envíe 10: pasa a Active porque la igualdad alcanza el límite. 6. Reconozca en Runtime: pasa a Acknowledged y el TAG sigue en 10. Envíe 9: pasa a Returned y sale de la lista activa porque ya tiene ACK. 7. En otra activación, envíe 10 y luego 9 sin ACK: queda Returned pendiente. Reconozca y compruebe la salida de la lista activa. Consulte el histórico para transiciones anteriores.",
-          "fields": null
-        },
-        {
           "heading": "Si el resultado es distinto",
           "body": "Compruebe TAG/revisión activa, escala/unidad, polaridad, habilitación y calidad. La prioridad alta no fuerza activación. Cambiar mensaje o clase no añade histéresis a un límite oscilante. Preview valida un candidato; no demuestra adquisición de campo. Retardo y exención de ACK conservan las limitaciones descritas. Si el proyecto cambia durante la edición, recargue y valide de nuevo en lugar de aplicar un candidato antiguo.",
           "fields": null
@@ -15017,12 +15017,12 @@
       "sections": [
         {
           "heading": "Dónde mirar y cómo interpretar",
-          "body": "Abra la central de alarmas de Runtime. Muestra la lista activa visible para su sesión, contadores y detalles del elemento seleccionado. No es una lista de todas las ocurrencias pasadas. Seleccione una fila para ver mensaje/nombre, prioridad, área, último valor, activación, última transición y quién/cuándo reconoció. Los IDs identifican la definición exacta; no necesita inventar ni escribir un ID para reconocer.",
+          "body": "La central de alarmas del Runtime ayuda a decidir qué necesita atención ahora. Muestra la lista activa permitida para su sesión, recuentos y detalles de la fila elegida. No es el histórico de todo lo ocurrido.\n\nSeleccione una fila y compruebe equipo, mensaje, prioridad, área, valor y horarios. Los detalles indican también quién reconoció y cuándo. Los IDs identifican la definición exacta para consulta o soporte; reconocer no requiere inventar ni escribir un ID.",
           "fields": null
         },
         {
           "heading": "Estados de los detalles",
-          "body": "La lista activa incluye Active, Acknowledged y Returned sin ACK. Una lista vacía no significa que nunca hubo una alarma. Los estados fuera de ella pueden encontrarse en otras consultas apropiadas.",
+          "body": "ACK confirma que el operador ha visto la alarma. Es distinto de la condición física; una alarma reconocida puede seguir activa.\n\nLa lista activa incluye Active, Acknowledged y Returned aún sin ACK. Puede quedar vacía tras retorno y reconocimiento, aunque las transiciones anteriores sigan en el histórico. La tabla explica los estados de los detalles.",
           "fields": [
             {
               "key": "alarmState.normal",
@@ -15070,12 +15070,12 @@
         },
         {
           "heading": "Procedimiento: reconocer una notificación",
-          "body": "1. Seleccione la fila y lea condición, valor y hora; confirme el equipo. 2. Siga la respuesta operativa de la planta. 3. Use Reconocer alarma si la sesión tiene permiso AlarmAcknowledge para el área. Una sesión View Only no adquiere esta acción. 4. Espere confirmación del servidor y actualización. Si el ACK se aceptó pero falló la relectura, actualice para comprobarlo antes de repetir acciones. 5. Si la condición persiste, sigue visible reconocida. Si ya retornó, sale de la lista activa tras ACK. Otra activación genera otro reconocimiento pendiente.",
+          "body": "1. Seleccione la fila. Lea condición, valor y hora y confirme el equipo.\n2. Siga la respuesta operacional prevista por la planta para esa condición.\n3. Use Reconocer alarma si la sesión lo permite en esa área. El permiso técnico es AlarmAcknowledge; una sesión View Only sigue sin esa acción.\n4. Espere confirmación y actualización. Si el servidor aceptó ACK pero falló la relectura, actualice para comprobar antes de repetir acciones.\n5. Si persiste la condición, la alarma reconocida sigue visible. Si ya retornó, sale de la lista activa tras ACK. Una nueva activación crea otra pendiente de reconocimiento.",
           "fields": null
         },
         {
           "heading": "Sonidos, silencio e indisponibilidad",
-          "body": "Activar sonidos de alarmas habilita el audio en esta sesión del navegador; depende de soporte, volumen y salida. Los perfiles configurados se repiten mientras haya alarmas sin ACK, incluso Returned sin ACK. Silenciar sonidos es local y no reconoce, deshabilita ni suprime mediante shelving. Reconocer no envía comandos al proceso. Sin acceso: compruebe login, clase de sesión y permiso/área; no intente corregirlo cambiando el TAG. Sin datos o servicio disponible: actualice y consulte diagnóstico de Runtime. Para transiciones anteriores, abra Histórico y elija alarm.events con un período adecuado; no lo confunda con operational.events ni Audit.",
+          "body": "Para oír avisos, use Activar sonidos de alarmas en esta sesión del navegador. Compruebe soporte, volumen y salida de audio. Los perfiles se repiten mientras haya alarma pendiente, incluso Returned sin ACK.\n\nSilenciar es local: no reconoce, deshabilita ni aplica shelving. Shelving suprime la notificación. Reconocer tampoco envía un comando al proceso. Son efectos distintos.\n\nSin acceso, compruebe login, clase de sesión y permiso del área. Sin datos o servicio, actualice y consulte diagnóstico de Runtime; cambiar el TAG no resuelve una denegación. Para el pasado, abra Histórico y elija alarm.events en el período. Ese conjunto es de alarmas; operational.events y Audit tienen otras finalidades.",
           "fields": null
         }
       ],
@@ -15095,8 +15095,19 @@
       "sections": [
         {
           "heading": "Elija el recurso adecuado",
-          "body": "Un evento operacional registra un hecho, como inicio de lote o cambio de modo. Cada emisión crea una ocurrencia con hora e identidad propias; no mantiene condición activa ni exige ACK. Una alarma sigue una condición que se activa/retorna. Audit rastrea acciones y resultados de seguridad/administración. Un clic visual también se llama evento, pero no es por sí solo una ocurrencia operacional. Crear la definición siguiente no emite nada automáticamente; asociar un TAG aporta contexto, no un disparador de cambio.",
+          "body": "Use un evento operacional para registrar un hecho, como inicio de lote o cambio de modo. Cada emisión crea una ocurrencia con hora e identidad propias. No mantiene condición activa ni pide ACK.\n\nElija alarma para seguir una condición que activa y retorna. Audit registra acciones y resultados de seguridad o administración. Un clic en pantalla también se llama evento, pero no se convierte solo en ocurrencia operacional.\n\nPrimero registre la definición del hecho; después configure quién lo emite. Registrar no emite automáticamente. Asociar un TAG solo aporta contexto, no crea disparador de cambio.",
           "fields": null
+        },
+        {
+          "heading": "Procedimiento: preparar definición y productor",
+          "body": "1. Cree la definición con campos obligatorios y nombre/clave que distingan el hecho. Añada contexto útil.\n2. Ejecute Preview y corrija claves duplicadas o referencias inválidas de los diagnósticos.\n3. Aplique al Workspace; guarde, publique y active la revisión con los controles del proyecto.\n4. Prepare quién emitirá la ocurrencia. Un Server Script puede llamar emit_operational_event. Obtenga el ID estable de la definición guardada de referencias o datos exportados; no lo sustituya por el identificador textual.\n5. Asocie el handler, la función Python, al disparador Server adecuado. Evite Timer para una sola transición: cada llamada crea otra ocurrencia, incluso con igual mensaje.\n6. Active la revisión que contiene definición y Script.\n7. Produzca un hecho de prueba controlado y consulte operational.events en Histórico, incluyendo la ejecución en el período.",
+          "fields": null
+        },
+        {
+          "heading": "Ejemplo Python: una ocurrencia al inicializar",
+          "body": "El ejemplo registra el inicio de la simulación, no el arranque físico de una bomba. El UUID ilustrativo es un ID de definición: sustitúyalo por el ID estable de su definición guardada.\n\nEn el editor de Scripts elija Server y asocie Initialize al handler initialize. Escribir la función no crea la asociación. Se ejecuta en cada inicialización del Script; event aporta contexto del disparador y puede quedar sin uso.\n\nemit_operational_event(definition_id, message=None, context=None) devuelve None, no el ID de ocurrencia. En el diccionario context, claves y valores son textos. Use str(valor) para convertir un número calculado en texto antes de incluirlo.",
+          "fields": null,
+          "code": "def initialize(event):\n    emit_operational_event(\n        \"c1900000-0000-0000-0000-000000000002\",\n        \"Simulation started\",\n        {\"mode\": \"simulation\", \"batch\": \"42\"}\n    )"
         },
         {
           "heading": "Campos de la definición",
@@ -15175,19 +15186,8 @@
           ]
         },
         {
-          "heading": "Procedimiento: preparar definición y productor",
-          "body": "1. Cree la definición con los campos obligatorios y contexto útil; evite una misma clave genérica para todos los hechos. 2. Ejecute Preview y lea los diagnósticos. Corrija claves duplicadas y referencias inválidas. 3. Aplique al Workspace; después guarde, publique y active según el ciclo del proyecto. 4. Configure el productor: un Server Script puede llamar emit_operational_event. Obtenga el ID estable de la definición guardada en datos exportados/referencias del proyecto; no lo sustituya por el Identificador textual. 5. Vincule el handler Python al disparador Server adecuado. Evite Timer para registrar una sola transición: cada llamada crea otra ocurrencia aunque el mensaje sea igual. 6. Active la revisión con definición y script. 7. Produzca un hecho controlado y consulte operational.events en Histórico con un período que incluya la ejecución.",
-          "fields": null
-        },
-        {
-          "heading": "Ejemplo Python: una ocurrencia al inicializar",
-          "body": "El UUID siguiente es ilustrativo: sustitúyalo por el ID estable de su definición. En Script Engineering elija ámbito Server y vincule Initialize al handler initialize; el nombre de la función no crea el vínculo. El ejemplo registra inicio de simulación en cada inicialización del script, no arranque físico de bomba. El argumento event es contexto del disparador y puede quedar sin uso. emit_operational_event(definition_id, message=None, context=None) devuelve None, no el ID de la ocurrencia. Claves y valores del contexto son textos: use str(valor) para números calculados.",
-          "fields": null,
-          "code": "def initialize(event):\n    emit_operational_event(\n        \"c1900000-0000-0000-0000-000000000002\",\n        \"Simulation started\",\n        {\"mode\": \"simulation\", \"batch\": \"42\"}\n    )"
-        },
-        {
           "heading": "Consultar y diagnosticar",
-          "body": "En Histórico seleccione operational.events, ajuste inicio/fin y filtros disponibles; compruebe hora, origen, mensaje y contexto. alarm.events contiene transiciones de alarmas, y Audit tiene otra finalidad. El contexto adicional no cambia tipo, categoría, origen ni identidad propios de la definición, aunque tenga claves con esos nombres. El contexto admite hasta 128 pares, claves de hasta 160 caracteres y valores de hasta 4000; los mensajes también tienen límite de 4000. No incluya contraseñas ni secretos. Sin ocurrencia: compruebe revisión activa, definición habilitada, ID correcto, vínculo del handler, diagnóstico del script, período y permiso de consulta. La emisión debe respetar la autoridad activa del Runtime; un fallo no autoriza una vía alternativa. Que no aparezca nada tras solo crear la definición es normal.",
+          "body": "En Histórico elija operational.events, el conjunto de ocurrencias operacionales. Ajuste inicio/fin y filtros y compruebe hora, origen, mensaje y contexto. alarm.events contiene transiciones de alarmas; Audit registra otro tipo de acción.\n\nEl contexto adicional no cambia tipo, categoría, origen ni identidad de la definición, incluso con claves de esos nombres. Se permiten hasta 128 pares, claves de hasta 160 caracteres y valores de hasta 4000; el mensaje tiene también límite de 4000. No incluya contraseñas ni secretos.\n\nSi falta una ocurrencia, compruebe revisión activa, definición habilitada, ID, conexión del handler, diagnóstico del Script, período y permiso. Solo registrar la definición no produce registros. Un fallo no autoriza otra vía: la emisión debe respetar la autoridad activa de Runtime.",
           "fields": null
         }
       ],

@@ -459,26 +459,35 @@ test('system tasks are discoverable and their field references stay localized', 
   await expect(page.locator('article')).toContainText('no es una licencia comercial');
   await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/help?topic=equipment.overview');
+  // Follow the installed Help navigation between topics. Full document reloads
+  // cost 4.5–5s each in the failed CI trace and exhausted the 30s test budget.
+  const openTopic = async (id: string) => {
+    const link = nav.locator(`a[href="/help?topic=${id}"]`);
+    const area = nav.locator(`details.help-page__area:has(a[href="/help?topic=${id}"])`);
+    if (await area.getAttribute('open') === null) await area.locator(':scope > summary').click();
+    await link.click();
+    await expect(link).toHaveAttribute('aria-current', 'page');
+  };
+  await openTopic('equipment.overview');
   await expect(page.locator('article')).toContainText('Template Faceplate (opcional)');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('help-equipment-mobile.png') });
-  await page.goto('/help?topic=intelligence.activation');
+  await openTopic('intelligence.activation');
   await expect(page.locator('article')).toContainText('Restaurar a concessão não reinicia o trabalho silenciosamente');
   await page.locator('article section').first().scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('help-intelligence-activation-mobile.png') });
-  await page.goto('/help?topic=intelligence.analysis-guide');
+  await openTopic('intelligence.analysis-guide');
   await expect(page.locator('article')).toContainText('limite inferior ≤ valor < limite superior');
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath('help-intelligence-analysis-desktop.png'), fullPage: true });
-  await page.goto('/help?topic=ha.configuration-operation');
+  await openTopic('ha.configuration-operation');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('article section').first().scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('help-ha-progressive-mobile.png') });
-  await page.goto('/help?topic=templates.overview');
+  await openTopic('templates.overview');
   await expect(page.locator('article ol.help-page__steps > li')).toHaveCount(7);
 });
 
@@ -486,6 +495,7 @@ test('report and history tasks explain fields and distinguish retrieval from cap
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=reports.data-designer');
   const article = page.locator('article');
+  await page.screenshot({ path: testInfo.outputPath('help-report-progressive-desktop.png'), fullPage: true });
   await expect(article.getByRole('rowheader', { name: /Bruto, intervalo fixo ou resumo/ })).toBeVisible();
   await expect(article).toContainText('Somar leituras de vazão não calcula automaticamente volume');
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
@@ -509,6 +519,7 @@ test('alarm and operational event guides teach fields, state paths and emission 
   await page.goto('/help?topic=alarms.configuration');
   const article = page.locator('article');
   await expect(article.getByRole('rowheader', { name: 'Setpoint (limite)', exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('help-alarm-progressive-desktop.png'), fullPage: true });
   await expect(article).toContainText('A igualdade também ativa');
   await expect(article).toContainText('não retarda a ativação');
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');

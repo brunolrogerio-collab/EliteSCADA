@@ -2,7 +2,7 @@
 
 ## Alarms: configure condition, priority and behavior
 
-Build an alarm from a TAG and understand what each option actually does.
+Configure a notice for a known condition and test what the operator will see. The example uses high pressure without commanding equipment.
 
 <!-- HELP-REVIEW-AFTER-PRODUCT-751: https://github.com/brunolrogerio-collab/EliteSCADA/issues/751; topic=alarms.configuration; fields=alarm.activationDelayMilliseconds; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
 
@@ -10,7 +10,31 @@ Build an alarm from a TAG and understand what each option actually does.
 
 ### Before you begin
 
-Open Engineering > Alarms. First verify the TAG reading, type, scaling and unit. A high-pressure alarm observes the TAG value; it neither configures the sensor nor stops the pump by itself. Agree on thresholds and operational response with the process owner. Learn with a simulation TAG without operating real equipment. Editing requires the applicable Engineering permission and lock.
+Start with one simple condition: notify when pressure reaches its high limit. In Engineering > Alarms, use a test TAG whose value, type, scale and unit you have checked. A TAG is the variable providing the reading.
+
+The alarm observes that variable; it does not configure the sensor or stop the pump by itself. Agree the limit and operating response with the process owner. For learning, use simulation with the applicable Engineering permission and lock, without acting on real equipment.
+
+### Choosing a type
+
+Choose the type by the question the alarm must answer:
+
+Digital follows a boolean: choose whether true or false means an alarm condition. High and HighHigh activate when the value is greater than or equal to the limit (≥). Low and LowLow activate when less than or equal (≤). For two limits, create two definitions and choose each priority separately.
+
+Communication follows reading quality: it activates when quality differs from Good and returns with Good. It uses no setpoint, the numeric limit, and selecting it alone creates no communication-loss timer. With poor quality, process alarms do not treat the number as a valid reading; use Communication to follow that condition.
+
+System appears in the picker but has no generic process rule in this evaluator. For a high limit or boolean state, choose its own type rather than System as a substitute.
+
+### Procedure: test a high threshold
+
+Here, 10 bar is only a teaching value. ACK means acknowledgement: the operator confirms awareness of the notice.
+
+1. Create a high alarm for the simulated pressure TAG, with setpoint 10. Check the TAG’s bar unit.
+2. Fill priority, area and a clear message. Keep Requires acknowledgement checked for this test.
+3. Run Preview, read errors and apply to Workspace, the editing draft. If you edit again, validate again.
+4. Save, publish and activate the correct revision. Applying to Workspace does not activate Runtime by itself.
+5. With Good quality, send 9: the condition is Normal. Send 10: it becomes Active. Equality also activates.
+6. Acknowledge in Runtime while keeping the TAG at 10: it becomes Acknowledged, but pressure has not changed. Send 9: it becomes Returned and leaves the active list because it already had ACK.
+7. Activate again with 10 and return to 9 without acknowledging: Returned remains pending. Acknowledge and check that it leaves the active list. Query history for previous transitions.
 
 ### Identity and condition
 
@@ -20,17 +44,13 @@ Select New alarm or an existing definition. The path identifies the signal to ev
 | --- | --- | --- | --- |
 | Name | Use a readable description distinguishing equipment and condition. Renaming does not change the observed TAG. | High pressure — Pump 01 |  |
 | TAG path | Enter an existing TAG path. Check its already-scaled value in TAG Monitor before choosing the threshold. | Planta.Bomba01.Pressao | Not a Driver address or screen name. |
-| Type | Selects the comparison rule; see the types below. HighHigh is another threshold definition, not automatic priority. | high |  |
+| Type | Chooses the comparison rule; consult the type explanation in this article. HighHigh is another limit definition, not an automatic priority. | high |  |
 | Setpoint (threshold) | Shown for analog types. Enter a number in the current TAG unit. High/HighHigh activate at value ≥ threshold; Low/LowLow at value ≤ threshold. | 10 bar: enter 10 | Equality also activates. This editor has no hysteresis field. |
 | Active digital value | Only shown for Digital. Checked means true is the alarm condition; unchecked means false. Verify actual signal polarity. | Fault=true / Ready=false |  |
 | Priority | Orders and highlights attention: low, medium, high or critical. Does not change the threshold, permission or shutdown logic. | high |  |
 | Class | Classification label for organizing definitions. Typing a name does not install a protection rule. | Process |  |
 | Area | Process context also used for area-scoped action authorization. Use the name expected by the policy; entering an area grants no access. | Estacao01 |  |
 | Message | Explain the condition and location usefully for the operator. A written instruction does not execute a command. | Pump 01: check discharge pressure |  |
-
-### Choosing a type
-
-Digital compares the boolean with the selected active value. High and HighHigh use ≥; Low and LowLow use ≤. For two thresholds, create two definitions and choose their priorities separately. Communication activates for quality other than Good and returns with Good; it does not use a setpoint. With bad quality, process types do not evaluate the numeric limit as a valid reading: use a communication alarm to monitor this. System appears in the selector but has no generic process rule in this evaluator; do not use it instead of High or Digital. Selecting Communication does not imply a communication-loss timer.
 
 ### Behavior and sound
 
@@ -43,16 +63,6 @@ Expand Alarm behavior. Some options are saved in the definition but have current
 | Requires acknowledgement | Expresses the intent to require operator ACK. Current limitation: clearing it does not remove pending acknowledgement in Runtime, including after return. | Checked |  |
 | Allow shelving | Allows this definition to enter a suppressed state through an available operation. The action still requires AlarmShelve permission. The Alarm Center described here has no shelving button. | According to plant procedure | Not Mute sounds; no automatic expiry is promised. |
 | Sound profile / preview | Choose none, short pulse, double, triple, rising or alternating and try the preview. In Runtime, operators must enable sounds in the browser. Volume, output device and browser permission affect playback. | double | Muting in the browser does not acknowledge the alarm. |
-
-### Procedure: test a high threshold
-
-1. Create a high alarm for the simulated pressure TAG with setpoint 10 and bar as the TAG unit.
-2. Fill in priority, area and a clear message. Keep Requires acknowledgement checked for this test.
-3. Run Preview, read errors and apply to Workspace. Any further edit requires validation again.
-4. Save, publish and activate the correct revision; applying to Workspace alone does not activate Runtime.
-5. With Good quality, send 9: the condition is Normal. Send 10: it becomes Active because equality reaches the threshold.
-6. Acknowledge in Runtime: it becomes Acknowledged while the TAG remains 10. Send 9: it becomes Returned and leaves the active list because ACK was already recorded.
-7. For another activation, send 10 then 9 without ACK: it becomes Returned pending acknowledgement. Acknowledge and verify removal from the active list. Use history for earlier transitions.
 
 ### If the result differs
 
@@ -68,11 +78,15 @@ Read the current condition, acknowledge it and distinguish silence, return and h
 
 ### Where to look and how to interpret
 
-Open Runtime Alarm Center. It shows the active list visible to your session, counts and details for the selected item. It is not a list of all past occurrences. Select a row to inspect message/name, priority, area, last value, activation, last transition and who/when acknowledged. IDs in details identify the exact definition; you do not need to invent or type an ID to acknowledge.
+Runtime Alarm Center helps identify what needs attention now. It shows the active list allowed for your session, counts and selected-row details. It is not the history of everything that happened.
+
+Select a row and check equipment, message, priority, area, value and times. Details also show who acknowledged and when. IDs identify the exact definition for lookup or support; acknowledging does not require inventing or typing an ID.
 
 ### States shown in details
 
-The active list includes Active, Acknowledged and Returned without ACK. An empty list therefore does not mean no alarm ever occurred. States outside it can be found through other appropriate queries.
+ACK confirms that the operator is aware of the alarm. It is separate from the physical condition, so an acknowledged alarm can still be active.
+
+The active list includes Active, Acknowledged and Returned still without ACK. It can become empty after items return and are acknowledged, while previous transitions remain in history. The table explains the states shown in details.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -85,15 +99,19 @@ The active list includes Active, Acknowledged and Returned without ACK. An empty
 
 ### Procedure: acknowledge a notification
 
-1. Select the row and read the condition, value and time; confirm the equipment.
-2. Follow the plant operational response.
-3. Use Acknowledge alarm if the session has AlarmAcknowledge permission for the area. A View Only session does not gain this action.
-4. Wait for server confirmation and refresh. If ACK was accepted but refresh failed, refresh to verify the result before repeating actions.
-5. If the condition persists, the acknowledged state remains visible. If it already returned, it leaves the active list after ACK. A new activation opens another pending acknowledgement.
+1. Select the row. Read condition, value and time and confirm the equipment.
+2. Follow the plant’s operating response for that condition.
+3. Use Acknowledge alarm if your session permits it for that area. The technical permission is AlarmAcknowledge; a View Only session still cannot perform it.
+4. Wait for confirmation and list refresh. If the server accepted ACK but rereading failed, refresh to check before repeating actions.
+5. If the condition remains, the acknowledged alarm stays visible. If it has returned, it leaves the active list after ACK. A new activation creates another acknowledgement pending.
 
 ### Sounds, mute and unavailability
 
-Enable alarm sounds unlocks audio for this browser session, subject to support, volume and output device. Configured profiles repeat while an alarm awaits ACK, including Returned without ACK. Mute sounds is local and does not acknowledge, disable or shelve. Acknowledgement sends no process command. If access is denied, check login, session class and permission/area; do not try to fix access by changing the TAG. If data or service is unavailable, refresh and check Runtime diagnostics. For past transitions, open History and choose alarm.events with an appropriate period; do not confuse it with operational.events or Audit.
+To hear notices, use Enable alarm sounds in this browser session. Check support, volume and audio output. Profiles repeat while an alarm is pending, including Returned without ACK.
+
+Muting is local: it does not acknowledge, disable or shelve. Shelving suppresses the notification. Acknowledging does not send a process command either. These are different effects.
+
+For denied access, check login, session class and area permission. For missing data or unavailable service, refresh and consult Runtime diagnostics; changing a TAG does not resolve an authorization refusal. For past records, open History and choose alarm.events for the period. This dataset concerns alarms; operational.events and Audit serve other purposes.
 
 [Open this guide in installed Help](/help?topic=alarms.runtime-operation)
 
@@ -103,7 +121,38 @@ Record a process occurrence with context, distinguishing definitions, occurrence
 
 ### Choose the right resource
 
-An operational event records a fact, such as batch start or mode change. Each emission creates an occurrence with its own time and identity; it maintains no active condition and requires no ACK. An alarm tracks a condition that activates/returns. Audit traces security/administrative actions and outcomes. A visual object click is also called an event but is not itself an operational occurrence. Creating the definition below emits nothing automatically; linking a TAG provides context, not a change trigger.
+Use an operational event to record a fact, such as batch start or a mode change. Each emission creates an occurrence with its own time and identity. It maintains no active condition and requests no ACK.
+
+Choose an alarm to follow a condition that activates and returns. Audit tracks security or administration actions and outcomes. A screen click is also called an event, but does not become an operational occurrence by itself.
+
+First register the fact’s definition, then configure what emits it. Registration does not automatically emit. Associating a TAG only provides context; it creates no change trigger.
+
+### Procedure: prepare the definition and producer
+
+1. Create the definition with required fields and a name/key distinguishing the fact. Add useful context.
+2. Run Preview and fix duplicate keys or invalid references reported in diagnostics.
+3. Apply to Workspace, then save, publish and activate the revision through project controls.
+4. Prepare what will emit the occurrence. A Server Script can call emit_operational_event. Obtain the saved definition’s stable ID from project references or exported data; do not substitute its textual identifier.
+5. Associate the handler, the Python function, with the appropriate Server trigger. Avoid Timer for a single transition: each call creates another occurrence, even with the same message.
+6. Activate the revision containing the definition and Script.
+7. Produce one controlled test fact and query operational.events in History, including execution time in the period.
+
+### Python example: one occurrence at initialization
+
+This example records simulation initialization, not a pump’s physical start. The illustrative UUID is a definition ID: replace it with your saved definition’s stable ID.
+
+In the Script editor, choose Server and associate Initialize with handler initialize. Writing the function does not create that association. It runs at each Script initialization; event carries trigger context and may be unused.
+
+emit_operational_event(definition_id, message=None, context=None) returns None, not the occurrence ID. In the context dictionary, keys and values are text. Use str(value) to turn a calculated number into text before including it.
+
+```python
+def initialize(event):
+    emit_operational_event(
+        "c1900000-0000-0000-0000-000000000002",
+        "Simulation started",
+        {"mode": "simulation", "batch": "42"}
+    )
+```
 
 ### Definition fields
 
@@ -122,31 +171,12 @@ Open Engineering > Operational Events and select New Operational Event. Define m
 | Equipment path (optional) | Equipment context reference. Does not create equipment or a drawing. | Planta.Bomba01 | Up to 500 characters. |
 | TAG (optional) | Choose an existing TAG; the editor stores its identity and path. No TAG is valid for a general fact. | Planta.Bomba01.Estado | Association does not automatically monitor changes. |
 
-### Procedure: prepare the definition and producer
-
-1. Create the definition with required fields and useful context; avoid using one generic key for every fact.
-2. Run Preview and read diagnostics. Fix duplicate keys and invalid references.
-3. Apply to Workspace, then save, publish and activate using the project lifecycle.
-4. Configure the producer: a Server Script can call emit_operational_event. Obtain the saved definition stable ID from exported project data/references; do not substitute the text Key.
-5. Bind the Python handler to the appropriate Server trigger. Avoid Timer to record a single transition: every call creates another occurrence even with the same message.
-6. Activate the revision containing both definition and script.
-7. Produce a controlled fact and query operational.events in History with a period covering execution.
-
-### Python example: one occurrence at initialization
-
-The UUID below is illustrative: replace it with your definition stable ID. In Script Engineering choose Server scope and bind the Initialize event to the initialize handler; a function name alone does not create that binding. The example records simulation start at each script initialization, not a physical pump start. The event argument is trigger context and can remain unused. emit_operational_event(definition_id, message=None, context=None) returns None, not an occurrence ID. Context dictionary keys and values are strings: use str(value) for calculated numbers.
-
-```python
-def initialize(event):
-    emit_operational_event(
-        "c1900000-0000-0000-0000-000000000002",
-        "Simulation started",
-        {"mode": "simulation", "batch": "42"}
-    )
-```
-
 ### Query and troubleshoot
 
-In History select operational.events, set start/end and available filters; inspect time, source, message and context. alarm.events contains alarm transitions, while Audit has another purpose. Additional context does not change the definition's own type, category, source or identity, even with keys bearing those names. Context allows up to 128 pairs, keys up to 160 characters and values up to 4000; messages also have a 4000-character limit. Include no passwords or secrets. Missing occurrence: check active revision, enabled definition, correct ID, handler binding, script diagnostics, time range and query permission. Emission must respect active Runtime authority; failure does not authorize an alternative path. Nothing appearing after only creating a definition is expected.
+In History, choose operational.events, the operational-occurrence dataset. Adjust start/end and filters and check time, source, message and context. alarm.events contains alarm transitions; Audit records a different kind of action.
+
+Extra context does not change definition type, category, source or identity, even with keys using those names. Up to 128 pairs are allowed, with keys up to 160 characters and values up to 4000; messages also have a 4000 limit. Include no passwords or secrets.
+
+For a missing occurrence, check active revision, enabled definition, ID, handler connection, Script diagnostics, period and permission. Registering the definition alone produces no records. Emission failure does not authorize another route: emission must respect Runtime’s active authority.
 
 [Open this guide in installed Help](/help?topic=operational-events.configuration)

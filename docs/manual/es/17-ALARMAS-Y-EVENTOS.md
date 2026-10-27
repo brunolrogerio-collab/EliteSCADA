@@ -2,7 +2,7 @@
 
 ## Alarmas: configurar condición, prioridad y comportamiento
 
-Cree una alarma a partir de un TAG y comprenda qué hace cada opción.
+Configure un aviso para una condición conocida y pruebe qué verá el operador. El ejemplo usa presión alta sin comandar equipos.
 
 <!-- HELP-REVIEW-AFTER-PRODUCT-751: https://github.com/brunolrogerio-collab/EliteSCADA/issues/751; topic=alarms.configuration; fields=alarm.activationDelayMilliseconds; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
 
@@ -10,7 +10,31 @@ Cree una alarma a partir de un TAG y comprenda qué hace cada opción.
 
 ### Antes de empezar
 
-Abra Ingeniería > Alarmas. Verifique primero lectura, tipo, escala y unidad del TAG. Una alarma de presión alta observa su valor; no configura el sensor ni detiene la bomba por sí sola. Acuerde límites y respuesta con el responsable del proceso. Aprenda con un TAG simulado, sin actuar sobre equipos reales. La edición requiere el permiso y bloqueo de Ingeniería correspondientes.
+Empiece por una condición sencilla: avisar cuando la presión alcance el límite alto. En Ingeniería > Alarmas, use un TAG de prueba con valor, tipo, escala y unidad comprobados. Un TAG es la variable que proporciona la lectura.
+
+La alarma observa esa variable; no configura el sensor ni detiene la bomba sola. Acuerde límite y respuesta operacional con el responsable. Para aprender, use simulación con permiso y bloqueo de Ingeniería aplicables, sin actuar en equipos reales.
+
+### Qué tipo elegir
+
+Elija el tipo según la pregunta que debe responder la alarma:
+
+Digital sigue un booleano: elija si true o false representa alarma. High y HighHigh activan con valor mayor o igual al límite (≥). Low y LowLow activan con menor o igual (≤). Para dos límites, cree dos definiciones y elija la prioridad de cada una.
+
+Communication sigue la calidad: activa cuando difiere de Good y retorna con Good. No usa setpoint, el límite numérico, ni crea un temporizador de pérdida de comunicación solo por seleccionarlo. Con calidad mala, las alarmas de proceso no tratan el número como lectura válida; use Communication para esa condición.
+
+System aparece en el selector, pero no tiene regla genérica de proceso en este evaluador. Para límite alto o estado booleano, elija su tipo propio en vez de usar System como sustituto.
+
+### Procedimiento: probar un límite alto
+
+Aquí, 10 bar es solo un valor didáctico. ACK significa reconocimiento: el operador confirma que ha visto el aviso.
+
+1. Cree una alarma high para el TAG de presión simulado con setpoint 10. Compruebe unidad bar en el TAG.
+2. Complete prioridad, área y mensaje claro. Mantenga Requiere reconocimiento marcado para esta prueba.
+3. Ejecute Preview, lea errores y aplique al Workspace, el borrador de edición. Si edita de nuevo, valide de nuevo.
+4. Guarde, publique y active la revisión correcta. Aplicar al Workspace no activa Runtime por sí solo.
+5. Con calidad Good envíe 9: queda Normal. Envíe 10: queda Active. La igualdad también activa.
+6. Reconozca en Runtime manteniendo 10 en el TAG: queda Acknowledged, pero la presión no cambió. Envíe 9: queda Returned y sale de la lista activa porque ya tuvo ACK.
+7. Active otra vez con 10 y vuelva a 9 sin reconocer: Returned sigue pendiente. Reconozca y compruebe la salida de la lista activa. Consulte histórico para las transiciones anteriores.
 
 ### Identidad y condición
 
@@ -20,17 +44,13 @@ Seleccione Nueva alarma o una definición existente. La ruta identifica la seña
 | --- | --- | --- | --- |
 | Nombre | Use una descripción legible que distinga equipo y condición. Renombrar no cambia el TAG observado. | Presión alta — Bomba 01 |  |
 | Ruta del TAG | Introduzca una ruta de TAG existente. Compruebe su valor ya escalado en el Monitor de TAGs antes de elegir el límite. | Planta.Bomba01.Pressao | No es dirección del Driver ni nombre de pantalla. |
-| Tipo | Selecciona la comparación; consulte los tipos siguientes. HighHigh es otra definición de límite, no prioridad automática. | high |  |
+| Tipo | Elige la regla de comparación; consulte la explicación de tipos en este artículo. HighHigh es otra definición de límite, no una prioridad automática. | high |  |
 | Setpoint (límite) | Aparece para tipos analógicos. Introduzca un número en la unidad actual del TAG. High/HighHigh se activan con valor ≥ límite; Low/LowLow con valor ≤ límite. | 10 bar: introducir 10 | La igualdad también activa. Este editor no tiene campo de histéresis. |
 | Valor digital activo | Solo aparece en Digital. Marcado significa alarma con true; desmarcado con false. Confirme la polaridad real. | Fallo=true / Listo=false |  |
 | Prioridad | Ordena y destaca la atención: low, medium, high o critical. No cambia límite, permiso ni lógica de parada. | high |  |
 | Clase | Etiqueta para organizar definiciones. Escribir un nombre no instala una regla de protección. | Proceso |  |
 | Área | Contexto del proceso usado también para autorizar acciones por área. Use el nombre previsto en la política; escribir un área no concede acceso. | Estacao01 |  |
 | Mensaje | Explique condición y ubicación de forma útil. Una instrucción escrita no ejecuta un comando. | Bomba 01: comprobar presión de descarga |  |
-
-### Qué tipo elegir
-
-Digital compara el booleano con el valor activo elegido. High y HighHigh usan ≥; Low y LowLow usan ≤. Para dos límites, cree dos definiciones y asigne prioridades por separado. Communication se activa con calidad distinta de Good y retorna con Good; no usa setpoint. Con mala calidad, los tipos de proceso no evalúan el límite numérico como si la lectura fuera válida: supervise esta situación con una alarma de comunicación. System aparece en el selector, pero no tiene regla genérica de proceso en este evaluador; no lo use en lugar de High o Digital. Seleccionar Communication no implica un temporizador de pérdida de comunicación.
 
 ### Comportamiento y sonido
 
@@ -43,16 +63,6 @@ Expanda Comportamiento de la alarma. Algunas opciones se guardan en la definici�
 | Requiere reconocimiento | Indica la intención de exigir ACK del operador. Limitación actual: desmarcar no elimina el reconocimiento pendiente en Runtime, incluso tras el retorno. | Marcada |  |
 | Permitir shelving | Permite suprimir esta definición mediante la operación disponible. La acción sigue requiriendo permiso AlarmShelve. El Alarm Center descrito aquí no tiene botón de shelving. | Según el procedimiento de planta | No es Silenciar sonidos; no se promete vencimiento automático. |
 | Perfil sonoro / prueba | Elija ninguno, pulso corto, doble, triple, ascendente o alternado y pruebe la vista previa. En Runtime, el operador debe activar sonidos en el navegador. Volumen, salida y permiso del navegador afectan la reproducción. | double | Silenciar en el navegador no reconoce la alarma. |
-
-### Procedimiento: probar un límite alto
-
-1. Cree una alarma high para el TAG de presión simulado con setpoint 10 y unidad bar en el TAG.
-2. Complete prioridad, área y un mensaje claro. Mantenga Requiere reconocimiento marcado para esta prueba.
-3. Ejecute Preview, lea errores y aplique al Workspace. Otra edición requiere validar de nuevo.
-4. Guarde, publique y active la revisión correcta; aplicar al Workspace no activa Runtime por sí solo.
-5. Con calidad Good, envíe 9: queda Normal. Envíe 10: pasa a Active porque la igualdad alcanza el límite.
-6. Reconozca en Runtime: pasa a Acknowledged y el TAG sigue en 10. Envíe 9: pasa a Returned y sale de la lista activa porque ya tiene ACK.
-7. En otra activación, envíe 10 y luego 9 sin ACK: queda Returned pendiente. Reconozca y compruebe la salida de la lista activa. Consulte el histórico para transiciones anteriores.
 
 ### Si el resultado es distinto
 
@@ -68,11 +78,15 @@ Lea la condición actual, reconozca y distinga silencio, retorno e histórico.
 
 ### Dónde mirar y cómo interpretar
 
-Abra la central de alarmas de Runtime. Muestra la lista activa visible para su sesión, contadores y detalles del elemento seleccionado. No es una lista de todas las ocurrencias pasadas. Seleccione una fila para ver mensaje/nombre, prioridad, área, último valor, activación, última transición y quién/cuándo reconoció. Los IDs identifican la definición exacta; no necesita inventar ni escribir un ID para reconocer.
+La central de alarmas del Runtime ayuda a decidir qué necesita atención ahora. Muestra la lista activa permitida para su sesión, recuentos y detalles de la fila elegida. No es el histórico de todo lo ocurrido.
+
+Seleccione una fila y compruebe equipo, mensaje, prioridad, área, valor y horarios. Los detalles indican también quién reconoció y cuándo. Los IDs identifican la definición exacta para consulta o soporte; reconocer no requiere inventar ni escribir un ID.
 
 ### Estados de los detalles
 
-La lista activa incluye Active, Acknowledged y Returned sin ACK. Una lista vacía no significa que nunca hubo una alarma. Los estados fuera de ella pueden encontrarse en otras consultas apropiadas.
+ACK confirma que el operador ha visto la alarma. Es distinto de la condición física; una alarma reconocida puede seguir activa.
+
+La lista activa incluye Active, Acknowledged y Returned aún sin ACK. Puede quedar vacía tras retorno y reconocimiento, aunque las transiciones anteriores sigan en el histórico. La tabla explica los estados de los detalles.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -85,15 +99,19 @@ La lista activa incluye Active, Acknowledged y Returned sin ACK. Una lista vací
 
 ### Procedimiento: reconocer una notificación
 
-1. Seleccione la fila y lea condición, valor y hora; confirme el equipo.
-2. Siga la respuesta operativa de la planta.
-3. Use Reconocer alarma si la sesión tiene permiso AlarmAcknowledge para el área. Una sesión View Only no adquiere esta acción.
-4. Espere confirmación del servidor y actualización. Si el ACK se aceptó pero falló la relectura, actualice para comprobarlo antes de repetir acciones.
-5. Si la condición persiste, sigue visible reconocida. Si ya retornó, sale de la lista activa tras ACK. Otra activación genera otro reconocimiento pendiente.
+1. Seleccione la fila. Lea condición, valor y hora y confirme el equipo.
+2. Siga la respuesta operacional prevista por la planta para esa condición.
+3. Use Reconocer alarma si la sesión lo permite en esa área. El permiso técnico es AlarmAcknowledge; una sesión View Only sigue sin esa acción.
+4. Espere confirmación y actualización. Si el servidor aceptó ACK pero falló la relectura, actualice para comprobar antes de repetir acciones.
+5. Si persiste la condición, la alarma reconocida sigue visible. Si ya retornó, sale de la lista activa tras ACK. Una nueva activación crea otra pendiente de reconocimiento.
 
 ### Sonidos, silencio e indisponibilidad
 
-Activar sonidos de alarmas habilita el audio en esta sesión del navegador; depende de soporte, volumen y salida. Los perfiles configurados se repiten mientras haya alarmas sin ACK, incluso Returned sin ACK. Silenciar sonidos es local y no reconoce, deshabilita ni suprime mediante shelving. Reconocer no envía comandos al proceso. Sin acceso: compruebe login, clase de sesión y permiso/área; no intente corregirlo cambiando el TAG. Sin datos o servicio disponible: actualice y consulte diagnóstico de Runtime. Para transiciones anteriores, abra Histórico y elija alarm.events con un período adecuado; no lo confunda con operational.events ni Audit.
+Para oír avisos, use Activar sonidos de alarmas en esta sesión del navegador. Compruebe soporte, volumen y salida de audio. Los perfiles se repiten mientras haya alarma pendiente, incluso Returned sin ACK.
+
+Silenciar es local: no reconoce, deshabilita ni aplica shelving. Shelving suprime la notificación. Reconocer tampoco envía un comando al proceso. Son efectos distintos.
+
+Sin acceso, compruebe login, clase de sesión y permiso del área. Sin datos o servicio, actualice y consulte diagnóstico de Runtime; cambiar el TAG no resuelve una denegación. Para el pasado, abra Histórico y elija alarm.events en el período. Ese conjunto es de alarmas; operational.events y Audit tienen otras finalidades.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=alarms.runtime-operation)
 
@@ -103,7 +121,38 @@ Registre una ocurrencia del proceso con contexto, distinguiendo definición, ocu
 
 ### Elija el recurso adecuado
 
-Un evento operacional registra un hecho, como inicio de lote o cambio de modo. Cada emisión crea una ocurrencia con hora e identidad propias; no mantiene condición activa ni exige ACK. Una alarma sigue una condición que se activa/retorna. Audit rastrea acciones y resultados de seguridad/administración. Un clic visual también se llama evento, pero no es por sí solo una ocurrencia operacional. Crear la definición siguiente no emite nada automáticamente; asociar un TAG aporta contexto, no un disparador de cambio.
+Use un evento operacional para registrar un hecho, como inicio de lote o cambio de modo. Cada emisión crea una ocurrencia con hora e identidad propias. No mantiene condición activa ni pide ACK.
+
+Elija alarma para seguir una condición que activa y retorna. Audit registra acciones y resultados de seguridad o administración. Un clic en pantalla también se llama evento, pero no se convierte solo en ocurrencia operacional.
+
+Primero registre la definición del hecho; después configure quién lo emite. Registrar no emite automáticamente. Asociar un TAG solo aporta contexto, no crea disparador de cambio.
+
+### Procedimiento: preparar definición y productor
+
+1. Cree la definición con campos obligatorios y nombre/clave que distingan el hecho. Añada contexto útil.
+2. Ejecute Preview y corrija claves duplicadas o referencias inválidas de los diagnósticos.
+3. Aplique al Workspace; guarde, publique y active la revisión con los controles del proyecto.
+4. Prepare quién emitirá la ocurrencia. Un Server Script puede llamar emit_operational_event. Obtenga el ID estable de la definición guardada de referencias o datos exportados; no lo sustituya por el identificador textual.
+5. Asocie el handler, la función Python, al disparador Server adecuado. Evite Timer para una sola transición: cada llamada crea otra ocurrencia, incluso con igual mensaje.
+6. Active la revisión que contiene definición y Script.
+7. Produzca un hecho de prueba controlado y consulte operational.events en Histórico, incluyendo la ejecución en el período.
+
+### Ejemplo Python: una ocurrencia al inicializar
+
+El ejemplo registra el inicio de la simulación, no el arranque físico de una bomba. El UUID ilustrativo es un ID de definición: sustitúyalo por el ID estable de su definición guardada.
+
+En el editor de Scripts elija Server y asocie Initialize al handler initialize. Escribir la función no crea la asociación. Se ejecuta en cada inicialización del Script; event aporta contexto del disparador y puede quedar sin uso.
+
+emit_operational_event(definition_id, message=None, context=None) devuelve None, no el ID de ocurrencia. En el diccionario context, claves y valores son textos. Use str(valor) para convertir un número calculado en texto antes de incluirlo.
+
+```python
+def initialize(event):
+    emit_operational_event(
+        "c1900000-0000-0000-0000-000000000002",
+        "Simulation started",
+        {"mode": "simulation", "batch": "42"}
+    )
+```
 
 ### Campos de la definición
 
@@ -122,31 +171,12 @@ Abra Ingeniería > Eventos Operacionales y seleccione Nuevo Evento Operacional. 
 | Ruta del equipo (opcional) | Referencia contextual del equipo. No crea equipo ni dibujo. | Planta.Bomba01 | Hasta 500 caracteres. |
 | TAG (opcional) | Elija un TAG existente; el editor guarda identidad y ruta. Sin TAG es válido para un hecho general. | Planta.Bomba01.Estado | La asociación no supervisa cambios automáticamente. |
 
-### Procedimiento: preparar definición y productor
-
-1. Cree la definición con los campos obligatorios y contexto útil; evite una misma clave genérica para todos los hechos.
-2. Ejecute Preview y lea los diagnósticos. Corrija claves duplicadas y referencias inválidas.
-3. Aplique al Workspace; después guarde, publique y active según el ciclo del proyecto.
-4. Configure el productor: un Server Script puede llamar emit_operational_event. Obtenga el ID estable de la definición guardada en datos exportados/referencias del proyecto; no lo sustituya por el Identificador textual.
-5. Vincule el handler Python al disparador Server adecuado. Evite Timer para registrar una sola transición: cada llamada crea otra ocurrencia aunque el mensaje sea igual.
-6. Active la revisión con definición y script.
-7. Produzca un hecho controlado y consulte operational.events en Histórico con un período que incluya la ejecución.
-
-### Ejemplo Python: una ocurrencia al inicializar
-
-El UUID siguiente es ilustrativo: sustitúyalo por el ID estable de su definición. En Script Engineering elija ámbito Server y vincule Initialize al handler initialize; el nombre de la función no crea el vínculo. El ejemplo registra inicio de simulación en cada inicialización del script, no arranque físico de bomba. El argumento event es contexto del disparador y puede quedar sin uso. emit_operational_event(definition_id, message=None, context=None) devuelve None, no el ID de la ocurrencia. Claves y valores del contexto son textos: use str(valor) para números calculados.
-
-```python
-def initialize(event):
-    emit_operational_event(
-        "c1900000-0000-0000-0000-000000000002",
-        "Simulation started",
-        {"mode": "simulation", "batch": "42"}
-    )
-```
-
 ### Consultar y diagnosticar
 
-En Histórico seleccione operational.events, ajuste inicio/fin y filtros disponibles; compruebe hora, origen, mensaje y contexto. alarm.events contiene transiciones de alarmas, y Audit tiene otra finalidad. El contexto adicional no cambia tipo, categoría, origen ni identidad propios de la definición, aunque tenga claves con esos nombres. El contexto admite hasta 128 pares, claves de hasta 160 caracteres y valores de hasta 4000; los mensajes también tienen límite de 4000. No incluya contraseñas ni secretos. Sin ocurrencia: compruebe revisión activa, definición habilitada, ID correcto, vínculo del handler, diagnóstico del script, período y permiso de consulta. La emisión debe respetar la autoridad activa del Runtime; un fallo no autoriza una vía alternativa. Que no aparezca nada tras solo crear la definición es normal.
+En Histórico elija operational.events, el conjunto de ocurrencias operacionales. Ajuste inicio/fin y filtros y compruebe hora, origen, mensaje y contexto. alarm.events contiene transiciones de alarmas; Audit registra otro tipo de acción.
+
+El contexto adicional no cambia tipo, categoría, origen ni identidad de la definición, incluso con claves de esos nombres. Se permiten hasta 128 pares, claves de hasta 160 caracteres y valores de hasta 4000; el mensaje tiene también límite de 4000. No incluya contraseñas ni secretos.
+
+Si falta una ocurrencia, compruebe revisión activa, definición habilitada, ID, conexión del handler, diagnóstico del Script, período y permiso. Solo registrar la definición no produce registros. Un fallo no autoriza otra vía: la emisión debe respetar la autoridad activa de Runtime.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=operational-events.configuration)

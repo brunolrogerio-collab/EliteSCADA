@@ -6,7 +6,18 @@ Start with the question the report should answer before drawing the page.
 
 ### Prepare verifiable data
 
-Open Engineering > Reports. Start with a pressure TAG that already has historical capture and a short period with known values. A report queries stored data; it neither enables capture nor recovers unstored history. Have permission to edit and query the selected dataset. Sample history and alarm transitions use different datasets.
+Start with the question: which readings should appear, and for what period? In Engineering > Reports, first use a pressure TAG with existing history and a short interval with known values. This lets you check data before designing the page.
+
+The report queries stored records. It does not enable capture or recover an unrecorded past. Your account needs permission to edit and query the chosen source. Use the samples dataset for values and the alarm dataset for alarm transitions.
+
+### First test before final layout
+
+1. Choose an embedded query, which belongs to the report, and historian.samples, the samples dataset.
+2. Add a known TAG through the reference picker.
+3. Choose a short period and Raw resolution.
+4. Run Preview. Check available rows, times, values and quality.
+5. Switch to Summary with Maximum and an hourly interval. Compare each output with raw data: an interval maximum is not a list of every reading.
+6. Then arrange the page and validate the definition. For no preview rows, check TAG, period, capture and permission before changing colors or widths.
 
 ### Identification and query source
 
@@ -23,7 +34,9 @@ Create or select a report. Use reference selectors instead of inventing IDs. The
 
 ### Choose data retrieval/presentation
 
-Resolution is a query choice; it changes neither capture nor stored raw samples. Report aggregation does not configure permanent database aggregation policy.
+Resolution defines how to retrieve and summarize records for this query. Raw shows stored samples; other options organize or summarize output. Check raw values before using a summary.
+
+This choice does not change captured data, remove raw records or configure permanent database aggregation policy.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -31,15 +44,6 @@ Resolution is a query choice; it changes neither capture nor stored raw samples.
 | Fixed interval | Choose spacing between retrieval positions. It is neither Driver polling nor a guarantee of a sample at every position. Missing data remains significant. | 5 minutes if suitable for the question |  |
 | Aggregation and bucket | Average, min, max, sum, count, first and last differ. Choose bucket width. Summing flow readings does not automatically calculate production volume; integration and appropriate units would be needed. | Hourly maximum to look for peaks |  |
 | Long or wide table | Long organizes sample rows; wide organizes intervals for comparing variables. Wide is disabled for raw mode. | Long to inspect samples |  |
-
-### First test before final layout
-
-1. Use an embedded historian.samples query.
-2. Add a known TAG.
-3. Choose a short period and Raw.
-4. Run Preview; inspect rows, times, values and available quality.
-5. Switch to Summary, Maximum and hourly buckets; compare with raw data without expecting identical output.
-6. Then arrange the page and validate. For no rows, check TAG, period, capture and permission before changing fonts, widths or colors.
 
 [Open this guide in installed Help](/help?topic=reports.data-designer)
 
@@ -49,7 +53,9 @@ Separate the queried value, its format and where it is printed.
 
 ### Understand the page
 
-Use Design to edit and Preview to inspect execution. Dimensions are millimeters, not Runtime screen pixels. Portrait is vertical; Landscape horizontal. Content must fit usable width after margins. Preview zoom does not change print dimensions.
+In the Designer, Project/Design is where you build the page; Preview shows a run with data. Start with a title and one reading field before adding groups and totals.
+
+Dimensions use millimeters, as on a printed page, not Runtime-screen pixels. Portrait is vertical; Landscape is horizontal. Reserve margins and fit content in the remaining width. Zoom only changes how you see Preview, not print size.
 
 ### How to format a variable
 
@@ -65,7 +71,11 @@ The variable remains linked to its selected TAG. These fields change presentatio
 
 ### Layout sections and controls
 
-Report header/footer apply to the report; page header/footer repeat per page. Detail receives query rows; group header/footer follows grouping. Detail may be empty while the title remains visible if there are no rows. Start with Label and Field, the directly offered insertion controls.
+Label is fixed text, such as Discharge pressure. Field shows a query value. These are the controls directly offered for insertion; start with them.
+
+Put the title in the report header and record fields in Detail, the section receiving query rows. Page header/footer repeat on each page; report header/footer belong to the report. Group headers/footers depend on configured grouping.
+
+With no query rows, a title can appear while Detail stays empty. Check data first rather than trying to fix this by increasing section height.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -77,16 +87,18 @@ Report header/footer apply to the report; page header/footer repeat per page. De
 
 ### Grouping is not temporal aggregation
 
-Group by organizes rows by a selected field with ascending/descending order. A summary selects field, function and scope: group or entire report. Time bucket width comes from Resolution, not group names. Do not sum already aggregated data blindly. Count means records, not operating hours. Manually check a small group before trusting totals.
+Group by brings rows together by the chosen field and lets you order that organization. Resolution defines query time intervals. These are different choices: naming a group does not change the interval.
+
+For a summary, choose field, function and scope: just the group or the whole report. Check whether the query already summarized data before summing again. Count reports record quantity, not running hours. Test a small group and check its total manually.
 
 ### From preview to active revision
 
-1. Build a title, Detail and real fields.
-2. Preview data and inspect pagination/clipping.
-3. Validate references/structure.
-4. Apply only a valid candidate; refresh/revalidate if the project changes.
-5. Save/publish/activate.
-6. Generate in Runtime with the same test parameters and compare. A preview execution is not a saved definition or an active revision.
+1. Build a title, Detail section and fields linked to real data.
+2. Run Preview and check data, pages and clipping.
+3. Use Validate and correct invalid references or structure.
+4. Apply only the valid candidate. If the project changed during editing, refresh and validate again.
+5. Save, publish and activate the revision through project controls.
+6. Generate the report in Runtime with the same test parameters and compare. Preview shows a run; it does not save the definition or prove the new revision is active.
 
 [Open this guide in installed Help](/help?topic=reports.layout-variables)
 
@@ -96,23 +108,33 @@ Output belongs to one execution with its own period and parameters.
 
 ### Find the available report
 
-Open Runtime Reports and search by name. The list depends on active revision and session authorization. Engineering access or a report object on a screen does not grant every data query. For an empty list check revision and permissions before recreating definitions.
+Open Reports in Runtime and search by name. The list uses the active revision and your session’s permissions. If a report is missing, check those two conditions before recreating it.
+
+Engineering access or seeing a report object on a screen does not grant access to every dataset. The generating user also needs permission to query the chosen source.
 
 ### Period, parameters and execution
 
-1. Select a report.
-2. Choose relative or From/To where the definition permits. Relative time is resolved for execution; repeating later may use another window.
-3. For absolute time choose start before end and check timezone.
-4. Enter correctly typed/allowed parameters, not arbitrary text for numbers/dates/Booleans.
-5. Generate and wait; cancellation stops the request without deleting the definition.
-6. Inspect generation time, window and used parameters before interpreting output.
+1. Select the report to generate.
+2. Choose relative period or From/To from allowed modes. Relative is calculated at execution time: repeating later can use a different window.
+3. For an absolute interval, enter start before end and check the displayed time zone.
+4. Complete parameters with the requested types and options. Numbers, dates and booleans do not accept arbitrary text.
+5. Use Generate report and wait. Cancel interrupts the request; it does not delete the definition.
+6. Before interpreting, check generation time, queried period and parameters used.
 
 ### Preview, PDF, spreadsheet and print
 
-Use page navigation/zoom for inspection; fit-to-width does not change the definition. PDF/print provide paginated presentation; XLSX/CSV support work on the output. They export results, not Engineering packages or TAG edits. Regenerate for updated data; opening an old export does not make it live. Check spreadsheet/CSV unit, date and decimal interpretation for the recipient.
+Check output with previous/next page and zoom. Fit to width changes only the view. Use PDF or print for paginated presentation; XLSX and CSV let you work with output data.
+
+These export the result, not project-import packages or TAG edits. An exported file represents that run. Generate again to update data; reopening the file does not make a live query.
+
+Before sharing a spreadsheet or CSV, check units, dates and decimal formatting expected by the recipient.
 
 ### Problems needing different checks
 
-Missing report: revision/authorization. Header without Detail: empty query, period/filters/capture. Blank/error field: field/query references, type and parameters. Unexpected number: resolution, function, label-only unit and summary scope. Clipping: millimeters, usable width and band height. Old data: inspect execution time and regenerate. Do not blindly change permissions or units to hide failure.
+For a missing report, review publication/activation and authorization. For a title with no rows, check period, filters and capture. For an empty field or error, confirm referenced field/query, type and parameters.
+
+An unexpected number calls for checking resolution, function, unit and summary scope. A different label does not convert units. For clipping, check millimeters, usable width and section height.
+
+If data looks old, check generation time and generate again. Do not change permissions or units blindly to try to fix output.
 
 [Open this guide in installed Help](/help?topic=reports.runtime-output)

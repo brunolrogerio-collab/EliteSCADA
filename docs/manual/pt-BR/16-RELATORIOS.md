@@ -6,7 +6,18 @@ Comece pela pergunta que o relatório deve responder, antes de desenhar a págin
 
 ### Prepare dados que você possa conferir
 
-Abra Engenharia > Relatórios. Para o primeiro exemplo, use um TAG de pressão com captura histórica já existente e um período curto em que você conhece os valores. O relatório consulta dados armazenados; ele não liga a captura nem recupera o passado que não foi gravado. Tenha autorização para editar e consultar o dataset escolhido. Um relatório de histórico e um de transições de alarme usam fontes diferentes.
+Comece pela pergunta: quais leituras precisam aparecer e de qual período? Em Engenharia > Relatórios, use primeiro um TAG de pressão cujo histórico já exista e um intervalo curto com valores conhecidos. Assim você confere os dados antes de desenhar a página.
+
+O relatório consulta registros armazenados. Ele não habilita captura nem recupera um passado não gravado. Sua conta precisa de autorização para editar e consultar a fonte escolhida. Para valores use o conjunto de amostras; para transições de alarme, o conjunto próprio de alarmes.
+
+### Primeiro teste, antes do desenho final
+
+1. Escolha consulta incorporada, que pertence ao relatório, e historian.samples, o conjunto de amostras.
+2. Adicione um TAG conhecido pelo seletor de referências.
+3. Escolha um período curto e resolução Bruto.
+4. Execute Preview. Confira linhas, horários, valores e qualidade disponíveis.
+5. Mude para Resumo com Máximo e intervalo horário. Compare cada saída com os dados brutos: o máximo do intervalo não é uma lista de todas as leituras.
+6. Depois organize a página e valide a definição. Se a prévia não tem linhas, confira TAG, período, captura e permissão antes de mudar cores ou larguras.
 
 ### Identificação e fonte da consulta
 
@@ -23,7 +34,9 @@ Crie um relatório ou selecione um existente. Use seletores de referências em v
 
 ### Escolha como os dados serão apresentados
 
-A resolução é uma escolha de consulta. Ela não muda o que foi capturado nem elimina dados brutos. Uma agregação de relatório não configura a política permanente de agregação do banco.
+Resolução define como recuperar e resumir os registros para esta consulta. Bruto permite ver as amostras armazenadas; as outras opções organizam ou resumem a saída. Confira os valores brutos antes de usar um resumo.
+
+Essa escolha não muda o que já foi capturado, não elimina registros brutos e não configura uma política permanente de agregação do banco.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -31,15 +44,6 @@ A resolução é uma escolha de consulta. Ela não muda o que foi capturado nem 
 | Intervalo fixo | Escolha a distância temporal entre posições de consulta. Não é o polling do Driver nem uma garantia de nova amostra em cada posição. Falta de dados continua relevante. | 5 minutos, se suficiente para a pergunta |  |
 | Agregação e agrupar cada | Média, mínimo, máximo, soma, contagem, primeiro e último têm significados diferentes. Escolha a largura do intervalo. Somar leituras de vazão não calcula automaticamente volume produzido; isso exigiria integração e unidades apropriadas. | Máximo por hora para procurar picos |  |
 | Tabela longa ou larga | Longa organiza amostras em linhas. Larga organiza intervalos para comparar variáveis. No modo bruto, a opção larga fica desabilitada. | Longa para inspecionar amostras |  |
-
-### Primeiro teste, antes do desenho final
-
-1. Use consulta incorporada e historian.samples.
-2. Adicione um TAG conhecido.
-3. Escolha período curto e Bruto.
-4. Execute Preview e confira linhas, horários, valores e qualidade disponíveis.
-5. Mude para Resumo, Máximo e intervalo horário; compare com os dados brutos, sem assumir que as duas saídas são iguais.
-6. Só depois organize a página e valide a definição. Se não houver linhas, confirme TAG, período, captura e permissão antes de mudar fontes, larguras ou cores.
 
 [Abrir este guia na Ajuda instalada](/help?topic=reports.data-designer)
 
@@ -49,7 +53,9 @@ Separe o valor consultado, seu formato e o lugar onde ele será impresso.
 
 ### Entenda a página
 
-No Designer, use Projeto/Design para editar e Prévia/Preview para ver uma execução. Dimensões são em milímetros, não pixels da Tela Runtime. Retrato é vertical; Paisagem é horizontal. O conteúdo precisa caber na largura útil depois das margens. Mudar o zoom da prévia não muda as dimensões impressas.
+No Designer, Projeto/Design é onde você monta a página; Prévia/Preview mostra uma execução com dados. Comece com um título e um campo de leitura antes de acrescentar grupos e totais.
+
+As dimensões são em milímetros, como numa página impressa, e não em pixels da Tela Runtime. Retrato é vertical; Paisagem é horizontal. Reserve as margens e faça o conteúdo caber na largura restante. O zoom só muda como você vê a prévia, não o tamanho da impressão.
 
 ### Como formatar uma variável
 
@@ -65,7 +71,11 @@ A variável continua ligada ao TAG selecionado. Estes campos mudam a apresentaç
 
 ### Seções e controles do desenho
 
-Cabeçalho e rodapé do relatório valem para o relatório; os de página repetem por página. Detalhe recebe as linhas da consulta. Cabeçalho/rodapé de grupo depende do agrupamento. Se a consulta não retorna linhas, o Detalhe pode ficar vazio mesmo com título visível. Comece com Etiqueta e Campo, os controles oferecidos diretamente para inserção.
+Etiqueta é um texto fixo, como Pressão de descarga. Campo mostra um dado da consulta. Esses são os controles oferecidos diretamente para inserção; comece por eles.
+
+Coloque o título no cabeçalho do relatório e os campos de registros em Detalhe, a seção que recebe as linhas da consulta. Cabeçalho e rodapé de página repetem em cada página; os de relatório pertencem ao relatório. Os de grupo dependem do agrupamento configurado.
+
+Se a consulta não tem linhas, o título pode aparecer e Detalhe ficar vazio. Confira primeiro os dados antes de tentar resolver esse caso aumentando a altura da seção.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -77,16 +87,18 @@ Cabeçalho e rodapé do relatório valem para o relatório; os de página repete
 
 ### Agrupamento não é agregação temporal
 
-Agrupar por organiza linhas pelo campo escolhido, com ordem ascendente/descendente. Um resumo escolhe campo, função e alcance: grupo ou relatório inteiro. A largura de tempo vem de Resolução, não do nome do grupo. Não some o mesmo conjunto novamente sem saber se a consulta já o agregou. Contagem é quantidade de registros; não significa horas de funcionamento. Confira um grupo pequeno à mão antes de confiar no total.
+Agrupar por junta linhas pelo campo escolhido e permite ordenar dentro dessa organização. Resolução define os intervalos de tempo usados na consulta. São escolhas diferentes: dar nome a um grupo não muda o intervalo.
+
+Para um resumo, escolha campo, função e alcance: somente o grupo ou o relatório inteiro. Confira se a consulta já resumiu os dados antes de somar de novo. Contagem informa quantidade de registros; não representa horas de funcionamento. Teste um grupo pequeno e confira o total manualmente.
 
 ### Da prévia à revisão ativa
 
-1. Monte título, Detalhe e campos reais.
-2. Execute a prévia dos dados e confira paginação/cortes.
-3. Use Validar para localizar referências e estrutura inválidas.
-4. Aplique somente o candidato válido; se o projeto mudar, atualize e valide novamente.
-5. Salve, publique e ative a revisão.
-6. Gere o relatório no Runtime com os mesmos parâmetros de teste e compare. A prévia executada não é uma definição salva nem garante que a revisão já esteja ativa.
+1. Monte um título, a seção Detalhe e campos ligados a dados reais.
+2. Execute a prévia e confira dados, páginas e cortes.
+3. Use Validar e corrija referências ou estrutura inválidas.
+4. Aplique somente o candidato válido. Se o projeto mudou durante a edição, atualize e valide novamente.
+5. Salve, publique e ative a revisão pelos controles do projeto.
+6. Gere o relatório no Runtime com os mesmos parâmetros do teste e compare. A prévia mostra uma execução; ela não salva a definição nem prova que a nova revisão está ativa.
 
 [Abrir este guia na Ajuda instalada](/help?topic=reports.layout-variables)
 
@@ -96,23 +108,33 @@ A saída pertence a uma execução com período e parâmetros próprios.
 
 ### Encontre o relatório disponível
 
-Abra Relatórios no Runtime e pesquise pelo nome. A lista depende da revisão ativa e da autorização da sessão. Ter acesso à Engenharia ou ver um objeto de relatório numa Tela não garante permissão de consultar todos os dados. Se a lista estiver vazia, confira revisão e permissões antes de recriar a definição.
+Abra Relatórios no Runtime e procure pelo nome. A lista usa a revisão ativa e as permissões da sua sessão. Se o relatório não aparece, confira essas duas condições antes de recriá-lo.
+
+Ter acesso à Engenharia ou ver um objeto de relatório numa tela não concede acesso a todos os dados. O usuário que gera também precisa poder consultar a fonte escolhida.
 
 ### Período, parâmetros e execução
 
-1. Selecione um relatório.
-2. Escolha período relativo ou De/Até, conforme os modos permitidos pela definição. Relativo é calculado para a execução; repetir depois pode usar outra janela.
-3. Em intervalo absoluto, escolha início anterior ao fim e confira o fuso dos horários.
-4. Complete parâmetros com o tipo e as opções exigidos; um campo de número, data ou booleano não aceita qualquer texto.
-5. Selecione Gerar relatório e aguarde; cancelar interrompe a solicitação, não apaga a definição.
-6. Confira o horário de geração, a janela e os parâmetros usados antes de interpretar a saída.
+1. Selecione o relatório que deseja gerar.
+2. Escolha período relativo ou De/Até entre os modos permitidos. Relativo é calculado na hora da execução: repetir mais tarde pode trazer outra janela.
+3. Para intervalo absoluto, informe início anterior ao fim e confira o fuso mostrado.
+4. Complete os parâmetros com os tipos e opções pedidos. Número, data e booleano não aceitam qualquer texto.
+5. Use Gerar relatório e aguarde. Cancelar interrompe a solicitação; não apaga a definição.
+6. Antes de interpretar, confira quando foi gerado, qual período foi consultado e quais parâmetros foram usados.
 
 ### Prévia, PDF, planilha e impressão
 
-Use anterior/próxima página e zoom para conferir leitura; ajustar à largura não muda a definição. PDF e impressão servem à apresentação paginada; XLSX e CSV permitem trabalhar com a saída. São exportações do resultado, não pacotes para importar projeto ou alterar TAGs. Para atualizar os dados, gere novamente: abrir um arquivo exportado depois não o transforma numa consulta ao vivo. Confira se a planilha/CSV apresenta unidades, datas e decimais como o destinatário espera.
+Confira o resultado com anterior/próxima página e zoom. Ajustar à largura muda só a visualização. Use PDF ou impressão para a apresentação em páginas; XLSX e CSV permitem trabalhar com os dados da saída.
+
+São exportações do resultado, não pacotes para importar projeto ou alterar TAGs. Um arquivo exportado representa aquela execução. Para atualizar os dados, gere novamente; abrir o arquivo depois não faz uma consulta ao vivo.
+
+Antes de enviar a planilha ou CSV, confira unidades, datas e decimais no formato que o destinatário espera.
 
 ### Problemas que exigem verificações diferentes
 
-Relatório ausente: revisão e autorização. Cabeçalho visível sem Detalhe: consulta sem linhas, período/filtros/captura. Campo vazio ou erro: campo e consulta referenciados, tipo e parâmetros. Número inesperado: resolução, função, unidade apenas rotulada e escopo de resumo. Layout cortado: milímetros, largura útil e altura da seção. Dados antigos: confira quando a execução foi gerada e gere de novo. Uma falha não deve ser tratada alterando a permissão ou a unidade às cegas.
+Si el informe no aparece, revise publicación/activación y autorización. Si aparece el título sin filas, revise período, filtros y captura. Para un campo vacío o error, confirme campo y consulta referenciados, tipo y parámetros.
+
+Un número inesperado pide revisar resolución, función, unidad y alcance del resumen. Un rótulo distinto no convierte la unidad. Para contenido cortado, revise milímetros, ancho disponible y altura de sección.
+
+Si los datos parecen antiguos, mire la hora de generación y genere de nuevo. No cambie permisos o unidades a ciegas para intentar corregir una salida.
 
 [Abrir este guia na Ajuda instalada](/help?topic=reports.runtime-output)

@@ -6,7 +6,18 @@ Empiece por la pregunta que debe responder antes de dibujar la página.
 
 ### Prepare datos comprobables
 
-Abra Ingeniería > Informes. Empiece con un TAG de presión con captura existente y período corto de valores conocidos. Un informe consulta datos guardados; no habilita captura ni recupera pasado no almacenado. Necesita permisos de edición y consulta. Histórico de muestras y transiciones de alarmas usan fuentes distintas.
+Empiece por la pregunta: ¿qué lecturas deben aparecer y de qué período? En Ingeniería > Informes use primero un TAG de presión con histórico existente y un intervalo corto de valores conocidos. Así comprueba datos antes de diseñar la página.
+
+El informe consulta registros guardados. No habilita captura ni recupera un pasado no grabado. Su cuenta necesita autorización para editar y consultar la fuente. Para valores use muestras; para transiciones de alarma, el conjunto de alarmas.
+
+### Primera prueba antes del diseño final
+
+1. Elija consulta incorporada, propia del informe, e historian.samples, el conjunto de muestras.
+2. Añada un TAG conocido con el selector de referencias.
+3. Elija período corto y resolución Bruto.
+4. Ejecute Preview. Compruebe filas, horas, valores y calidad disponibles.
+5. Cambie a Resumen con Máximo e intervalo horario. Compare con datos brutos: el máximo de un intervalo no es la lista de todas las lecturas.
+6. Después organice la página y valide. Sin filas en la vista previa, compruebe TAG, período, captura y permiso antes de cambiar colores o anchos.
 
 ### Identificación y origen de consulta
 
@@ -23,7 +34,9 @@ Cree o seleccione informe. Use selectores en lugar de inventar IDs. Estos campos
 
 ### Elija cómo presentar datos
 
-Resolución es elección de consulta; no cambia captura ni elimina muestras brutas. Agregar en informe no configura política permanente de la base.
+Resolución define cómo recuperar y resumir registros en esta consulta. Bruto muestra muestras guardadas; otras opciones organizan o resumen la salida. Compruebe valores brutos antes de usar un resumen.
+
+No cambia los datos capturados, elimina registros brutos ni configura una política permanente de agregación de la base.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -31,15 +44,6 @@ Resolución es elección de consulta; no cambia captura ni elimina muestras brut
 | Intervalo fijo | Elija separación entre posiciones de consulta. No es polling del Driver ni garantiza muestra en cada posición. Los huecos siguen importando. | 5 minutos si responde a la pregunta |  |
 | Agregación y agrupar cada | Promedio, mínimo, máximo, suma, conteo, primero y último difieren. Elija intervalo. Sumar caudales no calcula automáticamente volumen; necesitaría integración/unidades adecuadas. | Máximo por hora para buscar picos |  |
 | Tabla larga o ancha | Larga organiza muestras por filas; ancha organiza intervalos para comparar variables. En bruto, ancha está deshabilitada. | Larga para inspeccionar muestras |  |
-
-### Primera prueba antes del diseño final
-
-1. Use consulta incorporada historian.samples.
-2. Añada TAG conocido.
-3. Período corto y Bruto.
-4. Ejecute Preview y compruebe filas/horas/valores/calidad disponible.
-5. Cambie a Resumen, Máximo e intervalo horario; compare sin esperar igualdad.
-6. Después diseñe/valide. Sin filas revise TAG/período/captura/permiso antes de fuentes, anchos o colores.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=reports.data-designer)
 
@@ -49,7 +53,9 @@ Separe valor consultado, formato y lugar donde se imprime.
 
 ### Comprenda la página
 
-Use Diseño para editar y Vista previa para ejecución. Dimensiones en milímetros, no píxeles Runtime. Vertical/Horizontal cambian orientación. Contenido debe caber tras márgenes. Zoom de vista previa no cambia dimensiones impresas.
+En el Designer, Proyecto/Design permite montar la página; Vista previa/Preview muestra una ejecución con datos. Empiece por un título y un campo de lectura antes de añadir grupos y totales.
+
+Las dimensiones usan milímetros, como una página impresa, no píxeles de Runtime. Vertical es retrato; horizontal es paisaje. Reserve márgenes y ajuste contenido al ancho restante. El zoom cambia la visualización, no el tamaño impreso.
 
 ### Cómo dar formato a una variable
 
@@ -65,7 +71,11 @@ La variable sigue vinculada al TAG. Estos campos cambian presentación, no calib
 
 ### Secciones y controles del diseño
 
-Cabecera/pie de informe son del informe; los de página se repiten. Detalle recibe filas; cabecera/pie de grupo dependen de agrupación. Detalle puede quedar vacío con título visible si no hay filas. Empiece con Etiqueta y Campo, ofrecidos directamente.
+Etiqueta es texto fijo, como Presión de descarga. Campo muestra un dato de la consulta. Son los controles ofrecidos directamente para insertar; empiece por ellos.
+
+Coloque el título en el encabezado del informe y campos de registros en Detalle, sección que recibe filas de la consulta. Encabezado/pie de página repiten en cada página; los de informe pertenecen al informe. Los de grupo dependen del agrupamiento.
+
+Sin filas, puede aparecer el título y quedar vacío Detalle. Compruebe primero los datos en vez de intentar resolverlo aumentando la altura de sección.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -77,16 +87,18 @@ Cabecera/pie de informe son del informe; los de página se repiten. Detalle reci
 
 ### Agrupación no es agregación temporal
 
-Agrupar por organiza filas por campo y orden. Un resumen elige campo, función y alcance: grupo o informe entero. Intervalo temporal viene de Resolución, no del nombre de grupo. No sume datos ya agregados sin comprenderlo. Conteo son registros, no horas de funcionamiento. Compruebe grupo pequeño manualmente.
+Agrupar por reúne filas según el campo elegido y permite ordenarlas. Resolución define intervalos de tiempo de la consulta. Son elecciones distintas: nombrar un grupo no cambia el intervalo.
+
+Para un resumen elija campo, función y alcance: solo el grupo o todo el informe. Compruebe si la consulta ya resumió datos antes de sumar otra vez. Recuento indica cantidad de registros, no horas de funcionamiento. Pruebe un grupo pequeño y compruebe el total a mano.
 
 ### De vista previa a revisión activa
 
-1. Dibuje título, Detalle y campos reales.
-2. Ejecute vista previa y revise páginas/cortes.
-3. Valide referencias/estructura.
-4. Aplique candidato válido; actualice/valide si cambia proyecto.
-5. Guarde/publique/active.
-6. Genere en Runtime con iguales parámetros y compare. La vista previa no es definición guardada ni revisión activa.
+1. Monte título, sección Detalle y campos vinculados a datos reales.
+2. Ejecute vista previa y compruebe datos, páginas y cortes.
+3. Use Validar y corrija referencias o estructura inválidas.
+4. Aplique solo el candidato válido. Si el proyecto cambió mientras editaba, actualice y valide de nuevo.
+5. Guarde, publique y active con los controles del proyecto.
+6. Genere en Runtime con iguales parámetros y compare. La vista previa muestra una ejecución; no guarda la definición ni demuestra que esté activa la nueva revisión.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=reports.layout-variables)
 
@@ -96,23 +108,33 @@ La salida pertenece a una ejecución con período y parámetros propios.
 
 ### Encuentre el informe disponible
 
-Abra Informes Runtime y busque nombre. La lista depende de revisión activa y autorización. Acceso a Ingeniería u objeto visual no concede todas las consultas. Si vacía, revise revisión/permisos antes de recrear.
+Abra Informes en Runtime y busque por nombre. La lista usa la revisión activa y los permisos de su sesión. Si falta un informe, compruebe esas condiciones antes de recrearlo.
+
+Acceder a Ingeniería o ver un objeto de informe no concede acceso a todos los datos. Quien genera necesita también permiso de consulta de la fuente elegida.
 
 ### Período, parámetros y ejecución
 
-1. Seleccione informe.
-2. Elija relativo o Desde/Hasta si definición permite. Relativo se resuelve para ejecución; repetir después puede cambiar ventana.
-3. En absoluto inicio antes de fin y zona horaria correcta.
-4. Rellene parámetros con tipo/opciones exigidos; número/fecha/booleano no admite cualquier texto.
-5. Genere y espere; cancelar no elimina definición.
-6. Revise hora de generación, ventana y parámetros antes de interpretar.
+1. Seleccione el informe que desea generar.
+2. Elija período relativo o Desde/Hasta entre modos permitidos. Relativo se calcula al ejecutar: repetir después puede usar otra ventana.
+3. Para intervalo absoluto indique inicio anterior al fin y compruebe el huso mostrado.
+4. Complete parámetros con tipos y opciones pedidos. Número, fecha y booleano no aceptan cualquier texto.
+5. Use Generar informe y espere. Cancelar interrumpe la solicitud; no elimina la definición.
+6. Antes de interpretar compruebe hora de generación, período consultado y parámetros usados.
 
 ### Vista previa, PDF, hoja de cálculo e impresión
 
-Use páginas/zoom para revisar; ajustar ancho no cambia definición. PDF/impresión ofrecen presentación paginada; XLSX/CSV permiten trabajar salida. Exportan resultados, no paquetes Engineering ni cambios TAG. Regenere para actualizar; abrir exportación antigua no la hace en vivo. Compruebe unidades/fechas/decimales para destinatario.
+Compruebe el resultado con página anterior/siguiente y zoom. Ajustar al ancho cambia solo la visualización. Use PDF o impresión para páginas; XLSX y CSV permiten trabajar con datos de salida.
+
+Son exportaciones del resultado, no paquetes para importar proyectos o cambiar TAGs. Un archivo representa esa ejecución. Para actualizar datos genere de nuevo; abrirlo después no consulta en vivo.
+
+Antes de compartir planilla o CSV, compruebe unidades, fechas y decimales esperados por el destinatario.
 
 ### Problemas con comprobaciones distintas
 
-Informe ausente: revisión/autorización. Cabecera sin Detalle: consulta vacía, período/filtros/captura. Campo vacío/error: referencias/tipo/parámetros. Número inesperado: resolución/función/rótulo de unidad/alcance resumen. Cortes: milímetros/ancho/altura. Datos antiguos: hora de ejecución y regenerar. No cambie permisos/unidades a ciegas.
+Si falta el informe, revise publicación/activación y autorización. Con título sin filas, compruebe período, filtros y captura. Ante campo vacío o error, confirme campo/consulta referenciados, tipo y parámetros.
+
+Un número inesperado requiere revisar resolución, función, unidad y alcance del resumen. Cambiar rótulo no convierte unidades. Ante cortes, compruebe milímetros, ancho útil y altura de sección.
+
+Si parecen datos antiguos, compruebe hora de generación y genere de nuevo. No cambie permisos o unidades a ciegas para intentar corregir la salida.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=reports.runtime-output)

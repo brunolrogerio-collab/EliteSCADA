@@ -340,7 +340,7 @@ Não use Alarm como log genérico e não use Operational Event como substituto d
 
 ## Historian e Trends
 
-Historian recebe valor, quality e timestamp pelo pipeline do produto. Trends apresentam dados atuais ou históricos autorizados; não redefinem quality, timestamp, scaling ou persistência.
+Historian guarda amostras das variáveis. Cada amostra tem um valor, uma qualidade que informa sua condição e um horário, chamado timestamp. Tendências mostram essas leituras ao longo do tempo, atuais ou históricas, conforme a autorização. Desenhar um gráfico não muda a qualidade, o horário, a escala nem a forma como os dados foram gravados.
 
 **Ajuda relacionada:** `/help?topic=historian.overview`, `/help?topic=trends.overview`.
 

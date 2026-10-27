@@ -565,7 +565,7 @@ export function DatabaseTopologyApp() {
     </aside>
     <main className="db-topology-shell" data-testid="database-topology-app">
     <header className="db-topology-header">
-      <div><h1>{t.title}</h1><details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.subtitle}</p></details></div>
+      <div><h1>{t.title}</h1><details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.subtitle}</p><a href="/help?topic=database.topology">{locale === 'pt-BR' ? 'Configuração, campos e migração passo a passo' : locale === 'es' ? 'Configuración, campos y migración paso a paso' : 'Configuration, fields and migration step by step'}</a></details></div>
       <div className="db-topology-auto-state">
         <strong>{t.automaticRefresh}</strong>
         {status?.lastHealthCheckUtc ? <small>{new Date(status.lastHealthCheckUtc).toLocaleString(locale)}</small> : null}

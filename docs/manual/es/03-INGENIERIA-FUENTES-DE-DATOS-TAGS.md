@@ -1,10 +1,18 @@
 # Engineering, fuentes de datos y TAGs
 
-Este capítulo base cubre las partes estables de las Partes III y IV. Las superficies de UI que aún no hayan completado la revisión visual no reciben capturas finales en esta fase.
+Este capítulo prepara fuentes de datos y variables del proyecto. Empiece por una lectura conocida y compruébela antes de usarla en pantallas, alarmas o Scripts. Los nombres siguientes explican cómo llega una edición a la versión en ejecución.
+
+## De la lectura a la pantalla y al comando
+
+La **Data Source** proporciona una lectura; el **TAG** identifica su punto en el proyecto. Dirección y ajustes del vínculo indican qué punto de esa fuente leer. **Schema** es la definición de campos aceptados por el Driver; use formulario y Ayuda de la conexión elegida, sin inventar identificadores.
+
+En pantalla, **binding** hace que una propiedad del objeto siga un TAG. Por ejemplo, un valor mostrado representa presión de bomba. Elija recurso existente con selectores u **Object Browser**, el navegador de referencias del proyecto. Dibujar la lectura no crea otra variable de proceso.
+
+**Server Memory** conserva valores pertenecientes al servidor. **Client Memory** sirve al estado local de este cliente Runtime y puede perder valor al terminar el contexto; otro navegador no lo recibe automáticamente. Un comando solicita una acción al servidor, que comprueba autorización. Revise retorno y estado real: mostrar un botón o cambiar su color no prueba ejecución.
 
 ## Working, Save, Revision, Publish y Activate
 
-Working es editable. Save persiste el trabajo sin convertirlo silenciosamente en Published o Active. Una Revision debe representar un estado identificable y validado. Publish publica la revisión; Activate es la transición explícita que cambia la autoridad Active del backend.
+Working es el borrador editable. Save guarda el trabajo; una Revision es una copia identificada que puede comprobar. Publish prepara la revisión para uso. Activate pone explícitamente la revisión publicada en ejecución, como Active. Guardar o ver el cambio en el editor no cambia por sí solo lo que ejecuta Runtime.
 
 **Ayuda relacionada:** `/help?topic=engineering.lifecycle`.
 

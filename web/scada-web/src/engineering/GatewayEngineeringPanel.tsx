@@ -156,6 +156,7 @@ export function GatewayEngineeringPanel({ model, locale, projectKey = 'workspace
         <div>
           <h1>{text.title}</h1>
           <p>{text.description}</p>
+          <a href="/help?topic=gateway.configure-test">{locale === 'pt-BR' ? 'Como configurar e testar rotas' : locale === 'es' ? 'Cómo configurar y probar rutas' : 'How to configure and test routes'}</a>
         </div>
         <div className="eng-section-meta">
           <strong>{routes.length} {text.routes}</strong>

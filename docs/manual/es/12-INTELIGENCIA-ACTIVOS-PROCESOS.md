@@ -1,0 +1,213 @@
+# Inteligencia de Activos y Procesos
+
+Este capítulo describe los flujos disponibles actualmente. Inteligencia es opcional: la licencia habilita la función, pero usted configura los equipos, perfiles y etapas que pretende analizar. No necesita aplicar análisis a toda la planta.
+
+**Ayuda contextual:** `/help?topic=intelligence.overview`.
+
+
+## Empiece por una pregunta pequeña
+
+Imagine Bomba 01. SCADIVO ya recibe corriente y velocidad y usted quiere investigar si cambió la corriente en condiciones de operación similares. Empiece por esa pregunta sin configurar toda la planta. Una comparación orienta la investigación; no demuestra por sí sola eficiencia física ni un defecto.
+
+Los nombres del editor representan partes de esta tarea:
+
+| Nombre | Significado en este ejemplo |
+| --- | --- |
+| TAG | La variable que proporciona corriente o velocidad. |
+| Perfil de medición | La ficha que reúne señales elegidas y significado de cada una. |
+| Asociación | El vínculo de esa ficha con Bomba 01 registrada como Equipo. |
+| Contexto operacional | La condición en que deben compararse datos, como un intervalo de operación definido. |
+| Etapa del proceso | Un grupo ordenado de asociaciones, como los equipos de bombeo. No programa arranques. |
+| Cobertura | La consulta que muestra qué datos utilizables hay en el período. |
+
+Siga este recorrido y profundice en las secciones siguientes:
+
+1. Compruebe TAGs existentes, unidades y datos guardados del período. No invente sensores ausentes.
+2. Monte el perfil y asócielo a Bomba 01. Los selectores gestionan los IDs internos.
+3. Guarde la configuración, elija dónde usar Intelligence, publique/active la revisión y habilite explícitamente el recurso para análisis. Licencia, configuración y ejecución autorizada son condiciones separadas.
+4. Consulte cobertura primero. Elija después solo análisis cuyos requisitos cumplen sus señales. Un resultado no disponible requiere comprobación; no debe leerse como cero.
+5. Para una vista del operador, genere una pantalla, revísela en el editor normal y siga publicación/activación. Abre en Runtime y las consultas requieren solicitud explícita; generar no consulta datos ni pone automáticamente la pantalla en operación.
+
+Puede empezar por un equipo. Contextos y etapas se añaden cuando sirven a la pregunta. Más adelante encontrará horarios, papeles de señales y límites para consultar al configurar.
+
+## 1. Empezar por el equipo y los TAGs
+
+Elija el Equipo ya registrado y los TAGs de mediciones útiles, como corriente, tensión, presión, caudal o temperatura. En cada TAG compruebe tipo de valor y unidad. Quality informa la condición de la lectura; timestamp es su hora de origen. Historian es el histórico guardado, que debe tener datos del período elegido. Incluya una señal por la pregunta que ayuda a responder, no solo porque exista.
+
+Para editar, su cuenta necesita los permisos `EngineeringModify` y `AssetProcessIntelligenceManage`. El segundo debe concederse explícitamente para todos los recursos o para el equipo/lugar que configurará. Compruebe también la licencia Intelligence. El nombre del rol no sustituye el permiso efectivo.
+
+## 2. Crear un perfil de medición y una asignación
+
+1. Abra Engineering > Inteligencia de activos y cree un Perfil de medición con un nombre/clave identificables.
+2. Añada los TAGs que describen el equipo. Marque cada señal como obligatoria u opcional y complete los calificadores semánticos solicitados; una etiqueta no sustituye la unidad ni la referencia real del TAG.
+3. Guarde la configuración en Working.
+4. En las asignaciones, elija el Equipo existente y el perfil. Una identidad de equipo puede usar varios perfiles.
+5. Revise las referencias ausentes y duplicadas antes de guardar y seguir el lifecycle normal del proyecto.
+
+El perfil organiza referencias y significado de señales. No crea TAGs, no habilita por sí solo la captura de Historian ni demuestra que los instrumentos estén calibrados.
+
+## 3. Configurar el contexto operacional
+
+Mayor corriente puede ser esperable si aumenta velocidad o carga. El contexto explicita condiciones, como bomba en marcha y velocidad dentro de un intervalo, para seleccionar evidencia comparable. No aprende automáticamente el modo ni convierte correlación en diagnóstico. Defina límites con conocimiento del equipo.
+
+Elija la asociación del equipo y dé al contexto una clave estable y un nombre que explique la condición, como Bomba encendida con caudal normal. Añada al menos un predicado obligatorio. Un predicado es una condición comprobada en un TAG del perfil asociado.
+
+Para números, el intervalo incluye mínimo y máximo en la unidad actual del TAG. Para booleanos, elija True o False. Para String o Enum, use el valor exacto, incluidas mayúsculas cuando corresponda.
+
+Todas las condiciones necesitan evidencia con el mismo timestamp UTC de origen, sincronizado y exacto. Lecturas solo próximas no bastan. El servidor controla la versión del perfil; ante conflicto de edición, actualice y revise antes de guardar.
+
+## 4. Organizar etapas del proceso
+
+Use **Etapas ordenadas del proceso** para montar la secuencia que desea supervisar. Cree cada etapa con una clave estable y un nombre legible; añada las asignaciones de Equipo/perfil y ajuste explícitamente el orden. La etapa organiza miembros, pero no infiere por sí sola causalidad, balance ni un KPI agregado del proceso.
+
+Guarde la configuración en Working. Los datos y análisis de Runtime siguen sujetos a la revisión Active y a las autorizaciones vigentes.
+
+## 5. Solicitar análisis
+
+Seleccione el Equipo asignado y elija el análisis disponible, como cobertura del perfil, rendimiento o desviación contextual. Defina el período y solicite explícitamente la consulta. La desviación contextual requiere condiciones operacionales configuradas y evidencia temporal suficiente. El análisis es de solo lectura; no cambia un TAG, no controla equipos ni sustituye Alarmas.
+
+Interprete el resultado junto con cobertura, quality, timestamps y las limitaciones de cada señal. La ausencia, quality deficiente, falta de historial o desalineación temporal no significan cero, operación normal ni falla confirmada. Los análisis actuales no son un diagnóstico de mantenimiento ni una prueba de eficiencia física. Para miembros de una etapa, examine un equipo a la vez; no combine resultados independientes como un score del proceso.
+
+**Ayuda contextual:** `/help?topic=intelligence.process-stage-member-insights`.
+
+## 6. Generar borradores de Pantallas
+
+Elija un perfil o etapa y genere una Pantalla disponible. La generación usa metadatos de TAG para crear una Pantalla editable; no consulta valores en vivo ni Historian y no inventa KPIs. Revise el borrador en el editor, ejecute Preview y use Aplicar al Workspace. Después, guarde, publique y active mediante los pasos explícitos del lifecycle. La Pantalla generada no se activa automáticamente.
+
+## 7. Problemas comunes
+
+- **Recurso bloqueado:** compruebe licencia, `EngineeringModify`, `AssetProcessIntelligenceManage` y scope.
+- **Perfil/asignación incompletos:** compruebe equipo, perfil, TAGs y calificadores obligatorios.
+- **Sin cobertura/historial:** confirme que el TAG recibía muestras útiles con quality y timestamps y que había captura en el período. Historian no completa datos retroactivamente.
+- **Sin coincidencia de contexto:** revise predicados, unidad, intervalo y la sincronización/igualdad temporal requerida.
+- **Borrador no disponible:** complete las selecciones requeridas por ese tipo de Pantalla y refine el resultado en el editor normal.
+- **El resultado cambia tras editar:** guarde la configuración correcta, compruebe la revisión Active y solicite explícitamente una consulta nueva.
+
+**Ayuda relacionada:** `/help?topic=historian.overview`, `/help?topic=tags.quality`, `/help?topic=tags.timestamps`, `/help?topic=screens.overview`, `/help?topic=engineering.lifecycle`.
+
+<!-- installed-system-guides -->
+
+## Intelligence: habilitar, pausar y resolver bloqueos
+
+Elija qué equipos analizar, prepare la configuración y active su uso. Tener la licencia no inicia análisis automáticamente.
+
+### Siga la secuencia completa
+
+Empiece con un equipo, como Bomba 01. Abra Ingeniería > Inteligencia de activos. Reunirá sus variables, indicará a qué equipo pertenecen y elegirá dónde usar el análisis.
+
+El perfil reúne señales y significados. La asociación vincula ese perfil al Equipo registrado. Configure contextos y etapas solo cuando sirvan a su pregunta. Después guarde, publique y active la revisión del proyecto.
+
+Queda una decisión separada: activar explícitamente el recurso elegido para permitir análisis. Crear el perfil, marcar una casilla o tener la licencia no hace esa activación por usted.
+
+### Permisos y selección de recursos
+
+Su cuenta necesita permiso para editar Ingeniería y gestionar Intelligence en los equipos o lugares elegidos. En Seguridad aparecen como EngineeringModify y AssetProcessIntelligenceManage. El segundo requiere una concesión explícita, global o con alcance en el recurso. El nombre del rol, como Developer o SystemAdmin, no demuestra por sí solo la concesión.
+
+Las consultas también requieren TrendUse y licencia Intelligence. Si un control está bloqueado, compruebe las capacidades efectivas de la sesión. Elija recursos con los selectores; no necesita memorizar ni inventar IDs.
+
+### Activar solo donde sea útil
+
+1. En Alcances elegibles, seleccione solo equipos o lugares que desea analizar. Aquí, alcance significa esa selección de recursos.
+2. Guarde los alcances y la configuración preparada.
+3. Publique y active la revisión del proyecto. Resuelva cambios pendientes antes de permitir ejecución.
+4. En la fila del recurso use Activar y compruebe que el permiso queda armado, es decir, habilitado para ese recurso.
+5. Abra la consulta de la asociación, elija el período y solicite el análisis. Activar permite consultar; no hace la consulta automáticamente.
+6. Use Pausar para interrumpir análisis. Se cancela el trabajo pendiente, pero quedan TAGs e histórico. Pause un recurso antes de retirarlo de la selección.
+
+### Activo configurado no significa habilitado
+
+Si se revocó un permiso, el recurso puede seguir marcado Activo en la configuración y tener la ejecución bloqueada. Son datos distintos: lo configurado y lo autorizado ahora.
+
+Restaurar la concesión no reinicia el trabajo silenciosamente. Compruebe el estado y use Activar de nuevo, incluso tras reiniciar cuando lo pida la pantalla. Requiere una decisión explícita del responsable. Compruebe esto antes de investigar datos ausentes en el histórico guardado, llamado Historian.
+
+### Ejemplo: empezar pequeño
+
+Para Bomba 01, empiece con corriente y velocidad si existen esas mediciones. Elija análisis que las acepten. Con nuevas mediciones podrá ampliar el perfil y usar otros análisis compatibles.
+
+Mantenga pausados los recursos que no usará. No invente una señal de vibración ausente. La selección limita lo autorizado a ejecutar, pero no garantiza un consumo fijo de procesador o memoria.
+
+[Abrir esta guía en Ayuda instalada](/help?topic=intelligence.activation)
+
+## Intelligence: significado de señales y unidades
+
+Describa qué se midió, no solo el nombre del TAG.
+
+### Por qué no basta el nombre
+
+Antes de calcular, indique qué mide cada variable. Un TAG llamado Potencia puede ser potencia activa, aparente o un cálculo; Presión puede medir aspiración, descarga o su diferencia. El nombre no basta para elegir la fórmula correcta.
+
+En el perfil seleccione el papel semántico solicitado: la opción que identifica el significado de la señal para el análisis. Complete después los calificadores mostrados, los detalles que precisan esa elección. El texto de papel heredado sigue siendo descriptivo; no sustituye esa selección.
+
+### Campos y elecciones
+
+Consulte esta tabla si tiene dudas en el perfil. Los selectores muestran las opciones aceptadas por el catálogo actual. Elija la correspondiente al instrumento y al proceso, aunque otra opción habilitara un cálculo.
+
+| Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
+| --- | --- | --- | --- |
+| Obligatorio | Marca señales cuya ausencia compromete cobertura. No haga opcional una señal esencial solo para obtener resultado. | Corriente necesaria para comparación |  |
+| Papel semántico | Elija qué representa la señal en el cálculo: magnitud y función en la máquina. El análisis usa esa opción controlada; no lo adivina por el nombre del TAG. | Potencia activa de entrada, si se mide |  |
+| Base de corriente | Indique la base de corriente del instrumento admitida por el papel, como RMS cuando corresponda. Si la etiqueta solo dice corriente, confirme la medición antes de elegir. | Seleccione opción documentada del instrumento |  |
+| Tipo de señal | Distingue medición, referencia y función exigida. Una consigna no prueba valor medido. | Medición real cuando se exija |  |
+| Referencia de presión | Indique qué presión se midió. La diferencia salida menos entrada no es la presión de descarga sola; elija la base exigida por el papel y confirmada por el instrumento. | Diferencial medido salida − entrada |  |
+| Dirección del flujo | Identifica sentido de transferencia; el opuesto puede invalidar regla. | Bomba hacia proceso, si corresponde |  |
+| Referencia de frecuencia | Explica frecuencia según catálogo; distinga referencia eléctrica y velocidad física. | Compruebe origen del instrumento |  |
+| TAG y unidad | Seleccione TAG real y unidad controlada. Cambiar rótulo no convierte datos. Algunos cálculos exigen unidades/versiones específicas. | kW para potencia si corresponde al dato real |  |
+
+### Ejemplo: no confundir indicador con eficiencia
+
+Suponga que aumenta la corriente de la bomba mientras la velocidad permanece igual. Puede orientar una investigación, pero la corriente por sí sola no calcula la eficiencia física del motor. Es un indicador sustituto, también llamado proxy.
+
+Otras reglas pueden usar potencia eléctrica de entrada, caudal y diferencia de presión. Solo están disponibles cuando las señales cumplen los papeles, unidades y alineación exigidos. Si falta una medición o detalle necesario, lea el motivo de indisponibilidad; no introduzca valores ficticios para habilitar la regla.
+
+[Abrir esta guía en Ayuda instalada](/help?topic=intelligence.semantics)
+
+## Intelligence: consultar resultados y crear dashboards
+
+Empiece comprobando los datos del período. Después elija un cálculo y, si lo necesita, genere una pantalla para consultar en Runtime.
+
+### Empiece por cobertura
+
+Cobertura responde la primera pregunta: ¿hay datos utilizables para este análisis? Con la asociación guardada y la ejecución autorizada, abra la consulta de cobertura del perfil. Elija inicio y fin y solicite la consulta.
+
+El formulario muestra horas locales; la consulta identifica también la ventana UTC, referencia de tiempo común para comparar datos. El fin debe ser posterior al inicio.
+
+Compruebe señales obligatorias con datos, muestras aceptadas y rechazadas, calidad y alineación horaria. Solo después interprete mínimo, máximo o media. Muchas muestras no demuestran por sí solas ausencia de huecos ni que las señales se midieron juntas.
+
+### Rendimiento: elija regla elegible
+
+En Rendimiento, elija la regla de cálculo del catálogo. Si una opción está deshabilitada, lea qué señal, significado o unidad falta. Elegir otra magnitud solo para obtener un número cambiaría la pregunta.
+
+Complete Desde/Hasta y consulte. Lea estado, unidad, período efectivo y limitaciones junto al resultado. Indisponible no es cero. Un indicador sustituto, como comparar corrientes, no debe presentarse como eficiencia física.
+
+Si cambia asociación, revisión o parámetros, consulte de nuevo. El resultado anterior pertenece a las elecciones anteriores.
+
+### Dos tipos de contexto con límites distintos
+
+El contexto describe una condición de operación para comparar situaciones similares. Por ejemplo, estudiar la bomba en un intervalo de caudal puede ser más útil que mezclar todas las condiciones. Hay dos configuraciones distintas:
+
+En el perfil operacional guardado, el intervalo numérico incluye ambos límites en la unidad de ingeniería actual. Las señales necesitan evidencia con el mismo timestamp UTC de origen exacto. Lecturas solo próximas en el tiempo no cumplen ese requisito.
+
+En el generador de pantalla de desviación contextual, elija de 2 a 8 señales objetivo y dos señales numéricas de contexto. Los contextos deben ser distintos entre sí y de los objetivos: hacen falta al menos cuatro señales numéricas utilizables. Los intervalos usan la unidad controlada mostrada e incluyen el límite inferior, pero excluyen el superior: inferior ≤ valor < superior.
+
+Compruebe qué configuración usa antes de copiar límites. La unidad y la inclusión del límite superior pueden ser diferentes.
+
+### Genere pantalla y compruebe la cadena completa
+
+1. Elija la asociación del equipo o la etapa del proceso y el tipo de pantalla.
+2. Complete señales y opciones solicitadas. Si el botón está bloqueado, lea el motivo junto al campo.
+3. Genere el borrador. Organiza objetos y referencias; todavía no lee Historian ni activa la pantalla.
+4. En el editor, compruebe título, dimensiones, objetos, vínculos y apertura. Ejecute Vista previa y Aplicar para llevar la edición al proyecto.
+5. Guarde la revisión, publique y active. Abra la pantalla en Runtime mediante la navegación configurada.
+6. En el objeto de análisis, configure período y solicite la consulta. Compruebe ventana y resultado. Una pantalla de etapa reúne equipos; no crea un indicador agregado ni demuestra que un equipo causó el resultado de otro.
+
+### Cómo investigar resultado vacío
+
+Si no hay resultado, busque la primera condición que falta:
+
+Compruebe licencia y permisos; después, selección guardada del recurso y permiso de ejecución armado. Compruebe proyecto y revisión activos. Revise luego asociación, TAGs y período.
+
+Si son correctos, examine captura en Historian, calidad, papeles/unidades y exigencias de alineación/contexto. Corrija la condición demostrablemente ausente y consulte de nuevo.
+
+No cambie el significado de una señal ni amplíe límites solo para obtener un resultado. Los análisis ayudan a investigar. No confirman defectos ni anticipan fallos con una validez de campo aún no demostrada.
+
+[Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

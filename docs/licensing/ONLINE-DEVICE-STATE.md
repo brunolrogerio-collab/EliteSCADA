@@ -1,6 +1,6 @@
 # Online device state and transport — second product slice (#301)
 
-This candidate builds on verifier PR #793 (`e02e3cdb860bd3899c545120763159d48852e3a7`). That exact head passed [T1 40513039497](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/40513039497): Core826/826; Drivers1/1 plus1705 passed/1 skipped; gate success. Specialized HA, browser and Web jobs were skipped and are not additional acceptance claims.
+This candidate follows verifier PR #793, now merged at `a1a2f692a6de9215c06a3c66f3ad9547f9158ca2`, after reconciliation onto integrated Help. Reconciled verifier head `ebed1b98d3e75370406b332c1aa24068be8b7621` passed exact-head [T1 40522156453](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/40522156453). Exact-merge T2 40523138500 must be confirmed green before #794 integration; do not rely on the historical stacked-head T1 40517115815 as final-base evidence.
 
 The contract remains [#301](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6392078669); Portal payloads/endpoints were checked at PR #778 `3f825c9750eed841d309004af452cb5bff3d0db5`. This slice has no DI registration, public API routes, hosted worker, Runtime authority or UI call sites. Creating these components does not enable production issuance or select online licensing mode.
 

@@ -1,91 +1,90 @@
-# Parte I — Fundamentos de EliteSCADA
+# SCADIVO — Fundamentos para empezar
 
-## 1. Sobre EliteSCADA
+## 1. Conozca el recorrido de una aplicación
 
-EliteSCADA separa claramente la autoría de la aplicación, la ejecución industrial y las autoridades administrativas. El proyecto se prepara en Engineering; Runtime ejecuta la revisión Active; Authority controla la identidad y la autorización; Licensing controla la habilitación comercial; Historian conserva los datos históricos conforme a sus propias reglas.
+SCADIVO permite crear pantallas para supervisar y operar aplicaciones residenciales, de edificios o industriales. Piense en una bomba: quiere ver presión, consultar histórico y ofrecer una acción a un operador autorizado. Cada parte tiene una función y puede prepararlas poco a poco.
 
-Esta separación es importante en la operación: editar una aplicación no cambia automáticamente lo que está en ejecución, una licencia no concede autorización de seguridad y un backup de Authority no reemplaza un paquete de aplicación ni un backup de base de datos/histórico.
+En **Ingeniería (Engineering)** prepara conexiones, TAGs, pantallas y reglas. En **Runtime** una persona usa la versión puesta en operación. Editar un dibujo en Ingeniería no cambia inmediatamente la pantalla que está operando.
 
-**Ayuda relacionada:** `/help?topic=engineering.overview`, `/help?topic=runtime.overview`.
+No necesita aprender todos los términos antes de empezar. Prepare un ejemplo pequeño y consulte el glosario de la sección 5 cuando encuentre una palabra nueva.
 
-## 2. Conceptos fundamentales
+## 2. Muestre una primera lectura
 
-- **Working**: estado editable de Engineering.
-- **Revision**: versión identificable guardada a partir de Working.
-- **Published**: revisión publicada y elegible para activación conforme a la validación.
-- **Active**: revisión que constituye la autoridad de aplicación para Runtime.
-- **TAG**: identidad estable para datos de proceso/ingeniería consumidos por el TAG Engine.
-- **Data Source**: origen de datos configurado. Los Drivers de comunicación y los proveedores internos de fuentes son categorías distintas.
-- **Authority**: identidad, autenticación, roles y autorización efectiva.
-- **Engineering Lock**: protección opcional del contenido de Engineering de la aplicación; es independiente de la contraseña del usuario y de la contraseña del backup de Authority.
-- **License**: habilitación comercial vinculada a la máquina; no reemplaza la autenticación ni la autorización.
+1. Siga [Primer proyecto](30-PRIMER-PROYECTO.md) para preparar una aplicación de prueba y lectura conocida en Server Memory, la memoria del servidor, sin equipo físico.
+2. El **TAG** identifica esa lectura en el proyecto. Compruebe valor, calidad y hora antes de dibujar; [Ingeniería y datos](03-INGENIERIA-FUENTES-DE-DATOS-TAGS.md) explica origen y dirección.
+3. En [Pantallas, Popups y objetos](05-PANTALLAS-Y-OBJETOS.md), inserte un valor mostrado y seleccione su TAG mediante un vínculo. Un Popup es una ventana de detalles abierta sobre la pantalla.
+4. Compruebe Preview y aplique la edición al proyecto cuando exista ese flujo. Resuelva diagnósticos antes de continuar.
+5. Guarde, publique y active la revisión en pasos separados, explicados abajo.
+6. En Runtime compruebe revisión activa y lectura esperada. Añada alarmas, histórico o Scripts después de entender este primer recorrido.
 
-## 3. Arquitectura del producto para el usuario
+## 3. Sepa qué guarda cada parte
 
-La ruta normal de operación mantiene la autoridad en el backend. Las interfaces usan capabilities para orientar la UX, pero la validación y la autorización no dependen solamente de los controles visibles en el navegador.
+| Parte | Para qué sirve | Qué comprobar |
+| --- | --- | --- |
+| Application / aplicación | Ingeniería del proyecto: TAGs, pantallas, Scripts y otros objetos portátiles. | ¿Qué proyecto y revisión se editan o utilizan? |
+| Security Authority | Cuentas, contraseñas, roles y decisiones de acceso de la instalación. | ¿Esta persona solo puede visualizar o también ejecutar la acción? |
+| License / licencia | Funciones y límites comerciales disponibles. | ¿La instalación tiene licencia compatible con las funciones usadas? |
+| Historian | Guarda y consulta muestras si se configuró captura. | ¿El período solicitado tiene datos guardados con calidad adecuada? |
 
-Para los datos industriales, los consumidores trabajan a través de los contratos públicos del TAG Engine/cache/eventos. Una pantalla, un script o un informe no debe abrir una conexión privada del Driver para omitir el Data Source, Authority o el lifecycle.
+Una licencia no concede permiso de seguridad. El servidor decide autorización aunque se vea un botón. Clase de sesión y licencia pueden restringir funciones; no conceden permisos ausentes en Authority.
 
-## 4. Engineering y Runtime
+Un `.escadapkg` transporta la aplicación; no es backup de cuentas/Authority, licencia ni base/histórico. Estas copias tienen procedimientos propios en [Backup y recuperación](28-BACKUP-Y-RECUPERACION.md). En los flujos actuales mediante archivo, la licencia se vincula a la máquina de destino; compruebe estado en Licencias.
 
-Engineering y Runtime tienen responsabilidades distintas.
+Pantallas, Scripts e informes usan valores proporcionados por Runtime. No cree en ellos una conexión privada al Driver para eludir fuente, autorización o ciclo del proyecto. Conversión de escala y acceso no pasan a tener otra implementación en el navegador.
 
-En Engineering, el usuario crea y valida la aplicación. Los cambios permanecen en Working hasta seguir el lifecycle. En Runtime, la aplicación ejecutada es la revisión Active registrada por el backend.
+## 4. Edite ahora, opere cuando esté preparado
 
-### Procedimiento: cambiar la aplicación sin afectar Runtime inmediatamente
+Antes de editar compruebe proyecto, permiso de Ingeniería y control de edición solicitado. El borrador editable se llama **Working**. Una copia guardada e identificada es una **Revision**. **Published** indica revisión publicada; **Active** es la que ejecuta Runtime.
 
-**Objetivo:** preparar un cambio de Engineering mientras la revisión Active sigue en ejecución hasta una activación explícita.
+1. Abra Ingeniería en el proyecto correcto.
+2. Edite el recurso en Working.
+3. Valide y use Preview cuando exista. La previa comprueba propuesta sin aplicarla.
+4. Use Apply cuando corresponda para incorporar edición validada al proyecto. Después guarde con Save/Guardar.
+5. Cree o seleccione revisión correspondiente y compruebe cambios.
+6. Publique revisión preparada con Publish/Publicar.
+7. Use Activate/Activar cuando el cambio pueda entrar en operación. Compruebe revisión activa informada por servidor y resultado en Runtime.
 
-**Requisitos previos:** sesión con capabilities de Engineering compatibles y acceso a la aplicación.
+**Resultado esperado:** la revisión activa anterior sigue en uso hasta activación explícita. Guardar no publica; publicar no activa. Apply de editor o importación tampoco equivale a activar.
 
-**Pasos:**
-1. Abra el área de Engineering.
-2. Edite el recurso deseado en Working.
-3. Valide el cambio antes de persistirlo/aplicarlo cuando la superficie ofrezca Preview.
-4. Guarde Working conforme al flujo del producto.
-5. Cree/seleccione la Revision correspondiente.
-6. Publique la revisión cuando esté lista.
-7. Actívela solamente cuando el cambio esté autorizado para entrar en operación.
+Si un cambio parece aparecer antes de activar, compruebe qué revisión informa el servidor como Active y qué área está viendo. La apariencia local del editor no prueba un cambio en operación.
 
-**Resultado esperado:** Runtime sigue asociado a la revisión Active anterior hasta el paso explícito de Activate.
+## 5. Consulte términos cuando los necesite
 
-**Diagnóstico:** si una edición parece haber cambiado Runtime sin Activate, confirme primero qué revisión informa el backend como Active; no confíe solamente en el estado visual local.
+| Término del producto | Significado en su tarea |
+| --- | --- |
+| Engineering / Ingeniería | Área para crear y editar la aplicación. |
+| Runtime | Área que presenta y ejecuta revisión en operación. |
+| Working | Borrador actual del proyecto; puede tener cambios sin guardar. |
+| Revision | Copia identificada del trabajo guardado. |
+| Published / Active | Publicada está preparada para activar; activa es la revisión usada por Runtime. |
+| Data Source / fuente | Configuración del origen de un valor, como conexión a equipo o memoria interna. |
+| Driver | Comunica mediante un protocolo de equipo. Memoria interna es otra categoría de origen. |
+| Server Memory | Memoria del servidor que conserva valores retentivos; una pantalla puede leerlos mediante TAGs. |
+| Client Memory | Estado local de este cliente Runtime; puede perderse al terminar contexto y no se comparte automáticamente con otros clientes. |
+| TAG | Variable identificada del proyecto con tipo y origen. Su valor actual no es todo su histórico. |
+| Binding / vínculo | Relación entre propiedad y recurso, como valor mostrado y su TAG. |
+| Quality / calidad | Condición de una lectura. Datos ausentes o mala calidad no significan cero. |
+| Timestamp / hora de muestra | Instante de la lectura; ayuda a comprobar si está actualizada. |
+| Script | Regla escrita para realizar una tarea en servidor o cliente según el tipo elegido. |
+| Handler | Función declarada del Script que recibe un evento; su nombre debe coincidir con la función preparada. |
+| Template Faceplate | Dibujo compartido asociado a equipos. Cambiar definición puede afectar instancias vinculadas. |
+| Dínamo | Composición visual reutilizable con definición compartida y valores por instancia cuando está parametrizada. |
+| Popup | Ventana de detalles sobre una pantalla, con objetos y vínculos propios. |
+| Equipo | Identidad de un activo, como Bomba 01, separada de TAGs y dibujo que lo representa. |
+| Preview / Apply | La previa comprueba propuesta; Apply incorpora contenido validado al proyecto. Ninguno es Activate. |
+| Authority | Cuentas y reglas usadas por servidor para decidir quién puede hacer qué. |
+| Rol / role | Permisos asignados a personas. Compruebe recursos y acciones realmente permitidos. |
+| Capability / permiso | Acción permitida; escribir un valor y ejecutar un comando son acciones distintas. |
+| Scope / alcance | Recurso o parte de aplicación donde se aplica un permiso. |
+| Engineering Lock / secreto de aplicación | Protección opcional de contenido de Ingeniería. Su secreto difiere de contraseña de acceso y backup de Authority. |
+| Reserva de edición | Control de quién puede editar en un momento, cuando se exige. No sustituye permisos de cuenta. |
+| Historian | Grabación y consulta de muestras; requiere captura y datos disponibles. |
+| License / licencia | Condiciones comerciales de uso/capacidad separadas de cuenta y roles. |
 
-**Ayuda relacionada:** `/help?topic=engineering.lifecycle`.
+## 6. Continúe por la tarea necesaria
 
-## 5. Application / Authority / License / Historian
+Use el [índice en español](README.md) para encontrar capítulos por tarea. En Ayuda instalada busque función, campo o comando. Las referencias detalladas explican opciones después del procedimiento inicial.
 
-Estos dominios no son intercambiables:
+Si falta un valor, compruebe fuente, TAG, vínculo y revisión activa. Si se rechaza acción, lea retorno y compruebe sesión/permiso; no repita un comando incierto sin comprobar estado. Si falta histórico, revise captura y período, no solo valor actual.
 
-| Dominio | Responsabilidad |
-|---|---|
-| Application | Contenido de Engineering y lifecycle de la aplicación |
-| Authority | Identidades, roles y autorización |
-| License | Habilitación comercial, capacidad y condiciones de Runtime |
-| Historian | Persistencia y consulta de datos históricos |
-
-Un `.escadapkg` no es un backup de Authority ni una base de datos de Historian. Licensing es una preocupación separada de instalación y puede tratarse por separado durante la recuperación.
-
-## 6. Lifecycle del proyecto
-
-El flujo fundamental es:
-
-`Working -> Save -> Revision -> Publish -> Activate`
-
-Save no es Publish. Publish no es Activate. Apply de un Preview de importación tampoco equivale a Activate.
-
-### Resultado operacional
-
-- Working sigue siendo el área de autoría.
-- Revision proporciona identidad duradera al estado guardado.
-- Published indica la revisión publicada.
-- Active define lo que ejecuta Runtime.
-
-### Errores comunes
-
-- Suponer que guardar cambia Runtime.
-- Tratar Preview como una mutación.
-- Tratar Apply de importación como activación.
-- Usar el estado del frontend como autoridad del lifecycle.
-
-**Ayuda relacionada:** `/help?topic=engineering.lifecycle`, `/help?topic=packages.escadapkg`.
+**Ayuda relacionada:** `/help?topic=getting-started.first-project`, `/help?topic=engineering.lifecycle`, `/help?topic=bindings-commands.overview`, `/help?topic=recovery.backup-system-recovery`.

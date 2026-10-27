@@ -381,7 +381,7 @@ export function AuditApp() {
       <header className="audit-header">
         <div>
           <h1>{t.title}</h1>
-          <details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.subtitle}</p></details>
+          <details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.subtitle}</p><a href="/help?topic=audit.query-diagnostics">{locale === 'pt-BR' ? 'Como consultar e interpretar a auditoria' : locale === 'es' ? 'Cómo consultar e interpretar la auditoría' : 'How to query and interpret Audit'}</a></details>
         </div>
         <button type="button" className="audit-secondary" onClick={refresh} disabled={loading || diagnosticsLoading}>
           {t.refresh}

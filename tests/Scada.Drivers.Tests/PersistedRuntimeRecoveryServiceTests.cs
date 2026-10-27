@@ -276,7 +276,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
     }
 
     [Fact]
-    public async Task Recovery_DemoWithoutDurableAnchor_IsDeniedWithoutMintingFreshWindow()
+    public async Task Recovery_ExplicitBudgetDemoWithoutDurableAnchor_IsDeniedWithoutMintingFreshWindow()
     {
         var persistedLock = new EngineeringLockSecretService().Configure("persisted-demo-lock", locked: true);
         var package = CreateSimplePackage(0) with { EngineeringLock = persistedLock };
@@ -293,7 +293,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
             runtimeBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
-        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo());
+        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo(), explicitDemoBudget: true);
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         var recovery = new PersistedRuntimeRecoveryService(
             persistence,
@@ -316,7 +316,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
     }
 
     [Fact]
-    public async Task Recovery_DemoWithNewAnchor_DeniesOlderActiveRevisionAfterFailedCommit()
+    public async Task Recovery_ExplicitBudgetDemoWithNewAnchor_DeniesOlderActiveRevisionAfterFailedCommit()
     {
         var oldAnchor = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var newAnchor = oldAnchor.AddHours(6);
@@ -329,7 +329,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         var runtimeBus = new InMemoryScadaEventBus();
         await using var runtime = new EngineeringRuntimeCoordinator(
             runtimeBus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2));
-        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo());
+        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo(), explicitDemoBudget: true);
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         await SeedDemoAuthorityAsync(authorityStore, oldAnchor);
         await authorityStore.EstablishDemoSessionAnchorAsync(newAnchor, oldAnchor);
@@ -348,7 +348,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
     }
 
     [Fact]
-    public async Task Recovery_DemoWithAuthorityAnchor_UsesNormalPathAndPreservesRemainingWindow()
+    public async Task Recovery_ExplicitBudgetDemoWithAuthorityAnchor_UsesNormalPathAndPreservesRemainingWindow()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var anchor = now.AddHours(-1);
@@ -368,7 +368,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
             runtimeBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
-        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo());
+        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo(), explicitDemoBudget: true);
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         await SeedDemoAuthorityAsync(authorityStore, anchor);
         await using var runtime = new ProductLicensedRuntimeCoordinator(
@@ -394,7 +394,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         Assert.True(result.Recovered);
         Assert.Equal(1, runtime.Describe().Revision);
         Assert.Equal(anchor, status.DemoStartedAtUtc);
-        Assert.Equal(anchor + LicensingPolicy.DemoMaxContinuousRun, status.DemoExpiresAtUtc);
+        Assert.Equal(anchor + TimeSpan.FromHours(5), status.DemoExpiresAtUtc);
         Assert.Equal(TimeSpan.FromHours(4), status.DemoRemaining);
         Assert.Equal(TimeSpan.FromHours(4), time.LastTimerDueTime);
 
@@ -404,10 +404,10 @@ public sealed class PersistedRuntimeRecoveryServiceTests
     }
 
     [Fact]
-    public async Task Recovery_DemoWithExpiredAuthorityAnchor_RemainsStoppedAsExpectedAuthorityDenial()
+    public async Task Recovery_ExplicitBudgetDemoWithExpiredAuthorityAnchor_RemainsStoppedAsExpectedAuthorityDenial()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
-        var expiredAnchor = now - LicensingPolicy.DemoMaxContinuousRun - TimeSpan.FromMinutes(1);
+        var expiredAnchor = now - TimeSpan.FromHours(5) - TimeSpan.FromMinutes(1);
         var time = new RecordingTimeProvider(now);
         var package = CreateInteractionPackage("expired-demo", out var expiredEventId, out var expiredCommandId);
         var previousPackage = CreateInteractionPackage("previous", out var previousEventId, out var previousCommandId);
@@ -419,7 +419,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), exchangeAlarms);
         var persistence = new EngineeringProjectPersistenceService(exchange, store);
         var runtimeBus = new InMemoryScadaEventBus();
-        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo());
+        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo(), explicitDemoBudget: true);
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         await SeedDemoAuthorityAsync(authorityStore, expiredAnchor);
         var interactions = new ActiveDriverInteractionRuntimeCatalog();
@@ -452,6 +452,40 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         Assert.False(((ITransientEventDefinitionResolver)interactions).TryResolve(expiredEventId, out _));
         Assert.False(((IRichCommandDefinitionResolver)interactions).TryResolve(expiredCommandId, out _));
         Assert.False(((IRichCommandBindingResolver)interactions).TryResolve(expiredCommandId, out _));
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("old")]
+    [InlineData("different")]
+    public async Task Recovery_CanonicalUnlimitedDemo_DoesNotRequireHistoricalTimeAnchor(string anchorState)
+    {
+        var now = new DateTimeOffset(2026, 10, 27, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset? anchor = anchorState == "missing" ? null : now.AddDays(-100);
+        var package = CreateServerMemoryPackage();
+        var snapshot = CreateSnapshot(1, package);
+        var store = new RecoveryStore(snapshot, snapshot, anchor);
+        var exchangeBus = new InMemoryScadaEventBus();
+        using var exchangeAlarms = new InMemoryAlarmEngine(exchangeBus);
+        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), exchangeAlarms);
+        var persistence = new EngineeringProjectPersistenceService(exchange, store);
+        var runtimeBus = new InMemoryScadaEventBus();
+        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo());
+        await using var authority = new InMemoryRuntimeSessionLeaseStore();
+        if (anchor is { } old) await SeedDemoAuthorityAsync(authority, anchorState == "different" ? old.AddDays(5) : old);
+        var time = new RecordingTimeProvider(now);
+        await using var runtime = new ProductLicensedRuntimeCoordinator(
+            new EngineeringRuntimeCoordinator(runtimeBus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
+            () => new EngineeringRuntimeCoordinator(runtimeBus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
+            licensing, time, authority);
+        var recovery = new PersistedRuntimeRecoveryService(persistence, exchange, runtime, licensing, authority);
+        var result = await recovery.RecoverAsync("plant-a");
+        Assert.True(result.Recovered);
+        Assert.Equal(1, runtime.Describe().Revision);
+        Assert.Equal(ProductRuntimeLifecycleState.Running, runtime.GetProductRuntimeStatus().State);
+        Assert.Null(runtime.GetProductRuntimeStatus().DemoExpiresAtUtc);
+        Assert.Null(runtime.GetProductRuntimeStatus().DemoRemaining);
+        Assert.Null(time.LastTimerDueTime);
     }
 
     [Fact]
@@ -683,7 +717,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
     }
 
     private sealed class TestProductLicenseService(
-        LicenseVerificationResult verification) : IProductLicenseService
+        LicenseVerificationResult verification, bool explicitDemoBudget = false) : IProductLicenseService
     {
         public LicenseVerificationResult Verification { get; set; } = verification;
 
@@ -693,8 +727,12 @@ public sealed class PersistedRuntimeRecoveryServiceTests
 
         public LicenseVerificationResult VerifyCandidate(string licenseCode) => Verification;
 
-        public RunEntitlementDecision EvaluateRun(int projectTagCount) =>
-            ProductEntitlementEvaluator.Evaluate(Verification, projectTagCount);
+        public RunEntitlementDecision EvaluateRun(int projectTagCount)
+        {
+            var decision = ProductEntitlementEvaluator.Evaluate(Verification, projectTagCount);
+            return explicitDemoBudget && decision.Allowed && decision.LicenseState == LicenseState.Demo
+                ? decision with { MaximumContinuousRun = TimeSpan.FromHours(5) } : decision;
+        }
 
         public void InstallLicense(string licenseCode) =>
             throw new NotSupportedException();

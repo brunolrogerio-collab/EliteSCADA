@@ -239,9 +239,7 @@ public static class ProductLicensingApi
             verification.State.ToString(),
             license?.Tier.ToString(),
             maximumTags,
-            verification.State == LicenseState.Demo
-                ? LicensingPolicy.DemoMaxContinuousRun.TotalMinutes
-                : null,
+            null,
             license?.LicenseId,
             license?.SchemaVersion,
             license?.IssuedAtUtc,

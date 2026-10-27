@@ -353,7 +353,7 @@ public sealed class LicenseContractsTests
 
         Assert.Equal(LicenseState.Demo, verification.State);
         Assert.True(atLimit.Allowed);
-        Assert.Equal(TimeSpan.FromMinutes(300), atLimit.MaximumContinuousRun);
+        Assert.Null(atLimit.MaximumContinuousRun);
         Assert.False(aboveLimit.Allowed);
         Assert.Equal(200, aboveLimit.MaximumTags);
     }
@@ -385,25 +385,6 @@ public sealed class LicenseContractsTests
         Assert.False(decision.Allowed);
         Assert.Equal(LicenseState.Invalid, decision.LicenseState);
         Assert.Null(decision.MaximumContinuousRun);
-    }
-
-    [Fact]
-    public void DemoRunSession_UsesMonotonicTimeAndFreshRunStartsFreshWindow()
-    {
-        var clock = new ManualTimeProvider();
-        var first = new DemoRunSession(clock);
-
-        clock.Advance(TimeSpan.FromMinutes(299));
-        Assert.False(first.IsExpired);
-        Assert.Equal(TimeSpan.FromMinutes(1), first.Remaining);
-
-        clock.Advance(TimeSpan.FromMinutes(1));
-        Assert.True(first.IsExpired);
-        Assert.Equal(TimeSpan.Zero, first.Remaining);
-
-        var restarted = new DemoRunSession(clock);
-        Assert.False(restarted.IsExpired);
-        Assert.Equal(TimeSpan.FromMinutes(300), restarted.Remaining);
     }
 
     [Fact]
@@ -592,11 +573,4 @@ public sealed class LicenseContractsTests
         return new string(chars);
     }
 
-    private sealed class ManualTimeProvider : TimeProvider
-    {
-        private long _timestamp;
-        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
-        public override long GetTimestamp() => _timestamp;
-        public void Advance(TimeSpan amount) => _timestamp += amount.Ticks;
-    }
 }

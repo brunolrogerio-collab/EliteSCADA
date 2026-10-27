@@ -14,6 +14,72 @@ namespace Scada.Drivers.Tests;
 
 public sealed class ProductLicensedRuntimeCoordinatorTests
 {
+    // This deliberately bounded test policy exercises generic budget/anchor machinery.
+    // It is not the canonical, now-unlimited Demo policy used by the product.
+    private static readonly TimeSpan ExplicitTestRunBudget = TimeSpan.FromHours(5);
+    private static RunEntitlementDecision EvaluateWithExplicitTestBudget(LicenseVerificationResult verification, int tags)
+    {
+        var decision = ProductEntitlementEvaluator.Evaluate(verification, tags);
+        return decision.Allowed && decision.LicenseState == LicenseState.Demo
+            ? decision with { MaximumContinuousRun = ExplicitTestRunBudget } : decision;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CanonicalDemo_RemainsRunningAfterFortyDaysWithoutTimerOrAnchorMutation(bool historicalAnchor)
+    {
+        var now = new DateTimeOffset(2026, 10, 27, 0, 0, 0, TimeSpan.Zero);
+        var time = new RecordingTimeProvider(now);
+        await using var store = new InMemoryRuntimeSessionLeaseStore();
+        if (historicalAnchor) await SeedDemoAuthorityAsync(store, now.AddDays(-100));
+        var before = await store.GetAuthorityStateAsync();
+        var initial = new FakeRuntimeCoordinator { ActivationTime = now };
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(initial, () => new FakeRuntimeCoordinator(),
+            new DemoProductRunEntitlementProvider(), time, store);
+        Assert.True((await coordinator.ActivateAsync("plant", 1, PackageWithTags(200), (_, _) => Task.CompletedTask)).Activated);
+        time.Advance(TimeSpan.FromDays(40));
+        Assert.True((await coordinator.ReevaluateForAuthorityChangeAsync(now.AddDays(-200))).RuntimeRetained);
+        var status = coordinator.GetProductRuntimeStatus();
+        Assert.Equal(ProductRuntimeLifecycleState.Running, status.State);
+        Assert.Equal(LicenseState.Demo, status.ActiveLicenseState);
+        Assert.Null(status.DemoStartedAtUtc);
+        Assert.Null(status.DemoExpiresAtUtc);
+        Assert.Null(status.DemoRemaining);
+        Assert.Null(time.LastTimerDueTime);
+        Assert.False(initial.Disposed);
+        Assert.Equal(1, coordinator.Describe().Revision);
+        var after = await store.GetAuthorityStateAsync();
+        Assert.Equal(before.AuthorityRevision, after.AuthorityRevision);
+        Assert.Equal(before.DemoStartedAtUtc, after.DemoStartedAtUtc);
+        Assert.False((await coordinator.ActivateAsync("plant", 2, PackageWithTags(201))).Activated);
+        Assert.Equal(1, coordinator.Describe().Revision);
+    }
+
+    [Fact]
+    public async Task CanonicalDemo_ValidLicenseRemovalRetainsAllowedRuntimeWithoutTimeBudget()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var time = new RecordingTimeProvider(now);
+        var verification = ValidVerification(LicenseTier.Unlimited);
+        var initial = new FakeRuntimeCoordinator();
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(initial, () => new FakeRuntimeCoordinator(),
+            new DelegateEntitlementProvider(tags => ProductEntitlementEvaluator.Evaluate(verification, tags)), time);
+        Assert.True((await coordinator.ActivateAsync("plant", 4, PackageWithTags(100))).Activated);
+        verification = LicenseVerificationResult.Demo();
+        Assert.True((await coordinator.ReevaluateForAuthorityChangeAsync(now.AddDays(-30))).RuntimeRetained);
+        time.Advance(TimeSpan.FromDays(365));
+        var status = coordinator.GetProductRuntimeStatus();
+        Assert.Equal(ProductRuntimeLifecycleState.Running, status.State);
+        Assert.Null(status.DemoRemaining);
+        Assert.Null(status.DemoExpiresAtUtc);
+        Assert.Null(time.LastTimerDueTime);
+        Assert.False(initial.Disposed);
+        var projection = ProductLicensingApi.DescribeLicense(verification);
+        Assert.Equal(200, projection.MaximumTags);
+        Assert.Null(projection.DemoMaximumContinuousMinutes);
+    }
+
     [Fact]
     public async Task DemoGate_DeniedActivationPreservesPreviouslyActiveRuntime()
     {
@@ -39,7 +105,7 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     }
 
     [Fact]
-    public async Task DemoExpiry_StopsRuntimeAndLaterExplicitRunUsesFreshCoordinator()
+    public async Task ExplicitDurationBudget_StopsRuntimeAndLaterExplicitRunUsesFreshCoordinator()
     {
         var created = new List<FakeRuntimeCoordinator>();
         var initial = new FakeRuntimeCoordinator();
@@ -148,14 +214,14 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     }
 
     [Fact]
-    public async Task AuthorityReevaluation_ValidToDemo_UsesAuthorityChangeAnchorAndSchedulesRemaining()
+    public async Task ExplicitBudget_AuthorityReevaluation_ValidToDemo_UsesAuthorityChangeAnchorAndSchedulesRemaining()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var time = new RecordingTimeProvider(now);
         var initial = new FakeRuntimeCoordinator();
         var verification = ValidVerification(LicenseTier.Unlimited);
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(verification, tagCount));
+            EvaluateWithExplicitTestBudget(verification, tagCount));
         await using var coordinator = new ProductLicensedRuntimeCoordinator(
             initial,
             () => new FakeRuntimeCoordinator(),
@@ -172,20 +238,20 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         Assert.True(result.RuntimeRetained);
         Assert.False(initial.Disposed);
         Assert.Equal(authorityChangedAtUtc, status.DemoStartedAtUtc);
-        Assert.Equal(authorityChangedAtUtc + LicensingPolicy.DemoMaxContinuousRun, status.DemoExpiresAtUtc);
+        Assert.Equal(authorityChangedAtUtc + ExplicitTestRunBudget, status.DemoExpiresAtUtc);
         Assert.Equal(TimeSpan.FromHours(3), status.DemoRemaining);
         Assert.Equal(TimeSpan.FromHours(3), time.LastTimerDueTime);
     }
 
     [Fact]
-    public async Task AuthorityReevaluation_ExpiredDemoAnchor_StopsImmediately()
+    public async Task ExplicitBudget_AuthorityReevaluation_ExpiredDemoAnchor_StopsImmediately()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var time = new RecordingTimeProvider(now);
         var initial = new FakeRuntimeCoordinator();
         var verification = ValidVerification(LicenseTier.Unlimited);
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(verification, tagCount));
+            EvaluateWithExplicitTestBudget(verification, tagCount));
         await using var coordinator = new ProductLicensedRuntimeCoordinator(
             initial,
             () => new FakeRuntimeCoordinator(),
@@ -194,7 +260,7 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
 
         Assert.True((await coordinator.ActivateAsync("plant", 5, PackageWithTags(100))).Activated);
         verification = LicenseVerificationResult.Demo();
-        var anchor = now - LicensingPolicy.DemoMaxContinuousRun - TimeSpan.FromMinutes(1);
+        var anchor = now - ExplicitTestRunBudget - TimeSpan.FromMinutes(1);
 
         var result = await coordinator.ReevaluateForAuthorityChangeAsync(anchor);
         var status = coordinator.GetProductRuntimeStatus();
@@ -205,18 +271,18 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         Assert.Equal(ProductRuntimeLifecycleState.DemoExpired, status.State);
         Assert.Equal(anchor, status.DemoStartedAtUtc);
         Assert.Equal(TimeSpan.Zero, status.DemoRemaining);
-        Assert.Equal(anchor + LicensingPolicy.DemoMaxContinuousRun, status.DemoExpiresAtUtc);
+        Assert.Equal(anchor + ExplicitTestRunBudget, status.DemoExpiresAtUtc);
     }
 
     [Fact]
-    public async Task DemoStatus_CombinesDurableElapsedAndCurrentProcessMonotonicElapsed()
+    public async Task ExplicitBudget_DemoStatus_CombinesDurableElapsedAndCurrentProcessMonotonicElapsed()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var time = new RecordingTimeProvider(now);
         var initial = new FakeRuntimeCoordinator();
         var verification = ValidVerification(LicenseTier.Unlimited);
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(verification, tagCount));
+            EvaluateWithExplicitTestBudget(verification, tagCount));
         await using var coordinator = new ProductLicensedRuntimeCoordinator(
             initial,
             () => new FakeRuntimeCoordinator(),
@@ -232,19 +298,19 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         var status = coordinator.GetProductRuntimeStatus();
 
         Assert.Equal(anchor, status.DemoStartedAtUtc);
-        Assert.Equal(anchor + LicensingPolicy.DemoMaxContinuousRun, status.DemoExpiresAtUtc);
+        Assert.Equal(anchor + ExplicitTestRunBudget, status.DemoExpiresAtUtc);
         Assert.Equal(TimeSpan.FromHours(3.5), status.DemoRemaining);
     }
 
     [Fact]
-    public async Task DemoActivation_WithoutDurableAnchor_StartsAtActivationTime()
+    public async Task ExplicitBudget_DemoActivation_WithoutDurableAnchor_StartsAtActivationTime()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var time = new RecordingTimeProvider(now);
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         var initial = new FakeRuntimeCoordinator();
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), tagCount));
+            EvaluateWithExplicitTestBudget(LicenseVerificationResult.Demo(), tagCount));
         await using var coordinator = new ProductLicensedRuntimeCoordinator(
             initial,
             () => new FakeRuntimeCoordinator(),
@@ -256,12 +322,12 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         var status = coordinator.GetProductRuntimeStatus();
 
         Assert.Equal(now, status.DemoStartedAtUtc);
-        Assert.Equal(now + LicensingPolicy.DemoMaxContinuousRun, status.DemoExpiresAtUtc);
-        Assert.Equal(LicensingPolicy.DemoMaxContinuousRun, status.DemoRemaining);
+        Assert.Equal(now + ExplicitTestRunBudget, status.DemoExpiresAtUtc);
+        Assert.Equal(ExplicitTestRunBudget, status.DemoRemaining);
     }
 
     [Fact]
-    public async Task PersistedDemoActivation_EstablishesDurableAnchorWithoutChangingAuthorityRevision()
+    public async Task ExplicitBudget_PersistedDemoActivation_EstablishesDurableAnchorWithoutChangingAuthorityRevision()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var time = new RecordingTimeProvider(now);
@@ -269,7 +335,7 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         var initialAuthority = await authorityStore.GetAuthorityStateAsync();
         var initial = new FakeRuntimeCoordinator { ActivationTime = now };
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), tagCount));
+            EvaluateWithExplicitTestBudget(LicenseVerificationResult.Demo(), tagCount));
         await using var coordinator = new ProductLicensedRuntimeCoordinator(
             initial,
             () => new FakeRuntimeCoordinator(),
@@ -290,14 +356,14 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     }
 
     [Fact]
-    public async Task PersistedDemoActivation_CommitFailureLeavesAnchorAndRetryCannotExtendAllowance()
+    public async Task ExplicitBudget_PersistedDemoActivation_CommitFailureLeavesAnchorAndRetryCannotExtendAllowance()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var time = new RecordingTimeProvider(now);
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         var initial = new FakeRuntimeCoordinator { ActivationTime = now };
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), tagCount));
+            EvaluateWithExplicitTestBudget(LicenseVerificationResult.Demo(), tagCount));
         await using var coordinator = new ProductLicensedRuntimeCoordinator(
             initial,
             () => new FakeRuntimeCoordinator(),
@@ -331,14 +397,14 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     }
 
     [Fact]
-    public async Task PersistedDemoReactivation_WithUnexpiredAnchor_DoesNotResetIt()
+    public async Task ExplicitBudget_PersistedDemoReactivation_WithUnexpiredAnchor_DoesNotResetIt()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var time = new RecordingTimeProvider(now);
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         var initial = new FakeRuntimeCoordinator { ActivationTime = now };
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), tagCount));
+            EvaluateWithExplicitTestBudget(LicenseVerificationResult.Demo(), tagCount));
         await using var coordinator = new ProductLicensedRuntimeCoordinator(
             initial,
             () => new FakeRuntimeCoordinator(),
@@ -356,12 +422,12 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     }
 
     [Fact]
-    public async Task ConcurrentPersistedDemoRuns_ConvergeOnOneAuthorityAnchor()
+    public async Task ExplicitBudget_ConcurrentPersistedDemoRuns_ConvergeOnOneAuthorityAnchor()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), tagCount));
+            EvaluateWithExplicitTestBudget(LicenseVerificationResult.Demo(), tagCount));
         await using var first = new ProductLicensedRuntimeCoordinator(
             new FakeRuntimeCoordinator { ActivationTime = now },
             () => new FakeRuntimeCoordinator(), entitlement,
@@ -390,16 +456,16 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     }
 
     [Fact]
-    public async Task PersistedDemoActivation_AfterExpiry_ReplacesAnchorOnlyForExplicitRun()
+    public async Task ExplicitBudget_PersistedDemoActivation_AfterExpiry_ReplacesAnchorOnlyForExplicitRun()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
-        var expired = now - LicensingPolicy.DemoMaxContinuousRun - TimeSpan.FromMinutes(1);
+        var expired = now - ExplicitTestRunBudget - TimeSpan.FromMinutes(1);
         var time = new RecordingTimeProvider(now);
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         await SeedDemoAuthorityAsync(authorityStore, expired);
         var initial = new FakeRuntimeCoordinator { ActivationTime = now };
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), tagCount));
+            EvaluateWithExplicitTestBudget(LicenseVerificationResult.Demo(), tagCount));
         await using var coordinator = new ProductLicensedRuntimeCoordinator(
             initial,
             () => new FakeRuntimeCoordinator(),
@@ -418,7 +484,7 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     }
 
     [Fact]
-    public async Task DemoActivation_WithAuthorityAnchor_DoesNotMintFreshWindow()
+    public async Task ExplicitBudget_DemoActivation_WithAuthorityAnchor_DoesNotMintFreshWindow()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var anchor = now.AddHours(-1);
@@ -427,7 +493,7 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         await SeedDemoAuthorityAsync(authorityStore, anchor);
         var initial = new FakeRuntimeCoordinator();
         var entitlement = new DelegateEntitlementProvider(tagCount =>
-            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), tagCount));
+            EvaluateWithExplicitTestBudget(LicenseVerificationResult.Demo(), tagCount));
         await using var coordinator = new ProductLicensedRuntimeCoordinator(
             initial,
             () => new FakeRuntimeCoordinator(),

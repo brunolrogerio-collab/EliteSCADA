@@ -26,7 +26,6 @@ public enum LicenseState
 public static class LicensingPolicy
 {
     public const int DemoMaxTags = 200;
-    public static readonly TimeSpan DemoMaxContinuousRun = TimeSpan.FromMinutes(300);
 
     public static int? MaximumTags(LicenseTier tier) => tier switch
     {
@@ -160,7 +159,7 @@ public static class ProductEntitlementEvaluator
                 allowed,
                 LicenseState.Demo,
                 LicensingPolicy.DemoMaxTags,
-                allowed ? LicensingPolicy.DemoMaxContinuousRun : null,
+                null,
                 allowed
                     ? null
                     : $"Demo Run supports at most {LicensingPolicy.DemoMaxTags} TAGs. Engineering data was not changed.");
@@ -726,28 +725,4 @@ public static class EliteScadaLicenseCodec
         };
         return Convert.FromBase64String(base64);
     }
-}
-
-public sealed class DemoRunSession
-{
-    private readonly TimeProvider _timeProvider;
-    private readonly long _startedTimestamp;
-
-    public DemoRunSession(TimeProvider? timeProvider = null)
-    {
-        _timeProvider = timeProvider ?? TimeProvider.System;
-        _startedTimestamp = _timeProvider.GetTimestamp();
-    }
-
-    public TimeSpan Elapsed => _timeProvider.GetElapsedTime(_startedTimestamp);
-    public TimeSpan Remaining
-    {
-        get
-        {
-            var remaining = LicensingPolicy.DemoMaxContinuousRun - Elapsed;
-            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
-        }
-    }
-
-    public bool IsExpired => Elapsed >= LicensingPolicy.DemoMaxContinuousRun;
 }

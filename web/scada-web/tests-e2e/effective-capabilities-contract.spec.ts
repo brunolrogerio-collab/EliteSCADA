@@ -10,6 +10,38 @@ import {
   displaySignedSeatTotal
 } from '../src/licensing/licensingEntitlementPresentation';
 
+for (const [locale, label] of [['pt-BR', 'Sem limite de tempo'], ['en', 'No time limit'], ['es', 'Sin límite de tiempo']]) {
+  for (const runtimeState of ['Idle', 'Running']) {
+    test(`Demo duration is explicit without countdown (${locale}, ${runtimeState})`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.addInitScript(value => window.localStorage.setItem('elitescada.engineering.locale', value), locale);
+      await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+        license: { state: 'Demo', maximumTags: 200, demoMaximumContinuousMinutes: null },
+        runtime: { state: runtimeState, activeLicenseState: runtimeState === 'Running' ? 'Demo' : null,
+          maximumTags: runtimeState === 'Running' ? 200 : null, demoRemaining: null, demoExpiresAtUtc: null }
+      } }));
+      await page.route('**/api/licensing/request', route => route.fulfill({ json: {
+        requestCode: 'ESREQ1-fictitious', machineFingerprint: 'fictitious'
+      } }));
+      await page.goto('/tests-e2e/licensing-harness.html');
+      await expect(page.getByTestId('demo-duration')).toHaveText(label);
+      await expect(page.getByText(/Demo restante|Demo remaining/)).toHaveCount(0);
+      await expect(page.getByText('300')).toHaveCount(0);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+      expect(overflow).toBe(false);
+    });
+  }
+}
+
+test('an unavailable duration is not presented as unlimited', async ({ page }) => {
+  await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+    license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' }
+  } }));
+  await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'fictitious' } }));
+  await page.goto('/tests-e2e/licensing-harness.html');
+  await expect(page.getByTestId('demo-duration')).not.toHaveText(/Sem limite|No time limit|Sin límite/);
+});
+
 function capabilities(
   runtime: readonly SecurityCapability[] = [],
   workspace: readonly SecurityCapability[] = []

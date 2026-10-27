@@ -110,7 +110,11 @@ public sealed class PersistedRuntimeRecoveryService(
                 InvalidLicenseDiagnostic);
         }
 
-        if (verification.State == LicenseState.Demo &&
+        // A durable start anchor belongs to an explicitly bounded allowance. The canonical
+        // Demo has no time budget; absence/age of its historical anchor cannot deny recovery.
+        var requiresDemoAnchor = verification.State == LicenseState.Demo &&
+            licensing.EvaluateRun(0).MaximumContinuousRun.HasValue;
+        if (requiresDemoAnchor &&
             !authority.DemoStartedAtUtc.HasValue)
         {
             return RecoveryDenied(
@@ -119,7 +123,7 @@ public sealed class PersistedRuntimeRecoveryService(
                 DemoAnchorMissingDiagnostic);
         }
 
-        if (verification.State == LicenseState.Demo &&
+        if (requiresDemoAnchor &&
             activation.DemoStartedAtUtc != authority.DemoStartedAtUtc)
         {
             return RecoveryDenied(

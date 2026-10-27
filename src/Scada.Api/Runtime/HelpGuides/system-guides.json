@@ -128,17 +128,32 @@
       "sections": [
         {
           "heading": "Onde entrar e qual problema esta tela resolve",
-          "body": "Abra Engenharia > Banco de dados. É necessária a capacidade SystemAdmin. Local Managed usa o banco local administrado pela instalação; Remote usa um PostgreSQL configurado. Essa escolha define armazenamento, não cria redundância de servidores HA. Confira Estado atual e Próxima ação antes de preencher qualquer campo. Se Local Managed está saudável e atende sua instalação, não é necessário configurar Remote.",
+          "body": "Esta tela define onde o SCADIVO guarda seus dados. Abra Engenharia > Banco de dados com permissão para administrar o sistema (SystemAdmin).\n\nLocal Managed é o banco local administrado pela instalação. Remote é um PostgreSQL que você prepara em outro destino. Se o banco local está saudável e atende à instalação, você pode continuar usando-o sem preencher Remote.\n\nAntes de mudar algo, leia Estado atual e Próxima ação. Escolher um banco define armazenamento; não configura, por si só, a redundância HA entre dois servidores.",
           "fields": null
         },
         {
           "heading": "Prepare o destino",
-          "body": "Combine com o administrador o servidor, banco, conta, certificados e permissões. O endereço deve ser acessível pelo serviço SCADIVO, não apenas pelo navegador. Em Docker, localhost dentro do contêiner significa o próprio contêiner; use o nome/endereço realmente alcançável pelo serviço. Em Windows/Linux, caminhos de certificados pertencem ao servidor onde o serviço executa. Faça backup e escolha uma janela de manutenção antes de migrar.",
+          "body": "Peça ao administrador os dados do destino: endereço do servidor, banco, conta, permissões e certificados. Faça backup e combine uma janela de manutenção antes de migrar. A migração pode pausar gravações.\n\nA conexão parte do serviço SCADIVO. Por isso, abrir um endereço no navegador não prova que o serviço o alcança. Em Docker, localhost indica o próprio contêiner; use o nome ou endereço que o serviço realmente consegue acessar.\n\nDa mesma forma, o arquivo de certificado deve existir no servidor em que o serviço roda, seja Windows, Linux ou contêiner. Um caminho disponível só no computador do navegador não atende esse requisito.",
+          "fields": null
+        },
+        {
+          "heading": "Migrar dados para outro banco",
+          "body": "1. Confira qual banco está ativo e tenha um backup disponível.\n2. Preencha o destino Remote e use Validar destino. A validação verifica conexão, autenticação, proteção TLS e compatibilidade; conseguir conectar não basta para permitir a troca.\n3. Prepare a migração e confira o plano: origem, destino e dados incluídos. Após preparar, a configuração fica bloqueada.\n4. Na janela de manutenção, use Iniciar migração. Gravações duráveis podem ficar pausadas durante a operação.\n5. Aguarde a cópia e a verificação automática. Leia o resultado antes de seguir.\n6. Só após verificação bem-sucedida, use Ativar banco Remote e confirme o destino.\n7. Se for solicitado reinício, reinicie ou reabra o serviço conforme sua instalação. Antes de retomar, confira banco ativo, saúde, projeto e revisão.",
+          "fields": null
+        },
+        {
+          "heading": "Conectar a banco existente não é migrar",
+          "body": "Use Conectar a banco existente (sem cópia) somente quando o destino já estiver preparado com o mesmo projeto e a mesma revisão ativa exigidos pela instalação. Esse caminho não copia nem mescla registros. Para levar os dados do banco atual ao novo destino, use a migração.\n\nLeia a confirmação antes de trocar. Se projeto ou revisão forem incompatíveis, a operação é bloqueada. Não esvazie nem altere o banco para contornar essa conferência.",
+          "fields": null
+        },
+        {
+          "heading": "Reverter e voltar ao banco local",
+          "body": "Se aparecer Recovery/Rollback necessário, a operação pede recuperação ou reversão. Leia o diagnóstico e use Reverter operação quando estiver disponível.\n\nVoltar para Local Managed verifica e reativa o banco local preservado; pode pedir reinício. Essa volta não mescla automaticamente os dados gravados no Remote depois da troca. O banco anterior é preservado, mas isso não é o mesmo que restaurar um backup. Também não apaga o Remote.\n\nDepois de voltar, confira quais dados, projeto e revisão estão realmente ativos antes de retomar a operação.",
           "fields": null
         },
         {
           "heading": "Campos básicos e avançados",
-          "body": "Comece por host, usuário e segredo. Abra Configurações avançadas somente se precisar alterar os valores já preenchidos. Os exemplos são ilustrativos e não são credenciais de uma instalação.",
+          "body": "Para preparar Remote, comece pelo endereço, usuário e senha fornecidos pelo administrador. Os demais campos podem ficar nos valores preenchidos quando forem adequados à instalação. Abra Configurações avançadas para consultar ou mudar esses detalhes. A tabela abaixo explica cada escolha; os exemplos não são credenciais reais.",
           "fields": [
             {
               "key": "primary.host",
@@ -178,7 +193,7 @@
             {
               "key": "primary.tlsMode",
               "label": "Modo TLS",
-              "description": "Require exige conexão criptografada. VerifyCa verifica a cadeia da CA; VerifyFull também verifica o nome do servidor. Prefer e Disable não garantem o mesmo nível de proteção. Use o modo acordado com TI, sem desabilitar TLS apenas para apagar um erro.",
+              "description": "TLS protege a conexão. Require exige criptografia; VerifyCa também confere a cadeia da autoridade certificadora; VerifyFull confere ainda o nome do servidor. Prefer e Disable não garantem a mesma proteção. Use o modo combinado com TI; não desative TLS só para fazer um erro desaparecer.",
               "example": "Require ou VerifyFull com CA válida",
               "constraints": ""
             },
@@ -199,30 +214,15 @@
             {
               "key": "historianOverride",
               "label": "Historian usa Primary / dedicado",
-              "description": "Marcado, o histórico usa o banco principal. Desmarque somente para um destino Historian dedicado e preencha seu endpoint completo; a compatibilidade desse destino também precisa passar.",
+              "description": "Com a opção marcada, o histórico gravado, chamado Historian, usa o banco principal. Desmarque apenas se preparou um banco dedicado ao histórico. Nesse caso preencha seu endereço completo e valide também a compatibilidade desse destino.",
               "example": "Usar Primary na configuração simples",
               "constraints": ""
             }
           ]
         },
         {
-          "heading": "Migrar dados para outro banco",
-          "body": "1. Confira o banco ativo e tenha backup. 2. Preencha Remote e selecione Validar destino. O produto testa conexão, autenticação, TLS e compatibilidade; conectividade sozinha não basta. 3. Prepare a migração e confira origem, destino e dados incluídos no plano. A configuração fica bloqueada após preparar. 4. Durante a janela de manutenção, selecione Iniciar migração. Gravações duráveis podem ficar pausadas. 5. Aguarde cópia e verificação automática; confira o resultado. 6. Somente após verificação bem-sucedida, selecione Ativar banco Remote e confirme. 7. Se houver restart necessário, reinicie/reabra o serviço conforme a instalação. Confira novamente topologia ativa, saúde, projeto e revisão antes de retomar a operação.",
-          "fields": null
-        },
-        {
-          "heading": "Conectar a banco existente não é migrar",
-          "body": "Conectar a banco existente (sem cópia) não copia nem mescla registros. Só deve ser usado para o destino já preparado com o mesmo projeto e a mesma revisão ativa exigidos pela instalação. Leia a confirmação. Incompatibilidade de projeto/revisão bloqueia a troca; não esvazie nem altere o banco para contornar a conferência. Para transportar os dados atuais, use o fluxo de migração.",
-          "fields": null
-        },
-        {
-          "heading": "Reverter e voltar ao banco local",
-          "body": "Se a operação indicar Recovery/Rollback necessário, confira diagnóstico e use Reverter operação quando disponível. Voltar para Local Managed valida e reativa o banco local preservado, podendo exigir reinício. Isso não mescla automaticamente gravações feitas depois no Remote com o banco local. O banco anterior é preservado; voltar não equivale a restaurar um backup nem a apagar o Remote. Confira os dados e a revisão realmente ativos após a troca.",
-          "fields": null
-        },
-        {
           "heading": "Erros que merecem ações diferentes",
-          "body": "Sem conexão: confira DNS, porta e acesso do serviço. Autenticação recusada: confirme a conta PostgreSQL e seu segredo. TLS: confira CA, nome e validade do certificado. Incompatibilidade: leia versão PostgreSQL, capacidade TimescaleDB quando exigida e schema. Fase inválida: atualize o estado e siga Próxima ação; não repita Iniciar durante uma cópia. Banco indisponível: o Runtime pode ficar degradado; o produto não deve fingir persistência em memória. Registre horário, fase e ID da operação para suporte, sem senha.",
+          "body": "Comece pela mensagem recebida. Sem conexão, confira nome/endereço, porta e acesso a partir do serviço. Autenticação recusada pede revisão da conta PostgreSQL e da senha. Erro TLS pede conferir autoridade certificadora, nome do servidor e validade do certificado.\n\nEm incompatibilidade, leia os requisitos de versão PostgreSQL, TimescaleDB quando exigido e schema, a estrutura de dados esperada pelo produto. Em fase inválida, atualize o estado e siga Próxima ação; não inicie outra cópia enquanto uma já está ocorrendo.\n\nCom banco indisponível, o Runtime pode ficar degradado. O produto não deve apresentar gravações em memória como se fossem persistidas no banco. Para suporte, registre horário, fase e ID da operação; não inclua senha.",
           "fields": null
         }
       ],
@@ -242,12 +242,12 @@
       "sections": [
         {
           "heading": "O que preparar antes",
-          "body": "HA significa Alta Disponibilidade: dois servidores podem assumir o Runtime de forma controlada. Abra Engenharia > Alta disponibilidade. Precisa de licença HA Runtime e de HighAvailabilityObserve para observar; salvar e operar também exigem HighAvailabilityTransfer. Confirme rede entre serviços, autenticação, relógios e armazenamento de cada nó. Bancos compartilhados ou separados precisam ter sua topologia conferida; marcar HA não cria sozinho replicação nem prova disponibilidade de banco.",
+          "body": "HA significa Alta Disponibilidade. Dois servidores são preparados para que o Runtime possa passar de um para o outro com proteção contra execução duplicada. Neste guia, nó significa cada um desses servidores.\n\nAbra Engenharia > Alta disponibilidade. Para observar, é preciso licença HA Runtime e permissão para acompanhar os servidores. Para salvar ou operar, é necessária também a permissão de transferência. Confira rede entre serviços, autenticação, relógios e armazenamento dos dois nós.\n\nO banco pode ser compartilhado ou separado, conforme a instalação preparada. Habilitar HA não cria sozinho replicação de dados nem garante que um banco esteja disponível. Confira essa parte com o responsável pela instalação antes de configurar a dupla.",
           "fields": null
         },
         {
           "heading": "Preencha somente o que depende da instalação",
-          "body": "A tela distingue Este servidor e Servidor parceiro. As identidades internas e o transporte automático não precisam ser inventados pelo operador.",
+          "body": "A tela chama os dois nós de Este servidor e Servidor parceiro. Comece pelos endereços que permitem comunicação entre seus serviços. Use os seletores para o servidor preferencial e o fluxo protegido para autenticação. O produto cuida das identidades internas e do transporte automático; não invente esses valores. A tabela detalha as escolhas.",
           "fields": [
             {
               "key": "nodes.localEndpoint",
@@ -280,7 +280,7 @@
             {
               "key": "protection.referencePath",
               "label": "Proteção e referência compartilhada",
-              "description": "Fencing impede que dois nós executem como Active. A referência precisa representar o mesmo armazenamento externo compartilhado visto por ambos; dois arquivos locais com nomes iguais não são uma referência comum.",
+              "description": "É a referência usada pela proteção contra dois servidores Active ao mesmo tempo, chamada fencing. Ambos precisam enxergar o mesmo armazenamento externo compartilhado. Dois arquivos locais com nomes iguais não formam uma referência comum.",
               "example": "Recurso compartilhado provisionado pela instalação",
               "constraints": ""
             },
@@ -295,41 +295,41 @@
         },
         {
           "heading": "Procedimento de preparação",
-          "body": "1. Confira o modo Em execução. 2. Prepare HA, informe os dois endereços e escolha o preferencial. 3. Configure autenticação e proteção compartilhada; resolva os itens da Prontidão para HA. 4. Salve configuração desejada. Salvo não significa Em execução. 5. Se exigido, planeje reinício dos serviços e confira a configuração realmente carregada. 6. Atualize o estado e confirme Active efetivo, parceiro, banco e proteção. Standby não deve ser tratado como Ready Standby. 7. Antes de usar no processo, faça o ensaio manual acordado com o responsável pela instalação; os testes do manual não substituem essa avaliação.",
+          "body": "1. Confira o modo Em execução antes de editar. Ele informa a configuração que o serviço está usando agora.\n2. Prepare HA, informe os endereços dos dois serviços e escolha o servidor preferencial.\n3. Configure autenticação e proteção compartilhada. Resolva os itens indicados em Prontidão para HA.\n4. Use Salvar configuração desejada. Isso guarda a escolha, mas não prova que ela já está Em execução.\n5. Se houver reinício pendente, planeje-o e depois confira a configuração realmente carregada nos serviços.\n6. Atualize o estado. Confira quem está Active efetivo, a prontidão do parceiro, o banco e a proteção. Standby sozinho não significa Ready Standby.\n7. Antes de usar no processo, faça o ensaio manual acordado com o responsável pela instalação. As verificações deste guia não substituem essa avaliação.",
           "fields": null
         },
         {
           "heading": "Leia os estados antes de operar",
-          "body": "Active efetivo é quem está autorizado a executar, não apenas o nó preferido. Synchronizing ainda está recebendo/verificando estado. Ready Standby indica a condição de prontidão avaliada pelo backend; Standby sozinho não a prova. Promoting/Demoting são transições: aguarde o resultado. Stale significa observação antiga; Isolated, Faulted, degradado ou autoridade ambígua exigem diagnóstico. Banco disponível e peer alcançável são informações diferentes. Não esconda uma falha de banco aumentando tolerâncias de rede.",
+          "body": "Active efetivo é o servidor autorizado a executar agora. Ele pode não ser o preferencial. O parceiro pode estar apenas em Standby, aguardando, ou em Ready Standby, quando a prontidão foi avaliada pelo servidor. Leia essa diferença antes de transferir.\n\nSynchronizing indica sincronização ainda em curso. Promoting e Demoting são transições: aguarde o resultado. Stale avisa que a observação é antiga. Isolated, Faulted, estado degradado ou autoridade ambígua pedem diagnóstico.\n\nConfira o banco e a comunicação com o parceiro separadamente. Alcançar o parceiro não prova que o banco funciona. Aumentar tolerâncias de rede para esconder uma falha de banco não resolve essa falha.",
           "fields": null
         },
         {
           "heading": "Escolha a operação certa",
-          "body": "Switchover é transferência planejada a partir do Active efetivo para parceiro elegível. Failback pede retorno ao preferencial quando permitido. Recovery reconcilia uma falha/bloqueio. Forçar ressincronização é recuperação específica, disponível quando não há Active e a autoridade anterior foi cercada; não é um botão para declarar um parceiro pronto. Leia alvo, confirmação e resultado; depois confira o histórico e quem ficou Active. Uma solicitação rejeitada não deve ser repetida até a causa mudar.",
+          "body": "Escolha a ação conforme a situação. Switchover é a transferência planejada do Active efetivo para um parceiro elegível. Failback solicita retorno ao preferencial quando permitido. Recovery serve para reconciliar uma falha ou bloqueio.\n\nForçar ressincronização tem uma condição específica: não pode haver Active e a autoridade anterior precisa estar cercada, isto é, impedida de continuar executando. A ação não declara um parceiro pronto por decisão do operador.\n\nAntes de confirmar, leia ação e alvo. Depois, confira o resultado, o histórico e quem ficou Active. Se a solicitação for recusada, investigue a causa antes de tentar novamente.",
           "fields": null
         },
         {
           "heading": "Ajustes avançados: significado e limites",
-          "body": "Os valores já preenchidos são o ponto de partida. Ajustar tempos altera a proteção e a reação a falhas; faça isso apenas com análise da rede, relógios e operação. Não use os limites do formulário como recomendação de desempenho.",
+          "body": "Mantenha inicialmente os tempos preenchidos. Eles controlam por quanto tempo uma informação é recente e como a proteção reage a falhas.\n\nAjuste apenas depois de avaliar rede, relógios e operação. O fato de um número caber no limite do formulário não o torna uma recomendação para sua instalação. A tabela explica o efeito de cada tempo.\n\nPara conferir as permissões na Segurança: HighAvailabilityObserve permite observar; HighAvailabilityTransfer é exigida também para salvar e operar. Esses são os identificadores de referência para o administrador.",
           "fields": [
             {
               "key": "freshnessSeconds",
               "label": "Freshness (s)",
-              "description": "Idade máxima de uma observação considerada recente.",
+              "description": "Tempo máximo para tratar uma observação como recente. Depois disso ela pode estar antiga demais para orientar a operação; não é o intervalo de aquisição de um TAG.",
               "example": "Manter valor preenchido",
               "constraints": "1–120 s"
             },
             {
               "key": "protection.leaseSeconds",
               "label": "Lease (s)",
-              "description": "Validade da autoridade de execução antes de expirar; não é licença comercial.",
+              "description": "Tempo de validade da autorização temporária para o servidor executar como Active. Ao expirar, essa autoridade deixa de valer. Lease não é licença comercial.",
               "example": "Manter valor preenchido",
               "constraints": "3–120 s"
             },
             {
               "key": "protection.pollMilliseconds",
               "label": "Poll (ms)",
-              "description": "Intervalo de consulta da referência compartilhada; menor aumenta frequência de consultas.",
+              "description": "Tempo entre consultas à referência compartilhada. Um valor menor faz consultar com mais frequência. O campo usa milissegundos, não segundos.",
               "example": "Manter valor preenchido",
               "constraints": "100–10000 ms"
             },
@@ -351,7 +351,7 @@
         },
         {
           "heading": "Se houver problema",
-          "body": "403: confira permissão de observação/operação. Configuração salva diferente da executada: confira reinício pendente. Peer indisponível: endereços, rede e autenticação dos serviços. Referência indisponível: investigue o armazenamento externo compartilhado. Parceiro não pronto: consulte sincronização, banco e diagnóstico, sem forçar promoção. Acompanhe um problema por vez e registre horário, ação, resultado e nó efetivo; nunca o segredo.",
+          "body": "Se a resposta for 403, confira permissão para observar ou operar. Se Salvo for diferente de Em execução, confira se falta reiniciar. Para parceiro indisponível, examine endereços, rede e autenticação entre os serviços.\n\nSe a referência de proteção estiver indisponível, investigue o armazenamento externo compartilhado. Se o parceiro não estiver pronto, leia sincronização, banco e diagnóstico; não force promoção para contornar a condição.\n\nInvestigue um problema por vez. Registre horário, ação, resultado e servidor efetivo para suporte, sem incluir o segredo de autenticação.",
           "fields": null
         }
       ],
@@ -366,31 +366,31 @@
       "id": "intelligence.activation",
       "category": "intelligence",
       "title": "Intelligence: habilitar, pausar e resolver bloqueios",
-      "summary": "Licença disponível, recurso selecionado e execução ativa são três condições diferentes.",
+      "summary": "Escolha quais equipamentos analisar, prepare a configuração e ative o uso. Ter a licença não inicia análises automaticamente.",
       "sections": [
         {
           "heading": "Siga a sequência completa",
-          "body": "Abra Engenharia > Inteligência de ativos. Primeiro crie Equipamento e TAGs. Depois configure perfil de sinais, associação Equipamento/perfil, contextos e etapas que fizerem sentido. Salve a configuração e os escopos escolhidos; publique/ative a revisão. Só então ative explicitamente o recurso para executar análises. Criar um perfil, marcar uma caixa ou possuir licença não arma a execução automaticamente.",
+          "body": "Comece com um equipamento, como Bomba 01. Abra Engenharia > Inteligência de ativos. Você vai reunir as variáveis da bomba, dizer a qual equipamento pertencem e escolher onde usar a análise.\n\nO perfil é a lista de sinais e seus significados. A associação liga esse perfil ao Equipamento cadastrado. Configure contextos e etapas somente quando fizerem sentido para sua pergunta. Depois salve, publique e ative a revisão do projeto.\n\nHá ainda uma decisão separada: ativar explicitamente o recurso selecionado para permitir as análises. Criar o perfil, marcar uma caixa ou possuir a licença não faz essa ativação por você.",
           "fields": null
         },
         {
           "heading": "Permissões e seleção de recursos",
-          "body": "EngineeringModify permite configurar; AssetProcessIntelligenceManage precisa ser um grant explícito, global ou com alcance no Equipamento/Local correspondente. O nome Developer ou SystemAdmin por si só não substitui esse grant. Consultas também exigem TrendUse e licença Intelligence. Conceda pela tela Segurança e confira as capacidades efetivas da sessão. Não exponha IDs para o operador decorar: escolha os recursos pelo seletor e preserve sua identidade.",
+          "body": "Sua conta precisa de permissão para editar a Engenharia e para gerenciar Intelligence nos equipamentos ou locais escolhidos. Na tela Segurança, essas permissões aparecem como EngineeringModify e AssetProcessIntelligenceManage. A segunda precisa de uma concessão explícita, global ou com alcance no recurso. O nome do papel, como Developer ou SystemAdmin, sozinho não comprova a concessão.\n\nPara consultar resultados, também são necessários TrendUse e licença Intelligence. Se um controle estiver bloqueado, confira as capacidades efetivas da sessão nessa tela. Selecione os recursos pelos seletores; não é necessário decorar ou inventar IDs.",
           "fields": null
         },
         {
           "heading": "Ativar apenas onde for útil",
-          "body": "1. Em Escopos elegíveis, selecione os equipamentos/locais desejados. 2. Salve os escopos e a configuração. 3. Publique/ative a revisão; resolva alterações pendentes antes de armar execução. 4. Na linha do recurso use Ativar e confira a permissão de processo armada. 5. Abra a consulta de uma associação e escolha o período. 6. Para deixar de analisar, use Pausar; o trabalho pendente é cancelado. A pausa não apaga TAGs nem histórico. Para retirar um recurso da seleção, pause-o primeiro.",
+          "body": "1. Em Escopos elegíveis, selecione apenas os equipamentos ou locais que deseja analisar. Escopo, aqui, é essa seleção de recursos.\n2. Salve os escopos e a configuração preparada.\n3. Publique e ative a revisão do projeto. Resolva alterações pendentes antes de liberar a execução.\n4. Na linha do recurso, use Ativar e confira se a permissão de execução ficou armada, isto é, liberada para esse recurso.\n5. Abra a consulta da associação, escolha o período e solicite a análise. A ativação permite consultar; não faz a consulta automaticamente.\n6. Para interromper as análises, use Pausar. O trabalho pendente é cancelado, mas TAGs e histórico permanecem. Antes de retirar um recurso da seleção, pause-o.",
           "fields": null
         },
         {
           "heading": "Ativo configurado não significa permissão armada",
-          "body": "Se a autorização foi revogada, a permissão de execução pode ficar fechada mesmo com Ativo na configuração. Restaurar o grant não rearma o trabalho silenciosamente: confira o estado e use Ativar novamente, inclusive após reinício quando a tela exigir. Isso evita reiniciar análise sem decisão do responsável. Não confunda esse estado com erro do Historian ou ausência de dados.",
+          "body": "Se uma permissão foi revogada, o recurso pode continuar marcado como Ativo na configuração e, mesmo assim, estar impedido de executar. São duas informações diferentes: o que foi configurado e o que está autorizado agora.\n\nRestaurar a concessão não reinicia o trabalho silenciosamente. Confira o estado e use Ativar novamente, inclusive após reinício quando a tela pedir. Isso exige uma decisão explícita do responsável. Verifique essa condição antes de investigar falta de dados no histórico gravado, chamado Historian.",
           "fields": null
         },
         {
           "heading": "Exemplo de implantação pequena",
-          "body": "Comece por Bomba 01 em uma área. Configure corrente e velocidade se existirem; não invente vibração ausente. Depois adicione medições e análises cujo catálogo aceite seus sinais. Deixe outros recursos pausados se não serão utilizados. A configuração seletiva controla o que está autorizado a executar; não é uma promessa de consumo fixo de CPU/RAM.",
+          "body": "Para Bomba 01, comece com corrente e velocidade se essas medições existirem. Escolha análises que aceitem esses sinais. Quando houver novas medições, você poderá ampliar o perfil e usar outras análises compatíveis.\n\nDeixe pausados os recursos que não pretende usar. Não invente um sinal de vibração ausente. A seleção reduz o que está autorizado a executar, mas não garante um consumo fixo de processador ou memória.",
           "fields": null
         }
       ],
@@ -411,12 +411,12 @@
       "sections": [
         {
           "heading": "Por que o nome não basta",
-          "body": "Um TAG chamado Potência pode representar potência ativa, aparente ou um valor calculado. Uma pressão pode ser sucção, descarga ou diferencial. As regras não devem adivinhar isso pelo texto. Abra o perfil e selecione o papel semântico controlado quando a análise o exigir; complete os qualificadores mostrados para esse papel. O texto de papel legado é apenas descritivo.",
+          "body": "Antes de calcular, explique o que cada variável mede. Por exemplo, um TAG chamado Potência pode ser potência ativa, aparente ou um cálculo; Pressão pode medir a sucção, a descarga ou a diferença entre elas. O nome sozinho não permite escolher a fórmula correta.\n\nNo perfil, selecione o papel semântico pedido: é a opção que identifica o significado do sinal para a análise. Depois preencha os qualificadores exibidos, os detalhes que tornam essa escolha precisa. O texto de papel legado continua sendo uma descrição; não substitui essa seleção.",
           "fields": null
         },
         {
           "heading": "Campos e escolhas",
-          "body": "Escolha somente o significado sustentado pelo instrumento e pelo processo. Os seletores oferecem as opções aceitas pelo catálogo atual.",
+          "body": "Use esta tabela quando surgir dúvida no perfil. Os seletores mostram as opções aceitas pelo catálogo atual. Escolha a que corresponde ao instrumento e ao processo, mesmo que outra opção liberasse um cálculo.",
           "fields": [
             {
               "key": "signals.required",
@@ -428,14 +428,14 @@
             {
               "key": "signals.semanticBinding.roleCode",
               "label": "Papel semântico",
-              "description": "Grandeza e função controladas; a análise compara esse papel, não a semelhança do nome do TAG.",
+              "description": "Escolha o que o sinal representa para o cálculo, por exemplo qual grandeza e qual função na máquina. A análise usa essa opção controlada; não adivinha pelo nome do TAG.",
               "example": "Potência ativa de entrada, se medida",
               "constraints": ""
             },
             {
               "key": "signals.semanticBinding.currentBasis",
               "label": "Base de corrente",
-              "description": "Distingue a base admitida pelo papel, como corrente RMS apropriada ao instrumento; não deduza de uma etiqueta genérica.",
+              "description": "Informe a base de corrente que o instrumento fornece e que o papel admite, como RMS quando apropriado. Se a etiqueta diz apenas corrente, confirme a medição antes de escolher.",
               "example": "Selecionar a opção documentada do instrumento",
               "constraints": ""
             },
@@ -449,7 +449,7 @@
             {
               "key": "signals.semanticBinding.pressureReference",
               "label": "Referência de pressão",
-              "description": "Identifica base/origem exigida; pressão diferencial de saída menos entrada é diferente de pressão de descarga isolada.",
+              "description": "Diga qual pressão foi medida. A diferença entre saída e entrada é diferente da pressão de descarga sozinha; escolha a base exigida pelo papel e confirmada pelo instrumento.",
               "example": "Diferencial medido saída − entrada",
               "constraints": ""
             },
@@ -478,7 +478,7 @@
         },
         {
           "heading": "Exemplo: não confundir proxy com eficiência",
-          "body": "Corrente aumentando na mesma velocidade pode justificar investigação, mas não é cálculo de eficiência física do motor. Potência elétrica de entrada, vazão e diferencial de pressão podem habilitar outras regras se os papéis, unidades e alinhamento exigidos existirem. Sem instrumento ou qualificador necessário, leia a razão de regra indisponível em vez de preencher um valor fictício.",
+          "body": "Suponha que a corrente da bomba aumentou enquanto a velocidade permaneceu igual. Isso pode orientar uma investigação, mas a corrente, sozinha, não calcula a eficiência física do motor. É um indicador substituto, também chamado proxy.\n\nOutras regras podem usar potência elétrica de entrada, vazão e diferença de pressão. Elas só ficam disponíveis quando os sinais têm os papéis, unidades e alinhamento exigidos. Se faltar uma medição ou um detalhe necessário, leia o motivo da indisponibilidade; não preencha valores fictícios para liberar a regra.",
           "fields": null
         }
       ],
@@ -494,31 +494,31 @@
       "id": "intelligence.analysis-guide",
       "category": "intelligence",
       "title": "Intelligence: consultar resultados e montar dashboards",
-      "summary": "Escolha a pergunta, confirme os dados disponíveis e só então interprete o indicador.",
+      "summary": "Comece conferindo os dados do período. Depois escolha um cálculo e, se precisar, gere uma tela para consultar no Runtime.",
       "sections": [
         {
           "heading": "Comece pela cobertura",
-          "body": "Com associação salva e execução autorizada, abra a consulta de cobertura do perfil. Informe início e fim e solicite a consulta explicitamente. Os horários do formulário são locais e a consulta identifica sua janela UTC. O fim deve ser posterior ao início. Confira sinais obrigatórios com dados, amostras aceitas/rejeitadas, qualidade e alinhamento temporal antes de ler mínimos, máximos ou médias. Contagens de amostras por si só não provam cadência, completude nem aquisição sincronizada.",
+          "body": "Cobertura responde à primeira pergunta: há dados utilizáveis para esta análise? Com a associação salva e a execução autorizada, abra a consulta de cobertura do perfil. Escolha início e fim e solicite a consulta.\n\nO formulário mostra horários locais; a consulta identifica também a janela UTC, a referência de tempo comum usada para comparar os dados. O fim deve ser posterior ao início.\n\nConfira quais sinais obrigatórios têm dados, quantas amostras foram aceitas ou rejeitadas, a qualidade e o alinhamento dos horários. Só depois interprete mínimo, máximo ou média. Muitas amostras, por si só, não provam que não há lacunas nem que todos os sinais foram medidos juntos.",
           "fields": null
         },
         {
           "heading": "Desempenho: escolha uma regra elegível",
-          "body": "Abra Desempenho e selecione a regra do catálogo. Uma opção desabilitada explica o sinal, papel ou unidade ausente. Não escolha outra grandeza apenas por produzir um número. Preencha De/Até, consulte e leia status, unidade, janela e limitações do resultado. Resultado indisponível não equivale a zero; um indicador substituto não deve ser chamado de eficiência física. Mudar associação, revisão ou parâmetros exige nova consulta, não reaproveitar o número anterior.",
+          "body": "Em Desempenho, escolha a regra de cálculo do catálogo. Se uma opção estiver desabilitada, leia qual sinal, significado ou unidade está faltando. Escolher outra grandeza apenas para obter um número mudaria a pergunta.\n\nPreencha De/Até e consulte. Leia o estado, a unidade, o período efetivo e as limitações junto do resultado. Indisponível não é zero. Um indicador substituto, como uma comparação de corrente, não deve ser apresentado como eficiência física.\n\nSe mudar a associação, a revisão ou os parâmetros, faça outra consulta. O resultado anterior pertence às escolhas anteriores.",
           "fields": null
         },
         {
           "heading": "Dois tipos de contexto, com limites diferentes",
-          "body": "O contexto operacional salvo no perfil usa intervalo numérico inclusivo na unidade de engenharia atual e exige evidência no mesmo timestamp UTC de origem exato. O gerador de tela de desvio contextual tem seleções próprias: 2 a 8 sinais-alvo e dois sinais numéricos de contexto distintos, também distintos dos alvos. São pelo menos quatro sinais numéricos utilizáveis. As faixas desse gerador usam a unidade controlada exibida e a regra limite inferior ≤ valor < limite superior. Não copie automaticamente limites do perfil operacional: unidade e extremidade superior podem ser diferentes.",
+          "body": "Contexto descreve uma condição de operação para comparar situações semelhantes. Por exemplo, analisar a bomba numa faixa de vazão pode ser mais útil que misturar todas as condições. Existem duas configurações diferentes:\n\nNo perfil operacional salvo, o intervalo numérico inclui os dois limites, na unidade de engenharia atual. Os sinais precisam de evidência com o mesmo timestamp UTC de origem exato. Leituras apenas próximas no tempo não atendem esse requisito.\n\nNo gerador de tela de desvio contextual, escolha 2 a 8 sinais-alvo e dois sinais numéricos de contexto. Os dois contextos devem ser distintos entre si e dos alvos: são pelo menos quatro sinais numéricos utilizáveis. As faixas usam a unidade controlada mostrada e incluem o limite inferior, mas excluem o superior: limite inferior ≤ valor < limite superior.\n\nConfira qual configuração está usando antes de copiar limites. A unidade e a inclusão do limite superior podem ser diferentes.",
           "fields": null
         },
         {
           "heading": "Gere a tela e confira a cadeia completa",
-          "body": "1. Escolha a associação ou etapa e o tipo de tela. 2. Complete as seleções exigidas; se o botão estiver bloqueado, leia o motivo junto do campo. 3. Gere o rascunho. Esse passo organiza objetos e referências, não consulta o Historian nem ativa a tela. 4. No editor, revise nome, dimensões, objetos, vínculos e navegação. Execute Preview e Apply. 5. Salve/publique/ative a revisão e abra a tela pelo Runtime. 6. Configure/execute a consulta do objeto e confira janela e resultado. Uma tela de etapa reúne membros; não cria automaticamente um KPI agregado nem prova causalidade entre equipamentos.",
+          "body": "1. Escolha a associação do equipamento ou a etapa do processo e o tipo de tela desejado.\n2. Complete os sinais e opções pedidos. Se o botão estiver bloqueado, leia o motivo junto do campo.\n3. Gere o rascunho. Esse passo organiza objetos e referências; ainda não lê dados do Historian nem ativa a tela.\n4. No editor, confira título, dimensões, objetos, vínculos e forma de abrir a tela. Execute Pré-visualização e Aplicar para levar a edição ao projeto.\n5. Salve a revisão, publique e ative. Abra a tela no Runtime pela navegação configurada.\n6. No objeto de análise, configure o período e solicite a consulta. Confira a janela e o resultado. Uma tela de etapa reúne seus equipamentos; isso não cria um indicador agregado nem demonstra que um equipamento causou o resultado de outro.",
           "fields": null
         },
         {
           "heading": "Roteiro para investigar resultado vazio",
-          "body": "Confira nesta ordem: licença e permissões; escopo salvo e permissão armada; projeto/revisão ativa; associação e TAGs; período; captura Historian; qualidade; papéis/unidades; alinhamento/contexto. Corrija a primeira condição comprovadamente ausente e refaça a consulta. Não amplie limites nem altere o significado do sinal apenas para fazer o resultado aparecer. As análises disponíveis ajudam a investigar; não confirmam defeito nem antecipam falhas com validade de campo ainda não demonstrada.",
+          "body": "Se não há resultado, procure a primeira condição que falta:\n\nConfira licença e permissões; depois, a seleção salva do recurso e a permissão de execução armada. Confira se o projeto e a revisão ativos são os esperados. Em seguida, revise associação, TAGs e período.\n\nSe esses itens estão corretos, examine a captura no Historian, a qualidade dos dados, os papéis e unidades dos sinais e as exigências de alinhamento e contexto. Corrija a condição comprovadamente ausente e consulte de novo.\n\nNão mude o significado de um sinal nem amplie limites só para fazer aparecer um resultado. As análises ajudam a investigar. Elas não confirmam defeito nem antecipam falhas com validade de campo ainda não demonstrada.",
           "fields": null
         }
       ],
@@ -6986,17 +6986,32 @@
       "sections": [
         {
           "heading": "Where to go and what this page does",
-          "body": "Open Engineering > Database. SystemAdmin is required. Local Managed uses installation-managed local storage; Remote uses configured PostgreSQL. This selects storage, not HA server redundancy. Read Current status and Next action first. Healthy Local Managed needs no Remote profile if it suits your installation.",
+          "body": "This screen defines where SCADIVO stores its data. Open Engineering > Database with system administration permission (SystemAdmin).\n\nLocal Managed is the local database managed by the installation. Remote is a PostgreSQL database you prepare at another destination. If the local database is healthy and meets your needs, you can keep using it without filling Remote.\n\nBefore changing anything, read Current state and Next action. Choosing a database defines storage; it does not by itself configure HA redundancy between two servers.",
           "fields": null
         },
         {
           "heading": "Prepare the target",
-          "body": "Agree on server, database, account, certificates and privileges with the administrator. The address must be reachable by the SCADIVO service, not merely the browser. In Docker, localhost inside a container means that container; use a service-reachable address. On Windows/Linux certificate paths belong to the service host. Back up and plan maintenance before migration.",
+          "body": "Ask the administrator for the destination details: server address, database, account, permissions and certificates. Make a backup and agree a maintenance window before migrating. Migration may pause writes.\n\nThe connection comes from the SCADIVO service. Opening an address in a browser therefore does not prove the service can reach it. In Docker, localhost means the container itself; use a name or address the service can actually access.\n\nLikewise, the certificate file must exist on the server running the service, whether Windows, Linux or a container. A path available only on the browser computer does not meet that requirement.",
+          "fields": null
+        },
+        {
+          "heading": "Migrate data to another database",
+          "body": "1. Check which database is active and have a backup available.\n2. Fill the Remote destination and use Validate destination. Validation checks connection, authentication, TLS protection and compatibility; connection alone is not enough to permit switching.\n3. Prepare migration and review the plan: source, destination and included data. Configuration becomes locked after preparation.\n4. During the maintenance window, use Start migration. Durable writes may be paused during the operation.\n5. Wait for copying and automatic verification. Read the result before proceeding.\n6. Only after successful verification, use Activate Remote database and confirm the destination.\n7. If restart is requested, restart or reopen the service as appropriate for the installation. Before resuming, check active database, health, project and revision.",
+          "fields": null
+        },
+        {
+          "heading": "Connecting an existing database is not migration",
+          "body": "Use Connect existing database (without copying) only when the destination is already prepared with the same project and active revision required by the installation. This path does not copy or merge records. Use migration to take current database data to a new destination.\n\nRead the confirmation before switching. If project or revision is incompatible, the operation is blocked. Do not empty or modify the database to bypass this check.",
+          "fields": null
+        },
+        {
+          "heading": "Rollback and return to local storage",
+          "body": "If Recovery/Rollback required appears, the operation needs recovery or reversal. Read diagnostics and use Roll back operation when available.\n\nReturning to Local Managed checks and reactivates the preserved local database; restart may be required. It does not automatically merge data written to Remote after the switch. The previous database is preserved, but this is not the same as restoring a backup. It does not delete Remote either.\n\nAfter returning, check which data, project and revision are actually active before resuming operation.",
           "fields": null
         },
         {
           "heading": "Basic and advanced fields",
-          "body": "Start with host, user and secret. Open Advanced settings only to change supplied values. Examples are illustrative, not installation credentials.",
+          "body": "To prepare Remote, start with the address, username and password supplied by the administrator. Other fields can keep their filled values when suitable for the installation. Open Advanced settings to review or change those details. The table below explains each choice; examples are not real credentials.",
           "fields": [
             {
               "key": "primary.host",
@@ -7036,7 +7051,7 @@
             {
               "key": "primary.tlsMode",
               "label": "TLS mode",
-              "description": "Require demands encryption. VerifyCa validates the CA chain; VerifyFull also checks the server name. Prefer and Disable do not provide equivalent protection. Use the IT-approved mode, not disabled TLS to hide an error.",
+              "description": "TLS protects the connection. Require demands encryption; VerifyCa also checks the certificate authority chain; VerifyFull additionally checks the server name. Prefer and Disable do not guarantee the same protection. Use the mode agreed with IT; do not disable TLS just to hide an error.",
               "example": "Require or VerifyFull with valid CA",
               "constraints": ""
             },
@@ -7057,30 +7072,15 @@
             {
               "key": "historianOverride",
               "label": "Historian uses Primary / dedicated",
-              "description": "Selected, history uses the primary database. Clear only for a dedicated Historian target and fill its endpoint completely; it must also pass compatibility.",
+              "description": "When checked, recorded history, called Historian, uses the primary database. Clear only if you prepared a dedicated history database. Then fill its complete connection details and validate that destination’s compatibility too.",
               "example": "Use Primary for a simple setup",
               "constraints": ""
             }
           ]
         },
         {
-          "heading": "Migrate data to another database",
-          "body": "1. Check the active database and back up. 2. Fill Remote and Validate target. Connection, authentication, TLS and compatibility are tested; reachability alone is insufficient. 3. Prepare migration and review source, target and included data. Configuration locks after preparation. 4. During maintenance, Start migration; durable writes may pause. 5. Wait for copy and automatic verification. 6. Only after successful verification select Activate Remote database and confirm. 7. If restart is required, restart/reopen the service for your installation. Recheck active topology, health, project and revision before resuming operations.",
-          "fields": null
-        },
-        {
-          "heading": "Connecting an existing database is not migration",
-          "body": "Connect to existing database (without copy) does not copy or merge records. Use it only for a prepared target with the same project and active revision required by the installation. Read confirmation. Project/revision mismatch blocks switching; do not empty or alter the database to bypass the check. Use migration to transport current data.",
-          "fields": null
-        },
-        {
-          "heading": "Rollback and return to local storage",
-          "body": "If Recovery/Rollback is required, review diagnostics and use Roll back operation when available. Return to Local Managed validates and reactivates preserved local storage and may need restart. It does not automatically merge later Remote writes into local storage. The previous database is preserved; returning is neither backup restoration nor Remote deletion. Check actual active data and revision afterward.",
-          "fields": null
-        },
-        {
           "heading": "Errors requiring different actions",
-          "body": "No connection: check service DNS/port/access. Authentication rejected: verify PostgreSQL account/secret. TLS: inspect CA, certificate name and validity. Incompatibility: read PostgreSQL version, required TimescaleDB capability and schema. Invalid phase: refresh and follow Next action rather than starting another copy. Unavailable storage may degrade Runtime; memory must not pretend to be durable storage. Record time, phase and operation ID for support without passwords.",
+          "body": "Start with the message received. For no connection, check name/address, port and access from the service. Authentication refusal calls for checking the PostgreSQL account and password. A TLS error calls for checking the certificate authority, server name and certificate validity.\n\nFor incompatibility, read PostgreSQL version, TimescaleDB requirements when applicable and schema, the data structure the product expects. For invalid phase, refresh state and follow Next action; do not start another copy while one is in progress.\n\nWhen the database is unavailable, Runtime can be degraded. The product must not present memory writes as database persistence. For support, record time, phase and operation ID; omit passwords.",
           "fields": null
         }
       ],
@@ -7100,12 +7100,12 @@
       "sections": [
         {
           "heading": "What to prepare first",
-          "body": "HA means High Availability: two servers can take over Runtime in a controlled way. Open Engineering > High Availability. HA Runtime licensing and HighAvailabilityObserve are needed; saving/operations also require HighAvailabilityTransfer. Check service networking, authentication, clocks and each node storage. Shared or separate databases need topology verification; enabling HA alone neither creates replication nor proves storage availability.",
+          "body": "HA means High Availability. Two servers are prepared so Runtime can move between them with protection against duplicate execution. In this guide, node means either of those servers.\n\nOpen Engineering > High Availability. Observation requires the HA Runtime license and permission to monitor the servers. Saving or operating also requires transfer permission. Check service-to-service networking, authentication, clocks and storage on both nodes.\n\nDatabases may be shared or separate according to the prepared installation. Enabling HA does not create data replication or guarantee database availability. Check that part with the installation administrator before configuring the pair.",
           "fields": null
         },
         {
           "heading": "Enter only installation-dependent settings",
-          "body": "The page distinguishes This server and Partner server. Operators do not need to invent internal identities or automatic transport.",
+          "body": "The screen calls the nodes This server and Partner server. Start with addresses that allow their services to communicate. Use the picker for preferred server and the protected authentication flow. The product handles internal identities and automatic transport; do not invent those values. The table details the choices.",
           "fields": [
             {
               "key": "nodes.localEndpoint",
@@ -7138,7 +7138,7 @@
             {
               "key": "protection.referencePath",
               "label": "Protection and shared reference",
-              "description": "Fencing prevents two Active executors. Both nodes must see the same external shared reference; two local files with equal names are not shared authority.",
+              "description": "This reference supports protection against two Active servers at once, called fencing. Both must see the same shared external storage. Two local files with matching names are not one common reference.",
               "example": "Shared resource provisioned for the installation",
               "constraints": ""
             },
@@ -7153,41 +7153,41 @@
         },
         {
           "heading": "Preparation procedure",
-          "body": "1. Check Running mode. 2. Prepare HA, enter both addresses and select preference. 3. Configure authentication/shared protection and resolve HA readiness items. 4. Save desired configuration; Saved is not Running. 5. If required, plan service restarts and inspect what actually loaded. 6. Refresh and check effective Active, partner, database and protection. Standby is not Ready Standby. 7. Before process use, conduct the manual trial agreed with the installation owner; documentation checks do not replace it.",
+          "body": "1. Check Running mode before editing. It reports the configuration the service is using now.\n2. Prepare HA, enter both service addresses and choose the preferred server.\n3. Configure authentication and shared protection. Resolve items shown under HA readiness.\n4. Use Save desired configuration. This stores the choice but does not prove it is already Running.\n5. If restart is pending, plan it and then check the configuration actually loaded by the services.\n6. Refresh state. Check effective Active, partner readiness, database and protection. Standby alone does not mean Ready Standby.\n7. Before process use, perform the manual exercise agreed with the installation administrator. This guide’s checks do not replace that evaluation.",
           "fields": null
         },
         {
           "heading": "Read states before operating",
-          "body": "Effective Active is authorized to execute, not merely preferred. Synchronizing is still receiving/checking state. Ready Standby denotes backend-assessed readiness; Standby alone does not prove it. Promoting/Demoting are transitions: await the result. Stale means old observation; Isolated, Faulted, degraded or ambiguous authority require diagnosis. Database availability differs from peer reachability. Do not hide storage failure by increasing network tolerances.",
+          "body": "Effective Active is the server authorized to execute now. It may not be the preferred one. The partner may merely be in Standby, waiting, or in Ready Standby, with readiness evaluated by the server. Read that distinction before transferring.\n\nSynchronizing means synchronization is still in progress. Promoting and Demoting are transitions: wait for the result. Stale warns that the observation is old. Isolated, Faulted, degraded state or ambiguous authority call for diagnosis.\n\nCheck database availability separately from partner communication. Reaching the partner does not prove the database works. Increasing network tolerances to hide a database fault does not resolve it.",
           "fields": null
         },
         {
           "heading": "Choose the right operation",
-          "body": "Switchover is planned transfer from effective Active to an eligible partner. Failback requests return to preference when allowed. Recovery reconciles a failure/block. Force resynchronization is specific recovery when no Active exists and previous authority was fenced; it does not declare a partner ready. Read target, confirmation and result; check history and resulting Active. Do not repeat a rejected request until its cause changes.",
+          "body": "Choose the action for the situation. Switchover is a planned transfer from effective Active to an eligible partner. Failback requests return to the preferred server when allowed. Recovery reconciles a failure or blocked condition.\n\nForce resynchronization has a specific condition: there must be no Active, and the previous authority must be fenced, meaning prevented from continuing execution. The action does not let the operator declare a partner ready.\n\nBefore confirming, read action and target. Afterwards check result, history and which node is Active. If the request is refused, investigate the cause before trying again.",
           "fields": null
         },
         {
           "heading": "Advanced settings: meaning and bounds",
-          "body": "Use prefilled values as the starting point. Timing changes affect protection and failure response; assess network, clocks and operations first. Form bounds are not performance recommendations.",
+          "body": "Initially keep the filled timing values. They control how long information is recent and how protection responds to failures.\n\nAdjust only after assessing network, clocks and operation. A number fitting the form’s limit does not make it a recommendation for your installation. The table explains each timing’s effect.\n\nFor checking permissions in Security: HighAvailabilityObserve allows observation; HighAvailabilityTransfer is also required for saving and operating. These are reference identifiers for the administrator.",
           "fields": [
             {
               "key": "freshnessSeconds",
               "label": "Freshness (s)",
-              "description": "Maximum age of an observation considered recent.",
+              "description": "Maximum time for treating an observation as recent. After that it may be too old to guide operation; this is not a TAG acquisition interval.",
               "example": "Keep prefilled value",
               "constraints": "1–120 s"
             },
             {
               "key": "protection.leaseSeconds",
               "label": "Lease (s)",
-              "description": "Execution-authority validity before expiry; not a commercial license.",
+              "description": "Lifetime of the temporary authorization for the server to execute as Active. Once expired, that authority is no longer valid. Lease is not a commercial license.",
               "example": "Keep prefilled value",
               "constraints": "3–120 s"
             },
             {
               "key": "protection.pollMilliseconds",
               "label": "Poll (ms)",
-              "description": "Shared-reference polling interval; smaller means more frequent reads.",
+              "description": "Time between checks of the shared reference. A lower value checks more often. This field uses milliseconds, not seconds.",
               "example": "Keep prefilled value",
               "constraints": "100–10000 ms"
             },
@@ -7209,7 +7209,7 @@
         },
         {
           "heading": "If there is a problem",
-          "body": "403: inspect observe/operate permissions. Saved differs from running: check pending restart. Unreachable peer: inspect service addresses, network and authentication. Unavailable reference: investigate external shared storage. Partner not ready: inspect synchronization, database and diagnostics without forcing promotion. Record time, action, result and effective node, never the secret.",
+          "body": "For a 403 response, check permission to observe or operate. If Saved differs from Running, check for pending restart. For an unavailable partner, examine addresses, networking and authentication between services.\n\nIf the protection reference is unavailable, investigate shared external storage. If the partner is not ready, read synchronization, database and diagnostic information; do not force promotion to bypass the condition.\n\nInvestigate one problem at a time. Record time, action, result and effective server for support, without the authentication secret.",
           "fields": null
         }
       ],
@@ -7224,31 +7224,31 @@
       "id": "intelligence.activation",
       "category": "intelligence",
       "title": "Intelligence: enable, pause and resolve blocks",
-      "summary": "Available licensing, selected resources and active execution are different conditions.",
+      "summary": "Choose which equipment to analyze, prepare its configuration and activate use. Having the license does not automatically start analyses.",
       "sections": [
         {
           "heading": "Follow the full sequence",
-          "body": "Open Engineering > Asset Intelligence. First create Equipment and TAGs, then signal profiles, Equipment/profile assignments, useful contexts and stages. Save configuration and selected scopes; publish/activate the revision. Then explicitly activate the resource for analysis. Creating a profile, checking a box or holding a license does not automatically arm execution.",
+          "body": "Start with one piece of equipment, such as Pump 01. Open Engineering > Asset Intelligence. You will gather its variables, identify which equipment they belong to and choose where to use analysis.\n\nThe profile lists signals and their meanings. An assignment connects that profile to registered Equipment. Configure contexts and stages only when they fit your question. Then save, publish and activate the project revision.\n\nOne separate decision remains: explicitly activate the selected resource to allow analyses. Creating the profile, checking a box or having the license does not do that for you.",
           "fields": null
         },
         {
           "heading": "Permissions and resource selection",
-          "body": "EngineeringModify permits configuration; AssetProcessIntelligenceManage must be explicit, global or covering the Equipment/Location. The Developer name or SystemAdmin alone does not replace that grant. Queries also need TrendUse and Intelligence licensing. Grant through Security and inspect effective session capabilities. Select resources rather than memorizing IDs, preserving their identity.",
+          "body": "Your account needs permission to edit Engineering and manage Intelligence for the selected equipment or locations. Security shows these as EngineeringModify and AssetProcessIntelligenceManage. The latter needs an explicit grant, global or scoped to the resource. A role name such as Developer or SystemAdmin does not by itself establish that grant.\n\nQueries also require TrendUse and the Intelligence license. If a control is blocked, check the session’s effective capabilities there. Choose resources through the pickers; there is no need to memorize or invent IDs.",
           "fields": null
         },
         {
           "heading": "Activate only where useful",
-          "body": "1. Select Equipment/Locations under Eligible scopes. 2. Save scopes and configuration. 3. Publish/activate the revision and resolve pending changes before arming execution. 4. Use Activate on the resource and confirm its execution permit is armed. 5. Open an assignment query and choose the period. 6. Use Pause to stop analysis; pending work is cancelled without deleting TAGs/history. Pause before removing a resource from selection.",
+          "body": "1. Under Eligible scopes, select only the equipment or locations you want to analyze. Here, scope means that selection of resources.\n2. Save the scopes and prepared configuration.\n3. Publish and activate the project revision. Resolve pending changes before allowing execution.\n4. On the resource row, use Activate and check that its execution permit is armed, meaning execution is allowed for that resource.\n5. Open the assignment query, choose a period and request analysis. Activation allows a query; it does not automatically run one.\n6. Use Pause to stop analyses. Pending work is cancelled, while TAGs and history remain. Pause a resource before removing it from the selection.",
           "fields": null
         },
         {
           "heading": "Configured active does not mean armed",
-          "body": "After authorization revocation the execution permit can stay closed while configuration remains active. Restoring a grant does not silently rearm work: inspect state and explicitly Activate again, including after restart when indicated. This avoids restarting analysis without an owner decision. Distinguish this from Historian errors or missing data.",
+          "body": "If a permission was revoked, a resource can remain marked Active in configuration while execution is blocked. These are different facts: what was configured and what is authorized now.\n\nRestoring the grant does not silently restart work. Check status and use Activate again, including after restart when requested by the screen. This requires an explicit decision by the responsible person. Check this condition before investigating missing data in the recorded history, called Historian.",
           "fields": null
         },
         {
           "heading": "Example: start small",
-          "body": "Start with Pump 01 in one area. Configure current and speed if available; do not invent missing vibration. Add measurements and analyses supported by their catalogs. Keep unused resources paused. Selective configuration controls eligible execution, not a fixed CPU/RAM promise.",
+          "body": "For Pump 01, start with current and speed if those measurements exist. Choose analyses that accept them. When more measurements become available, you can expand the profile and use other compatible analyses.\n\nKeep unused resources paused. Do not invent a missing vibration signal. Selection limits what is allowed to run, but does not guarantee fixed processor or memory usage.",
           "fields": null
         }
       ],
@@ -7269,12 +7269,12 @@
       "sections": [
         {
           "heading": "Why a name is not enough",
-          "body": "A TAG named Power may mean active/apparent power or a calculated value; pressure may mean suction, discharge or differential. Rules must not guess from names. In the profile select the controlled semantic role when required and complete its shown qualifiers. Legacy role text is descriptive only.",
+          "body": "Before calculating, specify what each variable measures. A TAG named Power might be active power, apparent power or a calculation; Pressure might measure suction, discharge or their difference. Its name alone does not identify the right formula.\n\nIn the profile, choose the required semantic role: the option that identifies the signal’s meaning for analysis. Then fill in its displayed qualifiers, the details that make that choice precise. Legacy role text remains a description; it does not replace this selection.",
           "fields": null
         },
         {
           "heading": "Fields and choices",
-          "body": "Choose only meaning supported by the instrument and process. Selectors list choices accepted by the current catalog.",
+          "body": "Use this table when a profile field is unclear. Pickers show options accepted by the current catalog. Choose what matches the instrument and process, even if another option would unlock a calculation.",
           "fields": [
             {
               "key": "signals.required",
@@ -7286,14 +7286,14 @@
             {
               "key": "signals.semanticBinding.roleCode",
               "label": "Semantic role",
-              "description": "Controlled quantity/function; analysis matches it rather than a similar TAG name.",
+              "description": "Choose what the signal represents in the calculation: its quantity and function in the machine. Analysis uses that controlled option; it does not guess from the TAG name.",
               "example": "Active input power, if measured",
               "constraints": ""
             },
             {
               "key": "signals.semanticBinding.currentBasis",
               "label": "Current basis",
-              "description": "Distinguishes the role-accepted basis, such as instrument-appropriate RMS current; do not infer from a generic label.",
+              "description": "Specify the current basis supplied by the instrument and accepted by the role, such as RMS when appropriate. If its label only says current, confirm the measurement before choosing.",
               "example": "Select the documented instrument option",
               "constraints": ""
             },
@@ -7307,7 +7307,7 @@
             {
               "key": "signals.semanticBinding.pressureReference",
               "label": "Pressure reference",
-              "description": "Identifies required basis/source; outlet-minus-inlet differential differs from discharge pressure alone.",
+              "description": "Specify which pressure was measured. Outlet minus inlet pressure differs from discharge pressure alone; choose the basis required by the role and confirmed by the instrument.",
               "example": "Measured outlet − inlet differential",
               "constraints": ""
             },
@@ -7336,7 +7336,7 @@
         },
         {
           "heading": "Example: do not confuse a proxy with efficiency",
-          "body": "Increasing current at the same speed may justify investigation but is not physical motor-efficiency calculation. Input electrical power, flow and differential pressure may enable other rules when roles, units and required alignment exist. If an instrument/qualifier is missing, read the unavailable-rule reason rather than entering fictional values.",
+          "body": "Suppose pump current rises while speed stays the same. That can guide an investigation, but current alone does not calculate the motor’s physical efficiency. It is a substitute indicator, also called a proxy.\n\nOther rules may use electrical input power, flow and pressure difference. They become available only when signals meet the required roles, units and alignment. If a measurement or necessary detail is missing, read the reason for unavailability; do not enter fictional values to unlock the rule.",
           "fields": null
         }
       ],
@@ -7352,31 +7352,31 @@
       "id": "intelligence.analysis-guide",
       "category": "intelligence",
       "title": "Intelligence: query results and build dashboards",
-      "summary": "Choose the question, check available data, then interpret the indicator.",
+      "summary": "Start by checking data for the period. Then choose a calculation and, if needed, generate a screen for Runtime queries.",
       "sections": [
         {
           "heading": "Start with coverage",
-          "body": "With saved assignment and authorized execution, open profile coverage. Enter start/end and explicitly query. Form times are local and the response identifies the UTC window; end must follow start. Inspect required signals with data, accepted/rejected samples, quality and temporal alignment before min/max/mean. Sample counts alone prove neither cadence, completeness nor synchronized acquisition.",
+          "body": "Coverage answers the first question: is there usable data for this analysis? With the assignment saved and execution authorized, open the profile’s coverage query. Choose start and end and request the query.\n\nThe form shows local times; the query also identifies its UTC window, the common time reference used to compare data. End must be after start.\n\nCheck which required signals have data, accepted and rejected sample counts, quality and time alignment. Only then interpret minimum, maximum or average. A large sample count alone does not prove gap-free data or that all signals were measured together.",
           "fields": null
         },
         {
           "heading": "Performance: choose an eligible rule",
-          "body": "Open Performance and select a catalog rule. Disabled options explain missing signals, roles or units. Do not choose a different quantity just to obtain a number. Fill From/To, query and inspect status, unit, window and limitations. Unavailable is not zero; a proxy must not be labelled physical efficiency. Assignment/revision/parameter changes require a fresh query rather than reuse of an old number.",
+          "body": "In Performance, choose the calculation rule from the catalog. If an option is disabled, read which signal, meaning or unit is missing. Choosing another quantity merely to obtain a number would change the question.\n\nFill From/To and query. Read status, unit, actual period and limitations alongside the result. Unavailable is not zero. A substitute indicator, such as a current comparison, must not be presented as physical efficiency.\n\nIf assignment, revision or parameters change, request another query. The previous result belongs to the previous choices.",
           "fields": null
         },
         {
           "heading": "Two context types with different bounds",
-          "body": "Saved operating contexts use inclusive numeric bounds in the current engineering unit and evidence at the same exact UTC source timestamp. The contextual-deviation screen generator uses separate selections: 2–8 target signals and two distinct numeric context signals, different from targets. At least four usable numeric signals are needed. Generator ranges use the displayed controlled unit and lower ≤ value < upper. Do not automatically copy operating-profile bounds: units and upper-bound inclusion may differ.",
+          "body": "Context describes an operating condition so similar situations can be compared. For example, studying a pump within a flow range can be more useful than mixing every condition. There are two different configurations:\n\nIn the saved operating profile, a numeric range includes both limits in the current engineering unit. Signals need evidence at the exact same source UTC timestamp. Readings merely close in time do not meet that requirement.\n\nIn the contextual-deviation screen generator, choose 2 to 8 target signals and two numeric context signals. Context signals must differ from each other and from the targets: at least four usable numeric signals are needed. Ranges use the displayed controlled unit and include the lower limit but exclude the upper: lower ≤ value < upper.\n\nCheck which configuration you are using before copying limits. Units and upper-limit inclusion can differ.",
           "fields": null
         },
         {
           "heading": "Generate the screen and check the full chain",
-          "body": "1. Choose assignment/stage and screen type. 2. Complete required selections; read field reasons if blocked. 3. Generate the draft; this arranges objects/references without querying Historian or activating a screen. 4. Review name, dimensions, objects, bindings and navigation in the editor; Preview and Apply. 5. Save/publish/activate and open in Runtime. 6. Configure/run the object query and check window/result. A stage screen groups members without automatically creating an aggregate KPI or proving causality.",
+          "body": "1. Choose the equipment assignment or process stage and the desired screen type.\n2. Complete the requested signals and options. If the button is blocked, read the reason beside the field.\n3. Generate the draft. This organizes objects and references; it does not yet read Historian data or activate the screen.\n4. In the editor, check title, dimensions, objects, bindings and how to open the screen. Run Preview and Apply to put the edit in the project.\n5. Save the revision, publish and activate. Open the Runtime screen through configured navigation.\n6. In the analysis object, set the period and request the query. Check window and result. A stage screen groups its equipment; that does not create an aggregate indicator or establish that one equipment caused another’s result.",
           "fields": null
         },
         {
           "heading": "How to investigate an empty result",
-          "body": "Check in order: license/permissions; saved scope/armed permit; active project/revision; assignment/TAGs; period; Historian capture; quality; roles/units; alignment/context. Fix the first evidenced missing condition and query again. Do not broaden limits or change signal meaning just to make a result appear. Analyses support investigation, not confirmed defects or field-validated failure prediction.",
+          "body": "If there is no result, look for the first missing condition:\n\nCheck license and permissions, then the resource’s saved selection and armed execution permit. Check that the active project and revision are the expected ones. Next review assignment, TAGs and period.\n\nIf those are correct, examine Historian capture, data quality, signal roles/units and alignment/context requirements. Correct the condition shown to be missing and query again.\n\nDo not change a signal’s meaning or widen limits merely to produce a result. Analyses support investigation. They do not confirm defects or predict failures with field validity that has not yet been demonstrated.",
           "fields": null
         }
       ],
@@ -13844,17 +13844,32 @@
       "sections": [
         {
           "heading": "Dónde entrar y qué resuelve esta página",
-          "body": "Abra Ingeniería > Base de datos. Se requiere SystemAdmin. Local Managed usa almacenamiento local administrado; Remote usa PostgreSQL configurado. Esto elige almacenamiento, no redundancia HA. Lea Estado actual y Próxima acción. Un Local Managed saludable no necesita perfil Remote si satisface su instalación.",
+          "body": "Esta pantalla define dónde guarda datos SCADIVO. Abra Ingeniería > Base de datos con permiso para administrar el sistema (SystemAdmin).\n\nLocal Managed es la base local administrada por la instalación. Remote es un PostgreSQL preparado en otro destino. Si la base local está sana y cubre sus necesidades, puede seguir usándola sin completar Remote.\n\nAntes de cambiar algo, lea Estado actual y Próxima acción. Elegir una base define almacenamiento; no configura por sí solo redundancia HA entre dos servidores.",
           "fields": null
         },
         {
           "heading": "Prepare el destino",
-          "body": "Acuerde servidor, base, cuenta, certificados y permisos con el administrador. La dirección debe ser accesible por el servicio SCADIVO, no solo el navegador. En Docker localhost dentro del contenedor es ese contenedor. En Windows/Linux los certificados deben existir en el servidor del servicio. Haga backup y planifique mantenimiento.",
+          "body": "Pida al administrador los datos del destino: dirección, base, cuenta, permisos y certificados. Haga backup y acuerde una ventana de mantenimiento antes de migrar. La migración puede pausar escrituras.\n\nLa conexión parte del servicio SCADIVO. Abrir una dirección en el navegador no demuestra que el servicio la alcance. En Docker, localhost es el propio contenedor; use un nombre o dirección accesible realmente por el servicio.\n\nEl certificado también debe existir en el servidor que ejecuta el servicio, sea Windows, Linux o contenedor. Una ruta disponible solo en el equipo del navegador no cumple ese requisito.",
+          "fields": null
+        },
+        {
+          "heading": "Migrar datos a otra base",
+          "body": "1. Compruebe qué base está activa y tenga un backup disponible.\n2. Complete Remote y use Validar destino. Se comprueban conexión, autenticación, protección TLS y compatibilidad; conectar no basta para permitir el cambio.\n3. Prepare la migración y revise origen, destino y datos incluidos. Después queda bloqueada la configuración.\n4. En la ventana de mantenimiento use Iniciar migración. Las escrituras durables pueden pausarse durante la operación.\n5. Espere la copia y verificación automática. Lea el resultado antes de continuar.\n6. Solo tras verificar correctamente, use Activar base Remote y confirme el destino.\n7. Si se pide reinicio, reinicie o reabra el servicio según la instalación. Antes de retomar, compruebe base activa, salud, proyecto y revisión.",
+          "fields": null
+        },
+        {
+          "heading": "Conectar a base existente no es migrar",
+          "body": "Use Conectar a base existente (sin copia) solo si el destino ya está preparado con el mismo proyecto y revisión activa exigidos por la instalación. No copia ni combina registros. Para llevar los datos actuales al nuevo destino, use migración.\n\nLea la confirmación antes de cambiar. Si proyecto o revisión son incompatibles, se bloquea la operación. No vacíe ni altere la base para eludir la comprobación.",
+          "fields": null
+        },
+        {
+          "heading": "Revertir y volver al banco local",
+          "body": "Si aparece Recovery/Rollback necesario, la operación necesita recuperación o reversión. Lea el diagnóstico y use Revertir operación cuando esté disponible.\n\nVolver a Local Managed verifica y reactiva la base local preservada; puede pedir reinicio. No combina automáticamente los datos escritos en Remote después del cambio. Se conserva la base anterior, pero no equivale a restaurar un backup. Tampoco elimina Remote.\n\nAl volver, compruebe qué datos, proyecto y revisión están realmente activos antes de retomar la operación.",
           "fields": null
         },
         {
           "heading": "Campos básicos y avanzados",
-          "body": "Empiece con host, usuario y secreto. Abra Configuración avanzada solo para cambiar valores propuestos. Los ejemplos son demostrativos, no credenciales.",
+          "body": "Para preparar Remote, empiece por dirección, usuario y contraseña dados por el administrador. Los demás campos pueden conservar sus valores cuando sean adecuados a la instalación. Abra Configuración avanzada para consultar o cambiar detalles. La tabla explica cada elección; los ejemplos no son credenciales reales.",
           "fields": [
             {
               "key": "primary.host",
@@ -13894,7 +13909,7 @@
             {
               "key": "primary.tlsMode",
               "label": "Modo TLS",
-              "description": "Require exige cifrado. VerifyCa valida cadena CA; VerifyFull también el nombre del servidor. Prefer y Disable no ofrecen igual protección. Use el modo acordado con TI; no desactive TLS para ocultar un error.",
+              "description": "TLS protege la conexión. Require exige cifrado; VerifyCa también verifica la cadena de la autoridad certificadora; VerifyFull comprueba además el nombre del servidor. Prefer y Disable no garantizan la misma protección. Use el modo acordado con TI; no desactive TLS solo para ocultar un error.",
               "example": "Require o VerifyFull con CA válida",
               "constraints": ""
             },
@@ -13915,30 +13930,15 @@
             {
               "key": "historianOverride",
               "label": "Historian usa Primary / dedicado",
-              "description": "Marcado, histórico usa base principal. Desmarque solo para destino Historian dedicado y complete su endpoint; también debe superar compatibilidad.",
+              "description": "Marcada, el histórico guardado, llamado Historian, usa la base principal. Desmarque solo si preparó una base dedicada al histórico. Complete entonces sus datos de conexión y valide también la compatibilidad de ese destino.",
               "example": "Usar Primary en configuración simple",
               "constraints": ""
             }
           ]
         },
         {
-          "heading": "Migrar datos a otra base",
-          "body": "1. Compruebe base activa y haga backup. 2. Complete Remote y Valide destino: conexión, autenticación, TLS y compatibilidad; accesibilidad no basta. 3. Prepare migración y revise origen, destino y datos. La configuración queda bloqueada. 4. En mantenimiento Inicie migración; escrituras durables pueden pausarse. 5. Espere copia y verificación automática. 6. Tras verificación correcta, Active banco Remote y confirme. 7. Si se exige reinicio, reinicie/reabra el servicio y compruebe topología, salud, proyecto y revisión antes de operar.",
-          "fields": null
-        },
-        {
-          "heading": "Conectar a base existente no es migrar",
-          "body": "Conectar a base existente (sin copia) no copia ni mezcla registros. Úselo solo con destino preparado del mismo proyecto y revisión activa exigidos. Lea confirmación. La incompatibilidad bloquea cambio; no vacíe ni modifique base para evitar comprobación. Para transportar datos actuales use migración.",
-          "fields": null
-        },
-        {
-          "heading": "Revertir y volver al banco local",
-          "body": "Si se exige Recovery/Rollback, revise diagnóstico y Revierta operación cuando esté disponible. Volver a Local Managed valida/reactiva almacenamiento local conservado y puede exigir reinicio. No mezcla automáticamente escrituras posteriores de Remote con el local. Conserva la base anterior; volver no restaura un backup ni elimina Remote. Compruebe datos y revisión activos.",
-          "fields": null
-        },
-        {
           "heading": "Errores que requieren acciones diferentes",
-          "body": "Sin conexión: revise DNS/puerto/acceso del servicio. Autenticación rechazada: cuenta PostgreSQL/secreto. TLS: CA, nombre y validez. Incompatibilidad: versión PostgreSQL, capacidad TimescaleDB exigida y schema. Fase inválida: actualice y siga Próxima acción; no inicie otra copia. Almacenamiento indisponible puede degradar Runtime; memoria no debe simular persistencia. Para soporte registre hora, fase e ID sin contraseñas.",
+          "body": "Empiece por el mensaje recibido. Sin conexión, compruebe nombre/dirección, puerto y acceso desde el servicio. Si se rechaza autenticación, revise cuenta PostgreSQL y contraseña. Ante error TLS, compruebe autoridad certificadora, nombre del servidor y vigencia del certificado.\n\nEn incompatibilidad, lea requisitos de versión PostgreSQL, TimescaleDB cuando corresponda y schema, la estructura de datos esperada. En fase inválida, actualice el estado y siga Próxima acción; no inicie otra copia mientras haya una en curso.\n\nCon base no disponible, Runtime puede quedar degradado. El producto no debe presentar escrituras en memoria como persistidas en la base. Para soporte registre hora, fase e ID de operación, sin contraseña.",
           "fields": null
         }
       ],
@@ -13958,12 +13958,12 @@
       "sections": [
         {
           "heading": "Qué preparar primero",
-          "body": "HA significa Alta Disponibilidad: dos servidores pueden asumir Runtime de forma controlada. Abra Ingeniería > Alta disponibilidad. Requiere licencia HA Runtime y HighAvailabilityObserve; guardar/operar también HighAvailabilityTransfer. Compruebe red entre servicios, autenticación, relojes y almacenamiento de cada nodo. Bases compartidas o separadas necesitan comprobar topología; habilitar HA no crea replicación ni prueba disponibilidad.",
+          "body": "HA significa Alta Disponibilidad. Se preparan dos servidores para transferir Runtime entre ellos con protección contra ejecución duplicada. En esta guía, nodo significa cada servidor.\n\nAbra Ingeniería > Alta disponibilidad. Observar requiere licencia HA Runtime y permiso para supervisar los servidores. Guardar u operar requiere también permiso de transferencia. Compruebe red entre servicios, autenticación, relojes y almacenamiento de ambos nodos.\n\nLa base puede ser compartida o separada según la instalación preparada. Habilitar HA no crea replicación de datos ni garantiza disponibilidad de la base. Compruebe esa parte con el responsable antes de configurar la pareja.",
           "fields": null
         },
         {
           "heading": "Rellene solo lo que depende de la instalación",
-          "body": "La página distingue Este servidor y Servidor compañero. El operador no necesita inventar identidades internas ni transporte automático.",
+          "body": "La pantalla llama a los nodos Este servidor y Servidor asociado. Empiece por las direcciones que permiten comunicar sus servicios. Use el selector para el preferido y el flujo protegido de autenticación. El producto gestiona identidades internas y transporte automático; no invente esos valores. La tabla detalla las elecciones.",
           "fields": [
             {
               "key": "nodes.localEndpoint",
@@ -13996,7 +13996,7 @@
             {
               "key": "protection.referencePath",
               "label": "Protección y referencia compartida",
-              "description": "Fencing evita dos ejecutores Active. Ambos deben ver la misma referencia externa compartida; dos archivos locales con igual nombre no son autoridad compartida.",
+              "description": "Es la referencia usada para evitar dos servidores Active a la vez, protección llamada fencing. Ambos deben ver el mismo almacenamiento externo compartido. Dos archivos locales con igual nombre no forman una referencia común.",
               "example": "Recurso compartido provisionado",
               "constraints": ""
             },
@@ -14011,41 +14011,41 @@
         },
         {
           "heading": "Procedimiento de preparación",
-          "body": "1. Compruebe modo En ejecución. 2. Prepare HA con dos direcciones y preferencia. 3. Configure autenticación/protección compartida y resuelva preparación. 4. Guarde configuración deseada; Guardado no equivale a En ejecución. 5. Si se exige, planifique reinicios y compruebe configuración cargada. 6. Actualice y revise Active efectivo, compañero, base y protección. Standby no equivale a Ready Standby. 7. Antes de operar haga ensayo manual acordado con responsable; las comprobaciones del manual no lo sustituyen.",
+          "body": "1. Compruebe el modo En ejecución antes de editar. Informa la configuración usada ahora por el servicio.\n2. Prepare HA, indique las direcciones de ambos servicios y elija el servidor preferido.\n3. Configure autenticación y protección compartida. Resuelva los elementos de Preparación para HA.\n4. Use Guardar configuración deseada. Guarda la elección, pero no demuestra que ya esté En ejecución.\n5. Si falta reiniciar, planifíquelo y compruebe después la configuración realmente cargada.\n6. Actualice el estado. Compruebe Active efectivo, preparación del asociado, base y protección. Standby solo no significa Ready Standby.\n7. Antes de usar en el proceso, haga el ensayo manual acordado con el responsable. Las comprobaciones de esta guía no sustituyen esa evaluación.",
           "fields": null
         },
         {
           "heading": "Lea estados antes de operar",
-          "body": "Active efectivo está autorizado a ejecutar, no es solo preferido. Synchronizing aún recibe/verifica estado. Ready Standby indica preparación evaluada; Standby no la prueba. Promoting/Demoting son transiciones. Stale es observación antigua; Isolated, Faulted, degradación o autoridad ambigua exigen diagnóstico. Banco disponible difiere de compañero accesible. No oculte fallo de base aumentando tolerancias de red.",
+          "body": "Active efectivo es el servidor autorizado a ejecutar ahora. Puede no ser el preferido. El asociado puede estar solo en Standby, esperando, o en Ready Standby, con preparación evaluada por el servidor. Lea esa diferencia antes de transferir.\n\nSynchronizing indica sincronización en curso. Promoting y Demoting son transiciones: espere el resultado. Stale avisa de observación antigua. Isolated, Faulted, degradación o autoridad ambigua requieren diagnóstico.\n\nCompruebe por separado disponibilidad de base y comunicación con el asociado. Alcanzar el asociado no demuestra que la base funcione. Aumentar tolerancias de red para ocultar una falla de base no la resuelve.",
           "fields": null
         },
         {
           "heading": "Elija la operación correcta",
-          "body": "Switchover transfiere de Active efectivo a compañero elegible. Failback solicita volver al preferente cuando se permite. Recovery reconcilia fallo/bloqueo. Forzar resincronización es recuperación específica sin Active y con autoridad anterior cercada; no declara listo a un compañero. Lea destino, confirmación y resultado; compruebe historial y Active resultante. No repita rechazo sin cambiar su causa.",
+          "body": "Elija la acción según la situación. Switchover transfiere de forma planificada del Active efectivo a un asociado elegible. Failback solicita volver al preferido cuando se permite. Recovery reconcilia fallas o bloqueos.\n\nForzar resincronización tiene una condición específica: no debe haber Active y la autoridad anterior debe estar cercada, es decir, impedida de seguir ejecutando. La acción no permite declarar un asociado listo por decisión del operador.\n\nAntes de confirmar, lea acción y destino. Después compruebe resultado, histórico y quién quedó Active. Si se rechaza, investigue la causa antes de repetir.",
           "fields": null
         },
         {
           "heading": "Ajustes avanzados: significado y límites",
-          "body": "Parta de valores propuestos. Cambiar tiempos afecta protección y respuesta; evalúe red, relojes y operación. Los límites del formulario no son recomendaciones de rendimiento.",
+          "body": "Mantenga inicialmente los tiempos indicados. Controlan cuánto tiempo se considera reciente una información y cómo responde la protección a fallas.\n\nAjuste solo después de evaluar red, relojes y operación. Que un número esté dentro del límite del formulario no lo convierte en recomendación para su instalación. La tabla explica cada tiempo.\n\nPara comprobar permisos en Seguridad: HighAvailabilityObserve permite observar; HighAvailabilityTransfer se exige también para guardar y operar. Son identificadores de referencia para el administrador.",
           "fields": [
             {
               "key": "freshnessSeconds",
               "label": "Freshness (s)",
-              "description": "Edad máxima de observación reciente.",
+              "description": "Tiempo máximo para considerar reciente una observación. Después puede ser demasiado antigua para orientar operación; no es el intervalo de adquisición de un TAG.",
               "example": "Conservar valor propuesto",
               "constraints": "1–120 s"
             },
             {
               "key": "protection.leaseSeconds",
               "label": "Lease (s)",
-              "description": "Validez de autoridad de ejecución; no es licencia comercial.",
+              "description": "Vigencia de la autorización temporal del servidor para ejecutar como Active. Al vencer, esa autoridad deja de ser válida. Lease no es una licencia comercial.",
               "example": "Conservar valor propuesto",
               "constraints": "3–120 s"
             },
             {
               "key": "protection.pollMilliseconds",
               "label": "Poll (ms)",
-              "description": "Intervalo de consulta de referencia; menor aumenta frecuencia.",
+              "description": "Tiempo entre consultas a la referencia compartida. Un valor menor consulta con más frecuencia. Usa milisegundos, no segundos.",
               "example": "Conservar valor propuesto",
               "constraints": "100–10000 ms"
             },
@@ -14067,7 +14067,7 @@
         },
         {
           "heading": "Si hay problemas",
-          "body": "403: revise permisos. Guardado difiere de ejecución: reinicio pendiente. Compañero inaccesible: direcciones/red/autenticación. Referencia indisponible: almacenamiento externo compartido. Compañero no listo: sincronización/base/diagnóstico sin forzar promoción. Registre hora, acción, resultado y nodo efectivo; nunca secreto.",
+          "body": "Ante respuesta 403, compruebe permiso para observar u operar. Si Guardado difiere de En ejecución, compruebe reinicio pendiente. Si el asociado no está disponible, revise direcciones, red y autenticación entre servicios.\n\nSi falta la referencia de protección, investigue el almacenamiento externo compartido. Si el asociado no está listo, lea sincronización, base y diagnóstico; no fuerce promoción para eludir la condición.\n\nInvestigue un problema por vez. Registre hora, acción, resultado y servidor efectivo, sin incluir el secreto de autenticación.",
           "fields": null
         }
       ],
@@ -14082,31 +14082,31 @@
       "id": "intelligence.activation",
       "category": "intelligence",
       "title": "Intelligence: habilitar, pausar y resolver bloqueos",
-      "summary": "Licencia disponible, recurso seleccionado y ejecución activa son condiciones diferentes.",
+      "summary": "Elija qué equipos analizar, prepare la configuración y active su uso. Tener la licencia no inicia análisis automáticamente.",
       "sections": [
         {
           "heading": "Siga la secuencia completa",
-          "body": "Abra Ingeniería > Inteligencia de activos. Cree Equipo y TAGs, después perfiles, asociaciones Equipo/perfil, contextos y etapas útiles. Guarde configuración y alcances; publique/active revisión. Después active explícitamente el recurso para análisis. Crear perfil, marcar casilla o tener licencia no habilita ejecución automáticamente.",
+          "body": "Empiece con un equipo, como Bomba 01. Abra Ingeniería > Inteligencia de activos. Reunirá sus variables, indicará a qué equipo pertenecen y elegirá dónde usar el análisis.\n\nEl perfil reúne señales y significados. La asociación vincula ese perfil al Equipo registrado. Configure contextos y etapas solo cuando sirvan a su pregunta. Después guarde, publique y active la revisión del proyecto.\n\nQueda una decisión separada: activar explícitamente el recurso elegido para permitir análisis. Crear el perfil, marcar una casilla o tener la licencia no hace esa activación por usted.",
           "fields": null
         },
         {
           "heading": "Permisos y selección de recursos",
-          "body": "EngineeringModify permite configurar; AssetProcessIntelligenceManage debe ser explícito, global o sobre Equipo/Ubicación. El nombre Developer o SystemAdmin por sí solo no sustituye ese permiso. Consultas también necesitan TrendUse y licencia Intelligence. Conceda en Seguridad y revise capacidades efectivas. Seleccione recursos sin memorizar IDs y conserve identidad.",
+          "body": "Su cuenta necesita permiso para editar Ingeniería y gestionar Intelligence en los equipos o lugares elegidos. En Seguridad aparecen como EngineeringModify y AssetProcessIntelligenceManage. El segundo requiere una concesión explícita, global o con alcance en el recurso. El nombre del rol, como Developer o SystemAdmin, no demuestra por sí solo la concesión.\n\nLas consultas también requieren TrendUse y licencia Intelligence. Si un control está bloqueado, compruebe las capacidades efectivas de la sesión. Elija recursos con los selectores; no necesita memorizar ni inventar IDs.",
           "fields": null
         },
         {
           "heading": "Activar solo donde sea útil",
-          "body": "1. Seleccione Equipos/Ubicaciones en Alcances elegibles. 2. Guarde alcances y configuración. 3. Publique/active y resuelva cambios pendientes. 4. Pulse Activar en el recurso y confirme permiso habilitado. 5. Abra consulta de asociación y elija período. 6. Pausar cancela trabajo pendiente sin eliminar TAGs/histórico. Pause antes de quitar un recurso de selección.",
+          "body": "1. En Alcances elegibles, seleccione solo equipos o lugares que desea analizar. Aquí, alcance significa esa selección de recursos.\n2. Guarde los alcances y la configuración preparada.\n3. Publique y active la revisión del proyecto. Resuelva cambios pendientes antes de permitir ejecución.\n4. En la fila del recurso use Activar y compruebe que el permiso queda armado, es decir, habilitado para ese recurso.\n5. Abra la consulta de la asociación, elija el período y solicite el análisis. Activar permite consultar; no hace la consulta automáticamente.\n6. Use Pausar para interrumpir análisis. Se cancela el trabajo pendiente, pero quedan TAGs e histórico. Pause un recurso antes de retirarlo de la selección.",
           "fields": null
         },
         {
           "heading": "Activo configurado no significa habilitado",
-          "body": "Tras revocación, el permiso puede quedar cerrado aunque configuración siga activa. Restaurar permiso no rearma silenciosamente: revise y Active otra vez, también tras reinicio cuando se indique. Evita reiniciar análisis sin decisión del responsable. Distíngalo de errores Historian o falta de datos.",
+          "body": "Si se revocó un permiso, el recurso puede seguir marcado Activo en la configuración y tener la ejecución bloqueada. Son datos distintos: lo configurado y lo autorizado ahora.\n\nRestaurar la concesión no reinicia el trabajo silenciosamente. Compruebe el estado y use Activar de nuevo, incluso tras reiniciar cuando lo pida la pantalla. Requiere una decisión explícita del responsable. Compruebe esto antes de investigar datos ausentes en el histórico guardado, llamado Historian.",
           "fields": null
         },
         {
           "heading": "Ejemplo: empezar pequeño",
-          "body": "Empiece con Bomba 01 en un área. Configure corriente y velocidad si existen; no invente vibración. Añada mediciones/análisis admitidos por catálogo. Mantenga pausado lo no utilizado. La selección controla ejecución elegible, no promete consumo fijo de CPU/RAM.",
+          "body": "Para Bomba 01, empiece con corriente y velocidad si existen esas mediciones. Elija análisis que las acepten. Con nuevas mediciones podrá ampliar el perfil y usar otros análisis compatibles.\n\nMantenga pausados los recursos que no usará. No invente una señal de vibración ausente. La selección limita lo autorizado a ejecutar, pero no garantiza un consumo fijo de procesador o memoria.",
           "fields": null
         }
       ],
@@ -14127,12 +14127,12 @@
       "sections": [
         {
           "heading": "Por qué no basta el nombre",
-          "body": "Un TAG Potencia puede ser activa/aparente o calculada; presión puede ser aspiración, descarga o diferencial. Las reglas no deben adivinar por nombre. Seleccione papel semántico controlado requerido y complete calificadores mostrados. El papel legado es descriptivo.",
+          "body": "Antes de calcular, indique qué mide cada variable. Un TAG llamado Potencia puede ser potencia activa, aparente o un cálculo; Presión puede medir aspiración, descarga o su diferencia. El nombre no basta para elegir la fórmula correcta.\n\nEn el perfil seleccione el papel semántico solicitado: la opción que identifica el significado de la señal para el análisis. Complete después los calificadores mostrados, los detalles que precisan esa elección. El texto de papel heredado sigue siendo descriptivo; no sustituye esa selección.",
           "fields": null
         },
         {
           "heading": "Campos y elecciones",
-          "body": "Elija solo significado sustentado por instrumento y proceso. Los selectores muestran opciones del catálogo actual.",
+          "body": "Consulte esta tabla si tiene dudas en el perfil. Los selectores muestran las opciones aceptadas por el catálogo actual. Elija la correspondiente al instrumento y al proceso, aunque otra opción habilitara un cálculo.",
           "fields": [
             {
               "key": "signals.required",
@@ -14144,14 +14144,14 @@
             {
               "key": "signals.semanticBinding.roleCode",
               "label": "Papel semántico",
-              "description": "Magnitud/función controlada; análisis usa ese papel, no semejanza de nombre.",
+              "description": "Elija qué representa la señal en el cálculo: magnitud y función en la máquina. El análisis usa esa opción controlada; no lo adivina por el nombre del TAG.",
               "example": "Potencia activa de entrada, si se mide",
               "constraints": ""
             },
             {
               "key": "signals.semanticBinding.currentBasis",
               "label": "Base de corriente",
-              "description": "Distingue base admitida, como corriente RMS apropiada; no deduzca de etiqueta genérica.",
+              "description": "Indique la base de corriente del instrumento admitida por el papel, como RMS cuando corresponda. Si la etiqueta solo dice corriente, confirme la medición antes de elegir.",
               "example": "Seleccione opción documentada del instrumento",
               "constraints": ""
             },
@@ -14165,7 +14165,7 @@
             {
               "key": "signals.semanticBinding.pressureReference",
               "label": "Referencia de presión",
-              "description": "Identifica base/origen; diferencial salida menos entrada difiere de solo descarga.",
+              "description": "Indique qué presión se midió. La diferencia salida menos entrada no es la presión de descarga sola; elija la base exigida por el papel y confirmada por el instrumento.",
               "example": "Diferencial medido salida − entrada",
               "constraints": ""
             },
@@ -14194,7 +14194,7 @@
         },
         {
           "heading": "Ejemplo: no confundir indicador con eficiencia",
-          "body": "Corriente creciente a igual velocidad puede justificar investigación, pero no calcula eficiencia física. Potencia de entrada, caudal y diferencial pueden habilitar otras reglas con papeles/unidades/alineación adecuados. Si falta instrumento/calificador, lea motivo de indisponibilidad; no invente valores.",
+          "body": "Suponga que aumenta la corriente de la bomba mientras la velocidad permanece igual. Puede orientar una investigación, pero la corriente por sí sola no calcula la eficiencia física del motor. Es un indicador sustituto, también llamado proxy.\n\nOtras reglas pueden usar potencia eléctrica de entrada, caudal y diferencia de presión. Solo están disponibles cuando las señales cumplen los papeles, unidades y alineación exigidos. Si falta una medición o detalle necesario, lea el motivo de indisponibilidad; no introduzca valores ficticios para habilitar la regla.",
           "fields": null
         }
       ],
@@ -14210,31 +14210,31 @@
       "id": "intelligence.analysis-guide",
       "category": "intelligence",
       "title": "Intelligence: consultar resultados y crear dashboards",
-      "summary": "Elija la pregunta, compruebe datos disponibles y después interprete el indicador.",
+      "summary": "Empiece comprobando los datos del período. Después elija un cálculo y, si lo necesita, genere una pantalla para consultar en Runtime.",
       "sections": [
         {
           "heading": "Empiece por cobertura",
-          "body": "Con asociación guardada y ejecución autorizada, abra cobertura. Introduzca inicio/fin y consulte explícitamente. El formulario usa hora local y respuesta identifica ventana UTC; fin debe seguir inicio. Revise señales obligatorias, muestras aceptadas/rechazadas, calidad y alineación antes de mínimos/máximos/media. Contar muestras no prueba cadencia, completitud ni sincronización.",
+          "body": "Cobertura responde la primera pregunta: ¿hay datos utilizables para este análisis? Con la asociación guardada y la ejecución autorizada, abra la consulta de cobertura del perfil. Elija inicio y fin y solicite la consulta.\n\nEl formulario muestra horas locales; la consulta identifica también la ventana UTC, referencia de tiempo común para comparar datos. El fin debe ser posterior al inicio.\n\nCompruebe señales obligatorias con datos, muestras aceptadas y rechazadas, calidad y alineación horaria. Solo después interprete mínimo, máximo o media. Muchas muestras no demuestran por sí solas ausencia de huecos ni que las señales se midieron juntas.",
           "fields": null
         },
         {
           "heading": "Rendimiento: elija regla elegible",
-          "body": "Abra Rendimiento y elija regla del catálogo. Opciones deshabilitadas explican señales/papeles/unidades ausentes. No elija otra magnitud solo para obtener número. Complete Desde/Hasta, consulte y revise estado/unidad/ventana/límites. Indisponible no es cero; un indicador no es eficiencia física. Cambiar asociación/revisión/parámetros exige nueva consulta.",
+          "body": "En Rendimiento, elija la regla de cálculo del catálogo. Si una opción está deshabilitada, lea qué señal, significado o unidad falta. Elegir otra magnitud solo para obtener un número cambiaría la pregunta.\n\nComplete Desde/Hasta y consulte. Lea estado, unidad, período efectivo y limitaciones junto al resultado. Indisponible no es cero. Un indicador sustituto, como comparar corrientes, no debe presentarse como eficiencia física.\n\nSi cambia asociación, revisión o parámetros, consulte de nuevo. El resultado anterior pertenece a las elecciones anteriores.",
           "fields": null
         },
         {
           "heading": "Dos tipos de contexto con límites distintos",
-          "body": "Contextos operativos guardados usan límites numéricos inclusivos en unidad actual y evidencia del mismo timestamp UTC exacto de origen. El generador de pantalla de desviación usa selección distinta: 2–8 objetivos y dos contextos numéricos distintos entre sí y de objetivos; al menos cuatro señales utilizables. Sus rangos usan unidad controlada mostrada y límite inferior ≤ valor < superior. No copie automáticamente límites del perfil: unidad y extremo superior pueden diferir.",
+          "body": "El contexto describe una condición de operación para comparar situaciones similares. Por ejemplo, estudiar la bomba en un intervalo de caudal puede ser más útil que mezclar todas las condiciones. Hay dos configuraciones distintas:\n\nEn el perfil operacional guardado, el intervalo numérico incluye ambos límites en la unidad de ingeniería actual. Las señales necesitan evidencia con el mismo timestamp UTC de origen exacto. Lecturas solo próximas en el tiempo no cumplen ese requisito.\n\nEn el generador de pantalla de desviación contextual, elija de 2 a 8 señales objetivo y dos señales numéricas de contexto. Los contextos deben ser distintos entre sí y de los objetivos: hacen falta al menos cuatro señales numéricas utilizables. Los intervalos usan la unidad controlada mostrada e incluyen el límite inferior, pero excluyen el superior: inferior ≤ valor < superior.\n\nCompruebe qué configuración usa antes de copiar límites. La unidad y la inclusión del límite superior pueden ser diferentes.",
           "fields": null
         },
         {
           "heading": "Genere pantalla y compruebe la cadena completa",
-          "body": "1. Elija asociación/etapa y tipo de pantalla. 2. Complete selecciones y lea motivos si se bloquea. 3. Genere borrador: organiza objetos/referencias, no consulta Historian ni activa. 4. Revise nombre, dimensiones, objetos, vínculos y navegación; Preview y Apply. 5. Guarde/publique/active y abra en Runtime. 6. Configure/ejecute consulta y revise ventana/resultado. Una etapa agrupa miembros sin crear automáticamente KPI agregado ni probar causalidad.",
+          "body": "1. Elija la asociación del equipo o la etapa del proceso y el tipo de pantalla.\n2. Complete señales y opciones solicitadas. Si el botón está bloqueado, lea el motivo junto al campo.\n3. Genere el borrador. Organiza objetos y referencias; todavía no lee Historian ni activa la pantalla.\n4. En el editor, compruebe título, dimensiones, objetos, vínculos y apertura. Ejecute Vista previa y Aplicar para llevar la edición al proyecto.\n5. Guarde la revisión, publique y active. Abra la pantalla en Runtime mediante la navegación configurada.\n6. En el objeto de análisis, configure período y solicite la consulta. Compruebe ventana y resultado. Una pantalla de etapa reúne equipos; no crea un indicador agregado ni demuestra que un equipo causó el resultado de otro.",
           "fields": null
         },
         {
           "heading": "Cómo investigar resultado vacío",
-          "body": "Compruebe en orden: licencia/permisos; alcance guardado/permiso habilitado; proyecto/revisión activa; asociación/TAGs; período; captura Historian; calidad; papeles/unidades; alineación/contexto. Corrija la primera carencia comprobada y consulte. No amplíe límites ni cambie significado solo para obtener resultado. El análisis apoya investigación; no confirma defectos ni predicción validada en campo.",
+          "body": "Si no hay resultado, busque la primera condición que falta:\n\nCompruebe licencia y permisos; después, selección guardada del recurso y permiso de ejecución armado. Compruebe proyecto y revisión activos. Revise luego asociación, TAGs y período.\n\nSi son correctos, examine captura en Historian, calidad, papeles/unidades y exigencias de alineación/contexto. Corrija la condición demostrablemente ausente y consulte de nuevo.\n\nNo cambie el significado de una señal ni amplíe límites solo para obtener un resultado. Los análisis ayudan a investigar. No confirman defectos ni anticipan fallos con una validez de campo aún no demostrada.",
           "fields": null
         }
       ],

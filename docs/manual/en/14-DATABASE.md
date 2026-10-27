@@ -8,15 +8,47 @@ Understand the active database before validating another target or migrating.
 
 ### Where to go and what this page does
 
-Open Engineering > Database. SystemAdmin is required. Local Managed uses installation-managed local storage; Remote uses configured PostgreSQL. This selects storage, not HA server redundancy. Read Current status and Next action first. Healthy Local Managed needs no Remote profile if it suits your installation.
+This screen defines where SCADIVO stores its data. Open Engineering > Database with system administration permission (SystemAdmin).
+
+Local Managed is the local database managed by the installation. Remote is a PostgreSQL database you prepare at another destination. If the local database is healthy and meets your needs, you can keep using it without filling Remote.
+
+Before changing anything, read Current state and Next action. Choosing a database defines storage; it does not by itself configure HA redundancy between two servers.
 
 ### Prepare the target
 
-Agree on server, database, account, certificates and privileges with the administrator. The address must be reachable by the SCADIVO service, not merely the browser. In Docker, localhost inside a container means that container; use a service-reachable address. On Windows/Linux certificate paths belong to the service host. Back up and plan maintenance before migration.
+Ask the administrator for the destination details: server address, database, account, permissions and certificates. Make a backup and agree a maintenance window before migrating. Migration may pause writes.
+
+The connection comes from the SCADIVO service. Opening an address in a browser therefore does not prove the service can reach it. In Docker, localhost means the container itself; use a name or address the service can actually access.
+
+Likewise, the certificate file must exist on the server running the service, whether Windows, Linux or a container. A path available only on the browser computer does not meet that requirement.
+
+### Migrate data to another database
+
+1. Check which database is active and have a backup available.
+2. Fill the Remote destination and use Validate destination. Validation checks connection, authentication, TLS protection and compatibility; connection alone is not enough to permit switching.
+3. Prepare migration and review the plan: source, destination and included data. Configuration becomes locked after preparation.
+4. During the maintenance window, use Start migration. Durable writes may be paused during the operation.
+5. Wait for copying and automatic verification. Read the result before proceeding.
+6. Only after successful verification, use Activate Remote database and confirm the destination.
+7. If restart is requested, restart or reopen the service as appropriate for the installation. Before resuming, check active database, health, project and revision.
+
+### Connecting an existing database is not migration
+
+Use Connect existing database (without copying) only when the destination is already prepared with the same project and active revision required by the installation. This path does not copy or merge records. Use migration to take current database data to a new destination.
+
+Read the confirmation before switching. If project or revision is incompatible, the operation is blocked. Do not empty or modify the database to bypass this check.
+
+### Rollback and return to local storage
+
+If Recovery/Rollback required appears, the operation needs recovery or reversal. Read diagnostics and use Roll back operation when available.
+
+Returning to Local Managed checks and reactivates the preserved local database; restart may be required. It does not automatically merge data written to Remote after the switch. The previous database is preserved, but this is not the same as restoring a backup. It does not delete Remote either.
+
+After returning, check which data, project and revision are actually active before resuming operation.
 
 ### Basic and advanced fields
 
-Start with host, user and secret. Open Advanced settings only to change supplied values. Examples are illustrative, not installation credentials.
+To prepare Remote, start with the address, username and password supplied by the administrator. Other fields can keep their filled values when suitable for the installation. Open Advanced settings to review or change those details. The table below explains each choice; examples are not real credentials.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -25,31 +57,17 @@ Start with host, user and secret. Open Advanced settings only to change supplied
 | Password / secret | Sent without being returned in status. Clearing after submission does not mean the credential was lost. Never paste into tickets or captures. | Enter only in the protected form |  |
 | Database | Target database name, not project name. Initial value is elitescada; confirm with the administrator. | elitescada |  |
 | Port | PostgreSQL port. Initial value 5432 differs from the application HTTPS port. | 5432 |  |
-| TLS mode | Require demands encryption. VerifyCa validates the CA chain; VerifyFull also checks the server name. Prefer and Disable do not provide equivalent protection. Use the IT-approved mode, not disabled TLS to hide an error. | Require or VerifyFull with valid CA |  |
+| TLS mode | TLS protects the connection. Require demands encryption; VerifyCa also checks the certificate authority chain; VerifyFull additionally checks the server name. Prefer and Disable do not guarantee the same protection. Use the mode agreed with IT; do not disable TLS just to hide an error. | Require or VerifyFull with valid CA |  |
 | CA certificate path | CA file readable by the service; required by the form for VerifyCa/VerifyFull. A browser-computer path does not serve another host/container. | Path provisioned on the server |  |
 | Timeout (s) | Connection wait; initially 15 seconds. Increasing it does not fix credentials, DNS or certificates. | 15 s |  |
-| Historian uses Primary / dedicated | Selected, history uses the primary database. Clear only for a dedicated Historian target and fill its endpoint completely; it must also pass compatibility. | Use Primary for a simple setup |  |
-
-### Migrate data to another database
-
-1. Check the active database and back up.
-2. Fill Remote and Validate target. Connection, authentication, TLS and compatibility are tested; reachability alone is insufficient.
-3. Prepare migration and review source, target and included data. Configuration locks after preparation.
-4. During maintenance, Start migration; durable writes may pause.
-5. Wait for copy and automatic verification.
-6. Only after successful verification select Activate Remote database and confirm.
-7. If restart is required, restart/reopen the service for your installation. Recheck active topology, health, project and revision before resuming operations.
-
-### Connecting an existing database is not migration
-
-Connect to existing database (without copy) does not copy or merge records. Use it only for a prepared target with the same project and active revision required by the installation. Read confirmation. Project/revision mismatch blocks switching; do not empty or alter the database to bypass the check. Use migration to transport current data.
-
-### Rollback and return to local storage
-
-If Recovery/Rollback is required, review diagnostics and use Roll back operation when available. Return to Local Managed validates and reactivates preserved local storage and may need restart. It does not automatically merge later Remote writes into local storage. The previous database is preserved; returning is neither backup restoration nor Remote deletion. Check actual active data and revision afterward.
+| Historian uses Primary / dedicated | When checked, recorded history, called Historian, uses the primary database. Clear only if you prepared a dedicated history database. Then fill its complete connection details and validate that destination’s compatibility too. | Use Primary for a simple setup |  |
 
 ### Errors requiring different actions
 
-No connection: check service DNS/port/access. Authentication rejected: verify PostgreSQL account/secret. TLS: inspect CA, certificate name and validity. Incompatibility: read PostgreSQL version, required TimescaleDB capability and schema. Invalid phase: refresh and follow Next action rather than starting another copy. Unavailable storage may degrade Runtime; memory must not pretend to be durable storage. Record time, phase and operation ID for support without passwords.
+Start with the message received. For no connection, check name/address, port and access from the service. Authentication refusal calls for checking the PostgreSQL account and password. A TLS error calls for checking the certificate authority, server name and certificate validity.
+
+For incompatibility, read PostgreSQL version, TimescaleDB requirements when applicable and schema, the data structure the product expects. For invalid phase, refresh state and follow Next action; do not start another copy while one is in progress.
+
+When the database is unavailable, Runtime can be degraded. The product must not present memory writes as database persistence. For support, record time, phase and operation ID; omit passwords.
 
 [Open this guide in installed Help](/help?topic=database.topology)

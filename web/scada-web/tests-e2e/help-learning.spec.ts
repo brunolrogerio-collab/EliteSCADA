@@ -440,6 +440,7 @@ test('system tasks are discoverable and their field references stay localized', 
   await expect(page.locator('article ol.help-page__steps > li')).toHaveCount(7);
   await expect(page.locator('article').getByRole('rowheader', { name: 'Host / FQDN', exact: false })).toBeVisible();
   await expect(page.locator('article')).toContainText('não copia nem mescla');
+  await page.screenshot({ path: testInfo.outputPath('help-database-progressive-desktop.png'), fullPage: true });
   await page.getByRole('searchbox').fill('lease');
   const nav = page.locator('nav.help-page__topics');
   await nav.locator('a[href="/help?topic=ha.configuration-operation"]').click();
@@ -455,7 +456,7 @@ test('system tasks are discoverable and their field references stay localized', 
   await expect(page.locator('article')).toContainText('not a commercial license');
   await page.getByLabel('Language', { exact: true }).selectOption('es');
   await expect(page.locator('article h2')).toHaveText('HA: configurar dos servidores y seguir la operación');
-  await expect(page.locator('article')).toContainText('no es licencia comercial');
+  await expect(page.locator('article')).toContainText('no es una licencia comercial');
   await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/help?topic=equipment.overview');
@@ -463,9 +464,20 @@ test('system tasks are discoverable and their field references stay localized', 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('help-equipment-mobile.png') });
   await page.goto('/help?topic=intelligence.activation');
-  await expect(page.locator('article')).toContainText('Restaurar o grant não rearma');
+  await expect(page.locator('article')).toContainText('Restaurar a concessão não reinicia o trabalho silenciosamente');
+  await page.locator('article section').first().scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-intelligence-activation-mobile.png') });
   await page.goto('/help?topic=intelligence.analysis-guide');
   await expect(page.locator('article')).toContainText('limite inferior ≤ valor < limite superior');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: testInfo.outputPath('help-intelligence-analysis-desktop.png'), fullPage: true });
+  await page.goto('/help?topic=ha.configuration-operation');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('article section').first().scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-ha-progressive-mobile.png') });
   await page.goto('/help?topic=templates.overview');
   await expect(page.locator('article ol.help-page__steps > li')).toHaveCount(7);
 });

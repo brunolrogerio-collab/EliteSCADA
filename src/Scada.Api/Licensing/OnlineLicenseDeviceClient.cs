@@ -31,6 +31,22 @@ public sealed class OnlineLicenseDeviceClient : IDisposable
         await using var operation = store.AcquireOperation(ct);
         await store.PrepareActivationAsync(selection, username, mutation, ct);
         var state = await store.ReadTransportAsync("activation", ct);
+        return await SendActivationAsync(state, password, mutation, ct);
+    }
+
+    public async Task<OnlineLicenseDeviceStatus> ReauthenticateAsync(OnlineLicenseSelection selection,
+        string username, string password, ProtectedMaterialMutationContext mutation, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(password)) throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LOGIN_REQUIRED");
+        await using var operation = store.AcquireOperation(ct);
+        await store.PrepareReauthenticationAsync(selection, username, mutation, ct);
+        var state = await store.ReadTransportAsync("reauthentication", ct);
+        return await SendActivationAsync(state, password, mutation, ct);
+    }
+
+    private async Task<OnlineLicenseDeviceStatus> SendActivationAsync(OnlineLicenseDeviceState state,
+        string password, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
         var pending = state.Pending!;
         using var request = new HttpRequestMessage(HttpMethod.Post,
             new Uri(store.PortalOrigin, "portal/api/licensing/device/activate"))
@@ -65,9 +81,13 @@ public sealed class OnlineLicenseDeviceClient : IDisposable
         try
         {
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                await store.RequireReauthenticationAsync(state.Pending!.RequestId, mutation, ct);
+                throw new OnlineLicenseProtocolException("ONLINE_LICENSE_REAUTHENTICATION_REQUIRED");
+            }
             if (response.StatusCode != HttpStatusCode.OK)
-                throw new OnlineLicenseProtocolException(response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden
-                    ? "ONLINE_LICENSE_REAUTHENTICATION_REQUIRED" : "ONLINE_LICENSE_PORTAL_REJECTED");
+                throw new OnlineLicenseProtocolException("ONLINE_LICENSE_PORTAL_REJECTED");
             if (response.Content.Headers.ContentLength > 24576)
                 throw new OnlineLicenseProtocolException("ONLINE_LICENSE_RESPONSE_INVALID");
             await using var stream = await response.Content.ReadAsStreamAsync(ct);

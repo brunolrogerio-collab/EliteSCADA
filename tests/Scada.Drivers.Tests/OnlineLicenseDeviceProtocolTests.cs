@@ -184,6 +184,12 @@ public sealed class OnlineLicenseDeviceProtocolTests
             using var second = Client(f.Store(), _ => throw new Exception("concurrent request must not be sent"));
             var error = await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => second.ActivateAsync(Selection, Username, Password, Admin()));
             Assert.Equal("ONLINE_LICENSE_STATE_BUSY", error.Code);
+            var store = f.Store();
+            var status = (await store.ReadStatusAsync())!;
+            Assert.Equal("ONLINE_LICENSE_STATE_BUSY", (await Assert.ThrowsAsync<OnlineLicenseProtocolException>(
+                () => store.ResetAsync(status.ActivationId, Admin()))).Code);
+            Assert.Equal("ONLINE_LICENSE_STATE_BUSY", (await Assert.ThrowsAsync<OnlineLicenseProtocolException>(
+                () => store.CollectObsoleteSnapshotsAsync(Admin()))).Code);
         }
         finally { release.SetResult(); }
         Assert.True((await active).HasLease);
@@ -337,6 +343,207 @@ public sealed class OnlineLicenseDeviceProtocolTests
         Assert.Equal(pending.PendingRequestId, again.PendingRequestId);
     }
 
+    [Fact]
+    public async Task RetentionBoundsSnapshotsAndPreservesCurrentStateAndOtherScopes()
+    {
+        using var f = new Fixture();
+        await Activate(f);
+        var foreignScope = new ProtectedMaterialScope("project:other", "MediaSource", "camera", "Password");
+        var foreign = await f.Authority.StoreAsync(foreignScope, Encoding.UTF8.GetBytes("fictitious-other-scope"), Admin());
+        for (var i = 0; i < 10; i++)
+        {
+            f.Clock.Now += TimeSpan.FromHours(48);
+            using var client = Client(f.Store(), async request => f.Response(await Capture(request)));
+            await client.RenewAsync(Admin());
+        }
+        Assert.Equal(23, Directory.GetFiles(f.MaterialRoot, "*.json").Length);
+        var expected = await f.Store().ReadStatusAsync();
+        Assert.Equal(21, await f.Store().CollectObsoleteSnapshotsAsync(Admin()));
+        Assert.Equal(2, Directory.GetFiles(f.MaterialRoot, "*.json").Length);
+        Assert.Equal(0, await f.Store().CollectObsoleteSnapshotsAsync(Admin()));
+        f.ReopenAuthority();
+        Assert.Equal(expected, await f.Store().ReadStatusAsync());
+        await using var material = await f.Authority.ResolveAsync(foreignScope, foreign.Reference);
+        Assert.Equal("fictitious-other-scope", Encoding.UTF8.GetString(material.Material.Span));
+    }
+
+    [Fact]
+    public async Task RetentionRecoversOrphanFromUnpublishedResponseWithoutLosingRetryIntent()
+    {
+        using var f = new Fixture();
+        f.FailOnStoreNumber = 2;
+        Captured? original = null;
+        using (var client = Client(f.Store(), async request =>
+        {
+            original = await Capture(request);
+            return f.Response(original);
+        }))
+            await Assert.ThrowsAsync<IOException>(() => client.ActivateAsync(Selection, Username, Password, Admin()));
+        Assert.Equal(2, Directory.GetFiles(f.MaterialRoot, "*.json").Length);
+        f.FailOnStoreNumber = null;
+        f.ReopenAuthority();
+        Assert.Equal(1, await f.Store().CollectObsoleteSnapshotsAsync(Admin()));
+        using var retry = Client(f.Store(), async request =>
+        {
+            var captured = await Capture(request);
+            Assert.Equal(original!.Body, captured.Body);
+            return f.Response(captured);
+        });
+        Assert.True((await retry.ActivateAsync(Selection, Username, Password, Admin())).HasLease);
+    }
+
+    [Theory]
+    [InlineData("corrupt-pointer")]
+    [InlineData("wrong-key")]
+    [InlineData("missing-current")]
+    public async Task RetentionRequiresReadableCommittedAnchor(string failure)
+    {
+        using var f = new Fixture();
+        await Activate(f);
+        if (failure == "corrupt-pointer")
+            await File.WriteAllTextAsync(Path.Combine(f.StateRoot, "online-license-reference.json"), "{");
+        if (failure == "wrong-key") f.ReopenAuthority(RandomNumberGenerator.GetBytes(32));
+        if (failure == "missing-current")
+        {
+            using var pointer = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(f.StateRoot, "online-license-reference.json")));
+            var reference = pointer.RootElement.GetProperty("reference").GetString()!;
+            File.Delete(Path.Combine(f.MaterialRoot, reference[FileHostProtectedMaterialAuthority.ReferencePrefix.Length..] + ".json"));
+        }
+        var files = Directory.GetFiles(f.MaterialRoot, "*.json");
+        Assert.Equal("ONLINE_LICENSE_STATE_UNREADABLE", (await Assert.ThrowsAsync<OnlineLicenseProtocolException>(
+            () => f.Store().CollectObsoleteSnapshotsAsync(Admin()))).Code);
+        Assert.Equal(files.Length, Directory.GetFiles(f.MaterialRoot, "*.json").Length);
+    }
+
+    [Theory]
+    [InlineData(false, SecurityCapability.EngineeringModify)]
+    [InlineData(true, SecurityCapability.ProcessValueWrite)]
+    public async Task MaintenanceRequiresAdministration(bool allowed, SecurityCapability capability)
+    {
+        using var f = new Fixture();
+        await Activate(f);
+        var original = (await f.Store().ReadStatusAsync())!;
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(() => f.Store().ResetAsync(original.ActivationId, Admin(capability, allowed)));
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(() => f.Store().CollectObsoleteSnapshotsAsync(Admin(capability, allowed)));
+        Assert.Equal(original, await f.Store().ReadStatusAsync());
+    }
+
+    [Fact]
+    public async Task ResetIsDurableCompareAndSetAndPreservesClockFence()
+    {
+        using var f = new Fixture();
+        var activation = await Activate(f);
+        var store = f.Store();
+        var original = (await store.ReadStatusAsync())!;
+        await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => store.ResetAsync(Guid.NewGuid(), Admin()));
+        Assert.Equal(original, await store.ReadStatusAsync());
+        f.Clock.Now += TimeSpan.FromHours(1);
+        await store.PrepareRenewalAsync(Admin());
+        var reset = await store.ResetAsync(original.ActivationId, Admin());
+        Assert.True(reset.IsReset);
+        Assert.False(reset.HasLease);
+        Assert.Null(reset.PendingRequestId);
+        Assert.Null(reset.NotAfterUtc);
+        Assert.Equal(reset, await store.ResetAsync(original.ActivationId, Admin()));
+        Assert.Equal("ONLINE_LICENSE_REQUEST_CONFLICT", (await Assert.ThrowsAsync<OnlineLicenseProtocolException>(
+            () => store.CompleteAsync(activation.Json.GetProperty("requestId").GetGuid(), f.LastEnvelope!, Admin(), default))).Code);
+        await store.CollectObsoleteSnapshotsAsync(Admin());
+        Assert.Single(Directory.GetFiles(f.MaterialRoot, "*.json"));
+        f.ReopenAuthority();
+        Assert.Equal(reset, await f.Store().ReadStatusAsync());
+        f.Clock.Now -= TimeSpan.FromMinutes(1);
+        using (var blocked = Client(f.Store(), _ => throw new Exception("clock fence must prevent send")))
+            Assert.Equal("ONLINE_LICENSE_CLOCK_ROLLBACK", (await Assert.ThrowsAsync<OnlineLicenseProtocolException>(
+                () => blocked.ActivateAsync(Selection, Username, Password, Admin()))).Code);
+        f.Clock.Now += TimeSpan.FromMinutes(1);
+        var next = await Activate(f);
+        Assert.NotEqual(original.ActivationId, next.Json.GetProperty("activationId").GetGuid());
+        Assert.False((await f.Store().ReadStatusAsync())!.IsReset);
+    }
+
+    [Fact]
+    public async Task ResetPublicationFailurePreservesCurrentLease()
+    {
+        using var f = new Fixture();
+        await Activate(f);
+        var original = (await f.Store().ReadStatusAsync())!;
+        f.FailOnStoreNumber = 3;
+        await Assert.ThrowsAsync<IOException>(() => f.Store().ResetAsync(original.ActivationId, Admin()));
+        f.FailOnStoreNumber = null;
+        f.ReopenAuthority();
+        Assert.Equal(original, await f.Store().ReadStatusAsync());
+        Assert.Equal(2, await f.Store().CollectObsoleteSnapshotsAsync(Admin()));
+        Assert.True((await f.Store().ResetAsync(original.ActivationId, Admin())).IsReset);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task ReauthenticationPersistsRejectionAndRetriesSameLoginIntentAfterResponseLoss(HttpStatusCode rejected)
+    {
+        using var f = new Fixture();
+        var activation = await Activate(f);
+        var original = (await f.Store().ReadStatusAsync())!;
+        using (var revoked = Client(f.Store(), _ => Task.FromResult(new HttpResponseMessage(rejected))))
+            Assert.Equal("ONLINE_LICENSE_REAUTHENTICATION_REQUIRED", (await Assert.ThrowsAsync<OnlineLicenseProtocolException>(
+                () => revoked.RenewAsync(Admin()))).Code);
+        f.ReopenAuthority();
+        Assert.True((await f.Store().ReadStatusAsync())!.ReauthenticationRequired);
+        using (var blocked = Client(f.Store(), _ => throw new Exception("rejected bearer must not be retried automatically")))
+        {
+            await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => blocked.RenewAsync(Admin()));
+            await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => blocked.ReauthenticateAsync(
+                Selection with { LicenseId = Guid.NewGuid() }, Username, Password, Admin()));
+        }
+        Captured? lost = null;
+        using (var first = Client(f.Store(), async request =>
+        {
+            lost = await Capture(request);
+            Assert.Equal(original.ActivationId, lost.Json.GetProperty("activationId").GetGuid());
+            Assert.Null(lost.Bearer);
+            Assert.Equal(Password, lost.Json.GetProperty("password").GetString());
+            _ = f.Response(lost); // Portal has accepted this new login before the response is lost.
+            throw new HttpRequestException("fictitious response loss");
+        }))
+            await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => first.ReauthenticateAsync(Selection, Username, Password, Admin()));
+        f.ReopenAuthority();
+        using (var retry = Client(f.Store(), async request =>
+        {
+            var captured = await Capture(request);
+            Assert.Equal(lost!.Body, captured.Body);
+            return f.Response(captured);
+        }))
+        {
+            var accepted = await retry.ReauthenticateAsync(Selection, Username, Password, Admin());
+            Assert.False(accepted.ReauthenticationRequired);
+            Assert.Null(accepted.PendingRequestId);
+            Assert.Equal(original.ActivationId, accepted.ActivationId);
+        }
+        var state = await f.Store().PrepareRenewalAsync(Admin());
+        var next = await f.Store().ReadTransportAsync("renewal", default);
+        Assert.NotEqual(activation.Json.GetProperty("refreshCredential").GetString(), next.CurrentCredential);
+        Assert.Equal(lost!.Json.GetProperty("refreshCredential").GetString(), next.CurrentCredential);
+        Assert.DoesNotContain(Password, string.Join('\n', Directory.GetFiles(f.Root, "*", SearchOption.AllDirectories).Select(File.ReadAllText)));
+    }
+
+    [Fact]
+    public async Task ReauthenticationDoesNotSendBeforeNewIntentIsCommitted()
+    {
+        using var f = new Fixture();
+        await Activate(f);
+        using (var rejected = Client(f.Store(), _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))))
+            await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => rejected.RenewAsync(Admin()));
+        var before = await f.Store().ReadStatusAsync();
+        f.FailOnStoreNumber = 5;
+        using (var blocked = Client(f.Store(), _ => throw new Exception("uncommitted login must not be sent")))
+            await Assert.ThrowsAsync<IOException>(() => blocked.ReauthenticateAsync(Selection, Username, Password, Admin()));
+        f.FailOnStoreNumber = null;
+        f.ReopenAuthority();
+        Assert.Equal(before, await f.Store().ReadStatusAsync());
+        using var retry = Client(f.Store(), async request => f.Response(await Capture(request)));
+        Assert.False((await retry.ReauthenticateAsync(Selection, Username, Password, Admin())).ReauthenticationRequired);
+    }
+
     private static OnlineLicenseDeviceClient Client(FileOnlineLicenseStateStore store,
         Func<HttpRequestMessage, Task<HttpResponseMessage>> callback) => new(store, new Handler(callback));
 
@@ -425,7 +632,8 @@ public sealed class OnlineLicenseDeviceProtocolTests
         }
     }
 
-    private sealed class FailingAuthority(IProtectedMaterialAuthority inner, Func<bool> fail) : IProtectedMaterialAuthority
+    private sealed class FailingAuthority(IProtectedMaterialAuthority inner, Func<bool> fail) :
+        IProtectedMaterialAuthority, IProtectedMaterialRetentionAuthority
     {
         public async ValueTask<ProtectedMaterialWriteResult> StoreAsync(ProtectedMaterialScope scope, ReadOnlyMemory<byte> material,
             ProtectedMaterialMutationContext mutation, CancellationToken ct = default)
@@ -438,5 +646,8 @@ public sealed class OnlineLicenseDeviceProtocolTests
         public ValueTask<ProtectedMaterialReplaceResult> ReplaceAsync(ProtectedMaterialScope s, string r, ReadOnlyMemory<byte> m, ProtectedMaterialMutationContext c, CancellationToken ct = default) => inner.ReplaceAsync(s, r, m, c, ct);
         public ValueTask DeleteAsync(ProtectedMaterialScope s, string r, ProtectedMaterialMutationContext c, CancellationToken ct = default) => inner.DeleteAsync(s, r, c, ct);
         public ValueTask<ProtectedMaterialAuthorityHealth> GetHealthAsync(CancellationToken ct = default) => inner.GetHealthAsync(ct);
+        public ValueTask<int> CollectUnreferencedAsync(ProtectedMaterialScope s, string retained,
+            ProtectedMaterialMutationContext c, CancellationToken ct = default) =>
+            ((IProtectedMaterialRetentionAuthority)inner).CollectUnreferencedAsync(s, retained, c, ct);
     }
 }

@@ -7,7 +7,8 @@ public sealed record OnlineLicenseSelection(Guid LicenseId, Guid OrganizationId,
 /// <summary>Safe administrative status, not a source of Runtime authority or entitlements.</summary>
 public sealed record OnlineLicenseDeviceStatus(
     Guid ActivationId, Guid? PendingRequestId, bool HasLease, DateTimeOffset? IssuedAtUtc,
-    DateTimeOffset? NotAfterUtc, DateTimeOffset? RenewalDueUtc, bool ClockRollbackDetected);
+    DateTimeOffset? NotAfterUtc, DateTimeOffset? RenewalDueUtc, bool ClockRollbackDetected,
+    bool IsReset = false, bool ReauthenticationRequired = false);
 
 public sealed class OnlineLicenseProtocolException(string code) : InvalidOperationException(code)
 {
@@ -26,7 +27,7 @@ internal sealed class OnlineLicensePendingIntent
 
 internal sealed class OnlineLicenseDeviceState
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; set; } = 2;
     public required string PortalOrigin { get; init; }
     public required OnlineLeaseBinding Binding { get; init; }
     public required DateTimeOffset LastObservedUtc { get; set; }
@@ -36,4 +37,6 @@ internal sealed class OnlineLicenseDeviceState
     public DateTimeOffset? NotAfterUtc { get; set; }
     public Guid? CompletedRequestId { get; set; }
     public OnlineLicensePendingIntent? Pending { get; set; }
+    public bool IsReset { get; set; }
+    public bool ReauthenticationRequired { get; set; }
 }

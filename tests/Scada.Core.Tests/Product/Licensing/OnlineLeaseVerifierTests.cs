@@ -42,6 +42,7 @@ public sealed class OnlineLeaseVerifierTests(OnlineLeaseTestKeys keys) : IClassF
     {
         Assert.Equal(OnlineLeaseVerificationStatus.Invalid, result.Status);
         Assert.Null(result.Claims);
+        Assert.Null(result.Evidence);
         Assert.False(string.IsNullOrWhiteSpace(result.Diagnostic));
     }
 
@@ -111,6 +112,8 @@ public sealed class OnlineLeaseVerifierTests(OnlineLeaseTestKeys keys) : IClassF
         var result = Verify(Sign(Claims().ToJsonString()), Issued.AddTicks(ticks));
         Assert.Equal(status, result.Status);
         if (status != OnlineLeaseVerificationStatus.Valid) Assert.Null(result.Claims);
+        if (status == OnlineLeaseVerificationStatus.Invalid) Assert.Null(result.Evidence);
+        else Assert.Equal(new OnlineLeaseVerificationEvidence(Issued, Issued.AddHours(72)), result.Evidence);
     }
 
     [Theory]

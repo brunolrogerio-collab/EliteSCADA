@@ -17,8 +17,12 @@ public sealed record OnlineLeaseClaims(
 
 public enum OnlineLeaseVerificationStatus { Invalid, Valid, Expired }
 
+/// <summary>Authenticated timing only, including for expired leases; contains no capabilities or quotas.</summary>
+public sealed record OnlineLeaseVerificationEvidence(DateTimeOffset IssuedAtUtc, DateTimeOffset NotAfterUtc);
+
 public sealed record OnlineLeaseVerificationResult(
-    OnlineLeaseVerificationStatus Status, OnlineLeaseClaims? Claims = null, string? Diagnostic = null);
+    OnlineLeaseVerificationStatus Status, OnlineLeaseClaims? Claims = null, string? Diagnostic = null,
+    OnlineLeaseVerificationEvidence? Evidence = null);
 
 /// <summary>
 /// Pure ESLEASE1 verification against the dedicated pinned online public key.
@@ -89,9 +93,11 @@ public static class OnlineLeaseVerifier
             if (claims.IssuedAtUtc > nowUtc)
                 return Invalid("Online lease issue time is in the future.");
             if (nowUtc >= claims.NotAfterUtc)
-                return new(OnlineLeaseVerificationStatus.Expired, Diagnostic: "Online lease has expired.");
+                return new(OnlineLeaseVerificationStatus.Expired, Diagnostic: "Online lease has expired.",
+                    Evidence: new(claims.IssuedAtUtc, claims.NotAfterUtc));
 
-            return new(OnlineLeaseVerificationStatus.Valid, claims);
+            return new(OnlineLeaseVerificationStatus.Valid, claims,
+                Evidence: new(claims.IssuedAtUtc, claims.NotAfterUtc));
         }
         catch (Exception exception) when (exception is FormatException or JsonException or
             ArgumentException or InvalidOperationException or CryptographicException or OverflowException)

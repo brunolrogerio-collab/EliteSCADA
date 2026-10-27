@@ -1,5 +1,7 @@
 # Online lease verifier — first product slice (#301)
 
+Follow-on candidate: [protected device journal and transport](ONLINE-DEVICE-STATE.md). It adds authenticated timing evidence for expired responses without exposing expired capability claims; production lifecycle integration remains separate.
+
 This slice validates an online lease without installing it or changing a running application.
 The governing contract is [#301, 24 October 2026](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6392078669).
 The implementation starts from product integration commit `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`.

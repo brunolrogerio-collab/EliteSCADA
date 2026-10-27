@@ -6,7 +6,18 @@ Register who signs in and distinguish account, role, session and license.
 
 ### Before administering accounts
 
-Open Engineering > Security. Users and credentials belong to the installation Security Authority; they are not project objects and are not carried in the Engineering package. A local product account differs from a commercial portal account. User administration requires UserRoleAdmin or SystemAdmin; project editing alone does not grant it. Preserve at least one enabled local administrator and check which account you are using before changing roles or passwords.
+Open Engineering > Security to register who signs into this installation. Local accounts, passwords and permissions belong to Security Authority, the installation’s security store. They are not project objects or part of the engineering package. A local account is also different from a commercial portal account.
+
+Managing users requires UserRoleAdmin or SystemAdmin. Editing the project does not grant that access. Before changing roles or passwords, check your current account and preserve at least one enabled local administrator.
+
+### Procedure: create and test an operator
+
+1. Check available roles, which actions each allows and for which resources. If a suitable role is missing, prepare and apply policy first.
+2. Use New user and fill login, name, private password and enabled state.
+3. Select only needed roles and create the account.
+4. For later edits, review the summary and confirm saving. Changing a field does not save by itself.
+5. In another session, sign in with the new account and test one allowed reading and one action that must be denied. License and View Only/Interactive class still limit actions.
+6. Return to the administrator account to correct grants if needed. One session does not prove access for two different users.
 
 ### Account fields
 
@@ -20,15 +31,6 @@ Use New user to create an identity. For an existing account, select it in the li
 | Enabled | Allows account use. Disabling deletes neither identity nor action history. Changes can invalidate the session; keep another administrative account available. | Checked |  |
 | Roles | Select existing roles whose permissions match the work. Grants from assigned roles combine; adding a role removes no permission from another. Naming a role developer or administrator creates no privilege by itself. | Station 01 operator | Check the grants, not just the name. |
 
-### Procedure: create and test an operator
-
-1. Inspect available roles and their capabilities/scopes in the Authority panel. If an appropriate role is missing, prepare and apply the policy first.
-2. Select New user and enter login, name, private password and enablement.
-3. Select only required roles and create the account.
-4. For later changes, review the summary and confirm saving; editing fields alone does not save.
-5. Sign in with the new account in a separate session and check a permitted read and an action that should be denied. License and View Only/Interactive class still restrict actions.
-6. Return to the administrative account to correct grants if needed; do not use one session as evidence for two different users.
-
 ### Reset, search and common problems
 
 Search filters name/login/role, and status separates enabled and disabled accounts; hiding a row does not disable an account. To reset a password, select the account, enter New password, review the impact and confirm. Account/role or password changes can end sessions; sign in again when requested. The system rejects removing the last enabled local administrative access and assigning nonexistent roles. A 401 calls for signing in again; 403 indicates insufficient permission. A project revision does not carry users, and importing .escadapkg does not restore Authority.
@@ -41,7 +43,21 @@ Build explicit grants, check their reach and apply the validated Authority polic
 
 ### Account, role, capability and scope
 
-An account identifies the person. A role groups grants. Each grant pairs a capability, the permitted action, with an optional scope, where it applies. The policy belongs to Authority rather than a drawing or project package. Open Engineering > Security and the roles/capabilities/scopes panel. Reading policy requires UserRoleAdmin. Preview/apply requires EngineeringModify and either UserRoleAdmin or SystemAdmin. Role names grant no access by themselves.
+Start with who can do what and where. The account identifies the person. A role gathers permissions assigned to an account. Each grant connects an allowed action to all resources or a specific scope. The interface calls the action a capability and its reach a scope.
+
+Open Engineering > Security and the roles/capabilities/scopes panel. Policy belongs to the installation’s Authority, not the drawing or project package. A role name alone grants no access.
+
+Viewing requires UserRoleAdmin. Validating/applying requires EngineeringModify together with UserRoleAdmin or SystemAdmin. Check these permissions before editing policy.
+
+### Procedure: prepare and apply a policy
+
+1. Load current policy and check who will keep administering the installation.
+2. Create a role or select one. Before changing it, check which users already receive it.
+3. Add a grant for each needed action. Choose global or the correct hierarchy node. If including descendants, check which resources become covered.
+4. For Intelligence, explicitly add AssetProcessIntelligenceManage: global or Equipment/Location with a valid resource link. SystemAdmin alone does not replace that grant when configuring tools.
+5. Run policy Preview, correct errors and apply only the validated candidate. A new edit invalidates the previous preview.
+6. Assign the role and test allowed/denied access with that account.
+7. If another administrator changed policy, reload and redo against the current version. Do not force an old version or delete users to bypass conflict.
 
 ### Role and grant fields
 
@@ -79,19 +95,13 @@ These are the options shown in the current version. Permission creates no resour
 | HighAvailabilityAdmin | Administer HA settings. An operation may require other Engineering permissions. | HighAvailabilityAdmin |  |
 | AssetProcessIntelligenceManage | Manage Intelligence with an explicit global grant or a valid Equipment/Location restriction. License and activation remain necessary. | AssetProcessIntelligenceManage |  |
 
-### Procedure: prepare and apply a policy
-
-1. Load current policy and identify who will retain administration.
-2. Create or select a role; check assigned users before editing.
-3. Add a grant for each required capability and choose global or the appropriate node. Inspect reach before including descendants.
-4. For Intelligence explicitly add AssetProcessIntelligenceManage: global or Equipment/Location with a valid resource link. Do not substitute SystemAdmin alone for this grant when configuring the tools.
-5. Run policy Preview, correct errors and apply only the validated candidate. A new edit invalidates Preview.
-6. Assign the role to the account and test allowed/denied access using that account.
-7. If another administrator changed policy, reload and edit the current version. Do not apply an old version or delete users to bypass a conflict.
-
 ### Preview, session and rejection
 
-Selected-user preview combines draft-role grants; it is explanatory and does not prove permission for a concrete resource. Effective capabilities belong to your current session, not the selected person. The backend decides each operation using identity, resource and scope; Runtime also considers session class and license. Authority policy uses its own versioned Preview/Apply: exporting a project does not activate it. Deleting an assigned role and losing the last administrator are rejected. If a node is missing or incompatible, select a correct link; do not broaden to global just to dismiss an error.
+The selected account’s preview shows what roles in the draft appear to grant. It helps review the edit but does not decide access for a concrete resource. Displayed effective capabilities belong to your current session, not the selected person.
+
+The server makes the final decision using person, resource and scope. Runtime also considers session class and license. Policy has its own Authority version and Preview/Apply; exporting or activating a project does not replace it.
+
+The product refuses deletion of an assigned role or loss of the last administrator. If a node is missing or incompatible, choose a valid link. Do not broaden to global merely to remove an error.
 
 [Open this guide in installed Help](/help?topic=security.policy-scopes)
 
@@ -157,7 +167,9 @@ Use the application secret without confusing it with a user password, backup or 
 
 ### When to use it and what it protects
 
-Engineering Lock protects application Engineering content. It is not another operator’s edit reservation and grants no capabilities to someone who knows the secret. An account password authenticates a person; the Lock secret protects the application; the Authority backup password protects different material. Store them appropriately rather than in screens, scripts or Help. When locked, system administration, Import/Export/Restore and unlock remain subject to their normal permissions.
+Use Engineering Lock to protect the application’s engineering content. Its secret unlocks that protection but grants no missing permissions. It differs from the editing reservation used when someone works on the project.
+
+Store each secret for its purpose: account password identifies the person; Lock secret protects the application; Authority-backup password protects that file. Put none in screens, Scripts or Help. Administration, import/export, restore and unlocking still require normal permissions even while locked.
 
 ### States and actions
 
@@ -174,10 +186,10 @@ In unlocked Engineering, open the padlock control in the top bar. When locked, t
 ### Procedure and persistence after restart
 
 1. With authorized access, open the padlock control.
-2. Set the private secret and choose Configure to keep working or Configure and lock to restrict immediately.
-3. Check the server-returned state.
-4. Treat the change as Working state: Save → Publish → Activate is needed for the new protection to belong to the durable active revision after restart. Do not assume Configure alone completes that lifecycle.
-5. To edit, use Unlock with the correct secret and appropriate permissions.
-6. Check accessible content and preserve intended protection in the revision you publish. If rejected, read the reason; do not clear users, database or Authority to try unlocking.
+2. Set the private secret. Use Configure to keep working or Configure and lock to restrict immediately.
+3. Check the response and state returned by the server.
+4. Complete Save → Publish → Activate. Configuration changes the Working draft; this cycle puts protection in the active revision that must remain after restart. Configure alone does not complete it.
+5. To edit later, use Unlock with the correct secret and appropriate permissions.
+6. Check available content and protection in the revision you will publish. If refused, read the reason. Do not clear users, database or Authority to try unlocking.
 
 [Open this guide in installed Help](/help?topic=security.lock-workflow)

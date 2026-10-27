@@ -6,11 +6,31 @@ Separe os arquivos necessários, valide antes de aplicar e saiba o que cada etap
 
 ### Escolha o que precisa recuperar
 
-Aplicação é a engenharia: TAGs, telas, scripts e demais objetos portáteis do pacote .escadapkg. Security Authority mantém usuários, credenciais e política de acesso em um backup protegido separado. Licença é outro artefato. Banco de dados, Historian e material protegido de drivers pertencem aos seus procedimentos próprios. Um arquivo de aplicação não é uma imagem completa da instalação e não contém usuários/password hashes/senhas de login. Não conclua que ter o .escadapkg basta para recuperar acessos, histórico ou as chaves de um driver.
+Antes de restaurar, identifique o que perdeu e quais cópias tem. A aplicação .escadapkg leva a engenharia: TAGs, telas, Scripts e demais objetos portáteis. A Security Authority mantém usuários, senhas e política de acesso em outro backup protegido. Licença é um arquivo separado.
+
+Banco de dados, histórico Historian e chaves/material protegido dos drivers seguem procedimentos próprios. O pacote da aplicação não é uma cópia completa da instalação e não contém usuários, hashes de senha ou credenciais de login. Ter apenas .escadapkg não garante recuperar acesso, histórico ou chave de driver.
 
 ### Preparar e conferir os backups
 
-Exporte a aplicação pelo fluxo suportado e confira projeto/revisão e local de destino. Alterações não salvas precisam ser tratadas antes de considerar uma cópia como ponto recuperável. O fluxo Trocar a aplicação desta instalação oferece Backup da Application e Backup da Authority antes do detach: você pode exportar a cópia necessária e voltar, sem executar a troca. Na Authority, Nova senha do backup protege o arquivo exportado; não é a senha de login. Guarde essa senha por um meio protegido separado do arquivo e confirme que o download terminou. Não avance para o detach só para testar um backup. Mantenha cópias e plano de recuperação próprios do banco/Historian e das chaves protegidas; este guia não cria política de retenção/arquivamento nem promete incluí-los no pacote.
+Exporte a aplicação pelo fluxo disponível e confira projeto, revisão e destino do arquivo. Resolva alterações não salvas antes de tratar a cópia como recuperável. Aguarde o download terminar.
+
+Em Trocar a aplicação desta instalação existem Backup da Application e Backup da Authority antes do detach, a desvinculação. Você pode exportar e voltar sem executar a troca. Não faça detach só para testar backup.
+
+Na Authority, Nova senha do backup protege o arquivo exportado; não é senha de login. Guarde-a por meio protegido separado do arquivo. Prepare também cópias e recuperação do banco/Historian e chaves de drivers. Este fluxo não define retenção/arquivamento nem os inclui automaticamente no pacote.
+
+### Recuperar Authority e aplicação em uma instalação neutra
+
+1. Confirme instalação neutra elegível e servidor de destino correto. Não faça detach só para abrir este fluxo.
+2. Na configuração inicial, escolha Restaurar backup e selecione aplicação, Authority, senha do backup e licença opcional.
+3. Use Validar backups. Se houver recusa, corrija arquivo, compatibilidade ou credencial. A extensão do arquivo não substitui a validação.
+4. Com os arquivos válidos, use Restaurar Authority.
+5. Entre com um Administrador restaurado, habilitado e com permissões efetivas exigidas para o pacote. O nome developer sozinho não basta.
+6. Continue a recuperação. O servidor valida novamente a aplicação usando a Authority restaurada.
+7. Quando permitido, use Importar aplicação e aguarde o resultado completo. Restaurar Authority e recuperar a aplicação são etapas distintas; não há promessa de uma transação única entre todos os arquivos.
+
+### Recuperar apenas a aplicação com Authority existente
+
+Se a instalação não tem projeto persistido mas já tem Authority, entre com um Administrador compatível e use Importar aplicação. Selecione o .escadapkg, use Validar aplicação, leia o resultado e só então importe. O fluxo exige compatibilidade do pacote, catálogo de projeto/estado de destino apropriados e autorização; não é uma função genérica para sobrescrever qualquer aplicação ativa. Para modificar uma aplicação já instalada, use os fluxos normais de engenharia/portabilidade correspondentes ou o procedimento específico de troca. Não apague usuários/banco para fazer a opção aparecer.
 
 ### Entenda os campos dos arquivos
 
@@ -29,23 +49,13 @@ Na entrada neutra elegível, Restaurar backup permite preparar Authority e aplic
 | Continuar recuperação | Retoma após login com os mesmos arquivos conservados pelo navegador. | Arquivos já selecionados | Se o navegador perdeu os arquivos, selecione novamente e valide; nomes/tamanhos exibidos não substituem a verificação do servidor. |
 | Continuar sem licença | Prossegue quando a aplicação foi recuperada, mas a licença opcional falhou. | Aviso de licença separado | Não comprova capacidade/licença para operar; confira Licenciamento e sessão Runtime depois. |
 
-### Recuperar Authority e aplicação em uma instalação neutra
-
-1. Confirme que a instalação está no estado neutro elegível e que você está no servidor de destino correto; não faça detach só para abrir este fluxo.
-2. Na configuração inicial, escolha Restaurar backup. Selecione aplicação, Authority, senha do backup e licença opcional.
-3. Escolha Validar backups. Se houver rejeição, pare e corrija arquivo/compatibilidade/credencial; nenhum aceite de extensão substitui a validação.
-4. Com os arquivos válidos, escolha Restaurar Authority.
-5. Entre com um Administrador restaurado. A conta precisa estar habilitada e ter as permissões efetivas de engenharia/administração exigidas para o pacote; o nome developer sozinho não basta.
-6. Continue a recuperação; o servidor valida novamente a aplicação com a Authority restaurada.
-7. Quando a validação permitir, escolha Importar aplicação e aguarde o resultado completo. A restauração da Authority e a recuperação da aplicação são etapas distintas, não uma promessa de transação única entre todos os arquivos.
-
-### Recuperar apenas a aplicação com Authority existente
-
-Se a instalação não tem projeto persistido mas já tem Authority, entre com um Administrador compatível e use Importar aplicação. Selecione o .escadapkg, use Validar aplicação, leia o resultado e só então importe. O fluxo exige compatibilidade do pacote, catálogo de projeto/estado de destino apropriados e autorização; não é uma função genérica para sobrescrever qualquer aplicação ativa. Para modificar uma aplicação já instalada, use os fluxos normais de engenharia/portabilidade correspondentes ou o procedimento específico de troca. Não apague usuários/banco para fazer a opção aparecer.
-
 ### Interrupção, falha parcial e licença
 
-Após restaurar a Authority, a aplicação pode ainda não estar recuperada. Se os arquivos continuam em memória do navegador, a continuação conserva a seleção e impede trocá-la silenciosamente. Se a página perdeu os arquivos, escolha novamente os artefatos solicitados; uma nova prévia é obrigatória antes de Apply. Não confunda a memória da seleção com backup dos arquivos. Se o servidor retornar estágio/erro intermediário, registre o resultado e confira o estado persistido antes de repetir: o fluxo envolve revisão, publicação e ativação, e uma etapa concluída não deve ser presumida desfeita. Se a aplicação foi recuperada e a licença opcional falhou, leia o aviso e use Continuar sem licença quando apropriado; trate a licença depois, sem repetir o restore inteiro só por esse aviso.
+Restaurar a Authority não significa que a aplicação já foi recuperada. Se o navegador conserva os arquivos selecionados, a continuação mantém essa seleção e impede trocá-la silenciosamente. Se os perdeu, selecione novamente os arquivos pedidos e faça nova prévia antes de Apply. A memória da seleção não é backup dos arquivos.
+
+Se aparecer estágio ou erro intermediário, registre o resultado e confira o estado salvo antes de repetir. O fluxo passa por revisão, publicação e ativação; uma etapa concluída não deve ser presumida desfeita.
+
+Se a aplicação foi recuperada e só a licença opcional falhou, leia o aviso. Use Continuar sem licença quando apropriado e trate a licença depois, sem repetir a restauração inteira por esse aviso.
 
 ### Confirmar o resultado e os limites
 

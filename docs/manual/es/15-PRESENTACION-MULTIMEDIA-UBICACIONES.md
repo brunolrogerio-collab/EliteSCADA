@@ -6,7 +6,9 @@ Configure identidad visual y elija pantalla adecuada al dispositivo.
 
 ### El encabezado no es la pantalla del proceso
 
-Abra Ingeniería > Encabezado. Marca, títulos, accesos y reloj están sobre la pantalla de proceso. Cambiarlos no altera TAGs ni dibuja objetos. Valide vista previa y Aplique a Working, después guarde, publique y active.
+El encabezado reúne marca, títulos, accesos y reloj sobre la pantalla del proceso. Configúrelo en Ingeniería > Encabezado. Identifica y permite navegar; editarlo no cambia TAGs ni añade objetos al dibujo.
+
+Use Validar previa y Aplicar a Working, el borrador. Después guarde, publique y active para usar el cambio en Runtime.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -21,7 +23,9 @@ Abra Ingeniería > Encabezado. Marca, títulos, accesos y reloj están sobre la 
 
 ### Móvil: orientación y variante
 
-Abra Ingeniería > Móvil. Elija Horizontal o Vertical para dispositivos táctiles; bloqueo físico depende del navegador. Para cada pantalla elija Misma pantalla del escritorio o alternativa existente. Debe diseñar alternativa: Vertical no reorganiza automáticamente objetos. Comparten TAGs/Runtime, no copia de datos. Encabezado se configura en su área.
+En Ingeniería > Mobile elija presentación para dispositivos táctiles. Orientación selecciona Horizontal o Vertical; bloquear la orientación física depende del navegador.
+
+Para cada pantalla desktop use la misma o una alternativa existente. Dibújela en Pantallas: elegir Vertical no reorganiza automáticamente objetos. Ambas usan los mismos TAGs y Runtime sin copiar datos. Para cambiar la parte superior vuelva a Encabezado.
 
 ### Procedimiento y comprobación
 
@@ -40,7 +44,9 @@ Registre la fuente y después elija su presentación visual.
 
 ### Fuente y objeto son pasos distintos
 
-Abra Ingeniería > Fuentes multimedia. La fuente describe origen; un objeto vídeo/imagen define presentación. Registrar RTSP no garantiza reproducción nativa: depende del relay del servidor. Compruebe infraestructura antes de cambiar parámetros repetidamente.
+Prepare primero el origen de vídeo o imagen en Ingeniería > Fuentes de medios. La fuente indica de dónde viene el contenido. Elíjala después en el objeto de Pantalla, que define ubicación y presentación.
+
+RTSP necesita relay del servidor, el servicio que reenvía el flujo para reproducción. Registrar no garantiza que el navegador reproduzca RTSP directamente. Compruebe infraestructura antes de cambiar varios parámetros.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -54,9 +60,11 @@ Abra Ingeniería > Fuentes multimedia. La fuente describe origen; un objeto víd
 ### Procedimiento y problemas comunes
 
 1. Cree fuente con nombre, clave, protocolo, dirección y habilitación.
-2. Guarde y configure credenciales si necesita.
-3. Configure objeto visual con fuente admitida.
-4. Guarde/publique/active y compruebe reproducción. Si falla revise endpoint/protocolo, acceso del servicio, credencial del host, relay exigido y revisión activa. Quitar credencial puede bloquear reproducción. Exportar proyecto no transfiere contraseñas de cámara.
+2. Guárdela. Si requiere credencial, configúrela en el panel de la fuente creada.
+3. Inserte o seleccione objeto compatible y elija fuente admitida.
+4. Guarde, publique y active; compruebe reproducción en Runtime.
+
+Sin reproducción compruebe dirección/protocolo, acceso desde servicio, credencial del host, relay cuando se exige y revisión activa. Quitar credencial puede impedir acceso a cámara. Exportar proyecto no lleva su contraseña.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=sources.media)
 

@@ -6,7 +6,18 @@ Cadastre quem entra no sistema e diferencie conta, papel, sessão e licença.
 
 ### Antes de administrar contas
 
-Abra Engenharia > Segurança. Usuários e credenciais pertencem à Security Authority da instalação; não são objetos do projeto nem são transportados no pacote de engenharia. A conta local do produto é diferente de uma conta no portal comercial. Administrar usuários exige UserRoleAdmin ou SystemAdmin; editar o projeto, sozinho, não concede isso. Preserve pelo menos um administrador local habilitado e confira qual conta está usando antes de alterar papéis ou senha.
+Abra Engenharia > Segurança para cadastrar quem entra nesta instalação. As contas locais, senhas e permissões ficam na Security Authority, o cadastro de segurança da instalação. Elas não são objetos do projeto e não viajam no pacote de engenharia. Conta local também não é conta do portal comercial.
+
+Para administrar usuários, é preciso permissão UserRoleAdmin ou SystemAdmin. Editar o projeto não concede esse acesso. Antes de mudar papéis ou senha, confira qual conta está usando e preserve pelo menos um administrador local habilitado.
+
+### Procedimento: cadastrar e testar um operador
+
+1. Confira os papéis disponíveis e o que cada um permite fazer e em quais recursos. Se faltar um papel adequado, prepare e aplique a política primeiro.
+2. Use Novo usuário e preencha login, nome, senha privada e habilitação.
+3. Selecione apenas os papéis necessários e crie a conta.
+4. Ao editar depois, revise o resumo e confirme o salvamento. Mudar um campo não salva sozinho.
+5. Em outra sessão, entre com a conta criada e teste uma leitura permitida e uma ação que deve ser negada. A licença e a classe View Only/Interactive continuam limitando as ações.
+6. Volte à conta administrativa para corrigir concessões se necessário. Uma mesma sessão não comprova o acesso de dois usuários diferentes.
 
 ### Campos da conta
 
@@ -20,15 +31,6 @@ Use Novo usuário para cadastrar uma identidade. Para uma conta existente, selec
 | Habilitado | Permite o uso da conta. Desabilitar não apaga a identidade nem o histórico de ações. Alterações podem invalidar a sessão; tenha outra conta administrativa disponível. | Marcado |  |
 | Papéis | Marque papéis existentes cujas permissões correspondem ao trabalho. As concessões dos papéis atribuídos são combinadas; adicionar um papel não retira permissões de outro. Nomear um papel developer ou administrator não cria privilégios por si só. | Operador da Estação 01 | Confira os grants efetivos, não só o nome. |
 
-### Procedimento: cadastrar e testar um operador
-
-1. Confira os papéis disponíveis e suas capabilities/escopos no painel da Authority. Se faltar um papel adequado, prepare e aplique a política primeiro.
-2. Use Novo usuário, preencha login, nome, senha privada e habilitação.
-3. Selecione apenas os papéis necessários e crie a conta.
-4. Para alterações posteriores, revise o resumo e confirme o salvamento; editar campos não salva por si só.
-5. Entre com a nova conta em uma sessão separada e confira uma leitura permitida e uma ação que deve ser negada. A licença e a classe View Only/Interactive continuam limitando as ações.
-6. Retorne à conta administrativa para corrigir os grants se necessário; não use a mesma sessão como prova de dois usuários diferentes.
-
 ### Redefinição, busca e problemas comuns
 
 Busca filtra nome/login/papel e o filtro de estado separa habilitados e desabilitados; esconder uma linha não desabilita a conta. Para redefinir senha, selecione a conta, use Nova senha, revise o impacto e confirme. Alterar conta/papéis ou senha pode encerrar sessões; entre novamente quando solicitado. O sistema rejeita remover o último acesso administrativo local habilitado e atribuir papéis inexistentes. Se a tela disser 401, renove o login; 403 indica falta de permissão. Uma revisão de projeto não transporta usuários, e importar um .escadapkg não é restauração da Authority.
@@ -41,7 +43,21 @@ Monte concessões explícitas, confira o alcance e aplique a política validada 
 
 ### Conta, papel, capability e escopo
 
-A conta identifica a pessoa. Um papel reúne concessões (grants). Cada grant une uma capability, isto é, a ação permitida, a um escopo opcional, isto é, onde ela vale. A política pertence à Authority, não ao desenho ou pacote do projeto. Abra Engenharia > Segurança e o painel de papéis/capabilities/escopos. Consultar a política exige UserRoleAdmin. Validar/aplicar exige EngineeringModify e UserRoleAdmin ou SystemAdmin. Os nomes dos papéis não concedem acesso por si só.
+Pense primeiro em quem pode fazer o quê e onde. A conta identifica a pessoa. O papel reúne permissões que você atribui à conta. Cada concessão liga uma ação permitida a todos os recursos ou a um alcance específico. Na interface, ação pode aparecer como capability e alcance como escopo.
+
+Abra Engenharia > Segurança e o painel de papéis/capabilities/escopos. A política pertence à Authority da instalação, não ao desenho nem ao pacote do projeto. O nome de um papel não concede acesso sozinho.
+
+Para consultar, é necessário UserRoleAdmin. Para validar/aplicar, é necessário EngineeringModify junto de UserRoleAdmin ou SystemAdmin. Confira essas permissões antes de editar a política.
+
+### Procedimento: preparar e aplicar uma política
+
+1. Carregue a política atual e confira quem continuará administrando a instalação.
+2. Crie um papel ou selecione um existente. Antes de mudar um papel, confira quais usuários já o recebem.
+3. Adicione uma concessão para cada ação necessária. Escolha global ou o nó correto da hierarquia. Se incluir descendentes, confira quais recursos passarão a ser alcançados.
+4. Para Intelligence, adicione AssetProcessIntelligenceManage explicitamente: global ou Equipment/Location com vínculo válido. SystemAdmin sozinho não substitui essa concessão na configuração das ferramentas.
+5. Execute Preview da política, corrija erros e aplique somente o candidato validado. Uma nova edição invalida a prévia anterior.
+6. Atribua o papel à conta e teste, com ela, acesso permitido e negado.
+7. Se outro administrador alterou a política, recarregue e refaça sobre a versão atual. Não force uma versão antiga nem apague usuários para contornar conflito.
 
 ### Campos do papel e da concessão
 
@@ -79,19 +95,13 @@ Estas são as opções exibidas na versão atual. Permissão não cria recurso, 
 | HighAvailabilityAdmin | Administrar configurações de HA. A operação pode exigir outras permissões de Engenharia. | HighAvailabilityAdmin |  |
 | AssetProcessIntelligenceManage | Gerenciar Intelligence com grant explícito global ou restrito a Equipment/Location válido. Licença e ativação continuam necessárias. | AssetProcessIntelligenceManage |  |
 
-### Procedimento: preparar e aplicar uma política
-
-1. Carregue a política atual e identifique quem continuará administrando.
-2. Crie um papel ou selecione um existente; confira usuários já atribuídos antes de editar.
-3. Adicione um grant por capability necessária e escolha global ou o nó apropriado. Se houver descendentes, confira o alcance antes de marcá-los.
-4. Para Intelligence, adicione AssetProcessIntelligenceManage explicitamente: global ou Equipment/Location com vínculo válido ao recurso. Um SystemAdmin isolado não deve ser usado como substituto desse grant na configuração das ferramentas.
-5. Execute Preview da política; corrija os erros e aplique somente o candidato validado. Nova edição invalida a prévia.
-6. Atribua o papel à conta e teste acesso permitido/negado com essa conta.
-7. Se outro administrador mudou a política, recarregue e refaça a edição sobre a versão atual. Não tente aplicar uma versão antiga nem apagar usuários para contornar conflito.
-
 ### Prévia, sessão e recusas
 
-A prévia do usuário selecionado combina grants dos papéis do rascunho; é explicativa e não comprova permissão para um recurso concreto. As capabilities efetivas pertencem à sua sessão atual, não à pessoa selecionada. O backend decide cada operação considerando identidade, recurso e escopo; Runtime também considera classe de sessão e licença. A política da Authority usa seu próprio Preview/Apply e versão: não é ativada exportando um projeto. Exclusão de papel ainda atribuído e perda do último administrador são recusadas. Se um nó não existe ou é incompatível, escolha um vínculo correto; não aumente para global só para eliminar um erro.
+A prévia da conta selecionada mostra o que os papéis do rascunho parecem conceder. Ela ajuda a conferir a edição, mas não decide se uma ação será permitida num recurso concreto. As capabilities efetivas mostradas pertencem à sua sessão atual, não à pessoa selecionada.
+
+A decisão final é do servidor, considerando pessoa, recurso e alcance. No Runtime entram também classe de sessão e licença. A política tem versão e Preview/Apply próprios da Authority; exportar ou ativar projeto não a substitui.
+
+O produto recusa excluir papel ainda atribuído e perder o último administrador. Se um nó não existe ou é incompatível, escolha um vínculo válido. Não aumente para global apenas para eliminar o erro.
 
 [Abrir este guia na Ajuda instalada](/help?topic=security.policy-scopes)
 
@@ -157,7 +167,9 @@ Use o segredo da aplicação sem confundi-lo com senha de usuário, backup ou pe
 
 ### Quando usar e o que ele protege
 
-O Engineering Lock protege o conteúdo de engenharia da aplicação. Não é uma reserva de edição de outro operador e não concede capabilities a quem sabe o segredo. A senha da conta autentica a pessoa; o segredo do Lock protege a aplicação; a senha do backup da Authority protege outro material. Guarde-os pelos procedimentos apropriados, sem escrever em telas, scripts ou ajuda. Mesmo bloqueada, administração do sistema, Import/Export/Restaurar e desbloqueio permanecem sujeitos às suas permissões normais.
+Use o Engineering Lock para proteger o conteúdo de engenharia da aplicação. O segredo permite desbloquear essa proteção, mas não concede permissões ausentes. Ele é diferente da reserva de edição usada quando alguém está trabalhando no projeto.
+
+Guarde cada segredo pela sua finalidade: a senha da conta identifica a pessoa; o segredo do Lock protege a aplicação; a senha do backup da Authority protege esse arquivo. Não escreva esses valores em telas, Scripts ou Help. Administração, importação/exportação, restauração e desbloqueio continuam exigindo suas permissões normais, mesmo com a aplicação bloqueada.
 
 ### Estados e ações
 
@@ -174,10 +186,10 @@ Na Engenharia desbloqueada, abra o controle do cadeado na barra superior. Quando
 ### Procedimento e persistência após reinício
 
 1. Com acesso autorizado, abra o controle do cadeado.
-2. Defina o segredo privado e selecione Configurar para continuar trabalhando ou Configurar e bloquear para restringir imediatamente.
-3. Confira o estado retornado pelo servidor.
-4. Trate a mudança como alteração de Working: Salvar → Publicar → Ativar é necessário para que a nova proteção pertença à revisão ativa durável após reinício. Não suponha que clicar Configurar sozinho concluiu esse ciclo.
-5. Quando precisar editar, use Desbloquear com o segredo correto e as permissões apropriadas.
-6. Confira o conteúdo acessível e mantenha a proteção pretendida na revisão que publicar. Se a resposta for recusada, leia o motivo; não limpe usuários, banco ou Authority para tentar desbloquear.
+2. Defina o segredo privado. Use Configurar para continuar trabalhando ou Configurar e bloquear para restringir imediatamente.
+3. Confira a resposta e o estado retornado pelo servidor.
+4. Complete Salvar → Publicar → Ativar. A configuração é alteração do rascunho Working; esse ciclo leva a proteção à revisão ativa que deve permanecer após reinício. Clicar Configurar sozinho não conclui essa etapa.
+5. Para editar depois, use Desbloquear com segredo correto e permissões apropriadas.
+6. Confira o conteúdo disponível e a proteção da revisão que publicará. Se houver recusa, leia o motivo. Não limpe usuários, banco ou Authority para tentar desbloquear.
 
 [Abrir este guia na Ajuda instalada](/help?topic=security.lock-workflow)

@@ -6,7 +6,9 @@ Configure visual identity and choose the right screen for a device.
 
 ### The header is not the process screen
 
-Open Engineering > Header. Branding, titles, shortcuts and clock sit above the process screen. Changing them does not alter TAGs or draw process objects. Validate preview and Apply to Working, then save, publish and activate.
+The header groups branding, titles, shortcuts and clock above the process screen. Configure it in Engineering > Header. It helps identify and navigate the application; editing it changes no TAGs and adds no objects to the screen drawing.
+
+Use Validate preview and Apply to Working, the project draft. Then save, publish and activate the revision to use the change in Runtime.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -21,7 +23,9 @@ Open Engineering > Header. Branding, titles, shortcuts and clock sit above the p
 
 ### Mobile: orientation and variant
 
-Open Engineering > Mobile. Select Landscape or Portrait for touch devices; physical orientation lock depends on the browser. For each desktop screen choose Same desktop screen or an existing alternate. You must design that alternate; Portrait does not rearrange all objects automatically. Variants use the same TAGs/Runtime, not a separate data copy. Header settings remain under Header.
+In Engineering > Mobile, choose presentation on touch devices. Orientation selects Landscape or Portrait; physical orientation lock depends on the browser.
+
+For each desktop screen, use the same screen or select an existing alternative. Draw that alternative yourself in Screens: selecting Portrait does not automatically rearrange objects. Both use the same TAGs and Runtime without copying data. To change the application’s top area, return to Header.
 
 ### Procedure and verification
 
@@ -40,7 +44,9 @@ Register the source, then choose its visual presentation.
 
 ### Source and object are separate steps
 
-Open Engineering > Media Sources. The source describes where content comes from; a screen video/image object defines presentation. Registering RTSP does not guarantee native browser playback: it depends on the server relay. Check playback infrastructure before repeatedly changing settings.
+First prepare the video or image origin in Engineering > Media Sources. The source says where content comes from. Then select it in the Screen object, which defines where it appears and how it is presented.
+
+RTSP needs the server relay, the service forwarding the stream for playback. Registering a source does not mean the browser plays RTSP directly. Check that infrastructure before changing multiple parameters to fix playback.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -53,10 +59,12 @@ Open Engineering > Media Sources. The source describes where content comes from;
 
 ### Procedure and common problems
 
-1. Create the source with name, key, protocol, address and enablement.
-2. Save and configure credentials in the created source panel if needed.
-3. Configure the corresponding visual object with its supported source.
-4. Save/publish/activate and check Runtime playback. On failure inspect endpoint/protocol, service access, host credential, required relay and active revision. Removing credentials may block authenticated playback. Project export does not transfer camera passwords.
+1. Create the source with name, key, protocol, address and enabled state.
+2. Save it. If credentials are needed, configure them in the created source’s panel.
+3. Insert or select a compatible visual object and choose the supported source.
+4. Save, publish and activate; check playback in Runtime.
+
+For no playback, check address/protocol, service-side access, host credentials, relay when required and active revision. Removing credentials can prevent camera access. Project export does not carry its password.
 
 [Open this guide in installed Help](/help?topic=sources.media)
 

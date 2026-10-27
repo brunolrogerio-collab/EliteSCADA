@@ -57,6 +57,9 @@ O painel muda conforme a seleção. Se você procura uma propriedade e ela desap
 
 A Ajuda instalada oferece a referência individual de cada tipo de objeto, com os campos realmente admitidos, valores iniciais, unidades e limites. Abra **Ajuda → Telas e objetos** e escolha o tipo; a busca também encontra nomes de propriedades. Os identificadores técnicos ficam disponíveis como referência, sem exigir que você memorize todos eles.
 
+
+Para conferir cor e transparência, teste primeiro com o fundo real da tela. Em uma cor escrita com oito dígitos, como `#00000066`, os dois últimos indicam a transparência, também chamada alfa. Ajustar esse efeito muda só a aparência. As opções e os limites da propriedade estão na referência do tipo de objeto na Ajuda.
+
 ## 5. Escolha o objeto pela função
 
 | Necessidade | Objeto e configuração que merece atenção |

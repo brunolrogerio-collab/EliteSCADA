@@ -6,7 +6,18 @@ Registre quién inicia sesión y distinga cuenta, rol, sesión y licencia.
 
 ### Antes de administrar cuentas
 
-Abra Ingeniería > Seguridad. Usuarios y credenciales pertenecen a la Security Authority de la instalación; no son objetos del proyecto ni viajan en el paquete de ingeniería. La cuenta local del producto es distinta de una cuenta del portal comercial. Administrar usuarios requiere UserRoleAdmin o SystemAdmin; editar el proyecto por sí solo no lo concede. Conserve al menos un administrador local habilitado y confirme qué cuenta utiliza antes de cambiar roles o contraseña.
+Abra Ingeniería > Seguridad para registrar quién entra a esta instalación. Cuentas locales, contraseñas y permisos pertenecen a Security Authority, el registro de seguridad de la instalación. No son objetos del proyecto ni viajan en el paquete de ingeniería. Cuenta local tampoco es cuenta del portal comercial.
+
+Administrar usuarios requiere UserRoleAdmin o SystemAdmin. Editar el proyecto no concede acceso. Antes de cambiar roles o contraseña compruebe su cuenta y conserve al menos un administrador local habilitado.
+
+### Procedimiento: crear y probar un operador
+
+1. Compruebe roles disponibles, acciones permitidas y recursos de cada uno. Si falta el adecuado, prepare y aplique política primero.
+2. Use Nuevo usuario y complete login, nombre, contraseña privada y habilitación.
+3. Elija solo roles necesarios y cree la cuenta.
+4. Al editar después, revise resumen y confirme guardado. Cambiar un campo no guarda solo.
+5. En otra sesión entre con la cuenta creada y pruebe una lectura permitida y una acción que debe denegarse. Licencia y clase View Only/Interactive siguen limitando acciones.
+6. Vuelva a la cuenta administrativa para corregir concesiones. Una sesión no prueba acceso de dos usuarios distintos.
 
 ### Campos de la cuenta
 
@@ -20,15 +31,6 @@ Use Nuevo usuario para crear una identidad. Para una cuenta existente, selecció
 | Habilitado | Permite usar la cuenta. Deshabilitar no borra identidad ni historial de acciones. Los cambios pueden invalidar la sesión; mantenga otra cuenta administrativa disponible. | Marcado |  |
 | Roles | Seleccione roles existentes cuyas autorizaciones correspondan al trabajo. Las concesiones de los roles se combinan; añadir un rol no elimina permisos de otro. Llamarlo developer o administrator no crea privilegios por sí solo. | Operador de Estación 01 | Compruebe las concesiones, no solo el nombre. |
 
-### Procedimiento: crear y probar un operador
-
-1. Revise roles disponibles y capabilities/alcances en el panel de Authority. Si falta un rol adecuado, prepare y aplique primero la política.
-2. Seleccione Nuevo usuario e introduzca login, nombre, contraseña privada y habilitación.
-3. Seleccione solo roles necesarios y cree la cuenta.
-4. Para cambios posteriores, revise el resumen y confirme guardar; editar campos no guarda por sí solo.
-5. Inicie sesión con la nueva cuenta en una sesión separada y compruebe una lectura permitida y una acción que deba denegarse. Licencia y clase View Only/Interactive siguen limitando acciones.
-6. Vuelva a la cuenta administrativa para corregir concesiones; una misma sesión no demuestra dos usuarios distintos.
-
 ### Restablecimiento, búsqueda y problemas frecuentes
 
 La búsqueda filtra nombre/login/rol y el estado separa habilitados y deshabilitados; ocultar una fila no deshabilita la cuenta. Para restablecer contraseña, seleccione la cuenta, introduzca Nueva contraseña, revise el impacto y confirme. Cambios de cuenta/roles o contraseña pueden cerrar sesiones; vuelva a entrar cuando se solicite. El sistema rechaza eliminar el último acceso administrativo local habilitado y asignar roles inexistentes. 401 requiere entrar de nuevo; 403 indica falta de permiso. Una revisión del proyecto no transporta usuarios e importar .escadapkg no restaura Authority.
@@ -41,7 +43,21 @@ Prepare concesiones explícitas, compruebe el alcance y aplique la política val
 
 ### Cuenta, rol, capability y alcance
 
-La cuenta identifica a la persona. Un rol reúne concesiones (grants). Cada grant une una capability, la acción permitida, a un alcance opcional, dónde se aplica. La política pertenece a Authority, no al dibujo ni al paquete del proyecto. Abra Ingeniería > Seguridad y el panel de roles/capabilities/alcances. Consultar requiere UserRoleAdmin. Validar/aplicar requiere EngineeringModify y UserRoleAdmin o SystemAdmin. Los nombres de roles no conceden acceso por sí solos.
+Empiece por quién puede hacer qué y dónde. La cuenta identifica a la persona. El rol reúne permisos asignados a la cuenta. Cada concesión vincula una acción permitida con todos los recursos o un alcance específico. La interfaz llama capability a la acción y scope o escopo al alcance.
+
+Abra Ingeniería > Seguridad y el panel de roles/capabilities/alcances. La política pertenece a Authority de la instalación, no al dibujo ni paquete del proyecto. El nombre del rol no concede acceso solo.
+
+Consultar requiere UserRoleAdmin. Validar/aplicar requiere EngineeringModify junto con UserRoleAdmin o SystemAdmin. Compruébelos antes de editar.
+
+### Procedimiento: preparar y aplicar una política
+
+1. Cargue la política actual y compruebe quién seguirá administrando.
+2. Cree o elija un rol. Antes de cambiarlo, compruebe usuarios ya asignados.
+3. Añada una concesión por acción necesaria. Elija global o nodo correcto. Si incluye descendientes, compruebe recursos abarcados.
+4. Para Intelligence añada explícitamente AssetProcessIntelligenceManage: global o Equipment/Location con vínculo válido. SystemAdmin solo no sustituye esa concesión al configurar herramientas.
+5. Ejecute Preview, corrija y aplique solo el candidato validado. Editar de nuevo invalida la previa anterior.
+6. Asigne el rol y pruebe acceso permitido/denegado con esa cuenta.
+7. Si otro administrador cambió política, recargue y rehaga sobre la versión actual. No fuerce versión antigua ni elimine usuarios para eludir conflicto.
 
 ### Campos de rol y concesión
 
@@ -79,19 +95,13 @@ Estas son las opciones de la versión actual. El permiso no crea recursos, cambi
 | HighAvailabilityAdmin | Administrar configuración HA. Una operación puede exigir otros permisos de Ingeniería. | HighAvailabilityAdmin |  |
 | AssetProcessIntelligenceManage | Gestionar Intelligence mediante concesión explícita global o restricción válida Equipment/Location. Licencia y activación siguen siendo necesarias. | AssetProcessIntelligenceManage |  |
 
-### Procedimiento: preparar y aplicar una política
-
-1. Cargue la política actual e identifique quién conservará administración.
-2. Cree o seleccione un rol; compruebe usuarios asignados antes de editar.
-3. Añada un grant por capability necesaria y elija global o el nodo adecuado. Revise el alcance antes de incluir descendientes.
-4. Para Intelligence añada AssetProcessIntelligenceManage explícitamente: global o Equipment/Location con vínculo válido al recurso. No sustituya este grant por SystemAdmin aislado al configurar herramientas.
-5. Ejecute Preview de la política, corrija errores y aplique solo el candidato validado. Otra edición invalida Preview.
-6. Asigne el rol y pruebe accesos permitidos/denegados con esa cuenta.
-7. Si otro administrador cambió la política, recargue y edite la versión actual. No aplique una versión antigua ni elimine usuarios para evitar conflictos.
-
 ### Vista previa, sesión y rechazos
 
-La vista previa del usuario seleccionado combina grants de roles del borrador; es explicativa y no demuestra permiso sobre un recurso concreto. Las capabilities efectivas pertenecen a su sesión actual, no a la persona seleccionada. El backend decide cada operación según identidad, recurso y alcance; Runtime considera también clase de sesión y licencia. La política de Authority tiene Preview/Apply y versión propios: exportar un proyecto no la activa. Se rechazan eliminar un rol asignado y perder el último administrador. Si falta un nodo o es incompatible, seleccione un vínculo correcto; no amplíe a global solo para eliminar el error.
+La previa de la cuenta elegida muestra lo que parecen conceder los roles del borrador. Ayuda a revisar, pero no decide acceso a un recurso concreto. Las capabilities efectivas mostradas pertenecen a su sesión actual, no a la persona seleccionada.
+
+El servidor decide con persona, recurso y alcance; Runtime considera también clase de sesión y licencia. La política tiene versión y Preview/Apply propios de Authority; exportar o activar proyecto no la sustituye.
+
+Se rechaza eliminar rol asignado o perder el último administrador. Ante nodo ausente o incompatible elija vínculo válido. No amplíe a global solo para eliminar el error.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=security.policy-scopes)
 
@@ -157,7 +167,9 @@ Use el secreto de la aplicación sin confundirlo con contraseña de usuario, bac
 
 ### Cuándo usarlo y qué protege
 
-Engineering Lock protege contenido de ingeniería de la aplicación. No es reserva de edición de otro operador ni concede capabilities a quien conoce el secreto. La contraseña de cuenta autentica a la persona; el secreto del Lock protege la aplicación; la contraseña del backup de Authority protege otro material. Guárdelos según procedimientos, no en pantallas, scripts ni ayuda. Bloqueada, administración del sistema, Import/Export/Restaurar y desbloqueo siguen sujetos a permisos normales.
+Use Engineering Lock para proteger contenido de ingeniería. El secreto desbloquea esa protección, pero no concede permisos ausentes. Es distinto de la reserva de edición cuando alguien trabaja en el proyecto.
+
+Guarde cada secreto según finalidad: contraseña de cuenta identifica persona; secreto Lock protege aplicación; contraseña de backup Authority protege el archivo. No los escriba en pantallas, Scripts o Ayuda. Administración, importación/exportación, restauración y desbloqueo siguen exigiendo permisos normales aunque esté bloqueada.
 
 ### Estados y acciones
 
@@ -173,11 +185,11 @@ En Ingeniería desbloqueada, abra el candado de la barra superior. Bloqueada, la
 
 ### Procedimiento y persistencia tras reinicio
 
-1. Con acceso autorizado, abra el candado.
-2. Defina el secreto privado y elija Configurar para seguir trabajando o Configurar y bloquear para restringir inmediatamente.
-3. Compruebe el estado del servidor.
-4. Trate el cambio como Working: Guardar → Publicar → Activar es necesario para que la protección pertenezca a la revisión activa duradera tras reinicio. No suponga que Configurar completa el ciclo.
-5. Para editar, use Desbloquear con secreto correcto y permisos adecuados.
-6. Compruebe contenido accesible y conserve protección prevista en la revisión publicada. Si se rechaza, lea el motivo; no borre usuarios, base ni Authority para intentar desbloquear.
+1. Con acceso autorizado abra el candado.
+2. Defina secreto privado. Use Configurar para seguir trabajando o Configurar y bloquear para restringir de inmediato.
+3. Compruebe respuesta y estado del servidor.
+4. Complete Guardar → Publicar → Activar. Configurar cambia el borrador Working; el ciclo lleva protección a la revisión activa que debe permanecer tras reinicio. Configurar solo no lo completa.
+5. Para editar después use Desbloquear con secreto correcto y permisos adecuados.
+6. Compruebe contenido y protección de la revisión a publicar. Ante rechazo lea el motivo. No borre usuarios, base ni Authority para intentar desbloquear.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=security.lock-workflow)

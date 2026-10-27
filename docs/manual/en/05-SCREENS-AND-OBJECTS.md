@@ -57,6 +57,9 @@ A **fixed value**, a **binding** and a **dynamic** serve different purposes. The
 
 Installed Help provides an individual reference for each object type, including supported fields, defaults, units and bounds. Open **Help → Screens and objects** and choose the type; search also finds property names. Technical identifiers remain available for reference without requiring you to memorize them.
 
+
+Check color and transparency against the actual screen background. In an eight-digit color such as `#00000066`, the last two digits indicate transparency, also called alpha. This adjustment changes appearance only. Property options and limits are in the object-type reference in Help.
+
 ## 5. Choose an object by purpose
 
 | Need | Object and configuration to inspect |

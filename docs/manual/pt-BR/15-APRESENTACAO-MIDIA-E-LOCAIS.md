@@ -6,7 +6,9 @@ Configure a identidade visual e escolha a tela adequada ao dispositivo.
 
 ### Cabeçalho não é a tela de processo
 
-Abra Engenharia > Cabeçalho. A marca, os títulos, os atalhos e o relógio ficam acima da tela de processo. Alterar esse conjunto não muda os TAGs nem cria objetos no desenho. A configuração passa por Validar prévia e Aplicar ao Working; depois ainda é necessário salvar, publicar e ativar.
+O cabeçalho reúne marca, títulos, atalhos e relógio acima da tela do processo. Configure-o em Engenharia > Cabeçalho. Ele ajuda a identificar e navegar na aplicação; editar esse conjunto não muda TAGs nem acrescenta objetos ao desenho da tela.
+
+Use Validar prévia e Aplicar ao Working, o rascunho do projeto. Depois salve, publique e ative a revisão para usar a mudança no Runtime.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -21,7 +23,9 @@ Abra Engenharia > Cabeçalho. A marca, os títulos, os atalhos e o relógio fica
 
 ### Mobile: orientação e variante
 
-Abra Engenharia > Mobile. Orientação define Paisagem ou Retrato para dispositivos com toque; o bloqueio físico depende do navegador. Para cada tela desktop, escolha Mesma tela do desktop ou uma tela alternativa existente. Você precisa desenhar a alternativa: selecionar Retrato não reorganiza sozinho todos os objetos. As versões usam os mesmos TAGs e Runtime, não uma cópia separada dos dados. Para cabeçalho, volte à área Cabeçalho.
+Em Engenharia > Mobile, escolha como apresentar em dispositivos com toque. Orientação seleciona Paisagem ou Retrato; a possibilidade de travar a orientação física depende do navegador.
+
+Para cada tela desktop, use a mesma tela ou escolha uma alternativa existente. A alternativa precisa ser desenhada por você em Telas: selecionar Retrato não reorganiza automaticamente seus objetos. Ambas usam os mesmos TAGs e Runtime, sem copiar os dados. Para mudar a parte superior da aplicação, volte a Cabeçalho.
 
 ### Procedimento e conferência
 
@@ -40,7 +44,9 @@ Cadastre a fonte e depois escolha como apresentá-la no objeto visual.
 
 ### Fonte e objeto são etapas distintas
 
-Abra Engenharia > Fontes de mídia. A fonte descreve de onde vem o conteúdo; o objeto de vídeo/imagem na Tela define onde ele aparece. Cadastrar uma fonte RTSP não garante reprodução nativa no navegador: ela depende do relay do servidor. Confirme a infraestrutura de reprodução antes de trocar parâmetros repetidamente.
+Prepare primeiro a origem do vídeo ou imagem em Engenharia > Fontes de mídia. A fonte diz de onde vem o conteúdo. Depois escolha essa fonte no objeto da Tela, que define onde ele aparece e como é apresentado.
+
+RTSP precisa do relay do servidor, o serviço que repassa o fluxo para reprodução. Cadastrar a fonte não garante que o navegador reproduza RTSP diretamente. Confira essa infraestrutura antes de tentar corrigir a reprodução mudando vários parâmetros.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -53,10 +59,12 @@ Abra Engenharia > Fontes de mídia. A fonte descreve de onde vem o conteúdo; o 
 
 ### Procedimento e problemas comuns
 
-1. Crie a fonte e preencha nome, chave, protocolo, endereço e habilitação.
-2. Salve e configure a credencial, se necessária, no painel da fonte criada.
-3. Configure o objeto visual correspondente com a fonte suportada.
-4. Salve/publique/ative e confira reprodução no Runtime. Se falhar, confira endpoint e protocolo, acesso do serviço, credencial do host, relay quando exigido e a revisão ativa. Remover a credencial pode impedir reprodução autenticada. Exportar o projeto não transporta a senha da câmera.
+1. Crie a fonte com nome, chave, protocolo, endereço e habilitação.
+2. Salve-a. Se precisar de credencial, configure-a no painel da fonte criada.
+3. Insira ou selecione o objeto visual compatível e escolha a fonte suportada.
+4. Salve, publique e ative a revisão; confira a reprodução no Runtime.
+
+Se não reproduzir, verifique endereço/protocolo, acesso a partir do serviço, credencial do host, relay quando exigido e revisão ativa. Remover a credencial pode impedir o acesso à câmera. Exportar o projeto não transporta sua senha.
 
 [Abrir este guia na Ajuda instalada](/help?topic=sources.media)
 

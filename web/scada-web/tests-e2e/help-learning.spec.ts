@@ -136,12 +136,12 @@ test('operational Help explains session outcomes, server diagnostics and separat
   await page.goto('/help?topic=recovery.backup-system-recovery');
   await expect(article.getByRole('rowheader', { name: 'Senha do backup da Authority', exact: true })).toBeVisible();
   await expect(article).toContainText('sem executar a troca');
-  await expect(article).toContainText('não uma promessa de transação única');
+  await expect(article).toContainText('não há promessa de uma transação única entre todos os arquivos');
   await expect(article).toContainText('não deve ser presumida desfeita');
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
-  await expect(article).toContainText('Retained selection is not a file backup');
+  await expect(article).toContainText('Remembering a selection is not a file backup');
   await page.getByLabel('Language', { exact: true }).selectOption('es');
-  await expect(article).toContainText('La selección retenida no es copia');
+  await expect(article).toContainText('Recordar selección no es backup de archivos');
   await page.setViewportSize({ width: 390, height: 844 });
   await article.getByRole('rowheader', { name: 'Continuar sin licencia', exact: true }).scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -494,6 +494,8 @@ test('system tasks are discoverable and their field references stay localized', 
   await page.screenshot({ path: testInfo.outputPath('help-ha-progressive-mobile.png') });
   await openTopic('templates.overview');
   await expect(page.locator('article ol.help-page__steps > li')).toHaveCount(7);
+  await page.locator('article section').first().scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('help-templates-progressive-mobile.png') });
 });
 
 test('report and history tasks explain fields and distinguish retrieval from capture', async ({ page }, testInfo) => {
@@ -556,6 +558,7 @@ test('security and Audit guides distinguish account policy session and read-only
   const article = page.locator('article');
   await expect(article.getByRole('rowheader', { name: 'Senha / Nova senha', exact: true })).toBeVisible();
   await expect(article).toContainText('nome de login é mostrado para identificação');
+  await page.screenshot({ path: testInfo.outputPath('help-accounts-progressive-desktop.png') });
   await page.goto('/help?topic=security.policy-scopes');
   await expect(article).toContainText('não à pessoa selecionada');
   await expect(article.getByRole('rowheader', { name: 'CommandExecute', exact: true })).toBeVisible();
@@ -592,7 +595,7 @@ test('library and Gateway file guides expose usable steps and the exact typed CS
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
   await expect(article).toContainText('Association and Preview do not change Working');
   await page.getByLabel('Language', { exact: true }).selectOption('es');
-  await expect(article).toContainText('Asociar y Preview no cambian Working');
+  await expect(article).toContainText('Asociar y Preview no modifican Working');
   await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
   await page.goto('/help?topic=gateway.configure-test');
   await expect(article.getByRole('rowheader', { name: 'Gain (ganho)', exact: true })).toBeVisible();

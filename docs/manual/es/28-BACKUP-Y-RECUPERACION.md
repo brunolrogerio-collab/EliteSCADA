@@ -6,11 +6,31 @@ Separe archivos, valide antes de aplicar y entienda lo que restaura cada etapa.
 
 ### Elija qué recuperar
 
-Aplicación significa ingeniería: TAGs, pantallas, scripts y objetos portables del .escadapkg. Security Authority conserva usuarios, credenciales y política en un backup protegido separado. Licencia es otro artefacto. Base de datos, Historian y material protegido de drivers siguen sus propios procedimientos. El paquete no es imagen completa de instalación y no contiene usuarios/password hashes/contraseñas de acceso. Tener .escadapkg no basta para recuperar accesos, historia o claves de drivers.
+Antes de restaurar identifique qué perdió y qué copias tiene. La aplicación .escadapkg lleva ingeniería: TAGs, pantallas, Scripts y otros objetos portables. Security Authority guarda usuarios, contraseñas y política en otro backup protegido. Licencia es archivo separado.
+
+Base, histórico Historian y claves/material protegido de drivers tienen procedimientos propios. El paquete no es copia completa de instalación ni contiene usuarios, hashes o credenciales de login. Solo .escadapkg no garantiza recuperar acceso, histórico o claves.
 
 ### Preparar y comprobar backups
 
-Exporte mediante el flujo soportado y compruebe proyecto/revisión y destino. Trate cambios sin guardar antes de considerar una copia recuperable. Cambiar la aplicación de esta instalación ofrece Backup de Application y Backup de Authority antes del detach: exporte lo necesario y vuelva sin ejecutar el cambio. Nueva contraseña del backup protege la exportación de Authority; no es contraseña de acceso. Guárdela de forma protegida separada del archivo y confirme la descarga. No avance al detach solo para probar un backup. Mantenga copias y planes propios de base/Historian y claves protegidas; esta guía no crea retención/archivado ni promete incluirlos en el paquete.
+Exporte la aplicación por el flujo disponible y compruebe proyecto, revisión y destino. Resuelva cambios sin guardar antes de considerar recuperable la copia. Espere fin de descarga.
+
+Cambiar la aplicación ofrece backups Application y Authority antes de detach, la desvinculación. Puede exportar y volver sin cambiar. No haga detach solo para probar backup.
+
+Nueva contraseña del backup protege el archivo Authority; no es contraseña de login. Guárdela por medio protegido separado del archivo. Prepare copias/recuperación de base/Historian y claves de drivers. El flujo no define retención/archivado ni los incluye automáticamente.
+
+### Recuperar Authority y aplicación en instalación neutra
+
+1. Confirme instalación neutra elegible y servidor destino correcto. No haga detach solo para abrir el flujo.
+2. En configuración inicial elija Restaurar backup y seleccione aplicación, Authority, contraseña y licencia opcional.
+3. Use Validar backups. Ante rechazo corrija archivo, compatibilidad o credencial. La extensión no sustituye validación.
+4. Con archivos válidos use Restaurar Authority.
+5. Entre con Administrador restaurado habilitado y permisos efectivos exigidos. El nombre developer solo no basta.
+6. Continúe. El servidor valida de nuevo la aplicación con Authority restaurada.
+7. Cuando se permita use Importar aplicación y espere resultado completo. Restaurar Authority y recuperar aplicación son etapas distintas, no promesa de transacción única entre archivos.
+
+### Recuperar solo aplicación con Authority existente
+
+Si no hay proyecto persistido pero sí Authority, entre con Administrador compatible y elija Importar aplicación. Seleccione .escadapkg, Valide, lea el resultado y después importe. Exige paquete compatible, catálogo/estado de destino apropiados y autorización; no es sobreescritura genérica de cualquier aplicación activa. Para modificar una aplicación instalada use ingeniería/portabilidad correspondientes o el procedimiento de cambio. No elimine usuarios/base para que aparezca la opción.
 
 ### Entienda los campos de archivos
 
@@ -29,23 +49,13 @@ En instalación neutra elegible, Restaurar backup prepara Authority y aplicació
 | Continuar recuperación | Retoma tras login con archivos conservados por el navegador. | Archivos ya seleccionados | Si se perdieron, seleccione y valide otra vez; nombres/tamaños no sustituyen comprobación del servidor. |
 | Continuar sin licencia | Prosigue si aplicación recuperada pero licencia opcional falló. | Aviso de licencia separado | No demuestra capacidad/licencia para operar; compruebe Licenciamiento y sesión Runtime después. |
 
-### Recuperar Authority y aplicación en instalación neutra
-
-1. Confirme instalación neutra elegible y servidor de destino correcto; no haga detach solo para abrir este flujo.
-2. En configuración inicial elija Restaurar backup. Seleccione aplicación, Authority, contraseña y licencia opcional.
-3. Elija Validar backups. Pare ante rechazo y corrija archivo/compatibilidad/credencial; aceptar extensión no valida.
-4. Con archivos válidos, elija Restaurar Authority.
-5. Entre con Administrador restaurado habilitado y con permisos efectivos de ingeniería/administración requeridos para el paquete; el nombre developer no basta.
-6. Continúe; el servidor vuelve a validar aplicación con Authority restaurada.
-7. Si se permite, elija Importar aplicación y espere resultado completo. Restaurar Authority y recuperar aplicación son etapas separadas, no promesa de una transacción única entre todos los archivos.
-
-### Recuperar solo aplicación con Authority existente
-
-Si no hay proyecto persistido pero sí Authority, entre con Administrador compatible y elija Importar aplicación. Seleccione .escadapkg, Valide, lea el resultado y después importe. Exige paquete compatible, catálogo/estado de destino apropiados y autorización; no es sobreescritura genérica de cualquier aplicación activa. Para modificar una aplicación instalada use ingeniería/portabilidad correspondientes o el procedimiento de cambio. No elimine usuarios/base para que aparezca la opción.
-
 ### Interrupción, fallo parcial y licencia
 
-Tras restaurar Authority, la aplicación puede seguir sin recuperar. Si el navegador conserva archivos en memoria, la continuación mantiene selección e impide sustitución silenciosa. Si perdió archivos, seleccione los solicitados otra vez; una nueva previa es obligatoria antes de Apply. La selección retenida no es copia de los archivos. Si el servidor devuelve etapa/error intermedio, registre y compruebe estado persistido antes de repetir: revisión, publicación y activación son etapas distintas y no debe suponer revertida una completada. Si aplicación recuperada pero licencia opcional falló, lea el aviso y use Continuar sin licencia si corresponde; atienda licencia por separado sin repetir todo solo por ese aviso.
+Restaurar Authority no significa que la aplicación ya esté recuperada. Si el navegador conserva archivos seleccionados, continuar mantiene la selección e impide cambiarlos silenciosamente. Si los perdió, selecciónelos de nuevo y haga otra previa antes de Apply. Recordar selección no es backup de archivos.
+
+Ante etapa/error intermedio registre resultado y compruebe estado guardado antes de repetir. El flujo pasa por revisión, publicación y activación; no presuma deshecha una etapa terminada.
+
+Si se recuperó aplicación y solo falló licencia opcional, lea el aviso. Use Continuar sin licencia cuando corresponda y trate licencia después, sin repetir toda restauración por ese aviso.
 
 ### Confirmar resultado y límites
 

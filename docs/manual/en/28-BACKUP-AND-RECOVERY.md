@@ -6,11 +6,31 @@ Separate required files, validate before applying and understand what each stage
 
 ### Choose what must be recovered
 
-Application means engineering: TAGs, screens, scripts and other portable .escadapkg objects. Security Authority holds users, credentials and access policy in a separate protected backup. Licensing is another artifact. Database, Historian and protected driver material follow their own procedures. An application file is not an installation image and contains no users/password hashes/login passwords. Having an .escadapkg alone does not recover access, history or driver keys.
+Before restoring, identify what was lost and which copies you have. The .escadapkg application carries engineering: TAGs, screens, Scripts and other portable objects. Security Authority keeps users, passwords and access policy in a separate protected backup. License is another file.
+
+Database, Historian history and driver keys/protected material have their own procedures. The application package is not a full installation copy and contains no users, password hashes or login credentials. A .escadapkg alone does not guarantee recovery of access, history or driver keys.
 
 ### Prepare and check backups
 
-Export the application through the supported flow and check project/revision and destination. Address unsaved edits before treating a copy as a recovery point. Switch this installation application offers Application backup and Authority backup before detach: export what is needed and return without executing the switch. For Authority, New backup password protects the exported file; it is not a login password. Store that password through a protected channel separate from the file and confirm download completion. Do not proceed with detach just to test a backup. Keep separate database/Historian and protected-key copies/recovery plans; this guide neither creates retention/archiving policy nor promises they are included in the package.
+Export the application through the supported flow and check project, revision and file destination. Resolve unsaved changes before treating the copy as recoverable. Wait for download completion.
+
+Switch this installation’s application offers Application and Authority backups before detach, the unlinking step. You can export and return without switching. Do not detach just to test a backup.
+
+New backup password protects the exported Authority file; it is not the login password. Store it through a protected channel separate from the file. Also prepare database/Historian and driver-key copies/recovery. This flow sets no retention/archiving policy or automatic inclusion in the package.
+
+### Recover Authority and application on a neutral installation
+
+1. Confirm an eligible neutral installation and correct destination server. Do not detach merely to open this flow.
+2. In initial setup choose Restore backup and select application, Authority, backup password and optional license.
+3. Use Validate backups. If refused, correct file, compatibility or credential. A file extension does not replace validation.
+4. With valid files, use Restore Authority.
+5. Sign in with an enabled restored Administrator having the effective permissions required for the package. The developer name alone is insufficient.
+6. Continue recovery. The server validates the application again using restored Authority.
+7. When allowed, use Import application and wait for the full result. Authority restore and application recovery are distinct stages, not a promise of one transaction across all files.
+
+### Recover only the application with existing Authority
+
+If the installation has no persisted project but already has Authority, sign in with a compatible Administrator and choose Import application. Select the .escadapkg, Validate application, read the result and then import. The flow requires compatible package, appropriate destination project catalog/state and authorization; it is not generic overwrite of any running application. To modify an installed application use the corresponding engineering/portability flows or the specific switching procedure. Do not delete users/database to make the option appear.
 
 ### Understand artifact fields
 
@@ -29,23 +49,13 @@ On an eligible neutral installation, Restore backup prepares Authority and appli
 | Continue recovery | Resumes after sign-in with files retained by the browser. | Already selected files | If the browser lost files, reselect and validate; shown names/sizes do not replace server checks. |
 | Continue without license | Continues when the application recovered but optional license installation failed. | Separate license warning | Does not prove operating capacity/license; check Licensing and Runtime session afterward. |
 
-### Recover Authority and application on a neutral installation
-
-1. Confirm an eligible neutral installation and the correct destination server; do not detach merely to open this flow.
-2. In initial setup choose Restore backup. Select application, Authority, backup password and optional license.
-3. Choose Validate backups. Stop on rejection and correct file/compatibility/credential; extension acceptance is not validation.
-4. With valid files, choose Restore Authority.
-5. Sign in with a restored Administrator. The account must be enabled and hold effective engineering/administration permissions required for the package; the name developer alone is insufficient.
-6. Continue recovery; the server validates the application again against restored Authority.
-7. When validation permits, choose Import application and wait for complete results. Authority restore and application recovery are separate stages, not a promise of one transaction across every file.
-
-### Recover only the application with existing Authority
-
-If the installation has no persisted project but already has Authority, sign in with a compatible Administrator and choose Import application. Select the .escadapkg, Validate application, read the result and then import. The flow requires compatible package, appropriate destination project catalog/state and authorization; it is not generic overwrite of any running application. To modify an installed application use the corresponding engineering/portability flows or the specific switching procedure. Do not delete users/database to make the option appear.
-
 ### Interruption, partial failure and license
 
-After Authority restoration the application may still be unrecovered. If browser memory retains files, continuation keeps the selection and prevents silent replacement. If the page lost files, reselect the requested artifacts; a new preview is mandatory before Apply. Retained selection is not a file backup. If the server returns an intermediate stage/error, record it and check persisted state before repeating: revision, publication and activation are distinct stages, and a completed stage must not be assumed rolled back. If the application recovered but optional license installation failed, read the warning and choose Continue without license where appropriate; address licensing separately rather than repeating the whole restore only for that warning.
+Restoring Authority does not mean the application is already recovered. If the browser retains selected files, continuation preserves that selection and prevents silent replacement. If files were lost, select requested files again and make a new preview before Apply. Remembering a selection is not a file backup.
+
+For an intermediate stage/error, record the result and check stored state before repeating. The flow passes through revision, publication and activation; do not assume a completed stage was undone.
+
+If application recovery succeeded but optional licensing failed, read the warning. Use Continue without license when appropriate and handle licensing afterwards rather than repeating the entire restore for that warning.
 
 ### Confirm results and limits
 

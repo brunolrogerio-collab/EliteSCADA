@@ -57,6 +57,9 @@ Un **valor fijo**, un **vínculo** y una **dinámica** tienen funciones distinta
 
 La Ayuda instalada ofrece una referencia individual por tipo, con campos admitidos, valores iniciales, unidades y límites. Abra **Ayuda → Pantallas y objetos** y elija el tipo; la búsqueda también encuentra propiedades. Los identificadores técnicos quedan disponibles como referencia sin exigir memorizarlos.
 
+
+Compruebe color y transparencia con el fondo real de la pantalla. En un color de ocho dígitos, como `#00000066`, los dos últimos indican transparencia, también llamada alfa. Ajustarlo solo cambia apariencia. Opciones y límites están en la referencia del tipo de objeto en Ayuda.
+
 ## 5. Elija el objeto por su función
 
 | Necesidad | Objeto y configuración que revisar |

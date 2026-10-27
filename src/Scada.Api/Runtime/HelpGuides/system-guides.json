@@ -8,7 +8,12 @@
       "sections": [
         {
           "heading": "Entenda o que está criando",
-          "body": "Um Template Faceplate é uma definição gráfica compartilhada: por exemplo, o desenho de uma bomba com nome, estado e leitura. Equipamento é a identidade de uma bomba concreta. Você pode ter Bomba 01 e Bomba 02 usando o mesmo Template, e pode criar um equipamento sem Template. Um perfil da Intelligence organiza medições e não substitui esse desenho.",
+          "body": "Use um Template Faceplate quando várias máquinas precisam do mesmo desenho. Por exemplo, monte uma bomba com nome, estado e leitura e reutilize esse desenho para Bomba 01 e Bomba 02. Template é a definição gráfica compartilhada; cada Equipamento identifica uma bomba concreta.\n\nVocê pode cadastrar o equipamento sem Template e escolher o desenho depois. O perfil da Intelligence tem outra função: reúne medições para análise, não substitui o desenho.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento: criar e reutilizar",
+          "body": "1. Em Engenharia > Templates, use Novo Template e preencha nome e identificador.\n2. Comece com poucos objetos: título, estado e uma leitura, por exemplo. Ajuste suas propriedades no editor.\n3. Configure os vínculos de dados, as mudanças visuais e os eventos necessários. O nome do equipamento não substitui automaticamente os TAGs escolhidos.\n4. Execute Preview, corrija erros e aplique ao projeto.\n5. Em Equipamentos, crie ou selecione uma instância real e escolha esse Template opcional. Salve a associação.\n6. No editor de Tela, use a biblioteca de equipamentos/faceplates para inserir a instância, quando disponível.\n7. Salve, publique e ative a revisão. No Runtime, confira duas instâncias: o desenho pode ser igual, mas cada leitura deve pertencer ao equipamento correto.",
           "fields": null
         },
         {
@@ -39,13 +44,8 @@
           ]
         },
         {
-          "heading": "Procedimento: criar e reutilizar",
-          "body": "1. Selecione Novo Template e preencha nome e identificador. 2. Insira um conjunto pequeno de objetos e configure suas propriedades. 3. Adicione vínculos/dinâmicas/eventos necessários; não presuma substituição automática de TAGs pelo nome do equipamento. 4. Execute Preview, corrija erros e aplique ao projeto. 5. Abra Equipamentos, crie ou selecione uma instância e escolha esse Template opcional. Salve a associação. 6. No editor de Tela, use a biblioteca de equipamentos/faceplates para inserir a instância, quando disponível. 7. Salve, publique e ative a revisão. Confira duas instâncias e suas leituras no Runtime.",
-          "fields": null
-        },
-        {
           "heading": "Atualizar sem confundir definição e instância",
-          "body": "Editar o Template compartilhado atualiza o desenho acompanhado por todas as instâncias vinculadas na revisão correspondente. Revise o impacto antes de aplicar; para uma aparência específica, considere outro Template. Alterar o vínculo do equipamento muda seu desenho associado e preserva a identidade do equipamento. Um Dínamo é outra forma de conjunto visual reutilizável; um Grupo apenas organiza objetos.",
+          "body": "Uma mudança na definição compartilhada pode aparecer em todas as instâncias vinculadas quando a revisão correspondente entrar em uso. Antes de aplicar, confira quais equipamentos usam esse Template. Para uma aparência diferente só numa parte, considere outra definição.\n\nTrocar o Template associado muda o desenho e conserva a identidade do equipamento. Dínamo é outra forma de conjunto visual reutilizável. Grupo apenas organiza objetos; ele não tem o mesmo vínculo com uma definição compartilhada.",
           "fields": null
         },
         {
@@ -71,7 +71,12 @@
       "sections": [
         {
           "heading": "Comece pela identidade do ativo",
-          "body": "Abra Engenharia > Equipamentos. Equipamento representa uma instância real, como Bomba 01. Não é o Driver, o TAG nem o desenho. Você pode criá-lo sem faceplate e associar um Template depois. Intelligence usa essa identidade nas associações de perfil; desenhar uma bomba numa Tela não cadastra esse equipamento.",
+          "body": "Comece cadastrando a máquina que existe na planta, como Bomba 01. Em Engenharia > Equipamentos, esse cadastro dá uma identidade à instância real. Ele é separado da conexão, dos TAGs e do desenho que você colocará na tela.\n\nVocê pode criar o equipamento sem faceplate e associar um Template depois. Intelligence usa essa identidade ao associar perfis. Desenhar uma bomba numa Tela não cadastra automaticamente o equipamento.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento: cadastrar e conferir",
+          "body": "1. Informe um nome distinto. 2. Confira o caminho gerado; escolha Template ou deixe Sem Template. 3. Selecione Criar equipamento. O produto valida a alteração antes de aplicá-la ao projeto. 4. Selecione a instância na lista para editar nome ou vínculo; use Salvar alterações. 5. Salve/publique/ative a revisão quando o equipamento precisar estar disponível no Runtime. 6. Na Intelligence, escolha a identidade desse equipamento e associe o perfil de medições. Configure TAGs e captura antes de consultar análise.",
           "fields": null
         },
         {
@@ -100,11 +105,6 @@
               "constraints": ""
             }
           ]
-        },
-        {
-          "heading": "Procedimento: cadastrar e conferir",
-          "body": "1. Informe um nome distinto. 2. Confira o caminho gerado; escolha Template ou deixe Sem Template. 3. Selecione Criar equipamento. O produto valida a alteração antes de aplicá-la ao projeto. 4. Selecione a instância na lista para editar nome ou vínculo; use Salvar alterações. 5. Salve/publique/ative a revisão quando o equipamento precisar estar disponível no Runtime. 6. Na Intelligence, escolha a identidade desse equipamento e associe o perfil de medições. Configure TAGs e captura antes de consultar análise.",
-          "fields": null
         },
         {
           "heading": "Verificação e erros frequentes",
@@ -605,7 +605,7 @@
       "sections": [
         {
           "heading": "Cabeçalho não é a tela de processo",
-          "body": "Abra Engenharia > Cabeçalho. A marca, os títulos, os atalhos e o relógio ficam acima da tela de processo. Alterar esse conjunto não muda os TAGs nem cria objetos no desenho. A configuração passa por Validar prévia e Aplicar ao Working; depois ainda é necessário salvar, publicar e ativar.",
+          "body": "O cabeçalho reúne marca, títulos, atalhos e relógio acima da tela do processo. Configure-o em Engenharia > Cabeçalho. Ele ajuda a identificar e navegar na aplicação; editar esse conjunto não muda TAGs nem acrescenta objetos ao desenho da tela.\n\nUse Validar prévia e Aplicar ao Working, o rascunho do projeto. Depois salve, publique e ative a revisão para usar a mudança no Runtime.",
           "fields": [
             {
               "key": "branding.mode",
@@ -667,7 +667,7 @@
         },
         {
           "heading": "Mobile: orientação e variante",
-          "body": "Abra Engenharia > Mobile. Orientação define Paisagem ou Retrato para dispositivos com toque; o bloqueio físico depende do navegador. Para cada tela desktop, escolha Mesma tela do desktop ou uma tela alternativa existente. Você precisa desenhar a alternativa: selecionar Retrato não reorganiza sozinho todos os objetos. As versões usam os mesmos TAGs e Runtime, não uma cópia separada dos dados. Para cabeçalho, volte à área Cabeçalho.",
+          "body": "Em Engenharia > Mobile, escolha como apresentar em dispositivos com toque. Orientação seleciona Paisagem ou Retrato; a possibilidade de travar a orientação física depende do navegador.\n\nPara cada tela desktop, use a mesma tela ou escolha uma alternativa existente. A alternativa precisa ser desenhada por você em Telas: selecionar Retrato não reorganiza automaticamente seus objetos. Ambas usam os mesmos TAGs e Runtime, sem copiar os dados. Para mudar a parte superior da aplicação, volte a Cabeçalho.",
           "fields": null
         },
         {
@@ -691,7 +691,7 @@
       "sections": [
         {
           "heading": "Fonte e objeto são etapas distintas",
-          "body": "Abra Engenharia > Fontes de mídia. A fonte descreve de onde vem o conteúdo; o objeto de vídeo/imagem na Tela define onde ele aparece. Cadastrar uma fonte RTSP não garante reprodução nativa no navegador: ela depende do relay do servidor. Confirme a infraestrutura de reprodução antes de trocar parâmetros repetidamente.",
+          "body": "Prepare primeiro a origem do vídeo ou imagem em Engenharia > Fontes de mídia. A fonte diz de onde vem o conteúdo. Depois escolha essa fonte no objeto da Tela, que define onde ele aparece e como é apresentado.\n\nRTSP precisa do relay do servidor, o serviço que repassa o fluxo para reprodução. Cadastrar a fonte não garante que o navegador reproduza RTSP diretamente. Confira essa infraestrutura antes de tentar corrigir a reprodução mudando vários parâmetros.",
           "fields": [
             {
               "key": "mediaSource.name",
@@ -739,7 +739,7 @@
         },
         {
           "heading": "Procedimento e problemas comuns",
-          "body": "1. Crie a fonte e preencha nome, chave, protocolo, endereço e habilitação. 2. Salve e configure a credencial, se necessária, no painel da fonte criada. 3. Configure o objeto visual correspondente com a fonte suportada. 4. Salve/publique/ative e confira reprodução no Runtime. Se falhar, confira endpoint e protocolo, acesso do serviço, credencial do host, relay quando exigido e a revisão ativa. Remover a credencial pode impedir reprodução autenticada. Exportar o projeto não transporta a senha da câmera.",
+          "body": "1. Crie a fonte com nome, chave, protocolo, endereço e habilitação.\n2. Salve-a. Se precisar de credencial, configure-a no painel da fonte criada.\n3. Insira ou selecione o objeto visual compatível e escolha a fonte suportada.\n4. Salve, publique e ative a revisão; confira a reprodução no Runtime.\n\nSe não reproduzir, verifique endereço/protocolo, acesso a partir do serviço, credencial do host, relay quando exigido e revisão ativa. Remover a credencial pode impedir o acesso à câmera. Exportar o projeto não transporta sua senha.",
           "fields": null
         }
       ],
@@ -1493,7 +1493,12 @@
       "sections": [
         {
           "heading": "Antes de administrar contas",
-          "body": "Abra Engenharia > Segurança. Usuários e credenciais pertencem à Security Authority da instalação; não são objetos do projeto nem são transportados no pacote de engenharia. A conta local do produto é diferente de uma conta no portal comercial. Administrar usuários exige UserRoleAdmin ou SystemAdmin; editar o projeto, sozinho, não concede isso. Preserve pelo menos um administrador local habilitado e confira qual conta está usando antes de alterar papéis ou senha.",
+          "body": "Abra Engenharia > Segurança para cadastrar quem entra nesta instalação. As contas locais, senhas e permissões ficam na Security Authority, o cadastro de segurança da instalação. Elas não são objetos do projeto e não viajam no pacote de engenharia. Conta local também não é conta do portal comercial.\n\nPara administrar usuários, é preciso permissão UserRoleAdmin ou SystemAdmin. Editar o projeto não concede esse acesso. Antes de mudar papéis ou senha, confira qual conta está usando e preserve pelo menos um administrador local habilitado.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento: cadastrar e testar um operador",
+          "body": "1. Confira os papéis disponíveis e o que cada um permite fazer e em quais recursos. Se faltar um papel adequado, prepare e aplique a política primeiro.\n2. Use Novo usuário e preencha login, nome, senha privada e habilitação.\n3. Selecione apenas os papéis necessários e crie a conta.\n4. Ao editar depois, revise o resumo e confirme o salvamento. Mudar um campo não salva sozinho.\n5. Em outra sessão, entre com a conta criada e teste uma leitura permitida e uma ação que deve ser negada. A licença e a classe View Only/Interactive continuam limitando as ações.\n6. Volte à conta administrativa para corrigir concessões se necessário. Uma mesma sessão não comprova o acesso de dois usuários diferentes.",
           "fields": null
         },
         {
@@ -1538,11 +1543,6 @@
           ]
         },
         {
-          "heading": "Procedimento: cadastrar e testar um operador",
-          "body": "1. Confira os papéis disponíveis e suas capabilities/escopos no painel da Authority. Se faltar um papel adequado, prepare e aplique a política primeiro. 2. Use Novo usuário, preencha login, nome, senha privada e habilitação. 3. Selecione apenas os papéis necessários e crie a conta. 4. Para alterações posteriores, revise o resumo e confirme o salvamento; editar campos não salva por si só. 5. Entre com a nova conta em uma sessão separada e confira uma leitura permitida e uma ação que deve ser negada. A licença e a classe View Only/Interactive continuam limitando as ações. 6. Retorne à conta administrativa para corrigir os grants se necessário; não use a mesma sessão como prova de dois usuários diferentes.",
-          "fields": null
-        },
-        {
           "heading": "Redefinição, busca e problemas comuns",
           "body": "Busca filtra nome/login/papel e o filtro de estado separa habilitados e desabilitados; esconder uma linha não desabilita a conta. Para redefinir senha, selecione a conta, use Nova senha, revise o impacto e confirme. Alterar conta/papéis ou senha pode encerrar sessões; entre novamente quando solicitado. O sistema rejeita remover o último acesso administrativo local habilitado e atribuir papéis inexistentes. Se a tela disser 401, renove o login; 403 indica falta de permissão. Uma revisão de projeto não transporta usuários, e importar um .escadapkg não é restauração da Authority.",
           "fields": null
@@ -1565,7 +1565,12 @@
       "sections": [
         {
           "heading": "Conta, papel, capability e escopo",
-          "body": "A conta identifica a pessoa. Um papel reúne concessões (grants). Cada grant une uma capability, isto é, a ação permitida, a um escopo opcional, isto é, onde ela vale. A política pertence à Authority, não ao desenho ou pacote do projeto. Abra Engenharia > Segurança e o painel de papéis/capabilities/escopos. Consultar a política exige UserRoleAdmin. Validar/aplicar exige EngineeringModify e UserRoleAdmin ou SystemAdmin. Os nomes dos papéis não concedem acesso por si só.",
+          "body": "Pense primeiro em quem pode fazer o quê e onde. A conta identifica a pessoa. O papel reúne permissões que você atribui à conta. Cada concessão liga uma ação permitida a todos os recursos ou a um alcance específico. Na interface, ação pode aparecer como capability e alcance como escopo.\n\nAbra Engenharia > Segurança e o painel de papéis/capabilities/escopos. A política pertence à Authority da instalação, não ao desenho nem ao pacote do projeto. O nome de um papel não concede acesso sozinho.\n\nPara consultar, é necessário UserRoleAdmin. Para validar/aplicar, é necessário EngineeringModify junto de UserRoleAdmin ou SystemAdmin. Confira essas permissões antes de editar a política.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento: preparar e aplicar uma política",
+          "body": "1. Carregue a política atual e confira quem continuará administrando a instalação.\n2. Crie um papel ou selecione um existente. Antes de mudar um papel, confira quais usuários já o recebem.\n3. Adicione uma concessão para cada ação necessária. Escolha global ou o nó correto da hierarquia. Se incluir descendentes, confira quais recursos passarão a ser alcançados.\n4. Para Intelligence, adicione AssetProcessIntelligenceManage explicitamente: global ou Equipment/Location com vínculo válido. SystemAdmin sozinho não substitui essa concessão na configuração das ferramentas.\n5. Execute Preview da política, corrija erros e aplique somente o candidato validado. Uma nova edição invalida a prévia anterior.\n6. Atribua o papel à conta e teste, com ela, acesso permitido e negado.\n7. Se outro administrador alterou a política, recarregue e refaça sobre a versão atual. Não force uma versão antiga nem apague usuários para contornar conflito.",
           "fields": null
         },
         {
@@ -1735,13 +1740,8 @@
           ]
         },
         {
-          "heading": "Procedimento: preparar e aplicar uma política",
-          "body": "1. Carregue a política atual e identifique quem continuará administrando. 2. Crie um papel ou selecione um existente; confira usuários já atribuídos antes de editar. 3. Adicione um grant por capability necessária e escolha global ou o nó apropriado. Se houver descendentes, confira o alcance antes de marcá-los. 4. Para Intelligence, adicione AssetProcessIntelligenceManage explicitamente: global ou Equipment/Location com vínculo válido ao recurso. Um SystemAdmin isolado não deve ser usado como substituto desse grant na configuração das ferramentas. 5. Execute Preview da política; corrija os erros e aplique somente o candidato validado. Nova edição invalida a prévia. 6. Atribua o papel à conta e teste acesso permitido/negado com essa conta. 7. Se outro administrador mudou a política, recarregue e refaça a edição sobre a versão atual. Não tente aplicar uma versão antiga nem apagar usuários para contornar conflito.",
-          "fields": null
-        },
-        {
           "heading": "Prévia, sessão e recusas",
-          "body": "A prévia do usuário selecionado combina grants dos papéis do rascunho; é explicativa e não comprova permissão para um recurso concreto. As capabilities efetivas pertencem à sua sessão atual, não à pessoa selecionada. O backend decide cada operação considerando identidade, recurso e escopo; Runtime também considera classe de sessão e licença. A política da Authority usa seu próprio Preview/Apply e versão: não é ativada exportando um projeto. Exclusão de papel ainda atribuído e perda do último administrador são recusadas. Se um nó não existe ou é incompatível, escolha um vínculo correto; não aumente para global só para eliminar um erro.",
+          "body": "A prévia da conta selecionada mostra o que os papéis do rascunho parecem conceder. Ela ajuda a conferir a edição, mas não decide se uma ação será permitida num recurso concreto. As capabilities efetivas mostradas pertencem à sua sessão atual, não à pessoa selecionada.\n\nA decisão final é do servidor, considerando pessoa, recurso e alcance. No Runtime entram também classe de sessão e licença. A política tem versão e Preview/Apply próprios da Authority; exportar ou ativar projeto não a substitui.\n\nO produto recusa excluir papel ainda atribuído e perder o último administrador. Se um nó não existe ou é incompatível, escolha um vínculo válido. Não aumente para global apenas para eliminar o erro.",
           "fields": null
         }
       ],
@@ -1917,7 +1917,7 @@
       "sections": [
         {
           "heading": "Quando usar e o que ele protege",
-          "body": "O Engineering Lock protege o conteúdo de engenharia da aplicação. Não é uma reserva de edição de outro operador e não concede capabilities a quem sabe o segredo. A senha da conta autentica a pessoa; o segredo do Lock protege a aplicação; a senha do backup da Authority protege outro material. Guarde-os pelos procedimentos apropriados, sem escrever em telas, scripts ou ajuda. Mesmo bloqueada, administração do sistema, Import/Export/Restaurar e desbloqueio permanecem sujeitos às suas permissões normais.",
+          "body": "Use o Engineering Lock para proteger o conteúdo de engenharia da aplicação. O segredo permite desbloquear essa proteção, mas não concede permissões ausentes. Ele é diferente da reserva de edição usada quando alguém está trabalhando no projeto.\n\nGuarde cada segredo pela sua finalidade: a senha da conta identifica a pessoa; o segredo do Lock protege a aplicação; a senha do backup da Authority protege esse arquivo. Não escreva esses valores em telas, Scripts ou Help. Administração, importação/exportação, restauração e desbloqueio continuam exigindo suas permissões normais, mesmo com a aplicação bloqueada.",
           "fields": null
         },
         {
@@ -1963,7 +1963,7 @@
         },
         {
           "heading": "Procedimento e persistência após reinício",
-          "body": "1. Com acesso autorizado, abra o controle do cadeado. 2. Defina o segredo privado e selecione Configurar para continuar trabalhando ou Configurar e bloquear para restringir imediatamente. 3. Confira o estado retornado pelo servidor. 4. Trate a mudança como alteração de Working: Salvar → Publicar → Ativar é necessário para que a nova proteção pertença à revisão ativa durável após reinício. Não suponha que clicar Configurar sozinho concluiu esse ciclo. 5. Quando precisar editar, use Desbloquear com o segredo correto e as permissões apropriadas. 6. Confira o conteúdo acessível e mantenha a proteção pretendida na revisão que publicar. Se a resposta for recusada, leia o motivo; não limpe usuários, banco ou Authority para tentar desbloquear.",
+          "body": "1. Com acesso autorizado, abra o controle do cadeado.\n2. Defina o segredo privado. Use Configurar para continuar trabalhando ou Configurar e bloquear para restringir imediatamente.\n3. Confira a resposta e o estado retornado pelo servidor.\n4. Complete Salvar → Publicar → Ativar. A configuração é alteração do rascunho Working; esse ciclo leva a proteção à revisão ativa que deve permanecer após reinício. Clicar Configurar sozinho não conclui essa etapa.\n5. Para editar depois, use Desbloquear com segredo correto e permissões apropriadas.\n6. Confira o conteúdo disponível e a proteção da revisão que publicará. Se houver recusa, leia o motivo. Não limpe usuários, banco ou Authority para tentar desbloquear.",
           "fields": null
         }
       ],
@@ -1983,7 +1983,12 @@
       "sections": [
         {
           "heading": "Escolha o tipo de reutilização",
-          "body": "Abra Engenharia > Bibliotecas. Um arquivo .escadalib reúne recursos reutilizáveis, como Template, Dínamo, Tela, Popup, Script e asset visual, com suas dependências. Não é o projeto completo .escadapkg, um backup de banco nem uma Authority. O catálogo pode mostrar origens de fábrica, do projeto e de bibliotecas associadas. Associar disponibiliza uma biblioteca para consulta; usar/incorporar copia o recurso selecionado e as dependências necessárias para o Working. Só depois ele faz parte do projeto. Preview visual permite conferir a aparência sem incorporar.",
+          "body": "Uma biblioteca .escadalib é um conjunto de recursos reutilizáveis, como Template, Dínamo, Tela, Popup, Script ou arquivo gráfico. Ela inclui dependências, os outros recursos necessários para usar o item escolhido. Não é um projeto .escadapkg completo, backup de banco nem Authority.\n\nAssociar a biblioteca apenas a torna disponível no catálogo. Preview visual mostra a aparência sem copiar para o projeto. Usar/incorporar copia o recurso e as dependências necessárias para Working, o rascunho do projeto. Só então passam a fazer parte dele. No catálogo, confira se está vendo conteúdo de fábrica, do projeto ou de biblioteca associada.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento: usar um recurso recebido",
+          "body": "1. Abra Bibliotecas e associe o arquivo recebido. Confira nome, versão e origem.\n2. Escolha a biblioteca e filtre o tipo de recurso. Confira dependências e Preview visual quando disponível. Associar e Preview não alteram o Working.\n3. Use/incorpore o recurso e aguarde confirmação. Essa ação modifica o rascunho e pode reutilizar conteúdo equivalente já presente.\n4. Abra o item na sua área de edição. Confira TAGs, comandos, parâmetros e referências: o desenho de uma bomba não escolhe sozinho as leituras da sua bomba.\n5. Insira/configure os objetos em Telas ou Popups e teste. Salve, publique e ative antes de conferir no Runtime.\n6. Para exportar seu conjunto, informe nome/versão, marque recursos e baixe .escadalib. Reabra num projeto de teste para conferir dependências incluídas.",
           "fields": null
         },
         {
@@ -2035,11 +2040,6 @@
           ]
         },
         {
-          "heading": "Procedimento: usar um recurso recebido",
-          "body": "1. Abra Bibliotecas e associe o arquivo. Confira nome, versão e origem. 2. Escolha a biblioteca e filtre o tipo de recurso. Inspecione dependências; quando houver Preview visual, confira a aparência. Associar e Preview não alteram o Working. 3. Use/incorpore o recurso desejado; aguarde a confirmação e a atualização do projeto. Essa ação modifica Working e pode reaproveitar conteúdo equivalente já presente. 4. Abra o recurso na área apropriada. Confira TAGs, comandos, parâmetros e referências: uma imagem de bomba não adivinha o TAG da sua bomba. 5. Insira/configure os objetos nas Telas ou Popups e teste. Salve, publique e ative a revisão antes de conferir no Runtime. 6. Para exportar seu conjunto, informe nome/versão, marque os recursos e baixe o .escadalib. Reabra em um projeto de teste para conferir que as dependências necessárias foram incluídas.",
-          "fields": null
-        },
-        {
           "heading": "Atualização, desassociação e falhas",
           "body": "Desassociar remove a biblioteca do catálogo associado; não apaga recursos já incorporados no projeto. A origem registrada é informativa: não constitui sincronização automática com futuras versões. Um mesmo ID de biblioteca com conteúdo diferente pode gerar conflito; confira qual versão precisa antes de desassociar e associar outro arquivo. Preview indisponível não prova que todo o pacote seja inválido: alguns tipos não têm prévia visual. Se o Workspace mudou durante a operação, recarregue antes de repetir. Uma associação não disponibiliza credenciais de Driver, usuários ou licença. O catálogo associado atual é local ao processo e pode desaparecer após reiniciar o serviço; guarde o arquivo para associá-lo de novo. Isso é diferente dos recursos já incorporados e salvos no projeto.",
           "fields": null
@@ -2062,7 +2062,12 @@
       "sections": [
         {
           "heading": "Arquivo gráfico e objeto visual",
-          "body": "Abra Engenharia > Assets visuais. O asset é o arquivo de imagem ou modelo; um objeto da Tela é quem o exibe. Importar uma imagem não cria um TAG, comando, Dínamo parametrizado ou instância na Tela. O catálogo de fábrica e os assets do projeto são apresentados separadamente. Artes incorporadas a Dínamos ou de fábrica podem não aparecer na lista de imagens do usuário; procure na origem correspondente antes de importar duplicata.",
+          "body": "Para usar uma imagem ou modelo numa Tela, primeiro importe o arquivo em Engenharia > Assets visuais. Asset é esse recurso gráfico; o objeto visual é quem o mostra na Tela. Importar o arquivo não cria TAG, comando, Dínamo parametrizado nem coloca uma instância no desenho.\n\nConfira a origem antes de importar outra cópia. Conteúdo de fábrica e arquivos do projeto aparecem separados. Artes incluídas em Dínamos ou na fábrica podem não estar na lista de imagens do usuário; procure na origem correspondente.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimento e conferência",
+          "body": "1. Importe um arquivo e aguarde a confirmação do serviço. 2. Confira prévia e nome; ajuste o rótulo se necessário. 3. Abra a Tela/Popup e insira um objeto compatível, escolhendo o asset pela biblioteca/seletor. Para um fundo ou branding, use o campo correspondente na área de configuração. 4. Ajuste tamanho/proporção na Tela; isso não altera os pixels do arquivo original. 5. Salve, publique e ative antes de conferir no Runtime. Se não aparecer, confira vínculo, tipo suportado, revisão e disponibilidade do conteúdo; não substitua o asset por outro só porque o nome parece igual.",
           "fields": null
         },
         {
@@ -2091,11 +2096,6 @@
               "constraints": ""
             }
           ]
-        },
-        {
-          "heading": "Procedimento e conferência",
-          "body": "1. Importe um arquivo e aguarde a confirmação do serviço. 2. Confira prévia e nome; ajuste o rótulo se necessário. 3. Abra a Tela/Popup e insira um objeto compatível, escolhendo o asset pela biblioteca/seletor. Para um fundo ou branding, use o campo correspondente na área de configuração. 4. Ajuste tamanho/proporção na Tela; isso não altera os pixels do arquivo original. 5. Salve, publique e ative antes de conferir no Runtime. Se não aparecer, confira vínculo, tipo suportado, revisão e disponibilidade do conteúdo; não substitua o asset por outro só porque o nome parece igual.",
-          "fields": null
         }
       ],
       "relatedTopicIds": [
@@ -6084,11 +6084,19 @@
       "sections": [
         {
           "heading": "Escolha o que precisa recuperar",
-          "body": "Aplicação é a engenharia: TAGs, telas, scripts e demais objetos portáteis do pacote .escadapkg. Security Authority mantém usuários, credenciais e política de acesso em um backup protegido separado. Licença é outro artefato. Banco de dados, Historian e material protegido de drivers pertencem aos seus procedimentos próprios. Um arquivo de aplicação não é uma imagem completa da instalação e não contém usuários/password hashes/senhas de login. Não conclua que ter o .escadapkg basta para recuperar acessos, histórico ou as chaves de um driver."
+          "body": "Antes de restaurar, identifique o que perdeu e quais cópias tem. A aplicação .escadapkg leva a engenharia: TAGs, telas, Scripts e demais objetos portáteis. A Security Authority mantém usuários, senhas e política de acesso em outro backup protegido. Licença é um arquivo separado.\n\nBanco de dados, histórico Historian e chaves/material protegido dos drivers seguem procedimentos próprios. O pacote da aplicação não é uma cópia completa da instalação e não contém usuários, hashes de senha ou credenciais de login. Ter apenas .escadapkg não garante recuperar acesso, histórico ou chave de driver."
         },
         {
           "heading": "Preparar e conferir os backups",
-          "body": "Exporte a aplicação pelo fluxo suportado e confira projeto/revisão e local de destino. Alterações não salvas precisam ser tratadas antes de considerar uma cópia como ponto recuperável. O fluxo Trocar a aplicação desta instalação oferece Backup da Application e Backup da Authority antes do detach: você pode exportar a cópia necessária e voltar, sem executar a troca. Na Authority, Nova senha do backup protege o arquivo exportado; não é a senha de login. Guarde essa senha por um meio protegido separado do arquivo e confirme que o download terminou. Não avance para o detach só para testar um backup. Mantenha cópias e plano de recuperação próprios do banco/Historian e das chaves protegidas; este guia não cria política de retenção/arquivamento nem promete incluí-los no pacote."
+          "body": "Exporte a aplicação pelo fluxo disponível e confira projeto, revisão e destino do arquivo. Resolva alterações não salvas antes de tratar a cópia como recuperável. Aguarde o download terminar.\n\nEm Trocar a aplicação desta instalação existem Backup da Application e Backup da Authority antes do detach, a desvinculação. Você pode exportar e voltar sem executar a troca. Não faça detach só para testar backup.\n\nNa Authority, Nova senha do backup protege o arquivo exportado; não é senha de login. Guarde-a por meio protegido separado do arquivo. Prepare também cópias e recuperação do banco/Historian e chaves de drivers. Este fluxo não define retenção/arquivamento nem os inclui automaticamente no pacote."
+        },
+        {
+          "heading": "Recuperar Authority e aplicação em uma instalação neutra",
+          "body": "1. Confirme instalação neutra elegível e servidor de destino correto. Não faça detach só para abrir este fluxo.\n2. Na configuração inicial, escolha Restaurar backup e selecione aplicação, Authority, senha do backup e licença opcional.\n3. Use Validar backups. Se houver recusa, corrija arquivo, compatibilidade ou credencial. A extensão do arquivo não substitui a validação.\n4. Com os arquivos válidos, use Restaurar Authority.\n5. Entre com um Administrador restaurado, habilitado e com permissões efetivas exigidas para o pacote. O nome developer sozinho não basta.\n6. Continue a recuperação. O servidor valida novamente a aplicação usando a Authority restaurada.\n7. Quando permitido, use Importar aplicação e aguarde o resultado completo. Restaurar Authority e recuperar a aplicação são etapas distintas; não há promessa de uma transação única entre todos os arquivos."
+        },
+        {
+          "heading": "Recuperar apenas a aplicação com Authority existente",
+          "body": "Se a instalação não tem projeto persistido mas já tem Authority, entre com um Administrador compatível e use Importar aplicação. Selecione o .escadapkg, use Validar aplicação, leia o resultado e só então importe. O fluxo exige compatibilidade do pacote, catálogo de projeto/estado de destino apropriados e autorização; não é uma função genérica para sobrescrever qualquer aplicação ativa. Para modificar uma aplicação já instalada, use os fluxos normais de engenharia/portabilidade correspondentes ou o procedimento específico de troca. Não apague usuários/banco para fazer a opção aparecer."
         },
         {
           "heading": "Entenda os campos dos arquivos",
@@ -6167,16 +6175,8 @@
           ]
         },
         {
-          "heading": "Recuperar Authority e aplicação em uma instalação neutra",
-          "body": "1. Confirme que a instalação está no estado neutro elegível e que você está no servidor de destino correto; não faça detach só para abrir este fluxo. 2. Na configuração inicial, escolha Restaurar backup. Selecione aplicação, Authority, senha do backup e licença opcional. 3. Escolha Validar backups. Se houver rejeição, pare e corrija arquivo/compatibilidade/credencial; nenhum aceite de extensão substitui a validação. 4. Com os arquivos válidos, escolha Restaurar Authority. 5. Entre com um Administrador restaurado. A conta precisa estar habilitada e ter as permissões efetivas de engenharia/administração exigidas para o pacote; o nome developer sozinho não basta. 6. Continue a recuperação; o servidor valida novamente a aplicação com a Authority restaurada. 7. Quando a validação permitir, escolha Importar aplicação e aguarde o resultado completo. A restauração da Authority e a recuperação da aplicação são etapas distintas, não uma promessa de transação única entre todos os arquivos."
-        },
-        {
-          "heading": "Recuperar apenas a aplicação com Authority existente",
-          "body": "Se a instalação não tem projeto persistido mas já tem Authority, entre com um Administrador compatível e use Importar aplicação. Selecione o .escadapkg, use Validar aplicação, leia o resultado e só então importe. O fluxo exige compatibilidade do pacote, catálogo de projeto/estado de destino apropriados e autorização; não é uma função genérica para sobrescrever qualquer aplicação ativa. Para modificar uma aplicação já instalada, use os fluxos normais de engenharia/portabilidade correspondentes ou o procedimento específico de troca. Não apague usuários/banco para fazer a opção aparecer."
-        },
-        {
           "heading": "Interrupção, falha parcial e licença",
-          "body": "Após restaurar a Authority, a aplicação pode ainda não estar recuperada. Se os arquivos continuam em memória do navegador, a continuação conserva a seleção e impede trocá-la silenciosamente. Se a página perdeu os arquivos, escolha novamente os artefatos solicitados; uma nova prévia é obrigatória antes de Apply. Não confunda a memória da seleção com backup dos arquivos. Se o servidor retornar estágio/erro intermediário, registre o resultado e confira o estado persistido antes de repetir: o fluxo envolve revisão, publicação e ativação, e uma etapa concluída não deve ser presumida desfeita. Se a aplicação foi recuperada e a licença opcional falhou, leia o aviso e use Continuar sem licença quando apropriado; trate a licença depois, sem repetir o restore inteiro só por esse aviso."
+          "body": "Restaurar a Authority não significa que a aplicação já foi recuperada. Se o navegador conserva os arquivos selecionados, a continuação mantém essa seleção e impede trocá-la silenciosamente. Se os perdeu, selecione novamente os arquivos pedidos e faça nova prévia antes de Apply. A memória da seleção não é backup dos arquivos.\n\nSe aparecer estágio ou erro intermediário, registre o resultado e confira o estado salvo antes de repetir. O fluxo passa por revisão, publicação e ativação; uma etapa concluída não deve ser presumida desfeita.\n\nSe a aplicação foi recuperada e só a licença opcional falhou, leia o aviso. Use Continuar sem licença quando apropriado e trate a licença depois, sem repetir a restauração inteira por esse aviso."
         },
         {
           "heading": "Confirmar o resultado e os limites",
@@ -6871,7 +6871,12 @@
       "sections": [
         {
           "heading": "Understand what you are creating",
-          "body": "A Faceplate Template is a shared graphical definition, such as a pump drawing with name, state and reading. Equipment identifies a particular pump. Pump 01 and Pump 02 can use the same Template, and equipment can exist without a Template. An Intelligence profile organizes measurements and does not replace the drawing.",
+          "body": "Use a Template Faceplate when several machines need the same drawing. For example, build a pump with name, state and reading and reuse it for Pump 01 and Pump 02. Template is the shared graphic definition; each Equipment identifies one actual pump.\n\nYou can register equipment without a Template and choose its drawing later. An Intelligence profile has a different purpose: it gathers measurements for analysis, not a replacement for the drawing.",
+          "fields": null
+        },
+        {
+          "heading": "Procedure: create and reuse",
+          "body": "1. In Engineering > Templates, use New Template and fill name and identifier.\n2. Start with a few objects, such as title, state and one reading. Adjust their properties in the editor.\n3. Configure required data bindings, visual changes and events. Equipment names do not automatically replace selected TAGs.\n4. Run Preview, fix errors and apply to the project.\n5. In Equipment, create or select a real instance and choose this optional Template. Save the assignment.\n6. In the Screen editor, use the equipment/faceplate library to insert the instance when available.\n7. Save, publish and activate. In Runtime, check two instances: the drawing may match, but each reading must belong to the correct equipment.",
           "fields": null
         },
         {
@@ -6902,13 +6907,8 @@
           ]
         },
         {
-          "heading": "Procedure: create and reuse",
-          "body": "1. Select New Template and enter name and identifier. 2. Insert a small assembly and configure properties. 3. Add bindings/dynamics/events; do not assume TAGs are replaced automatically from equipment names. 4. Preview, resolve errors and apply to the project. 5. Open Equipment, create or select an instance and choose this optional Template. Save the link. 6. In the Screen editor, insert the instance from the equipment/faceplate library where available. 7. Save, publish and activate. Check two instances and their readings in Runtime.",
-          "fields": null
-        },
-        {
           "heading": "Update without confusing definition and instance",
-          "body": "Editing the shared Template updates the drawing followed by all linked instances in that revision. Review the impact before applying; use another Template for a separate appearance. Changing the equipment link changes its associated drawing while preserving equipment identity. A Dynamo is another reusable visual assembly; a Group only arranges objects.",
+          "body": "A change to the shared definition can appear in every linked instance when its revision goes into use. Before applying, check which equipment uses that Template. For a different appearance in only some instances, consider another definition.\n\nChanging the assigned Template changes the drawing while retaining equipment identity. A Dynamo is another reusable visual set. A Group only organizes objects; it does not have the same shared-definition link.",
           "fields": null
         },
         {
@@ -6934,7 +6934,12 @@
       "sections": [
         {
           "heading": "Start with asset identity",
-          "body": "Open Engineering > Equipment. Equipment represents a real instance such as Pump 01. It is neither a Driver, TAG nor drawing. Create it without a faceplate and attach a Template later if needed. Intelligence uses this identity in profile assignments; drawing a pump does not register equipment.",
+          "body": "Start by registering the machine that exists in the plant, such as Pump 01. In Engineering > Equipment, registration gives the actual instance an identity, separate from its connection, TAGs and screen drawing.\n\nYou can create equipment without a faceplate and assign a Template later. Intelligence uses this identity for profile assignments. Drawing a pump on a Screen does not automatically register equipment.",
+          "fields": null
+        },
+        {
+          "heading": "Procedure: register and check",
+          "body": "1. Enter a distinct name. 2. Check the generated path and choose a Template or No Template. 3. Select Create equipment; the product validates before applying to the project. 4. Select it in the list to edit name/link; choose Save changes. 5. Save/publish/activate when Runtime needs the equipment. 6. In Intelligence select this equipment identity and assign a measurement profile. Configure TAGs and capture before analysis.",
           "fields": null
         },
         {
@@ -6963,11 +6968,6 @@
               "constraints": ""
             }
           ]
-        },
-        {
-          "heading": "Procedure: register and check",
-          "body": "1. Enter a distinct name. 2. Check the generated path and choose a Template or No Template. 3. Select Create equipment; the product validates before applying to the project. 4. Select it in the list to edit name/link; choose Save changes. 5. Save/publish/activate when Runtime needs the equipment. 6. In Intelligence select this equipment identity and assign a measurement profile. Configure TAGs and capture before analysis.",
-          "fields": null
         },
         {
           "heading": "Verification and common errors",
@@ -7468,7 +7468,7 @@
       "sections": [
         {
           "heading": "The header is not the process screen",
-          "body": "Open Engineering > Header. Branding, titles, shortcuts and clock sit above the process screen. Changing them does not alter TAGs or draw process objects. Validate preview and Apply to Working, then save, publish and activate.",
+          "body": "The header groups branding, titles, shortcuts and clock above the process screen. Configure it in Engineering > Header. It helps identify and navigate the application; editing it changes no TAGs and adds no objects to the screen drawing.\n\nUse Validate preview and Apply to Working, the project draft. Then save, publish and activate the revision to use the change in Runtime.",
           "fields": [
             {
               "key": "branding.mode",
@@ -7530,7 +7530,7 @@
         },
         {
           "heading": "Mobile: orientation and variant",
-          "body": "Open Engineering > Mobile. Select Landscape or Portrait for touch devices; physical orientation lock depends on the browser. For each desktop screen choose Same desktop screen or an existing alternate. You must design that alternate; Portrait does not rearrange all objects automatically. Variants use the same TAGs/Runtime, not a separate data copy. Header settings remain under Header.",
+          "body": "In Engineering > Mobile, choose presentation on touch devices. Orientation selects Landscape or Portrait; physical orientation lock depends on the browser.\n\nFor each desktop screen, use the same screen or select an existing alternative. Draw that alternative yourself in Screens: selecting Portrait does not automatically rearrange objects. Both use the same TAGs and Runtime without copying data. To change the application’s top area, return to Header.",
           "fields": null
         },
         {
@@ -7554,7 +7554,7 @@
       "sections": [
         {
           "heading": "Source and object are separate steps",
-          "body": "Open Engineering > Media Sources. The source describes where content comes from; a screen video/image object defines presentation. Registering RTSP does not guarantee native browser playback: it depends on the server relay. Check playback infrastructure before repeatedly changing settings.",
+          "body": "First prepare the video or image origin in Engineering > Media Sources. The source says where content comes from. Then select it in the Screen object, which defines where it appears and how it is presented.\n\nRTSP needs the server relay, the service forwarding the stream for playback. Registering a source does not mean the browser plays RTSP directly. Check that infrastructure before changing multiple parameters to fix playback.",
           "fields": [
             {
               "key": "mediaSource.name",
@@ -7602,7 +7602,7 @@
         },
         {
           "heading": "Procedure and common problems",
-          "body": "1. Create the source with name, key, protocol, address and enablement. 2. Save and configure credentials in the created source panel if needed. 3. Configure the corresponding visual object with its supported source. 4. Save/publish/activate and check Runtime playback. On failure inspect endpoint/protocol, service access, host credential, required relay and active revision. Removing credentials may block authenticated playback. Project export does not transfer camera passwords.",
+          "body": "1. Create the source with name, key, protocol, address and enabled state.\n2. Save it. If credentials are needed, configure them in the created source’s panel.\n3. Insert or select a compatible visual object and choose the supported source.\n4. Save, publish and activate; check playback in Runtime.\n\nFor no playback, check address/protocol, service-side access, host credentials, relay when required and active revision. Removing credentials can prevent camera access. Project export does not carry its password.",
           "fields": null
         }
       ],
@@ -8356,7 +8356,12 @@
       "sections": [
         {
           "heading": "Before administering accounts",
-          "body": "Open Engineering > Security. Users and credentials belong to the installation Security Authority; they are not project objects and are not carried in the Engineering package. A local product account differs from a commercial portal account. User administration requires UserRoleAdmin or SystemAdmin; project editing alone does not grant it. Preserve at least one enabled local administrator and check which account you are using before changing roles or passwords.",
+          "body": "Open Engineering > Security to register who signs into this installation. Local accounts, passwords and permissions belong to Security Authority, the installation’s security store. They are not project objects or part of the engineering package. A local account is also different from a commercial portal account.\n\nManaging users requires UserRoleAdmin or SystemAdmin. Editing the project does not grant that access. Before changing roles or passwords, check your current account and preserve at least one enabled local administrator.",
+          "fields": null
+        },
+        {
+          "heading": "Procedure: create and test an operator",
+          "body": "1. Check available roles, which actions each allows and for which resources. If a suitable role is missing, prepare and apply policy first.\n2. Use New user and fill login, name, private password and enabled state.\n3. Select only needed roles and create the account.\n4. For later edits, review the summary and confirm saving. Changing a field does not save by itself.\n5. In another session, sign in with the new account and test one allowed reading and one action that must be denied. License and View Only/Interactive class still limit actions.\n6. Return to the administrator account to correct grants if needed. One session does not prove access for two different users.",
           "fields": null
         },
         {
@@ -8401,11 +8406,6 @@
           ]
         },
         {
-          "heading": "Procedure: create and test an operator",
-          "body": "1. Inspect available roles and their capabilities/scopes in the Authority panel. If an appropriate role is missing, prepare and apply the policy first. 2. Select New user and enter login, name, private password and enablement. 3. Select only required roles and create the account. 4. For later changes, review the summary and confirm saving; editing fields alone does not save. 5. Sign in with the new account in a separate session and check a permitted read and an action that should be denied. License and View Only/Interactive class still restrict actions. 6. Return to the administrative account to correct grants if needed; do not use one session as evidence for two different users.",
-          "fields": null
-        },
-        {
           "heading": "Reset, search and common problems",
           "body": "Search filters name/login/role, and status separates enabled and disabled accounts; hiding a row does not disable an account. To reset a password, select the account, enter New password, review the impact and confirm. Account/role or password changes can end sessions; sign in again when requested. The system rejects removing the last enabled local administrative access and assigning nonexistent roles. A 401 calls for signing in again; 403 indicates insufficient permission. A project revision does not carry users, and importing .escadapkg does not restore Authority.",
           "fields": null
@@ -8428,7 +8428,12 @@
       "sections": [
         {
           "heading": "Account, role, capability and scope",
-          "body": "An account identifies the person. A role groups grants. Each grant pairs a capability, the permitted action, with an optional scope, where it applies. The policy belongs to Authority rather than a drawing or project package. Open Engineering > Security and the roles/capabilities/scopes panel. Reading policy requires UserRoleAdmin. Preview/apply requires EngineeringModify and either UserRoleAdmin or SystemAdmin. Role names grant no access by themselves.",
+          "body": "Start with who can do what and where. The account identifies the person. A role gathers permissions assigned to an account. Each grant connects an allowed action to all resources or a specific scope. The interface calls the action a capability and its reach a scope.\n\nOpen Engineering > Security and the roles/capabilities/scopes panel. Policy belongs to the installation’s Authority, not the drawing or project package. A role name alone grants no access.\n\nViewing requires UserRoleAdmin. Validating/applying requires EngineeringModify together with UserRoleAdmin or SystemAdmin. Check these permissions before editing policy.",
+          "fields": null
+        },
+        {
+          "heading": "Procedure: prepare and apply a policy",
+          "body": "1. Load current policy and check who will keep administering the installation.\n2. Create a role or select one. Before changing it, check which users already receive it.\n3. Add a grant for each needed action. Choose global or the correct hierarchy node. If including descendants, check which resources become covered.\n4. For Intelligence, explicitly add AssetProcessIntelligenceManage: global or Equipment/Location with a valid resource link. SystemAdmin alone does not replace that grant when configuring tools.\n5. Run policy Preview, correct errors and apply only the validated candidate. A new edit invalidates the previous preview.\n6. Assign the role and test allowed/denied access with that account.\n7. If another administrator changed policy, reload and redo against the current version. Do not force an old version or delete users to bypass conflict.",
           "fields": null
         },
         {
@@ -8598,13 +8603,8 @@
           ]
         },
         {
-          "heading": "Procedure: prepare and apply a policy",
-          "body": "1. Load current policy and identify who will retain administration. 2. Create or select a role; check assigned users before editing. 3. Add a grant for each required capability and choose global or the appropriate node. Inspect reach before including descendants. 4. For Intelligence explicitly add AssetProcessIntelligenceManage: global or Equipment/Location with a valid resource link. Do not substitute SystemAdmin alone for this grant when configuring the tools. 5. Run policy Preview, correct errors and apply only the validated candidate. A new edit invalidates Preview. 6. Assign the role to the account and test allowed/denied access using that account. 7. If another administrator changed policy, reload and edit the current version. Do not apply an old version or delete users to bypass a conflict.",
-          "fields": null
-        },
-        {
           "heading": "Preview, session and rejection",
-          "body": "Selected-user preview combines draft-role grants; it is explanatory and does not prove permission for a concrete resource. Effective capabilities belong to your current session, not the selected person. The backend decides each operation using identity, resource and scope; Runtime also considers session class and license. Authority policy uses its own versioned Preview/Apply: exporting a project does not activate it. Deleting an assigned role and losing the last administrator are rejected. If a node is missing or incompatible, select a correct link; do not broaden to global just to dismiss an error.",
+          "body": "The selected account’s preview shows what roles in the draft appear to grant. It helps review the edit but does not decide access for a concrete resource. Displayed effective capabilities belong to your current session, not the selected person.\n\nThe server makes the final decision using person, resource and scope. Runtime also considers session class and license. Policy has its own Authority version and Preview/Apply; exporting or activating a project does not replace it.\n\nThe product refuses deletion of an assigned role or loss of the last administrator. If a node is missing or incompatible, choose a valid link. Do not broaden to global merely to remove an error.",
           "fields": null
         }
       ],
@@ -8780,7 +8780,7 @@
       "sections": [
         {
           "heading": "When to use it and what it protects",
-          "body": "Engineering Lock protects application Engineering content. It is not another operator’s edit reservation and grants no capabilities to someone who knows the secret. An account password authenticates a person; the Lock secret protects the application; the Authority backup password protects different material. Store them appropriately rather than in screens, scripts or Help. When locked, system administration, Import/Export/Restore and unlock remain subject to their normal permissions.",
+          "body": "Use Engineering Lock to protect the application’s engineering content. Its secret unlocks that protection but grants no missing permissions. It differs from the editing reservation used when someone works on the project.\n\nStore each secret for its purpose: account password identifies the person; Lock secret protects the application; Authority-backup password protects that file. Put none in screens, Scripts or Help. Administration, import/export, restore and unlocking still require normal permissions even while locked.",
           "fields": null
         },
         {
@@ -8826,7 +8826,7 @@
         },
         {
           "heading": "Procedure and persistence after restart",
-          "body": "1. With authorized access, open the padlock control. 2. Set the private secret and choose Configure to keep working or Configure and lock to restrict immediately. 3. Check the server-returned state. 4. Treat the change as Working state: Save → Publish → Activate is needed for the new protection to belong to the durable active revision after restart. Do not assume Configure alone completes that lifecycle. 5. To edit, use Unlock with the correct secret and appropriate permissions. 6. Check accessible content and preserve intended protection in the revision you publish. If rejected, read the reason; do not clear users, database or Authority to try unlocking.",
+          "body": "1. With authorized access, open the padlock control.\n2. Set the private secret. Use Configure to keep working or Configure and lock to restrict immediately.\n3. Check the response and state returned by the server.\n4. Complete Save → Publish → Activate. Configuration changes the Working draft; this cycle puts protection in the active revision that must remain after restart. Configure alone does not complete it.\n5. To edit later, use Unlock with the correct secret and appropriate permissions.\n6. Check available content and protection in the revision you will publish. If refused, read the reason. Do not clear users, database or Authority to try unlocking.",
           "fields": null
         }
       ],
@@ -8846,7 +8846,12 @@
       "sections": [
         {
           "heading": "Choose the reuse mechanism",
-          "body": "Open Engineering > Libraries. An .escadalib file groups reusable resources such as Templates, Dynamos, Screens, Popups, Scripts and visual assets with dependencies. It is not a complete .escadapkg project, database backup or Authority. The catalog can show factory, project and associated-library origins. Association makes a library available for inspection; Use/incorporate copies the selected resource and required dependencies into Working. Only then is it project content. Visual Preview lets you inspect appearance without incorporation.",
+          "body": "A .escadalib library is a reusable resource set, such as Template, Dynamo, Screen, Popup, Script or graphic file. It includes dependencies, the other resources needed by the chosen item. It is not a complete .escadapkg project, database backup or Authority.\n\nAssociating only makes the library available in the catalog. Visual Preview shows appearance without copying into the project. Using/incorporating copies the resource and required dependencies into Working, the project draft. Only then are they part of the project. Check whether the catalog shows factory, project or associated-library content.",
+          "fields": null
+        },
+        {
+          "heading": "Procedure: use a received resource",
+          "body": "1. Open Libraries and associate the received file. Check name, version and origin.\n2. Choose the library and filter resource type. Review dependencies and visual Preview when available. Association and Preview do not change Working.\n3. Use/incorporate the resource and wait for confirmation. This changes the draft and may reuse equivalent content already present.\n4. Open the item in its editor. Check TAGs, commands, parameters and references: a pump drawing does not choose your pump’s readings.\n5. Insert/configure objects in Screens or Popups and test. Save, publish and activate before checking Runtime.\n6. To export your set, enter name/version, select resources and download .escadalib. Reopen in a test project to check included dependencies.",
           "fields": null
         },
         {
@@ -8898,11 +8903,6 @@
           ]
         },
         {
-          "heading": "Procedure: use a received resource",
-          "body": "1. Open Libraries and associate the file. Check name, version and origin. 2. Choose the library and filter the resource type. Inspect dependencies; use visual Preview when available. Association and Preview do not change Working. 3. Use/incorporate the desired resource; wait for confirmation and project refresh. This changes Working and may reuse equivalent content already present. 4. Open the resource in its appropriate area. Check TAGs, commands, parameters and references: a pump picture cannot infer your pump TAG. 5. Insert/configure objects in Screens or Popups and test. Save, publish and activate before checking Runtime. 6. To export your collection, enter name/version, select resources and download .escadalib. Reopen it in a test project to verify dependencies were included.",
-          "fields": null
-        },
-        {
           "heading": "Updates, disassociation and failures",
           "body": "Disassociate removes the library from the associated catalog; it does not delete incorporated project resources. Recorded origin is informational, not automatic synchronization with future versions. The same library ID with different content can conflict; check the required version before disassociating and associating another file. Unavailable Preview does not prove the whole package invalid: some kinds have no visual preview. If Workspace changed during the operation, reload before retrying. Association supplies no Driver credentials, users or license. The current associated catalog is process-local and may disappear after service restart; retain the file to associate it again. This differs from resources already incorporated and saved in the project.",
           "fields": null
@@ -8925,7 +8925,12 @@
       "sections": [
         {
           "heading": "Graphics file and visual object",
-          "body": "Open Engineering > Visual assets. An asset is the image/model file; a Screen object displays it. Importing an image creates no TAG, command, parameterized Dynamo or Screen instance. Factory catalog and project assets are shown separately. Dynamo artwork or factory content may not appear in the user-image list; check its origin before importing duplicates.",
+          "body": "To use an image or model on a Screen, first import its file in Engineering > Visual Assets. Asset means that graphic resource; a visual object displays it on the Screen. Importing creates no TAG, command, parameterized Dynamo or drawing instance.\n\nCheck origin before importing another copy. Factory content and project files are separate. Artwork included in Dynamos or factory content may not appear in the user-image list; look under its corresponding origin.",
+          "fields": null
+        },
+        {
+          "heading": "Procedure and verification",
+          "body": "1. Import a file and wait for service confirmation. 2. Check Preview and name; adjust the label if needed. 3. Open the Screen/Popup and insert a compatible object, choosing the asset through its library/picker. For background or branding, use the relevant configuration field. 4. Adjust size/aspect ratio on the Screen; this does not alter original image pixels. 5. Save, publish and activate before checking Runtime. If missing, check reference, supported type, revision and content availability; do not replace an asset merely because another has the same-looking name.",
           "fields": null
         },
         {
@@ -8954,11 +8959,6 @@
               "constraints": ""
             }
           ]
-        },
-        {
-          "heading": "Procedure and verification",
-          "body": "1. Import a file and wait for service confirmation. 2. Check Preview and name; adjust the label if needed. 3. Open the Screen/Popup and insert a compatible object, choosing the asset through its library/picker. For background or branding, use the relevant configuration field. 4. Adjust size/aspect ratio on the Screen; this does not alter original image pixels. 5. Save, publish and activate before checking Runtime. If missing, check reference, supported type, revision and content availability; do not replace an asset merely because another has the same-looking name.",
-          "fields": null
         }
       ],
       "relatedTopicIds": [
@@ -12947,11 +12947,19 @@
       "sections": [
         {
           "heading": "Choose what must be recovered",
-          "body": "Application means engineering: TAGs, screens, scripts and other portable .escadapkg objects. Security Authority holds users, credentials and access policy in a separate protected backup. Licensing is another artifact. Database, Historian and protected driver material follow their own procedures. An application file is not an installation image and contains no users/password hashes/login passwords. Having an .escadapkg alone does not recover access, history or driver keys."
+          "body": "Before restoring, identify what was lost and which copies you have. The .escadapkg application carries engineering: TAGs, screens, Scripts and other portable objects. Security Authority keeps users, passwords and access policy in a separate protected backup. License is another file.\n\nDatabase, Historian history and driver keys/protected material have their own procedures. The application package is not a full installation copy and contains no users, password hashes or login credentials. A .escadapkg alone does not guarantee recovery of access, history or driver keys."
         },
         {
           "heading": "Prepare and check backups",
-          "body": "Export the application through the supported flow and check project/revision and destination. Address unsaved edits before treating a copy as a recovery point. Switch this installation application offers Application backup and Authority backup before detach: export what is needed and return without executing the switch. For Authority, New backup password protects the exported file; it is not a login password. Store that password through a protected channel separate from the file and confirm download completion. Do not proceed with detach just to test a backup. Keep separate database/Historian and protected-key copies/recovery plans; this guide neither creates retention/archiving policy nor promises they are included in the package."
+          "body": "Export the application through the supported flow and check project, revision and file destination. Resolve unsaved changes before treating the copy as recoverable. Wait for download completion.\n\nSwitch this installation’s application offers Application and Authority backups before detach, the unlinking step. You can export and return without switching. Do not detach just to test a backup.\n\nNew backup password protects the exported Authority file; it is not the login password. Store it through a protected channel separate from the file. Also prepare database/Historian and driver-key copies/recovery. This flow sets no retention/archiving policy or automatic inclusion in the package."
+        },
+        {
+          "heading": "Recover Authority and application on a neutral installation",
+          "body": "1. Confirm an eligible neutral installation and correct destination server. Do not detach merely to open this flow.\n2. In initial setup choose Restore backup and select application, Authority, backup password and optional license.\n3. Use Validate backups. If refused, correct file, compatibility or credential. A file extension does not replace validation.\n4. With valid files, use Restore Authority.\n5. Sign in with an enabled restored Administrator having the effective permissions required for the package. The developer name alone is insufficient.\n6. Continue recovery. The server validates the application again using restored Authority.\n7. When allowed, use Import application and wait for the full result. Authority restore and application recovery are distinct stages, not a promise of one transaction across all files."
+        },
+        {
+          "heading": "Recover only the application with existing Authority",
+          "body": "If the installation has no persisted project but already has Authority, sign in with a compatible Administrator and choose Import application. Select the .escadapkg, Validate application, read the result and then import. The flow requires compatible package, appropriate destination project catalog/state and authorization; it is not generic overwrite of any running application. To modify an installed application use the corresponding engineering/portability flows or the specific switching procedure. Do not delete users/database to make the option appear."
         },
         {
           "heading": "Understand artifact fields",
@@ -13030,16 +13038,8 @@
           ]
         },
         {
-          "heading": "Recover Authority and application on a neutral installation",
-          "body": "1. Confirm an eligible neutral installation and the correct destination server; do not detach merely to open this flow. 2. In initial setup choose Restore backup. Select application, Authority, backup password and optional license. 3. Choose Validate backups. Stop on rejection and correct file/compatibility/credential; extension acceptance is not validation. 4. With valid files, choose Restore Authority. 5. Sign in with a restored Administrator. The account must be enabled and hold effective engineering/administration permissions required for the package; the name developer alone is insufficient. 6. Continue recovery; the server validates the application again against restored Authority. 7. When validation permits, choose Import application and wait for complete results. Authority restore and application recovery are separate stages, not a promise of one transaction across every file."
-        },
-        {
-          "heading": "Recover only the application with existing Authority",
-          "body": "If the installation has no persisted project but already has Authority, sign in with a compatible Administrator and choose Import application. Select the .escadapkg, Validate application, read the result and then import. The flow requires compatible package, appropriate destination project catalog/state and authorization; it is not generic overwrite of any running application. To modify an installed application use the corresponding engineering/portability flows or the specific switching procedure. Do not delete users/database to make the option appear."
-        },
-        {
           "heading": "Interruption, partial failure and license",
-          "body": "After Authority restoration the application may still be unrecovered. If browser memory retains files, continuation keeps the selection and prevents silent replacement. If the page lost files, reselect the requested artifacts; a new preview is mandatory before Apply. Retained selection is not a file backup. If the server returns an intermediate stage/error, record it and check persisted state before repeating: revision, publication and activation are distinct stages, and a completed stage must not be assumed rolled back. If the application recovered but optional license installation failed, read the warning and choose Continue without license where appropriate; address licensing separately rather than repeating the whole restore only for that warning."
+          "body": "Restoring Authority does not mean the application is already recovered. If the browser retains selected files, continuation preserves that selection and prevents silent replacement. If files were lost, select requested files again and make a new preview before Apply. Remembering a selection is not a file backup.\n\nFor an intermediate stage/error, record the result and check stored state before repeating. The flow passes through revision, publication and activation; do not assume a completed stage was undone.\n\nIf application recovery succeeded but optional licensing failed, read the warning. Use Continue without license when appropriate and handle licensing afterwards rather than repeating the entire restore for that warning."
         },
         {
           "heading": "Confirm results and limits",
@@ -13734,7 +13734,12 @@
       "sections": [
         {
           "heading": "Comprenda qué está creando",
-          "body": "Una Plantilla Faceplate es una definición gráfica compartida, como una bomba con nombre, estado y lectura. Equipo identifica una bomba concreta. Bomba 01 y Bomba 02 pueden usar la misma plantilla; un equipo también puede existir sin ella. Un perfil de Intelligence organiza mediciones y no sustituye al dibujo.",
+          "body": "Use un Template Faceplate cuando varias máquinas necesiten el mismo dibujo. Por ejemplo, monte una bomba con nombre, estado y lectura y reutilice el dibujo para Bomba 01 y Bomba 02. Template es la definición gráfica compartida; cada Equipo identifica una bomba concreta.\n\nPuede registrar el equipo sin Template y elegir dibujo después. El perfil de Intelligence reúne mediciones para análisis; no sustituye el dibujo.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento: crear y reutilizar",
+          "body": "1. En Ingeniería > Templates use Nuevo Template y complete nombre e identificador.\n2. Empiece con pocos objetos: título, estado y una lectura, por ejemplo. Ajuste propiedades en el editor.\n3. Configure vínculos de datos, cambios visuales y eventos necesarios. El nombre del equipo no sustituye automáticamente los TAGs elegidos.\n4. Ejecute Preview, corrija y aplique al proyecto.\n5. En Equipos cree o seleccione una instancia real y elija el Template opcional. Guarde la asociación.\n6. En el editor de Pantalla use la biblioteca de equipos/faceplates para insertar la instancia cuando esté disponible.\n7. Guarde, publique y active. En Runtime compruebe dos instancias: el dibujo puede ser igual, pero cada lectura debe pertenecer al equipo correcto.",
           "fields": null
         },
         {
@@ -13765,13 +13770,8 @@
           ]
         },
         {
-          "heading": "Procedimiento: crear y reutilizar",
-          "body": "1. Seleccione Nueva plantilla y complete nombre e identificador. 2. Inserte un conjunto pequeño y configure propiedades. 3. Añada vínculos/dinámicas/eventos; no suponga sustitución automática de TAGs por nombre de equipo. 4. Ejecute Preview, corrija errores y aplique. 5. Abra Equipos, cree o seleccione una instancia y elija esta plantilla opcional. Guarde el vínculo. 6. En Pantallas insértela desde la biblioteca de equipos/faceplates, cuando esté disponible. 7. Guarde, publique y active. Compruebe dos instancias y sus lecturas en Runtime.",
-          "fields": null
-        },
-        {
           "heading": "Actualizar sin confundir definición e instancia",
-          "body": "Editar la plantilla compartida actualiza el dibujo de todas las instancias vinculadas en esa revisión. Revise el impacto; use otra plantilla si necesita apariencia distinta. Cambiar el vínculo cambia el dibujo asociado y conserva la identidad del equipo. Un Dínamo es otro conjunto visual reutilizable; un Grupo solo organiza objetos.",
+          "body": "Cambiar la definición compartida puede afectar a todas las instancias vinculadas cuando entre en uso su revisión. Antes de aplicar compruebe qué equipos usan ese Template. Para otra apariencia solo en algunas instancias, considere otra definición.\n\nCambiar el Template asociado cambia el dibujo y conserva identidad del equipo. Un Dínamo es otro conjunto visual reutilizable. Grupo solo organiza objetos; no tiene el mismo vínculo a definición compartida.",
           "fields": null
         },
         {
@@ -13797,7 +13797,12 @@
       "sections": [
         {
           "heading": "Empiece por la identidad del activo",
-          "body": "Abra Ingeniería > Equipos. Equipo representa una instancia real, como Bomba 01. No es Driver, TAG ni dibujo. Puede crearlo sin faceplate y asociar plantilla después. Intelligence usa esta identidad; dibujar una bomba no registra el equipo.",
+          "body": "Empiece registrando la máquina que existe en planta, como Bomba 01. En Ingeniería > Equipos el registro identifica la instancia real, separada de conexión, TAGs y dibujo.\n\nPuede crear el equipo sin faceplate y asociar Template después. Intelligence usa esa identidad para perfiles. Dibujar una bomba en Pantalla no registra automáticamente el equipo.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento: registrar y comprobar",
+          "body": "1. Introduzca un nombre distinto. 2. Compruebe ruta y elija plantilla o Sin plantilla. 3. Pulse Crear equipo; el producto valida antes de aplicar. 4. Selecciónelo en la lista para editar nombre/vínculo y guarde cambios. 5. Guarde/publique/active cuando se necesite en Runtime. 6. En Intelligence seleccione esta identidad y asigne perfil. Configure TAGs y captura antes de analizar.",
           "fields": null
         },
         {
@@ -13826,11 +13831,6 @@
               "constraints": ""
             }
           ]
-        },
-        {
-          "heading": "Procedimiento: registrar y comprobar",
-          "body": "1. Introduzca un nombre distinto. 2. Compruebe ruta y elija plantilla o Sin plantilla. 3. Pulse Crear equipo; el producto valida antes de aplicar. 4. Selecciónelo en la lista para editar nombre/vínculo y guarde cambios. 5. Guarde/publique/active cuando se necesite en Runtime. 6. En Intelligence seleccione esta identidad y asigne perfil. Configure TAGs y captura antes de analizar.",
-          "fields": null
         },
         {
           "heading": "Verificación y errores frecuentes",
@@ -14331,7 +14331,7 @@
       "sections": [
         {
           "heading": "El encabezado no es la pantalla del proceso",
-          "body": "Abra Ingeniería > Encabezado. Marca, títulos, accesos y reloj están sobre la pantalla de proceso. Cambiarlos no altera TAGs ni dibuja objetos. Valide vista previa y Aplique a Working, después guarde, publique y active.",
+          "body": "El encabezado reúne marca, títulos, accesos y reloj sobre la pantalla del proceso. Configúrelo en Ingeniería > Encabezado. Identifica y permite navegar; editarlo no cambia TAGs ni añade objetos al dibujo.\n\nUse Validar previa y Aplicar a Working, el borrador. Después guarde, publique y active para usar el cambio en Runtime.",
           "fields": [
             {
               "key": "branding.mode",
@@ -14393,7 +14393,7 @@
         },
         {
           "heading": "Móvil: orientación y variante",
-          "body": "Abra Ingeniería > Móvil. Elija Horizontal o Vertical para dispositivos táctiles; bloqueo físico depende del navegador. Para cada pantalla elija Misma pantalla del escritorio o alternativa existente. Debe diseñar alternativa: Vertical no reorganiza automáticamente objetos. Comparten TAGs/Runtime, no copia de datos. Encabezado se configura en su área.",
+          "body": "En Ingeniería > Mobile elija presentación para dispositivos táctiles. Orientación selecciona Horizontal o Vertical; bloquear la orientación física depende del navegador.\n\nPara cada pantalla desktop use la misma o una alternativa existente. Dibújela en Pantallas: elegir Vertical no reorganiza automáticamente objetos. Ambas usan los mismos TAGs y Runtime sin copiar datos. Para cambiar la parte superior vuelva a Encabezado.",
           "fields": null
         },
         {
@@ -14417,7 +14417,7 @@
       "sections": [
         {
           "heading": "Fuente y objeto son pasos distintos",
-          "body": "Abra Ingeniería > Fuentes multimedia. La fuente describe origen; un objeto vídeo/imagen define presentación. Registrar RTSP no garantiza reproducción nativa: depende del relay del servidor. Compruebe infraestructura antes de cambiar parámetros repetidamente.",
+          "body": "Prepare primero el origen de vídeo o imagen en Ingeniería > Fuentes de medios. La fuente indica de dónde viene el contenido. Elíjala después en el objeto de Pantalla, que define ubicación y presentación.\n\nRTSP necesita relay del servidor, el servicio que reenvía el flujo para reproducción. Registrar no garantiza que el navegador reproduzca RTSP directamente. Compruebe infraestructura antes de cambiar varios parámetros.",
           "fields": [
             {
               "key": "mediaSource.name",
@@ -14465,7 +14465,7 @@
         },
         {
           "heading": "Procedimiento y problemas comunes",
-          "body": "1. Cree fuente con nombre, clave, protocolo, dirección y habilitación. 2. Guarde y configure credenciales si necesita. 3. Configure objeto visual con fuente admitida. 4. Guarde/publique/active y compruebe reproducción. Si falla revise endpoint/protocolo, acceso del servicio, credencial del host, relay exigido y revisión activa. Quitar credencial puede bloquear reproducción. Exportar proyecto no transfiere contraseñas de cámara.",
+          "body": "1. Cree fuente con nombre, clave, protocolo, dirección y habilitación.\n2. Guárdela. Si requiere credencial, configúrela en el panel de la fuente creada.\n3. Inserte o seleccione objeto compatible y elija fuente admitida.\n4. Guarde, publique y active; compruebe reproducción en Runtime.\n\nSin reproducción compruebe dirección/protocolo, acceso desde servicio, credencial del host, relay cuando se exige y revisión activa. Quitar credencial puede impedir acceso a cámara. Exportar proyecto no lleva su contraseña.",
           "fields": null
         }
       ],
@@ -15219,7 +15219,12 @@
       "sections": [
         {
           "heading": "Antes de administrar cuentas",
-          "body": "Abra Ingeniería > Seguridad. Usuarios y credenciales pertenecen a la Security Authority de la instalación; no son objetos del proyecto ni viajan en el paquete de ingeniería. La cuenta local del producto es distinta de una cuenta del portal comercial. Administrar usuarios requiere UserRoleAdmin o SystemAdmin; editar el proyecto por sí solo no lo concede. Conserve al menos un administrador local habilitado y confirme qué cuenta utiliza antes de cambiar roles o contraseña.",
+          "body": "Abra Ingeniería > Seguridad para registrar quién entra a esta instalación. Cuentas locales, contraseñas y permisos pertenecen a Security Authority, el registro de seguridad de la instalación. No son objetos del proyecto ni viajan en el paquete de ingeniería. Cuenta local tampoco es cuenta del portal comercial.\n\nAdministrar usuarios requiere UserRoleAdmin o SystemAdmin. Editar el proyecto no concede acceso. Antes de cambiar roles o contraseña compruebe su cuenta y conserve al menos un administrador local habilitado.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento: crear y probar un operador",
+          "body": "1. Compruebe roles disponibles, acciones permitidas y recursos de cada uno. Si falta el adecuado, prepare y aplique política primero.\n2. Use Nuevo usuario y complete login, nombre, contraseña privada y habilitación.\n3. Elija solo roles necesarios y cree la cuenta.\n4. Al editar después, revise resumen y confirme guardado. Cambiar un campo no guarda solo.\n5. En otra sesión entre con la cuenta creada y pruebe una lectura permitida y una acción que debe denegarse. Licencia y clase View Only/Interactive siguen limitando acciones.\n6. Vuelva a la cuenta administrativa para corregir concesiones. Una sesión no prueba acceso de dos usuarios distintos.",
           "fields": null
         },
         {
@@ -15264,11 +15269,6 @@
           ]
         },
         {
-          "heading": "Procedimiento: crear y probar un operador",
-          "body": "1. Revise roles disponibles y capabilities/alcances en el panel de Authority. Si falta un rol adecuado, prepare y aplique primero la política. 2. Seleccione Nuevo usuario e introduzca login, nombre, contraseña privada y habilitación. 3. Seleccione solo roles necesarios y cree la cuenta. 4. Para cambios posteriores, revise el resumen y confirme guardar; editar campos no guarda por sí solo. 5. Inicie sesión con la nueva cuenta en una sesión separada y compruebe una lectura permitida y una acción que deba denegarse. Licencia y clase View Only/Interactive siguen limitando acciones. 6. Vuelva a la cuenta administrativa para corregir concesiones; una misma sesión no demuestra dos usuarios distintos.",
-          "fields": null
-        },
-        {
           "heading": "Restablecimiento, búsqueda y problemas frecuentes",
           "body": "La búsqueda filtra nombre/login/rol y el estado separa habilitados y deshabilitados; ocultar una fila no deshabilita la cuenta. Para restablecer contraseña, seleccione la cuenta, introduzca Nueva contraseña, revise el impacto y confirme. Cambios de cuenta/roles o contraseña pueden cerrar sesiones; vuelva a entrar cuando se solicite. El sistema rechaza eliminar el último acceso administrativo local habilitado y asignar roles inexistentes. 401 requiere entrar de nuevo; 403 indica falta de permiso. Una revisión del proyecto no transporta usuarios e importar .escadapkg no restaura Authority.",
           "fields": null
@@ -15291,7 +15291,12 @@
       "sections": [
         {
           "heading": "Cuenta, rol, capability y alcance",
-          "body": "La cuenta identifica a la persona. Un rol reúne concesiones (grants). Cada grant une una capability, la acción permitida, a un alcance opcional, dónde se aplica. La política pertenece a Authority, no al dibujo ni al paquete del proyecto. Abra Ingeniería > Seguridad y el panel de roles/capabilities/alcances. Consultar requiere UserRoleAdmin. Validar/aplicar requiere EngineeringModify y UserRoleAdmin o SystemAdmin. Los nombres de roles no conceden acceso por sí solos.",
+          "body": "Empiece por quién puede hacer qué y dónde. La cuenta identifica a la persona. El rol reúne permisos asignados a la cuenta. Cada concesión vincula una acción permitida con todos los recursos o un alcance específico. La interfaz llama capability a la acción y scope o escopo al alcance.\n\nAbra Ingeniería > Seguridad y el panel de roles/capabilities/alcances. La política pertenece a Authority de la instalación, no al dibujo ni paquete del proyecto. El nombre del rol no concede acceso solo.\n\nConsultar requiere UserRoleAdmin. Validar/aplicar requiere EngineeringModify junto con UserRoleAdmin o SystemAdmin. Compruébelos antes de editar.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento: preparar y aplicar una política",
+          "body": "1. Cargue la política actual y compruebe quién seguirá administrando.\n2. Cree o elija un rol. Antes de cambiarlo, compruebe usuarios ya asignados.\n3. Añada una concesión por acción necesaria. Elija global o nodo correcto. Si incluye descendientes, compruebe recursos abarcados.\n4. Para Intelligence añada explícitamente AssetProcessIntelligenceManage: global o Equipment/Location con vínculo válido. SystemAdmin solo no sustituye esa concesión al configurar herramientas.\n5. Ejecute Preview, corrija y aplique solo el candidato validado. Editar de nuevo invalida la previa anterior.\n6. Asigne el rol y pruebe acceso permitido/denegado con esa cuenta.\n7. Si otro administrador cambió política, recargue y rehaga sobre la versión actual. No fuerce versión antigua ni elimine usuarios para eludir conflicto.",
           "fields": null
         },
         {
@@ -15461,13 +15466,8 @@
           ]
         },
         {
-          "heading": "Procedimiento: preparar y aplicar una política",
-          "body": "1. Cargue la política actual e identifique quién conservará administración. 2. Cree o seleccione un rol; compruebe usuarios asignados antes de editar. 3. Añada un grant por capability necesaria y elija global o el nodo adecuado. Revise el alcance antes de incluir descendientes. 4. Para Intelligence añada AssetProcessIntelligenceManage explícitamente: global o Equipment/Location con vínculo válido al recurso. No sustituya este grant por SystemAdmin aislado al configurar herramientas. 5. Ejecute Preview de la política, corrija errores y aplique solo el candidato validado. Otra edición invalida Preview. 6. Asigne el rol y pruebe accesos permitidos/denegados con esa cuenta. 7. Si otro administrador cambió la política, recargue y edite la versión actual. No aplique una versión antigua ni elimine usuarios para evitar conflictos.",
-          "fields": null
-        },
-        {
           "heading": "Vista previa, sesión y rechazos",
-          "body": "La vista previa del usuario seleccionado combina grants de roles del borrador; es explicativa y no demuestra permiso sobre un recurso concreto. Las capabilities efectivas pertenecen a su sesión actual, no a la persona seleccionada. El backend decide cada operación según identidad, recurso y alcance; Runtime considera también clase de sesión y licencia. La política de Authority tiene Preview/Apply y versión propios: exportar un proyecto no la activa. Se rechazan eliminar un rol asignado y perder el último administrador. Si falta un nodo o es incompatible, seleccione un vínculo correcto; no amplíe a global solo para eliminar el error.",
+          "body": "La previa de la cuenta elegida muestra lo que parecen conceder los roles del borrador. Ayuda a revisar, pero no decide acceso a un recurso concreto. Las capabilities efectivas mostradas pertenecen a su sesión actual, no a la persona seleccionada.\n\nEl servidor decide con persona, recurso y alcance; Runtime considera también clase de sesión y licencia. La política tiene versión y Preview/Apply propios de Authority; exportar o activar proyecto no la sustituye.\n\nSe rechaza eliminar rol asignado o perder el último administrador. Ante nodo ausente o incompatible elija vínculo válido. No amplíe a global solo para eliminar el error.",
           "fields": null
         }
       ],
@@ -15643,7 +15643,7 @@
       "sections": [
         {
           "heading": "Cuándo usarlo y qué protege",
-          "body": "Engineering Lock protege contenido de ingeniería de la aplicación. No es reserva de edición de otro operador ni concede capabilities a quien conoce el secreto. La contraseña de cuenta autentica a la persona; el secreto del Lock protege la aplicación; la contraseña del backup de Authority protege otro material. Guárdelos según procedimientos, no en pantallas, scripts ni ayuda. Bloqueada, administración del sistema, Import/Export/Restaurar y desbloqueo siguen sujetos a permisos normales.",
+          "body": "Use Engineering Lock para proteger contenido de ingeniería. El secreto desbloquea esa protección, pero no concede permisos ausentes. Es distinto de la reserva de edición cuando alguien trabaja en el proyecto.\n\nGuarde cada secreto según finalidad: contraseña de cuenta identifica persona; secreto Lock protege aplicación; contraseña de backup Authority protege el archivo. No los escriba en pantallas, Scripts o Ayuda. Administración, importación/exportación, restauración y desbloqueo siguen exigiendo permisos normales aunque esté bloqueada.",
           "fields": null
         },
         {
@@ -15689,7 +15689,7 @@
         },
         {
           "heading": "Procedimiento y persistencia tras reinicio",
-          "body": "1. Con acceso autorizado, abra el candado. 2. Defina el secreto privado y elija Configurar para seguir trabajando o Configurar y bloquear para restringir inmediatamente. 3. Compruebe el estado del servidor. 4. Trate el cambio como Working: Guardar → Publicar → Activar es necesario para que la protección pertenezca a la revisión activa duradera tras reinicio. No suponga que Configurar completa el ciclo. 5. Para editar, use Desbloquear con secreto correcto y permisos adecuados. 6. Compruebe contenido accesible y conserve protección prevista en la revisión publicada. Si se rechaza, lea el motivo; no borre usuarios, base ni Authority para intentar desbloquear.",
+          "body": "1. Con acceso autorizado abra el candado.\n2. Defina secreto privado. Use Configurar para seguir trabajando o Configurar y bloquear para restringir de inmediato.\n3. Compruebe respuesta y estado del servidor.\n4. Complete Guardar → Publicar → Activar. Configurar cambia el borrador Working; el ciclo lleva protección a la revisión activa que debe permanecer tras reinicio. Configurar solo no lo completa.\n5. Para editar después use Desbloquear con secreto correcto y permisos adecuados.\n6. Compruebe contenido y protección de la revisión a publicar. Ante rechazo lea el motivo. No borre usuarios, base ni Authority para intentar desbloquear.",
           "fields": null
         }
       ],
@@ -15709,7 +15709,12 @@
       "sections": [
         {
           "heading": "Elija el mecanismo de reutilización",
-          "body": "Abra Ingeniería > Bibliotecas. Un archivo .escadalib agrupa recursos reutilizables como Templates, Dínamos, Pantallas, Popups, Scripts y assets visuales con dependencias. No es proyecto completo .escadapkg, backup de base ni Authority. El catálogo puede mostrar origen de fábrica, proyecto y bibliotecas asociadas. Asociar permite consultar; Usar/incorporar copia el recurso y dependencias necesarias a Working. Solo entonces forma parte del proyecto. Preview visual permite revisar apariencia sin incorporar.",
+          "body": "Una biblioteca .escadalib reúne recursos reutilizables, como Template, Dínamo, Pantalla, Popup, Script o archivo gráfico. Incluye dependencias, los otros recursos necesarios para usar el ítem. No es proyecto .escadapkg completo, backup de base ni Authority.\n\nAsociar solo la deja disponible en catálogo. Preview visual muestra apariencia sin copiar al proyecto. Usar/incorporar copia recurso y dependencias al borrador Working. Solo entonces forman parte del proyecto. Compruebe si ve contenido de fábrica, proyecto o biblioteca asociada.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento: usar un recurso recibido",
+          "body": "1. Abra Bibliotecas y asocie el archivo recibido. Compruebe nombre, versión y origen.\n2. Elija biblioteca y filtre tipo de recurso. Revise dependencias y Preview visual cuando esté disponible. Asociar y Preview no modifican Working.\n3. Use/incorpore y espere confirmación. Cambia el borrador y puede reutilizar contenido equivalente existente.\n4. Abra el ítem en su editor. Compruebe TAGs, comandos, parámetros y referencias: dibujar una bomba no elige sus lecturas.\n5. Inserte/configure en Pantallas o Popups y pruebe. Guarde, publique y active antes de comprobar Runtime.\n6. Para exportar conjunto indique nombre/versión, seleccione recursos y descargue .escadalib. Reabra en proyecto de prueba para comprobar dependencias.",
           "fields": null
         },
         {
@@ -15761,11 +15766,6 @@
           ]
         },
         {
-          "heading": "Procedimiento: usar un recurso recibido",
-          "body": "1. Abra Bibliotecas y asocie el archivo. Revise nombre, versión y origen. 2. Elija biblioteca y filtre tipo. Revise dependencias; use Preview visual cuando exista. Asociar y Preview no cambian Working. 3. Use/incorpore el recurso y espere confirmación/actualización. Modifica Working y puede reutilizar contenido equivalente presente. 4. Abra el recurso en su área. Revise TAGs, comandos, parámetros y referencias: un dibujo de bomba no adivina su TAG. 5. Inserte/configure objetos en Pantallas o Popups y pruebe. Guarde, publique y active antes de comprobar Runtime. 6. Para exportar, introduzca nombre/versión, marque recursos y descargue .escadalib. Reábralo en un proyecto de prueba para comprobar dependencias.",
-          "fields": null
-        },
-        {
           "heading": "Actualizaciones, desasociación y fallos",
           "body": "Desasociar elimina la biblioteca del catálogo asociado; no borra recursos incorporados al proyecto. El origen registrado es informativo, no sincronización automática con futuras versiones. Un mismo ID con contenido distinto puede causar conflicto; revise la versión requerida antes de desasociar/asociar otro archivo. Preview no disponible no prueba paquete inválido: algunos tipos no tienen vista visual. Si cambió Workspace, recargue antes de repetir. Asociar no aporta credenciales de Driver, usuarios ni licencia. El catálogo asociado actual es local al proceso y puede desaparecer al reiniciar el servicio; conserve el archivo para asociarlo de nuevo. Es distinto de recursos ya incorporados y guardados en el proyecto.",
           "fields": null
@@ -15788,7 +15788,12 @@
       "sections": [
         {
           "heading": "Archivo gráfico y objeto visual",
-          "body": "Abra Ingeniería > Assets visuales. El asset es archivo de imagen/modelo; un objeto de Pantalla lo muestra. Importar no crea TAG, comando, Dínamo parametrizado ni instancia en Pantalla. Catálogo de fábrica y assets del proyecto se presentan por separado. Arte de Dínamos/fábrica puede no aparecer en imágenes del usuario; busque su origen antes de duplicar.",
+          "body": "Para usar imagen o modelo en Pantalla importe primero el archivo en Ingeniería > Assets visuales. Asset es ese recurso gráfico; el objeto visual lo muestra en Pantalla. Importar no crea TAG, comando, Dínamo parametrizado ni instancia en el dibujo.\n\nCompruebe origen antes de importar otra copia. Fábrica y archivos del proyecto están separados. Artes de Dínamos o fábrica pueden no aparecer en imágenes del usuario; busque en su origen.",
+          "fields": null
+        },
+        {
+          "heading": "Procedimiento y comprobación",
+          "body": "1. Importe archivo y espere confirmación. 2. Revise vista previa y nombre; ajuste etiqueta. 3. Abra Pantalla/Popup e inserte objeto compatible, eligiendo asset en biblioteca/selector. Para fondo o branding, use su campo de configuración. 4. Ajuste tamaño/proporción en Pantalla; no altera píxeles originales. 5. Guarde, publique y active antes de revisar Runtime. Si falta, compruebe vínculo, tipo, revisión y disponibilidad; no sustituya por otro solo por tener nombre parecido.",
           "fields": null
         },
         {
@@ -15817,11 +15822,6 @@
               "constraints": ""
             }
           ]
-        },
-        {
-          "heading": "Procedimiento y comprobación",
-          "body": "1. Importe archivo y espere confirmación. 2. Revise vista previa y nombre; ajuste etiqueta. 3. Abra Pantalla/Popup e inserte objeto compatible, eligiendo asset en biblioteca/selector. Para fondo o branding, use su campo de configuración. 4. Ajuste tamaño/proporción en Pantalla; no altera píxeles originales. 5. Guarde, publique y active antes de revisar Runtime. Si falta, compruebe vínculo, tipo, revisión y disponibilidad; no sustituya por otro solo por tener nombre parecido.",
-          "fields": null
         }
       ],
       "relatedTopicIds": [
@@ -19810,11 +19810,19 @@
       "sections": [
         {
           "heading": "Elija qué recuperar",
-          "body": "Aplicación significa ingeniería: TAGs, pantallas, scripts y objetos portables del .escadapkg. Security Authority conserva usuarios, credenciales y política en un backup protegido separado. Licencia es otro artefacto. Base de datos, Historian y material protegido de drivers siguen sus propios procedimientos. El paquete no es imagen completa de instalación y no contiene usuarios/password hashes/contraseñas de acceso. Tener .escadapkg no basta para recuperar accesos, historia o claves de drivers."
+          "body": "Antes de restaurar identifique qué perdió y qué copias tiene. La aplicación .escadapkg lleva ingeniería: TAGs, pantallas, Scripts y otros objetos portables. Security Authority guarda usuarios, contraseñas y política en otro backup protegido. Licencia es archivo separado.\n\nBase, histórico Historian y claves/material protegido de drivers tienen procedimientos propios. El paquete no es copia completa de instalación ni contiene usuarios, hashes o credenciales de login. Solo .escadapkg no garantiza recuperar acceso, histórico o claves."
         },
         {
           "heading": "Preparar y comprobar backups",
-          "body": "Exporte mediante el flujo soportado y compruebe proyecto/revisión y destino. Trate cambios sin guardar antes de considerar una copia recuperable. Cambiar la aplicación de esta instalación ofrece Backup de Application y Backup de Authority antes del detach: exporte lo necesario y vuelva sin ejecutar el cambio. Nueva contraseña del backup protege la exportación de Authority; no es contraseña de acceso. Guárdela de forma protegida separada del archivo y confirme la descarga. No avance al detach solo para probar un backup. Mantenga copias y planes propios de base/Historian y claves protegidas; esta guía no crea retención/archivado ni promete incluirlos en el paquete."
+          "body": "Exporte la aplicación por el flujo disponible y compruebe proyecto, revisión y destino. Resuelva cambios sin guardar antes de considerar recuperable la copia. Espere fin de descarga.\n\nCambiar la aplicación ofrece backups Application y Authority antes de detach, la desvinculación. Puede exportar y volver sin cambiar. No haga detach solo para probar backup.\n\nNueva contraseña del backup protege el archivo Authority; no es contraseña de login. Guárdela por medio protegido separado del archivo. Prepare copias/recuperación de base/Historian y claves de drivers. El flujo no define retención/archivado ni los incluye automáticamente."
+        },
+        {
+          "heading": "Recuperar Authority y aplicación en instalación neutra",
+          "body": "1. Confirme instalación neutra elegible y servidor destino correcto. No haga detach solo para abrir el flujo.\n2. En configuración inicial elija Restaurar backup y seleccione aplicación, Authority, contraseña y licencia opcional.\n3. Use Validar backups. Ante rechazo corrija archivo, compatibilidad o credencial. La extensión no sustituye validación.\n4. Con archivos válidos use Restaurar Authority.\n5. Entre con Administrador restaurado habilitado y permisos efectivos exigidos. El nombre developer solo no basta.\n6. Continúe. El servidor valida de nuevo la aplicación con Authority restaurada.\n7. Cuando se permita use Importar aplicación y espere resultado completo. Restaurar Authority y recuperar aplicación son etapas distintas, no promesa de transacción única entre archivos."
+        },
+        {
+          "heading": "Recuperar solo aplicación con Authority existente",
+          "body": "Si no hay proyecto persistido pero sí Authority, entre con Administrador compatible y elija Importar aplicación. Seleccione .escadapkg, Valide, lea el resultado y después importe. Exige paquete compatible, catálogo/estado de destino apropiados y autorización; no es sobreescritura genérica de cualquier aplicación activa. Para modificar una aplicación instalada use ingeniería/portabilidad correspondientes o el procedimiento de cambio. No elimine usuarios/base para que aparezca la opción."
         },
         {
           "heading": "Entienda los campos de archivos",
@@ -19893,16 +19901,8 @@
           ]
         },
         {
-          "heading": "Recuperar Authority y aplicación en instalación neutra",
-          "body": "1. Confirme instalación neutra elegible y servidor de destino correcto; no haga detach solo para abrir este flujo. 2. En configuración inicial elija Restaurar backup. Seleccione aplicación, Authority, contraseña y licencia opcional. 3. Elija Validar backups. Pare ante rechazo y corrija archivo/compatibilidad/credencial; aceptar extensión no valida. 4. Con archivos válidos, elija Restaurar Authority. 5. Entre con Administrador restaurado habilitado y con permisos efectivos de ingeniería/administración requeridos para el paquete; el nombre developer no basta. 6. Continúe; el servidor vuelve a validar aplicación con Authority restaurada. 7. Si se permite, elija Importar aplicación y espere resultado completo. Restaurar Authority y recuperar aplicación son etapas separadas, no promesa de una transacción única entre todos los archivos."
-        },
-        {
-          "heading": "Recuperar solo aplicación con Authority existente",
-          "body": "Si no hay proyecto persistido pero sí Authority, entre con Administrador compatible y elija Importar aplicación. Seleccione .escadapkg, Valide, lea el resultado y después importe. Exige paquete compatible, catálogo/estado de destino apropiados y autorización; no es sobreescritura genérica de cualquier aplicación activa. Para modificar una aplicación instalada use ingeniería/portabilidad correspondientes o el procedimiento de cambio. No elimine usuarios/base para que aparezca la opción."
-        },
-        {
           "heading": "Interrupción, fallo parcial y licencia",
-          "body": "Tras restaurar Authority, la aplicación puede seguir sin recuperar. Si el navegador conserva archivos en memoria, la continuación mantiene selección e impide sustitución silenciosa. Si perdió archivos, seleccione los solicitados otra vez; una nueva previa es obligatoria antes de Apply. La selección retenida no es copia de los archivos. Si el servidor devuelve etapa/error intermedio, registre y compruebe estado persistido antes de repetir: revisión, publicación y activación son etapas distintas y no debe suponer revertida una completada. Si aplicación recuperada pero licencia opcional falló, lea el aviso y use Continuar sin licencia si corresponde; atienda licencia por separado sin repetir todo solo por ese aviso."
+          "body": "Restaurar Authority no significa que la aplicación ya esté recuperada. Si el navegador conserva archivos seleccionados, continuar mantiene la selección e impide cambiarlos silenciosamente. Si los perdió, selecciónelos de nuevo y haga otra previa antes de Apply. Recordar selección no es backup de archivos.\n\nAnte etapa/error intermedio registre resultado y compruebe estado guardado antes de repetir. El flujo pasa por revisión, publicación y activación; no presuma deshecha una etapa terminada.\n\nSi se recuperó aplicación y solo falló licencia opcional, lea el aviso. Use Continuar sin licencia cuando corresponda y trate licencia después, sin repetir toda restauración por ese aviso."
         },
         {
           "heading": "Confirmar resultado y límites",

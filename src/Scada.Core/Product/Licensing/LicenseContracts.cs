@@ -688,6 +688,10 @@ public static class EliteScadaLicenseCodec
         IReadOnlyDictionary<string, RSA> publicKeys,
         DateTimeOffset nowUtc)
     {
+        // Even a caller-supplied dictionary must not turn the online signer into
+        // an offline authority. Other existing offline/development keys retain their contract.
+        if (string.Equals(keyId, ProductLicenseTrustAnchors.OnlineLeaseKeyId, StringComparison.Ordinal))
+            return LicenseVerificationResult.Invalid("Online lease signing keys cannot authorize offline licenses.");
         if (!publicKeys.TryGetValue(keyId, out var publicKey) || publicKey is null)
             return LicenseVerificationResult.Invalid($"Installed license uses unknown signing key '{keyId}'.");
         if (!publicKey.VerifyData(payloadBytes, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss))

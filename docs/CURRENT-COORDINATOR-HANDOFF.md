@@ -1,5 +1,17 @@
 # Current coordinator pointer — Wave 15
 
+## Authorized integration sequence — 27 October 2026
+
+The Product Owner explicitly authorized regularization and integration of #772 → #793 → #794 before new licensing development. This replaces the earlier draft/NO_MERGE hold for these bounded batches, without claiming global manual/field acceptance or enabling production licensing.
+
+Help/manual #772 is merged at `572baf6c3b6f586ee921e5e1054dbaa2827c6791`, from head `a3f6b6e3d06f40230dbfffb6e324a8a89a298637` (exact-head T1 40501086931 success). Exact-merge T2 40521826993 is running; its final result belongs in #424/#425/#305/#756. Prior Help entries below are historical, including their former NO_MERGE statements. #424/#425, terminology #379, interface audit #357, final real figures and field acceptance remain separate. The delivered 432-page PDF represents the Help content now incorporated, not those separate final acceptance gates.
+
+The current candidate is verifier PR #793, reconciled by normal merge with that integrated Help. No verifier/offline behavior changed during reconciliation; source/tests and [licensing boundary](licensing/ONLINE-LEASE-VERIFIER.md) are retained. Recheck T1 on this new head before integration. #794 remains dependent, and must be reconciled/retargeted/tested against the resulting integration base. Do not start another licensing slice until these integrations are regularized. Runtime/API/UI/renewal scheduler, expiry-to-Demo without timer, usage, operational key handling and integrated Portal/platform tests remain pending; signing stays disabled.
+
+The Portal #741/#756 chat retains #777/#778/#783/#784 and its own active work. Preserve Preview/DEMO, owner changes, Authority/HA and the unresolved incident evidence in #423. After licensing is actually complete/integrated, hand off the exact product version/CI and separate updated EEE RHO package (verified schema/file/hash) to Codex for the current preview and Portal tests. Do not embed the demonstration in the product or mistake planning for an executed handoff. #788/#779–#782 remain queued.
+
+## Earlier Help and coordinator checkpoints — historical
+
 Manual reading route 27/10: introductory chapters rewritten in pt-BR/en/es around a known reading before28-term glossaries; general/local indexes group all28 chapter files by task. All prior file targets and12 editorial rules retained; critical-content preservation explicit. Chapter08 HELP-REVIEW-301 marks legacy300-minute Demo text against owner-approved no-time-limit direction, with online/quota docs to follow actual licensing delivery. Documentation only:66-file alignment,222 relative links,321 Help references,28 chapters/glossary entries and six-section parity passed; no repeat runtime tests. Exact predecessor581d9ced/T1 40499569914 and new documentation SHA/run/status live#424/#425/#305/#756; no transferred green. Identified entry-language/route corrections complete for this scope. Next consolidated PR#772 delivery review/exact CI against#424/#425; acceptance/#357/real figures/global parity/product markers remain. #301 licensing next product stage;#788/#779–#782 preserved. Draft/NO_MERGE. Previous#423/timeout receipts retained; no src/web/tests/workflow/HA/license/Preview/DEMO/Portal/merge/deploy changes.
 
 ## Previous checkpoint — historical

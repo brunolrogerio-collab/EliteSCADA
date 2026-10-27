@@ -2,9 +2,11 @@
 
 ## Exportar .escadapkg
 
-`.escadapkg` es portabilidad autocontenida de la aplicación. No es un backup de Authority, licencia ni base de datos/histórico.
+Exporte un `.escadapkg` para guardar o transportar configuración: TAGs, pantallas, Scripts y otros objetos portátiles. Espere a terminar descarga e identifique proyecto/revisión. Para editar muchas filas de un tipo use el capítulo CSV/Excel; para compartir solo recursos visuales o Scripts reutilizables use Bibliotecas.
 
-Inspect examina el contenido/metadatos sin mutación. Preview muestra el resultado esperado. Apply incorpora el contenido validado en Engineering; Apply no es Activate.
+El paquete no contiene backup de usuarios/permisos de Authority, licencia ni base/histórico. Prepare esas copias por separado para recuperar una instalación completa.
+
+En destino, **Inspect** examina contenido e información sin aplicar cambios. **Preview** comprueba contenido propuesto y muestra diagnósticos. **Apply** incorpora el candidato validado al borrador del proyecto, llamado Working. Después guarde, publique y active por separado; ver contenido importado en editor no significa que la revisión ya esté operando.
 
 **Ayuda relacionada:** `/help?topic=packages.escadapkg`.
 
@@ -12,7 +14,7 @@ Inspect examina el contenido/metadatos sin mutación. Preview muestra el resulta
 
 ### Procedimiento: importar una aplicación de forma segura
 
-**Objetivo:** incorporar un paquete validado en Engineering sin omitir el lifecycle.
+**Objetivo:** comprobar un paquete recibido e incorporarlo al proyecto antes de llevarlo a operación.
 
 **Requisitos previos:** un paquete compatible y una sesión autorizada.
 
@@ -33,7 +35,7 @@ Inspect examina el contenido/metadatos sin mutación. Preview muestra el resulta
 
 `.escadalib` es diferente de `.escadapkg`.
 
-Asociar una Library hace que los recursos compatibles estén disponibles en el catálogo, pero no cambia Working por sí solo. Usar un recurso incorpora el elemento seleccionado y su cierre validado de dependencias; el contenido pasa a pertenecer al proyecto.
+Asociar una biblioteca deja sus recursos compatibles disponibles en catálogo. Usar/incorporar copia el ítem elegido y sus dependencias validadas, los otros recursos necesarios para funcionar, al borrador Working del proyecto.
 
 Desasociar elimina la disponibilidad en el catálogo y no borra el contenido ya incorporado. Runtime y Active no dependen de un archivo `.escadalib` externo.
 

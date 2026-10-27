@@ -60,7 +60,20 @@ Prepare one entity table, validate the candidate and inspect creates/updates.
 
 ### Choose the file
 
-In project Import/Export/Management use CSV/Excel for TAGs, Alarms, Data Sources, Gateway routes or Operational Events. Choose one entity per file. For Screens, Popups, Templates, scripts and composite dependencies use appropriate project/library mechanisms rather than invented columns. Engineering CSV/XLSX is neither historical-value export nor Authority/database backup. Start with an export from the current version to preserve column names and conventions.
+Use CSV or Excel to create or adjust many objects of the same kind. For example, export some TAGs, add rows for other motors and review the import before applying. Always start with the product’s exported template.
+
+In the project Import/Export/Management area, CSV/Excel supports TAGs, Alarms, Data Sources, Gateway Routes and Operational Events. Entity means the object kind represented by each row; choose one per file. Move Screens, Popups, Templates, Scripts and compound dependencies through project packages or libraries. Engineering CSV/XLSX does not export historical values or back up Authority/database.
+
+### Complete procedure and error recovery
+
+1. Choose one entity, export current objects and keep an unedited copy.
+2. Edit a few rows first. For expansion, use new, distinct paths/keys. Create Data Sources before TAGs, then dependent alarms, routes or events.
+3. Save values only in the chosen format and select the saved file. Replace XLSX formulas with their values before importing.
+4. Choose merge mode: create new objects, update existing ones or both. Technical names CreateOnly, UpdateExisting and CreateAndUpdate are explained in the table. No mode means deleting everything absent from the file.
+5. Run Preview: it checks before applying and does not change Working, the draft. Read counts and row errors; skipped does not mean applied.
+6. Correct errors in the file and run Preview again. Changes to file, entity, format or mode require another check. Do not remove rows just to hide dependencies.
+7. Confirm Apply for the validated candidate, check objects in the editor and save. Publish and activate separately to change Runtime.
+8. If an update loses an option, compare omitted columns/defaults against the original complete export. Exporting copies configuration; it does not automatically undo activation.
 
 ### Workflow controls
 
@@ -76,7 +89,15 @@ File and entity/format/mode identify the candidate. Any change requires Preview 
 
 ### Editing rules in Excel or text editors
 
-Keep exported technical headers even when the UI is translated. Unknown or duplicate columns can block import. Use decimal point (2.5) and booleans true/false; do not append units to numbers. JSON fields require valid JSON, not Python or semicolon lists. Preserve paths/keys as text to prevent automatic date/number conversion. XLSX formulas are rejected even with cached results: paste values before saving. The single sheet must be Tags, Alarms, DataSources, GatewayRoutes or OperationalEvents for the chosen entity. Include no users, password hashes, login credentials or secrets; protected Data Source references are not secrets themselves. Start complex fields from a real export, not a simplified example.
+Keep exported technical headers even when the UI is translated. Unknown or duplicate columns can block import.
+
+Use decimal point (2.5) and booleans true/false; do not append units to numbers. JSON fields require valid JSON, not Python or semicolon lists.
+
+Preserve paths/keys as text to prevent automatic date/number conversion. XLSX formulas are rejected even with cached results: paste values before saving.
+
+The single sheet must be Tags, Alarms, DataSources, GatewayRoutes or OperationalEvents for the chosen entity. Include no users, password hashes, login credentials or secrets; protected Data Source references are not secrets themselves.
+
+Start complex fields from a real export, not a simplified example.
 
 ### Example: two TAGs for the Gateway test
 
@@ -87,15 +108,5 @@ Path,Name,DataType,DataSourceKey,ReadOnly,InitialValueDataType,InitialValueJson
 Server.Source,Source,int16,memory.server,false,int16,0
 Server.Destination,Destination,int32,memory.server,false,int32,0
 ```
-
-### Complete procedure and error recovery
-
-1. Export the current entity and keep a copy before editing.
-2. Edit a small selection; preserve references/types. For expansion use unambiguous new paths/keys and create Data Sources before TAGs, then dependent alarms/routes/events.
-3. Save values only in the chosen format and reselect the file.
-4. Choose mode and Preview; inspect counts and error rows. Preview does not modify Working.
-5. Confirm Apply of the validated candidate, then inspect objects in the editor.
-6. Save, publish and activate to change Runtime through project lifecycle.
-7. For row errors correct the file cause rather than deleting rows to hide dependencies; Preview again. If an update lost an option, compare omitted/defaulted columns with the original full file. Export is a configuration copy, not automatic activation rollback.
 
 [Open this guide in installed Help](/help?topic=engineering.tabular-workflow)

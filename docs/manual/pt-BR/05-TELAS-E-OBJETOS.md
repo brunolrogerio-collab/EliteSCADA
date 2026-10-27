@@ -83,9 +83,13 @@ Confira modo ao vivo/histórico, janela, atualização e captura no Historian. S
 
 ## 6. Adicione movimento e interação com intenção clara
 
-Em **Dinâmicas**, selecione um único objeto. Escolha a propriedade a variar e a fonte. Uma condição booleana pode mudar a visibilidade; um mapa pode relacionar estados a apresentações; um preenchimento analógico pode representar nível. Configure apenas as opções oferecidas para aquele tipo e confira as condições de qualidade/ausência de valor disponíveis. Teste estados verdadeiro, falso e sem dados; não apresente falta de comunicação como equipamento parado.
+Em **Dinâmicas**, faça o desenho acompanhar um valor. Por exemplo, um tanque pode mostrar metade de seu preenchimento quando a leitura for 50 numa escala de 0 a 100. Isso muda a apresentação; não escreve no TAG de origem.
 
-Em **Eventos**, separe ações prontas de handlers de Script. Para uma ação simples, selecione um botão, escolha a ação de clique e o destino. O assistente de ação pronta usa **Click** e mantém uma ação por gatilho; adicionar outra nesse gatilho substitui a anterior. Para lógica maior, configure o handler Client e suas dependências conforme [Scripting](06-SCRIPTING-ALARMES-HISTORICO.md). Não presuma que a ação pronta e um Script são dois nomes para a mesma configuração.
+Selecione um único objeto e confira as opções oferecidas para seu tipo. Uma condição booleana usa verdadeiro/falso para mudar uma propriedade, como visibilidade. Um mapa escolhe uma apresentação por regras, como cores por faixa de pressão; a primeira regra correspondente vence. O preenchimento analógico representa um nível entre os limites escolhidos.
+
+Para aprender, use uma leitura de teste conhecida. Em um objeto que ofereça **Analog Fill**, escolha essa fonte numérica, informe escala 0–100 e ajuste cor/direção. **Clamp** limita a proporção visual a 0–100%, sem alterar a medição; **InvertScale** inverte essa proporção. Confira 0, 50 e 100, além de qualidade ruim e ausência de valor. Uma leitura indisponível não deve ser apresentada como nível zero ou equipamento parado. Valide/aplique ao projeto e salve/publique/ative antes de conferir o Runtime.
+
+Em **Eventos**, escolha o que deve acontecer numa interação. Uma ação pronta pode abrir um Popup ao clicar; um Script executa lógica própria numa função chamada **handler**. Selecione o objeto e o destino da ação. O assistente de ação pronta usa **Click** e mantém uma ação por gatilho; adicionar outra nesse gatilho substitui a anterior. Para lógica maior, configure o handler Client e suas dependências conforme [Scripting](06-SCRIPTING-ALARMES-HISTORICO.md). A ação pronta e a associação de Script são configurações diferentes.
 
 Para escrever numa variável de teste, selecione a ação de escrita e a referência real, respeitando tipo e faixa. Para executar um comando, selecione o comando real. `CommandExecute` e `ProcessValueWrite` são autorizações distintas: nenhuma propriedade visual concede essas capacidades. Após solicitar um comando, use o retorno e o estado real para indicar sucesso; trocar a cor do botão não confirma que o equipamento partiu.
 

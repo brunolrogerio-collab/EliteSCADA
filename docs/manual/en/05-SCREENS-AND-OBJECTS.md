@@ -83,9 +83,13 @@ Check live/history mode, window, refresh and Historian capture. Selecting a peri
 
 ## 6. Add dynamics and interaction with clear intent
 
-In **Dynamics**, select a single object. Choose the property to vary and its source. A Boolean condition can change visibility; a map can relate states to presentations; analog fill can represent level. Use only options offered for the type, and inspect available quality/missing-value conditions. Test true, false and missing-data states; do not present communication loss as stopped equipment.
+In **Dynamics**, make the drawing follow a value. For example, a tank can appear half filled when its reading is 50 on a 0 to 100 scale. This changes presentation; it does not write the source TAG.
 
-In **Events**, distinguish ready-made actions from Script handlers. For a simple action, select a button, choose the click action and destination. The ready-made action wizard uses **Click** and keeps one action per trigger; adding another for that trigger replaces the previous one. For more logic, configure a Client handler and dependencies as described in [Scripting](06-SCRIPTING-ALARMS-HISTORY.md). A ready-made action and a Script are different configurations.
+Select one object and check the options its type offers. A Boolean condition uses true/false to change a property such as visibility. A map chooses presentation through rules, such as colors by pressure range; the first matching rule wins. Analog fill shows level between chosen limits.
+
+Learn with a known test reading. On an object offering **Analog Fill**, select that numeric source, enter a 0–100 scale and set color/direction. **Clamp** limits the visual proportion to 0–100% without changing the measurement; **InvertScale** reverses that proportion. Check 0, 50 and 100, as well as bad quality and missing values. Unavailable data must not appear as zero level or stopped equipment. Validate/apply to the project and save/publish/activate before checking Runtime.
+
+In **Events**, choose what an interaction should do. A ready-made action can open a Popup on click; a Script runs custom logic in a function called a **handler**. Select the object and action target. The quick-action assistant uses **Click** and keeps one action per trigger; adding another replaces the previous one. For more logic, configure the Client handler and dependencies as described in [Scripting](06-SCRIPTING-ALARMS-HISTORY.md). Quick actions and Script associations are different settings.
 
 To write a test variable, select the write action and actual reference, respecting type and range. To execute a command, select the actual command. `CommandExecute` and `ProcessValueWrite` are distinct authorizations; visual properties grant neither. After requesting a command, use the result and actual state to indicate success; changing a button's color does not confirm the equipment started.
 

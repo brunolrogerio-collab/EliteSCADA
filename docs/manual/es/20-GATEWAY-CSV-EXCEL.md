@@ -60,7 +60,20 @@ Prepare una tabla por entidad, valide candidato y revise creación/actualizació
 
 ### Qué archivo usar
 
-En Import/Export/Gestión de proyecto use CSV/Excel para TAGs, Alarmas, Data Sources, Rutas Gateway o Eventos Operacionales. Una entidad por archivo. Para Pantallas, Popups, Templates, scripts y dependencias compuestas use mecanismos de proyecto/biblioteca, no columnas inventadas. CSV/XLSX de ingeniería no exporta valores históricos ni hace backup de Authority/base. Empiece exportando modelo actual para conservar columnas y convenciones.
+Use CSV o Excel para crear o ajustar muchos objetos del mismo tipo. Por ejemplo, exporte TAGs, añada filas para otros motores y revise importación antes de aplicar. Empiece siempre con el modelo exportado por el producto.
+
+En Import/Export/Gestión del proyecto, CSV/Excel admite TAGs, Alarmas, Data Sources, Rutas Gateway y Eventos Operacionales. Entidad es el tipo de objeto de cada fila; elija una por archivo. Para transportar Pantallas, Popups, Templates, Scripts y dependencias compuestas, use paquetes de proyecto o bibliotecas. CSV/XLSX de ingeniería no exporta valores históricos ni hace backup de Authority/base.
+
+### Procedimiento completo y recuperación de errores
+
+1. Elija una entidad, exporte objetos actuales y conserve copia sin editar.
+2. Edite pocas filas primero. Para ampliar use rutas/claves nuevas y distintas. Cree Data Sources antes de TAGs y después alarmas, rutas o eventos dependientes.
+3. Guarde solo valores en el formato elegido y seleccione el archivo guardado. Sustituya fórmulas XLSX por valores antes de importar.
+4. Elija modo de mezcla: crear nuevos, actualizar existentes o ambos. La tabla explica CreateOnly, UpdateExisting y CreateAndUpdate. Ninguno elimina todo lo ausente del archivo.
+5. Ejecute Preview: comprueba antes de aplicar y no cambia Working, el borrador. Lea recuentos y errores por fila; ignorado no significa aplicado.
+6. Corrija el archivo y repita Preview. Si cambia archivo, entidad, formato o modo, compruebe de nuevo. No borre filas solo para ocultar dependencias.
+7. Confirme Apply del candidato validado, revise objetos en editor y guarde. Publique y active por separado para cambiar Runtime.
+8. Si una actualización pierde una opción, compare columnas omitidas/valores predeterminados con la exportación completa original. Exportar copia configuración, no deshace activación automáticamente.
 
 ### Controles del flujo
 
@@ -76,7 +89,15 @@ Archivo y entidad/formato/modo identifican candidato. Cualquier cambio exige Pre
 
 ### Reglas al editar en Excel o texto
 
-Conserve encabezados técnicos aunque la UI esté traducida. Columnas desconocidas/duplicadas pueden bloquear importación. Use punto decimal (2.5) y booleanos true/false; no añada unidades al número. JSON exige JSON válido, no Python ni lista con punto y coma. Conserve rutas/claves como texto para evitar fechas/números automáticos. Fórmulas XLSX se rechazan incluso con resultado guardado: pegue valores antes de guardar. Una sola hoja: Tags, Alarms, DataSources, GatewayRoutes u OperationalEvents según entidad. No incluya usuarios, hashes de contraseñas, credenciales ni secretos; referencias protegidas no son secretos. Para campos complejos parta de exportación real.
+Conserve encabezados técnicos aunque la UI esté traducida. Columnas desconocidas/duplicadas pueden bloquear importación.
+
+Use punto decimal (2.5) y booleanos true/false; no añada unidades al número. JSON exige JSON válido, no Python ni lista con punto y coma.
+
+Conserve rutas/claves como texto para evitar fechas/números automáticos. Fórmulas XLSX se rechazan incluso con resultado guardado: pegue valores antes de guardar.
+
+Una sola hoja: Tags, Alarms, DataSources, GatewayRoutes u OperationalEvents según entidad. No incluya usuarios, hashes de contraseñas, credenciales ni secretos; referencias protegidas no son secretos.
+
+Para campos complejos parta de exportación real.
 
 ### Ejemplo: dos TAGs para prueba Gateway
 
@@ -87,15 +108,5 @@ Path,Name,DataType,DataSourceKey,ReadOnly,InitialValueDataType,InitialValueJson
 Server.Source,Source,int16,memory.server,false,int16,0
 Server.Destination,Destination,int32,memory.server,false,int32,0
 ```
-
-### Procedimiento completo y recuperación de errores
-
-1. Exporte entidad actual y guarde copia antes de editar.
-2. Edite selección pequeña y conserve referencias/tipos. Para ampliar use rutas/claves nuevas inequívocas, cree Data Sources antes de TAGs y luego alarmas/rutas/eventos dependientes.
-3. Guarde solo valores en formato elegido y reseleccione archivo.
-4. Elija modo y Preview; revise cantidades/errores. Preview no modifica Working.
-5. Confirme Apply del candidato validado y compruebe objetos en editor.
-6. Guarde, publique y active para cambiar Runtime.
-7. Corrija causa de errores en archivo sin borrar filas para ocultar dependencias; repita Preview. Si perdió opción al actualizar, compare columnas omitidas/defaults con archivo completo original. Exportar es copia de configuración, no reversión automática de activación.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=engineering.tabular-workflow)

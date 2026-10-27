@@ -83,9 +83,13 @@ Compruebe modo en vivo/histórico, ventana, actualización y captura del Histori
 
 ## 6. Añada dinámicas e interacción con intención clara
 
-En **Dinámicas**, seleccione un solo objeto. Elija propiedad y origen. Una condición booleana puede cambiar visibilidad; un mapa relaciona estados y presentación; un relleno analógico representa nivel. Use opciones ofrecidas para el tipo y revise condiciones de calidad/ausencia de valor disponibles. Pruebe verdadero, falso y sin datos; no presente pérdida de comunicación como equipo parado.
+En **Dinámicas**, haga que el dibujo siga un valor. Por ejemplo, un tanque puede verse medio lleno con lectura 50 en escala de 0 a 100. Cambia presentación; no escribe en el TAG de origen.
 
-En **Eventos**, distinga acciones preparadas y handlers de Script. Para una acción simple, seleccione un botón, elija acción de clic y destino. El asistente usa **Click** y conserva una acción por disparador; añadir otra para el mismo disparador sustituye la anterior. Para más lógica configure el handler Client y dependencias según [Scripting](06-SCRIPTING-ALARMAS-HISTORICO.md). Una acción preparada y un Script son configuraciones diferentes.
+Seleccione un objeto y compruebe las opciones de su tipo. Una condición booleana usa verdadero/falso para cambiar una propiedad como visibilidad. Un mapa elige presentación mediante reglas, como colores por rango de presión; gana la primera coincidencia. El relleno analógico representa nivel entre límites elegidos.
+
+Aprenda con una lectura de prueba conocida. En un objeto con **Analog Fill**, elija fuente numérica, escala 0–100 y color/dirección. **Clamp** limita proporción visual a 0–100% sin cambiar medición; **InvertScale** invierte la proporción. Compruebe 0, 50 y 100, además de mala calidad y datos ausentes. Datos no disponibles no deben parecer nivel cero o equipo parado. Valide/aplique al proyecto y guarde/publique/active antes de comprobar Runtime.
+
+En **Eventos**, elija qué debe ocurrir en una interacción. Una acción preparada abre un Popup al hacer clic; un Script ejecuta lógica propia en una función llamada **handler**. Seleccione objeto y destino. El asistente de acción rápida usa **Click** y mantiene una acción por disparo; otra la sustituye. Para más lógica configure handler Client y dependencias según [Scripting](06-SCRIPTING-ALARMAS-HISTORICO.md). Acción rápida y asociación de Script son configuraciones diferentes.
 
 Para escribir una variable de prueba, seleccione acción y referencia real respetando tipo e intervalo. Para ejecutar un comando, seleccione el comando real. `CommandExecute` y `ProcessValueWrite` son autorizaciones distintas; ninguna propiedad visual las concede. Use retorno y estado real para indicar éxito: cambiar el color del botón no confirma que el equipo arrancó.
 

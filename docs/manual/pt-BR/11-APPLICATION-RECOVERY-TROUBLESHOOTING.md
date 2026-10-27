@@ -2,9 +2,11 @@
 
 ## Export .escadapkg
 
-`.escadapkg` é portabilidade self-contained da aplicação. Não é backup de Authority, licença ou banco/histórico.
+Exporte um `.escadapkg` para guardar ou transportar a configuração da aplicação: TAGs, telas, Scripts e demais objetos portáteis. Aguarde o download terminar e identifique projeto/revisão da cópia. Para editar muitas linhas do mesmo tipo, use o capítulo de CSV/Excel; para compartilhar só recursos visuais ou Scripts reutilizáveis, use Bibliotecas.
 
-Inspect examina conteúdo/metadados sem mutação. Preview mostra o resultado esperado. Apply incorpora o conteúdo validado em Engineering; Apply não é Activate.
+O pacote não contém o backup de usuários e permissões da Authority, a licença nem o banco/histórico. Prepare essas cópias separadamente quando precisar recuperar a instalação completa.
+
+No destino, **Inspect** examina conteúdo e informações sem aplicar mudanças. **Preview** confere o conteúdo proposto e apresenta diagnósticos. **Apply** incorpora o candidato validado ao rascunho do projeto, chamado Working. Depois salve, publique e ative em etapas separadas; ver a importação no editor não significa que a revisão já entrou em operação.
 
 **Ajuda relacionada:** `/help?topic=packages.escadapkg`.
 
@@ -12,7 +14,7 @@ Inspect examina conteúdo/metadados sem mutação. Preview mostra o resultado es
 
 ### Procedimento: importar aplicação com segurança
 
-**Objetivo:** incorporar um pacote validado em Engineering sem pular lifecycle.
+**Objetivo:** conferir um pacote recebido e incorporá-lo ao projeto antes de colocá-lo em operação.
 
 **Pré-requisitos:** pacote compatível e sessão autorizada.
 
@@ -33,7 +35,7 @@ Inspect examina conteúdo/metadados sem mutação. Preview mostra o resultado es
 
 `.escadalib` é diferente de `.escadapkg`.
 
-Associar Library disponibiliza recursos compatíveis no catálogo, mas não altera Working por si só. Usar um recurso incorpora o item selecionado e o closure validado de dependências; o conteúdo passa a pertencer ao projeto.
+Associar uma biblioteca deixa os recursos compatíveis disponíveis no catálogo. Usar/incorporar copia o item escolhido e suas dependências validadas, os outros recursos necessários para ele funcionar, para o rascunho Working do projeto.
 
 Desassociar remove disponibilidade no catálogo e não apaga conteúdo já incorporado. Runtime e Active não dependem de um arquivo `.escadalib` externo.
 

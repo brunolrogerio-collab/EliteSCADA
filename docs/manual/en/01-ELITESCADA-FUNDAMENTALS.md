@@ -1,91 +1,90 @@
-# Part I — EliteSCADA Fundamentals
+# SCADIVO — Fundamentals for getting started
 
-## 1. About EliteSCADA
+## 1. Follow an application's path
 
-EliteSCADA clearly separates application authoring, industrial execution, and administrative authorities. The project is prepared in Engineering; Runtime executes the Active revision; Authority controls identity and authorization; Licensing controls commercial entitlement; Historian preserves historical data according to its own rules.
+SCADIVO lets you build screens to monitor and operate residential, building or industrial applications. Think of a pump: you want to see pressure, consult history and offer an action to an authorized operator. Each part has a purpose, and you can build them gradually.
 
-This separation matters operationally: editing an application does not automatically change what is running, a license does not grant security authorization, and an Authority backup does not replace an application package or a database/history backup.
+In **Engineering**, you prepare connections, TAGs, screens and rules. In **Runtime**, a person uses the version placed into operation. Editing a drawing in Engineering does not immediately change the screen already operating.
 
-**Related Help:** `/help?topic=engineering.overview`, `/help?topic=runtime.overview`.
+You do not need to learn every term before starting. Build a small example first and consult the glossary in section 5 when a new word appears.
 
-## 2. Fundamental concepts
+## 2. Make a first reading appear
 
-- **Working**: editable Engineering state.
-- **Revision**: an identifiable version saved from Working.
-- **Published**: a published revision eligible for activation according to validation.
-- **Active**: the revision that constitutes the application's authority for Runtime.
-- **TAG**: stable identity for process/engineering data consumed by the TAG Engine.
-- **Data Source**: configured data origin. Communication Drivers and internal source providers are distinct categories.
-- **Authority**: identity, authentication, roles, and effective authorization.
-- **Engineering Lock**: optional protection for the application's Engineering content; it is independent of the user's password and the Authority backup password.
-- **License**: machine-bound commercial entitlement; it does not replace authentication or authorization.
+1. Follow [First project](30-FIRST-PROJECT.md) to prepare a test application and known reading in Server Memory, the server's memory, without physical equipment.
+2. A **TAG** identifies that reading in the project. Check its value, quality and time before drawing; [Engineering and data](03-ENGINEERING-DATA-SOURCES-TAGS.md) explains origin and address.
+3. In [Screens, Popups and objects](05-SCREENS-AND-OBJECTS.md), insert a value display and select its TAG through a data binding. A Popup is a details window opened over a screen.
+4. Check Preview and apply the edit to the project where that workflow is offered. Resolve diagnostics first.
+5. Save work, publish and activate the revision as separate steps, explained below.
+6. In Runtime, check the active revision and expected reading. Add alarms, history or Scripts after understanding this first path.
 
-## 3. Product architecture from the user's perspective
+## 3. Know what each part stores
 
-The normal operating path keeps authority in the backend. Interfaces use capabilities to guide UX, but validation and authorization do not depend only on visible browser controls.
+| Part | Purpose | Example check |
+| --- | --- | --- |
+| Application | Project engineering: TAGs, screens, Scripts and other portable objects. | Which project and revision are being edited or used? |
+| Security Authority | Installation accounts, passwords, roles and access decisions. | Can this person only view or also perform the action? |
+| License | Available commercial features and capacity limits. | Does the installation have a license compatible with the features used? |
+| Historian | Stores and queries samples when capture is configured. | Does the requested period contain recorded data with suitable quality? |
 
-For industrial data, consumers work through public TAG Engine/cache/event contracts. A screen, script, or report must not open a private Driver connection to bypass the Data Source, Authority, or lifecycle.
+A license grants no security permission. The server decides whether an action is authorized even when a browser button is visible. Session class and licensing may restrict features; neither grants a permission missing from Authority.
 
-## 4. Engineering vs. Runtime
+An `.escadapkg` moves the application; it is not an account/Authority backup, license or database/history backup. Those copies have separate procedures in [Backup and recovery](28-BACKUP-AND-RECOVERY.md). In current file-based workflows, licensing is bound to the destination machine; check its status in Licensing.
 
-Engineering and Runtime have different responsibilities.
+Screens, Scripts and reports use values supplied by Runtime. Do not create a private Driver connection inside them to bypass the source, authorization or project lifecycle. Scaling and access control do not gain a second implementation in the browser.
 
-In Engineering, the user creates and validates the application. Changes remain in Working until they follow the lifecycle. In Runtime, the executed application is the Active revision registered by the backend.
+## 4. Edit now, operate when ready
 
-### Procedure: change the application without immediately affecting Runtime
+Before editing, check the project, your Engineering permission and any requested editing control. The editable draft is **Working**. An identified saved copy is a **Revision**. **Published** means a published revision; **Active** is the revision Runtime executes.
 
-**Goal:** prepare an Engineering change while the Active revision continues running until an explicit activation.
+1. Open Engineering in the correct project.
+2. Edit the resource in Working.
+3. Validate and run Preview where available. Preview checks the proposal without applying it.
+4. Use Apply where offered to incorporate the validated edit into the project. Then save work with Save.
+5. Create or select the corresponding revision and review its changes.
+6. Publish the ready revision with Publish.
+7. Use Activate when the change may enter operation. Check the server-reported active revision and the result in Runtime.
 
-**Prerequisites:** a session with compatible Engineering capabilities and access to the application.
+**Expected result:** the previous active revision stays in use until explicit activation. Saving does not publish; publishing does not activate. Apply in an editor or import is not activation either.
 
-**Steps:**
-1. Open the Engineering area.
-2. Edit the desired resource in Working.
-3. Validate the change before persisting/applying it when the surface offers Preview.
-4. Save Working according to the product workflow.
-5. Create/select the corresponding Revision.
-6. Publish the revision when it is ready.
-7. Activate it only when the change is authorized to go into operation.
+If a change seems to appear before activation, check which revision the server reports as Active and which area you are viewing. The editor's local appearance does not prove an operational change.
 
-**Expected result:** Runtime remains associated with the previous Active revision until the explicit Activate step.
+## 5. Look up terms when needed
 
-**Troubleshooting:** if an edit appears to have changed Runtime without Activate, first confirm which revision the backend reports as Active; do not rely only on local visual state.
+| Product term | Meaning in your task |
+| --- | --- |
+| Engineering | Area for building and editing the application. |
+| Runtime | Area presenting and executing the operating revision. |
+| Working | Current project draft; it may contain unsaved changes. |
+| Revision | Identified copy of saved work. |
+| Published / Active | Published is prepared for activation; Active is the revision used by Runtime. |
+| Data Source | Configuration of a value's origin, such as equipment connection or internal memory. |
+| Driver | Communicates through an equipment protocol. Internal memory is a different source category. |
+| Server Memory | Server memory retaining values; a screen can read them through TAGs. |
+| Client Memory | Local state for this Runtime client; it may be lost when the context ends and is not automatically shared with other clients. |
+| TAG | Identified project variable with type and origin. Its current value is not its entire history. |
+| Binding | Connection between a property and a resource, such as a displayed value and its TAG. |
+| Quality | Condition of a reading. Missing data or bad quality does not mean zero. |
+| Timestamp | Time associated with a reading, helping identify whether it is fresh. |
+| Script | Written rule performing a task on the server or client according to its chosen type. |
+| Handler | Declared Script function receiving an event; its name must match the function you prepared. |
+| Template Faceplate | Shared drawing associated with equipment. Changing its definition may affect linked instances. |
+| Dynamo | Reusable visual composition with a shared definition and instance-specific values when parameterized. |
+| Popup | Details window opened over a screen, with its own objects and bindings. |
+| Equipment | Asset identity, such as Pump 01, separate from TAGs and the drawing representing it. |
+| Preview / Apply | Preview checks a proposal; Apply incorporates validated content into the project. Neither is Activate. |
+| Authority | Accounts and rules used by the server to decide who may do what. |
+| Role | Permissions assigned to people. Check the resources and actions actually permitted. |
+| Capability / permission | An allowed action; writing a value and executing a command are distinct actions. |
+| Scope | Resource or application part to which a permission applies. |
+| Engineering Lock / application secret | Optional Engineering content protection. Its secret differs from login and Authority backup passwords. |
+| Editing reservation | Control of who may edit at a given time, where required. It does not replace account permissions. |
+| Historian | Sample recording and querying; requires capture and available data. |
+| License | Commercial use/capacity conditions, separate from an account and its roles. |
 
-**Related Help:** `/help?topic=engineering.lifecycle`.
+## 6. Continue with your task
 
-## 5. Application / Authority / License / Historian
+Use the [English index](README.md) to find chapters by task. In installed Help, search for a function, field or command name. Detailed references explain choices after the initial procedure.
 
-These domains are not interchangeable:
+If a value is missing, check source, TAG, binding and active revision. If an action is rejected, read the result and check session/permission; do not repeat an uncertain command without checking its state. For missing history, check capture and period, not just the current value.
 
-| Domain | Responsibility |
-|---|---|
-| Application | Engineering content and application lifecycle |
-| Authority | Identities, roles, and authorization |
-| License | Commercial entitlement, capacity, and Runtime conditions |
-| Historian | Persistence and query of historical data |
-
-A `.escadapkg` is not an Authority backup or a Historian database. Licensing is a separate installation concern and may be handled separately during recovery.
-
-## 6. Project lifecycle
-
-The fundamental flow is:
-
-`Working -> Save -> Revision -> Publish -> Activate`
-
-Save is not Publish. Publish is not Activate. Applying an import Preview is not equivalent to Activate either.
-
-### Operational outcome
-
-- Working remains the authoring area.
-- Revision gives the saved state a durable identity.
-- Published indicates the published revision.
-- Active defines what Runtime executes.
-
-### Common mistakes
-
-- Assuming that saving changes Runtime.
-- Treating Preview as a mutation.
-- Treating import Apply as activation.
-- Using frontend state as the authority for lifecycle.
-
-**Related Help:** `/help?topic=engineering.lifecycle`, `/help?topic=packages.escadapkg`.
+**Related Help:** `/help?topic=getting-started.first-project`, `/help?topic=engineering.lifecycle`, `/help?topic=bindings-commands.overview`, `/help?topic=recovery.backup-system-recovery`.

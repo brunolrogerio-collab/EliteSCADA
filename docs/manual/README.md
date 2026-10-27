@@ -1,18 +1,83 @@
-# SCADIVO — Manual completo
+# SCADIVO — Manual do usuário
 
-Este diretório é a documentação de produto de longa duração para usuários, engenheiros de automação, autores HMI e de Scripts, administradores, responsáveis por segurança/licenciamento, operação e manutenção.
+Comece por uma tarefa pequena e consulte os detalhes conforme precisar. O manual e a Ajuda instalada explicam o mesmo produto: como preparar uma aplicação, conferir os dados, desenhar telas e colocar uma revisão em operação.
 
-A Ajuda contextual reúne procedimentos, explicações de campos, exemplos e diagnóstico dentro do próprio produto. Este manual aprofunda os mesmos conceitos e usa, quando disponível, links por Topic ID para `/help?topic=<id>`.
+## Escolha o idioma
 
-## Organização
+- [Português](pt-BR/README.md)
+- [English](en/README.md)
+- [Español](es/README.md)
 
-Na Ajuda instalada, abra **Conexão com equipamentos** e escolha a família desejada: preparação, CLPs, Modbus/MQTT/OPC UA, telecontrole, automação predial/residencial ou Zigbee/Z-Wave. Os procedimentos práticos ficam nessas famílias; os detalhes do catálogo ficam em **Referência detalhada dos drivers**. A busca e os links de tópicos abrem automaticamente o grupo correspondente.
+## Por onde começar
 
-- `pt-BR/`: conteúdo-base de autoria da Fase 1.
-- `en/` e `es/`: capítulos estáveis traduzidos de forma incremental; os capítulos restantes e a paridade semântica final ainda estão pendentes.
-- `COVERAGE-MATRIX.md`: matriz editorial por capítulo, dependências e estado de screenshot.
+Para uma primeira aplicação, siga **Primeiro projeto**, depois **Fontes de dados e TAGs** e **Telas, Popups e objetos**. Faça um valor conhecido aparecer e confira a revisão usada no Runtime. Os índices de cada idioma oferecem esse percurso com links diretos.
 
-A parte de Telas e Objetos tem um capítulo de trabalho nos três idiomas: [português](pt-BR/05-TELAS-E-OBJETOS.md), [English](en/05-SCREENS-AND-OBJECTS.md) e [español](es/05-PANTALLAS-Y-OBJETOS.md). O texto cobre o editor disponível e não depende das capturas finais; elas serão acrescentadas após a auditoria visual.
+Para uma aplicação existente, escolha abaixo sua tarefa. Não é preciso dominar todas as famílias de comunicação para conectar um equipamento. Na Ajuda instalada, abra **Conexão com equipamentos**, escolha a família e siga o procedimento; deixe a referência detalhada do Driver para consultar seus campos.
+
+Para entender uma palavra, abra **Fundamentos**: o glossário vem depois do primeiro percurso prático. Para encontrar um campo ou comando, use a busca da Ajuda instalada; o link do tópico mantém o contexto da tarefa.
+
+## Sumário completo
+
+Os números identificam os arquivos existentes; os capítulos estão agrupados pela tarefa. Os nomes históricos de alguns arquivos foram preservados para manter os links.
+
+### Primeiros passos
+
+| Capítulo | Português | English | Español |
+| --- | --- | --- | --- |
+| 01 — Entender os conceitos básicos | [pt-BR](pt-BR/01-FUNDAMENTOS.md) | [en](en/01-ELITESCADA-FUNDAMENTALS.md) | [es](es/01-FUNDAMENTOS-ELITESCADA.md) |
+| 30 — Primeiro projeto: da entrada ao Runtime | [pt-BR](pt-BR/30-PRIMEIRO-PROJETO.md) | [en](en/30-FIRST-PROJECT.md) | [es](es/30-PRIMER-PROYECTO.md) |
+| 03 — Preparar fontes de dados e TAGs | [pt-BR](pt-BR/03-ENGINEERING-E-DADOS.md) | [en](en/03-ENGINEERING-DATA-SOURCES-TAGS.md) | [es](es/03-INGENIERIA-FUENTES-DE-DATOS-TAGS.md) |
+| 29 — Monitores e Informações | [pt-BR](pt-BR/29-MONITORES-E-INFORMACOES.md) | [en](en/29-MONITORS-AND-INFORMATION.md) | [es](es/29-MONITORES-E-INFORMACION.md) |
+
+### Telas e lógica da aplicação
+
+| Capítulo | Português | English | Español |
+| --- | --- | --- | --- |
+| 05 — Telas, Popups e objetos | [pt-BR](pt-BR/05-TELAS-E-OBJETOS.md) | [en](en/05-SCREENS-AND-OBJECTS.md) | [es](es/05-PANTALLAS-Y-OBJETOS.md) |
+| 04 — Templates e Equipamentos | [pt-BR](pt-BR/04-TEMPLATES-E-EQUIPAMENTOS.md) | [en](en/04-TEMPLATES-AND-EQUIPMENT.md) | [es](es/04-PLANTILLAS-Y-EQUIPOS.md) |
+| 15 — Apresentação, mídia e locais | [pt-BR](pt-BR/15-APRESENTACAO-MIDIA-E-LOCAIS.md) | [en](en/15-PRESENTATION-MEDIA-LOCATIONS.md) | [es](es/15-PRESENTACION-MULTIMEDIA-UBICACIONES.md) |
+| 19 — Bibliotecas e assets: reutilizar e incorporar | [pt-BR](pt-BR/19-BIBLIOTECAS-E-ASSETS.md) | [en](en/19-LIBRARIES-AND-ASSETS.md) | [es](es/19-BIBLIOTECAS-Y-ASSETS.md) |
+| 06 — Scripting, Alarmes e Histórico | [pt-BR](pt-BR/06-SCRIPTING-ALARMES-HISTORICO.md) | [en](en/06-SCRIPTING-ALARMS-HISTORY.md) | [es](es/06-SCRIPTING-ALARMAS-HISTORICO.md) |
+
+### Operação, histórico e análise
+
+| Capítulo | Português | English | Español |
+| --- | --- | --- | --- |
+| 27 — Sessões Runtime e diagnóstico | [pt-BR](pt-BR/27-SESSOES-E-DIAGNOSTICO.md) | [en](en/27-SESSIONS-AND-DIAGNOSTICS.md) | [es](es/27-SESIONES-Y-DIAGNOSTICO.md) |
+| 17 — Alarmes e eventos: configuração e operação | [pt-BR](pt-BR/17-ALARMES-E-EVENTOS.md) | [en](en/17-ALARMS-AND-EVENTS.md) | [es](es/17-ALARMAS-Y-EVENTOS.md) |
+| 07 — Historian: captura e consulta | [pt-BR](pt-BR/07-HISTORIAN-CAPTURA-CONSULTA.md) | [en](en/07-HISTORIAN-CAPTURE-QUERY.md) | [es](es/07-HISTORIAN-CAPTURA-CONSULTA.md) |
+| 16 — Relatórios: autoria e operação | [pt-BR](pt-BR/16-RELATORIOS.md) | [en](en/16-REPORTS.md) | [es](es/16-INFORMES.md) |
+| 12 — Inteligência de Ativos e Processos | [pt-BR](pt-BR/12-INTELIGENCIA-ATIVOS-PROCESSOS.md) | [en](en/12-ASSET-PROCESS-INTELLIGENCE.md) | [es](es/12-INTELIGENCIA-ACTIVOS-PROCESOS.md) |
+
+### Conexões e troca de dados
+
+| Capítulo | Português | English | Español |
+| --- | --- | --- | --- |
+| 21 — Conexões, Modbus, MQTT e OPC UA | [pt-BR](pt-BR/21-CONEXOES-E-PROTOCOLOS.md) | [en](en/21-CONNECTIONS-AND-PROTOCOLS.md) | [es](es/21-CONEXIONES-Y-PROTOCOLOS.md) |
+| 24 — CLPs: conexão, símbolos e memória | [pt-BR](pt-BR/24-CLPS-E-MEMORIA.md) | [en](en/24-PLCS-AND-MEMORY.md) | [es](es/24-PLCS-Y-MEMORIA.md) |
+| 25 — Telecontrole e Modbus Server | [pt-BR](pt-BR/25-TELECONTROLE-E-MODBUS-SERVER.md) | [en](en/25-TELECONTROL-AND-MODBUS-SERVER.md) | [es](es/25-TELECONTROL-Y-MODBUS-SERVER.md) |
+| 22 — Home/Building: dispositivos e conexões | [pt-BR](pt-BR/22-HOME-BUILDING-CONEXOES.md) | [en](en/22-HOME-BUILDING-CONNECTIONS.md) | [es](es/22-HOME-BUILDING-CONEXIONES.md) |
+| 23 — Zigbee e Z-Wave: conexão, identidade e operação | [pt-BR](pt-BR/23-ZIGBEE-E-ZWAVE.md) | [en](en/23-ZIGBEE-AND-ZWAVE.md) | [es](es/23-ZIGBEE-Y-ZWAVE.md) |
+| 26 — Matter Wi-Fi: versão em teste | [pt-BR](pt-BR/26-MATTER-VERSAO-EM-TESTE.md) | [en](en/26-MATTER-TEST-VERSION.md) | [es](es/26-MATTER-VERSION-EN-PRUEBA.md) |
+| 20 — Gateway e arquivos CSV/Excel | [pt-BR](pt-BR/20-GATEWAY-CSV-EXCEL.md) | [en](en/20-GATEWAY-CSV-EXCEL.md) | [es](es/20-GATEWAY-CSV-EXCEL.md) |
+
+### Administração e recuperação
+
+| Capítulo | Português | English | Español |
+| --- | --- | --- | --- |
+| 18 — Segurança e auditoria: contas, permissões e proteção | [pt-BR](pt-BR/18-SEGURANCA-E-AUDITORIA.md) | [en](en/18-SECURITY-AND-AUDIT.md) | [es](es/18-SEGURIDAD-Y-AUDITORIA.md) |
+| 08 — Operação, segurança e licenciamento | [pt-BR](pt-BR/08-OPERACAO-SEGURANCA-LICENCIAMENTO.md) | [en](en/08-OPERATIONS-SECURITY-LICENSING.md) | [es](es/08-OPERACION-SEGURIDAD-LICENCIAS.md) |
+| 13 — Alta disponibilidade: configuração e operação | [pt-BR](pt-BR/13-ALTA-DISPONIBILIDADE.md) | [en](en/13-HIGH-AVAILABILITY.md) | [es](es/13-ALTA-DISPONIBILIDAD.md) |
+| 14 — Banco de dados: configuração, migração e recuperação | [pt-BR](pt-BR/14-BANCO-DE-DADOS.md) | [en](en/14-DATABASE.md) | [es](es/14-BASE-DE-DATOS.md) |
+| 11 — Transportar a aplicação e recuperar uma instalação | [pt-BR](pt-BR/11-APPLICATION-RECOVERY-TROUBLESHOOTING.md) | [en](en/11-APPLICATION-RECOVERY-TROUBLESHOOTING.md) | [es](es/11-GESTION-APLICACION-RECUPERACION-DIAGNOSTICO.md) |
+| 28 — Backup e recuperação | [pt-BR](pt-BR/28-BACKUP-E-RECUPERACAO.md) | [en](en/28-BACKUP-AND-RECOVERY.md) | [es](es/28-BACKUP-Y-RECUPERACION.md) |
+| 31 — Trocar a aplicação da instalação | [pt-BR](pt-BR/31-TROCA-DA-APLICACAO.md) | [en](en/31-SWITCHING-APPLICATION.md) | [es](es/31-CAMBIO-DE-APLICACION.md) |
+
+## Como usar esta edição
+
+Cada procedimento informa o que preparar, como fazer, o que conferir e onde procurar se algo falhar. Um campo técnico pode aparecer apenas para certos tipos de objeto ou conexão; consulte o guia dessa opção. Um recurso marcado como pendente será revisto quando a alteração correspondente estiver disponível.
+
+Os capítulos cobrem os fluxos disponíveis. A revisão final de terminologia entre idiomas e as capturas reais após a auditoria de interface continuam na [matriz de cobertura](COVERAGE-MATRIX.md). A [auditoria de profundidade](../WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md) mantém o histórico editorial. Nenhuma figura inventada substitui uma captura do sistema.
 
 ## Regras editoriais
 
@@ -28,236 +93,4 @@ A parte de Telas e Objetos tem um capítulo de trabalho nos três idiomas: [port
 10. Preferir frases diretas, exemplos pequenos e uma decisão por vez. Links relacionados são caminhos para aprofundar, não pré-requisitos implícitos para entender o artigo.
 11. A revisão de linguagem não pode apagar limites, requisitos de segurança ou instruções de recuperação. Essas condições devem ser explicadas no momento em que influenciam a decisão do usuário.
 12. Quantidade de páginas, campos ou testes não comprova clareza. A repassada de linguagem deve conferir se alguém que ainda não conhece o sistema entende a tarefa sem depender da memória do projeto.
-
-## Sumário completo
-
-### PARTE I — INTRODUÇÃO
-
-1. Sobre o SCADIVO
-2. Conceitos fundamentais
-3. Arquitetura do produto para o usuário
-4. Engineering x Runtime
-5. Application / Authority / License / Historian
-6. Lifecycle do projeto
-
-### PARTE II — PRIMEIRO USO
-
-7. Primeiro acesso
-8. Neutral bootstrap
-9. Criar projeto
-10. Abrir/importar aplicação
-11. Restaurar sistema
-12. Login e Engineering Lock
-
-### PARTE III — ENGINEERING
-
-13. Interface Engineering
-14. Navegação
-15. Working
-16. Save
-17. Revisions
-18. Publish
-19. Activate
-
-### PARTE IV — DADOS E TAGS
-
-20. Data Sources
-21. Drivers
-22. TAGs
-23. Endereçamento
-24. Scaling/normalization
-25. Quality
-26. Test/commissioning de TAG
-27. Copy/Paste/Duplicate
-28. Sequential TAG generation
-29. Historian profile
-
-### PARTE V — TELAS E OBJETOS
-
-30. Screen Editor
-31. Popup Editor
-32. Inserção de objetos
-33. Properties
-34. Dynamics
-35. Events
-36. Bindings
-37. Groups
-38. Z-order
-39. Alignment/distribution
-40. Visual Assets
-41. Library
-42. Dynamos
-43. Reusable objects
-
-### PARTE VI — SCRIPTING
-
-44. Script Engineering
-45. Python editor
-46. Syntax validation
-47. Reference validation
-48. Project Object Browser
-49. Guided authoring
-50. TAG APIs
-51. Client Memory
-52. Visual APIs
-53. Events
-54. Safety, sandbox e fault isolation
-
-### PARTE VII — ALARMES E HISTÓRICO
-
-55. Alarms
-56. Alarm states
-57. Historian
-58. Capture policies
-59. Historical Browser
-60. Trends
-61. Historical Time Range
-62. Historical Playback
-63. Reports
-
-### PARTE VIII — OPERAÇÃO
-
-64. Runtime
-65. Navigation
-66. Interactive
-67. View Only
-68. Commands
-69. Diagnostics
-70. Communication quality
-71. Operational Events
-72. Audit
-
-### PARTE IX — SEGURANÇA
-
-73. Authority
-74. Users
-75. Roles
-76. Capabilities
-77. Scopes
-78. Effective permissions
-79. Sessions
-80. Engineering Lock
-
-### PARTE X — LICENCIAMENTO
-
-81. Conceitos de licença
-82. Machine binding
-83. Request
-84. Install
-85. Replace
-86. Remove
-87. Demo/no-license
-88. Runtime session quotas
-89. Interactive/View Only
-90. Redundancy entitlement
-91. License Generator
-
-### PARTE XI — APPLICATION MANAGEMENT
-
-92. Export .escadapkg
-93. Import
-94. Authority backup
-95. Restore
-96. Portability
-97. Fragments/library portability
-98. Application detach
-99. Neutral installation
-100. A -> B -> A switching
-
-### PARTE XII — REDUNDÂNCIA / HA
-
-101. Conceitos HA
-102. Cluster
-103. Nodes
-104. Active/Standby
-105. ReadyStandby
-106. Synchronization
-107. Manual transfer
-108. Fencing
-109. Runtime/TAG mirror
-110. Session continuity
-111. Automatic failover
-112. Failback
-113. Split-brain/ambiguous conditions
-114. Diagnostics HA
-115. Operational procedures
-
-### PARTE XIII — BACKUP / RECOVERY
-
-116. Application backup
-117. Authority backup
-118. Database/Historian considerations
-119. Restore-first
-120. Recovery procedures
-
-### PARTE XIV — TROUBLESHOOTING
-
-121. Startup
-122. Login
-123. Driver communication
-124. TAG quality
-125. Runtime
-126. Historian
-127. Scripts
-128. Licensing
-129. Authority
-130. HA
-131. Import/restore
-132. Diagnostics workflow
-
-### PARTE XV — REFERÊNCIA
-
-133. Glossary
-134. Statuses
-135. Quality
-136. Public Script APIs
-137. Supported identifiers
-138. Keyboard shortcuts
-139. File formats
-140. Operational limits
-
-### PARTE XVI — INTELIGÊNCIA DE ATIVOS E PROCESSOS
-
-141. Escopo, licença e seleção de ativos
-142. Perfis de medição e associações de equipamento
-143. Contextos operacionais e evidência temporal
-144. Etapas ordenadas do processo
-145. Cobertura, desempenho e desvio contextual
-146. Rascunhos de telas e consulta no Runtime
-
-## Conteúdo de Fase 1
-
-O núcleo pt-BR contém procedimentos para os fluxos disponíveis. Conteúdo de Inteligência descreve a implementação atual e pode ser revisado conforme o produto evoluir. Screenshots finais continuam pendentes da auditoria de interface; não substitua capturas reais por ilustrações inventadas.
-
-## Guias detalhados por área
-
-Além dos capítulos de telas e scripts, os índices pt-BR/en/es incluem Templates/Equipamentos (04), Intelligence (12), HA (13), Banco de Dados (14) e Apresentação/Mídia/Locais (15). A Ajuda instalada contém os mesmos guias de campos e tarefas, com busca, áreas e entradas contextuais. A [matriz de profundidade](../WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md) registra o que ainda precisa de revisão; a existência de um capítulo não significa conclusão do manual.
-
-Os capítulos 07 (Historian: captura e consulta) e 16 (Relatórios: autoria e operação) estão nos três índices. Aprofundam campos, estratégias, resolução, layout, execução e exportação; não apresentam a futura administração global de capacidade/arquivo como disponível.
-
-
-Alarm/event field and operating guides (chapter 17): [pt-BR](pt-BR/17-ALARMES-E-EVENTOS.md), [English](en/17-ALARMS-AND-EVENTS.md), [Español](es/17-ALARMAS-Y-EVENTOS.md). Includes current Runtime limitations; not a claim that delay/ACK residuals are fixed.
-
-
-Detailed Security/Audit guide (chapter 18): [pt-BR](pt-BR/18-SEGURANCA-E-AUDITORIA.md), [English](en/18-SECURITY-AND-AUDIT.md), [Español](es/18-SEGURIDAD-Y-AUDITORIA.md). Actual user/role/scope fields, capability reference, Audit queries/diagnostics and Engineering Lock lifecycle; future online licensing is not presented as delivered.
-
-
-Practical reuse and file workflows: [Libraries/assets pt-BR](pt-BR/19-BIBLIOTECAS-E-ASSETS.md), [English](en/19-LIBRARIES-AND-ASSETS.md), [Español](es/19-BIBLIOTECAS-Y-ASSETS.md); [Gateway/CSV/Excel pt-BR](pt-BR/20-GATEWAY-CSV-EXCEL.md), [English](en/20-GATEWAY-CSV-EXCEL.md), [Español](es/20-GATEWAY-CSV-EXCEL.md). CSV examples use readable paths and require existing sources; export current templates before full updates.
-
-Connection/protocol walkthroughs (chapter 21): [pt-BR](pt-BR/21-CONEXOES-E-PROTOCOLOS.md), [English](en/21-CONNECTIONS-AND-PROTOCOLS.md), [Español](es/21-CONEXIONES-Y-PROTOCOLOS.md). Covers the Data Source lifecycle, Modbus TCP/RTU Master, MQTT Raw and OPC UA with actual fields, examples and diagnosis. Other driver descriptor references remain available; this is not physical interoperability acceptance.
-
-Home/Building practical connections (chapter 22): [pt-BR](pt-BR/22-HOME-BUILDING-CONEXOES.md), [English](en/22-HOME-BUILDING-CONNECTIONS.md), [Español](es/22-HOME-BUILDING-CONEXIONES.md). Covers device incorporation, BACnet/IP, KNX/IP Secure, Home Assistant Bridge, ESPHome Native API and Shelly Gen2+ RPC. Current selection/authoring limitations are explicit and marked for later product review.
-
-Radio connection walkthroughs (chapter 23): [pt-BR](pt-BR/23-ZIGBEE-E-ZWAVE.md), [English](en/23-ZIGBEE-AND-ZWAVE.md), [Español](es/23-ZIGBEE-Y-ZWAVE.md). Explains prepared networks, Native Zigbee, external Zigbee2MQTT and Z-Wave, with current authoring, selection and inventory-decoder limitations explicit. No pairing wizard or hardware interoperability acceptance is implied.
-
-PLC connection and memory walkthroughs (chapter 24): [pt-BR](pt-BR/24-CLPS-E-MEMORIA.md), [English](en/24-PLCS-AND-MEMORY.md), [Español](es/24-PLCS-Y-MEMORIA.md). Siemens S7, Allen-Bradley Logix, Mitsubishi MELSEC and Panasonic TCP/Host Serial: source fields, native/SCADIVO type mapping, addresses, prerequisites, examples and diagnosis. S7/Logix generic-authoring limitations remain explicit under #786; this is not a claim that the assistant paths or physical interoperability are accepted.
-
-Telecontrol and local Server walkthroughs (chapter 25): [pt-BR](pt-BR/25-TELECONTROLE-E-MODBUS-SERVER.md), [English](en/25-TELECONTROL-AND-MODBUS-SERVER.md), [Español](es/25-TELECONTROL-Y-MODBUS-SERVER.md). DNP3 association/classes/representations/commands, IEC 104 observed points/CA/IOA/types/clock and Modbus TCP/RTU Server maps and external access. Actual connection-test scope, incomplete observations, feedback and initialization limits are explicit. All 21 driver references in the current default catalog now link to a practical companion; this is editorial navigation coverage, not complete product or physical acceptance.
-
-Matter Wi-Fi / chapter 26: [pt-BR](pt-BR/26-MATTER-VERSAO-EM-TESTE.md), [English](en/26-MATTER-TEST-VERSION.md), [Español](es/26-MATTER-VERSION-EN-PRUEBA.md). Conditional availability, host-key preparation, explicit attribute bindings, planner-checked read example and operational failure diagnosis; incomplete graphical binding authoring and experimental limits remain explicit. This guide does not enable the connector or qualify devices. Review markers follow #786/#792.
-
-Runtime sessions/diagnostics (chapter 27): [pt-BR](pt-BR/27-SESSOES-E-DIAGNOSTICO.md), [English](en/27-SESSIONS-AND-DIAGNOSTICS.md), [Español](es/27-SESIONES-Y-DIAGNOSTICO.md). Requested/granted class, release/fallback, host freshness, source filters/counters, TAG quality and separate server-side TCP/ICMP reachability results. Backup/recovery (chapter 28): [pt-BR](pt-BR/28-BACKUP-E-RECUPERACAO.md), [English](en/28-BACKUP-AND-RECOVERY.md), [Español](es/28-BACKUP-Y-RECUPERACION.md). Distinct Authority/application/license/data artifacts, validate/apply, restored login, mandatory revalidation, partial stages and separate Historian/host material procedures. Instructions explain current controls without creating a new backup scheduler, retention policy or licensing flow.
-
-Chapter 29 / Development Monitor, TAG Monitor and Information: [pt-BR](pt-BR/29-MONITORES-E-INFORMACOES.md), [English](en/29-MONITORS-AND-INFORMATION.md), [Español](es/29-MONITORES-E-INFORMACION.md). Exact-reference watch lists and bit observations, local versus Runtime memory, Working/Active identity, filters, sample freshness/timestamps, bounded recent history and product/schema/project identity. These are read-only observations, not value forcing, publishing, license consumption or software updates.
-
-First-project journey (chapter 30): [pt-BR](pt-BR/30-PRIMEIRO-PROJETO.md), [English](en/30-FIRST-PROJECT.md), [Español](es/30-PRIMER-PROYECTO.md). Dedicated test setup, project identity, Server Memory sample/script entry, first value screen and explicit Save/Publish/Activate verification. Installation switch (chapter 31): [pt-BR](pt-BR/31-TROCA-DA-APLICACAO.md), [English](en/31-SWITCHING-APPLICATION.md), [Español](es/31-CAMBIO-DE-APLICACION.md). Review current state, copies, acknowledgements, machine license choice, revalidation and uncertain-result recovery. Neither the guide nor Help QA performs a live installation switch.
+13. O manual PREVIEW-READY de cada idioma deve conservar o conteúdo material de segurança, licenciamento, HA, escritas/comandos, recuperação e advertências críticas.

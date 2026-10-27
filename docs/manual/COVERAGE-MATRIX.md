@@ -1,8 +1,8 @@
-# EliteSCADA Manual — Coverage Matrix
+# SCADIVO Manual — Coverage Matrix
 
 Estados: `COMPLETE`, `DRAFT_STABLE`, `DRAFT_CURRENT`, `BLOCKED_PRODUCT`, `FINAL_REVIEW_REQUIRED`. `DRAFT_CURRENT` documenta uma interface disponível hoje que pode evoluir; não equivale à aceitação do comportamento do produto.
 
-Todos os screenshots permanecem `PENDING_FINAL` nesta fase. A paridade final pt-BR/en/es depende do fechamento do glossário/localização; a estrutura de locales já existe.
+Todos os screenshots permanecem `PENDING_FINAL` nesta fase. Os glossários de entrada pt-BR/en/es foram revisados com28 termos. A revisão semântica global entre idiomas e a aceitação final continuam pendentes; glossário concluído não encerra essas verificações.
 
 Continuação de 25/10/2026: capítulos 05 de Telas/Popups/objetos disponíveis em pt-BR/en/es. Linhas 30–43 deixam o bloqueio editorial antigo e passam a DRAFT_CURRENT; nenhum aceite de produto ou captura final é inferido.
 
@@ -10,7 +10,7 @@ Atualização de 24/10/2026 na PR #772: a Ajuda instalada ganha áreas, busca, r
 
 | Chapter | Status | Product owner | Source authority | Language status | Screenshot status |
 |---:|---|---|---|---|---|
-| 1. Sobre o EliteSCADA | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
+| 1. Sobre o SCADIVO | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 2. Conceitos fundamentais | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 3. Arquitetura do produto para o usuário | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 4. Engineering x Runtime | DRAFT_STABLE | #425 / #306 | `ContextualHelpApi.cs`; product contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
@@ -212,3 +212,6 @@ Readability continuation — IN_PROGRESS:25 source/connection entry topics revie
 Consolidated readability continuation — IN_PROGRESS: ten task guides (templates/equipment, accounts/policy/locks, libraries/assets, recovery/presentation/media) reviewed in three locales; manual04/05/15/18/19/28 follows. All31 object references define Structure/Inspector;96 unique PT field descriptions read, shadowColor alpha clarified in three locales. Contracts/examples/limits retained. This does not certify every advanced field/translation or final user acceptance. Final reading-route/semantic review and #357/real manual figures retain sequence; product-gap markers remain.
 
 Readability continuation — IN_PROGRESS: Dynamics/Events/application-package/CSV guides now explain concrete visual and file tasks in pt-BR/en/es; manual05/11/20 follows. Related links connect procedures.176 IDs/field contracts/examples preserved; this is neither delivery of queued product features nor final screenshot/semantic acceptance. The foundation batch is included; next is final reading-route/glossary and entry-to-detail review. #357/final real figures retain sequence; licensing#301 next product stage.
+
+
+Reading-route/editorial continuation27/10 — identified entry corrections implemented: three fundamentals chapters now lead with a concrete task and28-term glossary; all28 chapters/locale are grouped by task with original links preserved.66-file source alignment/222 file links/321 installed-Help references verified. No code/test/workflow changes. HELP-REVIEW-301 marks chapter08 legacy Demo duration and licensing/consumption review; owner-approved no-time-limit Demo is not claimed implemented by prose. Next consolidated PR#772 review/exact CI; global semantic acceptance and#357/final real figures retain sequence. #424/#425 remain open;#301 next product stage.

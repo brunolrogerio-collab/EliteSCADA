@@ -64,6 +64,9 @@ The license controls commercial entitlement; it does not replace Authority, Engi
 
 ### Demo/no-license
 
+<!-- HELP-REVIEW-301: No-time-limit Demo; also review online licensing and quota-consumption display after their delivery. -->
+**Under review — Demo and licensing:** the product decision is to offer Demo without a time limit. The 300-minute limit and timeout references below belong to earlier text and will be revised with the licensing delivery. Do not treat that legacy duration as the definitive commercial rule; check the version and status shown by the installation. Online workflows and quota consumption must follow the options actually available in the documented version.
+
 Under the implemented operational contract:
 
 - Engineering may contain more than 200 TAGs;

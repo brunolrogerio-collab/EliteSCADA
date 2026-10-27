@@ -64,6 +64,9 @@ La licencia controla el entitlement comercial; no reemplaza Authority, Engineeri
 
 ### Demo/sin licencia
 
+<!-- HELP-REVIEW-301: Demo sin límite de tiempo; revisar también licencias online y presentación de consumo tras su entrega. -->
+**En revisión — Demo y licencias:** la decisión de producto es ofrecer Demo sin límite de tiempo. El plazo de 300 minutos y las referencias a timeout abajo pertenecen al texto anterior y se revisarán junto con la entrega de licencias. No trate ese plazo antiguo como regla comercial definitiva; compruebe versión y estado mostrados por la instalación. Flujo online y consumo de cuotas deben seguir las opciones realmente disponibles en la versión documentada.
+
 Según el contrato operacional implementado:
 
 - Engineering puede contener más de 200 TAGs;

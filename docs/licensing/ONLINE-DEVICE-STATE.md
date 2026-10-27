@@ -1,6 +1,11 @@
-# Online device state and transport — second product slice (#301)
+# Online device state and transport - second product slice (#301)
 
-This candidate follows verifier PR #793, now merged at `a1a2f692a6de9215c06a3c66f3ad9547f9158ca2`, after reconciliation onto integrated Help. Reconciled verifier head `ebed1b98d3e75370406b332c1aa24068be8b7621` passed exact-head [T1 40522156453](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/40522156453). Exact-merge T2 40523138500 passed on attempt 2: backend 1807 passed/1 skipped, the HA-D2 process test passed, Runtime smoke, Web, and Chromium integration 13/13 passed. Attempt 1 failed in that HA-D2 test and remains a cause-unconfirmed incident under #423; the rerun does not replace manual Preview acceptance. Do not rely on historical stacked-head T1 40517115815 as final-base evidence.
+Verifier #793 is integrated at `a1a2f692a6de9215c06a3c66f3ad9547f9158ca2`; exact-head T1 40522156453 passed. Exact-merge T2 40523138500 passed on attempt 2 (backend 2846 passed/1 skipped, Runtime smoke, Web, Chromium 13/13). Attempt 1 failed in the existing separate-database HA-D2 process test; cause remains unknown in [#423](https://github.com/brunolrogerio-collab/EliteSCADA/issues/423#issuecomment-6445217358). The retry did not alter HA or replace manual Preview acceptance.
+
+Protected journal/client PR #794 is integrated at `7c695d799245f131658b8f692583e9d2976a3850`, head `730bb226c189fe6fe08ba3010cc63b88dc8cf7de`. Exact-head T1 40525777827 passed on attempt 2; T2 40527634556 passed (backend 2881 passed/1 skipped, Runtime smoke, Web, Chromium 13/13). Local focused Core 826/826 and Drivers 174/174 passed. Attempt 1 of T1 failed the existing shared-database revoke/rejoin test, also recorded in #423; root cause remains unproven and manual HA Preview acceptance is pending.
+
+These components do not complete online licensing or enable production issuance/signing. The client remains unconnected to DI, public API, hosted worker, Runtime/lifecycle and UI. Protected-snapshot retention/GC, explicit reset/reauthentication, expiry-to-Demo without a time limit, authorized worker/continuous time, status/usage API and UI, and Portal/platform validation remain. EEE RHO/Codex preview handoff follows only after licensing is complete and the demo package is independently verified.
+
 
 The contract remains [#301](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6392078669); Portal payloads/endpoints were checked at PR #778 `3f825c9750eed841d309004af452cb5bff3d0db5`. This slice has no DI registration, public API routes, hosted worker, Runtime authority or UI call sites. Creating these components does not enable production issuance or select online licensing mode.
 

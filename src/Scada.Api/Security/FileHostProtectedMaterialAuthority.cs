@@ -10,8 +10,9 @@ namespace Scada.Api.Security;
 /// Canonical deployment-owned protected-material authority for server resources.
 /// Ciphertext is persisted per opaque reference; the protection key is supplied externally.
 /// </summary>
-public sealed class FileHostProtectedMaterialAuthority :
+public sealed partial class FileHostProtectedMaterialAuthority :
     IProtectedMaterialAuthority,
+    IProtectedMaterialRetentionAuthority,
     IDisposable
 {
     public const string ReferencePrefix = "protected-material-v1:";

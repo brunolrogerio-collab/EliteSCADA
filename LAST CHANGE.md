@@ -1,4 +1,8 @@
-# Integration regularization completed - 2026-10-27
+# Online state maintenance candidate - 2026-10-27
+
+Active #301 branch `work/w15-online-license-maintenance-20261027`, base `8de815d724a02cc5f0fa9ad1b867156d3fd9bf41`: canonical scoped ciphertext collection, local reset/CAS/UTC tombstone, durable HTTP 401/403 rejection and exact-intent login retry preserving ActivationId. Local focused Drivers 122/122 and Security 42/42 pass. See `docs/licensing/ONLINE-STATE-MAINTENANCE.md`; live #301 owns PR/head/CI disposition. No endpoints/worker/Runtime/signing are enabled. Next review/CI/integration, then lifecycle/Demo/worker/usage/UI/platform validation. #796/#797 remain queued under #788; preserve Portal lane and owner preview. Codex handoff follows completed licensing.
+
+## Previous integration regularization - 2026-10-27
 
 The Product Owner authorized sequential integration #772 -> #793 -> #794. All three are merged into `wave15/corrections-integration`. Exact merge SHAs and T1/T2 runs are recorded in the live [#301 ledger](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6444785861); the current checkpoint is #756. #772 T2 passed backend 2752/1 skipped, Web and Chromium 13/13. #793 T2 passed on attempt 2 (backend 2846/1 skipped, Runtime smoke, Web, Chromium 13/13); attempt 1's HA-D2 separate-database failure remains cause-unconfirmed in #423. #794 T1 passed on attempt 2 (Core 826/826, Drivers 1841/1 skipped) and T2 passed (backend 2881/1 skipped, Runtime smoke, Web, Chromium 13/13); its first T1 attempt failed the previously recorded shared-database revoke/rejoin case. No HA implementation, test, timeout, filter or CI setting changed; manual HA Preview acceptance remains pending.
 

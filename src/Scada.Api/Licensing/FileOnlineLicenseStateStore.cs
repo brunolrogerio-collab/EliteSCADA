@@ -1,0 +1,286 @@
+using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Scada.Api.Security;
+using Scada.Core.Product.Licensing;
+using Scada.Security.Authorization;
+
+namespace Scada.Api.Licensing;
+
+/// <summary>
+/// Per-machine protocol journal, outside Engineering/package state. Immutable encrypted snapshots
+/// use the canonical host authority; an atomic opaque pointer selects the committed snapshot.
+/// No network call is allowed until a pending intent has been committed.
+/// </summary>
+public sealed class FileOnlineLicenseStateStore
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        PropertyNameCaseInsensitive = false,
+        MaxDepth = 8
+    };
+    private readonly string root;
+    private readonly string pointerPath;
+    private readonly string machine;
+    private readonly string portalOrigin;
+    private readonly IProtectedMaterialAuthority authority;
+    private readonly TimeProvider clock;
+    private readonly Func<string, OnlineLeaseBinding, DateTimeOffset, OnlineLeaseVerificationResult> verify;
+    private readonly ProtectedMaterialScope scope;
+
+    public FileOnlineLicenseStateStore(string hostStateDirectory, string machineFingerprint, Uri portalOrigin,
+        IProtectedMaterialAuthority authority, TimeProvider? clock = null)
+        : this(hostStateDirectory, machineFingerprint, portalOrigin, authority, clock ?? TimeProvider.System,
+            OnlineLeaseVerifier.Verify) { }
+
+    internal FileOnlineLicenseStateStore(string hostStateDirectory, string machineFingerprint, Uri origin,
+        IProtectedMaterialAuthority authority, TimeProvider clock,
+        Func<string, OnlineLeaseBinding, DateTimeOffset, OnlineLeaseVerificationResult> verify)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(hostStateDirectory);
+        ArgumentNullException.ThrowIfNull(authority);
+        ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(verify);
+        if (machineFingerprint.Length != 64 || !machineFingerprint.All(Uri.IsHexDigit))
+            throw new ArgumentException("A stable machine fingerprint is required.", nameof(machineFingerprint));
+        if (!origin.IsAbsoluteUri || origin.Scheme != Uri.UriSchemeHttps ||
+            origin.UserInfo.Length != 0 || origin.Query.Length != 0 || origin.Fragment.Length != 0 ||
+            origin.AbsolutePath != "/")
+            throw new ArgumentException("The Portal origin must be HTTPS without credentials, path, query or fragment.", nameof(origin));
+        root = Path.GetFullPath(hostStateDirectory);
+        pointerPath = Path.Combine(root, "online-license-reference.json");
+        machine = machineFingerprint;
+        portalOrigin = origin.GetLeftPart(UriPartial.Authority);
+        this.authority = authority;
+        this.clock = clock;
+        this.verify = verify;
+        scope = new("deployment:product-licensing", "ProductLicensing", machine, "OnlineDeviceState");
+    }
+
+    internal Uri PortalOrigin => new(portalOrigin + "/");
+
+    public async Task<OnlineLicenseDeviceStatus?> ReadStatusAsync(CancellationToken ct = default)
+    {
+        await using var gate = Acquire(ct);
+        var state = await ReadAsync(ct);
+        return state is null ? null : Status(state);
+    }
+
+    public async Task<OnlineLicenseDeviceStatus> PrepareActivationAsync(OnlineLicenseSelection selection,
+        string username, ProtectedMaterialMutationContext mutation, CancellationToken ct = default)
+    {
+        DemandAdministration(mutation);
+        if (selection.LicenseId == Guid.Empty || selection.OrganizationId == Guid.Empty ||
+            selection.ApplicationId == Guid.Empty || string.IsNullOrWhiteSpace(selection.LicenseCode) ||
+            selection.LicenseCode.Length > 128 || string.IsNullOrWhiteSpace(username) || username.Length > 256)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_INVALID_SELECTION");
+        await using var gate = Acquire(ct);
+        var existing = await ReadAsync(ct);
+        if (existing is not null)
+        {
+            DemandClock(existing);
+            if (existing.Pending is { Kind: "activation" } pending &&
+                existing.Binding.LicenseId == selection.LicenseId && existing.Binding.OrganizationId == selection.OrganizationId &&
+                existing.Binding.ApplicationId == selection.ApplicationId && pending.LicenseCode == selection.LicenseCode &&
+                pending.Username == username)
+                return Status(existing);
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        }
+
+        var state = new OnlineLicenseDeviceState
+        {
+            PortalOrigin = portalOrigin,
+            Binding = new(selection.LicenseId, selection.OrganizationId, selection.ApplicationId, Guid.NewGuid(), machine),
+            LastObservedUtc = clock.GetUtcNow(),
+            Pending = new() { Kind = "activation", RequestId = Guid.NewGuid(), NextCredential = NewCredential(),
+                Username = username, LicenseCode = selection.LicenseCode }
+        };
+        await PersistAsync(state, mutation, ct);
+        return Status(state);
+    }
+
+    public async Task<OnlineLicenseDeviceStatus> PrepareRenewalAsync(
+        ProtectedMaterialMutationContext mutation, CancellationToken ct = default)
+    {
+        DemandAdministration(mutation);
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        var now = DemandClock(state);
+        if (state.Pending is { Kind: "renewal" }) return Status(state);
+        if (state.Pending is not null || state.CurrentCredential is null || state.Lease is null)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_NOT_ACTIVE");
+        state.Pending = new() { Kind = "renewal", RequestId = Guid.NewGuid(), NextCredential = NewCredential() };
+        state.LastObservedUtc = now;
+        await PersistAsync(state, mutation, ct);
+        return Status(state);
+    }
+
+    internal async Task<OnlineLicenseDeviceState> ReadTransportAsync(string kind, CancellationToken ct)
+    {
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        _ = DemandClock(state);
+        if (state.Pending?.Kind != kind) throw new OnlineLicenseProtocolException("ONLINE_LICENSE_NO_PENDING_REQUEST");
+        return state;
+    }
+
+    internal async Task<OnlineLicenseDeviceStatus> CompleteAsync(Guid requestId, string envelope,
+        ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        DemandAdministration(mutation);
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        var now = DemandClock(state);
+        // Late duplicate responses cannot clear a newer pending request or replace a newer credential.
+        if (state.CompletedRequestId == requestId && state.Lease == envelope) return Status(state);
+        if (state.Pending?.RequestId != requestId)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_REQUEST_CONFLICT");
+        var verified = verify(envelope, state.Binding, now);
+        if (verified.Status is not (OnlineLeaseVerificationStatus.Valid or OnlineLeaseVerificationStatus.Expired) ||
+            verified.Evidence is not { } evidence ||
+            (state.IssuedAtUtc is { } previousIssued && evidence.IssuedAtUtc < previousIssued))
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LEASE_REJECTED");
+
+        // An authentic response can arrive after expiry. Finish credential rotation without granting
+        // Runtime authority; the next renewal is immediately due, with the now-current credential.
+        state.CurrentCredential = state.Pending.NextCredential;
+        state.Pending = null;
+        state.Lease = envelope;
+        state.IssuedAtUtc = evidence.IssuedAtUtc;
+        state.NotAfterUtc = evidence.NotAfterUtc;
+        state.CompletedRequestId = requestId;
+        state.LastObservedUtc = now;
+        await PersistAsync(state, mutation, ct);
+        return Status(state);
+    }
+
+    internal FileStream AcquireOperation(CancellationToken ct) => Acquire(ct, "online-license-operation.lock");
+
+    private FileStream Acquire(CancellationToken ct, string lockName = "online-license.lock")
+    {
+        ct.ThrowIfCancellationRequested();
+        Directory.CreateDirectory(root);
+        HardenDirectory(root);
+        try
+        {
+            // Same OS file-sharing discipline as existing host reference stores. Fail fast on
+            // contention; do not hold this lock across HTTP or silently spin a second renewal.
+            return new FileStream(Path.Combine(root, lockName), FileMode.OpenOrCreate,
+                FileAccess.ReadWrite, FileShare.None, 1);
+        }
+        catch (IOException) { throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_BUSY"); }
+    }
+
+    private async Task<OnlineLicenseDeviceState> RequireStateAsync(CancellationToken ct) =>
+        await ReadAsync(ct) ?? throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_MISSING");
+
+    private async Task<OnlineLicenseDeviceState?> ReadAsync(CancellationToken ct)
+    {
+        byte[] pointerBytes;
+        try
+        {
+            await using var file = new FileStream(pointerPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (file.Length > 1024) throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_UNREADABLE");
+            pointerBytes = new byte[(int)file.Length];
+            await file.ReadExactlyAsync(pointerBytes, ct);
+        }
+        catch (FileNotFoundException) { return null; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_UNREADABLE"); }
+        try
+        {
+            var pointer = JsonSerializer.Deserialize<Pointer>(pointerBytes, Json);
+            if (pointer is not { SchemaVersion: 1 } || string.IsNullOrWhiteSpace(pointer.Reference)) throw new JsonException();
+            await using var material = await authority.ResolveAsync(scope, pointer.Reference, ct);
+            if (material.Material.Length > 65536) throw new JsonException();
+            var state = JsonSerializer.Deserialize<OnlineLicenseDeviceState>(material.Material.Span, Json);
+            if (state is null || state.SchemaVersion != 1 || state.PortalOrigin != portalOrigin ||
+                state.Binding is not { } binding || binding.MachineFingerprint != machine ||
+                binding.LicenseId == Guid.Empty || binding.OrganizationId == Guid.Empty ||
+                binding.ApplicationId == Guid.Empty || binding.ActivationId == Guid.Empty ||
+                state.LastObservedUtc.Offset != TimeSpan.Zero ||
+                ((state.CurrentCredential is null) != (state.Lease is null)) ||
+                (state.CurrentCredential is not null &&
+                    (state.CompletedRequestId is null || state.IssuedAtUtc is null || state.NotAfterUtc is null)) ||
+                (state.Pending is null && state.CurrentCredential is null) ||
+                (state.CurrentCredential is not null && !IsCredential(state.CurrentCredential)) ||
+                (state.Pending is { } pending &&
+                    (pending.RequestId == Guid.Empty || !IsCredential(pending.NextCredential) ||
+                     pending.Kind is not ("activation" or "renewal") ||
+                     (pending.Kind == "activation" && (state.CurrentCredential is not null ||
+                        string.IsNullOrWhiteSpace(pending.Username) || string.IsNullOrWhiteSpace(pending.LicenseCode))) ||
+                     (pending.Kind == "renewal" && (state.CurrentCredential is null || state.Lease is null)))))
+                throw new JsonException();
+            return state;
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException or ProtectedMaterialException)
+        {
+            // Existing unreadable state is never treated as an empty installation/Demo.
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_UNREADABLE");
+        }
+    }
+
+    private async Task PersistAsync(OnlineLicenseDeviceState state, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(state, Json);
+        string reference;
+        try { reference = (await authority.StoreAsync(scope, bytes, mutation, ct)).Reference; }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
+
+        // Publish only after the canonical encrypted snapshot exists. Orphan encrypted snapshots
+        // from a failed publication are harmless; retain them rather than risk deleting committed state.
+        var temporary = pointerPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write,
+                FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                HardenFile(temporary);
+                await JsonSerializer.SerializeAsync(stream, new Pointer(1, reference), Json, ct);
+                await stream.FlushAsync(ct);
+                stream.Flush(flushToDisk: true);
+            }
+            ct.ThrowIfCancellationRequested();
+            File.Move(temporary, pointerPath, overwrite: true);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    private DateTimeOffset DemandClock(OnlineLicenseDeviceState state)
+    {
+        var now = clock.GetUtcNow();
+        if (now < state.LastObservedUtc)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_CLOCK_ROLLBACK");
+        return now;
+    }
+
+    private static void DemandAdministration(ProtectedMaterialMutationContext mutation)
+    {
+        mutation.DemandAuthorized();
+        if (mutation.Authorization.Capability is not (SecurityCapability.EngineeringModify or SecurityCapability.SystemAdmin))
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_ADMINISTRATION_REQUIRED");
+    }
+
+    private OnlineLicenseDeviceStatus Status(OnlineLicenseDeviceState state) =>
+        new(state.Binding.ActivationId, state.Pending?.RequestId, state.Lease is not null,
+            state.IssuedAtUtc, state.NotAfterUtc,
+            state.IssuedAtUtc is { } issued && state.NotAfterUtc is { } expiry
+                ? issued + TimeSpan.FromTicks(Math.Min(TimeSpan.FromHours(48).Ticks, (expiry - issued).Ticks * 2 / 3)) : null,
+            clock.GetUtcNow() < state.LastObservedUtc);
+
+    private static string NewCredential() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+        .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    private static bool IsCredential(string value) => value.Length == 43 &&
+        value.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_');
+    private static void HardenDirectory(string path)
+    {
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(path,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
+    private static void HardenFile(string path)
+    {
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+    }
+    private sealed record Pointer(int SchemaVersion, string Reference);
+}

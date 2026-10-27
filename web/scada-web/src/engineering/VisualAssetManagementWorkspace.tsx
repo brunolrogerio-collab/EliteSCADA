@@ -80,7 +80,7 @@ export function VisualAssetManagementWorkspace({
 
   return <div className="eng-section visual-asset-management" data-testid="visual-asset-management">
     <header className="eng-section-header">
-      <div><span className="eng-eyebrow">{copy.eyebrow}</span><h1>{copy.title}</h1><p>{copy.description}</p></div>
+      <div><span className="eng-eyebrow">{copy.eyebrow}</span><h1>{copy.title}</h1><p>{copy.description}</p><a href="/help?topic=assets.management">{locale === 'pt-BR' ? 'Como importar e usar assets' : locale === 'es' ? 'Cómo importar y usar assets' : 'How to import and use assets'}</a></div>
       <div className="eng-section-meta"><strong>{assets.length} {copy.count}</strong></div>
     </header>
 

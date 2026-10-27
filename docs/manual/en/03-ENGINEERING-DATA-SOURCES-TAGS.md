@@ -1,10 +1,18 @@
 # Engineering, Data Sources, and TAGs
 
-This baseline chapter covers the stable parts of Parts III and IV. UI surfaces that have not completed visual review do not receive final screenshots in this phase.
+This chapter prepares data sources and project variables. Start with a known reading and check it before using it in screens, alarms or Scripts. The names below explain how an edit reaches the running version.
+
+## From a reading to a screen and command
+
+A **Data Source** supplies a reading; the **TAG** identifies its point in the project. Address and binding settings specify which source point to read. **Schema** means the fields accepted by the Driver; use the chosen connection’s form and Help rather than inventing identifiers.
+
+On a screen, a **binding** makes an object property follow a TAG. For example, a value display can show pump pressure. Choose the existing resource through selectors or **Object Browser**, the project reference browser. Drawing a reading does not create another process variable.
+
+**Server Memory** retains values belonging to the server. **Client Memory** serves local state for this Runtime client and may lose its value when the context ends; another browser does not receive it automatically. A command requests an action from the server, which checks authorization. Check the result and actual state: displaying a button or changing its color does not prove execution.
 
 ## Working, Save, Revision, Publish, and Activate
 
-Working is editable. Save persists work without silently turning it into Published or Active. A Revision should represent an identifiable, validated state. Publish publishes the revision; Activate is the explicit transition that changes the backend's Active authority.
+Working is the editable draft. Save stores the work; a Revision is an identified copy you can check. Publish prepares the revision for use. Activate explicitly puts the published revision into execution as Active. Saving or seeing an editor change does not by itself change what Runtime executes.
 
 **Related Help:** `/help?topic=engineering.lifecycle`.
 

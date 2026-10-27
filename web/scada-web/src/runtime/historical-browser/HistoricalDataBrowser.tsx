@@ -92,7 +92,7 @@ export function HistoricalDataBrowser({
       <header className="historical-browser__header">
         <div>
           <h2>{text.title}</h2>
-          <details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{text.description}</p></details>
+          <details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{text.description}</p><a href="/help?topic=historian.capture-query">{locale === 'pt-BR' ? 'Captura, período, filtros e diagnóstico' : locale === 'es' ? 'Captura, período, filtros y diagnóstico' : 'Capture, period, filters and troubleshooting'}</a></details>
         </div>
       </header>
 

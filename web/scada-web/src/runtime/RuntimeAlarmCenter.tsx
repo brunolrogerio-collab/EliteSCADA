@@ -341,6 +341,7 @@ export function RuntimeAlarmCenter({
       <header className="runtime-alarm-header">
         <div>
           <h2>{text.title}</h2>
+          <a href="/help?topic=alarms.runtime-operation">{locale === 'pt-BR' ? 'Ajuda sobre estados e reconhecimento' : locale === 'es' ? 'Ayuda sobre estados y reconocimiento' : 'Help with states and acknowledgement'}</a>
         </div>
         <div className="runtime-alarm-refresh">
           <button type="button" aria-pressed={alarmSoundsEnabled} disabled={!supportsAlarmAudio()} onClick={() => void toggleAlarmSounds()}>{alarmSoundsEnabled ? text.muteSounds : text.enableSounds}</button>

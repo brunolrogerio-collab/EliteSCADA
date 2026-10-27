@@ -64,6 +64,9 @@ The license controls commercial entitlement; it does not replace Authority, Engi
 
 ### Demo/no-license
 
+<!-- HELP-REVIEW-301: No-time-limit Demo; also review online licensing and quota-consumption display after their delivery. -->
+**Under review — Demo and licensing:** the product decision is to offer Demo without a time limit. The 300-minute limit and timeout references below belong to earlier text and will be revised with the licensing delivery. Do not treat that legacy duration as the definitive commercial rule; check the version and status shown by the installation. Online workflows and quota consumption must follow the options actually available in the documented version.
+
 Under the implemented operational contract:
 
 - Engineering may contain more than 200 TAGs;
@@ -105,7 +108,28 @@ Licensing status exposes View Only and Interactive seat entitlements when presen
 
 ## Redundancy entitlement
 
-License status may also expose an HA Runtime entitlement. Full operational redundancy behavior remains blocked by workstreams #421/#423 and is not described as completed in this phase.
+License status may expose an HA Runtime entitlement. Entitlement enables the surface; it does not replace correct configuration, Authority, peer transport, fencing, or operational verification.
+
+## High Availability: configure and monitor
+
+The **High Availability** page distinguishes Standalone from HA and presents desired and running configuration, readiness, node and peer state, effective Active, health, freshness, fencing reference, and operation history. HA uses two redundant servers; database topology is a separate decision and must be checked for each installation.
+
+### Prepare the configuration
+
+1. Confirm an HA Runtime license, two reachable servers, and an account with `HighAvailabilityObserve`; saving or operating also requires `HighAvailabilityTransfer`.
+2. In Engineering > High Availability, select HA to prepare the topology. Standalone continues running while preparation is pending.
+3. Enter each server's primary endpoint. Keep the automatic endpoint unless the network actually requires a different external address. Configure peer authentication; never place the shared secret in documentation or support tickets.
+4. Review the preferred node. If the topology uses protection, enable it and enter the shared fencing reference. Automatic failover depends on this protection.
+5. Resolve the items under **HA readiness** and select **Save desired configuration**.
+6. If the page indicates that a restart is required, desired configuration is not running yet. Schedule the restart according to the installation's operating procedure; then refresh and confirm both nodes, peer, effective Active, and protection state.
+
+### Transfers and recovery
+
+Use **Switchover** for a planned transition when this server is the effective Active; the backend still validates eligibility and may reject the request. Use **Failback** only when the backend permits return to the preferred node. **Recovery** and **Force resynchronization** are recovery actions for the conditions shown on the page, not shortcuts to force a node Ready. Read the confirmation and check the operation result/history.
+
+Before relying on automatic failover, exercise the scenario on the actual topology and verify Runtime, database, and duplicate-command consequences. A stale, degraded, or ambiguous state requires investigation of connectivity, freshness, and fencing; do not force promotion to clear the warning.
+
+**Related Help:** `/help?topic=ha.overview`, `/help?topic=licensing.overview`, `/help?topic=security.users-roles-capabilities`, `/help?topic=diagnostics.overview`.
 
 ## License Generator
 

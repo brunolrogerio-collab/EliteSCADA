@@ -420,6 +420,7 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
           <span>{s.eyebrow}</span>
           <h2>{s.title}</h2>
           <p>{s.description}</p>
+          <a href="/help?topic=security.local-accounts">{locale === 'pt-BR' ? 'Como cadastrar e administrar usuários' : locale === 'es' ? 'Cómo crear y administrar usuarios' : 'How to create and administer users'}</a>
         </div>
         <div className="user-admin-header-actions">
           <button

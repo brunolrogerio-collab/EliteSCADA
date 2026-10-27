@@ -298,6 +298,7 @@ export function EngineeringProjectManagementWorkspace({ locale }: { locale: Engi
           <span className="eng-project-management__eyebrow">{copy.eyebrow}</span>
           <h2>{copy.title}</h2>
           <p>{copy.description}</p>
+          <a href="/help?topic=engineering.tabular-workflow">{locale === 'pt-BR' ? 'Como trabalhar com CSV e Excel' : locale === 'es' ? 'Cómo trabajar con CSV y Excel' : 'How to work with CSV and Excel'}</a>
         </div>
         <button type="button" onClick={() => void refresh()} disabled={Boolean(busy) || loading}>
           {loading ? copy.refreshing : copy.refresh}

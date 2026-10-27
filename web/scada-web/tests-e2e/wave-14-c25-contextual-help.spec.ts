@@ -116,7 +116,7 @@ test('contextual Help renders related local topics and keeps an unknown topic ex
   await installHelpContract(page);
 
   await page.goto('/help?topic=driver.modbus.tcp');
-  await expect(page.getByRole('heading', { name: /Tópicos relacionados/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Continue por aqui/ })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Data Sources' }).last()).toHaveAttribute('href', '/help?topic=sources.data-sources');
 
   await page.goto('/help?topic=missing.topic');
@@ -127,21 +127,23 @@ test('contextual Help renders related local topics and keeps an unknown topic ex
 test('contextual entry routes resolve stable Phase 1 topic IDs', () => {
   const cases: Array<[string, string]> = [
     ['/engineering/scripts', 'scripts.engineering'],
-    ['/engineering/libraries', 'libraries.reusable-resources'],
-    ['/engineering/dataSources', 'sources.data-sources'],
+    ['/engineering/libraries', 'libraries.associate-incorporate'],
+    ['/engineering/dataSources', 'sources.connection-workflow'],
     ['/engineering/tags', 'tags.overview'],
-    ['/engineering/gateway', 'gateway.overview'],
-    ['/engineering/alarms', 'alarms.overview'],
-    ['/engineering/operationalEvents', 'operational-events.overview'],
+    ['/engineering/gateway', 'gateway.configure-test'],
+    ['/engineering/alarms', 'alarms.configuration'],
+    ['/engineering/operationalEvents', 'operational-events.configuration'],
     ['/engineering/dynamos', 'dynamos.overview'],
     ['/engineering/screens', 'screens.overview'],
     ['/engineering/popups', 'popups.overview'],
-    ['/engineering/historian', 'historian.overview'],
-    ['/engineering/reports', 'reports.overview'],
-    ['/engineering/security', 'security.users-roles-capabilities'],
-    ['/engineering/diagnostics/tag-monitor', 'diagnostics.overview'],
+    ['/engineering/historian', 'historian.capture-query'],
+    ['/engineering/reports', 'reports.data-designer'],
+    ['/engineering/security', 'security.local-accounts'],
+    ['/engineering/diagnostics/tag-monitor', 'engineering.tag-monitor'],
+    ['/engineering/monitor', 'engineering.development-monitor'],
+    ['/engineering/information', 'engineering.information'],
     ['/engineering', 'engineering.shell-navigation'],
-    ['/audit', 'audit.overview'],
+    ['/audit', 'audit.query-diagnostics'],
     ['/licensing', 'licensing.overview'],
     ['/runtime/history', 'runtime.history'],
     ['/', 'runtime.overview']

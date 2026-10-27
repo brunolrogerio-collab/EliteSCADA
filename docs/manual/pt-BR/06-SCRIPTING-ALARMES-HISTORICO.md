@@ -1,8 +1,43 @@
 # Scripting, Alarmes e Histórico
 
+## Comece pela tarefa
+
+Um Script é um pequeno programa da aplicação. Você não precisa começar por todos os comandos: escolha uma tarefa que consiga conferir, como arredondar uma leitura. Depois aprenda como chamar a função e selecionar as variáveis usadas por ela.
+
+Para calcular no servidor sem depender de uma tela aberta, escolha **Server**. Para responder a um clique ou mudar a aparência na tela aberta, escolha **Client Visual**. Cada um oferece funções próprias. Os exemplos indicam qual opção usar; mantenha essa escolha ao adaptá-los.
+
+### Primeiro exercício: arredondar uma leitura
+
+Use uma aplicação de teste. Neste exemplo, `Plant.Pump.Current` é a variável de entrada e `State.Pump.LastCurrent` guarda o resultado na memória do servidor. Substitua as referências pelas que selecionar no seu projeto.
+
+1. Prepare um TAG numérico para a leitura e um TAG numérico de memória do servidor para o resultado. Declare ambos nas referências do Script; o destino deve ser do tipo `ServerMemoryTag`.
+2. Crie um Script com escopo **Server** e habilite-o. Cadastre uma entrada **Timer**, por exemplo com intervalo de `1000 ms`. Timer chama a função periodicamente; não é preciso escrever um laço.
+3. No campo **Handler**, informe `on_timer`. Handler é o nome da função a chamar. Cole o código abaixo e valide.
+4. Faça o teste disponível com um valor conhecido e confira o resultado. Para usá-lo no Runtime, aplique a edição, salve, publique e ative a revisão pelos controles do projeto.
+
+```python
+def on_timer():
+    current = read_tag("Plant.Pump.Current")
+    if current is not None:
+        rounded = round(current, 2)
+        write_server_memory("State.Pump.LastCurrent", rounded)
+```
+
+Leia o código em pequenas partes:
+
+- `def on_timer():` define a função; os dois-pontos abrem seu bloco. As linhas com quatro espaços à esquerda pertencem à função.
+- `read_tag(...)` lê a referência entre aspas. `current` é a variável local em que o código guarda essa leitura.
+- `if current is not None:` verifica se há valor. `None` é ausência, não o número zero. Sem valor, a função termina sem gravar outro resultado.
+- `round(current, 2)` arredonda para duas casas e guarda em `rounded`. Com entrada `12.346`, o resultado esperado é `12.35`.
+- `write_server_memory(...)` grava o resultado no destino de memória declarado. Isso não envia um comando à bomba.
+
+O exercício verifica o cálculo; a função `read_tag` do Server retorna só o valor, sem certificar qualidade ou horário da leitura. Se não houver nova gravação, a memória conserva seu último valor. A aplicação precisa mostrar separadamente quando o dado está indisponível.
+
+Se nada executar, confira primeiro **Handler**, **Timer**, referências e revisão ativa. Se o editor indicar erro, comece pela primeira linha apontada. Depois do exercício, use as seções seguintes como consulta: limites da linguagem, demais gatilhos, funções, comandos e tratamento de falhas.
+
 ## Server Scripts
 
-Server Script é automação executada no servidor. Pense nele como uma função pequena chamada por um evento do produto: ela lê dependências que você declarou, calcula algo e usa as APIs permitidas. Embora a sintaxe se pareça com Python, o runtime executa um subconjunto determinístico — não é Python geral nem um lugar para instalar bibliotecas.
+No Server, o produto chama a função quando ocorre o evento configurado. A função usa as referências que você declarou e os comandos disponíveis neste ambiente. Ele aceita parte da sintaxe Python; as limitações estão detalhadas abaixo. Não permite instalar bibliotecas externas.
 
 Scripts de scope Server habilitados são hospedados pela revisão **Active**. Ao ativar outra revisão, a geração anterior é cancelada; leituras, escritas e emissão de eventos da geração antiga não devem continuar agindo sobre a nova revisão.
 
@@ -205,6 +240,8 @@ Server Script não fornece acesso arbitrário a filesystem, sistema operacional,
 
 ## Client Visual Scripts
 
+No Client Visual, o evento e a amostra retornada pelas funções do produto são objetos estruturados: leia campos com ponto, como `event.visualObjectId`, `sample.quality` e `sample.value`. Não use acesso de dicionário nesses objetos. Dicionários criados no próprio Python e os eventos do Server seguem seus respectivos contratos.
+
 Client Visual Script é Python executado no Runtime do cliente para interação com uma Screen/Popup aberta e para apresentação local. Ele tem escopo diferente de Server Script: não substitui automação do backend e não continua trabalhando sem o cliente. Server Script, revisão Active, triggers de backend e suas seis APIs estão descritos na seção anterior.
 
 ### Criar e ligar uma interação
@@ -241,8 +278,8 @@ from elite_scada import tag_read
 
 async def on_click(event):
     sample = await tag_read("Plant.Pump.DischargePressure")
-    if sample["quality"] == "Good":
-        pressure = sample["value"]
+    if sample.quality == "Good":
+        pressure = sample.value
 ```
 
 ### Exemplo: guardar um valor na Client Memory
@@ -254,8 +291,8 @@ from elite_scada import tag_read, client_memory_write
 
 async def on_click(event):
     sample = await tag_read("Plant.Pump.DischargePressure")
-    if sample["quality"] == "Good":
-        await client_memory_write("UI.LastPressure", sample["value"])
+    if sample.quality == "Good":
+        await client_memory_write("UI.LastPressure", sample.value)
 ```
 
 ### Exemplo: identificar a interação
@@ -264,8 +301,8 @@ Declare `on_pointer_enter` como handler `objectInteraction` e associe-o a `Point
 
 ```client-visual-python
 async def on_pointer_enter(event):
-    object_id = event["visualObjectId"]
-    event_name = event["eventKey"]
+    object_id = event.visualObjectId
+    event_name = event.eventKey
 ```
 
 Use pointer handlers para resposta breve. `pointermove` pode disparar repetidamente durante o movimento; não faça processamento demorado nem espere ativamente em cada chamada. Cada execução tem limite de tempo e falhas são isoladas do Runtime restante.
@@ -303,10 +340,26 @@ Não use Alarm como log genérico e não use Operational Event como substituto d
 
 ## Historian e Trends
 
-Historian recebe valor, quality e timestamp pelo pipeline do produto. Trends apresentam dados atuais ou históricos autorizados; não redefinem quality, timestamp, scaling ou persistência.
+Historian guarda amostras das variáveis. Cada amostra tem um valor, uma qualidade que informa sua condição e um horário, chamado timestamp. Tendências mostram essas leituras ao longo do tempo, atuais ou históricas, conforme a autorização. Desenhar um gráfico não muda a qualidade, o horário, a escala nem a forma como os dados foram gravados.
 
 **Ajuda relacionada:** `/help?topic=historian.overview`, `/help?topic=trends.overview`.
 
-## Historical Time Range e Playback
+## Histórico: período e Playback
 
-A estrutura desses capítulos já está reservada, mas os procedimentos finais estão bloqueados até a aceitação de #383 e do workstream de Playback subsequente. Não use este manual como indicação de que a UX final desses recursos já está congelada.
+No Runtime, Histórico consulta registros de TAG, alarmes ou eventos. A consulta é somente leitura: não reconhece alarmes, não altera valores e não cria amostras retroativas. Para valores, Historian precisa ter capturado dados no período; alarmes e eventos também precisam ter sido registrados. A autorização da sessão continua valendo.
+
+### Consultar um período
+
+1. Abra **Histórico** no Runtime e escolha **Valores de TAGs**, **Alarmes** ou **Eventos**.
+2. Selecione um período relativo ou absoluto. Use um atalho ou informe quantidade e unidade; no período absoluto, preencha **De** e **Até** no fuso indicado.
+3. Confirme que o início antecede o fim. A janela aceita no máximo 31 dias. Se o horário local ficar ambíguo por mudança de fuso/horário de verão, escolha outro horário.
+4. Selecione **Consultar**. Depois da primeira consulta, use busca, ordenação e filtros somente quando o conjunto oferecer esses campos; alguns aparecem apenas depois que o Runtime descobre o formato dos resultados.
+5. Para investigar uma consulta vazia, confira conjunto, período, autorização, captura anterior ao intervalo, quality e timestamps.
+
+### Rever a tela no Playback
+
+Playback é diferente da consulta tabular do Histórico. Escolha o período e o instante na superfície operacional e selecione **Entrar no Playback**. O Runtime permanece Live até essa confirmação. No Playback, a apresentação acompanha o instante histórico e as ações operacionais ficam bloqueadas; selecione **Voltar ao Live** antes de retomar o controle atual. Playback não transforma valores antigos em comandos nem preenche dados que não foram capturados.
+
+**Resultado esperado:** Histórico lista somente registros disponíveis; Playback mostra explicitamente o contexto histórico e permite voltar ao Live.
+
+**Ajuda relacionada:** `/help?topic=runtime.history`, `/help?topic=historian.overview`, `/help?topic=trends.overview`.

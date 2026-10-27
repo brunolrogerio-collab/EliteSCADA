@@ -217,6 +217,7 @@ export function OperationalEventEditor({ model, locale, projectKey = 'workspace'
           <span className="eng-eyebrow">{copy.listHeading}</span>
           <h1>{copy.title}</h1>
           <p>{copy.description}</p>
+          <a href="/help?topic=operational-events.configuration">{locale === 'pt-BR' ? 'Como configurar e emitir eventos' : locale === 'es' ? 'Cómo configurar y emitir eventos' : 'How to configure and emit events'}</a>
         </div>
         <div className="eng-section-meta">
           <strong>{events.length} {copy.configured}</strong>

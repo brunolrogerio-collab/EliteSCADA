@@ -2,9 +2,11 @@
 
 ## Export .escadapkg
 
-`.escadapkg` is self-contained application portability. It is not an Authority backup, license, or database/history backup.
+Export an `.escadapkg` to keep or move application configuration: TAGs, screens, Scripts and other portable objects. Wait for the download to finish and identify its project/revision. To edit many rows of one kind, use the CSV/Excel chapter; to share only reusable visual resources or Scripts, use Libraries.
 
-Inspect examines content/metadata without mutation. Preview shows the expected result. Apply incorporates validated content into Engineering; Apply is not Activate.
+The package does not contain the Authority user/permission backup, license or database/history. Prepare those copies separately when recovering a complete installation.
+
+At the destination, **Inspect** examines content and information without applying changes. **Preview** checks proposed content and shows diagnostics. **Apply** incorporates the validated candidate into the project draft, called Working. Then save, publish and activate separately; seeing imported content in the editor does not mean that revision is operating.
 
 **Related Help:** `/help?topic=packages.escadapkg`.
 
@@ -12,7 +14,7 @@ Inspect examines content/metadata without mutation. Preview shows the expected r
 
 ### Procedure: safely import an application
 
-**Goal:** incorporate a validated package into Engineering without skipping the lifecycle.
+**Goal:** check a received package and incorporate it into the project before putting it into operation.
 
 **Prerequisites:** a compatible package and an authorized session.
 
@@ -33,7 +35,7 @@ Inspect examines content/metadata without mutation. Preview shows the expected r
 
 `.escadalib` differs from `.escadapkg`.
 
-Associating a Library makes compatible resources available in the catalog, but does not change Working by itself. Using a resource incorporates the selected item and its validated dependency closure; the content then belongs to the project.
+Associating a library makes compatible resources available in the catalog. Using/incorporating copies the selected item and its validated dependencies, the other resources needed for it to work, into the project draft called Working.
 
 Unassociating removes availability from the catalog and does not delete content already incorporated. Runtime and Active do not depend on an external `.escadalib` file.
 
@@ -81,7 +83,24 @@ Recovery preserves separate authorities:
 
 ## Application detach / neutral installation / A -> B -> A switching
 
-The structure of these procedures is reserved in the table of contents, but final steps depend on completion of the installation and switching experience. Do not use old instructions or manual store operations as a substitute.
+Engineering > Installation detaches the current Application and Authority and returns the installation to a neutral state for a new bootstrap. It is not project deletion, product uninstall, or automatic license removal.
+
+### Procedure: safely switch the Application
+
+**Prerequisites:** authorized access to installation administration; a decision about what to preserve; Application and Authority backups when they are needed for rollback.
+
+**Steps:**
+1. Review the installation summary, including any unpublished Working changes.
+2. Export the Application as `.escadapkg`. If local users/identities must be preserved, export Authority separately using the password requested by the page. `.escadapkg` does not contain credentials.
+3. Open **Detach application from this installation** and read the consequences. Confirm the acknowledgements shown for Application, Authority, old sessions, Historian, and Working changes.
+4. Decide whether to keep, remove, or replace the machine license. A candidate replacement is validated before detach.
+5. Read and resolve blockers. If you choose to continue without a recommended backup, acknowledge that explicitly in the page.
+6. Select **Detach and return to neutral** and wait for the server transaction. After a failure, refresh and inspect the actual state before retrying.
+7. In neutral bootstrap, bind the next Application and configure its Authority through the normal workflow.
+
+**Expected result:** the old Application and Authority are no longer bound, and old tokens/sessions no longer authorize actions; the installation returns to neutral bootstrap. Historian is preserved; the database and its backups remain a separate concern. The license follows the confirmed choice.
+
+**Related Help:** `/help?topic=installation.switching`, `/help?topic=application.export-import`, `/help?topic=recovery.backup-system-recovery`, `/help?topic=getting-started.neutral-bootstrap`.
 
 ## Troubleshooting workflow
 

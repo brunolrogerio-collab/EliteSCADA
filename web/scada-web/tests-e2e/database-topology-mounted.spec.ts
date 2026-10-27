@@ -130,6 +130,8 @@ test('DB-B is presented within Engineering navigation and follows the active lig
   await expect(navigation.getByRole('link', { name: 'Banco de dados' })).toHaveAttribute('aria-current', 'page');
 
   const content = page.getByTestId('database-topology-app');
+  await content.locator('details.app-page-help > summary').click();
+  await expect(content.getByRole('link', { name: 'Configuração, campos e migração passo a passo' })).toHaveAttribute('href', '/help?topic=database.topology');
   await page.evaluate(() => { document.documentElement.dataset.appTheme = 'light'; });
   await expect(content).toHaveCSS('color', 'rgb(21, 33, 43)');
   await page.evaluate(() => { document.documentElement.dataset.appTheme = 'dark'; });

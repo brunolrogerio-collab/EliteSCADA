@@ -123,3 +123,10 @@ Evidência upstream do candidato: [`MatterServer.ts`](https://github.com/matter-
 - Licenças do Matter Server e Matter.js: repositórios upstream acima
 - Issue #1092: https://github.com/matter-js/matterjs-server/issues/1092
 - Issue #1039: https://github.com/matter-js/matterjs-server/issues/1039
+
+
+## Atualização de origem — 26/10/2026 (sem mudança de pacote)
+
+Revalidação solicitada pelo proprietário, registrada na [#792](https://github.com/brunolrogerio-collab/EliteSCADA/issues/792). A [#1092](https://github.com/matter-js/matterjs-server/issues/1092) foi fechada em 20/10. A [#1039](https://github.com/matter-js/matterjs-server/issues/1039#issuecomment-6289309911) permanece aberta com correção declarada na 1.5.0 e validação pendente. A [release 1.5.5](https://github.com/matter-js/matterjs-server/releases/tag/v1.5.5), de 24/10, não está marcada prerelease. As afirmações datadas anteriores preservam seu valor histórico; não descrevem sozinhas o estado atual upstream.
+
+O pin do SCADIVO permanece o de 13/10, sem alteração de package.json/lock ou execução em dispositivo real. Comparação de revisões/pacotes, prova dos dois cenários corrigidos e compatibilidade da integração fazem parte da fila pós-licenciamento. Fechamento de issue externa não aprova o artefato local; manter versão em teste e os limites de qualificação atuais. A promoção estável/distribuição após Wave 16 continua separada.

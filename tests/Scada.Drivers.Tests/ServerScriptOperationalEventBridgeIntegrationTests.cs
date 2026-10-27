@@ -15,6 +15,45 @@ namespace Scada.Drivers.Tests;
 
 public sealed class ServerScriptOperationalEventBridgeIntegrationTests
 {
+    [Theory]
+    [InlineData("pt-BR")]
+    [InlineData("en")]
+    [InlineData("es")]
+    public async Task ExactInstalledHelpInitializeExampleEmitsAnOccurrenceThroughThePythonWorker(string locale)
+    {
+        var guide = ContextualHelpCatalog.Build(locale).Topics.Single(topic => topic.Id == "operational-events.configuration");
+        var source = Assert.Single(guide.Sections, section => section.Code is not null).Code!;
+        var eventBus = new InMemoryScadaEventBus();
+        var definitionId = Guid.Parse("c1900000-0000-0000-0000-000000000002");
+        OperationalEventOccurred? observed = null;
+        using var subscription = eventBus.Subscribe<OperationalEventOccurred>(occurrence =>
+        {
+            observed = occurrence;
+            return ValueTask.CompletedTask;
+        });
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+        ServerScriptOperationalEventBridge.Bind(manager, runtime);
+        try
+        {
+            var activation = await manager.ActivateRuntimeAsync("help-operational-event", 1,
+                ScriptEventPackage(Guid.NewGuid(), definitionId, source));
+            Assert.True(activation.Activated, string.Join("; ", activation.RuntimeIssues.Select(issue => issue.Message)));
+            await WaitUntilAsync(() => observed is not null, TimeSpan.FromSeconds(5));
+            var occurrence = Assert.IsType<OperationalEventOccurred>(observed);
+            Assert.Equal(definitionId, occurrence.DefinitionId);
+            Assert.NotEqual(Guid.Empty, occurrence.EventId);
+            Assert.NotEqual(definitionId, occurrence.EventId);
+            Assert.Equal("Simulation started", occurrence.Message);
+            Assert.Equal("simulation", occurrence.Context["mode"]);
+            Assert.Equal("42", occurrence.Context["batch"]);
+        }
+        finally
+        {
+            await manager.DisposeAsync();
+        }
+    }
+
     [Fact]
     public async Task InitializeScript_EmitsCanonicalOperationalEvent_AndPreservesServerMemoryBehavior()
     {
@@ -145,11 +184,11 @@ public sealed class ServerScriptOperationalEventBridgeIntegrationTests
             })
             .Build();
 
-    private static EngineeringPackage ScriptEventPackage(Guid stateTagId, Guid definitionId)
+    private static EngineeringPackage ScriptEventPackage(Guid stateTagId, Guid definitionId, string? sourceOverride = null)
     {
         var tagReference = stateTagId.ToString("D");
         var definitionReference = definitionId.ToString("D");
-        var source = $$"""
+        var source = sourceOverride ?? $$"""
 def initialize(event):
     write_server_memory("{{tagReference}}", 42)
     emit_operational_event("{{definitionReference}}", "Script override", {"mode": "auto", "type": "forged-type", "category": "forged-category", "source": "forged-source", "definitionId": "forged-definition"})

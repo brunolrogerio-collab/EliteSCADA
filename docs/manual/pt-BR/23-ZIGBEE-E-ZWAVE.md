@@ -6,7 +6,9 @@ Confira quem mantém a rede e qual tipo de fonte representa essa instalação.
 
 ### Antes de preencher campos
 
-Este é um checklist, não uma tela nova de configuração. A escolha da fonte depende do coordenador/controlador e da instalação externa que você realmente tem. Um rádio não deve ser aberto simultaneamente pelo SCADIVO e por outro processo que controle a mesma porta.
+Antes de escolher a fonte, identifique quem mantém sua rede Zigbee ou Z-Wave. Pode ser um coordenador/controlador ligado ao servidor ou uma instalação externa já preparada. O tipo da fonte precisa corresponder a esse caminho real.
+
+Este guia ajuda a decidir; não é uma tela nova de configuração. Não abra o mesmo rádio simultaneamente no SCADIVO e em outro processo que controle sua porta.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -32,7 +34,9 @@ Prepare a fonte para o coordenador TI suportado e entenda o alcance limitado des
 
 ### Instalação necessária
 
-Este driver usa coordenador serial TI zStack/CC2652 e processo auxiliar gerenciado da distribuição para Windows ou Linux x64. No contêiner, o host precisa disponibilizar o recurso físico e o estado persistente. A rede e o dispositivo devem estar preparados; não há descoberta ou assistente de inclusão de Engenharia neste tipo. Não promete todos os dispositivos/clusters Zigbee.
+Para este caminho, a rede e o dispositivo Zigbee já precisam estar preparados. Use um coordenador serial TI zStack/CC2652 compatível ligado ao servidor. Esta versão não oferece descoberta ou assistente de inclusão de Engenharia e não promete todos os dispositivos ou clusters Zigbee.
+
+A distribuição usa um processo auxiliar gerenciado para Windows ou Linux x64. Em contêiner, o host precisa disponibilizar o rádio físico e o armazenamento persistente do estado. Confira esses recursos antes de preencher a fonte.
 
 ### Campos e limitação da autoria
 
@@ -76,7 +80,9 @@ Use o controlador registrado no host e preserve a identidade exata de cada valor
 
 ### O que este tipo faz
 
-O processo auxiliar gerenciado usa um controlador serial local e comunicação interna restrita ao próprio host. A instalação suporta Windows/Linux x64; em Docker também são necessários dispositivo e diretório de estado persistente. Este driver trabalha com valores persistidos já preparados: não oferece inclusão, exclusão, SmartStart, reset, administração de controlador nem descoberta de Engenharia.
+Use este caminho para ler valores persistidos de uma rede Z-Wave já preparada. O controlador serial é local ao servidor; o processo auxiliar gerenciado usa comunicação interna limitada ao próprio host.
+
+A instalação suporta Windows ou Linux x64. Em Docker, disponibilize também o dispositivo e o diretório que conserva o estado. Este tipo não oferece inclusão, exclusão, SmartStart, reset, administração do controlador ou descoberta de Engenharia. Prepare a rede pelo procedimento próprio antes de usar seus valores no SCADIVO.
 
 ### Fonte e leitura do endereço
 
@@ -121,9 +127,9 @@ Conecte a uma instalação externa e diferencie inventário, incorporação e re
 
 ### Instalação externa e fluxo disponível
 
-Zigbee2MQTT e broker são administrados fora do SCADIVO. Dispositivos devem estar associados à rede externa; este conector não abre inclusão, não administra o coordenador e não substitui o driver Zigbee nativo. Teste de conexão, descoberta e teste de leitura são anunciados, mas descoberta sem seleção lista somente inventário. A interface atual não envia a seleção necessária para incorporar; o fluxo aguarda correção.
+Escolha esta ponte se já tem Zigbee2MQTT e broker administrados fora do SCADIVO, com dispositivos associados à rede. Ela consulta essa instalação; não abre inclusão nem administra o coordenador. Zigbee nativo é outro caminho.
 
-O formato externo põe as funções em definition.exposes; esta versão do parser procura exposes na raiz. Assim, um dispositivo pode ser listado sem gerar TAGs. A correção de compatibilidade está pendente, separadamente da seleção na interface.
+O conector anuncia teste de conexão, descoberta e teste de leitura. Descoberta lista inventário; incorporar exige escolher o que entrará no projeto. A interface atual ainda tem uma limitação nessa seleção. A leitura de algumas estruturas aninhadas do inventário também espera correção, separadamente. Os passos adiante indicam esses limites para não prometer uma incorporação completa onde ela não está disponível.
 
 ### Campos da fonte
 

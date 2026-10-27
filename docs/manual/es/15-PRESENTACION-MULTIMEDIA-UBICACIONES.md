@@ -66,7 +66,9 @@ Organice ubicación y compruebe capacidades reales del dispositivo.
 
 ### Separe ubicación, dispositivo y conexión
 
-Abra Ingeniería > Home/Building. Ubicación describe dónde está; dispositivo/equipo identifica instancia; Fuente de datos conecta. Una sala no es Driver; cambiar ubicación no cambia protocolo. Empiece con dispositivos/TAGs realmente expuestos.
+En Ingeniería > Home/Building, organice primero dónde está el dispositivo. Lugar puede ser una sala o área. Equipo es la instancia, como una luminaria. Fuente de datos, también llamada Data Source, guarda la conexión.
+
+Son datos distintos: mover la luminaria a otra sala no cambia su protocolo. Empiece con dispositivos y TAGs que realmente ofrece la conexión.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |

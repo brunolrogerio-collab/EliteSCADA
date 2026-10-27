@@ -1,10 +1,10 @@
 # Engineering, Data Sources e TAGs
 
-Este capítulo-base cobre as partes estáveis das Partes III e IV. Superfícies de UI que ainda serão fechadas visualmente não recebem screenshots finais nesta fase.
+Neste capítulo, você prepara a origem dos dados e as variáveis do projeto. Comece por uma leitura conhecida e confira o resultado antes de usá-la em telas, alarmes ou Scripts. Os nomes abaixo explicam como uma edição chega à versão em execução.
 
 ## Working, Save, Revision, Publish e Activate
 
-Working é editável. Save persiste trabalho sem convertê-lo silenciosamente em Published ou Active. Uma Revision deve representar um estado identificável validado. Publish publica a revisão; Activate é a transição explícita que altera a autoridade Active do backend.
+Working é o rascunho editável. Save salva o trabalho; uma Revision é uma cópia identificada que você pode conferir. Publish prepara a revisão para uso. Activate coloca explicitamente a revisão publicada em execução, como Active. Salvar ou ver a mudança no editor não altera sozinho o que o Runtime executa.
 
 **Ajuda relacionada:** `/help?topic=engineering.lifecycle`.
 

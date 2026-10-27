@@ -8,7 +8,9 @@ Configure ISO-on-TCP while distinguishing connection, DB access and write permis
 
 ### Prepare the PLC side
 
-Use the correct CPU and PLC project. This driver accesses absolute memory through S7 ISO-on-TCP; it is neither OPC UA nor full TIA symbolic browsing. For S7-1200/1500, have the PLC owner check permitted external access, PUT/GET where required and an absolute-compatible DB layout without optimization changing expected offsets. SCADIVO does not change these settings or replace installation protection.
+Choose a known variable in the PLC program and obtain its memory address. This S7 ISO-on-TCP driver reads absolute addresses: you need to know where the value is, not just its name. It is not full TIA symbolic browsing or an OPC UA connection.
+
+For S7-1200/1500, confirm allowed external access, PUT/GET when required and a compatible absolute-layout DB with the administrator. DB means data block; offsets are positions inside it. Optimizations changing those positions can make the map incompatible. SCADIVO does not alter these options or replace PLC protection.
 
 ### Data Source fields
 
@@ -95,7 +97,9 @@ Use ControlLogix/CompactLogix symbolic access and check limits before importing 
 
 ### Which connection you are configuring
 
-This driver uses explicit EtherNet/IP messages for ControlLogix/CompactLogix symbols. It is not cyclic I/O scanning for every EtherNet/IP device or a generic SLC/PLC-5/MicroLogix driver. Obtain the IP, profile, actual route and symbol external-access settings.
+Start with a known ControlLogix or CompactLogix symbol, the named reference used by the program. Have actual IP address, profile and route, and check that the symbol permits external access.
+
+This driver uses explicit EtherNet/IP messages for these symbols. It is not a cyclic I/O scanner for all EtherNet/IP devices or a generic SLC, PLC-5 or MicroLogix driver. Check the family before preparing the source.
 
 ### Data Source fields
 
@@ -164,7 +168,9 @@ Configure MC/SLMP and check numeric radix, value width and CPU limits.
 
 ### Prepare the MC service
 
-Have a compatible MC/SLMP TCP service and port enabled in the PLC. This profile uses binary 3E frames; it does not assume every model, ASCII, UDP or all Mitsubishi memory is supported. A familiar driver name does not replace the equipment profile.
+Ask the PLC administrator for the profile, port and one known memory position to test. A compatible MC/SLMP TCP service must be enabled on the equipment.
+
+This profile uses binary 3E frames, the message format expected by the connection. Do not assume support for every Mitsubishi model, ASCII messages, UDP or all PLC memory. Compare the profile with actual equipment before filling addresses.
 
 ### Data Source fields
 
@@ -241,7 +247,9 @@ Choose the actual transport and interpret words and contacts without mixing othe
 
 ### Choose profile and transport
 
-MEWTOCOL-COM TCP accesses a compatible TCP service or adapter; Host Serial uses the physical port visible on the server. These are distinct Data Sources. For serial, check cabling, RS-232/RS-485 and line settings. The driver does not turn a generic Ethernet converter into a server for every Panasonic protocol.
+Choose the connection for the installation: MEWTOCOL-COM TCP uses a compatible TCP service or adapter; Host Serial uses a physical port available to the SCADIVO server. They are distinct sources with their own settings.
+
+For serial, check cable, RS-232/RS-485 electrical standard and line settings. Have the equipment memory map to select a test reading. This configuration does not turn a generic Ethernet converter into a server for every Panasonic protocol.
 
 ### Source and binding fields
 

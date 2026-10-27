@@ -6,7 +6,9 @@ Transforme descoberta em Equipamento, TAGs e comandos, conferindo o que realment
 
 ### Fonte, dispositivo e Local são diferentes
 
-A Fonte de dados guarda como comunicar; Equipamento representa o dispositivo; Local organiza onde ele está. Capacidades funcionais como OnOff, Temperature ou Cover descrevem funções do equipamento, não permissões da Authority. Um dispositivo descoberto não ganha autorização para comandar pelo simples fato de ser incorporado.
+Ao incorporar, você transforma um dispositivo encontrado em recursos do projeto. A Fonte de dados diz como comunicar. Equipamento identifica o dispositivo e Local informa onde ele está.
+
+Capacidades como OnOff, Temperature ou Cover descrevem funções disponíveis: ligar/desligar, temperatura ou controle de cobertura, conforme o provedor. Não são permissões de segurança. Encontrar e incorporar um dispositivo não autoriza sua conta a comandá-lo; a política da Authority continua decidindo esse acesso.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -37,7 +39,9 @@ Configure a rede UDP e selecione a identidade do objeto; nome e endereço de red
 
 ### Antes de conectar
 
-Este driver é BACnet/IP sobre UDP; não anuncia BACnet Secure Connect. Tenha instância do dispositivo, rota/IP/porta e acesso à rede a partir do servidor SCADIVO. Em Docker confira a rede e o UDP; descoberta por broadcast depende da topologia, não do navegador. Comece por um objeto somente leitura conhecido.
+Para começar, escolha um objeto BACnet conhecido que possa apenas ler, como uma entrada analógica. Peça ao responsável a instância do dispositivo e os dados de rede: rota, IP e porta.
+
+Este driver usa BACnet/IP por UDP. O servidor SCADIVO precisa alcançar essa rede; descoberta por broadcast depende da topologia da instalação. Em Docker, confira também rede e passagem de UDP. O acesso do navegador não prova essas condições. BACnet Secure Connect não é anunciado por este driver.
 
 ### Campos da conexão e do vínculo
 
@@ -82,7 +86,11 @@ Use os endereços do projeto KNX e mantenha comando e feedback separados.
 
 ### Requisitos e alcance
 
-A implementação usa um processo auxiliar gerenciado XKNX para túnel KNX IP Secure TCP e Data Secure. A instalação precisa incluir seu runtime compatível para Windows ou Linux x64 e o material protegido provisionado no host; um contêiner também precisa desses recursos. Este tipo não é uma promessa de túnel IP sem segurança, roteamento multicast ou descoberta automática de Engenharia. Obtenha parâmetros e endereços do projeto KNX/administrador.
+Use os dados do projeto KNX: endereços, gateway, tipo de cada ponto e materiais de segurança. Peça essas informações ao responsável antes de preencher a fonte. Separe o ponto que recebe comando daquele que informa o estado real.
+
+Esta conexão usa túnel KNX IP Secure TCP e Data Secure. Ela depende de um processo auxiliar XKNX incluído na instalação, para Windows ou Linux x64, e do material protegido preparado no servidor. Um contêiner também precisa desses recursos.
+
+Não presuma túnel IP sem segurança, roteamento multicast ou descoberta automática de Engenharia: esses recursos não são prometidos por este tipo.
 
 ### Campos do gateway e do ponto
 
@@ -125,7 +133,9 @@ Uma fonte conecta ao Home Assistant gerenciado pelo usuário; somente entidades 
 
 ### Bridge local, com identidade explícita
 
-HAB significa Home Assistant Bridge; HA no SCADIVO continua significando Alta Disponibilidade. Use Home Assistant alcançável pelo servidor e token autorizado, provisionado como material protegido. A integração não gerencia contas Home Assistant, não copia sua base interna e não transforma todas as suas integrações em drivers nativos SCADIVO.
+Use esta fonte para conectar a uma instalação Home Assistant já preparada por você ou pelo responsável da rede. Ela precisa ser alcançável pelo servidor SCADIVO. Prepare o token autorizado como material protegido antes de usar a conexão.
+
+HAB é a abreviação de Home Assistant Bridge; HA no SCADIVO continua significando Alta Disponibilidade. A ponte permite integrar as entidades suportadas, mas não gerencia contas Home Assistant nem copia sua base. Integrações do Home Assistant não se tornam, por isso, drivers nativos do SCADIVO.
 
 ### Conexão, identidade e limite atual da seleção
 
@@ -165,7 +175,9 @@ Conecte diretamente ao dispositivo e incorpore somente as funções que o driver
 
 ### O que precisa estar disponível
 
-O firmware precisa oferecer a API nativa ESPHome. O driver se conecta pela rede local sem exigir Home Assistant, Dashboard ESPHome ou processo Python auxiliar. No modo Noise, a chave da API deve estar provisionada no servidor; o navegador não conversa diretamente com o microcontrolador.
+Confira primeiro se o firmware do dispositivo oferece a API nativa ESPHome. Esse é o serviço usado para ler suas entidades pela rede local. O servidor SCADIVO faz a conexão; o navegador não comunica diretamente com o microcontrolador.
+
+Não é necessário ter Home Assistant, Dashboard ESPHome ou processo Python auxiliar para esse caminho. Se usar o modo Noise, prepare a chave da API no servidor antes de conectar.
 
 ### Conexão e vínculo
 
@@ -206,7 +218,9 @@ Use RPC local e revise os canais e campos efetivamente oferecidos pelo dispositi
 
 ### Conexão local, com geração compatível
 
-Este driver usa RPC de Shelly Gen2+ por HTTP/WebSocket; não é API de nuvem e não promete compatibilidade com todo Shelly Gen1. Tenha o host local, porta e autenticação do dispositivo. Um componente representa um canal/função do dispositivo, não um usuário ou Local do SCADIVO.
+Confira a geração do dispositivo e escolha um canal conhecido para testar. Este driver usa a comunicação local RPC de Shelly Gen2+, por HTTP/WebSocket. Tenha endereço, porta e autenticação do dispositivo.
+
+Componente significa um canal ou função do Shelly, não um usuário ou Local do SCADIVO. A conexão não usa API de nuvem e não promete compatibilidade com todo Shelly Gen1.
 
 ### Campos da fonte e do TAG
 

@@ -8,7 +8,9 @@ Configure ISO-on-TCP sem confundir conexão, acesso ao DB e permissão de escrit
 
 ### Prepare o lado do CLP
 
-Use a CPU e o projeto corretos. Este driver acessa memória por endereço absoluto via S7 ISO-on-TCP; não é OPC UA nem navegação simbólica completa do TIA. Em S7-1200/1500, confirme com o responsável pelo CLP o acesso externo permitido, PUT/GET quando exigido e DB com layout absoluto compatível, sem otimização que altere os offsets esperados. O SCADIVO não muda essas opções nem substitui a proteção da instalação.
+Escolha uma variável conhecida no programa do CLP e obtenha seu endereço de memória. Este driver S7 ISO-on-TCP lê por endereço absoluto: você precisa saber onde o valor está, não apenas seu nome. Não é a navegação simbólica completa do TIA nem uma conexão OPC UA.
+
+Em S7-1200/1500, confirme com o responsável o acesso externo permitido, PUT/GET quando exigido e um DB com layout absoluto compatível. DB é o bloco de dados; offsets indicam posições dentro dele. Otimizações que mudam essas posições podem tornar o mapa incompatível. O SCADIVO não altera essas opções nem substitui a proteção do CLP.
 
 ### Campos da fonte
 
@@ -95,7 +97,9 @@ Use acesso simbólico ControlLogix/CompactLogix e confira os limites antes de im
 
 ### Qual conexão está sendo configurada
 
-Este driver usa mensagens explícitas EtherNet/IP para símbolos de ControlLogix/CompactLogix. Não é scanner de I/O cíclico de todos os dispositivos EtherNet/IP, nem driver genérico para SLC/PLC-5/MicroLogix. Tenha IP, perfil, rota real e configuração de acesso externo do símbolo.
+Comece por um símbolo conhecido de ControlLogix ou CompactLogix. Símbolo é a referência nomeada usada pelo programa. Tenha o endereço IP, perfil e rota reais e confira se o símbolo permite acesso externo.
+
+Este driver usa mensagens explícitas EtherNet/IP para esses símbolos. Ele não é um scanner de entradas/saídas cíclicas de todos os dispositivos EtherNet/IP nem um driver genérico para SLC, PLC-5 ou MicroLogix. Confira a família antes de preparar a fonte.
 
 ### Campos da fonte
 
@@ -164,7 +168,9 @@ Configure MC/SLMP e confira base numérica, largura do valor e limites da CPU.
 
 ### Preparação do serviço MC
 
-Tenha o serviço MC/SLMP TCP compatível e a porta habilitados no CLP. Este perfil usa quadros binários 3E; não presume suporte a todo modelo, ASCII, UDP ou toda memória Mitsubishi. O nome familiar do driver não substitui o perfil do equipamento.
+Peça ao responsável pelo CLP o perfil, a porta e uma posição de memória conhecida para testar. O serviço MC/SLMP TCP compatível precisa estar habilitado no equipamento.
+
+Este perfil usa quadros binários 3E, o formato de mensagem previsto para a conexão. Não presuma suporte a todo modelo Mitsubishi, mensagens ASCII, UDP ou toda a memória do CLP. Compare o perfil com o equipamento real antes de preencher os endereços.
 
 ### Campos da fonte
 
@@ -241,7 +247,9 @@ Escolha o transporte real e interprete palavras e contatos sem misturar outros p
 
 ### Escolha o perfil e o transporte
 
-MEWTOCOL-COM TCP acessa um serviço ou adaptador TCP compatível; Host Serial usa a porta física visível no servidor. São fontes distintas. Em serial confira cabo, RS-232/RS-485 e configuração da linha. O driver não transforma um conversor Ethernet genérico em servidor de todos os protocolos Panasonic.
+Escolha a conexão conforme a instalação: MEWTOCOL-COM TCP usa um serviço ou adaptador TCP compatível; Host Serial usa a porta física disponível no servidor SCADIVO. São fontes distintas, com configurações próprias.
+
+Para serial, confira cabo, padrão elétrico RS-232/RS-485 e parâmetros da linha. Tenha o mapa de memória do equipamento para escolher uma leitura de teste. Um conversor Ethernet genérico não se torna, por esta configuração, servidor de todos os protocolos Panasonic.
 
 ### Campos da fonte e do vínculo
 

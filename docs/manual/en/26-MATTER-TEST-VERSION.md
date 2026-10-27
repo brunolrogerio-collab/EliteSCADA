@@ -10,7 +10,9 @@ Check availability, prepare the source and distinguish reading an already-commis
 
 ### Start with availability
 
-SCADIVO is multiplatform. This particular connector is an isolated preview requiring a Linux x64 host and local auxiliary process (sidecar); it does not make Matter available in every installation. The default composition omits this type. It appears only when the installer explicitly enables the preview in Development/Test, without HA. If Matter is missing from Data Sources, do not imitate it with another driver. Ask the installation owner whether this environment is eligible. Help remains available to explain the distinction even when the source is unavailable.
+Before configuring, check whether Matter Wi-Fi is available in your installation. SCADIVO is multiplatform, but this connector is an isolated preview for a Linux x64 host with a local helper process called a sidecar. It is not Matter availability for every installation.
+
+The default composition does not offer the type. It appears only when the administrator enables preview in Development/Test, without HA. If absent from Data Sources, check eligibility with that administrator; do not choose another driver to imitate it. Help remains available to explain these limits.
 
 ### What you can prepare
 
@@ -18,7 +20,11 @@ The current version handles persistent attributes of already-commissioned Matter
 
 ### Before opening the editor
 
-Obtain the real node, endpoint, cluster, attribute and value type from the test environment owner. These numbers identify the device point, not the internal TAG ID. The host needs an installed sidecar and a suitable IPv6 network; the declared dependency requires Node.js 22.13+ or 24+. Do not assume a container has the same network conditions as its host. Fabric and encrypted storage belong to the host; importing an .escadapkg neither transfers them nor recovers a lost key. This guide does not request credentials or keys in project fields. A node identifies a device within the fabric. An endpoint identifies one of its functions, such as an output of a multi-output module. A cluster groups the functions and attributes of a service, such as On/Off; an attribute is one value in that group, such as the on/off state. One device can have multiple endpoints: verify the numbers instead of copying them from another unit.
+Ask the administrator for the numbers identifying the point: node, endpoint, cluster and attribute, plus actual value type. These are not the internal TAG ID.
+
+Node identifies the device in the Matter logical network, called a fabric. Endpoint identifies a function, such as an output. Cluster groups service functions and attributes, such as On/Off. An attribute is one value in that group, such as on/off state. A device can have several endpoints; check its numbers rather than copying another unit’s.
+
+The host needs the sidecar and IPv6 network prepared. The declared dependency requires Node.js 22.13+ or 24+. Container networking can differ from the machine. Fabric and encrypted storage stay on the host: .escadapkg import neither transfers them nor recovers a lost key. This procedure asks for no keys or credentials in project fields.
 
 ### Prepare the source and host key
 

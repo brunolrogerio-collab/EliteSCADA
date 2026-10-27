@@ -8,7 +8,9 @@ Configure ISO-on-TCP distinguiendo conexión, acceso al DB y permiso de escritur
 
 ### Prepare el lado del PLC
 
-Use la CPU y el proyecto correctos. Este driver accede a memoria absoluta mediante S7 ISO-on-TCP; no es OPC UA ni navegación simbólica completa de TIA. En S7-1200/1500, confirme con el responsable acceso externo permitido, PUT/GET cuando sea necesario y un DB con disposición absoluta compatible, sin optimización que cambie los offsets esperados. SCADIVO no cambia esas opciones ni sustituye protección de la instalación.
+Elija una variable conocida del programa del PLC y obtenga su dirección. Este driver S7 ISO-on-TCP lee direcciones absolutas: necesita saber dónde está el valor, no solo su nombre. No es navegación simbólica completa de TIA ni conexión OPC UA.
+
+En S7-1200/1500 confirme acceso externo permitido, PUT/GET cuando se exige y DB de disposición absoluta compatible. DB es bloque de datos; offsets son posiciones dentro. Optimizar cambiando esas posiciones puede invalidar el mapa. SCADIVO no cambia esas opciones ni sustituye protección del PLC.
 
 ### Campos de la fuente
 
@@ -95,7 +97,9 @@ Use acceso simbólico ControlLogix/CompactLogix y compruebe límites antes de im
 
 ### Qué conexión está configurando
 
-Este driver usa mensajes explícitos EtherNet/IP para símbolos ControlLogix/CompactLogix. No es escáner de I/O cíclico para cualquier dispositivo EtherNet/IP ni driver genérico SLC/PLC-5/MicroLogix. Obtenga IP, perfil, ruta real y configuración de acceso externo del símbolo.
+Empiece por un símbolo conocido de ControlLogix o CompactLogix, la referencia con nombre usada por el programa. Tenga IP, perfil y ruta reales y compruebe acceso externo al símbolo.
+
+Usa mensajes explícitos EtherNet/IP para esos símbolos. No es scanner de entradas/salidas cíclicas para todos los dispositivos EtherNet/IP ni driver genérico SLC, PLC-5 o MicroLogix. Compruebe familia antes de preparar la fuente.
 
 ### Campos de la fuente
 
@@ -164,7 +168,9 @@ Configure MC/SLMP y compruebe base numérica, anchura de valor y límites de CPU
 
 ### Preparar el servicio MC
 
-Disponga del servicio MC/SLMP TCP compatible y puerto habilitados en el PLC. Este perfil usa tramas binarias 3E; no supone soporte de todo modelo, ASCII, UDP ni toda memoria Mitsubishi. Un nombre familiar de driver no sustituye el perfil del equipo.
+Pida al responsable perfil, puerto y una posición de memoria conocida para probar. El servicio MC/SLMP TCP compatible debe estar habilitado en el PLC.
+
+Usa tramas binarias 3E, el formato de mensaje previsto para la conexión. No presuponga todo modelo Mitsubishi, mensajes ASCII, UDP ni toda memoria del PLC. Compare perfil y equipo antes de completar direcciones.
 
 ### Campos de la fuente
 
@@ -241,7 +247,9 @@ Elija el transporte real e interprete palabras y contactos sin mezclar otros pro
 
 ### Elegir perfil y transporte
 
-MEWTOCOL-COM TCP accede a servicio o adaptador TCP compatible; Host Serial usa el puerto físico visible en el servidor. Son fuentes distintas. En serie, compruebe cable, RS-232/RS-485 y configuración de línea. El driver no convierte un adaptador Ethernet genérico en servidor de todos los protocolos Panasonic.
+Elija según instalación: MEWTOCOL-COM TCP usa servicio o adaptador TCP compatible; Host Serial usa puerto físico disponible en el servidor SCADIVO. Son fuentes distintas con ajustes propios.
+
+Para serie compruebe cable, estándar eléctrico RS-232/RS-485 y parámetros de línea. Tenga el mapa de memoria para una lectura de prueba. Esta configuración no convierte un adaptador Ethernet genérico en servidor de todos los protocolos Panasonic.
 
 ### Campos de fuente y vínculo
 

@@ -66,7 +66,9 @@ Organize device locations and inspect their actual capabilities.
 
 ### Separate location, device and connection
 
-Open Engineering > Home/Building. A Location describes where an asset is; device/equipment identifies an instance; Data Source supplies the connection. A room is not a Driver, and moving location does not switch protocols. Start with devices/TAGs actually exposed by the provider.
+In Engineering > Home/Building, first organize where a device is. Location may be a room or area. Equipment is the device instance, such as a light. Data Source stores the connection used to communicate.
+
+These are different facts: moving a light to another room does not change its protocol. Start with devices and TAGs the connection actually offers.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |

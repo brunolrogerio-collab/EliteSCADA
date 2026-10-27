@@ -229,7 +229,7 @@ test('telecontrol and server guides distinguish observations, commands and exter
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
   await page.goto('/help?topic=drivers.iec104-setup');
   await expect(article.locator('h2')).toHaveText('IEC 104: stations, observed points and commands');
-  await expect(article).toContainText('Results are partial');
+  await expect(article).toContainText('results are partial', { ignoreCase: true });
   await expect(article.locator('pre')).toHaveCount(2);
   await article.getByRole('rowheader', { name: 'Station clock time zone', exact: false }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath('help-iec104-observation-desktop.png') });
@@ -339,6 +339,7 @@ test('protocol walkthroughs expose real fields and working examples in every lan
   await page.goto('/help?topic=drivers.mqtt-setup');
   const article = page.locator('article');
   await expect(article.getByRole('heading', { name: 'MQTT: tópicos, JSON e atualidade dos valores', exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('help-mqtt-progressive-desktop.png') });
   await expect(article.getByRole('rowheader', { name: 'Campo do valor no JSON', exact: false })).toBeVisible();
   await expect(article.locator('pre')).toContainText('"current":12.5');
   await expect(article).toContainText('não reconstrói o envelope');
@@ -347,6 +348,10 @@ test('protocol walkthroughs expose real fields and working examples in every lan
   await expect(article.getByRole('rowheader', { name: 'JSON value field', exact: false })).toBeVisible();
   await page.getByLabel('Language', { exact: true }).selectOption('es');
   await expect(article.getByRole('heading', { name: 'MQTT: tópicos, JSON y vigencia de valores', exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await article.locator('section').first().scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-mqtt-progressive-mobile.png') });
   await expect(article.getByRole('rowheader', { name: 'Campo del valor en JSON', exact: false })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('help-mqtt-fields-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });

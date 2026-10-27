@@ -66,7 +66,9 @@ Organize onde o dispositivo está e confira quais capacidades ele realmente ofer
 
 ### Separe local, dispositivo e conexão
 
-Abra Engenharia > Home/Building. Local descreve onde o ativo está; dispositivo/equipamento descreve a instância; Data Source fornece a conexão. Uma sala não é um Driver, e mudar o local não troca o protocolo. Comece com os dispositivos e TAGs que o provedor realmente disponibiliza.
+Em Engenharia > Home/Building, organize primeiro onde o dispositivo está. Local pode ser uma sala ou área. Equipamento é a instância do dispositivo, como uma luminária. A Fonte de dados, também chamada Data Source, guarda a conexão usada para comunicar.
+
+São informações diferentes: mover a luminária para outra sala não troca seu protocolo. Comece com os dispositivos e TAGs que a conexão realmente oferece.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |

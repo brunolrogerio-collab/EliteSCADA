@@ -6,7 +6,23 @@ Configure una conexión antes de enlazar valores con pantallas, alarmas e histó
 
 ### Antes de completar
 
-En Ingeniería → Fuentes de datos, prepare el mapa de direcciones/nodos/tópicos, los parámetros de red o serie y una lectura conocida. El servidor SCADIVO realiza la comunicación; acceder desde el navegador no prueba que el servidor alcance el equipo. Empiece con un TAG de solo lectura.
+Empiece por una lectura conocida, como una presión comprobable en el equipo. En Ingeniería > Fuentes de datos, la fuente guarda cómo llegar al equipo. El driver habla su protocolo; el vínculo identifica el punto a leer; el TAG es la variable que recibe el valor.
+
+Tenga el mapa del fabricante y los parámetros de red o puerto serie. Empiece con un TAG de solo lectura. La comunicación parte del servidor SCADIVO: acceder desde el navegador no demuestra que ese servidor alcance el equipo. Los campos siguientes sirven de consulta al configurar.
+
+### Preparar, comprobar y activar
+
+1. Cree o seleccione la fuente y elija el driver del protocolo del equipo.
+2. Complete campos básicos. Abra avanzados cuando necesite consultar o cambiar valores.
+3. Use Probar conexión si está disponible. La prueba usa el borrador; no aplica la edición ni cambia Runtime.
+4. Revise cambios y diagnósticos. Aplicar al Workspace lleva la configuración al borrador de trabajo.
+5. Cree un TAG con esa fuente, tipo de valor y vínculo del punto. Pruebe lectura cuando sea posible.
+6. Guarde, publique y active con los controles del proyecto para usarlo en Runtime.
+7. Compare valor y unidad con la referencia conocida. Compruebe calidad y actualización antes de añadir pantalla, alarma o comando.
+
+### Consultar campos de la fuente
+
+Use esta tabla al preparar la conexión. El procedimiento anterior da la secuencia; nombres y ejemplos ayudan si surge duda en un campo.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -16,29 +32,23 @@ En Ingeniería → Fuentes de datos, prepare el mapa de direcciones/nodos/tópic
 | Habilitada | Incluye la fuente en la configuración operativa al activar su revisión. Habilitar no corrige la red, las credenciales ni un TAG incorrecto. | true |  |
 | Referencias protegidas | Los campos de contraseña/certificado reciben la referencia de material aprovisionado en el servidor. Solicite la referencia correcta al administrador; no pegue contraseñas, claves privadas ni certificados en los campos comunes. |  |  |
 
-### Preparar, comprobar y activar
-
-1. Cree o seleccione la fuente y elija el driver correcto.
-2. Complete los campos básicos y abra los avanzados solo si necesita cambiar sus valores predeterminados.
-3. Use Probar conexión cuando el driver lo ofrezca; probar el borrador no aplica cambios.
-4. Verifique cambios y lea diagnósticos; Aplicar al Workspace actualiza la configuración de trabajo.
-5. Configure un TAG con esta fuente, tipo y vínculo del protocolo; pruebe su lectura si está disponible.
-6. Guarde/publique y active la revisión mediante el flujo del proyecto para usarla en Runtime.
-7. Compruebe valor, unidad, calidad y actualización antes de crear comandos o alarmas.
-
 ### Conecta pero no hay valor
 
-Una prueba de conexión confirma solo su etapa, no todo el mapa ni una acción física. Compruebe fuente habilitada, vínculo del TAG, revisión activa y diagnósticos. Acceso denegado difiere de timeout; mala calidad difiere de cero. ReadOnly y permisos de escritura siguen vigentes aunque el protocolo admita escritura. Descubrimiento/pruebas dependen del driver; MQTT Raw no anuncia prueba de conexión de Ingeniería.
+Conectar y leer un punto son comprobaciones distintas. Probar conexión no verifica todo el mapa ni una acción física. Sin valor, compruebe fuente habilitada, vínculo del TAG, revisión activa y diagnósticos.
+
+Lea el motivo: acceso denegado no es tiempo excedido; lectura inválida no es cero. Aunque el protocolo permita escritura, siguen vigentes ReadOnly y permisos. Descubrimiento y pruebas dependen del driver. MQTT Raw, por ejemplo, no ofrece prueba de conexión de Ingeniería.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=sources.connection-workflow)
 
 ## Modbus: TCP, serie y mapa de registros
 
-Prepare el cliente TCP o maestro RTU y comprenda la dirección y representación de cada valor.
+Prepare la conexión y use el mapa del equipo para comprobar una primera lectura.
 
 ### Elija cliente o maestro
 
-Use Modbus TCP para consultar un servidor/controlador de red y Modbus RTU Master para consultar esclavos en el bus serie del host. Este recorrido no configura SCADIVO como Modbus Server; ese tipo tiene otro papel. Prepare el mapa del fabricante y empiece con una variable conocida sin escritura.
+Elija primero quién consulta a quién. Use Modbus TCP para que SCADIVO lea un controlador por red. Use Modbus RTU Master para consultar equipos por el cable serie del servidor; responden como esclavos.
+
+Tenga el mapa de registros del fabricante, la lista con dirección y representación de cada valor. Empiece con una lectura conocida, sin escritura. Modbus Server tiene otro papel: SCADIVO responde a un cliente externo. Use su guía si ese es el objetivo.
 
 ### Conexión TCP y tiempos comunes
 
@@ -93,11 +103,13 @@ La dirección elige dónde leer; el tipo del equipo elige cómo interpretar. Son
 
 ## MQTT: tópicos, JSON y vigencia de valores
 
-Conecte al broker y convierta mensajes en valores tipados, separando lectura y publicación.
+Reciba una medición enviada por mensaje y compruebe que su valor esté actualizado antes de usarlo.
 
 ### Un broker no es un sensor
 
-MQTT Raw recibe mensajes al publicarse. No sondea como Modbus ni descubre TAGs automáticamente desde cualquier JSON. Prepare host, puerto, TLS, autenticación, tópicos y ejemplos reales de payload. Empiece con un TAG Double de solo lectura.
+En MQTT, el equipo publica mensajes y el broker los distribuye a suscriptores. El tópico nombra el canal; payload es el contenido. MQTT Raw recibe lo publicado en los tópicos configurados.
+
+Antes de crear la fuente, tenga dirección/puerto del broker, protección TLS, autenticación y un ejemplo real. Elija una magnitud para probar, con TAG Double, un número con decimales, de solo lectura si la magnitud es compatible. El driver no busca registros como Modbus ni convierte cualquier JSON automáticamente en TAGs.
 
 ### Conexión, sesión y recursos
 
@@ -157,11 +169,13 @@ Extraer /current para lectura no crea una plantilla de documento de comando. Se 
 
 ## OPC UA: endpoint, certificados e importación de nodos
 
-Seleccione el servidor, apruebe su identidad y asocie variables mediante los nodos correctos.
+Localice el servidor, compruebe la confianza de la conexión y elija una variable conocida para leer.
 
 ### Descubrimiento no es activación
 
-En la fuente OPC UA use descubrimiento para conocer endpoints y modos ofrecidos. Seleccionar un candidato completa parámetros; no crea credenciales protegidas ni aprueba certificados automáticamente. Las pruebas/exploración de Ingeniería son temporales y no cambian la revisión activa.
+Empiece localizando el servidor OPC UA y una variable conocida. En la fuente, descubrimiento muestra endpoints, direcciones de conexión y modos ofrecidos. Elegir un candidato completa parámetros.
+
+Compruebe después autenticación y confianza de certificados. Elegir no crea credenciales protegidas ni aprueba automáticamente el servidor. Pruebas y navegación de Ingeniería son temporales: preparan la fuente sin cambiar la revisión activa.
 
 ### Conexión e identidades
 

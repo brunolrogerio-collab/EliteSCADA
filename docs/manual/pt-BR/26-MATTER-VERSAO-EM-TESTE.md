@@ -10,7 +10,9 @@ Verifique a disponibilidade, prepare a fonte e diferencie a leitura de um atribu
 
 ### Comece pela disponibilidade
 
-O SCADIVO é multiplataforma. Este conector específico é uma prévia isolada, com host Linux x64 e processo auxiliar local (sidecar); não é uma liberação de Matter para toda instalação. A composição padrão não oferece esse tipo. Ele só aparece quando o responsável pela instalação habilita a prévia em Development/Test, sem HA. Se Matter não estiver na lista de Fontes de dados, não escolha outro driver para imitá-lo. Confirme com esse responsável se o ambiente é elegível. O Help permanece disponível para explicar essa diferença, mesmo quando a fonte não está disponível.
+Antes de configurar, confirme se Matter Wi-Fi aparece na sua instalação. O SCADIVO é multiplataforma, mas este conector é uma prévia isolada para host Linux x64, com processo auxiliar local, chamado sidecar. Não é uma liberação de Matter para toda instalação.
+
+A composição padrão não oferece o tipo. Ele só aparece quando o responsável habilita a prévia em Development/Test, sem HA. Se não estiver em Fontes de dados, confira a elegibilidade com esse responsável; não escolha outro driver para imitá-lo. O Help continua disponível para explicar esses limites.
 
 ### O que você pode preparar
 
@@ -18,7 +20,11 @@ A versão atual trabalha com atributos persistentes de dispositivos Matter Wi-Fi
 
 ### Antes de abrir o editor
 
-Obtenha do responsável pelo ambiente de teste a identidade do nó, endpoint, cluster, atributo e tipo real do valor. Esses números identificam o ponto do dispositivo; não são o ID interno do TAG. O host precisa do sidecar instalado e da rede IPv6 adequada; a dependência declarada requer Node.js 22.13+ ou 24+. Não presuma que a rede de um contêiner tenha as mesmas condições da máquina. Fabric e armazenamento criptografado pertencem ao host; importar um .escadapkg não os transfere nem recupera uma chave perdida. Este guia não pede credenciais ou chaves em campos do projeto. Nó é a identidade de um dispositivo no fabric. Endpoint identifica uma função desse dispositivo, como uma das saídas de um módulo. Cluster agrupa funções e atributos de um serviço, como On/Off; atributo é um valor desse grupo, como o estado ligado/desligado. Um mesmo equipamento pode ter vários endpoints: não copie os números de outra unidade sem conferir.
+Peça ao responsável os números que identificam o ponto: nó, endpoint, cluster e atributo, além do tipo real do valor. Eles não são o ID interno do TAG.
+
+Nó identifica o dispositivo na rede lógica Matter, chamada fabric. Endpoint identifica uma função, como uma saída. Cluster reúne funções e atributos de um serviço, como On/Off. Atributo é um valor desse grupo, como ligado/desligado. Um dispositivo pode ter vários endpoints; confira seus números em vez de copiar os de outra unidade.
+
+No host, precisam estar preparados o sidecar e a rede IPv6. A dependência declarada requer Node.js 22.13+ ou 24+. Uma rede de contêiner pode ter condições diferentes da máquina. Fabric e armazenamento criptografado ficam no host: importar .escadapkg não os transfere nem recupera chave perdida. Este roteiro não pede chaves ou credenciais nos campos do projeto.
 
 ### Preparar a fonte e a chave do host
 

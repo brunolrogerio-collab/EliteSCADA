@@ -6,7 +6,9 @@ Compruebe quién mantiene la red y qué tipo de fuente representa la instalació
 
 ### Antes de completar campos
 
-Esta es una lista de comprobación, no una pantalla nueva. La elección de fuente depende del coordinador/controlador y de la instalación externa real. SCADIVO y otro proceso no deben abrir simultáneamente la misma radio/puerto.
+Antes de elegir fuente, identifique quién mantiene la red Zigbee o Z-Wave: coordinador/controlador conectado al servidor o instalación externa preparada. El tipo debe corresponder al camino real.
+
+Esta guía ayuda a decidir; no es una pantalla nueva. No abra el mismo radio simultáneamente en SCADIVO y otro proceso que controle su puerto.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -32,7 +34,9 @@ Prepare la fuente para el coordinador TI admitido y comprenda el alcance limitad
 
 ### Instalación necesaria
 
-Este driver usa coordinador serie TI zStack/CC2652 y proceso auxiliar administrado de la distribución para Windows o Linux x64. En contenedor el host debe exponer recurso físico y estado persistente. Red/dispositivo deben estar preparados; este tipo no ofrece descubrimiento ni asistente de inclusión de Ingeniería. No promete todos los dispositivos/clusters Zigbee.
+En este camino, red y dispositivo Zigbee deben estar preparados. Use coordinador serie TI zStack/CC2652 compatible conectado al servidor. Esta versión no ofrece descubrimiento ni asistente de inclusión de Ingeniería y no promete todos los dispositivos o clusters Zigbee.
+
+La distribución usa proceso auxiliar gestionado para Windows o Linux x64. En contenedor el host debe exponer radio físico y almacenamiento persistente del estado. Compruébelo antes de completar la fuente.
 
 ### Campos y límite de autoría
 
@@ -76,7 +80,9 @@ Use el controlador registrado en el host y conserve la identidad exacta de cada 
 
 ### Qué hace este tipo
 
-El proceso auxiliar administrado usa controlador serie local y comunicación interna restringida al host. La instalación admite Windows/Linux x64; Docker también necesita dispositivo y directorio de estado persistente. Trabaja con valores persistidos preparados: no ofrece inclusión, exclusión, SmartStart, reset, administración del controlador ni descubrimiento de Ingeniería.
+Use este camino para leer valores persistidos de una red Z-Wave preparada. El controlador serie es local al servidor; el proceso auxiliar gestionado usa comunicación interna limitada al host.
+
+Admite Windows o Linux x64. En Docker exponga también dispositivo y directorio persistente del estado. No ofrece inclusión, exclusión, SmartStart, reset, administración del controlador ni descubrimiento de Ingeniería. Prepare la red con su procedimiento antes de usar valores en SCADIVO.
 
 ### Fuente e interpretación de dirección
 
@@ -121,9 +127,9 @@ Conecte a una instalación externa y distinga inventario, incorporación e infor
 
 ### Instalación externa y flujo disponible
 
-Zigbee2MQTT y broker se administran fuera de SCADIVO. Los dispositivos deben estar asociados a la red externa; este conector no abre inclusión, administra el coordinador ni sustituye Zigbee nativo. Se anuncian prueba de conexión, descubrimiento y lectura, pero sin selección solo se lista inventario. La interfaz actual no envía la selección necesaria para incorporar; ese flujo espera corrección.
+Elija este puente si Zigbee2MQTT y broker se gestionan fuera de SCADIVO y los dispositivos ya están asociados. Consulta esa instalación; no abre inclusión ni administra coordinador. Zigbee nativo es otro camino.
 
-El formato externo incluye funciones en definition.exposes; esta versión del parser busca exposes en la raíz. Por ello puede listar un dispositivo sin producir TAGs. La corrección de compatibilidad está pendiente por separado de la selección en interfaz.
+El conector anuncia prueba de conexión, descubrimiento y lectura. Descubrir lista inventario; incorporar exige elegir qué entra al proyecto. La interfaz actual limita esa selección. La lectura de algunas estructuras anidadas espera otra corrección separada. Los pasos indican esos límites sin prometer incorporación completa donde no existe.
 
 ### Campos de fuente
 

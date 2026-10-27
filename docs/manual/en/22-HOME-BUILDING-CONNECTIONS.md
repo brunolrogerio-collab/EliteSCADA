@@ -6,7 +6,9 @@ Turn discovery into Equipment, TAGs and commands while checking what will actual
 
 ### Source, device and Location differ
 
-A Data Source stores communication settings; Equipment represents the device; Location organizes where it is. Functional capabilities such as OnOff, Temperature or Cover describe equipment functions, not Authority permissions. Discovering/incorporating a device does not automatically authorize commands.
+Incorporating turns a discovered device into project resources. Data Source says how to communicate. Equipment identifies the device and Location says where it is.
+
+Capabilities such as OnOff, Temperature or Cover describe available functions: on/off, temperature or cover control, according to the provider. They are not security permissions. Finding and incorporating a device does not authorize your account to command it; Authority policy still decides access.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -37,7 +39,9 @@ Configure the UDP network and select object identity; names and network addresse
 
 ### Before connecting
 
-This driver is BACnet/IP over UDP; it does not advertise BACnet Secure Connect. Have device instance, route/IP/port and server-side network access. In Docker check networking and UDP; broadcast discovery depends on topology, not the browser. Start with a known read-only object.
+Start with a known read-only BACnet object, such as an analog input. Ask the administrator for device instance and network details: route, IP and port.
+
+This driver uses BACnet/IP over UDP. The SCADIVO server must reach that network; broadcast discovery depends on installation topology. In Docker, also check networking and UDP forwarding. Browser access does not establish these conditions. This driver does not advertise BACnet Secure Connect.
 
 ### Connection and binding fields
 
@@ -82,7 +86,11 @@ Use KNX project addresses and keep commands separate from feedback.
 
 ### Requirements and scope
 
-The implementation uses a managed XKNX sidecar for KNX IP Secure TCP tunneling and Data Secure. Installation needs its compatible runtime for Windows or Linux x64 and protected host material; a container needs those resources too. This type does not promise unsecured IP tunneling, multicast routing or automatic Engineering discovery. Obtain settings/addresses from the KNX project/administrator.
+Use the KNX project details: addresses, gateway, each point’s type and security material. Obtain them from the administrator before filling the source. Keep the command point separate from the point reporting actual state.
+
+This connection uses KNX IP Secure TCP tunneling and Data Secure. It depends on the installation’s XKNX helper process for Windows or Linux x64 and protected material prepared on the server. A container needs these resources too.
+
+Do not assume unsecured IP tunneling, multicast routing or automatic Engineering discovery: this type does not promise them.
 
 ### Gateway and point fields
 
@@ -125,7 +133,9 @@ One source connects to a user-managed Home Assistant; only selected entities ent
 
 ### Local bridge with explicit identity
 
-HAB means Home Assistant Bridge; HA in SCADIVO still means High Availability. Use Home Assistant reachable from the server and an authorized token provisioned as protected material. The integration does not manage Home Assistant accounts, copy its internal database or turn all its integrations into native SCADIVO drivers.
+Use this source to connect to a Home Assistant installation already prepared by you or the network administrator. It must be reachable from the SCADIVO server. Prepare its authorized token as protected material before using the connection.
+
+HAB abbreviates Home Assistant Bridge; HA in SCADIVO still means High Availability. The bridge integrates supported entities, but does not manage Home Assistant accounts or copy its database. Home Assistant integrations do not thereby become native SCADIVO drivers.
 
 ### Connection, identity and current selection limit
 
@@ -165,7 +175,9 @@ Connect directly to the device and incorporate only functions the driver maps.
 
 ### What must be available
 
-Firmware must offer the ESPHome Native API. The driver connects on the local network without requiring Home Assistant, ESPHome Dashboard or a Python sidecar. In Noise mode the API key must be provisioned on the server; the browser does not connect directly to the microcontroller.
+First check that device firmware offers the ESPHome native API, the service used to read its entities over the local network. The SCADIVO server makes the connection; the browser does not talk directly to the microcontroller.
+
+This path requires neither Home Assistant, ESPHome Dashboard nor a Python helper process. For Noise mode, prepare the API key on the server before connecting.
 
 ### Connection and binding
 
@@ -206,7 +218,9 @@ Use local RPC and review channels/fields actually offered by the device.
 
 ### Local connection with a compatible generation
 
-This driver uses Shelly Gen2+ RPC over HTTP/WebSocket; it is not a cloud API and does not promise compatibility with every Gen1 device. Have local host, port and device authentication. A component represents a device channel/function, not a SCADIVO user or Location.
+Check the device generation and choose one known channel to test. This driver uses local Shelly Gen2+ RPC communication over HTTP/WebSocket. Have device address, port and authentication ready.
+
+Component means a Shelly channel or function, not a SCADIVO user or Location. The connection does not use a cloud API or promise compatibility with every Shelly Gen1.
 
 ### Source and TAG fields
 

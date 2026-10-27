@@ -6,7 +6,23 @@ Configure a connection before linking values to screens, alarms and history.
 
 ### Before entering values
 
-In Engineering → Data Sources, have the address/node/topic map, network or serial settings and a known reading available. The SCADIVO server performs communication; browser access does not prove the server can reach the equipment. Start with one read-only TAG.
+Start with a known reading, such as pressure you can check on the equipment. In Engineering > Data Sources, a source stores how to reach the equipment. The driver speaks its protocol; the binding identifies the point to read; the TAG is the variable receiving the value.
+
+Have the manufacturer’s map and network or serial-port settings ready. Start with a read-only TAG. Communication comes from the SCADIVO server: reaching equipment in a browser does not prove that server can reach it. Fields below are for lookup during configuration.
+
+### Prepare, check and activate
+
+1. Create or select the source and choose the driver matching the equipment protocol.
+2. Fill basic fields. Open advanced fields when you need to review or change their values.
+3. Use Test connection if the driver offers it. The test uses the draft; it does not apply the edit or change Runtime.
+4. Review changes and diagnostics. Apply to Workspace puts configuration in the working draft.
+5. Create a TAG with that source, value type and point binding. Test reading when available.
+6. Save, publish and activate through project controls so Runtime uses the configuration.
+7. Compare value and unit with the known reference. Check quality and updates before adding a screen, alarm or command.
+
+### Look up source fields
+
+Use this table while preparing the connection. The procedure above gives the sequence; names and examples here help when a field is unclear.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -16,29 +32,23 @@ In Engineering → Data Sources, have the address/node/topic map, network or ser
 | Enabled | Includes the source in operational configuration when its revision is activated. Enabling does not repair the network, credentials or an incorrect TAG binding. | true |  |
 | Protected references | Password/certificate fields take the reference to material provisioned on the server. Ask the administrator for the correct reference; do not paste the password, private key or certificate contents into ordinary configuration fields. |  |  |
 
-### Prepare, check and activate
-
-1. Create or select the source and choose the correct driver.
-2. Fill basic fields and open advanced fields only when their defaults need changing.
-3. Use Test connection where the driver offers it; a draft test does not apply changes.
-4. Check changes and read diagnostics; Apply to Workspace updates working configuration.
-5. Configure a TAG with this source, type and protocol binding; test its read where available.
-6. Save/publish and activate the revision through the project workflow so Runtime uses this configuration.
-7. Check value, unit, quality and updates before adding commands or alarms.
-
 ### Connected but no value
 
-A connection test confirms its own step, not the whole map or a physical action. Check source enabled state, TAG binding, active revision and diagnostics. Access denied differs from timeout; bad quality differs from zero. ReadOnly and write permissions still apply even if a protocol supports writes. Discovery/testing features depend on the driver; MQTT Raw does not advertise an Engineering connection test.
+Connecting and reading a point are different checks. A successful connection test does not verify the whole map or a physical action. For no value, check enabled source, TAG binding, active revision and diagnostics.
+
+Read the reason: denied access is not a timeout; an invalid reading is not zero. Even if the protocol supports writing, ReadOnly and account permissions still apply. Discovery and test actions depend on the driver. MQTT Raw, for example, offers no Engineering connection test.
 
 [Open this guide in installed Help](/help?topic=sources.connection-workflow)
 
 ## Modbus: TCP, serial and register maps
 
-Prepare a TCP client or RTU master and understand each value address and representation.
+Prepare the connection and use the equipment map to check a first reading.
 
 ### Choose client or master
 
-Use Modbus TCP to query a network server/controller and Modbus RTU Master to query slaves on the host serial bus. This walkthrough does not configure SCADIVO as a Modbus Server; that type has a different role. Have the vendor map and start with a known variable without writes.
+First choose who queries whom. Use Modbus TCP for SCADIVO to read a controller over the network. Use Modbus RTU Master to query equipment on the server’s serial cable; equipment then responds as slaves.
+
+Have the manufacturer’s register map, the list identifying each value’s address and representation. Start with one known reading, without writes. Modbus Server has a different role: SCADIVO responds to an external client. Use its separate guide for that purpose.
 
 ### TCP connection and shared timings
 
@@ -93,11 +103,13 @@ The address selects where to read; wire type selects interpretation. These are s
 
 ## MQTT: topics, JSON and value freshness
 
-Connect to a broker and turn messages into typed values, separating subscriptions and publication.
+Receive a measurement sent in a message and check that its value is current before using it.
 
 ### A broker is not a sensor
 
-MQTT Raw receives messages when published. It does not poll like Modbus or automatically discover TAGs from arbitrary JSON. Have the host, port, TLS, authentication, topics and actual payload samples. Start with one read-only Double TAG.
+In MQTT, equipment publishes messages and the broker distributes them to subscribers. A topic names the message channel; payload is its content. MQTT Raw receives what is published on configured topics.
+
+Before creating the source, have broker address/port, TLS protection, authentication and a real message example. Choose one quantity to test, using a read-only Double TAG, a number with decimal places, for a compatible quantity. The driver does not scan registers like Modbus or automatically turn arbitrary JSON into TAGs.
 
 ### Connection, session and resources
 
@@ -157,11 +169,13 @@ Extracting /current for reads does not create a command-document template. JSON 
 
 ## OPC UA: endpoints, certificates and node import
 
-Select the server, approve its identity and associate variables using the correct nodes.
+Locate the server, check connection trust and choose a known variable to read.
 
 ### Discovery is not activation
 
-In the OPC UA source use discovery to inspect offered endpoints and modes. Selecting a candidate fills parameters; it does not create protected credentials or automatically approve certificates. Engineering tests/browsing are temporary and do not change the active revision.
+Start by locating the OPC UA server and a known variable. In the source, discovery shows endpoints, the connection addresses and modes the server offers. Selecting a candidate fills parameters.
+
+Then check authentication and certificate trust. Selection does not create protected credentials or automatically approve the server. Engineering tests and browsing are temporary: they help prepare the source without changing the active revision.
 
 ### Connection and identities
 

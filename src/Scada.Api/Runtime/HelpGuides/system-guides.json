@@ -758,7 +758,7 @@
       "sections": [
         {
           "heading": "Separe local, dispositivo e conexão",
-          "body": "Abra Engenharia > Home/Building. Local descreve onde o ativo está; dispositivo/equipamento descreve a instância; Data Source fornece a conexão. Uma sala não é um Driver, e mudar o local não troca o protocolo. Comece com os dispositivos e TAGs que o provedor realmente disponibiliza.",
+          "body": "Em Engenharia > Home/Building, organize primeiro onde o dispositivo está. Local pode ser uma sala ou área. Equipamento é a instância do dispositivo, como uma luminária. A Fonte de dados, também chamada Data Source, guarda a conexão usada para comunicar.\n\nSão informações diferentes: mover a luminária para outra sala não troca seu protocolo. Comece com os dispositivos e TAGs que a conexão realmente oferece.",
           "fields": [
             {
               "key": "location.name",
@@ -2320,7 +2320,17 @@
       "sections": [
         {
           "heading": "Antes de preencher",
-          "body": "Em Engenharia → Fontes de dados, tenha o mapa de endereços/nós/tópicos, parâmetros da rede ou serial e uma leitura conhecida. O servidor SCADIVO executa a comunicação; ter acesso pelo navegador não prova que o servidor consegue alcançar o equipamento. Use primeiro um TAG somente leitura.",
+          "body": "Comece por uma leitura conhecida, como uma pressão que você consegue conferir no equipamento. Em Engenharia > Fontes de dados, a fonte guarda como chegar ao equipamento. O driver é o componente que fala seu protocolo; o vínculo indica qual ponto ler; o TAG é a variável que recebe o valor.\n\nTenha o mapa fornecido pelo fabricante e os parâmetros da rede ou porta serial. Comece com um TAG somente leitura. A comunicação parte do servidor SCADIVO: acessar o equipamento no navegador não prova que esse servidor o alcança. Os campos abaixo servem para consulta durante a configuração.",
+          "fields": null
+        },
+        {
+          "heading": "Preparar, conferir e ativar",
+          "body": "1. Crie ou selecione a fonte e escolha o driver correspondente ao protocolo do equipamento.\n2. Preencha os campos básicos. Abra os avançados quando precisar consultar ou alterar seus valores.\n3. Use Testar conexão se o driver oferecer essa ação. O teste usa o rascunho; não aplica a edição nem muda o Runtime.\n4. Confira as alterações e os diagnósticos. Aplicar ao Workspace leva a configuração ao rascunho de trabalho.\n5. Crie um TAG com essa fonte, tipo de valor e vínculo do ponto. Faça o teste de leitura quando disponível.\n6. Salve, publique e ative a revisão pelos controles do projeto para o Runtime usar a configuração.\n7. Compare valor e unidade com a referência conhecida. Confira qualidade e atualização antes de acrescentar tela, alarme ou comando.",
+          "fields": null
+        },
+        {
+          "heading": "Consulte os campos da fonte",
+          "body": "Use esta tabela enquanto prepara a conexão. O procedimento acima mostra a sequência; os nomes e exemplos aqui ajudam quando surgir dúvida num campo.",
           "fields": [
             {
               "key": "key",
@@ -2360,13 +2370,8 @@
           ]
         },
         {
-          "heading": "Preparar, conferir e ativar",
-          "body": "1. Crie ou selecione a fonte e escolha o driver correto. 2. Preencha os campos básicos e abra os avançados somente quando precisar alterar seus padrões. 3. Use Testar conexão quando o driver oferecer esse recurso; o teste do rascunho não aplica as alterações. 4. Verifique alterações e leia os diagnósticos; Aplicar ao Workspace atualiza a configuração de trabalho. 5. Configure um TAG com essa fonte, tipo e vínculo do protocolo; teste a leitura quando disponível. 6. Salve/publique e ative a revisão pelo fluxo do projeto para o Runtime usar essa configuração. 7. Confira valor, unidade, qualidade e atualização antes de criar comandos ou alarmes.",
-          "fields": null
-        },
-        {
           "heading": "Quando conecta, mas não há valor",
-          "body": "Teste de conexão confirma somente sua etapa, não o mapa inteiro nem uma ação física. Verifique fonte habilitada, vínculo do TAG, revisão ativa e diagnósticos. Acesso negado difere de timeout; valor ruim difere de zero. ReadOnly e permissões de escrita continuam válidos mesmo se o protocolo aceitar escrita. Recursos de descoberta/teste dependem do driver; MQTT Raw não anuncia teste de conexão de Engenharia.",
+          "body": "Conectar e ler o ponto são verificações diferentes. Um teste de conexão bem-sucedido não comprova o mapa inteiro nem uma ação física. Se não há valor, confira fonte habilitada, vínculo do TAG, revisão ativa e diagnósticos.\n\nLeia o motivo: acesso negado não é tempo de resposta excedido; leitura inválida não é zero. Mesmo que o protocolo permita escrita, ReadOnly e as permissões da conta continuam valendo. As ações de descoberta e teste dependem do driver. MQTT Raw, por exemplo, não anuncia teste de conexão de Engenharia.",
           "fields": null
         }
       ],
@@ -2382,11 +2387,11 @@
       "id": "drivers.modbus-setup",
       "category": "drivers",
       "title": "Modbus: TCP, serial e mapa de registradores",
-      "summary": "Prepare o cliente TCP ou mestre RTU e entenda o endereço e a representação de cada valor.",
+      "summary": "Prepare a conexão e use o mapa do equipamento para conferir uma primeira leitura.",
       "sections": [
         {
           "heading": "Escolha cliente ou mestre",
-          "body": "Use Modbus TCP para consultar um servidor/controlador de rede e Modbus RTU Master para consultar escravos no barramento serial do host. Este roteiro não configura o SCADIVO como Modbus Server; esse tipo tem outro papel. Tenha o mapa do fabricante e comece por uma variável conhecida, sem escrita.",
+          "body": "Escolha primeiro quem vai consultar quem. Para o SCADIVO ler um controlador pela rede, use Modbus TCP. Para ele consultar equipamentos no cabo serial do servidor, use Modbus RTU Master; nesse caso os equipamentos respondem como escravos.\n\nTenha o mapa de registradores do fabricante, a lista que informa endereço e representação de cada valor. Comece com uma leitura conhecida, sem escrita. Modbus Server tem outro papel: nele o SCADIVO responde a um cliente externo. Use o guia próprio se esse for o objetivo.",
           "fields": null
         },
         {
@@ -2544,11 +2549,11 @@
       "id": "drivers.mqtt-setup",
       "category": "drivers",
       "title": "MQTT: tópicos, JSON e atualidade dos valores",
-      "summary": "Conecte ao broker e transforme mensagens em valores tipados, separando leitura e publicação.",
+      "summary": "Receba uma medição enviada por mensagem e confira se o valor está atual antes de usá-lo.",
       "sections": [
         {
           "heading": "Broker não é sensor",
-          "body": "MQTT Raw recebe mensagens quando publicadas. Não faz varredura Modbus nem descobre automaticamente TAGs a partir de qualquer JSON. Tenha host, porta, TLS, autenticação, tópicos e exemplos reais de payload. Para começar, use um TAG Double somente leitura.",
+          "body": "Em MQTT, o equipamento publica mensagens e o broker as distribui aos assinantes. O tópico é o nome do canal da mensagem; payload é seu conteúdo. MQTT Raw recebe o que for publicado nos tópicos configurados.\n\nAntes de criar a fonte, tenha endereço e porta do broker, proteção TLS, autenticação e um exemplo real de mensagem. Escolha uma grandeza para testar, com TAG Double, um número com casas decimais, somente leitura se a grandeza for compatível. O driver não procura registradores como Modbus nem transforma qualquer JSON em TAGs automaticamente.",
           "fields": null
         },
         {
@@ -2782,11 +2787,11 @@
       "id": "drivers.opcua-setup",
       "category": "drivers",
       "title": "OPC UA: endpoint, certificados e importação de nós",
-      "summary": "Selecione o servidor, aprove sua identidade e associe variáveis usando os nós corretos.",
+      "summary": "Localize o servidor, confira a confiança da conexão e escolha uma variável conhecida para ler.",
       "sections": [
         {
           "heading": "Descoberta não é ativação",
-          "body": "Na fonte OPC UA, use o assistente de descoberta para conhecer endpoints e modos oferecidos. Escolher um candidato preenche parâmetros; não cria credenciais protegidas nem aprova automaticamente certificados. O teste/navegação de Engenharia é temporário e não muda a revisão ativa.",
+          "body": "Comece localizando o servidor OPC UA e uma variável conhecida. Na fonte, o assistente de descoberta mostra os endpoints, os endereços de conexão e modos que o servidor oferece. Escolher um candidato preenche os parâmetros.\n\nDepois confira autenticação e confiança dos certificados. A seleção não cria credenciais protegidas nem aprova automaticamente o servidor. Os testes e a navegação de Engenharia são temporários: ajudam a preparar a fonte, mas não alteram a revisão ativa.",
           "fields": null
         },
         {
@@ -2954,7 +2959,7 @@
       "sections": [
         {
           "heading": "Fonte, dispositivo e Local são diferentes",
-          "body": "A Fonte de dados guarda como comunicar; Equipamento representa o dispositivo; Local organiza onde ele está. Capacidades funcionais como OnOff, Temperature ou Cover descrevem funções do equipamento, não permissões da Authority. Um dispositivo descoberto não ganha autorização para comandar pelo simples fato de ser incorporado.",
+          "body": "Ao incorporar, você transforma um dispositivo encontrado em recursos do projeto. A Fonte de dados diz como comunicar. Equipamento identifica o dispositivo e Local informa onde ele está.\n\nCapacidades como OnOff, Temperature ou Cover descrevem funções disponíveis: ligar/desligar, temperatura ou controle de cobertura, conforme o provedor. Não são permissões de segurança. Encontrar e incorporar um dispositivo não autoriza sua conta a comandá-lo; a política da Authority continua decidindo esse acesso.",
           "fields": [
             {
               "key": "dataSource",
@@ -3022,7 +3027,7 @@
       "sections": [
         {
           "heading": "Antes de conectar",
-          "body": "Este driver é BACnet/IP sobre UDP; não anuncia BACnet Secure Connect. Tenha instância do dispositivo, rota/IP/porta e acesso à rede a partir do servidor SCADIVO. Em Docker confira a rede e o UDP; descoberta por broadcast depende da topologia, não do navegador. Comece por um objeto somente leitura conhecido.",
+          "body": "Para começar, escolha um objeto BACnet conhecido que possa apenas ler, como uma entrada analógica. Peça ao responsável a instância do dispositivo e os dados de rede: rota, IP e porta.\n\nEste driver usa BACnet/IP por UDP. O servidor SCADIVO precisa alcançar essa rede; descoberta por broadcast depende da topologia da instalação. Em Docker, confira também rede e passagem de UDP. O acesso do navegador não prova essas condições. BACnet Secure Connect não é anunciado por este driver.",
           "fields": null
         },
         {
@@ -3156,7 +3161,7 @@
       "sections": [
         {
           "heading": "Requisitos e alcance",
-          "body": "A implementação usa um processo auxiliar gerenciado XKNX para túnel KNX IP Secure TCP e Data Secure. A instalação precisa incluir seu runtime compatível para Windows ou Linux x64 e o material protegido provisionado no host; um contêiner também precisa desses recursos. Este tipo não é uma promessa de túnel IP sem segurança, roteamento multicast ou descoberta automática de Engenharia. Obtenha parâmetros e endereços do projeto KNX/administrador.",
+          "body": "Use os dados do projeto KNX: endereços, gateway, tipo de cada ponto e materiais de segurança. Peça essas informações ao responsável antes de preencher a fonte. Separe o ponto que recebe comando daquele que informa o estado real.\n\nEsta conexão usa túnel KNX IP Secure TCP e Data Secure. Ela depende de um processo auxiliar XKNX incluído na instalação, para Windows ou Linux x64, e do material protegido preparado no servidor. Um contêiner também precisa desses recursos.\n\nNão presuma túnel IP sem segurança, roteamento multicast ou descoberta automática de Engenharia: esses recursos não são prometidos por este tipo.",
           "fields": null
         },
         {
@@ -3262,7 +3267,7 @@
       "sections": [
         {
           "heading": "Bridge local, com identidade explícita",
-          "body": "HAB significa Home Assistant Bridge; HA no SCADIVO continua significando Alta Disponibilidade. Use Home Assistant alcançável pelo servidor e token autorizado, provisionado como material protegido. A integração não gerencia contas Home Assistant, não copia sua base interna e não transforma todas as suas integrações em drivers nativos SCADIVO.",
+          "body": "Use esta fonte para conectar a uma instalação Home Assistant já preparada por você ou pelo responsável da rede. Ela precisa ser alcançável pelo servidor SCADIVO. Prepare o token autorizado como material protegido antes de usar a conexão.\n\nHAB é a abreviação de Home Assistant Bridge; HA no SCADIVO continua significando Alta Disponibilidade. A ponte permite integrar as entidades suportadas, mas não gerencia contas Home Assistant nem copia sua base. Integrações do Home Assistant não se tornam, por isso, drivers nativos do SCADIVO.",
           "fields": null
         },
         {
@@ -3375,7 +3380,7 @@
       "sections": [
         {
           "heading": "O que precisa estar disponível",
-          "body": "O firmware precisa oferecer a API nativa ESPHome. O driver se conecta pela rede local sem exigir Home Assistant, Dashboard ESPHome ou processo Python auxiliar. No modo Noise, a chave da API deve estar provisionada no servidor; o navegador não conversa diretamente com o microcontrolador.",
+          "body": "Confira primeiro se o firmware do dispositivo oferece a API nativa ESPHome. Esse é o serviço usado para ler suas entidades pela rede local. O servidor SCADIVO faz a conexão; o navegador não comunica diretamente com o microcontrolador.\n\nNão é necessário ter Home Assistant, Dashboard ESPHome ou processo Python auxiliar para esse caminho. Se usar o modo Noise, prepare a chave da API no servidor antes de conectar.",
           "fields": null
         },
         {
@@ -3495,7 +3500,7 @@
       "sections": [
         {
           "heading": "Conexão local, com geração compatível",
-          "body": "Este driver usa RPC de Shelly Gen2+ por HTTP/WebSocket; não é API de nuvem e não promete compatibilidade com todo Shelly Gen1. Tenha o host local, porta e autenticação do dispositivo. Um componente representa um canal/função do dispositivo, não um usuário ou Local do SCADIVO.",
+          "body": "Confira a geração do dispositivo e escolha um canal conhecido para testar. Este driver usa a comunicação local RPC de Shelly Gen2+, por HTTP/WebSocket. Tenha endereço, porta e autenticação do dispositivo.\n\nComponente significa um canal ou função do Shelly, não um usuário ou Local do SCADIVO. A conexão não usa API de nuvem e não promete compatibilidade com todo Shelly Gen1.",
           "fields": null
         },
         {
@@ -3608,7 +3613,7 @@
       "sections": [
         {
           "heading": "Antes de preencher campos",
-          "body": "Este é um checklist, não uma tela nova de configuração. A escolha da fonte depende do coordenador/controlador e da instalação externa que você realmente tem. Um rádio não deve ser aberto simultaneamente pelo SCADIVO e por outro processo que controle a mesma porta.",
+          "body": "Antes de escolher a fonte, identifique quem mantém sua rede Zigbee ou Z-Wave. Pode ser um coordenador/controlador ligado ao servidor ou uma instalação externa já preparada. O tipo da fonte precisa corresponder a esse caminho real.\n\nEste guia ajuda a decidir; não é uma tela nova de configuração. Não abra o mesmo rádio simultaneamente no SCADIVO e em outro processo que controle sua porta.",
           "fields": [
             {
               "key": "connectionType",
@@ -3654,7 +3659,7 @@
       "sections": [
         {
           "heading": "Instalação necessária",
-          "body": "Este driver usa coordenador serial TI zStack/CC2652 e processo auxiliar gerenciado da distribuição para Windows ou Linux x64. No contêiner, o host precisa disponibilizar o recurso físico e o estado persistente. A rede e o dispositivo devem estar preparados; não há descoberta ou assistente de inclusão de Engenharia neste tipo. Não promete todos os dispositivos/clusters Zigbee.",
+          "body": "Para este caminho, a rede e o dispositivo Zigbee já precisam estar preparados. Use um coordenador serial TI zStack/CC2652 compatível ligado ao servidor. Esta versão não oferece descoberta ou assistente de inclusão de Engenharia e não promete todos os dispositivos ou clusters Zigbee.\n\nA distribuição usa um processo auxiliar gerenciado para Windows ou Linux x64. Em contêiner, o host precisa disponibilizar o rádio físico e o armazenamento persistente do estado. Confira esses recursos antes de preencher a fonte.",
           "fields": null
         },
         {
@@ -3781,7 +3786,7 @@
       "sections": [
         {
           "heading": "O que este tipo faz",
-          "body": "O processo auxiliar gerenciado usa um controlador serial local e comunicação interna restrita ao próprio host. A instalação suporta Windows/Linux x64; em Docker também são necessários dispositivo e diretório de estado persistente. Este driver trabalha com valores persistidos já preparados: não oferece inclusão, exclusão, SmartStart, reset, administração de controlador nem descoberta de Engenharia.",
+          "body": "Use este caminho para ler valores persistidos de uma rede Z-Wave já preparada. O controlador serial é local ao servidor; o processo auxiliar gerenciado usa comunicação interna limitada ao próprio host.\n\nA instalação suporta Windows ou Linux x64. Em Docker, disponibilize também o dispositivo e o diretório que conserva o estado. Este tipo não oferece inclusão, exclusão, SmartStart, reset, administração do controlador ou descoberta de Engenharia. Prepare a rede pelo procedimento próprio antes de usar seus valores no SCADIVO.",
           "fields": null
         },
         {
@@ -3901,7 +3906,7 @@
       "sections": [
         {
           "heading": "Instalação externa e fluxo disponível",
-          "body": "Zigbee2MQTT e broker são administrados fora do SCADIVO. Dispositivos devem estar associados à rede externa; este conector não abre inclusão, não administra o coordenador e não substitui o driver Zigbee nativo. Teste de conexão, descoberta e teste de leitura são anunciados, mas descoberta sem seleção lista somente inventário. A interface atual não envia a seleção necessária para incorporar; o fluxo aguarda correção.\n\nO formato externo põe as funções em definition.exposes; esta versão do parser procura exposes na raiz. Assim, um dispositivo pode ser listado sem gerar TAGs. A correção de compatibilidade está pendente, separadamente da seleção na interface.",
+          "body": "Escolha esta ponte se já tem Zigbee2MQTT e broker administrados fora do SCADIVO, com dispositivos associados à rede. Ela consulta essa instalação; não abre inclusão nem administra o coordenador. Zigbee nativo é outro caminho.\n\nO conector anuncia teste de conexão, descoberta e teste de leitura. Descoberta lista inventário; incorporar exige escolher o que entrará no projeto. A interface atual ainda tem uma limitação nessa seleção. A leitura de algumas estruturas aninhadas do inventário também espera correção, separadamente. Os passos adiante indicam esses limites para não prometer uma incorporação completa onde ela não está disponível.",
           "fields": null
         },
         {
@@ -4215,7 +4220,7 @@
       "sections": [
         {
           "heading": "Prepare o lado do CLP",
-          "body": "Use a CPU e o projeto corretos. Este driver acessa memória por endereço absoluto via S7 ISO-on-TCP; não é OPC UA nem navegação simbólica completa do TIA. Em S7-1200/1500, confirme com o responsável pelo CLP o acesso externo permitido, PUT/GET quando exigido e DB com layout absoluto compatível, sem otimização que altere os offsets esperados. O SCADIVO não muda essas opções nem substitui a proteção da instalação.",
+          "body": "Escolha uma variável conhecida no programa do CLP e obtenha seu endereço de memória. Este driver S7 ISO-on-TCP lê por endereço absoluto: você precisa saber onde o valor está, não apenas seu nome. Não é a navegação simbólica completa do TIA nem uma conexão OPC UA.\n\nEm S7-1200/1500, confirme com o responsável o acesso externo permitido, PUT/GET quando exigido e um DB com layout absoluto compatível. DB é o bloco de dados; offsets indicam posições dentro dele. Otimizações que mudam essas posições podem tornar o mapa incompatível. O SCADIVO não altera essas opções nem substitui a proteção do CLP.",
           "fields": null
         },
         {
@@ -4423,7 +4428,7 @@
       "sections": [
         {
           "heading": "Qual conexão está sendo configurada",
-          "body": "Este driver usa mensagens explícitas EtherNet/IP para símbolos de ControlLogix/CompactLogix. Não é scanner de I/O cíclico de todos os dispositivos EtherNet/IP, nem driver genérico para SLC/PLC-5/MicroLogix. Tenha IP, perfil, rota real e configuração de acesso externo do símbolo.",
+          "body": "Comece por um símbolo conhecido de ControlLogix ou CompactLogix. Símbolo é a referência nomeada usada pelo programa. Tenha o endereço IP, perfil e rota reais e confira se o símbolo permite acesso externo.\n\nEste driver usa mensagens explícitas EtherNet/IP para esses símbolos. Ele não é um scanner de entradas/saídas cíclicas de todos os dispositivos EtherNet/IP nem um driver genérico para SLC, PLC-5 ou MicroLogix. Confira a família antes de preparar a fonte.",
           "fields": null
         },
         {
@@ -4596,7 +4601,7 @@
       "sections": [
         {
           "heading": "Preparação do serviço MC",
-          "body": "Tenha o serviço MC/SLMP TCP compatível e a porta habilitados no CLP. Este perfil usa quadros binários 3E; não presume suporte a todo modelo, ASCII, UDP ou toda memória Mitsubishi. O nome familiar do driver não substitui o perfil do equipamento.",
+          "body": "Peça ao responsável pelo CLP o perfil, a porta e uma posição de memória conhecida para testar. O serviço MC/SLMP TCP compatível precisa estar habilitado no equipamento.\n\nEste perfil usa quadros binários 3E, o formato de mensagem previsto para a conexão. Não presuma suporte a todo modelo Mitsubishi, mensagens ASCII, UDP ou toda a memória do CLP. Compare o perfil com o equipamento real antes de preencher os endereços.",
           "fields": null
         },
         {
@@ -4776,7 +4781,7 @@
       "sections": [
         {
           "heading": "Escolha o perfil e o transporte",
-          "body": "MEWTOCOL-COM TCP acessa um serviço ou adaptador TCP compatível; Host Serial usa a porta física visível no servidor. São fontes distintas. Em serial confira cabo, RS-232/RS-485 e configuração da linha. O driver não transforma um conversor Ethernet genérico em servidor de todos os protocolos Panasonic.",
+          "body": "Escolha a conexão conforme a instalação: MEWTOCOL-COM TCP usa um serviço ou adaptador TCP compatível; Host Serial usa a porta física disponível no servidor SCADIVO. São fontes distintas, com configurações próprias.\n\nPara serial, confira cabo, padrão elétrico RS-232/RS-485 e parâmetros da linha. Tenha o mapa de memória do equipamento para escolher uma leitura de teste. Um conversor Ethernet genérico não se torna, por esta configuração, servidor de todos os protocolos Panasonic.",
           "fields": null
         },
         {
@@ -4932,11 +4937,11 @@
       "id": "drivers.dnp3-setup",
       "category": "drivers",
       "title": "DNP3: associação, eventos e comandos",
-      "summary": "Configure a outstation e diferencie identidade, consulta, representação e confirmação.",
+      "summary": "Prepare a comunicação com a estação remota e confira um ponto antes de configurar comandos.",
       "sections": [
         {
           "heading": "Prepare a associação",
-          "body": "O SCADIVO atua como mestre/cliente DNP3 TCP. Obtenha com o responsável pela outstation: IP/porta, endereços de enlace, lista de pontos, variações, classes e operações permitidas. Um ponto estático pode chegar por consulta e eventos podem chegar espontaneamente. Não há Browse ou Testar conexão de Engenharia anunciado neste descritor; avalie a associação e o ponto conhecido no Runtime/Diagnóstico após a ativação. Não interprete a falta desse botão como ausência do driver.",
+          "body": "O SCADIVO consulta uma estação remota DNP3 por TCP como mestre/cliente. Essa estação é chamada outstation. Peça ao responsável seu IP/porta, endereços de enlace, lista de pontos, variações de formato, classes e operações permitidas.\n\nUma leitura estática pode chegar por consulta; eventos também podem chegar espontaneamente. Comece com um ponto conhecido e confira a associação no Runtime/Diagnóstico após ativar a revisão. Não há Browse ou Testar conexão de Engenharia anunciado neste descritor. A falta desse botão não significa que o driver está ausente.",
           "fields": null
         },
         {
@@ -5296,11 +5301,11 @@
       "id": "drivers.iec104-setup",
       "category": "drivers",
       "title": "IEC 104: estações, pontos observados e comandos",
-      "summary": "Configure CA/IOA e tipos sem tratar a observação como uma lista completa de pontos.",
+      "summary": "Configure um ponto conhecido e entenda os limites da lista observada antes de operar.",
       "sections": [
         {
           "heading": "O que preparar e o que Browse comprova",
-          "body": "O SCADIVO é cliente/mestre IEC 60870-5-104. Tenha a lista de CA/IOA, tipos, relógio e comandos fornecida pela estação remota. Testar conexão comprova o alcance informado pelo resultado; Browse faz uma observação limitada com interrogação geral e tráfego recebido, não uma varredura garantida de todo o mapa. O resultado é parcial; ausência na lista não prova que um ponto inexista.",
+          "body": "Comece por um ponto conhecido da estação remota. O SCADIVO é cliente/mestre IEC 60870-5-104. Obtenha a lista de endereços CA/IOA, tipos, configuração de relógio e comandos permitidos. CA identifica o endereço comum e IOA o objeto de informação; use a lista da estação, sem adivinhar números.\n\nTestar conexão comprova apenas o alcance descrito no resultado. Browse observa uma janela de tráfego com interrogação geral: o resultado é parcial, não uma varredura garantida do mapa inteiro. Um ponto ausente nessa lista pode existir na estação.",
           "fields": null
         },
         {
@@ -5461,7 +5466,7 @@
       "sections": [
         {
           "heading": "Servidor é diferente de mestre",
-          "body": "No perfil Server o SCADIVO atende outro mestre/cliente e publica seus TAGs mapeados em Holding Registers. Ele não consulta um CLP remoto por essa fonte. Para publicar um valor de outro driver, crie o TAG de destino Server e uma rota Gateway compatível; um TAG não passa a ter duas fontes. TCP escuta uma interface/porta; RTU responde pelo dispositivo serial do servidor.",
+          "body": "Use Server quando outro sistema precisa consultar valores publicados pelo SCADIVO. Aqui o cliente externo pergunta e o SCADIVO responde com os TAGs mapeados em Holding Registers. A fonte não consulta um CLP remoto.\n\nPara repassar um valor recebido por outro driver, crie um TAG de destino Server e uma rota Gateway compatível. A rota leva o valor até esse destino; um TAG não passa a ter duas fontes. Em TCP, o servidor escuta uma interface/porta. Em RTU, responde pela porta serial do servidor.",
           "fields": null
         },
         {
@@ -5634,7 +5639,7 @@
       "sections": [
         {
           "heading": "Comece pela disponibilidade",
-          "body": "O SCADIVO é multiplataforma. Este conector específico é uma prévia isolada, com host Linux x64 e processo auxiliar local (sidecar); não é uma liberação de Matter para toda instalação. A composição padrão não oferece esse tipo. Ele só aparece quando o responsável pela instalação habilita a prévia em Development/Test, sem HA. Se Matter não estiver na lista de Fontes de dados, não escolha outro driver para imitá-lo. Confirme com esse responsável se o ambiente é elegível. O Help permanece disponível para explicar essa diferença, mesmo quando a fonte não está disponível."
+          "body": "Antes de configurar, confirme se Matter Wi-Fi aparece na sua instalação. O SCADIVO é multiplataforma, mas este conector é uma prévia isolada para host Linux x64, com processo auxiliar local, chamado sidecar. Não é uma liberação de Matter para toda instalação.\n\nA composição padrão não oferece o tipo. Ele só aparece quando o responsável habilita a prévia em Development/Test, sem HA. Se não estiver em Fontes de dados, confira a elegibilidade com esse responsável; não escolha outro driver para imitá-lo. O Help continua disponível para explicar esses limites."
         },
         {
           "heading": "O que você pode preparar",
@@ -5642,7 +5647,7 @@
         },
         {
           "heading": "Antes de abrir o editor",
-          "body": "Obtenha do responsável pelo ambiente de teste a identidade do nó, endpoint, cluster, atributo e tipo real do valor. Esses números identificam o ponto do dispositivo; não são o ID interno do TAG. O host precisa do sidecar instalado e da rede IPv6 adequada; a dependência declarada requer Node.js 22.13+ ou 24+. Não presuma que a rede de um contêiner tenha as mesmas condições da máquina. Fabric e armazenamento criptografado pertencem ao host; importar um .escadapkg não os transfere nem recupera uma chave perdida. Este guia não pede credenciais ou chaves em campos do projeto. Nó é a identidade de um dispositivo no fabric. Endpoint identifica uma função desse dispositivo, como uma das saídas de um módulo. Cluster agrupa funções e atributos de um serviço, como On/Off; atributo é um valor desse grupo, como o estado ligado/desligado. Um mesmo equipamento pode ter vários endpoints: não copie os números de outra unidade sem conferir."
+          "body": "Peça ao responsável os números que identificam o ponto: nó, endpoint, cluster e atributo, além do tipo real do valor. Eles não são o ID interno do TAG.\n\nNó identifica o dispositivo na rede lógica Matter, chamada fabric. Endpoint identifica uma função, como uma saída. Cluster reúne funções e atributos de um serviço, como On/Off. Atributo é um valor desse grupo, como ligado/desligado. Um dispositivo pode ter vários endpoints; confira seus números em vez de copiar os de outra unidade.\n\nNo host, precisam estar preparados o sidecar e a rede IPv6. A dependência declarada requer Node.js 22.13+ ou 24+. Uma rede de contêiner pode ter condições diferentes da máquina. Fabric e armazenamento criptografado ficam no host: importar .escadapkg não os transfere nem recupera chave perdida. Este roteiro não pede chaves ou credenciais nos campos do projeto."
         },
         {
           "heading": "Preparar a fonte e a chave do host",
@@ -7616,7 +7621,7 @@
       "sections": [
         {
           "heading": "Separate location, device and connection",
-          "body": "Open Engineering > Home/Building. A Location describes where an asset is; device/equipment identifies an instance; Data Source supplies the connection. A room is not a Driver, and moving location does not switch protocols. Start with devices/TAGs actually exposed by the provider.",
+          "body": "In Engineering > Home/Building, first organize where a device is. Location may be a room or area. Equipment is the device instance, such as a light. Data Source stores the connection used to communicate.\n\nThese are different facts: moving a light to another room does not change its protocol. Start with devices and TAGs the connection actually offers.",
           "fields": [
             {
               "key": "location.name",
@@ -9178,7 +9183,17 @@
       "sections": [
         {
           "heading": "Before entering values",
-          "body": "In Engineering → Data Sources, have the address/node/topic map, network or serial settings and a known reading available. The SCADIVO server performs communication; browser access does not prove the server can reach the equipment. Start with one read-only TAG.",
+          "body": "Start with a known reading, such as pressure you can check on the equipment. In Engineering > Data Sources, a source stores how to reach the equipment. The driver speaks its protocol; the binding identifies the point to read; the TAG is the variable receiving the value.\n\nHave the manufacturer’s map and network or serial-port settings ready. Start with a read-only TAG. Communication comes from the SCADIVO server: reaching equipment in a browser does not prove that server can reach it. Fields below are for lookup during configuration.",
+          "fields": null
+        },
+        {
+          "heading": "Prepare, check and activate",
+          "body": "1. Create or select the source and choose the driver matching the equipment protocol.\n2. Fill basic fields. Open advanced fields when you need to review or change their values.\n3. Use Test connection if the driver offers it. The test uses the draft; it does not apply the edit or change Runtime.\n4. Review changes and diagnostics. Apply to Workspace puts configuration in the working draft.\n5. Create a TAG with that source, value type and point binding. Test reading when available.\n6. Save, publish and activate through project controls so Runtime uses the configuration.\n7. Compare value and unit with the known reference. Check quality and updates before adding a screen, alarm or command.",
+          "fields": null
+        },
+        {
+          "heading": "Look up source fields",
+          "body": "Use this table while preparing the connection. The procedure above gives the sequence; names and examples here help when a field is unclear.",
           "fields": [
             {
               "key": "key",
@@ -9218,13 +9233,8 @@
           ]
         },
         {
-          "heading": "Prepare, check and activate",
-          "body": "1. Create or select the source and choose the correct driver. 2. Fill basic fields and open advanced fields only when their defaults need changing. 3. Use Test connection where the driver offers it; a draft test does not apply changes. 4. Check changes and read diagnostics; Apply to Workspace updates working configuration. 5. Configure a TAG with this source, type and protocol binding; test its read where available. 6. Save/publish and activate the revision through the project workflow so Runtime uses this configuration. 7. Check value, unit, quality and updates before adding commands or alarms.",
-          "fields": null
-        },
-        {
           "heading": "Connected but no value",
-          "body": "A connection test confirms its own step, not the whole map or a physical action. Check source enabled state, TAG binding, active revision and diagnostics. Access denied differs from timeout; bad quality differs from zero. ReadOnly and write permissions still apply even if a protocol supports writes. Discovery/testing features depend on the driver; MQTT Raw does not advertise an Engineering connection test.",
+          "body": "Connecting and reading a point are different checks. A successful connection test does not verify the whole map or a physical action. For no value, check enabled source, TAG binding, active revision and diagnostics.\n\nRead the reason: denied access is not a timeout; an invalid reading is not zero. Even if the protocol supports writing, ReadOnly and account permissions still apply. Discovery and test actions depend on the driver. MQTT Raw, for example, offers no Engineering connection test.",
           "fields": null
         }
       ],
@@ -9240,11 +9250,11 @@
       "id": "drivers.modbus-setup",
       "category": "drivers",
       "title": "Modbus: TCP, serial and register maps",
-      "summary": "Prepare a TCP client or RTU master and understand each value address and representation.",
+      "summary": "Prepare the connection and use the equipment map to check a first reading.",
       "sections": [
         {
           "heading": "Choose client or master",
-          "body": "Use Modbus TCP to query a network server/controller and Modbus RTU Master to query slaves on the host serial bus. This walkthrough does not configure SCADIVO as a Modbus Server; that type has a different role. Have the vendor map and start with a known variable without writes.",
+          "body": "First choose who queries whom. Use Modbus TCP for SCADIVO to read a controller over the network. Use Modbus RTU Master to query equipment on the server’s serial cable; equipment then responds as slaves.\n\nHave the manufacturer’s register map, the list identifying each value’s address and representation. Start with one known reading, without writes. Modbus Server has a different role: SCADIVO responds to an external client. Use its separate guide for that purpose.",
           "fields": null
         },
         {
@@ -9402,11 +9412,11 @@
       "id": "drivers.mqtt-setup",
       "category": "drivers",
       "title": "MQTT: topics, JSON and value freshness",
-      "summary": "Connect to a broker and turn messages into typed values, separating subscriptions and publication.",
+      "summary": "Receive a measurement sent in a message and check that its value is current before using it.",
       "sections": [
         {
           "heading": "A broker is not a sensor",
-          "body": "MQTT Raw receives messages when published. It does not poll like Modbus or automatically discover TAGs from arbitrary JSON. Have the host, port, TLS, authentication, topics and actual payload samples. Start with one read-only Double TAG.",
+          "body": "In MQTT, equipment publishes messages and the broker distributes them to subscribers. A topic names the message channel; payload is its content. MQTT Raw receives what is published on configured topics.\n\nBefore creating the source, have broker address/port, TLS protection, authentication and a real message example. Choose one quantity to test, using a read-only Double TAG, a number with decimal places, for a compatible quantity. The driver does not scan registers like Modbus or automatically turn arbitrary JSON into TAGs.",
           "fields": null
         },
         {
@@ -9640,11 +9650,11 @@
       "id": "drivers.opcua-setup",
       "category": "drivers",
       "title": "OPC UA: endpoints, certificates and node import",
-      "summary": "Select the server, approve its identity and associate variables using the correct nodes.",
+      "summary": "Locate the server, check connection trust and choose a known variable to read.",
       "sections": [
         {
           "heading": "Discovery is not activation",
-          "body": "In the OPC UA source use discovery to inspect offered endpoints and modes. Selecting a candidate fills parameters; it does not create protected credentials or automatically approve certificates. Engineering tests/browsing are temporary and do not change the active revision.",
+          "body": "Start by locating the OPC UA server and a known variable. In the source, discovery shows endpoints, the connection addresses and modes the server offers. Selecting a candidate fills parameters.\n\nThen check authentication and certificate trust. Selection does not create protected credentials or automatically approve the server. Engineering tests and browsing are temporary: they help prepare the source without changing the active revision.",
           "fields": null
         },
         {
@@ -9812,7 +9822,7 @@
       "sections": [
         {
           "heading": "Source, device and Location differ",
-          "body": "A Data Source stores communication settings; Equipment represents the device; Location organizes where it is. Functional capabilities such as OnOff, Temperature or Cover describe equipment functions, not Authority permissions. Discovering/incorporating a device does not automatically authorize commands.",
+          "body": "Incorporating turns a discovered device into project resources. Data Source says how to communicate. Equipment identifies the device and Location says where it is.\n\nCapabilities such as OnOff, Temperature or Cover describe available functions: on/off, temperature or cover control, according to the provider. They are not security permissions. Finding and incorporating a device does not authorize your account to command it; Authority policy still decides access.",
           "fields": [
             {
               "key": "dataSource",
@@ -9880,7 +9890,7 @@
       "sections": [
         {
           "heading": "Before connecting",
-          "body": "This driver is BACnet/IP over UDP; it does not advertise BACnet Secure Connect. Have device instance, route/IP/port and server-side network access. In Docker check networking and UDP; broadcast discovery depends on topology, not the browser. Start with a known read-only object.",
+          "body": "Start with a known read-only BACnet object, such as an analog input. Ask the administrator for device instance and network details: route, IP and port.\n\nThis driver uses BACnet/IP over UDP. The SCADIVO server must reach that network; broadcast discovery depends on installation topology. In Docker, also check networking and UDP forwarding. Browser access does not establish these conditions. This driver does not advertise BACnet Secure Connect.",
           "fields": null
         },
         {
@@ -10014,7 +10024,7 @@
       "sections": [
         {
           "heading": "Requirements and scope",
-          "body": "The implementation uses a managed XKNX sidecar for KNX IP Secure TCP tunneling and Data Secure. Installation needs its compatible runtime for Windows or Linux x64 and protected host material; a container needs those resources too. This type does not promise unsecured IP tunneling, multicast routing or automatic Engineering discovery. Obtain settings/addresses from the KNX project/administrator.",
+          "body": "Use the KNX project details: addresses, gateway, each point’s type and security material. Obtain them from the administrator before filling the source. Keep the command point separate from the point reporting actual state.\n\nThis connection uses KNX IP Secure TCP tunneling and Data Secure. It depends on the installation’s XKNX helper process for Windows or Linux x64 and protected material prepared on the server. A container needs these resources too.\n\nDo not assume unsecured IP tunneling, multicast routing or automatic Engineering discovery: this type does not promise them.",
           "fields": null
         },
         {
@@ -10120,7 +10130,7 @@
       "sections": [
         {
           "heading": "Local bridge with explicit identity",
-          "body": "HAB means Home Assistant Bridge; HA in SCADIVO still means High Availability. Use Home Assistant reachable from the server and an authorized token provisioned as protected material. The integration does not manage Home Assistant accounts, copy its internal database or turn all its integrations into native SCADIVO drivers.",
+          "body": "Use this source to connect to a Home Assistant installation already prepared by you or the network administrator. It must be reachable from the SCADIVO server. Prepare its authorized token as protected material before using the connection.\n\nHAB abbreviates Home Assistant Bridge; HA in SCADIVO still means High Availability. The bridge integrates supported entities, but does not manage Home Assistant accounts or copy its database. Home Assistant integrations do not thereby become native SCADIVO drivers.",
           "fields": null
         },
         {
@@ -10233,7 +10243,7 @@
       "sections": [
         {
           "heading": "What must be available",
-          "body": "Firmware must offer the ESPHome Native API. The driver connects on the local network without requiring Home Assistant, ESPHome Dashboard or a Python sidecar. In Noise mode the API key must be provisioned on the server; the browser does not connect directly to the microcontroller.",
+          "body": "First check that device firmware offers the ESPHome native API, the service used to read its entities over the local network. The SCADIVO server makes the connection; the browser does not talk directly to the microcontroller.\n\nThis path requires neither Home Assistant, ESPHome Dashboard nor a Python helper process. For Noise mode, prepare the API key on the server before connecting.",
           "fields": null
         },
         {
@@ -10353,7 +10363,7 @@
       "sections": [
         {
           "heading": "Local connection with a compatible generation",
-          "body": "This driver uses Shelly Gen2+ RPC over HTTP/WebSocket; it is not a cloud API and does not promise compatibility with every Gen1 device. Have local host, port and device authentication. A component represents a device channel/function, not a SCADIVO user or Location.",
+          "body": "Check the device generation and choose one known channel to test. This driver uses local Shelly Gen2+ RPC communication over HTTP/WebSocket. Have device address, port and authentication ready.\n\nComponent means a Shelly channel or function, not a SCADIVO user or Location. The connection does not use a cloud API or promise compatibility with every Shelly Gen1.",
           "fields": null
         },
         {
@@ -10466,7 +10476,7 @@
       "sections": [
         {
           "heading": "Before filling fields",
-          "body": "This is a checklist, not a new configuration page. Source choice depends on the actual coordinator/controller and external installation. A radio must not be opened simultaneously by SCADIVO and another process controlling the same port.",
+          "body": "Before choosing a source, identify what maintains your Zigbee or Z-Wave network: a coordinator/controller attached to the server or an existing external installation. The source type must match that actual path.\n\nThis guide helps you decide; it is not a new configuration screen. Do not open the same radio simultaneously in SCADIVO and another process controlling its port.",
           "fields": [
             {
               "key": "connectionType",
@@ -10512,7 +10522,7 @@
       "sections": [
         {
           "heading": "Required installation",
-          "body": "This driver uses a TI zStack/CC2652 serial coordinator and distribution-managed helper process for Windows or Linux x64. In a container the host must expose the physical resource and persistent state. Network/device must already be prepared; this type has no Engineering discovery or inclusion wizard. It does not promise every Zigbee device/cluster.",
+          "body": "For this path, the Zigbee network and device must already be prepared. Use a compatible TI zStack/CC2652 serial coordinator attached to the server. This version offers no Engineering discovery or inclusion wizard and does not promise all Zigbee devices or clusters.\n\nThe distribution uses a managed helper process for Windows or Linux x64. In a container, the host must expose the physical radio and persistent state storage. Check those resources before filling the source.",
           "fields": null
         },
         {
@@ -10639,7 +10649,7 @@
       "sections": [
         {
           "heading": "What this type does",
-          "body": "The managed helper uses a local serial controller and internal communication restricted to the host. Installation supports Windows/Linux x64; Docker also needs device access and persistent state directory. This driver handles prepared persistent values: no inclusion, exclusion, SmartStart, reset, controller administration or Engineering discovery.",
+          "body": "Use this path to read persisted values from an already prepared Z-Wave network. The serial controller is local to the server; its managed helper uses internal communication limited to that host.\n\nInstallation supports Windows or Linux x64. In Docker, also provide the device and persistent state directory. This type offers no inclusion, exclusion, SmartStart, reset, controller administration or Engineering discovery. Prepare the network through its own procedure before using values in SCADIVO.",
           "fields": null
         },
         {
@@ -10759,7 +10769,7 @@
       "sections": [
         {
           "heading": "External installation and available workflow",
-          "body": "Zigbee2MQTT and broker are managed outside SCADIVO. Devices must already be commissioned on the external network; this connector does not open inclusion, administer the coordinator or replace the Native Zigbee driver. Connection test, discovery and read test are advertised, but discovery without selection lists inventory only. The current UI does not send selection required for incorporation; that workflow awaits correction.\n\nThe external format puts exposes in definition.exposes; this parser version looks for exposes at the root. A device can therefore be listed without producing TAGs. Compatibility correction is pending separately from UI selection.",
+          "body": "Choose this bridge when Zigbee2MQTT and its broker are managed outside SCADIVO and devices are already joined. It queries that installation; it does not open inclusion or administer the coordinator. Native Zigbee is another path.\n\nThe connector advertises connection testing, discovery and read testing. Discovery lists inventory; incorporation requires choosing what enters the project. The current UI still limits that selection. Reading some nested inventory structures also awaits a separate correction. Steps below identify those limits rather than promising a complete incorporation where unavailable.",
           "fields": null
         },
         {
@@ -11073,7 +11083,7 @@
       "sections": [
         {
           "heading": "Prepare the PLC side",
-          "body": "Use the correct CPU and PLC project. This driver accesses absolute memory through S7 ISO-on-TCP; it is neither OPC UA nor full TIA symbolic browsing. For S7-1200/1500, have the PLC owner check permitted external access, PUT/GET where required and an absolute-compatible DB layout without optimization changing expected offsets. SCADIVO does not change these settings or replace installation protection.",
+          "body": "Choose a known variable in the PLC program and obtain its memory address. This S7 ISO-on-TCP driver reads absolute addresses: you need to know where the value is, not just its name. It is not full TIA symbolic browsing or an OPC UA connection.\n\nFor S7-1200/1500, confirm allowed external access, PUT/GET when required and a compatible absolute-layout DB with the administrator. DB means data block; offsets are positions inside it. Optimizations changing those positions can make the map incompatible. SCADIVO does not alter these options or replace PLC protection.",
           "fields": null
         },
         {
@@ -11281,7 +11291,7 @@
       "sections": [
         {
           "heading": "Which connection you are configuring",
-          "body": "This driver uses explicit EtherNet/IP messages for ControlLogix/CompactLogix symbols. It is not cyclic I/O scanning for every EtherNet/IP device or a generic SLC/PLC-5/MicroLogix driver. Obtain the IP, profile, actual route and symbol external-access settings.",
+          "body": "Start with a known ControlLogix or CompactLogix symbol, the named reference used by the program. Have actual IP address, profile and route, and check that the symbol permits external access.\n\nThis driver uses explicit EtherNet/IP messages for these symbols. It is not a cyclic I/O scanner for all EtherNet/IP devices or a generic SLC, PLC-5 or MicroLogix driver. Check the family before preparing the source.",
           "fields": null
         },
         {
@@ -11454,7 +11464,7 @@
       "sections": [
         {
           "heading": "Prepare the MC service",
-          "body": "Have a compatible MC/SLMP TCP service and port enabled in the PLC. This profile uses binary 3E frames; it does not assume every model, ASCII, UDP or all Mitsubishi memory is supported. A familiar driver name does not replace the equipment profile.",
+          "body": "Ask the PLC administrator for the profile, port and one known memory position to test. A compatible MC/SLMP TCP service must be enabled on the equipment.\n\nThis profile uses binary 3E frames, the message format expected by the connection. Do not assume support for every Mitsubishi model, ASCII messages, UDP or all PLC memory. Compare the profile with actual equipment before filling addresses.",
           "fields": null
         },
         {
@@ -11634,7 +11644,7 @@
       "sections": [
         {
           "heading": "Choose profile and transport",
-          "body": "MEWTOCOL-COM TCP accesses a compatible TCP service or adapter; Host Serial uses the physical port visible on the server. These are distinct Data Sources. For serial, check cabling, RS-232/RS-485 and line settings. The driver does not turn a generic Ethernet converter into a server for every Panasonic protocol.",
+          "body": "Choose the connection for the installation: MEWTOCOL-COM TCP uses a compatible TCP service or adapter; Host Serial uses a physical port available to the SCADIVO server. They are distinct sources with their own settings.\n\nFor serial, check cable, RS-232/RS-485 electrical standard and line settings. Have the equipment memory map to select a test reading. This configuration does not turn a generic Ethernet converter into a server for every Panasonic protocol.",
           "fields": null
         },
         {
@@ -11790,11 +11800,11 @@
       "id": "drivers.dnp3-setup",
       "category": "drivers",
       "title": "DNP3: association, events and commands",
-      "summary": "Configure the outstation and distinguish identity, scanning, representation and confirmation.",
+      "summary": "Prepare communication with the remote station and check one point before configuring commands.",
       "sections": [
         {
           "heading": "Prepare the association",
-          "body": "SCADIVO acts as a DNP3 TCP master/client. Obtain IP/port, link addresses, point list, variations, classes and permitted operations from the outstation owner. Static points can arrive by scan and events can arrive unsolicited. This descriptor advertises neither Engineering Browse nor Test connection; inspect the association and a known point in Runtime/Diagnostics after activation. A missing button does not mean the driver is absent.",
+          "body": "SCADIVO queries a remote DNP3 station over TCP as master/client. That station is called an outstation. Ask its administrator for IP/port, link addresses, point list, format variations, classes and allowed operations.\n\nA static reading may arrive through polling; events may also arrive spontaneously. Start with a known point and check the association in Runtime/Diagnostics after activating the revision. This descriptor advertises no Engineering Browse or Test connection. A missing button does not mean the driver is absent.",
           "fields": null
         },
         {
@@ -12154,11 +12164,11 @@
       "id": "drivers.iec104-setup",
       "category": "drivers",
       "title": "IEC 104: stations, observed points and commands",
-      "summary": "Configure CA/IOA and types without treating observation as a complete point list.",
+      "summary": "Configure a known point and understand the observed list’s limits before operating.",
       "sections": [
         {
           "heading": "Preparation and what Browse proves",
-          "body": "SCADIVO is an IEC 60870-5-104 client/master. Obtain CA/IOA, types, clock and command lists from the remote station. Test connection proves only the scope stated in its result; Browse performs bounded observation of general interrogation and received traffic, not a guaranteed sweep of the full map. Results are partial; absence does not prove a point does not exist.",
+          "body": "Start with a known remote-station point. SCADIVO is an IEC 60870-5-104 client/master. Obtain the CA/IOA address list, types, clock settings and allowed commands. CA identifies the common address and IOA the information object; use the station list instead of guessing numbers.\n\nTest connection proves only the scope described in its result. Browse observes a traffic window with general interrogation: results are partial, not a guaranteed scan of the whole map. A point missing from that list may still exist in the station.",
           "fields": null
         },
         {
@@ -12319,7 +12329,7 @@
       "sections": [
         {
           "heading": "Server differs from master",
-          "body": "In Server mode SCADIVO serves another master/client and publishes mapped TAGs in Holding Registers. This source does not poll a remote PLC. To publish a value from another driver create a destination Server TAG and a compatible Gateway route; a TAG does not acquire two sources. TCP listens on an interface/port; RTU responds through the server’s serial device.",
+          "body": "Use Server when another system needs to query values published by SCADIVO. Here the external client asks and SCADIVO answers with TAGs mapped to Holding Registers. The source does not query a remote PLC.\n\nTo forward a value received through another driver, create a Server target TAG and a compatible Gateway route. The route carries the value to that target; a TAG does not gain two sources. TCP listens on an interface/port; RTU responds through the server’s serial port.",
           "fields": null
         },
         {
@@ -12492,7 +12502,7 @@
       "sections": [
         {
           "heading": "Start with availability",
-          "body": "SCADIVO is multiplatform. This particular connector is an isolated preview requiring a Linux x64 host and local auxiliary process (sidecar); it does not make Matter available in every installation. The default composition omits this type. It appears only when the installer explicitly enables the preview in Development/Test, without HA. If Matter is missing from Data Sources, do not imitate it with another driver. Ask the installation owner whether this environment is eligible. Help remains available to explain the distinction even when the source is unavailable."
+          "body": "Before configuring, check whether Matter Wi-Fi is available in your installation. SCADIVO is multiplatform, but this connector is an isolated preview for a Linux x64 host with a local helper process called a sidecar. It is not Matter availability for every installation.\n\nThe default composition does not offer the type. It appears only when the administrator enables preview in Development/Test, without HA. If absent from Data Sources, check eligibility with that administrator; do not choose another driver to imitate it. Help remains available to explain these limits."
         },
         {
           "heading": "What you can prepare",
@@ -12500,7 +12510,7 @@
         },
         {
           "heading": "Before opening the editor",
-          "body": "Obtain the real node, endpoint, cluster, attribute and value type from the test environment owner. These numbers identify the device point, not the internal TAG ID. The host needs an installed sidecar and a suitable IPv6 network; the declared dependency requires Node.js 22.13+ or 24+. Do not assume a container has the same network conditions as its host. Fabric and encrypted storage belong to the host; importing an .escadapkg neither transfers them nor recovers a lost key. This guide does not request credentials or keys in project fields. A node identifies a device within the fabric. An endpoint identifies one of its functions, such as an output of a multi-output module. A cluster groups the functions and attributes of a service, such as On/Off; an attribute is one value in that group, such as the on/off state. One device can have multiple endpoints: verify the numbers instead of copying them from another unit."
+          "body": "Ask the administrator for the numbers identifying the point: node, endpoint, cluster and attribute, plus actual value type. These are not the internal TAG ID.\n\nNode identifies the device in the Matter logical network, called a fabric. Endpoint identifies a function, such as an output. Cluster groups service functions and attributes, such as On/Off. An attribute is one value in that group, such as on/off state. A device can have several endpoints; check its numbers rather than copying another unit’s.\n\nThe host needs the sidecar and IPv6 network prepared. The declared dependency requires Node.js 22.13+ or 24+. Container networking can differ from the machine. Fabric and encrypted storage stay on the host: .escadapkg import neither transfers them nor recovers a lost key. This procedure asks for no keys or credentials in project fields."
         },
         {
           "heading": "Prepare the source and host key",
@@ -14474,7 +14484,7 @@
       "sections": [
         {
           "heading": "Separe ubicación, dispositivo y conexión",
-          "body": "Abra Ingeniería > Home/Building. Ubicación describe dónde está; dispositivo/equipo identifica instancia; Fuente de datos conecta. Una sala no es Driver; cambiar ubicación no cambia protocolo. Empiece con dispositivos/TAGs realmente expuestos.",
+          "body": "En Ingeniería > Home/Building, organice primero dónde está el dispositivo. Lugar puede ser una sala o área. Equipo es la instancia, como una luminaria. Fuente de datos, también llamada Data Source, guarda la conexión.\n\nSon datos distintos: mover la luminaria a otra sala no cambia su protocolo. Empiece con dispositivos y TAGs que realmente ofrece la conexión.",
           "fields": [
             {
               "key": "location.name",
@@ -16036,7 +16046,17 @@
       "sections": [
         {
           "heading": "Antes de completar",
-          "body": "En Ingeniería → Fuentes de datos, prepare el mapa de direcciones/nodos/tópicos, los parámetros de red o serie y una lectura conocida. El servidor SCADIVO realiza la comunicación; acceder desde el navegador no prueba que el servidor alcance el equipo. Empiece con un TAG de solo lectura.",
+          "body": "Empiece por una lectura conocida, como una presión comprobable en el equipo. En Ingeniería > Fuentes de datos, la fuente guarda cómo llegar al equipo. El driver habla su protocolo; el vínculo identifica el punto a leer; el TAG es la variable que recibe el valor.\n\nTenga el mapa del fabricante y los parámetros de red o puerto serie. Empiece con un TAG de solo lectura. La comunicación parte del servidor SCADIVO: acceder desde el navegador no demuestra que ese servidor alcance el equipo. Los campos siguientes sirven de consulta al configurar.",
+          "fields": null
+        },
+        {
+          "heading": "Preparar, comprobar y activar",
+          "body": "1. Cree o seleccione la fuente y elija el driver del protocolo del equipo.\n2. Complete campos básicos. Abra avanzados cuando necesite consultar o cambiar valores.\n3. Use Probar conexión si está disponible. La prueba usa el borrador; no aplica la edición ni cambia Runtime.\n4. Revise cambios y diagnósticos. Aplicar al Workspace lleva la configuración al borrador de trabajo.\n5. Cree un TAG con esa fuente, tipo de valor y vínculo del punto. Pruebe lectura cuando sea posible.\n6. Guarde, publique y active con los controles del proyecto para usarlo en Runtime.\n7. Compare valor y unidad con la referencia conocida. Compruebe calidad y actualización antes de añadir pantalla, alarma o comando.",
+          "fields": null
+        },
+        {
+          "heading": "Consultar campos de la fuente",
+          "body": "Use esta tabla al preparar la conexión. El procedimiento anterior da la secuencia; nombres y ejemplos ayudan si surge duda en un campo.",
           "fields": [
             {
               "key": "key",
@@ -16076,13 +16096,8 @@
           ]
         },
         {
-          "heading": "Preparar, comprobar y activar",
-          "body": "1. Cree o seleccione la fuente y elija el driver correcto. 2. Complete los campos básicos y abra los avanzados solo si necesita cambiar sus valores predeterminados. 3. Use Probar conexión cuando el driver lo ofrezca; probar el borrador no aplica cambios. 4. Verifique cambios y lea diagnósticos; Aplicar al Workspace actualiza la configuración de trabajo. 5. Configure un TAG con esta fuente, tipo y vínculo del protocolo; pruebe su lectura si está disponible. 6. Guarde/publique y active la revisión mediante el flujo del proyecto para usarla en Runtime. 7. Compruebe valor, unidad, calidad y actualización antes de crear comandos o alarmas.",
-          "fields": null
-        },
-        {
           "heading": "Conecta pero no hay valor",
-          "body": "Una prueba de conexión confirma solo su etapa, no todo el mapa ni una acción física. Compruebe fuente habilitada, vínculo del TAG, revisión activa y diagnósticos. Acceso denegado difiere de timeout; mala calidad difiere de cero. ReadOnly y permisos de escritura siguen vigentes aunque el protocolo admita escritura. Descubrimiento/pruebas dependen del driver; MQTT Raw no anuncia prueba de conexión de Ingeniería.",
+          "body": "Conectar y leer un punto son comprobaciones distintas. Probar conexión no verifica todo el mapa ni una acción física. Sin valor, compruebe fuente habilitada, vínculo del TAG, revisión activa y diagnósticos.\n\nLea el motivo: acceso denegado no es tiempo excedido; lectura inválida no es cero. Aunque el protocolo permita escritura, siguen vigentes ReadOnly y permisos. Descubrimiento y pruebas dependen del driver. MQTT Raw, por ejemplo, no ofrece prueba de conexión de Ingeniería.",
           "fields": null
         }
       ],
@@ -16098,11 +16113,11 @@
       "id": "drivers.modbus-setup",
       "category": "drivers",
       "title": "Modbus: TCP, serie y mapa de registros",
-      "summary": "Prepare el cliente TCP o maestro RTU y comprenda la dirección y representación de cada valor.",
+      "summary": "Prepare la conexión y use el mapa del equipo para comprobar una primera lectura.",
       "sections": [
         {
           "heading": "Elija cliente o maestro",
-          "body": "Use Modbus TCP para consultar un servidor/controlador de red y Modbus RTU Master para consultar esclavos en el bus serie del host. Este recorrido no configura SCADIVO como Modbus Server; ese tipo tiene otro papel. Prepare el mapa del fabricante y empiece con una variable conocida sin escritura.",
+          "body": "Elija primero quién consulta a quién. Use Modbus TCP para que SCADIVO lea un controlador por red. Use Modbus RTU Master para consultar equipos por el cable serie del servidor; responden como esclavos.\n\nTenga el mapa de registros del fabricante, la lista con dirección y representación de cada valor. Empiece con una lectura conocida, sin escritura. Modbus Server tiene otro papel: SCADIVO responde a un cliente externo. Use su guía si ese es el objetivo.",
           "fields": null
         },
         {
@@ -16260,11 +16275,11 @@
       "id": "drivers.mqtt-setup",
       "category": "drivers",
       "title": "MQTT: tópicos, JSON y vigencia de valores",
-      "summary": "Conecte al broker y convierta mensajes en valores tipados, separando lectura y publicación.",
+      "summary": "Reciba una medición enviada por mensaje y compruebe que su valor esté actualizado antes de usarlo.",
       "sections": [
         {
           "heading": "Un broker no es un sensor",
-          "body": "MQTT Raw recibe mensajes al publicarse. No sondea como Modbus ni descubre TAGs automáticamente desde cualquier JSON. Prepare host, puerto, TLS, autenticación, tópicos y ejemplos reales de payload. Empiece con un TAG Double de solo lectura.",
+          "body": "En MQTT, el equipo publica mensajes y el broker los distribuye a suscriptores. El tópico nombra el canal; payload es el contenido. MQTT Raw recibe lo publicado en los tópicos configurados.\n\nAntes de crear la fuente, tenga dirección/puerto del broker, protección TLS, autenticación y un ejemplo real. Elija una magnitud para probar, con TAG Double, un número con decimales, de solo lectura si la magnitud es compatible. El driver no busca registros como Modbus ni convierte cualquier JSON automáticamente en TAGs.",
           "fields": null
         },
         {
@@ -16498,11 +16513,11 @@
       "id": "drivers.opcua-setup",
       "category": "drivers",
       "title": "OPC UA: endpoint, certificados e importación de nodos",
-      "summary": "Seleccione el servidor, apruebe su identidad y asocie variables mediante los nodos correctos.",
+      "summary": "Localice el servidor, compruebe la confianza de la conexión y elija una variable conocida para leer.",
       "sections": [
         {
           "heading": "Descubrimiento no es activación",
-          "body": "En la fuente OPC UA use descubrimiento para conocer endpoints y modos ofrecidos. Seleccionar un candidato completa parámetros; no crea credenciales protegidas ni aprueba certificados automáticamente. Las pruebas/exploración de Ingeniería son temporales y no cambian la revisión activa.",
+          "body": "Empiece localizando el servidor OPC UA y una variable conocida. En la fuente, descubrimiento muestra endpoints, direcciones de conexión y modos ofrecidos. Elegir un candidato completa parámetros.\n\nCompruebe después autenticación y confianza de certificados. Elegir no crea credenciales protegidas ni aprueba automáticamente el servidor. Pruebas y navegación de Ingeniería son temporales: preparan la fuente sin cambiar la revisión activa.",
           "fields": null
         },
         {
@@ -16670,7 +16685,7 @@
       "sections": [
         {
           "heading": "Fuente, dispositivo y Ubicación son distintos",
-          "body": "La Fuente de datos guarda cómo comunicar; Equipo representa el dispositivo; Ubicación organiza dónde está. Capacidades funcionales como OnOff, Temperature o Cover describen funciones del equipo, no permisos de Authority. Descubrir/incorporar un dispositivo no autoriza comandos automáticamente.",
+          "body": "Incorporar transforma un dispositivo encontrado en recursos del proyecto. Fuente de datos indica cómo comunicar. Equipo identifica el dispositivo y Lugar indica dónde está.\n\nCapacidades como OnOff, Temperature o Cover describen funciones: encender/apagar, temperatura o control de cobertura, según proveedor. No son permisos de seguridad. Encontrar e incorporar no autoriza a su cuenta a comandar; la política de Authority sigue decidiendo el acceso.",
           "fields": [
             {
               "key": "dataSource",
@@ -16738,7 +16753,7 @@
       "sections": [
         {
           "heading": "Antes de conectar",
-          "body": "Este driver es BACnet/IP sobre UDP; no anuncia BACnet Secure Connect. Prepare instancia de dispositivo, ruta/IP/puerto y acceso a la red desde el servidor SCADIVO. En Docker compruebe red y UDP; el descubrimiento broadcast depende de la topología, no del navegador. Empiece con un objeto conocido de solo lectura.",
+          "body": "Empiece con un objeto BACnet conocido de solo lectura, como entrada analógica. Pida al responsable instancia del dispositivo y datos de red: ruta, IP y puerto.\n\nEste driver usa BACnet/IP por UDP. El servidor SCADIVO debe alcanzar esa red; descubrir por broadcast depende de la topología. En Docker compruebe también red y paso de UDP. Acceder desde el navegador no demuestra esas condiciones. No se anuncia BACnet Secure Connect.",
           "fields": null
         },
         {
@@ -16872,7 +16887,7 @@
       "sections": [
         {
           "heading": "Requisitos y alcance",
-          "body": "La implementación usa un proceso auxiliar XKNX administrado para túnel KNX IP Secure TCP y Data Secure. La instalación necesita su runtime compatible para Windows o Linux x64 y material protegido del host; un contenedor también necesita esos recursos. Este tipo no promete túnel IP sin seguridad, enrutamiento multicast ni descubrimiento automático de Ingeniería. Obtenga parámetros/direcciones del proyecto KNX/administrador.",
+          "body": "Use datos del proyecto KNX: direcciones, gateway, tipo de punto y material de seguridad. Pídalos al responsable antes de completar la fuente. Separe el punto de comando del que informa estado real.\n\nUsa túnel KNX IP Secure TCP y Data Secure. Requiere el proceso auxiliar XKNX de la instalación para Windows o Linux x64 y material protegido preparado en el servidor. Un contenedor también necesita esos recursos.\n\nNo presuponga túnel IP sin seguridad, enrutamiento multicast ni descubrimiento automático de Ingeniería: este tipo no los promete.",
           "fields": null
         },
         {
@@ -16978,7 +16993,7 @@
       "sections": [
         {
           "heading": "Bridge local con identidad explícita",
-          "body": "HAB significa Home Assistant Bridge; HA en SCADIVO sigue significando Alta Disponibilidad. Use Home Assistant accesible desde el servidor y token autorizado aprovisionado como material protegido. La integración no administra cuentas Home Assistant, copia su base interna ni convierte todas sus integraciones en drivers nativos SCADIVO.",
+          "body": "Use esta fuente para conectar con una instalación Home Assistant ya preparada por usted o el responsable. Debe ser accesible desde el servidor SCADIVO. Prepare su token autorizado como material protegido antes de usarla.\n\nHAB abrevia Home Assistant Bridge; HA en SCADIVO sigue significando Alta Disponibilidad. El puente integra entidades admitidas, pero no gestiona cuentas ni copia la base Home Assistant. Sus integraciones no se convierten por ello en drivers nativos SCADIVO.",
           "fields": null
         },
         {
@@ -17091,7 +17106,7 @@
       "sections": [
         {
           "heading": "Qué debe estar disponible",
-          "body": "El firmware debe ofrecer la API nativa ESPHome. El driver conecta por red local sin exigir Home Assistant, Dashboard ESPHome ni proceso Python auxiliar. En modo Noise la clave API debe estar aprovisionada en el servidor; el navegador no conecta directamente al microcontrolador.",
+          "body": "Compruebe primero que el firmware ofrece API nativa ESPHome, el servicio para leer entidades por red local. El servidor SCADIVO conecta; el navegador no comunica directamente con el microcontrolador.\n\nEste camino no requiere Home Assistant, Dashboard ESPHome ni proceso Python auxiliar. Para modo Noise prepare la clave de API en el servidor antes de conectar.",
           "fields": null
         },
         {
@@ -17211,7 +17226,7 @@
       "sections": [
         {
           "heading": "Conexión local con generación compatible",
-          "body": "Este driver usa RPC Shelly Gen2+ por HTTP/WebSocket; no es API de nube ni promete compatibilidad con todo Shelly Gen1. Prepare host local, puerto y autenticación del dispositivo. Un componente representa un canal/función del dispositivo, no usuario ni Ubicación SCADIVO.",
+          "body": "Compruebe generación y elija un canal conocido para probar. Este driver usa comunicación local RPC de Shelly Gen2+ por HTTP/WebSocket. Tenga dirección, puerto y autenticación.\n\nComponente significa canal o función del Shelly, no usuario o Lugar SCADIVO. No usa API de nube ni promete compatibilidad con todo Shelly Gen1.",
           "fields": null
         },
         {
@@ -17324,7 +17339,7 @@
       "sections": [
         {
           "heading": "Antes de completar campos",
-          "body": "Esta es una lista de comprobación, no una pantalla nueva. La elección de fuente depende del coordinador/controlador y de la instalación externa real. SCADIVO y otro proceso no deben abrir simultáneamente la misma radio/puerto.",
+          "body": "Antes de elegir fuente, identifique quién mantiene la red Zigbee o Z-Wave: coordinador/controlador conectado al servidor o instalación externa preparada. El tipo debe corresponder al camino real.\n\nEsta guía ayuda a decidir; no es una pantalla nueva. No abra el mismo radio simultáneamente en SCADIVO y otro proceso que controle su puerto.",
           "fields": [
             {
               "key": "connectionType",
@@ -17370,7 +17385,7 @@
       "sections": [
         {
           "heading": "Instalación necesaria",
-          "body": "Este driver usa coordinador serie TI zStack/CC2652 y proceso auxiliar administrado de la distribución para Windows o Linux x64. En contenedor el host debe exponer recurso físico y estado persistente. Red/dispositivo deben estar preparados; este tipo no ofrece descubrimiento ni asistente de inclusión de Ingeniería. No promete todos los dispositivos/clusters Zigbee.",
+          "body": "En este camino, red y dispositivo Zigbee deben estar preparados. Use coordinador serie TI zStack/CC2652 compatible conectado al servidor. Esta versión no ofrece descubrimiento ni asistente de inclusión de Ingeniería y no promete todos los dispositivos o clusters Zigbee.\n\nLa distribución usa proceso auxiliar gestionado para Windows o Linux x64. En contenedor el host debe exponer radio físico y almacenamiento persistente del estado. Compruébelo antes de completar la fuente.",
           "fields": null
         },
         {
@@ -17497,7 +17512,7 @@
       "sections": [
         {
           "heading": "Qué hace este tipo",
-          "body": "El proceso auxiliar administrado usa controlador serie local y comunicación interna restringida al host. La instalación admite Windows/Linux x64; Docker también necesita dispositivo y directorio de estado persistente. Trabaja con valores persistidos preparados: no ofrece inclusión, exclusión, SmartStart, reset, administración del controlador ni descubrimiento de Ingeniería.",
+          "body": "Use este camino para leer valores persistidos de una red Z-Wave preparada. El controlador serie es local al servidor; el proceso auxiliar gestionado usa comunicación interna limitada al host.\n\nAdmite Windows o Linux x64. En Docker exponga también dispositivo y directorio persistente del estado. No ofrece inclusión, exclusión, SmartStart, reset, administración del controlador ni descubrimiento de Ingeniería. Prepare la red con su procedimiento antes de usar valores en SCADIVO.",
           "fields": null
         },
         {
@@ -17617,7 +17632,7 @@
       "sections": [
         {
           "heading": "Instalación externa y flujo disponible",
-          "body": "Zigbee2MQTT y broker se administran fuera de SCADIVO. Los dispositivos deben estar asociados a la red externa; este conector no abre inclusión, administra el coordinador ni sustituye Zigbee nativo. Se anuncian prueba de conexión, descubrimiento y lectura, pero sin selección solo se lista inventario. La interfaz actual no envía la selección necesaria para incorporar; ese flujo espera corrección.\n\nEl formato externo incluye funciones en definition.exposes; esta versión del parser busca exposes en la raíz. Por ello puede listar un dispositivo sin producir TAGs. La corrección de compatibilidad está pendiente por separado de la selección en interfaz.",
+          "body": "Elija este puente si Zigbee2MQTT y broker se gestionan fuera de SCADIVO y los dispositivos ya están asociados. Consulta esa instalación; no abre inclusión ni administra coordinador. Zigbee nativo es otro camino.\n\nEl conector anuncia prueba de conexión, descubrimiento y lectura. Descubrir lista inventario; incorporar exige elegir qué entra al proyecto. La interfaz actual limita esa selección. La lectura de algunas estructuras anidadas espera otra corrección separada. Los pasos indican esos límites sin prometer incorporación completa donde no existe.",
           "fields": null
         },
         {
@@ -17931,7 +17946,7 @@
       "sections": [
         {
           "heading": "Prepare el lado del PLC",
-          "body": "Use la CPU y el proyecto correctos. Este driver accede a memoria absoluta mediante S7 ISO-on-TCP; no es OPC UA ni navegación simbólica completa de TIA. En S7-1200/1500, confirme con el responsable acceso externo permitido, PUT/GET cuando sea necesario y un DB con disposición absoluta compatible, sin optimización que cambie los offsets esperados. SCADIVO no cambia esas opciones ni sustituye protección de la instalación.",
+          "body": "Elija una variable conocida del programa del PLC y obtenga su dirección. Este driver S7 ISO-on-TCP lee direcciones absolutas: necesita saber dónde está el valor, no solo su nombre. No es navegación simbólica completa de TIA ni conexión OPC UA.\n\nEn S7-1200/1500 confirme acceso externo permitido, PUT/GET cuando se exige y DB de disposición absoluta compatible. DB es bloque de datos; offsets son posiciones dentro. Optimizar cambiando esas posiciones puede invalidar el mapa. SCADIVO no cambia esas opciones ni sustituye protección del PLC.",
           "fields": null
         },
         {
@@ -18139,7 +18154,7 @@
       "sections": [
         {
           "heading": "Qué conexión está configurando",
-          "body": "Este driver usa mensajes explícitos EtherNet/IP para símbolos ControlLogix/CompactLogix. No es escáner de I/O cíclico para cualquier dispositivo EtherNet/IP ni driver genérico SLC/PLC-5/MicroLogix. Obtenga IP, perfil, ruta real y configuración de acceso externo del símbolo.",
+          "body": "Empiece por un símbolo conocido de ControlLogix o CompactLogix, la referencia con nombre usada por el programa. Tenga IP, perfil y ruta reales y compruebe acceso externo al símbolo.\n\nUsa mensajes explícitos EtherNet/IP para esos símbolos. No es scanner de entradas/salidas cíclicas para todos los dispositivos EtherNet/IP ni driver genérico SLC, PLC-5 o MicroLogix. Compruebe familia antes de preparar la fuente.",
           "fields": null
         },
         {
@@ -18312,7 +18327,7 @@
       "sections": [
         {
           "heading": "Preparar el servicio MC",
-          "body": "Disponga del servicio MC/SLMP TCP compatible y puerto habilitados en el PLC. Este perfil usa tramas binarias 3E; no supone soporte de todo modelo, ASCII, UDP ni toda memoria Mitsubishi. Un nombre familiar de driver no sustituye el perfil del equipo.",
+          "body": "Pida al responsable perfil, puerto y una posición de memoria conocida para probar. El servicio MC/SLMP TCP compatible debe estar habilitado en el PLC.\n\nUsa tramas binarias 3E, el formato de mensaje previsto para la conexión. No presuponga todo modelo Mitsubishi, mensajes ASCII, UDP ni toda memoria del PLC. Compare perfil y equipo antes de completar direcciones.",
           "fields": null
         },
         {
@@ -18492,7 +18507,7 @@
       "sections": [
         {
           "heading": "Elegir perfil y transporte",
-          "body": "MEWTOCOL-COM TCP accede a servicio o adaptador TCP compatible; Host Serial usa el puerto físico visible en el servidor. Son fuentes distintas. En serie, compruebe cable, RS-232/RS-485 y configuración de línea. El driver no convierte un adaptador Ethernet genérico en servidor de todos los protocolos Panasonic.",
+          "body": "Elija según instalación: MEWTOCOL-COM TCP usa servicio o adaptador TCP compatible; Host Serial usa puerto físico disponible en el servidor SCADIVO. Son fuentes distintas con ajustes propios.\n\nPara serie compruebe cable, estándar eléctrico RS-232/RS-485 y parámetros de línea. Tenga el mapa de memoria para una lectura de prueba. Esta configuración no convierte un adaptador Ethernet genérico en servidor de todos los protocolos Panasonic.",
           "fields": null
         },
         {
@@ -18648,11 +18663,11 @@
       "id": "drivers.dnp3-setup",
       "category": "drivers",
       "title": "DNP3: asociación, eventos y comandos",
-      "summary": "Configure outstation y distinga identidad, consulta, representación y confirmación.",
+      "summary": "Prepare comunicación con la estación remota y compruebe un punto antes de configurar comandos.",
       "sections": [
         {
           "heading": "Preparar la asociación",
-          "body": "SCADIVO actúa como maestro/cliente DNP3 TCP. Obtenga del responsable IP/puerto, direcciones de enlace, lista de puntos, variaciones, clases y operaciones permitidas. Un punto estático puede llegar por consulta y eventos espontáneamente. Este descriptor no anuncia Browse ni Probar conexión de Ingeniería; revise asociación y punto conocido en Runtime/Diagnóstico tras activar. La ausencia de botón no significa ausencia del driver.",
+          "body": "SCADIVO consulta una estación remota DNP3 por TCP como maestro/cliente. Se llama outstation. Pida IP/puerto, direcciones de enlace, lista de puntos, variaciones de formato, clases y operaciones permitidas.\n\nLa lectura estática puede llegar por consulta y los eventos espontáneamente. Empiece con punto conocido y compruebe asociación en Runtime/Diagnóstico tras activar. No se anuncia Browse ni Probar conexión de Ingeniería en este descriptor. La falta del botón no significa ausencia del driver.",
           "fields": null
         },
         {
@@ -19012,11 +19027,11 @@
       "id": "drivers.iec104-setup",
       "category": "drivers",
       "title": "IEC 104: estaciones, puntos observados y comandos",
-      "summary": "Configure CA/IOA y tipos sin tratar observación como lista completa de puntos.",
+      "summary": "Configure un punto conocido y entienda los límites de la lista observada antes de operar.",
       "sections": [
         {
           "heading": "Preparación y qué demuestra Browse",
-          "body": "SCADIVO es cliente/maestro IEC 60870-5-104. Obtenga de estación remota listas CA/IOA, tipos, reloj y comandos. Probar conexión demuestra solo el alcance de su resultado; Browse observa de forma limitada interrogación general y tráfico recibido, no garantiza barrido del mapa completo. El resultado es parcial; ausencia no demuestra que un punto no exista.",
+          "body": "Empiece por un punto conocido de la estación remota. SCADIVO es cliente/maestro IEC 60870-5-104. Obtenga lista CA/IOA, tipos, reloj y comandos permitidos. CA identifica dirección común e IOA el objeto de información; use la lista sin adivinar números.\n\nProbar conexión comprueba solo el alcance indicado en el resultado. Browse observa tráfico con interrogación general: el resultado es parcial, no una exploración garantizada de todo el mapa. Un punto ausente puede existir en la estación.",
           "fields": null
         },
         {
@@ -19177,7 +19192,7 @@
       "sections": [
         {
           "heading": "Servidor difiere de maestro",
-          "body": "En Server SCADIVO atiende otro maestro/cliente y publica TAGs mapeados en Holding Registers. Esta fuente no consulta un PLC remoto. Para publicar valor de otro driver cree TAG destino Server y ruta Gateway compatible; un TAG no adquiere dos fuentes. TCP escucha interfaz/puerto; RTU responde mediante dispositivo serie del servidor.",
+          "body": "Use Server cuando otro sistema necesita consultar valores publicados por SCADIVO. El cliente externo pregunta y SCADIVO responde con TAGs mapeados en Holding Registers. La fuente no consulta un PLC remoto.\n\nPara reenviar un valor de otro driver, cree TAG destino Server y ruta Gateway compatible. La ruta lleva el valor al destino; un TAG no adquiere dos fuentes. TCP escucha interfaz/puerto; RTU responde por el puerto serie del servidor.",
           "fields": null
         },
         {
@@ -19350,7 +19365,7 @@
       "sections": [
         {
           "heading": "Empiece por la disponibilidad",
-          "body": "SCADIVO es multiplataforma. Este conector concreto es una vista previa aislada con host Linux x64 y proceso auxiliar local (sidecar); no habilita Matter en todas las instalaciones. La composición predeterminada omite este tipo. Solo aparece si el responsable habilita la vista previa en Development/Test, sin HA. Si Matter no figura en Fuentes de datos, no lo imite con otro driver. Consulte si el entorno es elegible. La Ayuda sigue disponible para explicar esta diferencia aunque la fuente no esté disponible."
+          "body": "Antes de configurar, confirme si Matter Wi-Fi está disponible. SCADIVO es multiplataforma, pero este conector es una previa aislada para host Linux x64 con proceso auxiliar local, llamado sidecar. No libera Matter para toda instalación.\n\nLa composición estándar no ofrece el tipo. Solo aparece si el responsable habilita la previa en Development/Test, sin HA. Si falta en Fuentes de datos, compruebe elegibilidad; no elija otro driver para imitarlo. La Ayuda sigue disponible para explicar límites."
         },
         {
           "heading": "Qué puede preparar",
@@ -19358,7 +19373,7 @@
         },
         {
           "heading": "Antes de abrir el editor",
-          "body": "Obtenga del responsable del entorno de prueba el nodo, endpoint, cluster, atributo y tipo real del valor. Esos números identifican el punto del dispositivo, no el ID interno del TAG. El host necesita el sidecar instalado y una red IPv6 adecuada; la dependencia declarada requiere Node.js 22.13+ o 24+. No suponga que un contenedor comparte las condiciones de red de su host. El fabric y el almacenamiento cifrado pertenecen al host; importar un .escadapkg no los transfiere ni recupera una clave perdida. Esta guía no pide credenciales ni claves en campos del proyecto. Nodo es la identidad de un dispositivo en el fabric. Endpoint identifica una función del dispositivo, como una salida de un módulo. Cluster agrupa funciones y atributos de un servicio, como On/Off; atributo es un valor del grupo, como el estado encendido/apagado. Un equipo puede tener varios endpoints: no copie los números de otra unidad sin comprobarlos."
+          "body": "Pida al responsable los números del punto: nodo, endpoint, cluster y atributo, además del tipo de valor. No son el ID interno del TAG.\n\nNodo identifica el dispositivo en la red lógica Matter, llamada fabric. Endpoint identifica una función, como una salida. Cluster reúne funciones y atributos de un servicio, como On/Off. Atributo es un valor del grupo, como estado encendido/apagado. Un dispositivo puede tener varios endpoints; compruebe sus números sin copiar otra unidad.\n\nEl host necesita sidecar y red IPv6 preparados. La dependencia declarada requiere Node.js 22.13+ o 24+. La red del contenedor puede diferir de la máquina. Fabric y almacenamiento cifrado quedan en el host: importar .escadapkg no los transfiere ni recupera claves perdidas. Este procedimiento no pide claves o credenciales en campos del proyecto."
         },
         {
           "heading": "Preparar la fuente y la clave local",

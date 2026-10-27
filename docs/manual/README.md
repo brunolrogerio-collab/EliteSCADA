@@ -33,7 +33,7 @@ A parte de Telas e Objetos tem um capítulo de trabalho nos três idiomas: [port
 
 ### PARTE I — INTRODUÇÃO
 
-1. Sobre o EliteSCADA
+1. Sobre o SCADIVO
 2. Conceitos fundamentais
 3. Arquitetura do produto para o usuário
 4. Engineering x Runtime

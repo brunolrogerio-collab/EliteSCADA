@@ -2,11 +2,13 @@
 
 ## DNP3: associação, eventos e comandos
 
-Configure a outstation e diferencie identidade, consulta, representação e confirmação.
+Prepare a comunicação com a estação remota e confira um ponto antes de configurar comandos.
 
 ### Prepare a associação
 
-O SCADIVO atua como mestre/cliente DNP3 TCP. Obtenha com o responsável pela outstation: IP/porta, endereços de enlace, lista de pontos, variações, classes e operações permitidas. Um ponto estático pode chegar por consulta e eventos podem chegar espontaneamente. Não há Browse ou Testar conexão de Engenharia anunciado neste descritor; avalie a associação e o ponto conhecido no Runtime/Diagnóstico após a ativação. Não interprete a falta desse botão como ausência do driver.
+O SCADIVO consulta uma estação remota DNP3 por TCP como mestre/cliente. Essa estação é chamada outstation. Peça ao responsável seu IP/porta, endereços de enlace, lista de pontos, variações de formato, classes e operações permitidas.
+
+Uma leitura estática pode chegar por consulta; eventos também podem chegar espontaneamente. Comece com um ponto conhecido e confira a associação no Runtime/Diagnóstico após ativar a revisão. Não há Browse ou Testar conexão de Engenharia anunciado neste descritor. A falta desse botão não significa que o driver está ausente.
 
 ### Campos da fonte
 
@@ -133,11 +135,13 @@ Sem associação: confira IP/20000, mestre/outstation e rede a partir do servido
 
 ## IEC 104: estações, pontos observados e comandos
 
-Configure CA/IOA e tipos sem tratar a observação como uma lista completa de pontos.
+Configure um ponto conhecido e entenda os limites da lista observada antes de operar.
 
 ### O que preparar e o que Browse comprova
 
-O SCADIVO é cliente/mestre IEC 60870-5-104. Tenha a lista de CA/IOA, tipos, relógio e comandos fornecida pela estação remota. Testar conexão comprova o alcance informado pelo resultado; Browse faz uma observação limitada com interrogação geral e tráfego recebido, não uma varredura garantida de todo o mapa. O resultado é parcial; ausência na lista não prova que um ponto inexista.
+Comece por um ponto conhecido da estação remota. O SCADIVO é cliente/mestre IEC 60870-5-104. Obtenha a lista de endereços CA/IOA, tipos, configuração de relógio e comandos permitidos. CA identifica o endereço comum e IOA o objeto de informação; use a lista da estação, sem adivinhar números.
+
+Testar conexão comprova apenas o alcance descrito no resultado. Browse observa uma janela de tráfego com interrogação geral: o resultado é parcial, não uma varredura garantida do mapa inteiro. Um ponto ausente nessa lista pode existir na estação.
 
 ### Campos da fonte e do ponto
 
@@ -223,7 +227,9 @@ Monte um mapa limitado e distinga cliente externo, escrita interna e valor atual
 
 ### Servidor é diferente de mestre
 
-No perfil Server o SCADIVO atende outro mestre/cliente e publica seus TAGs mapeados em Holding Registers. Ele não consulta um CLP remoto por essa fonte. Para publicar um valor de outro driver, crie o TAG de destino Server e uma rota Gateway compatível; um TAG não passa a ter duas fontes. TCP escuta uma interface/porta; RTU responde pelo dispositivo serial do servidor.
+Use Server quando outro sistema precisa consultar valores publicados pelo SCADIVO. Aqui o cliente externo pergunta e o SCADIVO responde com os TAGs mapeados em Holding Registers. A fonte não consulta um CLP remoto.
+
+Para repassar um valor recebido por outro driver, crie um TAG de destino Server e uma rota Gateway compatível. A rota leva o valor até esse destino; um TAG não passa a ter duas fontes. Em TCP, o servidor escuta uma interface/porta. Em RTU, responde pela porta serial do servidor.
 
 ### Campos da fonte e do mapa
 

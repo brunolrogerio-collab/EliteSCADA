@@ -6,7 +6,9 @@ Check who owns the network and which source type represents the installation.
 
 ### Before filling fields
 
-This is a checklist, not a new configuration page. Source choice depends on the actual coordinator/controller and external installation. A radio must not be opened simultaneously by SCADIVO and another process controlling the same port.
+Before choosing a source, identify what maintains your Zigbee or Z-Wave network: a coordinator/controller attached to the server or an existing external installation. The source type must match that actual path.
+
+This guide helps you decide; it is not a new configuration screen. Do not open the same radio simultaneously in SCADIVO and another process controlling its port.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -32,7 +34,9 @@ Prepare the source for the supported TI coordinator and understand this versionâ
 
 ### Required installation
 
-This driver uses a TI zStack/CC2652 serial coordinator and distribution-managed helper process for Windows or Linux x64. In a container the host must expose the physical resource and persistent state. Network/device must already be prepared; this type has no Engineering discovery or inclusion wizard. It does not promise every Zigbee device/cluster.
+For this path, the Zigbee network and device must already be prepared. Use a compatible TI zStack/CC2652 serial coordinator attached to the server. This version offers no Engineering discovery or inclusion wizard and does not promise all Zigbee devices or clusters.
+
+The distribution uses a managed helper process for Windows or Linux x64. In a container, the host must expose the physical radio and persistent state storage. Check those resources before filling the source.
 
 ### Fields and authoring limit
 
@@ -76,7 +80,9 @@ Use the host-registered controller and preserve each valueâ€™s exact identity.
 
 ### What this type does
 
-The managed helper uses a local serial controller and internal communication restricted to the host. Installation supports Windows/Linux x64; Docker also needs device access and persistent state directory. This driver handles prepared persistent values: no inclusion, exclusion, SmartStart, reset, controller administration or Engineering discovery.
+Use this path to read persisted values from an already prepared Z-Wave network. The serial controller is local to the server; its managed helper uses internal communication limited to that host.
+
+Installation supports Windows or Linux x64. In Docker, also provide the device and persistent state directory. This type offers no inclusion, exclusion, SmartStart, reset, controller administration or Engineering discovery. Prepare the network through its own procedure before using values in SCADIVO.
 
 ### Source and address interpretation
 
@@ -121,9 +127,9 @@ Connect to an external installation and distinguish inventory, incorporation and
 
 ### External installation and available workflow
 
-Zigbee2MQTT and broker are managed outside SCADIVO. Devices must already be commissioned on the external network; this connector does not open inclusion, administer the coordinator or replace the Native Zigbee driver. Connection test, discovery and read test are advertised, but discovery without selection lists inventory only. The current UI does not send selection required for incorporation; that workflow awaits correction.
+Choose this bridge when Zigbee2MQTT and its broker are managed outside SCADIVO and devices are already joined. It queries that installation; it does not open inclusion or administer the coordinator. Native Zigbee is another path.
 
-The external format puts exposes in definition.exposes; this parser version looks for exposes at the root. A device can therefore be listed without producing TAGs. Compatibility correction is pending separately from UI selection.
+The connector advertises connection testing, discovery and read testing. Discovery lists inventory; incorporation requires choosing what enters the project. The current UI still limits that selection. Reading some nested inventory structures also awaits a separate correction. Steps below identify those limits rather than promising a complete incorporation where unavailable.
 
 ### Source fields
 

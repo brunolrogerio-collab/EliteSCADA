@@ -2,11 +2,13 @@
 
 ## DNP3: association, events and commands
 
-Configure the outstation and distinguish identity, scanning, representation and confirmation.
+Prepare communication with the remote station and check one point before configuring commands.
 
 ### Prepare the association
 
-SCADIVO acts as a DNP3 TCP master/client. Obtain IP/port, link addresses, point list, variations, classes and permitted operations from the outstation owner. Static points can arrive by scan and events can arrive unsolicited. This descriptor advertises neither Engineering Browse nor Test connection; inspect the association and a known point in Runtime/Diagnostics after activation. A missing button does not mean the driver is absent.
+SCADIVO queries a remote DNP3 station over TCP as master/client. That station is called an outstation. Ask its administrator for IP/port, link addresses, point list, format variations, classes and allowed operations.
+
+A static reading may arrive through polling; events may also arrive spontaneously. Start with a known point and check the association in Runtime/Diagnostics after activating the revision. This descriptor advertises no Engineering Browse or Test connection. A missing button does not mean the driver is absent.
 
 ### Data Source fields
 
@@ -133,11 +135,13 @@ No association: check IP/20000, master/outstation and network from the server. A
 
 ## IEC 104: stations, observed points and commands
 
-Configure CA/IOA and types without treating observation as a complete point list.
+Configure a known point and understand the observed list’s limits before operating.
 
 ### Preparation and what Browse proves
 
-SCADIVO is an IEC 60870-5-104 client/master. Obtain CA/IOA, types, clock and command lists from the remote station. Test connection proves only the scope stated in its result; Browse performs bounded observation of general interrogation and received traffic, not a guaranteed sweep of the full map. Results are partial; absence does not prove a point does not exist.
+Start with a known remote-station point. SCADIVO is an IEC 60870-5-104 client/master. Obtain the CA/IOA address list, types, clock settings and allowed commands. CA identifies the common address and IOA the information object; use the station list instead of guessing numbers.
+
+Test connection proves only the scope described in its result. Browse observes a traffic window with general interrogation: results are partial, not a guaranteed scan of the whole map. A point missing from that list may still exist in the station.
 
 ### Source and point fields
 
@@ -223,7 +227,9 @@ Build a bounded map and distinguish external clients, internal writes and curren
 
 ### Server differs from master
 
-In Server mode SCADIVO serves another master/client and publishes mapped TAGs in Holding Registers. This source does not poll a remote PLC. To publish a value from another driver create a destination Server TAG and a compatible Gateway route; a TAG does not acquire two sources. TCP listens on an interface/port; RTU responds through the server’s serial device.
+Use Server when another system needs to query values published by SCADIVO. Here the external client asks and SCADIVO answers with TAGs mapped to Holding Registers. The source does not query a remote PLC.
+
+To forward a value received through another driver, create a Server target TAG and a compatible Gateway route. The route carries the value to that target; a TAG does not gain two sources. TCP listens on an interface/port; RTU responds through the server’s serial port.
 
 ### Source and map fields
 

@@ -1,5 +1,11 @@
 # Current coordinator pointer - Wave 15
 
+## Active product slice - online state maintenance, 27 October 2026
+
+Continuing #301 from verified integration `8de815d724a02cc5f0fa9ad1b867156d3fd9bf41`, branch `work/w15-online-license-maintenance-20261027` adds canonical scoped ciphertext collection, local reset/CAS/UTC tombstone, and explicit reauthentication after durable HTTP 401/403 rejection. [Design/activation](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6449628468); [implementation/limits](licensing/ONLINE-STATE-MAINTENANCE.md). Local focused Drivers 122/122 and Security 42/42 pass; exact PR/head/CI disposition belongs in #301. This note does not claim integration or CI completion.
+
+Next: review/CI/integrate this bounded slice, then canonical lifecycle/expiry-to-Demo without timer, authorized worker/continuous time/retention scheduling, status/usage API/UI and Portal/platform validation. No public reset/login endpoint, DI, worker or Runtime change is enabled. Product-facing reset still needs lifecycle fencing and semantic audit; it does not revoke/free a Portal activation. Online signing stays disabled. Codex/Preview/EEE RHO handoff follows completed licensing; #796/#797 are queued under #788. Portal lane, HA and owner preview remain separate.
+
 ## Completed integration sequence - 27 October 2026
 
 The Product Owner authorized regularizing #772 -> #793 -> #794 in order. All three are integrated into `wave15/corrections-integration`; exact merge SHAs and CI are in the [live licensing ledger](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6444785861), mirrored in #305. The updated current checkpoint is #756. No auto-merge was used.

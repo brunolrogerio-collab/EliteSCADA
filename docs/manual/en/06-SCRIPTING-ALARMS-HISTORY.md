@@ -1,8 +1,43 @@
 # Scripting, Alarms, and History
 
+## Start with the task
+
+A Script is a small program in your application. You do not need to start with every command: choose one task you can check, such as rounding a reading. Then learn how to call the function and select its variables.
+
+Choose **Server** for calculations that must work without an open screen. Choose **Client Visual** to respond to a click or change appearance on the open screen. Each provides its own functions. Examples state which option to use; keep that choice when adapting them.
+
+### First exercise: round a reading
+
+Use a test application. Here, `Plant.Pump.Current` is the input variable and `State.Pump.LastCurrent` stores the result in server memory. Replace the references with those selected in your project.
+
+1. Prepare a numeric TAG for the reading and a numeric server-memory TAG for the result. Declare both in the Script references; the target must be a `ServerMemoryTag`.
+2. Create and enable a **Server** Script. Add a **Timer** entry point, for example at `1000 ms`. Timer calls the function periodically; you do not need to write a loop.
+3. Set **Handler** to `on_timer`. Handler is the name of the function to call. Paste the code below and validate.
+4. Use the available test with a known value and check the result. For Runtime use, apply the edit, save, publish and activate the revision through the project controls.
+
+```python
+def on_timer():
+    current = read_tag("Plant.Pump.Current")
+    if current is not None:
+        rounded = round(current, 2)
+        write_server_memory("State.Pump.LastCurrent", rounded)
+```
+
+Read the code in small parts:
+
+- `def on_timer():` defines the function; the colon opens its block. Lines with four spaces on the left belong to the function.
+- `read_tag(...)` reads the quoted reference. `current` is the local variable holding that reading.
+- `if current is not None:` checks that a value exists. `None` means absence, not zero. Without a value, the function ends without writing another result.
+- `round(current, 2)` rounds to two places and stores in `rounded`. With input `12.346`, the expected result is `12.35`.
+- `write_server_memory(...)` stores the result in the declared memory target. It does not send a pump command.
+
+This exercise checks the calculation; Server `read_tag` returns only the value, without certifying reading quality or time. If no new write occurs, memory retains its last value. The application needs a separate indication when data is unavailable.
+
+If nothing runs, first check **Handler**, **Timer**, references and the active revision. If the editor reports an error, start at the first indicated line. After this exercise, use the following sections for lookup: language limits, other triggers, functions, commands and failure handling.
+
 ## Server Scripts
 
-A Server Script is automation that runs on the server. Think of it as a small function called by a product event: it reads declared dependencies, calculates something, and uses the permitted APIs. Although its syntax resembles Python, the runtime executes a deterministic subset — it is not general-purpose Python or a place to install libraries.
+On Server, the product calls the function when its configured event occurs. The function uses the references you declared and the commands available in this environment. It supports part of Python syntax; the limits are detailed below. It does not allow external library installation.
 
 Enabled Server-scope Scripts are hosted by the **Active** revision. When another revision is activated, the previous generation is cancelled; reads, writes, and event emission from the old generation must not continue acting on the new revision.
 

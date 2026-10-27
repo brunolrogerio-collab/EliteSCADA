@@ -1,8 +1,43 @@
 # Scripting, Alarmes e Histórico
 
+## Comece pela tarefa
+
+Um Script é um pequeno programa da aplicação. Você não precisa começar por todos os comandos: escolha uma tarefa que consiga conferir, como arredondar uma leitura. Depois aprenda como chamar a função e selecionar as variáveis usadas por ela.
+
+Para calcular no servidor sem depender de uma tela aberta, escolha **Server**. Para responder a um clique ou mudar a aparência na tela aberta, escolha **Client Visual**. Cada um oferece funções próprias. Os exemplos indicam qual opção usar; mantenha essa escolha ao adaptá-los.
+
+### Primeiro exercício: arredondar uma leitura
+
+Use uma aplicação de teste. Neste exemplo, `Plant.Pump.Current` é a variável de entrada e `State.Pump.LastCurrent` guarda o resultado na memória do servidor. Substitua as referências pelas que selecionar no seu projeto.
+
+1. Prepare um TAG numérico para a leitura e um TAG numérico de memória do servidor para o resultado. Declare ambos nas referências do Script; o destino deve ser do tipo `ServerMemoryTag`.
+2. Crie um Script com escopo **Server** e habilite-o. Cadastre uma entrada **Timer**, por exemplo com intervalo de `1000 ms`. Timer chama a função periodicamente; não é preciso escrever um laço.
+3. No campo **Handler**, informe `on_timer`. Handler é o nome da função a chamar. Cole o código abaixo e valide.
+4. Faça o teste disponível com um valor conhecido e confira o resultado. Para usá-lo no Runtime, aplique a edição, salve, publique e ative a revisão pelos controles do projeto.
+
+```python
+def on_timer():
+    current = read_tag("Plant.Pump.Current")
+    if current is not None:
+        rounded = round(current, 2)
+        write_server_memory("State.Pump.LastCurrent", rounded)
+```
+
+Leia o código em pequenas partes:
+
+- `def on_timer():` define a função; os dois-pontos abrem seu bloco. As linhas com quatro espaços à esquerda pertencem à função.
+- `read_tag(...)` lê a referência entre aspas. `current` é a variável local em que o código guarda essa leitura.
+- `if current is not None:` verifica se há valor. `None` é ausência, não o número zero. Sem valor, a função termina sem gravar outro resultado.
+- `round(current, 2)` arredonda para duas casas e guarda em `rounded`. Com entrada `12.346`, o resultado esperado é `12.35`.
+- `write_server_memory(...)` grava o resultado no destino de memória declarado. Isso não envia um comando à bomba.
+
+O exercício verifica o cálculo; a função `read_tag` do Server retorna só o valor, sem certificar qualidade ou horário da leitura. Se não houver nova gravação, a memória conserva seu último valor. A aplicação precisa mostrar separadamente quando o dado está indisponível.
+
+Se nada executar, confira primeiro **Handler**, **Timer**, referências e revisão ativa. Se o editor indicar erro, comece pela primeira linha apontada. Depois do exercício, use as seções seguintes como consulta: limites da linguagem, demais gatilhos, funções, comandos e tratamento de falhas.
+
 ## Server Scripts
 
-Server Script é automação executada no servidor. Pense nele como uma função pequena chamada por um evento do produto: ela lê dependências que você declarou, calcula algo e usa as APIs permitidas. Embora a sintaxe se pareça com Python, o runtime executa um subconjunto determinístico — não é Python geral nem um lugar para instalar bibliotecas.
+No Server, o produto chama a função quando ocorre o evento configurado. A função usa as referências que você declarou e os comandos disponíveis neste ambiente. Ele aceita parte da sintaxe Python; as limitações estão detalhadas abaixo. Não permite instalar bibliotecas externas.
 
 Scripts de scope Server habilitados são hospedados pela revisão **Active**. Ao ativar outra revisão, a geração anterior é cancelada; leituras, escritas e emissão de eventos da geração antiga não devem continuar agindo sobre a nova revisão.
 

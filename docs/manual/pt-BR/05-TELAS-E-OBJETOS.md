@@ -2,6 +2,11 @@
 
 Uma tela reúne o desenho do processo, suas leituras e as ações do operador. Um Popup é uma janela de apoio, útil para detalhes de um equipamento sem trocar a tela principal. Este capítulo monta um exemplo pequeno antes de apresentar os recursos de acabamento e reutilização.
 
+
+Este capítulo começa com uma tela pequena: um título e uma leitura. Siga as seções 1 a 3 e confira o resultado antes de acrescentar interações ou reutilização. As seções seguintes servem para aprofundar conforme a necessidade.
+
+**TAG** é a variável que fornece a leitura. **Estrutura** é a lista dos objetos do desenho. **Inspetor** é o painel onde você ajusta o objeto selecionado. Uma **propriedade** é um desses ajustes, como largura ou cor. Os controles têm nomes próprios, mas o percurso é sempre selecionar, ajustar e conferir o efeito.
+
 ## 1. Prepare um exemplo verificável
 
 Use uma aplicação de teste com um TAG numérico de pressão, cuja unidade e valor atual você conheça. Nos exemplos, a leitura é `Plant.Pump.Pressure`, em bar. Esse nome é demonstrativo: selecione o TAG real da sua aplicação, sem criar um vínculo para uma referência inexistente. Para testar escrita, use uma variável de teste que aceite escrita; não utilize um comando de processo real para aprender o editor.

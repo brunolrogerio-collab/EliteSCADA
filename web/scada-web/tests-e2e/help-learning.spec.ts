@@ -394,6 +394,18 @@ test('real catalog renders separated steps, a real illustration and searchable c
   await expect(page.getByRole('heading', { name: 'Your first screen: from TAG to visible value' })).toBeVisible();
   await page.getByLabel('Language', { exact: true }).selectOption('es');
   await expect(page.getByRole('heading', { name: 'Su primera pantalla: del TAG al valor visible' })).toBeVisible();
+  await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
+  await page.goto('/help?topic=scripts.server-syntax');
+  await expect(page.locator('article ol.help-page__steps > li')).toHaveCount(5);
+  await page.screenshot({ path: testInfo.outputPath('help-script-explained-desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('article section').first().scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-script-explained-mobile.png') });
+  await page.goto('/help?topic=visual.properties');
+  await page.locator('article section').filter({ has: page.getByRole('heading', { name: 'Passos', exact: true }) }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('help-property-steps-mobile.png') });
 });
 
 test('property tables remain usable on a narrow viewport and empty search is recoverable', async ({ page }, testInfo) => {

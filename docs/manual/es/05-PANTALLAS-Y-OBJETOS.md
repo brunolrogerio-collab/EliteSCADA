@@ -2,6 +2,11 @@
 
 Una pantalla reúne el dibujo del proceso, lecturas y acciones del operador. Un Popup es una ventana de apoyo para detalles de un equipo sin sustituir la pantalla principal. Este capítulo construye un ejemplo pequeño antes de presentar organización y reutilización.
 
+
+Este capítulo empieza con una pantalla pequeña: un título y una lectura. Siga las secciones 1 a 3 y compruebe el resultado antes de añadir interacciones o reutilización. Las secciones siguientes permiten profundizar cuando lo necesite.
+
+Un **TAG** es la variable que proporciona la lectura. **Estructura** es la lista de objetos del dibujo. **Inspector** es el panel para ajustar el objeto seleccionado. Una **propiedad** es uno de esos ajustes, como ancho o color. Los controles tienen nombres propios, pero el recorrido es siempre seleccionar, ajustar y comprobar el efecto.
+
 ## 1. Prepare un ejemplo comprobable
 
 Use una aplicación de prueba con un TAG numérico de presión cuya unidad y valor actual conozca. Los ejemplos lo llaman `Plant.Pump.Pressure`, en bar. Es demostrativo: seleccione el TAG real de su aplicación en lugar de vincular una referencia inexistente. Para probar escritura, use una variable de prueba que admita escritura; no aprenda el editor enviando comandos reales al proceso.

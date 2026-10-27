@@ -2,6 +2,11 @@
 
 A screen brings together the process drawing, readings and operator actions. A Popup is a supporting window for equipment details without replacing the main screen. This chapter builds a small example before introducing layout and reuse.
 
+
+This chapter starts with a small screen: a title and a reading. Follow sections 1 to 3 and check the result before adding interaction or reuse. The following sections provide detail when needed.
+
+A **TAG** is the variable providing the reading. **Structure** is the list of objects in the drawing. **Inspector** is the panel for adjusting the selected object. A **property** is one such setting, for example width or color. Controls have specific names, but the process stays the same: select, adjust and check the effect.
+
 ## 1. Prepare a verifiable example
 
 Use a test application with a numeric pressure TAG whose unit and current value you know. The examples call it `Plant.Pump.Pressure`, in bar. This is illustrative: select the actual TAG from your application instead of binding to a nonexistent reference. To test writes, use a writable test variable; do not learn the editor by sending real process commands.

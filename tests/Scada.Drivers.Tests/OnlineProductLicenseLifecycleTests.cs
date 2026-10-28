@@ -397,12 +397,12 @@ public sealed partial class OnlineProductLicenseLifecycleTests(OnlineProductLice
         IRuntimeSessionLeaseStore store, IProductRuntimeAuthorityReevaluator runtime, TimeProvider clock,
         IAuditStore? audit = null) => new(source, store, runtime, clock, audit ?? new InMemoryAuditSink());
 
-    private OnlineProductLicenseCandidate Candidate(DateTimeOffset? issued = null, OnlineLeaseBinding? binding = null)
+    private OnlineProductLicenseCandidate Candidate(DateTimeOffset? issued = null, OnlineLeaseBinding? binding = null, TimeSpan? lifetime = null)
     {
         binding ??= Binding;
         var json = JsonSerializer.SerializeToUtf8Bytes(new OnlineLeaseClaims(1, binding.LicenseId, binding.OrganizationId,
             binding.ApplicationId, binding.ActivationId, binding.MachineFingerprint, LicenseTier.Tags1000,
-            7, 3, true, true, issued ?? Issued, (issued ?? Issued).AddHours(72), ProductLicenseTrustAnchors.OnlineLeaseKeyId),
+            7, 3, true, true, issued ?? Issued, (issued ?? Issued) + (lifetime ?? TimeSpan.FromHours(72)), ProductLicenseTrustAnchors.OnlineLeaseKeyId),
             new JsonSerializerOptions(JsonSerializerDefaults.Web) { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } });
         var signature = keys.Online.SignData(json, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
         static string Encode(byte[] value) => Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');

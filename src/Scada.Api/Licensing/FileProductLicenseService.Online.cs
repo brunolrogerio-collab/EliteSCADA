@@ -73,6 +73,15 @@ public sealed partial class FileProductLicenseService
         }
     }
 
+    internal bool IsSelectedOnlineCandidate(OnlineProductLicenseCandidate candidate)
+    {
+        lock (_gate)
+        {
+            var state = ReadSelectedOnline();
+            return state is not null && state.Binding == candidate.Binding && state.Envelope == candidate.Envelope && !state.ExpiryApplied;
+        }
+    }
+
     internal LicenseVerificationResult VerifyOnlineCandidate(OnlineProductLicenseCandidate candidate)
     {
         lock (_gate)

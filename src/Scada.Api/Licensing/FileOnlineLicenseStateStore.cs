@@ -60,6 +60,38 @@ public sealed class FileOnlineLicenseStateStore
 
     internal Uri PortalOrigin => new(portalOrigin + "/");
 
+    internal async Task<ProtectedMaterialMutationContext> ReadMaintenanceDelegationAsync(CancellationToken ct)
+    {
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        _ = DemandClock(state);
+        if (state.IsReset || state.MaintenanceActivationId != state.Binding.ActivationId || state.CurrentCredential is null)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_MAINTENANCE_NOT_DELEGATED");
+        return ProtectedMaterialMutationContext.ForOnlineMaintenance(scope, state.Binding.ActivationId);
+    }
+
+    internal async Task<(OnlineLicenseDeviceStatus Status, DateTimeOffset? NextAttemptUtc)> ReadMaintenanceStatusAsync(CancellationToken ct)
+    {
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        _ = DemandClock(state);
+        return (Status(state), state.NextMaintenanceAttemptUtc);
+    }
+
+    internal async Task DelayMaintenanceAsync(DateTimeOffset nextAttempt, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        DemandAdministration(mutation, allowMaintenance: true);
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        DemandDelegation(state, mutation);
+        var now = DemandClock(state);
+        if (nextAttempt < now || nextAttempt > now.AddHours(1))
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_MAINTENANCE_DELAY_INVALID");
+        state.NextMaintenanceAttemptUtc = nextAttempt;
+        state.LastObservedUtc = now;
+        await PersistAsync(state, mutation, ct);
+    }
+
     public async Task<OnlineLicenseDeviceStatus?> ReadStatusAsync(CancellationToken ct = default)
     {
         await using var gate = Acquire(ct);
@@ -116,9 +148,10 @@ public sealed class FileOnlineLicenseStateStore
     public async Task<OnlineLicenseDeviceStatus> PrepareRenewalAsync(
         ProtectedMaterialMutationContext mutation, CancellationToken ct = default)
     {
-        DemandAdministration(mutation);
+        DemandAdministration(mutation, allowMaintenance: true);
         await using var gate = Acquire(ct);
         var state = await RequireStateAsync(ct);
+        DemandDelegation(state, mutation);
         var now = DemandClock(state);
         if (state.ReauthenticationRequired)
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_REAUTHENTICATION_REQUIRED");
@@ -159,9 +192,10 @@ public sealed class FileOnlineLicenseStateStore
     internal async Task RequireReauthenticationAsync(Guid requestId,
         ProtectedMaterialMutationContext mutation, CancellationToken ct)
     {
-        DemandAdministration(mutation);
+        DemandAdministration(mutation, allowMaintenance: true);
         await using var gate = Acquire(ct);
         var state = await RequireStateAsync(ct);
+        DemandDelegation(state, mutation);
         var now = DemandClock(state);
         if (state.Pending?.RequestId != requestId)
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_REQUEST_CONFLICT");
@@ -179,6 +213,13 @@ public sealed class FileOnlineLicenseStateStore
     {
         DemandAdministration(mutation);
         await using var operation = AcquireOperation(ct);
+        return await ResetWhileOwnedAsync(expectedActivationId, mutation, ct);
+    }
+
+    internal async Task<OnlineLicenseDeviceStatus> ResetWhileOwnedAsync(Guid expectedActivationId,
+        ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        DemandAdministration(mutation);
         await using var gate = Acquire(ct);
         var state = await RequireStateAsync(ct);
         var now = DemandClock(state);
@@ -187,6 +228,8 @@ public sealed class FileOnlineLicenseStateStore
         if (state.IsReset) return Status(state);
         state.IsReset = true;
         state.ReauthenticationRequired = false;
+        state.MaintenanceActivationId = null;
+        state.NextMaintenanceAttemptUtc = null;
         state.CurrentCredential = null;
         state.Lease = null;
         state.Pending = null;
@@ -202,10 +245,17 @@ public sealed class FileOnlineLicenseStateStore
     public async Task<int> CollectObsoleteSnapshotsAsync(ProtectedMaterialMutationContext mutation,
         CancellationToken ct = default)
     {
-        DemandAdministration(mutation);
+        DemandAdministration(mutation, allowMaintenance: true);
         await using var operation = AcquireOperation(ct);
+        return await CollectObsoleteSnapshotsWhileOwnedAsync(mutation, ct);
+    }
+
+    internal async Task<int> CollectObsoleteSnapshotsWhileOwnedAsync(ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        DemandAdministration(mutation, allowMaintenance: true);
         await using var gate = Acquire(ct);
-        _ = await RequireStateAsync(ct); // Corrupt/missing journals never authorize a blind sweep.
+        var state = await RequireStateAsync(ct); // Corrupt/missing journals never authorize a blind sweep.
+        DemandDelegation(state, mutation);
         var pointer = JsonSerializer.Deserialize<Pointer>(await File.ReadAllBytesAsync(pointerPath, ct), Json)!;
         if (authority is not IProtectedMaterialRetentionAuthority retention)
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_RETENTION_UNAVAILABLE");
@@ -224,9 +274,10 @@ public sealed class FileOnlineLicenseStateStore
     internal async Task<OnlineLicenseDeviceStatus> CompleteAsync(Guid requestId, string envelope,
         ProtectedMaterialMutationContext mutation, CancellationToken ct)
     {
-        DemandAdministration(mutation);
+        DemandAdministration(mutation, allowMaintenance: true);
         await using var gate = Acquire(ct);
         var state = await RequireStateAsync(ct);
+        DemandDelegation(state, mutation);
         var now = DemandClock(state);
         // Late duplicate responses cannot clear a newer pending request or replace a newer credential.
         if (state.CompletedRequestId == requestId && state.Lease == envelope) return Status(state);
@@ -247,6 +298,11 @@ public sealed class FileOnlineLicenseStateStore
         state.NotAfterUtc = evidence.NotAfterUtc;
         state.CompletedRequestId = requestId;
         state.ReauthenticationRequired = false;
+        if (mutation.MaintenanceScope is null)
+        {
+            state.MaintenanceActivationId = state.Binding.ActivationId;
+            state.NextMaintenanceAttemptUtc = null;
+        }
         state.LastObservedUtc = now;
         await PersistAsync(state, mutation, ct);
         return Status(state);
@@ -292,15 +348,19 @@ public sealed class FileOnlineLicenseStateStore
             await using var material = await authority.ResolveAsync(scope, pointer.Reference, ct);
             if (material.Material.Length > 65536) throw new JsonException();
             var state = JsonSerializer.Deserialize<OnlineLicenseDeviceState>(material.Material.Span, Json);
-            if (state is null || state.SchemaVersion is not (1 or 2) || state.PortalOrigin != portalOrigin ||
+            if (state is null || state.SchemaVersion is not (1 or 2 or 3) || state.PortalOrigin != portalOrigin ||
                 state.Binding is not { } binding || binding.MachineFingerprint != machine ||
                 binding.LicenseId == Guid.Empty || binding.OrganizationId == Guid.Empty ||
                 binding.ApplicationId == Guid.Empty || binding.ActivationId == Guid.Empty ||
                 state.LastObservedUtc.Offset != TimeSpan.Zero ||
+                (state.SchemaVersion < 3 && (state.MaintenanceActivationId is not null || state.NextMaintenanceAttemptUtc is not null)) ||
+                state.MaintenanceActivationId is { } delegated && delegated != binding.ActivationId ||
+                state.NextMaintenanceAttemptUtc is { } attempt && attempt.Offset != TimeSpan.Zero ||
                 ((state.CurrentCredential is null) != (state.Lease is null)) ||
                 (state.CurrentCredential is not null &&
                     (state.CompletedRequestId is null || state.IssuedAtUtc is null || state.NotAfterUtc is null)) ||
                 (state.IsReset && (state.Pending is not null || state.CurrentCredential is not null ||
+                    state.MaintenanceActivationId is not null || state.NextMaintenanceAttemptUtc is not null ||
                     state.ReauthenticationRequired || state.CompletedRequestId is not null ||
                     state.IssuedAtUtc is not null || state.NotAfterUtc is not null)) ||
                 (!state.IsReset && state.Pending is null && state.CurrentCredential is null) ||
@@ -326,7 +386,7 @@ public sealed class FileOnlineLicenseStateStore
 
     private async Task PersistAsync(OnlineLicenseDeviceState state, ProtectedMaterialMutationContext mutation, CancellationToken ct)
     {
-        state.SchemaVersion = 2;
+        state.SchemaVersion = 3;
         var bytes = JsonSerializer.SerializeToUtf8Bytes(state, Json);
         string reference;
         try { reference = (await authority.StoreAsync(scope, bytes, mutation, ct)).Reference; }
@@ -359,11 +419,23 @@ public sealed class FileOnlineLicenseStateStore
         return now;
     }
 
-    private static void DemandAdministration(ProtectedMaterialMutationContext mutation)
+    private void DemandAdministration(ProtectedMaterialMutationContext mutation, bool allowMaintenance = false)
     {
+        if (allowMaintenance && mutation.MaintenanceScope is not null)
+        {
+            mutation.DemandAuthorized(scope);
+            return;
+        }
         mutation.DemandAuthorized();
         if (mutation.Authorization.Capability is not (SecurityCapability.EngineeringModify or SecurityCapability.SystemAdmin))
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_ADMINISTRATION_REQUIRED");
+    }
+
+    private static void DemandDelegation(OnlineLicenseDeviceState state, ProtectedMaterialMutationContext mutation)
+    {
+        if (mutation.MaintenanceScope is not null && (state.IsReset ||
+            mutation.MaintenanceActivationId != state.Binding.ActivationId || state.MaintenanceActivationId != state.Binding.ActivationId))
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_MAINTENANCE_NOT_DELEGATED");
     }
 
     private OnlineLicenseDeviceStatus Status(OnlineLicenseDeviceState state) =>

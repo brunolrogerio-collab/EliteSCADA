@@ -22,7 +22,7 @@ public sealed partial class FileHostProtectedMaterialAuthority
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(scope);
         ArgumentNullException.ThrowIfNull(mutation);
-        mutation.DemandAuthorized();
+        mutation.DemandAuthorized(scope);
         retainedReference = NormalizeReference(retainedReference);
         // Refuse a missing/wrong-key/wrong-scope anchor before considering any deletion.
         await using (var retained = await ResolveAsync(scope, retainedReference, cancellationToken)) { }

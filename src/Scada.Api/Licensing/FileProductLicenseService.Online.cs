@@ -81,6 +81,18 @@ public sealed partial class FileProductLicenseService
         }
     }
 
+    internal string? ReadInstallationChangeIdentityStrict()
+    {
+        lock (_gate)
+        {
+            try { return Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(_licensePath))); }
+            catch (FileNotFoundException) { return null; }
+            catch (DirectoryNotFoundException) { return null; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            { throw new OnlineLicenseProtocolException("ONLINE_LICENSE_INSTALLATION_UNAVAILABLE"); }
+        }
+    }
+
     internal Guid? ReadOnlineActivationForAudit()
     {
         lock (_gate)

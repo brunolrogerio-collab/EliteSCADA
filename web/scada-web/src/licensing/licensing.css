@@ -78,6 +78,10 @@
   font-size: .95rem;
 }
 
+.licensing-online-activation { margin-top: 14px; }
+.licensing-online-activation form label { margin-top: 10px; }
+.licensing-online-activation input { box-sizing: border-box; width: 100%; padding: 8px; border: 1px solid #3d526b; border-radius: 8px; background: #0b1623; color: #e9f0f7; font: inherit; }
+
 .licensing-card dl {
   display: grid;
   grid-template-columns: minmax(120px, max-content) minmax(0, 1fr);

@@ -6,6 +6,7 @@ import {
   displaySignedSeatTotal
 } from './licensingEntitlementPresentation';
 import './licensing.css';
+import { OnlineLicenseActivation } from './OnlineLicenseActivation';
 
 type Locale = 'pt-BR' | 'en' | 'es';
 
@@ -57,6 +58,8 @@ type OnlineLicenseDeviceStatus = {
   clockRollbackDetected: boolean;
   isReset: boolean;
   reauthenticationRequired: boolean;
+  installationPending?: boolean;
+  confirmationPending?: boolean;
 };
 
 type RequestResponse = {
@@ -83,6 +86,7 @@ const messages = {
     onlineReset: 'Vínculo removido', onlinePending: 'Solicitação pendente', onlineLease: 'Lease armazenado', onlineIssued: 'Emitido em',
     onlineExpiry: 'Validade do lease', onlineRenewal: 'Renovação prevista', onlineClockRollback: 'Retrocesso do relógio detectado',
     onlineReauthentication: 'Reautenticação necessária', yesShort: 'Sim', noShort: 'Não',
+    onlineResetAction: 'Remover vínculo local', onlineResetConfirm: 'Remover a licença online desta instalação? A vaga continuará ocupada no Portal até ser liberada lá.', onlineResetDone: 'Vínculo local removido. A vaga continua registrada no Portal.',
     loading: 'Carregando…', loadError: 'Não foi possível carregar o estado de licenciamento.', installError: 'Não foi possível instalar a licença.', removeConfirm: 'Remover a licença instalada desta máquina?'
   },
   en: {
@@ -99,6 +103,7 @@ const messages = {
     onlineReset: 'Binding removed', onlinePending: 'Request pending', onlineLease: 'Stored lease', onlineIssued: 'Issued',
     onlineExpiry: 'Lease expiry', onlineRenewal: 'Renewal due', onlineClockRollback: 'Clock rollback detected',
     onlineReauthentication: 'Reauthentication required', yesShort: 'Yes', noShort: 'No',
+    onlineResetAction: 'Remove local binding', onlineResetConfirm: 'Remove the online license from this installation? The activation will remain occupied in the Portal until released there.', onlineResetDone: 'Local binding removed. The activation remains registered in the Portal.',
     loading: 'Loading…', loadError: 'Licensing status could not be loaded.', installError: 'License could not be installed.', removeConfirm: 'Remove the installed license from this machine?'
   },
   es: {
@@ -115,6 +120,7 @@ const messages = {
     onlineReset: 'Vínculo eliminado', onlinePending: 'Solicitud pendiente', onlineLease: 'Lease almacenado', onlineIssued: 'Emitido',
     onlineExpiry: 'Validez del lease', onlineRenewal: 'Renovación prevista', onlineClockRollback: 'Se detectó un retroceso del reloj',
     onlineReauthentication: 'Se requiere reautenticación', yesShort: 'Sí', noShort: 'No',
+    onlineResetAction: 'Eliminar vínculo local', onlineResetConfirm: '¿Eliminar la licencia online de esta instalación? La activación seguirá ocupada en el Portal hasta liberarla allí.', onlineResetDone: 'Vínculo local eliminado. La activación continúa registrada en el Portal.',
     loading: 'Cargando…', loadError: 'No fue posible cargar el estado de licenciamiento.', installError: 'No fue posible instalar la licencia.', removeConfirm: '¿Eliminar la licencia instalada de esta máquina?'
   }
 } as const;
@@ -229,6 +235,16 @@ export function LicensingApp() {
     }
   };
 
+  const resetOnline = async () => {
+    if (!window.confirm(t.onlineResetConfirm)) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await readJson(await fetch(`${API}/api/licensing/online/reset`, { method: 'POST', cache: 'no-store' }));
+      setNotice(t.onlineResetDone); await load();
+    } catch { setError(t.loadError); }
+    finally { setBusy(false); }
+  };
+
   return (
     <main className="shell licensing-page">
       <header className="licensing-heading">
@@ -275,6 +291,12 @@ export function LicensingApp() {
                   {status.onlineDevice.reauthenticationRequired && <><dt>{t.onlineReauthentication}</dt><dd>{t.yesShort}</dd></>}
                 </>}
               </dl>
+              {status.onlineDevice.configured && status.onlineDevice.available &&
+                (!status.onlineDevice.hasActivation || status.onlineDevice.confirmationPending || status.onlineDevice.installationPending || status.onlineDevice.reauthenticationRequired) &&
+                <OnlineLicenseActivation api={API} locale={locale} pending={status.onlineDevice.confirmationPending === true}
+                  completionPending={status.onlineDevice.installationPending === true} onChanged={load} />}
+              {status.onlineDevice.hasActivation && !status.onlineDevice.requestPending && !status.onlineDevice.installationPending &&
+                <div className="licensing-actions"><button type="button" className="licensing-danger" disabled={busy} onClick={() => void resetOnline()}>{t.onlineResetAction}</button></div>}
             </div>}
           </section>
 

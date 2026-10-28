@@ -16,6 +16,84 @@ public sealed class OnlineLicenseDeviceOrchestrator(
     IAuditStore audit,
     TimeProvider clock)
 {
+    internal Task<OnlineLicensePrepared> PrepareConfirmationAsync(string username, string password, string licenseCode,
+        ProtectedMaterialMutationContext administration, CancellationToken ct = default)
+    {
+        DemandDeviceAdministration(administration);
+        var source = RequireSource();
+        return client.PrepareConfirmationAsync(username, password, licenseCode, administration, ct,
+            status => {
+                if (status is { IsReset: false, ReauthenticationRequired: true } &&
+                    source.ReadOnlineInstallation()?.ActivationId != status.ActivationId)
+                    throw new OnlineLicenseProtocolException("ONLINE_LICENSE_SELECTION_CHANGED");
+                return source.ReadInstallationChangeIdentityStrict();
+            });
+    }
+
+    internal async Task<OnlineLicensePrepared> ReadPreparedConfirmationAsync(ProtectedMaterialMutationContext administration,
+        CancellationToken ct = default)
+    {
+        DemandDeviceAdministration(administration);
+        var state = await journal.ReadTransportAsync("confirmation", ct);
+        var pending = state.Pending!;
+        return new(state.Binding.ActivationId, pending.Presentation!, pending.ConfirmationExpiresAtUtc!.Value,
+            pending.OnlineActivationAvailable, pending.ConfirmationRequested);
+    }
+
+    internal async Task<OnlineLicenseDeviceStatus> ConfirmAsync(Guid activationId,
+        ProtectedMaterialMutationContext administration, CancellationToken ct = default)
+    {
+        DemandDeviceAdministration(administration);
+        await using var operation = journal.AcquireOperation(ct);
+        var existing = await journal.ReadStatusAsync(ct);
+        if (existing is null || existing.ActivationId != activationId || existing.IsReset)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        var snapshot = await journal.ReadInstallationSnapshotAsync(activationId, ct);
+        var source = RequireSource();
+        if (!snapshot.HasSnapshot || source.ReadInstallationChangeIdentityStrict() != snapshot.ExpectedIdentity)
+        {
+            if (!existing.HasLease || !source.IsSelectedOnlineCandidate(await journal.ReadEntitlementCandidateAsync(ct)))
+                throw new OnlineLicenseProtocolException("ONLINE_LICENSE_SELECTION_CHANGED");
+        }
+        var result = existing.ConfirmationPending ? await client.ConfirmWhileOwnedAsync(activationId, administration, ct)
+            : existing.HasLease ? existing : throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        var candidate = await journal.ReadEntitlementCandidateAsync(ct);
+        if (!source.IsSelectedOnlineCandidate(candidate))
+        {
+            if (source.ReadInstallationChangeIdentityStrict() != snapshot.ExpectedIdentity)
+                throw new OnlineLicenseProtocolException("ONLINE_LICENSE_SELECTION_CHANGED");
+            var selected = source.ReadOnlineInstallation();
+            var applied = selected?.ActivationId == activationId
+                ? await lifecycle.RenewOnlineAsync(candidate, selected.Revision, ct)
+                : await lifecycle.InstallOnlineAsync(candidate, ct);
+            if (!applied.Succeeded) throw new OnlineLicenseProtocolException("ONLINE_LICENSE_APPLICATION_PENDING");
+        }
+        else await lifecycle.ReconcilePendingAsync(ct);
+        if (snapshot.HasSnapshot) await journal.ClearInstallationSnapshotAsync(activationId, administration, ct);
+        await journal.CollectObsoleteSnapshotsWhileOwnedAsync(administration, ct);
+        return result;
+    }
+
+    internal Task CancelPreparedConfirmationAsync(Guid activationId, ProtectedMaterialMutationContext administration,
+        CancellationToken ct = default)
+    {
+        DemandDeviceAdministration(administration);
+        return client.CancelPreparedAsync(activationId, administration, ct);
+    }
+
+    internal async Task AbandonAmbiguousConfirmationAsync(Guid activationId, ProtectedMaterialMutationContext administration,
+        CancellationToken ct = default)
+    {
+        DemandDeviceAdministration(administration);
+        await using var operation = journal.AcquireOperation(ct);
+        await journal.AbandonAmbiguousConfirmationWhileOwnedAsync(activationId, administration, ct);
+        await audit.WriteAsync(new AuditEvent(Guid.NewGuid(), clock.GetUtcNow(), administration.Principal.SubjectId,
+            administration.Principal.DisplayName, "product-license.online-abandon-ambiguous", AuditOutcome.Succeeded,
+            "online-activation", activationId.ToString("D"), new Dictionary<string, string> { ["remoteRevocation"] = "not-requested" },
+            activationId.ToString("D"), Roles: administration.Principal.Roles, Source: "product-license-device"), CancellationToken.None);
+        await journal.CollectObsoleteSnapshotsWhileOwnedAsync(administration, CancellationToken.None);
+    }
+
     internal async Task<OnlineLicenseDeviceStatus> ActivateAsync(OnlineLicenseSelection selection, string username,
         string password, ProtectedMaterialMutationContext administration, CancellationToken ct = default)
     {

@@ -21,6 +21,156 @@ public sealed class OnlineLicenseDeviceProtocolTests
             new AuthorizationDecision(allowed, capability, "test authority decision", []));
 
     [Fact]
+    public async Task PreparedConfirmation_PersistsConsentAndExactRetryIntentAcrossRestart()
+    {
+        using var f = new Fixture();
+        var store = f.Store();
+        var activationId = Guid.NewGuid();
+        var token = new string('A', 43);
+        var summary = new OnlineLicensePresentation(Selection.LicenseId, Selection.OrganizationId,
+            Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account", "annual",
+            f.Clock.Now.AddDays(30), "Tags500", 2, 3, false, false, 1);
+        using (store.AcquireOperation(default))
+            await store.StorePreparedConfirmationAsync(summary, activationId, token, f.Clock.Now.AddMinutes(5),
+                true, Admin(), default);
+        var prepared = await store.ReadTransportAsync("confirmation", default);
+        Assert.False(prepared.Pending!.ConfirmationRequested);
+        var requestId = prepared.Pending.RequestId;
+        var credential = prepared.Pending.NextCredential;
+        await store.RequestConfirmationAsync(activationId, Admin(), default);
+        f.ReopenAuthority();
+        var restored = await f.Store().ReadTransportAsync("confirmation", default);
+        Assert.True(restored.Pending!.ConfirmationRequested);
+        Assert.Equal(requestId, restored.Pending.RequestId);
+        Assert.Equal(credential, restored.Pending.NextCredential);
+        Assert.Equal(token, restored.Pending.ConfirmationToken);
+        var files = string.Join('\n', Directory.GetFiles(f.Root, "*", SearchOption.AllDirectories).Select(File.ReadAllText));
+        Assert.DoesNotContain(token, files);
+        Assert.DoesNotContain(credential, files);
+    }
+
+    [Fact]
+    public async Task ConfirmationLostResponse_RetriesExactlyAfterRestartWithoutResendingPassword()
+    {
+        using var f = new Fixture();
+        var summary = new OnlineLicensePresentation(Selection.LicenseId, Selection.OrganizationId,
+            Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account", "annual",
+            f.Clock.Now.AddDays(30), "Tags500", 2, 3, false, false, 1);
+        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        Captured? first = null;
+        OnlineLicensePrepared preparation;
+        using (var client = Client(f.Store(), async request =>
+        {
+            var captured = await Capture(request);
+            Assert.Equal("/portal/api/licensing/device/prepare", captured.Uri.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                confirmationToken = new string('A', 43), expiresAtUtc = f.Clock.Now.AddMinutes(5),
+                onlineActivationAvailable = true, summary }, jsonOptions), Encoding.UTF8, "application/json") };
+        }))
+            preparation = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
+        Assert.False((await f.Store().ReadTransportAsync("confirmation", default)).Pending!.ConfirmationRequested);
+        using (var client = Client(f.Store(), async request =>
+        {
+            first = await Capture(request);
+            throw new HttpRequestException("response lost after confirmation");
+        }))
+        await using (f.Store().AcquireOperation(default))
+            await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => client.ConfirmWhileOwnedAsync(preparation.ActivationId, Admin(), default));
+
+        f.ReopenAuthority();
+        using (var client = Client(f.Store(), async request =>
+        {
+            var retry = await Capture(request);
+            Assert.Equal(first!.Body, retry.Body);
+            Assert.Equal("/portal/api/licensing/device/confirm", retry.Uri.AbsolutePath);
+            Assert.False(retry.Json.TryGetProperty("password", out _));
+            var original = f.Response(retry);
+            using var document = JsonDocument.Parse(await original.Content.ReadAsStringAsync());
+            var root = document.RootElement;
+            f.ConfirmationClaims = new(1, summary.LicenseId, summary.OrganizationId, summary.ApplicationId,
+                preparation.ActivationId, Fixture.Machine, LicenseTier.Tags500, 3, 2, false, false,
+                f.Clock.Now, f.Clock.Now.AddHours(72), "test-key");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                activationId = preparation.ActivationId, lease = root.GetProperty("lease").GetString(),
+                notAfterUtc = root.GetProperty("notAfterUtc").GetDateTimeOffset(), summary }, jsonOptions), Encoding.UTF8, "application/json") };
+        }))
+        await using (f.Store().AcquireOperation(default))
+            Assert.True((await client.ConfirmWhileOwnedAsync(preparation.ActivationId, Admin(), default)).HasLease);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancellingPreparationNeverConfirmsAndPreservesPriorLeaseOnReauthentication(bool reauthentication)
+    {
+        using var f = new Fixture();
+        if (reauthentication)
+        {
+            await Activate(f);
+            var store = f.Store();
+            var renewal = await store.PrepareRenewalAsync(Admin());
+            await store.RequireReauthenticationAsync(renewal.PendingRequestId!.Value, Admin(), default);
+        }
+        var previous = await f.Store().ReadStatusAsync();
+        var summary = new OnlineLicensePresentation(Selection.LicenseId, Selection.OrganizationId,
+            Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account", "annual",
+            f.Clock.Now.AddDays(30), "Tags500", 2, 3, false, false, 1);
+        var routes = new List<string>();
+        using var client = Client(f.Store(), async request =>
+        {
+            var capture = await Capture(request);
+            routes.Add(capture.Uri.AbsolutePath);
+            if (routes.Count == 1)
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                    confirmationToken = new string('A', 43), expiresAtUtc = f.Clock.Now.AddMinutes(5),
+                    onlineActivationAvailable = true, summary }, new JsonSerializerOptions(JsonSerializerDefaults.Web)), Encoding.UTF8, "application/json") };
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        });
+        var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
+        if (reauthentication) Assert.Equal(previous!.ActivationId, prepared.ActivationId);
+        await client.CancelPreparedAsync(prepared.ActivationId, Admin(), default);
+        Assert.Equal(new[] { "/portal/api/licensing/device/prepare", "/portal/api/licensing/device/cancel" }, routes);
+        var after = await f.Store().ReadStatusAsync();
+        Assert.Equal(reauthentication, after!.HasLease);
+        Assert.Equal(reauthentication, after.ReauthenticationRequired);
+        Assert.Equal(!reauthentication, after.IsReset);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AmbiguousConfirmationCannotBeDiscardedUntilRetryWindowEnds(bool reauthentication)
+    {
+        using var f = new Fixture();
+        if (reauthentication)
+        {
+            await Activate(f);
+            var renewal = await f.Store().PrepareRenewalAsync(Admin());
+            await f.Store().RequireReauthenticationAsync(renewal.PendingRequestId!.Value, Admin(), default);
+        }
+        var summary = new OnlineLicensePresentation(Selection.LicenseId, Selection.OrganizationId,
+            Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account", "annual",
+            f.Clock.Now.AddDays(30), "Tags500", 2, 3, false, false, 1);
+        using var client = Client(f.Store(), _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new StringContent(JsonSerializer.Serialize(new { confirmationToken = new string('A', 43),
+                expiresAtUtc = f.Clock.Now.AddMinutes(5), onlineActivationAvailable = true, summary },
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)), Encoding.UTF8, "application/json") }));
+        var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
+        await f.Store().RequestConfirmationAsync(prepared.ActivationId, Admin(), default);
+        f.Clock.Now += TimeSpan.FromHours(24) + TimeSpan.FromMinutes(5) - TimeSpan.FromTicks(1);
+        await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() =>
+            f.Store().AbandonAmbiguousConfirmationWhileOwnedAsync(prepared.ActivationId, Admin(), default));
+        Assert.True((await f.Store().ReadStatusAsync())!.ConfirmationPending);
+        f.Clock.Now += TimeSpan.FromTicks(1);
+        await f.Store().AbandonAmbiguousConfirmationWhileOwnedAsync(prepared.ActivationId, Admin(), default);
+        var status = (await f.Store().ReadStatusAsync())!;
+        Assert.False(status.ConfirmationPending);
+        Assert.Equal(reauthentication, status.HasLease);
+        Assert.Equal(reauthentication, status.ReauthenticationRequired);
+        Assert.Equal(!reauthentication, status.IsReset);
+    }
+
+    [Fact]
     public async Task ActivationLostResponse_RestartResendsExactPersistedIntentAndDoesNotStorePassword()
     {
         using var f = new Fixture();
@@ -597,6 +747,7 @@ public sealed class OnlineLicenseDeviceProtocolTests
         private int storeCount;
         private readonly Dictionary<string, (Guid Activation, DateTimeOffset Issued, DateTimeOffset Expiry)> leases = [];
         public string? LastEnvelope { get; private set; }
+        public OnlineLeaseClaims? ConfirmationClaims { get; set; }
         public Fixture() => ReopenAuthority();
         public void ReopenAuthority(byte[]? replacementKey = null)
         {
@@ -611,7 +762,7 @@ public sealed class OnlineLicenseDeviceProtocolTests
             if (!leases.TryGetValue(envelope, out var value) || value.Activation != expected.ActivationId)
                 return new(OnlineLeaseVerificationStatus.Invalid);
             return new(now >= value.Expiry ? OnlineLeaseVerificationStatus.Expired : OnlineLeaseVerificationStatus.Valid,
-                Evidence: new(value.Issued, value.Expiry));
+                Claims: ConfirmationClaims, Evidence: new(value.Issued, value.Expiry));
         }
         public HttpResponseMessage Response(Captured request, DateTimeOffset? unsignedExpiry = null, DateTimeOffset? issued = null,
             TimeSpan? lifetime = null)

@@ -145,19 +145,30 @@ public sealed partial class OnlineProductLicenseLifecycleTests
     }
 
     [Theory]
-    [InlineData(1)]
-    [InlineData(201)]
-    public async Task Effect_SecondNodeStaleAuthority_ReevaluatesAfterSettledOnlineTransition(int count)
+    [InlineData(1, false)]
+    [InlineData(201, false)]
+    [InlineData(1, true)]
+    [InlineData(201, true)]
+    public async Task Effect_SecondNodeStaleAuthority_ReevaluatesAfterSettledOnlineTransition(int count, bool postgres)
     {
+        var connection = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (postgres && string.IsNullOrWhiteSpace(connection)) return;
         using var f = new Fixture(keys);
         using var source = f.Source();
-        await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        await using IRuntimeSessionLeaseStore store = postgres
+            ? new Scada.Persistence.PostgreSql.PostgreSqlRuntimeSessionLeaseStore(connection!)
+            : new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        await using IRuntimeSessionLeaseStore secondStore = postgres
+            ? new Scada.Persistence.PostgreSql.PostgreSqlRuntimeSessionLeaseStore(connection!)
+            : new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        await store.InitializeAsync();
+        if (postgres) await secondStore.InitializeAsync();
         var bus = new InMemoryScadaEventBus();
-        ProductLicensedRuntimeCoordinator CreateNode() => new(
+        ProductLicensedRuntimeCoordinator CreateNode(IRuntimeSessionLeaseStore nodeStore) => new(
             new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
-            () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock, store);
-        await using var first = CreateNode();
-        await using var second = CreateNode();
+            () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock, nodeStore);
+        await using var first = CreateNode(store);
+        await using var second = CreateNode(postgres ? secondStore : store);
         var lifecycle = CreateLifecycle(source, store, first, f.Clock);
         Assert.True((await lifecycle.InstallOnlineAsync(Candidate())).Succeeded);
         var original = Package(count, true);

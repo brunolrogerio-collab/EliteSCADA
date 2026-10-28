@@ -1038,6 +1038,9 @@ public sealed class ProductLicensedRuntimeCoordinator :
     {
         if (_entitlements is not FileProductLicenseService source) return true;
         if (_authorityStore is null) return false;
+        try { await RefreshSettledOnlineAuthorityAsync(source, cancellationToken); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception) { return false; }
         await _activationGate.WaitAsync(cancellationToken);
         try
         {
@@ -1065,6 +1068,25 @@ public sealed class ProductLicensedRuntimeCoordinator :
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception) { return false; }
         finally { _activationGate.Release(); }
+    }
+
+    private async Task RefreshSettledOnlineAuthorityAsync(FileProductLicenseService source, CancellationToken cancellationToken)
+    {
+        DateTimeOffset? changedAt = null;
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_disposed || ProcessEffectsFenced || GetProductRuntimeStatus().State != ProductRuntimeLifecycleState.Running)
+                return;
+            var selection = source.ReadEffectLicenseSnapshot();
+            if (!selection.Online || selection.Verification.State == LicenseState.Invalid) return;
+            var state = await _authorityStore!.ReadAuthoritySnapshotAsync(cancellationToken);
+            if (!state.TransitionPending && _appliedAuthorityRevision is { } applied && state.AuthorityRevision > applied)
+                changedAt = state.AuthorityChangedAtUtc ?? _timeProvider.GetUtcNow();
+        }
+        finally { _activationGate.Release(); }
+        if (changedAt.HasValue)
+            await ReevaluateForAuthorityChangeAsync(changedAt.Value, cancellationToken);
     }
 
     private void ExitProcessEffect()

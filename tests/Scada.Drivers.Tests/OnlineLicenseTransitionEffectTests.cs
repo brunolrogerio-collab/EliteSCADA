@@ -144,8 +144,10 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         proxy.ReadOverride = null;
     }
 
-    [Fact]
-    public async Task Effect_SecondNodeStaleAuthority_DeniesUntilItsOwnRuntimeIsReevaluated()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(201)]
+    public async Task Effect_SecondNodeStaleAuthority_ReevaluatesAfterSettledOnlineTransition(int count)
     {
         using var f = new Fixture(keys);
         using var source = f.Source();
@@ -158,19 +160,21 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         await using var second = CreateNode();
         var lifecycle = CreateLifecycle(source, store, first, f.Clock);
         Assert.True((await lifecycle.InstallOnlineAsync(Candidate())).Succeeded);
-        var original = Package(1, true);
+        var original = Package(count, true);
         var package = original with { Tags = original.Tags.Select(t => t with { ReadOnly = false }).ToArray() };
         Assert.True((await first.ActivateAsync("plant", 1, package)).Activated);
         Assert.True((await second.ActivateAsync("plant", 1, package)).Activated);
-        var tag = Assert.Single(second.Tags());
+        var tag = second.Tags().First();
         await second.WriteAsync(tag.Id, 7d);
         f.Clock.Advance(TimeSpan.FromHours(72));
         Assert.Equal("expired-to-demo", (await Guard(source, lifecycle, first, f.Clock).RunOnceAsync()).Code);
         Assert.Equal(LicenseState.Demo, source.CurrentVerification.State);
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await second.WriteAsync(tag.Id, 8d));
-        Assert.True(second.TryGetCurrent(tag.Id, out var old));
-        Assert.Equal(7d, old!.Value);
-        Assert.True((await second.ReevaluateForAuthorityChangeAsync(f.Clock.GetUtcNow())).RuntimeRetained);
+        if (count > 200)
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await second.WriteAsync(tag.Id, 9d));
+            Assert.Empty(second.Tags());
+            return;
+        }
         await second.WriteAsync(tag.Id, 9d);
         Assert.True(second.TryGetCurrent(tag.Id, out var current));
         Assert.Equal(9d, current!.Value);

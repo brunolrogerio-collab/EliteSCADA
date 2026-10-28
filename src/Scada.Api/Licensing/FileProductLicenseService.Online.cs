@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Security.Cryptography;
 using Scada.Core.Product.Licensing;
 
 namespace Scada.Api.Licensing;
@@ -15,7 +16,8 @@ internal sealed class OnlineProductLicenseCandidate(OnlineLeaseBinding binding, 
 
 internal sealed record OnlineProductLicenseInstallation(
     Guid Revision, Guid ActivationId, OnlineLeaseVerificationStatus Status,
-    bool ExpiryApplied, DateTimeOffset LastObservedUtc, DateTimeOffset NotAfterUtc);
+    bool ExpiryApplied, DateTimeOffset LastObservedUtc, DateTimeOffset NotAfterUtc,
+    DateTimeOffset ObservedUtc);
 
 public sealed partial class FileProductLicenseService
 {
@@ -40,7 +42,34 @@ public sealed partial class FileProductLicenseService
             if (state is null) return null;
             var verified = VerifyOnlineState(state);
             return new(state.Revision, state.Binding.ActivationId, verified.Status,
-                state.ExpiryApplied, state.LastObservedUtc, verified.Evidence?.NotAfterUtc ?? default);
+                state.ExpiryApplied, state.LastObservedUtc, verified.Evidence?.NotAfterUtc ?? default,
+                OnlineNow(state.LastObservedUtc));
+        }
+    }
+
+    internal bool HasSelectedOnlineInstallation()
+    {
+        lock (_gate)
+            return File.Exists(_licensePath) && File.ReadAllText(_licensePath).Trim().StartsWith(OnlineInstallationPrefix, StringComparison.Ordinal);
+    }
+
+    // Opaque change identity for fail-closed invalidation, including malformed descriptors.
+    // Neither the signed envelope nor its expected identity is returned to diagnostics.
+    internal string? ReadInstallationChangeIdentity()
+    {
+        lock (_gate)
+        {
+            try { return File.Exists(_licensePath) ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(_licensePath))) : null; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+        }
+    }
+
+    internal Guid? ReadOnlineActivationForAudit()
+    {
+        lock (_gate)
+        {
+            try { return ReadSelectedOnline()?.Binding.ActivationId; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException) { return null; }
         }
     }
 
@@ -149,7 +178,7 @@ public sealed partial class FileProductLicenseService
     private OnlineInstallationState? ReadSelectedOnline()
     {
         if (!File.Exists(_licensePath)) return null;
-        var code = File.ReadAllText(_licensePath);
+        var code = File.ReadAllText(_licensePath).Trim();
         return code.StartsWith(OnlineInstallationPrefix, StringComparison.Ordinal) ? ParseOnline(code) : null;
     }
 

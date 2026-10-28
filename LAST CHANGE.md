@@ -1,6 +1,14 @@
-# Online entitlement lifecycle integrated and verified - 2026-10-27
+# Independent online expiry implementation checkpoint - 2026-10-27
 
-## Verified product checkpoint - online entitlement lifecycle, 27 October 2026
+## Current implementation checkpoint - independent online expiry guard, 27 October 2026
+
+Owning#301 branch `work/w15-online-license-expiry-guard-20261027`, base `7d39e4dff583849e50fa30fdb02d6c6883f95c38`, implementation `93a7353a0c88a1ed4d6b45852d8e183854c1f029`. `OnlineLicenseExpiryHostedService` is registered and applies canonical expiry independently of HTTP; maximum recheck2s, signed-deadline scheduling,60s durable time checkpoint. Authentic expiry uses existing epoch/fencing and Demo200TAGs; invalid evidence/rollback stays Invalid. Online semantic audit precedes Complete; owned failures and startup reconcile keep operation correlation. Unrelated pending work is not recovered by the live guard. Intelligence work cancels on feature loss, retaining activation through an unchanged licensed renewal.
+
+Local Drivers147/147 zero skipped and clean Release builds; no integration/CI pass is inferred from the previous product. Exact PR/head/merge/T1/T2 disposition belongs in the live#301/#305 ledger and #756 product reference. [Design before coding](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6458396573); [source/evidence/limits](docs/WAVE15-ONLINE-LICENSE-EXPIRY-GUARD.md). Prior verified product is#800/bcb25236, T1 40612938750 and T2 40613495638/attempt2; coordination#801/7d39e4df T1 40615874146 passed. Its initial HA incident remains cause-unconfirmed in#423.
+
+Next: complete any pending gates for this checkpoint, then authorized device journal→lifecycle orchestration/delegation,48h renewal/retry and ciphertext retention; confirmed Portal metadata/selection, status/usage/API/UI and Windows/Linux/Docker/Portal validation. Expiry guard is implemented; public online activation/renewal worker/UI and complete online licensing are still pending. Issuance stays disabled. Preserve Portal lane, owner Preview/DEMO, manual HA/Help/figures/campo acceptance and queue#788/#779–#782/#796/#797. Codex/EEE RHO delivery remains after complete licensing and separate verified application artifact/schema/hash.
+
+## Previously verified product checkpoint - online entitlement lifecycle, 27 October 2026
 
 [PR#800](https://github.com/brunolrogerio-collab/EliteSCADA/pull/800) is integrated/verified at `bcb25236118435f1662fba224e64e004facae91f`, candidate head `e4e2c283262fcb24052a48f0a9c46c4550bf7338`. Exact-head T1 40612938750 passed on attempt1; exact-merge T2 40613495638 passed on attempt2 after one evidenced backend-only rerun. T1 Core825/825 and Drivers1888pass/1skip; final T2 backend2926pass/1skip, Runtime smoke, Web and Chromium13/13. Local Core825/825 and Drivers123/123, zero skips. [Disposition and limits](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6457894178).
 

@@ -14,7 +14,7 @@ using Scada.Security.Audit;
 
 namespace Scada.Drivers.Tests;
 
-public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestKeys keys)
+public sealed partial class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestKeys keys)
     : IClassFixture<OnlineProductLicenseTestKeys>
 {
     private static readonly DateTimeOffset Issued = new(2026, 10, 27, 12, 0, 0, TimeSpan.Zero);
@@ -44,7 +44,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         Assert.Equal(1, (await store.GetAuthorityStateAsync()).AuthorityRevision);
         var candidate = await journal.ReadEntitlementCandidateAsync();
         Assert.Equal(activationBinding, candidate.Binding);
-        Assert.True((await new ProductLicenseLifecycleCoordinator(source, store, new RecordingRuntime(), f.Clock)
+        Assert.True((await CreateLifecycle(source, store, new RecordingRuntime(), f.Clock)
             .InstallOnlineAsync(candidate)).Succeeded);
         Assert.Equal(LicenseState.Valid, source.CurrentVerification.State);
         Assert.Equal(2, (await store.GetAuthorityStateAsync()).AuthorityRevision);
@@ -60,7 +60,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
         var runtime = new RecordingRuntime();
         var lease = await Admit(store);
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, runtime, f.Clock);
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
 
         var result = await lifecycle.InstallOnlineAsync(Candidate());
 
@@ -112,7 +112,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         await using var runtime = new ProductLicensedRuntimeCoordinator(
             new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
             () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock);
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, runtime, f.Clock);
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
         Assert.True((await lifecycle.InstallOnlineAsync(Candidate())).Succeeded);
         Assert.True((await runtime.ActivateAsync("plant", 1, Package(tags, materializedTags))).Activated);
         Assert.Equal(materializedTags ? tags : 0, runtime.Describe().TagCount);
@@ -153,7 +153,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         using var f = new Fixture(keys);
         using var source = f.Source();
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, new RecordingRuntime(), f.Clock);
+        var lifecycle = CreateLifecycle(source, store, new RecordingRuntime(), f.Clock);
         await lifecycle.InstallOnlineAsync(Candidate());
         var old = source.ReadOnlineInstallation()!;
         Assert.False((await lifecycle.ExpireOnlineAsync(old.Revision)).Succeeded);
@@ -176,7 +176,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         using var f = new Fixture(keys);
         using var source = f.Source();
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, new RecordingRuntime(), f.Clock);
+        var lifecycle = CreateLifecycle(source, store, new RecordingRuntime(), f.Clock);
         await lifecycle.InstallOnlineAsync(Candidate());
         var selected = source.ReadOnlineInstallation()!;
         if (remove) await lifecycle.RemoveAsync();
@@ -203,7 +203,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         using var f = new Fixture(keys);
         using var source = f.Source();
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, new RecordingRuntime(), f.Clock);
+        var lifecycle = CreateLifecycle(source, store, new RecordingRuntime(), f.Clock);
         var candidate = Candidate();
         await lifecycle.InstallOnlineAsync(candidate);
         var revision = source.ReadOnlineInstallation()!.Revision;
@@ -235,7 +235,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         source.InstallLicense(OfflineCode());
         f.Clock.Advance(TimeSpan.FromDays(2));
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, new RecordingRuntime(), f.Clock);
+        var lifecycle = CreateLifecycle(source, store, new RecordingRuntime(), f.Clock);
         Assert.Equal(LicenseState.Invalid, source.CurrentVerification.State);
         Assert.Null(source.ReadOnlineInstallation());
         Assert.False((await lifecycle.ExpireOnlineAsync(Guid.NewGuid())).Succeeded);
@@ -278,7 +278,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         using var source = f.Source();
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
         var runtime = new RecordingRuntime();
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, runtime, f.Clock);
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
         await lifecycle.InstallOnlineAsync(Candidate());
         f.Clock.Advance(TimeSpan.FromHours(72));
         var lease = await Admit(store);
@@ -287,7 +287,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         Assert.False((await store.ValidateAsync(lease.SessionId, "operator", lease.Runtime, "client")).IsValid);
         using var reopened = f.Source();
 
-        var recovered = new ProductLicenseLifecycleCoordinator(reopened, store, runtime, f.Clock);
+        var recovered = CreateLifecycle(reopened, store, runtime, f.Clock);
         await recovered.ReconcilePendingAsync();
         await recovered.ReconcilePendingAsync();
 
@@ -304,7 +304,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         using var source = f.Source();
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
         var runtime = new RecordingRuntime();
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, runtime, f.Clock);
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
         await lifecycle.InstallOnlineAsync(Candidate());
         f.Clock.Advance(TimeSpan.FromHours(72));
         var lease = await Admit(store);
@@ -326,7 +326,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         using var source = f.Source();
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
         var runtime = new RecordingRuntime();
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, runtime, f.Clock);
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
         await lifecycle.InstallOnlineAsync(Candidate());
         var revision = source.ReadOnlineInstallation()!.Revision;
         f.Clock.Advance(TimeSpan.FromHours(72));
@@ -338,7 +338,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         try
         {
             using var secondSource = f.Source();
-            var competing = new ProductLicenseLifecycleCoordinator(secondSource, store, new RecordingRuntime(), f.Clock);
+            var competing = CreateLifecycle(secondSource, store, new RecordingRuntime(), f.Clock);
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 competing.RenewOnlineAsync(Candidate(issued: f.Clock.GetUtcNow()), revision));
             Assert.True((await store.GetAuthorityStateAsync()).TransitionPending);
@@ -357,7 +357,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         using var f = new Fixture(keys);
         using var source = f.Source();
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, new RecordingRuntime(), f.Clock);
+        var lifecycle = CreateLifecycle(source, store, new RecordingRuntime(), f.Clock);
         await lifecycle.InstallOnlineAsync(Candidate());
         f.Clock.Advance(TimeSpan.FromHours(72));
         await lifecycle.ExpireOnlineAsync(source.ReadOnlineInstallation()!.Revision);
@@ -382,7 +382,7 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         using var f = new Fixture(keys);
         using var source = f.Source();
         await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
-        var lifecycle = new ProductLicenseLifecycleCoordinator(source, store, new RecordingRuntime(), f.Clock);
+        var lifecycle = CreateLifecycle(source, store, new RecordingRuntime(), f.Clock);
         f.Clock.Advance(TimeSpan.FromHours(2));
         await lifecycle.InstallOnlineAsync(Candidate(issued: Issued.AddHours(1)));
         var revision = source.ReadOnlineInstallation()!.Revision;
@@ -392,6 +392,10 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         Assert.Equal(revision, source.ReadOnlineInstallation()!.Revision);
         Assert.Equal(2, (await store.GetAuthorityStateAsync()).AuthorityRevision);
     }
+
+    private static ProductLicenseLifecycleCoordinator CreateLifecycle(IProductLicenseService source,
+        IRuntimeSessionLeaseStore store, IProductRuntimeAuthorityReevaluator runtime, TimeProvider clock,
+        IAuditStore? audit = null) => new(source, store, runtime, clock, audit ?? new InMemoryAuditSink());
 
     private OnlineProductLicenseCandidate Candidate(DateTimeOffset? issued = null, OnlineLeaseBinding? binding = null)
     {
@@ -422,11 +426,11 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
         internal string Root => root;
         internal string Path => System.IO.Path.Combine(root, "product.license");
         internal TestClock Clock { get; } = new();
-        internal FileProductLicenseService Source(bool useEphemeralVerifier = true)
+        internal FileProductLicenseService Source(bool useEphemeralVerifier = true, TimeProvider? clock = null)
         {
             var publicKey = RSA.Create();
             publicKey.ImportParameters(keys.Offline.ExportParameters(false));
-            return new(new Machine(), Path, new Dictionary<string, RSA> { ["ephemeral-offline"] = publicKey }, Clock)
+            return new(new Machine(), Path, new Dictionary<string, RSA> { ["ephemeral-offline"] = publicKey }, clock ?? Clock)
             {
                 OnlineVerifier = useEphemeralVerifier
                     ? (code, binding, now) => OnlineLeaseVerifier.VerifyWithKey(code, binding, now, keys.Online)

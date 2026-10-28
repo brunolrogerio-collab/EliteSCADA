@@ -172,6 +172,7 @@ builder.Services.AddSingleton<IEngineeringExchangeService>(
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
 builder.AddConfiguredRuntimeSessionLeaseStore(databaseConnections);
 builder.Services.AddSingleton<ProductLicenseLifecycleCoordinator>();
+builder.Services.AddHostedService<OnlineLicenseExpiryHostedService>();
 builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
     new ApiAuthorizationService(
         sp,

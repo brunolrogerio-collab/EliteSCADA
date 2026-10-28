@@ -1,4 +1,5 @@
 using Scada.Api.Security;
+using Scada.Api.Runtime;
 using Scada.Core.Product.Licensing;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
@@ -6,6 +7,8 @@ using Scada.Security.Authorization;
 namespace Scada.Api.Licensing;
 
 public sealed record ProductLicenseInstallRequest(string LicenseCode);
+internal sealed record ProductLicenseStatusResponse(ProductLicenseStatusProjection License, object Runtime,
+    ProductRuntimeUsage? Usage, RuntimeSessionSeatCapacity? SessionLimits);
 
 public sealed record ProductLicenseStatusProjection(
     string State,
@@ -29,16 +32,12 @@ public static class ProductLicensingApi
     {
         var group = app.MapGroup("/api/licensing");
 
-        group.MapGet("/status", (
+        group.MapGet("/status", async (
             IProductLicenseService licensing,
-            IProductRuntimeStatusProvider runtimeStatus) =>
+            IProductRuntimeStatusProvider runtimeStatus,
+            CancellationToken cancellationToken) =>
         {
-            var verification = licensing.CurrentVerification;
-            return Results.Ok(new
-            {
-                license = DescribeLicense(verification),
-                runtime = DescribeRuntime(runtimeStatus.GetProductRuntimeStatus())
-            });
+            return Results.Ok(await CreateStatusAsync(licensing, runtimeStatus, cancellationToken));
         }).RequireWorkspaceEngineeringRead();
 
         group.MapGet("/request", (IProductLicenseService licensing) =>
@@ -220,6 +219,21 @@ public static class ProductLicensingApi
             // Audit must still record the bounded failure/denial if state storage is unavailable.
         }
         return details;
+    }
+
+    internal static async Task<ProductLicenseStatusResponse> CreateStatusAsync(
+        IProductLicenseService licensing, IProductRuntimeStatusProvider runtimeStatus, CancellationToken cancellationToken = default)
+    {
+        var before = DescribeLicense(licensing.CurrentVerification);
+        ProductRuntimeUsage? usage;
+        try { usage = await runtimeStatus.GetProductRuntimeUsageAsync(cancellationToken); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception) { usage = null; }
+        var verification = licensing.CurrentVerification;
+        var license = DescribeLicense(verification);
+        if (before != license) usage = null;
+        return new(license, DescribeRuntime(runtimeStatus.GetProductRuntimeStatus()), usage,
+            RuntimeSessionSeatCapacityPolicy.Resolve(verification).Capacity);
     }
 
     internal static ProductLicenseStatusProjection DescribeLicense(LicenseVerificationResult verification)

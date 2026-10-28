@@ -106,6 +106,8 @@ Tiers documentados: 500, 1000, 1500, 3000, 5000 e Unlimited. Una licencia válid
 
 ## Cuotas de sesión Runtime / Interactive / View Only
 
+En **Licenciamiento**, cada límite aparece junto a **En uso**. Los TAGs son las definiciones de la aplicación en ejecución; Interactive y Solo visualización cuentan sesiones lógicas activas compartidas por los clientes Runtime. Reconectar la misma sesión no ocupa otro asiento. Pulse **Actualizar** para consultar de nuevo. Sin Runtime activo o si la lectura no está disponible temporalmente, se muestra **No disponible** en lugar de un cero inventado. Algunas licencias antiguas no especifican los límites de sesiones.
+
 El estado de licenciamiento expone los entitlements de puestos View Only e Interactive cuando están presentes. El conteo y la aplicación corresponden al servidor; no debe confundirse una conexión de transporte con una sesión lógica licenciada.
 
 ## Entitlement de redundancia

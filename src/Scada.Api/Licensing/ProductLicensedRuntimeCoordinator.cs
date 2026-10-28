@@ -42,7 +42,11 @@ public sealed record ProductRuntimeAuthorityReevaluationResult(
 public interface IProductRuntimeStatusProvider
 {
     ProductRuntimeEntitlementStatus GetProductRuntimeStatus();
+    Task<ProductRuntimeUsage?> GetProductRuntimeUsageAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<ProductRuntimeUsage?>(null);
 }
+
+public sealed record ProductRuntimeUsage(int Tags, int Interactive, int ViewOnly, DateTimeOffset ObservedAtUtc, long AuthorityRevision);
 
 public interface IProductRuntimeAuthorityReevaluator
 {
@@ -758,6 +762,30 @@ public sealed class ProductLicensedRuntimeCoordinator :
         {
             _activationGate.Release();
         }
+    }
+
+    public async Task<ProductRuntimeUsage?> GetProductRuntimeUsageAsync(CancellationToken cancellationToken = default)
+    {
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_disposed || ProcessEffectsFenced || _authorityStore is null ||
+                GetProductRuntimeStatus().State != ProductRuntimeLifecycleState.Running ||
+                _activeEngineeringTagCount is not { } tags)
+                return null;
+
+            var descriptor = Current.Describe();
+            if (string.IsNullOrWhiteSpace(descriptor.ProjectKey) || !descriptor.Revision.HasValue || !descriptor.ActivatedAtUtc.HasValue)
+                return null;
+            var identity = new RuntimeSessionRuntimeIdentity("engineering", descriptor.ProjectKey, descriptor.Revision, descriptor.ActivatedAtUtc);
+            var snapshot = await _authorityStore.GetUsageSnapshotAsync(identity, cancellationToken);
+            if (snapshot is null) return null;
+            var authority = await _authorityStore.GetAuthorityStateAsync(cancellationToken);
+            if (authority.TransitionPending || authority.AuthorityRevision != snapshot.AuthorityRevision || ProcessEffectsFenced)
+                return null;
+            return new(tags, snapshot.Interactive, snapshot.ViewOnly, snapshot.ObservedAtUtc, snapshot.AuthorityRevision);
+        }
+        finally { _activationGate.Release(); }
     }
 
     public ProductRuntimeEntitlementStatus GetProductRuntimeStatus()

@@ -17,6 +17,48 @@ namespace Scada.Drivers.Tests;
 public sealed class ProductLicensingApiTests
 {
     [Fact]
+    public async Task Status_ReportsDemoUsageAndSuppressesItWhenLicenseChangesOrSourceFails()
+    {
+        var license = new UsageTestLicense();
+        var usage = new ProductRuntimeUsage(37, 1, 0, DateTimeOffset.UtcNow, 1);
+        var runtime = new UsageTestRuntime { Read = () => Task.FromResult<ProductRuntimeUsage?>(usage) };
+        var status = await ProductLicensingApi.CreateStatusAsync(license, runtime);
+        Assert.Equal(usage, status.Usage);
+        Assert.Equal(2, status.SessionLimits!.InteractiveSeats);
+        Assert.Equal(2, status.SessionLimits.ViewOnlySeats);
+
+        runtime.Read = () => { license.Verification = LicenseVerificationResult.Invalid("changed"); return Task.FromResult<ProductRuntimeUsage?>(usage); };
+        status = await ProductLicensingApi.CreateStatusAsync(license, runtime);
+        Assert.Null(status.Usage);
+        Assert.Null(status.SessionLimits);
+
+        license.Verification = LicenseVerificationResult.Demo();
+        runtime.Read = () => throw new IOException("source unavailable");
+        status = await ProductLicensingApi.CreateStatusAsync(license, runtime);
+        Assert.Null(status.Usage);
+        Assert.Equal(200, status.License.MaximumTags);
+    }
+
+    private sealed class UsageTestRuntime : IProductRuntimeStatusProvider
+    {
+        public required Func<Task<ProductRuntimeUsage?>> Read { get; set; }
+        public Task<ProductRuntimeUsage?> GetProductRuntimeUsageAsync(CancellationToken cancellationToken = default) => Read();
+        public ProductRuntimeEntitlementStatus GetProductRuntimeStatus() => new(ProductRuntimeLifecycleState.Running, LicenseState.Demo, null, 200, null, null, null, null);
+    }
+
+    private sealed class UsageTestLicense : IProductLicenseService
+    {
+        public LicenseVerificationResult Verification { get; set; } = LicenseVerificationResult.Demo();
+        public string MachineFingerprint => "test";
+        public string MachineRequestCode => "test";
+        public LicenseVerificationResult CurrentVerification => Verification;
+        public LicenseVerificationResult VerifyCandidate(string licenseCode) => Verification;
+        public RunEntitlementDecision EvaluateRun(int projectTagCount) => ProductEntitlementEvaluator.Evaluate(Verification, projectTagCount);
+        public void InstallLicense(string licenseCode) => throw new NotSupportedException();
+        public void RemoveLicense() => throw new NotSupportedException();
+    }
+
+    [Fact]
     public void HaRuntimeLicensePolicy_RequiresValidLicenseAndExplicitHaEntitlement()
     {
         var issuedAt = DateTimeOffset.Parse("2026-09-24T12:00:00Z");

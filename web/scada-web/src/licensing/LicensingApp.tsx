@@ -40,6 +40,8 @@ type RuntimeEntitlementStatus = {
 type StatusResponse = {
   license: LicenseStatus;
   runtime: RuntimeEntitlementStatus;
+  usage?: { tags: number; interactive: number; viewOnly: number; observedAtUtc: string } | null;
+  sessionLimits?: { interactiveSeats: number; viewOnlySeats: number } | null;
 };
 
 type RequestResponse = {
@@ -54,7 +56,7 @@ const localeKey = 'elitescada.engineering.locale';
 const messages = {
   'pt-BR': {
     title: 'Licenciamento', subtitle: 'Estado da licença, modo Demo e ativação desta máquina.',
-    refresh: 'Atualizar', license: 'Licença', runtime: 'Runtime', state: 'Estado', tier: 'Faixa', tags: 'Limite de TAGs',
+    refresh: 'Atualizar', license: 'Licença', runtime: 'Runtime', state: 'Estado', tier: 'Faixa', tags: 'Limite de TAGs', usage: 'Em uso', unavailable: 'Indisponível',
     licenseId: 'ID da licença', schema: 'Esquema da licença', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime View Only', haRuntime: 'Redundância / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
     expires: 'Validade', diagnostic: 'Diagnóstico', demoDuration: 'Duração do Demo', noTimeLimit: 'Sem limite de tempo',
     unlimited: 'Ilimitado', none: 'Não informado', legacy: 'legado', legacyNotSpecified: 'Não especificado pela ESLIC1', yes: 'Licenciado', no: 'Não licenciado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento SCADIVO. Identificadores brutos de hardware não são exibidos.',
@@ -64,7 +66,7 @@ const messages = {
   },
   en: {
     title: 'Licensing', subtitle: 'License state, Demo mode and activation for this machine.',
-    refresh: 'Refresh', license: 'License', runtime: 'Runtime', state: 'State', tier: 'Tier', tags: 'TAG limit',
+    refresh: 'Refresh', license: 'License', runtime: 'Runtime', state: 'State', tier: 'Tier', tags: 'TAG limit', usage: 'In use', unavailable: 'Unavailable',
     licenseId: 'License ID', schema: 'License schema', interactiveTotal: 'Interactive Runtime clients', viewOnlyTotal: 'View Only Runtime clients', haRuntime: 'Runtime redundancy / HA', assetProcessIntelligence: 'Asset & Process Intelligence',
     expires: 'Expiry', diagnostic: 'Diagnostic', demoDuration: 'Demo duration', noTimeLimit: 'No time limit',
     unlimited: 'Unlimited', none: 'Not provided', legacy: 'legacy', legacyNotSpecified: 'Not specified by ESLIC1', yes: 'Licensed', no: 'Not licensed', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the SCADIVO licensing authority. Raw hardware identifiers are not exposed.',
@@ -74,7 +76,7 @@ const messages = {
   },
   es: {
     title: 'Licenciamiento', subtitle: 'Estado de licencia, modo Demo y activación de esta máquina.',
-    refresh: 'Actualizar', license: 'Licencia', runtime: 'Runtime', state: 'Estado', tier: 'Nivel', tags: 'Límite de TAGs',
+    refresh: 'Actualizar', license: 'Licencia', runtime: 'Runtime', state: 'Estado', tier: 'Nivel', tags: 'Límite de TAGs', usage: 'En uso', unavailable: 'No disponible',
     licenseId: 'ID de licencia', schema: 'Esquema de licencia', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime Solo visualización', haRuntime: 'Redundancia / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
     expires: 'Validez', diagnostic: 'Diagnóstico', demoDuration: 'Duración de Demo', noTimeLimit: 'Sin límite de tiempo',
     unlimited: 'Ilimitado', none: 'No informado', legacy: 'legado', legacyNotSpecified: 'No especificado por ESLIC1', yes: 'Licenciado', no: 'No licenciado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento SCADIVO. No se muestran identificadores brutos de hardware.',
@@ -203,13 +205,13 @@ export function LicensingApp() {
             <dl>
               <dt>{t.state}</dt><dd><strong>{status.license.state}</strong></dd>
               <dt>{t.tier}</dt><dd>{status.license.tier ?? t.none}</dd>
-              <dt>{t.tags}</dt><dd>{displayTags(status.license.maximumTags, status.license.state, t.unlimited, t.none)}</dd>
+              <dt>{t.tags}</dt><dd data-testid="license-tags-total">{displayTags(status.license.maximumTags, status.license.state, t.unlimited, t.none)} <span data-testid="license-tags-usage">({t.usage}: {status.usage?.tags?.toLocaleString(locale) ?? t.unavailable})</span></dd>
               {status.license.state === 'Demo' && <>
                 <dt>{t.demoDuration}</dt><dd data-testid="demo-duration">{status.license.demoMaximumContinuousMinutes === null ? t.noTimeLimit : t.none}</dd>
               </>}
               <dt>{t.schema}</dt><dd data-testid="license-schema">{displayLicenseSchema(status.license, t)}</dd>
-              <dt>{t.interactiveTotal}</dt><dd data-testid="license-interactive-total">{displaySignedSeatTotal(status.license.interactiveSeats, status.license, t)}</dd>
-              <dt>{t.viewOnlyTotal}</dt><dd data-testid="license-view-only-total">{displaySignedSeatTotal(status.license.viewOnlySeats, status.license, t)}</dd>
+              <dt>{t.interactiveTotal}</dt><dd data-testid="license-interactive-total">{status.sessionLimits?.interactiveSeats?.toLocaleString(locale) ?? displaySignedSeatTotal(status.license.interactiveSeats, status.license, t)} <span data-testid="license-interactive-usage">({t.usage}: {status.usage?.interactive?.toLocaleString(locale) ?? t.unavailable})</span></dd>
+              <dt>{t.viewOnlyTotal}</dt><dd data-testid="license-view-only-total">{status.sessionLimits?.viewOnlySeats?.toLocaleString(locale) ?? displaySignedSeatTotal(status.license.viewOnlySeats, status.license, t)} <span data-testid="license-view-only-usage">({t.usage}: {status.usage?.viewOnly?.toLocaleString(locale) ?? t.unavailable})</span></dd>
               <dt>{t.haRuntime}</dt><dd data-testid="license-ha-runtime">{displaySignedHaEntitlement(status.license.haRuntime, status.license, t)}</dd>
               <dt>{t.assetProcessIntelligence}</dt><dd data-testid="license-asset-process-intelligence">{displaySignedIntelligenceEntitlement(status.license.assetProcessIntelligence, status.license, t)}</dd>
               <dt>{t.licenseId}</dt><dd className="licensing-mono">{status.license.licenseId ?? t.none}</dd>

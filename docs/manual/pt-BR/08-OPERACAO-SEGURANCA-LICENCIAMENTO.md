@@ -108,6 +108,8 @@ Tiers documentados: 500, 1000, 1500, 3000, 5000 e Unlimited. Uma licença válid
 
 O status de licenciamento expõe entitlements de assentos View Only e Interactive quando presentes. A contagem e enforcement são de responsabilidade do servidor; uma conexão de transporte não deve ser confundida com uma sessão lógica licenciada.
 
+Na página **Licenciamento**, cada limite aparece acompanhado de **Em uso**. Os TAGs correspondem às definições da aplicação em execução; Interactive e View Only contam sessões lógicas ativas, compartilhadas entre os clientes Runtime. Reconectar a mesma sessão não cria outro assento. Use **Atualizar** para consultar novamente. Se não houver Runtime ativo ou a leitura estiver temporariamente indisponível, o sistema mostra **Indisponível**, em vez de inventar uma contagem zero. Uma licença antiga pode não especificar o limite de sessões.
+
 ## Redundancy entitlement
 
 O status de licença pode expor entitlement de HA Runtime. O entitlement habilita a superfície; não substitui configuração correta, Authority, transporte entre os nós, fencing ou verificação da operação.

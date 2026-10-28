@@ -106,6 +106,8 @@ Documented tiers: 500, 1000, 1500, 3000, 5000, and Unlimited. A valid license ap
 
 ## Runtime session quotas / Interactive / View Only
 
+On the **Licensing** page, **In use** appears alongside each limit. TAGs are the definitions in the running application; Interactive and View Only are active logical sessions shared by Runtime clients. Reconnecting the same session does not consume another seat. Select **Refresh** to check again. When no Runtime is active or the reading is temporarily unavailable, the page shows **Unavailable** instead of a fabricated zero. Older licenses may not specify session limits.
+
 Licensing status exposes View Only and Interactive seat entitlements when present. Counting and enforcement belong to the server; a transport connection must not be confused with a licensed logical session.
 
 ## Redundancy entitlement

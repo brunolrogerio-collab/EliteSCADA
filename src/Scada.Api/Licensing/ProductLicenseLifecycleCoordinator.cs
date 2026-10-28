@@ -1,5 +1,7 @@
 using Scada.Core.Product.Licensing;
 using Scada.Security.Authorization;
+using Scada.Security.Audit;
+using System.Collections.Concurrent;
 
 namespace Scada.Api.Licensing;
 
@@ -11,8 +13,11 @@ public sealed class ProductLicenseLifecycleCoordinator(
     IProductLicenseService licensing,
     IRuntimeSessionLeaseStore leaseStore,
     IProductRuntimeAuthorityReevaluator runtime,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IAuditStore? auditStore = null,
+    AssetProcessIntelligenceExecutionGate? intelligenceGate = null)
 {
+    private readonly ConcurrentDictionary<Guid, byte> failedOnlineTransitions = new();
     public async Task<ProductLicenseLifecycleResult> InstallOrReplaceAsync(
         string licenseCode,
         CancellationToken cancellationToken = default)
@@ -56,6 +61,7 @@ public sealed class ProductLicenseLifecycleCoordinator(
     internal async Task<ProductLicenseLifecycleResult> InstallOnlineAsync(
         OnlineProductLicenseCandidate candidate, CancellationToken cancellationToken = default)
     {
+        DemandOnlineAudit();
         var source = RequireOnlineSource();
         var previous = licensing.CurrentVerification.State;
         if (source.VerifyOnlineCandidate(candidate).State != LicenseState.Valid)
@@ -66,6 +72,7 @@ public sealed class ProductLicenseLifecycleCoordinator(
     internal async Task<ProductLicenseLifecycleResult> RenewOnlineAsync(
         OnlineProductLicenseCandidate candidate, Guid expectedRevision, CancellationToken cancellationToken = default)
     {
+        DemandOnlineAudit();
         var source = RequireOnlineSource();
         var previous = licensing.CurrentVerification.State;
         if (source.VerifyOnlineCandidate(candidate).State != LicenseState.Valid)
@@ -77,6 +84,8 @@ public sealed class ProductLicenseLifecycleCoordinator(
     internal async Task<ProductLicenseLifecycleResult> ExpireOnlineAsync(
         Guid expectedRevision, CancellationToken cancellationToken = default)
     {
+        DemandOnlineAudit();
+        CancelUnlicensedIntelligence();
         var source = RequireOnlineSource();
         var previous = licensing.CurrentVerification.State;
         var selected = source.ReadOnlineInstallation();
@@ -93,6 +102,54 @@ public sealed class ProductLicenseLifecycleCoordinator(
         }
         return await ChangeAsync("online-expire-to-demo", previous,
             () => source.ApplyOnlineExpiry(expectedRevision), cancellationToken);
+    }
+
+    internal async Task<ProductLicenseLifecycleResult> InvalidateOnlineAsync(
+        string? expectedChangeIdentity, CancellationToken cancellationToken = default)
+    {
+        DemandOnlineAudit();
+        CancelUnlicensedIntelligence();
+        var source = RequireOnlineSource();
+        var previous = licensing.CurrentVerification.State;
+        if (previous != LicenseState.Invalid)
+            return await RejectedCandidateAsync(previous, cancellationToken);
+        return await ChangeAsync("online-invalid", previous, () =>
+        {
+            if (source.ReadInstallationChangeIdentity() != expectedChangeIdentity ||
+                licensing.CurrentVerification.State != LicenseState.Invalid)
+                throw new InvalidOperationException("ONLINE_LICENSE_INSTALLATION_CONFLICT");
+            // No fabricated Demo or replacement file. The currently invalid canonical
+            // evidence denies Run; the authority epoch fences previously admitted leases.
+        }, cancellationToken);
+    }
+
+    /// <summary>Recover only online operations that this instance observed failing after publication.</summary>
+    internal async Task<string?> ReconcileFailedOnlineAsync(CancellationToken cancellationToken = default)
+    {
+        if (failedOnlineTransitions.IsEmpty) return null;
+        var state = await leaseStore.GetAuthorityStateAsync(cancellationToken);
+        string? recoveredKind = null;
+        if (state.TransitionPending && state.TransitionId is { } id && failedOnlineTransitions.ContainsKey(id))
+        {
+            await ReconcilePendingAsync(cancellationToken);
+            recoveredKind = state.TransitionKind;
+        }
+        foreach (var key in failedOnlineTransitions.Keys)
+            if (key != state.TransitionId || !state.TransitionPending)
+                failedOnlineTransitions.TryRemove(key, out _);
+        return recoveredKind;
+    }
+
+    private void DemandOnlineAudit()
+    {
+        if (auditStore is null)
+            throw new InvalidOperationException("Online licensing requires the canonical audit store.");
+    }
+
+    internal void CancelUnlicensedIntelligence()
+    {
+        if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+            intelligenceGate?.InvalidateAll();
     }
 
     private FileProductLicenseService RequireOnlineSource() =>
@@ -112,6 +169,7 @@ public sealed class ProductLicenseLifecycleCoordinator(
         if (!state.TransitionPending)
             return;
         if (state.TransitionId is not { } transitionId ||
+            string.IsNullOrWhiteSpace(state.TransitionKind) ||
             state.TransitionStartedAtUtc is not { } startedAtUtc ||
             state.TransitionBaseAuthorityRevision is not { } transitionBase)
             throw new InvalidOperationException("Runtime authority transition metadata is incomplete.");
@@ -135,11 +193,14 @@ public sealed class ProductLicenseLifecycleCoordinator(
 
         if (state.AuthorityChangedAtUtc is not { } changedAtUtc)
             throw new InvalidOperationException("Committed Runtime authority transition has no change timestamp.");
+        if (state.TransitionKind!.StartsWith("online-", StringComparison.Ordinal)) CancelUnlicensedIntelligence();
         await runtime.ReevaluateForAuthorityChangeAsync(changedAtUtc, cancellationToken);
         await leaseStore.FenceLeasesBeforeAuthorityRevisionAsync(
             transitionId, state.AuthorityRevision, cancellationToken);
+        await RecordOnlineTransitionAsync(state, recovered: true, cancellationToken);
         await leaseStore.CompleteAuthorityTransitionAsync(
             transitionId, state.AuthorityRevision, cancellationToken);
+        failedOnlineTransitions.TryRemove(transitionId, out _);
     }
 
     private async Task<ProductLicenseLifecycleResult> RejectedCandidateAsync(
@@ -187,23 +248,68 @@ public sealed class ProductLicenseLifecycleCoordinator(
         // A failure here leaves pending=true for startup reconciliation.
         var changedAtUtc = timeProvider.GetUtcNow();
         var current = licensing.CurrentVerification.State;
-        var authority = await leaseStore.CommitAuthorityChangeAsync(
-            transition.TransitionId,
-            transition.BaseAuthorityRevision,
-            changedAtUtc,
-            current == LicenseState.Demo ? changedAtUtc : null,
-            CancellationToken.None);
-        var local = await runtime.ReevaluateForAuthorityChangeAsync(changedAtUtc, CancellationToken.None);
-        var fenced = await leaseStore.FenceLeasesBeforeAuthorityRevisionAsync(
-            transition.TransitionId, authority.AuthorityRevision, CancellationToken.None);
-        await leaseStore.CompleteAuthorityTransitionAsync(
-            transition.TransitionId, authority.AuthorityRevision, CancellationToken.None);
+        try
+        {
+            if (operation.StartsWith("online-", StringComparison.Ordinal)) CancelUnlicensedIntelligence();
+            var authority = await leaseStore.CommitAuthorityChangeAsync(
+                transition.TransitionId,
+                transition.BaseAuthorityRevision,
+                changedAtUtc,
+                current == LicenseState.Demo ? changedAtUtc : null,
+                CancellationToken.None);
+            var local = await runtime.ReevaluateForAuthorityChangeAsync(changedAtUtc, CancellationToken.None);
+            var fenced = await leaseStore.FenceLeasesBeforeAuthorityRevisionAsync(
+                transition.TransitionId, authority.AuthorityRevision, CancellationToken.None);
+            await RecordOnlineTransitionAsync(authority, recovered: false, CancellationToken.None, previous);
+            await leaseStore.CompleteAuthorityTransitionAsync(
+                transition.TransitionId, authority.AuthorityRevision, CancellationToken.None);
 
-        return new ProductLicenseLifecycleResult(
-            true, "completed", previous, current,
-            transition.BaseAuthorityRevision, authority.AuthorityRevision,
-            changedAtUtc, fenced,
-            local.RuntimeStopped ? "stopped" : local.RuntimeRetained ? "retained" : "not-active");
+            return new ProductLicenseLifecycleResult(
+                true, "completed", previous, current,
+                transition.BaseAuthorityRevision, authority.AuthorityRevision,
+                changedAtUtc, fenced,
+                local.RuntimeStopped ? "stopped" : local.RuntimeRetained ? "retained" : "not-active");
+        }
+        catch
+        {
+            if (operation.StartsWith("online-", StringComparison.Ordinal))
+                failedOnlineTransitions.TryAdd(transition.TransitionId, 0);
+            throw;
+        }
+    }
+
+    private async Task RecordOnlineTransitionAsync(RuntimeAuthorityState state, bool recovered, CancellationToken ct,
+        LicenseState? previous = null)
+    {
+        if (state.TransitionKind?.StartsWith("online-", StringComparison.Ordinal) != true) return;
+        DemandOnlineAudit();
+        // Startup reconciliation precedes ordinary foundation initialization. Reuse the
+        // store's idempotent initializer; do not reorder the frozen startup boundary.
+        await auditStore!.InitializeAsync(ct);
+        var transitionId = state.TransitionId!.Value.ToString("D");
+        var activationId = (licensing as FileProductLicenseService)?.ReadOnlineActivationForAudit();
+        var verification = licensing.CurrentVerification;
+        await auditStore.WriteAsync(new AuditEvent(
+            Guid.NewGuid(), state.AuthorityChangedAtUtc ?? timeProvider.GetUtcNow(),
+            "host:product-online-licensing", "Product online licensing", "product-license.online-transition",
+            AuditOutcome.Succeeded, "runtime-authority-transition", transitionId,
+            new Dictionary<string, string>
+            {
+                ["operation"] = state.TransitionKind!,
+                ["evidenceSource"] = "online",
+                ["previousVerificationState"] = previous?.ToString() ?? "unavailable",
+                ["target"] = verification.State switch
+                {
+                    LicenseState.Demo => "demo",
+                    LicenseState.Invalid => "invalid",
+                    _ => "online"
+                },
+                ["previousEpoch"] = state.TransitionBaseAuthorityRevision!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["currentEpoch"] = state.AuthorityRevision.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["activationId"] = activationId?.ToString("D") ?? "unavailable",
+                ["licenseState"] = verification.State.ToString(),
+                ["recovered"] = recovered ? "true" : "false"
+            }, transitionId, Roles: [], Source: "product-license-lifecycle"), ct);
     }
 }
 

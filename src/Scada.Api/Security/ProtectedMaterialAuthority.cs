@@ -126,6 +126,30 @@ public sealed record ProtectedMaterialMutationContext(
     SecurityPrincipal Principal,
     AuthorizationDecision Authorization)
 {
+    internal ProtectedMaterialScope? MaintenanceScope { get; private init; }
+    internal Guid? MaintenanceActivationId { get; private init; }
+    internal static ProtectedMaterialMutationContext ForOnlineMaintenance(ProtectedMaterialScope scope, Guid activationId)
+    {
+        scope.Validate();
+        if (scope.ScopeOwnerKey != "deployment:product-licensing" || scope.ResourceKind != "ProductLicensing" ||
+            scope.Purpose != "OnlineDeviceState" || activationId == Guid.Empty)
+            throw new InvalidOperationException("Online maintenance scope is invalid.");
+        return new(new SecurityPrincipal("host:online-license-maintenance", "Online license maintenance", [], false),
+            new AuthorizationDecision(false, SecurityCapability.EngineeringModify, "No interactive authority", []))
+            { MaintenanceScope = scope, MaintenanceActivationId = activationId };
+    }
+
+    internal void DemandAuthorized(ProtectedMaterialScope scope)
+    {
+        if (MaintenanceScope is { } permitted)
+        {
+            if (permitted != scope || MaintenanceActivationId is null)
+                throw new ProtectedMaterialException(ProtectedMaterialErrorCodes.Unauthorized, "Maintenance scope does not match.");
+            return;
+        }
+        DemandAuthorized();
+    }
+
     public void DemandAuthorized()
     {
         ArgumentNullException.ThrowIfNull(Principal);

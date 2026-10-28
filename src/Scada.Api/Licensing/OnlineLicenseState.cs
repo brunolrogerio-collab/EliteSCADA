@@ -27,7 +27,7 @@ internal sealed class OnlineLicensePendingIntent
 
 internal sealed class OnlineLicenseDeviceState
 {
-    public int SchemaVersion { get; set; } = 2;
+    public int SchemaVersion { get; set; } = 3;
     public required string PortalOrigin { get; init; }
     public required OnlineLeaseBinding Binding { get; init; }
     public required DateTimeOffset LastObservedUtc { get; set; }
@@ -39,4 +39,6 @@ internal sealed class OnlineLicenseDeviceState
     public OnlineLicensePendingIntent? Pending { get; set; }
     public bool IsReset { get; set; }
     public bool ReauthenticationRequired { get; set; }
+    public Guid? MaintenanceActivationId { get; set; }
+    public DateTimeOffset? NextMaintenanceAttemptUtc { get; set; }
 }

@@ -15,7 +15,8 @@ public sealed class ProductLicenseLifecycleCoordinator(
     IProductRuntimeAuthorityReevaluator runtime,
     TimeProvider timeProvider,
     IAuditStore? auditStore = null,
-    AssetProcessIntelligenceExecutionGate? intelligenceGate = null)
+    AssetProcessIntelligenceExecutionGate? intelligenceGate = null,
+    FileOnlineLicenseStateStore? onlineJournal = null)
 {
     private readonly ConcurrentDictionary<Guid, byte> failedOnlineTransitions = new();
     public async Task<ProductLicenseLifecycleResult> InstallOrReplaceAsync(
@@ -27,6 +28,7 @@ public sealed class ProductLicenseLifecycleCoordinator(
         if (candidate.State != LicenseState.Valid)
             return await RejectedCandidateAsync(previous, cancellationToken);
 
+        await using var deviceOperation = onlineJournal?.AcquireOperation(cancellationToken);
         return await ChangeAsync(
             previous == LicenseState.Valid ? "replace" : "install",
             previous,
@@ -35,6 +37,12 @@ public sealed class ProductLicenseLifecycleCoordinator(
     }
 
     public async Task<ProductLicenseLifecycleResult> RemoveAsync(CancellationToken cancellationToken = default)
+    {
+        await using var deviceOperation = onlineJournal?.AcquireOperation(cancellationToken);
+        return await RemoveWhileDeviceOperationOwnedAsync(cancellationToken);
+    }
+
+    internal async Task<ProductLicenseLifecycleResult> RemoveWhileDeviceOperationOwnedAsync(CancellationToken cancellationToken)
     {
         var previous = licensing.CurrentVerification.State;
         // An expired online selection is still an installed mode. Explicit removal must

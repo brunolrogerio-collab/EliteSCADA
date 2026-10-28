@@ -182,6 +182,7 @@ builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
 builder.AddOptionalEngineeringPersistence(databaseConnections);
 var localIdentityEnabled = builder.AddConfiguredAudit(databaseConnections);
 builder.AddHostProtectedMaterialAuthority();
+builder.AddConfiguredOnlineLicenseDevice();
 if (localIdentityEnabled)
     builder.Services.AddSingleton<InstallationDetachService>();
 builder.Services.AddOpenApi();

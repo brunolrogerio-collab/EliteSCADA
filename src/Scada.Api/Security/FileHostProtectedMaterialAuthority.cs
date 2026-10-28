@@ -180,7 +180,7 @@ public sealed partial class FileHostProtectedMaterialAuthority :
         ArgumentNullException.ThrowIfNull(scope);
         ArgumentNullException.ThrowIfNull(mutation);
         scope.Validate();
-        mutation.DemandAuthorized();
+        mutation.DemandAuthorized(scope);
         _ = RequireKey();
 
         var normalizedReference = NormalizeReference(reference);
@@ -486,8 +486,10 @@ public sealed partial class FileHostProtectedMaterialAuthority :
         {
             ["resourceKind"] = scope.ResourceKind,
             ["purpose"] = scope.Purpose,
-            ["capability"] = mutation.Authorization.Capability.ToString()
+            ["capability"] = mutation.MaintenanceScope is null ? mutation.Authorization.Capability.ToString() : "scoped-host-maintenance"
         };
+        if (mutation.MaintenanceActivationId is { } activation)
+            details["activationId"] = activation.ToString("D");
 
         await _audit.WriteAsync(
             AuditEvent.Create(
@@ -541,7 +543,7 @@ public sealed partial class FileHostProtectedMaterialAuthority :
         ArgumentNullException.ThrowIfNull(scope);
         ArgumentNullException.ThrowIfNull(mutation);
         scope.Validate();
-        mutation.DemandAuthorized();
+        mutation.DemandAuthorized(scope);
 
         if (material.IsEmpty)
             throw new ArgumentException(

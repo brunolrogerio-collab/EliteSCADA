@@ -22,6 +22,7 @@ public sealed class OnlineLicenseDeviceClient : IDisposable
     {
         this.store = store;
         http = new HttpClient(transport, disposeHandler: true);
+        http.Timeout = TimeSpan.FromSeconds(20);
     }
 
     public async Task<OnlineLicenseDeviceStatus> ActivateAsync(OnlineLicenseSelection selection,
@@ -29,6 +30,13 @@ public sealed class OnlineLicenseDeviceClient : IDisposable
     {
         if (string.IsNullOrWhiteSpace(password)) throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LOGIN_REQUIRED");
         await using var operation = store.AcquireOperation(ct);
+        return await ActivateWhileOwnedAsync(selection, username, password, mutation, ct);
+    }
+
+    internal async Task<OnlineLicenseDeviceStatus> ActivateWhileOwnedAsync(OnlineLicenseSelection selection,
+        string username, string password, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(password)) throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LOGIN_REQUIRED");
         await store.PrepareActivationAsync(selection, username, mutation, ct);
         var state = await store.ReadTransportAsync("activation", ct);
         return await SendActivationAsync(state, password, mutation, ct);
@@ -39,6 +47,13 @@ public sealed class OnlineLicenseDeviceClient : IDisposable
     {
         if (string.IsNullOrWhiteSpace(password)) throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LOGIN_REQUIRED");
         await using var operation = store.AcquireOperation(ct);
+        return await ReauthenticateWhileOwnedAsync(selection, username, password, mutation, ct);
+    }
+
+    internal async Task<OnlineLicenseDeviceStatus> ReauthenticateWhileOwnedAsync(OnlineLicenseSelection selection,
+        string username, string password, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(password)) throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LOGIN_REQUIRED");
         await store.PrepareReauthenticationAsync(selection, username, mutation, ct);
         var state = await store.ReadTransportAsync("reauthentication", ct);
         return await SendActivationAsync(state, password, mutation, ct);
@@ -62,6 +77,11 @@ public sealed class OnlineLicenseDeviceClient : IDisposable
         ProtectedMaterialMutationContext mutation, CancellationToken ct = default)
     {
         await using var operation = store.AcquireOperation(ct);
+        return await RenewWhileOwnedAsync(mutation, ct);
+    }
+
+    internal async Task<OnlineLicenseDeviceStatus> RenewWhileOwnedAsync(ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
         await store.PrepareRenewalAsync(mutation, ct);
         var state = await store.ReadTransportAsync("renewal", ct);
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(store.PortalOrigin,

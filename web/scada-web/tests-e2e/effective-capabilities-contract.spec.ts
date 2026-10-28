@@ -65,6 +65,42 @@ for (const [locale, label] of [['pt-BR', 'Sem limite de tempo'], ['en', 'No time
   }
 }
 
+for (const [locale, title, stored, unavailable, leaseLabel, yes] of [
+  ['pt-BR', 'Licença online', 'Vínculo salvo', 'Não foi possível ler o estado online.', 'Lease armazenado', 'Sim'],
+  ['en', 'Online license', 'Binding saved', 'Online status could not be read.', 'Stored lease', 'Yes'],
+  ['es', 'Licencia online', 'Vínculo guardado', 'No fue posible leer el estado online.', 'Lease almacenado', 'Sí']
+]) {
+  test(`online license status is localized and remains read-only (${locale})`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(value => localStorage.setItem('elitescada.engineering.locale', value), locale);
+    let available = true;
+    await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+      license: { state: 'Demo', maximumTags: 200 },
+      runtime: { state: 'Running', activeLicenseState: 'Demo', maximumTags: 200 },
+      usage: { tags: 37, interactive: 1, viewOnly: 0, observedAtUtc: '2026-10-28T00:00:00Z' },
+      onlineDevice: {
+        configured: true, available, hasActivation: true, leasePresent: true,
+        issuedAtUtc: '2026-10-28T12:00:00Z', notAfterUtc: '2026-10-31T12:00:00Z',
+        renewalDueUtc: '2026-10-30T12:00:00Z', requestPending: false,
+        clockRollbackDetected: false, isReset: false, reauthenticationRequired: false
+      }
+    } }));
+    await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'fictitious' } }));
+    await page.goto('/tests-e2e/licensing-harness.html');
+    await expect(page.getByRole('heading', { name: title })).toBeVisible();
+    await expect(page.getByTestId('online-license-status')).toContainText(stored);
+    await expect(page.getByTestId('online-license-status')).toContainText(leaseLabel);
+    await expect(page.getByTestId('online-license-status')).toContainText(yes);
+    await expect(page.getByTestId('license-tags-usage')).toContainText('37');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+
+    available = false;
+    await page.getByRole('button', { name: /Atualizar|Refresh|Actualizar/ }).click();
+    await expect(page.getByTestId('online-license-status')).toContainText(unavailable);
+    await expect(page.getByTestId('license-tags-total')).toContainText('200');
+  });
+}
+
 test('an unavailable duration is not presented as unlimited', async ({ page }) => {
   await page.route('**/api/licensing/status', route => route.fulfill({ json: {
     license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' }

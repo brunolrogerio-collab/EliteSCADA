@@ -8,7 +8,21 @@ namespace Scada.Api.Licensing;
 
 public sealed record ProductLicenseInstallRequest(string LicenseCode);
 internal sealed record ProductLicenseStatusResponse(ProductLicenseStatusProjection License, object Runtime,
-    ProductRuntimeUsage? Usage, RuntimeSessionSeatCapacity? SessionLimits);
+    ProductRuntimeUsage? Usage, RuntimeSessionSeatCapacity? SessionLimits,
+    ProductOnlineLicenseDeviceStatusProjection OnlineDevice);
+
+internal sealed record ProductOnlineLicenseDeviceStatusProjection(
+    bool Configured,
+    bool Available,
+    bool HasActivation,
+    bool LeasePresent,
+    DateTimeOffset? IssuedAtUtc,
+    DateTimeOffset? NotAfterUtc,
+    DateTimeOffset? RenewalDueUtc,
+    bool RequestPending,
+    bool ClockRollbackDetected,
+    bool IsReset,
+    bool ReauthenticationRequired);
 
 public sealed record ProductLicenseStatusProjection(
     string State,
@@ -35,9 +49,15 @@ public static class ProductLicensingApi
         group.MapGet("/status", async (
             IProductLicenseService licensing,
             IProductRuntimeStatusProvider runtimeStatus,
+            HttpContext context,
             CancellationToken cancellationToken) =>
         {
-            return Results.Ok(await CreateStatusAsync(licensing, runtimeStatus, cancellationToken));
+            var onlineStateStore = context.RequestServices.GetService(typeof(FileOnlineLicenseStateStore))
+                as FileOnlineLicenseStateStore;
+            Func<CancellationToken, Task<OnlineLicenseDeviceStatus?>>? readOnlineState =
+                onlineStateStore is null ? null : onlineStateStore.ReadStatusAsync;
+            return Results.Ok(await CreateStatusAsync(licensing, runtimeStatus, cancellationToken,
+                onlineStateStore is not null, readOnlineState));
         }).RequireWorkspaceEngineeringRead();
 
         group.MapGet("/request", (IProductLicenseService licensing) =>
@@ -222,7 +242,9 @@ public static class ProductLicensingApi
     }
 
     internal static async Task<ProductLicenseStatusResponse> CreateStatusAsync(
-        IProductLicenseService licensing, IProductRuntimeStatusProvider runtimeStatus, CancellationToken cancellationToken = default)
+        IProductLicenseService licensing, IProductRuntimeStatusProvider runtimeStatus,
+        CancellationToken cancellationToken = default, bool onlineDeviceConfigured = false,
+        Func<CancellationToken, Task<OnlineLicenseDeviceStatus?>>? readOnlineState = null)
     {
         var before = DescribeLicense(licensing.CurrentVerification);
         ProductRuntimeUsage? usage;
@@ -233,7 +255,45 @@ public static class ProductLicensingApi
         var license = DescribeLicense(verification);
         if (before != license) usage = null;
         return new(license, DescribeRuntime(runtimeStatus.GetProductRuntimeStatus()), usage,
-            RuntimeSessionSeatCapacityPolicy.Resolve(verification).Capacity);
+            RuntimeSessionSeatCapacityPolicy.Resolve(verification).Capacity,
+            await CreateOnlineDeviceStatusAsync(onlineDeviceConfigured, readOnlineState, cancellationToken));
+    }
+
+    internal static async Task<ProductOnlineLicenseDeviceStatusProjection> CreateOnlineDeviceStatusAsync(
+        bool configured, Func<CancellationToken, Task<OnlineLicenseDeviceStatus?>>? readStatus,
+        CancellationToken cancellationToken = default)
+    {
+        if (!configured)
+            return new(false, true, false, false, null, null, null, false, false, false, false);
+        if (readStatus is null)
+            return new(true, false, false, false, null, null, null, false, false, false, false);
+
+        try
+        {
+            var status = await readStatus(cancellationToken);
+            return new(
+                Configured: true,
+                Available: true,
+                HasActivation: status is not null && !status.IsReset,
+                LeasePresent: status?.HasLease == true,
+                IssuedAtUtc: status?.IssuedAtUtc,
+                NotAfterUtc: status?.NotAfterUtc,
+                RenewalDueUtc: status?.RenewalDueUtc,
+                RequestPending: status?.PendingRequestId is not null,
+                ClockRollbackDetected: status?.ClockRollbackDetected == true,
+                IsReset: status?.IsReset == true,
+                ReauthenticationRequired: status?.ReauthenticationRequired == true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // The online journal is optional for the licensing page. Never turn an unreadable
+            // journal into an empty state or disclose its storage/cryptographic error.
+            return new(true, false, false, false, null, null, null, false, false, false, false);
+        }
     }
 
     internal static ProductLicenseStatusProjection DescribeLicense(LicenseVerificationResult verification)

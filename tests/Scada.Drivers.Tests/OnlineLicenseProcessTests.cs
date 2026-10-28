@@ -15,14 +15,18 @@ public sealed partial class OnlineProductLicenseLifecycleTests
     private const string ProcessRootVariable = "SCADIVO_LICENSE_TEST_PROCESS_ROOT";
 
     [Theory]
-    [InlineData(1, false)]
-    [InlineData(201, false)]
-    [InlineData(1, true)]
-    [InlineData(201, true)]
-    public async Task OnlineExpiry_SeparateProcessReevaluatesSettledAuthority(int count, bool separateFiles)
+    [InlineData(1, false, false)]
+    [InlineData(201, false, false)]
+    [InlineData(1, true, false)]
+    [InlineData(201, true, false)]
+    [InlineData(1, true, true)]
+    [InlineData(201, true, true)]
+    public async Task OnlineExpiry_SeparateProcessReevaluatesSettledAuthority(int count, bool separateFiles, bool separateDatabases)
     {
         var connection = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(connection)) return;
+        var peerConnection = Environment.GetEnvironmentVariable("SCADIVO_TEST_PEER_POSTGRES");
+        if (separateDatabases && string.IsNullOrWhiteSpace(peerConnection)) return;
         using var f = new Fixture(keys);
         using var source = f.Source();
         await using var store = new PostgreSqlRuntimeSessionLeaseStore(connection);
@@ -39,6 +43,7 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         start.ArgumentList.Add(typeof(OnlineProductLicenseLifecycleTests).Assembly.Location);
         start.ArgumentList.Add("/TestCaseFilter:FullyQualifiedName~OnlineLicenseProcessWorker");
         start.Environment[ProcessRootVariable] = f.Root;
+        if (separateDatabases) start.Environment["ELITESCADA_TEST_POSTGRES"] = peerConnection;
         using var worker = Process.Start(start)!;
         var stdout = worker.StandardOutput.ReadToEndAsync();
         var stderr = worker.StandardError.ReadToEndAsync();

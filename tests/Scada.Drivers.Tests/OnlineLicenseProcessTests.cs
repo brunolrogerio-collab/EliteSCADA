@@ -15,9 +15,11 @@ public sealed partial class OnlineProductLicenseLifecycleTests
     private const string ProcessRootVariable = "SCADIVO_LICENSE_TEST_PROCESS_ROOT";
 
     [Theory]
-    [InlineData(1)]
-    [InlineData(201)]
-    public async Task OnlineExpiry_SeparateProcessReevaluatesSettledAuthority(int count)
+    [InlineData(1, false)]
+    [InlineData(201, false)]
+    [InlineData(1, true)]
+    [InlineData(201, true)]
+    public async Task OnlineExpiry_SeparateProcessReevaluatesSettledAuthority(int count, bool separateFiles)
     {
         var connection = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(connection)) return;
@@ -28,7 +30,9 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         var lifecycle = CreateLifecycle(source, store, new RecordingRuntime(), f.Clock);
         Assert.True((await lifecycle.InstallOnlineAsync(Candidate())).Succeeded);
         await File.WriteAllTextAsync(Path.Combine(f.Root, "public.pem"), keys.Online.ExportSubjectPublicKeyInfoPem());
-        await File.WriteAllTextAsync(Path.Combine(f.Root, "input.json"), JsonSerializer.Serialize(new ProcessInput(f.Path, Binding.MachineFingerprint, count)));
+        var workerLicense = separateFiles ? Path.Combine(f.Root, "worker.license") : f.Path;
+        if (separateFiles) File.Copy(f.Path, workerLicense);
+        await File.WriteAllTextAsync(Path.Combine(f.Root, "input.json"), JsonSerializer.Serialize(new ProcessInput(workerLicense, Binding.MachineFingerprint, count, separateFiles)));
         var start = new ProcessStartInfo("dotnet") { UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("vstest");
@@ -86,6 +90,15 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         await File.WriteAllTextAsync(Path.Combine(root, "ready"), Environment.ProcessId.ToString());
         await WaitForProcessFileAsync(root, "continue");
         clock.Advance(TimeSpan.FromHours(72));
+        if (input.SeparateFiles)
+        {
+            Assert.Equal(LicenseState.Invalid, source.CurrentVerification.State);
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await runtime.WriteAsync(tag.Id, 8d));
+            Assert.True(runtime.TryGetCurrent(tag.Id, out var preserved));
+            Assert.Equal(7d, preserved!.Value);
+            var lifecycle = CreateLifecycle(source, store, runtime, clock);
+            Assert.Equal("expired-to-demo", (await Guard(source, lifecycle, runtime, clock).RunOnceAsync()).Code);
+        }
         var allowed = true;
         try { await runtime.WriteAsync(tag.Id, 9d); }
         catch (InvalidOperationException) { allowed = false; }
@@ -106,7 +119,7 @@ public sealed partial class OnlineProductLicenseLifecycleTests
             await Task.Delay(25, timeout.Token);
         }
     }
-    private sealed record ProcessInput(string LicensePath, string Fingerprint, int Count);
+    private sealed record ProcessInput(string LicensePath, string Fingerprint, int Count, bool SeparateFiles);
     private sealed record ProcessResult(int ProcessId, bool Allowed, int Tags);
     private sealed class ProcessMachine(string fingerprint) : IMachineIdentityProvider
     {

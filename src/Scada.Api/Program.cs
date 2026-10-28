@@ -127,11 +127,12 @@ builder.Services.AddSingleton<TransientEventRuntimeDispatcher>(sp =>
 builder.Services.AddSingleton<ITransientEventRuntimeIngress>(sp =>
     sp.GetRequiredService<TransientEventRuntimeDispatcher>());
 builder.Services.AddSingleton<IRichCommandRuntime>(sp =>
-    new RichCommandRuntimeService(
+    RichCommandRuntimeService.CreateWithAsyncAuthority(
         sp.GetRequiredService<IRichCommandDefinitionResolver>(),
         sp.GetRequiredService<IRichCommandBindingResolver>(),
         sp.GetRequiredService<IRichCommandDriverExecutorResolver>(),
-        () => sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects()));
+        async ct => sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects() &&
+            await sp.GetRequiredService<ProductLicensedRuntimeCoordinator>().CanStartLicensedEffectAsync(ct)));
 builder.Services.AddSingleton<IRichCommandHmiAuthorization, ApiRichCommandHmiAuthorization>();
 builder.Services.AddSingleton<HmiRichCommandInvocationService>();
 

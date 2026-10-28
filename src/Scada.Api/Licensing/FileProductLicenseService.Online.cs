@@ -6,6 +6,8 @@ using Scada.Core.Product.Licensing;
 
 namespace Scada.Api.Licensing;
 
+internal sealed record ProductEffectLicenseSnapshot(LicenseVerificationResult Verification, bool Online, string? Identity);
+
 // This is an internal installation artifact, never an offline import or Portal response.
 // It deliberately holds no refresh credential, password or authoritative policy copy.
 internal sealed class OnlineProductLicenseCandidate(OnlineLeaseBinding binding, string envelope)
@@ -33,6 +35,21 @@ public sealed partial class FileProductLicenseService
         = OnlineLeaseVerifier.Verify;
     private DateTimeOffset? _onlineTimeFloor;
     private long _onlineTimeStamp;
+
+    internal ProductEffectLicenseSnapshot ReadEffectLicenseSnapshot()
+    {
+        lock (_gate)
+        {
+            if (!File.Exists(_licensePath)) return new(LicenseVerificationResult.Demo(), false, null);
+            var code = File.ReadAllText(_licensePath).Trim();
+            var online = code.StartsWith(OnlineInstallationPrefix, StringComparison.Ordinal);
+            var verification = online ? VerifySelectedOnline(code) : Verify(code);
+            var identityContent = online
+                ? JsonSerializer.Serialize(ParseOnline(code) with { LastObservedUtc = default }, OnlineJson)
+                : code;
+            return new(verification, online, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identityContent))));
+        }
+    }
 
     internal OnlineProductLicenseInstallation? ReadOnlineInstallation()
     {

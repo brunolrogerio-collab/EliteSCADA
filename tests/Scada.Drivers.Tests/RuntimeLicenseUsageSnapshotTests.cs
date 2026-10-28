@@ -7,6 +7,33 @@ namespace Scada.Drivers.Tests;
 public sealed class RuntimeLicenseUsageSnapshotTests
 {
     [Fact]
+    public async Task PostgreSqlAuthoritySnapshot_ReadsCommittedStateWithoutWaitingForRowMutation()
+    {
+        var connection = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connection)) return;
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connection);
+        await store.InitializeAsync();
+        var before = await store.ReadAuthoritySnapshotAsync();
+        await using var data = Npgsql.NpgsqlDataSource.Create(connection);
+        await using var writer = await data.OpenConnectionAsync();
+        await using var transaction = await writer.BeginTransactionAsync();
+        await using var update = new Npgsql.NpgsqlCommand("UPDATE elitescada.runtime_session_authority_state SET authority_revision = authority_revision + 1 WHERE singleton_id = 1", writer, transaction);
+        await update.ExecuteNonQueryAsync();
+        using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var observed = await store.ReadAuthoritySnapshotAsync(bounded.Token);
+        Assert.Equal(before, observed);
+        await transaction.RollbackAsync();
+        var transition = await store.BeginAuthorityTransitionAsync("snapshot-test", DateTimeOffset.UtcNow);
+        try
+        {
+            var pending = await store.ReadAuthoritySnapshotAsync();
+            Assert.True(pending.TransitionPending);
+            Assert.Equal(transition.TransitionId, pending.TransitionId);
+        }
+        finally { await store.AbortAuthorityTransitionAsync(transition.TransitionId, transition.BaseAuthorityRevision); }
+    }
+
+    [Fact]
     public async Task MemorySnapshot_DoesNotObservePartialAdmissionDuringConcurrentReadersAndWriters()
     {
         var now = DateTimeOffset.UtcNow;

@@ -185,7 +185,7 @@ public sealed class RichCommandRuntimeService : IRichCommandRuntime, IDisposable
     private readonly IRichCommandDefinitionResolver _definitions;
     private readonly IRichCommandBindingResolver _bindings;
     private readonly IRichCommandDriverExecutorResolver _executors;
-    private readonly Func<bool> _effectAuthority;
+    private readonly Func<CancellationToken, ValueTask<bool>> _effectAuthority;
     private readonly RichCommandRuntimePolicy _policy;
     private readonly SemaphoreSlim _admission;
     private readonly SemaphoreSlim _physicalConcurrency;
@@ -193,11 +193,29 @@ public sealed class RichCommandRuntimeService : IRichCommandRuntime, IDisposable
     private readonly Dictionary<TargetKey, TargetOrderState> _targetOrders = new();
     private int _disposed;
 
+    public static RichCommandRuntimeService CreateWithAsyncAuthority(
+        IRichCommandDefinitionResolver definitions,
+        IRichCommandBindingResolver bindings,
+        IRichCommandDriverExecutorResolver executors,
+        Func<CancellationToken, ValueTask<bool>> effectAuthority,
+        RichCommandRuntimePolicy? policy = null) =>
+        new(definitions, bindings, executors, effectAuthority, policy);
+
     public RichCommandRuntimeService(
         IRichCommandDefinitionResolver definitions,
         IRichCommandBindingResolver bindings,
         IRichCommandDriverExecutorResolver executors,
         Func<bool> effectAuthority,
+        RichCommandRuntimePolicy? policy = null)
+        : this(definitions, bindings, executors, WrapSynchronousAuthority(effectAuthority), policy)
+    {
+    }
+
+    private RichCommandRuntimeService(
+        IRichCommandDefinitionResolver definitions,
+        IRichCommandBindingResolver bindings,
+        IRichCommandDriverExecutorResolver executors,
+        Func<CancellationToken, ValueTask<bool>> effectAuthority,
         RichCommandRuntimePolicy? policy = null)
     {
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
@@ -248,8 +266,8 @@ public sealed class RichCommandRuntimeService : IRichCommandRuntime, IDisposable
         if (!_executors.TryResolve(validatedBinding.DataSourceId, out var executor) || executor is null)
             return Result(validatedInvocation, RichCommandOutcome.Rejected, "executor.unsupported");
 
-        if (!CanOwnExternalEffects())
-            return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.non_authoritative");
+        if (!await CanOwnExternalEffectsAsync(cancellationToken).ConfigureAwait(false))
+            return AuthorityRejected(validatedInvocation, cancellationToken);
 
         if (!_admission.Wait(0))
             return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.saturated");
@@ -268,8 +286,8 @@ public sealed class RichCommandRuntimeService : IRichCommandRuntime, IDisposable
             if (cancellationToken.IsCancellationRequested)
                 return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.cancelled_before_dispatch");
 
-            if (!CanOwnExternalEffects())
-                return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.non_authoritative");
+            if (!await CanOwnExternalEffectsAsync(cancellationToken).ConfigureAwait(false))
+                return AuthorityRejected(validatedInvocation, cancellationToken);
 
             try
             {
@@ -284,8 +302,8 @@ public sealed class RichCommandRuntimeService : IRichCommandRuntime, IDisposable
             if (cancellationToken.IsCancellationRequested)
                 return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.cancelled_before_dispatch");
 
-            if (!CanOwnExternalEffects())
-                return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.non_authoritative");
+            if (!await CanOwnExternalEffectsAsync(cancellationToken).ConfigureAwait(false))
+                return AuthorityRejected(validatedInvocation, cancellationToken);
 
             var dispatchedAt = DateTimeOffset.UtcNow;
             execution = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -418,11 +436,23 @@ public sealed class RichCommandRuntimeService : IRichCommandRuntime, IDisposable
         }
     }
 
-    private bool CanOwnExternalEffects()
+    private static Func<CancellationToken, ValueTask<bool>> WrapSynchronousAuthority(Func<bool> authority)
+    {
+        ArgumentNullException.ThrowIfNull(authority);
+        return _ => ValueTask.FromResult(authority());
+    }
+
+    private static RichCommandResult AuthorityRejected(RichCommandInvocation invocation, CancellationToken cancellationToken) =>
+        Result(invocation, RichCommandOutcome.Rejected,
+            cancellationToken.IsCancellationRequested ? "runtime.cancelled_before_dispatch" : "runtime.non_authoritative");
+
+    private async ValueTask<bool> CanOwnExternalEffectsAsync(CancellationToken cancellationToken)
     {
         try
         {
-            return _effectAuthority();
+            if (cancellationToken.IsCancellationRequested) return false;
+            var allowed = await _effectAuthority(cancellationToken).ConfigureAwait(false);
+            return allowed && !cancellationToken.IsCancellationRequested;
         }
         catch
         {

@@ -780,6 +780,26 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         }
     }
 
+    public async Task<RuntimeSessionUsageSnapshot?> GetUsageSnapshotAsync(RuntimeSessionRuntimeIdentity runtime,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
+        var authority = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+        if (authority.TransitionPending)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return null;
+        }
+        var now = DateTimeOffset.UtcNow;
+        var interactive = await CountActiveByClassAsync(connection, transaction, runtime, "interactive", now, cancellationToken);
+        var viewOnly = await CountActiveByClassAsync(connection, transaction, runtime, "viewer", now, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new(now, authority.AuthorityRevision, interactive, viewOnly);
+    }
+
     public async Task<RuntimeSessionLeaseCapacityAdmissionResult> AdmitWithCapacityAsync(
         RuntimeSessionLeaseCapacityAdmission capacityAdmission,
         CancellationToken cancellationToken = default)

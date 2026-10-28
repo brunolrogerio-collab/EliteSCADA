@@ -127,6 +127,10 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        // Session mutations lock authority_state before runtime_session_leases. Acquire
+        // their canonical advisory lock before DDL so a concurrent migration cannot lock
+        // the lease table first and deadlock against an in-flight authority transition.
+        await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
         await PostgreSqlSharedSchemaInitialization.AcquireLockAsync(connection, transaction, cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         await command.ExecuteNonQueryAsync(cancellationToken);

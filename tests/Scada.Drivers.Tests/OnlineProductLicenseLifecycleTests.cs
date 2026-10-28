@@ -254,12 +254,18 @@ public sealed class OnlineProductLicenseLifecycleTests(OnlineProductLicenseTestK
             f.Clock.Advance(TimeSpan.FromHours(71));
             source.CheckpointOnlineClock(selected.Revision);
             Assert.Equal(selected.Revision, source.ReadOnlineInstallation()!.Revision);
+            f.Clock.SetWall(Issued);
+            Assert.Equal(LicenseState.Valid, source.CurrentVerification.State);
+            f.Clock.AdvanceMonotonic(TimeSpan.FromHours(1));
+            Assert.Equal(OnlineLeaseVerificationStatus.Expired, source.ReadOnlineInstallation()!.Status);
+            Assert.Equal("ONLINE_LICENSE_EXPIRY_TRANSITION_REQUIRED", source.CurrentVerification.Diagnostic);
         }
-        f.Clock.SetWall(Issued);
         using var reopened = f.Source();
-        Assert.Equal(LicenseState.Valid, reopened.CurrentVerification.State);
-        Assert.Equal(Issued.AddHours(71), reopened.ReadOnlineInstallation()!.LastObservedUtc);
-        f.Clock.AdvanceMonotonic(TimeSpan.FromHours(1));
+        // Preparing a candidate cannot prime away the installation's restart watermark.
+        _ = reopened.VerifyOnlineCandidate(Candidate());
+        Assert.Equal(LicenseState.Invalid, reopened.CurrentVerification.State);
+        Assert.Equal("ONLINE_LICENSE_CLOCK_ROLLBACK", reopened.CurrentVerification.Diagnostic);
+        f.Clock.SetWall(Issued.AddHours(72));
         Assert.Equal(OnlineLeaseVerificationStatus.Expired, reopened.ReadOnlineInstallation()!.Status);
         Assert.Equal(LicenseState.Invalid, reopened.CurrentVerification.State);
         Assert.Equal("ONLINE_LICENSE_EXPIRY_TRANSITION_REQUIRED", reopened.CurrentVerification.Diagnostic);

@@ -119,7 +119,10 @@ public sealed partial class FileProductLicenseService
             return ProjectOnline(VerifyOnlineState(state), state.ExpiryApplied);
         }
         catch (Exception ex) when (ex is JsonException or InvalidDataException or ArgumentException or OverflowException)
-        { return LicenseVerificationResult.Invalid("ONLINE_LICENSE_INSTALLATION_INVALID"); }
+        {
+            return LicenseVerificationResult.Invalid(ex.Message == "ONLINE_LICENSE_CLOCK_ROLLBACK"
+                ? "ONLINE_LICENSE_CLOCK_ROLLBACK" : "ONLINE_LICENSE_INSTALLATION_INVALID");
+        }
     }
 
     private OnlineLeaseVerificationResult VerifyOnlineState(OnlineInstallationState state)
@@ -173,6 +176,11 @@ public sealed partial class FileProductLicenseService
     {
         var timestamp = _timeProvider.GetTimestamp();
         var now = _timeProvider.GetUtcNow();
+        // Across a restart elapsed downtime is unknowable if UTC is behind the saved
+        // watermark. Fail closed instead of granting another remaining-lifetime window.
+        if (persistedFloor is { } startupFloor && now < startupFloor &&
+            (_onlineTimeFloor is null || _onlineTimeFloor < startupFloor))
+            throw new InvalidDataException("ONLINE_LICENSE_CLOCK_ROLLBACK");
         if (persistedFloor is { } persisted && persisted > now) now = persisted;
         if (_onlineTimeFloor is { } floor)
         {

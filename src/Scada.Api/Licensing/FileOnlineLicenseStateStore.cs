@@ -67,6 +67,19 @@ public sealed class FileOnlineLicenseStateStore
         return state is null ? null : Status(state);
     }
 
+    // Deliberately separate from transport completion: receiving a lease must never
+    // silently change active Runtime entitlements before the canonical epoch transition.
+    internal async Task<OnlineProductLicenseCandidate> ReadEntitlementCandidateAsync(CancellationToken ct = default)
+    {
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        var now = DemandClock(state);
+        if (state.IsReset || state.Lease is null ||
+            verify(state.Lease, state.Binding, now).Status != OnlineLeaseVerificationStatus.Valid)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LEASE_REJECTED");
+        return new(state.Binding, state.Lease);
+    }
+
     public async Task<OnlineLicenseDeviceStatus> PrepareActivationAsync(OnlineLicenseSelection selection,
         string username, ProtectedMaterialMutationContext mutation, CancellationToken ct = default)
     {

@@ -1006,20 +1006,22 @@ public sealed class ProductLicensedRuntimeCoordinator :
     private async Task<RuntimeAuthorityState?> ReadAuthorityForEffectsAsync(CancellationToken cancellationToken)
     {
         if (_entitlements is not FileProductLicenseService || _authorityStore is null) return null;
-        try { return await _authorityStore.GetAuthorityStateAsync(cancellationToken); }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception) { return null; }
+        return await _authorityStore.GetAuthorityStateAsync(cancellationToken);
     }
 
     private async Task MarkAuthorityAppliedAsync(RuntimeAuthorityState? before, bool allowPending, CancellationToken cancellationToken)
     {
         _appliedAuthorityRevision = null;
-        if (before is null || (!allowPending && before.TransitionPending)) return;
+        if (_entitlements is not FileProductLicenseService || _authorityStore is null) return;
+        if (before is null || (!allowPending && before.TransitionPending))
+            throw new InvalidOperationException("Runtime license authority cannot be marked as applied during a conflicting transition.");
         var after = await ReadAuthorityForEffectsAsync(cancellationToken);
         if (after is not null && after.AuthorityRevision == before.AuthorityRevision &&
             after.TransitionPending == before.TransitionPending && after.TransitionId == before.TransitionId &&
             (allowPending || !after.TransitionPending))
             _appliedAuthorityRevision = after.AuthorityRevision;
+        if (_appliedAuthorityRevision is null)
+            throw new InvalidOperationException("Runtime license authority changed while applying its entitlement.");
     }
 
     public async ValueTask<bool> CanStartLicensedEffectAsync(CancellationToken cancellationToken = default)

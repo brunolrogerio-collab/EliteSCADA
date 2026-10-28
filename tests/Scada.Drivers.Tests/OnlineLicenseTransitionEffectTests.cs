@@ -11,6 +11,37 @@ namespace Scada.Drivers.Tests;
 public sealed partial class OnlineProductLicenseLifecycleTests
 {
     [Fact]
+    public async Task Reevaluate_AuthorityReadFailure_LeavesTransitionRecoverable()
+    {
+        using var f = new Fixture(keys);
+        using var source = f.Source();
+        await using var inner = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        var store = NewInterceptedStore(inner, out var proxy);
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = new ProductLicensedRuntimeCoordinator(
+            new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
+            () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock, store);
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
+        Assert.True((await lifecycle.InstallOnlineAsync(Candidate())).Succeeded);
+        var original = Package(1, true);
+        Assert.True((await runtime.ActivateAsync("plant", 1,
+            original with { Tags = original.Tags.Select(t => t with { ReadOnly = false }).ToArray() })).Activated);
+        f.Clock.Advance(TimeSpan.FromHours(72));
+        proxy.ReadOverride = async ct =>
+        {
+            var state = await inner.GetAuthorityStateAsync(ct);
+            if (state.TransitionPending && state.AuthorityRevision >= 3) throw new IOException("injected read failure");
+            return state;
+        };
+        await Assert.ThrowsAnyAsync<Exception>(() => lifecycle.ExpireOnlineAsync(source.ReadOnlineInstallation()!.Revision));
+        Assert.True((await inner.GetAuthorityStateAsync()).TransitionPending);
+        proxy.ReadOverride = null;
+        await lifecycle.ReconcileFailedOnlineAsync();
+        Assert.False((await inner.GetAuthorityStateAsync()).TransitionPending);
+        await runtime.WriteAsync(Assert.Single(runtime.Tags()).Id, 9d);
+    }
+
+    [Fact]
     public async Task Effect_AuthorityUnavailable_FailsClosedWithoutChangingTag()
     {
         using var f = new Fixture(keys);

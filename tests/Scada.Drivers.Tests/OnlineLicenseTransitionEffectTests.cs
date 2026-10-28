@@ -11,6 +11,36 @@ namespace Scada.Drivers.Tests;
 public sealed partial class OnlineProductLicenseLifecycleTests
 {
     [Fact]
+    public async Task Effect_ExpiresDuringFinalAuthorityRead_DoesNotWrite()
+    {
+        using var f = new Fixture(keys);
+        using var source = f.Source();
+        await using var inner = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        var store = NewInterceptedStore(inner, out var proxy);
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = new ProductLicensedRuntimeCoordinator(
+            new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
+            () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock, store);
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
+        Assert.True((await lifecycle.InstallOnlineAsync(Candidate())).Succeeded);
+        var original = Package(1, true);
+        Assert.True((await runtime.ActivateAsync("plant", 1,
+            original with { Tags = original.Tags.Select(t => t with { ReadOnly = false }).ToArray() })).Activated);
+        var tag = Assert.Single(runtime.Tags());
+        await runtime.WriteAsync(tag.Id, 7d);
+        var reads = 0;
+        proxy.ReadOverride = async ct =>
+        {
+            var state = await inner.GetAuthorityStateAsync(ct);
+            if (Interlocked.Increment(ref reads) == 3) f.Clock.Advance(TimeSpan.FromHours(72));
+            return state;
+        };
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await runtime.WriteAsync(tag.Id, 8d));
+        Assert.True(runtime.TryGetCurrent(tag.Id, out var current));
+        Assert.Equal(7d, current!.Value);
+    }
+
+    [Fact]
     public async Task OnlineToOffline_RejectsEffectsWhileAuthorityTransitionIsPending()
     {
         using var f = new Fixture(keys);

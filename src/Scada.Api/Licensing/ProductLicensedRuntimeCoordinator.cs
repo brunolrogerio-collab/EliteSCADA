@@ -1061,7 +1061,8 @@ public sealed class ProductLicensedRuntimeCoordinator :
             }
             if (beforeLicense != source.CurrentVerification) return false;
             var after = await _authorityStore.ReadAuthoritySnapshotAsync(cancellationToken);
-            var settled = !after.TransitionPending && after.AuthorityRevision == state.AuthorityRevision;
+            var settled = !after.TransitionPending && after.AuthorityRevision == state.AuthorityRevision &&
+                snapshot == source.ReadEffectLicenseSnapshot();
             if (settled && !snapshot.Online) _offlineEffectsSettled = true;
             return settled;
         }

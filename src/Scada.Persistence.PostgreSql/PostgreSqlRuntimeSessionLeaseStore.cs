@@ -133,6 +133,12 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task<RuntimeAuthorityState> ReadAuthoritySnapshotAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        return await LoadAuthorityStateAsync(connection, null, forUpdate: false, cancellationToken);
+    }
+
     public async Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -1081,6 +1087,13 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
     private static async Task<RuntimeAuthorityState> LoadAuthorityStateForUpdateAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
+        CancellationToken cancellationToken) =>
+        await LoadAuthorityStateAsync(connection, transaction, forUpdate: true, cancellationToken);
+
+    private static async Task<RuntimeAuthorityState> LoadAuthorityStateAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        bool forUpdate,
         CancellationToken cancellationToken)
     {
         const string sql = """
@@ -1089,9 +1102,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                    authority_changed_at_utc, demo_started_at_utc
             FROM elitescada.runtime_session_authority_state
             WHERE singleton_id = 1
-            FOR UPDATE;
             """;
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        await using var command = new NpgsqlCommand(sql + (forUpdate ? " FOR UPDATE;" : ";"), connection, transaction);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
             throw new InvalidOperationException("Runtime authority singleton state is missing.");

@@ -193,6 +193,10 @@ public interface IRuntimeSessionLeaseStore : IAsyncDisposable
 
     Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>A committed observation only; does not reserve permission or serialize a mutation.</summary>
+    Task<RuntimeAuthorityState> ReadAuthoritySnapshotAsync(CancellationToken cancellationToken = default) =>
+        GetAuthorityStateAsync(cancellationToken);
+
     /// <summary>
     /// Establishes or replaces the durable Demo-session start only when the
     /// current value still matches <paramref name="expectedExistingStartedAtUtc"/>.

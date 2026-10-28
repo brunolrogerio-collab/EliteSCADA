@@ -1036,7 +1036,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
                 return false;
             var beforeLicense = source.CurrentVerification;
             if (beforeLicense.State == LicenseState.Invalid) return false;
-            var state = await _authorityStore.GetAuthorityStateAsync(cancellationToken);
+            var state = await _authorityStore.ReadAuthoritySnapshotAsync(cancellationToken);
             if (state.TransitionPending || state.AuthorityRevision != _appliedAuthorityRevision) return false;
             var decision = ProductEntitlementEvaluator.Evaluate(beforeLicense, tags);
             lock (_statusGate)
@@ -1044,7 +1044,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
                 if (!decision.Allowed || _activeDecision != decision) return false;
             }
             if (beforeLicense != source.CurrentVerification) return false;
-            var after = await _authorityStore.GetAuthorityStateAsync(cancellationToken);
+            var after = await _authorityStore.ReadAuthoritySnapshotAsync(cancellationToken);
             return !after.TransitionPending && after.AuthorityRevision == state.AuthorityRevision;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }

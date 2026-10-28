@@ -146,7 +146,7 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         internal Func<CancellationToken, Task<RuntimeAuthorityState>>? ReadOverride { get; set; }
         protected override object? Invoke(MethodInfo? method, object?[]? args)
         {
-            if (method?.Name == nameof(IRuntimeSessionLeaseStore.GetAuthorityStateAsync) && ReadOverride is { } read)
+            if (method?.Name is nameof(IRuntimeSessionLeaseStore.GetAuthorityStateAsync) or nameof(IRuntimeSessionLeaseStore.ReadAuthoritySnapshotAsync) && ReadOverride is { } read)
                 return read((CancellationToken)args![0]!);
             return method!.Invoke(Inner, args);
         }

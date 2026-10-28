@@ -8,6 +8,63 @@ namespace Scada.Drivers.Tests;
 public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
 {
     [Fact]
+    public async Task PostgreSqlLeaseStore_InitializationWaitsForInFlightLeaseMutation()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        const string initializerApplicationName = "Scada.Drivers.Tests.RuntimeSessionLeaseStore.InitWait";
+        var initializerConnectionString = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            ApplicationName = initializerApplicationName
+        }.ConnectionString;
+
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(initializerConnectionString);
+        await store.InitializeAsync();
+
+        await using var writerConnection = new NpgsqlConnection(connectionString);
+        await writerConnection.OpenAsync();
+        await using var writerTransaction = await writerConnection.BeginTransactionAsync();
+        await using (var acquire = new NpgsqlCommand(
+                         "SELECT pg_advisory_xact_lock(@lock_key);",
+                         writerConnection,
+                         writerTransaction))
+        {
+            acquire.Parameters.AddWithValue(
+                "lock_key",
+                NpgsqlTypes.NpgsqlDbType.Bigint,
+                4993446713136202566L);
+            await acquire.ExecuteNonQueryAsync();
+        }
+
+        await using (var holdAuthority = new NpgsqlCommand(
+                         "SELECT authority_revision FROM elitescada.runtime_session_authority_state WHERE singleton_id = 1 FOR UPDATE;",
+                         writerConnection,
+                         writerTransaction))
+            _ = await holdAuthority.ExecuteScalarAsync();
+
+        var initialization = store.InitializeAsync();
+        bool isWaitingForMutationLock;
+        try
+        {
+            isWaitingForMutationLock = await WaitForMutationLockWaitAsync(
+                connectionString,
+                initializerApplicationName,
+                TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            await writerTransaction.CommitAsync();
+        }
+
+        await initialization.WaitAsync(TimeSpan.FromSeconds(15));
+        Assert.True(isWaitingForMutationLock,
+            "Schema initialization must acquire the runtime-session mutation lock before executing DDL.");
+        Assert.True((await store.GetAuthorityStateAsync()).AuthorityRevision > 0);
+    }
+
+    [Fact]
     public async Task PostgreSqlLeaseStore_ConvergesLogicalAdmissionAcrossInstances_AndUsesGenerationCas()
     {
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
@@ -338,6 +395,37 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
 
     private static RuntimeSessionRuntimeIdentity Runtime(string project, long revision) =>
         new("engineering", project, revision, DateTimeOffset.Parse("2026-09-15T00:00:00Z"));
+
+    private static async Task<bool> WaitForMutationLockWaitAsync(
+        string connectionString,
+        string applicationName,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        await using var monitor = new NpgsqlConnection(connectionString);
+        await monitor.OpenAsync();
+        await using var command = new NpgsqlCommand("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                  AND pid <> pg_backend_pid()
+                  AND application_name = @application_name
+                  AND state = 'active'
+                  AND wait_event_type = 'Lock'
+                  AND query LIKE '%pg_advisory_xact_lock%');
+            """, monitor);
+        command.Parameters.AddWithValue("application_name", applicationName);
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (await command.ExecuteScalarAsync() is true)
+                return true;
+            await Task.Delay(TimeSpan.FromMilliseconds(25));
+        }
+
+        return false;
+    }
 
     private static async Task DeleteSubjectAsync(string connectionString, string subject)
     {

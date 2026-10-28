@@ -11,6 +11,28 @@ namespace Scada.Drivers.Tests;
 public sealed partial class OnlineProductLicenseLifecycleTests
 {
     [Fact]
+    public async Task OfflineLicense_WriteDoesNotAcquireOnlineAuthorityDependency()
+    {
+        using var f = new Fixture(keys);
+        using var source = f.Source();
+        source.InstallLicense(OfflineCode());
+        await using var inner = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        var store = NewInterceptedStore(inner, out var proxy);
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = new ProductLicensedRuntimeCoordinator(
+            new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
+            () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock, store);
+        var original = Package(1, true);
+        Assert.True((await runtime.ActivateAsync("plant", 1,
+            original with { Tags = original.Tags.Select(t => t with { ReadOnly = false }).ToArray() })).Activated);
+        proxy.ReadOverride = _ => Task.FromException<RuntimeAuthorityState>(new IOException("online authority unavailable"));
+        var tag = Assert.Single(runtime.Tags());
+        await runtime.WriteAsync(tag.Id, 7d);
+        Assert.True(runtime.TryGetCurrent(tag.Id, out var value));
+        Assert.Equal(7d, value!.Value);
+    }
+
+    [Fact]
     public async Task Reevaluate_AuthorityReadFailure_LeavesTransitionRecoverable()
     {
         using var f = new Fixture(keys);

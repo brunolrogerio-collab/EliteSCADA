@@ -91,6 +91,21 @@ internal static class OnlineLicenseProductApi
             catch (OnlineLicenseProtocolException ex) { return ProtocolFailure(ex); }
         });
 
+        group.MapPost("/abandon", async (OnlineLicenseConfirmationRequest request, HttpContext context, ApiAuthorizationService security) =>
+        {
+            var authorization = ProductLicensingApi.CheckMutationAuthorization(context, security);
+            if (authorization.FailureResult() is { } failure) return failure;
+            context.Response.Headers.CacheControl = "no-store";
+            var device = context.RequestServices.GetService<OnlineLicenseDeviceOrchestrator>();
+            if (device is null) return Unavailable();
+            try
+            {
+                await device.AbandonAmbiguousConfirmationAsync(request.ActivationId, new(authorization.Principal, authorization.Decision!), context.RequestAborted);
+                return Results.Ok(new { abandoned = true, remoteRevocation = false });
+            }
+            catch (OnlineLicenseProtocolException ex) { return ProtocolFailure(ex); }
+        });
+
         group.MapPost("/reset", async (HttpContext context, ApiAuthorizationService security,
             AssetProcessIntelligenceExecutionGate intelligenceGate) =>
         {

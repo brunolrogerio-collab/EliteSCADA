@@ -136,6 +136,40 @@ public sealed class OnlineLicenseDeviceProtocolTests
         Assert.Equal(!reauthentication, after.IsReset);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AmbiguousConfirmationCannotBeDiscardedUntilRetryWindowEnds(bool reauthentication)
+    {
+        using var f = new Fixture();
+        if (reauthentication)
+        {
+            await Activate(f);
+            var renewal = await f.Store().PrepareRenewalAsync(Admin());
+            await f.Store().RequireReauthenticationAsync(renewal.PendingRequestId!.Value, Admin(), default);
+        }
+        var summary = new OnlineLicensePresentation(Selection.LicenseId, Selection.OrganizationId,
+            Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account", "annual",
+            f.Clock.Now.AddDays(30), "Tags500", 2, 3, false, false, 1);
+        using var client = Client(f.Store(), _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new StringContent(JsonSerializer.Serialize(new { confirmationToken = new string('A', 43),
+                expiresAtUtc = f.Clock.Now.AddMinutes(5), onlineActivationAvailable = true, summary },
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)), Encoding.UTF8, "application/json") }));
+        var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
+        await f.Store().RequestConfirmationAsync(prepared.ActivationId, Admin(), default);
+        f.Clock.Now += TimeSpan.FromHours(24) + TimeSpan.FromMinutes(5) - TimeSpan.FromTicks(1);
+        await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() =>
+            f.Store().AbandonAmbiguousConfirmationWhileOwnedAsync(prepared.ActivationId, Admin(), default));
+        Assert.True((await f.Store().ReadStatusAsync())!.ConfirmationPending);
+        f.Clock.Now += TimeSpan.FromTicks(1);
+        await f.Store().AbandonAmbiguousConfirmationWhileOwnedAsync(prepared.ActivationId, Admin(), default);
+        var status = (await f.Store().ReadStatusAsync())!;
+        Assert.False(status.ConfirmationPending);
+        Assert.Equal(reauthentication, status.HasLease);
+        Assert.Equal(reauthentication, status.ReauthenticationRequired);
+        Assert.Equal(!reauthentication, status.IsReset);
+    }
+
     [Fact]
     public async Task ActivationLostResponse_RestartResendsExactPersistedIntentAndDoesNotStorePassword()
     {

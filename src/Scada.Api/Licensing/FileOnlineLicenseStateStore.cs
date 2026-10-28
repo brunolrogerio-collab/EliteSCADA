@@ -170,6 +170,30 @@ public sealed class FileOnlineLicenseStateStore
         await PersistAsync(state, mutation, ct);
     }
 
+    // Only explicit administration after the Portal's exact-retry window may discard
+    // an ambiguous local intent. This never revokes or frees a remote activation.
+    internal async Task AbandonAmbiguousConfirmationWhileOwnedAsync(Guid activationId, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        DemandAdministration(mutation);
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        var now = DemandClock(state);
+        if (state.Binding.ActivationId != activationId ||
+            state.Pending is not { Kind: "confirmation", ConfirmationRequested: true, ConfirmationExpiresAtUtc: { } expires } ||
+            now < expires.AddHours(24))
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        state.Pending = null;
+        state.HasInstallationSnapshot = false;
+        state.ExpectedInstallationIdentity = null;
+        state.LastObservedUtc = now;
+        if (state.CurrentCredential is null)
+        {
+            state.IsReset = true;
+            state.ReauthenticationRequired = false;
+        }
+        await PersistAsync(state, mutation, ct);
+    }
+
     internal async Task<(bool HasSnapshot, string? ExpectedIdentity)> ReadInstallationSnapshotAsync(Guid activationId, CancellationToken ct)
     {
         await using var gate = Acquire(ct);

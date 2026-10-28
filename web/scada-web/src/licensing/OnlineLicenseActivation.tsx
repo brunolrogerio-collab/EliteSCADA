@@ -13,6 +13,12 @@ const labels = {
   es: { title: 'Activar licencia online', help: 'Ingrese su cuenta SCADIVO y el código de licencia. Podrá revisar los datos antes de activar.', user: 'Usuario o correo', password: 'Contraseña', code: 'Código de licencia', prepare: 'Consultar licencia', review: 'Revise la licencia', app: 'Aplicación', term: 'Modalidad', expiry: 'Vencimiento comercial', tier: 'Nivel de TAGs', interactive: 'Clientes interactivos', view: 'Clientes de visualización', ha: 'Redundancia HA', intelligence: 'Intelligence', machines: 'Activaciones permitidas', yes: 'Incluido', no: 'No incluido', perpetual: 'Perpetua online', monthly: 'Mensual', annual: 'Anual', unlimited: 'Sin vencimiento', expires: 'Confirmación disponible hasta', unavailable: 'La activación online no está disponible temporalmente.', confirm: 'Confirmar activación', retry: 'Completar activación', cancel: 'Cancelar', success: 'Licencia online activada.', cancelled: 'Consulta cancelada.', generic: 'No se pudo completar. Revise los datos o inténtelo de nuevo.', credentials: 'El usuario o la contraseña no fueron aceptados.', network: 'No se pudo conectar al servicio de licencias.', mismatch: 'Los datos recibidos no coinciden con la licencia firmada.', pending: 'Ya se envió una confirmación. Use “Completar activación” para recuperar el resultado.' }
 } as const;
 
+const abandonLabels = {
+  'pt-BR': { action: 'Descartar tentativa local', confirm: 'O resultado da ativação não pôde ser recuperado. Confira no Portal se há uma ativação nesta máquina e revogue-a lá se necessário. Descartar aqui não libera uma vaga no Portal. Deseja continuar?', done: 'Tentativa local descartada. Confira a ativação no Portal.' },
+  en: { action: 'Discard local attempt', confirm: 'The activation result could not be recovered. Check the Portal for an activation on this machine and revoke it there if necessary. Discarding here does not free a Portal slot. Continue?', done: 'Local attempt discarded. Check the activation in the Portal.' },
+  es: { action: 'Descartar intento local', confirm: 'No se pudo recuperar el resultado de la activación. Compruebe en el Portal si existe una activación para esta máquina y revóquela allí si es necesario. Descartar aquí no libera una plaza en el Portal. ¿Continuar?', done: 'Intento local descartado. Revise la activación en el Portal.' }
+} as const;
+
 export function OnlineLicenseActivation({ api, locale, pending, completionPending, onChanged }: {
   api: string; locale: Locale; pending: boolean; completionPending: boolean; onChanged: () => Promise<void>;
 }) {
@@ -50,14 +56,15 @@ export function OnlineLicenseActivation({ api, locale, pending, completionPendin
     } catch (reason) { setError(explain(reason instanceof Error ? reason.message : 'error')); }
     finally { setPassword(''); setBusy(false); }
   };
-  const execute = async (action: 'confirm' | 'cancel') => {
+  const execute = async (action: 'confirm' | 'cancel' | 'abandon') => {
     if (!prepared) return;
+    if (action === 'abandon' && !window.confirm(abandonLabels[locale].confirm)) return;
     setBusy(true); setError(''); setMessage('');
     try {
       const response = await fetch(`${api}/api/licensing/online/${action}`, { method: 'POST', cache: 'no-store',
         headers: { 'content-type': 'application/json' }, body: JSON.stringify({ activationId: prepared.activationId }) });
       if (!response.ok) await read(response);
-      setPrepared(null); setCode(''); setMessage(action === 'confirm' ? t.success : t.cancelled);
+      setPrepared(null); setCode(''); setMessage(action === 'confirm' ? t.success : action === 'abandon' ? abandonLabels[locale].done : t.cancelled);
       await onChanged();
     } catch (reason) {
       setError(explain(reason instanceof Error ? reason.message : 'error'));
@@ -101,7 +108,9 @@ export function OnlineLicenseActivation({ api, locale, pending, completionPendin
       {!prepared.onlineActivationAvailable && <p>{t.unavailable}</p>}
       {prepared.confirmationRequested && <p>{t.pending}</p>}
       <div className="licensing-actions"><button type="button" disabled={busy || !prepared.onlineActivationAvailable} onClick={() => void execute('confirm')}>{prepared.confirmationRequested ? t.retry : t.confirm}</button>
-        {!prepared.confirmationRequested && <button type="button" disabled={busy} onClick={() => void execute('cancel')}>{t.cancel}</button>}</div>
+        {!prepared.confirmationRequested && <button type="button" disabled={busy} onClick={() => void execute('cancel')}>{t.cancel}</button>}
+        {prepared.confirmationRequested && Date.now() >= Date.parse(prepared.expiresAtUtc) + 24 * 60 * 60 * 1000 &&
+          <button type="button" className="licensing-danger" disabled={busy} onClick={() => void execute('abandon')}>{abandonLabels[locale].action}</button>}</div>
     </div>}
   </div>;
 }

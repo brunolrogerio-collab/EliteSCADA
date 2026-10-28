@@ -81,6 +81,19 @@ public sealed class OnlineLicenseDeviceOrchestrator(
         return client.CancelPreparedAsync(activationId, administration, ct);
     }
 
+    internal async Task AbandonAmbiguousConfirmationAsync(Guid activationId, ProtectedMaterialMutationContext administration,
+        CancellationToken ct = default)
+    {
+        DemandDeviceAdministration(administration);
+        await using var operation = journal.AcquireOperation(ct);
+        await journal.AbandonAmbiguousConfirmationWhileOwnedAsync(activationId, administration, ct);
+        await audit.WriteAsync(new AuditEvent(Guid.NewGuid(), clock.GetUtcNow(), administration.Principal.SubjectId,
+            administration.Principal.DisplayName, "product-license.online-abandon-ambiguous", AuditOutcome.Succeeded,
+            "online-activation", activationId.ToString("D"), new Dictionary<string, string> { ["remoteRevocation"] = "not-requested" },
+            activationId.ToString("D"), Roles: administration.Principal.Roles, Source: "product-license-device"), CancellationToken.None);
+        await journal.CollectObsoleteSnapshotsWhileOwnedAsync(administration, CancellationToken.None);
+    }
+
     internal async Task<OnlineLicenseDeviceStatus> ActivateAsync(OnlineLicenseSelection selection, string username,
         string password, ProtectedMaterialMutationContext administration, CancellationToken ct = default)
     {

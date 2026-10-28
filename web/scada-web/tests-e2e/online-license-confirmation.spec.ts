@@ -48,3 +48,31 @@ test('review, cancel and recover confirmation without resending the password', a
   await expect(page.getByTestId('online-license-status')).toContainText('Vínculo salvo');
   expect(confirms).toBe(2);
 });
+
+test('an expired ambiguous confirmation can be discarded only after explicit notice', async ({ page }) => {
+  let pending = true;
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+    license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' },
+    onlineDevice: { configured: true, available: true, hasActivation: pending, leasePresent: false,
+      requestPending: pending, confirmationPending: pending, installationPending: false, reauthenticationRequired: false }
+  } }));
+  await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'TEST' } }));
+  await page.route('**/api/licensing/online/preparation', route => route.fulfill({ json: {
+    activationId: '00000000-0000-0000-0000-000000000123', expiresAtUtc: '2020-01-01T00:00:00Z',
+    onlineActivationAvailable: true, confirmationRequested: true,
+    summary: { applicationName: 'Bomba', licenseCode: 'SCV-EXAMPLE', term: 'perpetual', entitlementExpiresAtUtc: null,
+      tier: 'Tags500', interactiveSeats: 2, viewOnlySeats: 3, haRuntime: false, assetProcessIntelligence: false, maxActivations: 1 }
+  } }));
+  await page.route('**/api/licensing/online/abandon', async route => {
+    expect(route.request().postDataJSON()).toEqual({ activationId: '00000000-0000-0000-0000-000000000123' });
+    pending = false; await route.fulfill({ json: { abandoned: true, remoteRevocation: false } });
+  });
+  page.once('dialog', async dialog => {
+    expect(dialog.message()).toContain('não libera uma vaga no Portal');
+    await dialog.accept();
+  });
+  await page.goto('/tests-e2e/licensing-harness.html');
+  await page.getByRole('button', { name: 'Descartar tentativa local' }).click();
+  await expect(page.getByText('Tentativa local descartada. Confira a ativação no Portal.')).toBeVisible();
+});

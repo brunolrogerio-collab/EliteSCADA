@@ -4,7 +4,7 @@ using Scada.Security.Authorization;
 namespace Scada.Api.Licensing;
 
 /// <summary>
-/// Bridges the canonical machine-license file and the durable Runtime authority epoch.
+/// Bridges the canonical machine-license installation and the durable Runtime authority epoch.
 /// A pending transition blocks lease use until local Runtime and remote leases agree.
 /// </summary>
 public sealed class ProductLicenseLifecycleCoordinator(
@@ -32,7 +32,10 @@ public sealed class ProductLicenseLifecycleCoordinator(
     public async Task<ProductLicenseLifecycleResult> RemoveAsync(CancellationToken cancellationToken = default)
     {
         var previous = licensing.CurrentVerification.State;
-        if (previous != LicenseState.Demo)
+        // An expired online selection is still an installed mode. Explicit removal must
+        // clear it, even after the coordinated transition has applied Demo entitlements.
+        if (previous != LicenseState.Demo ||
+            licensing is FileProductLicenseService file && file.ReadOnlineInstallation() is not null)
             return await ChangeAsync("remove", previous, licensing.RemoveLicense, cancellationToken);
 
         var authority = await leaseStore.GetAuthorityStateAsync(cancellationToken);
@@ -47,6 +50,54 @@ public sealed class ProductLicenseLifecycleCoordinator(
             authority.AuthorityRevision, authority.AuthorityRevision,
             authority.AuthorityChangedAtUtc, 0, "unchanged");
     }
+
+    // Only the future authorized device/lifecycle caller supplies this candidate. Public
+    // offline import stays on InstallOrReplaceAsync and cannot install online artifacts.
+    internal async Task<ProductLicenseLifecycleResult> InstallOnlineAsync(
+        OnlineProductLicenseCandidate candidate, CancellationToken cancellationToken = default)
+    {
+        var source = RequireOnlineSource();
+        var previous = licensing.CurrentVerification.State;
+        if (source.VerifyOnlineCandidate(candidate).State != LicenseState.Valid)
+            return await RejectedCandidateAsync(previous, cancellationToken);
+        return await ChangeAsync("online-select", previous, () => source.SelectOnline(candidate), cancellationToken);
+    }
+
+    internal async Task<ProductLicenseLifecycleResult> RenewOnlineAsync(
+        OnlineProductLicenseCandidate candidate, Guid expectedRevision, CancellationToken cancellationToken = default)
+    {
+        var source = RequireOnlineSource();
+        var previous = licensing.CurrentVerification.State;
+        if (source.VerifyOnlineCandidate(candidate).State != LicenseState.Valid)
+            return await RejectedCandidateAsync(previous, cancellationToken);
+        return await ChangeAsync("online-renew", previous,
+            () => source.SelectOnline(candidate, expectedRevision), cancellationToken);
+    }
+
+    internal async Task<ProductLicenseLifecycleResult> ExpireOnlineAsync(
+        Guid expectedRevision, CancellationToken cancellationToken = default)
+    {
+        var source = RequireOnlineSource();
+        var previous = licensing.CurrentVerification.State;
+        var selected = source.ReadOnlineInstallation();
+        if (selected is null || selected.Revision != expectedRevision ||
+            selected.Status != OnlineLeaseVerificationStatus.Expired)
+            return await RejectedCandidateAsync(previous, cancellationToken);
+        if (selected.ExpiryApplied)
+        {
+            var state = await leaseStore.GetAuthorityStateAsync(cancellationToken);
+            if (state.TransitionPending)
+                throw new InvalidOperationException("Runtime authority transition is pending.");
+            return new(true, "already-online-demo", previous, previous,
+                state.AuthorityRevision, state.AuthorityRevision, state.AuthorityChangedAtUtc, 0, "unchanged");
+        }
+        return await ChangeAsync("online-expire-to-demo", previous,
+            () => source.ApplyOnlineExpiry(expectedRevision), cancellationToken);
+    }
+
+    private FileProductLicenseService RequireOnlineSource() =>
+        licensing as FileProductLicenseService ??
+        throw new InvalidOperationException("Online installation is not available from this license source.");
 
     internal async Task<(LicenseState LicenseState, RuntimeAuthorityState Authority)> ReadAuditStateAsync() =>
         (licensing.CurrentVerification.State, await leaseStore.GetAuthorityStateAsync());

@@ -3,7 +3,7 @@ using Scada.Core.Product.Licensing;
 
 namespace Scada.Api.Licensing;
 
-public sealed class FileProductLicenseService : IProductLicenseService, IDisposable
+public sealed partial class FileProductLicenseService : IProductLicenseService, IDisposable
 {
     private readonly string _licensePath;
     private readonly IReadOnlyDictionary<string, RSA> _publicKeys;
@@ -50,7 +50,9 @@ public sealed class FileProductLicenseService : IProductLicenseService, IDisposa
                     return LicenseVerificationResult.Invalid($"Installed license could not be read: {ex.Message}");
                 }
 
-                return Verify(code);
+                return code.StartsWith(OnlineInstallationPrefix, StringComparison.Ordinal)
+                    ? VerifySelectedOnline(code)
+                    : Verify(code);
             }
         }
     }
@@ -83,21 +85,8 @@ public sealed class FileProductLicenseService : IProductLicenseService, IDisposa
                     "The supplied EliteSCADA license is not valid for this machine and verification-key set.");
             }
 
-            var directory = Path.GetDirectoryName(_licensePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-                Directory.CreateDirectory(directory);
-
-            var temporary = _licensePath + ".tmp";
-            try
-            {
-                File.WriteAllText(temporary, normalized + Environment.NewLine);
-                File.Move(temporary, _licensePath, overwrite: true);
-            }
-            finally
-            {
-                if (File.Exists(temporary))
-                    File.Delete(temporary);
-            }
+            using var ownership = AcquireInstallationMutation();
+            WriteInstallation(normalized + Environment.NewLine);
         }
     }
 
@@ -105,6 +94,7 @@ public sealed class FileProductLicenseService : IProductLicenseService, IDisposa
     {
         lock (_gate)
         {
+            using var ownership = AcquireInstallationMutation();
             if (File.Exists(_licensePath))
                 File.Delete(_licensePath);
         }

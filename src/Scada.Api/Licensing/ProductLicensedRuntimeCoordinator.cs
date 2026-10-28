@@ -101,6 +101,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
     private long _activationGeneration;
     private ProductRuntimeLifecycleState _lifecycleState = ProductRuntimeLifecycleState.Idle;
     private RunEntitlementDecision? _activeDecision;
+    private int? _activeEngineeringTagCount;
     private long? _demoStartedTimestamp;
     private DateTimeOffset? _demoStartedAtUtc;
     private TimeSpan? _demoDuration;
@@ -218,6 +219,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
                 cancellationToken);
             if (materialized.Activated)
             {
+                _activeEngineeringTagCount = package.Tags.Count;
                 // Passive materialization replaces the active acquisition runtime
                 // with a projection-only runtime. Reflect that lifecycle transition
                 // so a later HA promotion cannot mistake the projection for an
@@ -383,7 +385,9 @@ public sealed class ProductLicensedRuntimeCoordinator :
                     Diagnostic: NoActiveRuntimeDiagnostic);
             }
 
-            var decision = _entitlements.EvaluateRun(descriptor.TagCount);
+            // Licensing counts definitions in the accepted Engineering package, as on
+            // activation. Disconnected/client-only TAGs may not exist in the server registry.
+            var decision = _entitlements.EvaluateRun(_activeEngineeringTagCount ?? descriptor.TagCount);
             if (!decision.Allowed)
             {
                 var diagnostic = decision.Diagnostic ??
@@ -668,6 +672,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
 
             CancelDemoExpiryLocked();
             var generation = ++_activationGeneration;
+            _activeEngineeringTagCount = package.Tags.Count;
             var remaining = StartActiveStatus(decision, durableDemoStartedAtUtc);
 
             if (decision.LicenseState == LicenseState.Demo &&

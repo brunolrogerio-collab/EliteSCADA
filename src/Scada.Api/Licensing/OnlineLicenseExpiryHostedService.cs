@@ -52,6 +52,8 @@ public sealed class OnlineLicenseExpiryHostedService(
             }
             if (!source.HasSelectedOnlineInstallation())
             {
+                if (observedOnline && licensing.CurrentVerification.State == LicenseState.Invalid)
+                    return await InvalidateAsync(ct);
                 observedOnline = false;
                 invalidationApplied = false;
                 lastCheckpoint = null;

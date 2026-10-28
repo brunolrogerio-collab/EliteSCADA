@@ -50,7 +50,7 @@ public sealed partial class FileProductLicenseService
     internal bool HasSelectedOnlineInstallation()
     {
         lock (_gate)
-            return File.Exists(_licensePath) && File.ReadAllText(_licensePath).StartsWith(OnlineInstallationPrefix, StringComparison.Ordinal);
+            return File.Exists(_licensePath) && File.ReadAllText(_licensePath).Trim().StartsWith(OnlineInstallationPrefix, StringComparison.Ordinal);
     }
 
     // Opaque change identity for fail-closed invalidation, including malformed descriptors.
@@ -178,7 +178,7 @@ public sealed partial class FileProductLicenseService
     private OnlineInstallationState? ReadSelectedOnline()
     {
         if (!File.Exists(_licensePath)) return null;
-        var code = File.ReadAllText(_licensePath);
+        var code = File.ReadAllText(_licensePath).Trim();
         return code.StartsWith(OnlineInstallationPrefix, StringComparison.Ordinal) ? ParseOnline(code) : null;
     }
 

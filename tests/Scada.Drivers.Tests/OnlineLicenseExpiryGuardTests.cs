@@ -116,6 +116,7 @@ public sealed partial class OnlineProductLicenseLifecycleTests
     [InlineData("signature")]
     [InlineData("descriptor")]
     [InlineData("early-demo")]
+    [InlineData("header")]
     public async Task Guard_InvalidOnlineEvidence_FencesOldLeasesWithoutManufacturingDemo(string damage)
     {
         using var f = new Fixture(keys);
@@ -125,15 +126,17 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
         var candidate = Candidate();
         await lifecycle.InstallOnlineAsync(candidate);
+        var guard = Guard(source, lifecycle, runtime, f.Clock);
+        Assert.Equal("valid", (await guard.RunOnceAsync()).Code);
         var lease = await Admit(store);
         var text = File.ReadAllText(f.Path);
         File.WriteAllText(f.Path, damage switch
         {
             "signature" => text.Replace(candidate.Envelope, candidate.Envelope[..^8] + "XXXXXXXX"),
             "early-demo" => text.Replace("\"expiryApplied\":false", "\"expiryApplied\":true"),
+            "header" => text.Replace("SCADIVO-ONLINE-INSTALLATION1", "SCADIVO-UNRECOGNIZED-INSTALLATION1"),
             _ => "SCADIVO-ONLINE-INSTALLATION1\n{broken"
         });
-        var guard = Guard(source, lifecycle, runtime, f.Clock);
 
         Assert.Equal("online-invalid", (await guard.RunOnceAsync()).Code);
 
@@ -143,6 +146,22 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         Assert.Equal(3, (await store.GetAuthorityStateAsync()).AuthorityRevision);
         Assert.Equal("online-invalid", (await guard.RunOnceAsync()).Code);
         Assert.Equal(3, (await store.GetAuthorityStateAsync()).AuthorityRevision);
+    }
+
+    [Fact]
+    public async Task Guard_UsesTheSameWhitespaceNormalizationAsCanonicalVerification()
+    {
+        using var f = new Fixture(keys);
+        using var source = f.Source();
+        await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        var runtime = new RecordingRuntime();
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
+        await lifecycle.InstallOnlineAsync(Candidate());
+        File.WriteAllText(f.Path, " \n" + File.ReadAllText(f.Path) + "\n ");
+        Assert.Equal(LicenseState.Valid, source.CurrentVerification.State);
+        f.Clock.Advance(TimeSpan.FromHours(72));
+        Assert.Equal("expired-to-demo", (await Guard(source, lifecycle, runtime, f.Clock).RunOnceAsync()).Code);
+        Assert.Equal(LicenseState.Demo, source.CurrentVerification.State);
     }
 
     [Fact]
@@ -409,6 +428,7 @@ public sealed partial class OnlineProductLicenseLifecycleTests
     private sealed class GuardLeaseStore(IRuntimeSessionLeaseStore inner) : IRuntimeSessionLeaseStore
     {
         internal bool FailReads { get; set; }
+        internal bool FailAbort { get; set; }
         public Task InitializeAsync(CancellationToken ct = default) => inner.InitializeAsync(ct);
         public Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken ct = default) => FailReads
             ? Task.FromException<RuntimeAuthorityState>(new IOException("fictitious shared authority unavailable")) : inner.GetAuthorityStateAsync(ct);
@@ -417,7 +437,7 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         public Task<RuntimeAuthorityTransition> BeginAuthorityTransitionAsync(string kind, DateTimeOffset started, CancellationToken ct = default) =>
             inner.BeginAuthorityTransitionAsync(kind, started, ct);
         public Task<bool> AbortAuthorityTransitionAsync(Guid id, long revision, CancellationToken ct = default) =>
-            inner.AbortAuthorityTransitionAsync(id, revision, ct);
+            FailAbort ? Task.FromException<bool>(new IOException("fictitious abort unavailable")) : inner.AbortAuthorityTransitionAsync(id, revision, ct);
         public Task<RuntimeAuthorityState> CommitAuthorityChangeAsync(Guid id, long revision, DateTimeOffset changed, DateTimeOffset? demo, CancellationToken ct = default) =>
             inner.CommitAuthorityChangeAsync(id, revision, changed, demo, ct);
         public Task<int> FenceLeasesBeforeAuthorityRevisionAsync(Guid id, long revision, CancellationToken ct = default) =>
@@ -434,6 +454,34 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         public Task<RuntimeSessionLeaseStoreResult> TerminateAsync(Guid id, string subject, string client, RuntimeSessionRuntimeIdentity runtime, CancellationToken ct = default, long? expectedGeneration = null) =>
             inner.TerminateAsync(id, subject, client, runtime, ct, expectedGeneration);
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    [Fact]
+    public async Task Guard_FailedFileMutationAndUnavailableAbort_RecoversItsPendingOperationAfterStorageReturns()
+    {
+        using var f = new Fixture(keys);
+        using var source = f.Source();
+        await using var inner = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        await using var store = new GuardLeaseStore(inner);
+        var runtime = new RecordingRuntime();
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
+        await lifecycle.InstallOnlineAsync(Candidate());
+        f.Clock.Advance(TimeSpan.FromHours(72));
+        var guard = Guard(source, lifecycle, runtime, f.Clock);
+        store.FailAbort = true;
+        using (var busy = new FileStream(f.Path + ".lock", FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            Assert.Equal("maintenance-unavailable", (await guard.RunOnceAsync()).Code);
+            Assert.True((await inner.GetAuthorityStateAsync()).TransitionPending);
+            Assert.Equal(LicenseState.Invalid, source.CurrentVerification.State);
+        }
+        store.FailAbort = false;
+        Assert.Equal("expired-to-demo", (await guard.RunOnceAsync()).Code);
+        Assert.False((await inner.GetAuthorityStateAsync()).TransitionPending);
+        Assert.Equal(LicenseState.Demo, source.CurrentVerification.State);
+        // Recovery conservatively fences the uncertain operation, then authentic expiry
+        // applies the canonical Demo marker in its own transition.
+        Assert.Equal(4, (await inner.GetAuthorityStateAsync()).AuthorityRevision);
     }
 
     private static async Task WaitForGuardAsync(Func<bool> predicate)

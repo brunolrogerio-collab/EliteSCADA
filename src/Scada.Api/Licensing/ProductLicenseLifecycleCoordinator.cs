@@ -233,10 +233,22 @@ public sealed class ProductLicenseLifecycleCoordinator(
                                    InvalidOperationException or IOException or UnauthorizedAccessException or
                                    OperationCanceledException)
         {
-            var aborted = await leaseStore.AbortAuthorityTransitionAsync(
-                transition.TransitionId, transition.BaseAuthorityRevision, CancellationToken.None);
+            bool aborted;
+            try
+            {
+                aborted = await leaseStore.AbortAuthorityTransitionAsync(
+                    transition.TransitionId, transition.BaseAuthorityRevision, CancellationToken.None);
+            }
+            catch
+            {
+                RememberFailedOnlineTransition(operation, transition.TransitionId);
+                throw;
+            }
             if (!aborted)
+            {
+                RememberFailedOnlineTransition(operation, transition.TransitionId);
                 throw new InvalidOperationException("Runtime authority transition could not be aborted.");
+            }
 
             return new ProductLicenseLifecycleResult(
                 false, "file-mutation-failed", previous, licensing.CurrentVerification.State,
@@ -272,10 +284,15 @@ public sealed class ProductLicenseLifecycleCoordinator(
         }
         catch
         {
-            if (operation.StartsWith("online-", StringComparison.Ordinal))
-                failedOnlineTransitions.TryAdd(transition.TransitionId, 0);
+            RememberFailedOnlineTransition(operation, transition.TransitionId);
             throw;
         }
+    }
+
+    private void RememberFailedOnlineTransition(string operation, Guid id)
+    {
+        if (operation.StartsWith("online-", StringComparison.Ordinal))
+            failedOnlineTransitions.TryAdd(id, 0);
     }
 
     private async Task RecordOnlineTransitionAsync(RuntimeAuthorityState state, bool recovered, CancellationToken ct,

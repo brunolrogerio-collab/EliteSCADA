@@ -77,6 +77,16 @@ public sealed class RuntimeLicenseUsageSnapshotTests
             snapshot = await store.GetUsageSnapshotAsync(runtime);
             Assert.NotNull(snapshot);
             Assert.Equal((1, 0), (snapshot.Interactive, snapshot.ViewOnly));
+            var transition = await store.BeginAuthorityTransitionAsync("usage-test", DateTimeOffset.UtcNow);
+            try
+            {
+                Assert.Null(await store.GetUsageSnapshotAsync(runtime));
+            }
+            finally
+            {
+                Assert.True(await store.AbortAuthorityTransitionAsync(transition.TransitionId, transition.BaseAuthorityRevision));
+            }
+            Assert.NotNull(await store.GetUsageSnapshotAsync(runtime));
         }
         finally
         {

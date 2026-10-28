@@ -42,6 +42,21 @@ type StatusResponse = {
   runtime: RuntimeEntitlementStatus;
   usage?: { tags: number; interactive: number; viewOnly: number; observedAtUtc: string } | null;
   sessionLimits?: { interactiveSeats: number; viewOnlySeats: number } | null;
+  onlineDevice?: OnlineLicenseDeviceStatus;
+};
+
+type OnlineLicenseDeviceStatus = {
+  configured: boolean;
+  available: boolean;
+  hasActivation: boolean;
+  leasePresent: boolean;
+  issuedAtUtc?: string | null;
+  notAfterUtc?: string | null;
+  renewalDueUtc?: string | null;
+  requestPending: boolean;
+  clockRollbackDetected: boolean;
+  isReset: boolean;
+  reauthenticationRequired: boolean;
 };
 
 type RequestResponse = {
@@ -62,6 +77,12 @@ const messages = {
     unlimited: 'Ilimitado', none: 'Não informado', legacy: 'legado', legacyNotSpecified: 'Não especificado pela ESLIC1', yes: 'Licenciado', no: 'Não licenciado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento SCADIVO. Identificadores brutos de hardware não são exibidos.',
     copy: 'Copiar código', copied: 'Código da máquina copiado.', install: 'Instalar licença', licenseCode: 'Código de licença assinado',
     validateInstall: 'Validar e instalar', remove: 'Remover licença', installed: 'Licença validada e instalada.', removed: 'Licença removida. As próximas ativações usarão o modo Demo.',
+    onlineTitle: 'Licença online', onlineInfo: 'Resumo local para acompanhamento. Um lease armazenado não concede autorização ao Runtime.',
+    onlineConfiguration: 'Configuração', onlineConfigured: 'Configurada', onlineNotConfigured: 'Não configurada', onlineState: 'Estado',
+    onlineUnavailable: 'Não foi possível ler o estado online.', onlineNoActivation: 'Nenhuma ativação salva', onlineActivationStored: 'Vínculo salvo',
+    onlineReset: 'Vínculo removido', onlinePending: 'Solicitação pendente', onlineLease: 'Lease armazenado', onlineIssued: 'Emitido em',
+    onlineExpiry: 'Validade do lease', onlineRenewal: 'Renovação prevista', onlineClockRollback: 'Retrocesso do relógio detectado',
+    onlineReauthentication: 'Reautenticação necessária', yesShort: 'Sim', noShort: 'Não',
     loading: 'Carregando…', loadError: 'Não foi possível carregar o estado de licenciamento.', installError: 'Não foi possível instalar a licença.', removeConfirm: 'Remover a licença instalada desta máquina?'
   },
   en: {
@@ -72,6 +93,12 @@ const messages = {
     unlimited: 'Unlimited', none: 'Not provided', legacy: 'legacy', legacyNotSpecified: 'Not specified by ESLIC1', yes: 'Licensed', no: 'Not licensed', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the SCADIVO licensing authority. Raw hardware identifiers are not exposed.',
     copy: 'Copy request', copied: 'Machine request copied.', install: 'Install license', licenseCode: 'Signed license code',
     validateInstall: 'Validate and install', remove: 'Remove license', installed: 'License validated and installed.', removed: 'License removed. Future activations will use Demo mode.',
+    onlineTitle: 'Online license', onlineInfo: 'Local summary for reference. A stored lease does not grant Runtime authorization.',
+    onlineConfiguration: 'Configuration', onlineConfigured: 'Configured', onlineNotConfigured: 'Not configured', onlineState: 'State',
+    onlineUnavailable: 'Online status could not be read.', onlineNoActivation: 'No activation saved', onlineActivationStored: 'Binding saved',
+    onlineReset: 'Binding removed', onlinePending: 'Request pending', onlineLease: 'Stored lease', onlineIssued: 'Issued',
+    onlineExpiry: 'Lease expiry', onlineRenewal: 'Renewal due', onlineClockRollback: 'Clock rollback detected',
+    onlineReauthentication: 'Reauthentication required', yesShort: 'Yes', noShort: 'No',
     loading: 'Loading…', loadError: 'Licensing status could not be loaded.', installError: 'License could not be installed.', removeConfirm: 'Remove the installed license from this machine?'
   },
   es: {
@@ -82,6 +109,12 @@ const messages = {
     unlimited: 'Ilimitado', none: 'No informado', legacy: 'legado', legacyNotSpecified: 'No especificado por ESLIC1', yes: 'Licenciado', no: 'No licenciado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento SCADIVO. No se muestran identificadores brutos de hardware.',
     copy: 'Copiar código', copied: 'Código de máquina copiado.', install: 'Instalar licencia', licenseCode: 'Código de licencia firmado',
     validateInstall: 'Validar e instalar', remove: 'Eliminar licencia', installed: 'Licencia validada e instalada.', removed: 'Licencia eliminada. Las próximas activaciones usarán el modo Demo.',
+    onlineTitle: 'Licencia online', onlineInfo: 'Resumen local para consulta. Un lease almacenado no concede autorización al Runtime.',
+    onlineConfiguration: 'Configuración', onlineConfigured: 'Configurada', onlineNotConfigured: 'No configurada', onlineState: 'Estado',
+    onlineUnavailable: 'No fue posible leer el estado online.', onlineNoActivation: 'No hay activación guardada', onlineActivationStored: 'Vínculo guardado',
+    onlineReset: 'Vínculo eliminado', onlinePending: 'Solicitud pendiente', onlineLease: 'Lease almacenado', onlineIssued: 'Emitido',
+    onlineExpiry: 'Validez del lease', onlineRenewal: 'Renovación prevista', onlineClockRollback: 'Se detectó un retroceso del reloj',
+    onlineReauthentication: 'Se requiere reautenticación', yesShort: 'Sí', noShort: 'No',
     loading: 'Cargando…', loadError: 'No fue posible cargar el estado de licenciamiento.', installError: 'No fue posible instalar la licencia.', removeConfirm: '¿Eliminar la licencia instalada de esta máquina?'
   }
 } as const;
@@ -112,6 +145,15 @@ function displayDate(value: string | null | undefined, none: string) {
   if (!value) return none;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
+function describeOnlineState(status: OnlineLicenseDeviceStatus, t: typeof messages[Locale]) {
+  if (!status.configured) return t.onlineNotConfigured;
+  if (!status.available) return t.onlineUnavailable;
+  if (status.isReset) return t.onlineReset;
+  if (status.requestPending) return t.onlinePending;
+  if (!status.hasActivation) return t.onlineNoActivation;
+  return t.onlineActivationStored;
 }
 
 export function LicensingApp() {
@@ -218,6 +260,22 @@ export function LicensingApp() {
               <dt>{t.expires}</dt><dd>{displayDate(status.license.notAfterUtc, t.none)}</dd>
               <dt>{t.diagnostic}</dt><dd>{status.license.diagnostic ?? t.none}</dd>
             </dl>
+            {status.onlineDevice && <div className="licensing-online-status">
+              <h3>{t.onlineTitle}</h3>
+              <p className="licensing-help">{t.onlineInfo}</p>
+              <dl data-testid="online-license-status">
+                <dt>{t.onlineConfiguration}</dt><dd>{status.onlineDevice.configured ? t.onlineConfigured : t.onlineNotConfigured}</dd>
+                <dt>{t.onlineState}</dt><dd><strong>{describeOnlineState(status.onlineDevice, t)}</strong></dd>
+                {status.onlineDevice.configured && status.onlineDevice.available && <>
+                  <dt>{t.onlineLease}</dt><dd>{status.onlineDevice.leasePresent ? t.yesShort : t.noShort}</dd>
+                  {status.onlineDevice.issuedAtUtc && <><dt>{t.onlineIssued}</dt><dd>{displayDate(status.onlineDevice.issuedAtUtc, t.none)}</dd></>}
+                  {status.onlineDevice.notAfterUtc && <><dt>{t.onlineExpiry}</dt><dd>{displayDate(status.onlineDevice.notAfterUtc, t.none)}</dd></>}
+                  {status.onlineDevice.renewalDueUtc && <><dt>{t.onlineRenewal}</dt><dd>{displayDate(status.onlineDevice.renewalDueUtc, t.none)}</dd></>}
+                  {status.onlineDevice.clockRollbackDetected && <><dt>{t.onlineClockRollback}</dt><dd>{t.yesShort}</dd></>}
+                  {status.onlineDevice.reauthenticationRequired && <><dt>{t.onlineReauthentication}</dt><dd>{t.yesShort}</dd></>}
+                </>}
+              </dl>
+            </div>}
           </section>
 
           <section className="licensing-card">

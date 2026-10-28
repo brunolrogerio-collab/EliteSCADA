@@ -67,6 +67,17 @@
   font-size: 1rem;
 }
 
+.licensing-online-status {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #2d4057;
+}
+
+.licensing-online-status h3 {
+  margin: 0;
+  font-size: .95rem;
+}
+
 .licensing-card dl {
   display: grid;
   grid-template-columns: minmax(120px, max-content) minmax(0, 1fr);

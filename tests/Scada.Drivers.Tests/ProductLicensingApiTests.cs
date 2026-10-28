@@ -39,6 +39,73 @@ public sealed class ProductLicensingApiTests
         Assert.Equal(200, status.License.MaximumTags);
     }
 
+    [Fact]
+    public async Task OnlineDeviceStatus_DistinguishesConfigurationEmptyLeaseResetAndUnreadableJournalWithoutSecrets()
+    {
+        var unconfigured = await ProductLicensingApi.CreateOnlineDeviceStatusAsync(false, null);
+        Assert.False(unconfigured.Configured);
+        Assert.True(unconfigured.Available);
+        Assert.False(unconfigured.HasActivation);
+
+        var empty = await ProductLicensingApi.CreateOnlineDeviceStatusAsync(true,
+            _ => Task.FromResult<OnlineLicenseDeviceStatus?>(null));
+        Assert.True(empty.Configured);
+        Assert.True(empty.Available);
+        Assert.False(empty.HasActivation);
+        Assert.False(empty.LeasePresent);
+
+        var activationId = Guid.NewGuid();
+        var pendingId = Guid.NewGuid();
+        var issued = DateTimeOffset.Parse("2026-10-28T12:00:00Z");
+        var lease = new OnlineLicenseDeviceStatus(activationId, pendingId, true, issued,
+            issued.AddHours(72), issued.AddHours(48), ClockRollbackDetected: false);
+        var stored = await ProductLicensingApi.CreateOnlineDeviceStatusAsync(true,
+            _ => Task.FromResult<OnlineLicenseDeviceStatus?>(lease));
+        Assert.True(stored.HasActivation);
+        Assert.True(stored.LeasePresent);
+        Assert.True(stored.RequestPending);
+        Assert.Equal(issued, stored.IssuedAtUtc);
+        Assert.Equal(issued.AddHours(72), stored.NotAfterUtc);
+        Assert.Equal(issued.AddHours(48), stored.RenewalDueUtc);
+
+        var resetState = new OnlineLicenseDeviceStatus(activationId, null, false, null, null, null,
+            ClockRollbackDetected: true, IsReset: true, ReauthenticationRequired: true);
+        var reset = await ProductLicensingApi.CreateOnlineDeviceStatusAsync(true,
+            _ => Task.FromResult<OnlineLicenseDeviceStatus?>(resetState));
+        Assert.False(reset.HasActivation);
+        Assert.True(reset.IsReset);
+        Assert.True(reset.ClockRollbackDetected);
+        Assert.True(reset.ReauthenticationRequired);
+
+        var unavailable = await ProductLicensingApi.CreateOnlineDeviceStatusAsync(true,
+            _ => Task.FromException<OnlineLicenseDeviceStatus?>(new IOException("private storage detail")));
+        Assert.True(unavailable.Configured);
+        Assert.False(unavailable.Available);
+        Assert.DoesNotContain("private storage detail", System.Text.Json.JsonSerializer.Serialize(unavailable));
+
+        var serialized = System.Text.Json.JsonSerializer.Serialize(stored);
+        Assert.DoesNotContain(activationId.ToString(), serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(pendingId.ToString(), serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ActivationId", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("PendingRequestId", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Password", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Credential", serialized, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Status_RemainsAvailableWhenOptionalOnlineJournalCannotBeRead()
+    {
+        var license = new UsageTestLicense();
+        var runtime = new UsageTestRuntime { Read = () => Task.FromResult<ProductRuntimeUsage?>(null) };
+        var status = await ProductLicensingApi.CreateStatusAsync(license, runtime,
+            onlineDeviceConfigured: true,
+            readOnlineState: _ => Task.FromException<OnlineLicenseDeviceStatus?>(new IOException("unreadable")));
+
+        Assert.Equal(200, status.License.MaximumTags);
+        Assert.False(status.OnlineDevice.Available);
+        Assert.True(status.OnlineDevice.Configured);
+    }
+
     private sealed class UsageTestRuntime : IProductRuntimeStatusProvider
     {
         public required Func<Task<ProductRuntimeUsage?>> Read { get; set; }

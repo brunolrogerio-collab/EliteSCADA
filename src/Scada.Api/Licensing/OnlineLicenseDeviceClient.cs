@@ -10,7 +10,7 @@ namespace Scada.Api.Licensing;
 /// Unwired product-side device transport. Each call owns one cross-process operation lease.
 /// No redirects/cookies or stored passwords; a lost response leaves the exact persisted intent retryable.
 /// </summary>
-public sealed class OnlineLicenseDeviceClient : IDisposable
+public sealed partial class OnlineLicenseDeviceClient : IDisposable
 {
     private readonly FileOnlineLicenseStateStore store;
     private readonly HttpClient http;

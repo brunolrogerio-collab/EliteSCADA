@@ -20,6 +20,117 @@ public sealed partial class OnlineProductLicenseLifecycleTests
     private static ProtectedMaterialMutationContext RenewalAdmin() => new(new SecurityPrincipal("fictitious-admin", "Test", []),
         new AuthorizationDecision(true, SecurityCapability.EngineeringModify, "test canonical authority", []));
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConfirmedActivation_AppliesOnlyIfOriginalInstallationWasNotChanged(bool replaceBeforeConfirm)
+    {
+        using var c = RenewalContext();
+        var summary = new OnlineLicensePresentation(c.Selection.LicenseId, c.Selection.OrganizationId,
+            c.Selection.ApplicationId, c.Selection.LicenseCode, "Test application", "online-account", "annual",
+            c.F.Clock.GetUtcNow().AddDays(30), "Tags1000", 3, 7, true, true, 1);
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var confirmationRequests = 0;
+        c.Intercept = async (request, ct) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                    confirmationToken = new string('A', 43), expiresAtUtc = c.F.Clock.GetUtcNow().AddMinutes(5),
+                    onlineActivationAvailable = true, summary }, options), Encoding.UTF8, "application/json") };
+            confirmationRequests++;
+            using var original = await c.Response(request, ct);
+            using var json = JsonDocument.Parse(await original.Content.ReadAsStringAsync(ct));
+            var root = json.RootElement;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                activationId = root.GetProperty("activationId").GetGuid(), lease = root.GetProperty("lease").GetString(),
+                notAfterUtc = root.GetProperty("notAfterUtc").GetDateTimeOffset(), summary }, options), Encoding.UTF8, "application/json") };
+        };
+        var prepared = await c.Device.PrepareConfirmationAsync("account", "fictitious-password", c.Selection.LicenseCode, RenewalAdmin());
+        Assert.Equal(LicenseState.Demo, c.Source.CurrentVerification.State);
+        Assert.Equal(0, confirmationRequests);
+        if (replaceBeforeConfirm)
+        {
+            var offline = EliteScadaLicenseCodec.CreateSignedLicenseV3(new(3, "offline-selected", Binding.MachineFingerprint,
+                LicenseTier.Tags500, c.F.Clock.GetUtcNow(), c.F.Clock.GetUtcNow().AddDays(1), "ephemeral-offline", 2, 2, false, false), keys.Offline);
+            Assert.True((await c.Lifecycle.InstallOrReplaceAsync(offline)).Succeeded);
+            var error = await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => c.Device.ConfirmAsync(prepared.ActivationId, RenewalAdmin()));
+            Assert.Equal("ONLINE_LICENSE_SELECTION_CHANGED", error.Code);
+            Assert.Equal(0, confirmationRequests);
+            Assert.Equal("offline-selected", c.Source.CurrentVerification.License!.LicenseId);
+        }
+        else
+        {
+            await c.Device.ConfirmAsync(prepared.ActivationId, RenewalAdmin());
+            Assert.Equal(1, confirmationRequests);
+            Assert.Equal(LicenseState.Valid, c.Source.CurrentVerification.State);
+            Assert.False((await c.Journal.ReadStatusAsync())!.InstallationPending);
+        }
+    }
+
+    [Fact]
+    public async Task ReauthenticationConfirmsSameActivationAndRotatesCredential()
+    {
+        using var c = RenewalContext();
+        await c.Activate();
+        var activationId = (await c.Journal.ReadStatusAsync())!.ActivationId;
+        var renewal = await c.Journal.PrepareRenewalAsync(RenewalAdmin());
+        var previousCredential = (await c.Journal.ReadTransportAsync("renewal", default)).CurrentCredential;
+        await c.Journal.RequireReauthenticationAsync(renewal.PendingRequestId!.Value, RenewalAdmin(), default);
+        var summary = new OnlineLicensePresentation(c.Selection.LicenseId, c.Selection.OrganizationId,
+            c.Selection.ApplicationId, c.Selection.LicenseCode, "Test application", "online-account", "annual",
+            c.F.Clock.GetUtcNow().AddDays(30), "Tags1000", 3, 7, true, true, 1);
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        c.Intercept = async (request, ct) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                    confirmationToken = new string('A', 43), expiresAtUtc = c.F.Clock.GetUtcNow().AddMinutes(5),
+                    onlineActivationAvailable = true, summary }, options), Encoding.UTF8, "application/json") };
+            using var original = await c.Response(request, ct);
+            using var json = JsonDocument.Parse(await original.Content.ReadAsStringAsync(ct));
+            var root = json.RootElement;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                activationId = root.GetProperty("activationId").GetGuid(), lease = root.GetProperty("lease").GetString(),
+                notAfterUtc = root.GetProperty("notAfterUtc").GetDateTimeOffset(), summary }, options), Encoding.UTF8, "application/json") };
+        };
+        var prepared = await c.Device.PrepareConfirmationAsync("account", "fictitious-password", c.Selection.LicenseCode, RenewalAdmin());
+        Assert.Equal(activationId, prepared.ActivationId);
+        await c.Device.ConfirmAsync(activationId, RenewalAdmin());
+        Assert.False((await c.Journal.ReadStatusAsync())!.ReauthenticationRequired);
+        await c.Journal.PrepareRenewalAsync(RenewalAdmin());
+        Assert.NotEqual(previousCredential, (await c.Journal.ReadTransportAsync("renewal", default)).CurrentCredential);
+        Assert.Equal(activationId, c.Source.ReadOnlineInstallation()!.ActivationId);
+    }
+
+    [Fact]
+    public async Task ChangedConfirmationSummaryCannotInstallEvenWhenLeaseIsCorrectlySigned()
+    {
+        using var c = RenewalContext();
+        var summary = new OnlineLicensePresentation(c.Selection.LicenseId, c.Selection.OrganizationId,
+            c.Selection.ApplicationId, c.Selection.LicenseCode, "Test application", "online-account", "annual",
+            c.F.Clock.GetUtcNow().AddDays(30), "Tags1000", 3, 7, true, true, 1);
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        c.Intercept = async (request, ct) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                    confirmationToken = new string('A', 43), expiresAtUtc = c.F.Clock.GetUtcNow().AddMinutes(5),
+                    onlineActivationAvailable = true, summary }, options), Encoding.UTF8, "application/json") };
+            using var original = await c.Response(request, ct);
+            using var json = JsonDocument.Parse(await original.Content.ReadAsStringAsync(ct));
+            var root = json.RootElement;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                activationId = root.GetProperty("activationId").GetGuid(), lease = root.GetProperty("lease").GetString(),
+                notAfterUtc = root.GetProperty("notAfterUtc").GetDateTimeOffset(),
+                summary = summary with { InteractiveSeats = 4 } }, options), Encoding.UTF8, "application/json") };
+        };
+        var prepared = await c.Device.PrepareConfirmationAsync("account", "fictitious-password", c.Selection.LicenseCode, RenewalAdmin());
+        var failure = await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => c.Device.ConfirmAsync(prepared.ActivationId, RenewalAdmin()));
+        Assert.Equal("ONLINE_LICENSE_PRESENTATION_MISMATCH", failure.Code);
+        Assert.Equal(LicenseState.Demo, c.Source.CurrentVerification.State);
+        Assert.True((await c.Journal.ReadStatusAsync())!.ConfirmationPending);
+    }
+
     [Fact]
     public async Task RenewalRunsAtFortyEightHours_WithScopedDelegationRotatingCredentialAndCanonicalEpoch()
     {

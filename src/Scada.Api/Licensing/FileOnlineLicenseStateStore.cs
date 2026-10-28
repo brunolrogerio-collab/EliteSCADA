@@ -59,6 +59,7 @@ public sealed class FileOnlineLicenseStateStore
     }
 
     internal Uri PortalOrigin => new(portalOrigin + "/");
+    internal string MachineFingerprint => machine;
 
     internal async Task<ProtectedMaterialMutationContext> ReadMaintenanceDelegationAsync(CancellationToken ct)
     {
@@ -111,6 +112,105 @@ public sealed class FileOnlineLicenseStateStore
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LEASE_REJECTED");
         return new(state.Binding, state.Lease);
     }
+
+    // Caller holds the operation lock while preparing and storing the Portal response.
+    internal async Task<OnlineLicenseDeviceStatus> StorePreparedConfirmationAsync(
+        OnlineLicensePresentation presentation, Guid activationId, string token, DateTimeOffset expiresAtUtc,
+        bool activationAvailable, ProtectedMaterialMutationContext mutation, CancellationToken ct,
+        string? expectedInstallationIdentity = null)
+    {
+        DemandAdministration(mutation);
+        var now = clock.GetUtcNow();
+        if (presentation is null || !presentation.IsWellFormed() || activationId == Guid.Empty ||
+            string.IsNullOrEmpty(token) || !IsCredential(token) ||
+            expiresAtUtc.Offset != TimeSpan.Zero || expiresAtUtc <= now || expiresAtUtc > now.AddMinutes(6))
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_PREPARATION_INVALID");
+        await using var gate = Acquire(ct);
+        var existing = await ReadAsync(ct);
+        if (existing is not null) _ = DemandClock(existing);
+        if (existing is { IsReset: false } &&
+            (!existing.ReauthenticationRequired || existing.CurrentCredential is null || existing.Lease is null ||
+             existing.Binding.ActivationId != activationId || existing.Binding.LicenseId != presentation.LicenseId ||
+             existing.Binding.OrganizationId != presentation.OrganizationId || existing.Binding.ApplicationId != presentation.ApplicationId ||
+             existing.Pending?.Kind == "confirmation"))
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        var state = existing is { IsReset: false } ? existing : new OnlineLicenseDeviceState
+        {
+            PortalOrigin = portalOrigin,
+            Binding = new(presentation.LicenseId, presentation.OrganizationId, presentation.ApplicationId, activationId, machine),
+            LastObservedUtc = now
+        };
+        state.LastObservedUtc = now;
+        state.HasInstallationSnapshot = true;
+        state.ExpectedInstallationIdentity = expectedInstallationIdentity;
+        state.Pending = new() { Kind = "confirmation", RequestId = Guid.NewGuid(), NextCredential = NewCredential(),
+            ConfirmationToken = token, ConfirmationExpiresAtUtc = expiresAtUtc,
+            Presentation = presentation, OnlineActivationAvailable = activationAvailable };
+        await PersistAsync(state, mutation, ct);
+        return Status(state);
+    }
+
+    internal async Task CancelPreparedConfirmationWhileOwnedAsync(Guid activationId, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        DemandAdministration(mutation);
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        var now = DemandClock(state);
+        if (state.Binding.ActivationId != activationId || state.Pending is not { Kind: "confirmation", ConfirmationRequested: false })
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        state.Pending = null;
+        state.HasInstallationSnapshot = false;
+        state.ExpectedInstallationIdentity = null;
+        state.LastObservedUtc = now;
+        if (state.CurrentCredential is null)
+        {
+            state.IsReset = true;
+            state.ReauthenticationRequired = false;
+        }
+        await PersistAsync(state, mutation, ct);
+    }
+
+    internal async Task<(bool HasSnapshot, string? ExpectedIdentity)> ReadInstallationSnapshotAsync(Guid activationId, CancellationToken ct)
+    {
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        _ = DemandClock(state);
+        if (state.Binding.ActivationId != activationId || state.IsReset)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        return (state.HasInstallationSnapshot, state.ExpectedInstallationIdentity);
+    }
+
+    internal async Task ClearInstallationSnapshotAsync(Guid activationId, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        DemandAdministration(mutation);
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        if (state.Binding.ActivationId != activationId || state.IsReset || state.Lease is null)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        state.HasInstallationSnapshot = false;
+        state.ExpectedInstallationIdentity = null;
+        await PersistAsync(state, mutation, ct);
+    }
+
+    // Persist user consent before the first request; retries retain the same token and credential.
+    internal async Task RequestConfirmationAsync(Guid activationId, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+    {
+        DemandAdministration(mutation);
+        await using var gate = Acquire(ct);
+        var state = await RequireStateAsync(ct);
+        var now = DemandClock(state);
+        if (state.Binding.ActivationId != activationId || state.Pending is not { Kind: "confirmation" } pending)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        if (!pending.OnlineActivationAvailable) throw new OnlineLicenseProtocolException("ONLINE_LICENSE_ISSUANCE_UNAVAILABLE");
+        var deadline = pending.ConfirmationExpiresAtUtc!.Value;
+        if (now >= (pending.ConfirmationRequested ? deadline.AddHours(24) : deadline))
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_PREPARATION_EXPIRED");
+        if (pending.ConfirmationRequested) return;
+        pending.ConfirmationRequested = true;
+        state.LastObservedUtc = now;
+        await PersistAsync(state, mutation, ct);
+    }
+
 
     public async Task<OnlineLicenseDeviceStatus> PrepareActivationAsync(OnlineLicenseSelection selection,
         string username, ProtectedMaterialMutationContext mutation, CancellationToken ct = default)
@@ -227,6 +327,8 @@ public sealed class FileOnlineLicenseStateStore
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
         if (state.IsReset) return Status(state);
         state.IsReset = true;
+        state.HasInstallationSnapshot = false;
+        state.ExpectedInstallationIdentity = null;
         state.ReauthenticationRequired = false;
         state.MaintenanceActivationId = null;
         state.NextMaintenanceAttemptUtc = null;
@@ -272,7 +374,8 @@ public sealed class FileOnlineLicenseStateStore
     }
 
     internal async Task<OnlineLicenseDeviceStatus> CompleteAsync(Guid requestId, string envelope,
-        ProtectedMaterialMutationContext mutation, CancellationToken ct)
+        ProtectedMaterialMutationContext mutation, CancellationToken ct,
+        OnlineLicensePresentation? confirmedPresentation = null, DateTimeOffset? responseNotAfterUtc = null)
     {
         DemandAdministration(mutation, allowMaintenance: true);
         await using var gate = Acquire(ct);
@@ -284,6 +387,11 @@ public sealed class FileOnlineLicenseStateStore
         if (state.Pending?.RequestId != requestId)
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_REQUEST_CONFLICT");
         var verified = verify(envelope, state.Binding, now);
+        if (state.Pending.Kind == "confirmation" &&
+            (!state.Pending.ConfirmationRequested || state.Pending.Presentation is not { } prepared ||
+             confirmedPresentation is null || responseNotAfterUtc is null ||
+             !prepared.MatchesVerifiedLease(confirmedPresentation, verified, responseNotAfterUtc.Value)))
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_PRESENTATION_MISMATCH");
         if (verified.Status is not (OnlineLeaseVerificationStatus.Valid or OnlineLeaseVerificationStatus.Expired) ||
             verified.Evidence is not { } evidence ||
             (state.IssuedAtUtc is { } previousIssued && evidence.IssuedAtUtc < previousIssued))
@@ -348,18 +456,20 @@ public sealed class FileOnlineLicenseStateStore
             await using var material = await authority.ResolveAsync(scope, pointer.Reference, ct);
             if (material.Material.Length > 65536) throw new JsonException();
             var state = JsonSerializer.Deserialize<OnlineLicenseDeviceState>(material.Material.Span, Json);
-            if (state is null || state.SchemaVersion is not (1 or 2 or 3) || state.PortalOrigin != portalOrigin ||
+            if (state is null || state.SchemaVersion is not (1 or 2 or 3 or 4) || state.PortalOrigin != portalOrigin ||
                 state.Binding is not { } binding || binding.MachineFingerprint != machine ||
                 binding.LicenseId == Guid.Empty || binding.OrganizationId == Guid.Empty ||
                 binding.ApplicationId == Guid.Empty || binding.ActivationId == Guid.Empty ||
                 state.LastObservedUtc.Offset != TimeSpan.Zero ||
+                (state.SchemaVersion < 4 && (state.HasInstallationSnapshot || state.ExpectedInstallationIdentity is not null)) ||
+                (!state.HasInstallationSnapshot && state.ExpectedInstallationIdentity is not null) ||
                 (state.SchemaVersion < 3 && (state.MaintenanceActivationId is not null || state.NextMaintenanceAttemptUtc is not null)) ||
                 state.MaintenanceActivationId is { } delegated && delegated != binding.ActivationId ||
                 state.NextMaintenanceAttemptUtc is { } attempt && attempt.Offset != TimeSpan.Zero ||
                 ((state.CurrentCredential is null) != (state.Lease is null)) ||
                 (state.CurrentCredential is not null &&
                     (state.CompletedRequestId is null || state.IssuedAtUtc is null || state.NotAfterUtc is null)) ||
-                (state.IsReset && (state.Pending is not null || state.CurrentCredential is not null ||
+                (state.IsReset && (state.HasInstallationSnapshot || state.Pending is not null || state.CurrentCredential is not null ||
                     state.MaintenanceActivationId is not null || state.NextMaintenanceAttemptUtc is not null ||
                     state.ReauthenticationRequired || state.CompletedRequestId is not null ||
                     state.IssuedAtUtc is not null || state.NotAfterUtc is not null)) ||
@@ -367,7 +477,14 @@ public sealed class FileOnlineLicenseStateStore
                 (state.CurrentCredential is not null && !IsCredential(state.CurrentCredential)) ||
                 (state.Pending is { } pending &&
                     (pending.RequestId == Guid.Empty || !IsCredential(pending.NextCredential) ||
-                     pending.Kind is not ("activation" or "renewal" or "reauthentication") ||
+                     pending.Kind is not ("activation" or "renewal" or "reauthentication" or "confirmation") ||
+                     (pending.Kind == "confirmation" && (state.SchemaVersion != 4 ||
+                        (state.CurrentCredential is not null && !state.ReauthenticationRequired) ||
+                        pending.Presentation is null || !pending.Presentation.IsWellFormed() ||
+                        pending.Presentation.LicenseId != binding.LicenseId || pending.Presentation.OrganizationId != binding.OrganizationId ||
+                        pending.Presentation.ApplicationId != binding.ApplicationId ||
+                        pending.ConfirmationToken is null || !IsCredential(pending.ConfirmationToken) ||
+                        pending.ConfirmationExpiresAtUtc is null || pending.ConfirmationExpiresAtUtc.Value.Offset != TimeSpan.Zero)) ||
                      (pending.Kind == "activation" && (state.CurrentCredential is not null ||
                         string.IsNullOrWhiteSpace(pending.Username) || string.IsNullOrWhiteSpace(pending.LicenseCode))) ||
                      (pending.Kind == "renewal" && (state.CurrentCredential is null || state.Lease is null)) ||
@@ -386,7 +503,7 @@ public sealed class FileOnlineLicenseStateStore
 
     private async Task PersistAsync(OnlineLicenseDeviceState state, ProtectedMaterialMutationContext mutation, CancellationToken ct)
     {
-        state.SchemaVersion = 3;
+        state.SchemaVersion = state.Pending?.Kind == "confirmation" || state.HasInstallationSnapshot ? 4 : 3;
         var bytes = JsonSerializer.SerializeToUtf8Bytes(state, Json);
         string reference;
         try { reference = (await authority.StoreAsync(scope, bytes, mutation, ct)).Reference; }
@@ -443,7 +560,8 @@ public sealed class FileOnlineLicenseStateStore
             state.IssuedAtUtc, state.NotAfterUtc,
             state.IssuedAtUtc is { } issued && state.NotAfterUtc is { } expiry
                 ? issued + TimeSpan.FromTicks(Math.Min(TimeSpan.FromHours(48).Ticks, (expiry - issued).Ticks * 2 / 3)) : null,
-            clock.GetUtcNow() < state.LastObservedUtc, state.IsReset, state.ReauthenticationRequired);
+            clock.GetUtcNow() < state.LastObservedUtc, state.IsReset, state.ReauthenticationRequired,
+            state.HasInstallationSnapshot && state.Lease is not null && state.Pending is null, state.Pending?.Kind == "confirmation");
 
     private static string NewCredential() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
         .TrimEnd('=').Replace('+', '-').Replace('/', '_');

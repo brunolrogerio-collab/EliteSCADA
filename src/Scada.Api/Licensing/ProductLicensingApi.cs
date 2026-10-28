@@ -22,7 +22,9 @@ internal sealed record ProductOnlineLicenseDeviceStatusProjection(
     bool RequestPending,
     bool ClockRollbackDetected,
     bool IsReset,
-    bool ReauthenticationRequired);
+    bool ReauthenticationRequired,
+    bool InstallationPending = false,
+    bool ConfirmationPending = false);
 
 public sealed record ProductLicenseStatusProjection(
     string State,
@@ -151,6 +153,7 @@ public static class ProductLicensingApi
                 return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
             }
         });
+        app.MapOnlineLicenseConfirmationEndpoints();
     }
 
     internal static ApiAuthorizationCheck CheckMutationAuthorization(
@@ -282,7 +285,9 @@ public static class ProductLicensingApi
                 RequestPending: status?.PendingRequestId is not null,
                 ClockRollbackDetected: status?.ClockRollbackDetected == true,
                 IsReset: status?.IsReset == true,
-                ReauthenticationRequired: status?.ReauthenticationRequired == true);
+                ReauthenticationRequired: status?.ReauthenticationRequired == true,
+                InstallationPending: status?.InstallationPending == true,
+                ConfirmationPending: status?.ConfirmationPending == true);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

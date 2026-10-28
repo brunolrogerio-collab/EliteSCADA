@@ -1,4 +1,5 @@
 using Scada.Core.Product.Licensing;
+using System.Text.Json.Serialization;
 
 namespace Scada.Api.Licensing;
 
@@ -8,7 +9,8 @@ public sealed record OnlineLicenseSelection(Guid LicenseId, Guid OrganizationId,
 public sealed record OnlineLicenseDeviceStatus(
     Guid ActivationId, Guid? PendingRequestId, bool HasLease, DateTimeOffset? IssuedAtUtc,
     DateTimeOffset? NotAfterUtc, DateTimeOffset? RenewalDueUtc, bool ClockRollbackDetected,
-    bool IsReset = false, bool ReauthenticationRequired = false);
+    bool IsReset = false, bool ReauthenticationRequired = false, bool InstallationPending = false,
+    bool ConfirmationPending = false);
 
 public sealed class OnlineLicenseProtocolException(string code) : InvalidOperationException(code)
 {
@@ -23,6 +25,11 @@ internal sealed class OnlineLicensePendingIntent
     public required string NextCredential { get; init; }
     public string? Username { get; init; }
     public string? LicenseCode { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? ConfirmationToken { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public DateTimeOffset? ConfirmationExpiresAtUtc { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public OnlineLicensePresentation? Presentation { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool ConfirmationRequested { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool OnlineActivationAvailable { get; init; }
 }
 
 internal sealed class OnlineLicenseDeviceState
@@ -41,4 +48,6 @@ internal sealed class OnlineLicenseDeviceState
     public bool ReauthenticationRequired { get; set; }
     public Guid? MaintenanceActivationId { get; set; }
     public DateTimeOffset? NextMaintenanceAttemptUtc { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? ExpectedInstallationIdentity { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool HasInstallationSnapshot { get; set; }
 }

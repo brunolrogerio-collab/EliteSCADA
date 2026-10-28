@@ -1,5 +1,7 @@
 # Online device state and transport - second product slice (#301)
 
+Current continuation: [effective online entitlement/lifecycle](ONLINE-ENTITLEMENT-LIFECYCLE.md), based on verified Demo#799 (`beff8732`, T1 40573931351/T2 40574960859 success). It adds the internal canonical entitlement source/epoch operations, not a public online API/worker or completed feature. Later historical gaps below are superseded only where that document explicitly provides evidence.
+
 Maintenance continuation: [scoped retention, local reset and reauthentication](ONLINE-STATE-MAINTENANCE.md) is integrated/verified through PR #798 at `67a290ff208b7aa4a9029fd71f428e93c4b9d895`; T1 40556425486 and T2 40557263409 passed on first attempts. It supersedes the historical slice's retention/reset gaps below. Components remain unconnected to product lifecycle/API/UI/worker; #301 records the current Demo-policy continuation.
 
 Verifier #793 is integrated at `a1a2f692a6de9215c06a3c66f3ad9547f9158ca2`; exact-head T1 40522156453 passed. Exact-merge T2 40523138500 passed on attempt 2 (backend 2846 passed/1 skipped, Runtime smoke, Web, Chromium 13/13). Attempt 1 failed in the existing separate-database HA-D2 process test; cause remains unknown in [#423](https://github.com/brunolrogerio-collab/EliteSCADA/issues/423#issuecomment-6445217358). The retry did not alter HA or replace manual Preview acceptance.

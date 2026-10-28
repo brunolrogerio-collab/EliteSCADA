@@ -11,6 +11,28 @@ namespace Scada.Drivers.Tests;
 public sealed partial class OnlineProductLicenseLifecycleTests
 {
     [Fact]
+    public async Task OnlineClockCheckpoint_PreservesAppliedLicenseIdentity()
+    {
+        using var f = new Fixture(keys);
+        using var source = f.Source();
+        await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = new ProductLicensedRuntimeCoordinator(
+            new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
+            () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock, store);
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
+        Assert.True((await lifecycle.InstallOnlineAsync(Candidate())).Succeeded);
+        var original = Package(1, true);
+        Assert.True((await runtime.ActivateAsync("plant", 1,
+            original with { Tags = original.Tags.Select(t => t with { ReadOnly = false }).ToArray() })).Activated);
+        f.Clock.Advance(TimeSpan.FromMinutes(2));
+        await Guard(source, lifecycle, runtime, f.Clock).RunOnceAsync();
+        await runtime.WriteAsync(Assert.Single(runtime.Tags()).Id, 7d);
+        Assert.True(runtime.TryGetCurrent(Assert.Single(runtime.Tags()).Id, out var current));
+        Assert.Equal(7d, current!.Value);
+    }
+
+    [Fact]
     public async Task OfflineLicense_WriteDoesNotAcquireOnlineAuthorityDependency()
     {
         using var f = new Fixture(keys);

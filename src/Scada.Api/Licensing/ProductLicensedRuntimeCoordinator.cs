@@ -107,6 +107,8 @@ public sealed class ProductLicensedRuntimeCoordinator :
     private RunEntitlementDecision? _activeDecision;
     private int? _activeEngineeringTagCount;
     private long? _appliedAuthorityRevision;
+    private ProductEffectLicenseSnapshot? _appliedEffectLicense;
+    private bool _offlineEffectsSettled;
     private long? _demoStartedTimestamp;
     private DateTimeOffset? _demoStartedAtUtc;
     private TimeSpan? _demoDuration;
@@ -389,6 +391,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
         {
             ThrowIfDisposed();
 
+            var licenseAtStart = (_entitlements as FileProductLicenseService)?.ReadEffectLicenseSnapshot();
             var authorityAtStart = await ReadAuthorityForEffectsAsync(cancellationToken);
             _appliedAuthorityRevision = null;
 
@@ -455,7 +458,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
                 CancelDemoExpiryLocked();
                 var generation = ++_activationGeneration;
                 var scheduledRemaining = StartActiveStatus(decision, authorityChangedAtUtc);
-                await MarkAuthorityAppliedAsync(authorityAtStart, allowPending: true, cancellationToken);
+                await MarkAuthorityAppliedAsync(authorityAtStart, licenseAtStart, allowPending: true, cancellationToken);
                 if (scheduledRemaining is null || scheduledRemaining <= TimeSpan.Zero)
                 {
                     await StopActiveRuntimeLockedAsync(
@@ -495,7 +498,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
             CancelDemoExpiryLocked();
             ++_activationGeneration;
             StartActiveStatus(decision);
-            await MarkAuthorityAppliedAsync(authorityAtStart, allowPending: true, cancellationToken);
+            await MarkAuthorityAppliedAsync(authorityAtStart, licenseAtStart, allowPending: true, cancellationToken);
 
             return new ProductRuntimeAuthorityReevaluationResult(
                 RuntimeExisted: true,
@@ -575,6 +578,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
                     });
             }
 
+            var licenseAtStart = (_entitlements as FileProductLicenseService)?.ReadEffectLicenseSnapshot();
             var authorityAtStart = await ReadAuthorityForEffectsAsync(cancellationToken);
             var decision = _entitlements.EvaluateRun(package.Tags.Count);
             if (!decision.Allowed)
@@ -697,7 +701,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
             var generation = ++_activationGeneration;
             _activeEngineeringTagCount = package.Tags.Count;
             var remaining = StartActiveStatus(decision, durableDemoStartedAtUtc);
-            await MarkAuthorityAppliedAsync(authorityAtStart, allowPending: false, cancellationToken);
+            await MarkAuthorityAppliedAsync(authorityAtStart, licenseAtStart, allowPending: false, cancellationToken);
 
             if (decision.LicenseState == LicenseState.Demo &&
                 decision.MaximumContinuousRun is { } demoDuration)
@@ -1009,9 +1013,11 @@ public sealed class ProductLicensedRuntimeCoordinator :
         return await _authorityStore.GetAuthorityStateAsync(cancellationToken);
     }
 
-    private async Task MarkAuthorityAppliedAsync(RuntimeAuthorityState? before, bool allowPending, CancellationToken cancellationToken)
+    private async Task MarkAuthorityAppliedAsync(RuntimeAuthorityState? before, ProductEffectLicenseSnapshot? license, bool allowPending, CancellationToken cancellationToken)
     {
         _appliedAuthorityRevision = null;
+        _appliedEffectLicense = null;
+        _offlineEffectsSettled = false;
         if (_entitlements is not FileProductLicenseService || _authorityStore is null) return;
         if (before is null || (!allowPending && before.TransitionPending))
             throw new InvalidOperationException("Runtime license authority cannot be marked as applied during a conflicting transition.");
@@ -1022,6 +1028,10 @@ public sealed class ProductLicensedRuntimeCoordinator :
             _appliedAuthorityRevision = after.AuthorityRevision;
         if (_appliedAuthorityRevision is null)
             throw new InvalidOperationException("Runtime license authority changed while applying its entitlement.");
+        if (license != (_entitlements as FileProductLicenseService)?.ReadEffectLicenseSnapshot())
+            throw new InvalidOperationException("Runtime license installation changed while applying its entitlement.");
+        _appliedEffectLicense = license;
+        _offlineEffectsSettled = !after!.TransitionPending;
     }
 
     public async ValueTask<bool> CanStartLicensedEffectAsync(CancellationToken cancellationToken = default)
@@ -1034,8 +1044,11 @@ public sealed class ProductLicensedRuntimeCoordinator :
             if (_disposed || ProcessEffectsFenced || _activeEngineeringTagCount is not { } tags ||
                 GetProductRuntimeStatus().State != ProductRuntimeLifecycleState.Running)
                 return false;
-            var beforeLicense = source.CurrentVerification;
+            var snapshot = source.ReadEffectLicenseSnapshot();
+            var beforeLicense = snapshot.Verification;
             if (beforeLicense.State == LicenseState.Invalid) return false;
+            if (snapshot != _appliedEffectLicense) return false;
+            if (!snapshot.Online && _offlineEffectsSettled) return true;
             var state = await _authorityStore.ReadAuthoritySnapshotAsync(cancellationToken);
             if (state.TransitionPending || state.AuthorityRevision != _appliedAuthorityRevision) return false;
             var decision = ProductEntitlementEvaluator.Evaluate(beforeLicense, tags);
@@ -1045,7 +1058,9 @@ public sealed class ProductLicensedRuntimeCoordinator :
             }
             if (beforeLicense != source.CurrentVerification) return false;
             var after = await _authorityStore.ReadAuthoritySnapshotAsync(cancellationToken);
-            return !after.TransitionPending && after.AuthorityRevision == state.AuthorityRevision;
+            var settled = !after.TransitionPending && after.AuthorityRevision == state.AuthorityRevision;
+            if (settled && !snapshot.Online) _offlineEffectsSettled = true;
+            return settled;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception) { return false; }

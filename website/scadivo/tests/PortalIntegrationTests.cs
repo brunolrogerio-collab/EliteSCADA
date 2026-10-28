@@ -1023,6 +1023,23 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             }
             using var expiredConfirm = await product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(expiredToken, new string('a', 64)));
             Assert.Equal(HttpStatusCode.Conflict, expiredConfirm.StatusCode);
+            var revokedToken = await PrepareToken();
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                var row = await db.ProductLicenses.SingleAsync(x => x.PublicCode == licenseCode);
+                row.Status = ProductLicenseStates.Revoked;
+                await db.SaveChangesAsync();
+            }
+            using var revokedConfirm = await product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(revokedToken, new string('a', 64)));
+            Assert.Equal(HttpStatusCode.NotFound, revokedConfirm.StatusCode);
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                var row = await db.ProductLicenses.SingleAsync(x => x.PublicCode == licenseCode);
+                row.Status = ProductLicenseStates.Active;
+                await db.SaveChangesAsync();
+            }
             var confirmationToken = await PrepareToken();
             using var wrongMachine = await product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(confirmationToken, new string('f', 64)));
             Assert.Equal(HttpStatusCode.Conflict, wrongMachine.StatusCode);

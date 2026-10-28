@@ -420,7 +420,7 @@ public sealed class PortalLicensingOperations(
         var normalizedFingerprint = input.MachineFingerprint!.ToLowerInvariant();
         await using var transaction = await db.Database.BeginTransactionAsync();
         user = await LockUser(user.Id, "SHARE");
-        if (user is null || !UsableAccount(user)) return InvalidCredentials();
+        if (user is null || !UsableAccount(user) || await users.IsLockedOutAsync(user)) return InvalidCredentials();
         var membership = await LockMembershipForRead(await db.ProductLicenses.AsNoTracking().Where(x => x.Id == licenseId.Value).Select(x => x.OrganizationId).SingleAsync(), user.Id);
         if (membership is null) return LicenseNotAvailable();
         var license = await LockLicense(licenseId.Value, "UPDATE");

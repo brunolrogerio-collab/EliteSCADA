@@ -180,9 +180,16 @@ public sealed record RuntimeSessionLeaseCapacityAdmissionResult(
 /// Durable boundary for logical Runtime leases. Lease identity is subject plus ClientInstanceId;
 /// transports are deliberately not represented here.
 /// </summary>
+public sealed record RuntimeSessionUsageSnapshot(
+    DateTimeOffset ObservedAtUtc, long AuthorityRevision, int Interactive, int ViewOnly);
+
 public interface IRuntimeSessionLeaseStore : IAsyncDisposable
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Current logical seat usage for the exact Runtime identity; null means unavailable.</summary>
+    Task<RuntimeSessionUsageSnapshot?> GetUsageSnapshotAsync(RuntimeSessionRuntimeIdentity runtime,
+        CancellationToken cancellationToken = default) => Task.FromResult<RuntimeSessionUsageSnapshot?>(null);
 
     Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default);
 
@@ -314,6 +321,23 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public async Task<RuntimeSessionUsageSnapshot?> GetUsageSnapshotAsync(RuntimeSessionRuntimeIdentity runtime,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_transitionPending) return null;
+            var now = _utcNow();
+            var active = _leases.Values.Where(lease => lease.IsActive && lease.ExpiresAtUtc > now && lease.Runtime.Matches(runtime));
+            return new(now, _authorityRevision,
+                active.Count(lease => lease.GrantedConnectionClass.Equals("interactive", StringComparison.OrdinalIgnoreCase)),
+                active.Count(lease => IsViewOnlyConnectionClass(lease.GrantedConnectionClass)));
+        }
+        finally { _gate.Release(); }
+    }
 
     public async Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default)
     {

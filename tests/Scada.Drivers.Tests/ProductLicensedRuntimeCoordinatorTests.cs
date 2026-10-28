@@ -14,6 +14,28 @@ namespace Scada.Drivers.Tests;
 
 public sealed class ProductLicensedRuntimeCoordinatorTests
 {
+    [Fact]
+    public async Task Usage_IsUnavailableWithoutRunOrDuringAuthorityTransition_AndUsesActiveRuntimeIdentity()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var store = new InMemoryRuntimeSessionLeaseStore();
+        var inner = new FakeRuntimeCoordinator { ActivationTime = now };
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(inner, () => new FakeRuntimeCoordinator(),
+            new DemoProductRunEntitlementProvider(), authorityStore: store);
+        Assert.Null(await coordinator.GetProductRuntimeUsageAsync());
+        Assert.True((await coordinator.ActivateAsync("plant", 1, PackageWithTags(37))).Activated);
+        var descriptor = coordinator.Describe();
+        var runtime = new RuntimeSessionRuntimeIdentity("engineering", descriptor.ProjectKey, descriptor.Revision, descriptor.ActivatedAtUtc);
+        await store.AdmitAsync(new("operator", "web", "interactive", runtime, TimeSpan.FromMinutes(2)));
+        var usage = await coordinator.GetProductRuntimeUsageAsync();
+        Assert.NotNull(usage);
+        Assert.Equal((37, 1, 0), (usage.Tags, usage.Interactive, usage.ViewOnly));
+        var transition = await store.BeginAuthorityTransitionAsync("usage-test", now);
+        Assert.Null(await coordinator.GetProductRuntimeUsageAsync());
+        Assert.True(await store.AbortAuthorityTransitionAsync(transition.TransitionId, transition.BaseAuthorityRevision));
+        Assert.NotNull(await coordinator.GetProductRuntimeUsageAsync());
+    }
+
     // This deliberately bounded test policy exercises generic budget/anchor machinery.
     // It is not the canonical, now-unlimited Demo policy used by the product.
     private static readonly TimeSpan ExplicitTestRunBudget = TimeSpan.FromHours(5);

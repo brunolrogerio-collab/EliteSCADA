@@ -10,6 +10,38 @@ import {
   displaySignedSeatTotal
 } from '../src/licensing/licensingEntitlementPresentation';
 
+for (const [locale, used, unavailable] of [
+  ['pt-BR', 'Em uso', 'Indisponível'],
+  ['en', 'In use', 'Unavailable'],
+  ['es', 'En uso', 'No disponible']
+]) {
+  for (const width of [390, 1280]) {
+    test(`license shows current usage or unavailable (${locale}, ${width}px)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.addInitScript(value => localStorage.setItem('elitescada.engineering.locale', value), locale);
+      let active = true;
+      await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+        license: { state: 'Demo', maximumTags: 200, demoMaximumContinuousMinutes: null },
+        runtime: { state: active ? 'Running' : 'Idle' },
+        usage: active ? { tags: 37, interactive: 1, viewOnly: 0, observedAtUtc: '2026-10-28T00:00:00Z' } : null,
+        sessionLimits: { interactiveSeats: 2, viewOnlySeats: 2 }
+      } }));
+      await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'fictitious' } }));
+      await page.goto('/tests-e2e/licensing-harness.html');
+      await expect(page.getByTestId('license-tags-total')).toContainText('200');
+      await expect(page.getByTestId('license-tags-usage')).toContainText(`${used}: 37`);
+      await expect(page.getByTestId('license-interactive-total')).toContainText('2');
+      await expect(page.getByTestId('license-interactive-usage')).toContainText(`${used}: 1`);
+      await expect(page.getByTestId('license-view-only-usage')).toContainText(`${used}: 0`);
+      active = false;
+      await page.getByRole('button', { name: /Atualizar|Refresh|Actualizar/ }).click();
+      await expect(page.getByTestId('license-tags-usage')).toContainText(unavailable);
+      await expect(page.getByTestId('license-interactive-usage')).toContainText(unavailable);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    });
+  }
+}
+
 for (const [locale, label] of [['pt-BR', 'Sem limite de tempo'], ['en', 'No time limit'], ['es', 'Sin límite de tiempo']]) {
   for (const runtimeState of ['Idle', 'Running']) {
     test(`Demo duration is explicit without countdown (${locale}, ${runtimeState})`, async ({ page }) => {

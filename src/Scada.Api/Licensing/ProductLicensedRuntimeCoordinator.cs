@@ -106,6 +106,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
     private ProductRuntimeLifecycleState _lifecycleState = ProductRuntimeLifecycleState.Idle;
     private RunEntitlementDecision? _activeDecision;
     private int? _activeEngineeringTagCount;
+    private long? _appliedAuthorityRevision;
     private long? _demoStartedTimestamp;
     private DateTimeOffset? _demoStartedAtUtc;
     private TimeSpan? _demoDuration;
@@ -260,6 +261,8 @@ public sealed class ProductLicensedRuntimeCoordinator :
         string user,
         CancellationToken cancellationToken = default)
     {
+        if (!await CanStartLicensedEffectAsync(cancellationToken))
+            throw new InvalidOperationException("Runtime process effects are unavailable while license authority is not current.");
         using var effect = EnterProcessEffect();
         return await Current.AcknowledgeAlarmAsync(alarmId, user, cancellationToken);
     }
@@ -269,6 +272,8 @@ public sealed class ProductLicensedRuntimeCoordinator :
         string user,
         CancellationToken cancellationToken = default)
     {
+        if (!await CanStartLicensedEffectAsync(cancellationToken))
+            throw new InvalidOperationException("Runtime process effects are unavailable while license authority is not current.");
         using var effect = EnterProcessEffect();
         return await Current.ShelveAlarmAsync(alarmId, user, cancellationToken);
     }
@@ -278,12 +283,16 @@ public sealed class ProductLicensedRuntimeCoordinator :
         string user,
         CancellationToken cancellationToken = default)
     {
+        if (!await CanStartLicensedEffectAsync(cancellationToken))
+            throw new InvalidOperationException("Runtime process effects are unavailable while license authority is not current.");
         using var effect = EnterProcessEffect();
         return await Current.UnshelveAlarmAsync(alarmId, user, cancellationToken);
     }
 
     public async ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default)
     {
+        if (!await CanStartLicensedEffectAsync(cancellationToken))
+            throw new InvalidOperationException("Runtime process effects are unavailable while license authority is not current.");
         using var effect = EnterProcessEffect();
         await Current.WriteAsync(tagId, value, cancellationToken);
     }
@@ -292,12 +301,16 @@ public sealed class ProductLicensedRuntimeCoordinator :
         Guid tagId,
         CancellationToken cancellationToken = default)
     {
+        if (!await CanStartLicensedEffectAsync(cancellationToken))
+            throw new InvalidOperationException("Runtime process effects are unavailable while license authority is not current.");
         using var effect = EnterProcessEffect();
         await Current.ResetServerMemoryRetainedValueAsync(tagId, cancellationToken);
     }
 
     public async ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default)
     {
+        if (!await CanStartLicensedEffectAsync(cancellationToken))
+            throw new InvalidOperationException("Runtime process effects are unavailable while license authority is not current.");
         using var effect = EnterProcessEffect();
         await Current.ExecuteCommandAsync(commandId, cancellationToken);
     }
@@ -376,6 +389,9 @@ public sealed class ProductLicensedRuntimeCoordinator :
         {
             ThrowIfDisposed();
 
+            var authorityAtStart = await ReadAuthorityForEffectsAsync(cancellationToken);
+            _appliedAuthorityRevision = null;
+
             var inner = Current;
             var descriptor = inner.Describe();
             if (!descriptor.Revision.HasValue || string.IsNullOrWhiteSpace(descriptor.ProjectKey))
@@ -439,6 +455,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
                 CancelDemoExpiryLocked();
                 var generation = ++_activationGeneration;
                 var scheduledRemaining = StartActiveStatus(decision, authorityChangedAtUtc);
+                await MarkAuthorityAppliedAsync(authorityAtStart, allowPending: true, cancellationToken);
                 if (scheduledRemaining is null || scheduledRemaining <= TimeSpan.Zero)
                 {
                     await StopActiveRuntimeLockedAsync(
@@ -478,6 +495,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
             CancelDemoExpiryLocked();
             ++_activationGeneration;
             StartActiveStatus(decision);
+            await MarkAuthorityAppliedAsync(authorityAtStart, allowPending: true, cancellationToken);
 
             return new ProductRuntimeAuthorityReevaluationResult(
                 RuntimeExisted: true,
@@ -557,6 +575,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
                     });
             }
 
+            var authorityAtStart = await ReadAuthorityForEffectsAsync(cancellationToken);
             var decision = _entitlements.EvaluateRun(package.Tags.Count);
             if (!decision.Allowed)
             {
@@ -678,6 +697,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
             var generation = ++_activationGeneration;
             _activeEngineeringTagCount = package.Tags.Count;
             var remaining = StartActiveStatus(decision, durableDemoStartedAtUtc);
+            await MarkAuthorityAppliedAsync(authorityAtStart, allowPending: false, cancellationToken);
 
             if (decision.LicenseState == LicenseState.Demo &&
                 decision.MaximumContinuousRun is { } demoDuration)
@@ -981,6 +1001,53 @@ public sealed class ProductLicensedRuntimeCoordinator :
             _activeProcessEffects++;
             return new ProcessEffectLease(this);
         }
+    }
+
+    private async Task<RuntimeAuthorityState?> ReadAuthorityForEffectsAsync(CancellationToken cancellationToken)
+    {
+        if (_entitlements is not FileProductLicenseService || _authorityStore is null) return null;
+        try { return await _authorityStore.GetAuthorityStateAsync(cancellationToken); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception) { return null; }
+    }
+
+    private async Task MarkAuthorityAppliedAsync(RuntimeAuthorityState? before, bool allowPending, CancellationToken cancellationToken)
+    {
+        _appliedAuthorityRevision = null;
+        if (before is null || (!allowPending && before.TransitionPending)) return;
+        var after = await ReadAuthorityForEffectsAsync(cancellationToken);
+        if (after is not null && after.AuthorityRevision == before.AuthorityRevision &&
+            after.TransitionPending == before.TransitionPending && after.TransitionId == before.TransitionId &&
+            (allowPending || !after.TransitionPending))
+            _appliedAuthorityRevision = after.AuthorityRevision;
+    }
+
+    public async ValueTask<bool> CanStartLicensedEffectAsync(CancellationToken cancellationToken = default)
+    {
+        if (_entitlements is not FileProductLicenseService source) return true;
+        if (_authorityStore is null) return false;
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_disposed || ProcessEffectsFenced || _activeEngineeringTagCount is not { } tags ||
+                GetProductRuntimeStatus().State != ProductRuntimeLifecycleState.Running)
+                return false;
+            var beforeLicense = source.CurrentVerification;
+            if (beforeLicense.State == LicenseState.Invalid) return false;
+            var state = await _authorityStore.GetAuthorityStateAsync(cancellationToken);
+            if (state.TransitionPending || state.AuthorityRevision != _appliedAuthorityRevision) return false;
+            var decision = ProductEntitlementEvaluator.Evaluate(beforeLicense, tags);
+            lock (_statusGate)
+            {
+                if (!decision.Allowed || _activeDecision != decision) return false;
+            }
+            if (beforeLicense != source.CurrentVerification) return false;
+            var after = await _authorityStore.GetAuthorityStateAsync(cancellationToken);
+            return !after.TransitionPending && after.AuthorityRevision == state.AuthorityRevision;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception) { return false; }
+        finally { _activationGate.Release(); }
     }
 
     private void ExitProcessEffect()

@@ -13,6 +13,83 @@ namespace Scada.Drivers.Tests;
 public sealed class RichCommandRuntimeServiceTests
 {
     [Fact]
+    public async Task AsyncAuthority_IsRecheckedAtEveryBoundaryAndDeniesBeforeDispatch()
+    {
+        var fixture = CreateFixture();
+        using var original = fixture.Runtime;
+        var checks = 0;
+        using var runtime = RichCommandRuntimeService.CreateWithAsyncAuthority(
+            new InMemoryRichCommandDefinitionResolver([fixture.Definition]),
+            new InMemoryRichCommandBindingResolver([fixture.Binding]),
+            new InMemoryRichCommandDriverExecutorResolver([new(DataSourceId, fixture.Executor)]),
+            async ct => { await Task.Yield(); ct.ThrowIfCancellationRequested(); return ++checks < 3; });
+
+        var result = await runtime.InvokeAsync(fixture.Invocation());
+        Assert.Equal(3, checks);
+        Assert.Equal(RichCommandOutcome.Rejected, result.Outcome);
+        Assert.Equal("runtime.non_authoritative", result.Code);
+        Assert.Equal(0, fixture.Executor.DispatchCount);
+    }
+
+    [Fact]
+    public async Task AsyncAuthority_FailureAndCancellationFailClosed()
+    {
+        var fixture = CreateFixture();
+        using var original = fixture.Runtime;
+        using var cancellation = new CancellationTokenSource();
+        var calls = 0;
+        using var runtime = RichCommandRuntimeService.CreateWithAsyncAuthority(
+            new InMemoryRichCommandDefinitionResolver([fixture.Definition]),
+            new InMemoryRichCommandBindingResolver([fixture.Binding]),
+            new InMemoryRichCommandDriverExecutorResolver([new(DataSourceId, fixture.Executor)]),
+            async ct =>
+            {
+                await Task.Yield();
+                if (++calls == 1) throw new IOException("authority unavailable");
+                cancellation.Cancel();
+                return true;
+            });
+
+        var unavailable = await runtime.InvokeAsync(fixture.Invocation());
+        var cancelled = await runtime.InvokeAsync(fixture.Invocation(), cancellation.Token);
+        Assert.Equal("runtime.non_authoritative", unavailable.Code);
+        Assert.Equal("runtime.cancelled_before_dispatch", cancelled.Code);
+        Assert.Equal(0, fixture.Executor.DispatchCount);
+    }
+
+    [Fact]
+    public async Task AsyncAuthority_RevokedWhileQueued_RejectsBeforeSecondPhysicalDispatch()
+    {
+        var executor = new OrderedBlockingExecutor();
+        var fixture = CreateFixture(executor: executor);
+        using var original = fixture.Runtime;
+        var allowed = 1;
+        var firstQueuedCheck = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var checks = 0;
+        using var runtime = RichCommandRuntimeService.CreateWithAsyncAuthority(
+            new InMemoryRichCommandDefinitionResolver([fixture.Definition]),
+            new InMemoryRichCommandBindingResolver([fixture.Binding]),
+            new InMemoryRichCommandDriverExecutorResolver([new(DataSourceId, executor)]),
+            ct =>
+            {
+                if (Interlocked.Increment(ref checks) == 4) firstQueuedCheck.TrySetResult();
+                return ValueTask.FromResult(Volatile.Read(ref allowed) == 1);
+            },
+            new RichCommandRuntimePolicy(3, 2, TimeSpan.FromSeconds(5)));
+
+        var first = runtime.InvokeAsync(fixture.Invocation()).AsTask();
+        await executor.FirstDispatchStarted.WaitAsync(TimeSpan.FromSeconds(2));
+        var second = runtime.InvokeAsync(fixture.Invocation()).AsTask();
+        await firstQueuedCheck.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Interlocked.Exchange(ref allowed, 0);
+        executor.ReleaseFirst();
+        await first;
+        var denied = await second;
+        Assert.Equal("runtime.non_authoritative", denied.Code);
+        Assert.Single(executor.DispatchOrder);
+    }
+
+    [Fact]
     public async Task ValidInvocation_DefinitionAndBinding_DispatchesExactlyOnce()
     {
         var fixture = CreateFixture();

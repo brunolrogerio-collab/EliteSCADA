@@ -29,7 +29,7 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         var bus = new InMemoryScadaEventBus();
         await using var runtime = new ProductLicensedRuntimeCoordinator(
             new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
-            () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock);
+            () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock, store);
         var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
         await lifecycle.InstallOnlineAsync(Candidate());
         var original = Package(1, true);

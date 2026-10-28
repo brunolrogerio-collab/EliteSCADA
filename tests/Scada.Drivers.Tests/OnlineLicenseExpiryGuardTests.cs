@@ -20,6 +20,34 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         ProductLicenseLifecycleCoordinator lifecycle, IProductRuntimeAuthorityReevaluator runtime, TimeProvider clock) =>
         new(source, lifecycle, runtime, clock, NullLogger<OnlineLicenseExpiryHostedService>.Instance);
 
+    [Fact]
+    public async Task ExpiredOnlineLease_BlocksWriteBeforeMaintenanceAndAllowsDemoAfterTransition()
+    {
+        using var f = new Fixture(keys);
+        using var source = f.Source();
+        await using var store = new InMemoryRuntimeSessionLeaseStore(f.Clock.GetUtcNow);
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = new ProductLicensedRuntimeCoordinator(
+            new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
+            () => new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)), source, f.Clock);
+        var lifecycle = CreateLifecycle(source, store, runtime, f.Clock);
+        await lifecycle.InstallOnlineAsync(Candidate());
+        var original = Package(1, true);
+        var package = original with { Tags = original.Tags.Select(tag => tag with { ReadOnly = false }).ToArray() };
+        Assert.True((await runtime.ActivateAsync("plant", 1, package)).Activated);
+        var tag = Assert.Single(runtime.Tags());
+        f.Clock.Advance(TimeSpan.FromHours(72) - TimeSpan.FromTicks(1));
+        await runtime.WriteAsync(tag.Id, 7d);
+        f.Clock.Advance(TimeSpan.FromTicks(1));
+        Assert.Equal(LicenseState.Invalid, source.CurrentVerification.State);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await runtime.WriteAsync(tag.Id, 8d));
+        Assert.True(runtime.TryGetCurrent(tag.Id, out var preserved));
+        Assert.Equal(7d, preserved!.Value);
+        Assert.Equal("expired-to-demo", (await Guard(source, lifecycle, runtime, f.Clock).RunOnceAsync()).Code);
+        Assert.Equal(LicenseState.Demo, source.CurrentVerification.State);
+        await runtime.WriteAsync(tag.Id, 9d);
+    }
+
     [Theory]
     [InlineData(200, true)]
     [InlineData(201, false)]

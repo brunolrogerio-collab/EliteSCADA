@@ -407,6 +407,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 using (var registrationClosed = await closedSignup.Raw("/auth/register", HttpMethod.Post, new { email = "closed@example.test" }))
                     Assert.Equal(HttpStatusCode.NotFound, registrationClosed.StatusCode);
                 var owner = await Login(factory, "scadivo.owner");
+                Assert.False((await owner.Get("/licensing/status")).GetProperty("onlineActivationAvailable").GetBoolean());
                 Assert.NotEmpty(Directory.GetFiles(Path.Combine(root, "keys"), "key-*.xml"));
                 Assert.True((await owner.Get("/admin/overview")).GetProperty("accounts").GetInt32() >= 1);
                 var sessionResponse = await owner.Client.GetAsync("api/session");
@@ -935,6 +936,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 services.AddSingleton<IOnlineLeaseSigner, TestOnlineLeaseSigner>();
             }));
             var owner = await Login(factory, "scadivo.owner");
+            Assert.True((await owner.Get("/licensing/status")).GetProperty("onlineActivationAvailable").GetBoolean());
             var organizations = await owner.Get("/licensing/organizations");
             var organizationId = organizations.EnumerateArray().First().GetProperty("id").GetGuid();
             var marker = Guid.NewGuid().ToString("N")[..8];

@@ -4,7 +4,7 @@ The direct activation section below is superseded by [ACTIVATION_CONFIRMATION.md
 
 # SCADIVO online licensing API — implementation contract
 
-This Portal API is a separate layer from the offline request intake in PR #777. It manages organizations, applications, entitlements, machine activations, rotating device credentials, and signed online leases. The Portal UI and product client integration are not part of this API-only change.
+This Portal API is a separate layer from the offline request intake in PR #777. It manages organizations, applications, entitlements, machine activations, rotating device credentials, and signed online leases. The Portal Licenses tab provides customer organization/application management, entitlement and activation consultation, and deactivation of the account's installations. Portal Owners have a separate licensing administration tab for explicit entitlement creation, extension and revocation. Product client integration remains separate.
 
 ## Safety and deployment state
 
@@ -29,6 +29,7 @@ The API is under `/portal/api` on the public site. Customer write calls require 
 
 | Method | Path | Access |
 |---|---|---|
+| `GET` | `/licensing/status` | Portal account; only reports whether online activation is available |
 | `GET` / `POST` | `/licensing/organizations` | Portal account; create requires a complete profile |
 | `GET` / `POST` | `/licensing/organizations/{organizationId}/applications` | Organization member; create requires Owner/Admin |
 | `GET` / `POST` | `/licensing/organizations/{organizationId}/members` | Organization member; add requires Owner/Admin |
@@ -99,7 +100,7 @@ The API signs the UTF-8 JSON bytes with RSA-PSS/SHA-256 and key ID `scadivo-onli
 
 ## Current exclusions and follow-up
 
-- No customer-facing organization/license screens are added here.
+- The customer and Owner license screens are PT-BR/EN/ES and use the same authenticated API/anti-forgery boundaries. They never activate a product on behalf of the browser, handle refresh tokens or reveal signing material. Entitlement creation requires explicit capacities, term and activation limit; it does not process a payment or install a license.
 - The offline `ESREQ1` intake remains in PR #777; offline request review, signing, conversion, delivery and offline-key operations remain separate.
 - Product-side verification, Windows/Linux/Docker token protection, License UI, shared Runtime quotas, HA, Demo transition and the 48-hour renewal scheduler must be implemented on the product branch under issue #301.
 - Payment processing, automatic account purchase, commercial activation policy, and translation of community posts are outside this API stage.

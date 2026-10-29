@@ -22,7 +22,7 @@ services:
   portal-mailpit-homolog:
     image: axllent/mailpit:v1.27
     ports:
-      - '127.0.0.1:18083:8025'
+      - '127.0.0.1:${SCADIVO_HOMOLOG_MAIL_PORT:-18083}:8025'
     networks: [homolog-private, homolog-front]
     restart: unless-stopped
     logging:
@@ -46,7 +46,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Portal: Host=portal-database-homolog;Database=scadivo_portal_homolog;Username=scadivo_portal_homolog;Password=${SCADIVO_HOMOLOG_DB_PASSWORD:-LocalOnly-Portal-Database-2026!}
-      Portal__PublicUrl: http://localhost:18084/portal/
+      Portal__PublicUrl: http://localhost:${SCADIVO_HOMOLOG_PORT:-18084}/portal/
       Portal__KeyDirectory: /app/keys
       Portal__TrustedProxyNetworks: 172.16.0.0/12
       Portal__Bootstrap__Username: scadivo.owner
@@ -87,7 +87,7 @@ services:
       context: ../site
       dockerfile: Dockerfile
     ports:
-      - '127.0.0.1:18084:8080'
+      - '127.0.0.1:${SCADIVO_HOMOLOG_PORT:-18084}:8080'
     depends_on:
       scadivo-portal-api-homolog: {condition: service_healthy}
     networks: [homolog-private, homolog-front]

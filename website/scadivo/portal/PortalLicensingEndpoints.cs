@@ -9,6 +9,7 @@ public static class PortalLicensingEndpoints
     public static void MapPortalLicensingEndpoints(this WebApplication app)
     {
         var customer = app.MapGroup("/api/licensing").RequireAuthorization().RequireRateLimiting("writes");
+        customer.MapGet("/status", (Licensing.IOnlineLeaseSigner signer) => Results.Ok(new { onlineActivationAvailable = signer.IsEnabled }));
         customer.MapGet("/organizations", (HttpContext context, PortalLicensingOperations operations) => operations.Organizations(context));
         customer.MapPost("/organizations", (CreateOrganizationInput input, HttpContext context, PortalLicensingOperations operations) => operations.CreateOrganization(input, context));
         customer.MapGet("/organizations/{organizationId:guid}/applications", (Guid organizationId, HttpContext context, PortalLicensingOperations operations) => operations.Applications(organizationId, context));

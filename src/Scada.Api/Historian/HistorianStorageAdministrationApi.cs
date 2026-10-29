@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Mvc;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Historian.Abstractions;
+using Scada.Historian.Archives;
 using Scada.Historian.Policies;
 using Scada.Historian.TimescaleDb;
 using Scada.Security.Audit;
@@ -60,7 +62,8 @@ public static class HistorianStorageAdministrationApi
                         filesystemFreeBytes = (long?)null,
                         estimatedDailyGrowthBytes = (long?)null,
                         measuredAtUtc = usage.MeasuredAtUtc
-                    }
+                    },
+                    archive = await DescribeArchivesAsync(services, cancellationToken)
                 });
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -182,7 +185,244 @@ public static class HistorianStorageAdministrationApi
                     statusCode: StatusCodes.Status503ServiceUnavailable);
             }
         });
+
+        group.MapPost("/archives", async (
+            HistorianArchiveCreateRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            IHistorian historian,
+            IServiceProvider services,
+            CancellationToken cancellationToken) =>
+        {
+            var failure = await AuthorizeAsync(context, runtime, security, audit, cancellationToken, AuditActions.HistorianArchiveCreate);
+            if (failure is not null) return failure;
+            var archive = services.GetService<IHistorianArchiveService>();
+            if (historian is not TimescaleDbHistorian || archive is null)
+                return Results.Conflict(new { error = "Historian archive requires the TimescaleDB provider." });
+            if (request.DeleteSourceAfterVerification && !request.ConfirmDeleteSourceAfterVerification)
+                return Results.UnprocessableEntity(new { error = "Confirm source removal after archive read-back verification." });
+
+            try
+            {
+                var job = await archive.CreateAsync(
+                    request.FromUtc,
+                    request.ToUtc,
+                    request.DeleteSourceAfterVerification,
+                    cancellationToken);
+                await audit.RecordAsync(
+                    context,
+                    security.GetPrincipal(context),
+                    AuditActions.HistorianArchiveCreate,
+                    AuditOutcome.Succeeded,
+                    "historian-archive",
+                    job.ArchiveId.ToString("D"),
+                    new Dictionary<string, string>
+                    {
+                        ["fromUtc"] = job.FromUtc.ToString("O"),
+                        ["toUtc"] = job.ToUtc.ToString("O"),
+                        ["deleteSourceAfterVerification"] = job.DeleteSourceAfterVerification.ToString()
+                    });
+                return Results.Accepted($"/api/admin/historian-storage/archives/{job.ArchiveId:D}", ToArchiveJobResponse(job));
+            }
+            catch (ArgumentException)
+            {
+                return Results.BadRequest(new { error = "Archive time range is invalid." });
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return Results.Json(new { error = "Configured Historian archive destination is unavailable." }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+        });
+
+        group.MapPut("/archives/schedule", async (
+            HistorianArchiveScheduleRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            IHistorian historian,
+            IServiceProvider services,
+            CancellationToken cancellationToken) =>
+        {
+            var failure = await AuthorizeAsync(context, runtime, security, audit, cancellationToken, AuditActions.HistorianArchiveScheduleConfigure);
+            if (failure is not null) return failure;
+            var archive = services.GetService<IHistorianArchiveService>();
+            if (historian is not TimescaleDbHistorian || archive is null)
+                return Results.Conflict(new { error = "Historian archive scheduling requires the TimescaleDB provider." });
+            if (request.DeleteSourceAfterVerification && !request.ConfirmDeleteSourceAfterVerification)
+                return Results.UnprocessableEntity(new { error = "Confirm source removal after each verified scheduled archive." });
+
+            try
+            {
+                var schedule = await archive.SaveScheduleAsync(
+                    new HistorianArchiveScheduleConfiguration(
+                        request.Enabled,
+                        request.StartFromUtc,
+                        request.ArchiveAfterDays,
+                        request.IntervalDays,
+                        request.WindowDays,
+                        request.KeepArchivesDays,
+                        request.DeleteSourceAfterVerification),
+                    cancellationToken);
+                await audit.RecordAsync(
+                    context,
+                    security.GetPrincipal(context),
+                    AuditActions.HistorianArchiveScheduleConfigure,
+                    AuditOutcome.Succeeded,
+                    "historian-archive-schedule",
+                    "singleton",
+                    new Dictionary<string, string>
+                    {
+                        ["enabled"] = schedule.Enabled.ToString(),
+                        ["startFromUtc"] = schedule.StartFromUtc.ToString("O"),
+                        ["nextFromUtc"] = schedule.NextFromUtc.ToString("O"),
+                        ["archiveAfterDays"] = schedule.ArchiveAfterDays.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["intervalDays"] = schedule.IntervalDays.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["windowDays"] = schedule.WindowDays.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["keepArchivesDays"] = schedule.KeepArchivesDays?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "forever",
+                        ["deleteSourceAfterVerification"] = schedule.DeleteSourceAfterVerification.ToString(),
+                        ["nextRunAtUtc"] = schedule.NextRunAtUtc.ToString("O")
+                    });
+                return Results.Ok(schedule);
+            }
+            catch (ArgumentException)
+            {
+                return Results.BadRequest(new { error = "Historian archive schedule settings are invalid." });
+            }
+        });
+
+        group.MapPost("/archives/{archiveId:guid}/resume", async (
+            Guid archiveId,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            IServiceProvider services,
+            CancellationToken cancellationToken) =>
+        {
+            var failure = await AuthorizeAsync(context, runtime, security, audit, cancellationToken, AuditActions.HistorianArchiveResume);
+            if (failure is not null) return failure;
+            var archive = services.GetService<IHistorianArchiveService>();
+            if (archive is null) return Results.Conflict(new { error = "Historian archive requires the TimescaleDB provider." });
+            var job = await archive.ResumeAsync(archiveId, cancellationToken);
+            if (job is null) return Results.NotFound();
+            await audit.RecordAsync(
+                context,
+                security.GetPrincipal(context),
+                AuditActions.HistorianArchiveResume,
+                AuditOutcome.Succeeded,
+                "historian-archive",
+                archiveId.ToString("D"),
+                new Dictionary<string, string> { ["state"] = job.State.ToString() });
+            return Results.Accepted($"/api/admin/historian-storage/archives/{archiveId:D}", ToArchiveJobResponse(job));
+        });
+
+        group.MapGet("/archives/{archiveId:guid}/download", async (
+            Guid archiveId,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            IServiceProvider services,
+            CancellationToken cancellationToken) =>
+        {
+            var failure = await AuthorizeAsync(context, runtime, security, audit, cancellationToken, AuditActions.HistorianArchiveDownload);
+            if (failure is not null) return failure;
+            var archive = services.GetService<IHistorianArchiveService>();
+            if (archive is null) return Results.Conflict(new { error = "Historian archive requires the TimescaleDB provider." });
+            var stream = await archive.OpenCompletedArchiveAsync(archiveId, cancellationToken);
+            if (stream is null) return Results.NotFound();
+            await audit.RecordAsync(
+                context,
+                security.GetPrincipal(context),
+                AuditActions.HistorianArchiveDownload,
+                AuditOutcome.Succeeded,
+                "historian-archive",
+                archiveId.ToString("D"),
+                new Dictionary<string, string>());
+            return Results.File(stream, "application/vnd.scadivo.historian-archive", $"{archiveId:N}.scadhist", enableRangeProcessing: true);
+        });
+
+        group.MapPost("/archives/restore", async (
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            IHistorian historian,
+            IServiceProvider services,
+            CancellationToken cancellationToken) =>
+        {
+            var failure = await AuthorizeAsync(context, runtime, security, audit, cancellationToken, AuditActions.HistorianArchiveRestore);
+            if (failure is not null) return failure;
+            var archive = services.GetService<IHistorianArchiveService>();
+            if (historian is not TimescaleDbHistorian || archive is null)
+                return Results.Conflict(new { error = "Historian archive restore requires the TimescaleDB provider." });
+            if (!context.Request.ContentType?.StartsWith("application/octet-stream", StringComparison.OrdinalIgnoreCase) ?? true)
+                return Results.BadRequest(new { error = "Upload the archive as application/octet-stream." });
+
+            try
+            {
+                var result = await archive.RestoreAsync(context.Request.Body, cancellationToken);
+                await audit.RecordAsync(
+                    context,
+                    security.GetPrincipal(context),
+                    AuditActions.HistorianArchiveRestore,
+                    AuditOutcome.Succeeded,
+                    "historian-archive",
+                    result.ArchiveId.ToString("D"),
+                    new Dictionary<string, string>
+                    {
+                        ["samplesRestored"] = result.SamplesRestored.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["segmentsRestored"] = result.SegmentsRestored.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["segmentsAlreadyRestored"] = result.SegmentsAlreadyRestored.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["sha256"] = result.Sha256
+                    });
+                return Results.Ok(result);
+            }
+            catch (InvalidDataException)
+            {
+                return Results.BadRequest(new { error = "Historian archive failed format or integrity verification; no samples were restored." });
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return Results.Json(new { error = "Historian archive could not be read from the configured server storage." }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+        }).WithMetadata(new RequestSizeLimitAttribute(HistorianArchiveLimits.MaximumUploadBytes));
     }
+
+    private static async Task<object> DescribeArchivesAsync(IServiceProvider services, CancellationToken cancellationToken)
+    {
+        var archive = services.GetService<IHistorianArchiveService>();
+        if (archive is null) return new { supported = false, destination = (string?)null, jobs = Array.Empty<HistorianArchiveJob>() };
+        var jobs = await archive.ListAsync(cancellationToken);
+        return new
+        {
+            supported = true,
+            destination = archive.DestinationDescription,
+            schedule = await archive.GetScheduleAsync(cancellationToken),
+            jobs = jobs.Select(ToArchiveJobResponse).ToArray()
+        };
+    }
+
+    private static HistorianArchiveJobResponse ToArchiveJobResponse(HistorianArchiveJob job) => new(
+        job.ArchiveId,
+        job.FromUtc,
+        job.ToUtc,
+        job.NextSegmentFromUtc,
+        job.NextSequence,
+        job.State.ToString(),
+        job.DeleteSourceAfterVerification,
+        job.SamplesArchived,
+        job.FailureCode,
+        job.Sha256,
+        job.ArchiveLengthBytes,
+        job.CreatedAtUtc,
+        job.UpdatedAtUtc,
+        job.CompletedAtUtc,
+        job.ArchiveFileRemovedAtUtc is null,
+        job.ArchiveFileRemovedAtUtc);
 
     private static bool TryParseLimitAction(string? value, out HistorianRawStorageLimitAction action)
     {
@@ -204,7 +444,8 @@ public static class HistorianStorageAdministrationApi
         ScadaRuntimeFacade runtime,
         ApiAuthorizationService security,
         ApiAuditService audit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string action = AuditActions.HistorianStorageRetentionConfigure)
     {
         var authorization = await security.CheckRuntimeAsync(
             context,
@@ -217,7 +458,7 @@ public static class HistorianStorageAdministrationApi
             await audit.RecordAuthorizationDeniedAsync(
                 context,
                 authorization,
-                AuditActions.HistorianStorageRetentionConfigure,
+                action,
                 "historian-storage-policy",
                 "active");
         }
@@ -232,3 +473,37 @@ public sealed record HistorianRawRetentionRequest(
     bool ConfigureRawSampleStorageLimit = false,
     long? RawSampleStorageLimitBytes = null,
     string? RawSampleStorageLimitAction = null);
+
+public sealed record HistorianArchiveCreateRequest(
+    DateTimeOffset FromUtc,
+    DateTimeOffset ToUtc,
+    bool DeleteSourceAfterVerification = false,
+    bool ConfirmDeleteSourceAfterVerification = false);
+
+public sealed record HistorianArchiveScheduleRequest(
+    bool Enabled,
+    DateTimeOffset StartFromUtc,
+    int ArchiveAfterDays,
+    int IntervalDays,
+    int WindowDays,
+    int? KeepArchivesDays,
+    bool DeleteSourceAfterVerification = false,
+    bool ConfirmDeleteSourceAfterVerification = false);
+
+public sealed record HistorianArchiveJobResponse(
+    Guid ArchiveId,
+    DateTimeOffset FromUtc,
+    DateTimeOffset ToUtc,
+    DateTimeOffset NextSegmentFromUtc,
+    int NextSequence,
+    string State,
+    bool DeleteSourceAfterVerification,
+    long SamplesArchived,
+    string? FailureCode,
+    string? Sha256,
+    long? ArchiveLengthBytes,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset UpdatedAtUtc,
+    DateTimeOffset? CompletedAtUtc,
+    bool ArchiveFileAvailable,
+    DateTimeOffset? ArchiveFileRemovedAtUtc);

@@ -457,10 +457,10 @@ namespace Scadivo.Portal.Data.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsSuspended")
+                    b.Property<bool>("InvitationAccepted")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("InvitationAccepted")
+                    b.Property<bool>("IsSuspended")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Locale")
@@ -730,6 +730,50 @@ namespace Scadivo.Portal.Data.Migrations
                     b.HasIndex("OrganizationId", "ApplicationId", "LicenseId");
 
                     b.ToTable("ProductLicenseActivations");
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.ProductLicensePreparation", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ActivationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Cancelled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ConsumedRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CredentialHash")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LicenseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MachineFingerprint")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PresentationJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ProductLicensePreparations");
                 });
 
             modelBuilder.Entity("Scadivo.Portal.Data.ProductLicenseRefreshCredential", b =>

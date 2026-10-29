@@ -19,6 +19,11 @@ public sealed record ExtendProductLicenseInput(string? Term);
 public sealed record RevokeProductLicenseInput(string? Reason);
 public sealed record DeviceActivationInput(string? Username, string? Password, string? LicenseCode,
     Guid ActivationId, Guid RequestId, string? MachineFingerprint, string? RefreshCredential);
+public sealed record DevicePrepareInput(string? Username, string? Password, string? LicenseCode,
+    Guid ActivationId, string? MachineFingerprint);
+public sealed record DeviceConfirmInput(string? ConfirmationToken, Guid ActivationId, Guid RequestId,
+    string? MachineFingerprint, string? RefreshCredential);
+public sealed record DeviceCancelInput(string? ConfirmationToken);
 public sealed record DeviceRenewalInput(Guid RequestId, string? NextRefreshCredential);
 
 public sealed class PortalLicensingOperations(
@@ -346,33 +351,90 @@ public sealed class PortalLicensingOperations(
         return Results.Ok(new { activation.Id, revoked = true, activation.RevokedAtUtc });
     }
 
-    public async Task<IResult> Activate(DeviceActivationInput input, HttpContext context)
+    private static string Presentation(ProductLicense license, string applicationName) =>
+        System.Text.Json.JsonSerializer.Serialize(new {
+            licenseId = license.Id, organizationId = license.OrganizationId, applicationId = license.ApplicationId,
+            licenseCode = license.PublicCode, applicationName, mode = "online-account", term = license.Term,
+            entitlementExpiresAtUtc = license.EntitlementExpiresAtUtc, tier = license.Tier,
+            interactiveSeats = license.InteractiveSeats, viewOnlySeats = license.ViewOnlySeats,
+            haRuntime = license.HaRuntime, assetProcessIntelligence = license.AssetProcessIntelligence,
+            maxActivations = license.MaxActivations
+        });
+
+    public async Task<IResult> Prepare(DevicePrepareInput input, HttpContext context)
     {
-        if (!leaseSigner.IsEnabled) return LicenseServiceUnavailable();
+        context.Response.Headers.CacheControl = "no-store";
         if (!context.Request.IsHttps) return Results.BadRequest(new { error = "https-required" });
         if (!Valid(input.Username, 1, 256) || input.Password is null || input.Password.Length is < 1 or > 1024 ||
-            input.ActivationId == Guid.Empty || input.RequestId == Guid.Empty || !IsFingerprint(input.MachineFingerprint) ||
-            !IsRefreshCredential(input.RefreshCredential) || !ValidLicenseCode(input.LicenseCode)) return Invalid();
-
+            !ValidLicenseCode(input.LicenseCode) || input.ActivationId == Guid.Empty || !IsFingerprint(input.MachineFingerprint)) return Invalid();
         var identifier = input.Username!.Trim();
         var user = await users.FindByEmailAsync(identifier) ?? await users.FindByNameAsync(identifier);
         if (user is null) return InvalidCredentials();
-        var passwordResult = await signIn.CheckPasswordSignInAsync(user, input.Password, lockoutOnFailure: true);
-        if (!passwordResult.Succeeded || !UsableAccount(user)) return InvalidCredentials();
+        var result = await signIn.CheckPasswordSignInAsync(user, input.Password, lockoutOnFailure: true);
+        if (!result.Succeeded || !UsableAccount(user)) return InvalidCredentials();
+        var code = NormalizeLicenseCode(input.LicenseCode!);
+        var license = await db.ProductLicenses.AsNoTracking().SingleOrDefaultAsync(x => x.PublicCode == code);
+        if (license is null || !LicenseCanIssue(license, clock.GetUtcNow()) ||
+            !await db.Memberships.AnyAsync(x => x.OrganizationId == license.OrganizationId && x.UserId == user.Id)) return LicenseNotAvailable();
+        var application = await db.ProductApplications.AsNoTracking().SingleOrDefaultAsync(x => x.Id == license.ApplicationId && x.OrganizationId == license.OrganizationId);
+        if (application is null) return LicenseNotAvailable();
+        var token = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        var preparation = new ProductLicensePreparation {
+            Id = HashCredential(token), UserId = user.Id, SecurityStamp = user.SecurityStamp ?? "",
+            LicenseId = license.Id, ActivationId = input.ActivationId,
+            MachineFingerprint = input.MachineFingerprint!.ToLowerInvariant(),
+            PresentationJson = Presentation(license, application.Name), ExpiresAtUtc = clock.GetUtcNow().AddMinutes(5)
+        };
+        await db.ProductLicensePreparations.Where(x => x.ExpiresAtUtc < clock.GetUtcNow().AddDays(-1)).ExecuteDeleteAsync();
+        db.ProductLicensePreparations.Add(preparation);
+        await db.SaveChangesAsync();
+        return Results.Ok(new { confirmationToken = token, expiresAtUtc = preparation.ExpiresAtUtc,
+            summary = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(preparation.PresentationJson),
+            onlineActivationAvailable = leaseSigner.IsEnabled });
+    }
 
-        var licenseCode = NormalizeLicenseCode(input.LicenseCode!);
-        var licenseId = await db.ProductLicenses.AsNoTracking().Where(x => x.PublicCode == licenseCode)
-            .Select(x => (Guid?)x.Id).SingleOrDefaultAsync();
-        if (licenseId is null) return LicenseNotAvailable();
+    public async Task<IResult> Cancel(DeviceCancelInput input, HttpContext context)
+    {
+        if (!context.Request.IsHttps) return Results.BadRequest(new { error = "https-required" });
+        if (!IsRefreshCredential(input.ConfirmationToken)) return Invalid();
+        var hash = HashCredential(input.ConfirmationToken!);
+        await db.ProductLicensePreparations.Where(x => x.Id == hash && x.ConsumedRequestId == null)
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.Cancelled, true));
+        return Results.NoContent();
+    }
 
+    public async Task<IResult> Confirm(DeviceConfirmInput input, HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        if (!leaseSigner.IsEnabled) return LicenseServiceUnavailable();
+        if (!context.Request.IsHttps) return Results.BadRequest(new { error = "https-required" });
+        if (!IsRefreshCredential(input.ConfirmationToken) || input.ActivationId == Guid.Empty || input.RequestId == Guid.Empty ||
+            !IsFingerprint(input.MachineFingerprint) || !IsRefreshCredential(input.RefreshCredential)) return Invalid();
+        var tokenHash = HashCredential(input.ConfirmationToken!);
+        var initial = await db.ProductLicensePreparations.AsNoTracking().SingleOrDefaultAsync(x => x.Id == tokenHash);
+        if (initial is null) return InvalidCredentials();
+        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == initial.UserId);
+        if (user is null) return InvalidCredentials();
+        Guid? licenseId = initial.LicenseId;
         var credentialHash = HashCredential(input.RefreshCredential!);
         var normalizedFingerprint = input.MachineFingerprint!.ToLowerInvariant();
         await using var transaction = await db.Database.BeginTransactionAsync();
-        await LockUser(user.Id, "SHARE");
+        user = await LockUser(user.Id, "SHARE");
+        if (user is null || !UsableAccount(user) || await users.IsLockedOutAsync(user)) return InvalidCredentials();
         var membership = await LockMembershipForRead(await db.ProductLicenses.AsNoTracking().Where(x => x.Id == licenseId.Value).Select(x => x.OrganizationId).SingleAsync(), user.Id);
         if (membership is null) return LicenseNotAvailable();
         var license = await LockLicense(licenseId.Value, "UPDATE");
-        if (license is null) return LicenseNotAvailable();
+        if (license is null || !LicenseCanIssue(license, clock.GetUtcNow())) return LicenseNotAvailable();
+        var preparation = await db.ProductLicensePreparations.FromSqlInterpolated($"SELECT * FROM \"ProductLicensePreparations\" WHERE \"Id\" = {tokenHash} FOR UPDATE").SingleOrDefaultAsync();
+        if (preparation is null) return InvalidCredentials();
+        var app = await db.ProductApplications.AsNoTracking().SingleOrDefaultAsync(x => x.Id == license.ApplicationId);
+        if (preparation.Cancelled || preparation.ActivationId != input.ActivationId || preparation.MachineFingerprint != normalizedFingerprint ||
+            preparation.SecurityStamp != user!.SecurityStamp || app is null || preparation.PresentationJson != Presentation(license, app.Name))
+            return Results.Conflict(new { error = "preparation-invalidated" });
+        if (preparation.ConsumedRequestId is { } consumed && (consumed != input.RequestId || preparation.CredentialHash != credentialHash))
+            return Results.Conflict(new { error = "preparation-already-consumed" });
+        if ((preparation.ConsumedRequestId is null && preparation.ExpiresAtUtc <= clock.GetUtcNow()) || preparation.ExpiresAtUtc.AddDays(1) <= clock.GetUtcNow())
+            return Results.Conflict(new { error = "preparation-expired" });
         var activation = await LockActivation(input.ActivationId, "UPDATE");
         if (activation is not null)
         {
@@ -380,10 +442,15 @@ public sealed class PortalLicensingOperations(
                 activation.ApplicationId != license.ApplicationId || activation.UserId != user.Id ||
                 activation.MachineFingerprint != normalizedFingerprint)
                 return Results.Conflict(new { error = "activation-id-already-bound" });
+            if (activation.Status == ProductLicenseStates.Revoked || (preparation.ConsumedRequestId is not null && activation.Status != ProductLicenseStates.Active))
+                return Results.Conflict(new { error = "activation-revoked" });
             if (activation.LastActivationRequestId == input.RequestId && activation.LastActivationCredentialHash == credentialHash && activation.ActivationLeaseEnvelope is not null)
             {
+                preparation.ConsumedRequestId = input.RequestId;
+                preparation.CredentialHash = credentialHash;
+                await db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return LeaseResponse(activation, activation.ActivationLeaseEnvelope);
+                return ConfirmResponse(activation, activation.ActivationLeaseEnvelope, preparation);
             }
             if (activation.Status == ProductLicenseStates.Revoked) return Results.Conflict(new { error = "activation-revoked" });
         }
@@ -417,6 +484,8 @@ public sealed class PortalLicensingOperations(
         var signed = SignLease(license, activation, now);
         if (signed.Lease is null) return LicenseServiceUnavailable();
 
+        preparation.ConsumedRequestId = input.RequestId;
+        preparation.CredentialHash = credentialHash;
         activation.Status = ProductLicenseStates.Active;
         activation.RevocationReason = null;
         activation.LastActivationRequestId = input.RequestId;
@@ -440,7 +509,7 @@ public sealed class PortalLicensingOperations(
         {
             return Results.Conflict(new { error = "activation-request-conflict" });
         }
-        return LeaseResponse(activation, signed.Lease);
+        return ConfirmResponse(activation, signed.Lease, preparation);
     }
 
     public async Task<IResult> Renew(Guid activationId, DeviceRenewalInput input, HttpContext context)
@@ -465,7 +534,7 @@ public sealed class PortalLicensingOperations(
         if (license is null || activation is null || activation.UserId != initial.UserId)
             return InvalidCredentials();
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == activation.UserId);
-        if (!UsableAccount(user)) return InvalidCredentials();
+        if (user is null || !UsableAccount(user)) return InvalidCredentials();
 
         var credential = await db.ProductLicenseRefreshCredentials.SingleOrDefaultAsync(x => x.ActivationId == activationId && x.CredentialHash == currentHash);
         if (credential is not null &&
@@ -609,6 +678,10 @@ public sealed class PortalLicensingOperations(
         status = EffectiveLicenseStatus(license.Status, license.EntitlementExpiresAtUtc, now),
         activationCount = activations, activeActivations
     };
+
+    private static IResult ConfirmResponse(ProductLicenseActivation activation, string lease, ProductLicensePreparation preparation) =>
+        Results.Ok(new { activationId = activation.Id, lease, notAfterUtc = LeaseNotAfter(lease),
+            summary = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(preparation.PresentationJson) });
 
     private static IResult LeaseResponse(ProductLicenseActivation activation, string lease) => Results.Ok(new
     {

@@ -1,3 +1,7 @@
+# Activation contract update
+
+The direct activation section below is superseded by [ACTIVATION_CONFIRMATION.md](ACTIVATION_CONFIRMATION.md). Use prepare → explicit user confirmation → confirm. POST /device/activate now returns 410. Renewal and the signed ESLEASE1 schema remain unchanged.
+
 # SCADIVO online licensing API — implementation contract
 
 This Portal API is a separate layer from the offline request intake in PR #777. It manages organizations, applications, entitlements, machine activations, rotating device credentials, and signed online leases. The Portal Licenses tab provides customer organization/application management, entitlement and activation consultation, and deactivation of the account's installations. Portal Owners have a separate licensing administration tab for explicit entitlement creation, extension and revocation. Product client integration remains separate.
@@ -6,7 +10,7 @@ This Portal API is a separate layer from the offline request intake in PR #777. 
 
 - Online signing is **disabled by default**. While disabled, device activation and renewal return HTTP 503 (`licensing-service-unavailable`).
 - Do not enable the signer in production until the product verifier trusts `scadivo-online-lease-2026-01`, the product has integrated activation/renewal and secure token storage, and the end-to-end acceptance tests are complete.
-- When it is eventually enabled, mount the approved RSA-3072 private key as a read-only protected runtime file outside the application content and ASP.NET Data Protection key directories. Grant read access only to the Portal API service identity (UID 1654 on the current container); keep the containing directory restricted and back up the key only in a separately protected encrypted backup. Configure `Portal:Licensing:Online:PrivateKeyFile` with an absolute path and `Enabled=true`. Startup rejects an incorrect KeyId, fingerprint, key size, or path. Never put the private key in a repository, database, image, application package, Data Protection ring, or logs.
+- To enable device confirmation and lease renewal, mount the approved RSA-3072 private key from `/etc/scadivo/portal/signing/online-lease.pem` as a read-only runtime file at `/run/scadivo-signing/online-lease.pem`. The deployment Compose defaults `Portal:Licensing:Online:Enabled` to false; set `PORTAL_ONLINE_LEASE_SIGNING_ENABLED=true` only after the approved key is present, the encrypted backup has completed, and product verification is available. Grant read access only to the Portal API service identity (UID 1654 on the current container); keep the containing directory restricted. The encrypted Portal backup includes the signing key when it is present. Startup rejects an incorrect KeyId, fingerprint, key size, or path. Never put the private key in a repository, database, image, application package, Data Protection ring, or logs.
 - The API signs only its server-created `ESLEASE1` claims. It has no arbitrary-payload signing endpoint. Production entitlement creation and lease signing are not a payment flow; payment integration is not included.
 - All device calls require HTTPS. The product calls the Portal over outbound TCP 443; it does not use a browser cookie or hold the Portal password after activation.
 

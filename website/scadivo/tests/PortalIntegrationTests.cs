@@ -996,11 +996,68 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 machineFingerprint = new string('a', 64),
                 refreshCredential = refresh
             };
-            using var firstActivation = await product.PostAsJsonAsync("api/licensing/device/activate", activationBody);
+            var prepareBody = new { username, password = Password, licenseCode, activationId, machineFingerprint = new string('a', 64) };
+            async Task<string> PrepareToken()
+            {
+                using var response = await product.PostAsJsonAsync("api/licensing/device/prepare", prepareBody);
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+                Assert.Equal("online-account", json.GetProperty("summary").GetProperty("mode").GetString());
+                return json.GetProperty("confirmationToken").GetString()!;
+            }
+            object Confirmation(string token, string fingerprint) => new { confirmationToken = token, activationId,
+                requestId = activationRequestId, machineFingerprint = fingerprint, refreshCredential = refresh };
+            var cancelledToken = await PrepareToken();
+            await using (var scope = factory.Services.CreateAsyncScope())
+                Assert.False(await scope.ServiceProvider.GetRequiredService<PortalDb>().ProductLicenseActivations.AnyAsync(x => x.Id == activationId));
+            using var cancelled = await product.PostAsJsonAsync("api/licensing/device/cancel", new { confirmationToken = cancelledToken });
+            Assert.Equal(HttpStatusCode.NoContent, cancelled.StatusCode);
+            using var cancelledConfirm = await product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(cancelledToken, new string('a', 64)));
+            Assert.Equal(HttpStatusCode.Conflict, cancelledConfirm.StatusCode);
+            var expiredToken = await PrepareToken();
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                // Use the only unconsumed, noncancelled preparation for this installation.
+                var row = await db.ProductLicensePreparations.SingleAsync(x => x.ActivationId == activationId && !x.Cancelled);
+                row.ExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(-1);
+                await db.SaveChangesAsync();
+            }
+            using var expiredConfirm = await product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(expiredToken, new string('a', 64)));
+            Assert.Equal(HttpStatusCode.Conflict, expiredConfirm.StatusCode);
+            var revokedToken = await PrepareToken();
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                var row = await db.ProductLicenses.SingleAsync(x => x.PublicCode == licenseCode);
+                row.Status = ProductLicenseStates.Revoked;
+                await db.SaveChangesAsync();
+            }
+            using var revokedConfirm = await product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(revokedToken, new string('a', 64)));
+            Assert.Equal(HttpStatusCode.NotFound, revokedConfirm.StatusCode);
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                var row = await db.ProductLicenses.SingleAsync(x => x.PublicCode == licenseCode);
+                row.Status = ProductLicenseStates.Active;
+                await db.SaveChangesAsync();
+            }
+            var confirmationToken = await PrepareToken();
+            using var wrongMachine = await product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(confirmationToken, new string('f', 64)));
+            Assert.Equal(HttpStatusCode.Conflict, wrongMachine.StatusCode);
+            var concurrent = await Task.WhenAll(
+                product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(confirmationToken, new string('a', 64))),
+                product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(confirmationToken, new string('a', 64))));
+            using var firstActivation = concurrent[0];
+            using var concurrentRetry = concurrent[1];
+            Assert.Equal(HttpStatusCode.OK, concurrentRetry.StatusCode);
+            var concurrentLease = (await concurrentRetry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("lease").GetString();
             Assert.Equal(HttpStatusCode.OK, firstActivation.StatusCode);
             var firstLease = (await firstActivation.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("lease").GetString()!;
+            Assert.Equal(firstLease, concurrentLease);
             Assert.StartsWith("ESLEASE1.", firstLease, StringComparison.Ordinal);
             using var leasePayload = JsonDocument.Parse(WebEncoders.Base64UrlDecode(firstLease.Split('.')[1]));
+            Assert.Equal(14, leasePayload.RootElement.EnumerateObject().Count());
             Assert.Equal(1, leasePayload.RootElement.GetProperty("schemaVersion").GetInt32());
             Assert.Equal(activationId.ToString("D"), leasePayload.RootElement.GetProperty("activationId").GetString());
             Assert.Equal(new string('a', 64), leasePayload.RootElement.GetProperty("machineFingerprint").GetString());
@@ -1008,7 +1065,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal(TimeSpan.FromHours(72), leasePayload.RootElement.GetProperty("notAfterUtc").GetDateTimeOffset() -
                 leasePayload.RootElement.GetProperty("issuedAtUtc").GetDateTimeOffset());
 
-            using var activationRetry = await product.PostAsJsonAsync("api/licensing/device/activate", activationBody);
+            using var activationRetry = await product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(confirmationToken, new string('a', 64)));
             Assert.Equal(HttpStatusCode.OK, activationRetry.StatusCode);
             Assert.Equal(firstLease, (await activationRetry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("lease").GetString());
 
@@ -1051,7 +1108,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
 
             var secondActivationId = Guid.NewGuid();
             var secondRefresh = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
-            using var secondActivation = await product.PostAsJsonAsync("api/licensing/device/activate", new
+            using var secondActivation = await ActivateThroughConfirmation(product, new
             {
                 username,
                 password = Password,
@@ -1063,7 +1120,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             });
             Assert.Equal(HttpStatusCode.OK, secondActivation.StatusCode);
 
-            using var activationLimit = await product.PostAsJsonAsync("api/licensing/device/activate", new
+            using var activationLimit = await ActivateThroughConfirmation(product, new
             {
                 username,
                 password = Password,
@@ -1258,6 +1315,23 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
         .WithWebHostBuilder(builder => builder.UseEnvironment("Testing").UseContentRoot(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../portal")))
             .ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(configuration))
             .ConfigureLogging(logging => logging.AddProvider(new TestLogProvider(output))));
+    private static async Task<HttpResponseMessage> ActivateThroughConfirmation(HttpClient product, object body)
+    {
+        var data = JsonSerializer.SerializeToElement(body);
+        using var prepared = await product.PostAsJsonAsync("api/licensing/device/prepare", new {
+            username = data.GetProperty("username").GetString(), password = data.GetProperty("password").GetString(),
+            licenseCode = data.GetProperty("licenseCode").GetString(), activationId = data.GetProperty("activationId").GetGuid(),
+            machineFingerprint = data.GetProperty("machineFingerprint").GetString()
+        });
+        Assert.Equal(HttpStatusCode.OK, prepared.StatusCode);
+        var token = (await prepared.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("confirmationToken").GetString();
+        return await product.PostAsJsonAsync("api/licensing/device/confirm", new {
+            confirmationToken = token, activationId = data.GetProperty("activationId").GetGuid(),
+            requestId = data.GetProperty("requestId").GetGuid(), machineFingerprint = data.GetProperty("machineFingerprint").GetString(),
+            refreshCredential = data.GetProperty("refreshCredential").GetString()
+        });
+    }
+
     private static HttpClient Client(WebApplicationFactory<Program> factory) => factory.CreateClient(new WebApplicationFactoryClientOptions
         { BaseAddress = new Uri("https://localhost/portal/"), AllowAutoRedirect = false, HandleCookies = true });
     private static async Task<string> Csrf(HttpClient client) => (await client.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("csrfToken").GetString()!;

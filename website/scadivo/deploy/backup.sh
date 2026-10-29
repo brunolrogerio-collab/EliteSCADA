@@ -10,7 +10,7 @@ test -s "$password"
 mkdir -p "$destination"
 chmod 700 "$destination"
 staging=$(mktemp -d /var/backups/scadivo-portal/staging.XXXXXX)
-trap 'rm -f "$staging/database.dump" "$staging/keys.tar.gz" "$staging/manifest.txt"; rmdir "$staging"' EXIT
+trap 'rm -f "$staging/database.dump" "$staging/keys.tar.gz" "$staging/manifest.txt" "$staging/online-lease-signing-key.tar.gz"; rmdir "$staging"' EXIT
 docker compose -f compose.yml exec -T database pg_dump -U scadivo_portal -d scadivo_portal -Fc > "$staging/database.dump"
 docker compose -f compose.yml exec -T scadivo-portal-api tar czf - -C /app/keys . > "$staging/keys.tar.gz"
 date -u '+SCADIVO portal backup %Y-%m-%dT%H:%M:%SZ' > "$staging/manifest.txt"

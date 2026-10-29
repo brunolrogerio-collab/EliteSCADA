@@ -646,6 +646,105 @@ test('fullscreen Runtime scales text branding with the configured header height'
   await expect(brand.locator('.app-brand-copy small')).toHaveCSS('font-size', '18px');
 });
 
+test('custom Runtime header controls resize to their labels and stay clear of the user menu', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  const visualAsset = {
+    id: 'header-pump-icon',
+    key: 'header-pump-icon',
+    name: 'Pump icon',
+    originalFileName: 'pump.svg',
+    mediaType: 'image/svg+xml',
+    byteLength: 68,
+    sha256: 'header-pump-icon-hash',
+    pixelWidth: 24,
+    pixelHeight: 24
+  };
+  await page.route('**/api/runtime/visual-assets/header-pump-icon/content', route => route.fulfill({
+    contentType: 'image/svg+xml',
+    body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#20cbbb"/></svg>'
+  }));
+  await installEngineeringRuntimeProjection(page, undefined, [visualAsset], {
+    header: {
+      links: [
+        { label: 'Tela 12345', screenKey: 'home' },
+        { label: 'Bomba A', screenKey: 'home', visualAssetId: visualAsset.id }
+      ]
+    }
+  });
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  const runtime = page.getByTestId('runtime-engineering-application');
+  const customButtons = runtime.getByTestId('runtime-custom-screen-link');
+  await expect(customButtons).toHaveCount(2);
+  const textButton = customButtons.nth(0);
+  await expect(textButton).toHaveText('Tela 12345');
+  const textButtonBox = await textButton.boundingBox();
+  expect(textButtonBox).not.toBeNull();
+  expect(textButtonBox!.width).toBeGreaterThan(30);
+  expect(textButtonBox!.width).toBeLessThan(160);
+  const imageButton = customButtons.nth(1);
+  await expect(imageButton.locator('img')).toBeVisible();
+  await expect(imageButton).toHaveAttribute('aria-label', 'Bomba A');
+
+  const fullscreen = runtime.getByRole('toolbar', { name: 'Runtime' }).getByRole('button', { name: 'Tela cheia' });
+  await fullscreen.click();
+  await expect(runtime).toHaveAttribute('data-runtime-fullscreen', 'true');
+  const fullscreenHeader = runtime.locator('.runtime-operator-bar--fullscreen');
+  const leftToolbar = fullscreenHeader.locator('.runtime-operator-side--left .runtime-operator-toolbar');
+  await expect(leftToolbar).toBeVisible();
+  await expect(fullscreenHeader.locator('.runtime-operator-side--right .runtime-operator-toolbar')).toHaveCount(0);
+
+  const toolbarBox = await leftToolbar.boundingBox();
+  const userBox = await runtime.getByTestId('session-menu-toggle').boundingBox();
+  expect(toolbarBox).not.toBeNull();
+  expect(userBox).not.toBeNull();
+  const overlapX = Math.max(0, Math.min(toolbarBox!.x + toolbarBox!.width, userBox!.x + userBox!.width) - Math.max(toolbarBox!.x, userBox!.x));
+  const overlapY = Math.max(0, Math.min(toolbarBox!.y + toolbarBox!.height, userBox!.y + userBox!.height) - Math.max(toolbarBox!.y, userBox!.y));
+  expect(overlapX === 0 || overlapY === 0).toBeTruthy();
+
+  await runtime.getByTestId('session-menu-toggle').click();
+  await runtime.getByTestId('session-exit-fullscreen').click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+});
+
+test.describe('mobile Runtime custom header', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test('keeps custom navigation separate from the user menu', async ({ page }) => {
+    await installSessionContract(page, administrator);
+    const visualAsset = {
+      id: 'header-pump-icon', key: 'header-pump-icon', name: 'Pump icon', originalFileName: 'pump.svg',
+      mediaType: 'image/svg+xml', byteLength: 68, sha256: 'header-pump-icon-hash', pixelWidth: 24, pixelHeight: 24
+    };
+    await page.route('**/api/runtime/visual-assets/header-pump-icon/content', route => route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#20cbbb"/></svg>'
+    }));
+    await installEngineeringRuntimeProjection(page, undefined, [visualAsset], {
+      header: { links: [
+        { label: 'Tela 12345', screenKey: 'home' },
+        { label: 'Bomba A', screenKey: 'home', visualAssetId: visualAsset.id }
+      ] }
+    });
+
+    await page.goto('/');
+    const runtime = page.getByTestId('runtime-engineering-application');
+    const compactHeader = runtime.locator('.runtime-operator-bar--fullscreen');
+    await expect(compactHeader).toBeVisible();
+    const compactToolbar = compactHeader.locator('.runtime-operator-side--left .runtime-operator-toolbar');
+    await expect(compactToolbar).toBeVisible();
+    await expect(compactToolbar.getByTestId('runtime-custom-screen-link')).toHaveCount(2);
+    const compactToolbarBox = await compactToolbar.boundingBox();
+    const compactUserBox = await runtime.getByTestId('session-menu-toggle').boundingBox();
+    expect(compactToolbarBox).not.toBeNull();
+    expect(compactUserBox).not.toBeNull();
+    const compactOverlapX = Math.max(0, Math.min(compactToolbarBox!.x + compactToolbarBox!.width, compactUserBox!.x + compactUserBox!.width) - Math.max(compactToolbarBox!.x, compactUserBox!.x));
+    const compactOverlapY = Math.max(0, Math.min(compactToolbarBox!.y + compactToolbarBox!.height, compactUserBox!.y + compactUserBox!.height) - Math.max(compactToolbarBox!.y, compactUserBox!.y));
+    expect(compactOverlapX === 0 || compactOverlapY === 0).toBeTruthy();
+  });
+});
+
 test('successful sign-out removes the current client authority only after server invalidation succeeds', async ({ page }) => {
   const contract = await installSessionContract(page, administrator);
 

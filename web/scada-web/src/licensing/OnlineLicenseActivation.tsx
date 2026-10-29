@@ -13,6 +13,12 @@ const labels = {
   es: { title: 'Activar licencia online', help: 'Ingrese su cuenta SCADIVO y el código de licencia. Podrá revisar los datos antes de activar.', user: 'Usuario o correo', password: 'Contraseña', code: 'Código de licencia', prepare: 'Consultar licencia', review: 'Revise la licencia', app: 'Aplicación', term: 'Modalidad', expiry: 'Vencimiento comercial', tier: 'Nivel de TAGs', interactive: 'Clientes interactivos', view: 'Clientes de visualización', ha: 'Redundancia HA', intelligence: 'Intelligence', machines: 'Activaciones permitidas', yes: 'Incluido', no: 'No incluido', perpetual: 'Perpetua online', monthly: 'Mensual', annual: 'Anual', unlimited: 'Sin vencimiento', expires: 'Confirmación disponible hasta', unavailable: 'La activación online no está disponible temporalmente.', confirm: 'Confirmar activación', retry: 'Completar activación', cancel: 'Cancelar', success: 'Licencia online activada.', cancelled: 'Consulta cancelada.', generic: 'No se pudo completar. Revise los datos o inténtelo de nuevo.', credentials: 'El usuario o la contraseña no fueron aceptados.', network: 'No se pudo conectar al servicio de licencias.', mismatch: 'Los datos recibidos no coinciden con la licencia firmada.', pending: 'Ya se envió una confirmación. Use “Completar activación” para recuperar el resultado.' }
 } as const;
 
+const signatureError: Record<Locale, string> = {
+  'pt-BR': 'A ativação foi registrada no Portal, mas o produto não validou a assinatura da licença. Ela não foi instalada. Não confirme novamente; entre em contato com o suporte.',
+  en: 'The Portal recorded the activation, but the product could not validate the license signature. The license was not installed. Do not confirm again; contact support.',
+  es: 'El Portal registró la activación, pero el producto no pudo validar la firma de la licencia. No se instaló. No vuelva a confirmar; contacte al soporte.'
+};
+
 const abandonLabels = {
   'pt-BR': { action: 'Descartar tentativa local', confirm: 'O resultado da ativação não pôde ser recuperado. Confira no Portal se há uma ativação nesta máquina e revogue-a lá se necessário. Descartar aqui não libera uma vaga no Portal. Deseja continuar?', done: 'Tentativa local descartada. Confira a ativação no Portal.' },
   en: { action: 'Discard local attempt', confirm: 'The activation result could not be recovered. Check the Portal for an activation on this machine and revoke it there if necessary. Discarding here does not free a Portal slot. Continue?', done: 'Local attempt discarded. Check the activation in the Portal.' },
@@ -32,7 +38,8 @@ export function OnlineLicenseActivation({ api, locale, pending, completionPendin
   const [error, setError] = useState('');
   const explain = (value: string) => value === 'ONLINE_LICENSE_INVALID_CREDENTIALS' ? t.credentials
     : value === 'ONLINE_LICENSE_PORTAL_UNAVAILABLE' ? t.network
-      : value === 'ONLINE_LICENSE_PRESENTATION_MISMATCH' ? t.mismatch : t.generic;
+      : value === 'ONLINE_LICENSE_PRESENTATION_MISMATCH' ? t.mismatch
+        : value === 'ONLINE_LICENSE_LEASE_SIGNATURE_INVALID' ? signatureError[locale] : t.generic;
   const read = async <T,>(response: Response): Promise<T> => {
     const body = await response.json().catch(() => null) as { error?: string } | null;
     if (!response.ok) throw new Error(body?.error ?? 'error');

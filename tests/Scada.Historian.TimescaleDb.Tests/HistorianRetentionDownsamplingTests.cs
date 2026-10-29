@@ -231,6 +231,25 @@ public sealed class HistorianRetentionDownsamplingTests
     }
 
     [Fact]
+    public async Task Timescale_storage_usage_reports_database_and_historian_owned_bytes()
+    {
+        var connectionString = TestConnectionString();
+        if (connectionString is null) return;
+
+        await using var store = new TimescaleDbHistorianRetentionDownsamplingStore(connectionString);
+        await store.EnsureInfrastructureAsync();
+
+        var usage = await store.GetStorageUsageAsync();
+
+        Assert.True(usage.DatabaseBytes > 0);
+        Assert.True(usage.RawSamplesBytes.HasValue && usage.RawSamplesBytes.Value >= 0);
+        Assert.True(usage.AggregateBytes.HasValue && usage.AggregateBytes.Value >= 0);
+        Assert.True(usage.HistorianBytes.HasValue && usage.HistorianBytes.Value >= 0);
+        Assert.True(usage.DatabaseBytes >= usage.HistorianBytes!.Value);
+        Assert.Equal(TimeSpan.Zero, usage.MeasuredAtUtc.Offset);
+    }
+
+    [Fact]
     public async Task Timescale_downsampling_preserves_stable_tag_id_quality_and_tag_isolation()
     {
         var connectionString = TestConnectionString();

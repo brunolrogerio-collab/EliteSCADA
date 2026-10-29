@@ -14,6 +14,16 @@ Local Managed é o banco local administrado pela instalação. Remote é um Post
 
 Antes de mudar algo, leia Estado atual e Próxima ação. Escolher um banco define armazenamento; não configura, por si só, a redundância HA entre dois servidores.
 
+### Uso e retenção do Historian
+
+Na seção **Uso e retenção do Historian**, confira os tamanhos medidos na base usada pelo Historian. **Banco do Historian** inclui todos os dados daquela base; **Historian total** reúne as amostras brutas e os agregados que o provider conseguiu medir. Espaço livre no servidor e crescimento diário só aparecem quando há uma medição confiável. Se a tela disser que não foram informados, isso não significa zero.
+
+**Sem expiração automática** significa que o SCADIVO não programou uma data para remover amostras brutas. Não quer dizer que o disco seja ilimitado. Para guardar as amostras por um período, desmarque a opção e informe a quantidade de dias. Uma política mais curta pode apagar amostras antigas; marque a confirmação apenas depois de revisar o período e o impacto. A política do TimescaleDB executa a remoção, então ela pode não acontecer no instante em que você salva.
+
+Na primeira aplicação, se nenhuma política do SCADIVO estiver registrada, o formulário pede confirmação antes de assumir as políticas Timescale de retenção e atualização dos agregados. Faixas de agregação sem configuração registrada serão desativadas, e regras externas não registradas serão perdidas. Confirme com quem administra o banco antes de prosseguir.
+
+Esta primeira etapa cobre tamanho medido e retenção das amostras brutas por tempo. **Limite por tamanho, escolha de ação ao atingir um limite e arquivamento com restauração verificada ainda não estão disponíveis nesta tela.**
+
 ### Prepare o destino
 
 Peça ao administrador os dados do destino: endereço do servidor, banco, conta, permissões e certificados. Faça backup e combine uma janela de manutenção antes de migrar. A migração pode pausar gravações.

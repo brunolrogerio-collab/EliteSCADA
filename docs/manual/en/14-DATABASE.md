@@ -14,6 +14,16 @@ Local Managed is the local database managed by the installation. Remote is a Pos
 
 Before changing anything, read Current state and Next action. Choosing a database defines storage; it does not by itself configure HA redundancy between two servers.
 
+### Historian usage and retention
+
+In **Historian usage and retention**, review the measured sizes in the database used by the Historian. **Historian database** includes all data in that database; **Historian total** combines raw samples and aggregates the provider could measure. Server free space and daily growth appear only when a reliable measurement is available. If the page says they were not reported, that does not mean zero.
+
+**No automatic expiry** means SCADIVO has not scheduled a date to remove raw samples. It does not mean disk space is unlimited. To keep raw samples for a period, clear the option and enter the number of days. A shorter policy can remove old samples; check the confirmation only after reviewing the period and its impact. TimescaleDB runs the retention policy, so removal may not happen at the moment you save.
+
+For the first application, when no SCADIVO policy is recorded, the form asks you to confirm before taking over Timescale retention and aggregate-refresh policies. Aggregate tiers with no recorded configuration will be disabled, and unrecorded external rules will be lost. Check with the database administrator before proceeding.
+
+This first step covers measured usage and time-based retention for raw samples. **Size limits, actions when a limit is reached, and archiving with verified restore are not available on this page yet.**
+
 ### Prepare the target
 
 Ask the administrator for the destination details: server address, database, account, permissions and certificates. Make a backup and agree a maintenance window before migrating. Migration may pause writes.

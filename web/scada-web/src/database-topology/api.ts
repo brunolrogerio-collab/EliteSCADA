@@ -6,7 +6,8 @@ import type {
   DatabaseRemoteEndpointRequest,
   DatabaseRemoteProfileRequest,
   DatabaseTopologyStatus,
-  DatabaseMigrationVerification
+  DatabaseMigrationVerification,
+  HistorianStorageAdministrationStatus
 } from './types';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
@@ -85,6 +86,21 @@ export function loadDatabaseTopologyStatus(refresh = false) {
   return requestJson<DatabaseTopologyStatus>(
     `/api/admin/database-topology/${refresh ? '?refresh=true' : ''}`
   );
+}
+
+export function loadHistorianStorageAdministrationStatus() {
+  return requestJson<HistorianStorageAdministrationStatus>('/api/admin/historian-storage/');
+}
+
+export function applyHistorianRawRetention(request: Readonly<{
+  rawRetentionDays: number | null;
+  acknowledgeUnmanagedPolicyReplacement: boolean;
+  allowPotentialDataExpiration: boolean;
+}>) {
+  return requestJson<HistorianStorageAdministrationStatus>('/api/admin/historian-storage/retention', {
+    method: 'PUT',
+    body: JSON.stringify(request)
+  });
 }
 
 export function testDatabaseConnection(

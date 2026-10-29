@@ -40,6 +40,7 @@ public static class AuditActions
     public const string EngineeringLockUnlock = "engineering.lock.unlock";
     public const string EngineeringLockClear = "engineering.lock.clear";
     public const string ServerMemoryRetentionReset = "server-memory.retention.reset";
+    public const string HistorianStorageRetentionConfigure = "historian.storage-retention.configure";
     public const string ProductLicenseInstall = "product-license.install";
     public const string ProductLicenseReplace = "product-license.replace";
     public const string ProductLicenseRemove = "product-license.remove";

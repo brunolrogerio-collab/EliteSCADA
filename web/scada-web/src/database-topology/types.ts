@@ -94,6 +94,24 @@ export type DatabaseTopologyStatus = Readonly<{
   lastOperation?: DatabaseTopologyOperationSummary | null;
 }>;
 
+export type HistorianStorageAdministrationStatus = Readonly<{
+  provider: string;
+  supported: boolean;
+  policyManaged?: boolean;
+  rawRetentionEnabled?: boolean;
+  rawRetentionDays?: number | null;
+  aggregatePolicyPresent?: boolean;
+  usage?: Readonly<{
+    databaseBytes: number | null;
+    rawSamplesBytes: number | null;
+    aggregateBytes: number | null;
+    historianBytes: number | null;
+    filesystemFreeBytes: number | null;
+    estimatedDailyGrowthBytes: number | null;
+    measuredAtUtc: string | null;
+  }>;
+}>;
+
 export type DatabaseCompatibilityResult = Readonly<{
   compatible: boolean;
   primary: DatabaseConnectionHealth;

@@ -105,6 +105,47 @@
   background: var(--app-panel-raised, #17222d);
 }
 
+.db-topology-storage-usage {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.db-topology-storage-policy-state {
+  margin: 16px 0 8px;
+}
+
+.db-topology-storage-form {
+  max-width: 760px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--app-border, #34414e);
+}
+
+.db-topology-storage-days {
+  display: grid;
+  gap: 7px;
+  max-width: 320px;
+  margin-top: 12px;
+}
+
+.db-topology-storage-days input {
+  min-height: 40px;
+  padding: 8px 10px;
+  color: var(--app-text-primary, #edf3f7);
+  border: 1px solid var(--app-border, #34414e);
+  border-radius: 8px;
+  background: var(--app-input-bg, #0d141a);
+}
+
+.db-topology-storage-confirmation {
+  align-items: flex-start;
+  line-height: 1.45;
+}
+
+.db-topology-storage-confirmation input {
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+
 .db-topology-status-strip span {
   display: block;
   margin-bottom: 5px;

@@ -14,6 +14,16 @@ Local Managed es la base local administrada por la instalación. Remote es un Po
 
 Antes de cambiar algo, lea Estado actual y Próxima acción. Elegir una base define almacenamiento; no configura por sí solo redundancia HA entre dos servidores.
 
+### Uso y retención del Historian
+
+En **Uso y retención del Historian**, revise los tamaños medidos en la base utilizada por el Historian. **Base del Historian** incluye todos los datos de esa base; **Historian total** reúne las muestras sin procesar y los agregados que el provider pudo medir. El espacio libre del servidor y el crecimiento diario solo aparecen si existe una medición confiable. Si la pantalla indica que no se informaron, no significa que sean cero.
+
+**Sin expiración automática** significa que SCADIVO no programó cuándo eliminar las muestras sin procesar. No significa que el disco sea ilimitado. Para conservarlas durante un período, desmarque la opción e indique los días. Una política más corta puede eliminar muestras antiguas; marque la confirmación solo después de revisar el período y el impacto. TimescaleDB ejecuta esa política, por lo que la eliminación no tiene que ocurrir en el instante de guardar.
+
+En la primera aplicación, si no hay una política de SCADIVO registrada, el formulario pide confirmar antes de asumir las políticas Timescale de retención y actualización de agregados. Se desactivarán los niveles de agregación sin configuración registrada y se perderán las reglas externas no registradas. Consulte con quien administra la base antes de continuar.
+
+Esta primera etapa cubre el tamaño medido y la retención por tiempo de las muestras sin procesar. **El límite por tamaño, las acciones al alcanzar un límite y el archivado con restauración verificada todavía no están disponibles en esta pantalla.**
+
 ### Prepare el destino
 
 Pida al administrador los datos del destino: dirección, base, cuenta, permisos y certificados. Haga backup y acuerde una ventana de mantenimiento antes de migrar. La migración puede pausar escrituras.

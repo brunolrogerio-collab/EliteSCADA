@@ -3,9 +3,11 @@ import { useAppShellLocale } from '../appShellI18n';
 import { translator, type EngineeringLocale, type TranslationKey } from '../engineering/i18n';
 import {
   DatabaseTopologyApiError,
+  applyHistorianRawRetention,
   commitDatabaseCutover,
   connectExistingDatabase,
   loadDatabaseTopologyStatus,
+  loadHistorianStorageAdministrationStatus,
   prepareDatabaseMigration,
   rollbackDatabaseTopology,
   startDatabaseMigration,
@@ -24,6 +26,7 @@ import {
   type DatabaseRemoteEndpointRequest,
   type DatabaseRemoteProfileRequest,
   type DatabaseTopologyStatus,
+  type HistorianStorageAdministrationStatus,
   type RemoteEndpointDraft,
   type RemoteProfileDraft
 } from './types';
@@ -164,6 +167,18 @@ function healthOk(health?: DatabaseConnectionHealth | null) {
   return health ? health.reachable && !health.failureCode : null;
 }
 
+function formatStorageBytes(value: number | null | undefined, locale: EngineeringLocale, unknown: string) {
+  if (value == null || !Number.isFinite(value) || value < 0) return unknown;
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let scaled = value;
+  let unit = 0;
+  while (scaled >= 1024 && unit < units.length - 1) {
+    scaled /= 1024;
+    unit++;
+  }
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(scaled)} ${units[unit]}`;
+}
+
 function tlsRequiresCa(mode: RemoteEndpointDraft['tlsMode']) {
   return mode === 'VerifyCa' || mode === 'VerifyFull';
 }
@@ -290,6 +305,13 @@ export function DatabaseTopologyApp() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [remoteEditorRequested, setRemoteEditorRequested] = useState(false);
+  const [storageStatus, setStorageStatus] = useState<HistorianStorageAdministrationStatus | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [storageBusy, setStorageBusy] = useState(false);
+  const [retainRawIndefinitely, setRetainRawIndefinitely] = useState(true);
+  const [rawRetentionDaysDraft, setRawRetentionDaysDraft] = useState('');
+  const [acknowledgeUnmanagedPolicy, setAcknowledgeUnmanagedPolicy] = useState(false);
+  const [acknowledgePotentialExpiration, setAcknowledgePotentialExpiration] = useState(false);
 
   const refresh = useCallback(async (refreshHealth = false, silent = false) => {
     if (!silent) {
@@ -306,6 +328,22 @@ export function DatabaseTopologyApp() {
   }, [t]);
 
   useEffect(() => { void refresh(true); }, [refresh]);
+
+  useEffect(() => {
+    let active = true;
+    void loadHistorianStorageAdministrationStatus()
+      .then(result => {
+        if (!active) return;
+        setStorageStatus(result);
+        setStorageError(null);
+        setRetainRawIndefinitely(!result.rawRetentionEnabled);
+        setRawRetentionDaysDraft(result.rawRetentionDays == null ? '' : String(result.rawRetentionDays));
+      })
+      .catch(error => {
+        if (active) setStorageError(apiErrorText(error, t));
+      });
+    return () => { active = false; };
+  }, [t]);
 
   const profileRequest = useMemo(() => buildProfile(draft), [draft]);
   const primaryDraftValid = useMemo(() => parseEndpoint(draft.primary), [draft.primary]);
@@ -425,6 +463,34 @@ export function DatabaseTopologyApp() {
       setNotice({ tone: 'danger', text: apiErrorText(error, t) });
     } finally {
       setBusy(null);
+    }
+  };
+
+  const onSaveHistorianRetention = async () => {
+    if (storageBusy || busy) return;
+    const retentionDays = retainRawIndefinitely ? null : Number(rawRetentionDaysDraft);
+    if (retentionDays !== null && (!Number.isFinite(retentionDays) || retentionDays <= 0 || retentionDays > 36500)) {
+      setStorageError(t.fieldRequired);
+      return;
+    }
+
+    setStorageBusy(true);
+    setStorageError(null);
+    setNotice(null);
+    try {
+      await applyHistorianRawRetention({
+        rawRetentionDays: retentionDays,
+        acknowledgeUnmanagedPolicyReplacement: acknowledgeUnmanagedPolicy,
+        allowPotentialDataExpiration: acknowledgePotentialExpiration
+      });
+      setStorageStatus(await loadHistorianStorageAdministrationStatus());
+      setAcknowledgeUnmanagedPolicy(false);
+      setAcknowledgePotentialExpiration(false);
+      setNotice({ tone: 'success', text: t.retentionSaved });
+    } catch (error) {
+      setStorageError(apiErrorText(error, t));
+    } finally {
+      setStorageBusy(false);
     }
   };
 
@@ -610,6 +676,52 @@ export function DatabaseTopologyApp() {
         </dl>
         <p className="db-topology-muted-note">{t.failClosed}</p>
       </details>
+    </section>
+
+    <section className="db-topology-panel" aria-labelledby="historian-storage-title" data-testid="historian-storage-panel">
+      <div className="db-topology-section-heading">
+        <div><h2 id="historian-storage-title">{t.storageTitle}</h2><p>{t.storageHelp}</p></div>
+      </div>
+      {storageError ? <div role="alert" className="db-topology-alert db-topology-alert--danger">{storageError}</div> : null}
+      {!storageStatus ? <div className="db-topology-locked-state">{t.loadingStatus}</div> : !storageStatus.supported ? <div className="db-topology-locked-state">{t.storageNotSupported}</div> : <>
+        <div className="db-topology-status-strip db-topology-storage-usage">
+          <div><span>{t.databaseUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.databaseBytes, locale, t.storageUnknown)}</strong></div>
+          <div><span>{t.historianUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.historianBytes, locale, t.storageUnknown)}</strong></div>
+          <div><span>{t.rawUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.rawSamplesBytes, locale, t.storageUnknown)}</strong></div>
+          <div><span>{t.aggregateUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.aggregateBytes, locale, t.storageUnknown)}</strong></div>
+          <div><span>{t.filesystemUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.filesystemFreeBytes, locale, t.storageUnknown)}</strong></div>
+          <div><span>{t.growthEstimate}</span><strong>{formatStorageBytes(storageStatus.usage?.estimatedDailyGrowthBytes, locale, t.storageUnknown)}</strong></div>
+        </div>
+        {storageStatus.usage?.measuredAtUtc ? <p className="db-topology-muted-note">{t.storageMeasuredAt}: {new Date(storageStatus.usage.measuredAtUtc).toLocaleString(locale)}</p> : null}
+        <p className="db-topology-storage-policy-state" data-testid="historian-policy-state">
+          <strong>{storageStatus.policyManaged ? t.policyManaged : t.policyUnmanaged}</strong>
+        </p>
+        <div className="db-topology-storage-form">
+          <h3>{t.rawRetention}</h3>
+          <label className="db-topology-historian-toggle">
+            <input type="checkbox" checked={retainRawIndefinitely} disabled={storageBusy} onChange={event => setRetainRawIndefinitely(event.target.checked)} />
+            <span>{t.noExpiry}</span>
+          </label>
+          {!retainRawIndefinitely ? <label className="db-topology-storage-days">
+            <span>{t.retentionDays}</span>
+            <input type="number" min="1" max="36500" step="1" placeholder={t.retentionPlaceholder} value={rawRetentionDaysDraft} disabled={storageBusy} onChange={event => setRawRetentionDaysDraft(event.target.value)} />
+          </label> : null}
+          {!storageStatus.policyManaged ? <label className="db-topology-historian-toggle db-topology-storage-confirmation">
+            <input type="checkbox" checked={acknowledgeUnmanagedPolicy} disabled={storageBusy} onChange={event => setAcknowledgeUnmanagedPolicy(event.target.checked)} />
+            <span>{t.adoptUnmanaged}</span>
+          </label> : null}
+          {!retainRawIndefinitely ? <label className="db-topology-historian-toggle db-topology-storage-confirmation">
+            <input type="checkbox" checked={acknowledgePotentialExpiration} disabled={storageBusy} onChange={event => setAcknowledgePotentialExpiration(event.target.checked)} />
+            <span>{t.confirmExpiration}</span>
+          </label> : null}
+          <p className="db-topology-muted-note">{t.storagePolicyDetail}</p>
+          <div className="db-topology-actions">
+            <button type="button" className="db-topology-primary-action" disabled={storageBusy || Boolean(busy) || (!storageStatus.policyManaged && !acknowledgeUnmanagedPolicy) || (!retainRawIndefinitely && !acknowledgePotentialExpiration)} onClick={() => void onSaveHistorianRetention()}>
+              {storageBusy ? t.working : t.saveRetention}
+            </button>
+          </div>
+        </div>
+      </>}
     </section>
 
     <section className="db-topology-panel" aria-labelledby="remote-profile-title">

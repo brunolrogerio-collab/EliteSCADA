@@ -29,7 +29,11 @@ public sealed class TimescaleDbHistorianRetentionDownsamplingStore : IHistorianR
 
     public async Task<HistorianStoragePolicy?> GetAppliedPolicyAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureInfrastructureAsync(cancellationToken);
+        const string existsSql = "SELECT to_regclass('elitescada.historian_storage_policy_state') IS NOT NULL;";
+        await using (var exists = _dataSource.CreateCommand(existsSql))
+        {
+            if (!Equals(await exists.ExecuteScalarAsync(cancellationToken), true)) return null;
+        }
 
         const string sql = """
             SELECT policy_json::text
@@ -41,6 +45,42 @@ public sealed class TimescaleDbHistorianRetentionDownsamplingStore : IHistorianR
         return result is null or DBNull
             ? null
             : HistorianPolicyJson.Deserialize((string)result);
+    }
+
+    public async Task<HistorianStorageUsage> GetStorageUsageAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT
+                pg_database_size(current_database()),
+                CASE
+                    WHEN to_regclass('elitescada.tag_history') IS NULL THEN NULL
+                    ELSE hypertable_size('elitescada.tag_history'::regclass)
+                END,
+                COALESCE((
+                    SELECT SUM(hypertable_size(
+                        format('%I.%I', materialization_hypertable_schema, materialization_hypertable_name)::regclass))
+                    FROM timescaledb_information.continuous_aggregates
+                    WHERE view_schema = 'elitescada'
+                      AND view_name = ANY(@aggregate_views)
+                )::bigint, 0::bigint),
+                clock_timestamp();
+            """;
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue(
+            "aggregate_views",
+            NpgsqlDbType.Array | NpgsqlDbType.Text,
+            TimescaleHistorianSchema.SupportedBuckets
+                .Select(bucket => TimescaleHistorianSchema.AggregateViewName(bucket).Split('.').Last())
+                .ToArray());
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+            throw new InvalidOperationException("Historian storage usage query returned no row.");
+
+        return new HistorianStorageUsage(
+            reader.GetInt64(0),
+            reader.IsDBNull(1) ? null : reader.GetInt64(1),
+            reader.IsDBNull(2) ? null : reader.GetInt64(2),
+            reader.GetFieldValue<DateTimeOffset>(3).ToUniversalTime());
     }
 
     public async Task ApplyPolicyAsync(

@@ -37,6 +37,10 @@ public static class HistorianConfiguration
                         sp.GetRequiredService<IScadaEventBus>(),
                         connectionString,
                         writeAdmission: sp.GetService<IDurableWriteAdmission>()));
+                builder.Services.AddSingleton<IHistorianRetentionDownsamplingStore>(sp =>
+                    new TimescaleDbHistorianRetentionDownsamplingStore(
+                        connectionString,
+                        sp.GetService<IDurableWriteAdmission>()));
                 break;
 
             default:

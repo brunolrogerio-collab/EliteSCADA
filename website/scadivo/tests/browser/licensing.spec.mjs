@@ -102,6 +102,7 @@ test('organization manager adds applications and members without issuing a licen
   await page.getByLabel('Application name', { exact: true }).fill('Campus water station');
   await page.getByRole('button', { name: 'Add application', exact: true }).click();
   await expect.poll(() => calls.filter(call => call.path.endsWith('/applications')).length).toBe(1);
+  await expect(page.getByRole('button', { name: 'Add application', exact: true })).toBeEnabled();
   await page.getByLabel('Email or username of the confirmed account').fill('new.member');
   await page.getByLabel('Organization role').selectOption('Admin');
   await page.getByRole('button', { name: 'Add member', exact: true }).click();

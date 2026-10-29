@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/licensing/online/connectivity', route => route.fulfill({ json: { state: 'reachable' } }));
+});
+
 test('review, cancel and recover confirmation without resending the password', async ({ page }) => {
   let pending = false;
   let confirmed = false;
@@ -142,4 +146,56 @@ test('expired confirmation explains the refusal and remains safely cancellable',
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await expect(page.getByText('Consulta cancelada.')).toBeVisible();
   await expect(page.getByLabel('Login ou e-mail')).toBeVisible();
+});
+
+test('reports Portal reachability and retries only when requested', async ({ page }) => {
+  let connectivityChecks = 0;
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+    license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' },
+    onlineDevice: { configured: true, available: true, hasActivation: false, leasePresent: false,
+      requestPending: false, confirmationPending: false, installationPending: false, reauthenticationRequired: false }
+  } }));
+  await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'TEST' } }));
+  await page.route('**/api/licensing/online/connectivity', route => {
+    connectivityChecks++;
+    return route.fulfill({ json: { state: connectivityChecks === 1 ? 'unreachable' : 'reachable' } });
+  });
+
+  await page.goto('/tests-e2e/licensing-harness.html');
+  const connectivity = page.getByTestId('online-license-connectivity');
+  await expect(connectivity).toContainText('Sem conexão');
+  await expect(page.getByText('“Conectado” confirma apenas que o serviço respondeu', { exact: false })).toBeVisible();
+  expect(connectivityChecks).toBe(1);
+
+  await page.getByRole('button', { name: 'Verificar novamente' }).click();
+  await expect(connectivity).toContainText('Conectado');
+  await page.waitForTimeout(1200);
+  expect(connectivityChecks).toBe(2);
+});
+
+test('explains same-installation recovery before the user confirms', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+    license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' },
+    onlineDevice: { configured: true, available: true, hasActivation: false, leasePresent: false,
+      requestPending: false, confirmationPending: false, installationPending: false, reauthenticationRequired: false }
+  } }));
+  await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'TEST' } }));
+  await page.route('**/api/licensing/online/prepare', route => route.fulfill({ json: {
+    activationId: '00000000-0000-0000-0000-000000000123', expiresAtUtc: '2026-10-29T16:00:00Z',
+    onlineActivationAvailable: true, confirmationRequested: false, reactivation: true,
+    summary: { applicationName: 'Teste', licenseCode: 'SCV-EXAMPLE', term: 'perpetual',
+      entitlementExpiresAtUtc: null, tier: 'Tags500', interactiveSeats: 2, viewOnlySeats: 3,
+      haRuntime: false, assetProcessIntelligence: false, maxActivations: 1 }
+  } }));
+
+  await page.goto('/tests-e2e/licensing-harness.html');
+  await page.getByLabel('Login ou e-mail').fill('operador');
+  await page.getByLabel('Senha', { exact: true }).fill('senha-teste');
+  await page.getByLabel('Código da licença', { exact: true }).fill('SCV-EXAMPLE');
+  await page.getByRole('button', { name: 'Consultar licença' }).click();
+  await expect(page.getByText('Esta licença já tem uma ativação para esta instalação.', { exact: false })).toBeVisible();
+  await expect(page.getByText(/credentialGeneration|activationId/i)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Confirmar ativação' })).toBeVisible();
 });

@@ -35,7 +35,9 @@ jobs:
       run_ha_d2_acceptance: ${{ steps.router.outputs.run_ha_d2_acceptance }}
       effective_profiles: ${{ steps.router.outputs.effective_profiles }}
       dotnet_projects: ${{ steps.router.outputs.dotnet_projects }}
+      dotnet_test_filter: ${{ steps.router.outputs.dotnet_test_filter }}
       e2e_specs: ${{ steps.router.outputs.e2e_specs }}
+      e2e_config: ${{ steps.router.outputs.e2e_config }}
       driver_gate: ${{ steps.router.outputs.driver_gate }}
       run_native_zigbee: ${{ steps.native_scope.outputs.run_native_zigbee }}
       run_knx_sidecar: ${{ steps.knx_scope.outputs.run_knx_sidecar }}
@@ -246,6 +248,7 @@ jobs:
       - name: Run owning focused test projects
         env:
           DOTNET_PROJECTS: ${{ needs.classify.outputs.dotnet_projects }}
+          DOTNET_TEST_FILTER: ${{ needs.classify.outputs.dotnet_test_filter }}
         shell: bash
         run: |
           set -euo pipefail
@@ -256,6 +259,10 @@ jobs:
           while IFS= read -r project; do
             dotnet restore "$project"
             if [[ "$project" == "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj" ]]; then
+              if [[ -n "$DOTNET_TEST_FILTER" ]]; then
+                dotnet test "$project" --no-restore --configuration Release --verbosity minimal --filter "$DOTNET_TEST_FILTER"
+                continue
+              fi
               ELITESCADA_REQUIRE_HA_D2_POSTGRES=true dotnet test "$project" \
                 --no-restore --configuration Release --verbosity minimal \
                 --filter 'FullyQualifiedName=Scada.Drivers.Tests.AuthorityPolicyTwoApiPostgreSqlEvidenceTests.RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack'
@@ -518,6 +525,7 @@ jobs:
         working-directory: web/scada-web
         env:
           E2E_SPECS: ${{ needs.classify.outputs.e2e_specs }}
+          E2E_CONFIG: ${{ needs.classify.outputs.e2e_config }}
         shell: bash
         run: |
           set -euo pipefail
@@ -526,7 +534,11 @@ jobs:
           print(*json.loads(os.environ['E2E_SPECS']), sep='\n')
           PY
           mapfile -t specs < /tmp/e2e-specs.txt
-          npm run test:e2e -- "${specs[@]}"
+          if [[ -n "$E2E_CONFIG" ]]; then
+            npm run test:e2e -- --config="$E2E_CONFIG" "${specs[@]}"
+          else
+            npm run test:e2e -- "${specs[@]}"
+          fi
       - if: always()
         uses: actions/upload-artifact@v4
         with:

@@ -79,3 +79,18 @@ public sealed class ProductLicenseRefreshCredential
     public DateTimeOffset? SupersededAtUtc { get; set; }
     public DateTimeOffset? RevokedAtUtc { get; set; }
 }
+
+public sealed class ProductLicensePreparation
+{
+    public string Id { get; set; } = "";
+    public string UserId { get; set; } = "";
+    public string SecurityStamp { get; set; } = "";
+    public Guid LicenseId { get; set; }
+    public Guid ActivationId { get; set; }
+    public string MachineFingerprint { get; set; } = "";
+    public string PresentationJson { get; set; } = "";
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public bool Cancelled { get; set; }
+    public Guid? ConsumedRequestId { get; set; }
+    public string? CredentialHash { get; set; }
+}

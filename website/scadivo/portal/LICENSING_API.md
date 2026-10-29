@@ -1,3 +1,7 @@
+# Activation contract update
+
+The direct activation section below is superseded by [ACTIVATION_CONFIRMATION.md](ACTIVATION_CONFIRMATION.md). Use prepare → explicit user confirmation → confirm. POST /device/activate now returns 410. Renewal and the signed ESLEASE1 schema remain unchanged.
+
 # SCADIVO online licensing API — implementation contract
 
 This Portal API is a separate layer from the offline request intake in PR #777. It manages organizations, applications, entitlements, machine activations, rotating device credentials, and signed online leases. The Portal UI and product client integration are not part of this API-only change.

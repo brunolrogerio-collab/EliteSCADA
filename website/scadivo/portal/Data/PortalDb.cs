@@ -132,6 +132,7 @@ public sealed class PortalAudit
 
 public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbContext<PortalUser>(options)
 {
+    public DbSet<ProductLicensePreparation> ProductLicensePreparations => Set<ProductLicensePreparation>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<ProductApplication> ProductApplications => Set<ProductApplication>();

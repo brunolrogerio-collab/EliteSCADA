@@ -30,8 +30,10 @@ public static class PortalLicensingEndpoints
         admin.MapPost("/activations/{activationId:guid}/revoke", (Guid activationId, RevokeProductLicenseInput input, HttpContext context, PortalLicensingOperations operations) => operations.RevokeAdminActivation(activationId, input, context));
 
         var device = app.MapGroup("/api/licensing/device").WithMetadata(new PortalDeviceLicenseEndpoint());
-        device.MapPost("/activate", (DeviceActivationInput input, HttpContext context, PortalLicensingOperations operations) => operations.Activate(input, context))
-            .RequireRateLimiting("licensing-activate");
+        device.MapPost("/prepare", (DevicePrepareInput input, HttpContext context, PortalLicensingOperations operations) => operations.Prepare(input, context)).RequireRateLimiting("licensing-activate");
+        device.MapPost("/confirm", (DeviceConfirmInput input, HttpContext context, PortalLicensingOperations operations) => operations.Confirm(input, context)).RequireRateLimiting("licensing-renew");
+        device.MapPost("/cancel", (DeviceCancelInput input, HttpContext context, PortalLicensingOperations operations) => operations.Cancel(input, context)).RequireRateLimiting("licensing-renew");
+        device.MapPost("/activate", () => Results.Json(new { error = "activation-confirmation-required" }, statusCode: 410));
         device.MapPost("/activations/{activationId:guid}/renew", (Guid activationId, DeviceRenewalInput input, HttpContext context, PortalLicensingOperations operations) => operations.Renew(activationId, input, context))
             .RequireRateLimiting("licensing-renew");
     }

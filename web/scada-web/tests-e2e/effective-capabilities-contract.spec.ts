@@ -101,6 +101,37 @@ for (const [locale, title, stored, unavailable, leaseLabel, yes] of [
   });
 }
 
+for (const width of [390, 1280]) {
+  test(`machine and online licensing are grouped in separate panels (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+    await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+      license: { state: 'Demo', maximumTags: 200 },
+      runtime: { state: 'Idle' },
+      onlineDevice: {
+        configured: true, available: true, hasActivation: true, leasePresent: true,
+        requestPending: false, clockRollbackDetected: false, isReset: false,
+        reauthenticationRequired: false
+      }
+    } }));
+    await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'ESREQ1-fictitious' } }));
+    await page.goto('/tests-e2e/licensing-harness.html');
+
+    await expect(page.locator('.licensing-grid > section > h2')).toHaveText([
+      'Licença', 'Runtime', 'Solicitação da máquina', 'Licença online'
+    ]);
+    const machinePanel = page.getByTestId('machine-license-panel');
+    await expect(machinePanel.getByRole('heading', { name: 'Instalar licença' })).toBeVisible();
+    await expect(machinePanel.getByLabel('Solicitação da máquina')).toHaveValue('ESREQ1-fictitious');
+    await expect(machinePanel.getByLabel('Código de licença assinado')).toBeVisible();
+
+    const onlinePanel = page.getByTestId('online-license-panel');
+    await expect(onlinePanel.getByTestId('online-license-status')).toBeVisible();
+    await expect(onlinePanel.getByRole('button', { name: 'Remover vínculo local' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+  });
+}
+
 test('an unavailable duration is not presented as unlimited', async ({ page }) => {
   await page.route('**/api/licensing/status', route => route.fulfill({ json: {
     license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' }

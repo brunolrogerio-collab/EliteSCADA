@@ -276,8 +276,44 @@ export function LicensingApp() {
               <dt>{t.expires}</dt><dd>{displayDate(status.license.notAfterUtc, t.none)}</dd>
               <dt>{t.diagnostic}</dt><dd>{status.license.diagnostic ?? t.none}</dd>
             </dl>
-            {status.onlineDevice && <div className="licensing-online-status">
-              <h3>{t.onlineTitle}</h3>
+          </section>
+
+          <section className="licensing-card">
+            <h2>{t.runtime}</h2>
+            <dl>
+              <dt>{t.state}</dt><dd><strong>{status.runtime.state}</strong></dd>
+              <dt>{t.tier}</dt><dd>{status.runtime.activeTier ?? t.none}</dd>
+              <dt>{t.tags}</dt><dd>{displayTags(status.runtime.maximumTags, status.runtime.activeLicenseState ?? '', t.unlimited, t.none)}</dd>
+              {status.runtime.demoExpiresAtUtc && <>
+                <dt>{t.expires}</dt><dd>{displayDate(status.runtime.demoExpiresAtUtc, t.none)}</dd>
+              </>}
+              <dt>{t.diagnostic}</dt><dd>{status.runtime.lastDiagnostic ?? t.none}</dd>
+            </dl>
+          </section>
+
+          <section className="licensing-card licensing-machine-card" data-testid="machine-license-panel">
+            <h2>{t.machineRequest}</h2>
+            <textarea className="licensing-request" readOnly value={request?.requestCode ?? ''} aria-label={t.machineRequest} />
+            <div className="licensing-actions">
+              <button type="button" onClick={() => void copyRequest()} disabled={!request?.requestCode}>{t.copy}</button>
+            </div>
+            <p className="licensing-help">{t.requestHelp}</p>
+            <div className="licensing-machine-install">
+              <h3>{t.install}</h3>
+              <form onSubmit={install}>
+                <label htmlFor="license-code">{t.licenseCode}</label>
+                <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1... / ESLIC2... / ESLIC3..." />
+                <div className="licensing-actions">
+                  <button type="submit" disabled={busy || !licenseCode.trim()}>{t.validateInstall}</button>
+                  <button type="button" className="licensing-danger" disabled={busy} onClick={() => void remove()}>{t.remove}</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          {status.onlineDevice && <section className="licensing-card licensing-online-card" data-testid="online-license-panel">
+            <h2>{t.onlineTitle}</h2>
+            <div className="licensing-online-status">
               <p className="licensing-help">{t.onlineInfo}</p>
               <dl data-testid="online-license-status">
                 <dt>{t.onlineConfiguration}</dt><dd>{status.onlineDevice.configured ? t.onlineConfigured : t.onlineNotConfigured}</dd>
@@ -297,42 +333,8 @@ export function LicensingApp() {
                   completionPending={status.onlineDevice.installationPending === true} onChanged={load} />}
               {status.onlineDevice.hasActivation && !status.onlineDevice.requestPending && !status.onlineDevice.installationPending &&
                 <div className="licensing-actions"><button type="button" className="licensing-danger" disabled={busy} onClick={() => void resetOnline()}>{t.onlineResetAction}</button></div>}
-            </div>}
-          </section>
-
-          <section className="licensing-card">
-            <h2>{t.runtime}</h2>
-            <dl>
-              <dt>{t.state}</dt><dd><strong>{status.runtime.state}</strong></dd>
-              <dt>{t.tier}</dt><dd>{status.runtime.activeTier ?? t.none}</dd>
-              <dt>{t.tags}</dt><dd>{displayTags(status.runtime.maximumTags, status.runtime.activeLicenseState ?? '', t.unlimited, t.none)}</dd>
-              {status.runtime.demoExpiresAtUtc && <>
-                <dt>{t.expires}</dt><dd>{displayDate(status.runtime.demoExpiresAtUtc, t.none)}</dd>
-              </>}
-              <dt>{t.diagnostic}</dt><dd>{status.runtime.lastDiagnostic ?? t.none}</dd>
-            </dl>
-          </section>
-
-          <section className="licensing-card licensing-wide">
-            <h2>{t.machineRequest}</h2>
-            <textarea className="licensing-request" readOnly value={request?.requestCode ?? ''} aria-label={t.machineRequest} />
-            <div className="licensing-actions">
-              <button type="button" onClick={() => void copyRequest()} disabled={!request?.requestCode}>{t.copy}</button>
             </div>
-            <p className="licensing-help">{t.requestHelp}</p>
-          </section>
-
-          <section className="licensing-card licensing-wide">
-            <h2>{t.install}</h2>
-            <form onSubmit={install}>
-              <label htmlFor="license-code">{t.licenseCode}</label>
-              <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1... / ESLIC2... / ESLIC3..." />
-              <div className="licensing-actions">
-                <button type="submit" disabled={busy || !licenseCode.trim()}>{t.validateInstall}</button>
-                <button type="button" className="licensing-danger" disabled={busy} onClick={() => void remove()}>{t.remove}</button>
-              </div>
-            </form>
-          </section>
+          </section>}
         </div>
       )}
     </main>

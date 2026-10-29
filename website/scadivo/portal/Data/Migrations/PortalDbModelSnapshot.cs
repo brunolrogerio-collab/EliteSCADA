@@ -366,6 +366,63 @@ namespace Scadivo.Portal.Data.Migrations
                     b.ToTable("Memberships");
                 });
 
+            modelBuilder.Entity("Scadivo.Portal.Data.OfflineMachineLicenseRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApplicationName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("ExistingLicenseName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("MachineRequestCodeProtected")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequestKind")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("RequestNote")
+                        .HasMaxLength(800)
+                        .HasColumnType("character varying(800)");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("Status", "SubmittedAtUtc");
+
+                    b.HasIndex("UserId", "SubmittedAtUtc");
+
+                    b.ToTable("OfflineMachineLicenseRequests");
+                });
+
             modelBuilder.Entity("Scadivo.Portal.Data.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -943,6 +1000,20 @@ namespace Scadivo.Portal.Data.Migrations
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Scadivo.Portal.Data.PortalUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.OfflineMachineLicenseRequest", b =>
+                {
+                    b.HasOne("Scadivo.Portal.Data.PortalUser", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Scadivo.Portal.Data.PortalUser", null)
                         .WithMany()

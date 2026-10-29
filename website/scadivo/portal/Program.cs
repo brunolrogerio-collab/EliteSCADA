@@ -106,6 +106,7 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddScoped<PortalOperations>();
 builder.Services.AddScoped<PortalLicensingOperations>();
+builder.Services.AddScoped<PortalLicenseOperations>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddOptions<OnlineLeaseSigningOptions>().BindConfiguration("Portal:Licensing:Online")
     .Validate(options => options.IsValid(builder.Environment.ContentRootPath, builder.Configuration["Portal:KeyDirectory"] ?? "/app/keys"),

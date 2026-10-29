@@ -24,6 +24,7 @@ public static class PortalEndpoints
                 publicRegistrationEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:PublicRegistrationEnabled"),
                 emailDeliveryConfigured = emailSettings.Value.Enabled,
                 communityEnabled = community.Enabled,
+                offlineMachineLicenseRequestsEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"),
                 communityStartUrl = community.Enabled ? community.LoginStartUrl : null
             });
         });
@@ -65,6 +66,12 @@ public static class PortalEndpoints
         members.MapPost("/support/{id:guid}/messages", (Guid id, MessageInput input, HttpContext context, PortalOperations operations) => operations.Reply(id, input, context));
         members.MapGet("/downloads", (PortalOperations operations) => operations.Releases());
         members.MapGet("/downloads/{id:guid}/file", (Guid id, HttpContext context, PortalOperations operations) => operations.Download(id, context));
+        if (app.Configuration.GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"))
+        {
+            members.MapGet("/licenses/offline-requests", (HttpContext context, PortalLicenseOperations operations) => operations.MyOfflineMachineRequests(context));
+            members.MapGet("/licenses/offline-requests/{id:guid}", (Guid id, HttpContext context, PortalLicenseOperations operations) => operations.MyOfflineMachineRequest(id, context));
+            members.MapPost("/licenses/offline-requests", (OfflineMachineLicenseRequestInput input, HttpContext context, PortalLicenseOperations operations) => operations.SubmitOfflineMachineRequest(input, context));
+        }
 
         var admin = app.MapGroup("/api/admin").RequireAuthorization("Owner").RequireRateLimiting("writes");
         admin.MapGet("/overview", (PortalOperations operations) => operations.Overview());
@@ -78,5 +85,11 @@ public static class PortalEndpoints
         admin.MapPost("/faq", (FaqInput input, HttpContext context, PortalOperations operations) => operations.SaveFaq(null, input, context));
         admin.MapPut("/faq/{id:guid}", (Guid id, FaqInput input, HttpContext context, PortalOperations operations) => operations.SaveFaq(id, input, context));
         admin.MapGet("/audit", async (PortalDb db) => Results.Ok(await db.Audit.AsNoTracking().OrderByDescending(x => x.Id).Take(100).ToListAsync()));
+        if (app.Configuration.GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"))
+        {
+            admin.MapGet("/license-requests/offline", (PortalLicenseOperations operations) => operations.AdminOfflineMachineRequests());
+            admin.MapGet("/license-requests/offline/{id:guid}", (Guid id, HttpContext context, PortalLicenseOperations operations) => operations.AdminOfflineMachineRequest(id, context));
+            admin.MapPut("/license-requests/offline/{id:guid}/status", (Guid id, OfflineMachineLicenseRequestStatusInput input, HttpContext context, PortalLicenseOperations operations) => operations.UpdateOfflineMachineRequestStatus(id, input, context));
+        }
     }
 }

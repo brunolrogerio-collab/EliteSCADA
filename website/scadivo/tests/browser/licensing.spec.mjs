@@ -26,7 +26,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await new Promise(done => server.close(done)); });
 
-async function fixture(page, { owner = false, locale = 'en', role = 'Member', term = 'perpetual' } = {}) {
+async function fixture(page, { owner = false, locale = 'en', role = 'Member', term = 'perpetual', offlineRequestsEnabled = false } = {}) {
   const orgId = '11111111-1111-4111-8111-111111111111';
   const applicationId = '22222222-2222-4222-8222-222222222222';
   const license = {
@@ -49,7 +49,9 @@ async function fixture(page, { owner = false, locale = 'en', role = 'Member', te
     const method = request.method();
     if (method !== 'GET') calls.push({ path, method, body: request.postDataJSON(), csrf: request.headers()['x-csrf-token'] });
     let result;
-    if (path === '/session') result = { authenticated: true, csrfToken: 'synthetic-csrf', emailDeliveryConfigured: true, publicRegistrationEnabled: true, user: { id: 'account-1', userName: 'portal.user', displayName: 'Portal User', owner, profileComplete: true, locale } };
+    if (path === '/session') result = { authenticated: true, csrfToken: 'synthetic-csrf', emailDeliveryConfigured: true, publicRegistrationEnabled: true, offlineMachineLicenseRequestsEnabled: offlineRequestsEnabled, user: { id: 'account-1', userName: 'portal.user', displayName: 'Portal User', owner, profileComplete: true, locale } };
+    else if (path === '/licenses/offline-requests' && method === 'GET') result = [];
+    else if (path === '/licenses/offline-requests' && method === 'POST') result = { id: 'offline-request-1', status: 'submitted' };
     else if (path === '/licensing/status') result = { onlineActivationAvailable: false };
     else if (path === '/licensing/organizations') result = [{ id: orgId, name: license.organizationName, role: owner ? 'PortalOwner' : role }];
     else if (path === '/admin/licensing/organizations') result = [{ id: orgId, name: license.organizationName }];
@@ -100,12 +102,32 @@ test('organization manager adds applications and members without issuing a licen
   await page.getByLabel('Application name', { exact: true }).fill('Campus water station');
   await page.getByRole('button', { name: 'Add application', exact: true }).click();
   await expect.poll(() => calls.filter(call => call.path.endsWith('/applications')).length).toBe(1);
+  await expect(page.getByRole('button', { name: 'Add application', exact: true })).toBeEnabled();
   await page.getByLabel('Email or username of the confirmed account').fill('new.member');
   await page.getByLabel('Organization role').selectOption('Admin');
   await page.getByRole('button', { name: 'Add member', exact: true }).click();
   await expect.poll(() => calls.filter(call => call.path.endsWith('/members')).length).toBe(1);
   expect(calls.find(call => call.path.endsWith('/members')).body).toEqual({ userIdentifier: 'new.member', role: 'Admin' });
   expect(calls.some(call => call.path.startsWith('/admin/'))).toBe(false);
+  expect(browserErrors).toEqual([]);
+});
+
+test('switching an offline request from conversion back to new clears the hidden current-license field', async ({ page }) => {
+  const { calls, browserErrors } = await fixture(page, { offlineRequestsEnabled: true });
+  const requestKind = page.locator('select[name="requestKind"]');
+  await requestKind.selectOption('convert');
+  await page.locator('input[name="existingLicenseName"]').fill('Existing water plant license');
+  await requestKind.selectOption('new');
+  await page.locator('input[name="applicationName"]').fill('New water plant SCADA');
+  await page.locator('textarea[name="machineRequestCode"]').fill(`ESREQ1.${'a'.repeat(64)}`);
+  await page.getByRole('button', { name: 'Submit request', exact: true }).click();
+  await expect.poll(() => calls.filter(call => call.path === '/licenses/offline-requests' && call.method === 'POST').length).toBe(1);
+  expect(calls.find(call => call.path === '/licenses/offline-requests' && call.method === 'POST').body).toMatchObject({
+    applicationName: 'New water plant SCADA',
+    requestKind: 'new',
+    existingLicenseName: null
+  });
+  await expect(page.getByText('Request submitted. The team will review it in the Portal.')).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
 

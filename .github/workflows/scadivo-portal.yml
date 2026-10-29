@@ -36,6 +36,7 @@ jobs:
           node-version: '22'
       - run: node --check portal/wwwroot/app.js
       - run: node --check portal/wwwroot/licensing.js
+      - run: node --check portal/wwwroot/offline-licensing.js
       - run: sh -n deploy/backup.sh && sh -n deploy/restore-check.sh
       - run: docker compose -f deploy/compose.yml config --quiet
         env:

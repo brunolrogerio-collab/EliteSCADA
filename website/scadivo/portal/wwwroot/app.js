@@ -159,7 +159,8 @@ function errorText(code) {
     'invalid-invitation': tr('Convite inválido ou já utilizado.', 'Invalid or already used invitation.'),
     'invalid-invitation-or-password': tr('Convite expirado ou senha fora dos requisitos.', 'The invitation expired or the password does not meet the requirements.'),
     'slug-already-exists': tr('Esse endereço de artigo já existe.', 'This article slug already exists.'),
-    ...portalLicensing.errors()
+    ...portalLicensing.errors(),
+    ...portalOfflineLicensing.errors()
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');
 }
@@ -458,14 +459,21 @@ function community() {
   );
   return panel(tr('Uma comunidade em construção', 'A community in the making', 'Una comunidad en construcción'), badge(tr('PRÓXIMA ETAPA', 'UPCOMING', 'PRÓXIMA ETAPA')), p(tr('O fórum usará a mesma conta do portal. As categorias previstas incluem primeiros passos, residencial e predial, aplicações industriais, scripts Python e boas práticas.', 'The forum will use the same portal account. Planned categories include getting started, homes and buildings, industrial applications, Python scripts and best practices.', 'El foro utilizará la misma cuenta del portal. Las categorías previstas incluyen primeros pasos, aplicaciones residenciales y para edificios, aplicaciones industriales, scripts de Python y buenas prácticas.')), notice(tr('A publicação de tópicos será liberada após a configuração das regras, moderação e recuperação de conta.', 'Topic publishing will open after rules, moderation and account recovery are configured.', 'La publicación de temas se habilitará cuando estén configuradas las reglas, la moderación y la recuperación de cuentas.')));
 }
-function licenses() { return portalLicensing.customer(); }
+async function licenses() {
+  const online = await portalLicensing.customer();
+  if (!state.session.offlineMachineLicenseRequestsEnabled) return online;
+  return h('div', { class: 'licensing-page' }, [online, await portalOfflineLicensing.customer()]);
+}
 async function admin() {
   const overview = await api('/admin/overview');
   const metrics = h('div', { class: 'metrics' }, [[tr('Contas', 'Accounts'), overview.accounts], [tr('Chamados abertos', 'Open requests'), overview.openTickets], [tr('Aguardando ativação', 'Awaiting activation'), overview.pendingInvitations]].map(([label, value]) => h('div', { class: 'metric' }, [h('strong', {}, value), h('span', {}, label)])));
   const body = h('div');
   const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), licensing: tr('Licenças', 'Licenses', 'Licencias'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
+  if (overview.offlineMachineLicenseRequestsEnabled) items.licenseRequests = tr('Pedidos offline', 'Offline requests', 'Solicitudes sin conexión');
   const tabs = h('nav', { class: 'admin-subnav', 'aria-label': tr('Administração', 'Administration') }, Object.entries(items).map(([key, label]) => button(label, () => { state.adminTab = key; render(); }, `button ${state.adminTab === key ? 'primary' : 'secondary'}`)));
-  const node = await ({ accounts: accountsAdmin, licensing: portalLicensing.admin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin })[state.adminTab](); body.append(node);
+  const views = { accounts: accountsAdmin, licensing: portalLicensing.admin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin };
+  if (overview.offlineMachineLicenseRequestsEnabled) views.licenseRequests = portalOfflineLicensing.admin;
+  const node = await (views[state.adminTab] || accountsAdmin)(); body.append(node);
   const emailStatus = overview.emailDeliveryConfigured
     ? tr(`Envio de e-mail habilitado: ${overview.queuedMessages} na fila, ${overview.sentMessages} aceitas pelo servidor SMTP e ${overview.failedMessages} com falha.`, `Email delivery enabled: ${overview.queuedMessages} queued, ${overview.sentMessages} accepted by the SMTP server and ${overview.failedMessages} failed.`, `Envío de correo electrónico habilitado: ${overview.queuedMessages} en cola, ${overview.sentMessages} aceptados por el servidor SMTP y ${overview.failedMessages} con error.`)
     : tr(`E-mail ainda sem transporte configurado. ${overview.recordedMessages} notificações registradas, sem envio automático.`, `Email delivery is not configured. ${overview.recordedMessages} notifications recorded without automatic delivery.`, `El envío de correo electrónico aún no está configurado. Hay ${overview.recordedMessages} notificaciones registradas sin envío automático.`);

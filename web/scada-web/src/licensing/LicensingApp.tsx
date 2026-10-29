@@ -84,9 +84,10 @@ const messages = {
     validateInstall: 'Validar e instalar', remove: 'Remover licença', installed: 'Licença validada e instalada.', removed: 'Licença removida. As próximas ativações usarão o modo Demo.',
     onlineTitle: 'Licença online', onlineInfo: 'Resumo local para acompanhamento. Um lease armazenado não concede autorização ao Runtime.',
     onlineConnection: 'Conexão com o servidor', onlineConnectionChecking: 'Verificando…',
-    onlineConnectionReachable: 'Servidor respondeu', onlineConnectionUnreachable: 'Sem resposta do servidor. Verifique internet, firewall ou proxy.',
-    onlineConnectionNotConfigured: 'Não configurado nesta instalação', onlineConnectionUnverified: 'Não foi possível verificar agora.',
-    onlineConnectionHelp: 'A conexão não confirma ativação nem validade da licença.',
+    onlineConnectionReachable: 'Conectado', onlineConnectionUnreachable: 'Sem conexão. Verifique internet, firewall ou proxy.',
+    onlineConnectionNotConfigured: 'Não verificado: serviço não configurado nesta instalação', onlineConnectionUnverified: 'Não verificado nesta sessão.',
+    onlineConnectionHelp: '“Conectado” confirma apenas que o serviço respondeu; não confirma licença ativa, credenciais válidas ou aceitação de uma ativação.',
+    onlineConnectionRetry: 'Verificar novamente',
     onlineConfiguration: 'Configuração', onlineConfigured: 'Configurada', onlineNotConfigured: 'Não configurada', onlineState: 'Estado',
     onlineUnavailable: 'Não foi possível ler o estado online.', onlineNoActivation: 'Nenhuma ativação salva', onlineActivationStored: 'Vínculo salvo',
     onlineReset: 'Vínculo removido', onlinePending: 'Solicitação pendente', onlineLease: 'Lease armazenado', onlineIssued: 'Emitido em',
@@ -105,9 +106,10 @@ const messages = {
     validateInstall: 'Validate and install', remove: 'Remove license', installed: 'License validated and installed.', removed: 'License removed. Future activations will use Demo mode.',
     onlineTitle: 'Online license', onlineInfo: 'Local summary for reference. A stored lease does not grant Runtime authorization.',
     onlineConnection: 'Server connection', onlineConnectionChecking: 'Checking…',
-    onlineConnectionReachable: 'Server responded', onlineConnectionUnreachable: 'No response from the server. Check internet, firewall or proxy.',
-    onlineConnectionNotConfigured: 'Not configured in this installation', onlineConnectionUnverified: 'Could not verify right now.',
-    onlineConnectionHelp: 'Connectivity does not confirm license activation or validity.',
+    onlineConnectionReachable: 'Connected', onlineConnectionUnreachable: 'No connection. Check internet, firewall or proxy.',
+    onlineConnectionNotConfigured: 'Not verified: service is not configured in this installation', onlineConnectionUnverified: 'Not verified in this session.',
+    onlineConnectionHelp: '“Connected” only confirms that the service responded; it does not confirm an active license, valid credentials or an accepted activation.',
+    onlineConnectionRetry: 'Check again',
     onlineConfiguration: 'Configuration', onlineConfigured: 'Configured', onlineNotConfigured: 'Not configured', onlineState: 'State',
     onlineUnavailable: 'Online status could not be read.', onlineNoActivation: 'No activation saved', onlineActivationStored: 'Binding saved',
     onlineReset: 'Binding removed', onlinePending: 'Request pending', onlineLease: 'Stored lease', onlineIssued: 'Issued',
@@ -126,9 +128,10 @@ const messages = {
     validateInstall: 'Validar e instalar', remove: 'Eliminar licencia', installed: 'Licencia validada e instalada.', removed: 'Licencia eliminada. Las próximas activaciones usarán el modo Demo.',
     onlineTitle: 'Licencia online', onlineInfo: 'Resumen local para consulta. Un lease almacenado no concede autorización al Runtime.',
     onlineConnection: 'Conexión con el servidor', onlineConnectionChecking: 'Verificando…',
-    onlineConnectionReachable: 'El servidor respondió', onlineConnectionUnreachable: 'El servidor no respondió. Revise internet, firewall o proxy.',
-    onlineConnectionNotConfigured: 'No configurado en esta instalación', onlineConnectionUnverified: 'No fue posible verificar ahora.',
-    onlineConnectionHelp: 'La conexión no confirma la activación ni la validez de la licencia.',
+    onlineConnectionReachable: 'Conectado', onlineConnectionUnreachable: 'Sin conexión. Revise internet, firewall o proxy.',
+    onlineConnectionNotConfigured: 'No verificado: servicio no configurado en esta instalación', onlineConnectionUnverified: 'No verificado en esta sesión.',
+    onlineConnectionHelp: '“Conectado” solo confirma que el servicio respondió; no confirma una licencia activa, credenciales válidas ni la aceptación de una activación.',
+    onlineConnectionRetry: 'Verificar de nuevo',
     onlineConfiguration: 'Configuración', onlineConfigured: 'Configurada', onlineNotConfigured: 'No configurada', onlineState: 'Estado',
     onlineUnavailable: 'No fue posible leer el estado online.', onlineNoActivation: 'No hay activación guardada', onlineActivationStored: 'Vínculo guardado',
     onlineReset: 'Vínculo eliminado', onlinePending: 'Solicitud pendiente', onlineLease: 'Lease almacenado', onlineIssued: 'Emitido',
@@ -215,6 +218,19 @@ export function LicensingApp() {
     setRequest(await readJson<RequestResponse>(requestResponse));
     setOnlineConnectivity(parseOnlineConnectivity(connectivityResponse));
   }, []);
+
+  const checkOnlineConnectivity = async () => {
+    setOnlineConnectivity('checking');
+    try {
+      const response = await fetch(`${API}/api/licensing/online/connectivity`, {
+        headers: { accept: 'application/json' }, cache: 'no-store'
+      });
+      const payload = response.ok ? await response.json() as unknown : null;
+      setOnlineConnectivity(parseOnlineConnectivity(payload));
+    } catch {
+      setOnlineConnectivity('unverified');
+    }
+  };
 
   useEffect(() => {
     void load().catch(() => setError(t.loadError));
@@ -354,6 +370,11 @@ export function LicensingApp() {
                 <strong>{t.onlineConnection}:</strong> {describeOnlineConnectivity(onlineConnectivity, t)}
               </p>
               <p className="licensing-help licensing-connectivity-help">{t.onlineConnectionHelp}</p>
+              <div className="licensing-actions">
+                <button type="button" onClick={() => void checkOnlineConnectivity()} disabled={onlineConnectivity === 'checking'}>
+                  {onlineConnectivity === 'checking' ? t.onlineConnectionChecking : t.onlineConnectionRetry}
+                </button>
+              </div>
               <dl data-testid="online-license-status">
                 <dt>{t.onlineConfiguration}</dt><dd>{status.onlineDevice.configured ? t.onlineConfigured : t.onlineNotConfigured}</dd>
                 <dt>{t.onlineState}</dt><dd><strong>{describeOnlineState(status.onlineDevice, t)}</strong></dd>

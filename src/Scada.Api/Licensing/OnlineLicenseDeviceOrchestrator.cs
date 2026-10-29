@@ -23,7 +23,7 @@ public sealed class OnlineLicenseDeviceOrchestrator(
         var source = RequireSource();
         return client.PrepareConfirmationAsync(username, password, licenseCode, administration, ct,
             status => {
-                if (status is { IsReset: false, ReauthenticationRequired: true } &&
+                if (status is { IsReset: false } &&
                     source.ReadOnlineInstallation()?.ActivationId != status.ActivationId)
                     throw new OnlineLicenseProtocolException("ONLINE_LICENSE_SELECTION_CHANGED");
                 return source.ReadInstallationChangeIdentityStrict();
@@ -37,7 +37,7 @@ public sealed class OnlineLicenseDeviceOrchestrator(
         var state = await journal.ReadTransportAsync("confirmation", ct);
         var pending = state.Pending!;
         return new(state.Binding.ActivationId, pending.Presentation!, pending.ConfirmationExpiresAtUtc!.Value,
-            pending.OnlineActivationAvailable, pending.ConfirmationRequested);
+            pending.OnlineActivationAvailable, pending.ConfirmationRequested, pending.Reactivation);
     }
 
     internal async Task<OnlineLicenseDeviceStatus> ConfirmAsync(Guid activationId,

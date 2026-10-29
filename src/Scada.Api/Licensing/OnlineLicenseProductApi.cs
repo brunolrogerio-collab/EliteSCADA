@@ -148,6 +148,7 @@ internal static class OnlineLicenseProductApi
 
     private static object Project(OnlineLicensePrepared prepared) => new {
         prepared.ActivationId, prepared.ExpiresAtUtc, prepared.OnlineActivationAvailable, prepared.ConfirmationRequested,
+        prepared.Reactivation,
         summary = new { prepared.Summary.ApplicationName, prepared.Summary.LicenseCode, prepared.Summary.Mode,
             prepared.Summary.Term, prepared.Summary.EntitlementExpiresAtUtc, prepared.Summary.Tier,
             prepared.Summary.InteractiveSeats, prepared.Summary.ViewOnlySeats, prepared.Summary.HaRuntime,

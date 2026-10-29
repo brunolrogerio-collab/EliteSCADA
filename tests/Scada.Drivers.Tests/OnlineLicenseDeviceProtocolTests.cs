@@ -50,6 +50,216 @@ public sealed class OnlineLicenseDeviceProtocolTests
     }
 
     [Fact]
+    public async Task ActiveInstallationRecoverySendsCurrentProofAndConfirmsSameCanonicalActivation()
+    {
+        using var f = new Fixture();
+        var original = await Activate(f);
+        var activationId = original.Json.GetProperty("activationId").GetGuid();
+        var before = await f.Store().ReadPrepareContextAsync(default);
+        var oldProof = before.CurrentRefreshCredential!;
+        var oldLease = (await f.Store().ReadEntitlementCandidateAsync(default)).Envelope;
+        var summary = ConfirmationSummary(f);
+        Captured? prepare = null;
+        Captured? confirm = null;
+        using var client = Client(f.Store(), async request =>
+        {
+            var captured = await Capture(request);
+            if (captured.Uri.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+            {
+                prepare = captured;
+                Assert.Equal(activationId, captured.Json.GetProperty("activationId").GetGuid());
+                Assert.Equal(oldProof, captured.Json.GetProperty("currentRefreshCredential").GetString());
+                return PreparedResponse(f, summary, activationId, reactivation: true, credentialGeneration: 6);
+            }
+
+            confirm = captured;
+            Assert.Equal(activationId, captured.Json.GetProperty("activationId").GetGuid());
+            Assert.False(captured.Json.TryGetProperty("credentialGeneration", out _));
+            Assert.NotEqual(oldProof, captured.Json.GetProperty("refreshCredential").GetString());
+            f.ConfirmationClaims = new(1, summary.LicenseId, summary.OrganizationId, summary.ApplicationId,
+                activationId, Fixture.Machine, LicenseTier.Tags500, 3, 2, false, false,
+                f.Clock.Now, f.Clock.Now.AddHours(72), "test-key");
+            var leaseResponse = f.Response(captured);
+            using var leaseJson = JsonDocument.Parse(await leaseResponse.Content.ReadAsStringAsync());
+            var root = leaseJson.RootElement;
+            return new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                activationId = root.GetProperty("activationId").GetGuid(), lease = root.GetProperty("lease").GetString(),
+                notAfterUtc = root.GetProperty("notAfterUtc").GetDateTimeOffset(), summary
+            }, new JsonSerializerOptions(JsonSerializerDefaults.Web)), Encoding.UTF8, "application/json") };
+        });
+
+        var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
+        Assert.True(prepared.Reactivation);
+        Assert.Equal(activationId, prepared.ActivationId);
+        Assert.NotNull(prepare);
+        var pending = await f.Store().ReadTransportAsync("confirmation", default);
+        Assert.True(pending.Pending!.Reactivation);
+        Assert.Equal(oldLease, (await f.Store().ReadEntitlementCandidateAsync(default)).Envelope);
+
+        await using (f.Store().AcquireOperation(default))
+            Assert.True((await client.ConfirmWhileOwnedAsync(prepared.ActivationId, Admin(), default)).HasLease);
+
+        Assert.NotNull(confirm);
+        var status = (await f.Store().ReadStatusAsync())!;
+        Assert.Equal(activationId, status.ActivationId);
+        Assert.True(status.HasLease);
+        Assert.False(status.ConfirmationPending);
+        Assert.NotEqual(oldProof, (await f.Store().ReadPrepareContextAsync(default)).CurrentRefreshCredential);
+    }
+
+    [Fact]
+    public async Task ResetRecoveryOmitsOldProofAndReusesKnownActivationId()
+    {
+        using var f = new Fixture();
+        var active = await Activate(f);
+        var activationId = active.Json.GetProperty("activationId").GetGuid();
+        await f.Store().ResetAsync(activationId, Admin());
+        var summary = ConfirmationSummary(f);
+        Captured? prepare = null;
+        using var client = Client(f.Store(), async request =>
+        {
+            prepare = await Capture(request);
+            if (prepare.Uri.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+            {
+                Assert.Equal(activationId, prepare.Json.GetProperty("activationId").GetGuid());
+                Assert.False(prepare.Json.TryGetProperty("currentRefreshCredential", out _));
+                return PreparedResponse(f, summary, activationId, reactivation: true, credentialGeneration: 2);
+            }
+            return new(HttpStatusCode.NoContent);
+        });
+
+        var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
+
+        Assert.True(prepared.Reactivation);
+        Assert.Equal(activationId, prepared.ActivationId);
+        Assert.NotNull(prepare);
+        var pending = await f.Store().ReadTransportAsync("confirmation", default);
+        Assert.Equal(activationId, pending.Binding.ActivationId);
+        Assert.Null(pending.CurrentCredential);
+        await client.CancelPreparedAsync(activationId, Admin(), default);
+        Assert.True((await f.Store().ReadStatusAsync())!.IsReset);
+    }
+
+    [Fact]
+    public async Task LostLocalIdAcceptsPortalCanonicalIdForUniqueRecovery()
+    {
+        using var f = new Fixture();
+        var summary = ConfirmationSummary(f);
+        var canonicalActivationId = Guid.NewGuid();
+        Captured? prepare = null;
+        using var client = Client(f.Store(), async request =>
+        {
+            prepare = await Capture(request);
+            if (prepare.Uri.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+            {
+                Assert.False(prepare.Json.TryGetProperty("currentRefreshCredential", out _));
+                Assert.NotEqual(canonicalActivationId, prepare.Json.GetProperty("activationId").GetGuid());
+                return PreparedResponse(f, summary, canonicalActivationId, reactivation: true, credentialGeneration: 9);
+            }
+            return new(HttpStatusCode.NoContent);
+        });
+
+        var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
+
+        Assert.True(prepared.Reactivation);
+        Assert.Equal(canonicalActivationId, prepared.ActivationId);
+        Assert.Equal(canonicalActivationId, (await f.Store().ReadTransportAsync("confirmation", default)).Binding.ActivationId);
+        Assert.NotNull(prepare);
+        await client.CancelPreparedAsync(canonicalActivationId, Admin(), default);
+    }
+
+    [Theory]
+    [InlineData("activation-recovery-unavailable", "ONLINE_LICENSE_ACTIVATION_RECOVERY_UNAVAILABLE")]
+    [InlineData("activation-recovery-ambiguous", "ONLINE_LICENSE_ACTIVATION_RECOVERY_AMBIGUOUS")]
+    [InlineData("activation-revoked", "ONLINE_LICENSE_ACTIVATION_REVOKED")]
+    public async Task PrepareRefusalDoesNotFallbackOrChangeExistingLease(string portalError, string expectedCode)
+    {
+        using var f = new Fixture();
+        await Activate(f);
+        var before = (await f.Store().ReadStatusAsync())!;
+        var proof = (await f.Store().ReadPrepareContextAsync(default)).CurrentRefreshCredential;
+        Captured? prepare = null;
+        var calls = 0;
+        using var client = Client(f.Store(), async request =>
+        {
+            calls++;
+            prepare = await Capture(request);
+            return new(HttpStatusCode.Conflict) { Content = new StringContent(
+                JsonSerializer.Serialize(new { error = portalError }), Encoding.UTF8, "application/json") };
+        });
+
+        var error = await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() =>
+            client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default));
+
+        Assert.Equal(expectedCode, error.Code);
+        Assert.Equal(1, calls);
+        Assert.Equal(proof, prepare!.Json.GetProperty("currentRefreshCredential").GetString());
+        Assert.Equal(before, await f.Store().ReadStatusAsync());
+        Assert.Equal(proof, (await f.Store().ReadPrepareContextAsync(default)).CurrentRefreshCredential);
+    }
+
+    [Theory]
+    [InlineData("negative-generation")]
+    [InlineData("non-integer-generation")]
+    [InlineData("new-activation-nonzero-generation")]
+    [InlineData("new-activation-wrong-id")]
+    [InlineData("noncanonical-id")]
+    public async Task PrepareRejectsNoncanonicalOrInvalidGeneration(string invalidShape)
+    {
+        using var f = new Fixture();
+        var summary = ConfirmationSummary(f);
+        using var client = Client(f.Store(), async request =>
+        {
+            var capture = await Capture(request);
+            var requested = capture.Json.GetProperty("activationId").GetGuid();
+            var activationText = invalidShape switch
+            {
+                "new-activation-wrong-id" => Guid.NewGuid().ToString("D"),
+                "noncanonical-id" => requested.ToString("N"),
+                _ => requested.ToString("D")
+            };
+            var body = invalidShape switch
+            {
+                "negative-generation" => JsonSerializer.Serialize(new { activationId = activationText,
+                    confirmationToken = new string('A', 43), credentialGeneration = -1L,
+                    expiresAtUtc = f.Clock.Now.AddMinutes(5), onlineActivationAvailable = true, reactivation = false, summary },
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                "non-integer-generation" => $"{{\"activationId\":\"{activationText}\",\"confirmationToken\":\"{new string('A', 43)}\",\"credentialGeneration\":\"0\",\"expiresAtUtc\":\"{f.Clock.Now.AddMinutes(5):O}\",\"onlineActivationAvailable\":true,\"reactivation\":false,\"summary\":{JsonSerializer.Serialize(summary, new JsonSerializerOptions(JsonSerializerDefaults.Web))}}}",
+                "new-activation-nonzero-generation" => JsonSerializer.Serialize(new { activationId = activationText,
+                    confirmationToken = new string('A', 43), credentialGeneration = 1L,
+                    expiresAtUtc = f.Clock.Now.AddMinutes(5), onlineActivationAvailable = true, reactivation = false, summary },
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                _ => JsonSerializer.Serialize(new { activationId = activationText,
+                    confirmationToken = new string('A', 43), credentialGeneration = 0L,
+                    expiresAtUtc = f.Clock.Now.AddMinutes(5), onlineActivationAvailable = true, reactivation = false, summary },
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web))
+            };
+            return new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+        });
+
+        Assert.Equal("ONLINE_LICENSE_RESPONSE_INVALID", (await Assert.ThrowsAsync<OnlineLicenseProtocolException>(
+            () => client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default))).Code);
+        Assert.Null(await f.Store().ReadStatusAsync());
+    }
+
+    [Theory]
+    [InlineData("{\"serviceAvailable\":true}", true)]
+    [InlineData("{\"serviceAvailable\":false}", false)]
+    [InlineData("{\"serviceAvailable\":true,\"signerEnabled\":true}", false)]
+    [InlineData("{\"error\":\"unavailable\"}", false)]
+    public async Task ConnectivityProbeAcceptsOnlyMinimalPortalHealthAndDoesNotChangeLicenseState(string body, bool expected)
+    {
+        using var f = new Fixture();
+        var before = await f.Store().ReadStatusAsync();
+        using var client = Client(f.Store(), _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        { Content = new StringContent(body, Encoding.UTF8, "application/json") }));
+
+        Assert.Equal(expected, await client.CheckPortalConnectivityAsync());
+
+        Assert.Equal(before, await f.Store().ReadStatusAsync());
+    }
+
+    [Fact]
     public async Task ConfirmationLostResponse_RetriesExactlyAfterRestartWithoutResendingPassword()
     {
         using var f = new Fixture();
@@ -64,8 +274,9 @@ public sealed class OnlineLicenseDeviceProtocolTests
             var captured = await Capture(request);
             Assert.Equal("/portal/api/licensing/device/prepare", captured.Uri.AbsolutePath);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
-                confirmationToken = new string('A', 43), expiresAtUtc = f.Clock.Now.AddMinutes(5),
-                onlineActivationAvailable = true, summary }, jsonOptions), Encoding.UTF8, "application/json") };
+                activationId = captured.Json.GetProperty("activationId").GetGuid(), confirmationToken = new string('A', 43),
+                credentialGeneration = 0L, expiresAtUtc = f.Clock.Now.AddMinutes(5),
+                onlineActivationAvailable = true, reactivation = false, summary }, jsonOptions), Encoding.UTF8, "application/json") };
         }))
             preparation = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
         Assert.False((await f.Store().ReadTransportAsync("confirmation", default)).Pending!.ConfirmationRequested);
@@ -121,9 +332,13 @@ public sealed class OnlineLicenseDeviceProtocolTests
             var capture = await Capture(request);
             routes.Add(capture.Uri.AbsolutePath);
             if (routes.Count == 1)
+            {
+                Assert.False(capture.Json.TryGetProperty("currentRefreshCredential", out _));
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
-                    confirmationToken = new string('A', 43), expiresAtUtc = f.Clock.Now.AddMinutes(5),
-                    onlineActivationAvailable = true, summary }, new JsonSerializerOptions(JsonSerializerDefaults.Web)), Encoding.UTF8, "application/json") };
+                    activationId = capture.Json.GetProperty("activationId").GetGuid(), confirmationToken = new string('A', 43),
+                    credentialGeneration = 0L, expiresAtUtc = f.Clock.Now.AddMinutes(5),
+                    onlineActivationAvailable = true, reactivation = reauthentication, summary }, new JsonSerializerOptions(JsonSerializerDefaults.Web)), Encoding.UTF8, "application/json") };
+            }
             return new HttpResponseMessage(HttpStatusCode.NoContent);
         });
         var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
@@ -146,7 +361,7 @@ public sealed class OnlineLicenseDeviceProtocolTests
         {
             var capture = await Capture(request);
             routes.Add(capture.Uri.AbsolutePath);
-            if (routes.Count == 1) return PreparedResponse(f, summary);
+            if (routes.Count == 1) return PreparedResponse(f, summary, capture.Json.GetProperty("activationId").GetGuid());
             if (routes.Count == 2) return new(HttpStatusCode.NoContent);
             Assert.Equal("/portal/api/licensing/device/confirm", capture.Uri.AbsolutePath);
             Assert.Equal("/portal/api/licensing/device/confirm", capture.Uri.AbsolutePath);
@@ -174,7 +389,7 @@ public sealed class OnlineLicenseDeviceProtocolTests
         using var client = Client(f.Store(), async request =>
         {
             var capture = await Capture(request);
-            if (capture.Uri.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal)) return PreparedResponse(f, summary);
+            if (capture.Uri.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal)) return PreparedResponse(f, summary, capture.Json.GetProperty("activationId").GetGuid());
             if (capture.Uri.AbsolutePath.EndsWith("/cancel", StringComparison.Ordinal)) return new(HttpStatusCode.NoContent);
             confirmation = capture;
             var lease = f.Response(capture);
@@ -214,7 +429,10 @@ public sealed class OnlineLicenseDeviceProtocolTests
         using var client = Client(f.Store(), async request =>
         {
             var path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/prepare", StringComparison.Ordinal)) return PreparedResponse(f, summary);
+            if (path.EndsWith("/prepare", StringComparison.Ordinal)) {
+                var capture = await Capture(request);
+                return PreparedResponse(f, summary, capture.Json.GetProperty("activationId").GetGuid());
+            }
             throw new HttpRequestException("fictitious timeout after cancellation request");
         });
         var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
@@ -235,7 +453,10 @@ public sealed class OnlineLicenseDeviceProtocolTests
         using var client = Client(f.Store(), async request =>
         {
             var path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/prepare", StringComparison.Ordinal)) return PreparedResponse(f, summary);
+            if (path.EndsWith("/prepare", StringComparison.Ordinal)) {
+                var capture = await Capture(request);
+                return PreparedResponse(f, summary, capture.Json.GetProperty("activationId").GetGuid());
+            }
             if (path.EndsWith("/cancel", StringComparison.Ordinal)) return new(HttpStatusCode.NoContent);
             return new(HttpStatusCode.Conflict) { Content = new StringContent("{\"error\":\"preparation-expired\"}", Encoding.UTF8, "application/json") };
         });
@@ -251,6 +472,9 @@ public sealed class OnlineLicenseDeviceProtocolTests
     [InlineData("activation-already-active", "ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE")]
     [InlineData("activation-limit-reached", "ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED")]
     [InlineData("activation-revoked", "ONLINE_LICENSE_ACTIVATION_REVOKED")]
+    [InlineData("activation-recovery-ambiguous", "ONLINE_LICENSE_ACTIVATION_RECOVERY_AMBIGUOUS")]
+    [InlineData("activation-recovery-unavailable", "ONLINE_LICENSE_ACTIVATION_RECOVERY_UNAVAILABLE")]
+    [InlineData("activation-recovery-invalidated", "ONLINE_LICENSE_ACTIVATION_RECOVERY_INVALIDATED")]
     [InlineData("preparation-already-consumed", "ONLINE_LICENSE_PREPARATION_ALREADY_CONSUMED")]
     [InlineData("activation-id-already-bound", "ONLINE_LICENSE_ACTIVATION_ID_ALREADY_BOUND")]
     [InlineData("activation-request-conflict", "ONLINE_LICENSE_ACTIVATION_REQUEST_CONFLICT")]
@@ -263,7 +487,10 @@ public sealed class OnlineLicenseDeviceProtocolTests
         using var client = Client(f.Store(), async request =>
         {
             if (request.RequestUri!.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
-                return PreparedResponse(f, summary);
+            {
+                var capture = await Capture(request);
+                return PreparedResponse(f, summary, capture.Json.GetProperty("activationId").GetGuid());
+            }
             return new(HttpStatusCode.Conflict) { Content = new StringContent(
                 JsonSerializer.Serialize(new { error = portalCode }), Encoding.UTF8, "application/json") };
         });
@@ -273,14 +500,54 @@ public sealed class OnlineLicenseDeviceProtocolTests
         Assert.True((await f.Store().ReadTransportAsync("confirmation", default)).Pending!.ConfirmationRequested);
     }
 
+    [Fact]
+    public async Task ActiveBindingRecoveryPreparationAndCancellationPreserveLeaseAcrossRestart()
+    {
+        using var f = new Fixture();
+        var active = await Activate(f);
+        var original = await f.Store().ReadEntitlementCandidateAsync(default);
+        var store = f.Store();
+        await using (store.AcquireOperation(default))
+            await store.StorePreparedConfirmationAsync(ConfirmationSummary(f), active.Json.GetProperty("activationId").GetGuid(),
+                new string('A', 43), f.Clock.Now.AddMinutes(5), true, Admin(), default);
+        f.ReopenAuthority();
+        var restored = f.Store();
+        var prepared = await restored.ReadTransportAsync("confirmation", default);
+        Assert.Equal(active.Json.GetProperty("activationId").GetGuid(), prepared.Binding.ActivationId);
+        Assert.NotNull(prepared.CurrentCredential);
+        Assert.Equal(original.Envelope, (await restored.ReadEntitlementCandidateAsync(default)).Envelope);
+        await using (restored.AcquireOperation(default))
+            await restored.CancelPreparedConfirmationWhileOwnedAsync(active.Json.GetProperty("activationId").GetGuid(), Admin(), default);
+        var status = (await f.Store().ReadStatusAsync())!;
+        Assert.True(status.HasLease);
+        Assert.False(status.IsReset);
+        Assert.False(status.ConfirmationPending);
+        Assert.Equal(active.Json.GetProperty("activationId").GetGuid(), status.ActivationId);
+    }
+
+    [Fact]
+    public async Task RecoveryPreparationCannotOverwritePendingRenewalOrAnotherBinding()
+    {
+        using var f = new Fixture();
+        var active = await Activate(f);
+        var store = f.Store();
+        await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => store.StorePreparedConfirmationAsync(
+            ConfirmationSummary(f), Guid.NewGuid(), new string('A', 43), f.Clock.Now.AddMinutes(5), true, Admin(), default));
+        var renewal = await store.PrepareRenewalAsync(Admin());
+        await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => store.StorePreparedConfirmationAsync(
+            ConfirmationSummary(f), active.Json.GetProperty("activationId").GetGuid(), new string('A', 43), f.Clock.Now.AddMinutes(5), true, Admin(), default));
+        Assert.Equal(renewal.PendingRequestId, (await store.ReadStatusAsync())!.PendingRequestId);
+    }
+
     private static OnlineLicensePresentation ConfirmationSummary(Fixture f) => new(Selection.LicenseId,
         Selection.OrganizationId, Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account",
         "annual", f.Clock.Now.AddDays(30), "Tags500", 2, 3, false, false, 1);
 
-    private static HttpResponseMessage PreparedResponse(Fixture f, OnlineLicensePresentation summary) =>
+    private static HttpResponseMessage PreparedResponse(Fixture f, OnlineLicensePresentation summary, Guid activationId,
+        bool reactivation = false, long credentialGeneration = 0) =>
         new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
-            confirmationToken = new string('A', 43), expiresAtUtc = f.Clock.Now.AddMinutes(5),
-            onlineActivationAvailable = true, summary
+            activationId, confirmationToken = new string('A', 43), credentialGeneration,
+            expiresAtUtc = f.Clock.Now.AddMinutes(5), onlineActivationAvailable = true, reactivation, summary
         }, new JsonSerializerOptions(JsonSerializerDefaults.Web)), Encoding.UTF8, "application/json") };
 
     [Theory]
@@ -298,10 +565,14 @@ public sealed class OnlineLicenseDeviceProtocolTests
         var summary = new OnlineLicensePresentation(Selection.LicenseId, Selection.OrganizationId,
             Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account", "annual",
             f.Clock.Now.AddDays(30), "Tags500", 2, 3, false, false, 1);
-        using var client = Client(f.Store(), _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
-            Content = new StringContent(JsonSerializer.Serialize(new { confirmationToken = new string('A', 43),
-                expiresAtUtc = f.Clock.Now.AddMinutes(5), onlineActivationAvailable = true, summary },
-                new JsonSerializerOptions(JsonSerializerDefaults.Web)), Encoding.UTF8, "application/json") }));
+        using var client = Client(f.Store(), async request => {
+            var captured = await Capture(request);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
+                activationId = captured.Json.GetProperty("activationId").GetGuid(), confirmationToken = new string('A', 43),
+                credentialGeneration = 0L, expiresAtUtc = f.Clock.Now.AddMinutes(5), onlineActivationAvailable = true,
+                reactivation = reauthentication, summary },
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)), Encoding.UTF8, "application/json") };
+        });
         var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
         await f.Store().RequestConfirmationAsync(prepared.ActivationId, Admin(), default);
         f.Clock.Now += TimeSpan.FromHours(24) + TimeSpan.FromMinutes(5) - TimeSpan.FromTicks(1);

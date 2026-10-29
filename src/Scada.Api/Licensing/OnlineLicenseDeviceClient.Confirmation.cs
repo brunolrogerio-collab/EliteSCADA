@@ -7,7 +7,7 @@ using Scada.Security.Authorization;
 namespace Scada.Api.Licensing;
 
 internal sealed record OnlineLicensePrepared(Guid ActivationId, OnlineLicensePresentation Summary,
-    DateTimeOffset ExpiresAtUtc, bool OnlineActivationAvailable, bool ConfirmationRequested = false);
+    DateTimeOffset ExpiresAtUtc, bool OnlineActivationAvailable, bool ConfirmationRequested = false, bool Reactivation = false);
 internal enum OnlineLicenseCancelResult { Cancelled, AlreadyActivated }
 
 public sealed partial class OnlineLicenseDeviceClient
@@ -21,22 +21,42 @@ public sealed partial class OnlineLicenseDeviceClient
             password.Length > 1024 || string.IsNullOrWhiteSpace(licenseCode) || licenseCode.Length > 128)
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_INVALID_SELECTION");
         await using var operation = store.AcquireOperation(ct);
-        var existing = await store.ReadStatusAsync(ct);
-        if (existing is { IsReset: false, ReauthenticationRequired: false })
+        var context = await store.ReadPrepareContextAsync(ct);
+        var existing = context.Status;
+        var reauthenticationAfterRejectedRenewal = existing is { ReauthenticationRequired: true } && context.PendingKind == "renewal";
+        if ((existing is { PendingRequestId: not null } && !reauthenticationAfterRejectedRenewal) ||
+            existing is { InstallationPending: true })
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
         var expectedInstallationIdentity = readInstallationIdentity?.Invoke(existing);
-        var activationId = existing is { IsReset: false, ReauthenticationRequired: true } ? existing.ActivationId : Guid.NewGuid();
+        // Keep the locally known ID even after a local reset. If the journal is missing,
+        // a fresh ID is only a lookup hint; the Portal returns the canonical ID on recovery.
+        var requestedActivationId = existing?.ActivationId ?? Guid.NewGuid();
+        var payload = new Dictionary<string, object?>
+        {
+            ["username"] = username.Trim(), ["password"] = password, ["licenseCode"] = licenseCode.Trim(),
+            ["activationId"] = requestedActivationId, ["machineFingerprint"] = store.MachineFingerprint
+        };
+        if (context.CurrentRefreshCredential is { } proof)
+            payload["currentRefreshCredential"] = proof;
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(store.PortalOrigin, "portal/api/licensing/device/prepare"))
         {
-            Content = JsonContent.Create(new { username = username.Trim(), password, licenseCode = licenseCode.Trim(),
-                activationId, machineFingerprint = store.MachineFingerprint })
+            Content = JsonContent.Create(payload)
         };
         using var response = await SendConfirmationRequestAsync(request, ct);
         using var json = await ReadConfirmationJsonAsync(response, ct);
         try
         {
             var root = json.RootElement;
-            DemandProperties(root, "confirmationToken", "expiresAtUtc", "onlineActivationAvailable", "summary");
+            DemandProperties(root, "activationId", "confirmationToken", "credentialGeneration", "expiresAtUtc",
+                "onlineActivationAvailable", "reactivation", "summary");
+            var activationIdText = root.GetProperty("activationId").GetString() ?? throw new JsonException();
+            if (!Guid.TryParseExact(activationIdText, "D", out var activationId) || activationId == Guid.Empty ||
+                !string.Equals(activationIdText, activationId.ToString("D"), StringComparison.Ordinal))
+                throw new JsonException();
+            var reactivation = root.GetProperty("reactivation").GetBoolean();
+            if (!root.GetProperty("credentialGeneration").TryGetInt64(out var credentialGeneration) || credentialGeneration < 0 ||
+                (!reactivation && (activationId != requestedActivationId || credentialGeneration != 0)))
+                throw new JsonException();
             var token = root.GetProperty("confirmationToken").GetString() ?? throw new JsonException();
             var expires = root.GetProperty("expiresAtUtc").GetDateTimeOffset().ToUniversalTime();
             var available = root.GetProperty("onlineActivationAvailable").GetBoolean();
@@ -44,9 +64,10 @@ public sealed partial class OnlineLicenseDeviceClient
             if (!summary.IsWellFormed() || !string.Equals(summary.LicenseCode, licenseCode.Trim(), StringComparison.OrdinalIgnoreCase))
                 throw new JsonException();
             await store.StorePreparedConfirmationAsync(summary, activationId, token, expires, available, mutation, ct,
-                expectedInstallationIdentity);
-            return new(activationId, summary, expires, available);
+                expectedInstallationIdentity, reactivation);
+            return new(activationId, summary, expires, available, Reactivation: reactivation);
         }
+        catch (OnlineLicenseProtocolException) { throw; }
         catch (Exception ex) when (ex is JsonException or FormatException or InvalidOperationException or KeyNotFoundException)
         { throw new OnlineLicenseProtocolException("ONLINE_LICENSE_RESPONSE_INVALID"); }
     }
@@ -142,6 +163,9 @@ public sealed partial class OnlineLicenseDeviceClient
             throw new OnlineLicenseProtocolException(portalCode switch
             {
                 "preparation-invalidated" => "ONLINE_LICENSE_PREPARATION_INVALIDATED",
+                "activation-recovery-invalidated" => "ONLINE_LICENSE_ACTIVATION_RECOVERY_INVALIDATED",
+                "activation-recovery-ambiguous" => "ONLINE_LICENSE_ACTIVATION_RECOVERY_AMBIGUOUS",
+                "activation-recovery-unavailable" => "ONLINE_LICENSE_ACTIVATION_RECOVERY_UNAVAILABLE",
                 "preparation-expired" => "ONLINE_LICENSE_PREPARATION_EXPIRED",
                 "activation-already-active" => "ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE",
                 "activation-limit-reached" => "ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED",

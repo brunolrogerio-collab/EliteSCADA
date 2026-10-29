@@ -19,6 +19,36 @@ const abandonLabels = {
   es: { action: 'Descartar intento local', confirm: 'No se pudo recuperar el resultado de la activación. Compruebe en el Portal si existe una activación para esta máquina y revóquela allí si es necesario. Descartar aquí no libera una plaza en el Portal. ¿Continuar?', done: 'Intento local descartado. Revise la activación en el Portal.' }
 } as const;
 
+const failureLabels = {
+  'pt-BR': {
+    ONLINE_LICENSE_PREPARATION_EXPIRED: 'O prazo desta consulta terminou. Cancele a tentativa para verificar o resultado no Portal e consultar a licença novamente. Se já houve confirmação, o resultado precisa ser recuperado antes de reiniciar.',
+    ONLINE_LICENSE_PREPARATION_INVALIDATED: 'Esta consulta foi cancelada ou os dados da licença mudaram. Resolva a tentativa com Cancelar antes de consultar novamente.',
+    ONLINE_LICENSE_ISSUANCE_UNAVAILABLE: 'O Portal está com a emissão de licenças indisponível. A tentativa foi preservada; tente recuperar o resultado quando o serviço voltar.',
+    ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE: 'Esta ativação já está ativa no Portal. É necessário recuperar ou reautenticar o vínculo existente.',
+    ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED: 'Todas as ativações desta licença estão em uso no Portal. Remover a licença apenas neste computador não libera uma ativação no Portal.',
+    ONLINE_LICENSE_ACTIVATION_REVOKED: 'Esta ativação foi revogada no Portal.',
+    ONLINE_LICENSE_NOT_AVAILABLE: 'A licença não está disponível para esta conta ou sua validade comercial terminou.'
+  },
+  en: {
+    ONLINE_LICENSE_PREPARATION_EXPIRED: 'This license review expired. Cancel the attempt to resolve its Portal result before reviewing the license again. A previously confirmed activation must be recovered first.',
+    ONLINE_LICENSE_PREPARATION_INVALIDATED: 'This review was cancelled or its license details changed. Resolve the attempt with Cancel before trying again.',
+    ONLINE_LICENSE_ISSUANCE_UNAVAILABLE: 'The Portal cannot issue licenses right now. The attempt was preserved; recover its result when the service returns.',
+    ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE: 'This activation is already active in the Portal. Recover or reauthenticate the existing link.',
+    ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED: 'All activations for this license are in use. Removing the license only on this computer does not release a Portal activation.',
+    ONLINE_LICENSE_ACTIVATION_REVOKED: 'This activation was revoked in the Portal.',
+    ONLINE_LICENSE_NOT_AVAILABLE: 'This license is unavailable for this account or its commercial term ended.'
+  },
+  es: {
+    ONLINE_LICENSE_PREPARATION_EXPIRED: 'Esta consulta venció. Cancele el intento para resolver su resultado en el Portal antes de consultar nuevamente. Una activación ya confirmada debe recuperarse primero.',
+    ONLINE_LICENSE_PREPARATION_INVALIDATED: 'La consulta fue cancelada o cambiaron sus datos. Resuelva el intento con Cancelar antes de consultar nuevamente.',
+    ONLINE_LICENSE_ISSUANCE_UNAVAILABLE: 'El Portal no puede emitir licencias en este momento. El intento se conservó; recupere el resultado cuando vuelva el servicio.',
+    ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE: 'Esta activación ya está activa en el Portal. Recupere o vuelva a autenticar el vínculo existente.',
+    ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED: 'Todas las activaciones están en uso. Quitar la licencia solo de este equipo no libera una activación del Portal.',
+    ONLINE_LICENSE_ACTIVATION_REVOKED: 'Esta activación fue revocada en el Portal.',
+    ONLINE_LICENSE_NOT_AVAILABLE: 'La licencia no está disponible para esta cuenta o terminó su vigencia comercial.'
+  }
+};
+
 export function OnlineLicenseActivation({ api, locale, pending, completionPending, onChanged }: {
   api: string; locale: Locale; pending: boolean; completionPending: boolean; onChanged: () => Promise<void>;
 }) {
@@ -30,9 +60,9 @@ export function OnlineLicenseActivation({ api, locale, pending, completionPendin
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const explain = (value: string) => value === 'ONLINE_LICENSE_INVALID_CREDENTIALS' ? t.credentials
+  const explain = (value: string) => (failureLabels[locale] as Record<string, string>)[value] ?? (value === 'ONLINE_LICENSE_INVALID_CREDENTIALS' ? t.credentials
     : value === 'ONLINE_LICENSE_PORTAL_UNAVAILABLE' ? t.network
-      : value === 'ONLINE_LICENSE_PRESENTATION_MISMATCH' ? t.mismatch : t.generic;
+      : value === 'ONLINE_LICENSE_PRESENTATION_MISMATCH' ? t.mismatch : /^ONLINE_LICENSE_[A-Z_]+$/.test(value) ? `${t.generic} (${value})` : t.generic);
   const read = async <T,>(response: Response): Promise<T> => {
     const body = await response.json().catch(() => null) as { error?: string } | null;
     if (!response.ok) throw new Error(body?.error ?? 'error');

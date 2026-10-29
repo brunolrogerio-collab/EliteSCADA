@@ -1162,6 +1162,25 @@ public sealed class ContextualHelpTests
         }
     }
 
+    [Fact]
+    public void EngineeringLifecycleHelp_ExplainsAutomaticLicenseRenewalDoesNotStopRuntimeInEveryLocale()
+    {
+        var renewalText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[] { "renovação automática online aceita", "não interrompe o Runtime", "revogada ou expirada" },
+            ["en"] = new[] { "automatic online renewal", "does not stop Runtime", "revoked, or expired" },
+            ["es"] = new[] { "renovación automática online aceptada", "no detiene Runtime", "revocada o expirada" }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "engineering.lifecycle");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in renewalText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     private static EngineeringDataSourceTypeView[] ProductionDrivers() => EngineeringDataSourceTypeCatalog
         .BuildForCurrentSchema(CommunicationDriverRuntimeComposition.BuildForCurrentSchema())
         .Describe()

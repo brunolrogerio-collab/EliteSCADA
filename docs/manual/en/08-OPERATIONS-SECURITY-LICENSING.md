@@ -6,6 +6,22 @@ Runtime executes the Active revision under backend authority. The session receiv
 
 Loss/expiration of interactive authority does not make the session authorized by default.
 
+### Stop and start the operating application
+
+In the Engineering overview, card **4 — Active** shows the Runtime's reported state. With `EngineeringModify`, select **Stop Runtime** and confirm. This stops the application's drivers, data collection, and Server Scripts. The revision stays Active; the Engineering/API service, installed license, and operator login are preserved. Runtime sessions and equipment connections may be interrupted and must reconnect when Runtime starts again. Stop does not unpublish the revision or revoke/remove the license.
+
+After a complete stop, **Start Runtime** resumes the same Active revision and checks license and authority again. It does not renew or reset a bounded Demo period. If the interface reports an incomplete stop, review the affected components before starting. With HA enabled, local controls are unavailable because they would not stop the whole cluster; use coordinated cluster maintenance.
+
+The screenshots below show both actions in the overview; they were captured during integrated local validation.
+
+![Runtime running: the Active card offers Stop Runtime](../assets/runtime-active-overview.png)
+
+![Runtime stopped: the Active card offers Start Runtime](../assets/runtime-stopped-overview.png)
+
+An accepted automatic license renewal happens in the background and does not by itself stop Runtime. A rejected, revoked, or expired license follows the product's entitlement protections.
+
+**Related Help:** `/help?topic=engineering.lifecycle`, `/help?topic=licensing.overview`, `/help?topic=ha.overview`.
+
 ## Interactive and View Only
 
 Interactive and View Only represent session classes. View Only reduces operational authority; in particular, it does not grant write/command access even if the user has permissions that could be used in an interactive session.

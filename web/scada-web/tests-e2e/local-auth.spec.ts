@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect, request as playwrightRequest, test } from '@playwright/test';
+import { createE2eJwt } from './jwt';
 import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
 
 const adminUsername = 'local-developer';
@@ -6,7 +7,7 @@ const adminPassword = 'E2Epass8';
 
 test.setTimeout(90_000);
 
-test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser, baseURL, request }) => {
+test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser, baseURL, request }, testInfo) => {
   // This scenario covers bootstrap, first-project setup, Authority/application
   // restore, and durable re-authentication. Keep enough budget for the full
   // end-to-end flow on the slower CI database/browser pair.
@@ -441,6 +442,59 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(activeFixtureRuntime.body.live.mode).toBe('engineering');
     expect(activeFixtureRuntime.body.live.projectKey).toBe(projectKey);
     expect(activeFixtureRuntime.body.live.revision).toBe(fixtureRevision);
+
+    // Runtime operation is a real, audited Engineering mutation: anonymous and
+    // operator-only identities cannot stop or resume it. The authorized local
+    // Administrator performs both transitions through the overview UI.
+    const anonymousRuntimeControl = await playwrightRequest.newContext({
+      baseURL: apiBaseUrl,
+      extraHTTPHeaders: { Authorization: '' }
+    });
+    const operatorRuntimeControl = await playwrightRequest.newContext({
+      baseURL: apiBaseUrl,
+      extraHTTPHeaders: { Authorization: `Bearer ${createE2eJwt('e2e-runtime-operator', ['operator'], 'E2E Runtime Operator')}` }
+    });
+    try {
+      const runtimePath = `/api/engineering/persistence/${encodeURIComponent(projectKey)}/runtime`;
+      expect((await anonymousRuntimeControl.post(`${runtimePath}/stop`, { data: { confirmed: true } })).status()).toBe(401);
+      expect((await operatorRuntimeControl.post(`${runtimePath}/stop`, { data: { confirmed: true } })).status()).toBe(403);
+
+      await page.goto('/engineering');
+      const stopRuntime = page.getByTestId('engineering-runtime-stop');
+      await expect(stopRuntime).toBeVisible({ timeout: 15_000 });
+      await page.screenshot({ path: testInfo.outputPath('runtime-active-overview.png'), fullPage: false });
+      await stopRuntime.click();
+      await expect(page.getByRole('dialog')).toContainText('Parar Runtime');
+      await page.getByTestId('engineering-runtime-stop-confirm').click();
+
+      const startRuntime = page.getByTestId('engineering-runtime-start');
+      await expect(startRuntime).toBeVisible({ timeout: 15_000 });
+      const stoppedState = await page.evaluate(async currentProjectKey => {
+        const response = await fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/runtime`);
+        return { status: response.status, body: await response.json() };
+      }, projectKey);
+      expect(stoppedState.status).toBe(200);
+      expect(stoppedState.body.operatorState).toBe('stopped');
+      expect(stoppedState.body.durable.activeRevision).toBe(fixtureRevision);
+      await page.screenshot({ path: testInfo.outputPath('runtime-stopped-overview.png'), fullPage: false });
+      expect((await operatorRuntimeControl.post(`${runtimePath}/start`, { data: { confirmed: true } })).status()).toBe(403);
+
+      await startRuntime.click();
+      await expect(page.getByRole('dialog')).toContainText('Iniciar Runtime');
+      await page.getByTestId('engineering-runtime-start-confirm').click();
+      await expect(page.getByTestId('engineering-runtime-stop')).toBeVisible({ timeout: 15_000 });
+
+      const restartedState = await page.evaluate(async currentProjectKey => {
+        const response = await fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/runtime`);
+        return { status: response.status, body: await response.json() };
+      }, projectKey);
+      expect(restartedState.status).toBe(200);
+      expect(restartedState.body.operatorState).toBe('running');
+      expect(restartedState.body.durable.activeRevision).toBe(fixtureRevision);
+    } finally {
+      await anonymousRuntimeControl.dispose();
+      await operatorRuntimeControl.dispose();
+    }
 
     // Candidate initial Server Memory values are composed before the activation
     // EventGate commits and therefore are intentionally not Historian evidence.

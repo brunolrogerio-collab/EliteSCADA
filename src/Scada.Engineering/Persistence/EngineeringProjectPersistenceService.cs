@@ -74,6 +74,20 @@ public interface IEngineeringProjectPersistenceService
         string? activatedBy = null,
         CancellationToken cancellationToken = default);
 
+    Task<EngineeringProjectActivation?> ResumeRuntimeAsync(
+        string projectKey,
+        long activeRevision,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Engineering persistence does not support operator Runtime controls.");
+
+    Task<EngineeringProjectActivation?> SetRuntimeStatusAsync(
+        string projectKey,
+        long activeRevision,
+        EngineeringRuntimeStatus status,
+        string? changedBy = null,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Engineering persistence does not support operator Runtime controls.");
+
     Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
         string projectKey,
         long revision,
@@ -226,7 +240,9 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
                     ? EngineeringProjectLifecycleStatus.Published
                     : EngineeringProjectLifecycleStatus.ChangesPending;
 
-        var runtimeStatus = publication is null
+        var runtimeStatus = activation?.RuntimeStatus is EngineeringRuntimeStatus.OperatorStopped or EngineeringRuntimeStatus.StopFailed
+            ? activation.RuntimeStatus
+            : publication is null
             ? EngineeringRuntimeStatus.Inactive
             : activation is not null && activation.ActiveRevision == publication.PublishedRevision
                 ? EngineeringRuntimeStatus.Active
@@ -249,6 +265,23 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         string projectKey,
         CancellationToken cancellationToken = default) =>
         _store.GetActivationAsync(projectKey, cancellationToken);
+
+    public Task<EngineeringProjectActivation?> SetRuntimeStatusAsync(
+        string projectKey,
+        long activeRevision,
+        EngineeringRuntimeStatus status,
+        string? changedBy = null,
+        CancellationToken cancellationToken = default) =>
+        _store.SetRuntimeStatusAsync(projectKey, activeRevision, status, changedBy, cancellationToken);
+
+    public async Task<EngineeringProjectActivation?> ResumeRuntimeAsync(
+        string projectKey,
+        long activeRevision,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureActivatableBindingAsync(projectKey, cancellationToken);
+        return await _store.ResumeRuntimeAsync(projectKey, activeRevision, cancellationToken);
+    }
 
     public async Task<EngineeringProjectActivation?> RecordActivationAsync(
         string projectKey,

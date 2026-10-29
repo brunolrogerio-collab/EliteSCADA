@@ -164,5 +164,17 @@ test.describe('Engineering Lifecycle Workspace contract', () => {
     expect(lifecycleErrorText(makeError(409), 'en')).toContain('conflicts');
     expect(lifecycleErrorText(makeError(422), 'es')).toContain('validada');
     expect(lifecycleErrorText(makeError(503), 'pt-BR')).toContain('indisponível');
+
+    const partialStop = Object.assign(new Error('server unavailable'), {
+      status: 503,
+      responseBody: JSON.stringify({
+        error: 'Runtime stopped, but one Server Script did not confirm shutdown.',
+        runtimeStopped: true,
+        serverScriptsStopped: false
+      })
+    });
+    const partialStopText = lifecycleErrorText(partialStop, 'pt-BR');
+    expect(partialStopText).toContain('persistência de Engineering está indisponível');
+    expect(partialStopText).toContain('one Server Script did not confirm shutdown');
   });
 });

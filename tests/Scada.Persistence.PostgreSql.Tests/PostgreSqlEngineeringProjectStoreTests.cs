@@ -240,6 +240,24 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
         Assert.NotNull(activatedSecond);
         Assert.Equal(second.Revision, storedSecond!.ActiveRevision);
         Assert.Equal("operator-b", storedSecond.ActivatedBy);
+
+        var stopped = await store.SetRuntimeStatusAsync(
+            projectKey,
+            second.Revision,
+            Scada.Engineering.Persistence.EngineeringRuntimeStatus.OperatorStopped,
+            "operator-stop");
+        Assert.NotNull(stopped);
+        Assert.Equal(Scada.Engineering.Persistence.EngineeringRuntimeStatus.OperatorStopped, stopped!.RuntimeStatus);
+        Assert.Equal("operator-stop", stopped.RuntimeStoppedBy);
+
+        var resumed = await store.ResumeRuntimeAsync(projectKey, second.Revision);
+        Assert.NotNull(resumed);
+        Assert.Equal(Scada.Engineering.Persistence.EngineeringRuntimeStatus.Active, resumed!.RuntimeStatus);
+        Assert.Equal(stopped.ActivatedAtUtc, resumed.ActivatedAtUtc);
+        Assert.Equal(stopped.DemoStartedAtUtc, resumed.DemoStartedAtUtc);
+        Assert.Null(resumed.RuntimeStoppedAtUtc);
+        Assert.Null(resumed.RuntimeStoppedBy);
+        Assert.Null(await store.ResumeRuntimeAsync(projectKey, first.Revision));
     }
 
     [Fact]

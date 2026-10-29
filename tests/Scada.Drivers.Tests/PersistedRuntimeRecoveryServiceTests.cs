@@ -24,6 +24,42 @@ namespace Scada.Drivers.Tests;
 public sealed class PersistedRuntimeRecoveryServiceTests
 {
     [Fact]
+    public async Task Recovery_DoesNotRestartAnOperatorStoppedActiveRevision()
+    {
+        var package = CreatePackage(1, Guid.NewGuid(), "Plant.Stopped.Value", "holding:10");
+        var snapshot = CreateSnapshot(3, package);
+        var store = new RecoveryStore(
+            snapshot,
+            snapshot,
+            runtimeStatus: EngineeringRuntimeStatus.OperatorStopped);
+        var exchangeBus = new InMemoryScadaEventBus();
+        using var exchangeAlarms = new InMemoryAlarmEngine(exchangeBus);
+        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), exchangeAlarms);
+        var persistence = new EngineeringProjectPersistenceService(exchange, store);
+        var runtimeBus = new InMemoryScadaEventBus();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            runtimeBus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromMilliseconds(100));
+        var licensing = new TestProductLicenseService(ValidVerification());
+        await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
+        var recovery = new PersistedRuntimeRecoveryService(
+            persistence, exchange, runtime, licensing, authorityStore);
+
+        var result = await recovery.RecoverAsync(snapshot.ProjectKey);
+
+        Assert.True(result.Found);
+        Assert.False(result.Recovered);
+        Assert.True(result.IsExpectedAuthorityDenial);
+        Assert.Equal(snapshot.Revision, result.PersistedActiveRevision);
+        Assert.Null(runtime.Describe().Revision);
+        Assert.Contains(
+            "explicit Run",
+            result.Runtime!.RuntimeIssues.Single(issue => issue.Code == PersistedRuntimeRecoveryService.RecoveryDeniedIssueCode).Message,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Recovery_UsesPersistedActiveRevisionAndRehydratesItsLockEvenWhenNewerRevisionIsPublished()
     {
         await using var activeServer = new TestModbusTcpServer();
@@ -772,7 +808,8 @@ public sealed class PersistedRuntimeRecoveryServiceTests
     private sealed class RecoveryStore(
         EngineeringProjectSnapshot activeSnapshot,
         EngineeringProjectSnapshot publishedSnapshot,
-        DateTimeOffset? demoStartedAtUtc = null) : IEngineeringProjectStore
+        DateTimeOffset? demoStartedAtUtc = null,
+        EngineeringRuntimeStatus runtimeStatus = EngineeringRuntimeStatus.Active) : IEngineeringProjectStore
     {
         private readonly EngineeringProjectSnapshot[] _snapshots =
             [activeSnapshot, publishedSnapshot];
@@ -781,7 +818,8 @@ public sealed class PersistedRuntimeRecoveryServiceTests
             activeSnapshot.Revision,
             DateTimeOffset.UtcNow,
             "operator",
-            demoStartedAtUtc);
+            demoStartedAtUtc,
+            runtimeStatus);
         private readonly EngineeringProjectPublication _publication = new(
             publishedSnapshot.ProjectKey,
             publishedSnapshot.Revision,

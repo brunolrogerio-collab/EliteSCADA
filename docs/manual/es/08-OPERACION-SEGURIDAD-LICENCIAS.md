@@ -6,6 +6,22 @@ Runtime ejecuta la revisión Active bajo la autoridad del backend. La sesión re
 
 La pérdida/expiración de la autoridad interactiva no convierte la sesión en autorizada por defecto.
 
+### Detener e iniciar la aplicación en operación
+
+En la vista general de Engineering, la tarjeta **4 — Active** muestra el estado informado del Runtime. Con `EngineeringModify`, elija **Detener Runtime** y confirme. La acción detiene los drivers de la aplicación, la adquisición de datos y los Scripts de servidor. La revisión sigue Active; se conservan el servicio Engineering/API, la licencia instalada y el inicio de sesión del operador. Las sesiones Runtime y las conexiones con equipos pueden interrumpirse y deben reconectarse cuando Runtime vuelva. Detener no despublica la revisión ni revoca/elimina la licencia.
+
+Después de una parada completa, **Iniciar Runtime** reanuda la misma revisión Active y vuelve a validar licencia y autoridad. No renueva ni reinicia un plazo limitado de Demo. Si la interfaz informa que la parada quedó incompleta, revise los componentes afectados antes de iniciar. Con HA habilitado, no se ofrecen controles locales porque no detendrían el clúster completo; use el mantenimiento coordinado del clúster.
+
+Las capturas siguientes muestran ambas acciones en la vista general; se tomaron durante la validación local integrada.
+
+![Runtime en ejecución: la tarjeta Active ofrece Parar Runtime](../assets/runtime-active-overview.png)
+
+![Runtime detenido: la tarjeta Active ofrece Iniciar Runtime](../assets/runtime-stopped-overview.png)
+
+Una renovación automática de licencia aceptada ocurre en segundo plano y por sí sola no detiene Runtime. Una licencia rechazada, revocada o vencida sigue las protecciones de entitlement del producto.
+
+**Ayuda relacionada:** `/help?topic=engineering.lifecycle`, `/help?topic=licensing.overview`, `/help?topic=ha.overview`.
+
 ## Interactive y View Only
 
 Interactive y View Only representan clases de sesión. View Only reduce la autoridad operacional; en particular, no concede acceso de escritura/comandos aunque el usuario tenga permisos que podría utilizar en una sesión interactiva.

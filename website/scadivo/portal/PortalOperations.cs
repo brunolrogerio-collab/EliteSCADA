@@ -13,6 +13,7 @@ namespace Scadivo.Portal;
 
 public sealed record LoginInput(string? Username, string? Password);
 public sealed record AccountAccessInput(bool? Suspended);
+public sealed record AdministrationAccessInput(bool? Administrator);
 public sealed record InviteInput(string? Username, string? DisplayName, string? Email, string? Organization);
 public sealed record AcceptInviteInput(string? UserId, string? Token, string? Password, string? Locale, string? ProfileType,
     string? ActivityArea, string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber,
@@ -35,6 +36,8 @@ public sealed record TemplateInput(string? SubjectPt, string? SubjectEn, string?
 public sealed record FaqInput(string? Slug, string? Category, string? TitlePt, string? TitleEn, string? TitleEs, string? BodyPt, string? BodyEn, string? BodyEs, bool Published);
 public sealed record PublicContactInput(string? Name, string? Email, string? Category, string? SubjectKey,
     string? OtherSubject, string? Message, string? Locale, string? Website);
+public sealed record DownloadReleaseInput(string? Version, string? Platform, string? NotesPt, string? NotesEn,
+    string? NotesEs, string? OfficialUrl, string? Sha256, bool Published);
 
 public sealed class PortalOperations(
     PortalDb db, UserManager<PortalUser> users, SignInManager<PortalUser> signIn, IConfiguration configuration,
@@ -85,7 +88,7 @@ public sealed class PortalOperations(
             user.Id, user.UserName, user.DisplayName, user.Email, user.EmailConfirmed, user.Locale,
             user.ProfileType, user.ActivityArea, user.ActivityAreaOther, user.OrganizationOrSchool,
             user.PhoneNumber, user.Address, user.DateOfBirth, user.MarketingEmailOptIn,
-            profileComplete = user.ProfileComplete, owner = Owner(context), organizations
+            profileComplete = user.ProfileComplete, owner = Owner(context), administrator = PortalAccess.IsAdministrator(context.User), organizations
         };
     }
 
@@ -368,7 +371,7 @@ public sealed class PortalOperations(
     {
         var userId = UserId(context);
         var query = db.Tickets.AsNoTracking();
-        if (!Owner(context)) query = query.Where(x => x.UserId == userId);
+        if (!PortalAccess.IsAdministrator(context.User)) query = query.Where(x => x.UserId == userId);
         return Results.Ok(await query.OrderByDescending(x => x.UpdatedAtUtc).Take(100).ToListAsync());
     }
 
@@ -401,7 +404,7 @@ public sealed class PortalOperations(
         if (!Valid(input.Body, 1, 8000)) return Invalid();
         var ticket = await AccessibleTicket(id, context);
         if (ticket is null) return Results.NotFound();
-        var staff = Owner(context);
+        var staff = PortalAccess.IsAdministrator(context.User);
         db.TicketMessages.Add(new TicketMessage { TicketId = id, UserId = UserId(context), Body = input.Body!.Trim(), StaffReply = staff });
         ticket.UpdatedAtUtc = DateTimeOffset.UtcNow;
         if (staff) { ticket.Status = "answered"; db.EmailOutbox.Add(Notification(ticket.UserId, "support.replied", id.ToString())); }
@@ -514,7 +517,7 @@ public sealed class PortalOperations(
     private async Task<SupportTicket?> AccessibleTicket(Guid id, HttpContext context)
     {
         var userId = UserId(context);
-        return await db.Tickets.FirstOrDefaultAsync(x => x.Id == id && (Owner(context) || x.UserId == userId));
+        return await db.Tickets.FirstOrDefaultAsync(x => x.Id == id && (PortalAccess.IsAdministrator(context.User) || x.UserId == userId));
     }
 
     public async Task<IResult> Faq(string? q, string? lang)
@@ -534,16 +537,53 @@ public sealed class PortalOperations(
                 body = language == "en" ? x.BodyEn : language == "es" ? x.BodyEs : x.BodyPt }).ToListAsync());
     }
 
-    public async Task<IResult> Releases() => Results.Ok(await db.Releases.AsNoTracking().Where(x => x.Published)
-        .OrderByDescending(x => x.CreatedAtUtc).Take(40).Select(x => new { x.Id, x.Version, x.Platform, x.NotesPt, x.NotesEn, x.NotesEs, x.Sha256, x.CreatedAtUtc }).ToListAsync());
+    public async Task<IResult> Releases()
+    {
+        var candidates = await db.Releases.AsNoTracking().Where(x => x.Published).OrderByDescending(x => x.CreatedAtUtc).Take(100).ToListAsync();
+        return Results.Ok(candidates.Where(PortalDownloadCatalog.Ready).Take(40)
+            .Select(x => new { x.Id, x.Version, x.Platform, x.NotesPt, x.NotesEn, x.NotesEs, x.Sha256, x.CreatedAtUtc }));
+    }
+
+    public async Task<IResult> AdminReleases() => Results.Ok(await db.Releases.AsNoTracking()
+        .OrderByDescending(x => x.CreatedAtUtc).Take(200).ToListAsync());
+
+    public async Task<IResult> SaveRelease(Guid? id, DownloadReleaseInput input, HttpContext context)
+    {
+        var version = input.Version?.Trim();
+        var platform = input.Platform?.Trim();
+        if (!PortalDownloadCatalog.ValidVersion(version) || !PortalDownloadCatalog.Platforms.Contains(platform ?? "") ||
+            (input.NotesPt?.Length ?? 0) > 8000 || (input.NotesEn?.Length ?? 0) > 8000 || (input.NotesEs?.Length ?? 0) > 8000) return Invalid();
+        var url = input.OfficialUrl?.Trim() ?? "";
+        var hash = input.Sha256?.Trim().ToLowerInvariant() ?? "";
+        if (url.Length > 0 && !PortalDownloadCatalog.IsOfficialUrl(url)) return Invalid("download-invalid-origin");
+        if (hash.Length > 0 && !PortalDownloadCatalog.ValidHash(hash)) return Invalid("download-invalid-sha256");
+        var candidate = new DownloadRelease
+        {
+            Version = version!, Platform = platform!, OfficialUrl = url, Sha256 = hash,
+            NotesPt = input.NotesPt?.Trim() ?? "", NotesEn = input.NotesEn?.Trim() ?? "", NotesEs = input.NotesEs?.Trim() ?? ""
+        };
+        if (input.Published && !PortalDownloadCatalog.Ready(candidate)) return Invalid("download-not-ready");
+        var release = id.HasValue ? await db.Releases.FindAsync(id.Value) : new DownloadRelease();
+        if (release is null) return Results.NotFound();
+        var wasPublished = release.Published;
+        release.Version = candidate.Version; release.Platform = candidate.Platform; release.OfficialUrl = candidate.OfficialUrl;
+        release.Sha256 = candidate.Sha256; release.NotesPt = candidate.NotesPt; release.NotesEn = candidate.NotesEn; release.NotesEs = candidate.NotesEs;
+        release.Published = input.Published;
+        if (!id.HasValue) db.Releases.Add(release);
+        db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = id.HasValue ? "download.release.updated" : "download.release.created", ResourceId = release.Id.ToString("D") });
+        if (wasPublished != release.Published)
+            db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = release.Published ? "download.release.published" : "download.release.unpublished", ResourceId = release.Id.ToString("D") });
+        try { await db.SaveChangesAsync(); }
+        catch (DbUpdateException exception) when (exception.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+        { return Results.Conflict(new { error = "download-already-exists" }); }
+        return id.HasValue ? Results.Ok(release) : Results.Created($"/portal/api/admin/downloads/{release.Id}", release);
+    }
 
     public async Task<IResult> Download(Guid id, HttpContext context)
     {
         var release = await db.Releases.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.Published);
         if (release is null) return Results.NotFound();
-        if (!Uri.TryCreate(release.OfficialUrl, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.Host != "github.com" ||
-            !uri.AbsolutePath.StartsWith("/brunolrogerio-collab/EliteSCADA/releases/download/", StringComparison.Ordinal) ||
-            !Regex.IsMatch(release.Sha256, "^[a-fA-F0-9]{64}$")) return Results.Conflict(new { error = "release-not-approved" });
+        if (!PortalDownloadCatalog.Ready(release)) return Results.Conflict(new { error = "release-not-approved" });
         await AuditAsync(UserId(context), "download.requested", id.ToString());
         return Results.Redirect(release.OfficialUrl);
     }
@@ -569,9 +609,34 @@ public sealed class PortalOperations(
             join role in db.Roles on membership.RoleId equals role.Id
             where role.Name == "Owner"
             select membership.UserId).ToArrayAsync();
+        var adminIds = await (from membership in db.UserRoles
+            join role in db.Roles on membership.RoleId equals role.Id
+            where role.Name == "Admin"
+            select membership.UserId).ToArrayAsync();
         return Results.Ok(await db.Users.AsNoTracking().OrderBy(x => x.UserName).Take(100)
             .Select(x => new { x.Id, x.UserName, x.DisplayName, x.Email, x.EmailConfirmed, x.InvitationAccepted, x.IsSuspended,
-                owner = ownerIds.Contains(x.Id), profileComplete = x.ProfileType != "" && x.ActivityArea != "" && x.OrganizationOrSchool != "", x.CreatedAtUtc }).ToListAsync());
+                owner = ownerIds.Contains(x.Id), administrator = ownerIds.Contains(x.Id) || adminIds.Contains(x.Id),
+                profileComplete = x.ProfileType != "" && x.ActivityArea != "" && x.OrganizationOrSchool != "", x.CreatedAtUtc }).ToListAsync());
+    }
+
+    public async Task<IResult> UpdateAdministration(string id, AdministrationAccessInput input, HttpContext context)
+    {
+        if (input.Administrator is null || !Valid(id, 1, 100)) return Invalid();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var account = await db.Users.FromSqlInterpolated($"SELECT * FROM \"AspNetUsers\" WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync();
+        if (account is null) return Results.NotFound();
+        if (await users.IsInRoleAsync(account, "Owner")) return Results.Conflict(new { error = "owner-account-protected" });
+        if (input.Administrator.Value && (!account.EmailConfirmed || !account.InvitationAccepted || account.IsSuspended))
+            return Results.Conflict(new { error = "account-not-ready-for-administration" });
+        var current = await users.IsInRoleAsync(account, "Admin");
+        if (current == input.Administrator.Value) return Results.Ok(new { account.Id, administrator = current });
+        var changed = input.Administrator.Value ? await users.AddToRoleAsync(account, "Admin") : await users.RemoveFromRoleAsync(account, "Admin");
+        if (!changed.Succeeded || !(await users.UpdateSecurityStampAsync(account)).Succeeded)
+            return Results.Conflict(new { error = "account-not-updated" });
+        db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = input.Administrator.Value ? "account.administration.granted" : "account.administration.revoked", ResourceId = account.Id });
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return Results.Ok(new { account.Id, administrator = input.Administrator.Value });
     }
 
     public async Task<IResult> UpdateAccountAccess(string id, AccountAccessInput input, HttpContext context)

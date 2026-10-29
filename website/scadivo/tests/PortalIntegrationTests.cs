@@ -1163,6 +1163,136 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData("https://github.com/brunolrogerio-collab/EliteSCADA/releases/download/v1/scadivo.zip", true)]
+    [InlineData("https://github.com/brunolrogerio-collab/EliteSCADA/releases/download/v1/scadivo.zip?secret=value", false)]
+    [InlineData("https://github.com/brunolrogerio-collab/EliteSCADA/releases/download/v1/scadivo.zip#fragment", false)]
+    [InlineData("https://user:password@github.com/brunolrogerio-collab/EliteSCADA/releases/download/v1/scadivo.zip", false)]
+    [InlineData("https://github.com.evil.invalid/brunolrogerio-collab/EliteSCADA/releases/download/v1/scadivo.zip", false)]
+    [InlineData("https://github.com/another/repository/releases/download/v1/scadivo.zip", false)]
+    [InlineData("https://github.com/brunolrogerio-collab/EliteSCADA/releases/download/v1/", false)]
+    [InlineData("https://github.com/brunolrogerio-collab/EliteSCADA/releases/download/v1/file%2felsewhere.zip", false)]
+    [InlineData("http://github.com/brunolrogerio-collab/EliteSCADA/releases/download/v1/scadivo.zip", false)]
+    public void DownloadCatalogOnlyAcceptsOfficialReleaseFiles(string url, bool allowed)
+        => Assert.Equal(allowed, PortalDownloadCatalog.IsOfficialUrl(url));
+
+    [Fact]
+    public async Task AdministrationDelegationAndDownloadPublishingEnforceServerBoundaries()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-administration-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "owner-password");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Logging:LogLevel:Default"] = "Warning"
+        };
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        try
+        {
+            await using var factory = Factory(configuration);
+            var owner = await Login(factory, "scadivo.owner");
+            var ownerId = (await owner.Get("/profile")).GetProperty("id").GetString()!;
+            string memberId, otherId, pendingId;
+            Guid customerOrganizationId;
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var manager = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+                async Task<string> CreateAccount(string suffix, bool confirmed = true)
+                {
+                    var account = new PortalUser { UserName = $"staff-{marker}-{suffix}", Email = $"staff-{marker}-{suffix}@example.test",
+                        EmailConfirmed = confirmed, InvitationAccepted = true, DisplayName = "Synthetic Staff",
+                        ProfileType = "professional", ActivityArea = "industrial-automation", OrganizationOrSchool = "Synthetic Company" };
+                    PortalSeed.Ensure(await manager.CreateAsync(account, Password));
+                    PortalSeed.Ensure(await manager.AddToRoleAsync(account, "Member"));
+                    return account.Id;
+                }
+                memberId = await CreateAccount("one"); otherId = await CreateAccount("two"); pendingId = await CreateAccount("pending", false);
+                await CreateAccount("customer");
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                var organization = new Organization { Name = "Synthetic customer " + marker };
+                customerOrganizationId = organization.Id;
+                db.Organizations.Add(organization);
+                db.Memberships.Add(new Membership { OrganizationId = organization.Id, UserId = memberId, Role = "Admin" });
+                await db.SaveChangesAsync();
+            }
+
+            using var anonymous = Client(factory);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("api/downloads")).StatusCode);
+            var member = await Login(factory, $"staff-{marker}-one");
+            Assert.False((await member.Get("/profile")).GetProperty("administrator").GetBoolean());
+            Assert.Equal(HttpStatusCode.Forbidden, (await member.Raw($"/admin/accounts/{memberId}/administration", HttpMethod.Put, new { administrator = true })).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await member.Client.GetAsync("api/admin/downloads")).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await member.Raw("/admin/downloads", HttpMethod.Post, new { version = "v1", platform = "windows-x64", published = false })).StatusCode);
+            using (var noCsrf = await owner.Client.PutAsJsonAsync($"api/admin/accounts/{memberId}/administration", new { administrator = true }))
+                Assert.Equal(HttpStatusCode.BadRequest, noCsrf.StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await owner.Raw($"/admin/accounts/{pendingId}/administration", HttpMethod.Put, new { administrator = true })).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await owner.Raw($"/admin/accounts/{ownerId}/administration", HttpMethod.Put, new { administrator = false })).StatusCode);
+            await owner.Send($"/admin/accounts/{memberId}/administration", HttpMethod.Put, new { administrator = true });
+            Assert.Equal(HttpStatusCode.Unauthorized, (await member.Client.GetAsync("api/admin/overview")).StatusCode);
+            var staff = await Login(factory, $"staff-{marker}-one");
+            var profile = await staff.Get("/profile");
+            Assert.True(profile.GetProperty("administrator").GetBoolean()); Assert.False(profile.GetProperty("owner").GetBoolean());
+            Assert.Equal(HttpStatusCode.OK, (await staff.Client.GetAsync("api/admin/licensing/licenses")).StatusCode);
+            await staff.Send($"/admin/accounts/{otherId}/administration", HttpMethod.Put, new { administrator = true });
+            var delegatedStaff = await Login(factory, $"staff-{marker}-two");
+            Assert.True((await delegatedStaff.Get("/profile")).GetProperty("administrator").GetBoolean());
+            Assert.Empty((await delegatedStaff.Get("/licensing/organizations")).EnumerateArray());
+            Assert.Equal(HttpStatusCode.NotFound, (await delegatedStaff.Client.GetAsync($"api/licensing/organizations/{customerOrganizationId}/members")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await delegatedStaff.Raw($"/licensing/organizations/{customerOrganizationId}/applications", HttpMethod.Post,
+                new { name = "Unauthorized staff application" })).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await delegatedStaff.Raw($"/licensing/organizations/{customerOrganizationId}/members", HttpMethod.Post,
+                new { userIdentifier = "staff-member@example.test", role = "Admin" })).StatusCode);
+            Assert.Empty((await delegatedStaff.Get("/licensing/licenses")).GetProperty("licenses").EnumerateArray());
+            Assert.Equal(HttpStatusCode.OK, (await delegatedStaff.Client.GetAsync("api/admin/licensing/organizations")).StatusCode);
+
+            var version = "test-" + marker;
+            var draft = await staff.Send("/admin/downloads", HttpMethod.Post, new { version, platform = "windows-x64", published = false });
+            var releaseId = draft.GetProperty("id").GetGuid();
+            var ordinaryMember = await Login(factory, $"staff-{marker}-customer");
+            Assert.DoesNotContain((await ordinaryMember.Get("/downloads")).EnumerateArray(), item => item.GetProperty("id").GetGuid() == releaseId);
+            Assert.Equal(HttpStatusCode.NotFound, (await ordinaryMember.Client.GetAsync($"api/downloads/{releaseId}/file")).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await staff.Raw("/admin/downloads", HttpMethod.Post, new { version, platform = "windows-x64", published = false })).StatusCode);
+            var url = $"https://github.com/brunolrogerio-collab/EliteSCADA/releases/download/{version}/scadivo.zip";
+            object ReleaseInput(string officialUrl, string hash, bool published, string notesEs = "Notas de prueba") => new
+            {
+                version, platform = "windows-x64", officialUrl, sha256 = hash, published,
+                notesPt = "Notas de teste", notesEn = "Test release notes", notesEs
+            };
+            Assert.Equal(HttpStatusCode.BadRequest, (await staff.Raw($"/admin/downloads/{releaseId}", HttpMethod.Put, ReleaseInput(url, "invalid", true))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await staff.Raw($"/admin/downloads/{releaseId}", HttpMethod.Put, ReleaseInput("https://other.invalid/file.zip", new string('a', 64), true))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await staff.Raw($"/admin/downloads/{releaseId}", HttpMethod.Put, ReleaseInput(url, new string('a', 64), true, ""))).StatusCode);
+            await staff.Send($"/admin/downloads/{releaseId}", HttpMethod.Put, ReleaseInput(url, new string('a', 64), true));
+            var visible = (await ordinaryMember.Get("/downloads")).EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == releaseId);
+            Assert.Equal("Test release notes", visible.GetProperty("notesEn").GetString());
+            Assert.False(visible.TryGetProperty("officialUrl", out _));
+            using (var download = await ordinaryMember.Client.GetAsync($"api/downloads/{releaseId}/file"))
+            {
+                Assert.Equal(HttpStatusCode.Redirect, download.StatusCode);
+                Assert.Equal(url, download.Headers.Location?.AbsoluteUri);
+            }
+            Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync($"api/downloads/{releaseId}/file")).StatusCode);
+            await staff.Send($"/admin/downloads/{releaseId}", HttpMethod.Put, ReleaseInput(url, new string('a', 64), false));
+            Assert.DoesNotContain((await ordinaryMember.Get("/downloads")).EnumerateArray(), item => item.GetProperty("id").GetGuid() == releaseId);
+            Assert.Equal(HttpStatusCode.NotFound, (await ordinaryMember.Client.GetAsync($"api/downloads/{releaseId}/file")).StatusCode);
+            Assert.Contains((await staff.Get("/admin/downloads")).EnumerateArray(), item => item.GetProperty("id").GetGuid() == releaseId);
+
+            await staff.Send($"/admin/accounts/{otherId}/administration", HttpMethod.Put, new { administrator = false });
+            Assert.Equal(HttpStatusCode.Unauthorized, (await delegatedStaff.Client.GetAsync("api/admin/overview")).StatusCode);
+            await owner.Send($"/admin/accounts/{memberId}/administration", HttpMethod.Put, new { administrator = false });
+            Assert.Equal(HttpStatusCode.Unauthorized, (await staff.Client.GetAsync("api/admin/downloads")).StatusCode);
+            var formerStaff = await Login(factory, $"staff-{marker}-one");
+            Assert.Equal(HttpStatusCode.Forbidden, (await formerStaff.Client.GetAsync("api/admin/downloads")).StatusCode);
+            Assert.Contains((await owner.Get("/admin/audit")).EnumerateArray(), item => item.GetProperty("action").GetString() == "account.administration.revoked");
+            Assert.Contains((await owner.Get("/admin/audit")).EnumerateArray(), item => item.GetProperty("action").GetString() == "download.release.unpublished");
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     private sealed class TestOnlineLeaseSigner : IOnlineLeaseSigner
     {
         public bool IsEnabled => true;

@@ -138,6 +138,69 @@ test('DB-B is presented within Engineering navigation and follows the active lig
   await expect(content).toHaveCSS('color', 'rgb(237, 243, 247)');
 });
 
+test('Historian size budget makes destructive chunk removal explicit and submits the selected policy', async ({ page }) => {
+  let appliedStorage: any = {
+    provider: 'timescaledb',
+    supported: true,
+    policyManaged: true,
+    rawRetentionEnabled: false,
+    rawRetentionDays: null,
+    rawSampleStorageLimitBytes: null,
+    rawSampleStorageLimitAction: 'WarnOnly',
+    rawSampleLimitExceeded: false,
+    usage: {
+      databaseBytes: 64 * 1024 * 1024,
+      rawSamplesBytes: 32 * 1024 * 1024,
+      aggregateBytes: 0,
+      historianBytes: 32 * 1024 * 1024,
+      filesystemFreeBytes: null,
+      estimatedDailyGrowthBytes: null,
+      measuredAtUtc: '2026-10-29T20:00:00Z'
+    }
+  };
+  let submitted: any = null;
+
+  await page.route('**/api/admin/database-topology/**', route => fulfillJson(route, topologyStatus()));
+  await page.route('**/api/admin/historian-storage/**', async route => {
+    const request = route.request();
+    if (request.method() === 'GET') {
+      await fulfillJson(route, appliedStorage);
+      return;
+    }
+    if (request.method() === 'PUT' && new URL(request.url()).pathname.endsWith('/retention')) {
+      submitted = request.postDataJSON();
+      appliedStorage = {
+        ...appliedStorage,
+        rawSampleStorageLimitBytes: submitted.rawSampleStorageLimitBytes,
+        rawSampleStorageLimitAction: submitted.rawSampleStorageLimitAction
+      };
+      await fulfillJson(route, appliedStorage);
+      return;
+    }
+    await fulfillJson(route, { error: `Unexpected Historian storage request: ${request.method()}` }, 500);
+  });
+
+  await page.goto(`${harnessPath}?locale=pt-BR`);
+  const content = page.getByTestId('database-topology-app');
+  const limit = content.getByLabel('Limite de tamanho das amostras brutas');
+  await expect(limit).toBeVisible();
+  await limit.fill('0.01');
+  await content.getByLabel('Ao alcançar o limite').selectOption('DeleteOldestCompleteChunks');
+
+  const confirmation = content.getByLabel('Confirmo que a retenção e/ou a remoção de blocos antigos pode excluir permanentemente amostras brutas históricas.');
+  await expect(confirmation).toBeVisible();
+  const save = content.getByRole('button', { name: 'Salvar retenção' });
+  await expect(save).toBeDisabled();
+  await confirmation.check();
+  await save.click();
+
+  await expect.poll(() => submitted).not.toBeNull();
+  expect(submitted.configureRawSampleStorageLimit).toBe(true);
+  expect(submitted.rawSampleStorageLimitBytes).toBe(10_737_418);
+  expect(submitted.rawSampleStorageLimitAction).toBe('DeleteOldestCompleteChunks');
+  expect(submitted.allowPotentialDataExpiration).toBe(true);
+});
+
 test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, restart and rollback', async ({ page }, testInfo) => {
   let currentStatus: any = topologyStatus();
   let statusGetCount = 0;

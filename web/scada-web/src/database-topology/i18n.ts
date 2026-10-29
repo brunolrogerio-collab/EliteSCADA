@@ -166,12 +166,21 @@ const ptBR = {
   noExpiry: 'Sem expiração automática',
   retentionDays: 'Manter por dias',
   adoptUnmanaged: 'Na primeira aplicação, o SCADIVO substituirá as políticas Timescale existentes para o Historian. Faixas de agregação sem configuração registrada serão desativadas, e regras externas não registradas serão perdidas. Confirmo que quero assumir esse controle.',
-  confirmExpiration: 'Confirmo que a nova retenção pode remover amostras históricas que ultrapassem o período escolhido.',
+  confirmExpiration: 'Confirmo que a retenção e/ou a remoção de blocos antigos pode excluir permanentemente amostras brutas históricas.',
   saveRetention: 'Salvar retenção',
   retentionSaved: 'Retenção do Historian atualizada.',
   retentionNotSaved: 'A retenção não foi alterada.',
   retentionPlaceholder: 'Ex.: 30',
-  storagePolicyDetail: 'Esta etapa configura retenção por tempo das amostras brutas. Limite por tamanho e arquivamento ainda serão entregues nesta sequência.'
+  rawSizeLimit: 'Limite de tamanho das amostras brutas',
+  rawSizeLimitPlaceholder: 'Ex.: 20',
+  gibibytes: 'GiB',
+  noSizeLimit: 'Sem limite por tamanho',
+  limitAction: 'Ao alcançar o limite',
+  warnOnly: 'Somente avisar; não apagar dados',
+  deleteOldestChunks: 'Remover blocos completos mais antigos',
+  limitExceeded: 'O uso atual das amostras brutas excede o limite escolhido.',
+  chunkLimitDetail: 'O limite é uma meta, não um teto instantâneo. A cada execução, o SCADIVO pode remover até quatro intervalos antigos completos e mantém o intervalo mais recente. O tamanho dos blocos pode deixar o uso acima do limite; confira a medição após a manutenção.',
+  storagePolicyDetail: 'O limite se aplica somente às amostras brutas e inclui os blocos, índices e dados auxiliares do Historian. Os agregados seguem a retenção própria. Arquivamento e restauração verificada ainda serão entregues nesta sequência.'
 } as const;
 
 export type DatabaseTopologyText = Readonly<{ [K in keyof typeof ptBR]: string }>;
@@ -342,12 +351,21 @@ const en: DatabaseTopologyText = {
   noExpiry: 'No automatic expiry',
   retentionDays: 'Keep for days',
   adoptUnmanaged: 'On first application, SCADIVO will replace existing Timescale policies for the Historian. Aggregate tiers with no recorded configuration will be disabled, and unrecorded external rules will be lost. I confirm that SCADIVO should take over.',
-  confirmExpiration: 'I confirm that this retention setting may remove historical samples older than the selected period.',
+  confirmExpiration: 'I confirm that retention and/or removing old chunks may permanently delete historical raw samples.',
   saveRetention: 'Save retention',
   retentionSaved: 'Historian retention updated.',
   retentionNotSaved: 'Retention was not changed.',
   retentionPlaceholder: 'Example: 30',
-  storagePolicyDetail: 'This step configures time-based retention for raw samples. Size limits and archiving will be delivered later in this sequence.'
+  rawSizeLimit: 'Raw sample size limit',
+  rawSizeLimitPlaceholder: 'Example: 20',
+  gibibytes: 'GiB',
+  noSizeLimit: 'No size limit',
+  limitAction: 'When the limit is reached',
+  warnOnly: 'Warn only; do not delete data',
+  deleteOldestChunks: 'Delete complete oldest chunks',
+  limitExceeded: 'Current raw sample usage is above the selected limit.',
+  chunkLimitDetail: 'The limit is a target, not an instant ceiling. Each maintenance run can remove up to four complete old time intervals and keeps the newest interval. Chunk size can leave usage above the limit; check the measurement after maintenance.',
+  storagePolicyDetail: 'The limit applies only to raw samples and includes Historian chunks, indexes and auxiliary data. Aggregates keep their own retention policy. Archiving and verified restore will be delivered later in this sequence.'
 };
 
 const es: DatabaseTopologyText = {
@@ -516,12 +534,21 @@ const es: DatabaseTopologyText = {
   noExpiry: 'Sin expiración automática',
   retentionDays: 'Conservar durante días',
   adoptUnmanaged: 'En la primera aplicación, SCADIVO reemplazará las políticas Timescale existentes del Historian. Se desactivarán los niveles de agregación sin una configuración registrada y se perderán las reglas externas no registradas. Confirmo que quiero asumir este control.',
-  confirmExpiration: 'Confirmo que esta retención puede eliminar muestras históricas anteriores al período elegido.',
+  confirmExpiration: 'Confirmo que la retención o la eliminación de bloques antiguos puede borrar permanentemente muestras históricas sin procesar.',
   saveRetention: 'Guardar retención',
   retentionSaved: 'Retención del Historian actualizada.',
   retentionNotSaved: 'La retención no fue modificada.',
   retentionPlaceholder: 'Ej.: 30',
-  storagePolicyDetail: 'Esta etapa configura la retención por tiempo de las muestras sin procesar. El límite por tamaño y el archivado se entregarán después en esta secuencia.'
+  rawSizeLimit: 'Límite de tamaño de las muestras sin procesar',
+  rawSizeLimitPlaceholder: 'Ej.: 20',
+  gibibytes: 'GiB',
+  noSizeLimit: 'Sin límite por tamaño',
+  limitAction: 'Al alcanzar el límite',
+  warnOnly: 'Solo avisar; no borrar datos',
+  deleteOldestChunks: 'Eliminar bloques completos más antiguos',
+  limitExceeded: 'El uso actual de las muestras sin procesar supera el límite elegido.',
+  chunkLimitDetail: 'El límite es una meta, no un tope instantáneo. En cada ejecución, SCADIVO puede eliminar hasta cuatro intervalos antiguos completos y conserva el intervalo más reciente. El tamaño de los bloques puede dejar el uso por encima del límite; revise la medición después del mantenimiento.',
+  storagePolicyDetail: 'El límite solo se aplica a las muestras sin procesar e incluye bloques, índices y datos auxiliares del Historian. Los agregados conservan su propia retención. El archivado y la restauración verificada se entregarán más adelante en esta secuencia.'
 };
 
 const resources: Readonly<Record<EngineeringLocale, DatabaseTopologyText>> = {

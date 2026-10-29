@@ -45,6 +45,10 @@ public static class HistorianStorageAdministrationApi
                     policyManaged = policy is not null,
                     rawRetentionEnabled = policy?.RawRetention.Enabled ?? false,
                     rawRetentionDays = policy?.RawRetention.Duration?.TotalDays,
+                    rawSampleStorageLimitBytes = policy?.RawSampleStorageLimitBytes,
+                    rawSampleStorageLimitAction = policy?.RawSampleStorageLimitAction.ToString() ?? HistorianRawStorageLimitAction.WarnOnly.ToString(),
+                    rawSampleLimitExceeded = policy?.RawSampleStorageLimitBytes is { } limitBytes &&
+                        usage.RawSamplesBytes is { } rawBytes && rawBytes > limitBytes,
                     aggregatePolicyPresent = policy?.EffectiveDownsampling.Count > 0,
                     policy,
                     usage = new
@@ -90,6 +94,12 @@ public static class HistorianStorageAdministrationApi
                 request.RawRetentionDays.HasValue && !double.IsFinite(request.RawRetentionDays.Value))
                 return Results.BadRequest(new { error = "Raw retention days must be empty or a finite value between 0 and 36500." });
 
+            if (request.ConfigureRawSampleStorageLimit && request.RawSampleStorageLimitBytes is <= 0)
+                return Results.BadRequest(new { error = "Raw sample storage limit must be empty or a positive number of bytes." });
+            if (request.ConfigureRawSampleStorageLimit &&
+                !TryParseLimitAction(request.RawSampleStorageLimitAction, out _))
+                return Results.BadRequest(new { error = "Raw sample storage limit action is invalid." });
+
             try
             {
                 var current = await store.GetAppliedPolicyAsync(cancellationToken);
@@ -102,10 +112,18 @@ public static class HistorianStorageAdministrationApi
                 var nextRule = request.RawRetentionDays is { } days
                     ? new HistorianRetentionRule(true, TimeSpan.FromDays(days))
                     : new HistorianRetentionRule();
+                var limitAction = request.ConfigureRawSampleStorageLimit
+                    ? ParseLimitAction(request.RawSampleStorageLimitAction)
+                    : current?.RawSampleStorageLimitAction ?? HistorianRawStorageLimitAction.WarnOnly;
+                var limitBytes = request.ConfigureRawSampleStorageLimit
+                    ? request.RawSampleStorageLimitBytes
+                    : current?.RawSampleStorageLimitBytes;
                 var next = new HistorianStoragePolicy(
                     current?.Key ?? "engineering-database",
                     nextRule,
-                    current?.Downsampling);
+                    current?.Downsampling,
+                    limitBytes,
+                    limitAction);
                 next.Validate();
 
                 if (HistorianPolicySafety.RequiresExplicitDataExpirationApproval(current, next) &&
@@ -130,6 +148,8 @@ public static class HistorianStorageAdministrationApi
                     {
                         ["rawRetentionEnabled"] = next.RawRetention.Enabled.ToString(),
                         ["rawRetentionDays"] = next.RawRetention.Duration?.TotalDays.ToString("R", System.Globalization.CultureInfo.InvariantCulture) ?? "none",
+                        ["rawSampleStorageLimitBytes"] = next.RawSampleStorageLimitBytes?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none",
+                        ["rawSampleStorageLimitAction"] = next.RawSampleStorageLimitAction.ToString(),
                         ["adoptedUnmanagedPolicy"] = (current is null).ToString()
                     });
 
@@ -138,6 +158,8 @@ public static class HistorianStorageAdministrationApi
                     policyManaged = true,
                     rawRetentionEnabled = next.RawRetention.Enabled,
                     rawRetentionDays = next.RawRetention.Duration?.TotalDays,
+                    rawSampleStorageLimitBytes = next.RawSampleStorageLimitBytes,
+                    rawSampleStorageLimitAction = next.RawSampleStorageLimitAction.ToString(),
                     policy = next
                 });
             }
@@ -161,6 +183,21 @@ public static class HistorianStorageAdministrationApi
             }
         });
     }
+
+    private static bool TryParseLimitAction(string? value, out HistorianRawStorageLimitAction action)
+    {
+        if (string.IsNullOrWhiteSpace(value) ||
+            !Enum.GetNames<HistorianRawStorageLimitAction>().Any(name => name.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        {
+            action = HistorianRawStorageLimitAction.WarnOnly;
+            return string.IsNullOrWhiteSpace(value);
+        }
+
+        return Enum.TryParse(value, ignoreCase: true, out action) && Enum.IsDefined(action);
+    }
+
+    private static HistorianRawStorageLimitAction ParseLimitAction(string? value) =>
+        TryParseLimitAction(value, out var action) ? action : HistorianRawStorageLimitAction.WarnOnly;
 
     private static async Task<IResult?> AuthorizeAsync(
         HttpContext context,
@@ -191,4 +228,7 @@ public static class HistorianStorageAdministrationApi
 public sealed record HistorianRawRetentionRequest(
     double? RawRetentionDays,
     bool AcknowledgeUnmanagedPolicyReplacement = false,
-    bool AllowPotentialDataExpiration = false);
+    bool AllowPotentialDataExpiration = false,
+    bool ConfigureRawSampleStorageLimit = false,
+    long? RawSampleStorageLimitBytes = null,
+    string? RawSampleStorageLimitAction = null);

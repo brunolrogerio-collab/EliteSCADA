@@ -96,6 +96,9 @@ export function applyHistorianRawRetention(request: Readonly<{
   rawRetentionDays: number | null;
   acknowledgeUnmanagedPolicyReplacement: boolean;
   allowPotentialDataExpiration: boolean;
+  configureRawSampleStorageLimit: boolean;
+  rawSampleStorageLimitBytes: number | null;
+  rawSampleStorageLimitAction: 'WarnOnly' | 'DeleteOldestCompleteChunks';
 }>) {
   return requestJson<HistorianStorageAdministrationStatus>('/api/admin/historian-storage/retention', {
     method: 'PUT',

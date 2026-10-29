@@ -22,7 +22,13 @@ En **Uso y retención del Historian**, revise los tamaños medidos en la base ut
 
 En la primera aplicación, si no hay una política de SCADIVO registrada, el formulario pide confirmar antes de asumir las políticas Timescale de retención y actualización de agregados. Se desactivarán los niveles de agregación sin configuración registrada y se perderán las reglas externas no registradas. Consulte con quien administra la base antes de continuar.
 
-Esta primera etapa cubre el tamaño medido y la retención por tiempo de las muestras sin procesar. **El límite por tamaño, las acciones al alcanzar un límite y el archivado con restauración verificada todavía no están disponibles en esta pantalla.**
+#### Definir un límite por tamaño
+
+El límite en **GiB** controla solo el espacio medido de los datos sin procesar del Historian, incluidos los bloques, índices y datos auxiliares de TimescaleDB. No limita agregados, alarmas, eventos, Auditoría, la base principal ni el espacio libre del servidor. Los agregados mantienen su propia retención.
+
+En **Al alcanzar el límite**, elija **Solo avisar** para recibir el aviso sin borrar datos. **Eliminar bloques completos más antiguos** exige confirmar que las muestras sin procesar pueden perderse permanentemente. Cada minuto, el mantenimiento puede eliminar hasta cuatro intervalos antiguos completos y siempre conserva el intervalo más reciente. Como los bloques tienen su propio tamaño y duración, el límite es una meta: el uso puede superarlo hasta la siguiente ejecución y seguir por encima cuando solo quede el intervalo protegido. No es un tope instantáneo ni garantiza espacio libre en el volumen del servidor.
+
+El límite por tamaño y la retención por días pueden coexistir; se aplica primero la condición que elimine las muestras. Revise el valor medido después del mantenimiento y planifique la capacidad con margen. **El archivado y la restauración verificada todavía no están disponibles en esta pantalla.**
 
 ### Prepare el destino
 

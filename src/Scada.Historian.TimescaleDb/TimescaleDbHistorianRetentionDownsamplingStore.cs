@@ -11,6 +11,7 @@ namespace Scada.Historian.TimescaleDb;
 
 public sealed class TimescaleDbHistorianRetentionDownsamplingStore : IHistorianRetentionDownsamplingStore
 {
+    private const int MaximumChunkIntervalsPerEnforcementRun = 4;
     private readonly NpgsqlDataSource _dataSource;
     private readonly IDurableWriteAdmission? _writeAdmission;
 
@@ -82,6 +83,110 @@ public sealed class TimescaleDbHistorianRetentionDownsamplingStore : IHistorianR
             reader.IsDBNull(2) ? null : reader.GetInt64(2),
             reader.GetFieldValue<DateTimeOffset>(3).ToUniversalTime());
     }
+
+    public async Task<HistorianStorageLimitEnforcementResult> EnforceRawSampleStorageLimitAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync(
+            "historian-raw-size-limit",
+            cancellationToken);
+
+        const string stateExistsSql = "SELECT to_regclass('elitescada.historian_storage_policy_state') IS NOT NULL;";
+        await using (var exists = _dataSource.CreateCommand(stateExistsSql))
+        {
+            if (!Equals(await exists.ExecuteScalarAsync(cancellationToken), true))
+                return Result(HistorianStorageLimitEnforcementStatus.NoPolicy);
+        }
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        const string policyExistsSql = "SELECT EXISTS (SELECT 1 FROM elitescada.historian_storage_policy_state WHERE singleton_id = 1);";
+        await using (var policyExists = new NpgsqlCommand(policyExistsSql, connection, transaction))
+        {
+            if (!Equals(await policyExists.ExecuteScalarAsync(cancellationToken), true))
+                return Result(HistorianStorageLimitEnforcementStatus.NoPolicy);
+        }
+
+        // This row lock is database-scoped. When nodes share the Historian database,
+        // only one can enforce the same persisted policy at a time. SKIP LOCKED keeps
+        // a second node from waiting behind an admin update or another maintenance pass.
+        const string policySql = """
+            SELECT policy_json::text
+            FROM elitescada.historian_storage_policy_state
+            WHERE singleton_id = 1
+            FOR UPDATE SKIP LOCKED;
+            """;
+        string? policyJson;
+        await using (var policyCommand = new NpgsqlCommand(policySql, connection, transaction))
+            policyJson = (string?)await policyCommand.ExecuteScalarAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(policyJson))
+            return Result(HistorianStorageLimitEnforcementStatus.SkippedBusy);
+
+        var policy = HistorianPolicyJson.Deserialize(policyJson);
+        var limitBytes = policy.RawSampleStorageLimitBytes;
+        if (!limitBytes.HasValue)
+            return Result(HistorianStorageLimitEnforcementStatus.NoLimitConfigured);
+
+        var rawBytesBefore = await ReadRawSampleBytesAsync(connection, transaction, cancellationToken);
+        if (rawBytesBefore <= limitBytes.Value)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new HistorianStorageLimitEnforcementResult(
+                HistorianStorageLimitEnforcementStatus.WithinLimit,
+                limitBytes,
+                rawBytesBefore,
+                rawBytesBefore,
+                0,
+                DateTimeOffset.UtcNow);
+        }
+
+        if (policy.RawSampleStorageLimitAction != HistorianRawStorageLimitAction.DeleteOldestCompleteChunks)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new HistorianStorageLimitEnforcementResult(
+                HistorianStorageLimitEnforcementStatus.WarningOnly,
+                limitBytes,
+                rawBytesBefore,
+                rawBytesBefore,
+                0,
+                DateTimeOffset.UtcNow);
+        }
+
+        var deletedChunks = 0;
+        var rawBytesAfter = rawBytesBefore;
+        for (var interval = 0; interval < MaximumChunkIntervalsPerEnforcementRun && rawBytesAfter > limitBytes; interval++)
+        {
+            var cutoff = await ReadOldestCompletedChunkCutoffAsync(connection, transaction, cancellationToken);
+            if (!cutoff.HasValue) break;
+
+            var deletedThisInterval = await DropOldestChunkIntervalAsync(
+                connection,
+                transaction,
+                cutoff.Value,
+                cancellationToken);
+            if (deletedThisInterval == 0) break;
+            deletedChunks += deletedThisInterval;
+
+            rawBytesAfter = await ReadRawSampleBytesAsync(connection, transaction, cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        var status = deletedChunks > 0
+            ? HistorianStorageLimitEnforcementStatus.ChunksRemoved
+            : HistorianStorageLimitEnforcementStatus.NoEligibleChunks;
+        return new HistorianStorageLimitEnforcementResult(
+            status,
+            limitBytes,
+            rawBytesBefore,
+            rawBytesAfter,
+            deletedChunks,
+            DateTimeOffset.UtcNow);
+    }
+
+    private static HistorianStorageLimitEnforcementResult Result(
+        HistorianStorageLimitEnforcementStatus status) =>
+        new(status, null, null, null, 0, DateTimeOffset.UtcNow);
 
     public async Task ApplyPolicyAsync(
         HistorianStoragePolicy policy,
@@ -268,6 +373,79 @@ public sealed class TimescaleDbHistorianRetentionDownsamplingStore : IHistorianR
         return result is null or DBNull
             ? null
             : HistorianPolicyJson.Deserialize((string)result);
+    }
+
+    private static async Task<long> ReadRawSampleBytesAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        const string sql = "SELECT hypertable_size('elitescada.tag_history'::regclass);";
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        if (result is null or DBNull)
+            throw new InvalidOperationException("Historian raw sample size is unavailable.");
+        return Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<DateTimeOffset?> ReadOldestCompletedChunkCutoffAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT range_end
+            FROM timescaledb_information.chunks
+            WHERE hypertable_schema = 'elitescada'
+              AND hypertable_name = 'tag_history'
+              AND range_start IS NOT NULL
+              AND range_end IS NOT NULL
+              AND range_end <= clock_timestamp()
+              AND range_start < (
+                  SELECT MAX(range_start)
+                  FROM timescaledb_information.chunks
+                  WHERE hypertable_schema = 'elitescada'
+                    AND hypertable_name = 'tag_history'
+                    AND range_start IS NOT NULL)
+            ORDER BY range_start, range_end
+            LIMIT 1;
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        if (result is null or DBNull) return null;
+
+        var rangeEnd = result switch
+        {
+            DateTimeOffset offset => offset.ToUniversalTime(),
+            DateTime timestamp => new DateTimeOffset(
+                timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime()),
+            _ => throw new InvalidOperationException("Historian chunk metadata returned an unsupported time value.")
+        };
+
+        // drop_chunks uses a strict end-time comparison. One PostgreSQL timestamp
+        // quantum selects the entire oldest completed interval and no later one.
+        return rangeEnd.AddTicks(10);
+    }
+
+    private static async Task<int> DropOldestChunkIntervalAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        DateTimeOffset cutoff,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT drop_chunks(
+                relation => 'elitescada.tag_history'::regclass,
+                older_than => @cutoff,
+                verbose => FALSE);
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("cutoff", NpgsqlDbType.TimestampTz, cutoff.UtcDateTime);
+        var dropped = 0;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            dropped++;
+        return dropped;
     }
 
     private static async Task ReconcileRetentionPolicyAsync(

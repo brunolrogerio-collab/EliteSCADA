@@ -3,6 +3,7 @@ using Scada.Core.Tags;
 using Scada.Historian.Aggregation;
 using Scada.Historian.Policies;
 using Scada.Historian.TimescaleDb;
+using Npgsql;
 
 namespace Scada.Historian.TimescaleDb.Tests;
 
@@ -21,7 +22,9 @@ public sealed class HistorianRetentionDownsamplingTests
                     RefreshInterval: TimeSpan.FromMinutes(1),
                     RefreshLookback: TimeSpan.FromHours(2),
                     Retention: new HistorianRetentionRule(true, TimeSpan.FromDays(365)))
-            ]);
+            ],
+            RawSampleStorageLimitBytes: 20L * 1024 * 1024 * 1024,
+            RawSampleStorageLimitAction: HistorianRawStorageLimitAction.WarnOnly);
 
         policy.Validate();
         var json = HistorianPolicyJson.Serialize(policy);
@@ -29,6 +32,8 @@ public sealed class HistorianRetentionDownsamplingTests
 
         Assert.Equal("industrial-default", restored.Key);
         Assert.Equal(TimeSpan.FromDays(30), restored.RawRetention.Duration);
+        Assert.Equal(20L * 1024 * 1024 * 1024, restored.RawSampleStorageLimitBytes);
+        Assert.Equal(HistorianRawStorageLimitAction.WarnOnly, restored.RawSampleStorageLimitAction);
         var tier = Assert.Single(restored.EffectiveDownsampling);
         Assert.Equal(HistorianBucketWidth.OneMinute, tier.Bucket);
         Assert.Equal(TimeSpan.FromDays(365), tier.EffectiveRetention.Duration);
@@ -81,6 +86,118 @@ public sealed class HistorianRetentionDownsamplingTests
 
         Assert.True(HistorianPolicySafety.RequiresExplicitDataExpirationApproval(current, shorter));
         Assert.False(HistorianPolicySafety.RequiresExplicitDataExpirationApproval(current, longer));
+    }
+
+    [Fact]
+    public void Enabling_or_lowering_destructive_size_limit_requires_explicit_approval()
+    {
+        var warning = new HistorianStoragePolicy(
+            "policy",
+            new HistorianRetentionRule(),
+            RawSampleStorageLimitBytes: 10L * 1024 * 1024 * 1024);
+        var destructive = warning with
+        {
+            RawSampleStorageLimitAction = HistorianRawStorageLimitAction.DeleteOldestCompleteChunks
+        };
+        var lowerLimit = destructive with { RawSampleStorageLimitBytes = 2L * 1024 * 1024 * 1024 };
+        var higherLimit = destructive with { RawSampleStorageLimitBytes = 20L * 1024 * 1024 * 1024 };
+        var warningOnly = destructive with { RawSampleStorageLimitAction = HistorianRawStorageLimitAction.WarnOnly };
+
+        Assert.True(HistorianPolicySafety.RequiresExplicitDataExpirationApproval(warning, destructive));
+        Assert.True(HistorianPolicySafety.RequiresExplicitDataExpirationApproval(destructive, lowerLimit));
+        Assert.False(HistorianPolicySafety.RequiresExplicitDataExpirationApproval(destructive, higherLimit));
+        Assert.False(HistorianPolicySafety.RequiresExplicitDataExpirationApproval(destructive, warningOnly));
+        Assert.False(HistorianPolicySafety.RequiresExplicitDataExpirationApproval(null, warning));
+    }
+
+    [Fact]
+    public async Task Timescale_size_limit_warns_without_deletion_and_prunes_only_oldest_completed_chunks_when_authorized()
+    {
+        var connectionString = TestConnectionString();
+        if (connectionString is null) return;
+
+        await using var store = new TimescaleDbHistorianRetentionDownsamplingStore(connectionString);
+        await store.EnsureInfrastructureAsync();
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        var tagId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var sampleTimes = new[] { now.AddDays(-60), now.AddDays(-30), now.AddMinutes(-1) };
+        var originalPolicy = await store.GetAppliedPolicyAsync();
+
+        try
+        {
+            await InsertRawSamplesAsync(dataSource, tagId, sampleTimes);
+            Assert.True(await CountDistinctChunksForTagAsync(dataSource, tagId) >= 2);
+
+            var warningPolicy = new HistorianStoragePolicy(
+                $"size-warning-{Guid.NewGuid():N}",
+                new HistorianRetentionRule(),
+                RawSampleStorageLimitBytes: 1,
+                RawSampleStorageLimitAction: HistorianRawStorageLimitAction.WarnOnly);
+            await store.ApplyPolicyAsync(warningPolicy);
+            var warningResult = await store.EnforceRawSampleStorageLimitAsync();
+            Assert.Equal(HistorianStorageLimitEnforcementStatus.WarningOnly, warningResult.Status);
+            Assert.Equal(0, warningResult.DeletedChunkCount);
+            Assert.Equal(3, await CountSamplesForTagAsync(dataSource, tagId));
+
+            var deletePolicy = warningPolicy with
+            {
+                RawSampleStorageLimitAction = HistorianRawStorageLimitAction.DeleteOldestCompleteChunks
+            };
+            await Assert.ThrowsAsync<InvalidOperationException>(() => store.ApplyPolicyAsync(deletePolicy));
+            await store.ApplyPolicyAsync(
+                deletePolicy,
+                new HistorianPolicyApplyOptions(AllowPotentialDataExpiration: true));
+
+            await using (var lockingConnection = await dataSource.OpenConnectionAsync())
+            await using (var lockingTransaction = await lockingConnection.BeginTransactionAsync())
+            {
+                await using var lockPolicy = new NpgsqlCommand(
+                    "SELECT singleton_id FROM elitescada.historian_storage_policy_state WHERE singleton_id = 1 FOR UPDATE;",
+                    lockingConnection,
+                    lockingTransaction);
+                Assert.Equal((short)1, Convert.ToInt16(await lockPolicy.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture));
+                var skipped = await store.EnforceRawSampleStorageLimitAsync();
+                Assert.Equal(HistorianStorageLimitEnforcementStatus.SkippedBusy, skipped.Status);
+                Assert.Equal(3, await CountSamplesForTagAsync(dataSource, tagId));
+                await lockingTransaction.CommitAsync();
+            }
+
+            var result = await store.EnforceRawSampleStorageLimitAsync();
+            Assert.Equal(HistorianStorageLimitEnforcementStatus.ChunksRemoved, result.Status);
+            Assert.True(result.DeletedChunkCount > 0);
+            Assert.True(result.IsOverLimit);
+            Assert.Equal(1, await CountSamplesForTagAsync(dataSource, tagId));
+            Assert.True(await SampleExistsAsync(dataSource, tagId, sampleTimes[^1]));
+        }
+        finally
+        {
+            await DeleteSamplesForTagAsync(dataSource, tagId);
+            if (originalPolicy is not null)
+            {
+                await store.ApplyPolicyAsync(
+                    originalPolicy,
+                    new HistorianPolicyApplyOptions(AllowPotentialDataExpiration: true));
+            }
+            else
+            {
+                var reset = new HistorianStoragePolicy(
+                    $"test-reset-{Guid.NewGuid():N}",
+                    new HistorianRetentionRule(),
+                    [
+                        new HistorianDownsamplingRule(HistorianBucketWidth.OneMinute, Enabled: false),
+                        new HistorianDownsamplingRule(HistorianBucketWidth.FiveMinutes, Enabled: false),
+                        new HistorianDownsamplingRule(HistorianBucketWidth.FifteenMinutes, Enabled: false),
+                        new HistorianDownsamplingRule(HistorianBucketWidth.OneHour, Enabled: false)
+                    ]);
+                await store.ApplyPolicyAsync(reset);
+                await using var cleanup = await dataSource.OpenConnectionAsync();
+                await using var command = new NpgsqlCommand(
+                    "DELETE FROM elitescada.historian_storage_policy_state WHERE singleton_id = 1;",
+                    cleanup);
+                await command.ExecuteNonQueryAsync();
+            }
+        }
     }
 
     [Fact]
@@ -397,6 +514,78 @@ public sealed class HistorianRetentionDownsamplingTests
 
     private static string? TestConnectionString() =>
         Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+
+    private static async Task InsertRawSamplesAsync(
+        NpgsqlDataSource dataSource,
+        Guid tagId,
+        IReadOnlyList<DateTimeOffset> timestamps)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync();
+        foreach (var timestamp in timestamps)
+        {
+            await using var command = new NpgsqlCommand("""
+                INSERT INTO elitescada.tag_history (tag_id, ts, quality, source, value)
+                VALUES (@tag_id, @timestamp, @quality, 'size-limit-test', '1'::jsonb);
+                """, connection);
+            command.Parameters.AddWithValue("tag_id", tagId);
+            command.Parameters.AddWithValue("timestamp", timestamp.UtcDateTime);
+            command.Parameters.AddWithValue("quality", (int)TagQuality.Good);
+            await command.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static async Task<long> CountDistinctChunksForTagAsync(NpgsqlDataSource dataSource, Guid tagId)
+    {
+        const string sql = """
+            SELECT COUNT(DISTINCT c.chunk_name)
+            FROM timescaledb_information.chunks c
+            WHERE c.hypertable_schema = 'elitescada'
+              AND c.hypertable_name = 'tag_history'
+              AND EXISTS (
+                  SELECT 1 FROM elitescada.tag_history h
+                  WHERE h.tag_id = @tag_id
+                    AND h.ts >= c.range_start
+                    AND h.ts < c.range_end);
+            """;
+        await using var connection = await dataSource.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("tag_id", tagId);
+        return Convert.ToInt64(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<long> CountSamplesForTagAsync(NpgsqlDataSource dataSource, Guid tagId)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(
+            "SELECT COUNT(*) FROM elitescada.tag_history WHERE tag_id = @tag_id;",
+            connection);
+        command.Parameters.AddWithValue("tag_id", tagId);
+        return Convert.ToInt64(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<bool> SampleExistsAsync(
+        NpgsqlDataSource dataSource,
+        Guid tagId,
+        DateTimeOffset timestamp)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(
+            "SELECT EXISTS(SELECT 1 FROM elitescada.tag_history WHERE tag_id = @tag_id AND ts = @timestamp);",
+            connection);
+        command.Parameters.AddWithValue("tag_id", tagId);
+        command.Parameters.AddWithValue("timestamp", timestamp.UtcDateTime);
+        return (bool)(await command.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task DeleteSamplesForTagAsync(NpgsqlDataSource dataSource, Guid tagId)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(
+            "DELETE FROM elitescada.tag_history WHERE tag_id = @tag_id;",
+            connection);
+        command.Parameters.AddWithValue("tag_id", tagId);
+        await command.ExecuteNonQueryAsync();
+    }
 
     private static async Task WaitForWritesAsync(TimescaleDbHistorian historian, int expected)
     {

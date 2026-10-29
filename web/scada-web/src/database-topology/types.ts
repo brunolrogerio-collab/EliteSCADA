@@ -100,6 +100,9 @@ export type HistorianStorageAdministrationStatus = Readonly<{
   policyManaged?: boolean;
   rawRetentionEnabled?: boolean;
   rawRetentionDays?: number | null;
+  rawSampleStorageLimitBytes?: number | null;
+  rawSampleStorageLimitAction?: 'WarnOnly' | 'DeleteOldestCompleteChunks';
+  rawSampleLimitExceeded?: boolean;
   aggregatePolicyPresent?: boolean;
   usage?: Readonly<{
     databaseBytes: number | null;

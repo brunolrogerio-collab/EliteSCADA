@@ -4,6 +4,7 @@ using Scada.Core.Abstractions;
 using Scada.Historian.Abstractions;
 using Scada.Historian.Memory;
 using Scada.Historian.TimescaleDb;
+using Scada.Api.HostedServices;
 
 namespace Scada.Api.Historian;
 
@@ -41,6 +42,7 @@ public static class HistorianConfiguration
                     new TimescaleDbHistorianRetentionDownsamplingStore(
                         connectionString,
                         sp.GetService<IDurableWriteAdmission>()));
+                builder.Services.AddHostedService<HistorianRawSizeLimitHostedService>();
                 break;
 
             default:

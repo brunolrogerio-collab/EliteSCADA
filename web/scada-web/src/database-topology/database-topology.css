@@ -136,6 +136,26 @@
   background: var(--app-input-bg, #0d141a);
 }
 
+.db-topology-storage-limit-input {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.db-topology-storage-limit-input input {
+  width: 100%;
+  min-width: 0;
+}
+
+.db-topology-storage-days select {
+  min-height: 40px;
+  padding: 8px 10px;
+  color: var(--app-text-primary, #edf3f7);
+  border: 1px solid var(--app-border, #34414e);
+  border-radius: 8px;
+  background: var(--app-input-bg, #0d141a);
+}
+
 .db-topology-storage-confirmation {
   align-items: flex-start;
   line-height: 1.45;

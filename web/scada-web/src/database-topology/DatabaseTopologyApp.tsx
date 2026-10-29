@@ -35,6 +35,8 @@ import '../engineering/engineering.css';
 
 type Confirmation = 'cutover' | 'connect-existing' | 'rollback' | 'return-local' | null;
 type Notice = Readonly<{ tone: 'info' | 'success' | 'warning' | 'danger'; text: string }>;
+type RawSampleLimitAction = 'WarnOnly' | 'DeleteOldestCompleteChunks';
+const GIBIBYTE = 1024 ** 3;
 type EngineeringNavItem = {
   id: string;
   icon: string;
@@ -310,6 +312,8 @@ export function DatabaseTopologyApp() {
   const [storageBusy, setStorageBusy] = useState(false);
   const [retainRawIndefinitely, setRetainRawIndefinitely] = useState(true);
   const [rawRetentionDaysDraft, setRawRetentionDaysDraft] = useState('');
+  const [rawSampleLimitGiBDraft, setRawSampleLimitGiBDraft] = useState('');
+  const [rawSampleLimitActionDraft, setRawSampleLimitActionDraft] = useState<RawSampleLimitAction>('WarnOnly');
   const [acknowledgeUnmanagedPolicy, setAcknowledgeUnmanagedPolicy] = useState(false);
   const [acknowledgePotentialExpiration, setAcknowledgePotentialExpiration] = useState(false);
 
@@ -338,6 +342,10 @@ export function DatabaseTopologyApp() {
         setStorageError(null);
         setRetainRawIndefinitely(!result.rawRetentionEnabled);
         setRawRetentionDaysDraft(result.rawRetentionDays == null ? '' : String(result.rawRetentionDays));
+        setRawSampleLimitGiBDraft(result.rawSampleStorageLimitBytes == null
+          ? ''
+          : String(result.rawSampleStorageLimitBytes / GIBIBYTE));
+        setRawSampleLimitActionDraft(result.rawSampleStorageLimitAction ?? 'WarnOnly');
       })
       .catch(error => {
         if (active) setStorageError(apiErrorText(error, t));
@@ -473,6 +481,14 @@ export function DatabaseTopologyApp() {
       setStorageError(t.fieldRequired);
       return;
     }
+    const rawSizeLimitGiB = rawSampleLimitGiBDraft.trim() === '' ? null : Number(rawSampleLimitGiBDraft);
+    if (rawSizeLimitGiB !== null && (!Number.isFinite(rawSizeLimitGiB) || rawSizeLimitGiB <= 0 || rawSizeLimitGiB > 1_000_000)) {
+      setStorageError(t.fieldRequired);
+      return;
+    }
+    const rawSampleStorageLimitBytes = rawSizeLimitGiB === null
+      ? null
+      : Math.round(rawSizeLimitGiB * GIBIBYTE);
 
     setStorageBusy(true);
     setStorageError(null);
@@ -481,12 +497,28 @@ export function DatabaseTopologyApp() {
       await applyHistorianRawRetention({
         rawRetentionDays: retentionDays,
         acknowledgeUnmanagedPolicyReplacement: acknowledgeUnmanagedPolicy,
-        allowPotentialDataExpiration: acknowledgePotentialExpiration
+        allowPotentialDataExpiration: acknowledgePotentialExpiration,
+        configureRawSampleStorageLimit: true,
+        rawSampleStorageLimitBytes,
+        rawSampleStorageLimitAction: rawSampleStorageLimitBytes === null ? 'WarnOnly' : rawSampleLimitActionDraft
       });
       setStorageStatus(await loadHistorianStorageAdministrationStatus());
       setAcknowledgeUnmanagedPolicy(false);
       setAcknowledgePotentialExpiration(false);
       setNotice({ tone: 'success', text: t.retentionSaved });
+    } catch (error) {
+      setStorageError(apiErrorText(error, t));
+    } finally {
+      setStorageBusy(false);
+    }
+  };
+
+  const onRefreshHistorianStorage = async () => {
+    if (storageBusy) return;
+    setStorageBusy(true);
+    setStorageError(null);
+    try {
+      setStorageStatus(await loadHistorianStorageAdministrationStatus());
     } catch (error) {
       setStorageError(apiErrorText(error, t));
     } finally {
@@ -681,6 +713,7 @@ export function DatabaseTopologyApp() {
     <section className="db-topology-panel" aria-labelledby="historian-storage-title" data-testid="historian-storage-panel">
       <div className="db-topology-section-heading">
         <div><h2 id="historian-storage-title">{t.storageTitle}</h2><p>{t.storageHelp}</p></div>
+        <button type="button" className="db-topology-secondary" disabled={storageBusy} onClick={() => void onRefreshHistorianStorage()}>{storageBusy ? t.working : t.refresh}</button>
       </div>
       {storageError ? <div role="alert" className="db-topology-alert db-topology-alert--danger">{storageError}</div> : null}
       {!storageStatus ? <div className="db-topology-locked-state">{t.loadingStatus}</div> : !storageStatus.supported ? <div className="db-topology-locked-state">{t.storageNotSupported}</div> : <>
@@ -688,6 +721,7 @@ export function DatabaseTopologyApp() {
           <div><span>{t.databaseUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.databaseBytes, locale, t.storageUnknown)}</strong></div>
           <div><span>{t.historianUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.historianBytes, locale, t.storageUnknown)}</strong></div>
           <div><span>{t.rawUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.rawSamplesBytes, locale, t.storageUnknown)}</strong></div>
+          <div><span>{t.rawSizeLimit}</span><strong>{formatStorageBytes(storageStatus.rawSampleStorageLimitBytes, locale, t.noSizeLimit)}</strong></div>
           <div><span>{t.aggregateUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.aggregateBytes, locale, t.storageUnknown)}</strong></div>
           <div><span>{t.filesystemUsage}</span><strong>{formatStorageBytes(storageStatus.usage?.filesystemFreeBytes, locale, t.storageUnknown)}</strong></div>
           <div><span>{t.growthEstimate}</span><strong>{formatStorageBytes(storageStatus.usage?.estimatedDailyGrowthBytes, locale, t.storageUnknown)}</strong></div>
@@ -696,6 +730,7 @@ export function DatabaseTopologyApp() {
         <p className="db-topology-storage-policy-state" data-testid="historian-policy-state">
           <strong>{storageStatus.policyManaged ? t.policyManaged : t.policyUnmanaged}</strong>
         </p>
+        {storageStatus.rawSampleLimitExceeded ? <div role="status" className="db-topology-alert db-topology-alert--warning">{t.limitExceeded}</div> : null}
         <div className="db-topology-storage-form">
           <h3>{t.rawRetention}</h3>
           <label className="db-topology-historian-toggle">
@@ -706,17 +741,33 @@ export function DatabaseTopologyApp() {
             <span>{t.retentionDays}</span>
             <input type="number" min="1" max="36500" step="1" placeholder={t.retentionPlaceholder} value={rawRetentionDaysDraft} disabled={storageBusy} onChange={event => setRawRetentionDaysDraft(event.target.value)} />
           </label> : null}
+          <h3>{t.rawSizeLimit}</h3>
+          <label className="db-topology-storage-days">
+            <span>{t.rawSizeLimit}</span>
+            <div className="db-topology-storage-limit-input">
+              <input type="number" min="0.01" max="1000000" step="0.01" placeholder={t.rawSizeLimitPlaceholder} value={rawSampleLimitGiBDraft} disabled={storageBusy} onChange={event => setRawSampleLimitGiBDraft(event.target.value)} />
+              <span>{t.gibibytes}</span>
+            </div>
+          </label>
+          {rawSampleLimitGiBDraft.trim() !== '' ? <label className="db-topology-storage-days">
+            <span>{t.limitAction}</span>
+            <select value={rawSampleLimitActionDraft} disabled={storageBusy} onChange={event => setRawSampleLimitActionDraft(event.target.value as RawSampleLimitAction)}>
+              <option value="WarnOnly">{t.warnOnly}</option>
+              <option value="DeleteOldestCompleteChunks">{t.deleteOldestChunks}</option>
+            </select>
+          </label> : null}
+          {rawSampleLimitActionDraft === 'DeleteOldestCompleteChunks' && rawSampleLimitGiBDraft.trim() !== '' ? <p className="db-topology-muted-note">{t.chunkLimitDetail}</p> : null}
           {!storageStatus.policyManaged ? <label className="db-topology-historian-toggle db-topology-storage-confirmation">
             <input type="checkbox" checked={acknowledgeUnmanagedPolicy} disabled={storageBusy} onChange={event => setAcknowledgeUnmanagedPolicy(event.target.checked)} />
             <span>{t.adoptUnmanaged}</span>
           </label> : null}
-          {!retainRawIndefinitely ? <label className="db-topology-historian-toggle db-topology-storage-confirmation">
+          {!retainRawIndefinitely || rawSampleLimitActionDraft === 'DeleteOldestCompleteChunks' && rawSampleLimitGiBDraft.trim() !== '' ? <label className="db-topology-historian-toggle db-topology-storage-confirmation">
             <input type="checkbox" checked={acknowledgePotentialExpiration} disabled={storageBusy} onChange={event => setAcknowledgePotentialExpiration(event.target.checked)} />
             <span>{t.confirmExpiration}</span>
           </label> : null}
           <p className="db-topology-muted-note">{t.storagePolicyDetail}</p>
           <div className="db-topology-actions">
-            <button type="button" className="db-topology-primary-action" disabled={storageBusy || Boolean(busy) || (!storageStatus.policyManaged && !acknowledgeUnmanagedPolicy) || (!retainRawIndefinitely && !acknowledgePotentialExpiration)} onClick={() => void onSaveHistorianRetention()}>
+            <button type="button" className="db-topology-primary-action" disabled={storageBusy || Boolean(busy) || (!storageStatus.policyManaged && !acknowledgeUnmanagedPolicy) || ((!retainRawIndefinitely || rawSampleLimitActionDraft === 'DeleteOldestCompleteChunks' && rawSampleLimitGiBDraft.trim() !== '') && !acknowledgePotentialExpiration)} onClick={() => void onSaveHistorianRetention()}>
               {storageBusy ? t.working : t.saveRetention}
             </button>
           </div>

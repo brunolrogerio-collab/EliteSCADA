@@ -22,7 +22,13 @@ In **Historian usage and retention**, review the measured sizes in the database 
 
 For the first application, when no SCADIVO policy is recorded, the form asks you to confirm before taking over Timescale retention and aggregate-refresh policies. Aggregate tiers with no recorded configuration will be disabled, and unrecorded external rules will be lost. Check with the database administrator before proceeding.
 
-This first step covers measured usage and time-based retention for raw samples. **Size limits, actions when a limit is reached, and archiving with verified restore are not available on this page yet.**
+#### Set a size limit
+
+The limit in **GiB** controls only measured raw Historian data, including TimescaleDB chunks, indexes and auxiliary data. It does not limit aggregates, alarms, events, Audit, the primary database or free space on the server. Aggregates keep their own retention policy.
+
+Under **When the limit is reached**, choose **Warn only** to show a warning without deleting data. **Delete complete oldest chunks** requires confirmation that raw samples may be permanently lost. Every minute, maintenance can remove up to four complete old time intervals and always preserves the newest interval. Because chunks have their own size and duration, this limit is a target: usage may exceed it until the next run and may remain above it when only the protected interval is left. It is not an instant ceiling or a promise of free space on the server volume.
+
+The size limit and retention by days can be used together; whichever condition removes samples first takes effect. Review the measured value after maintenance and plan capacity with a margin. **Archiving and verified restore are not available on this page yet.**
 
 ### Prepare the target
 

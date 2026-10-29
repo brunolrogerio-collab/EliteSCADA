@@ -11,6 +11,9 @@ public interface IHistorianRetentionDownsamplingStore : IAsyncDisposable
 
     Task<HistorianStorageUsage> GetStorageUsageAsync(CancellationToken cancellationToken = default);
 
+    Task<HistorianStorageLimitEnforcementResult> EnforceRawSampleStorageLimitAsync(
+        CancellationToken cancellationToken = default);
+
     Task ApplyPolicyAsync(
         HistorianStoragePolicy policy,
         HistorianPolicyApplyOptions? options = null,

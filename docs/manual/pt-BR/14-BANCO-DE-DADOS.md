@@ -22,7 +22,13 @@ Na seção **Uso e retenção do Historian**, confira os tamanhos medidos na bas
 
 Na primeira aplicação, se nenhuma política do SCADIVO estiver registrada, o formulário pede confirmação antes de assumir as políticas Timescale de retenção e atualização dos agregados. Faixas de agregação sem configuração registrada serão desativadas, e regras externas não registradas serão perdidas. Confirme com quem administra o banco antes de prosseguir.
 
-Esta primeira etapa cobre tamanho medido e retenção das amostras brutas por tempo. **Limite por tamanho, escolha de ação ao atingir um limite e arquivamento com restauração verificada ainda não estão disponíveis nesta tela.**
+#### Definir um limite por tamanho
+
+O limite em **GiB** controla apenas o espaço medido dos dados brutos do Historian, incluindo os blocos, índices e dados auxiliares do TimescaleDB. Ele não limita agregados, alarmes, eventos, Auditoria, banco principal nem espaço livre do servidor. Os agregados continuam usando a própria retenção.
+
+Em **Ao alcançar o limite**, escolha **Somente avisar** para receber o aviso sem apagar dados. A opção **Remover blocos completos mais antigos** exige a confirmação de possível perda permanente de amostras. A cada minuto, a manutenção pode excluir até quatro intervalos completos antigos e sempre preserva o intervalo mais recente. Como os blocos têm tamanho e duração próprios, o limite é uma meta: o uso pode ultrapassá-lo até a próxima execução e ainda ficar acima quando só restar o intervalo protegido. Não é um teto instantâneo nem uma garantia de espaço livre no volume.
+
+O limite por tamanho e a retenção por dias podem coexistir; vence a primeira condição que remover as amostras. Confira o valor medido depois da manutenção e planeje a capacidade com margem. **Arquivamento e restauração verificada ainda não estão disponíveis nesta tela.**
 
 ### Prepare o destino
 

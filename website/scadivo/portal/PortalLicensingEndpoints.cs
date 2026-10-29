@@ -31,6 +31,13 @@ public static class PortalLicensingEndpoints
         admin.MapPost("/activations/{activationId:guid}/revoke", (Guid activationId, RevokeProductLicenseInput input, HttpContext context, PortalLicensingOperations operations) => operations.RevokeAdminActivation(activationId, input, context));
 
         var device = app.MapGroup("/api/licensing/device").WithMetadata(new PortalDeviceLicenseEndpoint());
+        device.MapGet("/health", (HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return !context.Request.IsHttps
+                ? Results.BadRequest(new { error = "https-required" })
+                : Results.Ok(new { serviceAvailable = true });
+        }).RequireRateLimiting("licensing-health");
         device.MapPost("/prepare", (DevicePrepareInput input, HttpContext context, PortalLicensingOperations operations) => operations.Prepare(input, context)).RequireRateLimiting("licensing-activate");
         device.MapPost("/confirm", (DeviceConfirmInput input, HttpContext context, PortalLicensingOperations operations) => operations.Confirm(input, context)).RequireRateLimiting("licensing-renew");
         device.MapPost("/cancel", (DeviceCancelInput input, HttpContext context, PortalLicensingOperations operations) => operations.Cancel(input, context)).RequireRateLimiting("licensing-renew");

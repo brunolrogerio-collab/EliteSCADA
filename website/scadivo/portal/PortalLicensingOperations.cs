@@ -20,7 +20,7 @@ public sealed record RevokeProductLicenseInput(string? Reason);
 public sealed record DeviceActivationInput(string? Username, string? Password, string? LicenseCode,
     Guid ActivationId, Guid RequestId, string? MachineFingerprint, string? RefreshCredential);
 public sealed record DevicePrepareInput(string? Username, string? Password, string? LicenseCode,
-    Guid ActivationId, string? MachineFingerprint);
+    Guid ActivationId, string? MachineFingerprint, string? CurrentRefreshCredential = null);
 public sealed record DeviceConfirmInput(string? ConfirmationToken, Guid ActivationId, Guid RequestId,
     string? MachineFingerprint, string? RefreshCredential);
 public sealed record DeviceCancelInput(string? ConfirmationToken);
@@ -366,7 +366,8 @@ public sealed class PortalLicensingOperations(
         context.Response.Headers.CacheControl = "no-store";
         if (!context.Request.IsHttps) return Results.BadRequest(new { error = "https-required" });
         if (!Valid(input.Username, 1, 256) || input.Password is null || input.Password.Length is < 1 or > 1024 ||
-            !ValidLicenseCode(input.LicenseCode) || input.ActivationId == Guid.Empty || !IsFingerprint(input.MachineFingerprint)) return Invalid();
+            !ValidLicenseCode(input.LicenseCode) || input.ActivationId == Guid.Empty || !IsFingerprint(input.MachineFingerprint) ||
+            (input.CurrentRefreshCredential is not null && !IsRefreshCredential(input.CurrentRefreshCredential))) return Invalid();
         var identifier = input.Username!.Trim();
         var user = await users.FindByEmailAsync(identifier) ?? await users.FindByNameAsync(identifier);
         if (user is null) return InvalidCredentials();
@@ -378,19 +379,63 @@ public sealed class PortalLicensingOperations(
             !await db.Memberships.AnyAsync(x => x.OrganizationId == license.OrganizationId && x.UserId == user.Id)) return LicenseNotAvailable();
         var application = await db.ProductApplications.AsNoTracking().SingleOrDefaultAsync(x => x.Id == license.ApplicationId && x.OrganizationId == license.OrganizationId);
         if (application is null) return LicenseNotAvailable();
+
+        var machineFingerprint = input.MachineFingerprint!.ToLowerInvariant();
+        var activation = await db.ProductLicenseActivations.AsNoTracking().SingleOrDefaultAsync(x => x.Id == input.ActivationId);
+        if (activation is null)
+        {
+            var matches = await db.ProductLicenseActivations.AsNoTracking()
+                .Where(x => x.LicenseId == license.Id && x.OrganizationId == license.OrganizationId &&
+                    x.ApplicationId == license.ApplicationId && x.UserId == user.Id && x.MachineFingerprint == machineFingerprint &&
+                    (x.Status == ProductLicenseStates.Active || x.Status == ProductLicenseStates.ReauthenticationRequired))
+                .Take(2).ToListAsync();
+            if (matches.Count > 1) return Results.Conflict(new { error = "activation-recovery-ambiguous" });
+            if (matches.Count == 1) activation = matches[0];
+            else if (await db.ProductLicenseActivations.AnyAsync(x => x.LicenseId == license.Id &&
+                         x.OrganizationId == license.OrganizationId && x.ApplicationId == license.ApplicationId &&
+                         x.UserId == user.Id && x.MachineFingerprint == machineFingerprint && x.Status == ProductLicenseStates.Revoked))
+                return Results.Conflict(new { error = "activation-revoked" });
+        }
+        else if (activation.LicenseId != license.Id || activation.OrganizationId != license.OrganizationId ||
+                 activation.ApplicationId != license.ApplicationId || activation.UserId != user.Id ||
+                 activation.MachineFingerprint != machineFingerprint)
+        {
+            return Results.Conflict(new { error = "activation-recovery-unavailable" });
+        }
+
+        if (activation?.Status == ProductLicenseStates.Revoked)
+            return Results.Conflict(new { error = "activation-revoked" });
+        if (activation is not null && activation.Status is not (ProductLicenseStates.Active or ProductLicenseStates.ReauthenticationRequired))
+            return Results.Conflict(new { error = "activation-recovery-unavailable" });
+
+        string? recoveryCredentialHash = null;
+        if (activation is not null && input.CurrentRefreshCredential is not null)
+        {
+            recoveryCredentialHash = HashCredential(input.CurrentRefreshCredential);
+            if (!await db.ProductLicenseRefreshCredentials.AnyAsync(x => x.ActivationId == activation.Id &&
+                    x.CredentialHash == recoveryCredentialHash && x.State == RefreshCredentialStates.Current))
+                return Results.Conflict(new { error = "activation-recovery-unavailable" });
+        }
+        else if (activation is null && input.CurrentRefreshCredential is not null)
+        {
+            return Results.Conflict(new { error = "activation-recovery-unavailable" });
+        }
+
         var token = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
         var preparation = new ProductLicensePreparation {
             Id = HashCredential(token), UserId = user.Id, SecurityStamp = user.SecurityStamp ?? "",
-            LicenseId = license.Id, ActivationId = input.ActivationId,
-            MachineFingerprint = input.MachineFingerprint!.ToLowerInvariant(),
-            PresentationJson = Presentation(license, application.Name), ExpiresAtUtc = clock.GetUtcNow().AddMinutes(5)
+            LicenseId = license.Id, ActivationId = activation?.Id ?? input.ActivationId,
+            MachineFingerprint = machineFingerprint, PresentationJson = Presentation(license, application.Name),
+            ExpiresAtUtc = clock.GetUtcNow().AddMinutes(5), Reactivation = activation is not null,
+            ExpectedCredentialGeneration = activation?.CredentialGeneration, RecoveryCredentialHash = recoveryCredentialHash
         };
         await db.ProductLicensePreparations.Where(x => x.ExpiresAtUtc < clock.GetUtcNow().AddDays(-1)).ExecuteDeleteAsync();
         db.ProductLicensePreparations.Add(preparation);
         await db.SaveChangesAsync();
         return Results.Ok(new { confirmationToken = token, expiresAtUtc = preparation.ExpiresAtUtc,
             summary = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(preparation.PresentationJson),
-            onlineActivationAvailable = leaseSigner.IsEnabled });
+            onlineActivationAvailable = leaseSigner.IsEnabled, activationId = preparation.ActivationId,
+            reactivation = preparation.Reactivation, credentialGeneration = preparation.ExpectedCredentialGeneration ?? 0L });
     }
 
     public async Task<IResult> Cancel(DeviceCancelInput input, HttpContext context)
@@ -441,9 +486,15 @@ public sealed class PortalLicensingOperations(
             if (activation.LicenseId != license.Id || activation.OrganizationId != license.OrganizationId ||
                 activation.ApplicationId != license.ApplicationId || activation.UserId != user.Id ||
                 activation.MachineFingerprint != normalizedFingerprint)
-                return Results.Conflict(new { error = "activation-id-already-bound" });
-            if (activation.Status == ProductLicenseStates.Revoked || (preparation.ConsumedRequestId is not null && activation.Status != ProductLicenseStates.Active))
+                return Results.Conflict(new { error = "activation-recovery-unavailable" });
+            if (activation.Status == ProductLicenseStates.Revoked)
                 return Results.Conflict(new { error = "activation-revoked" });
+            if (preparation.ConsumedRequestId == input.RequestId && preparation.CredentialHash == credentialHash &&
+                preparation.ConfirmedLeaseEnvelope is { } previouslyIssuedLease)
+            {
+                await transaction.CommitAsync();
+                return ConfirmResponse(activation, previouslyIssuedLease, preparation);
+            }
             if (activation.LastActivationRequestId == input.RequestId && activation.LastActivationCredentialHash == credentialHash && activation.ActivationLeaseEnvelope is not null)
             {
                 preparation.ConsumedRequestId = input.RequestId;
@@ -452,17 +503,26 @@ public sealed class PortalLicensingOperations(
                 await transaction.CommitAsync();
                 return ConfirmResponse(activation, activation.ActivationLeaseEnvelope, preparation);
             }
-            if (activation.Status == ProductLicenseStates.Revoked) return Results.Conflict(new { error = "activation-revoked" });
+            if (preparation.Reactivation != (activation.Status is ProductLicenseStates.Active or ProductLicenseStates.ReauthenticationRequired) ||
+                preparation.Reactivation != (preparation.ExpectedCredentialGeneration is not null))
+                return Results.Conflict(new { error = "preparation-invalidated" });
+            if (preparation.Reactivation && activation.CredentialGeneration != preparation.ExpectedCredentialGeneration)
+                return Results.Conflict(new { error = "activation-recovery-invalidated" });
         }
+        else if (preparation.Reactivation || preparation.ExpectedCredentialGeneration is not null)
+            return Results.Conflict(new { error = "activation-recovery-invalidated" });
         if (!LicenseCanIssue(license, clock.GetUtcNow())) return LicenseNotAvailable();
         var application = await db.ProductApplications.AsNoTracking().SingleOrDefaultAsync(x => x.Id == license.ApplicationId && x.OrganizationId == license.OrganizationId);
         if (application is null) return LicenseNotAvailable();
 
         if (activation is not null)
         {
-            var currentExists = await db.ProductLicenseRefreshCredentials.AnyAsync(x => x.ActivationId == activation.Id && x.State == RefreshCredentialStates.Current);
-            if (activation.Status != ProductLicenseStates.ReauthenticationRequired && currentExists)
+            if (!preparation.Reactivation)
                 return Results.Conflict(new { error = "activation-already-active" });
+            if (preparation.RecoveryCredentialHash is { } recoveryHash &&
+                !await db.ProductLicenseRefreshCredentials.AnyAsync(x => x.ActivationId == activation.Id &&
+                    x.CredentialHash == recoveryHash && x.State == RefreshCredentialStates.Current))
+                return Results.Conflict(new { error = "activation-recovery-invalidated" });
         }
         else
         {
@@ -484,8 +544,26 @@ public sealed class PortalLicensingOperations(
         var signed = SignLease(license, activation, now);
         if (signed.Lease is null) return LicenseServiceUnavailable();
 
+        var recovery = preparation.Reactivation;
+        if (recovery)
+        {
+            var currentCredentials = await db.ProductLicenseRefreshCredentials
+                .Where(x => x.ActivationId == activation!.Id &&
+                    (x.State == RefreshCredentialStates.Current || x.State == RefreshCredentialStates.Superseded)).ToListAsync();
+            foreach (var previousCredential in currentCredentials)
+            {
+                previousCredential.State = RefreshCredentialStates.Recovered;
+                previousCredential.SupersededAtUtc = now;
+            }
+            activation!.CredentialGeneration++;
+            activation.LastRenewalRequestId = null;
+            activation.LastRenewalInputCredentialHash = null;
+            activation.LastRenewalOutputCredentialHash = null;
+        }
+
         preparation.ConsumedRequestId = input.RequestId;
         preparation.CredentialHash = credentialHash;
+        preparation.ConfirmedLeaseEnvelope = signed.Lease;
         activation.Status = ProductLicenseStates.Active;
         activation.RevocationReason = null;
         activation.LastActivationRequestId = input.RequestId;
@@ -499,7 +577,9 @@ public sealed class PortalLicensingOperations(
             ActivationId = activation.Id, CredentialHash = credentialHash,
             State = RefreshCredentialStates.Current, CreatedAtUtc = now
         });
-        db.Audit.Add(new PortalAudit { ActorId = user.Id, Action = "licensing.activation.created", ResourceId = activation.Id.ToString("D") });
+        db.Audit.Add(new PortalAudit { ActorId = user.Id,
+            Action = recovery ? "licensing.activation.reauthenticated" : "licensing.activation.created",
+            ResourceId = activation.Id.ToString("D") });
         try
         {
             await db.SaveChangesAsync();
@@ -546,6 +626,7 @@ public sealed class PortalLicensingOperations(
             await transaction.CommitAsync();
             return LeaseResponse(activation, activation.LastLeaseEnvelope);
         }
+        if (credential?.State == RefreshCredentialStates.Recovered) return InvalidCredentials();
         if (activation.Status != ProductLicenseStates.Active || !LicenseCanIssue(license, clock.GetUtcNow()) || credential is null)
             return InvalidCredentials();
         if (credential.State == RefreshCredentialStates.Superseded)
@@ -582,6 +663,7 @@ public sealed class PortalLicensingOperations(
         activation.LastLeaseEnvelope = signed.Lease;
         activation.LastLeaseIssuedAtUtc = issuedAt;
         activation.LastRenewedAtUtc = issuedAt;
+        activation.CredentialGeneration++;
         db.Audit.Add(new PortalAudit { ActorId = activation.UserId, Action = "licensing.lease.renewed", ResourceId = activation.Id.ToString("D") });
         try
         {
@@ -758,6 +840,7 @@ public sealed class PortalLicensingOperations(
         }
         activation.Status = newStatus;
         activation.RevocationReason = reason;
+        activation.CredentialGeneration++;
     }
 
     private async Task RevokeActivationAsync(ProductLicenseActivation activation, DateTimeOffset now, string actorId, string reason)

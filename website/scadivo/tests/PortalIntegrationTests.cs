@@ -983,6 +983,14 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             }
 
             using var product = Client(factory);
+            using (var health = await product.GetAsync("api/licensing/device/health"))
+            {
+                Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+                Assert.Contains("no-store", health.Headers.CacheControl!.ToString());
+                var status = await health.Content.ReadFromJsonAsync<JsonElement>();
+                Assert.True(status.GetProperty("serviceAvailable").GetBoolean());
+                Assert.Single(status.EnumerateObject());
+            }
             var activationId = Guid.NewGuid();
             var activationRequestId = Guid.NewGuid();
             var refresh = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
@@ -1159,6 +1167,362 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Contains(Convert.ToHexString(SHA256.HashData(WebEncoders.Base64UrlDecode(nextRefresh))).ToLowerInvariant(), storedHashes);
             Assert.All(persisted, credential => Assert.DoesNotContain(credential.CredentialHash, new[] { refresh, nextRefresh }));
             Assert.Equal(userId, (await dbAfter.ProductLicenseActivations.SingleAsync(x => x.Id == activationId)).UserId);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public async Task OnlineLicenseActivationRecoveryKeepsOneSlotAndRotatesCredentialsSafely()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-license-recovery-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "owner-password");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Logging:LogLevel:Default"] = "Warning"
+        };
+
+        try
+        {
+            await using var factory = Factory(configuration).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IOnlineLeaseSigner>();
+                services.AddSingleton<IOnlineLeaseSigner, TestOnlineLeaseSigner>();
+            }));
+            var owner = await Login(factory, "scadivo.owner");
+            var organizationId = (await owner.Get("/licensing/organizations")).EnumerateArray().First().GetProperty("id").GetGuid();
+            var marker = Guid.NewGuid().ToString("N")[..8];
+            var application = await owner.Send($"/licensing/organizations/{organizationId}/applications", HttpMethod.Post,
+                new { name = "Recovery test " + marker });
+            var applicationId = application.GetProperty("id").GetGuid();
+            var license = await owner.Send("/admin/licensing/licenses", HttpMethod.Post, new
+            {
+                applicationId, tier = "Tags500", interactiveSeats = 2, viewOnlySeats = 2,
+                haRuntime = false, assetProcessIntelligence = false, term = "perpetual", maxActivations = 1
+            });
+            var licenseId = license.GetProperty("id").GetGuid();
+            var licenseCode = license.GetProperty("publicCode").GetString()!;
+            var username = "recover-" + marker;
+            var fingerprint = new string('a', 64);
+            string userId;
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+                var user = new PortalUser { UserName = username, Email = username + "@example.test", EmailConfirmed = true,
+                    InvitationAccepted = true, DisplayName = "Recovery Test", ProfileType = "professional",
+                    ActivityArea = "industrial-automation", OrganizationOrSchool = "Synthetic Company" };
+                PortalSeed.Ensure(await users.CreateAsync(user, Password));
+                PortalSeed.Ensure(await users.AddToRoleAsync(user, "Member"));
+                userId = user.Id;
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                db.Memberships.Add(new Membership { OrganizationId = organizationId, UserId = user.Id, Role = "Member" });
+                await db.SaveChangesAsync();
+            }
+
+            using var product = Client(factory);
+            var activationId = Guid.NewGuid();
+            var requestId = Guid.NewGuid();
+            var initialCredential = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+            using (var prepared = await product.PostAsJsonAsync("api/licensing/device/prepare", new
+            {
+                username, password = Password, licenseCode, activationId, machineFingerprint = fingerprint
+            }))
+            {
+                Assert.Equal(HttpStatusCode.OK, prepared.StatusCode);
+                var response = await prepared.Content.ReadFromJsonAsync<JsonElement>();
+                Assert.Equal(activationId, response.GetProperty("activationId").GetGuid());
+                Assert.False(response.GetProperty("reactivation").GetBoolean());
+                Assert.Equal(0L, response.GetProperty("credentialGeneration").GetInt64());
+                using var confirmed = await product.PostAsJsonAsync("api/licensing/device/confirm", new
+                {
+                    confirmationToken = response.GetProperty("confirmationToken").GetString(), activationId, requestId,
+                    machineFingerprint = fingerprint, refreshCredential = initialCredential
+                });
+                Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
+            }
+
+            async Task<JsonElement> PrepareRecovery(Guid candidateId, string? currentCredential)
+            {
+                var body = new Dictionary<string, object?>
+                {
+                    ["username"] = username, ["password"] = Password, ["licenseCode"] = licenseCode,
+                    ["activationId"] = candidateId, ["machineFingerprint"] = fingerprint
+                };
+                if (currentCredential is not null) body["currentRefreshCredential"] = currentCredential;
+                using var response = await product.PostAsJsonAsync("api/licensing/device/prepare", body);
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+                Assert.True(json.GetProperty("reactivation").GetBoolean());
+                Assert.Equal(activationId, json.GetProperty("activationId").GetGuid());
+                return json;
+            }
+
+            async Task<(string Lease, string Credential, Guid RequestId)> ConfirmRecovery(JsonElement prepared)
+            {
+                var nextCredential = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+                var confirmRequestId = Guid.NewGuid();
+                using var response = await product.PostAsJsonAsync("api/licensing/device/confirm", new
+                {
+                    confirmationToken = prepared.GetProperty("confirmationToken").GetString(), activationId,
+                    requestId = confirmRequestId, machineFingerprint = fingerprint, refreshCredential = nextCredential
+                });
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+                Assert.Equal(activationId, json.GetProperty("activationId").GetGuid());
+                return (json.GetProperty("lease").GetString()!, nextCredential, confirmRequestId);
+            }
+
+            var recovered = await PrepareRecovery(Guid.NewGuid(), initialCredential);
+            Assert.Equal(0L, recovered.GetProperty("credentialGeneration").GetInt64());
+            var firstRecovery = await ConfirmRecovery(recovered);
+            using (var retry = await product.PostAsJsonAsync("api/licensing/device/confirm", new
+            {
+                confirmationToken = recovered.GetProperty("confirmationToken").GetString(), activationId,
+                requestId = firstRecovery.RequestId, machineFingerprint = fingerprint, refreshCredential = firstRecovery.Credential
+            }))
+            {
+                Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+                Assert.Equal(firstRecovery.Lease, (await retry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("lease").GetString());
+            }
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                Assert.Equal(1, await db.ProductLicenseActivations.CountAsync(x => x.LicenseId == licenseId));
+                var activation = await db.ProductLicenseActivations.SingleAsync(x => x.Id == activationId);
+                Assert.Equal(userId, activation.UserId);
+                Assert.Equal(1L, activation.CredentialGeneration);
+                Assert.Equal(1, await db.ProductLicenseRefreshCredentials.CountAsync(x => x.ActivationId == activationId && x.State == RefreshCredentialStates.Current));
+                Assert.Equal(1, await db.ProductLicenseRefreshCredentials.CountAsync(x => x.ActivationId == activationId && x.State == RefreshCredentialStates.Recovered));
+            }
+
+            var concurrentPrepared = await Task.WhenAll(
+                PrepareRecovery(Guid.NewGuid(), firstRecovery.Credential),
+                PrepareRecovery(Guid.NewGuid(), firstRecovery.Credential));
+            var competing = concurrentPrepared.Select(prepared => new
+            {
+                Prepared = prepared,
+                RequestId = Guid.NewGuid(),
+                Credential = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32))
+            }).ToArray();
+            object Confirmation(int index) => new
+            {
+                confirmationToken = competing[index].Prepared.GetProperty("confirmationToken").GetString(), activationId,
+                requestId = competing[index].RequestId, machineFingerprint = fingerprint, refreshCredential = competing[index].Credential
+            };
+            var responses = await Task.WhenAll(
+                product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(0)),
+                product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(1)));
+            using var response0 = responses[0];
+            using var response1 = responses[1];
+            Assert.Single(responses, x => x.StatusCode == HttpStatusCode.OK);
+            Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Conflict);
+            var winner = response0.StatusCode == HttpStatusCode.OK ? 0 : 1;
+            var loser = 1 - winner;
+            var winningLease = (await responses[winner].Content.ReadFromJsonAsync<JsonElement>()).GetProperty("lease").GetString()!;
+            Assert.Equal("activation-recovery-invalidated",
+                (await responses[loser].Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+
+            // Account reauthentication is sufficient when the product explicitly has no protected credential.
+            var withoutLocalCredential = await PrepareRecovery(Guid.NewGuid(), null);
+            Assert.Equal(2L, withoutLocalCredential.GetProperty("credentialGeneration").GetInt64());
+            var laterRecovery = await ConfirmRecovery(withoutLocalCredential);
+
+            // Exact retry still returns the first recovery result even after a later rotation.
+            using (var delayedRetry = await product.PostAsJsonAsync("api/licensing/device/confirm", Confirmation(winner)))
+            {
+                Assert.Equal(HttpStatusCode.OK, delayedRetry.StatusCode);
+                Assert.Equal(winningLease, (await delayedRetry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("lease").GetString());
+            }
+
+            var staleRenewal = new HttpRequestMessage(HttpMethod.Post, $"api/licensing/device/activations/{activationId}/renew")
+            {
+                Content = JsonContent.Create(new { requestId = Guid.NewGuid(), nextRefreshCredential = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32)) })
+            };
+            staleRenewal.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", initialCredential);
+            using (staleRenewal)
+            using (var stale = await product.SendAsync(staleRenewal))
+                Assert.Equal(HttpStatusCode.Unauthorized, stale.StatusCode);
+
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                Assert.Equal(1, await db.ProductLicenseActivations.CountAsync(x => x.LicenseId == licenseId));
+                var activation = await db.ProductLicenseActivations.SingleAsync(x => x.Id == activationId);
+                Assert.Equal(ProductLicenseStates.Active, activation.Status);
+                Assert.Equal(3L, activation.CredentialGeneration);
+                Assert.Equal(1, await db.ProductLicenseRefreshCredentials.CountAsync(x => x.ActivationId == activationId && x.State == RefreshCredentialStates.Current));
+                Assert.Equal(3, await db.ProductLicenseRefreshCredentials.CountAsync(x => x.ActivationId == activationId && x.State == RefreshCredentialStates.Recovered));
+                var hashes = await db.ProductLicenseRefreshCredentials.Where(x => x.ActivationId == activationId)
+                    .Select(x => x.CredentialHash).ToListAsync();
+                Assert.Contains(Convert.ToHexString(SHA256.HashData(WebEncoders.Base64UrlDecode(laterRecovery.Credential))).ToLowerInvariant(), hashes);
+                Assert.DoesNotContain(laterRecovery.Credential, hashes);
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public async Task OnlineLicenseRecoveryRejectsInvalidProofAmbiguityIncompatibleBindingsAndRevocation()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-license-recovery-boundaries-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "owner-password");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Logging:LogLevel:Default"] = "Warning"
+        };
+        try
+        {
+            await using var factory = Factory(configuration).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IOnlineLeaseSigner>();
+                services.AddSingleton<IOnlineLeaseSigner, TestOnlineLeaseSigner>();
+            }));
+            var owner = await Login(factory, "scadivo.owner");
+            var organizationId = (await owner.Get("/licensing/organizations")).EnumerateArray().First().GetProperty("id").GetGuid();
+            var marker = Guid.NewGuid().ToString("N")[..8];
+            var application = await owner.Send($"/licensing/organizations/{organizationId}/applications", HttpMethod.Post,
+                new { name = "Recovery boundary test " + marker });
+            var applicationId = application.GetProperty("id").GetGuid();
+            var license = await owner.Send("/admin/licensing/licenses", HttpMethod.Post, new
+            {
+                applicationId, tier = "Tags500", interactiveSeats = 2, viewOnlySeats = 2,
+                haRuntime = false, assetProcessIntelligence = false, term = "perpetual", maxActivations = 4
+            });
+            var licenseId = license.GetProperty("id").GetGuid();
+            var licenseCode = license.GetProperty("publicCode").GetString()!;
+            var username = "boundary-" + marker;
+            var fingerprint = new string('a', 64);
+            string userId, otherUserId;
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+                async Task<PortalUser> CreateUser(string suffix)
+                {
+                    var user = new PortalUser { UserName = suffix, Email = suffix + "@example.test", EmailConfirmed = true,
+                        InvitationAccepted = true, DisplayName = "Synthetic User", ProfileType = "professional",
+                        ActivityArea = "industrial-automation", OrganizationOrSchool = "Synthetic Company" };
+                    PortalSeed.Ensure(await users.CreateAsync(user, Password));
+                    PortalSeed.Ensure(await users.AddToRoleAsync(user, "Member"));
+                    return user;
+                }
+                var user = await CreateUser(username);
+                var otherUser = await CreateUser("other-" + marker);
+                userId = user.Id;
+                otherUserId = otherUser.Id;
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                db.Memberships.Add(new Membership { OrganizationId = organizationId, UserId = user.Id, Role = "Member" });
+                db.ProductLicenseActivations.AddRange(
+                    new ProductLicenseActivation { Id = Guid.NewGuid(), LicenseId = licenseId, OrganizationId = organizationId,
+                        ApplicationId = applicationId, UserId = userId, MachineFingerprint = fingerprint, Status = ProductLicenseStates.Active },
+                    new ProductLicenseActivation { Id = Guid.NewGuid(), LicenseId = licenseId, OrganizationId = organizationId,
+                        ApplicationId = applicationId, UserId = userId, MachineFingerprint = fingerprint, Status = ProductLicenseStates.Active },
+                    new ProductLicenseActivation { Id = Guid.NewGuid(), LicenseId = licenseId, OrganizationId = organizationId,
+                        ApplicationId = applicationId, UserId = otherUserId, MachineFingerprint = fingerprint, Status = ProductLicenseStates.Active },
+                    new ProductLicenseActivation { Id = Guid.NewGuid(), LicenseId = licenseId, OrganizationId = organizationId,
+                        ApplicationId = applicationId, UserId = otherUserId, MachineFingerprint = fingerprint, Status = ProductLicenseStates.Active },
+                    new ProductLicenseActivation { Id = Guid.NewGuid(), LicenseId = licenseId, OrganizationId = organizationId,
+                        ApplicationId = applicationId, UserId = otherUserId, MachineFingerprint = fingerprint, Status = ProductLicenseStates.Active },
+                    new ProductLicenseActivation { Id = Guid.NewGuid(), LicenseId = licenseId, OrganizationId = organizationId,
+                        ApplicationId = applicationId, UserId = userId, MachineFingerprint = fingerprint, Status = ProductLicenseStates.Revoked });
+                await db.SaveChangesAsync();
+            }
+
+            using var product = Client(factory);
+            async Task<HttpResponseMessage> Prepare(Guid candidateId, string machineFingerprint, string? proof = null)
+            {
+                var body = new Dictionary<string, object?>
+                {
+                    ["username"] = username, ["password"] = Password, ["licenseCode"] = licenseCode,
+                    ["activationId"] = candidateId, ["machineFingerprint"] = machineFingerprint
+                };
+                if (proof is not null) body["currentRefreshCredential"] = proof;
+                return await product.PostAsJsonAsync("api/licensing/device/prepare", body);
+            }
+
+            using (var response = await Prepare(Guid.NewGuid(), fingerprint))
+            {
+                Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+                Assert.Equal("activation-recovery-ambiguous", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+            }
+
+            // Remove one duplicate to assert an invalid but syntactically sound proof fails closed for a unique candidate.
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                var duplicate = await db.ProductLicenseActivations.Where(x => x.LicenseId == licenseId &&
+                    x.UserId == userId && x.Status == ProductLicenseStates.Active).OrderBy(x => x.Id).FirstAsync();
+                duplicate.Status = ProductLicenseStates.Revoked;
+                await db.SaveChangesAsync();
+            }
+            var invalidProof = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+            using (var response = await Prepare(Guid.NewGuid(), fingerprint, invalidProof))
+            {
+                Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+                Assert.Equal("activation-recovery-unavailable", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+            }
+            await using (var scope = factory.Services.CreateAsyncScope())
+                Assert.Equal(6, await scope.ServiceProvider.GetRequiredService<PortalDb>().ProductLicenseActivations.CountAsync(x => x.LicenseId == licenseId));
+            using (var response = await Prepare(Guid.NewGuid(), fingerprint))
+            {
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                Assert.True((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("reactivation").GetBoolean());
+            }
+
+            Guid incompatibleId;
+            await using (var scope = factory.Services.CreateAsyncScope())
+                incompatibleId = await scope.ServiceProvider.GetRequiredService<PortalDb>().ProductLicenseActivations
+                    .Where(x => x.LicenseId == licenseId && x.UserId == otherUserId && x.Status == ProductLicenseStates.Active)
+                    .Select(x => x.Id).FirstAsync();
+            using (var response = await Prepare(incompatibleId, fingerprint))
+            {
+                Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+                Assert.Equal("activation-recovery-unavailable", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+            }
+
+            Guid revokedId;
+            await using (var scope = factory.Services.CreateAsyncScope())
+                revokedId = await scope.ServiceProvider.GetRequiredService<PortalDb>().ProductLicenseActivations
+                    .Where(x => x.LicenseId == licenseId && x.UserId == userId && x.Status == ProductLicenseStates.Revoked)
+                    .Select(x => x.Id).FirstAsync();
+            using (var response = await Prepare(revokedId, fingerprint))
+            {
+                Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+                Assert.Equal("activation-revoked", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+            }
+
+            var otherMachineId = Guid.NewGuid();
+            using (var response = await Prepare(otherMachineId, new string('b', 64)))
+            {
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                var prepared = await response.Content.ReadFromJsonAsync<JsonElement>();
+                Assert.False(prepared.GetProperty("reactivation").GetBoolean());
+                using var confirm = await product.PostAsJsonAsync("api/licensing/device/confirm", new
+                {
+                    confirmationToken = prepared.GetProperty("confirmationToken").GetString(), activationId = otherMachineId,
+                    requestId = Guid.NewGuid(), machineFingerprint = new string('b', 64),
+                    refreshCredential = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32))
+                });
+                Assert.Equal(HttpStatusCode.Conflict, confirm.StatusCode);
+                Assert.Equal("activation-limit-reached", (await confirm.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+            }
+
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                Assert.Equal(6, await db.ProductLicenseActivations.CountAsync(x => x.LicenseId == licenseId));
+                Assert.False(await db.ProductLicenseActivations.AnyAsync(x => x.LicenseId == licenseId && x.MachineFingerprint == new string('b', 64)));
+            }
         }
         finally { Directory.Delete(root, recursive: true); }
     }

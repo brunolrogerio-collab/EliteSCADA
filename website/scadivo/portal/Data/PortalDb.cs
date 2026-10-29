@@ -193,7 +193,9 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<ProductLicenseActivation>().Property(x => x.ActivationLeaseEnvelope).HasColumnType("text");
         builder.Entity<ProductLicenseActivation>().Property(x => x.LastLeaseEnvelope).HasColumnType("text");
         builder.Entity<ProductLicenseActivation>().Property(x => x.RevocationReason).HasMaxLength(240);
+        builder.Entity<ProductLicensePreparation>().Property(x => x.ConfirmedLeaseEnvelope).HasColumnType("text");
         builder.Entity<ProductLicenseActivation>().HasIndex(x => new { x.LicenseId, x.Status });
+        builder.Entity<ProductLicenseActivation>().HasIndex(x => new { x.LicenseId, x.MachineFingerprint, x.Status });
         builder.Entity<ProductLicenseActivation>().HasIndex(x => x.LastActivationRequestId).IsUnique().HasFilter("\"LastActivationRequestId\" IS NOT NULL");
         builder.Entity<ProductLicenseActivation>().HasIndex(x => x.LastRenewalRequestId).IsUnique().HasFilter("\"LastRenewalRequestId\" IS NOT NULL");
         builder.Entity<ProductLicenseRefreshCredential>().HasOne<ProductLicenseActivation>().WithMany().HasForeignKey(x => x.ActivationId).OnDelete(DeleteBehavior.Restrict);

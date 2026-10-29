@@ -95,6 +95,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("licensing-activate", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("licensing-health", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("licensing-renew", context =>
     {
         var activation = context.Request.RouteValues.TryGetValue("activationId", out var routeValue) ? routeValue?.ToString() : null;

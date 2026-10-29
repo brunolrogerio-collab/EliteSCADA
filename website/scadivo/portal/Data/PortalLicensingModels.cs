@@ -11,6 +11,7 @@ public static class RefreshCredentialStates
 {
     public const string Current = "current";
     public const string Superseded = "superseded";
+    public const string Recovered = "recovered";
     public const string Revoked = "revoked";
 }
 
@@ -67,6 +68,7 @@ public sealed class ProductLicenseActivation
     public string? LastRenewalOutputCredentialHash { get; set; }
     public string? LastLeaseEnvelope { get; set; }
     public DateTimeOffset? LastLeaseIssuedAtUtc { get; set; }
+    public long CredentialGeneration { get; set; }
 }
 
 public sealed class ProductLicenseRefreshCredential
@@ -93,4 +95,8 @@ public sealed class ProductLicensePreparation
     public bool Cancelled { get; set; }
     public Guid? ConsumedRequestId { get; set; }
     public string? CredentialHash { get; set; }
+    public bool Reactivation { get; set; }
+    public long? ExpectedCredentialGeneration { get; set; }
+    public string? RecoveryCredentialHash { get; set; }
+    public string? ConfirmedLeaseEnvelope { get; set; }
 }

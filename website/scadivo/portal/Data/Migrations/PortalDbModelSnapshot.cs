@@ -654,6 +654,9 @@ namespace Scadivo.Portal.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<long>("CredentialGeneration")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("LastActivationCredentialHash")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -727,6 +730,8 @@ namespace Scadivo.Portal.Data.Migrations
 
                     b.HasIndex("LicenseId", "Status");
 
+                    b.HasIndex("LicenseId", "MachineFingerprint", "Status");
+
                     b.HasIndex("OrganizationId", "ApplicationId", "LicenseId");
 
                     b.ToTable("ProductLicenseActivations");
@@ -749,6 +754,12 @@ namespace Scadivo.Portal.Data.Migrations
                     b.Property<string>("CredentialHash")
                         .HasColumnType("text");
 
+                    b.Property<string>("ConfirmedLeaseEnvelope")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("ExpectedCredentialGeneration")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -761,6 +772,12 @@ namespace Scadivo.Portal.Data.Migrations
 
                     b.Property<string>("PresentationJson")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Reactivation")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RecoveryCredentialHash")
                         .HasColumnType("text");
 
                     b.Property<string>("SecurityStamp")

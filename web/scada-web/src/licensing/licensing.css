@@ -46,7 +46,7 @@
 .licensing-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.2fr);
   flex: 1 1 auto;
   min-height: 0;
   gap: 10px;
@@ -68,13 +68,37 @@
 }
 
 .licensing-online-status {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.licensing-connectivity {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 4px;
+}
+
+.licensing-connectivity-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: #8090a0;
+}
+
+.licensing-connectivity-reachable .licensing-connectivity-dot { background: #18b981; }
+.licensing-connectivity-unreachable .licensing-connectivity-dot { background: #ef6262; }
+.licensing-connectivity-help { margin: 0 0 8px; }
+
+.licensing-machine-install {
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid #2d4057;
 }
 
-.licensing-online-status h3 {
-  margin: 0;
+.licensing-machine-install h3 {
+  margin: 0 0 8px;
   font-size: .95rem;
 }
 
@@ -96,10 +120,6 @@
 .licensing-card dd {
   margin: 0;
   overflow-wrap: anywhere;
-}
-
-.licensing-wide {
-  grid-column: auto;
 }
 
 .licensing-request,
@@ -175,10 +195,6 @@
     grid-template-columns: 1fr;
     grid-template-rows: none;
     flex: 0 0 auto;
-  }
-
-  .licensing-wide {
-    grid-column: auto;
   }
 
   .licensing-heading {

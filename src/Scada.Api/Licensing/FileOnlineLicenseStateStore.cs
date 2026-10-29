@@ -100,6 +100,18 @@ public sealed class FileOnlineLicenseStateStore
         return state is null ? null : Status(state);
     }
 
+    // The recovery proof is exposed only to the Portal transport client and is never projected
+    // into the product API or UI. Explicit reauthentication/reset states intentionally omit it.
+    internal async Task<OnlineLicensePrepareContext> ReadPrepareContextAsync(CancellationToken ct)
+    {
+        await using var gate = Acquire(ct);
+        var state = await ReadAsync(ct);
+        if (state is null) return new(null, null, null);
+        _ = DemandClock(state);
+        var credential = !state.IsReset && !state.ReauthenticationRequired ? state.CurrentCredential : null;
+        return new(Status(state), credential, state.Pending?.Kind);
+    }
+
     // Deliberately separate from transport completion: receiving a lease must never
     // silently change active Runtime entitlements before the canonical epoch transition.
     internal async Task<OnlineProductLicenseCandidate> ReadEntitlementCandidateAsync(CancellationToken ct = default)
@@ -117,7 +129,7 @@ public sealed class FileOnlineLicenseStateStore
     internal async Task<OnlineLicenseDeviceStatus> StorePreparedConfirmationAsync(
         OnlineLicensePresentation presentation, Guid activationId, string token, DateTimeOffset expiresAtUtc,
         bool activationAvailable, ProtectedMaterialMutationContext mutation, CancellationToken ct,
-        string? expectedInstallationIdentity = null)
+        string? expectedInstallationIdentity = null, bool reactivation = false)
     {
         DemandAdministration(mutation);
         var now = clock.GetUtcNow();
@@ -129,10 +141,10 @@ public sealed class FileOnlineLicenseStateStore
         var existing = await ReadAsync(ct);
         if (existing is not null) _ = DemandClock(existing);
         if (existing is { IsReset: false } &&
-            (!existing.ReauthenticationRequired || existing.CurrentCredential is null || existing.Lease is null ||
+            (existing.CurrentCredential is null || existing.Lease is null ||
              existing.Binding.ActivationId != activationId || existing.Binding.LicenseId != presentation.LicenseId ||
              existing.Binding.OrganizationId != presentation.OrganizationId || existing.Binding.ApplicationId != presentation.ApplicationId ||
-             existing.Pending?.Kind == "confirmation"))
+             (existing.Pending is not null && !(existing.ReauthenticationRequired && existing.Pending.Kind == "renewal"))))
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
         var state = existing is { IsReset: false } ? existing : new OnlineLicenseDeviceState
         {
@@ -145,18 +157,28 @@ public sealed class FileOnlineLicenseStateStore
         state.ExpectedInstallationIdentity = expectedInstallationIdentity;
         state.Pending = new() { Kind = "confirmation", RequestId = Guid.NewGuid(), NextCredential = NewCredential(),
             ConfirmationToken = token, ConfirmationExpiresAtUtc = expiresAtUtc,
-            Presentation = presentation, OnlineActivationAvailable = activationAvailable };
+            Presentation = presentation, OnlineActivationAvailable = activationAvailable, Reactivation = reactivation };
         await PersistAsync(state, mutation, ct);
         return Status(state);
     }
 
     internal async Task CancelPreparedConfirmationWhileOwnedAsync(Guid activationId, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+        => await ClearConfirmationWhileOwnedAsync(activationId, mutation, ct, allowRequested: false);
+
+    // Only called after an exact Portal retry proves cancellation won the race with confirmation.
+    internal async Task ClearInvalidatedConfirmationWhileOwnedAsync(Guid activationId,
+        ProtectedMaterialMutationContext mutation, CancellationToken ct)
+        => await ClearConfirmationWhileOwnedAsync(activationId, mutation, ct, allowRequested: true);
+
+    private async Task ClearConfirmationWhileOwnedAsync(Guid activationId, ProtectedMaterialMutationContext mutation,
+        CancellationToken ct, bool allowRequested)
     {
         DemandAdministration(mutation);
         await using var gate = Acquire(ct);
         var state = await RequireStateAsync(ct);
         var now = DemandClock(state);
-        if (state.Binding.ActivationId != activationId || state.Pending is not { Kind: "confirmation", ConfirmationRequested: false })
+        if (state.Binding.ActivationId != activationId || state.Pending is not { Kind: "confirmation" } pending ||
+            (!allowRequested && pending.ConfirmationRequested) || (allowRequested && !pending.ConfirmationRequested))
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
         state.Pending = null;
         state.HasInstallationSnapshot = false;
@@ -513,7 +535,6 @@ public sealed class FileOnlineLicenseStateStore
                     (pending.RequestId == Guid.Empty || !IsCredential(pending.NextCredential) ||
                      pending.Kind is not ("activation" or "renewal" or "reauthentication" or "confirmation") ||
                      (pending.Kind == "confirmation" && (state.SchemaVersion != 4 ||
-                        (state.CurrentCredential is not null && !state.ReauthenticationRequired) ||
                         pending.Presentation is null || !pending.Presentation.IsWellFormed() ||
                         pending.Presentation.LicenseId != binding.LicenseId || pending.Presentation.OrganizationId != binding.OrganizationId ||
                         pending.Presentation.ApplicationId != binding.ApplicationId ||

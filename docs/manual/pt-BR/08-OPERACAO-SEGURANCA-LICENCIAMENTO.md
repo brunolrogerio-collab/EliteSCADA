@@ -6,6 +6,22 @@ Runtime executa a revisão Active sob autoridade do backend. A sessão recebe ca
 
 Perda/expiração de autoridade interativa não transforma a sessão em autorizada por padrão.
 
+### Parar e iniciar a aplicação em operação
+
+Na visão geral de Engineering, o cartão **4 — Active** mostra o estado real do Runtime. Com `EngineeringModify`, use **Parar Runtime** e confirme. A ação para os drivers da aplicação, a coleta de dados e os Scripts de servidor. A revisão continua Active; o serviço de Engineering/API, a licença instalada e o login do operador são preservados. Sessões Runtime e conexões com equipamentos podem ser interrompidas e precisam reconectar quando o Runtime voltar. Parar não despublica a revisão nem revoga ou remove a licença.
+
+Depois de uma parada completa, **Iniciar Runtime** reativa a mesma revisão Active e revalida licença e autoridade. Isso não renova nem reinicia um prazo limitado de Demo. Se a interface indicar parada incompleta, revise os componentes afetados; não inicie até resolver. Com HA habilitado, controles locais não são oferecidos porque não parariam o cluster inteiro; use a manutenção coordenada do cluster.
+
+As capturas abaixo mostram as duas ações na visão geral; foram feitas durante a validação local integrada.
+
+![Runtime em execução: o cartão Active oferece Parar Runtime](../assets/runtime-active-overview.png)
+
+![Runtime parado: o cartão Active oferece Iniciar Runtime](../assets/runtime-stopped-overview.png)
+
+Uma renovação automática de licença aceita ocorre em segundo plano e, por si só, não para o Runtime. Uma licença recusada, revogada ou expirada segue as proteções de direito do produto.
+
+**Ajuda relacionada:** `/help?topic=engineering.lifecycle`, `/help?topic=licensing.overview`, `/help?topic=ha.overview`.
+
 ## Interactive e View Only
 
 Interactive e View Only representam classes de sessão. View Only reduz autoridade operacional; especialmente, não concede escrita/comando mesmo que o usuário tenha permissões que seriam utilizáveis numa sessão interativa.

@@ -766,11 +766,14 @@ export function AssetProcessIntelligenceWorkspace({
               return <article key={key} className="asset-process-intelligence__row">
                 <label>
                   <input type="checkbox" checked={selected.has(key)} disabled={!canEngineer || active || saving || transitioning !== null}
-                    onChange={event => setSelected(current => {
-                      const next = new Set(current);
-                      if (event.currentTarget.checked) next.add(key); else next.delete(key);
-                      return next;
-                    })}/>
+                    onChange={event => {
+                      const checked = event.currentTarget.checked;
+                      setSelected(current => {
+                        const next = new Set(current);
+                        if (checked) next.add(key); else next.delete(key);
+                        return next;
+                      });
+                    }}/>
                   <span><strong>{resource.name}</strong><small>{resource.kind} · {resource.path ?? resource.scopeId}</small></span>
                 </label>
                 <div className="asset-process-intelligence__controls">

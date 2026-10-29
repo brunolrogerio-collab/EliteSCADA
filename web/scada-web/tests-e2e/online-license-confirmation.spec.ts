@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/licensing/online/connectivity', route => route.fulfill({ json: { state: 'reachable' } }));
+});
+
 test('review, cancel and recover confirmation without resending the password', async ({ page }) => {
   let pending = false;
   let confirmed = false;
@@ -43,10 +47,47 @@ test('review, cancel and recover confirmation without resending the password', a
   await enter();
   await page.getByRole('button', { name: 'Confirmar ativação' }).click();
   await expect(page.getByRole('button', { name: 'Concluir ativação' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Cancelar', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Cancelar', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Concluir ativação' }).click();
   await expect(page.getByTestId('online-license-status')).toContainText('Vínculo salvo');
   expect(confirms).toBe(2);
+});
+
+test('allows cancelling a persisted confirmation request', async ({ page }) => {
+  let pending = false;
+  let confirmed = false;
+  const prepared = () => ({ activationId: '00000000-0000-0000-0000-000000000123', expiresAtUtc: '2026-10-28T22:05:00Z',
+    onlineActivationAvailable: true, confirmationRequested: confirmed,
+    summary: { applicationName: 'Estação de bombeamento', licenseCode: 'SCV-EXAMPLE', term: 'annual',
+      entitlementExpiresAtUtc: '2027-10-28T00:00:00Z', tier: 'Tags500', interactiveSeats: 2, viewOnlySeats: 3,
+      haRuntime: true, assetProcessIntelligence: false, maxActivations: 1 } });
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+    license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' },
+    onlineDevice: { configured: true, available: true, hasActivation: pending, leasePresent: false,
+      requestPending: pending, confirmationPending: pending, installationPending: false, reauthenticationRequired: false }
+  } }));
+  await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'TEST' } }));
+  await page.route('**/api/licensing/online/prepare', route => {
+    pending = true; return route.fulfill({ json: { ...prepared(), confirmationRequested: false } });
+  });
+  await page.route('**/api/licensing/online/preparation', route => route.fulfill({ json: { ...prepared(), confirmationRequested: confirmed } }));
+  await page.route('**/api/licensing/online/confirm', async route => {
+    confirmed = true; await route.fulfill({ status: 503, json: { error: 'ONLINE_LICENSE_PORTAL_UNAVAILABLE' } });
+  });
+  await page.route('**/api/licensing/online/cancel', async route => {
+    expect(route.request().postDataJSON()).toEqual({ activationId: prepared().activationId });
+    pending = false; confirmed = false; await route.fulfill({ status: 204 });
+  });
+  await page.goto('/tests-e2e/licensing-harness.html');
+  await page.getByLabel('Login ou e-mail').fill('operador');
+  await page.getByLabel('Senha', { exact: true }).fill('senha-teste');
+  await page.getByLabel('Código da licença', { exact: true }).fill('SCV-EXAMPLE');
+  await page.getByRole('button', { name: 'Consultar licença' }).click();
+  await page.getByRole('button', { name: 'Confirmar ativação' }).click();
+  await expect(page.getByRole('button', { name: 'Cancelar', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(page.getByText('Consulta cancelada.')).toBeVisible();
 });
 
 test('an expired ambiguous confirmation can be discarded only after explicit notice', async ({ page }) => {
@@ -75,4 +116,86 @@ test('an expired ambiguous confirmation can be discarded only after explicit not
   await page.goto('/tests-e2e/licensing-harness.html');
   await page.getByRole('button', { name: 'Descartar tentativa local' }).click();
   await expect(page.getByText('Tentativa local descartada. Confira a ativação no Portal.')).toBeVisible();
+});
+
+
+test('expired confirmation explains the refusal and remains safely cancellable', async ({ page }) => {
+  let pending = true;
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+    license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' },
+    onlineDevice: { configured: true, available: true, hasActivation: pending, leasePresent: false,
+      requestPending: pending, confirmationPending: pending, installationPending: false, reauthenticationRequired: false }
+  } }));
+  await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'TEST' } }));
+  await page.route('**/api/licensing/online/preparation', route => route.fulfill({ json: {
+    activationId: '00000000-0000-0000-0000-000000000123', expiresAtUtc: '2026-10-29T15:09:52Z',
+    onlineActivationAvailable: true, confirmationRequested: true,
+    summary: { applicationName: 'Teste', licenseCode: 'SCV-EXAMPLE', term: 'annual',
+      entitlementExpiresAtUtc: null, tier: 'Tags500', interactiveSeats: 2, viewOnlySeats: 3,
+      haRuntime: false, assetProcessIntelligence: false, maxActivations: 1 }
+  } }));
+  await page.route('**/api/licensing/online/confirm', route => route.fulfill({ status: 409,
+    json: { error: 'ONLINE_LICENSE_PREPARATION_EXPIRED' } }));
+  await page.route('**/api/licensing/online/cancel', route => {
+    pending = false; return route.fulfill({ status: 204 });
+  });
+  await page.goto('/tests-e2e/licensing-harness.html');
+  await page.getByRole('button', { name: 'Concluir ativação' }).click();
+  await expect(page.getByRole('alert')).toContainText('O prazo desta consulta terminou');
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(page.getByText('Consulta cancelada.')).toBeVisible();
+  await expect(page.getByLabel('Login ou e-mail')).toBeVisible();
+});
+
+test('reports Portal reachability and retries only when requested', async ({ page }) => {
+  let connectivityChecks = 0;
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+    license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' },
+    onlineDevice: { configured: true, available: true, hasActivation: false, leasePresent: false,
+      requestPending: false, confirmationPending: false, installationPending: false, reauthenticationRequired: false }
+  } }));
+  await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'TEST' } }));
+  await page.route('**/api/licensing/online/connectivity', route => {
+    connectivityChecks++;
+    return route.fulfill({ json: { state: connectivityChecks === 1 ? 'unreachable' : 'reachable' } });
+  });
+
+  await page.goto('/tests-e2e/licensing-harness.html');
+  const connectivity = page.getByTestId('online-license-connectivity');
+  await expect(connectivity).toContainText('Sem conexão');
+  await expect(page.getByText('“Conectado” confirma apenas que o serviço respondeu', { exact: false })).toBeVisible();
+  expect(connectivityChecks).toBe(1);
+
+  await page.getByRole('button', { name: 'Verificar novamente' }).click();
+  await expect(connectivity).toContainText('Conectado');
+  await page.waitForTimeout(1200);
+  expect(connectivityChecks).toBe(2);
+});
+
+test('explains same-installation recovery before the user confirms', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/licensing/status', route => route.fulfill({ json: {
+    license: { state: 'Demo', maximumTags: 200 }, runtime: { state: 'Idle' },
+    onlineDevice: { configured: true, available: true, hasActivation: false, leasePresent: false,
+      requestPending: false, confirmationPending: false, installationPending: false, reauthenticationRequired: false }
+  } }));
+  await page.route('**/api/licensing/request', route => route.fulfill({ json: { requestCode: 'TEST' } }));
+  await page.route('**/api/licensing/online/prepare', route => route.fulfill({ json: {
+    activationId: '00000000-0000-0000-0000-000000000123', expiresAtUtc: '2026-10-29T16:00:00Z',
+    onlineActivationAvailable: true, confirmationRequested: false, reactivation: true,
+    summary: { applicationName: 'Teste', licenseCode: 'SCV-EXAMPLE', term: 'perpetual',
+      entitlementExpiresAtUtc: null, tier: 'Tags500', interactiveSeats: 2, viewOnlySeats: 3,
+      haRuntime: false, assetProcessIntelligence: false, maxActivations: 1 }
+  } }));
+
+  await page.goto('/tests-e2e/licensing-harness.html');
+  await page.getByLabel('Login ou e-mail').fill('operador');
+  await page.getByLabel('Senha', { exact: true }).fill('senha-teste');
+  await page.getByLabel('Código da licença', { exact: true }).fill('SCV-EXAMPLE');
+  await page.getByRole('button', { name: 'Consultar licença' }).click();
+  await expect(page.getByText('Esta licença já tem uma ativação para esta instalação.', { exact: false })).toBeVisible();
+  await expect(page.getByText(/credentialGeneration|activationId/i)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Confirmar ativação' })).toBeVisible();
 });

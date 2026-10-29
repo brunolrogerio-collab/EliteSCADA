@@ -102,6 +102,16 @@ test('contextual Help resolves a stable topic locally and follows the canonical 
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('en');
 });
 
+test('global Help navigation opens its canonical SPA route', async ({ page }) => {
+  await installHelpContract(page);
+
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Ajuda' }).click();
+  await expect(page).toHaveURL(/\/help\/\?topic=runtime\.overview$/);
+  await expect(page.getByRole('heading', { name: 'Ajuda do SCADIVO' })).toBeVisible();
+  await expect(page.locator('[data-help-topic="runtime.overview"]')).toBeVisible();
+});
+
 test('contextual Help renders the structured Server Script API contract', async ({ page }) => {
   await installHelpContract(page);
   await page.goto('/help?topic=scripts.server');

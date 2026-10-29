@@ -146,6 +146,7 @@ function EngineeringRuntimeApplicationContent({
   const engineeringPackage = projection.package!;
   const header = engineeringPackage.runtimePresentation?.header;
   const compact = isFullscreen || mobile;
+  const controlsPosition = compact ? 'left' : header?.controlsPosition ?? 'right';
   const headerVisible = header?.enabled !== false;
   const playbackConfigured = engineeringPackage.runtimePresentation?.historicalPlaybackEnabled === true;
   const playbackAvailable = playbackConfigured &&
@@ -268,9 +269,11 @@ function EngineeringRuntimeApplicationContent({
     {showFullscreenControl && !compact ? <RuntimeOperatorTool
       label={text.fullscreen} icon="fullscreen" active={false} onClick={() => void toggleFullscreen()}
     /> : null}
-    {(header?.links ?? []).map((link, index) => <button key={index} type="button" className="runtime-operator-tool"
+    {(header?.links ?? []).map((link, index) => <button key={index} type="button"
+      className={`runtime-operator-tool runtime-operator-tool--custom${link.visualAssetId ? ' runtime-operator-tool--custom-image' : ''}`}
+      data-testid="runtime-custom-screen-link"
       title={link.label} aria-label={link.label} onClick={() => { setRequestedScreen(link.screenKey); showOverview(); }}>
-      {link.visualAssetId ? <img src={runtimeVisualAssetContentUrl(link.visualAssetId)} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }}/> : link.label}
+      {link.visualAssetId ? <img src={runtimeVisualAssetContentUrl(link.visualAssetId)} alt=""/> : <span>{link.label}</span>}
     </button>)}
   </div>;
 
@@ -301,7 +304,7 @@ function EngineeringRuntimeApplicationContent({
         </div> : null}
         {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'left'
           ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}
-        {header?.controlsPosition === 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
+        {controlsPosition === 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
       </div>
       <div className="runtime-operator-context" style={{ textAlign: header?.titlePosition ?? 'left' }} title={projectTitle}>
         <div className="runtime-operator-context__titles">
@@ -317,7 +320,7 @@ function EngineeringRuntimeApplicationContent({
         </> : null}
       </div>
       <div className="runtime-operator-side runtime-operator-side--right">
-        {header?.controlsPosition !== 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
+        {controlsPosition !== 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
         {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'right'
           ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}
         {compact ? <div className="runtime-operator-user-slot" data-testid="runtime-user-summary">

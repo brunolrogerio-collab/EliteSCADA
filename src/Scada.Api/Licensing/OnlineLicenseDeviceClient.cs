@@ -25,6 +25,40 @@ public sealed partial class OnlineLicenseDeviceClient : IDisposable
         http.Timeout = TimeSpan.FromSeconds(20);
     }
 
+    internal async Task<bool> CheckPortalConnectivityAsync(CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            new Uri(store.PortalOrigin, "portal/api/licensing/device/health"));
+        request.Headers.CacheControl = new CacheControlHeaderValue { NoStore = true };
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(4));
+        try
+        {
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentLength is > 1024)
+                return false;
+            await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+            using var bounded = new MemoryStream();
+            var buffer = new byte[256];
+            int read;
+            while ((read = await stream.ReadAsync(buffer, timeout.Token)) != 0)
+            {
+                if (bounded.Length + read > 1024) return false;
+                bounded.Write(buffer, 0, read);
+            }
+            using var json = JsonDocument.Parse(bounded.ToArray(), new JsonDocumentOptions { MaxDepth = 2 });
+            var root = json.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || root.EnumerateObject().Count() != 1 ||
+                !root.TryGetProperty("serviceAvailable", out var available) ||
+                available.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                return false;
+            return available.GetBoolean();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or JsonException)
+        { return false; }
+    }
+
     public async Task<OnlineLicenseDeviceStatus> ActivateAsync(OnlineLicenseSelection selection,
         string username, string password, ProtectedMaterialMutationContext mutation, CancellationToken ct = default)
     {

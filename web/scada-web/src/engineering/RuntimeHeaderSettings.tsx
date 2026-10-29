@@ -1,6 +1,7 @@
 import React from 'react';
 import type { EngineeringSnapshot, RuntimeHeaderEngineering, RuntimeHeaderTextStyleEngineering } from './types';
 import type { EngineeringLocale } from './i18n';
+import { visualAssetContentUrl } from './visualAssetContentUrl';
 import { listUserVisualAssets } from './visualAssetCatalogModel';
 
 export function RuntimeHeaderSettings({ value, onChange, snapshot, locale }: {
@@ -10,6 +11,7 @@ export function RuntimeHeaderSettings({ value, onChange, snapshot, locale }: {
   const t = headerSettingsText(locale);
   const update = (patch: Partial<RuntimeHeaderEngineering>) => onChange({ ...value, ...patch });
   const links = value.links ?? [];
+  const visualAssets = listUserVisualAssets(snapshot.package.visualAssets).filter(asset => asset.id && asset.mediaType.startsWith('image/'));
   const height = Math.max(56, Math.min(168, value.height ?? 56));
   const backgroundUsesTheme = !value.backgroundColor;
   const dateTime = value.dateTime ?? {};
@@ -83,16 +85,25 @@ export function RuntimeHeaderSettings({ value, onChange, snapshot, locale }: {
         </div>
         <small>{t.actionsHint}</small>
         <h3>{t.customLinks}</h3>
-        {links.map((link, index) => <div key={index} className="runtime-header-settings__link">
-          <label>{t.buttonLabel}<input maxLength={128} value={link.label} onChange={event => update({ links: links.map((item, i) => i === index ? { ...item, label: event.currentTarget.value } : item) })}/></label>
+        {links.map((link, index) => {
+          const selectedVisualAsset = visualAssets.find(asset => asset.id?.toLocaleLowerCase() === link.visualAssetId?.toLocaleLowerCase());
+          return <div key={index} className="runtime-header-settings__link">
+          <label>{t.buttonLabel}<input maxLength={10} value={link.label} onChange={event => update({ links: links.map((item, i) => i === index ? { ...item, label: event.currentTarget.value } : item) })}/></label>
           <label>{t.targetScreen}<select value={link.screenKey} onChange={event => update({ links: links.map((item, i) => i === index ? { ...item, screenKey: event.currentTarget.value } : item) })}>
             {(snapshot.package.screens ?? []).map(screen => <option key={screen.key} value={screen.key}>{screen.name || screen.key}</option>)}
           </select></label>
           <label>{t.buttonImage}<select value={link.visualAssetId ?? ''} onChange={event => update({ links: links.map((item, i) => i === index ? { ...item, visualAssetId: event.currentTarget.value || null } : item) })}>
-            <option value="">{t.textOnly}</option>{listUserVisualAssets(snapshot.package.visualAssets).filter(asset => asset.id && asset.mediaType.startsWith('image/')).map(asset => <option key={asset.id!} value={asset.id!}>{asset.name}</option>)}
+            <option value="">{t.textOnly}</option>{visualAssets.map(asset => <option key={asset.id!} value={asset.id!}>{asset.name}</option>)}
           </select></label>
+          {selectedVisualAsset?.id ? <div className="runtime-header-settings__asset-preview" data-testid="runtime-header-asset-preview">
+            <img src={visualAssetContentUrl(selectedVisualAsset.id)} alt=""/>
+            <span>{selectedVisualAsset.name}</span>
+          </div> : null}
+          {!link.visualAssetId ? <small className="runtime-header-settings__link-hint">{t.buttonLabelHint}</small> : null}
+          {link.visualAssetId ? <small className="runtime-header-settings__link-hint">{t.buttonImageHint}</small> : null}
           <button type="button" onClick={() => update({ links: links.filter((_, i) => i !== index) })}>{t.remove}</button>
-        </div>)}
+          </div>;
+        })}
         <button type="button" disabled={links.length >= 16 || !snapshot.package.screens?.length} onClick={() => update({ links: [...links, { label: t.screenButton, screenKey: snapshot.package.screens![0].key }] })}>{t.addLink}</button>
         <small>{t.userControlHint}</small>
       </fieldset>
@@ -130,7 +141,7 @@ function headerSettingsText(locale: EngineeringLocale) {
     appearance: 'Bar appearance', height: 'Header height', heightHint: 'From the current compact height up to three times taller.', followTheme: 'Use the active light/dark theme', followThemeHint: 'The bar and its controls follow the operator’s selected theme.', backgroundColor: 'Custom bar color',
     layout: 'Project and screen titles', projectAlignment: 'Project title alignment', left: 'Left', center: 'Center', right: 'Right', projectTitle: 'Project title typography', showScreenName: 'Show the current screen name below the project title', showScreenNameHint: 'The screen display name updates as Runtime navigation changes screens.', screenName: 'Screen name typography', controlsPosition: 'Navigation and operator buttons', controlsOrder: 'Order', controlsPositionHint: 'Moves the Overview, History, Alarms, Playback, full-screen and custom screen buttons as a group. The user menu stays at the far right.',
     dateTime: 'Clock and date', display: 'Display', off: 'Hidden', timeOnly: 'Time only', dateOnly: 'Date only', dateAndTime: 'Time above date', position: 'Side', order: 'Order within side', dateFormat: 'Date format', dayFirst: 'Day / month / year', monthFirst: 'Month / day / year', yearFirst: 'Year / month / day', timeFormat: 'Time format', dateTimeHint: 'When both are shown, time is placed above the date.', dateTimeSingleHint: 'Shown on the selected side of the header.', dateTimeOffHint: 'The header will not reserve space for a clock.',
-    visibleActions: 'Available Runtime buttons', actions: ['Overview', 'History browser', 'Alarms', 'Historical playback'], actionsHint: 'The Runtime user menu is fixed at the far right and is not moved with these buttons.', customLinks: 'Custom screen buttons', buttonLabel: 'Button label', targetScreen: 'Destination screen', buttonImage: 'Button icon', textOnly: 'Text only', remove: 'Remove', screenButton: 'Screen', addLink: 'Add screen button', userControlHint: 'User summary and session controls remain fixed on the right in the compact/full-screen Runtime header.',
+    visibleActions: 'Available Runtime buttons', actions: ['Overview', 'History browser', 'Alarms', 'Historical playback'], actionsHint: 'The Runtime user menu is fixed at the far right and is not moved with these buttons.', customLinks: 'Custom screen buttons', buttonLabel: 'Button label (up to 10 characters)', buttonLabelHint: 'The button width follows its label automatically.', targetScreen: 'Destination screen', buttonImage: 'Button image', buttonImageHint: 'The image replaces the visible label; the label remains available to assistive technology.', textOnly: 'Text only', remove: 'Remove', screenButton: 'Screen', addLink: 'Add screen button', userControlHint: 'User summary and session controls remain fixed on the right in the compact/full-screen Runtime header.',
     fontFamily: 'Font family', systemFont: 'System default', monospaceFont: 'Monospace', fontSize: 'Font size', weight: 'Weight', regular: 'Regular', bold: 'Bold', followThemeText: 'Use theme text color', followThemeTextHint: 'Text color changes with the active light/dark theme.', textColor: 'Text color'
   };
   if (locale === 'es') return {
@@ -138,7 +149,7 @@ function headerSettingsText(locale: EngineeringLocale) {
     appearance: 'Apariencia de la barra', height: 'Altura del encabezado', heightHint: 'Desde la altura compacta actual hasta tres veces más alta.', followTheme: 'Usar el tema claro/oscuro activo', followThemeHint: 'La barra y sus controles siguen el tema seleccionado por el operador.', backgroundColor: 'Color personalizado de la barra',
     layout: 'Títulos del proyecto y pantalla', projectAlignment: 'Alineación del título del proyecto', left: 'Izquierda', center: 'Centro', right: 'Derecha', projectTitle: 'Tipografía del proyecto', showScreenName: 'Mostrar el nombre de la pantalla bajo el proyecto', showScreenNameHint: 'El nombre cambia al navegar entre pantallas.', screenName: 'Tipografía de la pantalla', controlsPosition: 'Botones de navegación y operación', controlsOrder: 'Orden', controlsPositionHint: 'Mueve juntos los botones Overview, Historial, Alarmas, Playback, pantalla completa y pantallas personalizadas. El menú de usuario permanece a la derecha.',
     dateTime: 'Fecha y hora', display: 'Mostrar', off: 'Ocultar', timeOnly: 'Solo hora', dateOnly: 'Solo fecha', dateAndTime: 'Hora sobre fecha', position: 'Lado', order: 'Orden en el lado', dateFormat: 'Formato de fecha', dayFirst: 'Día / mes / año', monthFirst: 'Mes / día / año', yearFirst: 'Año / mes / día', timeFormat: 'Formato de hora', dateTimeHint: 'Al mostrar ambas, la hora aparece encima de la fecha.', dateTimeSingleHint: 'Aparece en el lado seleccionado del encabezado.', dateTimeOffHint: 'El encabezado no reservará espacio para el reloj.',
-    visibleActions: 'Botones de Runtime disponibles', actions: ['Overview', 'Historial', 'Alarmas', 'Playback histórico'], actionsHint: 'El menú de usuario permanece fijo a la derecha.', customLinks: 'Botones personalizados de pantalla', buttonLabel: 'Etiqueta del botón', targetScreen: 'Pantalla de destino', buttonImage: 'Icono del botón', textOnly: 'Solo texto', remove: 'Eliminar', screenButton: 'Pantalla', addLink: 'Agregar botón de pantalla', userControlHint: 'El resumen de usuario permanece fijo a la derecha en el encabezado compacto/a pantalla completa.',
+    visibleActions: 'Botones de Runtime disponibles', actions: ['Overview', 'Historial', 'Alarmas', 'Playback histórico'], actionsHint: 'El menú de usuario permanece fijo a la derecha.', customLinks: 'Botones personalizados de pantalla', buttonLabel: 'Etiqueta del botón (hasta 10 caracteres)', buttonLabelHint: 'El ancho del botón se ajusta automáticamente a la etiqueta.', targetScreen: 'Pantalla de destino', buttonImage: 'Imagen del botón', buttonImageHint: 'La imagen sustituye la etiqueta visible; la etiqueta se mantiene disponible para tecnologías de asistencia.', textOnly: 'Solo texto', remove: 'Eliminar', screenButton: 'Pantalla', addLink: 'Agregar botón de pantalla', userControlHint: 'El resumen de usuario permanece fijo a la derecha en el encabezado compacto/a pantalla completa.',
     fontFamily: 'Familia tipográfica', systemFont: 'Predeterminada del sistema', monospaceFont: 'Monoespaciada', fontSize: 'Tamaño', weight: 'Peso', regular: 'Normal', bold: 'Negrita', followThemeText: 'Usar color de texto del tema', followThemeTextHint: 'El color sigue el tema claro/oscuro.', textColor: 'Color del texto'
   };
   return {
@@ -146,7 +157,7 @@ function headerSettingsText(locale: EngineeringLocale) {
     appearance: 'Aparência da barra', height: 'Altura do cabeçalho', heightHint: 'Do tamanho compacto atual até três vezes mais alto.', followTheme: 'Usar o tema claro/escuro ativo', followThemeHint: 'A barra e seus controles acompanham o tema escolhido pelo operador.', backgroundColor: 'Cor personalizada da barra',
     layout: 'Títulos do projeto e da tela', projectAlignment: 'Alinhamento do título do projeto', left: 'Esquerda', center: 'Centro', right: 'Direita', projectTitle: 'Tipografia do título do projeto', showScreenName: 'Exibir o nome da tela abaixo do título do projeto', showScreenNameHint: 'O nome acompanha a tela aberta durante a navegação no Runtime.', screenName: 'Tipografia do nome da tela', controlsPosition: 'Posição dos botões de operação', controlsOrder: 'Ordem', controlsPositionHint: 'Move em conjunto Visão geral, Histórico, Alarmes, Playback, tela cheia e botões de telas personalizadas. O menu de usuário permanece fixo à direita.',
     dateTime: 'Data e hora', display: 'Exibição', off: 'Ocultar', timeOnly: 'Somente hora', dateOnly: 'Somente data', dateAndTime: 'Hora acima da data', position: 'Lado do cabeçalho', order: 'Ordem no lado', dateFormat: 'Formato da data', dayFirst: 'Dia / mês / ano', monthFirst: 'Mês / dia / ano', yearFirst: 'Ano / mês / dia', timeFormat: 'Formato da hora', dateTimeHint: 'Quando ambas aparecem, a hora fica acima da data.', dateTimeSingleHint: 'O item aparece no lado escolhido do cabeçalho.', dateTimeOffHint: 'O cabeçalho não reserva espaço para relógio.',
-    visibleActions: 'Botões disponíveis no Runtime', actions: ['Visão geral', 'Browser de histórico', 'Alarmes', 'Playback histórico'], actionsHint: 'O botão de resumo do usuário permanece fixo no lado direito.', customLinks: 'Botões para telas personalizadas', buttonLabel: 'Texto do botão', targetScreen: 'Tela de destino', buttonImage: 'Ícone do botão', textOnly: 'Somente texto', remove: 'Remover', screenButton: 'Tela', addLink: 'Adicionar botão de tela', userControlHint: 'O resumo do usuário e os controles da sessão ficam fixos à direita no cabeçalho compacto/tela cheia.',
+    visibleActions: 'Botões disponíveis no Runtime', actions: ['Visão geral', 'Browser de histórico', 'Alarmes', 'Playback histórico'], actionsHint: 'O botão de resumo do usuário permanece fixo no lado direito.', customLinks: 'Botões para telas personalizadas', buttonLabel: 'Texto do botão (até 10 caracteres)', buttonLabelHint: 'A largura do botão acompanha o texto automaticamente.', targetScreen: 'Tela de destino', buttonImage: 'Imagem do botão', buttonImageHint: 'A imagem substitui o texto visível; o texto continua disponível para recursos de acessibilidade.', textOnly: 'Somente texto', remove: 'Remover', screenButton: 'Tela', addLink: 'Adicionar botão de tela', userControlHint: 'O resumo do usuário e os controles da sessão ficam fixos à direita no cabeçalho compacto/tela cheia.',
     fontFamily: 'Família da fonte', systemFont: 'Padrão do sistema', monospaceFont: 'Monoespaçada', fontSize: 'Tamanho da fonte', weight: 'Peso', regular: 'Normal', bold: 'Negrito', followThemeText: 'Usar cor de texto do tema', followThemeTextHint: 'A cor do texto acompanha o tema claro/escuro ativo.', textColor: 'Cor do texto'
   };
 }

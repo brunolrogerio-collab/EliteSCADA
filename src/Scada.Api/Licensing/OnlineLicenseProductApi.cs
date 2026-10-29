@@ -11,6 +11,15 @@ internal static class OnlineLicenseProductApi
     internal static void MapOnlineLicenseConfirmationEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/licensing/online");
+        group.MapGet("/connectivity", async (HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            var device = context.RequestServices.GetService<OnlineLicenseDeviceClient>();
+            if (device is null) return Results.Ok(new { state = "not-configured" });
+            var reachable = await device.CheckPortalConnectivityAsync(context.RequestAborted);
+            return Results.Ok(new { state = reachable ? "reachable" : "unreachable" });
+        }).RequireWorkspaceEngineeringRead();
+
         group.MapPost("/prepare", async (OnlineLicensePrepareRequest request, HttpContext context, ApiAuthorizationService security) =>
         {
             var authorization = ProductLicensingApi.CheckMutationAuthorization(context, security);
@@ -55,7 +64,9 @@ internal static class OnlineLicenseProductApi
             catch (OnlineLicenseProtocolException ex) { return ProtocolFailure(ex); }
         });
 
-        group.MapPost("/cancel", async (OnlineLicenseConfirmationRequest request, HttpContext context, ApiAuthorizationService security) =>
+        group.MapPost("/cancel", async (OnlineLicenseConfirmationRequest request, HttpContext context,
+            ApiAuthorizationService security, IProductLicenseService licensing,
+            AssetProcessIntelligenceExecutionGate intelligenceGate) =>
         {
             var authorization = ProductLicensingApi.CheckMutationAuthorization(context, security);
             if (authorization.FailureResult() is { } failure) return failure;
@@ -64,7 +75,14 @@ internal static class OnlineLicenseProductApi
             if (device is null) return Unavailable();
             try
             {
-                await device.CancelPreparedConfirmationAsync(request.ActivationId, new(authorization.Principal, authorization.Decision!), context.RequestAborted);
+                var result = await device.CancelPreparedConfirmationAsync(request.ActivationId,
+                    new(authorization.Principal, authorization.Decision!), context.RequestAborted);
+                if (result == OnlineLicenseCancelResult.AlreadyActivated)
+                {
+                    intelligenceGate.InvalidateAll();
+                    return Results.Ok(new { installed = true, alreadyActivated = true,
+                        license = ProductLicensingApi.DescribeLicense(licensing.CurrentVerification) });
+                }
                 return Results.NoContent();
             }
             catch (OnlineLicenseProtocolException ex) { return ProtocolFailure(ex); }
@@ -130,6 +148,7 @@ internal static class OnlineLicenseProductApi
 
     private static object Project(OnlineLicensePrepared prepared) => new {
         prepared.ActivationId, prepared.ExpiresAtUtc, prepared.OnlineActivationAvailable, prepared.ConfirmationRequested,
+        prepared.Reactivation,
         summary = new { prepared.Summary.ApplicationName, prepared.Summary.LicenseCode, prepared.Summary.Mode,
             prepared.Summary.Term, prepared.Summary.EntitlementExpiresAtUtc, prepared.Summary.Tier,
             prepared.Summary.InteractiveSeats, prepared.Summary.ViewOnlySeats, prepared.Summary.HaRuntime,

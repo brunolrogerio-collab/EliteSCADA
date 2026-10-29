@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 
 type Locale = 'pt-BR' | 'en' | 'es';
 type Prepared = {
-  activationId: string; expiresAtUtc: string; onlineActivationAvailable: boolean; confirmationRequested: boolean;
+  activationId: string; expiresAtUtc: string; onlineActivationAvailable: boolean; confirmationRequested: boolean; reactivation: boolean;
   summary: { applicationName: string; licenseCode: string; term: string; entitlementExpiresAtUtc: string | null;
     tier: string; interactiveSeats: number; viewOnlySeats: number; haRuntime: boolean;
     assetProcessIntelligence: boolean; maxActivations: number };
 };
 const labels = {
-  'pt-BR': { title: 'Ativar licença online', help: 'Entre com sua conta SCADIVO e informe o código da licença. Você poderá conferir os dados antes de ativar.', user: 'Login ou e-mail', password: 'Senha', code: 'Código da licença', prepare: 'Consultar licença', review: 'Confira a licença', app: 'Aplicação', term: 'Modalidade', expiry: 'Validade comercial', tier: 'Faixa de TAGs', interactive: 'Clientes interativos', view: 'Clientes de visualização', ha: 'Redundância HA', intelligence: 'Intelligence', machines: 'Ativações permitidas', yes: 'Incluído', no: 'Não incluído', perpetual: 'Perpétua online', monthly: 'Mensal', annual: 'Anual', unlimited: 'Sem vencimento', expires: 'Confirmação disponível até', unavailable: 'A ativação online está temporariamente indisponível.', confirm: 'Confirmar ativação', retry: 'Concluir ativação', cancel: 'Cancelar', success: 'Licença online ativada.', cancelled: 'Consulta cancelada.', generic: 'Não foi possível concluir. Confira os dados ou tente novamente.', credentials: 'Login ou senha não foram aceitos.', network: 'Não foi possível conectar ao serviço de licenciamento.', mismatch: 'Os dados retornados não correspondem à licença assinada.', pending: 'Uma confirmação já foi enviada. Use “Concluir ativação” para recuperar o resultado.' },
-  en: { title: 'Activate online license', help: 'Enter your SCADIVO account and license code. You can review the details before activating.', user: 'Username or email', password: 'Password', code: 'License code', prepare: 'Find license', review: 'Review the license', app: 'Application', term: 'Plan', expiry: 'Commercial expiry', tier: 'TAG tier', interactive: 'Interactive clients', view: 'View-only clients', ha: 'HA redundancy', intelligence: 'Intelligence', machines: 'Allowed activations', yes: 'Included', no: 'Not included', perpetual: 'Online perpetual', monthly: 'Monthly', annual: 'Annual', unlimited: 'No expiry', expires: 'Confirmation available until', unavailable: 'Online activation is temporarily unavailable.', confirm: 'Confirm activation', retry: 'Complete activation', cancel: 'Cancel', success: 'Online license activated.', cancelled: 'Request cancelled.', generic: 'Could not complete the request. Check the details or try again.', credentials: 'Username or password was not accepted.', network: 'Could not connect to the licensing service.', mismatch: 'The returned details do not match the signed license.', pending: 'Confirmation was already sent. Select “Complete activation” to recover the result.' },
-  es: { title: 'Activar licencia online', help: 'Ingrese su cuenta SCADIVO y el código de licencia. Podrá revisar los datos antes de activar.', user: 'Usuario o correo', password: 'Contraseña', code: 'Código de licencia', prepare: 'Consultar licencia', review: 'Revise la licencia', app: 'Aplicación', term: 'Modalidad', expiry: 'Vencimiento comercial', tier: 'Nivel de TAGs', interactive: 'Clientes interactivos', view: 'Clientes de visualización', ha: 'Redundancia HA', intelligence: 'Intelligence', machines: 'Activaciones permitidas', yes: 'Incluido', no: 'No incluido', perpetual: 'Perpetua online', monthly: 'Mensual', annual: 'Anual', unlimited: 'Sin vencimiento', expires: 'Confirmación disponible hasta', unavailable: 'La activación online no está disponible temporalmente.', confirm: 'Confirmar activación', retry: 'Completar activación', cancel: 'Cancelar', success: 'Licencia online activada.', cancelled: 'Consulta cancelada.', generic: 'No se pudo completar. Revise los datos o inténtelo de nuevo.', credentials: 'El usuario o la contraseña no fueron aceptados.', network: 'No se pudo conectar al servicio de licencias.', mismatch: 'Los datos recibidos no coinciden con la licencia firmada.', pending: 'Ya se envió una confirmación. Use “Completar activación” para recuperar el resultado.' }
+  'pt-BR': { title: 'Ativar licença online', help: 'Entre com sua conta SCADIVO e informe o código da licença. Você poderá conferir os dados antes de ativar.', user: 'Login ou e-mail', password: 'Senha', code: 'Código da licença', prepare: 'Consultar licença', review: 'Confira a licença', app: 'Aplicação', term: 'Modalidade', expiry: 'Validade comercial', tier: 'Faixa de TAGs', interactive: 'Clientes interativos', view: 'Clientes de visualização', ha: 'Redundância HA', intelligence: 'Intelligence', machines: 'Ativações permitidas', yes: 'Incluído', no: 'Não incluído', perpetual: 'Perpétua online', monthly: 'Mensal', annual: 'Anual', unlimited: 'Sem vencimento', expires: 'Confirmação disponível até', unavailable: 'A ativação online está temporariamente indisponível.', confirm: 'Confirmar ativação', retry: 'Concluir ativação', cancel: 'Cancelar', success: 'Licença online ativada.', cancelled: 'Consulta cancelada.', cancelledAfterConfirmation: 'Ativação já concluída; a licença foi recuperada e aplicada.', generic: 'Não foi possível concluir. Confira os dados ou tente novamente.', credentials: 'Login ou senha não foram aceitos.', network: 'Não foi possível conectar ao serviço de licenciamento.', mismatch: 'Os dados retornados não correspondem à licença assinada.', pending: 'Uma confirmação já foi enviada. Você ainda pode cancelar. Se o Portal já tiver concluído a ativação, este botão recupera e aplica o resultado com segurança.' },
+  en: { title: 'Activate online license', help: 'Enter your SCADIVO account and license code. You can review the details before activating.', user: 'Username or email', password: 'Password', code: 'License code', prepare: 'Find license', review: 'Review the license', app: 'Application', term: 'Plan', expiry: 'Commercial expiry', tier: 'TAG tier', interactive: 'Interactive clients', view: 'View-only clients', ha: 'HA redundancy', intelligence: 'Intelligence', machines: 'Allowed activations', yes: 'Included', no: 'Not included', perpetual: 'Online perpetual', monthly: 'Monthly', annual: 'Annual', unlimited: 'No expiry', expires: 'Confirmation available until', unavailable: 'Online activation is temporarily unavailable.', confirm: 'Confirm activation', retry: 'Complete activation', cancel: 'Cancel', success: 'Online license activated.', cancelled: 'Request cancelled.', cancelledAfterConfirmation: 'Activation was already completed; the license was recovered and applied.', generic: 'Could not complete the request. Check the details or try again.', credentials: 'Username or password was not accepted.', network: 'Could not connect to the licensing service.', mismatch: 'The returned details do not match the signed license.', pending: 'Confirmation was already sent. You can still cancel. If the Portal already completed activation, this button safely recovers and applies the result.' },
+  es: { title: 'Activar licencia online', help: 'Ingrese su cuenta SCADIVO y el código de licencia. Podrá revisar los datos antes de activar.', user: 'Usuario o correo', password: 'Contraseña', code: 'Código de licencia', prepare: 'Consultar licencia', review: 'Revise la licencia', app: 'Aplicación', term: 'Modalidad', expiry: 'Vencimiento comercial', tier: 'Nivel de TAGs', interactive: 'Clientes interactivos', view: 'Clientes de visualización', ha: 'Redundancia HA', intelligence: 'Intelligence', machines: 'Activaciones permitidas', yes: 'Incluido', no: 'No incluido', perpetual: 'Perpetua online', monthly: 'Mensual', annual: 'Anual', unlimited: 'Sin vencimiento', expires: 'Confirmación disponible hasta', unavailable: 'La activación online no está disponible temporalmente.', confirm: 'Confirmar activación', retry: 'Completar activación', cancel: 'Cancelar', success: 'Licencia online activada.', cancelled: 'Solicitud cancelada.', cancelledAfterConfirmation: 'La activación ya se completó; la licencia se recuperó y aplicó.', generic: 'No se pudo completar. Revise los datos o inténtelo de nuevo.', credentials: 'El usuario o la contraseña no fueron aceptados.', network: 'No se pudo conectar al servicio de licencias.', mismatch: 'Los datos recibidos no coinciden con la licencia firmada.', pending: 'Ya se envió una confirmación. Todavía puede cancelar. Si el Portal ya completó la activación, este botón recupera y aplica el resultado de forma segura.' }
 } as const;
 
 const signatureError: Record<Locale, string> = {
@@ -19,11 +19,56 @@ const signatureError: Record<Locale, string> = {
   es: 'El Portal registró la activación, pero el producto no pudo validar la firma de la licencia. No se instaló. No vuelva a confirmar; contacte al soporte.'
 };
 
+const recoveryLabels: Record<Locale, string> = {
+  'pt-BR': 'Esta licença já tem uma ativação para esta instalação. Ao confirmar, o Portal recupera o mesmo vínculo e mantém a mesma vaga ocupada.',
+  en: 'This license already has an activation for this installation. Confirming recovers the same link and keeps the same Portal slot occupied.',
+  es: 'Esta licencia ya tiene una activación para esta instalación. Al confirmar, el Portal recuperará el mismo vínculo y mantendrá ocupada la misma plaza.'
+};
+
 const abandonLabels = {
   'pt-BR': { action: 'Descartar tentativa local', confirm: 'O resultado da ativação não pôde ser recuperado. Confira no Portal se há uma ativação nesta máquina e revogue-a lá se necessário. Descartar aqui não libera uma vaga no Portal. Deseja continuar?', done: 'Tentativa local descartada. Confira a ativação no Portal.' },
   en: { action: 'Discard local attempt', confirm: 'The activation result could not be recovered. Check the Portal for an activation on this machine and revoke it there if necessary. Discarding here does not free a Portal slot. Continue?', done: 'Local attempt discarded. Check the activation in the Portal.' },
   es: { action: 'Descartar intento local', confirm: 'No se pudo recuperar el resultado de la activación. Compruebe en el Portal si existe una activación para esta máquina y revóquela allí si es necesario. Descartar aquí no libera una plaza en el Portal. ¿Continuar?', done: 'Intento local descartado. Revise la activación en el Portal.' }
 } as const;
+
+const failureLabels = {
+  'pt-BR': {
+    ONLINE_LICENSE_PREPARATION_EXPIRED: 'O prazo desta consulta terminou. Cancele a tentativa para verificar o resultado no Portal e consultar a licença novamente. Se já houve confirmação, o resultado precisa ser recuperado antes de reiniciar.',
+    ONLINE_LICENSE_PREPARATION_INVALIDATED: 'Esta consulta foi cancelada ou os dados da licença mudaram. Resolva a tentativa com Cancelar antes de consultar novamente.',
+    ONLINE_LICENSE_ISSUANCE_UNAVAILABLE: 'O Portal está com a emissão de licenças indisponível. A tentativa foi preservada; tente recuperar o resultado quando o serviço voltar.',
+    ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE: 'Esta ativação já está ativa no Portal. É necessário recuperar ou reautenticar o vínculo existente.',
+    ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED: 'Todas as ativações desta licença estão em uso no Portal. Remover a licença apenas neste computador não libera uma ativação no Portal.',
+    ONLINE_LICENSE_ACTIVATION_RECOVERY_AMBIGUOUS: 'O Portal encontrou mais de uma ativação possível para esta instalação e não escolheu nenhuma. Fale com o suporte SCADIVO.',
+    ONLINE_LICENSE_ACTIVATION_RECOVERY_UNAVAILABLE: 'O Portal não conseguiu confirmar com segurança o vínculo desta instalação. Nenhuma vaga nova foi consumida. Confira a licença ou fale com o suporte SCADIVO.',
+    ONLINE_LICENSE_ACTIVATION_RECOVERY_INVALIDATED: 'Os dados da recuperação mudaram antes da confirmação. Consulte a licença novamente.',
+    ONLINE_LICENSE_ACTIVATION_REVOKED: 'Esta ativação foi revogada no Portal.',
+    ONLINE_LICENSE_NOT_AVAILABLE: 'A licença não está disponível para esta conta ou sua validade comercial terminou.'
+  },
+  en: {
+    ONLINE_LICENSE_PREPARATION_EXPIRED: 'This license review expired. Cancel the attempt to resolve its Portal result before reviewing the license again. A previously confirmed activation must be recovered first.',
+    ONLINE_LICENSE_PREPARATION_INVALIDATED: 'This review was cancelled or its license details changed. Resolve the attempt with Cancel before trying again.',
+    ONLINE_LICENSE_ISSUANCE_UNAVAILABLE: 'The Portal cannot issue licenses right now. The attempt was preserved; recover its result when the service returns.',
+    ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE: 'This activation is already active in the Portal. Recover or reauthenticate the existing link.',
+    ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED: 'All activations for this license are in use. Removing the license only on this computer does not release a Portal activation.',
+    ONLINE_LICENSE_ACTIVATION_RECOVERY_AMBIGUOUS: 'The Portal found more than one possible activation for this installation and did not choose one. Contact SCADIVO support.',
+    ONLINE_LICENSE_ACTIVATION_RECOVERY_UNAVAILABLE: 'The Portal could not safely verify this installation link. No new slot was consumed. Check the license or contact SCADIVO support.',
+    ONLINE_LICENSE_ACTIVATION_RECOVERY_INVALIDATED: 'The recovery details changed before confirmation. Find the license again.',
+    ONLINE_LICENSE_ACTIVATION_REVOKED: 'This activation was revoked in the Portal.',
+    ONLINE_LICENSE_NOT_AVAILABLE: 'This license is unavailable for this account or its commercial term ended.'
+  },
+  es: {
+    ONLINE_LICENSE_PREPARATION_EXPIRED: 'Esta consulta venció. Cancele el intento para resolver su resultado en el Portal antes de consultar nuevamente. Una activación ya confirmada debe recuperarse primero.',
+    ONLINE_LICENSE_PREPARATION_INVALIDATED: 'La consulta fue cancelada o cambiaron sus datos. Resuelva el intento con Cancelar antes de consultar nuevamente.',
+    ONLINE_LICENSE_ISSUANCE_UNAVAILABLE: 'El Portal no puede emitir licencias en este momento. El intento se conservó; recupere el resultado cuando vuelva el servicio.',
+    ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE: 'Esta activación ya está activa en el Portal. Recupere o vuelva a autenticar el vínculo existente.',
+    ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED: 'Todas las activaciones están en uso. Quitar la licencia solo de este equipo no libera una activación del Portal.',
+    ONLINE_LICENSE_ACTIVATION_RECOVERY_AMBIGUOUS: 'El Portal encontró más de una activación posible para esta instalación y no eligió ninguna. Contacte al soporte SCADIVO.',
+    ONLINE_LICENSE_ACTIVATION_RECOVERY_UNAVAILABLE: 'El Portal no pudo verificar de forma segura el vínculo de esta instalación. No se consumió una plaza nueva. Revise la licencia o contacte al soporte SCADIVO.',
+    ONLINE_LICENSE_ACTIVATION_RECOVERY_INVALIDATED: 'Los datos de recuperación cambiaron antes de confirmar. Consulte la licencia nuevamente.',
+    ONLINE_LICENSE_ACTIVATION_REVOKED: 'Esta activación fue revocada en el Portal.',
+    ONLINE_LICENSE_NOT_AVAILABLE: 'La licencia no está disponible para esta cuenta o terminó su vigencia comercial.'
+  }
+};
 
 export function OnlineLicenseActivation({ api, locale, pending, completionPending, onChanged }: {
   api: string; locale: Locale; pending: boolean; completionPending: boolean; onChanged: () => Promise<void>;
@@ -36,10 +81,11 @@ export function OnlineLicenseActivation({ api, locale, pending, completionPendin
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const explain = (value: string) => value === 'ONLINE_LICENSE_INVALID_CREDENTIALS' ? t.credentials
+  const explain = (value: string) => (failureLabels[locale] as Record<string, string>)[value] ?? (value === 'ONLINE_LICENSE_INVALID_CREDENTIALS' ? t.credentials
     : value === 'ONLINE_LICENSE_PORTAL_UNAVAILABLE' ? t.network
       : value === 'ONLINE_LICENSE_PRESENTATION_MISMATCH' ? t.mismatch
-        : value === 'ONLINE_LICENSE_LEASE_SIGNATURE_INVALID' ? signatureError[locale] : t.generic;
+        : value === 'ONLINE_LICENSE_LEASE_SIGNATURE_INVALID' ? signatureError[locale]
+          : /^ONLINE_LICENSE_[A-Z_]+$/.test(value) ? `${t.generic} (${value})` : t.generic);
   const read = async <T,>(response: Response): Promise<T> => {
     const body = await response.json().catch(() => null) as { error?: string } | null;
     if (!response.ok) throw new Error(body?.error ?? 'error');
@@ -70,8 +116,14 @@ export function OnlineLicenseActivation({ api, locale, pending, completionPendin
     try {
       const response = await fetch(`${api}/api/licensing/online/${action}`, { method: 'POST', cache: 'no-store',
         headers: { 'content-type': 'application/json' }, body: JSON.stringify({ activationId: prepared.activationId }) });
+      let alreadyActivated = false;
       if (!response.ok) await read(response);
-      setPrepared(null); setCode(''); setMessage(action === 'confirm' ? t.success : action === 'abandon' ? abandonLabels[locale].done : t.cancelled);
+      else if (action === 'cancel' && response.status !== 204) {
+        const result = await response.json().catch(() => null) as { alreadyActivated?: boolean } | null;
+        alreadyActivated = result?.alreadyActivated === true;
+      }
+      setPrepared(null); setCode(''); setMessage(action === 'confirm' ? t.success : action === 'abandon' ? abandonLabels[locale].done
+        : alreadyActivated ? t.cancelledAfterConfirmation : t.cancelled);
       await onChanged();
     } catch (reason) {
       setError(explain(reason instanceof Error ? reason.message : 'error'));
@@ -113,9 +165,10 @@ export function OnlineLicenseActivation({ api, locale, pending, completionPendin
         <dt>{t.machines}</dt><dd>{prepared.summary.maxActivations}</dd><dt>{t.expires}</dt><dd>{date(prepared.expiresAtUtc)}</dd>
       </dl>
       {!prepared.onlineActivationAvailable && <p>{t.unavailable}</p>}
+      {prepared.reactivation && <p className="licensing-help" role="status">{recoveryLabels[locale]}</p>}
       {prepared.confirmationRequested && <p>{t.pending}</p>}
       <div className="licensing-actions"><button type="button" disabled={busy || !prepared.onlineActivationAvailable} onClick={() => void execute('confirm')}>{prepared.confirmationRequested ? t.retry : t.confirm}</button>
-        {!prepared.confirmationRequested && <button type="button" disabled={busy} onClick={() => void execute('cancel')}>{t.cancel}</button>}
+        <button type="button" disabled={busy} onClick={() => void execute('cancel')}>{t.cancel}</button>
         {prepared.confirmationRequested && Date.now() >= Date.parse(prepared.expiresAtUtc) + 24 * 60 * 60 * 1000 &&
           <button type="button" className="licensing-danger" disabled={busy} onClick={() => void execute('abandon')}>{abandonLabels[locale].action}</button>}</div>
     </div>}

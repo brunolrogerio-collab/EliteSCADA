@@ -23,7 +23,7 @@ public sealed class OnlineLicenseDeviceOrchestrator(
         var source = RequireSource();
         return client.PrepareConfirmationAsync(username, password, licenseCode, administration, ct,
             status => {
-                if (status is { IsReset: false, ReauthenticationRequired: true } &&
+                if (status is { IsReset: false } &&
                     source.ReadOnlineInstallation()?.ActivationId != status.ActivationId)
                     throw new OnlineLicenseProtocolException("ONLINE_LICENSE_SELECTION_CHANGED");
                 return source.ReadInstallationChangeIdentityStrict();
@@ -37,7 +37,7 @@ public sealed class OnlineLicenseDeviceOrchestrator(
         var state = await journal.ReadTransportAsync("confirmation", ct);
         var pending = state.Pending!;
         return new(state.Binding.ActivationId, pending.Presentation!, pending.ConfirmationExpiresAtUtc!.Value,
-            pending.OnlineActivationAvailable, pending.ConfirmationRequested);
+            pending.OnlineActivationAvailable, pending.ConfirmationRequested, pending.Reactivation);
     }
 
     internal async Task<OnlineLicenseDeviceStatus> ConfirmAsync(Guid activationId,
@@ -57,7 +57,16 @@ public sealed class OnlineLicenseDeviceOrchestrator(
         }
         var result = existing.ConfirmationPending ? await client.ConfirmWhileOwnedAsync(activationId, administration, ct)
             : existing.HasLease ? existing : throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        await ApplyConfirmedCandidateWhileOwnedAsync(activationId, administration, snapshot, ct);
+        return result;
+    }
+
+    private async Task ApplyConfirmedCandidateWhileOwnedAsync(Guid activationId,
+        ProtectedMaterialMutationContext administration, (bool HasSnapshot, string? ExpectedIdentity) snapshot,
+        CancellationToken ct)
+    {
         var candidate = await journal.ReadEntitlementCandidateAsync(ct);
+        var source = RequireSource();
         if (!source.IsSelectedOnlineCandidate(candidate))
         {
             if (source.ReadInstallationChangeIdentityStrict() != snapshot.ExpectedIdentity)
@@ -71,14 +80,23 @@ public sealed class OnlineLicenseDeviceOrchestrator(
         else await lifecycle.ReconcilePendingAsync(ct);
         if (snapshot.HasSnapshot) await journal.ClearInstallationSnapshotAsync(activationId, administration, ct);
         await journal.CollectObsoleteSnapshotsWhileOwnedAsync(administration, ct);
-        return result;
     }
 
-    internal Task CancelPreparedConfirmationAsync(Guid activationId, ProtectedMaterialMutationContext administration,
-        CancellationToken ct = default)
+    internal async Task<OnlineLicenseCancelResult> CancelPreparedConfirmationAsync(Guid activationId,
+        ProtectedMaterialMutationContext administration, CancellationToken ct = default)
     {
         DemandDeviceAdministration(administration);
-        return client.CancelPreparedAsync(activationId, administration, ct);
+        await using var operation = journal.AcquireOperation(ct);
+        var state = await journal.ReadStatusAsync(ct);
+        if (state is null || state.ActivationId != activationId || state.IsReset)
+            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
+        var snapshot = await journal.ReadInstallationSnapshotAsync(activationId, ct);
+        var result = await client.CancelPreparedWhileOwnedAsync(activationId, administration, ct);
+        if (result == OnlineLicenseCancelResult.AlreadyActivated)
+        {
+            await ApplyConfirmedCandidateWhileOwnedAsync(activationId, administration, snapshot, ct);
+        }
+        return result;
     }
 
     internal async Task AbandonAmbiguousConfirmationAsync(Guid activationId, ProtectedMaterialMutationContext administration,

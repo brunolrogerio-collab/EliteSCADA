@@ -51,6 +51,10 @@ export type EngineeringRuntimeConsistency = {
   projectKey: string;
   configuredProjectKey?: string | null;
   consistent: boolean;
+  operatorState?: 'running' | 'stopped' | 'stopFailed' | 'notRunning';
+  runtimeControlAvailable?: boolean;
+  runtimeControlUnavailableReason?: string | null;
+  runtimeDiagnostic?: string | null;
   durable: EngineeringProjectLifecycle;
   live: EngineeringRuntimeDescriptor;
 };
@@ -64,4 +68,4 @@ export type EngineeringLifecycleState = {
   runtime: EngineeringRuntimeConsistency | null;
 };
 
-export type EngineeringLifecycleAction = 'save' | 'checkout' | 'publish' | 'activate';
+export type EngineeringLifecycleAction = 'save' | 'checkout' | 'publish' | 'activate' | 'startRuntime' | 'stopRuntime';

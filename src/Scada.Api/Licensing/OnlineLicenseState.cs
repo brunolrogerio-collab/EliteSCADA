@@ -30,7 +30,10 @@ internal sealed class OnlineLicensePendingIntent
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public OnlineLicensePresentation? Presentation { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool ConfirmationRequested { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool OnlineActivationAvailable { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Reactivation { get; init; }
 }
+
+internal sealed record OnlineLicensePrepareContext(OnlineLicenseDeviceStatus? Status, string? CurrentRefreshCredential, string? PendingKind);
 
 internal sealed class OnlineLicenseDeviceState
 {

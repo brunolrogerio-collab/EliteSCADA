@@ -62,6 +62,8 @@ type OnlineLicenseDeviceStatus = {
   confirmationPending?: boolean;
 };
 
+type OnlineConnectivity = 'checking' | 'reachable' | 'unreachable' | 'not-configured' | 'unverified';
+
 type RequestResponse = {
   schemaVersion: number;
   requestCode: string;
@@ -81,6 +83,11 @@ const messages = {
     copy: 'Copiar código', copied: 'Código da máquina copiado.', install: 'Instalar licença', licenseCode: 'Código de licença assinado',
     validateInstall: 'Validar e instalar', remove: 'Remover licença', installed: 'Licença validada e instalada.', removed: 'Licença removida. As próximas ativações usarão o modo Demo.',
     onlineTitle: 'Licença online', onlineInfo: 'Resumo local para acompanhamento. Um lease armazenado não concede autorização ao Runtime.',
+    onlineConnection: 'Conexão com o servidor', onlineConnectionChecking: 'Verificando…',
+    onlineConnectionReachable: 'Conectado', onlineConnectionUnreachable: 'Sem conexão. Verifique internet, firewall ou proxy.',
+    onlineConnectionNotConfigured: 'Não verificado: serviço não configurado nesta instalação', onlineConnectionUnverified: 'Não verificado nesta sessão.',
+    onlineConnectionHelp: '“Conectado” confirma apenas que o serviço respondeu; não confirma licença ativa, credenciais válidas ou aceitação de uma ativação.',
+    onlineConnectionRetry: 'Verificar novamente',
     onlineConfiguration: 'Configuração', onlineConfigured: 'Configurada', onlineNotConfigured: 'Não configurada', onlineState: 'Estado',
     onlineUnavailable: 'Não foi possível ler o estado online.', onlineNoActivation: 'Nenhuma ativação salva', onlineActivationStored: 'Vínculo salvo',
     onlineReset: 'Vínculo removido', onlinePending: 'Solicitação pendente', onlineLease: 'Lease armazenado', onlineIssued: 'Emitido em',
@@ -98,6 +105,11 @@ const messages = {
     copy: 'Copy request', copied: 'Machine request copied.', install: 'Install license', licenseCode: 'Signed license code',
     validateInstall: 'Validate and install', remove: 'Remove license', installed: 'License validated and installed.', removed: 'License removed. Future activations will use Demo mode.',
     onlineTitle: 'Online license', onlineInfo: 'Local summary for reference. A stored lease does not grant Runtime authorization.',
+    onlineConnection: 'Server connection', onlineConnectionChecking: 'Checking…',
+    onlineConnectionReachable: 'Connected', onlineConnectionUnreachable: 'No connection. Check internet, firewall or proxy.',
+    onlineConnectionNotConfigured: 'Not verified: service is not configured in this installation', onlineConnectionUnverified: 'Not verified in this session.',
+    onlineConnectionHelp: '“Connected” only confirms that the service responded; it does not confirm an active license, valid credentials or an accepted activation.',
+    onlineConnectionRetry: 'Check again',
     onlineConfiguration: 'Configuration', onlineConfigured: 'Configured', onlineNotConfigured: 'Not configured', onlineState: 'State',
     onlineUnavailable: 'Online status could not be read.', onlineNoActivation: 'No activation saved', onlineActivationStored: 'Binding saved',
     onlineReset: 'Binding removed', onlinePending: 'Request pending', onlineLease: 'Stored lease', onlineIssued: 'Issued',
@@ -115,6 +127,11 @@ const messages = {
     copy: 'Copiar código', copied: 'Código de máquina copiado.', install: 'Instalar licencia', licenseCode: 'Código de licencia firmado',
     validateInstall: 'Validar e instalar', remove: 'Eliminar licencia', installed: 'Licencia validada e instalada.', removed: 'Licencia eliminada. Las próximas activaciones usarán el modo Demo.',
     onlineTitle: 'Licencia online', onlineInfo: 'Resumen local para consulta. Un lease almacenado no concede autorización al Runtime.',
+    onlineConnection: 'Conexión con el servidor', onlineConnectionChecking: 'Verificando…',
+    onlineConnectionReachable: 'Conectado', onlineConnectionUnreachable: 'Sin conexión. Revise internet, firewall o proxy.',
+    onlineConnectionNotConfigured: 'No verificado: servicio no configurado en esta instalación', onlineConnectionUnverified: 'No verificado en esta sesión.',
+    onlineConnectionHelp: '“Conectado” solo confirma que el servicio respondió; no confirma una licencia activa, credenciales válidas ni la aceptación de una activación.',
+    onlineConnectionRetry: 'Verificar de nuevo',
     onlineConfiguration: 'Configuración', onlineConfigured: 'Configurada', onlineNotConfigured: 'No configurada', onlineState: 'Estado',
     onlineUnavailable: 'No fue posible leer el estado online.', onlineNoActivation: 'No hay activación guardada', onlineActivationStored: 'Vínculo guardado',
     onlineReset: 'Vínculo eliminado', onlinePending: 'Solicitud pendiente', onlineLease: 'Lease almacenado', onlineIssued: 'Emitido',
@@ -162,6 +179,20 @@ function describeOnlineState(status: OnlineLicenseDeviceStatus, t: typeof messag
   return t.onlineActivationStored;
 }
 
+function parseOnlineConnectivity(value: unknown): OnlineConnectivity {
+  if (!value || typeof value !== 'object' || !('state' in value)) return 'unverified';
+  const state = (value as { state?: unknown }).state;
+  return state === 'reachable' || state === 'unreachable' || state === 'not-configured' ? state : 'unverified';
+}
+
+function describeOnlineConnectivity(state: OnlineConnectivity, t: typeof messages[Locale]) {
+  if (state === 'checking') return t.onlineConnectionChecking;
+  if (state === 'reachable') return t.onlineConnectionReachable;
+  if (state === 'unreachable') return t.onlineConnectionUnreachable;
+  if (state === 'not-configured') return t.onlineConnectionNotConfigured;
+  return t.onlineConnectionUnverified;
+}
+
 export function LicensingApp() {
   const locale = useMemo(resolveLocale, []);
   const t = messages[locale];
@@ -169,18 +200,37 @@ export function LicensingApp() {
   const [request, setRequest] = useState<RequestResponse | null>(null);
   const [licenseCode, setLicenseCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [onlineConnectivity, setOnlineConnectivity] = useState<OnlineConnectivity>('checking');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
-    const [statusResponse, requestResponse] = await Promise.all([
+    setOnlineConnectivity('checking');
+    const [statusResponse, requestResponse, connectivityResponse] = await Promise.all([
       fetch(`${API}/api/licensing/status`, { headers: { accept: 'application/json' } }),
-      fetch(`${API}/api/licensing/request`, { headers: { accept: 'application/json' } })
+      fetch(`${API}/api/licensing/request`, { headers: { accept: 'application/json' } }),
+      fetch(`${API}/api/licensing/online/connectivity`, { headers: { accept: 'application/json' }, cache: 'no-store' })
+        .then(async response => response.ok ? await response.json() as unknown : null)
+        .catch(() => null)
     ]);
     setStatus(await readJson<StatusResponse>(statusResponse));
     setRequest(await readJson<RequestResponse>(requestResponse));
+    setOnlineConnectivity(parseOnlineConnectivity(connectivityResponse));
   }, []);
+
+  const checkOnlineConnectivity = async () => {
+    setOnlineConnectivity('checking');
+    try {
+      const response = await fetch(`${API}/api/licensing/online/connectivity`, {
+        headers: { accept: 'application/json' }, cache: 'no-store'
+      });
+      const payload = response.ok ? await response.json() as unknown : null;
+      setOnlineConnectivity(parseOnlineConnectivity(payload));
+    } catch {
+      setOnlineConnectivity('unverified');
+    }
+  };
 
   useEffect(() => {
     void load().catch(() => setError(t.loadError));
@@ -276,9 +326,55 @@ export function LicensingApp() {
               <dt>{t.expires}</dt><dd>{displayDate(status.license.notAfterUtc, t.none)}</dd>
               <dt>{t.diagnostic}</dt><dd>{status.license.diagnostic ?? t.none}</dd>
             </dl>
-            {status.onlineDevice && <div className="licensing-online-status">
-              <h3>{t.onlineTitle}</h3>
+          </section>
+
+          <section className="licensing-card">
+            <h2>{t.runtime}</h2>
+            <dl>
+              <dt>{t.state}</dt><dd><strong>{status.runtime.state}</strong></dd>
+              <dt>{t.tier}</dt><dd>{status.runtime.activeTier ?? t.none}</dd>
+              <dt>{t.tags}</dt><dd>{displayTags(status.runtime.maximumTags, status.runtime.activeLicenseState ?? '', t.unlimited, t.none)}</dd>
+              {status.runtime.demoExpiresAtUtc && <>
+                <dt>{t.expires}</dt><dd>{displayDate(status.runtime.demoExpiresAtUtc, t.none)}</dd>
+              </>}
+              <dt>{t.diagnostic}</dt><dd>{status.runtime.lastDiagnostic ?? t.none}</dd>
+            </dl>
+          </section>
+
+          <section className="licensing-card licensing-machine-card" data-testid="machine-license-panel">
+            <h2>{t.machineRequest}</h2>
+            <textarea className="licensing-request" readOnly value={request?.requestCode ?? ''} aria-label={t.machineRequest} />
+            <div className="licensing-actions">
+              <button type="button" onClick={() => void copyRequest()} disabled={!request?.requestCode}>{t.copy}</button>
+            </div>
+            <p className="licensing-help">{t.requestHelp}</p>
+            <div className="licensing-machine-install">
+              <h3>{t.install}</h3>
+              <form onSubmit={install}>
+                <label htmlFor="license-code">{t.licenseCode}</label>
+                <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1... / ESLIC2... / ESLIC3..." />
+                <div className="licensing-actions">
+                  <button type="submit" disabled={busy || !licenseCode.trim()}>{t.validateInstall}</button>
+                  <button type="button" className="licensing-danger" disabled={busy} onClick={() => void remove()}>{t.remove}</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          {status.onlineDevice && <section className="licensing-card licensing-online-card" data-testid="online-license-panel">
+            <h2>{t.onlineTitle}</h2>
+            <div className="licensing-online-status">
               <p className="licensing-help">{t.onlineInfo}</p>
+              <p className={`licensing-connectivity licensing-connectivity-${onlineConnectivity}`} role="status" data-testid="online-license-connectivity">
+                <span className="licensing-connectivity-dot" aria-hidden="true" />
+                <strong>{t.onlineConnection}:</strong> {describeOnlineConnectivity(onlineConnectivity, t)}
+              </p>
+              <p className="licensing-help licensing-connectivity-help">{t.onlineConnectionHelp}</p>
+              <div className="licensing-actions">
+                <button type="button" onClick={() => void checkOnlineConnectivity()} disabled={onlineConnectivity === 'checking'}>
+                  {onlineConnectivity === 'checking' ? t.onlineConnectionChecking : t.onlineConnectionRetry}
+                </button>
+              </div>
               <dl data-testid="online-license-status">
                 <dt>{t.onlineConfiguration}</dt><dd>{status.onlineDevice.configured ? t.onlineConfigured : t.onlineNotConfigured}</dd>
                 <dt>{t.onlineState}</dt><dd><strong>{describeOnlineState(status.onlineDevice, t)}</strong></dd>
@@ -297,42 +393,8 @@ export function LicensingApp() {
                   completionPending={status.onlineDevice.installationPending === true} onChanged={load} />}
               {status.onlineDevice.hasActivation && !status.onlineDevice.requestPending && !status.onlineDevice.installationPending &&
                 <div className="licensing-actions"><button type="button" className="licensing-danger" disabled={busy} onClick={() => void resetOnline()}>{t.onlineResetAction}</button></div>}
-            </div>}
-          </section>
-
-          <section className="licensing-card">
-            <h2>{t.runtime}</h2>
-            <dl>
-              <dt>{t.state}</dt><dd><strong>{status.runtime.state}</strong></dd>
-              <dt>{t.tier}</dt><dd>{status.runtime.activeTier ?? t.none}</dd>
-              <dt>{t.tags}</dt><dd>{displayTags(status.runtime.maximumTags, status.runtime.activeLicenseState ?? '', t.unlimited, t.none)}</dd>
-              {status.runtime.demoExpiresAtUtc && <>
-                <dt>{t.expires}</dt><dd>{displayDate(status.runtime.demoExpiresAtUtc, t.none)}</dd>
-              </>}
-              <dt>{t.diagnostic}</dt><dd>{status.runtime.lastDiagnostic ?? t.none}</dd>
-            </dl>
-          </section>
-
-          <section className="licensing-card licensing-wide">
-            <h2>{t.machineRequest}</h2>
-            <textarea className="licensing-request" readOnly value={request?.requestCode ?? ''} aria-label={t.machineRequest} />
-            <div className="licensing-actions">
-              <button type="button" onClick={() => void copyRequest()} disabled={!request?.requestCode}>{t.copy}</button>
             </div>
-            <p className="licensing-help">{t.requestHelp}</p>
-          </section>
-
-          <section className="licensing-card licensing-wide">
-            <h2>{t.install}</h2>
-            <form onSubmit={install}>
-              <label htmlFor="license-code">{t.licenseCode}</label>
-              <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1... / ESLIC2... / ESLIC3..." />
-              <div className="licensing-actions">
-                <button type="submit" disabled={busy || !licenseCode.trim()}>{t.validateInstall}</button>
-                <button type="button" className="licensing-danger" disabled={busy} onClick={() => void remove()}>{t.remove}</button>
-              </div>
-            </form>
-          </section>
+          </section>}
         </div>
       )}
     </main>

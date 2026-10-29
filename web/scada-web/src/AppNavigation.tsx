@@ -78,7 +78,7 @@ export function AppNavigation() {
   if (access.licensing) links.push({ href: '/licensing', label: text.licensing });
   if (access.runtime || access.engineering || access.audit || access.licensing || databaseAdmin) {
     links.push({
-      href: `/help?topic=${contextualHelpTopic(path)}`,
+      href: `/help/?topic=${contextualHelpTopic(path)}`,
       label: helpText[locale].label
     });
   }

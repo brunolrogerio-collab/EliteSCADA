@@ -91,6 +91,16 @@ public sealed class PersistedRuntimeRecoveryService(
                 null);
         }
 
+        if (activation.RuntimeStatus is EngineeringRuntimeStatus.OperatorStopped or EngineeringRuntimeStatus.StopFailed)
+        {
+            return RecoveryDenied(
+                snapshot,
+                activation.ActiveRevision,
+                activation.RuntimeStatus == EngineeringRuntimeStatus.OperatorStopped
+                    ? "Persisted Runtime was stopped by an operator; explicit Run is required."
+                    : "Persisted Runtime stop was incomplete; explicit operator review is required before Run.");
+        }
+
         var authority = await authorityStore.GetAuthorityStateAsync(cancellationToken);
         var verification = licensing.CurrentVerification;
 

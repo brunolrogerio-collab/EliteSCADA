@@ -27,6 +27,12 @@ public interface IPublishedRuntimeActivationService
         string? activatedBy = null,
         CancellationToken cancellationToken = default);
 
+    Task<PublishedRuntimeActivationOutcome> ActivateActiveRevisionAsync(
+        string projectKey,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This activation service does not support explicit Runtime restart.");
+
     Task<PublishedRuntimeActivationOutcome> ActivateRevisionAsync(
         string projectKey,
         long revision,
@@ -81,6 +87,26 @@ public sealed class PublishedRuntimeActivationService(
             return new PublishedRuntimeActivationOutcome(null, null, null, null);
 
         return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken, haTakeover: false);
+    }
+
+    public async Task<PublishedRuntimeActivationOutcome> ActivateActiveRevisionAsync(
+        string projectKey,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey))
+            throw new ArgumentException("Project key is required.", nameof(projectKey));
+
+        var snapshot = await persistence.LoadActiveAsync(projectKey, cancellationToken);
+        if (snapshot is null)
+            return new PublishedRuntimeActivationOutcome(null, null, null, null);
+
+        return await ActivateSnapshotAsync(
+            snapshot,
+            activatedBy,
+            cancellationToken,
+            haTakeover: false,
+            resumeOperatorStop: true);
     }
 
     public async Task<PublishedRuntimeActivationOutcome> ActivateRevisionAsync(
@@ -149,7 +175,8 @@ public sealed class PublishedRuntimeActivationService(
         EngineeringProjectSnapshot snapshot,
         string? activatedBy,
         CancellationToken cancellationToken,
-        bool haTakeover)
+        bool haTakeover,
+        bool resumeOperatorStop = false)
     {
         var package = ParseAndValidate(snapshot);
         PreparedDriverInteractionRuntimeGraph? preparedInteractions = null;
@@ -180,7 +207,12 @@ public sealed class PublishedRuntimeActivationService(
             RuntimeActivationCommitContext _,
             CancellationToken ct)
         {
-            recordedActivation = haTakeover
+            recordedActivation = resumeOperatorStop
+                ? await persistence.ResumeRuntimeAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    ct)
+                : haTakeover
                 ? await persistence.RecordActivationForHaTakeoverAsync(
                     snapshot.ProjectKey,
                     snapshot.Revision,
@@ -198,7 +230,9 @@ public sealed class PublishedRuntimeActivationService(
                 throw new InvalidOperationException(
                     haTakeover
                         ? "Persisted revision changed before HA takeover could be committed."
-                        : "Published revision changed before activation could be committed.");
+                        : resumeOperatorStop
+                            ? "The persisted operator-stopped Active revision changed before Runtime could resume."
+                            : "Published revision changed before activation could be committed.");
             }
 
             if (driverInteractions is not null && preparedInteractions is not null)
@@ -235,7 +269,14 @@ public sealed class PublishedRuntimeActivationService(
                     authorization,
                     audit);
 
-            runtimeResult = haTakeover
+            runtimeResult = resumeOperatorStop
+                ? await scripts.ResumeRuntimeForOperatorAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    CommitAsync,
+                    cancellationToken)
+                : haTakeover
                 ? await scripts.ActivateRuntimeForHaTakeoverAsync(
                     snapshot.ProjectKey,
                     snapshot.Revision,
@@ -252,7 +293,18 @@ public sealed class PublishedRuntimeActivationService(
         else
         {
             EnsureNoServerScriptsWithoutHost(package);
-            runtimeResult = haTakeover
+            if (resumeOperatorStop)
+            {
+                if (runtime is not IProductRuntimeOperatorControl operatorControl)
+                    throw new InvalidOperationException("The product Runtime coordinator does not support operator resume.");
+                runtimeResult = await operatorControl.ResumeForOperatorAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    CommitAsync,
+                    cancellationToken);
+            }
+            else runtimeResult = haTakeover
                 ? await runtime.ActivateForHaTakeoverAsync(
                     snapshot.ProjectKey,
                     snapshot.Revision,

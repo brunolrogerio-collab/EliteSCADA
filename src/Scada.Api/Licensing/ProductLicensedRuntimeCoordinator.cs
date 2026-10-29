@@ -18,7 +18,32 @@ public enum ProductRuntimeLifecycleState
 {
     Idle,
     Running,
-    DemoExpired
+    DemoExpired,
+    OperatorStopped,
+    StopFailed
+}
+
+public sealed record ProductRuntimeOperatorStopResult(
+    string ProjectKey,
+    long Revision,
+    bool Stopped,
+    bool Complete,
+    string? Diagnostic);
+
+public interface IProductRuntimeOperatorControl
+{
+    Task<ProductRuntimeOperatorStopResult> StopForOperatorAsync(
+        string projectKey,
+        long revision,
+        Func<CancellationToken, Task> persistStopAsync,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeActivationResult> ResumeForOperatorAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record ProductRuntimeEntitlementStatus(
@@ -80,6 +105,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
     IRuntimeTagValueSnapshotRestorer,
     IGatewayRuntimeDiagnosticsProvider,
     IProductRuntimeStatusProvider,
+    IProductRuntimeOperatorControl,
     IProductRuntimeAuthorityReevaluator,
     IInstallationRuntimeFence,
     IRichCommandDriverExecutorResolver
@@ -543,13 +569,31 @@ public sealed class ProductLicensedRuntimeCoordinator :
         return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: true, cancellationToken);
     }
 
+    public Task<RuntimeActivationResult> ResumeForOperatorAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default) =>
+        ActivateCoreAsync(
+            projectKey,
+            revision,
+            package,
+            commitAsync,
+            allowDegradedSources: false,
+            cancellationToken,
+            allowNewDemoSessionAnchor: false,
+            explicitOperatorResume: true);
+
     private async Task<RuntimeActivationResult> ActivateCoreAsync(
         string projectKey,
         long revision,
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
         bool allowDegradedSources,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowNewDemoSessionAnchor = true,
+        bool explicitOperatorResume = false)
     {
         if (string.IsNullOrWhiteSpace(projectKey))
             throw new ArgumentException("Project key is required.", nameof(projectKey));
@@ -561,6 +605,18 @@ public sealed class ProductLicensedRuntimeCoordinator :
         try
         {
             ThrowIfDisposed();
+
+            if (explicitOperatorResume)
+            {
+                var state = GetProductRuntimeStatus().State;
+                if (state == ProductRuntimeLifecycleState.StopFailed)
+                    return DeniedActivation(projectKey.Trim(), revision,
+                        "Runtime cannot resume because the previous operator stop was incomplete.");
+                if (state is not (ProductRuntimeLifecycleState.Idle or ProductRuntimeLifecycleState.OperatorStopped) ||
+                    Current.Describe().Revision.HasValue)
+                    return DeniedActivation(projectKey.Trim(), revision,
+                        "Runtime can resume only after an operator stop with no active Runtime instance.");
+            }
 
             if (commitAsync is null && ProcessEffectsFenced)
             {
@@ -610,6 +666,11 @@ public sealed class ProductLicensedRuntimeCoordinator :
                         durableDemoStartedAtUtc.Value,
                         candidateDemoDuration) <= TimeSpan.Zero)
                 {
+                    if (explicitOperatorResume || !allowNewDemoSessionAnchor)
+                    {
+                        return DeniedActivation(projectKey.Trim(), revision,
+                            "The existing Demo Runtime allowance has expired; operator resume cannot renew or reset the session.");
+                    }
                     if (commitAsync is not null && _authorityStore is not null)
                     {
                         // A user-initiated persisted Run may deliberately begin
@@ -644,9 +705,18 @@ public sealed class ProductLicensedRuntimeCoordinator :
                     }
                 }
                 else if (!durableDemoStartedAtUtc.HasValue &&
+                         explicitOperatorResume)
+                {
+                    return DeniedActivation(projectKey.Trim(), revision,
+                        "The persisted Demo session anchor is missing; operator resume cannot create a replacement session.");
+                }
+                else if (!durableDemoStartedAtUtc.HasValue &&
                          commitAsync is not null &&
                          _authorityStore is not null)
                 {
+                    if (!allowNewDemoSessionAnchor)
+                        return DeniedActivation(projectKey.Trim(), revision,
+                            "The persisted Demo session anchor is missing; operator resume cannot create a replacement session.");
                     requiresExplicitDemoAnchor = true;
                 }
             }
@@ -840,6 +910,91 @@ public sealed class ProductLicensedRuntimeCoordinator :
                 expiresAtUtc,
                 remaining,
                 _lastDiagnostic);
+        }
+    }
+
+    public async Task<ProductRuntimeOperatorStopResult> StopForOperatorAsync(
+        string projectKey,
+        long revision,
+        Func<CancellationToken, Task> persistStopAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
+        ArgumentNullException.ThrowIfNull(persistStopAsync);
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfDisposed();
+            var expectedKey = projectKey.Trim();
+            var active = Current;
+            var descriptor = active.Describe();
+            var status = GetProductRuntimeStatus();
+
+            if (status.State == ProductRuntimeLifecycleState.OperatorStopped && descriptor.Revision is null)
+                return new(expectedKey, revision, Stopped: true, Complete: true, "Runtime was already stopped.");
+
+            if (status.State != ProductRuntimeLifecycleState.Running ||
+                descriptor.Revision != revision ||
+                !string.Equals(descriptor.ProjectKey, expectedKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return new(expectedKey, revision, Stopped: false, Complete: false,
+                    "The requested Active revision is not the Runtime currently running.");
+            }
+
+            if (ProcessEffectsFenced)
+                return new(expectedKey, revision, Stopped: false, Complete: false,
+                    "Runtime operation is blocked by an installation authority transition.");
+
+            // Allocate the empty replacement before committing the durable stop. A
+            // factory failure must leave the currently running Runtime untouched.
+            var replacement = _innerFactory();
+            try
+            {
+                await persistStopAsync(cancellationToken);
+            }
+            catch
+            {
+                try { await replacement.DisposeAsync(); }
+                catch { /* Preserve the persistence failure that prevented the stop. */ }
+                throw;
+            }
+
+            var decision = _activeDecision ?? _entitlements.EvaluateRun(_activeEngineeringTagCount ?? 0);
+            var demoStartedAtUtc = _demoStartedAtUtc;
+            var demoDuration = _demoDuration;
+            CancelDemoExpiryLocked();
+            ++_activationGeneration;
+            Volatile.Write(ref _inner, replacement);
+            SetStoppedStatus(
+                decision,
+                ProductRuntimeLifecycleState.OperatorStopped,
+                "Runtime stopped by an authorized operator.",
+                demoStartedAtUtc,
+                demoDuration);
+
+            try
+            {
+                await active.DisposeAsync();
+                return new(expectedKey, revision, Stopped: true, Complete: true, null);
+            }
+            catch (Exception exception)
+            {
+                var diagnostic = $"Runtime stop reported an incomplete component shutdown: {exception.Message}";
+                SetStoppedStatus(
+                    decision,
+                    ProductRuntimeLifecycleState.StopFailed,
+                    diagnostic,
+                    demoStartedAtUtc,
+                    demoDuration);
+                return new(expectedKey, revision, Stopped: true, Complete: false, diagnostic);
+            }
+        }
+        finally
+        {
+            _activationGate.Release();
         }
     }
 

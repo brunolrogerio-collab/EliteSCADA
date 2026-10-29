@@ -34,9 +34,14 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         c.Intercept = async (request, ct) =>
         {
             if (request.RequestUri!.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+            {
+                using var requestJson = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
-                    confirmationToken = new string('A', 43), expiresAtUtc = c.F.Clock.GetUtcNow().AddMinutes(5),
-                    onlineActivationAvailable = true, summary }, options), Encoding.UTF8, "application/json") };
+                    activationId = requestJson.RootElement.GetProperty("activationId").GetGuid(),
+                    confirmationToken = new string('A', 43), credentialGeneration = 0L,
+                    expiresAtUtc = c.F.Clock.GetUtcNow().AddMinutes(5), onlineActivationAvailable = true,
+                    reactivation = false, summary }, options), Encoding.UTF8, "application/json") };
+            }
             confirmationRequests++;
             using var original = await c.Response(request, ct);
             using var json = JsonDocument.Parse(await original.Content.ReadAsStringAsync(ct));
@@ -83,9 +88,15 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         c.Intercept = async (request, ct) =>
         {
             if (request.RequestUri!.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+            {
+                using var requestJson = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+                Assert.False(requestJson.RootElement.TryGetProperty("currentRefreshCredential", out _));
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
-                    confirmationToken = new string('A', 43), expiresAtUtc = c.F.Clock.GetUtcNow().AddMinutes(5),
-                    onlineActivationAvailable = true, summary }, options), Encoding.UTF8, "application/json") };
+                    activationId = requestJson.RootElement.GetProperty("activationId").GetGuid(),
+                    confirmationToken = new string('A', 43), credentialGeneration = 0L,
+                    expiresAtUtc = c.F.Clock.GetUtcNow().AddMinutes(5), onlineActivationAvailable = true,
+                    reactivation = true, summary }, options), Encoding.UTF8, "application/json") };
+            }
             using var original = await c.Response(request, ct);
             using var json = JsonDocument.Parse(await original.Content.ReadAsStringAsync(ct));
             var root = json.RootElement;
@@ -113,9 +124,14 @@ public sealed partial class OnlineProductLicenseLifecycleTests
         c.Intercept = async (request, ct) =>
         {
             if (request.RequestUri!.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+            {
+                using var requestJson = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
-                    confirmationToken = new string('A', 43), expiresAtUtc = c.F.Clock.GetUtcNow().AddMinutes(5),
-                    onlineActivationAvailable = true, summary }, options), Encoding.UTF8, "application/json") };
+                    activationId = requestJson.RootElement.GetProperty("activationId").GetGuid(),
+                    confirmationToken = new string('A', 43), credentialGeneration = 0L,
+                    expiresAtUtc = c.F.Clock.GetUtcNow().AddMinutes(5), onlineActivationAvailable = true,
+                    reactivation = false, summary }, options), Encoding.UTF8, "application/json") };
+            }
             using var original = await c.Response(request, ct);
             using var json = JsonDocument.Parse(await original.Content.ReadAsStringAsync(ct));
             var root = json.RootElement;

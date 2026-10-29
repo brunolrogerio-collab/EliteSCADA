@@ -5,6 +5,8 @@ using Scada.Core.Abstractions;
 using Scada.Core.Commands;
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.Api.Licensing;
+using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Interactions;
@@ -18,6 +20,11 @@ public sealed record ServerScriptRuntimeSnapshot(
     long? Revision,
     DateTimeOffset? ActivatedAtUtc,
     IReadOnlyCollection<ServerScriptInstanceSnapshot> Scripts);
+
+public sealed record ServerScriptRuntimeStopOutcome(
+    ProductRuntimeOperatorStopResult Runtime,
+    bool ServerScriptsStopped,
+    string? ScriptDiagnostic);
 
 public sealed record ServerScriptInstanceSnapshot(
     Guid ScriptId,
@@ -163,6 +170,42 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
     }
 
     /// <summary>
+    /// Rebuilds only the persisted Active revision after an operator stop. The product
+    /// coordinator applies its stricter resume policy, including preserving any bounded
+    /// Demo session rather than opening a fresh allowance.
+    /// </summary>
+    public Task<RuntimeActivationResult> ResumeRuntimeForOperatorAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateRuntimeCoreAsync(
+            projectKey,
+            revision,
+            package.Scripts,
+            ct => _runtime is IProductRuntimeOperatorControl control
+                ? control.ResumeForOperatorAsync(projectKey, revision, package, commitAsync, ct)
+                : Task.FromResult(new RuntimeActivationResult(
+                    projectKey.Trim(),
+                    revision,
+                    false,
+                    Array.Empty<EngineeringDriverIssue>(),
+                    new[]
+                    {
+                        new RuntimeActivationIssue(
+                            "PRODUCT_RUNTIME_OPERATOR_RESUME_UNAVAILABLE",
+                            "The product Runtime coordinator does not support operator resume.",
+                            IsError: true)
+                    })),
+            package,
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Canonical persisted-Active activation boundary with the commit callback used by
     /// published activation persistence.
     /// </summary>
@@ -278,6 +321,51 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
 
             if (active is not null)
                 await active.DisposeAsync(runDisposeHandlers: false).ConfigureAwait(false);
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
+
+    public async Task<ServerScriptRuntimeStopOutcome> StopForOperatorAsync(
+        Func<CancellationToken, Task<ProductRuntimeOperatorStopResult>> stopRuntimeAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stopRuntimeAsync);
+        await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ThrowIfDisposed();
+            var runtime = await stopRuntimeAsync(cancellationToken).ConfigureAwait(false);
+            if (!runtime.Stopped)
+                return new(runtime, ServerScriptsStopped: false, ScriptDiagnostic: null);
+
+            ActiveGeneration? active;
+            await _revisionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                active = Interlocked.Exchange(ref _active, null);
+                active?.Cancel();
+            }
+            finally
+            {
+                _revisionGate.Release();
+            }
+
+            if (active is null)
+                return new(runtime, ServerScriptsStopped: true, ScriptDiagnostic: null);
+
+            try
+            {
+                await active.DisposeAsync(runDisposeHandlers: false).ConfigureAwait(false);
+                return new(runtime, ServerScriptsStopped: true, ScriptDiagnostic: null);
+            }
+            catch (Exception exception)
+            {
+                return new(runtime, ServerScriptsStopped: false,
+                    ScriptDiagnostic: $"Server Scripts did not all stop cleanly: {exception.Message}");
+            }
         }
         finally
         {

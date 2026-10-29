@@ -907,6 +907,12 @@
 .runtime-header-settings__link button,.runtime-header-settings__panel > button { min-height:32px; justify-self:start; padding:5px 10px; border:1px solid var(--eng-border); border-radius:5px; background:var(--eng-panel-soft); color:var(--eng-text); cursor:pointer; }
 .runtime-header-settings__link button:hover,.runtime-header-settings__panel > button:hover:not(:disabled) { border-color:var(--eng-accent); background:var(--eng-hover); }
 .runtime-header-settings__link button:disabled,.runtime-header-settings__panel > button:disabled { opacity:.55; cursor:not-allowed; }
+.runtime-header-settings__link > label { min-width:0; }
+.runtime-header-settings__link > label input,.runtime-header-settings__link > label select { width:100%; min-width:0; }
+.runtime-header-settings__link-hint,.runtime-header-settings__asset-preview { grid-column:1/-1; }
+.runtime-header-settings__asset-preview { display:flex; align-items:center; gap:9px; min-width:0; color:var(--eng-text); font-size:11px; }
+.runtime-header-settings__asset-preview img { width:42px; height:42px; flex:0 0 42px; object-fit:contain; border:1px solid var(--eng-border); border-radius:5px; background:var(--eng-panel-soft); }
+.runtime-header-settings__asset-preview span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 @media (max-width:900px) { .runtime-header-settings__grid { grid-template-columns:1fr; } }
 
 @media (max-width: 900px) {

@@ -28,12 +28,43 @@ public sealed class HighAvailabilityRuntimeCoordinator(
     IEngineeringRuntimeCoordinator,
     IRuntimeTagValueSnapshotRestorer,
     IRuntimeApplicationProjectionProvider,
-    IGatewayRuntimeDiagnosticsProvider
+    IGatewayRuntimeDiagnosticsProvider,
+    IProductRuntimeOperatorControl
 {
     public const string AuthorityDeniedIssueCode = "HA_EFFECTIVE_ACTIVE_REQUIRED";
 
     public bool ProductRuntimeActive =>
         inner.GetProductRuntimeStatus().State == ProductRuntimeLifecycleState.Running;
+
+    public Task<ProductRuntimeOperatorStopResult> StopForOperatorAsync(
+        string projectKey,
+        long revision,
+        Func<CancellationToken, Task> persistStopAsync,
+        CancellationToken cancellationToken = default)
+    {
+        if (highAvailability.Enabled)
+            return Task.FromResult(new ProductRuntimeOperatorStopResult(
+                projectKey,
+                revision,
+                Stopped: false,
+                Complete: false,
+                "This installation has Runtime High Availability enabled. A local stop would not stop the cluster, so use cluster-wide maintenance control."));
+
+        return inner.StopForOperatorAsync(projectKey, revision, persistStopAsync, cancellationToken);
+    }
+
+    public Task<RuntimeActivationResult> ResumeForOperatorAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        if (highAvailability.Enabled)
+            return Task.FromResult(PassiveDenied(projectKey, revision, "cluster-wide-operator-resume-required"));
+
+        return inner.ResumeForOperatorAsync(projectKey, revision, package, commitAsync, cancellationToken);
+    }
 
     public RuntimeDescriptor Describe() => inner.Describe();
     public IReadOnlyCollection<TagDefinition> Tags() => inner.Tags();

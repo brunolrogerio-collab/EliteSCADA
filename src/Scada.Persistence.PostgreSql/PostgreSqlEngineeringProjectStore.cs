@@ -67,11 +67,23 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             active_revision bigint NOT NULL REFERENCES elitescada.engineering_revisions(revision),
             activated_at_utc timestamptz NOT NULL DEFAULT clock_timestamp(),
             activated_by varchar(300) NULL,
-            demo_started_at_utc timestamptz NULL
+            demo_started_at_utc timestamptz NULL,
+            runtime_status varchar(32) NOT NULL DEFAULT 'Active',
+            runtime_stopped_at_utc timestamptz NULL,
+            runtime_stopped_by varchar(300) NULL
         );
 
         ALTER TABLE elitescada.project_activations
             ADD COLUMN IF NOT EXISTS demo_started_at_utc timestamptz NULL;
+
+        ALTER TABLE elitescada.project_activations
+            ADD COLUMN IF NOT EXISTS runtime_status varchar(32) NOT NULL DEFAULT 'Active';
+
+        ALTER TABLE elitescada.project_activations
+            ADD COLUMN IF NOT EXISTS runtime_stopped_at_utc timestamptz NULL;
+
+        ALTER TABLE elitescada.project_activations
+            ADD COLUMN IF NOT EXISTS runtime_stopped_by varchar(300) NULL;
 
         CREATE TABLE IF NOT EXISTS elitescada.engineering_asset_blobs (
             sha256 char(64) PRIMARY KEY,
@@ -132,6 +144,10 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
 
         INSERT INTO elitescada.schema_migrations (migration_key)
         VALUES ('007_activation_demo_session_binding')
+        ON CONFLICT (migration_key) DO NOTHING;
+
+        INSERT INTO elitescada.schema_migrations (migration_key)
+        VALUES ('008_operator_runtime_state')
         ON CONFLICT (migration_key) DO NOTHING;
 
         INSERT INTO elitescada.engineering_installation_binding (state_key, state, project_key, generation)
@@ -532,7 +548,8 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         ValidateProjectKey(projectKey);
 
         const string sql = """
-            SELECT project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc
+            SELECT project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc,
+                   runtime_status, runtime_stopped_at_utc, runtime_stopped_by
             FROM elitescada.project_activations
             WHERE project_key = @project_key;
             """;
@@ -586,21 +603,32 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
                 active_revision,
                 activated_at_utc,
                 activated_by,
-                demo_started_at_utc)
+                demo_started_at_utc,
+                runtime_status,
+                runtime_stopped_at_utc,
+                runtime_stopped_by)
             SELECT
-                project_key,
-                published_revision,
+                @project_key,
+                @revision,
                 clock_timestamp(),
                 @activated_by,
-                @demo_started_at_utc
-            FROM elitescada.project_publications
-            WHERE project_key = @project_key AND published_revision = @revision
+                @demo_started_at_utc,
+                'Active',
+                NULL,
+                NULL
+            WHERE EXISTS (
+                SELECT 1 FROM elitescada.project_publications
+                WHERE project_key = @project_key AND published_revision = @revision)
             ON CONFLICT (project_key) DO UPDATE SET
                 active_revision = EXCLUDED.active_revision,
                 activated_at_utc = EXCLUDED.activated_at_utc,
                 activated_by = EXCLUDED.activated_by,
-                demo_started_at_utc = EXCLUDED.demo_started_at_utc
-            RETURNING project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc;
+                demo_started_at_utc = EXCLUDED.demo_started_at_utc,
+                runtime_status = 'Active',
+                runtime_stopped_at_utc = NULL,
+                runtime_stopped_by = NULL
+            RETURNING project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc,
+                      runtime_status, runtime_stopped_at_utc, runtime_stopped_by;
             """;
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -613,6 +641,68 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             activation = await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
         await transaction.CommitAsync(cancellationToken);
         return activation;
+    }
+
+    public async Task<EngineeringProjectActivation?> ResumeRuntimeAsync(
+        string projectKey,
+        long activeRevision,
+        CancellationToken cancellationToken = default)
+    {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("engineering", cancellationToken);
+        ValidateProjectKey(projectKey);
+        if (activeRevision < 1)
+            throw new ArgumentOutOfRangeException(nameof(activeRevision));
+
+        const string sql = """
+            UPDATE elitescada.project_activations
+            SET runtime_status = 'Active',
+                runtime_stopped_at_utc = NULL,
+                runtime_stopped_by = NULL
+            WHERE project_key = @project_key
+              AND active_revision = @active_revision
+              AND runtime_status = 'OperatorStopped'
+            RETURNING project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc,
+                      runtime_status, runtime_stopped_at_utc, runtime_stopped_by;
+            """;
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("project_key", projectKey.Trim());
+        command.Parameters.AddWithValue("active_revision", activeRevision);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
+    }
+
+    public async Task<EngineeringProjectActivation?> SetRuntimeStatusAsync(
+        string projectKey,
+        long activeRevision,
+        EngineeringRuntimeStatus status,
+        string? changedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("engineering", cancellationToken);
+        ValidateProjectKey(projectKey);
+        if (activeRevision < 1)
+            throw new ArgumentOutOfRangeException(nameof(activeRevision));
+        if (status is not (EngineeringRuntimeStatus.OperatorStopped or EngineeringRuntimeStatus.StopFailed or EngineeringRuntimeStatus.Active))
+            throw new ArgumentOutOfRangeException(nameof(status), "Only an Active Runtime may be stopped or resumed by an operator.");
+
+        const string sql = """
+            UPDATE elitescada.project_activations
+            SET runtime_status = @runtime_status,
+                runtime_stopped_at_utc = CASE WHEN @runtime_status = 'Active' THEN NULL ELSE COALESCE(runtime_stopped_at_utc, clock_timestamp()) END,
+                runtime_stopped_by = CASE WHEN @runtime_status = 'Active' THEN NULL ELSE COALESCE(runtime_stopped_by, @changed_by) END
+            WHERE project_key = @project_key AND active_revision = @active_revision
+            RETURNING project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc,
+                      runtime_status, runtime_stopped_at_utc, runtime_stopped_by;
+            """;
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("project_key", projectKey.Trim());
+        command.Parameters.AddWithValue("active_revision", activeRevision);
+        command.Parameters.AddWithValue("runtime_status", status.ToString());
+        command.Parameters.AddWithValue("changed_by", NpgsqlDbType.Varchar, (object?)NormalizeOptional(changedBy) ?? DBNull.Value);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
     }
 
     public async Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
@@ -655,21 +745,31 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
                 active_revision,
                 activated_at_utc,
                 activated_by,
-                demo_started_at_utc)
+                demo_started_at_utc,
+                runtime_status,
+                runtime_stopped_at_utc,
+                runtime_stopped_by)
             SELECT
                 project_key,
                 revision,
                 clock_timestamp(),
                 @activated_by,
-                @demo_started_at_utc
+                @demo_started_at_utc,
+                'Active',
+                NULL,
+                NULL
             FROM elitescada.engineering_revisions
             WHERE project_key = @project_key AND revision = @revision
             ON CONFLICT (project_key) DO UPDATE SET
                 active_revision = EXCLUDED.active_revision,
                 activated_at_utc = EXCLUDED.activated_at_utc,
                 activated_by = EXCLUDED.activated_by,
-                demo_started_at_utc = EXCLUDED.demo_started_at_utc
-            RETURNING project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc;
+                demo_started_at_utc = EXCLUDED.demo_started_at_utc,
+                runtime_status = 'Active',
+                runtime_stopped_at_utc = NULL,
+                runtime_stopped_by = NULL
+            RETURNING project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc,
+                      runtime_status, runtime_stopped_at_utc, runtime_stopped_by;
             """;
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -821,7 +921,12 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         reader.GetInt64(1),
         ReadTimestamp(reader, 2),
         reader.IsDBNull(3) ? null : reader.GetString(3),
-        reader.IsDBNull(4) ? null : ReadTimestamp(reader, 4));
+        reader.IsDBNull(4) ? null : ReadTimestamp(reader, 4),
+        Enum.TryParse<EngineeringRuntimeStatus>(reader.GetString(5), ignoreCase: true, out var status)
+            ? status
+            : EngineeringRuntimeStatus.Active,
+        reader.IsDBNull(6) ? null : ReadTimestamp(reader, 6),
+        reader.IsDBNull(7) ? null : reader.GetString(7));
 
     private static DateTimeOffset ReadTimestamp(NpgsqlDataReader reader, int ordinal)
     {

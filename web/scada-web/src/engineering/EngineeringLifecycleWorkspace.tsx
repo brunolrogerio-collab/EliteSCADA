@@ -4,7 +4,9 @@ import {
   checkoutEngineeringRevision,
   loadEngineeringLifecycleState,
   publishEngineeringRevision,
-  saveEngineeringRevision
+  saveEngineeringRevision,
+  startEngineeringRuntime,
+  stopEngineeringRuntime
 } from './engineeringLifecycleApi';
 import {
   buildLifecycleSteps,
@@ -32,6 +34,7 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingCheckout, setPendingCheckout] = useState<PendingCheckout | null>(null);
+  const [pendingRuntimeAction, setPendingRuntimeAction] = useState<'start' | 'stop' | null>(null);
   const [revisionHistoryOpen, setRevisionHistoryOpen] = useState(false);
 
   const busy = busyAction !== null;
@@ -71,10 +74,20 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
       } else if (action === 'activate') {
         await activatePublishedEngineeringRevision(state.projectKey);
         setNotice(copy.activated);
+      } else if (action === 'stopRuntime') {
+        const result = await stopEngineeringRuntime(state.projectKey);
+        if (!result.complete) throw new Error(result.error ?? copy.runtimeStopIncomplete);
+        setNotice(copy.runtimeStoppedNotice);
+      } else if (action === 'startRuntime') {
+        const result = await startEngineeringRuntime(state.projectKey);
+        if (!result.started) throw new Error(copy.runtimeStartFailed);
+        setNotice(copy.runtimeStartedNotice);
       }
       setPendingCheckout(null);
+      setPendingRuntimeAction(null);
       await refresh();
     } catch (cause) {
+      setPendingRuntimeAction(null);
       setError(lifecycleErrorText(cause, locale));
     } finally {
       setBusyAction(null);
@@ -107,6 +120,8 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
   const publishedIsActive = Boolean(publishedRevision && activeRevision === publishedRevision);
   const runtimeConsistent = Boolean(activeRevision && runtime?.consistent);
   const runtimeNeedsAttention = Boolean(activeRevision && runtime?.consistent === false);
+  const operatorState = runtime?.operatorState ?? 'notRunning';
+  const runtimeControlAvailable = runtime?.runtimeControlAvailable !== false;
 
   return (
     <section className="eng-lifecycle-workspace" aria-label={copy.lifecycleFlow}>
@@ -238,9 +253,35 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
           copy={copy}
         >
           <div className={`eng-lifecycle-workspace__runtime${runtimeNeedsAttention ? ' eng-lifecycle-workspace__runtime--warning' : ''}`}>
-            <strong>{!activeRevision ? copy.noActiveRevision : runtimeConsistent ? copy.runtimeActive : copy.runtimeDiverged}</strong>
+            <strong>{!activeRevision ? copy.noActiveRevision : operatorState === 'stopped' ? copy.runtimeStopped : operatorState === 'stopFailed' ? copy.runtimeStopFailed : runtimeConsistent ? copy.runtimeActive : copy.runtimeDiverged}</strong>
             {activeRevision && runtime?.live.revision ? <span>{copy.liveRevision.replace('{revision}', `r${runtime.live.revision}`)}</span> : null}
+            {operatorState === 'running' && <span>{copy.runtimeRunningEffects}</span>}
+            {operatorState === 'stopped' && <span>{copy.runtimeStoppedEffects}</span>}
+            {operatorState === 'stopFailed' && <span role="alert">{copy.runtimeStopReview}</span>}
           </div>
+          {activeRevision && operatorState === 'running' && runtimeControlAvailable && (
+            <button
+              className="eng-lifecycle-workspace__critical"
+              data-testid="engineering-runtime-stop"
+              onClick={() => setPendingRuntimeAction('stop')}
+              disabled={busy || loading}
+            >
+              {busyAction === 'stopRuntime' ? copy.stoppingRuntime : copy.stopRuntime}
+            </button>
+          )}
+          {activeRevision && operatorState === 'stopped' && runtimeControlAvailable && (
+            <button
+              className="eng-lifecycle-workspace__primary"
+              data-testid="engineering-runtime-start"
+              onClick={() => setPendingRuntimeAction('start')}
+              disabled={busy || loading}
+            >
+              {busyAction === 'startRuntime' ? copy.startingRuntime : copy.startRuntime}
+            </button>
+          )}
+          {!runtimeControlAvailable && runtime?.runtimeControlUnavailableReason && (
+            <p className="eng-lifecycle-workspace__step-status">{copy.runtimeControlUnavailable}</p>
+          )}
         </LifecycleStep>
       </ol>
 
@@ -252,6 +293,15 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
           busy={busy}
           onCancel={() => setPendingCheckout(null)}
           onConfirm={() => void perform('checkout', pendingCheckout.revision)}
+        />
+      )}
+      {pendingRuntimeAction && (
+        <RuntimeOperationConfirmation
+          action={pendingRuntimeAction}
+          copy={copy}
+          busy={busy}
+          onCancel={() => setPendingRuntimeAction(null)}
+          onConfirm={() => void perform(pendingRuntimeAction === 'stop' ? 'stopRuntime' : 'startRuntime')}
         />
       )}
     </section>
@@ -359,6 +409,41 @@ function CheckoutConfirmation({
   );
 }
 
+function RuntimeOperationConfirmation({
+  action,
+  copy,
+  busy,
+  onCancel,
+  onConfirm
+}: {
+  action: 'start' | 'stop';
+  copy: Copy;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const stop = action === 'stop';
+  return (
+    <div className="eng-lifecycle-workspace__confirmation" role="dialog" aria-modal="true" aria-labelledby="eng-lifecycle-runtime-confirm-title">
+      <div>
+        <strong id="eng-lifecycle-runtime-confirm-title">{stop ? copy.stopConfirmTitle : copy.startConfirmTitle}</strong>
+        <p>{stop ? copy.stopConfirmDescription : copy.startConfirmDescription}</p>
+      </div>
+      <div>
+        <button onClick={onCancel} disabled={busy}>{copy.cancel}</button>
+        <button
+          className={stop ? 'eng-lifecycle-workspace__critical' : 'eng-lifecycle-workspace__primary'}
+          onClick={onConfirm}
+          disabled={busy}
+          data-testid={stop ? 'engineering-runtime-stop-confirm' : 'engineering-runtime-start-confirm'}
+        >
+          {busy ? (stop ? copy.stoppingRuntime : copy.startingRuntime) : (stop ? copy.stopConfirm : copy.startConfirm)}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Banner({ title, text }: { title: string; text: string }) {
   return <div className="eng-lifecycle-workspace__banner eng-lifecycle-workspace__banner--warning" role="status"><strong>{title}</strong><span>{text}</span></div>;
 }
@@ -406,6 +491,26 @@ function lifecycleCopy(locale: EngineeringLocale) {
     activating: 'Activating…',
     runtimeActive: 'Runtime active',
     runtimeDiverged: 'Runtime differs from Active',
+    runtimeStopped: 'Runtime stopped by an operator',
+    runtimeStopFailed: 'Runtime stop incomplete — review required',
+    runtimeRunningEffects: 'Application drivers, data collection and Server Scripts are running.',
+    runtimeStoppedEffects: 'Runtime drivers, data collection and Server Scripts are stopped. Engineering, API/database, the Active revision and license remain available.',
+    runtimeStopReview: 'One or more components did not report a clean stop. Review before starting Runtime.',
+    runtimeControlUnavailable: 'Local Run/Stop is unavailable while Runtime High Availability is enabled.',
+    startRuntime: 'Start Runtime',
+    startingRuntime: 'Starting Runtime…',
+    stopRuntime: 'Stop Runtime',
+    stoppingRuntime: 'Stopping Runtime…',
+    stopConfirmTitle: 'Stop the Active Runtime?',
+    stopConfirmDescription: 'This stops application drivers, data collection and Server Scripts. Engineering, API/database, the Active revision and its license stay available. This does not revoke the license.',
+    stopConfirm: 'Stop Runtime',
+    startConfirmTitle: 'Start the Active revision?',
+    startConfirmDescription: 'The current Active revision and its configured drivers and Server Scripts will start after license and runtime-authority checks.',
+    startConfirm: 'Start Runtime',
+    runtimeStopIncomplete: 'Runtime stop was incomplete. Review component state before continuing.',
+    runtimeStartFailed: 'Runtime could not be started.',
+    runtimeStoppedNotice: 'Runtime and its application components stopped.',
+    runtimeStartedNotice: 'The Active revision is running.',
     noActiveRevision: 'No Active revision',
     liveRevision: 'Live: {revision}',
     cancel: 'Cancel',
@@ -453,6 +558,26 @@ function lifecycleCopy(locale: EngineeringLocale) {
     activating: 'Activando…',
     runtimeActive: 'Runtime activo',
     runtimeDiverged: 'Runtime difiere de Active',
+    runtimeStopped: 'Runtime detenido por un operador',
+    runtimeStopFailed: 'La detención de Runtime quedó incompleta; se requiere revisión',
+    runtimeRunningEffects: 'Los drivers de la aplicación, la captura de datos y los Server Scripts están en ejecución.',
+    runtimeStoppedEffects: 'Se detuvieron los drivers, la captura de datos y los Server Scripts. Engineering, API/base de datos, la revisión Active y la licencia siguen disponibles.',
+    runtimeStopReview: 'Uno o más componentes no informaron una detención correcta. Revise antes de iniciar Runtime.',
+    runtimeControlUnavailable: 'El control local de inicio/detención no está disponible con Runtime High Availability habilitado.',
+    startRuntime: 'Iniciar Runtime',
+    startingRuntime: 'Iniciando Runtime…',
+    stopRuntime: 'Detener Runtime',
+    stoppingRuntime: 'Deteniendo Runtime…',
+    stopConfirmTitle: '¿Detener el Runtime Active?',
+    stopConfirmDescription: 'Esto detiene los drivers de la aplicación, la captura de datos y los Server Scripts. Engineering, API/base de datos, la revisión Active y su licencia siguen disponibles. No revoca la licencia.',
+    stopConfirm: 'Detener Runtime',
+    startConfirmTitle: '¿Iniciar la revisión Active?',
+    startConfirmDescription: 'La revisión Active actual y sus drivers y Server Scripts configurados se iniciarán después de validar la licencia y la autoridad de Runtime.',
+    startConfirm: 'Iniciar Runtime',
+    runtimeStopIncomplete: 'La detención de Runtime quedó incompleta. Revise el estado de los componentes antes de continuar.',
+    runtimeStartFailed: 'No fue posible iniciar Runtime.',
+    runtimeStoppedNotice: 'Runtime y los componentes de la aplicación se detuvieron.',
+    runtimeStartedNotice: 'La revisión Active está en ejecución.',
     noActiveRevision: 'Sin revisión Active',
     liveRevision: 'En vivo: {revision}',
     cancel: 'Cancelar',
@@ -500,6 +625,26 @@ function lifecycleCopy(locale: EngineeringLocale) {
     activating: 'Ativando…',
     runtimeActive: 'Runtime ativo',
     runtimeDiverged: 'Runtime diverge de Active',
+    runtimeStopped: 'Runtime parado por um operador',
+    runtimeStopFailed: 'Parada do Runtime incompleta — revisão necessária',
+    runtimeRunningEffects: 'Drivers da aplicação, coleta de dados e Scripts de servidor estão em execução.',
+    runtimeStoppedEffects: 'Runtime, drivers, coleta de dados e Scripts de servidor foram parados. Engineering, API/banco, revisão Active e licença continuam disponíveis.',
+    runtimeStopReview: 'Um ou mais componentes não confirmaram uma parada limpa. Revise antes de iniciar o Runtime.',
+    runtimeControlUnavailable: 'Iniciar/parar localmente não está disponível com Runtime High Availability habilitado.',
+    startRuntime: 'Iniciar Runtime',
+    startingRuntime: 'Iniciando Runtime…',
+    stopRuntime: 'Parar Runtime',
+    stoppingRuntime: 'Parando Runtime…',
+    stopConfirmTitle: 'Parar o Runtime Active?',
+    stopConfirmDescription: 'Isso para os drivers da aplicação, a coleta de dados e os Scripts de servidor. Engineering, API/banco, revisão Active e licença continuam disponíveis. A licença não é revogada.',
+    stopConfirm: 'Parar Runtime',
+    startConfirmTitle: 'Iniciar a revisão Active?',
+    startConfirmDescription: 'A revisão Active atual e seus drivers e Scripts de servidor serão iniciados após as verificações de licença e de autoridade do Runtime.',
+    startConfirm: 'Iniciar Runtime',
+    runtimeStopIncomplete: 'A parada do Runtime ficou incompleta. Revise o estado dos componentes antes de continuar.',
+    runtimeStartFailed: 'Não foi possível iniciar o Runtime.',
+    runtimeStoppedNotice: 'Runtime e componentes da aplicação parados.',
+    runtimeStartedNotice: 'A revisão Active está em execução.',
     noActiveRevision: 'Sem revisão Active',
     liveRevision: 'Ao vivo: {revision}',
     cancel: 'Cancelar',

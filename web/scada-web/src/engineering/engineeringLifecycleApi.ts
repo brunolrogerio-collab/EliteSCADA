@@ -123,6 +123,20 @@ export async function activatePublishedEngineeringRevision(projectKey: string): 
   );
 }
 
+export async function stopEngineeringRuntime(projectKey: string): Promise<{ complete: boolean; error?: string }> {
+  return await requestJson(
+    `/api/engineering/persistence/${encodeURIComponent(projectKey)}/runtime/stop`,
+    { method: 'POST', body: JSON.stringify({ confirmed: true }) }
+  );
+}
+
+export async function startEngineeringRuntime(projectKey: string): Promise<{ started: boolean }> {
+  return await requestJson(
+    `/api/engineering/persistence/${encodeURIComponent(projectKey)}/runtime/start`,
+    { method: 'POST', body: JSON.stringify({ confirmed: true }) }
+  );
+}
+
 function normalizeKey(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;

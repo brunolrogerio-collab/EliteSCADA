@@ -127,6 +127,165 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     }
 
     [Fact]
+    public async Task OperatorStop_PersistsBeforeStoppingAndExplicitRunResumesSameRevision()
+    {
+        var first = new FakeRuntimeCoordinator();
+        var created = new List<FakeRuntimeCoordinator> { first };
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            first,
+            () =>
+            {
+                var fresh = new FakeRuntimeCoordinator();
+                created.Add(fresh);
+                return fresh;
+            },
+            new DemoProductRunEntitlementProvider());
+
+        Assert.True((await coordinator.ActivateAsync("plant", 12, PackageWithTags(18))).Activated);
+        var activationTime = coordinator.Describe().ActivatedAtUtc;
+        var persistedStop = false;
+
+        var stopped = await coordinator.StopForOperatorAsync("plant", 12, _ =>
+        {
+            persistedStop = true;
+            Assert.False(first.Disposed);
+            return Task.CompletedTask;
+        });
+
+        Assert.True(stopped.Stopped);
+        Assert.True(stopped.Complete);
+        Assert.True(persistedStop);
+        Assert.True(first.Disposed);
+        Assert.Null(coordinator.Describe().Revision);
+        Assert.Equal(ProductRuntimeLifecycleState.OperatorStopped, coordinator.GetProductRuntimeStatus().State);
+
+        Assert.True((await coordinator.ActivateAsync("plant", 12, PackageWithTags(18))).Activated);
+        Assert.Equal(2, created.Count);
+        Assert.Equal(1, created[1].ActivationCount);
+        Assert.Equal(12, coordinator.Describe().Revision);
+        Assert.Equal(ProductRuntimeLifecycleState.Running, coordinator.GetProductRuntimeStatus().State);
+        Assert.NotEqual(activationTime, coordinator.Describe().ActivatedAtUtc);
+    }
+
+    [Fact]
+    public async Task OperatorStop_PersistenceFailureLeavesCurrentRuntimeRunning()
+    {
+        var initial = new FakeRuntimeCoordinator();
+        var factories = 0;
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () =>
+            {
+                factories++;
+                return new FakeRuntimeCoordinator();
+            },
+            new DemoProductRunEntitlementProvider());
+        Assert.True((await coordinator.ActivateAsync("plant", 2, PackageWithTags(2))).Activated);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => coordinator.StopForOperatorAsync(
+            "plant",
+            2,
+            _ => throw new InvalidOperationException("store unavailable")));
+
+        Assert.False(initial.Disposed);
+        Assert.Equal(2, coordinator.Describe().Revision);
+        Assert.Equal(ProductRuntimeLifecycleState.Running, coordinator.GetProductRuntimeStatus().State);
+        Assert.Equal(1, factories);
+    }
+
+    [Fact]
+    public async Task OperatorStop_DisposalFailureReportsPartialStopAndBlocksResume()
+    {
+        var initial = new FakeRuntimeCoordinator
+        {
+            DisposeFailure = new InvalidOperationException("driver did not close")
+        };
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => new FakeRuntimeCoordinator(),
+            new DemoProductRunEntitlementProvider());
+        Assert.True((await coordinator.ActivateAsync("plant", 5, PackageWithTags(5))).Activated);
+
+        var stop = await coordinator.StopForOperatorAsync("plant", 5, _ => Task.CompletedTask);
+        var resume = await coordinator.ResumeForOperatorAsync(
+            "plant",
+            5,
+            PackageWithTags(5),
+            (_, _) => Task.CompletedTask);
+
+        Assert.True(stop.Stopped);
+        Assert.False(stop.Complete);
+        Assert.Contains("driver did not close", stop.Diagnostic);
+        Assert.Equal(ProductRuntimeLifecycleState.StopFailed, coordinator.GetProductRuntimeStatus().State);
+        Assert.False(resume.Activated);
+        Assert.Contains(
+            resume.RuntimeIssues,
+            issue => issue.IsError && issue.Message.Contains("incomplete", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task OperatorResume_DoesNotRenewAnExpiredBoundedDemoSession()
+    {
+        var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
+        var time = new RecordingTimeProvider(now);
+        await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
+        var authority = await authorityStore.GetAuthorityStateAsync();
+        var expiredAnchor = now - ExplicitTestRunBudget - TimeSpan.FromMinutes(1);
+        await authorityStore.EstablishDemoSessionAnchorAsync(expiredAnchor, authority.DemoStartedAtUtc);
+        var initial = new FakeRuntimeCoordinator();
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => new FakeRuntimeCoordinator(),
+            new DelegateEntitlementProvider(tagCount =>
+                EvaluateWithExplicitTestBudget(LicenseVerificationResult.Demo(), tagCount)),
+            time,
+            authorityStore);
+
+        var result = await coordinator.ResumeForOperatorAsync(
+            "plant",
+            4,
+            PackageWithTags(4),
+            (_, _) => Task.CompletedTask);
+        var after = await authorityStore.GetAuthorityStateAsync();
+
+        Assert.False(result.Activated);
+        Assert.Contains(result.RuntimeIssues, issue => issue.IsError && issue.Message.Contains("expired", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(expiredAnchor, after.DemoStartedAtUtc);
+        Assert.Equal(0, initial.ActivationCount);
+    }
+
+    [Fact]
+    public async Task OperatorStop_SerializesBehindAnActivationAndStopsTheCommittedRevision()
+    {
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = new FakeRuntimeCoordinator
+        {
+            ActivationEntered = entered,
+            ActivationRelease = release
+        };
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            first,
+            () => new FakeRuntimeCoordinator(),
+            new DemoProductRunEntitlementProvider());
+
+        var activation = coordinator.ActivateAsync("plant", 9, PackageWithTags(9));
+        await entered.Task;
+        var stop = coordinator.StopForOperatorAsync("plant", 9, _ => Task.CompletedTask);
+        Assert.False(stop.IsCompleted);
+
+        release.TrySetResult(true);
+        Assert.True((await activation).Activated);
+        var stopped = await stop;
+
+        Assert.True(stopped.Stopped);
+        Assert.True(stopped.Complete);
+        Assert.True(first.Disposed);
+        Assert.Equal(ProductRuntimeLifecycleState.OperatorStopped, coordinator.GetProductRuntimeStatus().State);
+        Assert.Null(coordinator.Describe().Revision);
+    }
+
+    [Fact]
     public async Task ExplicitDurationBudget_StopsRuntimeAndLaterExplicitRunUsesFreshCoordinator()
     {
         var created = new List<FakeRuntimeCoordinator>();
@@ -780,6 +939,7 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         public DateTimeOffset? ActivationTime { get; init; }
         public TaskCompletionSource<bool>? ActivationEntered { get; init; }
         public TaskCompletionSource<bool>? ActivationRelease { get; init; }
+        public Exception? DisposeFailure { get; init; }
 
         public RuntimeDescriptor Describe() => _descriptor;
         public IReadOnlyCollection<TagDefinition> Tags() => Array.Empty<TagDefinition>();
@@ -850,6 +1010,8 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
 
         public ValueTask DisposeAsync()
         {
+            if (DisposeFailure is { } failure)
+                return ValueTask.FromException(failure);
             Disposed = true;
             _descriptor = EmptyDescriptor();
             return ValueTask.CompletedTask;

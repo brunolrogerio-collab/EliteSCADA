@@ -8,7 +8,7 @@ import type { EngineeringLocale } from './i18n';
 export type LifecycleStepState = 'complete' | 'current' | 'pending' | 'warning';
 export type LifecycleStep = { key: 'working' | 'revision' | 'published' | 'active'; state: LifecycleStepState; revision: number | null };
 
-type ApiErrorLike = Error & { status: number };
+type ApiErrorLike = Error & { status: number; responseBody?: string };
 
 export function buildLifecycleSteps(state: EngineeringLifecycleState): LifecycleStep[] {
   const lifecycle = state.lifecycle;
@@ -62,7 +62,7 @@ export function lifecycleErrorText(error: unknown, locale: EngineeringLocale): s
     if (error.status === 403) return messages.forbidden;
     if (error.status === 409) return `${messages.conflict} ${lifecycleFailureDetail(error.message)}`.trim();
     if (error.status === 422) return `${messages.validation} ${lifecycleFailureDetail(error.message)}`.trim();
-    if (error.status === 503) return messages.unavailable;
+    if (error.status === 503) return `${messages.unavailable} ${lifecycleFailureDetail(error.responseBody ?? error.message)}`.trim();
     return error.message || messages.generic;
   }
   return error instanceof Error ? error.message : messages.generic;
@@ -80,7 +80,8 @@ function lifecycleFailureDetail(message: string): string {
       .filter(issue => issue && typeof issue === 'object' && issue.isError !== false && typeof issue.message === 'string');
     if (issues.length) return issues.slice(0, 3).map(issue =>
       `${typeof issue.code === 'string' ? `${issue.code}: ` : ''}${issue.message}`.slice(0, 400)).join(' ');
-    return typeof result.message === 'string' ? result.message.slice(0, 400) : '';
+    const detail = typeof result.error === 'string' ? result.error : result.message;
+    return typeof detail === 'string' ? detail.slice(0, 400) : '';
   } catch {
     return message.slice(0, 400);
   }

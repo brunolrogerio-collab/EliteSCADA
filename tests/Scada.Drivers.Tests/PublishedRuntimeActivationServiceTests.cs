@@ -7,6 +7,7 @@ using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Events;
 using Scada.Core.Interactions;
+using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
@@ -20,6 +21,53 @@ namespace Scada.Drivers.Tests;
 
 public sealed class PublishedRuntimeActivationServiceTests
 {
+    [Fact]
+    public async Task ActivateActiveRevision_ResumesTheSameStoppedRevisionWithoutRepublishing()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[10] = 321;
+        server.Start();
+        var snapshot = CreateSnapshot(CreatePackage(server.Port, Guid.NewGuid()));
+        var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
+        var persistence = CreatePersistence(store, out var exchange);
+        IEngineeringRuntimeCoordinator CreateRuntime() => new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+        await using var runtime = new ProductLicensedRuntimeCoordinator(
+            CreateRuntime(),
+            CreateRuntime,
+            new DemoProductRunEntitlementProvider());
+        var activation = new PublishedRuntimeActivationService(persistence, exchange, runtime);
+
+        Assert.True((await activation.ActivateAsync(snapshot.ProjectKey, "first-run")).Activated);
+        var persisted = await persistence.GetActivationAsync(snapshot.ProjectKey);
+        var stopped = await runtime.StopForOperatorAsync(
+            snapshot.ProjectKey,
+            snapshot.Revision,
+            async ct =>
+            {
+                var result = await persistence.SetRuntimeStatusAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    EngineeringRuntimeStatus.OperatorStopped,
+                    "operator",
+                    ct);
+                Assert.NotNull(result);
+            });
+        Assert.True(stopped.Stopped);
+        Assert.True(stopped.Complete);
+
+        var resumed = await activation.ActivateActiveRevisionAsync(snapshot.ProjectKey, "operator");
+
+        Assert.True(resumed.Activated);
+        Assert.Equal(snapshot.Revision, resumed.Activation!.ActiveRevision);
+        Assert.Equal(EngineeringRuntimeStatus.Active, resumed.Activation.RuntimeStatus);
+        Assert.Equal(persisted!.ActivatedAtUtc, resumed.Activation.ActivatedAtUtc);
+        Assert.Equal(persisted.DemoStartedAtUtc, resumed.Activation.DemoStartedAtUtc);
+        Assert.Equal(snapshot.Revision, runtime.Describe().Revision);
+    }
+
     [Fact]
     public async Task ActivateAsync_CommitsPublishedRevisionSwitchesFacadeAndRehydratesEngineeringLock()
     {
@@ -539,6 +587,44 @@ public sealed class PublishedRuntimeActivationServiceTests
                 revision,
                 DateTimeOffset.UtcNow,
                 activatedBy);
+            return Task.FromResult<EngineeringProjectActivation?>(_activation);
+        }
+
+        public Task<EngineeringProjectActivation?> SetRuntimeStatusAsync(
+            string projectKey,
+            long activeRevision,
+            EngineeringRuntimeStatus status,
+            string? changedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (projectKey != snapshot.ProjectKey || _activation?.ActiveRevision != activeRevision)
+                return Task.FromResult<EngineeringProjectActivation?>(null);
+
+            _activation = _activation with
+            {
+                RuntimeStatus = status,
+                RuntimeStoppedAtUtc = status == EngineeringRuntimeStatus.Active ? null : DateTimeOffset.UtcNow,
+                RuntimeStoppedBy = status == EngineeringRuntimeStatus.Active ? null : changedBy
+            };
+            return Task.FromResult<EngineeringProjectActivation?>(_activation);
+        }
+
+        public Task<EngineeringProjectActivation?> ResumeRuntimeAsync(
+            string projectKey,
+            long activeRevision,
+            CancellationToken cancellationToken = default)
+        {
+            if (projectKey != snapshot.ProjectKey ||
+                _activation?.ActiveRevision != activeRevision ||
+                _activation.RuntimeStatus != EngineeringRuntimeStatus.OperatorStopped)
+                return Task.FromResult<EngineeringProjectActivation?>(null);
+
+            _activation = _activation with
+            {
+                RuntimeStatus = EngineeringRuntimeStatus.Active,
+                RuntimeStoppedAtUtc = null,
+                RuntimeStoppedBy = null
+            };
             return Task.FromResult<EngineeringProjectActivation?>(_activation);
         }
 

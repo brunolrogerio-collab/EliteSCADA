@@ -34,7 +34,9 @@ public enum EngineeringRuntimeStatus
 {
     Inactive,
     ActivationPending,
-    Active
+    Active,
+    OperatorStopped,
+    StopFailed
 }
 
 public sealed record EngineeringProjectPublication(
@@ -48,7 +50,10 @@ public sealed record EngineeringProjectActivation(
     long ActiveRevision,
     DateTimeOffset ActivatedAtUtc,
     string? ActivatedBy = null,
-    DateTimeOffset? DemoStartedAtUtc = null);
+    DateTimeOffset? DemoStartedAtUtc = null,
+    EngineeringRuntimeStatus RuntimeStatus = EngineeringRuntimeStatus.Active,
+    DateTimeOffset? RuntimeStoppedAtUtc = null,
+    string? RuntimeStoppedBy = null);
 
 public sealed record EngineeringProjectLifecycle(
     string ProjectKey,
@@ -159,6 +164,24 @@ public interface IEngineeringProjectStore
         long revision,
         string? activatedBy = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clears an operator stop for the same persisted Active revision without changing
+    /// its activation/session timestamps or allowing a stale revision to become Active.
+    /// </summary>
+    Task<EngineeringProjectActivation?> ResumeRuntimeAsync(
+        string projectKey,
+        long activeRevision,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This Engineering project store does not support operator Runtime controls.");
+
+    Task<EngineeringProjectActivation?> SetRuntimeStatusAsync(
+        string projectKey,
+        long activeRevision,
+        EngineeringRuntimeStatus status,
+        string? changedBy = null,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This Engineering project store does not support operator Runtime controls.");
 
     /// <summary>
     /// Commits an HA takeover against an exact immutable revision, even when a newer

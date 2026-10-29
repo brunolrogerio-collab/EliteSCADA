@@ -16,7 +16,7 @@ Antes de cambiar algo, lea Estado actual y Próxima acción. Elegir una base def
 
 ### Uso y retención del Historian
 
-En **Uso y retención del Historian**, revise los tamaños medidos en la base utilizada por el Historian. **Base del Historian** incluye todos los datos de esa base; **Historian total** reúne las muestras sin procesar y los agregados que el provider pudo medir. El espacio libre del servidor y el crecimiento diario solo aparecen si existe una medición confiable. Si la pantalla indica que no se informaron, no significa que sean cero.
+En **Uso y retención del Historian**, revise los tamaños medidos en la base utilizada por el Historian. **Base del Historian** incluye todos los datos de esa base; **Historian total** reúne las muestras sin procesar y los agregados que el provider pudo medir. Si la topología utiliza bases separadas, esta pantalla mide solo la base del Historian; no suma la base principal ni representa el espacio libre del volumen del servidor. El espacio libre y el crecimiento diario solo aparecen si existe una medición confiable. Si la pantalla indica que no se informaron, no significa que sean cero.
 
 **Sin expiración automática** significa que SCADIVO no programó cuándo eliminar las muestras sin procesar. No significa que el disco sea ilimitado. Para conservarlas durante un período, desmarque la opción e indique los días. Una política más corta puede eliminar muestras antiguas; marque la confirmación solo después de revisar el período y el impacto. TimescaleDB ejecuta esa política, por lo que la eliminación no tiene que ocurrir en el instante de guardar.
 

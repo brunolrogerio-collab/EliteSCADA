@@ -16,7 +16,7 @@ Before changing anything, read Current state and Next action. Choosing a databas
 
 ### Historian usage and retention
 
-In **Historian usage and retention**, review the measured sizes in the database used by the Historian. **Historian database** includes all data in that database; **Historian total** combines raw samples and aggregates the provider could measure. Server free space and daily growth appear only when a reliable measurement is available. If the page says they were not reported, that does not mean zero.
+In **Historian usage and retention**, review the measured sizes in the database used by the Historian. **Historian database** includes all data in that database; **Historian total** combines raw samples and aggregates the provider could measure. With separate databases, this page measures only the Historian database; it does not add the primary database or represent free space on the server volume. Free space and daily growth appear only when a reliable measurement is available. If the page says they were not reported, that does not mean zero.
 
 **No automatic expiry** means SCADIVO has not scheduled a date to remove raw samples. It does not mean disk space is unlimited. To keep raw samples for a period, clear the option and enter the number of days. A shorter policy can remove old samples; check the confirmation only after reviewing the period and its impact. TimescaleDB runs the retention policy, so removal may not happen at the moment you save.
 

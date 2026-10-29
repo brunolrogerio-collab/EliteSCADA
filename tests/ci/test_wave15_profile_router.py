@@ -271,6 +271,28 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertIn("SESSION_LICENSING", result["effective_profiles"])
         self.assertNotIn("RUNTIME_RENDERER", result["effective_profiles"])
 
+    def test_online_license_recovery_selects_focused_dotnet_and_browser_evidence(self):
+        result = self.classify(
+            [
+                "src/Scada.Api/Licensing/OnlineLicenseDeviceClient.Confirmation.cs",
+                "web/scada-web/src/licensing/OnlineLicenseActivation.tsx",
+            ],
+            "VALIDATION_PROFILE: ONLINE_LICENSE_RECOVERY",
+        )
+        self.assertIn("ONLINE_LICENSE_RECOVERY", result["effective_profiles"])
+        self.assertEqual(result["dotnet_projects"], [router.DRIVERS])
+        self.assertEqual(result["dotnet_test_filter"], router.ONLINE_LICENSE_DOTNET_FILTER)
+        self.assertEqual(result["e2e_specs"], ["tests-e2e/online-license-confirmation.spec.ts"])
+        self.assertEqual(result["e2e_config"], "playwright.online-license.config.ts")
+
+    def test_other_session_licensing_keeps_its_existing_full_project_validation(self):
+        result = self.classify(
+            ["src/Scada.Api/Runtime/RuntimeSessionAdmission.cs"],
+            "VALIDATION_PROFILE: SESSION_LICENSING",
+        )
+        self.assertEqual(result["dotnet_test_filter"], "")
+        self.assertEqual(result["e2e_config"], "")
+
     def test_driver_cannot_be_suppressed_by_cheaper_declaration(self):
         result = self.classify(
             ["src/Scada.Drivers/Modbus/Driver.cs"],

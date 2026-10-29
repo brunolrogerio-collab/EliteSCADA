@@ -11,7 +11,7 @@ from pathlib import Path
 
 VOCABULARY = (
     "FOUNDATION_LIFECYCLE", "FOUNDATION_TIMING", "AUTHORITY_CORE",
-    "SESSION_LICENSING", "SCRIPT_RUNTIME", "RUNTIME_RENDERER", "APP_SHELL",
+    "SESSION_LICENSING", "ONLINE_LICENSE_RECOVERY", "SCRIPT_RUNTIME", "RUNTIME_RENDERER", "APP_SHELL",
     "UI_EDITOR", "SCRIPT_ENGINEERING", "AUTHORITY_UX", "LICENSING_UX",
     "ELITEGO_RUNTIME", "DATABASE_TOPOLOGY", "INSTALLATION", "HA_DISTRIBUTED",
     "DOCS_I18N_HELP", "EEE_PACKAGE", "CI_INFRA", "DRIVER_PROTOCOL",
@@ -30,7 +30,13 @@ COORDINATION_ONLY = {
 # not drag unrelated browser suites into every PR.
 PATH_RULES = (
     ("AUTHORITY_CORE", ("src/scada.security/", "src/scada.api/security/", "tests/scada.security.tests/")),
-    ("SESSION_LICENSING", ("licensing/", "runtimesession", "runtime-session")),
+    ("SESSION_LICENSING", ("runtimesession", "runtime-session")),
+    ("ONLINE_LICENSE_RECOVERY", (
+        "src/scada.api/licensing/", "tests/scada.drivers.tests/onlinelicensedeviceprotocoltests.cs",
+        "tests/scada.drivers.tests/onlinelicenserenewalorchestratortests.cs",
+        "tests/scada.drivers.tests/onlineproductlicenselifecycletests.cs",
+        "web/scada-web/src/licensing/", "online-license-confirmation.spec.ts",
+    )),
     ("SCRIPT_RUNTIME", (
         "python-runtime", "script-runtime", "scripting/runtime",
         "src/scada.api/runtime/isolatedpythonscripthandlerexecutor.cs",
@@ -58,7 +64,7 @@ PATH_RULES = (
         "web/scada-web/src/security/", "effective-capabilities", "user-administration", "security.spec",
         "web/scada-web/src/engineering/assetprocessintelligenceworkspace",
     )),
-    ("LICENSING_UX", ("web/scada-web/src/licensing/", "license-generator")),
+    ("LICENSING_UX", ("license-generator",)),
     ("ELITEGO_RUNTIME", ("elitego",)),
     ("DATABASE_TOPOLOGY", (
         "database-topology", "databasetopology", "databasemaintenance",
@@ -90,6 +96,12 @@ CORE = "tests/Scada.Core.Tests/Scada.Core.Tests.csproj"
 HISTORIAN = "tests/Scada.Historian.TimescaleDb.Tests/Scada.Historian.TimescaleDb.Tests.csproj"
 SECURITY = "tests/Scada.Security.Tests/Scada.Security.Tests.csproj"
 DRIVERS = "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj"
+ONLINE_LICENSE_DOTNET_FILTER = (
+    "FullyQualifiedName~OnlineLicenseDeviceProtocolTests"
+    "|FullyQualifiedName~OnlineProductLicenseLifecycleTests"
+    "|FullyQualifiedName~OnlineLicenseApiEndpointTests"
+    "|FullyQualifiedName~OnlineLicensePresentationTests"
+)
 
 DOTNET_PROJECTS = {
     "FOUNDATION_LIFECYCLE": (CORE,),
@@ -97,6 +109,7 @@ DOTNET_PROJECTS = {
     "AUTHORITY_CORE": (SECURITY,),
     "AUTHORITY_UX": (SECURITY,),
     "SESSION_LICENSING": (DRIVERS,),
+    "ONLINE_LICENSE_RECOVERY": (DRIVERS,),
     "LICENSING_UX": (DRIVERS,),
     "SCRIPT_RUNTIME": (DRIVERS,),
     "RUNTIME_RENDERER": (DRIVERS,),
@@ -112,6 +125,7 @@ DOTNET_PROJECTS = {
 WEB_PROFILES = {
     "APP_SHELL", "UI_EDITOR", "SCRIPT_ENGINEERING", "SCRIPT_RUNTIME",
     "RUNTIME_RENDERER", "AUTHORITY_UX", "LICENSING_UX", "ELITEGO_RUNTIME",
+    "ONLINE_LICENSE_RECOVERY",
     "DATABASE_TOPOLOGY", "INSTALLATION", "HA_DISTRIBUTED", "INTELLIGENCE_HARDENING",
 }
 
@@ -123,6 +137,7 @@ E2E_PROFILE_DEFAULTS = {
     "RUNTIME_RENDERER": ("tests-e2e/runtime.spec.ts", "tests-e2e/wave-14-c25-runtime-session.spec.ts"),
     "AUTHORITY_UX": ("tests-e2e/security.spec.ts", "tests-e2e/database-topology-mounted.spec.ts"),
     "LICENSING_UX": ("tests-e2e/effective-capabilities-contract.spec.ts",),
+    "ONLINE_LICENSE_RECOVERY": ("tests-e2e/online-license-confirmation.spec.ts",),
     "ELITEGO_RUNTIME": ("tests-e2e/runtime.spec.ts",),
     "DATABASE_TOPOLOGY": ("tests-e2e/database-topology-mounted.spec.ts",),
     "INSTALLATION": ("tests-e2e/local-auth.spec.ts",),
@@ -130,6 +145,7 @@ E2E_PROFILE_DEFAULTS = {
 }
 
 E2E_PATH_RULES = (
+    (("web/scada-web/src/licensing/",), ("tests-e2e/online-license-confirmation.spec.ts",)),
     (("web/scada-web/src/database-topology/",), ("tests-e2e/database-topology-mounted.spec.ts",)),
     (("web/scada-web/src/engineering/ha/",), ("tests-e2e/ha-admin-workspace.spec.ts",)),
     (("web/scada-web/src/engineering/assetprocessintelligenceworkspace",), (
@@ -162,7 +178,6 @@ E2E_PATH_RULES = (
         "web/scada-web/src/engineering/structurededitors",
     ), ("tests-e2e/data-source-catalog-editor-mounted.spec.ts",)),
     (("web/scada-web/src/security/",), ("tests-e2e/security.spec.ts",)),
-    (("web/scada-web/src/licensing/",), ("tests-e2e/effective-capabilities-contract.spec.ts",)),
     (("installationswitchingworkspace",), ("tests-e2e/local-auth.spec.ts",)),
     (("web/scada-web/src/engineering/scripts/",), ("tests-e2e/script-engineering-workspace-contract.spec.ts",)),
 )
@@ -306,7 +321,13 @@ def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr
         for profile in ordered
         for project in DOTNET_PROJECTS.get(profile, ())
     })
+    dotnet_test_filter = ""
+    if "ONLINE_LICENSE_RECOVERY" in effective and set(projects) == {DRIVERS}:
+        dotnet_test_filter = ONLINE_LICENSE_DOTNET_FILTER
     specs = infer_e2e_specs(paths, effective, mode)
+    e2e_config = ""
+    if "ONLINE_LICENSE_RECOVERY" in effective and specs == ["tests-e2e/online-license-confirmation.spec.ts"]:
+        e2e_config = "playwright.online-license.config.ts"
     normalized_paths = _normalized(paths)
     web_changed = any(path.startswith("web/scada-web/") for path in normalized_paths)
     driver = "DRIVER_PROTOCOL" in effective
@@ -323,10 +344,12 @@ def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr
         "run_intelligence_hardening": "INTELLIGENCE_HARDENING" in effective,
         "run_intelligence_ui": "INTELLIGENCE_HARDENING" in effective,
         "run_e2e": bool(specs),
+        "e2e_config": e2e_config,
         "run_driver": driver,
         "run_ha_two_process": needs_ha_two_process(paths, effective, mode),
         "run_ha_d2_acceptance": needs_ha_d2_acceptance(paths, effective, mode),
         "dotnet_projects": projects,
+        "dotnet_test_filter": dotnet_test_filter,
         "e2e_specs": specs,
         "driver_gate": "DEFERRED TO T2/T3" if driver else "UNCHANGED/TRUSTED",
     }

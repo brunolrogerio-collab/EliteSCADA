@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/licensing/online/connectivity', route => route.fulfill({ json: { state: 'reachable' } }));
+});
+
 test('review, cancel and recover confirmation without resending the password', async ({ page }) => {
   let pending = false;
   let confirmed = false;

@@ -180,3 +180,22 @@ test('subscription extension and confirmed revocation target the selected licens
   expect(calls.find(call => call.path.endsWith('/revoke'))).toMatchObject({ path: `/admin/licensing/licenses/${license.id}/revoke`, csrf: 'synthetic-csrf', body: { reason: 'Synthetic revocation test' } });
   expect(browserErrors).toEqual([]);
 });
+
+for (const [availability, expected] of [
+  [true, 'Online activation and renewal enabled.'],
+  [false, 'Online activation and renewal disabled.'],
+  [null, 'Online licensing availability could not be checked.']
+]) {
+  test(`administration reports runtime licensing availability ${availability}`, async ({ page }) => {
+    const { browserErrors } = await fixture(page, { owner: true });
+    await page.route('**/portal/api/licensing/status', route => availability === null
+      ? route.fulfill({ status: 503, json: { error: 'unavailable' } })
+      : route.fulfill({ json: { onlineActivationAvailable: availability } }));
+    await page.getByRole('button', { name: 'Administration', exact: true }).click();
+    await expect(page.getByText(expected, { exact: false })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Portal accounts', exact: true })).toBeVisible();
+    await expect(page.getByText('Payments and online licensing are not active.', { exact: false })).toHaveCount(0);
+    await page.screenshot({ path: test.info().outputPath(`admin-status-${availability}.png`) });
+    expect(browserErrors).toEqual([]);
+  });
+}

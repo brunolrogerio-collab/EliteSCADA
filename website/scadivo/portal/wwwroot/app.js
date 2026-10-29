@@ -463,6 +463,12 @@ function community() {
 function licenses() { return portalLicensing.customer(); }
 async function admin() {
   const overview = await api('/admin/overview');
+  const licensingStatus = await api('/licensing/status').catch(() => null);
+  const licensingNotice = licensingStatus === null
+    ? tr('Não foi possível consultar a disponibilidade do licenciamento online.', 'Online licensing availability could not be checked.', 'No se pudo consultar la disponibilidad de las licencias en línea.')
+    : licensingStatus.onlineActivationAvailable
+      ? tr('Ativação e renovação online habilitadas.', 'Online activation and renewal enabled.', 'Activación y renovación en línea habilitadas.')
+      : tr('Ativação e renovação online desativadas.', 'Online activation and renewal disabled.', 'Activación y renovación en línea deshabilitadas.');
   const metrics = h('div', { class: 'metrics' }, [[tr('Contas', 'Accounts'), overview.accounts], [tr('Chamados abertos', 'Open requests'), overview.openTickets], [tr('Aguardando ativação', 'Awaiting activation'), overview.pendingInvitations]].map(([label, value]) => h('div', { class: 'metric' }, [h('strong', {}, value), h('span', {}, label)])));
   const body = h('div');
   const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), licensing: tr('Licenças', 'Licenses', 'Licencias'), downloads: tr('Downloads', 'Downloads', 'Descargas'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
@@ -474,7 +480,7 @@ async function admin() {
   const registrationStatus = overview.publicRegistrationEnabled
     ? tr('Cadastro público habilitado.', 'Public registration enabled.', 'Registro público habilitado.')
     : tr('Cadastro público desativado.', 'Public registration is disabled.');
-  return h('div', {}, [metrics, notice(emailStatus + ' ' + registrationStatus + ' ' + tr('Pagamentos e licenciamento online não estão ativos.', 'Payments and online licensing are not active.')), tabs, body]);
+  return h('div', {}, [metrics, notice(emailStatus + ' ' + registrationStatus + ' ' + licensingNotice + ' ' + tr('Pagamentos automáticos ainda não estão disponíveis.', 'Automatic payments are not available yet.', 'Los pagos automáticos aún no están disponibles.')), tabs, body]);
 }
 function accountAccessAction(account) {
   if (account.owner) return badge(tr('Proprietário', 'Owner', 'Propietario'));

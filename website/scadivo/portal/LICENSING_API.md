@@ -25,7 +25,7 @@ This Portal API is a separate layer from the offline request intake in PR #777. 
 
 ## Portal endpoints
 
-The API is under `/portal/api` on the public site. Customer write calls require the authenticated Portal session and its anti-forgery token. The two product device endpoints are HTTPS-only and use the device credential flow below instead.
+The API is under `/portal/api` on the public site. Customer write calls require the authenticated Portal session and its anti-forgery token. Product device endpoints are HTTPS-only and use the device credential flow below instead.
 
 | Method | Path | Access |
 |---|---|---|
@@ -48,26 +48,9 @@ An administrator-created entitlement is not itself a signed machine license. It 
 
 ## Product activation
 
-`POST /portal/api/licensing/device/activate`
+Use [the preparation/confirmation contract](ACTIVATION_CONFIRMATION.md): the product sends username/email, password and one public license code to `/prepare`, presents the resolved application and rights, then requires explicit confirmation before `/confirm`. A five-minute preparation consumes no activation slot; `/cancel` abandons it. Device-generated identifiers are never entered by the user. Exact confirmation retries recover the same result without consuming another activation.
 
-The product generates and persists an `ActivationId`, a stable `RequestId`, and a cryptographically random 32-byte Base64URL refresh credential **before** sending the first request. It sends the Portal login only for this initial activation, and must not log the password or request body.
-
-```json
-{
-  "username": "portal-user-or-email",
-  "password": "provided-at-activation-only",
-  "licenseCode": "SCV-...",
-  "activationId": "00000000-0000-0000-0000-000000000000",
-  "requestId": "00000000-0000-0000-0000-000000000000",
-  "machineFingerprint": "64-hex-characters",
-  "refreshCredential": "43-character-base64url-token"
-}
-```
-
-The Portal verifies the confirmed/active account, password, organization membership, entitlement state, application binding, machine fingerprint and activation limit. It stores only a SHA-256 hash of the refresh credential. The response contains the activation ID, signed lease and lease expiry. The license code selects the entitlement; possession of the code alone does not activate it.
-
-The request is idempotent for the same activation ID, request ID and refresh credential. If the response is lost, resend the exact persisted request. Reusing an activation ID with different identity, license, application, or machine is rejected.
-
+The retired `/device/activate` route returns 410 and cannot bypass confirmation. Preparation remains available with signing disabled; confirmation and renewal require the approved online signer. Runtime availability is reported by the authenticated `/licensing/status` endpoint.
 ## Product renewal
 
 The product initiates renewal every 48 hours using HTTPS. It creates and persists the renewal `RequestId` and next random refresh credential before sending the request. It replaces the current credential only after a successful response; after a lost response it resends the same request ID and next credential.
@@ -102,6 +85,6 @@ The API signs the UTF-8 JSON bytes with RSA-PSS/SHA-256 and key ID `scadivo-onli
 
 - The customer and Owner license screens are PT-BR/EN/ES and use the same authenticated API/anti-forgery boundaries. They never activate a product on behalf of the browser, handle refresh tokens or reveal signing material. Entitlement creation requires explicit capacities, term and activation limit; it does not process a payment or install a license.
 - The offline `ESREQ1` intake remains in PR #777; offline request review, signing, conversion, delivery and offline-key operations remain separate.
-- Product-side verification, Windows/Linux/Docker token protection, License UI, shared Runtime quotas, HA, Demo transition and the 48-hour renewal scheduler must be implemented on the product branch under issue #301.
+- Product-side verification, token protection, License UI, Runtime quotas, HA, Demo transition and the renewal scheduler are tracked under #301. Check its current integration and acceptance evidence before claiming a deployed product supports the full cycle.
 - Payment processing, automatic account purchase, commercial activation policy, and translation of community posts are outside this API stage.
 - Keep signing disabled until the product and operational key controls are integrated and verified. This PR does not deploy to the live Portal.

@@ -151,12 +151,22 @@ public sealed class FileOnlineLicenseStateStore
     }
 
     internal async Task CancelPreparedConfirmationWhileOwnedAsync(Guid activationId, ProtectedMaterialMutationContext mutation, CancellationToken ct)
+        => await ClearConfirmationWhileOwnedAsync(activationId, mutation, ct, allowRequested: false);
+
+    // Only called after an exact Portal retry proves cancellation won the race with confirmation.
+    internal async Task ClearInvalidatedConfirmationWhileOwnedAsync(Guid activationId,
+        ProtectedMaterialMutationContext mutation, CancellationToken ct)
+        => await ClearConfirmationWhileOwnedAsync(activationId, mutation, ct, allowRequested: true);
+
+    private async Task ClearConfirmationWhileOwnedAsync(Guid activationId, ProtectedMaterialMutationContext mutation,
+        CancellationToken ct, bool allowRequested)
     {
         DemandAdministration(mutation);
         await using var gate = Acquire(ct);
         var state = await RequireStateAsync(ct);
         var now = DemandClock(state);
-        if (state.Binding.ActivationId != activationId || state.Pending is not { Kind: "confirmation", ConfirmationRequested: false })
+        if (state.Binding.ActivationId != activationId || state.Pending is not { Kind: "confirmation" } pending ||
+            (!allowRequested && pending.ConfirmationRequested) || (allowRequested && !pending.ConfirmationRequested))
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_STATE_CONFLICT");
         state.Pending = null;
         state.HasInstallationSnapshot = false;

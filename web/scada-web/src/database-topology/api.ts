@@ -7,6 +7,9 @@ import type {
   DatabaseRemoteProfileRequest,
   DatabaseTopologyStatus,
   DatabaseMigrationVerification,
+  HistorianArchiveJob,
+  HistorianArchiveRestoreResult,
+  HistorianArchiveSchedule,
   HistorianStorageAdministrationStatus
 } from './types';
 
@@ -104,6 +107,64 @@ export function applyHistorianRawRetention(request: Readonly<{
     method: 'PUT',
     body: JSON.stringify(request)
   });
+}
+
+export function createHistorianArchive(request: Readonly<{
+  fromUtc: string;
+  toUtc: string;
+  deleteSourceAfterVerification: boolean;
+  confirmDeleteSourceAfterVerification: boolean;
+}>) {
+  return post<HistorianArchiveJob>('/api/admin/historian-storage/archives', request);
+}
+
+export function saveHistorianArchiveSchedule(request: Readonly<{
+  enabled: boolean;
+  startFromUtc: string;
+  archiveAfterDays: number;
+  intervalDays: number;
+  windowDays: number;
+  keepArchivesDays: number | null;
+  deleteSourceAfterVerification: boolean;
+  confirmDeleteSourceAfterVerification: boolean;
+}>) {
+  return requestJson<HistorianArchiveSchedule>(
+    '/api/admin/historian-storage/archives/schedule',
+    { method: 'PUT', body: JSON.stringify(request) }
+  );
+}
+
+export function resumeHistorianArchive(archiveId: string) {
+  return post<HistorianArchiveJob>(`/api/admin/historian-storage/archives/${encodeURIComponent(archiveId)}/resume`);
+}
+
+export function restoreHistorianArchive(file: File) {
+  return requestJson<HistorianArchiveRestoreResult>('/api/admin/historian-storage/archives/restore', {
+    method: 'POST',
+    headers: { 'content-type': 'application/octet-stream' },
+    body: file
+  });
+}
+
+export async function downloadHistorianArchive(archiveId: string) {
+  let response: Response;
+  try {
+    response = await fetch(`${API}/api/admin/historian-storage/archives/${encodeURIComponent(archiveId)}/download`, {
+      headers: { accept: 'application/vnd.scadivo.historian-archive' }
+    });
+  } catch {
+    throw new DatabaseTopologyApiError('unavailable');
+  }
+  if (!response.ok) {
+    let detail: string | undefined;
+    try {
+      const payload = await response.json() as { error?: unknown; diagnostic?: unknown };
+      const raw = payload.error ?? payload.diagnostic;
+      detail = raw == null ? undefined : String(raw);
+    } catch { /* the API may return an empty error body */ }
+    throw classify(response, detail);
+  }
+  return response.blob();
 }
 
 export function testDatabaseConnection(

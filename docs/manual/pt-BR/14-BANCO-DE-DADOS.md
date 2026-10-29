@@ -86,4 +86,6 @@ Em incompatibilidade, leia os requisitos de versão PostgreSQL, TimescaleDB quan
 
 Com banco indisponível, o Runtime pode ficar degradado. O produto não deve apresentar gravações em memória como se fossem persistidas no banco. Para suporte, registre horário, fase e ID da operação; não inclua senha.
 
+Para retenção de amostras, arquivos programados, rotação e restauração do Historian, consulte [Captura e consulta do Historian](07-HISTORIAN-CAPTURA-CONSULTA.md). Arquivos do Historian são administrados pela API e não fazem parte do backup de configuração do projeto.
+
 [Abrir este guia na Ajuda instalada](/help?topic=database.topology)

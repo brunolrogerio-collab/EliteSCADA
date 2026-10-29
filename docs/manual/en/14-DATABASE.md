@@ -86,4 +86,6 @@ For incompatibility, read PostgreSQL version, TimescaleDB requirements when appl
 
 When the database is unavailable, Runtime can be degraded. The product must not present memory writes as database persistence. For support, record time, phase and operation ID; omit passwords.
 
+For Historian sample retention, scheduled archives, rotation and restore, see [Historian capture and query](07-HISTORIAN-CAPTURE-QUERY.md). Historian archive files are managed by the API and are not part of the project configuration backup.
+
 [Open this guide in installed Help](/help?topic=database.topology)

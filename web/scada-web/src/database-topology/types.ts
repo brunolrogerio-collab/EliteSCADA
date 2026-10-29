@@ -104,6 +104,7 @@ export type HistorianStorageAdministrationStatus = Readonly<{
   rawSampleStorageLimitAction?: 'WarnOnly' | 'DeleteOldestCompleteChunks';
   rawSampleLimitExceeded?: boolean;
   aggregatePolicyPresent?: boolean;
+  archive?: HistorianArchiveAdministrationStatus;
   usage?: Readonly<{
     databaseBytes: number | null;
     rawSamplesBytes: number | null;
@@ -113,6 +114,53 @@ export type HistorianStorageAdministrationStatus = Readonly<{
     estimatedDailyGrowthBytes: number | null;
     measuredAtUtc: string | null;
   }>;
+}>;
+
+export type HistorianArchiveJob = Readonly<{
+  archiveId: string;
+  fromUtc: string;
+  toUtc: string;
+  nextSegmentFromUtc: string;
+  nextSequence: number;
+  state: 'Queued' | 'Running' | 'Blocked' | 'Completed';
+  deleteSourceAfterVerification: boolean;
+  samplesArchived: number;
+  failureCode?: string | null;
+  sha256?: string | null;
+  archiveLengthBytes?: number | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  completedAtUtc?: string | null;
+  archiveFileAvailable: boolean;
+  archiveFileRemovedAtUtc?: string | null;
+}>;
+
+export type HistorianArchiveSchedule = Readonly<{
+  enabled: boolean;
+  startFromUtc: string;
+  nextFromUtc: string;
+  archiveAfterDays: number;
+  intervalDays: number;
+  windowDays: number;
+  keepArchivesDays?: number | null;
+  deleteSourceAfterVerification: boolean;
+  nextRunAtUtc: string;
+  lastScheduledAtUtc?: string | null;
+}>;
+
+export type HistorianArchiveAdministrationStatus = Readonly<{
+  supported: boolean;
+  destination?: string | null;
+  schedule?: HistorianArchiveSchedule | null;
+  jobs: readonly HistorianArchiveJob[];
+}>;
+
+export type HistorianArchiveRestoreResult = Readonly<{
+  archiveId: string;
+  samplesRestored: number;
+  segmentsRestored: number;
+  segmentsAlreadyRestored: number;
+  sha256: string;
 }>;
 
 export type DatabaseCompatibilityResult = Readonly<{

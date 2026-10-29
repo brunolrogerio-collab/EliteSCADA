@@ -86,4 +86,6 @@ En incompatibilidad, lea requisitos de versión PostgreSQL, TimescaleDB cuando c
 
 Con base no disponible, Runtime puede quedar degradado. El producto no debe presentar escrituras en memoria como persistidas en la base. Para soporte registre hora, fase e ID de operación, sin contraseña.
 
+Para retención de muestras, archivado programado, rotación y restauración del Historian, consulte [Captura y consulta del Historian](07-HISTORIAN-CAPTURA-CONSULTA.md). Los archivos del Historian se administran desde la API y no forman parte de la copia de seguridad de la configuración del proyecto.
+
 [Abrir esta guía en Ayuda instalada](/help?topic=database.topology)

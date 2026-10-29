@@ -4,12 +4,17 @@ import { translator, type EngineeringLocale, type TranslationKey } from '../engi
 import {
   DatabaseTopologyApiError,
   applyHistorianRawRetention,
+  createHistorianArchive,
+  downloadHistorianArchive,
   commitDatabaseCutover,
   connectExistingDatabase,
   loadDatabaseTopologyStatus,
   loadHistorianStorageAdministrationStatus,
   prepareDatabaseMigration,
   rollbackDatabaseTopology,
+  resumeHistorianArchive,
+  restoreHistorianArchive,
+  saveHistorianArchiveSchedule,
   startDatabaseMigration,
   testDatabaseConnection,
   validateDatabaseCompatibility,
@@ -27,6 +32,8 @@ import {
   type DatabaseRemoteProfileRequest,
   type DatabaseTopologyStatus,
   type HistorianStorageAdministrationStatus,
+  type HistorianArchiveJob,
+  type HistorianArchiveSchedule,
   type RemoteEndpointDraft,
   type RemoteProfileDraft
 } from './types';
@@ -37,6 +44,11 @@ type Confirmation = 'cutover' | 'connect-existing' | 'rollback' | 'return-local'
 type Notice = Readonly<{ tone: 'info' | 'success' | 'warning' | 'danger'; text: string }>;
 type RawSampleLimitAction = 'WarnOnly' | 'DeleteOldestCompleteChunks';
 const GIBIBYTE = 1024 ** 3;
+const MAX_ARCHIVE_UPLOAD_BYTES = 100 * 1024 ** 3;
+
+function toLocalDateTimeInput(value: Date) {
+  return new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
 type EngineeringNavItem = {
   id: string;
   icon: string;
@@ -316,6 +328,32 @@ export function DatabaseTopologyApp() {
   const [rawSampleLimitActionDraft, setRawSampleLimitActionDraft] = useState<RawSampleLimitAction>('WarnOnly');
   const [acknowledgeUnmanagedPolicy, setAcknowledgeUnmanagedPolicy] = useState(false);
   const [acknowledgePotentialExpiration, setAcknowledgePotentialExpiration] = useState(false);
+  const [archiveFromDraft, setArchiveFromDraft] = useState(() => toLocalDateTimeInput(new Date(Date.now() - 24 * 60 * 60 * 1000)));
+  const [archiveToDraft, setArchiveToDraft] = useState(() => toLocalDateTimeInput(new Date()));
+  const [archiveDeleteSource, setArchiveDeleteSource] = useState(false);
+  const [archiveDeleteConfirmed, setArchiveDeleteConfirmed] = useState(false);
+  const [archiveRestoreFile, setArchiveRestoreFile] = useState<File | null>(null);
+  const [archiveScheduleEnabled, setArchiveScheduleEnabled] = useState(false);
+  const [archiveScheduleStart, setArchiveScheduleStart] = useState(() => toLocalDateTimeInput(new Date(Date.now() - 180 * 24 * 60 * 60 * 1000)));
+  const [archiveScheduleAfterDays, setArchiveScheduleAfterDays] = useState('7');
+  const [archiveScheduleIntervalDays, setArchiveScheduleIntervalDays] = useState('1');
+  const [archiveScheduleWindowDays, setArchiveScheduleWindowDays] = useState('1');
+  const [archiveKeepForever, setArchiveKeepForever] = useState(true);
+  const [archiveKeepDays, setArchiveKeepDays] = useState('365');
+  const [archiveScheduleDeleteSource, setArchiveScheduleDeleteSource] = useState(false);
+  const [archiveScheduleDeleteConfirmed, setArchiveScheduleDeleteConfirmed] = useState(false);
+
+  const applyArchiveScheduleDraft = useCallback((schedule: HistorianArchiveSchedule | null | undefined) => {
+    if (!schedule) return;
+    setArchiveScheduleEnabled(schedule.enabled);
+    setArchiveScheduleStart(toLocalDateTimeInput(new Date(schedule.startFromUtc)));
+    setArchiveScheduleAfterDays(String(schedule.archiveAfterDays));
+    setArchiveScheduleIntervalDays(String(schedule.intervalDays));
+    setArchiveScheduleWindowDays(String(schedule.windowDays));
+    setArchiveKeepForever(schedule.keepArchivesDays == null);
+    setArchiveKeepDays(schedule.keepArchivesDays == null ? '' : String(schedule.keepArchivesDays));
+    setArchiveScheduleDeleteSource(schedule.deleteSourceAfterVerification);
+  }, []);
 
   const refresh = useCallback(async (refreshHealth = false, silent = false) => {
     if (!silent) {
@@ -339,6 +377,7 @@ export function DatabaseTopologyApp() {
       .then(result => {
         if (!active) return;
         setStorageStatus(result);
+        applyArchiveScheduleDraft(result.archive?.schedule);
         setStorageError(null);
         setRetainRawIndefinitely(!result.rawRetentionEnabled);
         setRawRetentionDaysDraft(result.rawRetentionDays == null ? '' : String(result.rawRetentionDays));
@@ -351,7 +390,7 @@ export function DatabaseTopologyApp() {
         if (active) setStorageError(apiErrorText(error, t));
       });
     return () => { active = false; };
-  }, [t]);
+  }, [applyArchiveScheduleDraft, t]);
 
   const profileRequest = useMemo(() => buildProfile(draft), [draft]);
   const primaryDraftValid = useMemo(() => parseEndpoint(draft.primary), [draft.primary]);
@@ -525,6 +564,163 @@ export function DatabaseTopologyApp() {
       setStorageBusy(false);
     }
   };
+
+  const onCreateHistorianArchive = async () => {
+    if (storageBusy || busy) return;
+    const fromLocal = new Date(archiveFromDraft);
+    const toLocal = new Date(archiveToDraft);
+    if (!Number.isFinite(fromLocal.getTime()) || !Number.isFinite(toLocal.getTime()) || fromLocal >= toLocal || toLocal > new Date()) {
+      setStorageError(t.archiveInvalidRange);
+      return;
+    }
+    if (archiveDeleteSource && !archiveDeleteConfirmed) {
+      setStorageError(t.archiveCleanupConfirm);
+      return;
+    }
+    setStorageBusy(true);
+    setStorageError(null);
+    setNotice(null);
+    try {
+      await createHistorianArchive({
+        fromUtc: fromLocal.toISOString(),
+        toUtc: toLocal.toISOString(),
+        deleteSourceAfterVerification: archiveDeleteSource,
+        confirmDeleteSourceAfterVerification: archiveDeleteConfirmed
+      });
+      setStorageStatus(await loadHistorianStorageAdministrationStatus());
+      setArchiveDeleteSource(false);
+      setArchiveDeleteConfirmed(false);
+      setNotice({ tone: 'success', text: t.archiveCreated });
+    } catch (error) {
+      setStorageError(apiErrorText(error, t));
+    } finally {
+      setStorageBusy(false);
+    }
+  };
+
+  const onSaveHistorianArchiveSchedule = async () => {
+    if (storageBusy || busy) return;
+    const startLocal = new Date(archiveScheduleStart);
+    const archiveAfterDays = Number(archiveScheduleAfterDays);
+    const intervalDays = Number(archiveScheduleIntervalDays);
+    const windowDays = Number(archiveScheduleWindowDays);
+    const keepArchivesDays = archiveKeepForever ? null : Number(archiveKeepDays);
+    if (!Number.isFinite(startLocal.getTime()) || startLocal >= new Date() ||
+      !Number.isInteger(archiveAfterDays) || archiveAfterDays < 1 || archiveAfterDays > 36500 ||
+      !Number.isInteger(intervalDays) || intervalDays < 1 || intervalDays > 3650 ||
+      !Number.isInteger(windowDays) || windowDays < 1 || windowDays > 31 ||
+      keepArchivesDays !== null && (!Number.isInteger(keepArchivesDays) || keepArchivesDays < 1 || keepArchivesDays > 36500)) {
+      setStorageError(t.archiveScheduleInvalid);
+      return;
+    }
+    if (archiveScheduleDeleteSource && !archiveScheduleDeleteConfirmed) {
+      setStorageError(t.archiveCleanupConfirm);
+      return;
+    }
+    setStorageBusy(true);
+    setStorageError(null);
+    setNotice(null);
+    try {
+      const schedule = await saveHistorianArchiveSchedule({
+        enabled: archiveScheduleEnabled,
+        startFromUtc: startLocal.toISOString(),
+        archiveAfterDays,
+        intervalDays,
+        windowDays,
+        keepArchivesDays,
+        deleteSourceAfterVerification: archiveScheduleDeleteSource,
+        confirmDeleteSourceAfterVerification: archiveScheduleDeleteConfirmed
+      });
+      const updated = await loadHistorianStorageAdministrationStatus();
+      setStorageStatus(updated);
+      applyArchiveScheduleDraft(schedule);
+      setArchiveScheduleDeleteConfirmed(false);
+      setNotice({ tone: 'success', text: t.archiveScheduleSaved });
+    } catch (error) {
+      setStorageError(apiErrorText(error, t));
+    } finally {
+      setStorageBusy(false);
+    }
+  };
+
+  const onResumeHistorianArchive = async (archiveId: string) => {
+    if (storageBusy) return;
+    setStorageBusy(true);
+    setStorageError(null);
+    try {
+      await resumeHistorianArchive(archiveId);
+      setStorageStatus(await loadHistorianStorageAdministrationStatus());
+    } catch (error) {
+      setStorageError(apiErrorText(error, t));
+    } finally {
+      setStorageBusy(false);
+    }
+  };
+
+  const onDownloadHistorianArchive = async (archiveId: string) => {
+    if (storageBusy) return;
+    setStorageBusy(true);
+    setStorageError(null);
+    try {
+      const blob = await downloadHistorianArchive(archiveId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${archiveId.replaceAll('-', '')}.scadhist`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setStorageError(apiErrorText(error, t));
+    } finally {
+      setStorageBusy(false);
+    }
+  };
+
+  const onRestoreHistorianArchive = async () => {
+    if (storageBusy || !archiveRestoreFile) return;
+    if (archiveRestoreFile.size > MAX_ARCHIVE_UPLOAD_BYTES) {
+      setStorageError(t.archiveUploadLimit);
+      return;
+    }
+    setStorageBusy(true);
+    setStorageError(null);
+    setNotice(null);
+    try {
+      const result = await restoreHistorianArchive(archiveRestoreFile);
+      setStorageStatus(await loadHistorianStorageAdministrationStatus());
+      setNotice({
+        tone: 'success',
+        text: `${t.archiveRestoreDone}: ${result.samplesRestored.toLocaleString(locale)}. ${result.segmentsAlreadyRestored.toLocaleString(locale)} ${t.archiveRestoreAlready}`
+      });
+      setArchiveRestoreFile(null);
+    } catch (error) {
+      setStorageError(apiErrorText(error, t));
+    } finally {
+      setStorageBusy(false);
+    }
+  };
+
+  const archiveStateLabel = (job: HistorianArchiveJob) => {
+    switch (job.state) {
+      case 'Queued': return t.archiveQueued;
+      case 'Running': return t.archiveRunning;
+      case 'Blocked': return t.archiveBlocked;
+      case 'Completed': return t.archiveCompleted;
+    }
+  };
+
+  const hasActiveArchiveJobs = Boolean(storageStatus?.archive?.jobs.some(job => job.state === 'Queued' || job.state === 'Running'));
+  const shouldPollArchiveStatus = hasActiveArchiveJobs || Boolean(storageStatus?.archive?.schedule?.enabled);
+  useEffect(() => {
+    if (!shouldPollArchiveStatus) return;
+    let active = true;
+    const timer = window.setInterval(() => {
+      void loadHistorianStorageAdministrationStatus()
+        .then(result => { if (active) setStorageStatus(result); })
+        .catch(() => { /* keep the last confirmed job status visible while the API is unavailable */ });
+    }, hasActiveArchiveJobs ? 15_000 : 60_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [hasActiveArchiveJobs, shouldPollArchiveStatus]);
 
   const onValidateTarget = () => run('validate', async () => {
     if (!primaryDraftValid || !profileRequest) {
@@ -772,6 +968,121 @@ export function DatabaseTopologyApp() {
             </button>
           </div>
         </div>
+        {storageStatus.archive?.supported ? <div className="db-topology-storage-form" data-testid="historian-archive-panel">
+          <h3>{t.archiveTitle}</h3>
+          <p className="db-topology-muted-note">{t.archiveHelp}</p>
+          <div className="db-topology-status-strip">
+            <div><span>{t.archiveDestination}</span><strong>{storageStatus.archive.destination || t.storageUnknown}</strong></div>
+          </div>
+          <p className="db-topology-muted-note">{t.archiveDestinationHelp}</p>
+          <section className="db-topology-archive-schedule" data-testid="historian-archive-schedule">
+            <h3>{t.archiveScheduleTitle}</h3>
+            <p className="db-topology-muted-note">{t.archiveScheduleHelp}</p>
+            {storageStatus.archive.schedule ? <p className="db-topology-muted-note">
+              {storageStatus.archive.schedule.enabled ? t.archiveScheduleEnabled : t.archiveScheduleDisabled}
+              {' · '}{t.archiveScheduleCursor}: {new Date(storageStatus.archive.schedule.nextFromUtc).toLocaleString(locale)}
+              {' · '}{t.archiveScheduleNextRun}: {new Date(storageStatus.archive.schedule.nextRunAtUtc).toLocaleString(locale)}
+            </p> : null}
+            <label className="db-topology-historian-toggle">
+              <input type="checkbox" checked={archiveScheduleEnabled} disabled={storageBusy} onChange={event => setArchiveScheduleEnabled(event.target.checked)} />
+              <span>{t.archiveScheduleEnabled}</span>
+            </label>
+            <label className="db-topology-storage-days">
+              <span>{t.archiveScheduleStart}</span>
+              <input type="datetime-local" value={archiveScheduleStart} disabled={storageBusy} onChange={event => setArchiveScheduleStart(event.target.value)} />
+            </label>
+            <label className="db-topology-storage-days">
+              <span>{t.archiveScheduleAfterDays}</span>
+              <input type="number" min="1" max="36500" step="1" value={archiveScheduleAfterDays} disabled={storageBusy} onChange={event => setArchiveScheduleAfterDays(event.target.value)} />
+            </label>
+            <label className="db-topology-storage-days">
+              <span>{t.archiveScheduleInterval}</span>
+              <input type="number" min="1" max="3650" step="1" value={archiveScheduleIntervalDays} disabled={storageBusy} onChange={event => setArchiveScheduleIntervalDays(event.target.value)} />
+            </label>
+            <label className="db-topology-storage-days">
+              <span>{t.archiveScheduleWindow}</span>
+              <input type="number" min="1" max="31" step="1" value={archiveScheduleWindowDays} disabled={storageBusy} onChange={event => setArchiveScheduleWindowDays(event.target.value)} />
+            </label>
+            <label className="db-topology-historian-toggle">
+              <input type="checkbox" checked={archiveKeepForever} disabled={storageBusy} onChange={event => setArchiveKeepForever(event.target.checked)} />
+              <span>{t.archiveKeepForever}</span>
+            </label>
+            {!archiveKeepForever ? <label className="db-topology-storage-days">
+              <span>{t.archiveKeepDays}</span>
+              <input type="number" min="1" max="36500" step="1" value={archiveKeepDays} disabled={storageBusy} onChange={event => setArchiveKeepDays(event.target.value)} />
+            </label> : null}
+            <label className="db-topology-historian-toggle">
+              <input type="checkbox" checked={archiveScheduleDeleteSource} disabled={storageBusy} onChange={event => {
+                setArchiveScheduleDeleteSource(event.target.checked);
+                if (!event.target.checked) setArchiveScheduleDeleteConfirmed(false);
+              }} />
+              <span>{t.archiveScheduleCleanup}</span>
+            </label>
+            {archiveScheduleDeleteSource ? <label className="db-topology-historian-toggle db-topology-storage-confirmation">
+              <input type="checkbox" checked={archiveScheduleDeleteConfirmed} disabled={storageBusy} onChange={event => setArchiveScheduleDeleteConfirmed(event.target.checked)} />
+              <span>{t.archiveScheduleCleanupConfirm}</span>
+            </label> : null}
+            <p className="db-topology-muted-note">{t.archiveScheduleRotationHelp}</p>
+            <div className="db-topology-actions">
+              <button type="button" className="db-topology-primary-action" disabled={storageBusy || Boolean(busy) || (archiveScheduleDeleteSource && !archiveScheduleDeleteConfirmed)} onClick={() => void onSaveHistorianArchiveSchedule()}>
+                {storageBusy ? t.working : t.archiveScheduleSave}
+              </button>
+            </div>
+          </section>
+          <label className="db-topology-storage-days">
+            <span>{t.archiveFrom}</span>
+            <input type="datetime-local" value={archiveFromDraft} disabled={storageBusy} onChange={event => setArchiveFromDraft(event.target.value)} />
+          </label>
+          <label className="db-topology-storage-days">
+            <span>{t.archiveTo}</span>
+            <input type="datetime-local" value={archiveToDraft} disabled={storageBusy} onChange={event => setArchiveToDraft(event.target.value)} />
+          </label>
+          <label className="db-topology-historian-toggle">
+            <input type="checkbox" checked={archiveDeleteSource} disabled={storageBusy} onChange={event => {
+              setArchiveDeleteSource(event.target.checked);
+              if (!event.target.checked) setArchiveDeleteConfirmed(false);
+            }} />
+            <span>{t.archiveCleanupSource}</span>
+          </label>
+          {archiveDeleteSource ? <label className="db-topology-historian-toggle db-topology-storage-confirmation">
+            <input type="checkbox" checked={archiveDeleteConfirmed} disabled={storageBusy} onChange={event => setArchiveDeleteConfirmed(event.target.checked)} />
+            <span>{t.archiveCleanupConfirm}</span>
+          </label> : <p className="db-topology-muted-note">{t.archiveCleanupWarning}</p>}
+          <p className="db-topology-muted-note">{t.archivePackageFormat}</p>
+          <div className="db-topology-actions">
+            <button type="button" className="db-topology-primary-action" disabled={storageBusy || Boolean(busy) || (archiveDeleteSource && !archiveDeleteConfirmed)} onClick={() => void onCreateHistorianArchive()}>
+              {storageBusy ? t.working : t.archiveCreate}
+            </button>
+          </div>
+
+          <h3>{t.archiveRestore}</h3>
+          <label className="db-topology-storage-days">
+            <span>{t.archiveSelectFile}</span>
+            <input type="file" accept=".scadhist,application/vnd.scadivo.historian-archive" disabled={storageBusy} onChange={event => setArchiveRestoreFile(event.target.files?.[0] ?? null)} />
+          </label>
+          <p className="db-topology-muted-note">{t.archiveUploadLimit}</p>
+          <div className="db-topology-actions">
+            <button type="button" className="db-topology-secondary" disabled={storageBusy || !archiveRestoreFile} onClick={() => void onRestoreHistorianArchive()}>
+              {storageBusy ? t.working : t.archiveRestore}
+            </button>
+          </div>
+
+          <h3>{t.archiveState}</h3>
+          {storageStatus.archive.jobs.length === 0 ? <p className="db-topology-muted-note">{t.archiveNoJobs}</p> : <ul className="db-topology-archive-list">
+            {storageStatus.archive.jobs.map(job => <li key={job.archiveId} data-testid="historian-archive-job">
+              <strong>{archiveStateLabel(job)}</strong>
+              <span>{new Date(job.fromUtc).toLocaleString(locale)} – {new Date(job.toUtc).toLocaleString(locale)}</span>
+              <span>{t.archiveSamples}: {job.samplesArchived.toLocaleString(locale)}</span>
+              {job.archiveLengthBytes != null ? <span>{t.archiveSize}: {formatStorageBytes(job.archiveLengthBytes, locale, t.storageUnknown)}</span> : null}
+              {job.failureCode ? <span>{t.archiveFailure}: {job.failureCode}</span> : null}
+              <div className="db-topology-actions">
+                {job.state === 'Blocked' ? <button type="button" className="db-topology-secondary" disabled={storageBusy} onClick={() => void onResumeHistorianArchive(job.archiveId)}>{t.archiveResume}</button> : null}
+                {job.state === 'Completed' && job.archiveFileAvailable ? <button type="button" className="db-topology-secondary" disabled={storageBusy} onClick={() => void onDownloadHistorianArchive(job.archiveId)}>{t.archiveDownload}</button> : null}
+                {job.state === 'Completed' && !job.archiveFileAvailable ? <span className="db-topology-muted-note">{t.archiveRotated}</span> : null}
+              </div>
+            </li>)}
+          </ul>}
+        </div> : null}
       </>}
     </section>
 

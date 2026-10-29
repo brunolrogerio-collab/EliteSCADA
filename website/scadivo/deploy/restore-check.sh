@@ -9,7 +9,7 @@ test -s "$archive"
 staging=$(mktemp -d /var/backups/scadivo-portal/check.XXXXXX)
 cleanup() {
   docker compose -f compose.yml exec -T database dropdb -U scadivo_portal --if-exists portal_restore_check >/dev/null
-  rm -f "$staging/database.dump" "$staging/keys.tar.gz" "$staging/manifest.txt"
+  rm -f "$staging/database.dump" "$staging/keys.tar.gz" "$staging/manifest.txt" "$staging/online-lease-signing-key.tar.gz"
   rmdir "$staging"
 }
 trap cleanup EXIT

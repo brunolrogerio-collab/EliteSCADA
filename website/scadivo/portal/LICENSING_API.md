@@ -30,6 +30,7 @@ The API is under `/portal/api` on the public site. Customer write calls require 
 | Method | Path | Access |
 |---|---|---|
 | `GET` | `/licensing/status` | Portal account; only reports whether online activation is available |
+| `GET` | `/licensing/device/health` | Public HTTPS device endpoint; only confirms the licensing API route responded |
 | `GET` / `POST` | `/licensing/organizations` | Portal account; create requires a complete profile |
 | `GET` / `POST` | `/licensing/organizations/{organizationId}/applications` | Organization member; create requires Owner/Admin |
 | `GET` / `POST` | `/licensing/organizations/{organizationId}/members` | Organization member; add requires Owner/Admin |
@@ -48,9 +49,9 @@ An administrator-created entitlement is not itself a signed machine license. It 
 
 ## Product activation
 
-Use [the preparation/confirmation contract](ACTIVATION_CONFIRMATION.md): the product sends username/email, password and one public license code to `/prepare`, presents the resolved application and rights, then requires explicit confirmation before `/confirm`. A five-minute preparation consumes no activation slot; `/cancel` abandons it. Device-generated identifiers are never entered by the user. Exact confirmation retries recover the same result without consuming another activation.
+Use [the preparation/confirmation contract](ACTIVATION_CONFIRMATION.md): the product sends username/email, password and one public license code to `/prepare`, presents the resolved application and rights, then requires explicit confirmation before `/confirm`. The Portal can resolve a unique existing activation for the same authenticated account, license, application and machine fingerprint after local ID loss. An optional current refresh credential is checked as proof when available; a supplied invalid proof fails closed, and omission requires account reauthentication plus user confirmation. Recovery keeps the existing row and slot and rotates credentials. A five-minute preparation consumes no activation slot; `/cancel` abandons it. Device-generated identifiers are never entered by the user. Exact confirmation retries recover the same result without consuming another activation.
 
-The retired `/device/activate` route returns 410 and cannot bypass confirmation. Preparation remains available with signing disabled; confirmation and renewal require the approved online signer. Runtime availability is reported by the authenticated `/licensing/status` endpoint.
+The retired `/device/activate` route returns 410 and cannot bypass confirmation. Preparation remains available with signing disabled; confirmation and renewal require the approved online signer. The authenticated `/licensing/status` endpoint reports whether online activation is enabled; that is separate from network connectivity. The public `/licensing/device/health` endpoint returns only `{ "serviceAvailable": true }` after an HTTPS request reaches the route; it does not report signing configuration, account, license, or activation state. Product backends can call it when the online-license panel opens and on an explicit retry; do not poll it in the background or call it directly from the browser. HTTP 200 means only that the route responded, not that activation credentials, entitlement, signing, or a requested activation will succeed. A failed health request does not modify a lease, activation slot or license. It has a modest per-IP request limit to discourage polling.
 ## Product renewal
 
 The product initiates renewal every 48 hours using HTTPS. It creates and persists the renewal `RequestId` and next random refresh credential before sending the request. It replaces the current credential only after a successful response; after a lost response it resends the same request ID and next credential.

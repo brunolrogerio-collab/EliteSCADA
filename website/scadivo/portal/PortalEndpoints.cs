@@ -66,10 +66,14 @@ public static class PortalEndpoints
         members.MapGet("/downloads", (PortalOperations operations) => operations.Releases());
         members.MapGet("/downloads/{id:guid}/file", (Guid id, HttpContext context, PortalOperations operations) => operations.Download(id, context));
 
-        var admin = app.MapGroup("/api/admin").RequireAuthorization("Owner").RequireRateLimiting("writes");
+        var admin = app.MapGroup("/api/admin").RequireAuthorization(PortalAccess.AdministratorPolicy).RequireRateLimiting("writes");
         admin.MapGet("/overview", (PortalOperations operations) => operations.Overview());
         admin.MapGet("/accounts", (PortalOperations operations) => operations.Accounts());
         admin.MapPut("/accounts/{id}/access", (string id, AccountAccessInput input, HttpContext context, PortalOperations operations) => operations.UpdateAccountAccess(id, input, context));
+        admin.MapPut("/accounts/{id}/administration", (string id, AdministrationAccessInput input, HttpContext context, PortalOperations operations) => operations.UpdateAdministration(id, input, context));
+        admin.MapGet("/downloads", (PortalOperations operations) => operations.AdminReleases());
+        admin.MapPost("/downloads", (DownloadReleaseInput input, HttpContext context, PortalOperations operations) => operations.SaveRelease(null, input, context));
+        admin.MapPut("/downloads/{id:guid}", (Guid id, DownloadReleaseInput input, HttpContext context, PortalOperations operations) => operations.SaveRelease(id, input, context));
         admin.MapPost("/invitations", (InviteInput input, HttpContext context, PortalOperations operations) => operations.Invite(input, context));
         admin.MapPut("/support/{id:guid}/status", (Guid id, TicketStatusInput input, HttpContext context, PortalOperations operations) => operations.UpdateTicketStatus(id, input, context));
         admin.MapGet("/templates", async (PortalDb db) => Results.Ok(await db.EmailTemplates.AsNoTracking().OrderBy(x => x.Key).ToListAsync()));

@@ -205,9 +205,10 @@ const portalLicensing = (() => {
   }
 
   async function customer() {
-    const [snapshot, activations, organizations, status] = await Promise.all([
+    const [snapshot, activationSnapshot, organizations, status] = await Promise.all([
       api('/licensing/licenses'), api('/licensing/activations'), api('/licensing/organizations'), api('/licensing/status')
     ]);
+    const activations = activationSnapshot.activations;
     return h('div', { class: 'licensing-page' }, [
       serviceNotice(status),
       panel(text('Suas licenças', 'Your licenses', 'Tus licencias'),

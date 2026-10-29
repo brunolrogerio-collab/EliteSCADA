@@ -105,6 +105,7 @@ const tr = (pt, en, es = spanish[pt] || spanish[en] || en) => state.lang === 'en
 const date = value => new Date(value).toLocaleString(state.lang === 'en' ? 'en-US' : state.lang === 'es' ? 'es-ES' : 'pt-BR');
 const labels = () => ({ home: tr('Visão geral', 'Overview'), profile: tr('Minha conta', 'My account'), support: tr('Suporte', 'Support'), downloads: tr('Downloads', 'Downloads', 'Descargas'), faq: 'FAQ', community: tr('Comunidade', 'Community'), licenses: tr('Licenças', 'Licenses'), admin: tr('Administração', 'Administration') });
 const localeOptions = () => [['pt-BR', 'Português'], ['en', 'English'], ['es', 'Español']];
+const isPortalAdministrator = () => Boolean(state.session?.user?.administrator || state.session?.user?.owner);
 
 function h(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
@@ -155,11 +156,13 @@ function errorText(code) {
     'account-not-created': tr('Use um nome de usuário com letras, números, ponto ou hífen.', 'Use a username with letters, numbers, a dot or a hyphen.'),
     'owner-account-protected': tr('Contas proprietárias não podem ser suspensas por este controle.', 'Owner accounts cannot be suspended with this control.', 'Las cuentas propietarias no se pueden suspender con este control.'),
     'account-not-updated': tr('A conta mudou durante a operação. Atualize a página e tente novamente.', 'The account changed during this operation. Refresh the page and try again.', 'La cuenta cambió durante la operación. Actualiza la página e inténtalo de nuevo.'),
+    'account-not-ready-for-administration': tr('Para receber administração, a conta precisa estar ativa e com o e-mail confirmado.', 'Administrative access requires an active account with a confirmed email.', 'Para recibir acceso administrativo, la cuenta debe estar activa y tener el correo confirmado.'),
     'password-not-changed': tr('Confira a senha atual. A nova senha precisa ter ao menos 8 caracteres, maiúscula, minúscula e número.', 'Check your current password. The new password needs at least 8 characters, uppercase, lowercase and a number.'),
     'invalid-invitation': tr('Convite inválido ou já utilizado.', 'Invalid or already used invitation.'),
     'invalid-invitation-or-password': tr('Convite expirado ou senha fora dos requisitos.', 'The invitation expired or the password does not meet the requirements.'),
     'slug-already-exists': tr('Esse endereço de artigo já existe.', 'This article slug already exists.'),
-    ...portalLicensing.errors()
+    ...portalLicensing.errors(),
+    ...portalDownloads.errors()
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');
 }
@@ -392,8 +395,8 @@ async function render() {
   if (!state.session?.authenticated) return login();
   if (!state.session.user.owner && !state.session.user.profileComplete) return completeProfile();
   const tabs = labels();
-  if (!tabs[state.tab] || (state.tab === 'admin' && !state.session.user.owner)) state.tab = 'home';
-  const nav = h('nav', { class: 'portal-nav', 'aria-label': tr('Portal do cliente', 'Customer portal') }, Object.entries(tabs).filter(([id]) => id !== 'admin' || state.session.user.owner).map(([id, label]) => button(label, () => navigate(id), `nav-item${state.tab === id ? ' active' : ''}`)));
+  if (!tabs[state.tab] || (state.tab === 'admin' && !isPortalAdministrator())) state.tab = 'home';
+  const nav = h('nav', { class: 'portal-nav', 'aria-label': tr('Portal do cliente', 'Customer portal') }, Object.entries(tabs).filter(([id]) => id !== 'admin' || isPortalAdministrator()).map(([id, label]) => button(label, () => navigate(id), `nav-item${state.tab === id ? ' active' : ''}`)));
   const content = h('div', { class: 'portal-content' }, [h('div', { class: 'page-heading' }, [h('div', {}, [h('p', { class: 'eyebrow' }, 'SCADIVO PORTAL'), h('h1', {}, tabs[state.tab])]), badge(tr('PILOTO', 'PILOT'))]), h('div', { class: 'content-body' }, p(tr('Carregando…', 'Loading…')))]);
   app.replaceChildren(h('div', { class: 'portal-layout' }, [h('aside', { class: 'portal-sidebar' }, [nav, p(tr('Seu projeto, conectado.', 'Your project, connected.'))]), content]));
   const body = content.querySelector('.content-body');
@@ -421,7 +424,7 @@ function profile() {
 }
 async function support() {
   const tickets = await api('/support');
-  const list = panel(tr('Conversas', 'Conversations'), state.session.user.owner ? p(tr('Você vê os chamados de todos os clientes como administrador.', 'As an administrator, you see all customer requests.')) : p(tr('Somente você e a equipe podem acessar seus chamados.', 'Only you and the team can access your requests.')));
+  const list = panel(tr('Conversas', 'Conversations'), isPortalAdministrator() ? p(tr('Você vê os chamados de todos os clientes como administrador.', 'As an administrator, you see all customer requests.')) : p(tr('Somente você e a equipe podem acessar seus chamados.', 'Only you and the team can access your requests.')));
   if (!tickets.length) list.append(p(tr('Nenhum chamado por enquanto.', 'No requests yet.')));
   for (const ticket of tickets) list.append(button(`${ticket.subject} · ${statusName(ticket.status)} · ${date(ticket.updatedAtUtc)}`, () => openTicket(ticket.id, list), 'ticket-button'));
   const create = panel(tr('Novo chamado', 'New request'), form([
@@ -435,12 +438,11 @@ async function openTicket(id, target) {
   try {
     const result = await api(`/support/${id}`); const ticket = result.ticket;
     target.replaceChildren(button(tr('← Voltar', '← Back'), render), h('h2', {}, ticket.subject), badge(statusName(ticket.status)), h('div', { class: 'message-list' }, result.messages.map(message => h('article', { class: `message${message.staffReply ? ' staff' : ''}` }, [h('small', {}, `${message.staffReply ? 'SCADIVO' : tr('Cliente', 'Customer')} · ${date(message.createdAtUtc)}`), h('p', { class: 'preserve-lines' }, message.body)]))), form([field(tr('Sua mensagem', 'Your message'), textarea('body', '', { maxLength: 8000 }))], tr('Enviar resposta', 'Send reply'), async data => { await api(`/support/${id}/messages`, 'POST', data); await openTicket(id, target); }));
-    if (state.session.user.owner) target.append(form([field(tr('Estado do chamado', 'Request status'), select('status', ['open', 'answered', 'closed'].map(s => [s, statusName(s)]), ticket.status))], tr('Atualizar estado', 'Update status'), async data => { await api(`/admin/support/${id}/status`, 'PUT', data); await openTicket(id, target); }));
+    if (isPortalAdministrator()) target.append(form([field(tr('Estado do chamado', 'Request status'), select('status', ['open', 'answered', 'closed'].map(s => [s, statusName(s)]), ticket.status))], tr('Atualizar estado', 'Update status'), async data => { await api(`/admin/support/${id}/status`, 'PUT', data); await openTicket(id, target); }));
   } catch (error) { feedback(error.message, true); }
 }
 async function downloads() {
-  const releases = await api('/downloads');
-  return panel(tr('Distribuição oficial', 'Official distribution'), p(tr('Os instaladores Windows, Linux e as instruções Docker serão publicados aqui quando cada distribuição oficial estiver aprovada.', 'Windows and Linux installers and Docker instructions will appear here when each official distribution is approved.')), releases.length ? h('div', { class: 'content-grid' }, releases.map(release => panel(`${release.platform} · ${release.version}`, p(state.lang === 'en' ? release.notesEn : state.lang === 'es' ? release.notesEs : release.notesPt), h('code', { class: 'checksum' }, `SHA-256 ${release.sha256}`), h('a', { class: 'button primary', href: `/portal/api/downloads/${release.id}/file` }, 'Download ↗')))) : notice(tr('Nenhum instalador publicado nesta etapa. Não há links provisórios ou arquivos não validados.', 'No installer is published at this stage. There are no placeholder links or unverified files.')));
+  return portalDownloads.customer();
 }
 async function faq() {
   const result = panel(tr('Como podemos ajudar?', 'How can we help?'));
@@ -469,9 +471,9 @@ async function admin() {
       : tr('Ativação e renovação online desativadas.', 'Online activation and renewal disabled.', 'Activación y renovación en línea deshabilitadas.');
   const metrics = h('div', { class: 'metrics' }, [[tr('Contas', 'Accounts'), overview.accounts], [tr('Chamados abertos', 'Open requests'), overview.openTickets], [tr('Aguardando ativação', 'Awaiting activation'), overview.pendingInvitations]].map(([label, value]) => h('div', { class: 'metric' }, [h('strong', {}, value), h('span', {}, label)])));
   const body = h('div');
-  const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), licensing: tr('Licenças', 'Licenses', 'Licencias'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
+  const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), licensing: tr('Licenças', 'Licenses', 'Licencias'), downloads: tr('Downloads', 'Downloads', 'Descargas'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
   const tabs = h('nav', { class: 'admin-subnav', 'aria-label': tr('Administração', 'Administration') }, Object.entries(items).map(([key, label]) => button(label, () => { state.adminTab = key; render(); }, `button ${state.adminTab === key ? 'primary' : 'secondary'}`)));
-  const node = await ({ accounts: accountsAdmin, licensing: portalLicensing.admin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin })[state.adminTab](); body.append(node);
+  const node = await ({ accounts: accountsAdmin, licensing: portalLicensing.admin, downloads: portalDownloads.admin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin })[state.adminTab](); body.append(node);
   const emailStatus = overview.emailDeliveryConfigured
     ? tr(`Envio de e-mail habilitado: ${overview.queuedMessages} na fila, ${overview.sentMessages} aceitas pelo servidor SMTP e ${overview.failedMessages} com falha.`, `Email delivery enabled: ${overview.queuedMessages} queued, ${overview.sentMessages} accepted by the SMTP server and ${overview.failedMessages} failed.`, `Envío de correo electrónico habilitado: ${overview.queuedMessages} en cola, ${overview.sentMessages} aceptados por el servidor SMTP y ${overview.failedMessages} con error.`)
     : tr(`E-mail ainda sem transporte configurado. ${overview.recordedMessages} notificações registradas, sem envio automático.`, `Email delivery is not configured. ${overview.recordedMessages} notifications recorded without automatic delivery.`, `El envío de correo electrónico aún no está configurado. Hay ${overview.recordedMessages} notificaciones registradas sin envío automático.`);
@@ -511,8 +513,30 @@ async function accountsAdmin() {
     feedback(result.emailQueued ? tr('Convite criado e colocado na fila de e-mail.', 'Invitation created and queued for email delivery.') : tr('Convite criado. Compartilhe o link privado.', 'Invitation created. Share the private link.'));
   }), invitationResult), panel(tr('Contas do portal', 'Portal accounts'),
     p(tr('Suspender preserva os dados da conta e encerra o acesso ao portal. Sessões já abertas no fórum são administradas no próprio fórum.', 'Suspension preserves account data and ends portal access. Existing forum sessions are managed in the forum itself.', 'La suspensión conserva los datos de la cuenta y cierra el acceso al portal. Las sesiones ya abiertas en el foro se administran en el propio foro.')),
-    table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Criada em', 'Created'), tr('Acesso', 'Access', 'Acceso')], accounts.map(account => [account.userName, account.displayName, badge(account.isSuspended ? tr('Suspensa', 'Suspended', 'Suspendida') : account.invitationAccepted ? tr('Ativa', 'Active') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), date(account.createdAtUtc), accountAccessAction(account)]))));
+    p(tr('A administração da equipe SCADIVO permite gerenciar contas, suporte, mensagens, FAQ, downloads e licenças. Ela é independente das funções nas organizações de clientes.', 'SCADIVO staff administration can manage accounts, support, messages, FAQ, downloads and licenses. It is independent of roles in customer organizations.', 'La administración del equipo SCADIVO permite gestionar cuentas, soporte, mensajes, FAQ, descargas y licencias. Es independiente de los roles en las organizaciones de clientes.')),
+    table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Administração', 'Administration', 'Administración'), tr('Acesso', 'Access', 'Acceso')], accounts.map(account => [account.userName, account.displayName, badge(account.isSuspended ? tr('Suspensa', 'Suspended', 'Suspendida') : account.invitationAccepted && (account.emailConfirmed || account.owner) ? tr('Ativa', 'Active') : account.invitationAccepted ? tr('Aguardando confirmação', 'Awaiting confirmation', 'Pendiente de confirmación') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), accountAdministrationAction(account), accountAccessAction(account)]))));
   return result;
+}
+function accountAdministrationAction(account) {
+  if (account.owner) return badge(tr('Proprietário', 'Owner', 'Propietario'));
+  const action = button(account.administrator ? tr('Remover administração', 'Remove administration', 'Retirar administración') : tr('Conceder administração', 'Grant administration', 'Conceder administración'), async () => {
+    const message = account.administrator
+      ? tr('Remover a administração desta conta? As sessões atuais serão encerradas e o próximo login terá acesso de usuário.', 'Remove administration from this account? Current sessions will end and the next sign-in will have user access.', '¿Retirar la administración de esta cuenta? Se cerrarán las sesiones actuales y el próximo acceso tendrá permisos de usuario.')
+      : tr('Conceder administração do Portal? Esta pessoa poderá administrar contas, suporte, mensagens, FAQ, downloads e licenças, além de conceder administração a outras contas.', 'Grant Portal administration? This person will be able to manage accounts, support, messages, FAQ, downloads and licenses, and grant administration to other accounts.', '¿Conceder administración del Portal? Esta persona podrá administrar cuentas, soporte, mensajes, FAQ, descargas y licencias, y conceder administración a otras cuentas.');
+    if (!window.confirm(`${account.userName}\n\n${message}`)) return;
+    action.disabled = true;
+    try {
+      await api(`/admin/accounts/${encodeURIComponent(account.id)}/administration`, 'PUT', { administrator: !account.administrator });
+      await session(); await render();
+      feedback(tr('Privilégio administrativo atualizado. As sessões anteriores da conta foram invalidadas.', 'Administrative access updated. The account’s previous sessions were invalidated.', 'Acceso administrativo actualizado. Se invalidaron las sesiones anteriores de la cuenta.'));
+    } catch (error) { feedback(error.message, true); }
+    finally { action.disabled = false; }
+  });
+  if (!account.administrator && (!account.emailConfirmed || !account.invitationAccepted || account.isSuspended)) {
+    action.disabled = true;
+    action.title = tr('A conta precisa estar ativa e com o e-mail confirmado.', 'The account must be active with a confirmed email.', 'La cuenta debe estar activa y tener el correo confirmado.');
+  }
+  return action;
 }
 async function templatesAdmin() {
   const templates = await api('/admin/templates'); const editor = h('div');

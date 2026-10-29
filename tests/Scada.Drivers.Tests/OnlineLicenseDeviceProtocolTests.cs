@@ -247,6 +247,32 @@ public sealed class OnlineLicenseDeviceProtocolTests
         Assert.True((await f.Store().ReadTransportAsync("confirmation", default)).Pending!.ConfirmationRequested);
     }
 
+    [Theory]
+    [InlineData("activation-already-active", "ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE")]
+    [InlineData("activation-limit-reached", "ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED")]
+    [InlineData("activation-revoked", "ONLINE_LICENSE_ACTIVATION_REVOKED")]
+    [InlineData("preparation-already-consumed", "ONLINE_LICENSE_PREPARATION_ALREADY_CONSUMED")]
+    [InlineData("activation-id-already-bound", "ONLINE_LICENSE_ACTIVATION_ID_ALREADY_BOUND")]
+    [InlineData("activation-request-conflict", "ONLINE_LICENSE_ACTIVATION_REQUEST_CONFLICT")]
+    [InlineData("license-not-available", "ONLINE_LICENSE_NOT_AVAILABLE")]
+    [InlineData("unrecognized-portal-code", "ONLINE_LICENSE_PORTAL_REJECTED")]
+    public async Task ConfirmationPreservesSafePortalFailureWithoutDiscardingIntent(string portalCode, string expected)
+    {
+        using var f = new Fixture();
+        var summary = ConfirmationSummary(f);
+        using var client = Client(f.Store(), async request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/prepare", StringComparison.Ordinal))
+                return PreparedResponse(f, summary);
+            return new(HttpStatusCode.Conflict) { Content = new StringContent(
+                JsonSerializer.Serialize(new { error = portalCode }), Encoding.UTF8, "application/json") };
+        });
+        var prepared = await client.PrepareConfirmationAsync(Username, Password, Selection.LicenseCode, Admin(), default);
+        Assert.Equal(expected, (await Assert.ThrowsAsync<OnlineLicenseProtocolException>(
+            () => client.ConfirmWhileOwnedAsync(prepared.ActivationId, Admin(), default))).Code);
+        Assert.True((await f.Store().ReadTransportAsync("confirmation", default)).Pending!.ConfirmationRequested);
+    }
+
     private static OnlineLicensePresentation ConfirmationSummary(Fixture f) => new(Selection.LicenseId,
         Selection.OrganizationId, Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account",
         "annual", f.Clock.Now.AddDays(30), "Tags500", 2, 3, false, false, 1);

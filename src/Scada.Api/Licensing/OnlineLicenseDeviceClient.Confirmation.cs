@@ -143,6 +143,13 @@ public sealed partial class OnlineLicenseDeviceClient
             {
                 "preparation-invalidated" => "ONLINE_LICENSE_PREPARATION_INVALIDATED",
                 "preparation-expired" => "ONLINE_LICENSE_PREPARATION_EXPIRED",
+                "activation-already-active" => "ONLINE_LICENSE_ACTIVATION_ALREADY_ACTIVE",
+                "activation-limit-reached" => "ONLINE_LICENSE_ACTIVATION_LIMIT_REACHED",
+                "activation-revoked" => "ONLINE_LICENSE_ACTIVATION_REVOKED",
+                "preparation-already-consumed" => "ONLINE_LICENSE_PREPARATION_ALREADY_CONSUMED",
+                "activation-id-already-bound" => "ONLINE_LICENSE_ACTIVATION_ID_ALREADY_BOUND",
+                "activation-request-conflict" => "ONLINE_LICENSE_ACTIVATION_REQUEST_CONFLICT",
+                "license-not-available" => "ONLINE_LICENSE_NOT_AVAILABLE",
                 _ => status == HttpStatusCode.ServiceUnavailable ? "ONLINE_LICENSE_ISSUANCE_UNAVAILABLE"
                     : status == HttpStatusCode.Unauthorized ? "ONLINE_LICENSE_INVALID_CREDENTIALS"
                     : "ONLINE_LICENSE_PORTAL_REJECTED"

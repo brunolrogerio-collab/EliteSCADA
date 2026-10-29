@@ -43,6 +43,8 @@ async function fixture(page, { owner = false, locale = 'en', role = 'Member', te
     createdAtUtc: '2026-10-25T10:00:00Z', lastRenewedAtUtc: null
   };
   const calls = [];
+  const applications = [{ id: applicationId, name: license.applicationName }];
+  const members = [{ id: 'account-1', userName: 'portal.user', displayName: 'Portal User', role }];
   await page.route('**/portal/api/**', async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace('/portal/api', '');
@@ -53,8 +55,18 @@ async function fixture(page, { owner = false, locale = 'en', role = 'Member', te
     else if (path === '/licensing/status') result = { onlineActivationAvailable: false };
     else if (path === '/licensing/organizations') result = [{ id: orgId, name: license.organizationName, role: owner ? 'PortalOwner' : role }];
     else if (path === '/admin/licensing/organizations') result = [{ id: orgId, name: license.organizationName }];
-    else if (path.endsWith('/applications')) result = [{ id: applicationId, name: license.applicationName }];
-    else if (path.endsWith('/members') && method === 'GET') result = [{ id: 'account-1', userName: 'portal.user', displayName: 'Portal User', role }];
+    else if (path.endsWith('/applications') && method === 'GET') result = applications;
+    else if (path.endsWith('/applications') && method === 'POST') {
+      const body = request.postDataJSON();
+      result = { id: '55555555-5555-4555-8555-555555555555', name: body.name };
+      applications.push(result);
+    }
+    else if (path.endsWith('/members') && method === 'GET') result = members;
+    else if (path.endsWith('/members') && method === 'POST') {
+      const body = request.postDataJSON();
+      result = { id: 'new-member', userName: body.userIdentifier, displayName: body.userIdentifier, role: body.role };
+      members.push(result);
+    }
     else if (path === '/licensing/licenses' || path === '/admin/licensing/licenses' && method === 'GET') result = { asOfUtc: '2026-10-25T12:00:00Z', licenses: [license] };
     else if (path === '/licensing/activations') result = { asOfUtc: '2026-10-25T12:00:00Z', activations: [activation] };
     else if (path.endsWith(`/licenses/${license.id}/activations`)) result = [activation];
@@ -101,10 +113,12 @@ test('organization manager adds applications and members without issuing a licen
   await page.getByLabel('Application name', { exact: true }).fill('Campus water station');
   await page.getByRole('button', { name: 'Add application', exact: true }).click();
   await expect.poll(() => calls.filter(call => call.path.endsWith('/applications')).length).toBe(1);
+  await expect(page.getByText('Campus water station', { exact: true })).toBeVisible();
   await page.getByLabel('Email or username of the confirmed account').fill('new.member');
   await page.getByLabel('Organization role').selectOption('Admin');
   await page.getByRole('button', { name: 'Add member', exact: true }).click();
   await expect.poll(() => calls.filter(call => call.path.endsWith('/members')).length).toBe(1);
+  await expect(page.locator('.organization-member').filter({ hasText: 'new.member' })).toBeVisible();
   expect(calls.find(call => call.path.endsWith('/members')).body).toEqual({ userIdentifier: 'new.member', role: 'Admin' });
   expect(calls.some(call => call.path.startsWith('/admin/'))).toBe(false);
   expect(browserErrors).toEqual([]);

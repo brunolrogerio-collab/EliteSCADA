@@ -132,13 +132,6 @@ const textarea = (name, value = '', extra = {}) => h('textarea', { name, value, 
 const select = (name, entries, value, extra = {}) => h('select', { name, value, ...extra }, entries.map(([id, text]) => h('option', { value: id, selected: id === value }, text)));
 const values = form => Object.fromEntries([...form.elements].filter(control => control.name).map(control => [control.name, control.type === 'checkbox' ? control.checked : control.value === '' ? null : control.value]));
 const statusName = status => ({ open: tr('Aberto', 'Open'), answered: tr('Respondido', 'Answered'), closed: tr('Encerrado', 'Closed') })[status] || status;
-const offlineLicenseRequestStatusName = status => ({
-  submitted: tr('Recebida', 'Submitted', 'Recibida'),
-  reviewing: tr('Em análise', 'Under review', 'En revisión'),
-  'needs-information': tr('Aguardando informação', 'Waiting for information', 'Pendiente de información'),
-  'approved-for-signing': tr('Aprovada para emissão', 'Approved for issuance', 'Aprobada para emisión'),
-  declined: tr('Não aprovada', 'Declined', 'No aprobada')
-})[status] || status;
 
 function feedback(message, error = false) {
   const node = document.querySelector('#feedback');
@@ -166,10 +159,8 @@ function errorText(code) {
     'invalid-invitation': tr('Convite inválido ou já utilizado.', 'Invalid or already used invitation.'),
     'invalid-invitation-or-password': tr('Convite expirado ou senha fora dos requisitos.', 'The invitation expired or the password does not meet the requirements.'),
     'slug-already-exists': tr('Esse endereço de artigo já existe.', 'This article slug already exists.'),
-    'invalid-offline-license-request': tr('Confira o nome da aplicação, o tipo de solicitação e o código ESREQ1.', 'Check the application name, request type and ESREQ1 code.', 'Revisa el nombre de la aplicación, el tipo de solicitud y el código ESREQ1.'),
-    'too-many-open-license-requests': tr('Você já tem muitos pedidos de licença em andamento. Aguarde a análise dos pedidos anteriores.', 'You have too many license requests in progress. Wait for the previous requests to be reviewed.', 'Tienes demasiadas solicitudes de licencia en curso. Espera a que se revisen las anteriores.'),
-    'invalid-license-request-status': tr('Estado de solicitação inválido.', 'Invalid request status.', 'El estado de la solicitud no es válido.'),
-    'invalid-license-request-transition': tr('Esse pedido já avançou e não pode voltar para esse estado.', 'This request has progressed and cannot return to that status.', 'Esta solicitud ya avanzó y no puede volver a ese estado.')
+    ...portalLicensing.errors(),
+    ...portalOfflineLicensing.errors()
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');
 }
@@ -413,7 +404,7 @@ async function render() {
   } catch (error) { if (version === state.version) body.replaceChildren(notice(error.message), button(tr('Tentar novamente', 'Try again'), render)); }
 }
 function home() {
-  return h('div', {}, [panel(`${tr('Olá', 'Hello')}, ${state.session.user.displayName}.`, p(tr('Este é seu ponto de encontro com o SCADIVO. Comece pelo conhecimento, abra uma conversa privada ou acompanhe as versões disponibilizadas pela equipe.', 'This is your SCADIVO hub. Explore the knowledge base, start a private conversation or follow releases made available by the team.'))), h('div', { class: 'content-grid' }, ['faq', 'support', 'downloads', 'profile'].map(id => panel(labels()[id], p(({ faq: tr('Encontre respostas sobre implantação e uso.', 'Find answers about deployment and use.'), support: tr('Acompanhe suas conversas com a equipe.', 'Follow your conversations with the team.'), downloads: tr('Somente arquivos de distribuição aprovados.', 'Approved distribution files only.'), profile: tr('Mantenha seu perfil e senha atualizados.', 'Keep your profile and password up to date.') })[id]), button(tr('Acessar →', 'Open →'), () => navigate(id))))), notice(tr('Comunidade, compras e licenciamento online estão nas próximas etapas. Nenhuma licença do produto é alterada por este portal nesta fase.', 'Community, purchasing and online licensing are upcoming stages. This portal does not change any product license in this phase.'))]);
+  return h('div', {}, [panel(`${tr('Olá', 'Hello')}, ${state.session.user.displayName}.`, p(tr('Este é seu ponto de encontro com o SCADIVO. Comece pelo conhecimento, abra uma conversa privada ou acompanhe as versões disponibilizadas pela equipe.', 'This is your SCADIVO hub. Explore the knowledge base, start a private conversation or follow releases made available by the team.'))), h('div', { class: 'content-grid' }, ['faq', 'support', 'downloads', 'profile'].map(id => panel(labels()[id], p(({ faq: tr('Encontre respostas sobre implantação e uso.', 'Find answers about deployment and use.'), support: tr('Acompanhe suas conversas com a equipe.', 'Follow your conversations with the team.'), downloads: tr('Somente arquivos de distribuição aprovados.', 'Approved distribution files only.'), profile: tr('Mantenha seu perfil e senha atualizados.', 'Keep your profile and password up to date.') })[id]), button(tr('Acessar →', 'Open →'), () => navigate(id))))), notice(tr('O SCADIVO é gratuito para até 200 TAGs. Organize suas aplicações e consulte os direitos de uso na aba Licenças.', 'SCADIVO is free for up to 200 tags. Organize your applications and view entitlements in the Licenses tab.', 'SCADIVO es gratuito hasta 200 TAGs. Organiza tus aplicaciones y consulta los derechos de uso en la pestaña Licencias.'))]);
 }
 function profile() {
   const user = state.session.user;
@@ -469,54 +460,25 @@ function community() {
   return panel(tr('Uma comunidade em construção', 'A community in the making', 'Una comunidad en construcción'), badge(tr('PRÓXIMA ETAPA', 'UPCOMING', 'PRÓXIMA ETAPA')), p(tr('O fórum usará a mesma conta do portal. As categorias previstas incluem primeiros passos, residencial e predial, aplicações industriais, scripts Python e boas práticas.', 'The forum will use the same portal account. Planned categories include getting started, homes and buildings, industrial applications, Python scripts and best practices.', 'El foro utilizará la misma cuenta del portal. Las categorías previstas incluyen primeros pasos, aplicaciones residenciales y para edificios, aplicaciones industriales, scripts de Python y buenas prácticas.')), notice(tr('A publicação de tópicos será liberada após a configuração das regras, moderação e recuperação de conta.', 'Topic publishing will open after rules, moderation and account recovery are configured.', 'La publicación de temas se habilitará cuando estén configuradas las reglas, la moderación y la recuperación de cuentas.')));
 }
 async function licenses() {
-  if (!state.session.offlineMachineLicenseRequestsEnabled) return panel(tr('Licenciamento conectado ao seu projeto', 'Licensing connected to your project'), badge(tr('EM PREPARAÇÃO', 'IN PREPARATION')), p(tr('A área de licenças está sendo preparada. Nenhuma licença do produto é alterada por este portal nesta fase.', 'The licensing area is being prepared. This portal does not change any product license at this stage.', 'El área de licencias está en preparación. En esta etapa, el portal no modifica ninguna licencia del producto.')));
-  const requests = await api('/licenses/offline-requests');
-  const requestKind = select('requestKind', [
-    ['new', tr('Nova licença offline por máquina', 'New offline machine license', 'Nueva licencia sin conexión por máquina')],
-    ['convert', tr('Converter licença vinculada à conta', 'Convert an account-linked license', 'Convertir una licencia vinculada a la cuenta')]
-  ], 'new');
-  const existingNameInput = input('existingLicenseName', 'text', '', { required: false, maxLength: 120 });
-  const existingNameField = field(tr('Nome da licença atual', 'Current license name', 'Nombre de la licencia actual'), existingNameInput, tr('Informe para identificarmos a licença que deseja converter.', 'Tell us which license you want to convert.', 'Indica qué licencia quieres convertir.'));
-  existingNameField.hidden = true;
-  requestKind.addEventListener('change', () => {
-    existingNameField.hidden = requestKind.value !== 'convert';
-    existingNameInput.required = requestKind.value === 'convert';
-  });
-  const list = panel(tr('Seus pedidos de licença offline', 'Your offline license requests', 'Tus solicitudes de licencia sin conexión'),
-    p(tr('O pedido passa pelo Portal. A máquina licenciada poderá operar offline depois que a licença for emitida e instalada.', 'Submit the request through the Portal. The licensed machine can operate offline after the license is issued and installed.', 'Envía la solicitud desde el portal. La máquina podrá funcionar sin conexión cuando se emita e instale la licencia.')));
-  if (!requests.length) list.append(p(tr('Você ainda não tem pedidos de licença offline.', 'You do not have offline license requests yet.', 'Aún no tienes solicitudes de licencia sin conexión.')));
-  else list.append(table(
-    [tr('Aplicação', 'Application', 'Aplicación'), tr('Solicitação', 'Request', 'Solicitud'), tr('Estado', 'Status', 'Estado'), tr('Enviada em', 'Submitted', 'Enviada')],
-    requests.map(item => [item.applicationName, item.requestKind === 'convert' ? tr('Conversão', 'Conversion', 'Conversión') : tr('Nova', 'New', 'Nueva'), badge(offlineLicenseRequestStatusName(item.status)), date(item.submittedAtUtc)])));
-  const requestForm = form([
-    field(tr('Nome da aplicação', 'Application name', 'Nombre de la aplicación'), input('applicationName', 'text', '', { minLength: 2, maxLength: 120 }), tr('Use o nome que você atribui a esta aplicação no SCADIVO.', 'Use the name you assign to this application in SCADIVO.', 'Usa el nombre que asignaste a esta aplicación en SCADIVO.')),
-    field(tr('Tipo de pedido', 'Request type', 'Tipo de solicitud'), requestKind),
-    existingNameField,
-    field(tr('Código de solicitação da máquina (ESREQ1)', 'Machine request code (ESREQ1)', 'Código de solicitud de la máquina (ESREQ1)'), textarea('machineRequestCode', '', { minLength: 20, maxLength: 8192, rows: 5, spellcheck: false }), tr('Gere o código na interface de licenciamento da máquina que usará offline. O código será protegido no armazenamento do Portal.', 'Generate this code in the licensing interface on the machine that will run offline. The Portal encrypts it at rest.', 'Genera el código desde la interfaz de licencias de la máquina que funcionará sin conexión. El portal lo protege al almacenarlo.')),
-    field(tr('Observação (opcional)', 'Note (optional)', 'Nota (opcional)'), textarea('note', '', { required: false, maxLength: 800, rows: 3 }))
-  ], tr('Registrar pedido', 'Submit request', 'Enviar solicitud'), async data => {
-    if (data.requestKind === 'convert' && !data.existingLicenseName?.trim()) throw new Error(tr('Informe o nome da licença atual.', 'Enter the current license name.', 'Indica el nombre de la licencia actual.'));
-    await api('/licenses/offline-requests', 'POST', data);
-    feedback(tr('Pedido registrado. A equipe fará a análise pelo Portal.', 'Request submitted. The team will review it in the Portal.', 'Solicitud registrada. El equipo la revisará en el portal.'));
-    await render();
-  });
-  return h('div', {}, [panel(tr('Solicitar licença para uso offline', 'Request an offline license', 'Solicitar una licencia para uso sin conexión'),
-    p(tr('Essa solicitação é vinculada a uma máquina e não exige conexão durante a operação. O registro do pedido ainda não emite a licença assinada; a emissão será habilitada após a integração do contrato do produto.', 'This request is bound to one machine and does not require a connection during operation. Submitting the request does not issue a signed license; issuance will be enabled after the product contract is integrated.', 'Esta solicitud se vincula a una máquina y no requiere conexión durante la operación. Registrar la solicitud no emite la licencia firmada; la emisión se habilitará cuando se integre el contrato del producto.')),
-    requestForm), list]);
+  const online = await portalLicensing.customer();
+  if (!state.session.offlineMachineLicenseRequestsEnabled) return online;
+  return h('div', { class: 'licensing-page' }, [online, await portalOfflineLicensing.customer()]);
 }
 async function admin() {
   const overview = await api('/admin/overview');
   const metrics = h('div', { class: 'metrics' }, [[tr('Contas', 'Accounts'), overview.accounts], [tr('Chamados abertos', 'Open requests'), overview.openTickets], [tr('Aguardando ativação', 'Awaiting activation'), overview.pendingInvitations]].map(([label, value]) => h('div', { class: 'metric' }, [h('strong', {}, value), h('span', {}, label)])));
   const body = h('div');
-  const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
-  if (overview.offlineMachineLicenseRequestsEnabled) items.licenseRequests = tr('Pedidos de licença', 'License requests', 'Solicitudes de licencia');
+  const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), licensing: tr('Licenças', 'Licenses', 'Licencias'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
+  if (overview.offlineMachineLicenseRequestsEnabled) items.licenseRequests = tr('Pedidos offline', 'Offline requests', 'Solicitudes sin conexión');
   const tabs = h('nav', { class: 'admin-subnav', 'aria-label': tr('Administração', 'Administration') }, Object.entries(items).map(([key, label]) => button(label, () => { state.adminTab = key; render(); }, `button ${state.adminTab === key ? 'primary' : 'secondary'}`)));
-  const node = await ({ accounts: accountsAdmin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin, licenseRequests: licenseRequestsAdmin })[state.adminTab](); body.append(node);
+  const views = { accounts: accountsAdmin, licensing: portalLicensing.admin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin };
+  if (overview.offlineMachineLicenseRequestsEnabled) views.licenseRequests = portalOfflineLicensing.admin;
+  const node = await (views[state.adminTab] || accountsAdmin)(); body.append(node);
   const emailStatus = overview.emailDeliveryConfigured
     ? tr(`Envio de e-mail habilitado: ${overview.queuedMessages} na fila, ${overview.sentMessages} aceitas pelo servidor SMTP e ${overview.failedMessages} com falha.`, `Email delivery enabled: ${overview.queuedMessages} queued, ${overview.sentMessages} accepted by the SMTP server and ${overview.failedMessages} failed.`, `Envío de correo electrónico habilitado: ${overview.queuedMessages} en cola, ${overview.sentMessages} aceptados por el servidor SMTP y ${overview.failedMessages} con error.`)
     : tr(`E-mail ainda sem transporte configurado. ${overview.recordedMessages} notificações registradas, sem envio automático.`, `Email delivery is not configured. ${overview.recordedMessages} notifications recorded without automatic delivery.`, `El envío de correo electrónico aún no está configurado. Hay ${overview.recordedMessages} notificaciones registradas sin envío automático.`);
   const registrationStatus = overview.publicRegistrationEnabled
-    ? tr('Cadastro aberto somente neste ambiente de homologação.', 'Public registration is enabled only in this homologation environment.')
+    ? tr('Cadastro público habilitado.', 'Public registration enabled.', 'Registro público habilitado.')
     : tr('Cadastro público desativado.', 'Public registration is disabled.');
   return h('div', {}, [metrics, notice(emailStatus + ' ' + registrationStatus + ' ' + tr('Pagamentos e licenciamento online não estão ativos.', 'Payments and online licensing are not active.')), tabs, body]);
 }
@@ -554,60 +516,6 @@ async function accountsAdmin() {
     table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Criada em', 'Created'), tr('Acesso', 'Access', 'Acceso')], accounts.map(account => [account.userName, account.displayName, badge(account.isSuspended ? tr('Suspensa', 'Suspended', 'Suspendida') : account.invitationAccepted ? tr('Ativa', 'Active') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), date(account.createdAtUtc), accountAccessAction(account)]))));
   return result;
 }
-async function licenseRequestsAdmin() {
-  const requests = await api('/admin/license-requests/offline');
-  const detail = h('div');
-  const statuses = [
-    ['submitted', offlineLicenseRequestStatusName('submitted')],
-    ['reviewing', offlineLicenseRequestStatusName('reviewing')],
-    ['needs-information', offlineLicenseRequestStatusName('needs-information')],
-    ['approved-for-signing', offlineLicenseRequestStatusName('approved-for-signing')],
-    ['declined', offlineLicenseRequestStatusName('declined')]
-  ];
-  const rows = requests.map(item => [
-    `${item.userName} · ${item.displayName}`,
-    item.applicationName,
-    item.requestKind === 'convert' ? tr('Conversão', 'Conversion', 'Conversión') : tr('Nova', 'New', 'Nueva'),
-    badge(offlineLicenseRequestStatusName(item.status)),
-    date(item.submittedAtUtc),
-    button(tr('Abrir pedido', 'Open request', 'Abrir solicitud'), async () => {
-      const request = await api(`/admin/license-requests/offline/${item.id}`);
-      const code = textarea('machineRequestCode', request.machineRequestCode, { readOnly: true, rows: 5, spellcheck: false, class: 'private-link' });
-      const copy = button(tr('Copiar código', 'Copy code', 'Copiar código'), async () => {
-        try { await navigator.clipboard.writeText(request.machineRequestCode); feedback(tr('Código copiado.', 'Code copied.', 'Código copiado.')); }
-        catch { feedback(tr('Selecione e copie o código.', 'Select and copy the code.', 'Selecciona y copia el código.')); }
-      });
-      const content = [
-        p(`${tr('Conta', 'Account', 'Cuenta')}: ${request.userId}`),
-        p(`${tr('Aplicação', 'Application', 'Aplicación')}: ${request.applicationName}`),
-        request.requestKind === 'convert' ? p(`${tr('Licença atual', 'Current license', 'Licencia actual')}: ${request.existingLicenseName}`) : null,
-        request.requestNote ? p(`${tr('Observação do cliente', 'Customer note', 'Nota del cliente')}: ${request.requestNote}`) : null,
-        field(tr('Código ESREQ1 protegido no banco', 'ESREQ1 code encrypted in storage', 'Código ESREQ1 protegido en la base de datos'), code),
-        copy
-      ];
-      if (!['approved-for-signing', 'declined'].includes(request.status)) {
-        content.push(form([
-          field(tr('Estado da análise', 'Review status', 'Estado de revisión'), select('status', statuses, request.status)),
-          p(tr('“Aprovada para emissão” é uma decisão administrativa; ainda não gera nem entrega licença assinada.', '“Approved for issuance” is an administrative decision; it does not generate or deliver a signed license.', '“Aprobada para emisión” es una decisión administrativa; todavía no genera ni entrega una licencia firmada.'))
-        ], tr('Salvar estado', 'Save status', 'Guardar estado'), async data => {
-          await api(`/admin/license-requests/offline/${request.id}/status`, 'PUT', data);
-          feedback(tr('Estado do pedido atualizado.', 'Request status updated.', 'Estado de la solicitud actualizado.'));
-          await render();
-        }));
-      }
-      detail.replaceChildren(panel(tr('Pedido de licença offline', 'Offline license request', 'Solicitud de licencia sin conexión'), ...content));
-    })
-  ]);
-  return h('div', {}, [
-    panel(tr('Pedidos de licença offline por máquina', 'Offline machine license requests', 'Solicitudes de licencia sin conexión por máquina'),
-      p(tr('Os códigos de solicitação ficam protegidos no armazenamento e só são revelados nesta visualização administrativa. Esta etapa registra e analisa pedidos; não assina licenças.', 'Request codes are encrypted at rest and revealed only in this administrative view. This stage records and reviews requests; it does not sign licenses.', 'Los códigos de solicitud se protegen al almacenarse y solo se muestran en esta vista administrativa. Esta etapa registra y revisa solicitudes; no firma licencias.')),
-      requests.length ? table([
-        tr('Usuário', 'User', 'Usuario'), tr('Aplicação', 'Application', 'Aplicación'), tr('Tipo', 'Type', 'Tipo'), tr('Estado', 'Status', 'Estado'), tr('Data', 'Date', 'Fecha'), tr('Ação', 'Action', 'Acción')
-      ], rows) : p(tr('Nenhum pedido recebido.', 'No requests received.', 'No se han recibido solicitudes.'))),
-    detail
-  ]);
-}
-
 async function templatesAdmin() {
   const templates = await api('/admin/templates'); const editor = h('div');
   function edit(template) {

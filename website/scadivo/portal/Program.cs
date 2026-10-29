@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Scadivo.Portal;
 using Scadivo.Portal.Data;
+using Scadivo.Portal.Licensing;
 
 if (args.Contains("--healthcheck"))
 {
@@ -87,6 +88,16 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("public-contact", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("licensing-activate", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("licensing-renew", context =>
+    {
+        var activation = context.Request.RouteValues.TryGetValue("activationId", out var routeValue) ? routeValue?.ToString() : null;
+        var partition = $"{activation ?? "unknown"}:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RateLimitPartition.GetFixedWindowLimiter(partition,
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
+    });
     options.AddPolicy("writes", context => HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)
         ? RateLimitPartition.GetNoLimiter("read")
         : RateLimitPartition.GetFixedWindowLimiter(
@@ -94,7 +105,14 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 40, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddScoped<PortalOperations>();
+builder.Services.AddScoped<PortalLicensingOperations>();
 builder.Services.AddScoped<PortalLicenseOperations>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddOptions<OnlineLeaseSigningOptions>().BindConfiguration("Portal:Licensing:Online")
+    .Validate(options => options.IsValid(builder.Environment.ContentRootPath, builder.Configuration["Portal:KeyDirectory"] ?? "/app/keys"),
+        "Online license signing configuration is invalid.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<IOnlineLeaseSigner, RsaPssOnlineLeaseSigner>();
 builder.Services.AddSingleton<PortalEmailSignal>();
 builder.Services.AddOptions<PortalEmailOptions>().BindConfiguration("Portal:Email")
     .Validate(options => options.Valid(builder.Environment.IsDevelopment()), "SMTP configuration requires TLS, valid addresses and a credential file.")
@@ -143,7 +161,8 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api") && !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
+    var isProductDeviceLicenseCall = context.GetEndpoint()?.Metadata.GetMetadata<PortalDeviceLicenseEndpoint>() is not null;
+    if (!isProductDeviceLicenseCall && context.Request.Path.StartsWithSegments("/api") && !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
     {
         try { await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context); }
         catch (AntiforgeryValidationException)
@@ -158,6 +177,7 @@ app.Use(async (context, next) =>
 app.MapGet("/health", async (PortalDb db) => await db.Database.CanConnectAsync()
     ? Results.Ok(new { service = "scadivo-portal", status = "ok" }) : Results.StatusCode(503));
 app.MapPortalEndpoints();
+app.MapPortalLicensingEndpoints();
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache" });
 app.MapFallback((HttpContext context) => context.Request.Path.StartsWithSegments("/api")

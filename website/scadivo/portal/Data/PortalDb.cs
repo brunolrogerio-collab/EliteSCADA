@@ -147,8 +147,13 @@ public sealed class OfflineMachineLicenseRequest
 
 public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbContext<PortalUser>(options)
 {
+    public DbSet<ProductLicensePreparation> ProductLicensePreparations => Set<ProductLicensePreparation>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Membership> Memberships => Set<Membership>();
+    public DbSet<ProductApplication> ProductApplications => Set<ProductApplication>();
+    public DbSet<ProductLicense> ProductLicenses => Set<ProductLicense>();
+    public DbSet<ProductLicenseActivation> ProductLicenseActivations => Set<ProductLicenseActivation>();
+    public DbSet<ProductLicenseRefreshCredential> ProductLicenseRefreshCredentials => Set<ProductLicenseRefreshCredential>();
     public DbSet<SupportTicket> Tickets => Set<SupportTicket>();
     public DbSet<TicketMessage> TicketMessages => Set<TicketMessage>();
     public DbSet<FaqArticle> FaqArticles => Set<FaqArticle>();
@@ -172,6 +177,46 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<Membership>().HasKey(x => new { x.OrganizationId, x.UserId });
         builder.Entity<Membership>().HasOne<Organization>().WithMany().HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Membership>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductApplication>().HasOne<Organization>().WithMany().HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductApplication>().Property(x => x.Name).HasMaxLength(120);
+        builder.Entity<ProductApplication>().Property(x => x.NormalizedName).HasMaxLength(120);
+        builder.Entity<ProductApplication>().HasIndex(x => new { x.OrganizationId, x.NormalizedName }).IsUnique();
+        builder.Entity<ProductApplication>().HasAlternateKey(x => new { x.OrganizationId, x.Id });
+        builder.Entity<ProductLicense>().HasOne<Organization>().WithMany().HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductLicense>().HasOne<ProductApplication>().WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.ApplicationId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductLicense>().HasAlternateKey(x => new { x.OrganizationId, x.ApplicationId, x.Id });
+        builder.Entity<ProductLicense>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductLicense>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.RevokedByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductLicense>().Property(x => x.PublicCode).HasMaxLength(40);
+        builder.Entity<ProductLicense>().Property(x => x.Tier).HasMaxLength(32);
+        builder.Entity<ProductLicense>().Property(x => x.Term).HasMaxLength(32);
+        builder.Entity<ProductLicense>().Property(x => x.Status).HasMaxLength(24);
+        builder.Entity<ProductLicense>().Property(x => x.RevocationReason).HasMaxLength(240);
+        builder.Entity<ProductLicense>().HasIndex(x => x.PublicCode).IsUnique();
+        builder.Entity<ProductLicense>().HasIndex(x => new { x.OrganizationId, x.ApplicationId, x.Status });
+        builder.Entity<ProductLicenseActivation>().HasOne<ProductLicense>().WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.ApplicationId, x.LicenseId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.ApplicationId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductLicenseActivation>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductLicenseActivation>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.RevokedByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductLicenseActivation>().Property(x => x.MachineFingerprint).HasMaxLength(64);
+        builder.Entity<ProductLicenseActivation>().Property(x => x.Status).HasMaxLength(32);
+        builder.Entity<ProductLicenseActivation>().Property(x => x.LastActivationCredentialHash).HasMaxLength(64);
+        builder.Entity<ProductLicenseActivation>().Property(x => x.LastRenewalInputCredentialHash).HasMaxLength(64);
+        builder.Entity<ProductLicenseActivation>().Property(x => x.LastRenewalOutputCredentialHash).HasMaxLength(64);
+        builder.Entity<ProductLicenseActivation>().Property(x => x.ActivationLeaseEnvelope).HasColumnType("text");
+        builder.Entity<ProductLicenseActivation>().Property(x => x.LastLeaseEnvelope).HasColumnType("text");
+        builder.Entity<ProductLicenseActivation>().Property(x => x.RevocationReason).HasMaxLength(240);
+        builder.Entity<ProductLicenseActivation>().HasIndex(x => new { x.LicenseId, x.Status });
+        builder.Entity<ProductLicenseActivation>().HasIndex(x => x.LastActivationRequestId).IsUnique().HasFilter("\"LastActivationRequestId\" IS NOT NULL");
+        builder.Entity<ProductLicenseActivation>().HasIndex(x => x.LastRenewalRequestId).IsUnique().HasFilter("\"LastRenewalRequestId\" IS NOT NULL");
+        builder.Entity<ProductLicenseRefreshCredential>().HasOne<ProductLicenseActivation>().WithMany().HasForeignKey(x => x.ActivationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ProductLicenseRefreshCredential>().Property(x => x.CredentialHash).HasMaxLength(64);
+        builder.Entity<ProductLicenseRefreshCredential>().Property(x => x.State).HasMaxLength(24);
+        builder.Entity<ProductLicenseRefreshCredential>().HasIndex(x => x.CredentialHash).IsUnique();
+        builder.Entity<ProductLicenseRefreshCredential>().HasIndex(x => new { x.ActivationId, x.State });
         builder.Entity<SupportTicket>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<SupportTicket>().Property(x => x.Subject).HasMaxLength(180);
         builder.Entity<SupportTicket>().Property(x => x.Status).HasMaxLength(30);

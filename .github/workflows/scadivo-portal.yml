@@ -35,5 +35,21 @@ jobs:
         with:
           node-version: '22'
       - run: node --check portal/wwwroot/app.js
+      - run: node --check portal/wwwroot/licensing.js
+      - run: node --check portal/wwwroot/offline-licensing.js
+      - run: sh -n deploy/backup.sh && sh -n deploy/restore-check.sh
+      - run: docker compose -f deploy/compose.yml config --quiet
+        env:
+          DATABASE_PASSWORD: compose-validation-only
+          PORTAL_IMAGE: scadivo-portal:validation-only
+      - run: npm ci --prefix tests/browser
+      - run: npx --prefix tests/browser playwright install --with-deps chromium
+      - run: npm test --prefix tests/browser
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: portal-browser-failures
+          path: website/scadivo/tests/browser/test-results
+          if-no-files-found: ignore
       - run: dotnet test tests/Scadivo.Portal.Tests.csproj --configuration Release --logger trx
       - run: docker build -f portal/Dockerfile -t scadivo-portal:test .

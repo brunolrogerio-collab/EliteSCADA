@@ -69,6 +69,7 @@ public static class PortalEndpoints
         if (app.Configuration.GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"))
         {
             members.MapGet("/licenses/offline-requests", (HttpContext context, PortalLicenseOperations operations) => operations.MyOfflineMachineRequests(context));
+            members.MapGet("/licenses/offline-requests/{id:guid}", (Guid id, HttpContext context, PortalLicenseOperations operations) => operations.MyOfflineMachineRequest(id, context));
             members.MapPost("/licenses/offline-requests", (OfflineMachineLicenseRequestInput input, HttpContext context, PortalLicenseOperations operations) => operations.SubmitOfflineMachineRequest(input, context));
         }
 

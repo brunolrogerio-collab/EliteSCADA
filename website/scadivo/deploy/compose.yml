@@ -52,9 +52,12 @@ services:
       Portal__Email__PasswordFile: /run/secrets/portal-mail/smtp-password
       Portal__Email__FromAddress: noreply@scadivo.com
       Portal__Email__ReplyToAddress: support@scadivo.com
+      Portal__Licensing__Online__Enabled: ${PORTAL_ONLINE_LEASE_SIGNING_ENABLED:-false}
+      Portal__Licensing__Online__PrivateKeyFile: /run/scadivo-signing/online-lease.pem
       Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
     volumes:
       - keys:/app/keys
+      - /etc/scadivo/portal/signing/online-lease.pem:/run/scadivo-signing/online-lease.pem:ro
       - ./secrets/portal-owner:/run/secrets/portal-owner:ro
       - ./secrets/portal-mail:/run/secrets/portal-mail:ro
       - ./secrets/community-sso:/run/secrets/community-sso:ro

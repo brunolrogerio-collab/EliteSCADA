@@ -1,0 +1,53 @@
+.licensing-page { display: grid; gap: 20px; min-width: 0; }
+.licensing-page > .notice, .licensing-page > .panel { margin-bottom: 0; }
+.licensing-page .panel, .license-card, .license-activation, .organization-workspace { min-width: 0; }
+.license-list { display: grid; gap: 16px; }
+.license-card { background: #0f2433; border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+.license-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+.license-heading > div { min-width: 0; }
+.license-heading h3 { margin: 0 0 5px; font-size: 19px; overflow-wrap: anywhere; }
+.license-heading p { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+.license-status { flex-shrink: 0; }
+.status-active { color: #9ff0da; background: #173d39; border-color: #35665b; }
+.status-expired, .status-reauthentication-required { color: #ffe0a1; background: #3b3020; border-color: #78623b; }
+.status-revoked { color: #ffd3d3; background: #402c30; border-color: #835158; }
+.license-copy { display: flex; align-items: stretch; gap: 9px; min-width: 0; }
+.license-copy input { flex: 1; width: 0; min-width: 0; font-family: Consolas, monospace; font-size: 12px; }
+.license-copy button { flex-shrink: 0; }
+.license-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin: 20px 0; }
+.license-facts > div { min-width: 0; }
+.license-facts dt { color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+.license-facts dd { margin: 0; font-size: 14px; color: #e3f1f6; overflow-wrap: anywhere; }
+.license-facts code { font-size: 11px; }
+.licensing-empty { padding: 20px; border: 1px dashed var(--border); border-radius: 10px; color: var(--muted); font-size: 13px; }
+.license-activation { padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: #10212e; }
+.license-activation h3 { font-size: 15px; }
+.licensing-disclosure { border-top: 1px solid var(--border); padding-top: 17px; margin-top: 20px; }
+.licensing-disclosure > summary { cursor: pointer; color: #98eadd; font-size: 14px; font-weight: 650; }
+.licensing-disclosure > div { margin-top: 18px; }
+.licensing-disclosure .license-activation { margin-bottom: 14px; }
+.organization-panels { margin-top: 20px; }
+.license-application-list { padding-left: 20px; font-size: 14px; overflow-wrap: anywhere; }
+.license-application-list li { padding-block: 6px; }
+.organization-member { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px; border-bottom: 1px solid var(--border); }
+.organization-member > div { min-width: 0; overflow-wrap: anywhere; }
+.organization-member strong { font-size: 13px; }
+.organization-member p { font-size: 11px; margin: 3px 0 0; }
+.organization-member button { flex-shrink: 0; font-size: 12px; padding: 7px 10px; }
+.organization-members { margin-bottom: 22px; }
+.button.danger { color: #ffd1d1; background: #40292e; border: 1px solid #86535d; }
+.button.danger:hover { background: #55323a; }
+@media (max-width: 600px) {
+  .license-card { padding: 17px; }
+  .license-heading { flex-wrap: wrap; gap: 9px; }
+  .license-heading h3 { font-size: 17px; }
+  .license-copy { flex-wrap: wrap; }
+  .license-copy input { width: 100%; flex-basis: 100%; }
+  .license-copy button { padding: 8px 12px; }
+  .license-facts { gap: 16px 13px; }
+  .license-facts dd { font-size: 13px; }
+}
+@media (max-width: 380px) {
+  .license-facts { grid-template-columns: minmax(0, 1fr); }
+  .organization-member { align-items: flex-start; flex-direction: column; }
+}

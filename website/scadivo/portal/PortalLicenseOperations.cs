@@ -55,6 +55,26 @@ public sealed class PortalLicenseOperations
         return Results.Ok(requests);
     }
 
+    public async Task<IResult> MyOfflineMachineRequest(Guid id, HttpContext context)
+    {
+        var userId = UserId(context);
+        var request = await _db.OfflineMachineLicenseRequests.AsNoTracking()
+            .Where(x => x.Id == id && x.UserId == userId)
+            .Select(x => new
+            {
+                x.Id,
+                x.ApplicationName,
+                x.RequestKind,
+                x.ExistingLicenseName,
+                x.RequestNote,
+                x.Status,
+                x.SubmittedAtUtc,
+                x.UpdatedAtUtc
+            })
+            .FirstOrDefaultAsync();
+        return request is null ? Results.NotFound() : Results.Ok(request);
+    }
+
     public async Task<IResult> SubmitOfflineMachineRequest(OfflineMachineLicenseRequestInput input, HttpContext context)
     {
         var applicationName = input.ApplicationName?.Trim();
@@ -129,8 +149,13 @@ public sealed class PortalLicenseOperations
 
     public async Task<IResult> AdminOfflineMachineRequest(Guid id, HttpContext context)
     {
-        var request = await _db.OfflineMachineLicenseRequests.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
-        if (request is null) return Results.NotFound();
+        var result = await (from candidate in _db.OfflineMachineLicenseRequests.AsNoTracking()
+                            join user in _db.Users.AsNoTracking() on candidate.UserId equals user.Id
+                            where candidate.Id == id
+                            select new { Request = candidate, user.UserName, user.DisplayName, user.Email })
+            .FirstOrDefaultAsync();
+        if (result is null) return Results.NotFound();
+        var request = result.Request;
         string machineRequestCode;
         try { machineRequestCode = _requestCodeProtector.Unprotect(request.MachineRequestCodeProtected); }
         catch (CryptographicException) { return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "license-request-protection-key-unavailable"); }
@@ -145,7 +170,9 @@ public sealed class PortalLicenseOperations
         return Results.Ok(new
         {
             request.Id,
-            request.UserId,
+            result.UserName,
+            result.DisplayName,
+            result.Email,
             request.ApplicationName,
             request.RequestKind,
             request.ExistingLicenseName,

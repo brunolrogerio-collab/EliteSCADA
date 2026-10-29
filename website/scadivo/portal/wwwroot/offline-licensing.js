@@ -32,6 +32,7 @@ const portalOfflineLicensing = (() => {
     kind.addEventListener('change', () => {
       existingNameField.hidden = kind.value !== 'convert';
       existingName.required = kind.value === 'convert';
+      if (kind.value !== 'convert') existingName.value = '';
     });
 
     const requestForm = form([

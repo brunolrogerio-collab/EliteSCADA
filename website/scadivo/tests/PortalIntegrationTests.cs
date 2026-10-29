@@ -110,7 +110,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             })) Assert.Equal(HttpStatusCode.BadRequest, unsupportedSchema.StatusCode);
 
             var machineRequestCode = BuildMachineRequestCode(1, new string('a', 64));
-            var created = await customer.Send("/licenses/offline-requests", HttpMethod.Post, new
+            using var createResponse = await customer.Raw("/licenses/offline-requests", HttpMethod.Post, new
             {
                 applicationName = "Pump station",
                 requestKind = "convert",
@@ -118,7 +118,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 machineRequestCode,
                 note = "Preciso operar sem conexão externa."
             });
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+            var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
             var requestId = created.GetProperty("id").GetGuid();
+            Assert.Equal($"/portal/api/licenses/offline-requests/{requestId:D}", createResponse.Headers.Location?.OriginalString);
             Assert.Equal("submitted", created.GetProperty("status").GetString());
             Assert.DoesNotContain("machineRequestCode", created.ToString(), StringComparison.OrdinalIgnoreCase);
 

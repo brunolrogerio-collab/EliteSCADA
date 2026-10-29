@@ -112,7 +112,7 @@ public sealed class PortalLicenseOperations
         _db.OfflineMachineLicenseRequests.Add(request);
         _db.Audit.Add(new PortalAudit { ActorId = userId, Action = "licensing.offline-request.submitted", ResourceId = request.Id.ToString("D") });
         await _db.SaveChangesAsync();
-        return Results.Created($"/api/licenses/offline-requests/{request.Id:D}", new
+        return Results.Created($"/portal/api/licenses/offline-requests/{request.Id:D}", new
         {
             request.Id,
             request.ApplicationName,

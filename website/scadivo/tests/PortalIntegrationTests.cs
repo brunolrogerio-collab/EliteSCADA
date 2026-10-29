@@ -1198,6 +1198,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var owner = await Login(factory, "scadivo.owner");
             var ownerId = (await owner.Get("/profile")).GetProperty("id").GetString()!;
             string memberId, otherId, pendingId;
+            Guid customerOrganizationId;
             await using (var scope = factory.Services.CreateAsyncScope())
             {
                 var manager = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
@@ -1214,6 +1215,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 await CreateAccount("customer");
                 var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
                 var organization = new Organization { Name = "Synthetic customer " + marker };
+                customerOrganizationId = organization.Id;
                 db.Organizations.Add(organization);
                 db.Memberships.Add(new Membership { OrganizationId = organization.Id, UserId = memberId, Role = "Admin" });
                 await db.SaveChangesAsync();
@@ -1239,6 +1241,14 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             await staff.Send($"/admin/accounts/{otherId}/administration", HttpMethod.Put, new { administrator = true });
             var delegatedStaff = await Login(factory, $"staff-{marker}-two");
             Assert.True((await delegatedStaff.Get("/profile")).GetProperty("administrator").GetBoolean());
+            Assert.Empty((await delegatedStaff.Get("/licensing/organizations")).EnumerateArray());
+            Assert.Equal(HttpStatusCode.NotFound, (await delegatedStaff.Client.GetAsync($"api/licensing/organizations/{customerOrganizationId}/members")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await delegatedStaff.Raw($"/licensing/organizations/{customerOrganizationId}/applications", HttpMethod.Post,
+                new { name = "Unauthorized staff application" })).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await delegatedStaff.Raw($"/licensing/organizations/{customerOrganizationId}/members", HttpMethod.Post,
+                new { userIdentifier = "staff-member@example.test", role = "Admin" })).StatusCode);
+            Assert.Empty((await delegatedStaff.Get("/licensing/licenses")).GetProperty("licenses").EnumerateArray());
+            Assert.Equal(HttpStatusCode.OK, (await delegatedStaff.Client.GetAsync("api/admin/licensing/organizations")).StatusCode);
 
             var version = "test-" + marker;
             var draft = await staff.Send("/admin/downloads", HttpMethod.Post, new { version, platform = "windows-x64", published = false });

@@ -10,8 +10,7 @@ const portalLicensing = (() => {
     Owner: text('Proprietário', 'Owner', 'Propietario'),
     Admin: text('Administrador', 'Administrator', 'Administrador'),
     Member: text('Membro', 'Member', 'Miembro'),
-    PortalOwner: text('Administração SCADIVO', 'SCADIVO administration', 'Administración SCADIVO'),
-    PortalAdmin: text('Administração SCADIVO', 'SCADIVO administration', 'Administración SCADIVO')
+    PortalOwner: text('Administração SCADIVO', 'SCADIVO administration', 'Administración SCADIVO')
   })[role] || role;
   const termName = term => ({
     monthly: text('Mensal', 'Monthly', 'Mensual'),
@@ -169,8 +168,8 @@ const portalLicensing = (() => {
   }
 
   function organizationDetail(organization, applications, members) {
-    const canManage = ['Owner', 'Admin', 'PortalOwner', 'PortalAdmin'].includes(organization.role);
-    const canAddAdmin = ['Owner', 'PortalOwner', 'PortalAdmin'].includes(organization.role);
+    const canManage = ['Owner', 'Admin', 'PortalOwner'].includes(organization.role);
+    const canAddAdmin = ['Owner', 'PortalOwner'].includes(organization.role);
     const apps = panel(text('Aplicações', 'Applications', 'Aplicaciones'),
       p(text('Cada licença pertence a uma aplicação identificada pelo nome.', 'Each license belongs to a named application.', 'Cada licencia pertenece a una aplicación identificada por su nombre.')),
       applications.length ? h('ul', { class: 'license-application-list' }, applications.map(item => h('li', {}, item.name))) : empty(text('Nenhuma aplicação cadastrada.', 'No applications registered.', 'No hay aplicaciones registradas.')),

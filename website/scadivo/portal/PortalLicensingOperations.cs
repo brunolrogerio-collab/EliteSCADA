@@ -43,9 +43,9 @@ public sealed class PortalLicensingOperations(
     public async Task<IResult> Organizations(HttpContext context)
     {
         var actorId = UserId(context);
-        if (PortalAccess.IsAdministrator(context.User))
+        if (context.User.IsInRole("Owner"))
             return Results.Ok(await db.Organizations.AsNoTracking().OrderBy(x => x.Name)
-                .Select(x => new { x.Id, x.Name, role = "PortalAdmin" }).ToListAsync());
+                .Select(x => new { x.Id, x.Name, role = "PortalOwner" }).ToListAsync());
 
         return Results.Ok(await (from membership in db.Memberships.AsNoTracking()
             join organization in db.Organizations.AsNoTracking() on membership.OrganizationId equals organization.Id
@@ -161,7 +161,7 @@ public sealed class PortalLicensingOperations(
     public async Task<IResult> MyLicenses(HttpContext context)
     {
         var userId = UserId(context);
-        var portalOwner = PortalAccess.IsAdministrator(context.User);
+        var portalOwner = context.User.IsInRole("Owner");
         var organizationIds = portalOwner
             ? await db.Organizations.AsNoTracking().Select(x => x.Id).ToArrayAsync()
             : await db.Memberships.AsNoTracking().Where(x => x.UserId == userId).Select(x => x.OrganizationId).ToArrayAsync();
@@ -604,9 +604,9 @@ public sealed class PortalLicensingOperations(
 
     private async Task<(bool Exists, bool CanManage, bool IsPortalOwner, string? Role)> OrganizationAccess(Guid organizationId, HttpContext context)
     {
-        var portalOwner = PortalAccess.IsAdministrator(context.User);
+        var portalOwner = context.User.IsInRole("Owner");
         if (portalOwner)
-            return (await db.Organizations.AnyAsync(x => x.Id == organizationId), true, true, "PortalAdmin");
+            return (await db.Organizations.AnyAsync(x => x.Id == organizationId), true, true, "PortalOwner");
         var membership = await db.Memberships.AsNoTracking().SingleOrDefaultAsync(x => x.OrganizationId == organizationId && x.UserId == UserId(context));
         return membership is null ? (false, false, false, null) : (true, OrgManagerRoles.Contains(membership.Role), false, membership.Role);
     }

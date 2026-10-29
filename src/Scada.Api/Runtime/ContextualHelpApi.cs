@@ -1913,17 +1913,10 @@ public static class ContextualHelpApi
     {
         endpoints.MapGet("/api/help", (
             string? locale,
-            string? topic,
-            HttpContext context,
-            ApiAuthorizationService security) =>
+            string? topic) =>
         {
-            if (security.AuthenticationEnabled)
-            {
-                var principal = security.GetPrincipal(context);
-                if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
-                    return Results.Unauthorized();
-            }
-
+            // Help is static product documentation and is linked from the public
+            // Runtime surface, so its read-only catalog is available without login.
             var catalog = ContextualHelpCatalog.Build(locale);
             if (string.IsNullOrWhiteSpace(topic)) return Results.Ok(catalog);
 

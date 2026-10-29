@@ -62,6 +62,8 @@ type OnlineLicenseDeviceStatus = {
   confirmationPending?: boolean;
 };
 
+type OnlineConnectivity = 'checking' | 'reachable' | 'unreachable' | 'not-configured' | 'unverified';
+
 type RequestResponse = {
   schemaVersion: number;
   requestCode: string;
@@ -81,6 +83,10 @@ const messages = {
     copy: 'Copiar código', copied: 'Código da máquina copiado.', install: 'Instalar licença', licenseCode: 'Código de licença assinado',
     validateInstall: 'Validar e instalar', remove: 'Remover licença', installed: 'Licença validada e instalada.', removed: 'Licença removida. As próximas ativações usarão o modo Demo.',
     onlineTitle: 'Licença online', onlineInfo: 'Resumo local para acompanhamento. Um lease armazenado não concede autorização ao Runtime.',
+    onlineConnection: 'Conexão com o servidor', onlineConnectionChecking: 'Verificando…',
+    onlineConnectionReachable: 'Servidor respondeu', onlineConnectionUnreachable: 'Sem resposta do servidor. Verifique internet, firewall ou proxy.',
+    onlineConnectionNotConfigured: 'Não configurado nesta instalação', onlineConnectionUnverified: 'Não foi possível verificar agora.',
+    onlineConnectionHelp: 'A conexão não confirma ativação nem validade da licença.',
     onlineConfiguration: 'Configuração', onlineConfigured: 'Configurada', onlineNotConfigured: 'Não configurada', onlineState: 'Estado',
     onlineUnavailable: 'Não foi possível ler o estado online.', onlineNoActivation: 'Nenhuma ativação salva', onlineActivationStored: 'Vínculo salvo',
     onlineReset: 'Vínculo removido', onlinePending: 'Solicitação pendente', onlineLease: 'Lease armazenado', onlineIssued: 'Emitido em',
@@ -98,6 +104,10 @@ const messages = {
     copy: 'Copy request', copied: 'Machine request copied.', install: 'Install license', licenseCode: 'Signed license code',
     validateInstall: 'Validate and install', remove: 'Remove license', installed: 'License validated and installed.', removed: 'License removed. Future activations will use Demo mode.',
     onlineTitle: 'Online license', onlineInfo: 'Local summary for reference. A stored lease does not grant Runtime authorization.',
+    onlineConnection: 'Server connection', onlineConnectionChecking: 'Checking…',
+    onlineConnectionReachable: 'Server responded', onlineConnectionUnreachable: 'No response from the server. Check internet, firewall or proxy.',
+    onlineConnectionNotConfigured: 'Not configured in this installation', onlineConnectionUnverified: 'Could not verify right now.',
+    onlineConnectionHelp: 'Connectivity does not confirm license activation or validity.',
     onlineConfiguration: 'Configuration', onlineConfigured: 'Configured', onlineNotConfigured: 'Not configured', onlineState: 'State',
     onlineUnavailable: 'Online status could not be read.', onlineNoActivation: 'No activation saved', onlineActivationStored: 'Binding saved',
     onlineReset: 'Binding removed', onlinePending: 'Request pending', onlineLease: 'Stored lease', onlineIssued: 'Issued',
@@ -115,6 +125,10 @@ const messages = {
     copy: 'Copiar código', copied: 'Código de máquina copiado.', install: 'Instalar licencia', licenseCode: 'Código de licencia firmado',
     validateInstall: 'Validar e instalar', remove: 'Eliminar licencia', installed: 'Licencia validada e instalada.', removed: 'Licencia eliminada. Las próximas activaciones usarán el modo Demo.',
     onlineTitle: 'Licencia online', onlineInfo: 'Resumen local para consulta. Un lease almacenado no concede autorización al Runtime.',
+    onlineConnection: 'Conexión con el servidor', onlineConnectionChecking: 'Verificando…',
+    onlineConnectionReachable: 'El servidor respondió', onlineConnectionUnreachable: 'El servidor no respondió. Revise internet, firewall o proxy.',
+    onlineConnectionNotConfigured: 'No configurado en esta instalación', onlineConnectionUnverified: 'No fue posible verificar ahora.',
+    onlineConnectionHelp: 'La conexión no confirma la activación ni la validez de la licencia.',
     onlineConfiguration: 'Configuración', onlineConfigured: 'Configurada', onlineNotConfigured: 'No configurada', onlineState: 'Estado',
     onlineUnavailable: 'No fue posible leer el estado online.', onlineNoActivation: 'No hay activación guardada', onlineActivationStored: 'Vínculo guardado',
     onlineReset: 'Vínculo eliminado', onlinePending: 'Solicitud pendiente', onlineLease: 'Lease almacenado', onlineIssued: 'Emitido',
@@ -162,6 +176,20 @@ function describeOnlineState(status: OnlineLicenseDeviceStatus, t: typeof messag
   return t.onlineActivationStored;
 }
 
+function parseOnlineConnectivity(value: unknown): OnlineConnectivity {
+  if (!value || typeof value !== 'object' || !('state' in value)) return 'unverified';
+  const state = (value as { state?: unknown }).state;
+  return state === 'reachable' || state === 'unreachable' || state === 'not-configured' ? state : 'unverified';
+}
+
+function describeOnlineConnectivity(state: OnlineConnectivity, t: typeof messages[Locale]) {
+  if (state === 'checking') return t.onlineConnectionChecking;
+  if (state === 'reachable') return t.onlineConnectionReachable;
+  if (state === 'unreachable') return t.onlineConnectionUnreachable;
+  if (state === 'not-configured') return t.onlineConnectionNotConfigured;
+  return t.onlineConnectionUnverified;
+}
+
 export function LicensingApp() {
   const locale = useMemo(resolveLocale, []);
   const t = messages[locale];
@@ -169,17 +197,23 @@ export function LicensingApp() {
   const [request, setRequest] = useState<RequestResponse | null>(null);
   const [licenseCode, setLicenseCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [onlineConnectivity, setOnlineConnectivity] = useState<OnlineConnectivity>('checking');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
-    const [statusResponse, requestResponse] = await Promise.all([
+    setOnlineConnectivity('checking');
+    const [statusResponse, requestResponse, connectivityResponse] = await Promise.all([
       fetch(`${API}/api/licensing/status`, { headers: { accept: 'application/json' } }),
-      fetch(`${API}/api/licensing/request`, { headers: { accept: 'application/json' } })
+      fetch(`${API}/api/licensing/request`, { headers: { accept: 'application/json' } }),
+      fetch(`${API}/api/licensing/online/connectivity`, { headers: { accept: 'application/json' }, cache: 'no-store' })
+        .then(async response => response.ok ? await response.json() as unknown : null)
+        .catch(() => null)
     ]);
     setStatus(await readJson<StatusResponse>(statusResponse));
     setRequest(await readJson<RequestResponse>(requestResponse));
+    setOnlineConnectivity(parseOnlineConnectivity(connectivityResponse));
   }, []);
 
   useEffect(() => {
@@ -315,6 +349,11 @@ export function LicensingApp() {
             <h2>{t.onlineTitle}</h2>
             <div className="licensing-online-status">
               <p className="licensing-help">{t.onlineInfo}</p>
+              <p className={`licensing-connectivity licensing-connectivity-${onlineConnectivity}`} role="status" data-testid="online-license-connectivity">
+                <span className="licensing-connectivity-dot" aria-hidden="true" />
+                <strong>{t.onlineConnection}:</strong> {describeOnlineConnectivity(onlineConnectivity, t)}
+              </p>
+              <p className="licensing-help licensing-connectivity-help">{t.onlineConnectionHelp}</p>
               <dl data-testid="online-license-status">
                 <dt>{t.onlineConfiguration}</dt><dd>{status.onlineDevice.configured ? t.onlineConfigured : t.onlineNotConfigured}</dd>
                 <dt>{t.onlineState}</dt><dd><strong>{describeOnlineState(status.onlineDevice, t)}</strong></dd>

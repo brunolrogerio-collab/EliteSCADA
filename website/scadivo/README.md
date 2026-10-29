@@ -82,7 +82,9 @@ dotnet test tests/Scadivo.Portal.Tests.csproj --configuration Release
 docker build -f portal/Dockerfile -t scadivo-portal:local .
 ```
 
-Tests require a **disposable** PostgreSQL database. Set `PORTAL_TEST_DATABASE`; the default is localhost port 15441 with the explicitly nonproduction test credential in the fixture. Never point tests at the production portal or demo. Tests cover antiforgery, secure cookies, roles, one-use invitation redemption, email confirmation before new-account login, non-enumerating recovery responses, confirmed-account eligibility, one-use password reset, reset-email token non-persistence, profile requirements, cross-user support isolation, FAQ/templates/audit, login lockout, community SSO challenge/signature/callback validation, logout and re-entry, rejection of unconfirmed/locked accounts, and database persistence across a fresh host.
+Tests require a **disposable** PostgreSQL database. Set `PORTAL_TEST_DATABASE`; the default is localhost port 15441 with the explicitly nonproduction test credential in the fixture. Never point tests at the production portal or demo. Tests cover antiforgery, secure cookies, roles, one-use invitation redemption, email confirmation before new-account login, non-enumerating recovery responses, confirmed-account eligibility, one-use password reset, reset-email token non-persistence, profile requirements, cross-user support isolation, FAQ/templates/audit, login lockout, community SSO challenge/signature/callback validation, logout and re-entry, rejection of unconfirmed/locked accounts, database persistence across a fresh host, and the online licensing activation/renewal rotation, retry idempotency, credential-reuse response, activation cap, password-change invalidation, and disabled-by-default signer.
+
+The licensing API routes, `ESLEASE1` payload, activation/renewal contract, replay behavior and disabled-by-default signing boundary are documented in [`portal/LICENSING_API.md`](portal/LICENSING_API.md). Online signing remains off until the verifier and product integration are complete.
 
 ### Local Docker homologation
 

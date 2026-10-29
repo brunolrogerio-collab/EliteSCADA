@@ -309,6 +309,64 @@ public sealed class OnlineLicenseDeviceProtocolTests
             Assert.True((await client.ConfirmWhileOwnedAsync(preparation.ActivationId, Admin(), default)).HasLease);
     }
 
+    [Fact]
+    public async Task InvalidConfirmationSignatureIsNotReportedAsPresentationMismatch()
+    {
+        using var f = new Fixture();
+        var activationId = Guid.NewGuid();
+        var summary = new OnlineLicensePresentation(Selection.LicenseId, Selection.OrganizationId,
+            Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account", "perpetual",
+            null, "Unlimited", 50, 50, false, false, 1);
+        var store = f.Store();
+        using (store.AcquireOperation(default))
+            await store.StorePreparedConfirmationAsync(summary, activationId, new string('A', 43),
+                f.Clock.Now.AddMinutes(5), true, Admin(), default);
+        await store.RequestConfirmationAsync(activationId, Admin(), default);
+        var pending = await store.ReadTransportAsync("confirmation", default);
+        f.VerificationOverride = new(OnlineLeaseVerificationStatus.Invalid,
+            Diagnostic: "Online lease signature is invalid.")
+        { Failure = OnlineLeaseVerificationFailure.SignatureInvalid };
+
+        var error = await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => store.CompleteAsync(
+            pending.Pending!.RequestId, "invalid-signature-envelope", Admin(), default,
+            summary, f.Clock.Now.AddHours(72)));
+
+        Assert.Equal("ONLINE_LICENSE_LEASE_SIGNATURE_INVALID", error.Code);
+        var status = await store.ReadStatusAsync();
+        Assert.True(status!.ConfirmationPending);
+        Assert.False(status.HasLease);
+    }
+
+    [Fact]
+    public async Task ValidSignatureWithChangedPresentationIsReportedAsPresentationMismatch()
+    {
+        using var f = new Fixture();
+        var activationId = Guid.NewGuid();
+        var summary = new OnlineLicensePresentation(Selection.LicenseId, Selection.OrganizationId,
+            Selection.ApplicationId, Selection.LicenseCode, "Test application", "online-account", "perpetual",
+            null, "Unlimited", 50, 50, false, false, 1);
+        var store = f.Store();
+        using (store.AcquireOperation(default))
+            await store.StorePreparedConfirmationAsync(summary, activationId, new string('A', 43),
+                f.Clock.Now.AddMinutes(5), true, Admin(), default);
+        await store.RequestConfirmationAsync(activationId, Admin(), default);
+        var pending = await store.ReadTransportAsync("confirmation", default);
+        var claims = new OnlineLeaseClaims(1, summary.LicenseId, summary.OrganizationId, summary.ApplicationId,
+            activationId, Fixture.Machine, LicenseTier.Unlimited, 50, 50, false, false, f.Clock.Now,
+            f.Clock.Now.AddHours(72), "test-key");
+        f.VerificationOverride = new(OnlineLeaseVerificationStatus.Valid, claims,
+            Evidence: new(f.Clock.Now, claims.NotAfterUtc));
+
+        var error = await Assert.ThrowsAsync<OnlineLicenseProtocolException>(() => store.CompleteAsync(
+            pending.Pending!.RequestId, "valid-signature-envelope", Admin(), default,
+            summary with { InteractiveSeats = 49 }, claims.NotAfterUtc));
+
+        Assert.Equal("ONLINE_LICENSE_PRESENTATION_MISMATCH", error.Code);
+        var status = await store.ReadStatusAsync();
+        Assert.True(status!.ConfirmationPending);
+        Assert.False(status.HasLease);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -1166,6 +1224,7 @@ public sealed class OnlineLicenseDeviceProtocolTests
         private readonly Dictionary<string, (Guid Activation, DateTimeOffset Issued, DateTimeOffset Expiry)> leases = [];
         public string? LastEnvelope { get; private set; }
         public OnlineLeaseClaims? ConfirmationClaims { get; set; }
+        public OnlineLeaseVerificationResult? VerificationOverride { get; set; }
         public Fixture() => ReopenAuthority();
         public void ReopenAuthority(byte[]? replacementKey = null)
         {
@@ -1177,6 +1236,7 @@ public sealed class OnlineLicenseDeviceProtocolTests
         public FileOnlineLicenseStateStore Store() => new(StateRoot, Machine, Origin, Authority, Clock, Verify);
         private OnlineLeaseVerificationResult Verify(string envelope, OnlineLeaseBinding expected, DateTimeOffset now)
         {
+            if (VerificationOverride is { } verificationOverride) return verificationOverride;
             if (!leases.TryGetValue(envelope, out var value) || value.Activation != expected.ActivationId)
                 return new(OnlineLeaseVerificationStatus.Invalid);
             return new(now >= value.Expiry ? OnlineLeaseVerificationStatus.Expired : OnlineLeaseVerificationStatus.Valid,

@@ -433,11 +433,21 @@ public sealed class FileOnlineLicenseStateStore
         if (state.Pending?.RequestId != requestId)
             throw new OnlineLicenseProtocolException("ONLINE_LICENSE_REQUEST_CONFLICT");
         var verified = verify(envelope, state.Binding, now);
-        if (state.Pending.Kind == "confirmation" &&
-            (!state.Pending.ConfirmationRequested || state.Pending.Presentation is not { } prepared ||
-             confirmedPresentation is null || responseNotAfterUtc is null ||
-             !prepared.MatchesVerifiedLease(confirmedPresentation, verified, responseNotAfterUtc.Value)))
-            throw new OnlineLicenseProtocolException("ONLINE_LICENSE_PRESENTATION_MISMATCH");
+        if (state.Pending.Kind == "confirmation")
+        {
+            if (!state.Pending.ConfirmationRequested || state.Pending.Presentation is not { } prepared ||
+                confirmedPresentation is null || responseNotAfterUtc is null)
+                throw new OnlineLicenseProtocolException("ONLINE_LICENSE_PRESENTATION_MISMATCH");
+
+            // Keep cryptographic/identity rejection distinct from a genuine difference between
+            // the Portal's prepared summary and the rights authenticated by an otherwise valid lease.
+            if (verified.Failure == OnlineLeaseVerificationFailure.SignatureInvalid)
+                throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LEASE_SIGNATURE_INVALID");
+            if (verified.Status != OnlineLeaseVerificationStatus.Valid || verified.Claims is null)
+                throw new OnlineLicenseProtocolException("ONLINE_LICENSE_LEASE_REJECTED");
+            if (!prepared.MatchesVerifiedLease(confirmedPresentation, verified, responseNotAfterUtc.Value))
+                throw new OnlineLicenseProtocolException("ONLINE_LICENSE_PRESENTATION_MISMATCH");
+        }
         if (verified.Status is not (OnlineLeaseVerificationStatus.Valid or OnlineLeaseVerificationStatus.Expired) ||
             verified.Evidence is not { } evidence ||
             (state.IssuedAtUtc is { } previousIssued && evidence.IssuedAtUtc < previousIssued))

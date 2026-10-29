@@ -17,12 +17,17 @@ public sealed record OnlineLeaseClaims(
 
 public enum OnlineLeaseVerificationStatus { Invalid, Valid, Expired }
 
+public enum OnlineLeaseVerificationFailure { None, SignatureInvalid }
+
 /// <summary>Authenticated timing only, including for expired leases; contains no capabilities or quotas.</summary>
 public sealed record OnlineLeaseVerificationEvidence(DateTimeOffset IssuedAtUtc, DateTimeOffset NotAfterUtc);
 
 public sealed record OnlineLeaseVerificationResult(
     OnlineLeaseVerificationStatus Status, OnlineLeaseClaims? Claims = null, string? Diagnostic = null,
-    OnlineLeaseVerificationEvidence? Evidence = null);
+    OnlineLeaseVerificationEvidence? Evidence = null)
+{
+    public OnlineLeaseVerificationFailure Failure { get; init; }
+}
 
 /// <summary>
 /// Pure ESLEASE1 verification against the dedicated pinned online public key.
@@ -81,7 +86,7 @@ public static class OnlineLeaseVerifier
                 !string.Equals(claims.KeyId, ProductLicenseTrustAnchors.OnlineLeaseKeyId, StringComparison.Ordinal))
                 return Invalid("Online lease schema or signing purpose is unsupported.");
             if (!publicKey.VerifyData(payload, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss))
-                return Invalid("Online lease signature is invalid.");
+                return Invalid("Online lease signature is invalid.", OnlineLeaseVerificationFailure.SignatureInvalid);
             if (claims.LicenseId != expected.LicenseId || claims.OrganizationId != expected.OrganizationId ||
                 claims.ApplicationId != expected.ApplicationId || claims.ActivationId != expected.ActivationId ||
                 !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(claims.MachineFingerprint),
@@ -171,6 +176,7 @@ public static class OnlineLeaseVerifier
         return bytes;
     }
 
-    private static OnlineLeaseVerificationResult Invalid(string diagnostic) =>
-        new(OnlineLeaseVerificationStatus.Invalid, Diagnostic: diagnostic);
+    private static OnlineLeaseVerificationResult Invalid(string diagnostic,
+        OnlineLeaseVerificationFailure failure = OnlineLeaseVerificationFailure.None) =>
+        new(OnlineLeaseVerificationStatus.Invalid, Diagnostic: diagnostic) { Failure = failure };
 }

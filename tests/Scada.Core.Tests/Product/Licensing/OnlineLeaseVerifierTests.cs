@@ -270,7 +270,9 @@ public sealed class OnlineLeaseVerifierTests(OnlineLeaseTestKeys keys) : IClassF
         var parts = code.Split('.');
         parts[1] = Encode(Encoding.UTF8.GetBytes(json.Replace("Tags1000", "Tags5000", StringComparison.Ordinal)));
         AssertInvalid(Verify(string.Join('.', parts)));
-        AssertInvalid(Verify(Sign(json, keys.Other), Issued.AddDays(5)));
+        var wrongKey = Verify(Sign(json, keys.Other), Issued.AddDays(5));
+        AssertInvalid(wrongKey);
+        Assert.Equal(OnlineLeaseVerificationFailure.SignatureInvalid, wrongKey.Failure);
         AssertInvalid(Verify(Sign(json, padding: RSASignaturePadding.Pkcs1)));
         AssertInvalid(OnlineLeaseVerifier.VerifyWithKey(Sign(json, keys.Small), Binding, Issued, keys.Small));
     }

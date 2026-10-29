@@ -265,6 +265,41 @@ test('v2-aware authoring can intentionally remove a v2 annotation with marker 2'
   expect(payload.profiles[0].signals[0].semanticBinding).toBeNull();
 });
 
+test('eligible scope checkbox keeps the mounted Intelligence workspace interactive', async ({ page }) => {
+  let configuration = { version: 2, scopes: [], profiles: [], assignments: [], processStages: [] } as Record<string, any>;
+  await mockWorkspace(page, () => configuration, next => { configuration = { ...configuration, ...next }; });
+  await page.route('**/api/engineering/asset-process-intelligence/scopes', async route => {
+    if (route.request().method() === 'PUT') {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'scope-save-unavailable' }) });
+      return;
+    }
+    await route.fallback();
+  });
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+
+  await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
+  const workspace = page.getByTestId('asset-process-intelligence-workspace');
+  const scopePanel = workspace.locator('.asset-process-intelligence__scope-panel');
+  await expect(scopePanel.getByRole('heading', { name: 'Escopos elegíveis' })).toBeVisible();
+
+  const pump = scopePanel.getByRole('checkbox').nth(0);
+  await pump.check();
+  await expect(pump).toBeChecked();
+  await expect(scopePanel.getByRole('heading', { name: 'Escopos elegíveis' })).toBeVisible();
+  expect(pageErrors).toEqual([]);
+
+  await scopePanel.getByRole('button', { name: 'Salvar escopos elegíveis' }).click();
+  await expect(workspace.getByRole('alert')).toHaveText('scope-save-unavailable');
+  await expect(pump).toBeChecked();
+  await expect(scopePanel.getByRole('heading', { name: 'Escopos elegíveis' })).toBeVisible();
+
+  await pump.uncheck();
+  await expect(pump).not.toBeChecked();
+  await expect(scopePanel.getByRole('heading', { name: 'Escopos elegíveis' })).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
 async function selectedStageId(workspace: import('@playwright/test').Locator) {
   const select = workspace.locator('.asset-process-intelligence__stage-choice [role="option"]').last();
   await expect(select).toBeVisible();

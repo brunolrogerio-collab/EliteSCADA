@@ -2,7 +2,8 @@
 set -Eeuo pipefail
 
 repo_root=$(git rev-parse --show-toplevel)
-run_tag="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-${BASHPID}"
+nonce=$(python3 -c 'import secrets; print(secrets.token_hex(6))')
+run_tag="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$nonce"
 run_tag=$(printf '%s' "$run_tag" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')
 project_a="scad-ci-${run_tag}-a"
 project_b="scad-ci-${run_tag}-b"
@@ -11,28 +12,66 @@ work_root="$temp_root/scadivo-installation-linux-$run_tag"
 [[ "$work_root" == "$temp_root"/scadivo-installation-linux-* ]] || { echo 'Unsafe test directory.' >&2; exit 1; }
 install_a="$work_root/instance-a"
 install_b="$work_root/instance-b"
+safe_cleanup_a=0
+safe_cleanup_b=0
+safe_remove_work_root=0
 
 cleanup() {
   local status=$?
   trap - EXIT
-  for entry in "$install_b:$project_b" "$install_a:$project_a"; do
+  for entry in "$install_b:$project_b:$safe_cleanup_b" "$install_a:$project_a:$safe_cleanup_a"; do
     directory=${entry%%:*}
-    project=${entry#*:}
-    if [[ -f "$directory/docker-compose.stable.yml" && -f "$directory/.env" ]]; then
-      docker compose --project-name "$project" --env-file "$directory/.env" \
-        -f "$directory/docker-compose.stable.yml" down --volumes --remove-orphans >/dev/null 2>&1 || true
+    remainder=${entry#*:}
+    project=${remainder%%:*}
+    safe_cleanup=${remainder##*:}
+    if [[ "$safe_cleanup" == 1 && -f "$directory/docker-compose.stable.yml" && -f "$directory/.env" ]]; then
+      expected_directory=$(realpath -m "$directory")
+      containers=$(docker ps -aq --filter "label=com.docker.compose.project=$project" 2>/dev/null || true)
+      safe_to_remove=1
+      for container in $containers; do
+        owner=$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$container" 2>/dev/null || true)
+        if [[ "$(realpath -m "$owner")" != "$expected_directory" ]]; then
+          echo "Skipping cleanup for $project because a container is not owned by this temporary install directory." >&2
+          safe_to_remove=0
+          break
+        fi
+      done
+      if [[ "$safe_to_remove" == 1 ]]; then
+        docker compose --project-name "$project" --env-file "$directory/.env" \
+          -f "$directory/docker-compose.stable.yml" down --volumes --remove-orphans >/dev/null 2>&1 || true
+      fi
     fi
   done
-  rm -rf -- "$work_root"
+  if [[ "$safe_remove_work_root" == 1 ]]; then rm -rf -- "$work_root"; fi
   exit "$status"
 }
 trap cleanup EXIT
 
 command -v docker >/dev/null
 docker compose version
-mkdir -p "$install_a" "$install_b"
+mkdir "$work_root"
+safe_remove_work_root=1
+mkdir "$install_a" "$install_b"
 git -C "$repo_root" archive HEAD | tar -x -C "$install_a"
 git -C "$repo_root" archive HEAD | tar -x -C "$install_b"
+
+assert_unused_project() {
+  local project=$1
+  local containers
+  containers=$(docker ps -aq --filter "label=com.docker.compose.project=$project")
+  [[ -z "$containers" ]] || { echo "Refusing to reuse existing Compose project $project." >&2; return 1; }
+  for suffix in database protected-material host-keys; do
+    if docker volume inspect "${project}-${suffix}" >/dev/null 2>&1; then
+      echo "Refusing to reuse existing volume ${project}-${suffix}." >&2
+      return 1
+    fi
+  done
+}
+
+assert_unused_project "$project_a"
+safe_cleanup_a=1
+assert_unused_project "$project_b"
+safe_cleanup_b=1
 
 write_env() {
   local directory=$1 instance=$2 web=$3 api=$4 database=$5

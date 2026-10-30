@@ -11,6 +11,13 @@ public sealed record InstallationNetworkEndpointProfile(
     int InternalPort,
     bool PublishedToHost);
 
+public sealed record InstallationNetworkDriverPortProfile(
+    string Transport,
+    string BindAddress,
+    int PublishedPort,
+    int InternalPort,
+    bool PublishedToHost);
+
 public sealed record InstallationNetworkProfileView(
     string Profile,
     string InstanceId,
@@ -19,6 +26,7 @@ public sealed record InstallationNetworkProfileView(
     InstallationNetworkEndpointProfile Database,
     InstallationNetworkEndpointProfile MediaControl,
     InstallationNetworkEndpointProfile MediaPlayback,
+    IReadOnlyList<InstallationNetworkDriverPortProfile> DriverPorts,
     bool ApplyThroughUi,
     bool HostMappingIndependentlyVerified);
 
@@ -59,6 +67,7 @@ public static class InstallationNetworkProfileApi
         var databasePort = ReadPort(configuration, "InstallationNetwork:DatabasePublishedPort", 15432);
         var webBind = configuration["InstallationNetwork:WebBindAddress"] ?? "127.0.0.1";
         var apiBind = configuration["InstallationNetwork:ApiBindAddress"] ?? "127.0.0.1";
+        var driverPorts = ReadDriverPorts(configuration["InstallationNetwork:DriverPorts"]);
 
         return new InstallationNetworkProfileView(
                 "stable-docker",
@@ -68,6 +77,7 @@ public static class InstallationNetworkProfileApi
                 new("TCP", "127.0.0.1", databasePort, 5432, true),
                 new("TCP", "Docker network only", 9997, 9997, false),
                 new("TCP", "Docker network only", 8888, 8888, false),
+                driverPorts,
                 ApplyThroughUi: false,
                 HostMappingIndependentlyVerified: false);
     }
@@ -78,5 +88,27 @@ public static class InstallationNetworkProfileApi
         return int.TryParse(raw, out var parsed) && parsed is >= 1 and <= 65535
             ? parsed
             : fallback;
+    }
+
+    private static IReadOnlyList<InstallationNetworkDriverPortProfile> ReadDriverPorts(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<InstallationNetworkDriverPortProfile>();
+        var result = new List<InstallationNetworkDriverPortProfile>();
+        foreach (var item in raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var parts = item.Split(':', StringSplitOptions.TrimEntries);
+            if (parts.Length != 4 ||
+                parts[0] is not ("tcp" or "udp") ||
+                parts[1] is not ("127.0.0.1" or "0.0.0.0") ||
+                !int.TryParse(parts[2], out var publishedPort) || publishedPort is < 1 or > 65535 ||
+                !int.TryParse(parts[3], out var internalPort) || internalPort is < 1024 or > 65535 ||
+                parts[0] == "tcp" && internalPort == 5080)
+                continue;
+
+            result.Add(new InstallationNetworkDriverPortProfile(
+                parts[0].ToUpperInvariant(), parts[1], publishedPort, internalPort, true));
+        }
+
+        return result;
     }
 }

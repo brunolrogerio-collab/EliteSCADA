@@ -164,23 +164,24 @@ In **Engineering > Installation > Network and services**, a `SystemAdmin` user c
 | PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | Host publication remains loopback-only |
 | Media control | Not published | `9997/TCP` | Internal Docker network |
 | HLS | Not published | `8888/TCP` | Internal Docker network |
+| Driver listener (optional) | Set in the profile | Port configured in Data Source | TCP/UDP; not published by default |
 
-Internal listeners are fixed in this package. Media stays isolated on the Docker network: the API uses MediaMTX control on `9997/TCP`, and Runtime delivers HLS on `8888/TCP` through the API relay using short-lived tickets. Do not publish these two ports directly on the host.
+The main service ports are fixed in this package. Media stays isolated on the Docker network: the API uses MediaMTX control on `9997/TCP`, and Runtime delivers HLS on `8888/TCP` through the API relay using short-lived tickets. Do not publish these two ports directly on the host. An optional Driver mapping publishes a listener that is already configured; it does not change the internal Data Source port.
 
-Configure equipment ports in each Data Source. For a client driver, the port belongs to the service on the remote device — for example, `502/TCP` for Modbus TCP or `102/TCP` for S7 — and does not need to be published on the SCADIVO host. For **Modbus TCP Server**, the port is a local API listener; stable Compose does not publish it on the host, so saving the Data Source port alone does not make it reachable from clients outside the Docker network. **BACnet/IP** uses `47808/UDP` as `localPort`; broadcast discovery depends on host networking, and the script does not configure UDP forwarding. See the guides for [connections and protocols](21-CONNECTIONS-AND-PROTOCOLS.md), [BACnet/IP](22-HOME-BUILDING-CONNECTIONS.md), and [Modbus TCP Server](25-TELECONTROL-AND-MODBUS-SERVER.md).
+Configure equipment ports in each Data Source. For a client driver, the port belongs to the remote device — for example, `502/TCP` for Modbus TCP or `102/TCP` for S7 — and does not need to be published on the SCADIVO host. For a Driver listener running inside the API, use the optional **Driver listeners** section to map protocol, host bind address, published host port, and internal port. The internal port must match the Data Source listener; this mapping publishes it on the host but does not change the Driver. In stable Docker, configure **Modbus TCP Server** on internal port `1502/TCP` (or another port at or above 1024) and bind it to the container network (`0.0.0.0`), because the API runs without elevated privileges and cannot bind internal ports below 1024. If clients expect `502/TCP`, publish host port `502` to container port `1502` when permitted by the host. **BACnet/IP** uses `47808/UDP` by default; publication can support unicast traffic, but Docker bridge networking does not guarantee broadcast discovery. See the guides for [connections and protocols](21-CONNECTIONS-AND-PROTOCOLS.md), [BACnet/IP](22-HOME-BUILDING-CONNECTIONS.md), and [Modbus TCP Server](25-TELECONTROL-AND-MODBUS-SERVER.md).
 
-Remote database ports and HA peer addresses belong to their own integrations. This page does not open firewalls, change external services, or configure protocol/discovery ports.
+Remote database ports and HA peer addresses belong to their own integrations. This page does not open firewalls, change external services, or change the port configured in a Data Source.
 
 ### Change ports for the same installation
 
 1. Open **Engineering > Installation > Network and services** and check the current ID, binds, and ports.
 2. Enter integer ports from 1 to 65535, with different numbers for Web, API, and database. Web and API can bind to `127.0.0.1` (host only) or `0.0.0.0` (all interfaces). The database remains on `127.0.0.1`.
 3. Review the new address and restart impact. For example, setting Web to `28080` moves navigation to `http://localhost:28080`.
-4. Download the PowerShell script (Windows/Docker Desktop) or Bash script (Linux), place it beside `docker-compose.stable.yml` and `.env`, review it, and run the displayed command in a terminal on the Docker host.
-5. The script checks free ports, ports already published by other containers, and `docker compose config` before the change. It then backs up `.env`, applies the profile, and checks Web/API/database health. It does not remove volumes. If a check fails, it attempts to restore the prior `.env` and services.
+4. If you need to publish a listener, add it under optional **Driver listeners**. Select TCP or UDP, the host bind address, the port external clients will use, and the internal port already configured in the Data Source. Use `127.0.0.1` to restrict access to this computer. For Modbus TCP Server, confirm its internal bind accepts connections on the container network; for BACnet, treat this mapping as unicast support, not a broadcast solution.
+5. Download the PowerShell script (Windows/Docker Desktop) or Bash script (Linux), place it beside `docker-compose.stable.yml` and `.env`, review it, and run the displayed command in a terminal on the Docker host. The script checks available TCP/UDP ports, existing Docker publications, and `docker compose config` before changing anything. It then backs up `.env` and the managed override file, applies the profile, and checks Web/API/database health. It does not remove volumes. If a check fails, it attempts to restore the prior configuration and services.
 6. Open the new Web address. The previous tab may disconnect while the container is recreated.
 
-Do not put secrets in the command: it contains only the instance ID, bind addresses, and port numbers. `.env` remains on the host; its `.env.network-backup-*` backup and `network-profile-audit.log` also stay in the installation folder.
+Do not put secrets in the command: it contains only the instance ID, bind addresses, protocols, and port numbers. `.env` and `docker-compose.network-profile.override.yml` remain on the host, together with their backups and `network-profile-audit.log`.
 
 ### Create another installation
 
@@ -190,7 +191,7 @@ Binding Web/API to `0.0.0.0` allows them to respond on every network interface. 
 
 ### Recover access
 
-If the page no longer opens, use the new address shown in the profile. If the script reports rollback, keep the backup and check host logs/health. To restore manually, copy the correct `.env.network-backup-*` to `.env`, then run `docker compose -f docker-compose.stable.yml up -d` in that installation folder. Do not use `down -v`; that deletes persistent data.
+If the page no longer opens, use the new address shown in the profile. If the script reports rollback, keep the backups and check host logs/health. To restore manually when Driver listeners are mapped, restore the matching `.env.network-backup-*` and `.network-profile-override-backup-*.yml`, then run `docker compose -f docker-compose.stable.yml -f docker-compose.network-profile.override.yml up -d` in that installation folder. After applying the profile, include the override in all manual Compose commands. Do not use `down -v`; that deletes persistent data.
 
 **Related Help:** `/help?topic=installation.network-ports`, [stable Docker installation](../../LOCAL-DOCKER-STABLE.md).
 

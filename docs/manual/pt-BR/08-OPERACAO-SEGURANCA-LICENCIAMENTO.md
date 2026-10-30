@@ -164,23 +164,24 @@ Em **Engineering > Instalação > Rede e serviços**, um usuário com `SystemAdm
 | PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | A publicação no host permanece somente loopback |
 | Media control | Não publicada | `9997/TCP` | Uso interno da rede Docker |
 | HLS | Não publicada | `8888/TCP` | Uso interno da rede Docker |
+| Listener de Driver (opcional) | Definido no perfil | Porta configurada no Data Source | TCP/UDP; não publicado por padrão |
 
-Os listeners internos deste pacote são fixos. A mídia fica isolada na rede Docker: a API usa o controle MediaMTX em `9997/TCP` e o Runtime entrega HLS em `8888/TCP` pelo relay da API com tíquetes temporários. Não publique essas duas portas diretamente no host.
+As portas internas dos serviços principais deste pacote são fixas. A mídia fica isolada na rede Docker: a API usa o controle MediaMTX em `9997/TCP` e o Runtime entrega HLS em `8888/TCP` pelo relay da API com tíquetes temporários. Não publique essas duas portas diretamente no host. O mapeamento opcional de Driver publica um listener já configurado; ele não troca a porta interna do Data Source.
 
-As portas de equipamentos são ajustadas em cada Data Source. Em um driver cliente, a porta é a do serviço no dispositivo remoto — por exemplo, `502/TCP` para Modbus TCP ou `102/TCP` para S7 — e não precisa ser publicada no host SCADIVO. No **Modbus TCP Server**, a porta é um listener local da API; o Compose estável não publica esse listener no host, então salvar a porta no Data Source, por si só, não permite que clientes fora da rede Docker o alcancem. No **BACnet/IP**, `localPort` usa `47808/UDP`; descoberta por broadcast depende da rede do host e o script não configura passagem UDP. Consulte os guias de [conexões e protocolos](21-CONEXOES-E-PROTOCOLOS.md), [BACnet/IP](22-HOME-BUILDING-CONEXOES.md) e [Modbus TCP Server](25-TELECONTROLE-E-MODBUS-SERVER.md).
+As portas de equipamentos são ajustadas em cada Data Source. Em um driver cliente, a porta pertence ao serviço no dispositivo remoto — por exemplo, `502/TCP` para Modbus TCP ou `102/TCP` para S7 — e não precisa ser publicada no host SCADIVO. Para um listener do Driver que roda dentro da API, use a seção opcional **Listeners de Drivers** para mapear protocolo, endereço no host, porta publicada e porta interna. A porta interna deve ser igual à porta de escuta definida no Data Source; o mapeamento publica o listener no host, mas não altera o Driver. No Docker estável, configure o **Modbus TCP Server** em `1502/TCP` (ou outra porta interna a partir de 1024) e escutando na rede do container (`0.0.0.0`), pois a API roda sem privilégios e não pode abrir portas internas abaixo de 1024. Se clientes esperam `502/TCP`, publique `502` no host apontando para `1502` no container, se permitido pelo host. O **BACnet/IP** usa `47808/UDP` por padrão; a publicação pode atender tráfego unicast, mas broadcast/discovery não é garantido na rede bridge do Docker. Consulte os guias de [conexões e protocolos](21-CONEXOES-E-PROTOCOLOS.md), [BACnet/IP](22-HOME-BUILDING-CONEXOES.md) e [Modbus TCP Server](25-TELECONTROLE-E-MODBUS-SERVER.md).
 
-Portas de bancos remotos e endereços de peers HA pertencem às próprias integrações. Esta tela não abre firewall, muda serviços externos nem configura portas de protocolo ou descoberta.
+Portas de bancos remotos e endereços de peers HA pertencem às próprias integrações. Esta tela não abre firewall, muda serviços externos nem altera a porta configurada no Data Source.
 
 ### Trocar portas no mesmo sistema
 
 1. Abra **Engineering > Instalação > Rede e serviços** e confira o ID, os binds e as portas atuais.
 2. Defina portas inteiras de 1 a 65535, diferentes entre Web, API e banco. Web e API podem ficar em `127.0.0.1` (somente host local) ou escutar em `0.0.0.0` (todas as interfaces). O banco permanece em `127.0.0.1`.
 3. Confira o novo endereço e o aviso de reinício. Se escolher, por exemplo, Web `28080`, a navegação passará para `http://localhost:28080`.
-4. Baixe o script PowerShell (Windows/Docker Desktop) ou Bash (Linux), coloque-o junto de `docker-compose.stable.yml` e `.env`, revise-o e execute o comando mostrado no terminal do host.
-5. O script verifica portas livres, portas publicadas por outros containers e `docker compose config` antes da troca. Depois cria backup de `.env`, aplica o perfil e verifica a saúde da Web, API e banco. Não remove volumes. Se uma verificação falhar, tenta restaurar o `.env` anterior e os serviços.
+4. Se precisar publicar um listener, adicione-o na seção opcional **Listeners de Drivers**. Selecione TCP ou UDP, o endereço do host, a porta que clientes usarão e a porta interna que já está configurada no Data Source. Use `127.0.0.1` para limitar o acesso a este computador. Para Modbus TCP Server, confira que o bind interno aceita conexões pela rede do container; para BACnet, considere este mapeamento adequado a unicast, não uma solução para broadcast.
+5. Baixe o script PowerShell (Windows/Docker Desktop) ou Bash (Linux), coloque-o junto de `docker-compose.stable.yml` e `.env`, revise-o e execute o comando mostrado no terminal do host. O script verifica portas TCP/UDP livres, publicações Docker existentes e `docker compose config` antes da troca. Depois guarda cópias de `.env` e do override gerenciado, aplica o perfil e verifica a saúde da Web, API e banco. Não remove volumes. Se uma verificação falhar, tenta restaurar a configuração anterior e os serviços.
 6. Abra o endereço Web novo. A aba anterior pode desconectar enquanto o container é recriado.
 
-Não cole segredos no comando: ele contém somente ID, binds e números de porta. O `.env` permanece no host, e o backup `.env.network-backup-*` e `network-profile-audit.log` também ficam na pasta da instalação.
+Não cole segredos no comando: ele contém somente ID, binds, protocolos e números de porta. O `.env` e `docker-compose.network-profile.override.yml` permanecem no host; suas cópias de segurança e `network-profile-audit.log` também ficam na pasta da instalação.
 
 ### Criar uma segunda instalação
 
@@ -190,7 +191,7 @@ Se a Web/API for vinculada a `0.0.0.0`, ela poderá responder por todas as inter
 
 ### Recuperar o acesso
 
-Se a aba não abrir, use o novo endereço apresentado no perfil. Se o script registrar rollback, mantenha o backup e confira os logs/saúde no host. Caso precise restaurar manualmente, copie o `.env.network-backup-*` correto para `.env` e execute `docker compose -f docker-compose.stable.yml up -d` na pasta desta instalação. Não use `down -v`: essa opção apaga dados persistentes.
+Se a aba não abrir, use o novo endereço apresentado no perfil. Se o script registrar rollback, mantenha as cópias e confira os logs/saúde no host. Para restaurar manualmente uma configuração com listeners de Driver, restaure tanto o `.env.network-backup-*` quanto o `.network-profile-override-backup-*.yml` correspondentes; depois execute `docker compose -f docker-compose.stable.yml -f docker-compose.network-profile.override.yml up -d` na pasta desta instalação. Após aplicar o perfil, sempre inclua o arquivo override nos comandos manuais de Compose. Não use `down -v`: essa opção apaga dados persistentes.
 
 **Ajuda relacionada:** `/help?topic=installation.network-ports`, [instalação Docker estável](../../LOCAL-DOCKER-STABLE.md).
 

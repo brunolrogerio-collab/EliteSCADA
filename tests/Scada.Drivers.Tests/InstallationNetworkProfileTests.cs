@@ -18,6 +18,7 @@ public sealed class InstallationNetworkProfileTests
                 ["InstallationNetwork:ApiBindAddress"] = "0.0.0.0",
                 ["InstallationNetwork:ApiPublishedPort"] = "25080",
                 ["InstallationNetwork:DatabasePublishedPort"] = "25432",
+                ["InstallationNetwork:DriverPorts"] = "tcp:127.0.0.1:2502:1502;udp:0.0.0.0:14780:47808",
                 ["ConnectionStrings:EliteScada"] = "Host=db;Password=must-not-leak"
             })
             .Build();
@@ -34,9 +35,29 @@ public sealed class InstallationNetworkProfileTests
             (profile.Database.BindAddress, profile.Database.PublishedPort, profile.Database.InternalPort));
         Assert.False(profile.MediaControl.PublishedToHost);
         Assert.False(profile.MediaPlayback.PublishedToHost);
+        Assert.Collection(profile.DriverPorts,
+            tcp => Assert.Equal(("TCP", "127.0.0.1", 2502, 1502, true), (tcp.Transport, tcp.BindAddress, tcp.PublishedPort, tcp.InternalPort, tcp.PublishedToHost)),
+            udp => Assert.Equal(("UDP", "0.0.0.0", 14780, 47808, true), (udp.Transport, udp.BindAddress, udp.PublishedPort, udp.InternalPort, udp.PublishedToHost)));
         Assert.False(profile.ApplyThroughUi);
         Assert.False(profile.HostMappingIndependentlyVerified);
         Assert.DoesNotContain("must-not-leak", System.Text.Json.JsonSerializer.Serialize(profile));
+    }
+
+    [Fact]
+    public void Read_DriverPortSettings_IgnoresMalformedEntries()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["InstallationNetwork:Profile"] = "stable-docker",
+                ["InstallationNetwork:DriverPorts"] = "tcp:127.0.0.1:2502:1502;tcp:127.0.0.1:1502:502;tcp:host.invalid:1:2;icmp:127.0.0.1:10:20;udp:0.0.0.0:0:47808;tcp:127.0.0.1:15080:5080"
+            })
+            .Build();
+
+        var profile = Assert.IsType<InstallationNetworkProfileView>(InstallationNetworkProfileApi.Read(configuration));
+
+        var mapping = Assert.Single(profile.DriverPorts);
+        Assert.Equal(("TCP", "127.0.0.1", 2502, 1502), (mapping.Transport, mapping.BindAddress, mapping.PublishedPort, mapping.InternalPort));
     }
 
     [Fact]

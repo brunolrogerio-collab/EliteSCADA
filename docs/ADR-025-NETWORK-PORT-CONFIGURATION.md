@@ -118,3 +118,7 @@ O inventário da API deve usar DatabaseRuntimeConnectionSet, a seleção efetiva
 Candidato salva dois backups privados, para API, altera porta do PostgreSQL e opção LocalManagedPort, reinicia PostgreSQL, verifica conexão/identidade e inicia API. Falha tenta restaurar ambos os arquivos e conexão anterior. Teste simulado cobre prévia sem escrita, ordem, preservação de segredo, reversão e recusa Remote.
 
 Não liberado: faltam serialização com outras operações administrativas/topologia, readiness autenticada do produto após iniciar API, espera de readiness PostgreSQL, tratamento de interrupção do host, Windows equivalente, perfil provisionado real e teste PostgreSQL/systemd real. O retorno explícito do candidato diz que a readiness da aplicação ainda precisa de validação. Não concluir #780 por esse teste.
+
+### Prontidão PostgreSQL após reinício
+
+O coordenador Linux aguarda consultas SQL autenticadas por até uma janela de 60 segundos (cada consulta tem timeout próprio de 15 segundos). Falhas transitórias de conexão são reavaliadas antes de iniciar a API; identidade ou porta divergente é recusada imediatamente. A recuperação também verifica a prontidão anterior. Teste simulado cobre duas recusas transitórias antes de sucesso e timeout com reversão. A verificação completa da aplicação após start continua pendente; não confundir essa evidência com ensaio PostgreSQL/systemd real.

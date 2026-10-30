@@ -23,19 +23,27 @@ class NativeDatabasePortTests(unittest.TestCase):
             profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':'linux','topologyFile':str(topology),'configurationFile':str(app),'serviceName':'scadivo.service','database':{'serviceName':'postgresql.service','configurationFile':str(pg),'psqlExecutable':str(psql),'currentPort':5432,'username':'test','databaseName':'plant'}}))
             with socket.socket() as listener:
                 listener.bind(('127.0.0.1',0)); port=listener.getsockname()[1]
-            actions=[]; fail=False
+            actions=[]; fail=False; transient=0; timeout=False
             def command(args, **kwargs):
                 if args[0]=='systemctl':
                     actions.append(args[1:]); return subprocess.CompletedProcess(args,0,'','')
                 query=args[-1]; at_port=int(args[args.index('-p')+1])
+                nonlocal transient
+                if at_port == port and transient:
+                    transient -= 1
+                    raise subprocess.CalledProcessError(1, ['psql'])
+                if timeout and at_port == port:
+                    raise subprocess.CalledProcessError(1, ['psql'])
                 if fail and at_port==port:
                     raise RuntimeError('simulated new-port connection failure')
                 result=str(pg) if query=='SHOW config_file' else str(at_port) if query=='SHOW port' else 'plant'
                 return subprocess.CompletedProcess(args,0,result,'')
-            with patch.object(module.subprocess,'run',side_effect=command):
+            with patch.object(module.subprocess,'run',side_effect=command), patch.object(module.time,'sleep'):
                 module.execute(profile,port)
                 self.assertEqual(app.read_bytes(),original); self.assertEqual(actions,[])
+                transient=2
                 module.execute(profile,port,True)
+                self.assertEqual(transient,0)
                 self.assertEqual(json.loads(app.read_text())['DatabaseTopology']['LocalManagedPort'],port)
                 self.assertEqual(json.loads(app.read_text())['secret'],'keep-private')
                 self.assertEqual(actions,[['stop','scadivo.service'],['restart','postgresql.service'],['start','scadivo.service']])
@@ -43,5 +51,11 @@ class NativeDatabasePortTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'configuration restored'):
                     module.execute(profile,port,True)
                 self.assertEqual(app.read_bytes(),original); self.assertEqual(pg.read_bytes(),b'port = 5432\n')
+                fail=False; timeout=True; actions.clear()
+                with patch.object(module.time, 'monotonic', side_effect=[0, 61, 62]):
+                    with self.assertRaisesRegex(RuntimeError, 'configuration restored'):
+                        module.execute(profile,port,True)
+                self.assertEqual(app.read_bytes(), original)
+                self.assertEqual(pg.read_bytes(), b'port = 5432\n')
                 topology.write_text(json.dumps({'schemaVersion':1,'active':{'mode':'Remote'},'pending':None}))
                 with self.assertRaises(ValueError): module.execute(profile,port,True)

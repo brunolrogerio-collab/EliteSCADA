@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import socket
 import subprocess
+import time
 import uuid
 
 
@@ -39,6 +40,21 @@ def execute(profile_path, port=None, apply=False):
     def service(action, name):
         subprocess.run(['systemctl', action, name], check=True, capture_output=True, timeout=45)
 
+    def wait_database(at_port):
+        deadline = time.monotonic() + 60
+        while True:
+            try:
+                actual_port = sql(at_port, 'SHOW port')
+                actual_database = sql(at_port, 'SELECT current_database()')
+            except (subprocess.SubprocessError, OSError):
+                if time.monotonic() >= deadline:
+                    raise RuntimeError('Database readiness timed out') from None
+                time.sleep(1)
+                continue
+            if actual_port != str(at_port) or actual_database != db['databaseName']:
+                raise RuntimeError('Database identity or effective port mismatch')
+            return
+
     if Path(sql(old_port, 'SHOW config_file')).resolve() != pg_path or sql(old_port, 'SHOW port') != str(old_port):
         raise ValueError('PostgreSQL effective configuration differs from registered profile')
     if sql(old_port, 'SELECT current_database()') != db['databaseName']:
@@ -61,8 +77,7 @@ def execute(profile_path, port=None, apply=False):
         app_path.write_text(json.dumps(app, indent=2), encoding='utf-8')
         pg_path.write_bytes(pg_bytes + f'\n# SCADIVO managed local port\nport = {port}\n'.encode())
         service('restart', db_service)
-        if sql(port, 'SHOW port') != str(port) or sql(port, 'SELECT current_database()') != db['databaseName']:
-            raise RuntimeError('Database readiness failed')
+        wait_database(port)
         service('start', api_service)
         return 'Database port applied; application readiness still requires validation'
     except Exception:
@@ -71,8 +86,7 @@ def execute(profile_path, port=None, apply=False):
             app_path.write_bytes(app_bytes)
             pg_path.write_bytes(pg_bytes)
             service('restart', db_service)
-            if sql(old_port, 'SELECT current_database()') != db['databaseName']:
-                raise RuntimeError('Database recovery failed')
+            wait_database(old_port)
             service('start', api_service)
         except Exception:
             raise RuntimeError('Recovery failed; use the protected configuration backups') from None

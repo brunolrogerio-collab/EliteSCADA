@@ -178,6 +178,7 @@ E2E_PATH_RULES = (
         "web/scada-web/src/engineering/structurededitors",
     ), ("tests-e2e/data-source-catalog-editor-mounted.spec.ts",)),
     (("web/scada-web/src/security/",), ("tests-e2e/security.spec.ts",)),
+    (("web/scada-web/src/engineering/installationnetworkworkspace",), ("tests-e2e/installation-network-profile.spec.ts",)),
     (("installationswitchingworkspace",), ("tests-e2e/local-auth.spec.ts",)),
     (("web/scada-web/src/engineering/scripts/",), ("tests-e2e/script-engineering-workspace-contract.spec.ts",)),
 )
@@ -328,6 +329,8 @@ def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr
     e2e_config = ""
     if "ONLINE_LICENSE_RECOVERY" in effective and specs == ["tests-e2e/online-license-confirmation.spec.ts"]:
         e2e_config = "playwright.online-license.config.ts"
+    if specs == ["tests-e2e/installation-network-profile.spec.ts"]:
+        e2e_config = "playwright.intelligence-ui.config.ts"
     normalized_paths = _normalized(paths)
     web_changed = any(path.startswith("web/scada-web/") for path in normalized_paths)
     driver = "DRIVER_PROTOCOL" in effective

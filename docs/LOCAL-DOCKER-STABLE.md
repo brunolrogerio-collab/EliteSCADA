@@ -60,9 +60,10 @@ Database publication remains fixed to loopback.
 
 This helper covers the stable Docker Compose package on Windows/Docker Desktop
 and Linux. Native Windows Service/systemd installations, remote databases, HA
-peer URLs, MediaMTX's internal control/HLS listeners, and protocol/device ports
-are separate configuration surfaces. Media control `9997` and HLS `8888` are
-not published on the host; Driver ports belong to their Data Source settings.
+peer URLs, and protocol/device ports are separate configuration surfaces.
+MediaMTX's internal control and HLS ports can be changed together with the API
+relay settings, but neither listener is published on the host. Driver ports
+belong to their Data Source settings.
 
 ## Stop, restart and data
 

@@ -41,8 +41,8 @@ services:
       ProtectedMaterial__Store__Path: /app/data/protected-material
       ProtectedMaterial__Store__ProtectionKeyFile: /app/host-keys/protected.key
       MediaSources__AllowPrivateNetwork: "true"
-      MediaSources__GatewayControlUrl: http://media-gateway:9997
-      MediaSources__GatewayPlaybackUrl: http://media-gateway:8888
+      MediaSources__GatewayControlUrl: http://media-gateway:${SCADIVO_MEDIA_CONTROL_PORT:-9997}
+      MediaSources__GatewayPlaybackUrl: http://media-gateway:${SCADIVO_MEDIA_PLAYBACK_PORT:-8888}
       InstallationNetwork__Profile: stable-docker
       InstallationNetwork__InstanceId: ${SCADIVO_INSTALLATION_ID:-elitescada-stable}
       InstallationNetwork__WebBindAddress: ${SCADIVO_WEB_BIND:-127.0.0.1}
@@ -50,6 +50,8 @@ services:
       InstallationNetwork__ApiBindAddress: ${SCADIVO_API_BIND:-127.0.0.1}
       InstallationNetwork__ApiPublishedPort: ${ELITESCADA_API_PORT:-15080}
       InstallationNetwork__DatabasePublishedPort: ${ELITESCADA_DB_PORT:-15432}
+      InstallationNetwork__MediaControlPort: ${SCADIVO_MEDIA_CONTROL_PORT:-9997}
+      InstallationNetwork__MediaPlaybackPort: ${SCADIVO_MEDIA_PLAYBACK_PORT:-8888}
     networks: [default, media_relay]
     volumes:
       - protected_material_data:/app/data/protected-material
@@ -73,6 +75,9 @@ services:
 
   media-gateway:
     image: bluenviron/mediamtx:1.21.1@sha256:dc22a8b09668e7f5b493cfa848c395349ad16fd47fef1cc7b7eb5b87a1186232
+    environment:
+      MTX_APIADDRESS: ":${SCADIVO_MEDIA_CONTROL_PORT:-9997}"
+      MTX_HLSADDRESS: ":${SCADIVO_MEDIA_PLAYBACK_PORT:-8888}"
     volumes:
       - ./docker/stable/mediamtx.yml:/mediamtx.yml:ro
     networks: [media_relay]

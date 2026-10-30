@@ -7,6 +7,8 @@ param(
     [Parameter(Mandatory = $true)][ValidateRange(1, 65535)][int]$WebPort,
     [Parameter(Mandatory = $true)][ValidateRange(1, 65535)][int]$ApiPort,
     [Parameter(Mandatory = $true)][ValidateRange(1, 65535)][int]$DatabasePort,
+    [Parameter(Mandatory = $true)][ValidateRange(1, 65535)][int]$MediaControlPort,
+    [Parameter(Mandatory = $true)][ValidateRange(1, 65535)][int]$MediaPlaybackPort,
     [string]$SourceInstanceId,
     [switch]$NewInstallation,
     [switch]$ConfirmIsolatedSecrets
@@ -89,7 +91,7 @@ function Test-ProjectVolumesExist([string]$ProjectName) {
 
 function Add-AuditRecord([string]$Path, [string]$Result, [string]$OldId, [string]$NewId) {
     $actor = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    $line = "{0:o} actor={1} result={2} instance={3} web={4} api={5} database={6}" -f [DateTimeOffset]::Now, $actor, $Result, $NewId, $WebPort, $ApiPort, $DatabasePort
+    $line = "{0:o} actor={1} result={2} instance={3} web={4} api={5} database={6} mediaControl={7} mediaPlayback={8}" -f [DateTimeOffset]::Now, $actor, $Result, $NewId, $WebPort, $ApiPort, $DatabasePort, $MediaControlPort, $MediaPlaybackPort
     [System.IO.File]::AppendAllText($Path, $line + [Environment]::NewLine, $script:Utf8NoBom)
 }
 
@@ -102,6 +104,7 @@ if ($NewInstallation) {
 }
 $selectedPorts = @($WebPort, $ApiPort, $DatabasePort)
 if (@($selectedPorts | Select-Object -Unique).Count -ne 3) { throw 'Web, API and database host ports must be different.' }
+if ($MediaControlPort -eq $MediaPlaybackPort) { throw 'Media control and HLS must use different internal ports.' }
 
 $root = [System.IO.Path]::GetFullPath($InstallDirectory)
 $compose = Join-Path $root 'docker-compose.stable.yml'
@@ -118,6 +121,8 @@ $oldApiBind = Read-EnvValue $lines 'SCADIVO_API_BIND' '127.0.0.1'
 $oldWebPort = [int](Read-EnvValue $lines 'ELITESCADA_WEB_PORT' '18080')
 $oldApiPort = [int](Read-EnvValue $lines 'ELITESCADA_API_PORT' '15080')
 $oldDatabasePort = [int](Read-EnvValue $lines 'ELITESCADA_DB_PORT' '15432')
+$oldMediaControlPort = [int](Read-EnvValue $lines 'SCADIVO_MEDIA_CONTROL_PORT' '9997')
+$oldMediaPlaybackPort = [int](Read-EnvValue $lines 'SCADIVO_MEDIA_PLAYBACK_PORT' '8888')
 $ownersForOld = @(Get-ProjectContainerOwners $oldId $compose)
 $ownersForNew = @(Get-ProjectContainerOwners $InstanceId $compose)
 $sameDirectoryOld = $ownersForOld | Where-Object { [string]::Equals($_, $root, [System.StringComparison]::OrdinalIgnoreCase) }
@@ -162,6 +167,8 @@ Set-EnvValue $work 'SCADIVO_API_BIND' $ApiBind
 Set-EnvValue $work 'ELITESCADA_WEB_PORT' ([string]$WebPort)
 Set-EnvValue $work 'ELITESCADA_API_PORT' ([string]$ApiPort)
 Set-EnvValue $work 'ELITESCADA_DB_PORT' ([string]$DatabasePort)
+Set-EnvValue $work 'SCADIVO_MEDIA_CONTROL_PORT' ([string]$MediaControlPort)
+Set-EnvValue $work 'SCADIVO_MEDIA_PLAYBACK_PORT' ([string]$MediaPlaybackPort)
 [System.IO.File]::WriteAllLines($candidate, $work, $script:Utf8NoBom)
 
 try {
@@ -182,7 +189,10 @@ try {
             $web = Invoke-WebRequest -Uri "http://127.0.0.1:$WebPort/healthz" -TimeoutSec 3 -UseBasicParsing
             $api = Invoke-WebRequest -Uri "http://127.0.0.1:$ApiPort/health" -TimeoutSec 3 -UseBasicParsing
             & docker compose --project-name $InstanceId -f $compose exec -T database pg_isready -U elitescada -d elitescada *> $null
-            $healthy = $web.StatusCode -eq 200 -and $api.StatusCode -eq 200 -and $LASTEXITCODE -eq 0
+            $databaseHealthy = $LASTEXITCODE -eq 0
+            & docker compose --project-name $InstanceId -f $compose exec -T api python3 -c "import socket,urllib.request; urllib.request.urlopen('http://media-gateway:$MediaControlPort/v3/paths/list',timeout=3).read(); socket.create_connection(('media-gateway',$MediaPlaybackPort),timeout=3).close()" *> $null
+            $mediaHealthy = $LASTEXITCODE -eq 0
+            $healthy = $web.StatusCode -eq 200 -and $api.StatusCode -eq 200 -and $databaseHealthy -and $mediaHealthy
         } catch { Start-Sleep -Seconds 3 }
     }
     if (-not $healthy) { throw 'Health checks did not pass within 120 seconds.' }

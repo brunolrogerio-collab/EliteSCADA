@@ -18,6 +18,8 @@ public sealed class InstallationNetworkProfileTests
                 ["InstallationNetwork:ApiBindAddress"] = "0.0.0.0",
                 ["InstallationNetwork:ApiPublishedPort"] = "25080",
                 ["InstallationNetwork:DatabasePublishedPort"] = "25432",
+                ["InstallationNetwork:MediaControlPort"] = "19997",
+                ["InstallationNetwork:MediaPlaybackPort"] = "18888",
                 ["ConnectionStrings:EliteScada"] = "Host=db;Password=must-not-leak"
             })
             .Build();
@@ -34,6 +36,8 @@ public sealed class InstallationNetworkProfileTests
             (profile.Database.BindAddress, profile.Database.PublishedPort, profile.Database.InternalPort));
         Assert.False(profile.MediaControl.PublishedToHost);
         Assert.False(profile.MediaPlayback.PublishedToHost);
+        Assert.Equal((19997, false), (profile.MediaControl.InternalPort, profile.MediaControl.PublishedToHost));
+        Assert.Equal((18888, false), (profile.MediaPlayback.InternalPort, profile.MediaPlayback.PublishedToHost));
         Assert.False(profile.ApplyThroughUi);
         Assert.False(profile.HostMappingIndependentlyVerified);
         Assert.DoesNotContain("must-not-leak", System.Text.Json.JsonSerializer.Serialize(profile));

@@ -57,6 +57,8 @@ public static class InstallationNetworkProfileApi
         var webPort = ReadPort(configuration, "InstallationNetwork:WebPublishedPort", 18080);
         var apiPort = ReadPort(configuration, "InstallationNetwork:ApiPublishedPort", 15080);
         var databasePort = ReadPort(configuration, "InstallationNetwork:DatabasePublishedPort", 15432);
+        var mediaControlPort = ReadPort(configuration, "InstallationNetwork:MediaControlPort", 9997);
+        var mediaPlaybackPort = ReadPort(configuration, "InstallationNetwork:MediaPlaybackPort", 8888);
         var webBind = configuration["InstallationNetwork:WebBindAddress"] ?? "127.0.0.1";
         var apiBind = configuration["InstallationNetwork:ApiBindAddress"] ?? "127.0.0.1";
 
@@ -66,8 +68,8 @@ public static class InstallationNetworkProfileApi
                 new("TCP", webBind, webPort, 80, true),
                 new("TCP", apiBind, apiPort, 5080, true),
                 new("TCP", "127.0.0.1", databasePort, 5432, true),
-                new("TCP", "Docker network only", 9997, 9997, false),
-                new("TCP", "Docker network only", 8888, 8888, false),
+                new("TCP", "Docker network only", mediaControlPort, mediaControlPort, false),
+                new("TCP", "Docker network only", mediaPlaybackPort, mediaPlaybackPort, false),
                 ApplyThroughUi: false,
                 HostMappingIndependentlyVerified: false);
     }

@@ -162,22 +162,22 @@ Em **Engineering > Instalação > Rede e serviços**, um usuário com `SystemAdm
 | Web | `127.0.0.1:18080` | `80/TCP` | Navegação do Runtime e Engineering |
 | API direta | `127.0.0.1:15080` | `5080/TCP` | A Web encaminha `/api` para esta API |
 | PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | A publicação no host permanece somente loopback |
-| Media control | Não publicada | `9997/TCP` | Uso interno da rede Docker |
-| HLS | Não publicada | `8888/TCP` | Uso interno da rede Docker |
+| Controle MediaMTX | Não publicada | `9997/TCP` por padrão | Porta interna configurável |
+| HLS | Não publicada | `8888/TCP` por padrão | Porta interna configurável |
 
-Os listeners internos deste pacote são fixos. A mídia fica isolada na rede Docker: a API usa o controle MediaMTX em `9997/TCP` e o Runtime entrega HLS em `8888/TCP` pelo relay da API com tíquetes temporários. Não publique essas duas portas diretamente no host.
+As portas internas do controle MediaMTX e do HLS podem ser alteradas neste perfil e permanecem privadas na rede Docker. A configuração também atualiza os endereços que a API usa para falar com o serviço de mídia. O Runtime entrega vídeo pelo relay da API com tíquetes temporários; não publique MediaMTX diretamente no host.
 
-As portas de equipamentos são ajustadas em cada Data Source. Em um driver cliente, a porta é a do serviço no dispositivo remoto — por exemplo, `502/TCP` para Modbus TCP ou `102/TCP` para S7 — e não precisa ser publicada no host SCADIVO. No **Modbus TCP Server**, a porta é um listener local da API; o Compose estável não publica esse listener no host, então salvar a porta no Data Source, por si só, não permite que clientes fora da rede Docker o alcancem. No **BACnet/IP**, `localPort` usa `47808/UDP`; descoberta por broadcast depende da rede do host e o script não configura passagem UDP. Consulte os guias de [conexões e protocolos](21-CONEXOES-E-PROTOCOLOS.md), [BACnet/IP](22-HOME-BUILDING-CONEXOES.md) e [Modbus TCP Server](25-TELECONTROLE-E-MODBUS-SERVER.md).
+As portas dos protocolos dos Drivers continuam sendo configuradas em cada Data Source, conforme a conexão e o dispositivo. Este perfil não publica listeners de Drivers nem altera portas em equipamentos externos. Consulte os guias de [conexões e protocolos](21-CONEXOES-E-PROTOCOLOS.md), [BACnet/IP](22-HOME-BUILDING-CONEXOES.md) e [Modbus TCP Server](25-TELECONTROLE-E-MODBUS-SERVER.md).
 
-Portas de bancos remotos e endereços de peers HA pertencem às próprias integrações. Esta tela não abre firewall, muda serviços externos nem configura portas de protocolo ou descoberta.
+Portas de bancos remotos e endereços de peers HA pertencem às próprias integrações. Esta tela não abre firewall nem muda serviços externos.
 
 ### Trocar portas no mesmo sistema
 
 1. Abra **Engineering > Instalação > Rede e serviços** e confira o ID, os binds e as portas atuais.
-2. Defina portas inteiras de 1 a 65535, diferentes entre Web, API e banco. Web e API podem ficar em `127.0.0.1` (somente host local) ou escutar em `0.0.0.0` (todas as interfaces). O banco permanece em `127.0.0.1`.
+2. Defina portas inteiras de 1 a 65535. Web, API e banco precisam de portas distintas no host. Controle de mídia e HLS precisam de portas internas distintas entre si. Web e API podem ficar em `127.0.0.1` (somente host local) ou escutar em `0.0.0.0` (todas as interfaces). O banco permanece em `127.0.0.1`; mídia permanece privada na rede Docker.
 3. Confira o novo endereço e o aviso de reinício. Se escolher, por exemplo, Web `28080`, a navegação passará para `http://localhost:28080`.
 4. Baixe o script PowerShell (Windows/Docker Desktop) ou Bash (Linux), coloque-o junto de `docker-compose.stable.yml` e `.env`, revise-o e execute o comando mostrado no terminal do host.
-5. O script verifica portas livres, portas publicadas por outros containers e `docker compose config` antes da troca. Depois cria backup de `.env`, aplica o perfil e verifica a saúde da Web, API e banco. Não remove volumes. Se uma verificação falhar, tenta restaurar o `.env` anterior e os serviços.
+5. O script verifica disponibilidade das portas de host, conflito entre as portas internas de mídia e `docker compose config` antes da troca. Depois cria backup de `.env`, aplica o perfil e verifica Web, API, banco e os listeners privados de mídia. Não remove volumes. Se uma verificação falhar, tenta restaurar o `.env` anterior e os serviços.
 6. Abra o endereço Web novo. A aba anterior pode desconectar enquanto o container é recriado.
 
 Não cole segredos no comando: ele contém somente ID, binds e números de porta. O `.env` permanece no host, e o backup `.env.network-backup-*` e `network-profile-audit.log` também ficam na pasta da instalação.

@@ -86,6 +86,8 @@ values = {
     "ELITESCADA_WEB_PORT": web,
     "ELITESCADA_API_PORT": api,
     "ELITESCADA_DB_PORT": database,
+    "SCADIVO_MEDIA_CONTROL_PORT": "9997",
+    "SCADIVO_MEDIA_PLAYBACK_PORT": "8888",
     "ELITESCADA_DB_PASSWORD": secrets.token_urlsafe(36),
     "ELITESCADA_HISTORICAL_CURSOR_KEY_BASE64": __import__("base64").b64encode(secrets.token_bytes(32)).decode("ascii"),
     "ELITESCADA_JWT_ISSUER": f"scadivo-ci-{instance}",
@@ -122,42 +124,47 @@ PY
 }
 
 apply_profile() {
-  local directory=$1 instance=$2 web=$3 api=$4 database=$5
-  shift 5
+  local directory=$1 instance=$2 web=$3 api=$4 database=$5 media_control=$6 media_playback=$7
+  shift 7
   bash "$directory/web/scada-web/public/installation/apply-network-profile.sh" \
     --install-directory "$directory" --instance-id "$instance" \
     --web-bind 127.0.0.1 --api-bind 127.0.0.1 \
-    --web-port "$web" --api-port "$api" --database-port "$database" "$@"
+    --web-port "$web" --api-port "$api" --database-port "$database" \
+    --media-control-port "$media_control" --media-playback-port "$media_playback" "$@"
 }
 
 assert_healthy() {
-  local directory=$1 project=$2 web=$3 api=$4
+  local directory=$1 project=$2 web=$3 api=$4 media_control=$5 media_playback=$6
   curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$web/healthz" >/dev/null
   curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$api/health" >/dev/null
   docker compose --project-name "$project" --env-file "$directory/.env" \
     -f "$directory/docker-compose.stable.yml" exec -T database \
     pg_isready -U elitescada -d elitescada >/dev/null
+  docker compose --project-name "$project" --env-file "$directory/.env" \
+    -f "$directory/docker-compose.stable.yml" exec -T api python3 -c \
+    'import socket,sys,urllib.request; urllib.request.urlopen("http://media-gateway:"+sys.argv[1]+"/v3/paths/list",timeout=5).read(); socket.create_connection(("media-gateway",int(sys.argv[2])),timeout=5).close()' \
+    "$media_control" "$media_playback" >/dev/null
 }
 
 echo 'Starting first isolated stable-Docker installation on the Linux host.'
 read -r a_web a_api a_db < <(choose_ports)
 write_env "$install_a" "$project_a" "$a_web" "$a_api" "$a_db"
-apply_profile "$install_a" "$project_a" "$a_web" "$a_api" "$a_db"
-assert_healthy "$install_a" "$project_a" "$a_web" "$a_api"
+apply_profile "$install_a" "$project_a" "$a_web" "$a_api" "$a_db" 9997 8888
+assert_healthy "$install_a" "$project_a" "$a_web" "$a_api" 9997 8888
 
 echo 'Starting a second installation with separate ports, project ID, credentials and volumes.'
 read -r b_web b_api b_db < <(choose_ports)
 write_env "$install_b" "$project_b" "$b_web" "$b_api" "$b_db"
-apply_profile "$install_b" "$project_b" "$b_web" "$b_api" "$b_db" \
+apply_profile "$install_b" "$project_b" "$b_web" "$b_api" "$b_db" 9997 8888 \
   --new-installation --source-instance-id "$project_a" --confirm-isolated-secrets
-assert_healthy "$install_a" "$project_a" "$a_web" "$a_api"
-assert_healthy "$install_b" "$project_b" "$b_web" "$b_api"
+assert_healthy "$install_a" "$project_a" "$a_web" "$a_api" 9997 8888
+assert_healthy "$install_b" "$project_b" "$b_web" "$b_api" 9997 8888
 
 echo 'Changing the first installation ports while both installations are running.'
 read -r a_web_new a_api_new a_db_new < <(choose_ports)
-apply_profile "$install_a" "$project_a" "$a_web_new" "$a_api_new" "$a_db_new"
-assert_healthy "$install_a" "$project_a" "$a_web_new" "$a_api_new"
-assert_healthy "$install_b" "$project_b" "$b_web" "$b_api"
+apply_profile "$install_a" "$project_a" "$a_web_new" "$a_api_new" "$a_db_new" 19997 18888
+assert_healthy "$install_a" "$project_a" "$a_web_new" "$a_api_new" 19997 18888
+assert_healthy "$install_b" "$project_b" "$b_web" "$b_api" 9997 8888
 
 echo 'Holding one proposed port and checking preflight rejects it without stopping either installation.'
 read -r occupied_port unused_api unused_db < <(choose_ports)
@@ -172,7 +179,7 @@ PY
   then break; fi
   sleep 0.2
 done
-if apply_profile "$install_a" "$project_a" "$occupied_port" "$a_api_new" "$a_db_new"; then
+if apply_profile "$install_a" "$project_a" "$occupied_port" "$a_api_new" "$a_db_new" 19997 18888; then
   kill "$listener_pid" 2>/dev/null || true
   wait "$listener_pid" 2>/dev/null || true
   echo 'Occupied-port preflight unexpectedly succeeded.' >&2
@@ -180,7 +187,7 @@ if apply_profile "$install_a" "$project_a" "$occupied_port" "$a_api_new" "$a_db_
 fi
 kill "$listener_pid" 2>/dev/null || true
 wait "$listener_pid" 2>/dev/null || true
-assert_healthy "$install_a" "$project_a" "$a_web_new" "$a_api_new"
-assert_healthy "$install_b" "$project_b" "$b_web" "$b_api"
+assert_healthy "$install_a" "$project_a" "$a_web_new" "$a_api_new" 19997 18888
+assert_healthy "$install_b" "$project_b" "$b_web" "$b_api" 9997 8888
 
 echo 'PASS: Linux-host stable Docker profile supports two isolated installations, port changes and fail-safe collision rejection.'

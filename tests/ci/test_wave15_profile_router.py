@@ -160,6 +160,16 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertTrue(result["run_web"])
         self.assertEqual(result["e2e_specs"], ["tests-e2e/database-topology-mounted.spec.ts"])
 
+    def test_installation_network_ui_owns_its_isolated_browser_spec(self):
+        result = self.classify(
+            ["web/scada-web/src/engineering/InstallationNetworkWorkspace.tsx"],
+            "VALIDATION_PROFILE: INSTALLATION",
+        )
+        self.assertEqual(result["e2e_specs"], ["tests-e2e/installation-network-profile.spec.ts"])
+        self.assertEqual(result["e2e_config"], "playwright.intelligence-ui.config.ts")
+        self.assertTrue(result["run_web"])
+        self.assertFalse(result["run_ha_two_process"])
+
     def test_intelligence_durable_restart_selects_only_its_cross_platform_hardening_gate(self):
         result = self.classify(
             ["tests/Scada.Drivers.Tests/AssetProcessIntelligenceDurableRestartTests.cs"],

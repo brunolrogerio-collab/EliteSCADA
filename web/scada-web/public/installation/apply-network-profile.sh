@@ -6,7 +6,8 @@ usage() {
   cat <<'EOF'
 Usage: apply-network-profile.sh --install-directory PATH --instance-id ID \
   --web-bind 127.0.0.1|0.0.0.0 --api-bind 127.0.0.1|0.0.0.0 \
-  --web-port PORT --api-port PORT --database-port PORT
+  --web-port PORT --api-port PORT --database-port PORT \
+  --media-control-port PORT --media-playback-port PORT
   [--new-installation --source-instance-id ID --confirm-isolated-secrets]
 
 Run from an administrator account that can use Docker Compose. The script changes
@@ -24,6 +25,8 @@ api_bind=''
 web_port=''
 api_port=''
 database_port=''
+media_control_port=''
+media_playback_port=''
 confirm_isolated_secrets=0
 new_installation=0
 source_instance_id=''
@@ -36,6 +39,8 @@ while (($#)); do
     --web-port) web_port=${2-}; shift 2 ;;
     --api-port) api_port=${2-}; shift 2 ;;
     --database-port) database_port=${2-}; shift 2 ;;
+    --media-control-port) media_control_port=${2-}; shift 2 ;;
+    --media-playback-port) media_playback_port=${2-}; shift 2 ;;
     --confirm-isolated-secrets) confirm_isolated_secrets=1; shift ;;
     --new-installation) new_installation=1; shift ;;
     --source-instance-id) source_instance_id=${2-}; shift 2 ;;
@@ -44,7 +49,7 @@ while (($#)); do
   esac
 done
 
-[[ -n "$install_directory" && -n "$instance_id" && -n "$web_bind" && -n "$api_bind" && -n "$web_port" && -n "$api_port" && -n "$database_port" ]] || { usage; fail 'all profile values are required'; }
+[[ -n "$install_directory" && -n "$instance_id" && -n "$web_bind" && -n "$api_bind" && -n "$web_port" && -n "$api_port" && -n "$database_port" && -n "$media_control_port" && -n "$media_playback_port" ]] || { usage; fail 'all profile values are required'; }
 [[ "$instance_id" =~ ^[a-z0-9][a-z0-9-]{0,47}$ ]] || fail 'instance ID must use 1–48 lowercase letters, numbers or hyphens and start with a letter or number'
 if ((new_installation)); then
   [[ "$source_instance_id" =~ ^[a-z0-9][a-z0-9-]{0,47}$ && "$source_instance_id" != "$instance_id" ]] || fail 'a new installation needs a different, valid source instance ID'
@@ -57,7 +62,11 @@ fi
 for value in "$web_port" "$api_port" "$database_port"; do
   [[ "$value" =~ ^[0-9]{1,5}$ ]] && ((10#$value >= 1 && 10#$value <= 65535)) || fail 'ports must be integers from 1 through 65535'
 done
+for value in "$media_control_port" "$media_playback_port"; do
+  [[ "$value" =~ ^[0-9]{1,5}$ ]] && ((10#$value >= 1 && 10#$value <= 65535)) || fail 'ports must be integers from 1 through 65535'
+done
 [[ "$web_port" != "$api_port" && "$web_port" != "$database_port" && "$api_port" != "$database_port" ]] || fail 'Web, API and database host ports must be different'
+[[ "$media_control_port" != "$media_playback_port" ]] || fail 'media control and HLS must use different internal ports'
 command -v docker >/dev/null 2>&1 || fail 'Docker CLI was not found'
 command -v python3 >/dev/null 2>&1 || fail 'Python 3 is required for local port preflight and safe .env editing'
 
@@ -89,6 +98,8 @@ old_api_bind=$(read_env SCADIVO_API_BIND 127.0.0.1) || fail 'could not read API 
 old_web_port=$(read_env ELITESCADA_WEB_PORT 18080) || fail 'could not read Web port from .env'
 old_api_port=$(read_env ELITESCADA_API_PORT 15080) || fail 'could not read API port from .env'
 old_database_port=$(read_env ELITESCADA_DB_PORT 15432) || fail 'could not read database port from .env'
+old_media_control_port=$(read_env SCADIVO_MEDIA_CONTROL_PORT 9997) || fail 'could not read media control port from .env'
+old_media_playback_port=$(read_env SCADIVO_MEDIA_PLAYBACK_PORT 8888) || fail 'could not read media playback port from .env'
 
 project_owners() {
   local project=$1 container owner
@@ -178,9 +189,9 @@ backup="$root/.env.network-backup-$(date -u +%Y%m%d-%H%M%S)-$$"
 cleanup() { rm -f -- "$candidate"; }
 trap cleanup EXIT
 
-python3 - "$env_file" "$candidate" "$instance_id" "$web_bind" "$api_bind" "$web_port" "$api_port" "$database_port" <<'PY'
+python3 - "$env_file" "$candidate" "$instance_id" "$web_bind" "$api_bind" "$web_port" "$api_port" "$database_port" "$media_control_port" "$media_playback_port" <<'PY'
 import pathlib, re, sys
-source, target, instance, web_bind, api_bind, web, api, database = sys.argv[1:]
+source, target, instance, web_bind, api_bind, web, api, database, media_control, media_playback = sys.argv[1:]
 path = pathlib.Path(source)
 lines = path.read_text(encoding="utf-8-sig").splitlines()
 values = {
@@ -190,6 +201,8 @@ values = {
     "ELITESCADA_WEB_PORT": web,
     "ELITESCADA_API_PORT": api,
     "ELITESCADA_DB_PORT": database,
+    "SCADIVO_MEDIA_CONTROL_PORT": media_control,
+    "SCADIVO_MEDIA_PLAYBACK_PORT": media_playback,
 }
 for key, value in values.items():
     indexes = [i for i, line in enumerate(lines) if re.match(r"^\s*" + re.escape(key) + r"=", line)]
@@ -205,7 +218,7 @@ chmod --reference="$env_file" "$candidate"
 docker compose --project-name "$instance_id" --env-file "$candidate" -f "$compose" config --quiet || fail 'Docker Compose rejected the candidate configuration; no service was stopped'
 
 actor=$(id -un 2>/dev/null || printf unknown)
-audit() { printf '%s actor=%s result=%s instance=%s web=%s api=%s database=%s\n' "$(date -u --iso-8601=seconds)" "$actor" "$1" "$instance_id" "$web_port" "$api_port" "$database_port" >>"$audit_file"; }
+audit() { printf '%s actor=%s result=%s instance=%s web=%s api=%s database=%s mediaControl=%s mediaPlayback=%s\n' "$(date -u --iso-8601=seconds)" "$actor" "$1" "$instance_id" "$web_port" "$api_port" "$database_port" "$media_control_port" "$media_playback_port" >>"$audit_file"; }
 cp -p -- "$env_file" "$backup"
 audit started
 mv -f -- "$candidate" "$env_file"
@@ -232,8 +245,12 @@ while ((SECONDS < deadline)); do
   if curl --fail --silent --show-error --max-time 3 "http://127.0.0.1:$web_port/healthz" >/dev/null 2>&1 \
     && curl --fail --silent --show-error --max-time 3 "http://127.0.0.1:$api_port/health" >/dev/null 2>&1 \
     && docker compose --project-name "$instance_id" -f "$compose" exec -T database pg_isready -U elitescada -d elitescada >/dev/null 2>&1; then
-    healthy=1
-    break
+    if docker compose --project-name "$instance_id" -f "$compose" exec -T api python3 -c \
+      'import socket,sys,urllib.request; urllib.request.urlopen("http://media-gateway:"+sys.argv[1]+"/v3/paths/list",timeout=3).read(); socket.create_connection(("media-gateway",int(sys.argv[2])),timeout=3).close()' \
+      "$media_control_port" "$media_playback_port" >/dev/null 2>&1; then
+      healthy=1
+      break
+    fi
   fi
   sleep 3
 done

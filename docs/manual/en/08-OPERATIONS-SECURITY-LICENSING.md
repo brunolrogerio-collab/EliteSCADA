@@ -162,22 +162,22 @@ In **Engineering > Installation > Network and services**, a `SystemAdmin` user c
 | Web | `127.0.0.1:18080` | `80/TCP` | Runtime and Engineering navigation |
 | Direct API | `127.0.0.1:15080` | `5080/TCP` | Web forwards `/api` to this API |
 | PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | Host publication remains loopback-only |
-| Media control | Not published | `9997/TCP` | Internal Docker network |
-| HLS | Not published | `8888/TCP` | Internal Docker network |
+| MediaMTX control | Not published | `9997/TCP` by default | Configurable internal port |
+| HLS | Not published | `8888/TCP` by default | Configurable internal port |
 
-Internal listeners are fixed in this package. Media stays isolated on the Docker network: the API uses MediaMTX control on `9997/TCP`, and Runtime delivers HLS on `8888/TCP` through the API relay using short-lived tickets. Do not publish these two ports directly on the host.
+The MediaMTX control and HLS internal ports can be changed in this profile and remain private on the Docker network. The same settings update the addresses the API uses to reach the media service. Runtime sends video through the API relay using short-lived tickets; do not publish MediaMTX directly on the host.
 
-Configure equipment ports in each Data Source. For a client driver, the port belongs to the service on the remote device — for example, `502/TCP` for Modbus TCP or `102/TCP` for S7 — and does not need to be published on the SCADIVO host. For **Modbus TCP Server**, the port is a local API listener; stable Compose does not publish it on the host, so saving the Data Source port alone does not make it reachable from clients outside the Docker network. **BACnet/IP** uses `47808/UDP` as `localPort`; broadcast discovery depends on host networking, and the script does not configure UDP forwarding. See the guides for [connections and protocols](21-CONNECTIONS-AND-PROTOCOLS.md), [BACnet/IP](22-HOME-BUILDING-CONNECTIONS.md), and [Modbus TCP Server](25-TELECONTROL-AND-MODBUS-SERVER.md).
+Driver protocol ports remain configured in each Data Source according to the connection and device. This profile does not publish Driver listeners or change ports on external equipment. See the guides for [connections and protocols](21-CONNECTIONS-AND-PROTOCOLS.md), [BACnet/IP](22-HOME-BUILDING-CONNECTIONS.md), and [Modbus TCP Server](25-TELECONTROL-AND-MODBUS-SERVER.md).
 
-Remote database ports and HA peer addresses belong to their own integrations. This page does not open firewalls, change external services, or configure protocol/discovery ports.
+Remote database ports and HA peer addresses belong to their own integrations. This page does not open firewalls or change external services.
 
 ### Change ports for the same installation
 
 1. Open **Engineering > Installation > Network and services** and check the current ID, binds, and ports.
-2. Enter integer ports from 1 to 65535, with different numbers for Web, API, and database. Web and API can bind to `127.0.0.1` (host only) or `0.0.0.0` (all interfaces). The database remains on `127.0.0.1`.
+2. Enter integer ports from 1 to 65535. Web, API, and database host ports must differ; media control and HLS internal ports must differ from each other. Web and API can bind to `127.0.0.1` (host only) or `0.0.0.0` (all interfaces). The database remains on `127.0.0.1`; media remains private on the Docker network.
 3. Review the new address and restart impact. For example, setting Web to `28080` moves navigation to `http://localhost:28080`.
 4. Download the PowerShell script (Windows/Docker Desktop) or Bash script (Linux), place it beside `docker-compose.stable.yml` and `.env`, review it, and run the displayed command in a terminal on the Docker host.
-5. The script checks free ports, ports already published by other containers, and `docker compose config` before the change. It then backs up `.env`, applies the profile, and checks Web/API/database health. It does not remove volumes. If a check fails, it attempts to restore the prior `.env` and services.
+5. The script checks host-port availability, conflicting internal media ports, and `docker compose config` before the change. It then backs up `.env`, applies the profile, and checks Web, API, database, and private media listeners. It does not remove volumes. If a check fails, it attempts to restore the prior `.env` and services.
 6. Open the new Web address. The previous tab may disconnect while the container is recreated.
 
 Do not put secrets in the command: it contains only the instance ID, bind addresses, and port numbers. `.env` remains on the host; its `.env.network-backup-*` backup and `network-profile-audit.log` also stay in the installation folder.

@@ -165,7 +165,11 @@ In **Engineering > Installation > Network and services**, a `SystemAdmin` user c
 | Media control | Not published | `9997/TCP` | Internal Docker network |
 | HLS | Not published | `8888/TCP` | Internal Docker network |
 
-Listeners inside the containers are fixed in this package. PLC/device ports belong to their Data Sources/Drivers; remote database ports and HA peer addresses are configured in their own integrations. This page does not open a firewall, change external services, or change protocol/discovery ports.
+Internal listeners are fixed in this package. Media stays isolated on the Docker network: the API uses MediaMTX control on `9997/TCP`, and Runtime delivers HLS on `8888/TCP` through the API relay using short-lived tickets. Do not publish these two ports directly on the host.
+
+Configure equipment ports in each Data Source. For a client driver, the port belongs to the service on the remote device — for example, `502/TCP` for Modbus TCP or `102/TCP` for S7 — and does not need to be published on the SCADIVO host. For **Modbus TCP Server**, the port is a local API listener; stable Compose does not publish it on the host, so saving the Data Source port alone does not make it reachable from clients outside the Docker network. **BACnet/IP** uses `47808/UDP` as `localPort`; broadcast discovery depends on host networking, and the script does not configure UDP forwarding. See the guides for [connections and protocols](21-CONNECTIONS-AND-PROTOCOLS.md), [BACnet/IP](22-HOME-BUILDING-CONNECTIONS.md), and [Modbus TCP Server](25-TELECONTROL-AND-MODBUS-SERVER.md).
+
+Remote database ports and HA peer addresses belong to their own integrations. This page does not open firewalls, change external services, or configure protocol/discovery ports.
 
 ### Change ports for the same installation
 

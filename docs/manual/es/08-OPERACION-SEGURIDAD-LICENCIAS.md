@@ -165,7 +165,11 @@ En **Engineering > Instalación > Red y servicios**, un usuario con `SystemAdmin
 | Media control | Sin publicar | `9997/TCP` | Red interna Docker |
 | HLS | Sin publicar | `8888/TCP` | Red interna Docker |
 
-Los listeners dentro de los containers son fijos en este paquete. Los puertos de PLCs/equipos pertenecen a sus Data Sources/Drivers; los puertos de una base remota y las direcciones de peers HA se configuran en sus propias integraciones. Esta página no abre el firewall, cambia servicios externos ni puertos de protocolo/discovery.
+Los listeners internos son fijos en este paquete. La multimedia permanece aislada en la red Docker: la API usa el control MediaMTX en `9997/TCP` y Runtime entrega HLS en `8888/TCP` mediante el relay de la API con tickets temporales. No publique directamente estos dos puertos en el host.
+
+Configure los puertos de equipos en cada Data Source. En un driver cliente, el puerto pertenece al servicio del dispositivo remoto —por ejemplo, `502/TCP` para Modbus TCP o `102/TCP` para S7— y no necesita publicarse en el host SCADIVO. En **Modbus TCP Server**, el puerto es un listener local de la API; Compose estable no lo publica en el host, así que guardar el puerto del Data Source no basta para que lo alcancen clientes fuera de la red Docker. **BACnet/IP** usa `47808/UDP` como `localPort`; el descubrimiento por broadcast depende de la red del host y el script no configura el reenvío UDP. Consulte las guías de [conexiones y protocolos](21-CONEXIONES-Y-PROTOCOLOS.md), [BACnet/IP](22-HOME-BUILDING-CONEXIONES.md) y [Modbus TCP Server](25-TELECONTROL-Y-MODBUS-SERVER.md).
+
+Los puertos de bases remotas y las direcciones de peers HA pertenecen a sus propias integraciones. Esta página no abre firewalls, cambia servicios externos ni configura puertos de protocolo o discovery.
 
 ### Cambiar puertos de la misma instalación
 

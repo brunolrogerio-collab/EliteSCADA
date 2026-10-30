@@ -165,7 +165,11 @@ Em **Engineering > Instalação > Rede e serviços**, um usuário com `SystemAdm
 | Media control | Não publicada | `9997/TCP` | Uso interno da rede Docker |
 | HLS | Não publicada | `8888/TCP` | Uso interno da rede Docker |
 
-Os listeners dentro dos containers são fixos neste pacote. As portas de CLPs e equipamentos pertencem aos respectivos Data Sources/Drivers; as portas de um banco remoto e os endereços dos peers HA são configurados nas próprias integrações. Esta tela não abre firewall, muda serviços externos nem portas de protocolo/discovery.
+Os listeners internos deste pacote são fixos. A mídia fica isolada na rede Docker: a API usa o controle MediaMTX em `9997/TCP` e o Runtime entrega HLS em `8888/TCP` pelo relay da API com tíquetes temporários. Não publique essas duas portas diretamente no host.
+
+As portas de equipamentos são ajustadas em cada Data Source. Em um driver cliente, a porta é a do serviço no dispositivo remoto — por exemplo, `502/TCP` para Modbus TCP ou `102/TCP` para S7 — e não precisa ser publicada no host SCADIVO. No **Modbus TCP Server**, a porta é um listener local da API; o Compose estável não publica esse listener no host, então salvar a porta no Data Source, por si só, não permite que clientes fora da rede Docker o alcancem. No **BACnet/IP**, `localPort` usa `47808/UDP`; descoberta por broadcast depende da rede do host e o script não configura passagem UDP. Consulte os guias de [conexões e protocolos](21-CONEXOES-E-PROTOCOLOS.md), [BACnet/IP](22-HOME-BUILDING-CONEXOES.md) e [Modbus TCP Server](25-TELECONTROLE-E-MODBUS-SERVER.md).
+
+Portas de bancos remotos e endereços de peers HA pertencem às próprias integrações. Esta tela não abre firewall, muda serviços externos nem configura portas de protocolo ou descoberta.
 
 ### Trocar portas no mesmo sistema
 

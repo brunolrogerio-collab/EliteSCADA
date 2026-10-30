@@ -194,6 +194,15 @@ test('new Runtime window starts on the selected screen and admits a distinct cli
   await secondWindow.getByTestId('runtime-session-request-viewOnly').click();
   await expect.poll(() => clientIds.length).toBe(2);
   expect(clientIds[0]).not.toBe(clientIds[1]);
+
+  const duplicatePromise = page.context().waitForEvent('page');
+  await page.evaluate(() => window.open('/?screen=home', 'runtime-duplicated-tab'));
+  const duplicatedTab = await duplicatePromise;
+  await expect(duplicatedTab.getByTestId('runtime-engineering-application')).toBeVisible();
+  await duplicatedTab.getByTestId('session-menu-toggle').click();
+  await duplicatedTab.getByTestId('runtime-session-request-viewOnly').click();
+  await expect.poll(() => clientIds.length).toBe(3);
+  expect(new Set(clientIds).size).toBe(3);
 });
 
 test('external identity does not expose local switch-user even when local login is enabled', async ({ page }) => {

@@ -32,6 +32,13 @@ try {
     try { & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $profile } catch { $failed=$true }
     if (-not $failed -or [IO.File]::ReadAllText($profile) -ne $content) { throw 'Existing profile overwritten.' }
     if ([IO.File]::ReadAllText($config) -ne $original) { throw 'Provisioning changed application configuration.' }
+    $registered=Join-Path $root 'registered-profile.json'
+    & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $registered -Register
+    $updated=Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
+    if ($updated.InstallationNetwork.Profile -ne 'native-windows' -or $updated.InstallationNetwork.AdministrativeProfilePath -ne $registered -or $updated.secret -ne 'must-not-copy') { throw 'Profile registration failed.' }
+    if (([Uri]$updated.Kestrel.Endpoints.Web.Url).Port -ne 18080 -or ([Uri]$updated.Kestrel.Endpoints.Api.Url).Port -ne 15120) { throw 'Registration changed ports.' }
+    $backup=@(Get-ChildItem -LiteralPath $root -Filter 'app.json.network-backup-*')
+    if ($backup.Count -ne 1 -or [IO.File]::ReadAllText($backup[0].FullName) -ne $original) { throw 'Registration backup missing or invalid.' }
     'PASS: profile generation, protected Windows ACL, no secret copy, no overwrite, no application mutation; service lookup simulated.'
 } finally {
     $expected=[IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetFileName($root))))

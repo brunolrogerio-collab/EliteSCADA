@@ -41,3 +41,13 @@ class NativeProfileProvisioningTests(unittest.TestCase):
                 with self.assertRaises(FileExistsError): module.provision(config,'scadivo.service',target)
                 self.assertEqual(target.read_bytes(),before)
                 self.assertEqual(config.read_text(),original)
+                registered=root/'registered-profile.json'
+                module.provision(config,'scadivo.service',registered,register=True)
+                updated=json.loads(config.read_text())
+                self.assertEqual(updated['secret'],'not-copied')
+                self.assertEqual(updated['Kestrel'],json.loads(original)['Kestrel'])
+                self.assertEqual(updated['InstallationNetwork'],{'Profile':'native-linux','AdministrativeProfilePath':str(registered)})
+                backup=next(root.glob('app.json.network-backup-*'))
+                self.assertEqual(backup.read_text(),original)
+                self.assertEqual(backup.stat().st_mode & 0o777,0o600)
+                self.assertNotIn('not-copied',registered.read_text())

@@ -5,10 +5,11 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import uuid
 from urllib.parse import urlsplit
 
 
-def provision(configuration, service, destination):
+def provision(configuration, service, destination, register=False):
     import fcntl
     if not re.fullmatch(r'[A-Za-z0-9_.-]+', service):
         raise ValueError('Invalid service identity')
@@ -28,7 +29,8 @@ def provision(configuration, service, destination):
                                 check=True, capture_output=True, text=True, timeout=15)
         if result.stdout.strip() != 'loaded':
             raise ValueError('Registered service is not loaded')
-        document = json.loads(config.read_text(encoding='utf-8-sig'))
+        original = config.read_bytes()
+        document = json.loads(original.decode('utf-8-sig'))
         ports = []
         for name in ('Web', 'Api'):
             uri = urlsplit(document['Kestrel']['Endpoints'][name]['Url'])
@@ -45,6 +47,22 @@ def provision(configuration, service, destination):
         with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as output:
             json.dump(profile, output, indent=2)
             output.flush(); os.fsync(output.fileno())
+        if register:
+            backup = config.with_name(config.name + '.network-backup-' + uuid.uuid4().hex)
+            with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as output:
+                output.write(original); output.flush(); os.fsync(output.fileno())
+            try:
+                installation = document.setdefault('InstallationNetwork', {})
+                installation['Profile'] = 'native-linux'
+                installation['AdministrativeProfilePath'] = str(target)
+                # Existing file identity/mode is retained. No service restart.
+                with config.open('w', encoding='utf-8') as output:
+                    json.dump(document, output, indent=2)
+                    output.flush(); os.fsync(output.fileno())
+            except Exception:
+                config.write_bytes(original)
+                raise
+            return 'Protected access profile registered; service reload and account access still require verification'
         return 'Protected access profile created; deployment registration still requires verification'
     finally:
         os.close(descriptor)
@@ -55,8 +73,9 @@ if __name__ == '__main__':
     parser.add_argument('--configuration', required=True)
     parser.add_argument('--service', required=True)
     parser.add_argument('--destination', required=True)
+    parser.add_argument('--register', action='store_true')
     args = parser.parse_args()
     try:
-        print(provision(args.configuration, args.service, args.destination))
+        print(provision(args.configuration, args.service, args.destination, args.register))
     except Exception:
         raise SystemExit('Native profile provisioning failed. Check deployment registration and protected files.')

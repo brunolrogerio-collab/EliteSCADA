@@ -2,6 +2,8 @@ using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
+using Microsoft.Extensions.Configuration;
+using Scada.Api.Engineering;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
@@ -385,6 +387,7 @@ public sealed class ModbusFamilyTransportTests
     {
         var oldPort = ReserveFreeTcpPort();
         var newPort = ReserveFreeTcpPort();
+        var nextRevision = TcpServerPackage(newPort);
         var runtime = new EngineeringRuntimeCoordinator(
             new InMemoryScadaEventBus(),
             new EngineeringDriverCompiler(),
@@ -402,7 +405,7 @@ public sealed class ModbusFamilyTransportTests
             var second = await runtime.ActivateAsync(
                 "modbus-server-resource-cohort",
                 2,
-                TcpServerPackage(newPort),
+                nextRevision,
                 (_, _) =>
                 {
                     using var probe = new TcpListener(IPAddress.Loopback, oldPort);
@@ -419,12 +422,35 @@ public sealed class ModbusFamilyTransportTests
             oldProbe.Start();
             oldProbe.Stop();
 
+            var profileConfiguration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["InstallationNetwork:Profile"] = "stable-docker",
+                    ["InstallationNetwork:DriverPorts"] = $"tcp:127.0.0.1:25002:{newPort}"
+                })
+                .Build();
+            var profile = Assert.IsType<InstallationNetworkProfileView>(InstallationNetworkProfileApi.Read(
+                profileConfiguration,
+                runtime.Describe().CommunicationDrivers));
+            var activeListener = Assert.Single(profile.ConfiguredDriverListeners);
+            Assert.Equal(("127.0.0.1", newPort, "Healthy"),
+                (activeListener.BindAddress, activeListener.InternalPort, activeListener.State));
+            var publication = Assert.Single(profile.DriverPorts);
+            Assert.Equal((25002, newPort), (publication.PublishedPort, publication.InternalPort));
+
             var activeResponse = await SendTcpRequestAsync(
-                newPort,
+                activeListener.InternalPort,
                 12,
                 1,
                 ReadRequest(10, 1));
             Assert.Equal(new byte[] { 0x03, 0x02, 0x00, 0x00 }, activeResponse);
+
+            var externalWrite = ModbusPduCodec.BuildWriteSingleRegisterRequest(10, 42);
+            var writeResponse = await SendTcpRequestAsync(activeListener.InternalPort, 13, 1, externalWrite);
+            Assert.Equal(externalWrite, writeResponse);
+            var configuredTagId = Assert.IsType<Guid>(nextRevision.Tags.Single().Id);
+            Assert.True(runtime.TryGetCurrent(configuredTagId, out var updatedTag));
+            Assert.Equal((short)42, Convert.ToInt16(updatedTag!.Value));
         }
         finally
         {

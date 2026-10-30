@@ -213,3 +213,9 @@ Três testes passaram para mudança conjunta/isolada, preservação de segredo/c
 `native_media_ports.apply_locked` exige que o chamador detenha o lock da instalação e forneça controle de serviço/verificação de mídia. Prepara configuração, valida portas livres, salva dois backups e journal antes da parada, grava arquivos, reinicia mídia, verifica-a e inicia API. Falha restaura ambos e verifica o estado anterior; recuperação falha retém journal. Nenhum CLI/UI é disponibilizado por este módulo. Callbacks de serviço/saúde ainda precisam ser ligados ao host; não declarar verificação real HLS por esse código. Backup ACL Windows, recuperação explícita após interrupção e prontidão completa permanecem pendentes.
 
 Quatro testes de mídia passaram, incluindo plano sem escrita, ordem, preservação de segredos e rollback dos dois arquivos após falha simulada de verificação. Não há evidência de reprodução real nesta etapa.
+
+### MediaMTX real em laboratório Linux
+
+Cinco testes passaram em contêiner Linux descartável, incluindo processo MediaMTX real do digest dc22a8b09668e7f5b493cfa848c395349ad16fd47fef1cc7b7eb5b87a1186232: controle /v3/paths/list, listener TCP HLS, troca de ambas as portas e rollback após falha de aceitação simulada. API/serviço continua simulado. Não é prova de reprodução de vídeo; pedir caminho inexistente devolveu erro do upstream, então o teste verifica somente o listener HLS até haver fonte válida.
+
+O ensaio revelou preflight recusando uma porta recém-liberada por TIME_WAIT. Ajustado para SO_REUSEADDR + bind + listen, verificando posse real do listener sem confundir conexões encerradas com serviço ativo. Nenhum host port publicado, repo somente leitura, contêiner e cópia temporária do binário removidos. Preview preservado. Teste real depende de SCADIVO_MEDIA_BINARY e não declara PASS se ignorado.

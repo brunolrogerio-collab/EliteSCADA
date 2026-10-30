@@ -75,7 +75,9 @@ def apply_locked(profile_path, service_control, verify, control_port=None, hls_p
         old, new = urlsplit(previous[key]), urlsplit(desired[key])
         if old.port != new.port:
             with socket.socket() as listener:
+                listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 listener.bind(('0.0.0.0', new.port))
+                listener.listen(1)
     if not apply:
         return 'Media/API configuration plan validated'
     backups = []

@@ -385,6 +385,7 @@ public sealed class ModbusFamilyTransportTests
     {
         var oldPort = ReserveFreeTcpPort();
         var newPort = ReserveFreeTcpPort();
+        var nextRevision = TcpServerPackage(newPort);
         var runtime = new EngineeringRuntimeCoordinator(
             new InMemoryScadaEventBus(),
             new EngineeringDriverCompiler(),
@@ -402,7 +403,7 @@ public sealed class ModbusFamilyTransportTests
             var second = await runtime.ActivateAsync(
                 "modbus-server-resource-cohort",
                 2,
-                TcpServerPackage(newPort),
+                nextRevision,
                 (_, _) =>
                 {
                     using var probe = new TcpListener(IPAddress.Loopback, oldPort);
@@ -425,6 +426,8 @@ public sealed class ModbusFamilyTransportTests
                 1,
                 ReadRequest(10, 1));
             Assert.Equal(new byte[] { 0x03, 0x02, 0x00, 0x00 }, activeResponse);
+
+
         }
         finally
         {
@@ -463,6 +466,8 @@ public sealed class ModbusFamilyTransportTests
 
             var activeResponse = await SendTcpRequestAsync(port, 11, 1, ReadRequest(10, 1));
             Assert.Equal(new byte[] { 0x03, 0x02, 0x00, 0x00 }, activeResponse);
+
+
         }
         finally
         {

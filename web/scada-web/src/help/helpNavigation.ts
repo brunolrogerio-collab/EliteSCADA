@@ -9,7 +9,7 @@ export type HelpArea = typeof helpAreas[number];
 
 export function helpTopicPriority(id: string): number {
   const ordered = ['help.application-map', 'help.find-your-way', 'getting-started.startup-authentication', 'getting-started.neutral-bootstrap',
-    'engineering.shell-navigation', 'engineering.lifecycle', 'visual.first-screen', 'screens.overview', 'popups.overview',
+    'engineering.shell-navigation', 'engineering.lifecycle', 'installation.network-ports', 'visual.first-screen', 'screens.overview', 'popups.overview',
     'visual.object-selection', 'visual.properties', 'visual.dynamics', 'visual.events', 'scripts.choose-scope',
     'scripts.engineering', 'scripts.triggers-dependencies', 'scripts.server-syntax', 'scripts.server',
     'scripts.server-recipes', 'scripts.commands-feedback', 'scripts.client-visual', 'scripts.client-recipes',
@@ -23,7 +23,7 @@ export function helpArea(category: string): HelpArea {
   if (['sources', 'tags', 'gateway'].includes(category)) return 'data';
   if (category === 'drivers') return 'drivers';
   if (['templates', 'equipment'].includes(category)) return 'assets';
-  if (['ha', 'database'].includes(category)) return 'administration';
+  if (['ha', 'database', 'installation'].includes(category)) return 'administration';
   if (['visual', 'visual-assets', 'visual-objects', 'screens', 'popups', 'dynamos', 'libraries', 'bindings-commands'].includes(category)) return 'visual';
   if (['scripts', 'memory'].includes(category)) return 'scripts';
   if (category === 'intelligence') return 'intelligence';

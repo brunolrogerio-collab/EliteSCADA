@@ -151,6 +151,65 @@ Antes de depender del failover automático, ensaye el escenario en la topología
 
 **Ayuda relacionada:** `/help?topic=ha.overview`, `/help?topic=licensing.overview`, `/help?topic=security.users-roles-capabilities`, `/help?topic=diagnostics.overview`.
 
+## Puertos de red del paquete Docker estable
+
+En **Engineering > Instalación > Red y servicios**, un usuario con `SystemAdmin` puede preparar puertos para la distribución Docker estable. La página muestra la configuración de Compose informada por el container actual, pero no puede confirmar por sí sola que el equipo host haya publicado cada puerto.
+
+### Puertos controlados por este perfil
+
+| Servicio | Predeterminado en host | Dentro del container | Observación |
+| --- | ---: | ---: | --- |
+| Web | `127.0.0.1:18080` | `80/TCP` | Navegación de Runtime y Engineering |
+| API directa | `127.0.0.1:15120` | `5080/TCP` | Web reenvía `/api` a esta API |
+| PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | La publicación del host sigue limitada a loopback |
+| Control MediaMTX | Sin publicar | `9997/TCP` por defecto | Puerto interno configurable |
+| HLS | Sin publicar | `8888/TCP` por defecto | Puerto interno configurable |
+
+Los puertos internos de control MediaMTX y HLS se pueden cambiar en este perfil y permanecen privados en la red Docker. La configuración también actualiza las direcciones que la API usa para conectarse al servicio multimedia. Runtime entrega el vídeo mediante el relay de la API con tickets temporales; no publique MediaMTX directamente en el host.
+
+Los puertos de protocolo de los Drivers se configuran en cada Data Source según la conexión y el equipo. Este perfil no publica listeners de Drivers ni cambia los puertos de equipos externos. Consulte las guías de [conexiones y protocolos](21-CONEXIONES-Y-PROTOCOLOS.md), [BACnet/IP](22-HOME-BUILDING-CONEXIONES.md) y [Modbus TCP Server](25-TELECONTROL-Y-MODBUS-SERVER.md).
+
+Los puertos de bases remotas y las direcciones de peers HA pertenecen a sus propias integraciones. Esta página no abre firewalls ni cambia servicios externos.
+
+### Cambiar puertos de la misma instalación
+
+1. Abra **Engineering > Instalación > Red y servicios** y revise el ID, binds y puertos actuales.
+2. Indique puertos enteros de 1 a 65535. Los puertos del host para Web, API y base deben ser distintos; los puertos internos de control multimedia y HLS también deben ser distintos entre sí. Web y API pueden vincularse a `127.0.0.1` (solo host) o a `0.0.0.0` (todas las interfaces). La base permanece en `127.0.0.1`; multimedia sigue privada en la red Docker.
+3. Revise la nueva dirección y el impacto del reinicio. Por ejemplo, si Web usa `28080`, la navegación pasa a `http://localhost:28080`.
+4. Descargue el script PowerShell (Windows/Docker Desktop) o Bash (Linux), colóquelo junto a `docker-compose.stable.yml` y `.env`, revíselo y ejecute el comando mostrado en una terminal del host Docker.
+5. El script comprueba la disponibilidad de puertos del host, conflictos entre puertos internos multimedia y `docker compose config` antes del cambio. Después crea una copia de `.env`, aplica el perfil y verifica Web, API, base y listeners multimedia privados. No elimina volúmenes. Si una verificación falla, intenta restaurar `.env` y los servicios anteriores.
+6. Abra la nueva dirección Web. La pestaña anterior puede desconectarse mientras se recrea el container.
+
+No incluya secretos en el comando: solo contiene ID de instancia, direcciones bind y números de puerto. `.env` permanece en el host; la copia `.env.network-backup-*` y `network-profile-audit.log` también quedan en la carpeta de instalación.
+
+### Crear otra instalación
+
+Use otra carpeta, cree un `.env` independiente con contraseñas/claves/identidad propias y defina allí el nuevo `SCADIVO_INSTALLATION_ID` antes de ejecutar el comando. No copie el `.env` de la primera instalación. En modo de segunda instalación, el script exige que el ID ya esté definido en el nuevo `.env` y rechaza uno que ya tenga containers o volúmenes. El ID separa el proyecto Compose y sus volúmenes, así que la nueva instalación empieza con base y datos propios; no duplica los datos de la primera.
+
+Vincular Web/API a `0.0.0.0` permite responder en todas las interfaces de red. Para acceso remoto, configure explícitamente TLS/reverse proxy y la política del firewall fuera de SCADIVO. Si HA está habilitado, actualice peers y compruebe su salud después de cambiar URLs; el producto no lo hace automáticamente.
+
+### Recuperar el acceso
+
+Si la página deja de abrir, use la nueva dirección indicada en el perfil. Si el script informa rollback, conserve la copia y revise logs/salud en el host. Para restaurar manualmente, copie el `.env.network-backup-*` correcto a `.env` y ejecute `docker compose -f docker-compose.stable.yml up -d` en la carpeta de esa instalación. No use `down -v`: elimina datos persistentes.
+
+**Ayuda relacionada:** `/help?topic=installation.network-ports`, [instalación Docker estable](../../LOCAL-DOCKER-STABLE.md).
+
+## Puertos en Windows y Linux nativos
+
+**[EN DESARROLLO — revisar al homologar el instalador]** Los adaptadores existen en este candidato; el instalador aún debe proporcionar el perfil administrativo protegido y homologar los servicios reales. Si falta el perfil, no invente rutas ni nombres de servicio.
+
+En **Instalación > Red y servicios**, revise las direcciones actuales. Web es el acceso a las pantallas; API es el acceso directo al backend. Sus puertos son independientes. Las instalaciones nuevas usan Web `18080`, API `15120` y PostgreSQL local administrado `15432` automáticamente. Las existentes conservan sus valores; versiones Docker anteriores podían usar API `15080`.
+
+Para cambiar Web/API, modifique solo los puertos deseados y revise la vista previa. El comando aparece únicamente si la instalación proporciona un perfil correspondiente a la configuración efectiva. Ejecute la vista previa en la carpeta administrativa del servidor, no en el navegador; aplicar requiere otra acción explícita. Después de cambiar Web a `28080`, por ejemplo, abra `http://localhost:28080`.
+
+La base y multimedia tienen procedimientos administrativos separados; el comando Web/API de la pantalla no los ejecuta. Cambie únicamente PostgreSQL local administrado, nunca un servidor remoto mediante este procedimiento. Los puertos multimedia deben coincidir con las direcciones del relay de la API; control y HLS no deben publicarse directamente para los usuarios.
+
+Tras una interrupción, conserve los backups y el registro de recuperación. Use el comando correspondiente con `--recover` en Linux o `-Recover` en Windows, sin puertos nuevos. Una recuperación pendiente bloquea cambios de otros adaptadores. No elimine el registro para continuar. Después, abra la interfaz, use **Verificar base de datos** y compruebe Runtime y vídeo. La salud del proceso no demuestra por sí sola estas funciones.
+
+Los comandos completos y requisitos están en `installation/NATIVE-PORTS.md` del paquete administrativo. No se cambian automáticamente firewall, Drivers ni peers HA. El aprovisionamiento de carpetas protegidas y la verificación autenticada completa en los adaptadores aún requieren homologación.
+
+Cuando el perfil registra PostgreSQL local administrado y/o multimedia, **Base y multimedia locales** muestra sus puertos configurados. Edite los campos y revise el plan separado de cada servicio. Los puertos inválidos o repetidos bloquean los planes. Sin registro válido no aparecen estos controles; la pantalla no supone puertos desconocidos. Ejecute un procedimiento por vez y recargue la página después del cambio.
+
 ## License Generator
 
 License Generator es una herramienta offline/controlada de la autoridad de licenciamiento. La clave privada de firma nunca debe incluirse en GitHub, CI normal, un instalador de cliente ni Runtime.

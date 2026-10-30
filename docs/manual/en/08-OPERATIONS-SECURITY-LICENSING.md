@@ -151,6 +151,65 @@ Before relying on automatic failover, exercise the scenario on the actual topolo
 
 **Related Help:** `/help?topic=ha.overview`, `/help?topic=licensing.overview`, `/help?topic=security.users-roles-capabilities`, `/help?topic=diagnostics.overview`.
 
+## Network ports for the stable Docker package
+
+In **Engineering > Installation > Network and services**, a `SystemAdmin` user can prepare ports for the stable Docker distribution. The page displays the Compose configuration reported by the current container, but cannot confirm by itself that the host computer actually published each port.
+
+### Ports controlled by this profile
+
+| Service | Host default | Inside container | Notes |
+| --- | ---: | ---: | --- |
+| Web | `127.0.0.1:18080` | `80/TCP` | Runtime and Engineering navigation |
+| Direct API | `127.0.0.1:15120` | `5080/TCP` | Web forwards `/api` to this API |
+| PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | Host publication remains loopback-only |
+| MediaMTX control | Not published | `9997/TCP` by default | Configurable internal port |
+| HLS | Not published | `8888/TCP` by default | Configurable internal port |
+
+The MediaMTX control and HLS internal ports can be changed in this profile and remain private on the Docker network. The same settings update the addresses the API uses to reach the media service. Runtime sends video through the API relay using short-lived tickets; do not publish MediaMTX directly on the host.
+
+Driver protocol ports remain configured in each Data Source according to the connection and device. This profile does not publish Driver listeners or change ports on external equipment. See the guides for [connections and protocols](21-CONNECTIONS-AND-PROTOCOLS.md), [BACnet/IP](22-HOME-BUILDING-CONNECTIONS.md), and [Modbus TCP Server](25-TELECONTROL-AND-MODBUS-SERVER.md).
+
+Remote database ports and HA peer addresses belong to their own integrations. This page does not open firewalls or change external services.
+
+### Change ports for the same installation
+
+1. Open **Engineering > Installation > Network and services** and check the current ID, binds, and ports.
+2. Enter integer ports from 1 to 65535. Web, API, and database host ports must differ; media control and HLS internal ports must differ from each other. Web and API can bind to `127.0.0.1` (host only) or `0.0.0.0` (all interfaces). The database remains on `127.0.0.1`; media remains private on the Docker network.
+3. Review the new address and restart impact. For example, setting Web to `28080` moves navigation to `http://localhost:28080`.
+4. Download the PowerShell script (Windows/Docker Desktop) or Bash script (Linux), place it beside `docker-compose.stable.yml` and `.env`, review it, and run the displayed command in a terminal on the Docker host.
+5. The script checks host-port availability, conflicting internal media ports, and `docker compose config` before the change. It then backs up `.env`, applies the profile, and checks Web, API, database, and private media listeners. It does not remove volumes. If a check fails, it attempts to restore the prior `.env` and services.
+6. Open the new Web address. The previous tab may disconnect while the container is recreated.
+
+Do not put secrets in the command: it contains only the instance ID, bind addresses, and port numbers. `.env` remains on the host; its `.env.network-backup-*` backup and `network-profile-audit.log` also stay in the installation folder.
+
+### Create another installation
+
+Use another installation folder, create an independent `.env` with its own passwords/keys/identity, and set its new `SCADIVO_INSTALLATION_ID` before running the command. Do not copy the first installation's `.env`. In second-installation mode, the script requires the ID to be set in the new `.env` and refuses an ID that already has containers or volumes. The ID separates the Compose project and volumes, so the new installation starts with its own database and data; it does not duplicate the first installation's data.
+
+Binding Web/API to `0.0.0.0` allows them to respond on every network interface. For remote access, explicitly configure TLS/reverse proxy and firewall policy outside SCADIVO. If HA is enabled, update peers and check health after changing URLs; this is not done automatically.
+
+### Recover access
+
+If the page no longer opens, use the new address shown in the profile. If the script reports rollback, keep the backup and check host logs/health. To restore manually, copy the correct `.env.network-backup-*` to `.env`, then run `docker compose -f docker-compose.stable.yml up -d` in that installation folder. Do not use `down -v`; that deletes persistent data.
+
+**Related Help:** `/help?topic=installation.network-ports`, [stable Docker installation](../../LOCAL-DOCKER-STABLE.md).
+
+## Ports on native Windows and Linux
+
+**[IN DEVELOPMENT — review during installer qualification]** Adapters exist in this candidate; the installer must still supply the protected administrative profile and qualify real services. If the profile is missing, do not invent file paths or service names.
+
+In **Installation > Network and services**, review current addresses. Web is where you open the screens; API is direct backend access. Their ports are independent. New installations use Web `18080`, API `15120`, and locally managed PostgreSQL `15432` automatically. Existing installations retain their values; older Docker versions could use API port `15080`.
+
+To change Web/API, edit only the desired ports and check the preview. A command appears only when the installation supplies a profile matching its effective configuration. Run the preview in the administrative directory on the server, not in the browser; applying requires a separate explicit action. After changing Web to `28080`, for example, reopen `http://localhost:28080`.
+
+Database and media use separate administrative procedures; the Web/API command shown on screen does not run them. Change only locally managed PostgreSQL, never a remote server through this procedure. Media ports must match the API relay addresses; control and HLS must not be published directly to users.
+
+After interruption, preserve backups and the recovery record. Run the relevant command with `--recover` on Linux or `-Recover` on Windows, without new ports. Pending recovery blocks changes by other adapters. Do not delete the record to continue. After recovery, open the interface, use **Check database**, and verify Runtime and video. Process health alone does not prove these functions.
+
+Full commands and prerequisites are in `installation/NATIVE-PORTS.md` in the administrative package. Firewall, Drivers, and HA peers are not changed automatically. Protected directory provisioning and complete authenticated verification in the adapters still require qualification.
+
+When the profile registers locally managed PostgreSQL and/or media, **Local database and media** also shows their configured ports. Edit the fields and review each separate service plan. Invalid or duplicate ports block the plans. Without valid registration these controls are hidden; the screen does not assume unknown service ports. Run one procedure at a time and reload the page after a change.
+
 ## License Generator
 
 The License Generator is an offline/controlled licensing-authority tool. The signing private key must never be placed in GitHub, normal CI, a client installer, or Runtime.

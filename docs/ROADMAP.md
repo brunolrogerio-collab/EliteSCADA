@@ -1,4 +1,10 @@
-# OWNER CORRECTION PROGRAM — QUEUED; HELP ACTIVE, LICENSING NEXT — 2026-10-26
+# CURRENT PRODUCT LANE — INSTALLATION NETWORK CONFIGURATION (#780) — 2026-10-29
+
+The integrated base is #827 at `16849faa66c84a4078126c08abb978e0c6014e0b`; the active branch is `work/w15-service-ports-780`, draft PR #828. Product code head `64649629345741ae6120584f24f5b9452982bec6` passed exact T1 [#40984942107](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/40984942107). Linux live-stack proof created two independent installations, changed one installation's ports while both remained healthy, and rejected an occupied port before disruption. The two earlier Linux runs exposed a Bash empty-`mapfile` owner-detection defect, now fixed. Windows PowerShell 5.1 two-stack evidence remains green. Local API 2/2, Help 123/123, router 39/39, Bash reproduction/syntax and diff check passed; Preview unchanged. MediaMTX stays private. Host publication for Modbus TCP Server, BACnet UDP/broadcast forwarding and native Windows/systemd management remain unresolved; follow live #780/#305 and don't claim full delivery.
+
+---
+
+## Historical queue snapshot — owner correction program, 26 October 2026
 
 Owner-authorized [program #788](https://github.com/brunolrogerio-collab/EliteSCADA/issues/788) consolidates #789 alarm suppression by alarm/area/subarea, #790 authorable CheckBox/ComboBox, #791 Intelligence contract/API/UI adherence audit and #792 Matter exact-artifact upstream qualification, alongside existing alarm/driver/HA findings. See [scope, evidence and documentation criteria](WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md). These are authorized queued tasks, not delivered behavior or a new active lane. **Finish Help/manual → product licensing #301 → post-licensing queue**. Preserve the previously fixed internal order #779 → #780 → #781 → #782. Every accepted product correction updates installed Help/manual/examples and actual affected figures; no future feature is presented as available. Runtime dashboard generation is accepted for Intelligence; adherence still requires an end-user/API/contracts audit. Field validation remains deferred under #701.
 

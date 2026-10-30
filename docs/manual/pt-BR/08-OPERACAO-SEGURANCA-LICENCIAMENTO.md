@@ -151,7 +151,67 @@ Antes de depender de failover automático, ensaie o cenário na topologia real e
 
 **Ajuda relacionada:** `/help?topic=ha.overview`, `/help?topic=licensing.overview`, `/help?topic=security.users-roles-capabilities`, `/help?topic=diagnostics.overview`.
 
+## Rede e portas do pacote Docker estável
+
+Em **Engineering > Instalação > Rede e serviços**, um usuário com `SystemAdmin` pode preparar portas para a distribuição Docker estável. O formulário mostra a configuração declarada pelo Compose no container atual, mas não consegue confirmar sozinho se o computador host realmente publicou cada porta.
+
+### Portas que este perfil controla
+
+| Serviço | No host, padrão | Dentro do container | Observação |
+| --- | ---: | ---: | --- |
+| Web | `127.0.0.1:18080` | `80/TCP` | Navegação do Runtime e Engineering |
+| API direta | `127.0.0.1:15120` | `5080/TCP` | A Web encaminha `/api` para esta API |
+| PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | A publicação no host permanece somente loopback |
+| Controle MediaMTX | Não publicada | `9997/TCP` por padrão | Porta interna configurável |
+| HLS | Não publicada | `8888/TCP` por padrão | Porta interna configurável |
+
+As portas internas do controle MediaMTX e do HLS podem ser alteradas neste perfil e permanecem privadas na rede Docker. A configuração também atualiza os endereços que a API usa para falar com o serviço de mídia. O Runtime entrega vídeo pelo relay da API com tíquetes temporários; não publique MediaMTX diretamente no host.
+
+As portas dos protocolos dos Drivers continuam sendo configuradas em cada Data Source, conforme a conexão e o dispositivo. Este perfil não publica listeners de Drivers nem altera portas em equipamentos externos. Consulte os guias de [conexões e protocolos](21-CONEXOES-E-PROTOCOLOS.md), [BACnet/IP](22-HOME-BUILDING-CONEXOES.md) e [Modbus TCP Server](25-TELECONTROLE-E-MODBUS-SERVER.md).
+
+Portas de bancos remotos e endereços de peers HA pertencem às próprias integrações. Esta tela não abre firewall nem muda serviços externos.
+
+### Trocar portas no mesmo sistema
+
+1. Abra **Engineering > Instalação > Rede e serviços** e confira o ID, os binds e as portas atuais.
+2. Defina portas inteiras de 1 a 65535. Web, API e banco precisam de portas distintas no host. Controle de mídia e HLS precisam de portas internas distintas entre si. Web e API podem ficar em `127.0.0.1` (somente host local) ou escutar em `0.0.0.0` (todas as interfaces). O banco permanece em `127.0.0.1`; mídia permanece privada na rede Docker.
+3. Confira o novo endereço e o aviso de reinício. Se escolher, por exemplo, Web `28080`, a navegação passará para `http://localhost:28080`.
+4. Baixe o script PowerShell (Windows/Docker Desktop) ou Bash (Linux), coloque-o junto de `docker-compose.stable.yml` e `.env`, revise-o e execute o comando mostrado no terminal do host.
+5. O script verifica disponibilidade das portas de host, conflito entre as portas internas de mídia e `docker compose config` antes da troca. Depois cria backup de `.env`, aplica o perfil e verifica Web, API, banco e os listeners privados de mídia. Não remove volumes. Se uma verificação falhar, tenta restaurar o `.env` anterior e os serviços.
+6. Abra o endereço Web novo. A aba anterior pode desconectar enquanto o container é recriado.
+
+Não cole segredos no comando: ele contém somente ID, binds e números de porta. O `.env` permanece no host, e o backup `.env.network-backup-*` e `network-profile-audit.log` também ficam na pasta da instalação.
+
+### Criar uma segunda instalação
+
+Use outra pasta de instalação, gere um `.env` independente com senhas/chaves/identidade próprias e defina nele o novo `SCADIVO_INSTALLATION_ID` antes de executar o comando. Não copie o `.env` da primeira instalação. No modo de segunda instalação, o script exige o ID já definido no novo `.env` e recusa um ID que já tenha containers ou volumes. O ID separa projeto Compose e volumes: a nova instalação começa com banco e dados próprios; ela não duplica os dados da primeira.
+
+Se a Web/API for vinculada a `0.0.0.0`, ela poderá responder por todas as interfaces de rede. Para acesso remoto, configure TLS/reverse proxy e a política de firewall explicitamente fora do SCADIVO. Se houver HA, atualize seus peers e confira sua saúde após trocar URLs; isso não é feito automaticamente.
+
+### Recuperar o acesso
+
+Se a aba não abrir, use o novo endereço apresentado no perfil. Se o script registrar rollback, mantenha o backup e confira os logs/saúde no host. Caso precise restaurar manualmente, copie o `.env.network-backup-*` correto para `.env` e execute `docker compose -f docker-compose.stable.yml up -d` na pasta desta instalação. Não use `down -v`: essa opção apaga dados persistentes.
+
+**Ajuda relacionada:** `/help?topic=installation.network-ports`, [instalação Docker estável](../../LOCAL-DOCKER-STABLE.md).
+
+## Portas no Windows e Linux nativos
+
+**[EM IMPLEMENTAÇÃO — revisar na homologação do instalador]** Os adaptadores existem neste candidato; o instalador ainda precisa fornecer o perfil administrativo protegido e homologar os serviços reais. A ausência desse perfil não significa que você deva inventar caminhos ou nomes de serviço.
+
+Em **Instalação > Rede e serviços**, confira os endereços atuais. Web é a porta pela qual você abre as telas; API é o acesso direto ao backend. São portas independentes. Instalações novas usam Web `18080`, API `15120` e banco local gerenciado `15432` automaticamente. Instalações existentes preservam seus valores; em versões anteriores a API Docker podia usar `15080`.
+
+Para mudar Web/API, preencha somente as portas que deseja alterar e confira a prévia. O comando só aparece quando a instalação fornece um perfil correspondente à configuração em execução. Execute a prévia na pasta administrativa no computador servidor, não no navegador; a aplicação exige uma ação explícita posterior. Após mudar Web para `28080`, por exemplo, reabra `http://localhost:28080`.
+
+Banco e mídia possuem procedimentos administrativos separados; não são executados pelo comando Web/API mostrado na tela. Mude apenas o PostgreSQL local gerenciado, nunca um servidor remoto por esse procedimento. As portas de mídia devem acompanhar os endereços usados pela API; controle e HLS não devem ser publicados diretamente para os usuários.
+
+Se houver interrupção, preserve os backups e o registro de recuperação. Use o comando correspondente com `--recover` no Linux ou `-Recover` no Windows, sem informar novas portas. Uma recuperação pendente bloqueia alterações dos outros adaptadores. Não apague o registro para continuar. Após recuperar, abra a interface, use **Verificar banco** e confira Runtime e vídeo. A saúde do processo, sozinha, não comprova essas funções.
+
+Os comandos completos e requisitos estão no arquivo `installation/NATIVE-PORTS.md` do pacote administrativo. Não há mudança automática de firewall, Drivers ou peers HA. A configuração dos diretórios protegidos e a verificação autenticada completa nos adaptadores ainda precisam de homologação.
+
+Quando o perfil registra PostgreSQL local e/ou mídia, aparece também **Banco e mídia locais**, com as portas informadas pela configuração da instalação. Ajuste os campos e confira o plano separado de cada serviço. Portas inválidas ou repetidas bloqueiam os planos. Sem registro válido, esses controles não aparecem; a tela não presume portas de serviços desconhecidos. Execute um procedimento por vez e recarregue a página após a mudança.
+
 ## License Generator
+
 
 O License Generator é uma ferramenta offline/controlada de autoridade de licenciamento. A chave privada de assinatura nunca deve ir para GitHub, CI normal, instalador de cliente ou Runtime.
 

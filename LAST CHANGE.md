@@ -1,4 +1,12 @@
-# Delegated online renewal implementation checkpoint - 2026-10-27
+# Product checkpoint — installation network configuration (#780) — 2026-10-29
+
+Active branch: `work/w15-service-ports-780`, based on integrated `wave15/corrections-integration@16849faa66c84a4078126c08abb978e0c6014e0b` (#827), draft PR #828, head `7495c39c98e10501a2146ea43103d4ac38074b4a`. This Docker stable profile configures per-installation identity and host-published Web/API/PostgreSQL ports. Its read-only profile requires `SystemAdmin`; reviewed PowerShell/Bash host scripts preserve secrets/volumes and perform preflight, health checks and rollback. UI and Help/manual pt-BR/en/es now explain Driver and media boundaries.
+
+Local evidence: a real Windows PowerShell 5.1 Docker Desktop run created two isolated stacks and changed Web/API/database ports on one while both remained healthy. Product code head `64649629345741ae6120584f24f5b9452982bec6` passed exact T1 [#40984942107](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/40984942107), including Linux live-stack proof of two installations, port change and safe collision rejection. The T1 exposed and verified the fix for the Bash fresh-install empty-owner bug. Local API 2/2, Help 123/123, Web build, router 39/39, Bash reproduction/syntax and diff check passed. Preview unchanged.
+
+Scope still open: Linux-host runtime proof awaits the exact-head rerun after the collision guard. Native Windows Service/systemd management is outside this Docker profile. Data Source client ports are remote endpoints; stable Compose does not publish the Modbus TCP Server listener or configure BACnet UDP/broadcast forwarding. MediaMTX ports `9997/TCP` and `8888/TCP` intentionally remain private; the API relays Runtime media with short-lived tickets. Keep #780 open and PR #828 draft until the remaining supported-profile requirements are verified and the protocol/service boundaries are resolved or explicitly re-sequenced. Follow live #780/#305.
+
+## Historical checkpoint — delegated online renewal, 27 October 2026
 
 ## Current implementation checkpoint - delegated online renewal, 27 October 2026
 

@@ -16,6 +16,7 @@ import { EngineeringTagMonitorWorkspace } from './diagnostics/EngineeringTagMoni
 import { EngineeringLifecycleWorkspace } from './EngineeringLifecycleWorkspace';
 import { EngineeringProjectManagementWorkspace } from './EngineeringProjectManagementWorkspace';
 import { InstallationSwitchingWorkspace } from './InstallationSwitchingWorkspace';
+import { InstallationNetworkWorkspace } from './InstallationNetworkWorkspace';
 import { MediaSourceEngineeringWorkspace } from './MediaSourceEngineeringWorkspace';
 import { MobileRuntimeEngineeringWorkspace } from './MobileRuntimeEngineeringWorkspace';
 import { OperationalEventEditor, operationalEventCount } from './OperationalEventEditor';
@@ -275,7 +276,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
         >
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
           {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
-          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} onReload={load} onSnapshotRefreshed={refreshSnapshotInPlace} onCreateIntelligenceDashboard={openIntelligenceDashboardDraft} initialIntelligenceDashboardDrafts={intelligenceDashboardDrafts} onIntelligenceDashboardDraftConsumed={consumeIntelligenceDashboardDraft}/>}
+          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} isSystemAdmin={canAdministerDatabase} onReload={load} onSnapshotRefreshed={refreshSnapshotInPlace} onCreateIntelligenceDashboard={openIntelligenceDashboardDraft} initialIntelligenceDashboardDrafts={intelligenceDashboardDrafts} onIntelligenceDashboardDraftConsumed={consumeIntelligenceDashboardDraft}/>}
         </section>
       </div>
     </main>
@@ -288,12 +289,13 @@ function editorNavigationLabel(locale: EngineeringLocale, collapsed: boolean): s
   return collapsed ? 'Mostrar navegação do Engineering' : 'Ocultar navegação do Engineering';
 }
 
-function EngineeringSection({ section, snapshot, productIdentity, t, locale, onReload, onSnapshotRefreshed, onCreateIntelligenceDashboard, initialIntelligenceDashboardDrafts, onIntelligenceDashboardDraftConsumed }: {
+function EngineeringSection({ section, snapshot, productIdentity, t, locale, isSystemAdmin, onReload, onSnapshotRefreshed, onCreateIntelligenceDashboard, initialIntelligenceDashboardDrafts, onIntelligenceDashboardDraftConsumed }: {
   section: SectionId;
   snapshot: EngineeringSnapshot;
   productIdentity: ProductIdentityView | null;
   t: ReturnType<typeof translator>;
   locale: EngineeringLocale;
+  isSystemAdmin: boolean;
   onReload: () => Promise<void>;
   onSnapshotRefreshed: () => Promise<void>;
   onCreateIntelligenceDashboard: (draft: ScreenEngineering | readonly ScreenEngineering[]) => void;
@@ -309,7 +311,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
       <EngineeringProjectManagementWorkspace locale={locale}/>
     </details>
   </>;
-  if (section === 'installation') return <InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/>;
+  if (section === 'installation') return <><InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/><InstallationNetworkWorkspace locale={locale} isSystemAdmin={isSystemAdmin}/></>;
   if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'mobile') return <MobileRuntimeEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'mediaSources') return <MediaSourceEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;

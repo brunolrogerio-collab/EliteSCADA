@@ -156,6 +156,7 @@ Atualização de 24/10/2026 na PR #772: a Ajuda instalada ganha áreas, busca, r
 | 144. Ordered process stages | DRAFT_CURRENT | #425 / #306 | Process-stage and assignment UI | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
 | 145. Coverage/performance/contextual deviation | DRAFT_CURRENT | #425 / #306 | Current read-only Intelligence analytics and bounds | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
 | 146. Screen drafts/Runtime analysis | DRAFT_CURRENT | #425 / #306 | Screen draft generator and Runtime views | pt-BR/en/es chapter added; revise as the product evolves | PENDING_FINAL |
+| 147. Network and service ports | DRAFT_CURRENT | #780 / #306 | Installation network profile; stable Docker Compose; PowerShell/Bash host helpers; chapter 08 | pt-BR/en/es procedure added in the candidate branch; stable Docker only; host mapping is reported, not independently verified; native installs and Driver protocol ports remain outside this slice | PENDING_FINAL |
 
 ## Whole-product depth correction — 25/10/2026
 

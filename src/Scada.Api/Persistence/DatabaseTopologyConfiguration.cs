@@ -50,13 +50,17 @@ public sealed class DatabaseConnectionResolver
     private readonly IDeploymentDatabaseSecretStore _secrets;
     private readonly string? _localPrimary;
     private readonly string? _localHistorian;
+    private readonly int? _localPort;
 
     public DatabaseConnectionResolver(
         IDeploymentDatabaseSecretStore secrets,
         string? localPrimary,
-        string? localHistorian)
+        string? localHistorian,
+        int? localPort = null)
     {
         _secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
+        if (localPort is < 1 or > 65535) throw new ArgumentOutOfRangeException(nameof(localPort));
+        _localPort = localPort;
         _localPrimary = Normalize(localPrimary);
         _localHistorian = Normalize(localHistorian) ?? _localPrimary;
     }
@@ -70,13 +74,24 @@ public sealed class DatabaseConnectionResolver
         profile.Validate();
 
         if (profile.Mode == DatabaseTopologyMode.LocalManaged)
-            return new(profile, _localPrimary, _localHistorian, requireDurable);
+            return new(profile, ApplyLocalPort(_localPrimary, _localPort), ApplyLocalPort(_localHistorian, _localPort), requireDurable);
 
         var primary = await BuildRemoteConnectionStringAsync(profile.Primary!, cancellationToken);
         var historian = profile.Historian.UsePrimary
             ? primary
             : await BuildRemoteConnectionStringAsync(profile.Historian.Override!, cancellationToken);
         return new(profile, primary, historian, requireDurable);
+    }
+
+    internal static string? ApplyLocalPort(string? connection, int? port)
+    {
+        if (port is null || string.IsNullOrWhiteSpace(connection)) return connection;
+        if (port is < 1 or > 65535) throw new ArgumentOutOfRangeException(nameof(port));
+        var builder = new NpgsqlConnectionStringBuilder(connection);
+        if (builder.Host is not ("localhost" or "127.0.0.1" or "::1"))
+            throw new InvalidOperationException("A local managed port override requires a loopback database endpoint.");
+        builder.Port = port.Value;
+        return builder.ConnectionString;
     }
 
     public async Task<string> BuildTransientRemoteConnectionStringAsync(
@@ -105,8 +120,8 @@ public sealed class DatabaseConnectionResolver
         return BuildConnectionString(endpoint, null);
     }
 
-    public DatabaseEndpointStatus? DescribeLocalPrimary() => DescribeConnectionString(_localPrimary);
-    public DatabaseEndpointStatus? DescribeLocalHistorian() => DescribeConnectionString(_localHistorian);
+    public DatabaseEndpointStatus? DescribeLocalPrimary() => DescribeConnectionString(ApplyLocalPort(_localPrimary, _localPort));
+    public DatabaseEndpointStatus? DescribeLocalHistorian() => DescribeConnectionString(ApplyLocalPort(_localHistorian, _localPort));
 
     public static DatabaseEndpointStatus? DescribeConnectionString(string? connectionString)
     {
@@ -248,7 +263,8 @@ public static class DatabaseTopologyConfiguration
 
         var localPrimary = builder.Configuration.GetConnectionString("EliteScada");
         var localHistorian = builder.Configuration.GetConnectionString("Historian") ?? localPrimary;
-        var resolver = new DatabaseConnectionResolver(secretStore, localPrimary, localHistorian);
+        var resolver = new DatabaseConnectionResolver(secretStore, localPrimary, localHistorian,
+            builder.Configuration.GetValue<int?>("DatabaseTopology:LocalManagedPort"));
 
         var requireDurable = builder.Configuration.GetValue<bool?>("DatabaseTopology:RequireDurable")
             ?? builder.Environment.IsProduction();

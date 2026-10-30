@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Net;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Drivers.Abstractions;
+using Scada.Drivers.Bacnet;
 using Scada.Drivers.Modbus;
 using Scada.Security.Authorization;
 
@@ -105,6 +107,26 @@ public static class InstallationNetworkProfileApi
         var listeners = new List<InstallationNetworkConfiguredDriverListener>();
         foreach (var driver in runtimeDrivers)
         {
+            if (string.Equals(driver.DriverType, BacnetDriverDescriptor.DriverType, StringComparison.Ordinal) &&
+                driver.ProtocolDetails is not null &&
+                driver.ProtocolDetails.TryGetValue("localUdpPort", out var rawBacnetPort) &&
+                int.TryParse(rawBacnetPort, NumberStyles.None, CultureInfo.InvariantCulture, out var bacnetPort) &&
+                bacnetPort is >= 1 and <= 65535)
+            {
+                var bindAddress = driver.ProtocolDetails.TryGetValue("localUdpBindAddress", out var rawBindAddress) &&
+                                  IPAddress.TryParse(rawBindAddress, out var parsedBindAddress) &&
+                                  parsedBindAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                    ? parsedBindAddress.ToString()
+                    : IPAddress.Any.ToString();
+                listeners.Add(new InstallationNetworkConfiguredDriverListener(
+                    driver.DataSourceName,
+                    "UDP",
+                    bindAddress,
+                    bacnetPort,
+                    driver.State.ToString()));
+                continue;
+            }
+
             var rawEndpoint = driver.Endpoint;
             if (!string.Equals(
                     driver.DriverType,

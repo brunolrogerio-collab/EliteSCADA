@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Scada.Api.Engineering;
 using Scada.Drivers.Abstractions;
+using Scada.Drivers.Bacnet;
 using Scada.Drivers.Modbus;
 
 namespace Scada.Drivers.Tests;
@@ -63,7 +64,7 @@ public sealed class InstallationNetworkProfileTests
     }
 
     [Fact]
-    public void Read_ReportsConfiguredModbusTcpServerListenerFromActiveRuntime()
+    public void Read_ReportsConfiguredModbusAndBacnetListenersFromActiveRuntime()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -115,15 +116,43 @@ public sealed class InstallationNetworkProfileTests
                 RecentFailureRate: 0,
                 AssociatedTagCount: 1,
                 TagQuality: new CommunicationTagQualitySummary(0, 0, 0, 0, 0, 0, 0, 0, 0),
-                Counters: new CommunicationDriverCounters(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+                Counters: new CommunicationDriverCounters(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+            new CommunicationDriverDiagnosticSnapshot(
+                DataSourceKey: "bacnet.ip:plant",
+                DataSourceName: "Plant BACnet/IP",
+                DriverType: BacnetDriverDescriptor.DriverType,
+                RuntimeInstanceId: "runtime-bacnet",
+                Endpoint: "device:1201",
+                State: CommunicationDriverOperationalState.Healthy,
+                StateChangedAt: now,
+                CapturedAt: now,
+                LastSuccessfulCommunicationAt: now,
+                LastFailedCommunicationAt: null,
+                LastError: null,
+                DataAge: null,
+                ConfiguredScanInterval: null,
+                LastOperationDuration: null,
+                AverageOperationDuration: null,
+                LastScanDuration: null,
+                RecentFailureRate: 0,
+                AssociatedTagCount: 1,
+                TagQuality: new CommunicationTagQualitySummary(0, 0, 0, 0, 0, 0, 0, 0, 0),
+                Counters: new CommunicationDriverCounters(1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1),
+                ProtocolDetails: new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["localUdpPort"] = "47808",
+                    ["localUdpBindAddress"] = "0.0.0.0"
+                })
         };
 
         var profile = Assert.IsType<InstallationNetworkProfileView>(
             InstallationNetworkProfileApi.Read(configuration, diagnostics));
 
-        var listener = Assert.Single(profile.ConfiguredDriverListeners);
-        Assert.Equal(("Plant Modbus listener", "TCP", "0.0.0.0", 1502, "Healthy"),
-            (listener.DataSourceName, listener.Transport, listener.BindAddress, listener.InternalPort, listener.State));
+        Assert.Collection(profile.ConfiguredDriverListeners,
+            listener => Assert.Equal(("Plant Modbus listener", "TCP", "0.0.0.0", 1502, "Healthy"),
+                (listener.DataSourceName, listener.Transport, listener.BindAddress, listener.InternalPort, listener.State)),
+            listener => Assert.Equal(("Plant BACnet/IP", "UDP", "0.0.0.0", 47808, "Healthy"),
+                (listener.DataSourceName, listener.Transport, listener.BindAddress, listener.InternalPort, listener.State)));
     }
 
     [Fact]

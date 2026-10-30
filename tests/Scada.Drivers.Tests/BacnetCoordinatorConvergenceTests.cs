@@ -144,7 +144,7 @@ public sealed class BacnetCoordinatorConvergenceTests
             UseCov: true,
             WritePriority: 8);
         var communicationBinding = Binding(protocolBinding);
-        var dataSource = DataSource("bacnet.runtime", 1201);
+        var dataSource = DataSource("bacnet.runtime", 1201, localPort: 47809);
         var tagId = Guid.NewGuid();
         var package = Package(
             dataSource,
@@ -188,6 +188,8 @@ public sealed class BacnetCoordinatorConvergenceTests
         Assert.Equal(CommunicationDriverOperationalState.Healthy, diagnostics.State);
         var details = Assert.IsAssignableFrom<IReadOnlyDictionary<string, string>>(diagnostics.ProtocolDetails);
         Assert.Equal("1201", details["deviceInstance"]);
+        Assert.Equal("47809", details["localUdpPort"]);
+        Assert.Equal("0.0.0.0", details["localUdpBindAddress"]);
         Assert.Equal("true", details["deviceReachable"]);
         Assert.Equal("0", details["covTagCount"]);
         Assert.Equal("1", details["polledTagCount"]);
@@ -273,6 +275,7 @@ public sealed class BacnetCoordinatorConvergenceTests
         string key,
         uint deviceInstance,
         int scanIntervalMilliseconds = 50,
+        int localPort = 47808,
         Dictionary<string, string>? secretReferences = null) =>
         new(
             Guid.NewGuid(),
@@ -282,7 +285,7 @@ public sealed class BacnetCoordinatorConvergenceTests
             Settings: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["deviceInstance"] = deviceInstance.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["localPort"] = "47808",
+                ["localPort"] = localPort.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["scanIntervalMilliseconds"] = scanIntervalMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["requestTimeoutMilliseconds"] = "250",
                 ["discoveryWindowMilliseconds"] = "250"

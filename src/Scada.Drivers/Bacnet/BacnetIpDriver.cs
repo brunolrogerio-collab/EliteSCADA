@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO.BACnet;
+using System.Net;
 using System.Net.Sockets;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
@@ -13,6 +15,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     private readonly ITagRegistry _registry;
     private readonly IBacnetSession _session;
     private readonly IReadOnlyList<BacnetPoint> _points;
+    private readonly int _localUdpPort;
     private readonly Dictionary<Guid, BacnetPoint> _pointsByTagId;
     private readonly HashSet<Guid> _covTagIds = new();
     private readonly HashSet<Guid> _covManagedTagIds = new();
@@ -71,7 +74,8 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         IBacnetSession session,
         TimeSpan? scanRate = null,
         TimeSpan? covFallbackPollInterval = null,
-        TimeSpan? covRecreationRetryInterval = null)
+        TimeSpan? covRecreationRetryInterval = null,
+        int localUdpPort = BacnetClient.DEFAULT_UDP_PORT)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
@@ -85,6 +89,8 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         _cache = cache;
         _registry = registry;
         _session = session;
+        if (localUdpPort is < 1 or > 65535) throw new ArgumentOutOfRangeException(nameof(localUdpPort));
+        _localUdpPort = localUdpPort;
         _points = points.ToArray();
         if (_points.Count == 0) throw new ArgumentException("At least one BACnet point is required.", nameof(points));
         foreach (var point in _points) point.Validate();
@@ -290,6 +296,8 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             var protocolDetails = new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["deviceInstance"] = DeviceInstance.ToString(CultureInfo.InvariantCulture),
+                ["localUdpPort"] = _localUdpPort.ToString(CultureInfo.InvariantCulture),
+                ["localUdpBindAddress"] = IPAddress.Any.ToString(),
                 ["covTagCount"] = covCounts.Active.ToString(CultureInfo.InvariantCulture),
                 ["covManagedTagCount"] = covCounts.Managed.ToString(CultureInfo.InvariantCulture),
                 ["polledTagCount"] = (_points.Count - covCounts.Active).ToString(CultureInfo.InvariantCulture),

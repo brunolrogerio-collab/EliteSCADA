@@ -2,13 +2,14 @@
 
 ## Checkpoint prioritário — #780 — 30/10/2026
 
-Branch `work/w15-service-ports-780`, PR draft #828. Padrões autorizados de acesso: Web 18080, API 15120 independentes, banco gerenciado novo 15432. Instalação usa padrões automaticamente; alteração posterior opcional. Docker internos 80/5080/5432; não mudar Drivers. Preservar valores existentes explícitos. Nenhuma integração nem atualização de Preview nesta frente.
+Branch `work/w15-service-ports-780`, PR draft #828. Produto conferido em `5b8b1c3794717b016ef740bbd29911081615a5c2`. Padrões novos: Web 18080, API 15120, PostgreSQL gerenciado 15432; valores existentes preservados. Drivers ficam nos Data Sources. Preview e Portal preservados.
 
-Evidência real local: `scripts/ci/test_native_network_container.ps1` em PowerShell 5.1 executou 8/8 no Linux com imagem PostgreSQL fixada por digest, cluster descartável, nenhuma porta publicada, repositório read-only. Comprova listener/SQL PostgreSQL real, troca, recuperação explícita, rollback após falha simulada da API e flock Linux real. API/SCM/systemd continuam simulados; não declarar produto nativo completo verificado. Script remove somente seu próprio contêiner com --rm.
+Implementado no candidato: inventário autenticado e sem segredos; readiness SQL canônica na API/UI; listeners nativos Web/API independentes com isolamento dos arquivos Web; preparação de comando na interface condicionada ao perfil administrativo; adaptadores Web Windows/Linux com backup e rollback; coordenador de banco com journal e recuperação. Mídia tem núcleo candidato e ensaios reais, mas ainda não tem aplicação administrativa completa.
 
-Candidatos implementados: inventário efetivo/seguro; verificação SQL canônica autenticada na API/UI; adaptadores Web nativos; coordenador de banco com backup, journal, recuperação e locks. Host Web integrado opt-in existe, mas NÃO satisfaz o pedido final de portas Web/API independentes no perfil nativo. Corrigir esse perfil antes de fechar #780.
+Evidências: relay real com gateway/câmera isolados passou 21/21 localmente; vídeo autorizado foi usado somente em laboratório. Isso não comprova autenticação HTTP completa nem navegador. CI exato 41002079222: instalação Linux, Web e Chromium passaram; focused .NET falhou em `PointReadCommissioningTests.Modbus_PointRead_MapsTransportTimeoutToBadCommunication`, Assert.NotEmpty na linha 142. Não atribuir causa ao produto nem declarar CI verde. Não repetir automaticamente nem investigar HA-D2 nesta frente.
 
-Pendências concretas: perfil nativo com listeners independentes; aplicação coordenada de mídia; readiness autenticada integrada aos adaptadores; segurança de ACL backups Windows; integração entre operações administrativas/topologia; ensaios SCM/systemd e produto reais; interface/Help finais e revisão de todo #828. Ainda não expor candidatos de aplicação nativa como concluídos. Antes de novos commits, conferir CI do SHA atual; não perseguir falhas HA-D2 conhecidas nem transferir verde entre SHAs. Registros abaixo são históricos.
+Pendências para entrega: provisionamento do perfil administrativo nativo; aplicação/recuperação de mídia; readiness integrada aos adaptadores; ACL de backups Windows; coordenação com manutenção de topologia; serviços SCM/systemd e produto reais; autorização HTTP e navegador de mídia; Help e revisão final. PR permanece draft, #780 aberta, sem merge. Resultados antigos abaixo são históricos e não substituem este checkpoint.
+
 
 
 ## Retomada atual — portas nativas e Docker — 30/10/2026

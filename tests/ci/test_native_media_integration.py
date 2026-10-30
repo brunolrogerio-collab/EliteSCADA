@@ -54,6 +54,7 @@ class NativeMediaIntegrationTests(unittest.TestCase):
                     time.sleep(.3)
                     publisher=subprocess.Popen(['ffmpeg','-nostdin','-loglevel','error','-stream_loop','-1','-re','-i',video,'-an','-c:v','libx264','-preset','ultrafast','-tune','zerolatency','-g','30','-f','rtsp',f'rtsp://127.0.0.1:{rtsp}/proof'],stdout=log,stderr=log)
             def verify(content):
+                module.verify_local_media(content)
                 sources=json.loads(content)['MediaSources']
                 opener=build_opener(HTTPCookieProcessor(CookieJar()))
                 for _ in range(100):

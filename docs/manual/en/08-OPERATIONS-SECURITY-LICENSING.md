@@ -160,7 +160,7 @@ In **Engineering > Installation > Network and services**, a `SystemAdmin` user c
 | Service | Host default | Inside container | Notes |
 | --- | ---: | ---: | --- |
 | Web | `127.0.0.1:18080` | `80/TCP` | Runtime and Engineering navigation |
-| Direct API | `127.0.0.1:15080` | `5080/TCP` | Web forwards `/api` to this API |
+| Direct API | `127.0.0.1:15120` | `5080/TCP` | Web forwards `/api` to this API |
 | PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | Host publication remains loopback-only |
 | MediaMTX control | Not published | `9997/TCP` by default | Configurable internal port |
 | HLS | Not published | `8888/TCP` by default | Configurable internal port |
@@ -193,6 +193,20 @@ Binding Web/API to `0.0.0.0` allows them to respond on every network interface. 
 If the page no longer opens, use the new address shown in the profile. If the script reports rollback, keep the backup and check host logs/health. To restore manually, copy the correct `.env.network-backup-*` to `.env`, then run `docker compose -f docker-compose.stable.yml up -d` in that installation folder. Do not use `down -v`; that deletes persistent data.
 
 **Related Help:** `/help?topic=installation.network-ports`, [stable Docker installation](../../LOCAL-DOCKER-STABLE.md).
+
+## Ports on native Windows and Linux
+
+**[IN DEVELOPMENT — review during installer qualification]** Adapters exist in this candidate; the installer must still supply the protected administrative profile and qualify real services. If the profile is missing, do not invent file paths or service names.
+
+In **Installation > Network and services**, review current addresses. Web is where you open the screens; API is direct backend access. Their ports are independent. New installations use Web `18080`, API `15120`, and locally managed PostgreSQL `15432` automatically. Existing installations retain their values; older Docker versions could use API port `15080`.
+
+To change Web/API, edit only the desired ports and check the preview. A command appears only when the installation supplies a profile matching its effective configuration. Run the preview in the administrative directory on the server, not in the browser; applying requires a separate explicit action. After changing Web to `28080`, for example, reopen `http://localhost:28080`.
+
+Database and media use separate administrative procedures; the Web/API command shown on screen does not run them. Change only locally managed PostgreSQL, never a remote server through this procedure. Media ports must match the API relay addresses; control and HLS must not be published directly to users.
+
+After interruption, preserve backups and the recovery record. Run the relevant command with `--recover` on Linux or `-Recover` on Windows, without new ports. Pending recovery blocks changes by other adapters. Do not delete the record to continue. After recovery, open the interface, use **Check database**, and verify Runtime and video. Process health alone does not prove these functions.
+
+Full commands and prerequisites are in `installation/NATIVE-PORTS.md` in the administrative package. Firewall, Drivers, and HA peers are not changed automatically. Protected directory provisioning and complete authenticated verification in the adapters still require qualification.
 
 ## License Generator
 

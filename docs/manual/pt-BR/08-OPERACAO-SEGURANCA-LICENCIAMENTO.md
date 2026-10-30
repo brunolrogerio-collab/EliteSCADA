@@ -160,7 +160,7 @@ Em **Engineering > Instalação > Rede e serviços**, um usuário com `SystemAdm
 | Serviço | No host, padrão | Dentro do container | Observação |
 | --- | ---: | ---: | --- |
 | Web | `127.0.0.1:18080` | `80/TCP` | Navegação do Runtime e Engineering |
-| API direta | `127.0.0.1:15080` | `5080/TCP` | A Web encaminha `/api` para esta API |
+| API direta | `127.0.0.1:15120` | `5080/TCP` | A Web encaminha `/api` para esta API |
 | PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | A publicação no host permanece somente loopback |
 | Controle MediaMTX | Não publicada | `9997/TCP` por padrão | Porta interna configurável |
 | HLS | Não publicada | `8888/TCP` por padrão | Porta interna configurável |
@@ -194,7 +194,22 @@ Se a aba não abrir, use o novo endereço apresentado no perfil. Se o script reg
 
 **Ajuda relacionada:** `/help?topic=installation.network-ports`, [instalação Docker estável](../../LOCAL-DOCKER-STABLE.md).
 
+## Portas no Windows e Linux nativos
+
+**[EM IMPLEMENTAÇÃO — revisar na homologação do instalador]** Os adaptadores existem neste candidato; o instalador ainda precisa fornecer o perfil administrativo protegido e homologar os serviços reais. A ausência desse perfil não significa que você deva inventar caminhos ou nomes de serviço.
+
+Em **Instalação > Rede e serviços**, confira os endereços atuais. Web é a porta pela qual você abre as telas; API é o acesso direto ao backend. São portas independentes. Instalações novas usam Web `18080`, API `15120` e banco local gerenciado `15432` automaticamente. Instalações existentes preservam seus valores; em versões anteriores a API Docker podia usar `15080`.
+
+Para mudar Web/API, preencha somente as portas que deseja alterar e confira a prévia. O comando só aparece quando a instalação fornece um perfil correspondente à configuração em execução. Execute a prévia na pasta administrativa no computador servidor, não no navegador; a aplicação exige uma ação explícita posterior. Após mudar Web para `28080`, por exemplo, reabra `http://localhost:28080`.
+
+Banco e mídia possuem procedimentos administrativos separados; não são executados pelo comando Web/API mostrado na tela. Mude apenas o PostgreSQL local gerenciado, nunca um servidor remoto por esse procedimento. As portas de mídia devem acompanhar os endereços usados pela API; controle e HLS não devem ser publicados diretamente para os usuários.
+
+Se houver interrupção, preserve os backups e o registro de recuperação. Use o comando correspondente com `--recover` no Linux ou `-Recover` no Windows, sem informar novas portas. Uma recuperação pendente bloqueia alterações dos outros adaptadores. Não apague o registro para continuar. Após recuperar, abra a interface, use **Verificar banco** e confira Runtime e vídeo. A saúde do processo, sozinha, não comprova essas funções.
+
+Os comandos completos e requisitos estão no arquivo `installation/NATIVE-PORTS.md` do pacote administrativo. Não há mudança automática de firewall, Drivers ou peers HA. A configuração dos diretórios protegidos e a verificação autenticada completa nos adaptadores ainda precisam de homologação.
+
 ## License Generator
+
 
 O License Generator é uma ferramenta offline/controlada de autoridade de licenciamento. A chave privada de assinatura nunca deve ir para GitHub, CI normal, instalador de cliente ou Runtime.
 

@@ -5,7 +5,8 @@ param(
     [ValidateRange(1,65535)][int]$ControlPort,
     [ValidateRange(1,65535)][int]$HlsPort,
     [switch]$Apply,
-    [switch]$Recover
+    [switch]$Recover,
+    [switch]$VerifyAuthenticated
 )
 $ErrorActionPreference='Stop'
 if ($Recover -and ($Apply -or $PSBoundParameters.ContainsKey('ControlPort') -or $PSBoundParameters.ContainsKey('HlsPort'))) { throw 'Recovery cannot be combined with a port change.' }
@@ -29,10 +30,11 @@ try:
     import native_media_ports
     control=None if sys.argv[3]=='current' else int(sys.argv[3])
     hls=None if sys.argv[4]=='current' else int(sys.argv[4])
-    print(native_media_ports.execute_locked(sys.argv[2],control,hls,sys.argv[5]=='apply',sys.argv[5]=='recover'))
+    print(native_media_ports.execute_locked(sys.argv[2],control,hls,sys.argv[5]=='apply',sys.argv[5]=='recover',sys.argv[6]=='verify'))
 except Exception:
     raise SystemExit('Native media operation failed. Check protected backups and service diagnostics.')
 '@
-    & $python -c $runner $PSScriptRoot $resolvedProfile $controlArgument $hlsArgument $mode
+    $verification='none'; if ($VerifyAuthenticated) { $verification='verify' }
+    & $python -c $runner $PSScriptRoot $resolvedProfile $controlArgument $hlsArgument $mode $verification
     if ($LASTEXITCODE -ne 0) { throw 'Native media operation failed; inspect protected backups before retrying.' }
 } finally { $lock.Dispose() }

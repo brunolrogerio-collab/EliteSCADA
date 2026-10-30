@@ -48,10 +48,12 @@ def verify_local_media(application_bytes):
             time.sleep(1)
 
 
-def execute_locked(profile_path, control_port=None, hls_port=None, apply=False, recover=False):
+def execute_locked(profile_path, control_port=None, hls_port=None, apply=False, recover=False, verify_authenticated=False):
     # Host profile is provisioned by the installer, not supplied by a web request.
     import native_database_port
     profile = json.loads(Path(profile_path).read_text())
+    if verify_authenticated and not os.environ.get('SCADIVO_INSTALLATION_BEARER'):
+        raise ValueError('Temporary administrator session required before a change')
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
         raise ValueError('Registered native profile required')
     content = Path(profile['configurationFile']).read_bytes()
@@ -61,11 +63,12 @@ def execute_locked(profile_path, control_port=None, hls_port=None, apply=False, 
         if urlsplit(endpoints[key]).hostname not in ('127.0.0.1', '::1', 'localhost'):
             raise ValueError('Native media service must be local')
     service = lambda action, name: native_database_port.control_service(profile['platform'], action, name)
+    postflight=(lambda: native_database_port.authenticated_readiness(profile['configurationFile'])) if verify_authenticated else None
     if recover:
         if apply or control_port is not None or hls_port is not None:
             raise ValueError('Recovery cannot be combined with a port change')
-        return recover_locked(profile_path, service, verify_local_media)
-    return apply_locked(profile_path, service, verify_local_media, control_port, hls_port, apply)
+        return recover_locked(profile_path, service, verify_local_media,postflight)
+    return apply_locked(profile_path, service, verify_local_media, control_port, hls_port, apply,postflight)
 
 
 def main():
@@ -77,6 +80,7 @@ def main():
     parser.add_argument('--hls-port', type=int)
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--recover', action='store_true')
+    parser.add_argument('--verify-authenticated', action='store_true')
     args = parser.parse_args()
     profile = json.loads(Path(args.profile).read_text())
     if profile.get('platform') != 'linux':
@@ -85,12 +89,12 @@ def main():
     descriptor = os.open(config.with_name(config.name + '.network.lock'), os.O_RDWR | os.O_CREAT, 0o600)
     try:
         fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        print(execute_locked(args.profile, args.control_port, args.hls_port, args.apply, args.recover))
+        print(execute_locked(args.profile, args.control_port, args.hls_port, args.apply, args.recover,args.verify_authenticated))
     finally:
         os.close(descriptor)
 
 
-def recover_locked(profile_path, service_control, verify):
+def recover_locked(profile_path, service_control, verify, postflight=None):
     """Restore both registered configurations after an interrupted operation."""
     profile = json.loads(Path(profile_path).read_text())
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
@@ -119,6 +123,7 @@ def recover_locked(profile_path, service_control, verify):
     service_control('restart', media_service)
     verify(original[0])
     service_control('start', api_service)
+    if postflight is not None: postflight()
     journal.unlink()
     return 'Previous media configuration restored; application and playback acceptance still required'
 
@@ -164,7 +169,7 @@ def prepare(application_bytes, media_bytes, control_port=None, hls_port=None):
     return json.dumps(application, indent=2).encode('utf-8'), media.encode('utf-8')
 
 
-def apply_locked(profile_path, service_control, verify, control_port=None, hls_port=None, apply=False):
+def apply_locked(profile_path, service_control, verify, control_port=None, hls_port=None, apply=False, postflight=None):
     """Administrative caller holds the installation lock; callbacks own OS/health."""
     profile = json.loads(Path(profile_path).read_text())
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
@@ -183,6 +188,7 @@ def apply_locked(profile_path, service_control, verify, control_port=None, hls_p
     original = app.read_bytes(), gateway.read_bytes()
     updated = prepare(*original, control_port, hls_port)
     if updated == original:
+        if postflight is not None: postflight()
         return 'No change required'
     # Preflight only changed listeners. The callback checks actual service readiness.
     previous = json.loads(original[0])['MediaSources']
@@ -225,6 +231,7 @@ def apply_locked(profile_path, service_control, verify, control_port=None, hls_p
         service_control('restart', media_service)
         verify(updated[0])
         service_control('start', api_service)
+        if postflight is not None: postflight()
     except Exception:
         try:
             service_control('stop', api_service)
@@ -232,6 +239,7 @@ def apply_locked(profile_path, service_control, verify, control_port=None, hls_p
             service_control('restart', media_service)
             verify(original[0])
             service_control('start', api_service)
+            if postflight is not None: postflight()
         except Exception:
             raise RuntimeError('Media recovery failed; protected journal retained') from None
         journal.unlink()

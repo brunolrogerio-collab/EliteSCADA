@@ -91,7 +91,9 @@ class NativeMediaPortTests(unittest.TestCase):
                 self.assertEqual(gateway.read_bytes(),self.gateway)
                 self.assertNotIn(unittest.mock.call('start','api-service'),service.call_args_list)
                 service.reset_mock(); verify=Mock()
-                media.recover_locked(profile,service,verify)
+                postflight=Mock(side_effect=lambda:self.assertTrue(journal.exists()))
+                media.recover_locked(profile,service,verify,postflight)
+                postflight.assert_called_once()
                 self.assertFalse(journal.exists())
                 self.assertEqual(service.call_args_list,[unittest.mock.call('stop','api-service'),
                     unittest.mock.call('restart','media-service'),unittest.mock.call('start','api-service')])
@@ -121,6 +123,14 @@ class NativeMediaPortTests(unittest.TestCase):
             verify.side_effect=[RuntimeError('new media unreachable'),None]
             with self.assertRaisesRegex(RuntimeError,'previous configuration restored'):
                 media.apply_locked(profile,service,verify,control_port=port,apply=True)
+            self.assertEqual(app.read_bytes(),self.application)
+            self.assertEqual(gateway.read_bytes(),self.gateway)
+            self.assertFalse(app.with_name(app.name+'.media-port-pending.json').exists())
+            service.reset_mock();verify=Mock()
+            postflight=Mock(side_effect=[RuntimeError('API database not ready'),None])
+            with self.assertRaisesRegex(RuntimeError,'previous configuration restored'):
+                media.apply_locked(profile,service,verify,control_port=port,apply=True,postflight=postflight)
+            self.assertEqual(postflight.call_count,2)
             self.assertEqual(app.read_bytes(),self.application)
             self.assertEqual(gateway.read_bytes(),self.gateway)
             self.assertFalse(app.with_name(app.name+'.media-port-pending.json').exists())

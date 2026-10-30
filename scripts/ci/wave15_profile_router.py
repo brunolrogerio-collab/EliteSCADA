@@ -348,6 +348,7 @@ def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr
         "run_driver": driver,
         "run_ha_two_process": needs_ha_two_process(paths, effective, mode),
         "run_ha_d2_acceptance": needs_ha_d2_acceptance(paths, effective, mode),
+        "run_installation_linux": "INSTALLATION" in effective,
         "dotnet_projects": projects,
         "dotnet_test_filter": dotnet_test_filter,
         "e2e_specs": specs,

@@ -33,6 +33,7 @@ jobs:
       run_driver: ${{ steps.router.outputs.run_driver }}
       run_ha_two_process: ${{ steps.router.outputs.run_ha_two_process }}
       run_ha_d2_acceptance: ${{ steps.router.outputs.run_ha_d2_acceptance }}
+      run_installation_linux: ${{ steps.router.outputs.run_installation_linux }}
       effective_profiles: ${{ steps.router.outputs.effective_profiles }}
       dotnet_projects: ${{ steps.router.outputs.dotnet_projects }}
       dotnet_test_filter: ${{ steps.router.outputs.dotnet_test_filter }}
@@ -853,9 +854,21 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+  installation-linux:
+    name: Stable Docker installation on Linux
+    needs: classify
+    if: needs.classify.outputs.run_installation_linux == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise two isolated installations, port change and collision preflight
+        shell: bash
+        run: bash scripts/ci/test_stable_installation_linux.sh
+
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, intelligence-ui-regression, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, intelligence-ui-regression, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar, installation-linux]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -874,6 +887,7 @@ jobs:
       KNX_SIDECAR: ${{ needs.knx-ip-sidecar.result }}
       ZWAVE_SIDECAR: ${{ needs.zwave-js-sidecar.result }}
       MATTER_SIDECAR: ${{ needs.matter-wifi-fake-sidecar.result }}
+      INSTALLATION_LINUX: ${{ needs.installation-linux.result }}
       EXEMPT: ${{ needs.classify.outputs.coordination_exempt }}
       NEED_WEB: ${{ needs.classify.outputs.run_web }}
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
@@ -886,6 +900,7 @@ jobs:
       NEED_KNX_SIDECAR: ${{ needs.classify.outputs.run_knx_sidecar }}
       NEED_ZWAVE_SIDECAR: ${{ needs.classify.outputs.run_zwave_sidecar }}
       NEED_MATTER_SIDECAR: ${{ needs.classify.outputs.run_matter_fake_sidecar }}
+      NEED_INSTALLATION_LINUX: ${{ needs.classify.outputs.run_installation_linux }}
       PROFILES: ${{ needs.classify.outputs.effective_profiles }}
       DRIVER_GATE: ${{ needs.classify.outputs.driver_gate }}
     steps:
@@ -907,10 +922,11 @@ jobs:
           if [ "$NEED_KNX_SIDECAR" = true ]; then test "$KNX_SIDECAR" = success; fi
           if [ "$NEED_ZWAVE_SIDECAR" = true ]; then test "$ZWAVE_SIDECAR" = success; fi
           if [ "$NEED_MATTER_SIDECAR" = true ]; then test "$MATTER_SIDECAR" = success; fi
+          if [ "$NEED_INSTALLATION_LINUX" = true ]; then test "$INSTALLATION_LINUX" = success; fi
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
-            echo "Web: $WEB; .NET: $DOTNET; Intelligence Windows: $INTELLIGENCE_WINDOWS; Intelligence PostgreSQL restart: $INTELLIGENCE_POSTGRES; Intelligence UI regressions: $INTELLIGENCE_UI; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 process acceptance: $HA_D2; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR";
+            echo "Web: $WEB; .NET: $DOTNET; Intelligence Windows: $INTELLIGENCE_WINDOWS; Intelligence PostgreSQL restart: $INTELLIGENCE_POSTGRES; Intelligence UI regressions: $INTELLIGENCE_UI; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 process acceptance: $HA_D2; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR; Stable Docker Linux: $INSTALLATION_LINUX";
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
           } >> "$GITHUB_STEP_SUMMARY"

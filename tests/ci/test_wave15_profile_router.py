@@ -222,6 +222,11 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertIn("INSTALLATION", result["effective_profiles"])
         self.assertTrue(result["run_web"])
         self.assertEqual(result["e2e_specs"], ["tests-e2e/local-auth.spec.ts"])
+        self.assertTrue(result["run_installation_linux"])
+
+    def test_unrelated_profile_does_not_start_linux_installation_evidence(self):
+        result = self.classify(["docs/README.md"], "VALIDATION_PROFILE: DOCS_I18N_HELP")
+        self.assertFalse(result["run_installation_linux"])
 
     def test_security_ui_keeps_security_evidence(self):
         result = self.classify(

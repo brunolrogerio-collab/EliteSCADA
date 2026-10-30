@@ -59,21 +59,21 @@ async function installSessionContract(
   let loginRequests = 0;
   let runtimeCapabilityRequests = 0;
 
-  await page.route('**/api/auth/config', route => route.fulfill({ json: authConfiguration }));
-  await page.route('**/api/auth/me', route => {
+  await page.context().route('**/api/auth/config', route => route.fulfill({ json: authConfiguration }));
+  await page.context().route('**/api/auth/me', route => {
     if (!currentProfile) return route.fulfill({ status: 401, body: '' });
     return route.fulfill({ json: currentProfile });
   });
-  await page.route('**/api/auth/local-session', route => route.fulfill({
+  await page.context().route('**/api/auth/local-session', route => route.fulfill({
     json: {
       authenticated: currentProfile?.identityProvider === 'local',
       username: currentProfile?.identityProvider === 'local' ? currentProfile.username : null
     }
   }));
-  await page.route('**/api/engineering/persistence/status', route => route.fulfill({
+  await page.context().route('**/api/engineering/persistence/status', route => route.fulfill({
     json: { enabled: true, hasProjects: true }
   }));
-  await page.route('**/api/auth/effective-capabilities', route => {
+  await page.context().route('**/api/auth/effective-capabilities', route => {
     const runtimeOnly = currentProfile?.username === runtimeOperator.username;
     if (runtimeOnly) runtimeCapabilityRequests++;
     return route.fulfill({
@@ -92,7 +92,7 @@ async function installSessionContract(
           }
     });
   });
-  await page.route('**/api/auth/logout', route => {
+  await page.context().route('**/api/auth/logout', route => {
     logoutRequests++;
     if (logoutMode === 'failure') {
       return route.fulfill({ status: 503, json: { error: 'session invalidation unavailable' } });
@@ -101,7 +101,7 @@ async function installSessionContract(
     currentProfile = null;
     return route.fulfill({ status: 204, body: '' });
   });
-  await page.route('**/api/auth/login', async route => {
+  await page.context().route('**/api/auth/login', async route => {
     loginRequests++;
     const request = route.request().postDataJSON() as { username?: string; password?: string };
     if (request.username !== runtimeOperator.username || request.password !== 'RuntimePass8') {
@@ -134,7 +134,7 @@ async function installEngineeringRuntimeProjection(
   visualAssets: unknown[] = [],
   runtimePresentation?: unknown
 ) {
-  await page.route('**/api/runtime/application', route => route.fulfill({
+  await page.context().route('**/api/runtime/application', route => route.fulfill({
     json: {
       mode: 'engineering',
       projectKey: 'c25-session-runtime',
@@ -162,6 +162,39 @@ async function installEngineeringRuntimeProjection(
     }
   }));
 }
+
+test('new Runtime window starts on the selected screen and admits a distinct client', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  const clientIds: string[] = [];
+  await page.context().route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    clientIds.push(request.clientInstanceId);
+    return route.fulfill({ status: 201, json: {
+      sessionId: `00000000-0000-0000-0000-${String(clientIds.length).padStart(12, '0')}`,
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  const popupPromise = page.context().waitForEvent('page');
+  await page.getByRole('link', { name: 'Abrir esta tela em outra janela' }).click();
+  const secondWindow = await popupPromise;
+  await expect(secondWindow).toHaveURL(/\?screen=home$/);
+  await expect(secondWindow.getByTestId('runtime-engineering-application')).toBeVisible();
+
+  await page.getByTestId('session-menu-toggle').click();
+  await page.getByTestId('runtime-session-request-viewOnly').click();
+  await secondWindow.getByTestId('session-menu-toggle').click();
+  await secondWindow.getByTestId('runtime-session-request-viewOnly').click();
+  await expect.poll(() => clientIds.length).toBe(2);
+  expect(clientIds[0]).not.toBe(clientIds[1]);
+});
 
 test('external identity does not expose local switch-user even when local login is enabled', async ({ page }) => {
   await installSessionContract(page, externalDeveloper);

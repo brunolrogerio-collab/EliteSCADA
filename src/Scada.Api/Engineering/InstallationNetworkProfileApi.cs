@@ -105,11 +105,24 @@ public static class InstallationNetworkProfileApi
             {
                 using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
                 var root = document.RootElement;
+                var service = root.GetProperty("serviceName").GetString();
+                var configPath = root.GetProperty("configurationFile").GetString();
                 available = root.GetProperty("schema").GetString() == "scadivo-native-network-v1" &&
                     root.GetProperty("platform").GetString() == platform &&
                     root.GetProperty("endpointName").GetString() == "Web" &&
                     root.GetProperty("apiEndpointName").GetString() == "Api" &&
-                    File.Exists(root.GetProperty("configurationFile").GetString());
+                    !string.IsNullOrWhiteSpace(service) &&
+                    System.Text.RegularExpressions.Regex.IsMatch(service, @"\A[A-Za-z0-9_.-]+\z") &&
+                    !string.IsNullOrWhiteSpace(configPath) && Path.IsPathFullyQualified(configPath) &&
+                    File.Exists(configPath);
+                if (available)
+                {
+                    using var persisted = System.Text.Json.JsonDocument.Parse(File.ReadAllText(configPath!));
+                    var endpoints = persisted.RootElement.GetProperty("Kestrel").GetProperty("Endpoints");
+                    available = Uri.TryCreate(endpoints.GetProperty("Web").GetProperty("Url").GetString(), UriKind.Absolute, out var persistedWeb) &&
+                        Uri.TryCreate(endpoints.GetProperty("Api").GetProperty("Url").GetString(), UriKind.Absolute, out var persistedApi) &&
+                        persistedWeb == web && persistedApi == api;
+                }
             }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException)

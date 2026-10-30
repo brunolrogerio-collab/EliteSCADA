@@ -229,3 +229,7 @@ Teste opcional SCADIVO_MEDIA_TEST_VIDEO usa arquivo local fornecido pelo proprie
 Com câmera/gateway na mesma rede Docker descartável, 21/21 testes RuntimeMediaRelayTests/RuntimeMediaGatewayLabTests passaram. O gateway recebeu o RTSP pelo IP privado do contêiner, enquanto .NET no host acessou somente controle/HLS publicados em loopback. Confirmados provisionamento idempotente, playlists reescritas, tíquetes opacos limitados ao escopo/revisão, segmento fMP4 e inicialização reais. O HTTP 500 anterior desapareceu ao retirar o caminho RTSP pelo endereço de rede Windows: evidência de problema na topologia do laboratório, sem alteração do produto.
 
 Procedimento em scripts/ci/test_runtime_media_relay_container.ps1 (parser passou; comandos equivalentes executados no ensaio). Câmera sintética, não vídeo do proprietário nesta rodada. Não equivale a sessão HTTP autenticada completa nem exibição no navegador. Contêineres/rede exclusivos removidos em finally; Preview preservado.
+
+### Disponibilidade do perfil administrativo — correspondência efetiva
+
+A preparação de comando nativo exige serviço com identificador válido, caminho absoluto de configuração e URLs Web/Api persistidas iguais às URLs efetivas reportadas pela API. Arquivo vazio ou configuração divergente não libera o comando. Testes focados 4/4 passaram. Isso ainda não comprova registro SCM/systemd, ACL nem provisionamento pelo instalador.

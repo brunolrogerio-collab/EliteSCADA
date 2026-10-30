@@ -94,7 +94,7 @@ public sealed class InstallationNetworkProfileTests
         try
         {
             File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(new {
-                schema = "scadivo-native-network-v1", platform = "linux", endpointName = "Web", apiEndpointName = "Api", configurationFile = config
+                schema = "scadivo-native-network-v1", platform = "linux", endpointName = "Web", apiEndpointName = "Api", configurationFile = config, serviceName = "scadivo.service"
             }));
             var settings = new Dictionary<string, string?> {
                 ["InstallationNetwork:Profile"] = "native-linux",
@@ -103,7 +103,11 @@ public sealed class InstallationNetworkProfileTests
                 ["Kestrel:Endpoints:Api:Url"] = "http://127.0.0.1:15120"
             };
             var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+            Assert.False(InstallationNetworkProfileApi.ReadNative(configuration)!.AdministrativeProfileAvailable);
+            File.WriteAllText(config, """{"Kestrel":{"Endpoints":{"Web":{"Url":"http://127.0.0.1:18080"},"Api":{"Url":"http://127.0.0.1:15120"}}}}""");
             Assert.True(InstallationNetworkProfileApi.ReadNative(configuration)!.AdministrativeProfileAvailable);
+            File.WriteAllText(config, """{"Kestrel":{"Endpoints":{"Web":{"Url":"http://127.0.0.1:28080"},"Api":{"Url":"http://127.0.0.1:15120"}}}}""");
+            Assert.False(InstallationNetworkProfileApi.ReadNative(configuration)!.AdministrativeProfileAvailable);
             File.WriteAllText(path, "{}");
             Assert.False(InstallationNetworkProfileApi.ReadNative(configuration)!.AdministrativeProfileAvailable);
         }

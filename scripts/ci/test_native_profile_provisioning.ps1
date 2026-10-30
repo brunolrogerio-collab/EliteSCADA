@@ -62,6 +62,15 @@ try {
     & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $dbProfile -DatabaseRegistrationPath $declaration
     $result=Get-Content -LiteralPath $dbProfile -Raw | ConvertFrom-Json
     if ($result.database.serviceName -ne 'DatabaseTest' -or $result.topologyFile -ne $topology) { throw 'Database profile not registered.' }
+    $combined=Join-Path $root 'combined.json'
+    $db.configurationFile=$media; $db | ConvertTo-Json | Set-Content -LiteralPath $declaration
+    $failed=$false
+    try { & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $combined -MediaConfigurationPath $media -MediaServiceName MediaTest -DatabaseRegistrationPath $declaration } catch { $failed=$true }
+    if (-not $failed -or (Test-Path -LiteralPath $combined)) { throw 'Shared database/media configuration accepted.' }
+    $db.configurationFile=$pg; $db | ConvertTo-Json | Set-Content -LiteralPath $declaration
+    & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $combined -MediaConfigurationPath $media -MediaServiceName MediaTest -DatabaseRegistrationPath $declaration
+    $result=Get-Content -LiteralPath $combined -Raw | ConvertFrom-Json
+    if ($result.database.configurationFile -ne $pg -or $result.media.configurationFile -ne $media) { throw 'Combined profile invalid.' }
     'PASS: profile generation, protected Windows ACL, no secret copy, no overwrite, no application mutation; service lookup simulated.'
 } finally {
     $expected=[IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetFileName($root))))

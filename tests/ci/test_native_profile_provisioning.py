@@ -77,3 +77,12 @@ class NativeProfileProvisioningTests(unittest.TestCase):
                 generated=json.loads(db_profile.read_text())
                 self.assertEqual(generated['database']['currentPort'],15432)
                 self.assertEqual(generated['topologyFile'],str(topology))
+                combined=root/'combined.json'
+                declaration.write_text(json.dumps(dict(db,configurationFile=str(media))))
+                with self.assertRaises(ValueError): module.provision(config,'scadivo.service',combined,media_configuration=media,media_service='media.service',database_registration=declaration)
+                self.assertFalse(combined.exists())
+                declaration.write_text(json.dumps(db))
+                module.provision(config,'scadivo.service',combined,media_configuration=media,media_service='media.service',database_registration=declaration)
+                generated=json.loads(combined.read_text())
+                self.assertEqual(generated['database']['configurationFile'],str(pg))
+                self.assertEqual(generated['media']['configurationFile'],str(media))

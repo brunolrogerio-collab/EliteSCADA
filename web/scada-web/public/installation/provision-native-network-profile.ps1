@@ -63,7 +63,7 @@ try {
         if ($topology.schemaVersion -ne 1 -or $topology.active.mode -ne 'LocalManaged' -or $null -ne $topology.pending) { throw 'Idle local database topology required.' }
         $pg=(Resolve-Path -LiteralPath $db.configurationFile).Path
         $psql=(Resolve-Path -LiteralPath $db.psqlExecutable).Path
-        if (-not (Test-Path -LiteralPath $pg -PathType Leaf) -or -not (Test-Path -LiteralPath $psql -PathType Leaf) -or $pg -eq $configPath -or $db.serviceName -in @($ServiceName,$MediaServiceName) -or $db.serviceName -notmatch '^[A-Za-z0-9_.-]+$') { throw 'Distinct database service and files required.' }
+        if (-not (Test-Path -LiteralPath $pg -PathType Leaf) -or -not (Test-Path -LiteralPath $psql -PathType Leaf) -or $pg -eq $configPath -or ($MediaConfigurationPath -and $pg -eq $mediaPath) -or $psql -in @($configPath,$pg) -or $db.serviceName -in @($ServiceName,$MediaServiceName) -or $db.serviceName -notmatch '^[A-Za-z0-9_.-]+$') { throw 'Distinct database service and files required.' }
         if ($db.currentPort -isnot [int] -and $db.currentPort -isnot [long]) { throw 'Integer database port required.' }
         if ($db.currentPort -lt 1 -or $db.currentPort -gt 65535 -or ($null -ne $config.DatabaseTopology.LocalManagedPort -and $config.DatabaseTopology.LocalManagedPort -ne $db.currentPort)) { throw 'Database registration port differs from configuration.' }
         foreach ($key in @('username','databaseName')) { if ($db.$key -isnot [string] -or [string]::IsNullOrWhiteSpace($db.$key) -or $db.$key.StartsWith('-')) { throw 'Database identity required.' } }

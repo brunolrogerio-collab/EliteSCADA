@@ -70,7 +70,7 @@ def provision(configuration, service, destination, register=False, media_configu
                 raise ValueError('Idle local database topology required')
             pg=Path(declaration['configurationFile']).resolve(strict=True)
             psql=Path(declaration['psqlExecutable']).resolve(strict=True)
-            if not pg.is_file() or not psql.is_file() or pg == config or declaration['serviceName'] in (service,media_service) or not re.fullmatch(r'[A-Za-z0-9_.-]+',declaration['serviceName']):
+            if not pg.is_file() or not psql.is_file() or pg == config or (media_configuration is not None and pg == media_path) or psql in (config,pg) or declaration['serviceName'] in (service,media_service) or not re.fullmatch(r'[A-Za-z0-9_.-]+',declaration['serviceName']):
                 raise ValueError('Distinct registered local database service and files required')
             port=declaration['currentPort']
             if type(port) is not int or not 1 <= port <= 65535 or document.get('DatabaseTopology',{}).get('LocalManagedPort',port) != port:

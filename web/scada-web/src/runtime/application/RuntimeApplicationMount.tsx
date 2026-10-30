@@ -156,7 +156,11 @@ function EngineeringRuntimeApplicationContent({
     () => resolveRuntimeStartupScreen(engineeringPackage),
     [engineeringPackage]
   );
-  const activeScreenKey = requestedScreen ?? startup.screenKey;
+  const screenFromUrl = new URLSearchParams(window.location.search).get('screen');
+  const linkedScreen = (engineeringPackage.screens ?? []).find(screen =>
+    screen.key.toLocaleLowerCase() === screenFromUrl?.toLocaleLowerCase()
+  )?.key;
+  const activeScreenKey = requestedScreen ?? linkedScreen ?? startup.screenKey;
   const activeScreen = (engineeringPackage.screens ?? []).find(screen =>
     screen.key.toLocaleLowerCase() === activeScreenKey?.toLocaleLowerCase()
   );
@@ -320,6 +324,10 @@ function EngineeringRuntimeApplicationContent({
         </> : null}
       </div>
       <div className="runtime-operator-side runtime-operator-side--right">
+        {!compact ? <a className="runtime-operator-tool" href={`/?screen=${encodeURIComponent(activeScreenKey ?? '')}`}
+          target="_blank" rel="noopener noreferrer"
+          aria-label={locale === 'pt-BR' ? 'Abrir esta tela em outra janela' : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window'}
+          title={locale === 'pt-BR' ? 'Abrir esta tela em outra janela' : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window'}>↗</a> : null}
         {controlsPosition !== 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
         {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'right'
           ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}
@@ -335,7 +343,7 @@ function EngineeringRuntimeApplicationContent({
     <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
-        initialScreenKey={requestedScreen ?? startup.screenKey}
+        initialScreenKey={activeScreenKey}
         runtimeProjectKey={projection.projectKey ?? null}
         runtimeRevision={projection.revision ?? null}
         performanceAnalyticsEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'TrendUse')}

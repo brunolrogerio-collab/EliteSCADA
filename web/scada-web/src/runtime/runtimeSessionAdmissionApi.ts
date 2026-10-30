@@ -5,6 +5,18 @@ export const RUNTIME_CLIENT_INSTANCE_HEADER = 'X-EliteSCADA-Runtime-Client-Insta
 
 const CLIENT_INSTANCE_STORAGE_KEY = 'elitescada.runtime.client-instance-id';
 let ephemeralClientInstanceId: string | undefined;
+let identityClaim: Promise<string> | undefined;
+const tabToken = createClientInstanceId();
+const identityChannel = typeof window === 'undefined' || typeof BroadcastChannel === 'undefined'
+  ? null : new BroadcastChannel('scadivo.runtime.client-instance');
+
+identityChannel?.addEventListener('message', event => {
+  const message = event.data as { kind?: string; id?: string; token?: string };
+  if (message?.kind === 'probe' && message.token !== tabToken &&
+      message.id === ephemeralClientInstanceId) {
+    identityChannel.postMessage({ kind: 'occupied', id: message.id, token: message.token });
+  }
+});
 
 export type RuntimeSessionFetch = (
   input: RequestInfo | URL,
@@ -49,16 +61,41 @@ type RuntimeSessionAdmission = {
  * distinct from user identity: the server owns the resulting subject/client lease.
  */
 export function getRuntimeClientInstanceId(): string {
+  if (ephemeralClientInstanceId) return ephemeralClientInstanceId;
   try {
     const stored = window.sessionStorage.getItem(CLIENT_INSTANCE_STORAGE_KEY)?.trim();
-    if (stored) return stored;
+    if (stored) return ephemeralClientInstanceId = stored;
 
     const created = createClientInstanceId();
     window.sessionStorage.setItem(CLIENT_INSTANCE_STORAGE_KEY, created);
-    return created;
+    return ephemeralClientInstanceId = created;
   } catch {
     return ephemeralClientInstanceId ??= createClientInstanceId();
   }
+}
+
+async function claimRuntimeClientInstanceId(): Promise<string> {
+  // A duplicated browser tab may inherit sessionStorage. Coordinate with live
+  // tabs before using that identity for a server-owned lease.
+  if (!identityChannel) return getRuntimeClientInstanceId();
+  return identityClaim ??= new Promise(resolve => {
+    const id = getRuntimeClientInstanceId();
+    let occupied = false;
+    const onMessage = (event: MessageEvent) => {
+      const message = event.data as { kind?: string; id?: string; token?: string };
+      if (message?.kind === 'occupied' && message.id === id && message.token === tabToken) occupied = true;
+    };
+    identityChannel.addEventListener('message', onMessage);
+    identityChannel.postMessage({ kind: 'probe', id, token: tabToken });
+    window.setTimeout(() => {
+      identityChannel.removeEventListener('message', onMessage);
+      if (occupied) {
+        ephemeralClientInstanceId = createClientInstanceId();
+        try { window.sessionStorage.setItem(CLIENT_INSTANCE_STORAGE_KEY, ephemeralClientInstanceId); } catch { /* private storage */ }
+      }
+      resolve(getRuntimeClientInstanceId());
+    }, 100);
+  });
 }
 
 /**
@@ -67,7 +104,7 @@ export function getRuntimeClientInstanceId(): string {
  */
 export async function admitInteractiveRuntimeSession(
   fetcher: RuntimeSessionFetch = fetch,
-  clientInstanceId = getRuntimeClientInstanceId()
+  clientInstanceId?: string
 ): Promise<Record<string, string>> {
   const outcome = await admitRuntimeSession('interactive', fetcher, clientInstanceId);
   if (outcome.grantedClass && outcome.grantedClass !== 'interactive') {
@@ -98,8 +135,9 @@ export async function admitInteractiveRuntimeSession(
 export async function admitRuntimeSession(
   requestedClass: RuntimeSessionConnectionClass,
   fetcher: RuntimeSessionFetch = fetch,
-  clientInstanceId = getRuntimeClientInstanceId()
+  clientInstanceId?: string
 ): Promise<RuntimeSessionAdmissionOutcome> {
+  clientInstanceId ??= await claimRuntimeClientInstanceId();
   let response: Response;
   try {
     response = await fetcher(`${API}/api/runtime/sessions`, {

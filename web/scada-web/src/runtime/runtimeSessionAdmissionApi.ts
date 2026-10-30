@@ -7,7 +7,7 @@ const CLIENT_INSTANCE_STORAGE_KEY = 'elitescada.runtime.client-instance-id';
 let ephemeralClientInstanceId: string | undefined;
 let identityClaim: Promise<string> | undefined;
 const tabToken = createClientInstanceId();
-const identityChannel = typeof BroadcastChannel === 'undefined'
+const identityChannel = typeof window === 'undefined' || typeof BroadcastChannel === 'undefined'
   ? null : new BroadcastChannel('scadivo.runtime.client-instance');
 
 identityChannel?.addEventListener('message', event => {

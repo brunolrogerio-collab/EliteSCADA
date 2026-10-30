@@ -156,7 +156,11 @@ function EngineeringRuntimeApplicationContent({
     () => resolveRuntimeStartupScreen(engineeringPackage),
     [engineeringPackage]
   );
-  const activeScreenKey = requestedScreen ?? startup.screenKey;
+  const screenFromUrl = new URLSearchParams(window.location.search).get('screen');
+  const linkedScreen = (engineeringPackage.screens ?? []).find(screen =>
+    screen.key.toLocaleLowerCase() === screenFromUrl?.toLocaleLowerCase()
+  )?.key;
+  const activeScreenKey = requestedScreen ?? linkedScreen ?? startup.screenKey;
   const activeScreen = (engineeringPackage.screens ?? []).find(screen =>
     screen.key.toLocaleLowerCase() === activeScreenKey?.toLocaleLowerCase()
   );
@@ -251,6 +255,11 @@ function EngineeringRuntimeApplicationContent({
   };
 
   const runtimeToolbar = <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
+    <a className="runtime-operator-tool" href={`/?screen=${encodeURIComponent(activeScreenKey ?? '')}`}
+      target="_blank" rel="noopener noreferrer"
+      title={locale === 'pt-BR' ? 'Abrir esta tela em outra janela' : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window'}>
+      {locale === 'pt-BR' ? 'Nova janela' : locale === 'es' ? 'Nueva ventana' : 'New window'}
+    </a>
     {header?.overviewVisible !== false && <RuntimeOperatorTool
       label={text.runtimeOverview} icon="overview" active={!historyOpen && !alarmsOpen} onClick={showOverview}
     />}
@@ -335,7 +344,7 @@ function EngineeringRuntimeApplicationContent({
     <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
-        initialScreenKey={requestedScreen ?? startup.screenKey}
+        initialScreenKey={activeScreenKey}
         runtimeProjectKey={projection.projectKey ?? null}
         runtimeRevision={projection.revision ?? null}
         performanceAnalyticsEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'TrendUse')}

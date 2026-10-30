@@ -9,6 +9,48 @@ import time
 import uuid
 
 
+def recover_locked(profile_path):
+    """Caller must hold the same installation network lock as execute_locked."""
+    profile = json.loads(Path(profile_path).read_text())
+    if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
+        raise ValueError('Registered native profile required')
+    topology = json.loads(Path(profile['topologyFile']).read_text())
+    if topology.get('active', {}).get('mode') != 'LocalManaged' or topology.get('pending') is not None:
+        raise ValueError('Idle local topology required for recovery')
+    app = Path(profile['configurationFile']).resolve(strict=True)
+    pg = Path(profile['database']['configurationFile']).resolve(strict=True)
+    journal = app.with_name(app.name + '.database-port-pending.json')
+    record = json.loads(journal.read_text())
+    if record.get('schema') != 'scadivo-database-port-recovery-v1' or not isinstance(record.get('oldPort'), int) or not 1 <= record['oldPort'] <= 65535:
+        raise ValueError('Invalid recovery record')
+    restored = []
+    for target, key in ((app, 'applicationBackup'), (pg, 'postgresqlBackup')):
+        backup = Path(record[key]).resolve(strict=True)
+        if backup.parent != target.parent or not backup.name.startswith(target.name + '.network-backup-'):
+            raise ValueError('Backup is outside registered configuration directory')
+        restored.append((target, backup.read_bytes()))
+    json.loads(restored[0][1].decode('utf-8-sig'))
+    db = profile['database']
+    psql = Path(db['psqlExecutable']).resolve(strict=True)
+    # Validate service names before any mutation.
+    for name in (profile['serviceName'], db['serviceName']):
+        if not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
+            raise ValueError('Invalid service identity')
+    control_service(profile['platform'], 'stop', profile['serviceName'])
+    for target, content in restored:
+        target.write_bytes(content)
+    control_service(profile['platform'], 'restart', db['serviceName'])
+    result = subprocess.run([str(psql), '-X', '-w', '-h', '127.0.0.1', '-p', str(record['oldPort']),
+                             '-U', db['username'], '-d', db['databaseName'], '-At', '-c',
+                             'SELECT current_database(); SHOW port;'],
+                            check=True, capture_output=True, text=True, timeout=15)
+    if result.stdout.strip().splitlines() != [db['databaseName'], str(record['oldPort'])]:
+        raise RuntimeError('Recovered database identity or port differs; journal retained')
+    control_service(profile['platform'], 'start', profile['serviceName'])
+    journal.unlink()
+    return 'Previous database configuration restored; application readiness still requires validation'
+
+
 def control_service(platform, action, name):
     if not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
         raise ValueError('Invalid service identity')
@@ -28,7 +70,7 @@ def control_service(platform, action, name):
     subprocess.run(command, check=True, capture_output=True, timeout=45)
 
 
-def execute(profile_path, port=None, apply=False):
+def execute(profile_path, port=None, apply=False, recover=False):
     # Linux advisory lock is released by the kernel after process termination.
     # All native administrative operations for this installation must share it.
     import fcntl
@@ -38,7 +80,7 @@ def execute(profile_path, port=None, apply=False):
     descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
     try:
         fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return execute_locked(profile_path, port, apply)
+        return recover_locked(profile_path) if recover else execute_locked(profile_path, port, apply)
     finally:
         os.close(descriptor)
 

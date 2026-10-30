@@ -79,6 +79,8 @@ class NativeDatabasePortTests(unittest.TestCase):
                     raise RuntimeError('simulated new-port connection failure')
                 if wrong_identity and at_port == port and query == 'SELECT current_database()':
                     return subprocess.CompletedProcess(args,0,'wrong-plant','')
+                if query == 'SELECT current_database(); SHOW port;':
+                    return subprocess.CompletedProcess(args,0,f'plant\n{at_port}\n','')
                 result=str(pg) if query=='SHOW config_file' else str(at_port) if query=='SHOW port' else 'plant'
                 return subprocess.CompletedProcess(args,0,result,'')
             with patch.object(module.subprocess,'run',side_effect=command), patch.object(module.time,'sleep'):
@@ -120,6 +122,17 @@ class NativeDatabasePortTests(unittest.TestCase):
                 self.assertEqual(Path(recovery['applicationBackup']).read_bytes(),original)
                 self.assertNotIn('keep-private', pending.read_text())
                 with self.assertRaisesRegex(RuntimeError,'interrupted'): module.execute_locked(profile,port,True)
-                pending.unlink()
+                interrupted=False
+                tampered=dict(recovery, applicationBackup=str(psql))
+                pending.write_text(json.dumps(tampered))
+                before=list(actions)
+                with self.assertRaises(ValueError): module.recover_locked(profile)
+                self.assertEqual(actions,before)
+                self.assertTrue(pending.exists())
+                pending.write_text(json.dumps(recovery))
+                module.recover_locked(profile)
+                self.assertFalse(pending.exists())
+                self.assertEqual(app.read_bytes(),original)
+                self.assertEqual(pg.read_bytes(),b'port = 5432\n')
                 topology.write_text(json.dumps({'schemaVersion':1,'active':{'mode':'Remote'},'pending':None}))
                 with self.assertRaises(ValueError): module.execute_locked(profile,port,True)

@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory=$true)][string]$ProfilePath,
     [Parameter(Mandatory=$true)][string]$PythonExecutable,
     [ValidateRange(1,65535)][int]$DatabasePort,
-    [switch]$Apply
+    [switch]$Apply,
+    [switch]$Recover
 )
 $ErrorActionPreference='Stop'
 $resolvedProfile=(Resolve-Path -LiteralPath $ProfilePath).Path
@@ -20,6 +21,10 @@ try {
     if ($PSBoundParameters.ContainsKey('DatabasePort')) { $portArgument=[string]$DatabasePort }
     $applyArgument='plan'
     if ($Apply) { $applyArgument='apply' }
+    if ($Recover) {
+        if ($Apply -or $PSBoundParameters.ContainsKey('DatabasePort')) { throw 'Recovery cannot be combined with a port change.' }
+        $applyArgument='recover'
+    }
     $runner=@'
 import importlib.util, sys
 try:
@@ -27,7 +32,7 @@ try:
     module=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     port=None if sys.argv[3]=='current' else int(sys.argv[3])
-    print(module.execute_locked(sys.argv[2],port,sys.argv[4]=='apply'))
+    print(module.recover_locked(sys.argv[2]) if sys.argv[4]=='recover' else module.execute_locked(sys.argv[2],port,sys.argv[4]=='apply'))
 except Exception:
     raise SystemExit('Native database operation failed. Check protected backups and service diagnostics.')
 '@

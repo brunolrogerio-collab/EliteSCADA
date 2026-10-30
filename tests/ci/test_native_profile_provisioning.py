@@ -51,3 +51,15 @@ class NativeProfileProvisioningTests(unittest.TestCase):
                 self.assertEqual(backup.read_text(),original)
                 self.assertEqual(backup.stat().st_mode & 0o777,0o600)
                 self.assertNotIn('not-copied',registered.read_text())
+                media=root/'media.yml'; media.write_text('apiAddress: :9997\nhlsAddress: :8888\n')
+                updated['MediaSources']={'GatewayControlUrl':'http://127.0.0.1:9997','GatewayPlaybackUrl':'http://127.0.0.1:8888'}
+                config.write_text(json.dumps(updated))
+                media_profile=root/'media-profile.json'
+                with self.assertRaises(ValueError): module.provision(config,'scadivo.service',media_profile,media_configuration=media)
+                with self.assertRaises(ValueError): module.provision(config,'scadivo.service',media_profile,media_configuration=media,media_service='scadivo.service')
+                media.write_text('apiAddress: :9998\nhlsAddress: :8888\n')
+                with self.assertRaises(ValueError): module.provision(config,'scadivo.service',media_profile,media_configuration=media,media_service='media.service')
+                self.assertFalse(media_profile.exists())
+                media.write_text('apiAddress: :9997\nhlsAddress: :8888\n')
+                module.provision(config,'scadivo.service',media_profile,media_configuration=media,media_service='media.service')
+                self.assertEqual(json.loads(media_profile.read_text())['media'],{'configurationFile':str(media),'serviceName':'media.service'})

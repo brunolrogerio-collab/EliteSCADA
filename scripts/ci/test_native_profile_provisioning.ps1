@@ -39,6 +39,17 @@ try {
     if (([Uri]$updated.Kestrel.Endpoints.Web.Url).Port -ne 18080 -or ([Uri]$updated.Kestrel.Endpoints.Api.Url).Port -ne 15120) { throw 'Registration changed ports.' }
     $backup=@(Get-ChildItem -LiteralPath $root -Filter 'app.json.network-backup-*')
     if ($backup.Count -ne 1 -or [IO.File]::ReadAllText($backup[0].FullName) -ne $original) { throw 'Registration backup missing or invalid.' }
+    $media=Join-Path $root 'media.yml'; $mediaProfile=Join-Path $root 'media-profile.json'
+    $updated | Add-Member -NotePropertyName MediaSources -NotePropertyValue ([pscustomobject]@{GatewayControlUrl='http://127.0.0.1:9997';GatewayPlaybackUrl='http://127.0.0.1:8888'})
+    $updated | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $config
+    [IO.File]::WriteAllText($media,"apiAddress: :9998`nhlsAddress: :8888`n")
+    $failed=$false
+    try { & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $mediaProfile -MediaConfigurationPath $media -MediaServiceName MediaTest } catch { $failed=$true }
+    if (-not $failed -or (Test-Path -LiteralPath $mediaProfile)) { throw 'Media port mismatch accepted.' }
+    [IO.File]::WriteAllText($media,"apiAddress: :9997`nhlsAddress: :8888`n")
+    & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $mediaProfile -MediaConfigurationPath $media -MediaServiceName MediaTest
+    $result=Get-Content -LiteralPath $mediaProfile -Raw | ConvertFrom-Json
+    if ($result.media.serviceName -ne 'MediaTest' -or $result.media.configurationFile -ne $media) { throw 'Media profile not registered.' }
     'PASS: profile generation, protected Windows ACL, no secret copy, no overwrite, no application mutation; service lookup simulated.'
 } finally {
     $expected=[IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetFileName($root))))

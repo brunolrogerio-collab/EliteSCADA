@@ -14,6 +14,8 @@ Uma instalação nova deve usar Web 18080, API 15120 e banco local gerenciado 15
 
 ## Linux
 
+Para incluir mídia no perfil, o executor informa também `--media-configuration` e `--media-service` ao gerador Linux, ou `-MediaConfigurationPath` e `-MediaServiceName` no Windows. Os dois parâmetros são obrigatórios em conjunto. O gerador valida serviço distinto, arquivo existente e correspondência das portas controle/HLS com os endereços locais da API antes de criar o perfil. Não modifica MediaMTX, não copia credenciais e não substitui a conferência de que o serviço carrega aquele arquivo.
+
 Python 3 e os módulos administrativos devem estar na pasta fornecida pela instalação. Primeiro confira o plano:
 
 ```sh

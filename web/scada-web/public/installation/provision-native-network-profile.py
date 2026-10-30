@@ -6,10 +6,11 @@ from pathlib import Path
 import re
 import subprocess
 import uuid
+import importlib.util
 from urllib.parse import urlsplit
 
 
-def provision(configuration, service, destination, register=False):
+def provision(configuration, service, destination, register=False, media_configuration=None, media_service=None):
     import fcntl
     if not re.fullmatch(r'[A-Za-z0-9_.-]+', service):
         raise ValueError('Invalid service identity')
@@ -44,6 +45,21 @@ def provision(configuration, service, destination, register=False):
             raise ValueError('Web and API ports must differ')
         profile = dict(schema='scadivo-native-network-v1', platform='linux', configurationFile=str(config),
                        serviceName=service, endpointName='Web', apiEndpointName='Api')
+        if (media_configuration is None) != (media_service is None):
+            raise ValueError('Media configuration and service must be supplied together')
+        if media_configuration is not None:
+            media_path=Path(media_configuration).resolve(strict=True)
+            if media_path == config or media_service == service or not re.fullmatch(r'[A-Za-z0-9_.-]+',media_service):
+                raise ValueError('Distinct media configuration and service required')
+            state=subprocess.run(['systemctl','show','--property=LoadState','--value',media_service],check=True,capture_output=True,text=True,timeout=15)
+            if state.stdout.strip() != 'loaded': raise ValueError('Media service is not loaded')
+            spec=importlib.util.spec_from_file_location('native_media_profile_validation',Path(__file__).with_name('native_media_ports.py'))
+            media=importlib.util.module_from_spec(spec); spec.loader.exec_module(media)
+            media.prepare(original,media_path.read_bytes())
+            for key in ('GatewayControlUrl','GatewayPlaybackUrl'):
+                if urlsplit(document['MediaSources'][key]).hostname not in ('127.0.0.1','::1','localhost'):
+                    raise ValueError('Native media endpoints must be local')
+            profile['media']={'configurationFile':str(media_path),'serviceName':media_service}
         with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as output:
             json.dump(profile, output, indent=2)
             output.flush(); os.fsync(output.fileno())
@@ -74,8 +90,10 @@ if __name__ == '__main__':
     parser.add_argument('--service', required=True)
     parser.add_argument('--destination', required=True)
     parser.add_argument('--register', action='store_true')
+    parser.add_argument('--media-configuration')
+    parser.add_argument('--media-service')
     args = parser.parse_args()
     try:
-        print(provision(args.configuration, args.service, args.destination, args.register))
+        print(provision(args.configuration, args.service, args.destination, args.register,args.media_configuration,args.media_service))
     except Exception:
         raise SystemExit('Native profile provisioning failed. Check deployment registration and protected files.')

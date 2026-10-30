@@ -3,7 +3,9 @@ param(
     [Parameter(Mandatory=$true)][string]$ConfigurationPath,
     [Parameter(Mandatory=$true)][string]$ServiceName,
     [Parameter(Mandatory=$true)][string]$DestinationPath,
-    [switch]$Register
+    [switch]$Register,
+    [string]$MediaConfigurationPath,
+    [string]$MediaServiceName
 )
 $ErrorActionPreference='Stop'
 if ($ServiceName -notmatch '^[A-Za-z0-9_.-]+$') { throw 'Invalid service identity.' }
@@ -29,6 +31,28 @@ try {
     }
     if ($ports[0] -eq $ports[1]) { throw 'Web and API ports must differ.' }
     $profile=@{schema='scadivo-native-network-v1';platform='windows';configurationFile=$configPath;serviceName=$ServiceName;endpointName='Web';apiEndpointName='Api'}
+    if ([bool]$MediaConfigurationPath -ne [bool]$MediaServiceName) { throw 'Supply both media configuration and service.' }
+    if ($MediaConfigurationPath) {
+        $mediaPath=(Resolve-Path -LiteralPath $MediaConfigurationPath).Path
+        if ($mediaPath -eq $configPath -or $MediaServiceName -eq $ServiceName -or $MediaServiceName -notmatch '^[A-Za-z0-9_.-]+$') { throw 'Distinct media configuration and service required.' }
+        $mediaService=Get-Service -Name $MediaServiceName -ErrorAction Stop
+        if ($null -eq $mediaService) { throw 'Media service missing.' }
+        $yaml=Get-Content -LiteralPath $mediaPath -Raw
+        $mediaPorts=@()
+        foreach ($pair in @(@('apiAddress','GatewayControlUrl'),@('hlsAddress','GatewayPlaybackUrl'))) {
+            $listenerMatches=[regex]::Matches($yaml,'(?m)^'+$pair[0]+':\s*([^\r\n#]+)(?:\s*#[^\r\n]*)?$')
+            if ($listenerMatches.Count -ne 1) { throw 'Unique root media listener required.' }
+            $address=$listenerMatches[0].Groups[1].Value.Trim().Trim('"',"'")
+            $portMatch=[regex]::Match($address,':([0-9]+)$')
+            if (-not $portMatch.Success) { throw 'Invalid media listener.' }
+            $port=[int]$portMatch.Groups[1].Value
+            $url=$null
+            if (-not [Uri]::TryCreate([string]$config.MediaSources.PSObject.Properties[$pair[1]].Value,[UriKind]::Absolute,[ref]$url) -or $url.Scheme -notin @('http','https') -or $url.Host -notin @('127.0.0.1','::1','[::1]','localhost') -or $url.UserInfo -or $url.Query -or $url.Fragment -or $url.AbsolutePath -ne '/' -or $url.Port -ne $port -or $port -lt 1 -or $port -gt 65535) { throw 'Local media relay and listener must match.' }
+            $mediaPorts += $port
+        }
+        if ($mediaPorts[0] -eq $mediaPorts[1]) { throw 'Media listeners must differ.' }
+        $profile.media=@{configurationFile=$mediaPath;serviceName=$MediaServiceName}
+    }
     # Creates the protected file before writing any content; refuses replacement.
     & (Join-Path $PSScriptRoot 'copy-native-protected-backup.ps1') -SourcePath $configPath -DestinationPath $destination -CreateEmpty
     $bytes=[Text.Encoding]::UTF8.GetBytes(($profile | ConvertTo-Json))

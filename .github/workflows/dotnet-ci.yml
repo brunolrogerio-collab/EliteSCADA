@@ -65,7 +65,9 @@ jobs:
         run: dotnet build ScadaPlatform.sln --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test ScadaPlatform.sln --no-build --configuration Release --verbosity normal -m:1 --filter "FullyQualifiedName!~L3DriverInteractionS6Tests"
+        # Quarantine #423: keep the unstable HA-D2 process cases out of the
+        # general product gate; dedicated HA evidence remains in wave15-pr.yml.
+        run: dotnet test ScadaPlatform.sln --no-build --configuration Release --verbosity normal -m:1 --filter "FullyQualifiedName!~L3DriverInteractionS6Tests&FullyQualifiedName!~RealApiProcesses_HaD2&FullyQualifiedName!~RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation"
 
       - name: Runtime smoke test
         shell: bash

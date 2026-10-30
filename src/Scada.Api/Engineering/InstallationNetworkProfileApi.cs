@@ -56,7 +56,7 @@ public static class InstallationNetworkProfileApi
 
         var instanceId = configuration["InstallationNetwork:InstanceId"] ?? "elitescada-stable";
         var webPort = ReadPort(configuration, "InstallationNetwork:WebPublishedPort", 18080);
-        var apiPort = ReadPort(configuration, "InstallationNetwork:ApiPublishedPort", 15080);
+        var apiPort = ReadPort(configuration, "InstallationNetwork:ApiPublishedPort", 15120);
         var databasePort = ReadPort(configuration, "InstallationNetwork:DatabasePublishedPort", 15432);
         var mediaControlPort = ReadPort(configuration, "InstallationNetwork:MediaControlPort", 9997);
         var mediaPlaybackPort = ReadPort(configuration, "InstallationNetwork:MediaPlaybackPort", 8888);

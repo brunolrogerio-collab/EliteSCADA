@@ -73,7 +73,7 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
   const [copied, setCopied] = useState(false);
   const [copyFailure, setCopyFailure] = useState(false);
   const [commandPlatform, setCommandPlatform] = useState<'powershell' | 'bash'>('powershell');
-  const [draft, setDraft] = useState<Draft>({ instanceId: '', webBind: '127.0.0.1', apiBind: '127.0.0.1', webPort: '18080', apiPort: '15080', databasePort: '15432', mediaControlPort: '9997', mediaPlaybackPort: '8888' });
+  const [draft, setDraft] = useState<Draft>({ instanceId: '', webBind: '127.0.0.1', apiBind: '127.0.0.1', webPort: '18080', apiPort: '15120', databasePort: '15432', mediaControlPort: '9997', mediaPlaybackPort: '8888' });
 
   async function loadProfile() {
     setLoading(true);

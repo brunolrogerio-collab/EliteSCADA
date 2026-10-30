@@ -48,7 +48,7 @@ services:
       InstallationNetwork__WebBindAddress: ${SCADIVO_WEB_BIND:-127.0.0.1}
       InstallationNetwork__WebPublishedPort: ${ELITESCADA_WEB_PORT:-18080}
       InstallationNetwork__ApiBindAddress: ${SCADIVO_API_BIND:-127.0.0.1}
-      InstallationNetwork__ApiPublishedPort: ${ELITESCADA_API_PORT:-15080}
+      InstallationNetwork__ApiPublishedPort: ${ELITESCADA_API_PORT:-15120}
       InstallationNetwork__DatabasePublishedPort: ${ELITESCADA_DB_PORT:-15432}
       InstallationNetwork__MediaControlPort: ${SCADIVO_MEDIA_CONTROL_PORT:-9997}
       InstallationNetwork__MediaPlaybackPort: ${SCADIVO_MEDIA_PLAYBACK_PORT:-8888}
@@ -57,7 +57,7 @@ services:
       - protected_material_data:/app/data/protected-material
       - host_keys_data:/app/host-keys
     ports:
-      - "${SCADIVO_API_BIND:-127.0.0.1}:${ELITESCADA_API_PORT:-15080}:5080"
+      - "${SCADIVO_API_BIND:-127.0.0.1}:${ELITESCADA_API_PORT:-15120}:5080"
     depends_on:
       database:
         condition: service_healthy

@@ -23,7 +23,7 @@ restarts, image rebuilds and `docker compose down`.
 
 4. Open [http://localhost:18080](http://localhost:18080). The first visit
    starts the secure first-administrator setup; no default user or password is
-   created. The API is also available at `http://localhost:15080` and the
+   created. The API is also available at `http://localhost:15120` and the
    database at `localhost:15432` for local tools.
 
 The default Web and API ports are bound to `127.0.0.1`; PostgreSQL remains
@@ -96,3 +96,7 @@ The API starts only after the database health check succeeds; its startup
 foundation creates/upgrades the required EliteSCADA schemas. TimescaleDB is
 enabled for durable historian samples and Historical Query. Docker health
 checks expose only service health, not plant/project information.
+
+### Access-port defaults
+
+New profiles use Web 18080, API 15120 and PostgreSQL 15432. Existing installations should keep their explicit values in `.env`. Before updating an older installation that omitted `ELITESCADA_API_PORT`, record its current port explicitly (legacy package default 15080) to preserve its address. The installer scripts retain the legacy old-port fallback for preflight/recovery. No running installation is changed by editing the template.

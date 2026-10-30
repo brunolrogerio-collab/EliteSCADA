@@ -64,6 +64,6 @@ public sealed class InstallationNetworkProfileTests
             .Build();
         var profile = Assert.IsType<InstallationNetworkProfileView>(InstallationNetworkProfileApi.Read(malformed));
         Assert.Equal(18080, profile.Web.PublishedPort);
-        Assert.Equal(15080, profile.Api.PublishedPort);
+        Assert.Equal(15120, profile.Api.PublishedPort);
     }
 }

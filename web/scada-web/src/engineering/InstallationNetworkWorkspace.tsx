@@ -19,7 +19,7 @@ type Draft = { instanceId: string; webBind: '127.0.0.1' | '0.0.0.0'; apiBind: '1
 
 const copy = {
   'pt-BR': {
-    title: 'Rede e serviços', intro: 'Prepare uma configuração de portas para o pacote Docker estável. A mudança é aplicada no computador que executa o Docker, não pelo navegador.',
+    title: 'Rede e serviços', intro: 'Consulte os serviços desta instalação. O procedimento para mudar portas depende do perfil de instalação.',
     admin: 'Esta área exige a capacidade SystemAdmin da Security Authority.', loading: 'Lendo a configuração informada por esta instalação…', unavailable: 'Esta instalação não informa o perfil Docker estável suportado. A tela não altera instalações nativas ou serviços externos.',
     error: 'Não foi possível ler a configuração desta instalação.', retry: 'Atualizar', current: 'Configuração informada pelo container atual', currentNote: 'Estes valores foram enviados ao container pelo Compose. O SCADIVO não consegue verificar, de dentro do container, se o host publicou as portas corretamente.',
     desired: 'Preparar nova configuração', identity: 'ID desta instância', identityHelp: 'Use letras minúsculas, números e hífens. Para uma segunda instalação, use outra pasta, gere um .env com segredos próprios e defina nele o ID escolhido antes de executar o comando. Nunca copie chaves ou credenciais.',
@@ -34,7 +34,7 @@ const copy = {
     tableService: 'Serviço', appPort: 'Porta interna', hostPort: 'Porta do host', status: 'Exposição', clickHelp: 'Abrir instruções completas na Ajuda'
   },
   en: {
-    title: 'Network and services', intro: 'Prepare a port profile for the stable Docker package. Apply it on the computer running Docker, not through the browser.',
+    title: 'Network and services', intro: 'Inspect this installation’s services. The procedure for changing ports depends on the installation profile.',
     admin: 'This area requires the Security Authority SystemAdmin capability.', loading: 'Reading the configuration reported by this installation…', unavailable: 'This installation does not report the supported stable Docker profile. This page does not change native installations or external services.',
     error: 'Could not read this installation configuration.', retry: 'Refresh', current: 'Configuration reported by the current container', currentNote: 'These values were passed into the container by Compose. SCADIVO cannot verify from inside the container whether the host published the ports correctly.',
     desired: 'Prepare a new configuration', identity: 'Instance ID', identityHelp: 'Use lowercase letters, numbers, and hyphens. For a second installation, use another folder, create an .env with its own secrets, and set the chosen ID in it before running the command. Never copy keys or credentials.',
@@ -49,7 +49,7 @@ const copy = {
     tableService: 'Service', appPort: 'Internal port', hostPort: 'Host port', status: 'Exposure', clickHelp: 'Open full instructions in Help'
   },
   es: {
-    title: 'Red y servicios', intro: 'Prepare un perfil de puertos para el paquete Docker estable. Aplíquelo en el equipo que ejecuta Docker, no desde el navegador.',
+    title: 'Red y servicios', intro: 'Consulte los servicios de esta instalación. El procedimiento para cambiar puertos depende del perfil de instalación.',
     admin: 'Esta área requiere la capability SystemAdmin de Security Authority.', loading: 'Leyendo la configuración informada por esta instalación…', unavailable: 'Esta instalación no informa el perfil Docker estable compatible. Esta página no cambia instalaciones nativas ni servicios externos.',
     error: 'No fue posible leer la configuración de esta instalación.', retry: 'Actualizar', current: 'Configuración informada por el contenedor actual', currentNote: 'Compose pasó estos valores al contenedor. Desde dentro del contenedor, SCADIVO no puede verificar si el host publicó las puertos correctamente.',
     desired: 'Preparar una nueva configuración', identity: 'ID de instancia', identityHelp: 'Use minúsculas, números y guiones. Para una segunda instalación, use otra carpeta, cree un .env con secretos propios y defina allí el ID elegido antes de ejecutar el comando. Nunca copie claves ni credenciales.',
@@ -149,6 +149,7 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
 
   return <section className="installation-network" aria-label={t.title} data-testid="installation-network">
     <header className="installation-network__header"><div><span>{locale === 'pt-BR' ? 'INSTALAÇÃO' : locale === 'es' ? 'INSTALACIÓN' : 'INSTALLATION'}</span><h2>{t.title}</h2><p>{t.intro}</p></div><button type="button" className="secondary" onClick={() => void loadProfile()}>{t.retry}</button></header>
+    <ServiceEndpointInventory locale={locale}/>
     {failure === 'unsupported' && <p className="installation-network__notice" role="status">{t.unavailable}</p>}
     {failure === 'failed' && <p className="installation-network__error" role="alert">{t.error} <button type="button" className="secondary" onClick={() => void loadProfile()}>{t.retry}</button></p>}
     {current && <>
@@ -200,4 +201,38 @@ function PortTable({ profile, t }: { profile: NetworkProfile; t: (typeof copy)[E
     ['Web', profile.web], ['API', profile.api], [t.dbPort, profile.database], ['Media control', profile.mediaControl], ['HLS', profile.mediaPlayback]
   ] as const;
   return <div className="installation-network__table-wrap"><table><thead><tr><th>{t.tableService}</th><th>{t.transport}</th><th>{t.internal}</th><th>{t.hostPort}</th><th>{t.status}</th></tr></thead><tbody>{rows.map(([name, port]) => <tr key={name}><th>{name}</th><td>{port.transport}</td><td>{port.internalPort}</td><td>{port.publishedToHost ? `${port.bindAddress}:${port.publishedPort}` : '—'}</td><td>{port.publishedToHost ? t.exposed : t.private}</td></tr>)}</tbody></table></div>;
+}
+
+function ServiceEndpointInventory({ locale }: { locale: EngineeringLocale }) {
+  const t = {
+    'pt-BR': ['Serviços configurados', 'Endereços informados pelo servidor. Esta leitura não confirma a disponibilidade dos serviços.', 'Não informado', 'Não foi possível consultar os serviços.', 'Serviço', 'Endereço', 'Porta', 'Consultar novamente', 'Consultando serviços…'],
+    en: ['Configured services', 'Addresses reported by the server. This does not confirm service availability.', 'Not reported', 'Could not retrieve services.', 'Service', 'Address', 'Port', 'Refresh services', 'Reading services…'],
+    es: ['Servicios configurados', 'Direcciones informadas por el servidor. Esta lectura no confirma la disponibilidad de los servicios.', 'No informado', 'No se pudieron consultar los servicios.', 'Servicio', 'Dirección', 'Puerto', 'Consultar de nuevo', 'Consultando servicios…']
+  }[locale];
+  const [rows, setRows] = useState<Array<{ service: string; host: string | null; port: number | null }>>([]);
+  const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  async function refresh() {
+    setState('loading');
+    try {
+      const response = await fetch(`${API}/api/installation/service-endpoints`, { credentials: 'same-origin', headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error('Inventory unavailable');
+      const result: unknown = await response.json();
+      if (!Array.isArray(result)) throw new Error('Invalid inventory');
+      setRows(result);
+      setState('ready');
+    } catch { setRows([]); setState('failed'); }
+  }
+  useEffect(() => { void refresh(); }, []);
+  const names: Record<string, string[]> = {
+    EliteScada: ['Banco principal', 'Primary database', 'Base principal'], Historian: ['Banco do histórico', 'Historian database', 'Base histórica'],
+    MediaControl: ['Controle de mídia', 'Media control', 'Control multimedia'], MediaPlayback: ['Vídeo HLS', 'HLS video', 'Vídeo HLS']
+  };
+  const language = locale === 'pt-BR' ? 0 : locale === 'en' ? 1 : 2;
+  return <div className="installation-network__current" data-testid="installation-service-inventory">
+    <h3>{t[0]}</h3><p>{t[1]}</p>
+    {state === 'loading' && <p role="status">{t[8]}</p>}
+    {state === 'failed' && <p role="alert">{t[3]}</p>}
+    {state === 'ready' && <div className="installation-network__table-wrap"><table><thead><tr><th>{t[4]}</th><th>{t[5]}</th><th>{t[6]}</th></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row.service}-${index}`}><th>{names[row.service]?.[language] ?? row.service}</th><td>{row.host ?? t[2]}</td><td>{row.port ?? t[2]}</td></tr>)}</tbody></table></div>}
+    <button type="button" className="secondary" disabled={state === 'loading'} onClick={() => void refresh()}>{t[7]}</button>
+  </div>;
 }

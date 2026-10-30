@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/installation/service-endpoints', route => route.fulfill({ contentType: 'application/json', body: '[]' }));
+});
+
 const harnessPath = '/tests-e2e/installation-network-harness.html';
 
 function endpoint(transport: string, bindAddress: string, internalPort: number, publishedPort: number, publishedToHost = true) {
@@ -48,4 +52,20 @@ test('installation network UI prepares module and private media port settings', 
   await expect(command).toHaveValue(/--media-control-port 19997 --media-playback-port 18888/);
   expect(reads).toBeGreaterThan(0);
   expect(mutations).toBe(0);
+});
+
+
+test('native installation shows inventory without Docker apply controls', async ({ page }) => {
+  await page.route('**/api/installation/network-profile', route => route.fulfill({ status: 404, body: '{}' }));
+  await page.route('**/api/installation/service-endpoints', route => route.fulfill({
+    contentType: 'application/json', body: JSON.stringify([
+      { service: 'API', host: '127.0.0.1', port: 25080 },
+      { service: 'MediaPlayback', host: null, port: null }
+    ])
+  }));
+  await page.goto(`${harnessPath}?locale=pt-BR`);
+  const inventory = page.getByTestId('installation-service-inventory');
+  await expect(inventory.getByRole('row', { name: /API.*127.0.0.1.*25080/ })).toBeVisible();
+  await expect(inventory.getByRole('row', { name: /Vídeo HLS.*Não informado.*Não informado/ })).toBeVisible();
+  await expect(page.locator('.installation-network__apply')).toHaveCount(0);
 });

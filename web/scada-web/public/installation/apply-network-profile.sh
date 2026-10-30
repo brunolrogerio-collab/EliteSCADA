@@ -108,8 +108,12 @@ new_owners_output=$(project_owners "$instance_id") || fail 'Docker Compose could
 mapfile -t old_owners <<<"$old_owners_output"
 mapfile -t new_owners <<<"$new_owners_output"
 same_old=0; same_new=0; other_new=0
-for owner in "${old_owners[@]}"; do [[ "$owner" == "$root" ]] && same_old=1; done
+for owner in "${old_owners[@]}"; do
+  [[ -n "$owner" ]] || continue
+  [[ "$owner" == "$root" ]] && same_old=1
+done
 for owner in "${new_owners[@]}"; do
+  [[ -n "$owner" ]] || continue
   if [[ "$owner" == "$root" ]]; then same_new=1; else other_new=1; fi
 done
 [[ "$instance_id" == "$old_id" || $same_old -eq 0 ]] || fail 'changing the ID of a data-bearing installation in place is blocked; keep its ID or prepare another directory with its own .env and unique secrets'

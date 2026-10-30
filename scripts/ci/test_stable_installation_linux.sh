@@ -4,6 +4,7 @@ set -Eeuo pipefail
 repo_root=$(git rev-parse --show-toplevel)
 python3 -m unittest discover -s "$repo_root/tests/ci" -p test_native_network_adapter.py
 python3 -m unittest discover -s "$repo_root/tests/ci" -p test_native_database_port.py
+python3 -m unittest discover -s "$repo_root/tests/ci" -p test_native_postgresql_integration.py
 nonce=$(python3 -c 'import secrets; print(secrets.token_hex(6))')
 run_tag="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$nonce"
 run_tag=$(printf '%s' "$run_tag" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')

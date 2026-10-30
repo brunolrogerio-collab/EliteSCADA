@@ -166,3 +166,7 @@ Antes da primeira parada, o candidato persiste backups com flush/fsync e um regi
 ### Recuperação explícita do banco interrompido
 
 O núcleo disponibiliza recover_locked; no Linux execute(..., recover=True) segura o lock e o wrapper Windows oferece -Recover exclusivo com -Apply/DatabasePort. Valida schema/porta/caminhos de backups no diretório dos arquivos registrados antes de mutação, restaura configurações, reinicia PostgreSQL e confirma banco/porta por SQL antes de iniciar API. Falha mantém o registro para diagnóstico/repetição controlada. Testes simulados Linux/Windows cobrem interrupção, recusa de backup fora do padrão, preservação do registro e recuperação. Readiness completa da aplicação e serviços reais continuam pendentes; a recuperação não alega esse aceite.
+
+### Ensaio PostgreSQL nativo real no CI Linux
+
+`test_native_postgresql_integration.py` procura binários PostgreSQL nativos do runner (ou SCADIVO_NATIVE_PG_BIN), inicializa cluster temporário somente loopback, aplica a porta alternativa e recupera os backups via consultas SQL reais e pg_ctl. Controle do serviço da API é explicitamente simulado; não é teste systemd nem produto completo. Ensaio incluído no job Linux; ausência de binários resulta em skip explícito, nunca PASS de PostgreSQL real. Neste Windows os binários não foram encontrados e o teste foi ignorado; aguardar resultado Linux antes de afirmar evidência real. Preview não é usado.

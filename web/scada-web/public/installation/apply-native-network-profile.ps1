@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$ProfilePath,
     [ValidateRange(1,65535)][int]$WebPort,
+    [ValidateRange(1,65535)][int]$ApiPort,
     [switch]$Apply
 )
 $ErrorActionPreference = 'Stop'
@@ -32,16 +33,37 @@ $target.Port = $WebPort
 $health = [UriBuilder]::new($target.Uri)
 $health.Host = '127.0.0.1'
 $health.Path = 'health'
+$apiEndpoint=$null
+$apiCurrent=$null
+$apiTarget=$null
+$apiHealth=$null
+if ($profile.apiEndpointName) {
+    $apiEndpoint=$config.Kestrel.Endpoints.PSObject.Properties[$profile.apiEndpointName]
+    if ($null -eq $apiEndpoint -or $profile.apiEndpointName -eq $profile.endpointName) { throw 'Distinct registered Web/API endpoints required.' }
+    if (-not [Uri]::TryCreate([string]$apiEndpoint.Value.Url,[UriKind]::Absolute,[ref]$apiCurrent) -or
+        $apiCurrent.Scheme -notin @('http','https') -or $apiCurrent.UserInfo -or $apiCurrent.Query -or $apiCurrent.AbsolutePath -ne '/') { throw 'Invalid API listener URL.' }
+    if (-not $PSBoundParameters.ContainsKey('ApiPort')) { $ApiPort=$apiCurrent.Port }
+    if ($WebPort -eq $ApiPort) { throw 'Web and API must have distinct access ports.' }
+    $apiTarget=[UriBuilder]::new($apiCurrent); $apiTarget.Port=$ApiPort
+    $apiHealth=[UriBuilder]::new($apiTarget.Uri); $apiHealth.Host='127.0.0.1'; $apiHealth.Path='health'
+} elseif ($PSBoundParameters.ContainsKey('ApiPort')) { throw 'This profile does not register an independent API listener.' }
 $service = Get-Service -Name $profile.serviceName -ErrorAction Stop
 if ($service.Status -ne 'Running') { throw 'The service must be running before a port change.' }
-if ($WebPort -eq $current.Port) {
+if ($WebPort -eq $current.Port -and ($null -eq $apiCurrent -or $ApiPort -eq $apiCurrent.Port)) {
     Write-Output "Web/API already use port $WebPort. No changes required."
     return
 }
-$probe = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Any, $WebPort)
-try { $probe.Start() } finally { $probe.Stop() }
+$portsToCheck=@()
+if ($WebPort -ne $current.Port) { $portsToCheck += $WebPort }
+if ($apiCurrent -and $ApiPort -ne $apiCurrent.Port) { $portsToCheck += $ApiPort }
+foreach ($portToCheck in $portsToCheck) {
+    $probe=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Any,$portToCheck)
+    try { $probe.Start() } finally { $probe.Stop() }
+}
 if (-not $Apply) {
-    Write-Output "Plan: Web/API port $($current.Port) -> $WebPort. Run with -Apply to apply this plan."
+    $apiLabel='shared'
+    if ($apiCurrent) { $apiLabel=[string]$ApiPort }
+    Write-Output "Plan: Web port $($current.Port) -> $WebPort; API target $apiLabel. Run with -Apply to apply this plan."
     return
 }
 $backup = "$configPath.network-backup-$([Guid]::NewGuid().ToString('N'))"
@@ -58,11 +80,14 @@ function Wait-NativeHealth([string]$Url) {
 }
 try {
     $endpoint.Value.Url = $target.Uri.AbsoluteUri.TrimEnd('/')
+    if ($apiEndpoint) { $apiEndpoint.Value.Url=$apiTarget.Uri.AbsoluteUri.TrimEnd('/') }
     # Keep the existing file ACL; never print or return configuration secrets.
     [IO.File]::WriteAllText($configPath, ($config | ConvertTo-Json -Depth 100), [Text.UTF8Encoding]::new($false))
     Restart-Service -Name $profile.serviceName -ErrorAction Stop
     Wait-NativeHealth $health.Uri.AbsoluteUri
-    Write-Output "Web/API now use port $WebPort. Configuration backup: $backup"
+    if ($apiHealth) { Wait-NativeHealth $apiHealth.Uri.AbsoluteUri }
+    $apiLabel='shared'; if ($apiCurrent) { $apiLabel=[string]$ApiPort }
+    Write-Output "Web port $WebPort; API port $apiLabel. Configuration backup: $backup"
 } catch {
     $failure = $_
     try {
@@ -70,6 +95,7 @@ try {
         Restart-Service -Name $profile.serviceName -ErrorAction Stop
         $health.Port = $current.Port
         Wait-NativeHealth $health.Uri.AbsoluteUri
+        if ($apiHealth) { $apiHealth.Port=$apiCurrent.Port; Wait-NativeHealth $apiHealth.Uri.AbsoluteUri }
     } catch {
         throw "Port change failed and automatic recovery failed. Restore the protected configuration backup: $backup"
     }

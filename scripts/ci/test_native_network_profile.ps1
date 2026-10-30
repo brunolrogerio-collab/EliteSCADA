@@ -30,6 +30,24 @@ try {
  $global:NativeRestartCount=0; $global:NativeForceFailure=$true; $failed=$false
  try { & $script -ProfilePath $profile -WebPort $port -Apply } catch { $failed=$true }
  if (-not $failed -or [IO.File]::ReadAllText($config) -ne $original -or $global:NativeRestartCount -ne 2) { throw 'Rollback failed' }
+ $dual='{"Kestrel":{"Endpoints":{"Web":{"Url":"http://127.0.0.1:18080"},"Api":{"Url":"http://127.0.0.1:15120"}}},"secret":"preserve-me"}'
+ [IO.File]::WriteAllText($config,$dual)
+ @{schema='scadivo-native-network-v1';platform='windows';serviceName='ScadivoTest';configurationFile=$config;endpointName='Web';apiEndpointName='Api'} | ConvertTo-Json | Set-Content -LiteralPath $profile
+ $global:NativeForceFailure=$false; $global:NativeRestartCount=0
+ & $script -ProfilePath $profile -WebPort $port -Apply
+ $changed=Get-Content -Raw -LiteralPath $config|ConvertFrom-Json
+ if (([Uri]$changed.Kestrel.Endpoints.Web.Url).Port -ne $port -or ([Uri]$changed.Kestrel.Endpoints.Api.Url).Port -ne 15120) { throw 'Web change affected independent API port.' }
+ [IO.File]::WriteAllText($config,$dual)
+ & $script -ProfilePath $profile -ApiPort $port -Apply
+ $changed=Get-Content -Raw -LiteralPath $config|ConvertFrom-Json
+ if (([Uri]$changed.Kestrel.Endpoints.Web.Url).Port -ne 18080 -or ([Uri]$changed.Kestrel.Endpoints.Api.Url).Port -ne $port) { throw 'API change affected independent Web port.' }
+ [IO.File]::WriteAllText($config,$dual)
+ $global:NativeRestartCount=0; $global:NativeForceFailure=$true; $failed=$false
+ try { & $script -ProfilePath $profile -ApiPort $port -Apply } catch { $failed=$true }
+ if (-not $failed -or [IO.File]::ReadAllText($config) -ne $dual -or $global:NativeRestartCount -ne 2) { throw 'Independent listener rollback failed.' }
+ $global:NativeForceFailure=$false; $global:NativeRestartCount=0; $failed=$false
+ try { & $script -ProfilePath $profile -WebPort 28080 -ApiPort 28080 -Apply } catch { $failed=$true }
+ if (-not $failed -or $global:NativeRestartCount -ne 0) { throw 'Listener collision was not rejected.' }
  'PASS: defaults, plan-only, apply, secret preservation and recovery with simulated service/health.'
 } finally {
  $resolved=[IO.Path]::GetFullPath($root)

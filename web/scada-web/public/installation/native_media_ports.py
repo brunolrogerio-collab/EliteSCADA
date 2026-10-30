@@ -1,4 +1,4 @@
-"""Prepare native MediaMTX/API configuration together; no service mutation here."""
+"""Coordinate native MediaMTX/API configuration under a caller-held installation lock."""
 import json
 import re
 from urllib.parse import urlsplit, urlunsplit
@@ -6,6 +6,38 @@ from pathlib import Path
 import os
 import socket
 import uuid
+
+
+def recover_locked(profile_path, service_control, verify):
+    """Restore both registered configurations after an interrupted operation."""
+    profile = json.loads(Path(profile_path).read_text())
+    if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
+        raise ValueError('Registered native profile required')
+    app = Path(profile['configurationFile']).resolve(strict=True)
+    gateway = Path(profile['media']['configurationFile']).resolve(strict=True)
+    api_service, media_service = profile['serviceName'], profile['media']['serviceName']
+    if app == gateway or api_service == media_service or any(not re.fullmatch(r'[A-Za-z0-9_.-]+', name) for name in (api_service, media_service)):
+        raise ValueError('Distinct registered files and services required')
+    journal = app.with_name(app.name + '.media-port-pending.json')
+    record = json.loads(journal.read_text())
+    backups = record.get('backups')
+    if record.get('schema') != 'scadivo-media-port-recovery-v1' or not isinstance(backups, list) or len(backups) != 2:
+        raise ValueError('Invalid media recovery record')
+    original = []
+    for target, reference in zip((app, gateway), backups):
+        backup = Path(reference).resolve(strict=True)
+        if backup.parent != target.parent or not backup.name.startswith(target.name + '.network-backup-'):
+            raise ValueError('Backup is outside registered configuration directory')
+        original.append(backup.read_bytes())
+    # Validate the complete pair before stopping any service or writing either file.
+    prepare(*original)
+    service_control('stop', api_service)
+    app.write_bytes(original[0]); gateway.write_bytes(original[1])
+    service_control('restart', media_service)
+    verify(original[0])
+    service_control('start', api_service)
+    journal.unlink()
+    return 'Previous media configuration restored; application and playback acceptance still required'
 
 
 def prepare(application_bytes, media_bytes, control_port=None, hls_port=None):

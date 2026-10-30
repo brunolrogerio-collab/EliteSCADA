@@ -12,6 +12,44 @@ spec.loader.exec_module(media)
 
 
 class NativeMediaPortTests(unittest.TestCase):
+    def test_interruption_recovery_validates_backups_and_retains_journal_on_failure(self):
+        for platform in ('windows', 'linux'):
+            with self.subTest(platform=platform), tempfile.TemporaryDirectory() as directory:
+                root=Path(directory)
+                app=root/'app.json'; gateway=root/'media.yml'; profile=root/'profile.json'
+                app.write_bytes(self.application); gateway.write_bytes(self.gateway)
+                profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':platform,
+                    'configurationFile':str(app),'serviceName':'api-service',
+                    'media':{'configurationFile':str(gateway),'serviceName':'media-service'}}))
+                import socket
+                with socket.socket() as listener:
+                    listener.bind(('127.0.0.1',0)); port=listener.getsockname()[1]
+                service=Mock()
+                service.side_effect=[None,KeyboardInterrupt()]
+                with self.assertRaises(KeyboardInterrupt):
+                    media.apply_locked(profile,service,Mock(),control_port=port,apply=True)
+                journal=app.with_name(app.name+'.media-port-pending.json')
+                record=json.loads(journal.read_text())
+                self.assertNotIn('preserved',journal.read_text())
+                self.assertNotEqual(app.read_bytes(),self.application)
+                service=Mock(); verify=Mock(side_effect=RuntimeError('unavailable'))
+                bad=dict(record,backups=[str(profile),record['backups'][1]])
+                journal.write_text(json.dumps(bad))
+                with self.assertRaises(ValueError): media.recover_locked(profile,service,verify)
+                service.assert_not_called()
+                journal.write_text(json.dumps(record))
+                with self.assertRaises(RuntimeError): media.recover_locked(profile,service,verify)
+                self.assertTrue(journal.exists())
+                self.assertEqual(app.read_bytes(),self.application)
+                self.assertEqual(gateway.read_bytes(),self.gateway)
+                self.assertNotIn(unittest.mock.call('start','api-service'),service.call_args_list)
+                service.reset_mock(); verify=Mock()
+                media.recover_locked(profile,service,verify)
+                self.assertFalse(journal.exists())
+                self.assertEqual(service.call_args_list,[unittest.mock.call('stop','api-service'),
+                    unittest.mock.call('restart','media-service'),unittest.mock.call('start','api-service')])
+                verify.assert_called_once_with(self.application)
+
     def test_apply_and_failed_verification_restore_both_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)

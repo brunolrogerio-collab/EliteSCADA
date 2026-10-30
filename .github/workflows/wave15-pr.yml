@@ -264,11 +264,10 @@ jobs:
                 dotnet test "$project" --no-restore --configuration Release --verbosity minimal --filter "$DOTNET_TEST_FILTER"
                 continue
               fi
-              ELITESCADA_REQUIRE_HA_D2_POSTGRES=true dotnet test "$project" \
-                --no-restore --configuration Release --verbosity minimal \
-                --filter 'FullyQualifiedName=Scada.Drivers.Tests.AuthorityPolicyTwoApiPostgreSqlEvidenceTests.RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack'
+              # Quarantine #423: HA-D2 process cases run in the dedicated HA gate
+              # when HA contracts change, not in every unrelated product PR.
               dotnet test "$project" --no-restore --configuration Release --verbosity minimal \
-                --filter 'FullyQualifiedName!=Scada.Drivers.Tests.AuthorityPolicyTwoApiPostgreSqlEvidenceTests.RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack&FullyQualifiedName!~L3DriverInteractionS6Tests'
+                --filter 'FullyQualifiedName!~RealApiProcesses_HaD2&FullyQualifiedName!~RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation&FullyQualifiedName!~L3DriverInteractionS6Tests'
             elif [[ "$project" == "tests/Scada.Historian.TimescaleDb.Tests/Scada.Historian.TimescaleDb.Tests.csproj" ]]; then
               dotnet test "$project" --no-restore --configuration Release --verbosity minimal \
                 --filter "FullyQualifiedName!~L3DriverInteractionS6Tests" \

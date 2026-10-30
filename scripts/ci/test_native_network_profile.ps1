@@ -26,6 +26,20 @@ try {
  & $script -ProfilePath $profile -WebPort $port -Apply
  $changed=Get-Content -Raw -LiteralPath $config|ConvertFrom-Json
  if ($changed.secret -ne 'preserve-me' -or ([Uri]$changed.Kestrel.Endpoints.Http.Url).Port -ne $port) { throw 'Apply failed' }
+ $backups=@(Get-ChildItem -LiteralPath $root -Filter 'appsettings.json.network-backup-*')
+ if ($backups.Count -ne 1) { throw 'Expected one protected backup.' }
+ $acl=Get-Acl -LiteralPath $backups[0].FullName
+ if (-not $acl.AreAccessRulesProtected) { throw 'Backup inherited directory permissions.' }
+ $allowed=@([Security.Principal.WindowsIdentity]::GetCurrent().User.Value,'S-1-5-18','S-1-5-32-544')
+ foreach ($rule in $acl.Access) {
+   $sid=$rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+   if ($rule.IsInherited -or $sid -notin $allowed) { throw 'Unexpected backup access rule.' }
+ }
+ if ([IO.File]::ReadAllText($backups[0].FullName) -ne $original) { throw 'Backup content differs.' }
+ $copyHelper=Join-Path (Get-Location) 'web/scada-web/public/installation/copy-native-protected-backup.ps1'
+ $overwriteRejected=$false
+ try { & $copyHelper -SourcePath $config -DestinationPath $backups[0].FullName } catch { $overwriteRejected=$true }
+ if (-not $overwriteRejected -or [IO.File]::ReadAllText($backups[0].FullName) -ne $original) { throw 'Existing protected backup was overwritten.' }
  [IO.File]::WriteAllText($config,$original)
  $global:NativeRestartCount=0; $global:NativeForceFailure=$true; $failed=$false
  try { & $script -ProfilePath $profile -WebPort $port -Apply } catch { $failed=$true }

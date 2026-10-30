@@ -67,7 +67,7 @@ if (-not $Apply) {
     return
 }
 $backup = "$configPath.network-backup-$([Guid]::NewGuid().ToString('N'))"
-Copy-Item -LiteralPath $configPath -Destination $backup -ErrorAction Stop
+& (Join-Path $PSScriptRoot 'copy-native-protected-backup.ps1') -SourcePath $configPath -DestinationPath $backup
 function Wait-NativeHealth([string]$Url) {
     for ($attempt=0; $attempt -lt 30; $attempt++) {
         try {

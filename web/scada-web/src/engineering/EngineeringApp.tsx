@@ -19,6 +19,7 @@ import { InstallationSwitchingWorkspace } from './InstallationSwitchingWorkspace
 import { InstallationNetworkWorkspace } from './InstallationNetworkWorkspace';
 import { MediaSourceEngineeringWorkspace } from './MediaSourceEngineeringWorkspace';
 import { MobileRuntimeEngineeringWorkspace } from './MobileRuntimeEngineeringWorkspace';
+import { RuntimeStationEngineeringWorkspace } from './RuntimeStationEngineeringWorkspace';
 import { OperationalEventEditor, operationalEventCount } from './OperationalEventEditor';
 import { ReportDesignerWorkspace } from './reports/ReportDesignerWorkspace';
 import { reportCollection } from './reports/reportDesignerModel';
@@ -47,6 +48,7 @@ type SectionId =
   | 'installation'
   | 'branding'
   | 'mobile'
+  | 'stations'
   | 'scripts'
   | 'libraries'
   | 'dataSources'
@@ -85,6 +87,7 @@ const navigation: NavGroup[] = [
     { id: 'installation', literalLabel: { 'pt-BR': 'Instalação', en: 'Installation', es: 'Instalación' } },
     { id: 'branding', literalLabel: { 'pt-BR': 'Cabeçalho', en: 'Header', es: 'Encabezado' } },
     { id: 'mobile', literalLabel: { 'pt-BR': 'Mobile', en: 'Mobile', es: 'Móvil' } },
+    { id: 'stations', literalLabel: { 'pt-BR': 'Estações / Monitores', en: 'Stations / Monitors', es: 'Estaciones / Monitores' } },
     { id: 'scripts' },
     { id: 'libraries', literalLabel: { 'pt-BR': 'Bibliotecas', en: 'Libraries', es: 'Bibliotecas' } }
   ] },
@@ -314,6 +317,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, isS
   if (section === 'installation') return <><InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/><InstallationNetworkWorkspace locale={locale} isSystemAdmin={isSystemAdmin}/></>;
   if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'mobile') return <MobileRuntimeEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
+  if (section === 'stations') return <RuntimeStationEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'mediaSources') return <MediaSourceEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'visualAssets') return <VisualAssetManagementWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;
@@ -543,6 +547,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'installation':
     case 'branding':
     case 'mobile':
+    case 'stations':
     case 'scripts':
     case 'libraries':
     case 'overview':
@@ -608,7 +613,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', mobile: '▱', scripts: '</>', libraries: '▱', dataSources: '⇄', homeBuilding: '⌖', mediaSources: '▣', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', intelligence: '◎', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', mobile: '▱', stations: '▣', scripts: '</>', libraries: '▱', dataSources: '⇄', homeBuilding: '⌖', mediaSources: '▣', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', intelligence: '◎', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

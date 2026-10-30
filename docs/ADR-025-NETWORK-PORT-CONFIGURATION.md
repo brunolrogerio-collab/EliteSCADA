@@ -140,3 +140,11 @@ O adaptador PowerShell Web/API abre `<configurationFile>.network.lock` com FileS
 GET `/api/installation/database-readiness`, autorizado por SystemAdmin, reutiliza GetStatusAsync(refreshHealth: true) da administração canônica de topologia. Faz as sondagens SQL/compatibilidade já existentes. Retorna somente Ready, RestartRequired e RecoveryRequired; HTTP 503 se houver falha, reinício/recuperação ou operação pendente. Não substitui /health público, não retorna diagnósticos/credenciais e não declara prontidão de todos os módulos do produto.
 
 Teste de projeção e núcleo de topologia: 22/22; nova conferência focal após ajuste de FailureCode: 1/1. A integração autenticada dos adaptadores com essa verificação ainda está pendente; não armazenar senha/token nos perfis públicos ou comandos.
+
+## Padrão do banco dedicado ao SCADIVO — decisão do proprietário, 30/10/2026
+
+Novas instalações nativas LocalManaged devem provisionar PostgreSQL na porta TCP **15432**, em vez de disputar a porta PostgreSQL usual 5432. O provisionamento deve configurar o listener PostgreSQL e as conexões principal/Historian com esse mesmo valor. A instalação normal não pede preenchimento de porta. Verificar disponibilidade antes de instalar/aplicar e apresentar conflito quando ocupada; não trocar silenciosamente de porta.
+
+No Docker o acesso publicado já usa 15432; PostgreSQL permanece em 5432 dentro da rede isolada do Compose. O banco remoto conserva a porta fornecida por seu administrador. Instalações existentes conservam sua porta efetiva até uma alteração explícita: não mudar o fallback do resolver nem reescrever suas conexões só por atualizar o produto. O futuro instalador #408 deve consumir esta decisão. 15432 reduz o conflito habitual com PostgreSQL externo, mas não garante disponibilidade em todo computador.
+
+Padrões de acesso aprovados para novas instalações: Web 18080, API separada 15120, banco gerenciado 15432. O perfil nativo integrado de Web/API introduzido nesta branch não substitui a exigência de portas independentes do perfil de instalação solicitado pelo proprietário; essa adequação continua pendente no PR draft.

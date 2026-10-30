@@ -42,6 +42,10 @@ test('installation network UI prepares module and private media port settings', 
   await expect(app.getByRole('row', { name: /Media control.*TCP.*9997.*—.*Somente rede Docker/ })).toBeVisible();
   await expect(app.getByRole('row', { name: /HLS.*TCP.*8888.*—.*Somente rede Docker/ })).toBeVisible();
 
+  await expect(app.getByLabel('Porta Web no host', { exact: true })).toHaveValue('18080');
+  await expect(app.getByText(/A instalação usa as portas padrão automaticamente/)).toBeVisible();
+  await app.getByLabel('Porta Web no host', { exact: true }).fill('28080');
+  await expect(app.locator('.installation-network__preview')).toContainText('http://localhost:28080');
   await app.getByLabel('Porta interna do controle de mídia').fill('19997');
   await app.getByLabel('Porta interna do HLS').fill('18888');
   const command = app.locator('.installation-network__apply textarea');

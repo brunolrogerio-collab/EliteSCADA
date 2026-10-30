@@ -70,3 +70,9 @@ O pedido para alterar portas de módulos refere-se a banco, API, interface Web e
 Para mídia, a solução deste pacote altera as portas internas do controle MediaMTX/HLS e sincroniza os URLs da API. Mantém MediaMTX inacessível diretamente pelo host, preservando o relay com tíquetes. Não adicionar publicação host de portas de drivers, broadcast BACnet ou os listeners dos protocolos por analogia.
 
 Este candidato atende somente a instalação Docker estável. Configuração nativa Windows/systemd permanece ligada aos contratos próprios de distribuição e não é declarada como entregue nesta branch. A #780 continua aberta até validação do recorte autorizado e revisão/integração.
+
+## Padrões automáticos e alteração posterior — decisão de 30/10/2026
+
+Todos os perfis instalam com portas padrão, sem exigir que o usuário conheça ou preencha portas. API, interface Web, banco local gerenciado e mídia devem permitir alteração posterior opcional. O formulário deve abrir preenchido com os valores atuais; valores não observados não podem ser apresentados como confirmados. O instalador/host executor fornece os padrões do respectivo perfil.
+
+A porta da própria interface Web faz parte do requisito. Ao alterá-la, apresentar o novo endereço antes da aplicação, explicar a interrupção, preservar configuração/dados e oferecer recuperação local se a navegação cair. A troca de API deve atualizar o destino do proxy; a troca do banco/mídia deve atualizar os consumidores correspondentes. Instalação normal não exige edição de código nem configuração manual desses campos.

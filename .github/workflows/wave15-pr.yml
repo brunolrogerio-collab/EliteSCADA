@@ -866,9 +866,27 @@ jobs:
         shell: bash
         run: bash scripts/ci/test_stable_installation_linux.sh
 
+  installation-windows:
+    name: Native port adapters on Windows
+    needs: classify
+    if: needs.classify.outputs.run_installation_linux == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise protected profiles, adapters and real temporary SCM service
+        shell: powershell
+        run: |
+          & ./scripts/ci/test_native_profile_provisioning.ps1
+          & ./scripts/ci/test_native_network_profile.ps1
+          # Invoke in a fresh process: the focused tests intentionally define
+          # simulated Get-Service/Restart-Service functions in their own scope.
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_native_windows_service.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Real SCM fixture evidence failed.' }
+
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, intelligence-ui-regression, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar, installation-linux]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, intelligence-ui-regression, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar, installation-linux, installation-windows]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -888,6 +906,7 @@ jobs:
       ZWAVE_SIDECAR: ${{ needs.zwave-js-sidecar.result }}
       MATTER_SIDECAR: ${{ needs.matter-wifi-fake-sidecar.result }}
       INSTALLATION_LINUX: ${{ needs.installation-linux.result }}
+      INSTALLATION_WINDOWS: ${{ needs.installation-windows.result }}
       EXEMPT: ${{ needs.classify.outputs.coordination_exempt }}
       NEED_WEB: ${{ needs.classify.outputs.run_web }}
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
@@ -923,6 +942,7 @@ jobs:
           if [ "$NEED_ZWAVE_SIDECAR" = true ]; then test "$ZWAVE_SIDECAR" = success; fi
           if [ "$NEED_MATTER_SIDECAR" = true ]; then test "$MATTER_SIDECAR" = success; fi
           if [ "$NEED_INSTALLATION_LINUX" = true ]; then test "$INSTALLATION_LINUX" = success; fi
+          if [ "$NEED_INSTALLATION_LINUX" = true ]; then test "$INSTALLATION_WINDOWS" = success; fi
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";

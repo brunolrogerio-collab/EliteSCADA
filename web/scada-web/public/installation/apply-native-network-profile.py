@@ -11,6 +11,11 @@ from urllib.request import urlopen
 import uuid
 
 
+def ensure_no_other_recovery(config, allowed=None):
+    for operation in ('access', 'database', 'media'):
+        if operation != allowed and config.with_name(config.name + '.' + operation + '-port-pending.json').exists():
+            raise RuntimeError('Another administrative operation requires recovery')
+
 def health(url):
     for _ in range(30):
         try:
@@ -43,6 +48,7 @@ def recover_locked(profile_path):
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') != 'linux' or not re.fullmatch(r'[A-Za-z0-9_.-]+', profile['serviceName']):
         raise ValueError('Registered native profile required')
     path = Path(profile['configurationFile']).resolve(strict=True)
+    ensure_no_other_recovery(path, 'access')
     journal = path.with_name(path.name + '.access-port-pending.json')
     record = json.loads(journal.read_text())
     if record.get('schema') != 'scadivo-access-port-recovery-v1':
@@ -74,6 +80,7 @@ def run_locked(profile_path, port=None, apply=False, api_port=None):
     if not re.fullmatch(r'[A-Za-z0-9_.-]+', service):
         raise ValueError('Invalid service identity')
     path = Path(profile['configurationFile']).resolve(strict=True)
+    ensure_no_other_recovery(path, 'access')
     journal = path.with_name(path.name + '.access-port-pending.json')
     if journal.exists():
         raise RuntimeError('Interrupted access port operation requires recovery')

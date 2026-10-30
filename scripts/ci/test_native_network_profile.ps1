@@ -78,7 +78,18 @@ try {
  $global:NativeForceFailure=$false
  & $script -ProfilePath $profile -Recover
  if ((Test-Path -LiteralPath $journal) -or [IO.File]::ReadAllText($config) -ne $dual) { throw 'Explicit recovery failed.' }
- 'PASS: defaults, plan-only, apply, protected backups/journals and explicit recovery with simulated service/health.'
+ foreach ($operation in @('database','media')) {
+   $other="$config.$operation-port-pending.json"
+   [IO.File]::WriteAllText($other,'pending-other-operation')
+   $before=$global:NativeRestartCount; $failed=$false
+   try { & $script -ProfilePath $profile -ApiPort $port -Apply } catch { $failed=$true }
+   if (-not $failed -or $global:NativeRestartCount -ne $before) { throw 'Another pending operation did not block Web/API apply.' }
+   $failed=$false
+   try { & $script -ProfilePath $profile -Recover } catch { $failed=$true }
+   if (-not $failed -or $global:NativeRestartCount -ne $before) { throw 'Another pending operation did not block Web/API recovery.' }
+   Remove-Item -LiteralPath $other
+ }
+ 'PASS: defaults, plan-only, apply, protected backups/journals, explicit and cross-operation recovery with simulated service/health.'
 } finally {
  $resolved=[IO.Path]::GetFullPath($root)
  if (-not $resolved.StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()))) { throw 'Unsafe cleanup target' }

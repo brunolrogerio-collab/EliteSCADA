@@ -12,6 +12,11 @@ from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler
 from urllib.error import HTTPError
 
 
+def ensure_no_other_recovery(config, allowed=None):
+    for operation in ('access', 'database', 'media'):
+        if operation != allowed and config.with_name(config.name + '.' + operation + '-port-pending.json').exists():
+            raise RuntimeError('Another administrative operation requires recovery')
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, new_url):
         return None
@@ -91,6 +96,7 @@ def recover_locked(profile_path, service_control, verify):
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
         raise ValueError('Registered native profile required')
     app = Path(profile['configurationFile']).resolve(strict=True)
+    ensure_no_other_recovery(app, 'media')
     gateway = Path(profile['media']['configurationFile']).resolve(strict=True)
     api_service, media_service = profile['serviceName'], profile['media']['serviceName']
     if app == gateway or api_service == media_service or any(not re.fullmatch(r'[A-Za-z0-9_.-]+', name) for name in (api_service, media_service)):
@@ -164,6 +170,7 @@ def apply_locked(profile_path, service_control, verify, control_port=None, hls_p
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
         raise ValueError('Registered native profile required')
     app = Path(profile['configurationFile']).resolve(strict=True)
+    ensure_no_other_recovery(app, 'media')
     gateway = Path(profile['media']['configurationFile']).resolve(strict=True)
     if app == gateway:
         raise ValueError('Distinct configuration files required')

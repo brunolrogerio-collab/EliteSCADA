@@ -9,6 +9,11 @@ import time
 import uuid
 
 
+def ensure_no_other_recovery(config, allowed=None):
+    for operation in ('access', 'database', 'media'):
+        if operation != allowed and config.with_name(config.name + '.' + operation + '-port-pending.json').exists():
+            raise RuntimeError('Another administrative operation requires recovery')
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='Administrative local PostgreSQL port configuration')
@@ -50,6 +55,7 @@ def recover_locked(profile_path):
     if topology.get('schemaVersion') != 1 or topology.get('active', {}).get('mode') != 'LocalManaged' or topology.get('pending') is not None:
         raise ValueError('Idle local topology required for recovery')
     app = Path(profile['configurationFile']).resolve(strict=True)
+    ensure_no_other_recovery(app, 'database')
     pg = Path(profile['database']['configurationFile']).resolve(strict=True)
     journal = app.with_name(app.name + '.database-port-pending.json')
     record = json.loads(journal.read_text())
@@ -132,6 +138,7 @@ def execute_locked(profile_path, port=None, apply=False):
     if any(not re.fullmatch(r'[A-Za-z0-9_.-]+', item) for item in (api_service, db_service)) or api_service == db_service:
         raise ValueError('Distinct service identities required')
     app_path = Path(profile['configurationFile']).resolve(strict=True)
+    ensure_no_other_recovery(app_path, 'database')
     pg_path = Path(db['configurationFile']).resolve(strict=True)
     psql = Path(db['psqlExecutable']).resolve(strict=True)
     journal = app_path.with_name(app_path.name + '.database-port-pending.json')

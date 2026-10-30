@@ -32,6 +32,9 @@ $networkLock = [IO.File]::Open("$configPath.network.lock", [IO.FileMode]::OpenOr
 try {
 if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { throw 'Configuration file is missing.' }
 $journal="$configPath.access-port-pending.json"
+foreach ($operation in @('database','media')) {
+    if (Test-Path -LiteralPath "$configPath.$operation-port-pending.json") { throw 'Another administrative operation requires recovery.' }
+}
 if ($Recover) {
     $record=Get-Content -LiteralPath $journal -Raw | ConvertFrom-Json
     if ($record.schema -ne 'scadivo-access-port-recovery-v1') { throw 'Invalid access port recovery record.' }

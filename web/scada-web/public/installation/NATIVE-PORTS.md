@@ -1,6 +1,14 @@
 # Portas em uma instalação nativa
 
-Estes comandos são destinados ao administrador do computador. Execute-os na pasta administrativa fornecida pela instalação, com o perfil protegido `native-network-profile.json`. O perfil identifica os serviços e arquivos efetivamente usados; não use nomes de serviço copiados de outra instalação. O provisionamento desse perfil e o instalador completo ainda estão pendentes neste candidato.
+Estes comandos são destinados ao administrador do computador. Execute-os na pasta administrativa fornecida pela instalação, com o perfil protegido `native-network-profile.json`. O perfil identifica os serviços e arquivos efetivamente usados; não use nomes de serviço copiados de outra instalação. Os geradores de perfil Web/API existem neste candidato; sua ligação ao executor e o instalador completo ainda estão pendentes.
+
+## Preparação pelo executor da instalação
+
+Esta etapa pertence ao responsável pela distribuição, não ao usuário que preenche portas na interface. O executor deve identificar a configuração externa realmente carregada pelo serviço, fornecer os adaptadores na mesma pasta e proteger a pasta administrativa contra escrita por usuários não autorizados.
+
+No Windows, `provision-native-network-profile.ps1` recebe `-ConfigurationPath`, `-ServiceName` e `-DestinationPath`. No Linux, `provision-native-network-profile.py` recebe `--configuration`, `--service` e `--destination`. O destino deve ficar junto da configuração. Ambos conferem a existência do serviço e os listeners Web/Api distintos; recusam sobrescrever perfil ou prosseguir com recuperação pendente. Não criam serviços nem alteram portas, e não copiam credenciais da configuração.
+
+O executor ainda precisa registrar o caminho resultante em `InstallationNetwork:AdministrativeProfilePath`, declarar `InstallationNetwork:Profile` como `native-windows` ou `native-linux` e confirmar que o serviço carrega essa configuração. Os geradores não fazem esse registro automaticamente. Um nome de serviço existente não prova a associação com o arquivo. A conta que executa a API deve poder ler o perfil, sem poder alterá-lo indevidamente; a ACL deve ser ajustada pelo provisionamento conforme essa identidade real. A geração atual cobre Web/API; os campos administrativos de banco e mídia continuam dependentes do inventário do executor.
 
 Uma instalação nova deve usar Web 18080, API 15120 e banco local gerenciado 15432 automaticamente. Os comandos abaixo alteram uma instalação existente; valores omitidos são preservados. Não alteram portas dos Drivers, firewall ou um banco remoto.
 

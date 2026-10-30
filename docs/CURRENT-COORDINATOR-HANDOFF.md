@@ -1,5 +1,11 @@
 # Current coordinator pointer - Wave 15
 
+## Evidência atual consolidada — 30/10/2026
+
+Produto em 4098965b4d5450ad94e449a4a1f668f9e47bc2f7: CI manual 41072067106 SUCCESS no SHA exato. Proprietário executou test_native_windows_service.ps1 elevado; relatório real-scm-fixture passou em início, duas portas independentes, reinício SCM e recuperação explícita. Serviço temporário removido, cleanupFailure=null. Isso valida adaptador/provisionador contra fixture SCM real, não o host completo do produto (productHostValidated=false). Geradores de perfil Web/API Windows/Linux implementados; Linux laboratório 15/15, Windows ACL real passou. Banco suporta trocas consecutivas sem editar perfil.
+
+PR #828 ainda reporta 56795e2c apesar da branch remota e CI estarem em 4098965b. Não integrar usando head antigo. Próximas lacunas: registro pelo executor/identidade de leitura da API, perfil banco/mídia, readiness autenticada completa, serviços systemd e host produto reais, permissões de diretórios/locks e sessão HTTP/browser de mídia. Não reabrir como ausentes a geração Web/API, recuperação abrupta Web ou ensaio SCM fixture. Preview preservado. Atualização documental local posterior deve ser publicada e validada antes de integração.
+
 ## Ponto de retomada atual — #780 / PR #828 — 30/10/2026
 
 Frente única: configuração de portas por instalação. Branch `work/w15-service-ports-780`. Último CI verde: run `41060048953`, SHA `10bf8c9768420f702f5f26d880049e5a24029a6f`. Correção posterior `91fc40af` exige resposta de saúde SCADIVO, sem redirect/proxy no Linux; testes locais 14/14 Linux e roteiro Windows passaram. Essa correção ainda precisa de T1 no seu SHA próprio; consultar head vivo do PR após publicação.

@@ -27,6 +27,17 @@ public static class InstallationNetworkProfileApi
     public static void MapInstallationNetworkProfileEndpoints(this WebApplication app)
     {
         app.MapInstallationServiceInventoryEndpoints();
+        app.MapGet("/api/installation/native-network-profile", async (
+            HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security,
+            IConfiguration configuration, CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(context, runtime,
+                SecurityCapability.SystemAdmin, cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null) return failure;
+            var profile = ReadNative(configuration);
+            return profile is null ? Results.NotFound() : Results.Ok(profile);
+        });
         app.MapGet("/api/installation/network-profile", async (
             HttpContext context,
             ScadaRuntimeFacade runtime,
@@ -73,6 +84,19 @@ public static class InstallationNetworkProfileApi
                 new("TCP", "Docker network only", mediaPlaybackPort, mediaPlaybackPort, false),
                 ApplyThroughUi: false,
                 HostMappingIndependentlyVerified: false);
+    }
+
+    public sealed record NativeAccessProfile(string Platform, int WebPort, int ApiPort);
+
+    public static NativeAccessProfile? ReadNative(IConfiguration configuration)
+    {
+        var profile = configuration["InstallationNetwork:Profile"];
+        if (profile is not ("native-windows" or "native-linux")) return null;
+        if (!Uri.TryCreate(configuration["Kestrel:Endpoints:Web:Url"], UriKind.Absolute, out var web) ||
+            !Uri.TryCreate(configuration["Kestrel:Endpoints:Api:Url"], UriKind.Absolute, out var api) ||
+            web.Scheme is not ("http" or "https") || api.Scheme is not ("http" or "https") ||
+            web.Port == api.Port || web.Port < 1 || api.Port < 1) return null;
+        return new(profile == "native-windows" ? "windows" : "linux", web.Port, api.Port);
     }
 
     private static int ReadPort(IConfiguration configuration, string key, int fallback)

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/installation/native-network-profile', route => route.fulfill({ status: 404, body: '{}' }));
   await page.route('**/api/installation/service-endpoints', route => route.fulfill({ contentType: 'application/json', body: '[]' }));
 });
 
@@ -89,4 +90,19 @@ test('database readiness distinguishes compatible connection, unready and failed
   status = 401;
   await panel.getByRole('button', { name: 'Verificar banco' }).click();
   await expect(panel.getByRole('alert')).toContainText('Confira sua sessão');
+});
+
+
+test('native access form loads current distinct ports and validates its plan', async ({ page }) => {
+  await page.route('**/api/installation/network-profile', route => route.fulfill({ status: 404, body: '{}' }));
+  await page.route('**/api/installation/native-network-profile', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ platform:'linux', webPort:18080, apiPort:15120 }) }));
+  await page.goto(`${harnessPath}?locale=pt-BR`);
+  const panel = page.getByTestId('native-access-ports');
+  await expect(panel.getByLabel('Porta Web', { exact:true })).toHaveValue('18080');
+  await expect(panel.getByLabel('Porta API', { exact:true })).toHaveValue('15120');
+  await panel.getByLabel('Porta Web', { exact:true }).fill('28080');
+  await expect(panel.locator('textarea')).toHaveValue(/--web-port 28080 --api-port 15120/);
+  await panel.getByLabel('Porta API', { exact:true }).fill('28080');
+  await expect(panel.getByRole('alert')).toContainText('válidas e diferentes');
+  await expect(panel.locator('textarea')).toHaveValue('');
 });

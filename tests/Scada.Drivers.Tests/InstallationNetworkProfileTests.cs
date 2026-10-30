@@ -66,4 +66,22 @@ public sealed class InstallationNetworkProfileTests
         Assert.Equal(18080, profile.Web.PublishedPort);
         Assert.Equal(15120, profile.Api.PublishedPort);
     }
+
+    [Fact]
+    public void NativeProfile_RequiresExplicitNativeTypeAndDistinctConfiguredPorts()
+    {
+        var settings = new Dictionary<string, string?>
+        {
+            ["InstallationNetwork:Profile"] = "native-windows",
+            ["Kestrel:Endpoints:Web:Url"] = "http://127.0.0.1:18080",
+            ["Kestrel:Endpoints:Api:Url"] = "http://127.0.0.1:15120"
+        };
+        IConfiguration Build() => new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+        var profile = Assert.IsType<InstallationNetworkProfileApi.NativeAccessProfile>(InstallationNetworkProfileApi.ReadNative(Build()));
+        Assert.Equal(("windows", 18080, 15120), (profile.Platform, profile.WebPort, profile.ApiPort));
+        settings["Kestrel:Endpoints:Api:Url"] = "http://127.0.0.1:18080";
+        Assert.Null(InstallationNetworkProfileApi.ReadNative(Build()));
+        settings["InstallationNetwork:Profile"] = "stable-docker";
+        Assert.Null(InstallationNetworkProfileApi.ReadNative(Build()));
+    }
 }

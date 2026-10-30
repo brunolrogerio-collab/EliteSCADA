@@ -191,3 +191,9 @@ Perfil pode registrar endpointName=Web e apiEndpointName=Api. Parâmetros WebPor
 O adaptador aceita --web-port e --api-port opcionais com endpointName/apiEndpointName distintos no perfil. O valor omitido preserva a porta atual. Valida colisão antes de operações, aplica ambos ao mesmo backup/configuração/restart e verifica os dois acessos; falha restaura ambos. Testes locais: 7 passaram, 1 flock exclusivo Linux ignorado neste Windows. Casos incluem Web isolada, API isolada, falha na saúde da API e recusa de portas iguais.
 
 A tentativa de laboratório Linux desta revisão falhou antes dos testes porque apk não obteve Python por erro TLS no repositório Alpine. Não transferir o 8/8 real da revisão anterior para este código; nova evidência Linux continua pendente. Preview preservado.
+
+### Preparação Web/API nativa na interface
+
+Endpoint SystemAdmin `/api/installation/native-network-profile` aceita apenas perfil declarado native-windows/native-linux e listeners Kestrel Web/Api válidos/distintos. Retorna plataforma/portas, sem caminhos ou segredos. Painel nativo preenche os valores atuais, valida faixa/colisão e gera comando de prévia do adaptador da plataforma. O comando pressupõe pasta administrativa e `native-network-profile.json` fornecidos pela instalação; não pede ao usuário comum criar o perfil. Aplicação continua explícita pelo procedimento, não executada pelo navegador. Banco/mídia não entram nesse comando. Provisionamento final do perfil e Help completo continuam pendentes.
+
+Validação local: API 3/3, Chromium 4/4 e build Web passaram. Teste usa perfil simulado para UI; não equivale a instalação nativa completa.

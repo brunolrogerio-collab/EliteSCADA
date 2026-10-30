@@ -15,6 +15,17 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 class NativeDatabasePortTests(unittest.TestCase):
+    def test_windows_service_actions_are_bounded(self):
+        with patch.object(module.subprocess, 'run') as command:
+            module.control_service('windows', 'restart', 'scadivo-db')
+            arguments = command.call_args.args[0]
+            self.assertEqual(arguments[:3], ['powershell.exe', '-NoProfile', '-NonInteractive'])
+            self.assertIn("Restart-Service -Name 'scadivo-db'", arguments[-1])
+            command.reset_mock()
+            with self.assertRaises(ValueError): module.control_service('windows', 'restart', "bad'; command")
+            with self.assertRaises(ValueError): module.control_service('windows', 'delete', 'scadivo-db')
+            command.assert_not_called()
+
     def test_concurrent_database_operation_is_rejected_before_mutation(self):
         with tempfile.TemporaryDirectory() as folder:
             config = Path(folder) / 'app.json'

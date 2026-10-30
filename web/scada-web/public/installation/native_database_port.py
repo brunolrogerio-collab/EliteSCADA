@@ -1,4 +1,4 @@
-"""Administrative Linux candidate; profile and credentials are provisioned by the host."""
+"""Administrative native candidate; profile and credentials are provisioned by the host."""
 import json
 import os
 from pathlib import Path
@@ -7,6 +7,23 @@ import socket
 import subprocess
 import time
 import uuid
+
+
+def control_service(platform, action, name):
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
+        raise ValueError('Invalid service identity')
+    if action not in ('stop', 'start', 'restart'):
+        raise ValueError('Invalid service action')
+    if platform == 'linux':
+        command = ['systemctl', action, name]
+    elif platform == 'windows':
+        # Name is restricted above; no credentials or arbitrary commands allowed.
+        verb = {'stop':'Stop-Service', 'start':'Start-Service', 'restart':'Restart-Service'}[action]
+        script = f"$ErrorActionPreference='Stop'; {verb} -Name '{name}' -ErrorAction Stop"
+        command = ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script]
+    else:
+        raise ValueError('Unsupported platform')
+    subprocess.run(command, check=True, capture_output=True, timeout=45)
 
 
 def execute(profile_path, port=None, apply=False):
@@ -26,8 +43,8 @@ def execute(profile_path, port=None, apply=False):
 
 def execute_locked(profile_path, port=None, apply=False):
     profile = json.loads(Path(profile_path).read_text())
-    if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') != 'linux':
-        raise ValueError('Registered Linux native profile required')
+    if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('linux', 'windows'):
+        raise ValueError('Registered native profile required')
     topology = json.loads(Path(profile['topologyFile']).read_text())
     if topology.get('schemaVersion') != 1 or topology.get('active', {}).get('mode') != 'LocalManaged' or topology.get('pending') is not None:
         raise ValueError('An idle LocalManaged topology is required')
@@ -53,7 +70,7 @@ def execute_locked(profile_path, port=None, apply=False):
         return result.stdout.strip()
 
     def service(action, name):
-        subprocess.run(['systemctl', action, name], check=True, capture_output=True, timeout=45)
+        control_service(profile['platform'], action, name)
 
     def wait_database(at_port):
         deadline = time.monotonic() + 60

@@ -148,3 +148,9 @@ Novas instalações nativas LocalManaged devem provisionar PostgreSQL na porta T
 No Docker o acesso publicado já usa 15432; PostgreSQL permanece em 5432 dentro da rede isolada do Compose. O banco remoto conserva a porta fornecida por seu administrador. Instalações existentes conservam sua porta efetiva até uma alteração explícita: não mudar o fallback do resolver nem reescrever suas conexões só por atualizar o produto. O futuro instalador #408 deve consumir esta decisão. 15432 reduz o conflito habitual com PostgreSQL externo, mas não garante disponibilidade em todo computador.
 
 Padrões de acesso aprovados para novas instalações: Web 18080, API separada 15120, banco gerenciado 15432. O perfil nativo integrado de Web/API introduzido nesta branch não substitui a exigência de portas independentes do perfil de instalação solicitado pelo proprietário; essa adequação continua pendente no PR draft.
+
+### Candidato PostgreSQL Windows
+
+O núcleo `native_database_port.py` aceita plataforma Windows com ações SCM limitadas a start/stop/restart e nomes de serviço restritos. `apply-native-database-port.ps1` segura o mesmo lock exclusivo do adaptador Web e invoca o núcleo Python com perfil administrativo. Python é um pré-requisito deste candidato administrativo e precisa ser provisionado/validado pelo perfil de distribuição; não presumir sua presença no cliente final. O wrapper e núcleo ficam juntos no payload administrativo protegido.
+
+Validação atual: parser PowerShell e testes simulados do núcleo/ações Windows passaram; serviço SCM/PostgreSQL real e execução completa do wrapper ainda pendentes. Não ligar à UI antes de validar ACLs dos backups no Windows, recuperação, configuração efetiva e readiness da aplicação. O mecanismo Linux de modo 0600 não prova proteção de ACL Windows.

@@ -75,6 +75,8 @@ export function getRuntimeClientInstanceId(): string {
 }
 
 async function claimRuntimeClientInstanceId(): Promise<string> {
+  // A duplicated browser tab may inherit sessionStorage. Coordinate with live
+  // tabs before using that identity for a server-owned lease.
   if (!identityChannel) return getRuntimeClientInstanceId();
   return identityClaim ??= new Promise(resolve => {
     const id = getRuntimeClientInstanceId();

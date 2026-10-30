@@ -1,5 +1,17 @@
 # Current coordinator pointer - Wave 15
 
+## Ponto de retomada atual — #780 / PR #828 — 30/10/2026
+
+Frente única: configuração de portas por instalação. Branch `work/w15-service-ports-780`. Último CI verde: run `41060048953`, SHA `10bf8c9768420f702f5f26d880049e5a24029a6f`. Correção posterior `91fc40af` exige resposta de saúde SCADIVO, sem redirect/proxy no Linux; testes locais 14/14 Linux e roteiro Windows passaram. Essa correção ainda precisa de T1 no seu SHA próprio; consultar head vivo do PR após publicação.
+
+Implementado: Docker Web/API/banco e mídia privada; inventário e readiness autenticados; Web/API nativos independentes; adaptadores administrativos Web/API, banco e mídia Windows/Linux; backups/journals protegidos; recuperação explícita nas três operações; recusa de sobreposição com outra recuperação pendente; revalidação de topologia após parar API local. Help/manual pt-BR/en/es atualizado, padrão novo API 15120. Valores novos Web18080/API15120/banco15432; existentes preservados; Drivers ficam nos Data Sources.
+
+Evidência: testes .NET de instalação 11/11; Help 11/11; mídia 7/7; banco 6/6 com ACL Windows real; laboratório Linux atual 14/14 com PostgreSQL/HTTP/flock reais, serviços OS simulados. MediaMTX real 8/8 e relay real 21/21 foram rodadas anteriores, não sessão HTTP/browser completa. Falha de fixtures Historian reproduzida em banco vazio e corrigida no teste, 6/6; CI posterior verde. HA-D2 separado apresentou timeout conhecido em 41056595183, sem investigação/retry nesta frente.
+
+Pendências reais: provisionamento protegido do perfil pelo executor (instalador completo é Wave16); readiness autenticada completa nos adaptadores; ensaios SCM/systemd reais; permissões de diretórios/locks; HTTP/browser de mídia e revisão final. Recuperação abrupta Web, proteção de backups/journals, conflito entre recuperações e atualização do Help já foram implementados: não reabrir como ausentes.
+
+PR continua draft e #780 aberta, sem merge ou atualização de Preview. Próximo passo: conferir T1 do novo head e resolver o próximo item implementável sem ampliar para instalador Wave16 nem HA-D2. Todos os checkpoints abaixo são históricos.
+
 ### Complemento validado — adaptadores e proteção de arquivos
 
 Mídia agora possui wrappers administrativos Windows/Linux, controle de serviços reutilizado, lock da instalação, verificação local limitada de controle/HLS e recuperação explícita após interrupção. Backups Web/API, banco e mídia Windows são criados com DACL restrita antes de copiar conteúdo; journals banco/mídia também nascem protegidos. Linux mantém 0600. Perfil administrativo só libera comando se configuração persistida corresponder às URLs efetivas e serviço tiver identificador válido.

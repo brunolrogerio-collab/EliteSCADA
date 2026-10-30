@@ -170,3 +170,7 @@ O núcleo disponibiliza recover_locked; no Linux execute(..., recover=True) segu
 ### Ensaio PostgreSQL nativo real no CI Linux
 
 `test_native_postgresql_integration.py` procura binários PostgreSQL nativos do runner (ou SCADIVO_NATIVE_PG_BIN), inicializa cluster temporário somente loopback, aplica a porta alternativa e recupera os backups via consultas SQL reais e pg_ctl. Controle do serviço da API é explicitamente simulado; não é teste systemd nem produto completo. Ensaio incluído no job Linux; ausência de binários resulta em skip explícito, nunca PASS de PostgreSQL real. Neste Windows os binários não foram encontrados e o teste foi ignorado; aguardar resultado Linux antes de afirmar evidência real. Preview não é usado.
+
+### Evidência real PostgreSQL em contêiner Linux — 30/10/2026
+
+Executado localmente em Docker desktop-linux com postgres:18-alpine, sem portas publicadas, bind do repositório somente leitura, cluster descartável em /tmp e usuário postgres. O ensaio rodou PostgreSQL/pg_ctl/psql reais: mudança de porta, consulta SQL, recuperação explícita e rollback automático após falha simulada de start da API. Também passou o teste flock Linux real entre Web e banco. Total 8/8, nenhum skip. Serviço API e SCM/systemd permanecem simulados; não equivale a validar o produto completo. Contêiner removido por --rm; Preview não foi usado. Python foi instalado apenas no contêiner descartável do laboratório.

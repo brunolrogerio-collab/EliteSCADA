@@ -49,11 +49,16 @@ class NativePostgreSqlPortIntegrationTests(unittest.TestCase):
             profile = root / 'profile.json'
             profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':'linux','serviceName':'test-api','configurationFile':str(app),'topologyFile':str(topology),'database':{'serviceName':'test-pg','configurationFile':str(configuration),'psqlExecutable':str(binaries / 'psql'),'currentPort':old_port,'username':'scadivo_test','databaseName':'postgres'}}))
             api_actions = []
+            fail_next_api_start = False
             def service(platform, action, name):
+                nonlocal fail_next_api_start
                 if name == 'test-pg':
                     pg(action)
                 else:
                     api_actions.append(action)
+                    if action == 'start' and fail_next_api_start:
+                        fail_next_api_start = False
+                        raise RuntimeError('Simulated API start failure')
             adapter.control_service = service
             started = False
             try:
@@ -69,6 +74,13 @@ class NativePostgreSqlPortIntegrationTests(unittest.TestCase):
                 adapter.recover_locked(profile)
                 self.assertEqual(app.read_text(),'{"secret":"preserved"}')
                 self.assertFalse(journal.exists())
+                fail_next_api_start = True
+                with self.assertRaisesRegex(RuntimeError, 'configuration restored'):
+                    adapter.execute(profile, new_port, True)
+                self.assertEqual(app.read_text(), '{"secret":"preserved"}')
+                self.assertFalse(journal.exists())
+                result = subprocess.run([str(binaries / 'psql'), '-X', '-w', '-h', '127.0.0.1', '-p', str(old_port), '-U', 'scadivo_test', '-d', 'postgres', '-At', '-c', 'SHOW port'], check=True, capture_output=True, text=True)
+                self.assertEqual(result.stdout.strip(), str(old_port))
             finally:
                 if started:
                     pg('stop')

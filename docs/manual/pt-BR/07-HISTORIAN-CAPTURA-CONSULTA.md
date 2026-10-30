@@ -54,6 +54,28 @@ Ordenar muda a ordem de apresentação, não seleciona outros registros. Passar 
 
 São decisões diferentes. Captura escolhe quais observações gravar. Retenção define por quanto tempo guardá-las. Agregação resume amostras; backup guarda uma cópia recuperável. Configurar a captura de um TAG não define cota global do banco nem arquivamento.
 
+### Criar um arquivo do Historian
+
+Em Engenharia > Banco de dados, na seção Arquivar e restaurar amostras, escolha o início e o fim do período. As datas e horas são interpretadas no fuso horário do navegador e convertidas para UTC no arquivo. O período precisa terminar no passado. O arquivo contém somente amostras brutas da tabela do Historian; ele não inclui agregados, alarmes, eventos, Auditoria, aplicação, Authority, licença ou estado HA.
+
+O destino é uma pasta no servidor da API. O administrador do serviço pode defini-la com `Historian:Archive:RootPath`. Em Docker, monte essa pasta em um volume persistente para que os arquivos sobrevivam à recriação do contêiner. Se o banco Historian for remoto, as amostras passam pelo serviço SCADIVO; não é necessário que o servidor do PostgreSQL veja a pasta do arquivo.
+
+Use Criar arquivo verificado. O serviço divide o período em segmentos diários UTC, comprime cada segmento, confere a contagem e o SHA-256 por leitura de volta e grava o progresso antes de continuar. A lista mostra Na fila, Em andamento, Pausado ou Concluído e verificado. Se o processo reiniciar, os segmentos já confirmados são retomados. Se o destino ficar cheio ou indisponível, a tarefa é pausada e as amostras originais permanecem; corrija o destino e use Retomar.
+
+Baixe o arquivo apenas quando o estado estiver Concluído e verificado. Para restaurar, selecione o `.scadhist` e use Verificar e restaurar. O SCADIVO confere o pacote inteiro antes de inserir amostras. Em cada segmento, compara a quantidade de ocorrências idênticas que já existe e insere somente o que falta; isso evita duplicação quando as amostras originais ainda estão na base. O progresso fica registrado no banco Historian ativo. Repetir o arquivo não duplica amostras e pode repor dados removidos depois por uma política de retenção.
+
+Apagar amostras originais é opcional e fica desmarcado inicialmente. Para habilitar, marque a opção e a confirmação adicional. A remoção só ocorre depois que o pacote completo foi fechado e passou na leitura de volta e na verificação. Ela afeta apenas as amostras brutas no período escolhido; retenção dos agregados é outra política. Mantenha a origem quando ainda precisar das amostras no Historian ativo.
+
+### Agendar arquivos e definir a rotação
+
+Na mesma seção, configure um único agendamento para esta instalação. Começar a arquivar a partir de define o primeiro ponto do cursor. Arquivar somente dados com pelo menos estes dias deixa os dados recentes fora do lote; Executar a cada define a frequência; Arquivar até por execução limita cada lote a no máximo 31 dias. O cursor só avança quando o arquivo do lote foi concluído e verificado. Revise o cursor exibido e o estado das tarefas. Uma tarefa pausada não avança; corrija o destino e use Retomar.
+
+Manter os arquivos sem prazo de expiração conserva todos os pacotes concluídos. Se definir um prazo, a rotação apaga pacotes `.scadhist` concluídos depois de ficarem mais antigos que esse prazo. Ela não apaga amostras da base Historian. Esta política afeta arquivos desta instalação, inclusive os criados manualmente. Faça cópias externas se precisar guardá-los por mais tempo.
+
+O destino é uma pasta no servidor da API. Em Docker, monte-a em volume persistente. Se houver vários nós da API usando a mesma base, configure em todos o mesmo caminho para uma pasta compartilhada e persistente; armazenamento local independente em cada nó não é suficiente. Para banco Historian remoto, a pasta continua pertencendo ao serviço SCADIVO, não ao host PostgreSQL.
+
+O agendamento pode também remover a origem, mas a opção começa desmarcada e exige confirmação explícita. A remoção só começa depois que o pacote completo foi lido de volta e verificado. O progresso é salvo por segmento na mesma transação que remove aquele segmento; após reinício, os segmentos já confirmados não são repetidos, e amostras que chegarem depois permanecem na base. O lote só fica Concluído depois que todos os segmentos autorizados forem tratados. Configure o prazo de arquivamento antes da retenção ou do limite por tamanho; esses mecanismos podem remover amostras antes que o cursor do agendamento as alcance. Teste a restauração e acompanhe as tarefas antes de depender do arquivamento para liberar espaço.
+
 Playback é a visualização de valores históricos. Ele não restaura o processo nem permite comandar a partir do passado. Volte ao modo ao vivo antes de operar. Falta de amostras não significa zero nem equipamento desligado.
 
 [Abrir este guia na Ajuda instalada](/help?topic=historian.capture-query)

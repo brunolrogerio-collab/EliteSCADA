@@ -138,6 +138,189 @@ test('DB-B is presented within Engineering navigation and follows the active lig
   await expect(content).toHaveCSS('color', 'rgb(237, 243, 247)');
 });
 
+test('Historian size budget makes destructive chunk removal explicit and submits the selected policy', async ({ page }) => {
+  let appliedStorage: any = {
+    provider: 'timescaledb',
+    supported: true,
+    policyManaged: true,
+    rawRetentionEnabled: false,
+    rawRetentionDays: null,
+    rawSampleStorageLimitBytes: null,
+    rawSampleStorageLimitAction: 'WarnOnly',
+    rawSampleLimitExceeded: false,
+    usage: {
+      databaseBytes: 64 * 1024 * 1024,
+      rawSamplesBytes: 32 * 1024 * 1024,
+      aggregateBytes: 0,
+      historianBytes: 32 * 1024 * 1024,
+      filesystemFreeBytes: null,
+      estimatedDailyGrowthBytes: null,
+      measuredAtUtc: '2026-10-29T20:00:00Z'
+    }
+  };
+  let submitted: any = null;
+
+  await page.route('**/api/admin/database-topology/**', route => fulfillJson(route, topologyStatus()));
+  await page.route('**/api/admin/historian-storage/**', async route => {
+    const request = route.request();
+    if (request.method() === 'GET') {
+      await fulfillJson(route, appliedStorage);
+      return;
+    }
+    if (request.method() === 'PUT' && new URL(request.url()).pathname.endsWith('/retention')) {
+      submitted = request.postDataJSON();
+      appliedStorage = {
+        ...appliedStorage,
+        rawSampleStorageLimitBytes: submitted.rawSampleStorageLimitBytes,
+        rawSampleStorageLimitAction: submitted.rawSampleStorageLimitAction
+      };
+      await fulfillJson(route, appliedStorage);
+      return;
+    }
+    await fulfillJson(route, { error: `Unexpected Historian storage request: ${request.method()}` }, 500);
+  });
+
+  await page.goto(`${harnessPath}?locale=pt-BR`);
+  const content = page.getByTestId('database-topology-app');
+  const limit = content.getByLabel('Limite de tamanho das amostras brutas');
+  await expect(limit).toBeVisible();
+  await limit.fill('0.01');
+  await content.getByLabel('Ao alcançar o limite').selectOption('DeleteOldestCompleteChunks');
+
+  const confirmation = content.getByLabel('Confirmo que a retenção e/ou a remoção de blocos antigos pode excluir permanentemente amostras brutas históricas.');
+  await expect(confirmation).toBeVisible();
+  const save = content.getByRole('button', { name: 'Salvar retenção' });
+  await expect(save).toBeDisabled();
+  await confirmation.check();
+  await save.click();
+
+  await expect.poll(() => submitted).not.toBeNull();
+  expect(submitted.configureRawSampleStorageLimit).toBe(true);
+  expect(submitted.rawSampleStorageLimitBytes).toBe(10_737_418);
+  expect(submitted.rawSampleStorageLimitAction).toBe('DeleteOldestCompleteChunks');
+  expect(submitted.allowPotentialDataExpiration).toBe(true);
+});
+
+test('Historian archive creates a verified job, downloads it, and verifies an uploaded restore', async ({ page }) => {
+  const archiveId = '7e46a81d-2a8f-4fb2-a55e-c8a10a08f55f';
+  let created: any = null;
+  const completedJob = {
+    archiveId,
+    fromUtc: '2026-10-27T00:00:00Z',
+    toUtc: '2026-10-28T00:00:00Z',
+    nextSegmentFromUtc: '2026-10-28T00:00:00Z',
+    nextSequence: 1,
+    state: 'Completed',
+    deleteSourceAfterVerification: false,
+    samplesArchived: 128,
+    failureCode: null,
+    sha256: 'a'.repeat(64),
+    archiveLengthBytes: 4096,
+    createdAtUtc: '2026-10-29T00:00:00Z',
+    updatedAtUtc: '2026-10-29T00:01:00Z',
+    completedAtUtc: '2026-10-29T00:01:00Z',
+    archiveFileAvailable: true,
+    archiveFileRemovedAtUtc: null
+  };
+  let storageStatus: any = {
+    provider: 'timescaledb',
+    supported: true,
+    policyManaged: true,
+    rawRetentionEnabled: false,
+    rawRetentionDays: null,
+    rawSampleStorageLimitBytes: null,
+    rawSampleStorageLimitAction: 'WarnOnly',
+    rawSampleLimitExceeded: false,
+    usage: { databaseBytes: 0, rawSamplesBytes: 0, aggregateBytes: 0, historianBytes: 0, filesystemFreeBytes: null, estimatedDailyGrowthBytes: null, measuredAtUtc: null },
+    archive: { supported: true, destination: '/var/lib/scadivo/historian-archives', schedule: null, jobs: [] }
+  };
+  let restoredUploadBytes = 0;
+  let scheduled: any = null;
+  await page.route('**/api/admin/database-topology/**', route => fulfillJson(route, topologyStatus()));
+  await page.route('**/api/admin/historian-storage/**', async route => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    if (request.method() === 'GET' && pathname.endsWith('/historian-storage/')) {
+      await fulfillJson(route, storageStatus);
+      return;
+    }
+    if (request.method() === 'POST' && pathname.endsWith('/historian-storage/archives')) {
+      created = request.postDataJSON();
+      storageStatus = { ...storageStatus, archive: { ...storageStatus.archive, jobs: [{ ...completedJob, state: 'Queued', samplesArchived: 0, archiveLengthBytes: null, sha256: null, completedAtUtc: null }] } };
+      await fulfillJson(route, storageStatus.archive.jobs[0], 202);
+      return;
+    }
+    if (request.method() === 'PUT' && pathname.endsWith('/historian-storage/archives/schedule')) {
+      scheduled = request.postDataJSON();
+      storageStatus = { ...storageStatus, archive: { ...storageStatus.archive, schedule: {
+        enabled: scheduled.enabled,
+        startFromUtc: scheduled.startFromUtc,
+        nextFromUtc: scheduled.startFromUtc,
+        archiveAfterDays: scheduled.archiveAfterDays,
+        intervalDays: scheduled.intervalDays,
+        windowDays: scheduled.windowDays,
+        keepArchivesDays: scheduled.keepArchivesDays,
+        deleteSourceAfterVerification: scheduled.deleteSourceAfterVerification,
+        nextRunAtUtc: new Date().toISOString(),
+        lastScheduledAtUtc: null
+      } } };
+      await fulfillJson(route, storageStatus.archive.schedule);
+      return;
+    }
+    if (request.method() === 'GET' && pathname.endsWith(`/archives/${archiveId}/download`)) {
+      await route.fulfill({ status: 200, contentType: 'application/vnd.scadivo.historian-archive', body: 'verified-archive' });
+      return;
+    }
+    if (request.method() === 'POST' && pathname.endsWith('/archives/restore')) {
+      restoredUploadBytes = request.postDataBuffer()?.length ?? 0;
+      await fulfillJson(route, { archiveId, samplesRestored: 128, segmentsRestored: 1, segmentsAlreadyRestored: 0, sha256: 'a'.repeat(64) });
+      return;
+    }
+    await fulfillJson(route, { error: `Unexpected archive request: ${request.method()} ${pathname}` }, 500);
+  });
+
+  await page.goto(`${harnessPath}?locale=en`);
+  const panel = page.getByTestId('historian-archive-panel');
+  await expect(panel).toBeVisible();
+  const schedulePanel = page.getByTestId('historian-archive-schedule');
+  await schedulePanel.getByLabel('Enable scheduled archiving').check();
+  await schedulePanel.getByLabel('Delete original samples after each archive is verified').check();
+  const scheduleConfirm = schedulePanel.getByLabel('I confirm that scheduled archiving may remove original samples after verifying each archive.');
+  await scheduleConfirm.check();
+  await schedulePanel.getByRole('button', { name: 'Save scheduled archiving' }).click();
+  await expect.poll(() => scheduled).not.toBeNull();
+  expect(scheduled.enabled).toBe(true);
+  expect(scheduled.confirmDeleteSourceAfterVerification).toBe(true);
+  expect(scheduled.keepArchivesDays).toBeNull();
+
+  await panel.getByLabel('Delete original samples only after the complete archive is verified').check();
+  const confirmation = panel.getByLabel('I confirm that samples in this period may be removed after read-back and integrity verification.');
+  await expect(confirmation).toBeVisible();
+  const createButton = panel.getByRole('button', { name: 'Create verified archive' });
+  await expect(createButton).toBeDisabled();
+  await confirmation.check();
+  await createButton.click();
+  await expect.poll(() => created).not.toBeNull();
+  expect(created.deleteSourceAfterVerification).toBe(true);
+  expect(created.confirmDeleteSourceAfterVerification).toBe(true);
+
+  storageStatus = { ...storageStatus, archive: { ...storageStatus.archive, jobs: [completedJob] } };
+  await page.getByRole('button', { name: 'Refresh status' }).click();
+  await expect(panel).toContainText('Completed and verified');
+  const downloadPromise = page.waitForEvent('download');
+  await panel.getByRole('button', { name: 'Download archive' }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe(`${archiveId.replaceAll('-', '')}.scadhist`);
+
+  await panel.locator('input[type=file]').setInputFiles({
+    name: 'samples.scadhist',
+    mimeType: 'application/vnd.scadivo.historian-archive',
+    buffer: Buffer.from('fixture archive bytes')
+  });
+  await panel.getByRole('button', { name: 'Verify and restore', exact: true }).click();
+  await expect.poll(() => restoredUploadBytes).toBe(Buffer.byteLength('fixture archive bytes'));
+  await expect(page.getByText(/Verified restore\. Samples inserted now: 128/)).toBeVisible();
+});
+
 test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, restart and rollback', async ({ page }, testInfo) => {
   let currentStatus: any = topologyStatus();
   let statusGetCount = 0;

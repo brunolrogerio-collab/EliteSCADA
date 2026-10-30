@@ -54,6 +54,28 @@ Ordenar cambia el orden de presentación, no selecciona otros registros. Cambiar
 
 Son decisiones diferentes. Captura elige observaciones para guardar. Retención define cuánto tiempo conservarlas. Agregación resume muestras; backup guarda una copia recuperable. Configurar captura de un TAG no define cuota global de base ni archivado.
 
+### Crear un archivo del Historian
+
+En Ingeniería > Base de datos, en Archivar y restaurar muestras, elija el inicio y el fin del período. La zona horaria local del navegador se convierte a UTC en el archivo. El período debe terminar en el pasado. El archivo contiene solo muestras sin procesar de la tabla del Historian; no incluye agregados, alarmas, eventos, Auditoría, aplicación, Authority, licencia ni estado HA.
+
+El destino es una carpeta del servidor de la API. El administrador del servicio puede definirla con `Historian:Archive:RootPath`. En Docker, monte esta carpeta en un volumen persistente para que los archivos sobrevivan a la recreación del contenedor. Con un Historian remoto, las muestras pasan por el servicio SCADIVO; el servidor PostgreSQL no necesita acceso a la carpeta del archivo.
+
+Use Crear archivo verificado. El servicio divide el período en segmentos diarios UTC, comprime cada segmento, comprueba su cantidad de filas y SHA-256 mediante lectura de vuelta y guarda el progreso antes de continuar. La lista muestra En cola, En curso, Pausado o Completado y verificado. Si se reinicia el proceso, se reanudan los segmentos confirmados. Si el destino se llena o no está disponible, la tarea se pausa y las muestras originales se conservan; corrija el destino y use Reanudar.
+
+Descargue solo cuando el estado sea Completado y verificado. Para restaurar, seleccione el `.scadhist` y use Verificar y restaurar. SCADIVO comprueba el paquete completo antes de insertar muestras. En cada segmento compara cuántas ocurrencias idénticas ya existen e inserta solo las que faltan; así evita duplicarlas cuando las muestras originales siguen en la base. El progreso queda registrado en la base Historian activa. Repetir el archivo no duplica muestras y puede recuperar datos que una política de retención eliminó después.
+
+Borrar muestras originales es opcional y está desmarcado al inicio. Para habilitarlo, marque la opción y la confirmación adicional. La eliminación ocurre solo después de cerrar el paquete completo y verificarlo mediante lectura de vuelta. Afecta solo a las muestras sin procesar del período elegido; la retención de agregados es otra política. Mantenga el origen si aún necesita las muestras en el Historian activo.
+
+### Programar archivos y definir la rotación
+
+Configure una programación para esta instalación en la misma sección. Comenzar a archivar desde establece la primera posición del cursor. Archivar solo datos con al menos estos días deja fuera los datos recientes; Ejecutar cada define la frecuencia; Archivar hasta por ejecución limita cada lote a 31 días. El cursor avanza solo cuando el archivo del lote está completado y verificado. Revise el cursor y el estado de las tareas. Una tarea pausada no avanza; corrija el destino y use Reanudar.
+
+Conservar los archivos sin fecha de expiración mantiene todos los paquetes completados. Si define un plazo, la rotación elimina paquetes `.scadhist` completados cuando superan esa antigüedad. No elimina muestras de la base Historian. Esta política se aplica también a los archivos manuales. Haga copias externas si necesita conservarlos más tiempo.
+
+El destino es una carpeta del servidor de la API. En Docker, móntela en almacenamiento persistente. Si varios nodos de API usan la misma base, configure en todos la misma ruta hacia una carpeta compartida y persistente; el almacenamiento local independiente no basta. Para una base Historian remota, la carpeta sigue perteneciendo al servicio SCADIVO, no al host PostgreSQL.
+
+La programación también puede eliminar el origen, pero la opción aparece desmarcada y requiere confirmación explícita. La eliminación comienza solo después de leer de nuevo y verificar el paquete completo. El progreso se guarda por segmento en la misma transacción de base de datos que elimina ese segmento; tras reiniciarse el servicio, se omiten los segmentos ya confirmados y las muestras que lleguen después permanecen en la base. El lote se marca como Completado solo después de procesar todos los segmentos autorizados. Configure la antigüedad del archivo antes de la retención o del límite por tamaño; esos mecanismos pueden eliminar muestras antes de que el cursor las alcance. Pruebe la restauración y supervise las tareas antes de depender del archivado para liberar espacio.
+
 Playback muestra valores históricos. No restaura el proceso ni permite comandar desde el pasado. Vuelva al modo en vivo antes de operar. La falta de muestras no significa cero ni equipo detenido.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=historian.capture-query)

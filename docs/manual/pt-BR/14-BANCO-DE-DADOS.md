@@ -14,6 +14,22 @@ Local Managed é o banco local administrado pela instalação. Remote é um Post
 
 Antes de mudar algo, leia Estado atual e Próxima ação. Escolher um banco define armazenamento; não configura, por si só, a redundância HA entre dois servidores.
 
+### Uso e retenção do Historian
+
+Na seção **Uso e retenção do Historian**, confira os tamanhos medidos na base usada pelo Historian. **Banco do Historian** inclui todos os dados daquela base; **Historian total** reúne as amostras brutas e os agregados que o provider conseguiu medir. Se a topologia usa bancos separados, esta tela mede apenas o banco do Historian; não soma o banco principal nem representa o espaço livre do volume do servidor. Espaço livre e crescimento diário só aparecem quando há uma medição confiável. Se a tela disser que não foram informados, isso não significa zero.
+
+**Sem expiração automática** significa que o SCADIVO não programou uma data para remover amostras brutas. Não quer dizer que o disco seja ilimitado. Para guardar as amostras por um período, desmarque a opção e informe a quantidade de dias. Uma política mais curta pode apagar amostras antigas; marque a confirmação apenas depois de revisar o período e o impacto. A política do TimescaleDB executa a remoção, então ela pode não acontecer no instante em que você salva.
+
+Na primeira aplicação, se nenhuma política do SCADIVO estiver registrada, o formulário pede confirmação antes de assumir as políticas Timescale de retenção e atualização dos agregados. Faixas de agregação sem configuração registrada serão desativadas, e regras externas não registradas serão perdidas. Confirme com quem administra o banco antes de prosseguir.
+
+#### Definir um limite por tamanho
+
+O limite em **GiB** controla apenas o espaço medido dos dados brutos do Historian, incluindo os blocos, índices e dados auxiliares do TimescaleDB. Ele não limita agregados, alarmes, eventos, Auditoria, banco principal nem espaço livre do servidor. Os agregados continuam usando a própria retenção.
+
+Em **Ao alcançar o limite**, escolha **Somente avisar** para receber o aviso sem apagar dados. A opção **Remover blocos completos mais antigos** exige a confirmação de possível perda permanente de amostras. A cada minuto, a manutenção pode excluir até quatro intervalos completos antigos e sempre preserva o intervalo mais recente. Como os blocos têm tamanho e duração próprios, o limite é uma meta: o uso pode ultrapassá-lo até a próxima execução e ainda ficar acima quando só restar o intervalo protegido. Não é um teto instantâneo nem uma garantia de espaço livre no volume.
+
+O limite por tamanho e a retenção por dias podem coexistir; vence a primeira condição que remover as amostras. Confira o valor medido depois da manutenção e planeje a capacidade com margem. **Arquivamento e restauração verificada ainda não estão disponíveis nesta tela.**
+
 ### Prepare o destino
 
 Peça ao administrador os dados do destino: endereço do servidor, banco, conta, permissões e certificados. Faça backup e combine uma janela de manutenção antes de migrar. A migração pode pausar gravações.
@@ -69,5 +85,7 @@ Comece pela mensagem recebida. Sem conexão, confira nome/endereço, porta e ace
 Em incompatibilidade, leia os requisitos de versão PostgreSQL, TimescaleDB quando exigido e schema, a estrutura de dados esperada pelo produto. Em fase inválida, atualize o estado e siga Próxima ação; não inicie outra cópia enquanto uma já está ocorrendo.
 
 Com banco indisponível, o Runtime pode ficar degradado. O produto não deve apresentar gravações em memória como se fossem persistidas no banco. Para suporte, registre horário, fase e ID da operação; não inclua senha.
+
+Para retenção de amostras, arquivos programados, rotação e restauração do Historian, consulte [Captura e consulta do Historian](07-HISTORIAN-CAPTURA-CONSULTA.md). Arquivos do Historian são administrados pela API e não fazem parte do backup de configuração do projeto.
 
 [Abrir este guia na Ajuda instalada](/help?topic=database.topology)

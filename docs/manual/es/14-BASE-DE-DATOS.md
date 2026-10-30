@@ -14,6 +14,22 @@ Local Managed es la base local administrada por la instalación. Remote es un Po
 
 Antes de cambiar algo, lea Estado actual y Próxima acción. Elegir una base define almacenamiento; no configura por sí solo redundancia HA entre dos servidores.
 
+### Uso y retención del Historian
+
+En **Uso y retención del Historian**, revise los tamaños medidos en la base utilizada por el Historian. **Base del Historian** incluye todos los datos de esa base; **Historian total** reúne las muestras sin procesar y los agregados que el provider pudo medir. Si la topología utiliza bases separadas, esta pantalla mide solo la base del Historian; no suma la base principal ni representa el espacio libre del volumen del servidor. El espacio libre y el crecimiento diario solo aparecen si existe una medición confiable. Si la pantalla indica que no se informaron, no significa que sean cero.
+
+**Sin expiración automática** significa que SCADIVO no programó cuándo eliminar las muestras sin procesar. No significa que el disco sea ilimitado. Para conservarlas durante un período, desmarque la opción e indique los días. Una política más corta puede eliminar muestras antiguas; marque la confirmación solo después de revisar el período y el impacto. TimescaleDB ejecuta esa política, por lo que la eliminación no tiene que ocurrir en el instante de guardar.
+
+En la primera aplicación, si no hay una política de SCADIVO registrada, el formulario pide confirmar antes de asumir las políticas Timescale de retención y actualización de agregados. Se desactivarán los niveles de agregación sin configuración registrada y se perderán las reglas externas no registradas. Consulte con quien administra la base antes de continuar.
+
+#### Definir un límite por tamaño
+
+El límite en **GiB** controla solo el espacio medido de los datos sin procesar del Historian, incluidos los bloques, índices y datos auxiliares de TimescaleDB. No limita agregados, alarmas, eventos, Auditoría, la base principal ni el espacio libre del servidor. Los agregados mantienen su propia retención.
+
+En **Al alcanzar el límite**, elija **Solo avisar** para recibir el aviso sin borrar datos. **Eliminar bloques completos más antiguos** exige confirmar que las muestras sin procesar pueden perderse permanentemente. Cada minuto, el mantenimiento puede eliminar hasta cuatro intervalos antiguos completos y siempre conserva el intervalo más reciente. Como los bloques tienen su propio tamaño y duración, el límite es una meta: el uso puede superarlo hasta la siguiente ejecución y seguir por encima cuando solo quede el intervalo protegido. No es un tope instantáneo ni garantiza espacio libre en el volumen del servidor.
+
+El límite por tamaño y la retención por días pueden coexistir; se aplica primero la condición que elimine las muestras. Revise el valor medido después del mantenimiento y planifique la capacidad con margen. **El archivado y la restauración verificada todavía no están disponibles en esta pantalla.**
+
 ### Prepare el destino
 
 Pida al administrador los datos del destino: dirección, base, cuenta, permisos y certificados. Haga backup y acuerde una ventana de mantenimiento antes de migrar. La migración puede pausar escrituras.
@@ -69,5 +85,7 @@ Empiece por el mensaje recibido. Sin conexión, compruebe nombre/dirección, pue
 En incompatibilidad, lea requisitos de versión PostgreSQL, TimescaleDB cuando corresponda y schema, la estructura de datos esperada. En fase inválida, actualice el estado y siga Próxima acción; no inicie otra copia mientras haya una en curso.
 
 Con base no disponible, Runtime puede quedar degradado. El producto no debe presentar escrituras en memoria como persistidas en la base. Para soporte registre hora, fase e ID de operación, sin contraseña.
+
+Para retención de muestras, archivado programado, rotación y restauración del Historian, consulte [Captura y consulta del Historian](07-HISTORIAN-CAPTURA-CONSULTA.md). Los archivos del Historian se administran desde la API y no forman parte de la copia de seguridad de la configuración del proyecto.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=database.topology)

@@ -247,6 +247,7 @@ app.MapProductLicensingEndpoints();
 app.MapAssetProcessIntelligenceEndpoints();
 app.MapProductIdentityEndpoints();
 app.MapDatabaseTopologyEndpoints();
+app.MapHistorianStorageAdministrationEndpoints();
 app.MapRuntimeEngineeringPackageEndpoints();
 if (localIdentityEnabled) app.MapInstallationDetachEndpoints();
 app.MapRuntimeHighAvailabilityEndpoints();

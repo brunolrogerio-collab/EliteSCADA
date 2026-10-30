@@ -76,3 +76,11 @@ Este candidato atende somente a instalação Docker estável. Configuração nat
 Todos os perfis instalam com portas padrão, sem exigir que o usuário conheça ou preencha portas. API, interface Web, banco local gerenciado e mídia devem permitir alteração posterior opcional. O formulário deve abrir preenchido com os valores atuais; valores não observados não podem ser apresentados como confirmados. O instalador/host executor fornece os padrões do respectivo perfil.
 
 A porta da própria interface Web faz parte do requisito. Ao alterá-la, apresentar o novo endereço antes da aplicação, explicar a interrupção, preservar configuração/dados e oferecer recuperação local se a navegação cair. A troca de API deve atualizar o destino do proxy; a troca do banco/mídia deve atualizar os consumidores correspondentes. Instalação normal não exige edição de código nem configuração manual desses campos.
+
+## Host Web nativo opt-in
+
+`InstallationNetwork:WebRootPath` permite ao executor nativo fornecer a pasta imutável do build Web (`index.html`, assets e Pyodide). Sem esse parâmetro o comportamento anterior da API é preservado. Configuração explícita sem index.html impede a inicialização, evitando serviço aparentemente saudável sem interface.
+
+Neste perfil integrado, Web e API compartilham o endpoint Kestrel e sua porta, configurável por `Kestrel:Endpoints`/URLs ASP.NET. Isso mantém chamadas API/WebSocket na mesma origem; não exige Docker nem uma nova porta preenchida pelo usuário. Padrões e a pasta são fornecidos pelo perfil de instalação. Um proxy externo pode continuar sendo outro perfil com listener próprio. O executor nativo ainda precisa aplicar configuração persistente, reinício, saúde e rollback; esta hospedagem não declara o instalador concluído.
+
+Teste com Kestrel real valida SPA, arquivo estático, API existente, 404 de API/arquivo ausentes e cabeçalhos de isolamento do navegador. Não substitui teste do pacote nativo completo.

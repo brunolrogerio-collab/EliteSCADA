@@ -229,6 +229,7 @@ await app.InitializeInstallationFoundationAsync();
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseMiddleware<DatabaseMaintenanceMiddleware>();
 app.UseCors();
+app.MapConfiguredNativeWeb();
 if (authenticationEnabled) app.UseAuthentication();
 app.UseRateLimiter();
 app.UseWebSockets();

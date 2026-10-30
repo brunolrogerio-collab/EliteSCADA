@@ -126,3 +126,7 @@ O coordenador Linux aguarda consultas SQL autenticadas por até uma janela de 60
 ### Serialização inicial do coordenador Linux
 
 O entrypoint do coordenador PostgreSQL usa flock exclusivo e não bloqueante em arquivo associado à configuração da instalação. Uma segunda execução é recusada antes da mutação, e o kernel libera o lock ao encerrar o processo. Isso serializa apenas participantes que usam o mesmo arquivo; integração com outras operações de topologia/Windows permanece pendente. Testes simulados cobrem recusa concorrente sem execução e restauração após identidade SQL divergente. Nenhum teste com fcntl/systemd/PostgreSQL reais foi declarado nesta etapa.
+
+### Bloqueio comum Linux Web/API e banco
+
+Os entrypoints de alteração Web/API e PostgreSQL usam o mesmo arquivo `<configurationFile>.network.lock`. Uma operação concorrente participante é recusada antes da mutação. Teste adicional usa flock real no Linux para confirmar exclusão entre os dois entrypoints e liberação após fechar o lock; no Windows esse caso é explicitamente ignorado. Testes simulados locais: 4 passaram; teste flock Linux pendente do CI. Operações externas de topologia e adaptador Windows ainda precisam aderir à disciplina comum.

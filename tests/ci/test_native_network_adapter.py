@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import socket
 import tempfile
+import types
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -12,6 +14,41 @@ adapter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adapter)
 
 class NativeNetworkAdapterTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform.startswith('linux'), 'Linux flock integration')
+    def test_real_linux_lock_blocks_web_and_database_entrypoints(self):
+        import fcntl
+        db_path = MODULE.with_name('native_database_port.py')
+        db_spec = importlib.util.spec_from_file_location('native_db_lock_test', db_path)
+        database = importlib.util.module_from_spec(db_spec)
+        db_spec.loader.exec_module(database)
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / 'app.json'
+            config.write_text('{}')
+            profile = Path(directory) / 'profile.json'
+            profile.write_text(json.dumps({'configurationFile': str(config)}))
+            with config.with_name('app.json.network.lock').open('w') as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                with patch.object(adapter, 'run_locked') as web, patch.object(database, 'execute_locked') as db:
+                    with self.assertRaises(BlockingIOError): adapter.run(profile, 28080, True)
+                    with self.assertRaises(BlockingIOError): database.execute(profile, 25432, True)
+                    web.assert_not_called()
+                    db.assert_not_called()
+            with patch.object(adapter, 'run_locked', return_value='released'):
+                self.assertEqual(adapter.run(profile), 'released')
+
+    def test_shared_lock_rejects_web_change_before_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / 'app.json'
+            config.write_text('{}')
+            profile = Path(directory) / 'profile.json'
+            profile.write_text(json.dumps({'configurationFile': str(config)}))
+            fake = types.SimpleNamespace(LOCK_EX=1, LOCK_NB=2, flock=lambda *args: (_ for _ in ()).throw(BlockingIOError()))
+            with patch.dict(sys.modules, {'fcntl': fake}), patch.object(adapter, 'run_locked') as operation:
+                with self.assertRaises(BlockingIOError): adapter.run(profile, 28080, True)
+                operation.assert_not_called()
+            self.assertTrue(config.with_name('app.json.network.lock').exists())
+            self.assertEqual(config.read_text(), '{}')
+
     def test_plan_apply_and_rollback_preserve_configuration(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -24,11 +61,11 @@ class NativeNetworkAdapterTests(unittest.TestCase):
                 probe.bind(('127.0.0.1', 0))
                 port = probe.getsockname()[1]
             with patch.object(adapter.subprocess, 'run') as service, patch.object(adapter, 'health') as health:
-                adapter.run(profile)
-                adapter.run(profile, port)
+                adapter.run_locked(profile)
+                adapter.run_locked(profile, port)
                 self.assertEqual(config.read_bytes(), original)
                 self.assertFalse(any(call.args[0][1] == 'restart' for call in service.call_args_list))
-                adapter.run(profile, port, True)
+                adapter.run_locked(profile, port, True)
                 result = json.loads(config.read_text())
                 self.assertEqual(result['secret'], 'keep-private')
                 self.assertIn(str(port), result['Kestrel']['Endpoints']['Http']['Url'])
@@ -36,7 +73,7 @@ class NativeNetworkAdapterTests(unittest.TestCase):
                 service.reset_mock()
                 health.side_effect = [RuntimeError('failure'), None]
                 with self.assertRaisesRegex(RuntimeError, 'restored and healthy'):
-                    adapter.run(profile, port, True)
+                    adapter.run_locked(profile, port, True)
                 self.assertEqual(config.read_bytes(), original)
                 self.assertEqual(sum(call.args[0][1] == 'restart' for call in service.call_args_list), 2)
                 self.assertEqual(health.call_args.args[0], 'http://127.0.0.1:18080/health')

@@ -24,6 +24,19 @@ def health(url):
 
 
 def run(profile_path, port=None, apply=False):
+    import fcntl
+    profile = json.loads(Path(profile_path).read_text(encoding='utf-8-sig'))
+    config = Path(profile['configurationFile']).resolve(strict=True)
+    lock = config.with_name(config.name + '.network.lock')
+    descriptor = os.open(lock, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return run_locked(profile_path, port, apply)
+    finally:
+        os.close(descriptor)
+
+
+def run_locked(profile_path, port=None, apply=False):
     profile = json.loads(Path(profile_path).read_text(encoding='utf-8-sig'))
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') != 'linux':
         raise ValueError('A registered Linux native profile is required')

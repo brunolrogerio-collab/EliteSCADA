@@ -13,6 +13,10 @@ if ($profile.schema -ne 'scadivo-native-network-v1' -or $profile.platform -ne 'w
 }
 if ($profile.serviceName -notmatch '^[A-Za-z0-9_.-]+$') { throw 'Invalid service identity.' }
 $configPath = [IO.Path]::GetFullPath($profile.configurationFile)
+# An exclusive handle serializes participating administrative operations.
+# The OS releases the handle if this process terminates.
+$networkLock = [IO.File]::Open("$configPath.network.lock", [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+try {
 if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { throw 'Configuration file is missing.' }
 $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
 $endpoint = $config.Kestrel.Endpoints.PSObject.Properties[$profile.endpointName]
@@ -70,4 +74,7 @@ try {
         throw "Port change failed and automatic recovery failed. Restore the protected configuration backup: $backup"
     }
     throw 'Port change failed. The previous configuration was restored and its health check passed.'
+}
+} finally {
+    $networkLock.Dispose()
 }

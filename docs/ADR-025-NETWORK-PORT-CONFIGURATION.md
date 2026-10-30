@@ -130,3 +130,7 @@ O entrypoint do coordenador PostgreSQL usa flock exclusivo e não bloqueante em 
 ### Bloqueio comum Linux Web/API e banco
 
 Os entrypoints de alteração Web/API e PostgreSQL usam o mesmo arquivo `<configurationFile>.network.lock`. Uma operação concorrente participante é recusada antes da mutação. Teste adicional usa flock real no Linux para confirmar exclusão entre os dois entrypoints e liberação após fechar o lock; no Windows esse caso é explicitamente ignorado. Testes simulados locais: 4 passaram; teste flock Linux pendente do CI. Operações externas de topologia e adaptador Windows ainda precisam aderir à disciplina comum.
+
+### Bloqueio administrativo Windows
+
+O adaptador PowerShell Web/API abre `<configurationFile>.network.lock` com FileShare.None antes de ler/mudar configuração e libera em finally. Uma segunda operação participante falha antes de gravação/reinício; o sistema operacional libera o handle após término do processo. Teste usa handle exclusivo real no Windows e confirma recusa sem mutação, liberação e execução posterior. Serviços/HTTP permanecem simulados. O adaptador PostgreSQL Windows ainda não está implementado.

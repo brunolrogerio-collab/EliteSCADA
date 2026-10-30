@@ -12,6 +12,12 @@ try {
  @{schema='scadivo-native-network-v1';platform='windows';serviceName='ScadivoTest';configurationFile=$config;endpointName='Http'} | ConvertTo-Json | Set-Content -LiteralPath $profile
  $script=Join-Path (Get-Location) 'web/scada-web/public/installation/apply-native-network-profile.ps1'
  $global:NativeRestartCount=0; $global:NativeForceFailure=$false
+ $heldLock = [IO.File]::Open("$config.network.lock", [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+ $rejected=$false
+ try {
+   try { & $script -ProfilePath $profile -WebPort 28080 -Apply } catch { $rejected=$true }
+ } finally { $heldLock.Dispose() }
+ if (-not $rejected -or [IO.File]::ReadAllText($config) -ne $original -or $global:NativeRestartCount -ne 0) { throw 'Concurrent operation was not rejected before mutation.' }
  & $script -ProfilePath $profile
  if ([IO.File]::ReadAllText($config) -ne $original -or $global:NativeRestartCount -ne 0) { throw 'Default no-op failed' }
  $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0);$listener.Start();$port=$listener.LocalEndpoint.Port;$listener.Stop()

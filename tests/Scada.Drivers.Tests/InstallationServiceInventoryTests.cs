@@ -25,4 +25,17 @@ public sealed class InstallationServiceInventoryTests
         Assert.DoesNotContain("/private", json);
         Assert.DoesNotContain("Username", json);
     }
+
+    [Fact]
+    public void Read_IntegratedNativeWeb_ReportsSameConfiguredPortAsApi()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Kestrel:Endpoints:Http:Url"] = "http://127.0.0.1:28080",
+            ["InstallationNetwork:WebRootPath"] = "web-artifact"
+        }).Build();
+        var endpoints = InstallationServiceInventoryApi.Read(configuration);
+        Assert.Contains(endpoints, endpoint => endpoint.Service == "Web" && endpoint.Port == 28080);
+        Assert.Contains(endpoints, endpoint => endpoint.Service == "API" && endpoint.Port == 28080);
+    }
 }

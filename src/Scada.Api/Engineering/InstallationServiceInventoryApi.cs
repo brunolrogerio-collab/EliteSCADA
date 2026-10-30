@@ -33,7 +33,13 @@ public static class InstallationServiceInventoryApi
             foreach (var url in (configuration["urls"] ?? string.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries))
                 AddUri(endpoints, "API", "urls", url);
         if (endpoints.Count == 0) endpoints.Add(new("API", "not-reported", null, null));
-        AddUri(endpoints, "Web", "InstallationNetwork:WebUrl", configuration["InstallationNetwork:WebUrl"]);
+        if (!string.IsNullOrWhiteSpace(configuration["InstallationNetwork:WebRootPath"]) &&
+            string.IsNullOrWhiteSpace(configuration["InstallationNetwork:WebUrl"]))
+        {
+            foreach (var api in endpoints.Where(endpoint => endpoint.Service == "API").ToArray())
+                endpoints.Add(api with { Service = "Web" });
+        }
+        else AddUri(endpoints, "Web", "InstallationNetwork:WebUrl", configuration["InstallationNetwork:WebUrl"]);
         AddUri(endpoints, "MediaControl", "MediaSources:GatewayControlUrl", configuration["MediaSources:GatewayControlUrl"]);
         AddUri(endpoints, "MediaPlayback", "MediaSources:GatewayPlaybackUrl", configuration["MediaSources:GatewayPlaybackUrl"]);
         foreach (var name in new[] { "EliteScada", "Historian" })

@@ -1,5 +1,18 @@
 # Current coordinator pointer - Wave 15
 
+## Retomada atual — portas nativas e Docker — 30/10/2026
+
+Frente: #780, PR draft #828, branch `work/w15-service-ports-780`. O produto deve atender Windows/Linux nativos e Docker. API, interface Web, banco local gerenciado e mídia usam padrões automáticos na instalação; alterar depois é opcional. Portas de Data Sources permanecem nos Drivers. Publicação adicional de listeners de Drivers foi retirada em `0c1067c1`.
+
+Implementado na branch: perfil Docker com scripts e portas internas privadas de mídia; inventário autenticado de endpoints; inventário na UI; hospedagem Web nativa opt-in por `InstallationNetwork:WebRootPath`. No perfil nativo integrado Web/API compartilham endpoint/porta Kestrel, inclusive no inventário. Pasta Web e defaults devem ser fornecidos pelo executor de instalação. Build passou; últimos testes de inventário e host Web real: 3/3. Chromium anterior: 2/2.
+
+Pendente: aplicar configuração persistente por adaptadores nativos com inventário real dos serviços, backup, preflight de portas, reinício, saúde e rollback para API/Web/banco/mídia. Não declarar esse fluxo entregue pela mera existência do inventário ou do host Web. Seguir #361/#408 e ADR-025; não fabricar nomes de serviços nem converter scripts Docker em scripts nativos por troca de rótulo. Instalador completo permanece Wave 16.
+
+T1 `40995879643`, SHA `df43f932`, falhou somente em `AuthorityPolicyTwoApiPostgreSqlEvidenceTests.RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(sharedDatabase: False)`; 2018 passaram, 1 ignorado. Web, Chromium, instalação e sidecars passaram. Sem retry ou investigação HA nesta frente, conforme proprietário. Não transferir esse resultado aos commits posteriores. PR draft e #780 aberta. Preview preservado.
+
+Registros anteriores abaixo são históricos e não substituem este checkpoint.
+
+
 ## Current product checkpoint - installation network configuration (#780), 29 October 2026
 
 The active product lane is #780 after the integrated #779 retention work. Draft PR #828 is on branch `work/w15-service-ports-780`, based on `wave15/corrections-integration@16849faa66c84a4078126c08abb978e0c6014e0b` (#827); use the live PR for its exact head. The profile publishes Web/API/PostgreSQL on the Docker host and allows internal MediaMTX control/HLS ports to be changed while keeping them private and synchronizing API relay URLs. Driver ports stay in their Data Sources and are not published by this feature.

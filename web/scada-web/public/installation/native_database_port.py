@@ -154,10 +154,16 @@ def execute_locked(profile_path, port=None, apply=False):
     backups = []
     for path, original in ((app_path, app_bytes), (pg_path, pg_bytes)):
         backup = path.with_name(path.name + '.network-backup-' + uuid.uuid4().hex)
-        with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as output:
-            output.write(original)
-            output.flush()
-            os.fsync(output.fileno())
+        if os.name == 'nt':
+            subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+                            str(Path(__file__).with_name('copy-native-protected-backup.ps1')),
+                            '-SourcePath', str(path), '-DestinationPath', str(backup)],
+                           check=True, capture_output=True, timeout=30)
+        else:
+            with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as output:
+                output.write(original)
+                output.flush()
+                os.fsync(output.fileno())
         backups.append(backup)
     # Persist recovery references before the first disruptive action. No credentials.
     recovery = {'schema': 'scadivo-database-port-recovery-v1', 'oldPort': old_port,

@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 import socket
 import uuid
+import subprocess
 import time
 from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler
 from urllib.error import HTTPError
@@ -191,8 +192,14 @@ def apply_locked(profile_path, service_control, verify, control_port=None, hls_p
     backups = []
     for target, content in zip((app, gateway), original):
         backup = target.with_name(target.name + '.network-backup-' + uuid.uuid4().hex)
-        with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as output:
-            output.write(content); output.flush(); os.fsync(output.fileno())
+        if os.name == 'nt':
+            subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+                            str(Path(__file__).with_name('copy-native-protected-backup.ps1')),
+                            '-SourcePath', str(target), '-DestinationPath', str(backup)],
+                           check=True, capture_output=True, timeout=30)
+        else:
+            with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as output:
+                output.write(content); output.flush(); os.fsync(output.fileno())
         backups.append(str(backup))
     with os.fdopen(os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as output:
         json.dump({'schema':'scadivo-media-port-recovery-v1', 'backups':backups}, output)

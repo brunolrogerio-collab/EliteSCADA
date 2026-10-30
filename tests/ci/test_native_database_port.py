@@ -76,7 +76,18 @@ class NativeDatabasePortTests(unittest.TestCase):
             with socket.socket() as listener:
                 listener.bind(('127.0.0.1',0)); port=listener.getsockname()[1]
             actions=[]; fail=False; transient=0; recovery_transient=0; timeout=False; wrong_identity=False; interrupted=False
+            real_run = subprocess.run
             def command(args, **kwargs):
+                if args[0] == 'powershell.exe' and '-File' in args:
+                    result = real_run(args, **kwargs)  # Actual Windows backup ACL, not simulated service control.
+                    backup = args[args.index('-DestinationPath')+1].replace("'", "''")
+                    inspection = (f"$acl=[IO.File]::GetAccessControl('{backup}'); "
+                        "$allowed=@([Security.Principal.WindowsIdentity]::GetCurrent().User.Value,'S-1-5-18','S-1-5-32-544'); "
+                        "if(-not $acl.AreAccessRulesProtected){throw 'Inherited ACL'}; "
+                        "foreach($rule in $acl.Access){if($rule.IsInherited -or $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin $allowed){throw 'Unexpected principal'}}")
+                    checked=real_run(['powershell.exe','-NoProfile','-NonInteractive','-Command',inspection],capture_output=True,text=True,timeout=15)
+                    self.assertEqual(checked.returncode,0,checked.stderr)
+                    return result
                 if interrupted and args[0] in ('systemctl', 'powershell.exe'):
                     raise KeyboardInterrupt('simulated process interruption')
                 if args[0]=='systemctl':
@@ -142,6 +153,9 @@ class NativeDatabasePortTests(unittest.TestCase):
                 wrong_identity=False; interrupted=True
                 with self.assertRaises(KeyboardInterrupt): module.execute_locked(profile,port,True)
                 recovery=json.loads(pending.read_text())
+                if sys.platform != 'win32':
+                    for key in ('applicationBackup','postgresqlBackup'):
+                        self.assertEqual(Path(recovery[key]).stat().st_mode & 0o777,0o600)
                 self.assertEqual(Path(recovery['applicationBackup']).read_bytes(),original)
                 self.assertNotIn('keep-private', pending.read_text())
                 with self.assertRaisesRegex(RuntimeError,'interrupted'): module.execute_locked(profile,port,True)

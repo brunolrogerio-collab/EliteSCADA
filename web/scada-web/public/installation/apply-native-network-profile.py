@@ -10,6 +10,13 @@ from urllib.parse import urlsplit, urlunsplit
 from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler
 from urllib.error import HTTPError
 import uuid
+import importlib.util
+
+
+def authenticated_readiness(config):
+    spec=importlib.util.spec_from_file_location('native_access_postflight',Path(__file__).with_name('native_database_port.py'))
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    return module.authenticated_readiness(config)
 
 
 def ensure_no_other_recovery(config, allowed=None):
@@ -36,7 +43,7 @@ def health(url):
     raise RuntimeError('Service health check failed')
 
 
-def run(profile_path, port=None, apply=False, api_port=None, recover=False):
+def run(profile_path, port=None, apply=False, api_port=None, recover=False, verify_authenticated=False):
     import fcntl
     profile = json.loads(Path(profile_path).read_text(encoding='utf-8-sig'))
     config = Path(profile['configurationFile']).resolve(strict=True)
@@ -46,12 +53,16 @@ def run(profile_path, port=None, apply=False, api_port=None, recover=False):
         fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
         if recover and (port is not None or api_port is not None or apply):
             raise ValueError('Recovery cannot be combined with a port change')
+        if verify_authenticated:
+            return recover_locked(profile_path,True) if recover else run_locked(profile_path,port,apply,api_port,True)
         return recover_locked(profile_path) if recover else run_locked(profile_path, port, apply, api_port)
     finally:
         os.close(descriptor)
 
 
-def recover_locked(profile_path):
+def recover_locked(profile_path, verify_authenticated=False):
+    if verify_authenticated and not os.environ.get('SCADIVO_INSTALLATION_BEARER'):
+        raise ValueError('Temporary administrator session required before recovery')
     profile = json.loads(Path(profile_path).read_text(encoding='utf-8-sig'))
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') != 'linux' or not re.fullmatch(r'[A-Za-z0-9_.-]+', profile['serviceName']):
         raise ValueError('Registered native profile required')
@@ -76,11 +87,14 @@ def recover_locked(profile_path):
     subprocess.run(['systemctl', 'restart', profile['serviceName']], check=True)
     for uri in listeners:
         health(f'{uri.scheme}://127.0.0.1:{uri.port or (443 if uri.scheme == "https" else 80)}/health')
+    if verify_authenticated: authenticated_readiness(path)
     journal.unlink()
     return 'Previous access configuration restored and health checks passed'
 
 
-def run_locked(profile_path, port=None, apply=False, api_port=None):
+def run_locked(profile_path, port=None, apply=False, api_port=None, verify_authenticated=False):
+    if verify_authenticated and not os.environ.get('SCADIVO_INSTALLATION_BEARER'):
+        raise ValueError('Temporary administrator session required before a change')
     profile = json.loads(Path(profile_path).read_text(encoding='utf-8-sig'))
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') != 'linux':
         raise ValueError('A registered Linux native profile is required')
@@ -115,6 +129,7 @@ def run_locked(profile_path, port=None, apply=False, api_port=None):
         raise ValueError('Independent API endpoint is not registered')
     subprocess.run(['systemctl', 'is-active', '--quiet', service], check=True)
     if all(old == target for _, _, old, target in listeners):
+        if verify_authenticated: authenticated_readiness(path)
         print('No port change required')
         return
     for _, _, old, target in listeners:
@@ -140,12 +155,14 @@ def run_locked(profile_path, port=None, apply=False, api_port=None):
         subprocess.run(['systemctl', 'restart', service], check=True)
         for _, current, _, target in listeners:
             health(f'{current.scheme}://127.0.0.1:{target}/health')
+        if verify_authenticated: authenticated_readiness(path)
     except Exception:
         try:
             path.write_bytes(original)
             subprocess.run(['systemctl', 'restart', service], check=True)
             for _, current, old, _ in listeners:
                 health(f'{current.scheme}://127.0.0.1:{old}/health')
+            if verify_authenticated: authenticated_readiness(path)
         except Exception:
             raise RuntimeError(f'Change and recovery failed; restore protected backup {backup}') from None
         journal.unlink()
@@ -161,9 +178,10 @@ if __name__ == '__main__':
     parser.add_argument('--api-port', type=int)
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--recover', action='store_true')
+    parser.add_argument('--verify-authenticated', action='store_true')
     args = parser.parse_args()
     try:
-        run(args.profile, args.web_port, args.apply, args.api_port, args.recover)
+        run(args.profile, args.web_port, args.apply, args.api_port, args.recover,args.verify_authenticated)
     except Exception:
         # Never echo configuration or subprocess arguments containing private data.
         raise SystemExit('Native port operation failed. Check service/configuration and protected backup.')

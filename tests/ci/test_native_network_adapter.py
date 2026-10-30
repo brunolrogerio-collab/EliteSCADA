@@ -69,7 +69,9 @@ class NativeNetworkAdapterTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError): adapter.recover_locked(profile)
                 self.assertTrue(journal.exists())
                 health.side_effect=None
-                adapter.recover_locked(profile)
+                with patch.dict(adapter.os.environ,{'SCADIVO_INSTALLATION_BEARER':'fixture-only'}),patch.object(adapter,'authenticated_readiness',side_effect=lambda path:self.assertTrue(journal.exists())) as readiness:
+                    adapter.recover_locked(profile,True)
+                    readiness.assert_called_once()
                 self.assertFalse(journal.exists())
                 self.assertEqual(config.read_bytes(),original)
                 self.assertEqual(health.call_args_list[-2].args[0],'http://127.0.0.1:18080/health')
@@ -178,6 +180,12 @@ class NativeNetworkAdapterTests(unittest.TestCase):
                 self.assertEqual(config.read_bytes(), original)
                 self.assertEqual(sum(call.args[0][1] == 'restart' for call in service.call_args_list), 2)
                 self.assertEqual(health.call_args.args[0], 'http://127.0.0.1:18080/health')
+                health.side_effect=None
+                with patch.dict(adapter.os.environ,{'SCADIVO_INSTALLATION_BEARER':'fixture-only'}),patch.object(adapter,'authenticated_readiness',side_effect=[RuntimeError('unready'),None]) as readiness:
+                    with self.assertRaisesRegex(RuntimeError,'restored and healthy'):adapter.run_locked(profile,port,True,None,True)
+                    self.assertEqual(readiness.call_count,2)
+                self.assertEqual(config.read_bytes(),original)
+                self.assertFalse(config.with_name(config.name+'.access-port-pending.json').exists())
 
 if __name__ == '__main__':
     unittest.main()

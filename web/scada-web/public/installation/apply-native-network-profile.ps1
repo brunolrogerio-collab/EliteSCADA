@@ -4,9 +4,13 @@ param(
     [ValidateRange(1,65535)][int]$WebPort,
     [ValidateRange(1,65535)][int]$ApiPort,
     [switch]$Apply,
-    [switch]$Recover
+    [switch]$Recover,
+    [switch]$VerifyAuthenticated,
+    [string]$PythonExecutable
 )
 $ErrorActionPreference = 'Stop'
+if ($VerifyAuthenticated -and (-not $env:SCADIVO_INSTALLATION_BEARER -or -not $PythonExecutable)) { throw 'Temporary administrator session and registered Python executable required.' }
+if ($VerifyAuthenticated) { $PythonExecutable=(Resolve-Path -LiteralPath $PythonExecutable).Path }
 if ($Recover -and ($Apply -or $PSBoundParameters.ContainsKey('WebPort') -or $PSBoundParameters.ContainsKey('ApiPort'))) { throw 'Recovery cannot be combined with a port change.' }
 function Wait-NativeHealth([string]$Url) {
     for ($attempt=0; $attempt -lt 30; $attempt++) {
@@ -18,6 +22,14 @@ function Wait-NativeHealth([string]$Url) {
         Start-Sleep -Seconds 1
     }
     throw 'The service did not become healthy after the port change.'
+}
+function Confirm-NativeReadiness([string]$Path) {
+    if (-not $VerifyAuthenticated) { return }
+    $postflight=Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    $origin=[string]$postflight.Kestrel.Endpoints.Api.Url
+    if (-not $origin) { throw 'Independent API endpoint required for authenticated verification.' }
+    & $PythonExecutable (Join-Path $PSScriptRoot 'verify_native_readiness.py') --origin $origin
+    if ($LASTEXITCODE -ne 0) { throw 'Authenticated readiness failed.' }
 }
 # The installed host adapter owns this profile. It must identify the effective
 # appsettings file and endpoint, not a container profile or an arbitrary command.
@@ -54,6 +66,7 @@ if ($Recover) {
     [IO.File]::WriteAllBytes($configPath,$restoreBytes)
     Restart-Service -Name $profile.serviceName -ErrorAction Stop
     foreach ($check in $checks) { Wait-NativeHealth $check }
+    Confirm-NativeReadiness $configPath
     Remove-Item -LiteralPath $journal
     Write-Output 'Previous access configuration restored and health checks passed.'
     return
@@ -90,6 +103,7 @@ if ($profile.apiEndpointName) {
 $service = Get-Service -Name $profile.serviceName -ErrorAction Stop
 if ($service.Status -ne 'Running') { throw 'The service must be running before a port change.' }
 if ($WebPort -eq $current.Port -and ($null -eq $apiCurrent -or $ApiPort -eq $apiCurrent.Port)) {
+    Confirm-NativeReadiness $configPath
     Write-Output "Web/API already use port $WebPort. No changes required."
     return
 }
@@ -121,6 +135,7 @@ try {
     Restart-Service -Name $profile.serviceName -ErrorAction Stop
     Wait-NativeHealth $health.Uri.AbsoluteUri
     if ($apiHealth) { Wait-NativeHealth $apiHealth.Uri.AbsoluteUri }
+    Confirm-NativeReadiness $configPath
     $apiLabel='shared'; if ($apiCurrent) { $apiLabel=[string]$ApiPort }
     Write-Output "Web port $WebPort; API port $apiLabel. Configuration backup: $backup"
 } catch {
@@ -131,6 +146,7 @@ try {
         $health.Port = $current.Port
         Wait-NativeHealth $health.Uri.AbsoluteUri
         if ($apiHealth) { $apiHealth.Port=$apiCurrent.Port; Wait-NativeHealth $apiHealth.Uri.AbsoluteUri }
+        Confirm-NativeReadiness $configPath
     } catch {
         throw "Port change failed and automatic recovery failed. Restore the protected configuration backup: $backup"
     }

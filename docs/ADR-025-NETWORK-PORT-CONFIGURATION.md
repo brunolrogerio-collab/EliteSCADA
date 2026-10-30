@@ -122,3 +122,7 @@ Não liberado: faltam serialização com outras operações administrativas/topo
 ### Prontidão PostgreSQL após reinício
 
 O coordenador Linux aguarda consultas SQL autenticadas por até uma janela de 60 segundos (cada consulta tem timeout próprio de 15 segundos). Falhas transitórias de conexão são reavaliadas antes de iniciar a API; identidade ou porta divergente é recusada imediatamente. A recuperação também verifica a prontidão anterior. Teste simulado cobre duas recusas transitórias antes de sucesso e timeout com reversão. A verificação completa da aplicação após start continua pendente; não confundir essa evidência com ensaio PostgreSQL/systemd real.
+
+### Serialização inicial do coordenador Linux
+
+O entrypoint do coordenador PostgreSQL usa flock exclusivo e não bloqueante em arquivo associado à configuração da instalação. Uma segunda execução é recusada antes da mutação, e o kernel libera o lock ao encerrar o processo. Isso serializa apenas participantes que usam o mesmo arquivo; integração com outras operações de topologia/Windows permanece pendente. Testes simulados cobrem recusa concorrente sem execução e restauração após identidade SQL divergente. Nenhum teste com fcntl/systemd/PostgreSQL reais foi declarado nesta etapa.

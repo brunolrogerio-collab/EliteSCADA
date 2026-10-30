@@ -10,6 +10,21 @@ import uuid
 
 
 def execute(profile_path, port=None, apply=False):
+    # Linux advisory lock is released by the kernel after process termination.
+    # All native administrative operations for this installation must share it.
+    import fcntl
+    profile = json.loads(Path(profile_path).read_text())
+    config = Path(profile['configurationFile']).resolve(strict=True)
+    lock_path = config.with_name(config.name + '.network.lock')
+    descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return execute_locked(profile_path, port, apply)
+    finally:
+        os.close(descriptor)
+
+
+def execute_locked(profile_path, port=None, apply=False):
     profile = json.loads(Path(profile_path).read_text())
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') != 'linux':
         raise ValueError('Registered Linux native profile required')

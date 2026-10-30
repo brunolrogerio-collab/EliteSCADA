@@ -6,6 +6,82 @@ from pathlib import Path
 import os
 import socket
 import uuid
+import time
+from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler
+from urllib.error import HTTPError
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, new_url):
+        return None
+
+
+def verify_local_media(application_bytes):
+    """Bounded control API and HLS listener check, without proxy or redirects."""
+    sources = json.loads(application_bytes)['MediaSources']
+    control, playback = [urlsplit(sources[key]) for key in ('GatewayControlUrl', 'GatewayPlaybackUrl')]
+    for endpoint in (control, playback):
+        if endpoint.scheme not in ('http', 'https') or endpoint.hostname not in ('127.0.0.1', '::1', 'localhost') or not endpoint.port or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment or endpoint.path not in ('', '/'):
+            raise ValueError('Registered local media endpoints required')
+    opener = build_opener(ProxyHandler({}), NoRedirect())
+    deadline = time.monotonic() + 60
+    while True:
+        try:
+            with opener.open(sources['GatewayControlUrl'].rstrip('/') + '/v3/paths/list', timeout=2) as response:
+                payload = response.read(1048577)
+                if len(payload) > 1048576 or not isinstance(json.loads(payload).get('items'), list):
+                    raise ValueError('Unexpected media control response')
+            with socket.create_connection((playback.hostname, playback.port), timeout=2):
+                pass
+            return
+        except OSError as failure:
+            if isinstance(failure, HTTPError):
+                failure.close()
+            if time.monotonic() >= deadline:
+                raise RuntimeError('Media readiness timed out') from None
+            time.sleep(1)
+
+
+def execute_locked(profile_path, control_port=None, hls_port=None, apply=False, recover=False):
+    # Host profile is provisioned by the installer, not supplied by a web request.
+    import native_database_port
+    profile = json.loads(Path(profile_path).read_text())
+    if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
+        raise ValueError('Registered native profile required')
+    content = Path(profile['configurationFile']).read_bytes()
+    # Refuse external endpoints before even a plan, service action or recovery.
+    endpoints = json.loads(content)['MediaSources']
+    for key in ('GatewayControlUrl', 'GatewayPlaybackUrl'):
+        if urlsplit(endpoints[key]).hostname not in ('127.0.0.1', '::1', 'localhost'):
+            raise ValueError('Native media service must be local')
+    service = lambda action, name: native_database_port.control_service(profile['platform'], action, name)
+    if recover:
+        if apply or control_port is not None or hls_port is not None:
+            raise ValueError('Recovery cannot be combined with a port change')
+        return recover_locked(profile_path, service, verify_local_media)
+    return apply_locked(profile_path, service, verify_local_media, control_port, hls_port, apply)
+
+
+def main():
+    import argparse
+    import fcntl
+    parser = argparse.ArgumentParser(description='Administrative local media port configuration')
+    parser.add_argument('--profile', required=True)
+    parser.add_argument('--control-port', type=int)
+    parser.add_argument('--hls-port', type=int)
+    parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--recover', action='store_true')
+    args = parser.parse_args()
+    profile = json.loads(Path(args.profile).read_text())
+    if profile.get('platform') != 'linux':
+        raise ValueError('Use the Windows administrative wrapper on Windows')
+    config = Path(profile['configurationFile']).resolve(strict=True)
+    descriptor = os.open(config.with_name(config.name + '.network.lock'), os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        print(execute_locked(args.profile, args.control_port, args.hls_port, args.apply, args.recover))
+    finally:
+        os.close(descriptor)
 
 
 def recover_locked(profile_path, service_control, verify):
@@ -140,3 +216,10 @@ def apply_locked(profile_path, service_control, verify, control_port=None, hls_p
         raise RuntimeError('Media change failed; previous configuration restored') from None
     journal.unlink()
     return 'Media configuration applied; application and playback acceptance still required'
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception:
+        raise SystemExit('Native media operation failed. Check protected backups and service diagnostics.')

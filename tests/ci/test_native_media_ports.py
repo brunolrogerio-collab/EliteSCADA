@@ -3,7 +3,12 @@ import json
 from pathlib import Path
 import unittest
 import tempfile
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+import sys
+import types
+import socket
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 source = Path(__file__).resolve().parents[2] / 'web/scada-web/public/installation/native_media_ports.py'
 spec = importlib.util.spec_from_file_location('native_media', source)
@@ -12,6 +17,48 @@ spec.loader.exec_module(media)
 
 
 class NativeMediaPortTests(unittest.TestCase):
+    def test_real_local_readiness_and_redirect_refusal(self):
+        class Handler(BaseHTTPRequestHandler):
+            redirect = False
+            def log_message(self, *args): pass
+            def do_GET(self):
+                self.send_response(302 if self.redirect else 200)
+                if self.redirect: self.send_header('Location', '/unexpected')
+                self.end_headers()
+                self.wfile.write(b'{"items":[]}')
+        server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+        thread=threading.Thread(target=server.serve_forever,daemon=True); thread.start()
+        try:
+            with socket.socket() as listener:
+                listener.bind(('127.0.0.1',0)); listener.listen(2)
+                content=json.dumps({'MediaSources':{'GatewayControlUrl':f'http://127.0.0.1:{server.server_port}',
+                    'GatewayPlaybackUrl':f'http://127.0.0.1:{listener.getsockname()[1]}'}}).encode()
+                media.verify_local_media(content)
+                Handler.redirect=True
+                with patch.object(media.time,'monotonic',side_effect=[0,61]):
+                    with self.assertRaisesRegex(RuntimeError,'timed out'): media.verify_local_media(content)
+                self.assertRaises(ValueError,media.verify_local_media,content.replace(b'127.0.0.1',b'example.com'))
+        finally:
+            server.shutdown(); server.server_close(); thread.join()
+
+    def test_administrative_dispatch_uses_existing_platform_service_control(self):
+        for platform in ('windows','linux'):
+            with self.subTest(platform=platform), tempfile.TemporaryDirectory() as directory:
+                root=Path(directory); app=root/'app.json'; profile=root/'profile.json'
+                app.write_bytes(self.application)
+                profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':platform,'configurationFile':str(app)}))
+                controller=Mock()
+                def apply(*args):
+                    args[1]('restart','media-service')
+                    self.assertIs(args[2],media.verify_local_media)
+                    return 'done'
+                with patch.dict(sys.modules,{'native_database_port':types.SimpleNamespace(control_service=controller)}), patch.object(media,'apply_locked',side_effect=apply), patch.object(media,'recover_locked',return_value='recovered') as recovery:
+                    self.assertEqual(media.execute_locked(profile,19997,18888,True),'done')
+                    controller.assert_called_once_with(platform,'restart','media-service')
+                    self.assertEqual(media.execute_locked(profile,recover=True),'recovered')
+                    recovery.assert_called_once()
+                    with self.assertRaises(ValueError): media.execute_locked(profile,19997,recover=True)
+
     def test_interruption_recovery_validates_backups_and_retains_journal_on_failure(self):
         for platform in ('windows', 'linux'):
             with self.subTest(platform=platform), tempfile.TemporaryDirectory() as directory:

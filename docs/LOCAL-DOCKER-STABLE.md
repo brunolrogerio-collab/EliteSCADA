@@ -48,12 +48,9 @@ Compose values, prepare a profile, then download the PowerShell or Bash helper.
 Place the reviewed helper beside `docker-compose.stable.yml` and `.env`, and run
 the displayed command from that directory on the Docker host. The helper checks
 port availability and `docker compose config` before applying, backs up `.env`,
-  checks Web/API/database health, and attempts to restore the prior profile if
-  health fails. Optional Driver listener mappings are saved in the generated
-  `docker-compose.network-profile.override.yml`; keep that file with `.env` and
-  the base Compose file. It never runs from the browser, changes firewall rules,
-  prints secrets, or deletes volumes. Keep the generated backups and local audit
-  log.
+checks Web/API/database health, and attempts to restore the prior profile if
+health fails. It never runs from the browser, changes firewall rules, prints
+secrets, or deletes volumes. Keep the generated backup and local audit log.
 
 The default port publication is local-only. Binding Web or API to `0.0.0.0`
 allows the Docker host to listen on all its network interfaces. The product
@@ -62,30 +59,19 @@ remote deployment behind an explicitly configured TLS proxy and firewall.
 Database publication remains fixed to loopback.
 
 This helper covers the stable Docker Compose package on Windows/Docker Desktop
-and Linux. Native Windows Service/systemd installations, remote databases and
-HA peer URLs remain separate configuration surfaces. Media control `9997` and
-HLS `8888` stay private and are not published on the host. Driver listener
-settings remain in their Data Sources; this optional mapping only publishes an
-already configured TCP/UDP listener from the API container onto a host port.
-Use the same internal port as the Driver listener. The API runs without elevated privileges, so configure Modbus TCP Server on internal port 1502 (or another port at or above 1024); when clients expect standard port 502, map host 502 to container 1502 if permitted by the host. Modbus TCP client ports
-belong to remote equipment and should not be mapped. BACnet UDP mappings can
-support unicast, but Docker bridge networking does not guarantee broadcast
-discovery.
+and Linux. Native Windows Service/systemd installations, remote databases, HA
+peer URLs, MediaMTX's internal control/HLS listeners, and protocol/device ports
+are separate configuration surfaces. Media control `9997` and HLS `8888` are
+not published on the host; Driver ports belong to their Data Source settings.
 
 ## Stop, restart and data
 
 ```powershell
-docker compose -f docker-compose.stable.yml -f docker-compose.network-profile.override.yml stop
-docker compose -f docker-compose.stable.yml -f docker-compose.network-profile.override.yml start
-docker compose -f docker-compose.stable.yml -f docker-compose.network-profile.override.yml ps
-docker compose -f docker-compose.stable.yml -f docker-compose.network-profile.override.yml logs -f
+docker compose -f docker-compose.stable.yml stop
+docker compose -f docker-compose.stable.yml start
+docker compose -f docker-compose.stable.yml ps
+docker compose -f docker-compose.stable.yml logs -f
 ```
-
-The network profile helper creates a managed override file even when no Driver
-listener is exposed. After the helper has run, include both Compose files in
-every manual start, stop, restart, upgrade, or recovery command. Before applying
-the network profile for the first time, only `docker-compose.stable.yml` exists
-and the base file alone is sufficient.
 
 `docker compose ... restart` also stops and starts the stack. The named
 `elitescada-stable-database` volume preserves accounts, projects, assets, audit

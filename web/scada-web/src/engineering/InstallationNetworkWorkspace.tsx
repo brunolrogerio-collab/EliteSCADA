@@ -4,8 +4,6 @@ import './installation-network.css';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 type EndpointProfile = { transport: string; bindAddress: string; publishedPort: number; internalPort: number; publishedToHost: boolean };
-type DriverPortProfile = EndpointProfile;
-type ConfiguredDriverListener = { dataSourceName: string; transport: string; bindAddress: string; internalPort: number; state: string };
 type NetworkProfile = {
   profile: string;
   instanceId: string;
@@ -14,13 +12,10 @@ type NetworkProfile = {
   database: EndpointProfile;
   mediaControl: EndpointProfile;
   mediaPlayback: EndpointProfile;
-  driverPorts: DriverPortProfile[];
-  configuredDriverListeners: ConfiguredDriverListener[];
   applyThroughUi: boolean;
   hostMappingIndependentlyVerified: boolean;
 };
-type DriverPortDraft = { transport: 'tcp' | 'udp'; bindAddress: '127.0.0.1' | '0.0.0.0'; publishedPort: string; internalPort: string };
-type Draft = { instanceId: string; webBind: '127.0.0.1' | '0.0.0.0'; apiBind: '127.0.0.1' | '0.0.0.0'; webPort: string; apiPort: string; databasePort: string; driverPorts: DriverPortDraft[] };
+type Draft = { instanceId: string; webBind: '127.0.0.1' | '0.0.0.0'; apiBind: '127.0.0.1' | '0.0.0.0'; webPort: string; apiPort: string; databasePort: string };
 
 const copy = {
   'pt-BR': {
@@ -30,16 +25,13 @@ const copy = {
     desired: 'Preparar nova configuração', identity: 'ID desta instância', identityHelp: 'Use letras minúsculas, números e hífens. Para uma segunda instalação, use outra pasta, gere um .env com segredos próprios e defina nele o ID escolhido antes de executar o comando. Nunca copie chaves ou credenciais.',
     bind: 'Endereço de acesso', loopback: 'Somente neste computador', allInterfaces: 'Interfaces de rede', webPort: 'Porta Web no host', apiPort: 'Porta direta da API no host', dbPort: 'Porta do banco no host', internal: 'Porta dentro do container', transport: 'Protocolo', exposed: 'Publicada no host', private: 'Somente rede Docker', fixed: 'Fixa neste pacote', databaseBind: 'Banco limitado a 127.0.0.1 para reduzir exposição.',
     preview: 'Endereços após aplicar', webUrl: 'Interface Web', apiUrl: 'API direta', restart: 'Impacto: o Compose recria serviços afetados; a navegação pode cair durante a troca. O banco e os volumes permanecem.',
-    limitsTitle: 'O que este perfil controla', limits: 'Este assistente altera as portas do host para Web, API e PostgreSQL e pode publicar listeners TCP/UDP que já estejam configurados nos Drivers. Ele não muda firewall, banco remoto, endereços dos peers de High Availability nem a porta interna definida no Data Source.',
+    limitsTitle: 'O que este perfil controla', limits: 'Este assistente altera somente as portas do host para Web, API e PostgreSQL. Ele não muda firewall, banco remoto, endereços dos peers de High Availability nem portas internas dos serviços.',
     mediaLabel: 'Mídia:', mediaDetails: 'o controle (9997) e o HLS (8888) permanecem na rede privada do Compose. O Runtime entrega o vídeo pelo relay da API usando tíquetes temporários; não publique essas portas diretamente.',
-    driversLabel: 'Equipamentos e protocolos:', driversDetails: 'A porta interna precisa ser igual à porta de escuta já definida no Data Source. O mapeamento só publica essa porta no host; ele não altera o Driver. Drivers clientes, como Modbus TCP, conectam-se ao equipamento remoto e não precisam de publicação. No Docker estável, configure Modbus TCP Server em porta interna 1502 (ou outra a partir de 1024) e bind 0.0.0.0: a API roda sem privilégios e não pode abrir portas internas abaixo de 1024. Se os clientes usam a porta padrão 502, publique host 502 para container 1502, se o host permitir. BACnet/IP pode usar publicação UDP para tráfego unicast; descoberta por broadcast não é garantida pela rede Docker bridge.',
-    configuredDriverListeners: 'Listeners configurados na revisão ativa', configuredDriverListenersHelp: 'Aqui aparecem os endpoints TCP do Modbus TCP Server ativos no Runtime. Use o endereço e a porta interna exibidos ao preparar a publicação; esta tela não altera as configurações do Data Source.', configuredDriverListenerNone: 'Nenhum Modbus TCP Server está ativo nesta revisão.', configuredDriverListenerName: 'Data Source', configuredDriverListenerProtocol: 'Protocolo', configuredDriverListenerEndpoint: 'Endereço e porta interna', configuredDriverListenerState: 'Estado', configuredDriverListenerHealthy: 'Em execução', configuredDriverListenerFaulted: 'Falha ao iniciar', configuredDriverListenerStopped: 'Parado', configuredDriverListenerStarting: 'Iniciando', configuredDriverListenerStopping: 'Parando', configuredDriverListenerDegraded: 'Degradado', configuredDriverListenerReconnecting: 'Reconectando',
-    driverPortsTitle: 'Listeners de Drivers (opcional)', driverPortsHelp: 'Adicione apenas listeners configurados em Data Sources deste SCADIVO. A porta interna é a de escuta no container; a porta do host é a usada pelos clientes externos. O padrão fica sem portas de Driver publicadas.', driverPortAdd: 'Adicionar listener', driverPortRemove: 'Remover', driverPortProtocol: 'Protocolo', driverPortHost: 'Porta no host', driverPortInternal: 'Porta de escuta no container', driverPortBind: 'Publicar em', driverPortCollision: 'A porta TCP do Driver conflita com Web, API ou banco.', driverPortInternalCollision: 'A porta TCP 5080 já pertence à API e não pode ser usada por um listener de Driver.', driverPortPrivilegedInternal: 'A API no Docker roda sem privilégios e não pode abrir portas internas abaixo de 1024.', driverPortDuplicateHost: 'Há portas de host repetidas para o mesmo protocolo.', driverPortDuplicateInternal: 'Há listeners repetidos na mesma porta/protocolo dentro da API.', driverPortLimit: 'É possível configurar até 32 listeners.', driverPortExposure: 'Este listener ficará disponível em todas as interfaces. O script não altera o firewall. Restrinja o acesso e revise a segurança do Driver antes de aplicar.', driverPortDefaults: 'No Docker, use 1502 (ou outra porta >= 1024) como porta interna do Modbus TCP Server; o processo da API não tem privilégio para escutar abaixo de 1024. Se necessário, publique a porta 502 do host para a 1502 interna. BACnet/IP usa UDP 47808 por padrão; broadcast ainda depende da rede.',
-    hostTitle: 'Aplicação no host', hostText: 'Baixe o script da plataforma, coloque-o na pasta que contém docker-compose.stable.yml e .env, revise-o e execute o comando abaixo nessa pasta em uma conta autorizada a administrar o Docker. O script valida portas e Compose antes de trocar, guarda cópias da configuração, verifica saúde e tenta restaurá-las se falhar. Não altera firewall nem apaga volumes.',
+    driversLabel: 'Equipamentos e protocolos:', driversDetails: 'ajuste cada Data Source. Em um driver cliente, como Modbus TCP, a porta padrão 502 é do equipamento remoto; não é preciso publicar essa porta no host SCADIVO. O Modbus TCP Server escuta dentro da API, mas este Compose não publica seu listener no host. No BACnet/IP, localPort usa UDP 47808; descoberta por broadcast depende da rede e não é ajustada por este assistente.',
+    hostTitle: 'Aplicação no host', hostText: 'Baixe o script da plataforma, coloque-o na pasta que contém docker-compose.stable.yml e .env, revise-o e execute o comando abaixo nessa pasta em uma conta autorizada a administrar o Docker. O script valida portas e Compose antes de trocar, guarda uma cópia de .env, verifica saúde e tenta restaurar a configuração se falhar. Não altera firewall nem apaga volumes.',
     powershell: 'Baixar script PowerShell', bash: 'Baixar script Linux', command: 'Comando para aplicar', copyCommand: 'Copiar comando', copied: 'Comando copiado.', noClipboard: 'O navegador não permitiu copiar; selecione o comando e copie manualmente.',
     invalidId: 'Use um ID de 1 a 48 caracteres: minúsculas, números ou hífen; comece com letra ou número.', invalidPort: 'Cada porta deve ser um número inteiro entre 1 e 65535.', duplicatePorts: 'Web, API e banco precisam usar portas diferentes.', wildcardWarn: 'Com 0.0.0.0, o serviço escuta em todas as interfaces. O SCADIVO não abre firewall nem configura TLS; use proxy TLS e política de firewall antes de permitir acesso externo.', portPrivilege: 'Portas abaixo de 1024 podem exigir configuração privilegiada no host Docker.', newInstance: 'Para criar outra instalação, o comando só funciona em uma pasta nova, com .env independente e o ID escolhido já definido nela. O script recusa reaproveitar ID ou volumes existentes.',
-    tableService: 'Serviço', appPort: 'Porta interna', hostPort: 'Porta do host', status: 'Exposição', clickHelp: 'Abrir instruções completas na Ajuda',
-    driverPortTcp: 'TCP', driverPortUdp: 'UDP'
+    tableService: 'Serviço', appPort: 'Porta interna', hostPort: 'Porta do host', status: 'Exposição', clickHelp: 'Abrir instruções completas na Ajuda'
   },
   en: {
     title: 'Network and services', intro: 'Prepare a port profile for the stable Docker package. Apply it on the computer running Docker, not through the browser.',
@@ -48,16 +40,13 @@ const copy = {
     desired: 'Prepare a new configuration', identity: 'Instance ID', identityHelp: 'Use lowercase letters, numbers, and hyphens. For a second installation, use another folder, create an .env with its own secrets, and set the chosen ID in it before running the command. Never copy keys or credentials.',
     bind: 'Access address', loopback: 'This computer only', allInterfaces: 'Network interfaces', webPort: 'Web host port', apiPort: 'Direct API host port', dbPort: 'Database host port', internal: 'Inside the container', transport: 'Protocol', exposed: 'Published on host', private: 'Docker network only', fixed: 'Fixed in this package', databaseBind: 'Database remains bound to 127.0.0.1 to reduce exposure.',
     preview: 'Addresses after applying', webUrl: 'Web interface', apiUrl: 'Direct API', restart: 'Impact: Compose recreates affected services; the page may disconnect during the change. The database and volumes remain.',
-    limitsTitle: 'What this profile controls', limits: 'This assistant changes host ports for Web, API, and PostgreSQL and can publish TCP/UDP listeners already configured in Drivers. It does not change firewall rules, remote databases, High Availability peer addresses, or the internal port set in a Data Source.',
+    limitsTitle: 'What this profile controls', limits: 'This assistant changes only host ports for Web, API, and PostgreSQL. It does not change firewall rules, remote databases, High Availability peer addresses, or internal service ports.',
     mediaLabel: 'Media:', mediaDetails: 'control (9997) and HLS (8888) stay on the private Compose network. Runtime sends video through the API relay using short-lived tickets; do not publish these ports directly.',
-    driversLabel: 'Equipment and protocols:', driversDetails: 'The internal port must match the listener already configured in the Data Source. This mapping only publishes that port on the host; it does not change the Driver. Client drivers such as Modbus TCP connect to remote equipment and need no host publication. In stable Docker, configure Modbus TCP Server on internal port 1502 (or another port at or above 1024) and bind it to 0.0.0.0: the API runs without elevated privileges and cannot bind internal ports below 1024. If clients expect standard port 502, publish host 502 to container 1502 when the host allows it. BACnet/IP can use UDP publication for unicast traffic; broadcast discovery is not guaranteed over Docker bridge networking.',
-    configuredDriverListeners: 'Listeners configured in the active revision', configuredDriverListenersHelp: 'Active Modbus TCP Server endpoints appear here. Use the shown address and internal port when preparing host publication; this page does not change Data Source settings.', configuredDriverListenerNone: 'No Modbus TCP Server is active in this revision.', configuredDriverListenerName: 'Data Source', configuredDriverListenerProtocol: 'Protocol', configuredDriverListenerEndpoint: 'Address and internal port', configuredDriverListenerState: 'State', configuredDriverListenerHealthy: 'Listening', configuredDriverListenerFaulted: 'Failed to start', configuredDriverListenerStopped: 'Stopped', configuredDriverListenerStarting: 'Starting', configuredDriverListenerStopping: 'Stopping', configuredDriverListenerDegraded: 'Degraded', configuredDriverListenerReconnecting: 'Reconnecting',
-    driverPortsTitle: 'Driver listeners (optional)', driverPortsHelp: 'Add only listeners configured in this SCADIVO installation. The internal port is the listener inside the container; external clients use the host port. By default, no Driver ports are published.', driverPortAdd: 'Add listener', driverPortRemove: 'Remove', driverPortProtocol: 'Protocol', driverPortHost: 'Host port', driverPortInternal: 'Listener port in container', driverPortBind: 'Publish on', driverPortCollision: 'The Driver TCP port conflicts with Web, API, or database.', driverPortInternalCollision: 'TCP port 5080 belongs to the API and cannot be used by a Driver listener.', driverPortPrivilegedInternal: 'The Docker API runs without elevated privileges and cannot bind internal ports below 1024.', driverPortDuplicateHost: 'Host ports repeat for the same protocol.', driverPortDuplicateInternal: 'Listeners repeat on the same API port/protocol.', driverPortLimit: 'Up to 32 listeners can be configured.', driverPortExposure: 'This listener will be available on all interfaces. The script does not change the firewall. Restrict access and review Driver security before applying.', driverPortDefaults: 'In Docker, use 1502 (or another port at or above 1024) as the Modbus TCP Server internal port; the API process cannot bind ports below 1024. If needed, publish host port 502 to internal port 1502. BACnet/IP uses UDP 47808 by default; broadcast still depends on network configuration.',
-    hostTitle: 'Apply on the host', hostText: 'Download the platform script, place it in the folder containing docker-compose.stable.yml and .env, review it, then run the command below from that folder with an account allowed to administer Docker. It validates ports and Compose before changing anything, backs up the configuration files, checks health, and attempts to restore them on failure. It does not change firewall rules or delete volumes.',
+    driversLabel: 'Equipment and protocols:', driversDetails: 'configure each Data Source. For a client driver such as Modbus TCP, the default port 502 belongs to the remote device; SCADIVO does not need to publish that port. Modbus TCP Server listens inside the API, but this Compose package does not publish that listener on the host. BACnet/IP uses UDP 47808 for localPort; broadcast discovery depends on the network and is not configured by this assistant.',
+    hostTitle: 'Apply on the host', hostText: 'Download the platform script, place it in the folder containing docker-compose.stable.yml and .env, review it, then run the command below from that folder with an account allowed to administer Docker. It validates ports and Compose before changing anything, backs up .env, checks health, and attempts to restore the prior configuration on failure. It does not change firewall rules or delete volumes.',
     powershell: 'Download PowerShell script', bash: 'Download Linux script', command: 'Apply command', copyCommand: 'Copy command', copied: 'Command copied.', noClipboard: 'The browser did not allow copying; select and copy the command manually.',
     invalidId: 'Use an ID of 1–48 characters: lowercase letters, numbers, or hyphens; begin with a letter or number.', invalidPort: 'Each port must be an integer from 1 through 65535.', duplicatePorts: 'Web, API, and database must use different ports.', wildcardWarn: 'With 0.0.0.0, the service listens on all interfaces. SCADIVO does not open firewalls or configure TLS; use a TLS proxy and firewall policy before allowing external access.', portPrivilege: 'Ports below 1024 may require privileged host configuration for Docker.', newInstance: 'To create another installation, run the command only in a new folder with its own .env and the chosen ID already set there. The script refuses existing IDs or volumes.',
-    tableService: 'Service', appPort: 'Internal port', hostPort: 'Host port', status: 'Exposure', clickHelp: 'Open full instructions in Help',
-    driverPortTcp: 'TCP', driverPortUdp: 'UDP'
+    tableService: 'Service', appPort: 'Internal port', hostPort: 'Host port', status: 'Exposure', clickHelp: 'Open full instructions in Help'
   },
   es: {
     title: 'Red y servicios', intro: 'Prepare un perfil de puertos para el paquete Docker estable. Aplíquelo en el equipo que ejecuta Docker, no desde el navegador.',
@@ -66,16 +55,13 @@ const copy = {
     desired: 'Preparar una nueva configuración', identity: 'ID de instancia', identityHelp: 'Use minúsculas, números y guiones. Para una segunda instalación, use otra carpeta, cree un .env con secretos propios y defina allí el ID elegido antes de ejecutar el comando. Nunca copie claves ni credenciales.',
     bind: 'Dirección de acceso', loopback: 'Solo este equipo', allInterfaces: 'Interfaces de red', webPort: 'Puerto Web en el host', apiPort: 'Puerto directo de API en el host', dbPort: 'Puerto de base de datos en el host', internal: 'Dentro del contenedor', transport: 'Protocolo', exposed: 'Publicada en el host', private: 'Solo red Docker', fixed: 'Fija en este paquete', databaseBind: 'La base de datos permanece vinculada a 127.0.0.1 para reducir la exposición.',
     preview: 'Direcciones después de aplicar', webUrl: 'Interfaz Web', apiUrl: 'API directa', restart: 'Impacto: Compose recrea los servicios afectados; la página puede desconectarse durante el cambio. La base de datos y los volúmenes permanecen.',
-    limitsTitle: 'Qué controla este perfil', limits: 'Este asistente cambia los puertos del host para Web, API y PostgreSQL y puede publicar listeners TCP/UDP ya configurados en Drivers. No cambia firewalls, bases remotas, direcciones de peers de High Availability ni el puerto interno definido en el Data Source.',
+    limitsTitle: 'Qué controla este perfil', limits: 'Este asistente cambia solamente los puertos del host para Web, API y PostgreSQL. No cambia firewalls, bases remotas, direcciones de peers de High Availability ni puertos internos de los servicios.',
     mediaLabel: 'Multimedia:', mediaDetails: 'el control (9997) y HLS (8888) permanecen en la red privada de Compose. Runtime entrega el vídeo por el relay de la API mediante tickets temporales; no publique estos puertos directamente.',
-    driversLabel: 'Equipos y protocolos:', driversDetails: 'El puerto interno debe coincidir con el listener configurado en el Data Source. Este mapeo solo publica ese puerto en el host; no cambia el Driver. Los drivers cliente, como Modbus TCP, se conectan al equipo remoto y no necesitan publicación. En Docker estable, configure Modbus TCP Server en el puerto interno 1502 (u otro desde 1024) y enlácelo a 0.0.0.0: la API se ejecuta sin privilegios y no puede abrir puertos internos inferiores a 1024. Si los clientes esperan el puerto estándar 502, publique el puerto 502 del host hacia el 1502 del contenedor, si el host lo permite. BACnet/IP puede publicar UDP para tráfico unicast; el descubrimiento por broadcast no está garantizado con la red bridge de Docker.',
-    configuredDriverListeners: 'Listeners configurados en la revisión activa', configuredDriverListenersHelp: 'Aquí aparecen los endpoints TCP del Modbus TCP Server activos en Runtime. Use la dirección y el puerto interno mostrados al preparar la publicación; esta pantalla no cambia la configuración del Data Source.', configuredDriverListenerNone: 'No hay un Modbus TCP Server activo en esta revisión.', configuredDriverListenerName: 'Data Source', configuredDriverListenerProtocol: 'Protocolo', configuredDriverListenerEndpoint: 'Dirección y puerto interno', configuredDriverListenerState: 'Estado', configuredDriverListenerHealthy: 'En ejecución', configuredDriverListenerFaulted: 'No se pudo iniciar', configuredDriverListenerStopped: 'Detenido', configuredDriverListenerStarting: 'Iniciando', configuredDriverListenerStopping: 'Deteniendo', configuredDriverListenerDegraded: 'Degradado', configuredDriverListenerReconnecting: 'Reconectando',
-    driverPortsTitle: 'Listeners de Drivers (opcional)', driverPortsHelp: 'Agregue solo listeners configurados en esta instalación de SCADIVO. El puerto interno es el listener dentro del contenedor; los clientes externos usan el puerto del host. De forma predeterminada, no se publican puertos de Driver.', driverPortAdd: 'Agregar listener', driverPortRemove: 'Quitar', driverPortProtocol: 'Protocolo', driverPortHost: 'Puerto del host', driverPortInternal: 'Puerto listener en el contenedor', driverPortBind: 'Publicar en', driverPortCollision: 'El puerto TCP del Driver entra en conflicto con Web, API o base de datos.', driverPortInternalCollision: 'El puerto TCP 5080 pertenece a la API y no puede usarse para un listener de Driver.', driverPortPrivilegedInternal: 'La API en Docker se ejecuta sin privilegios y no puede abrir puertos internos inferiores a 1024.', driverPortDuplicateHost: 'Se repiten puertos del host para el mismo protocolo.', driverPortDuplicateInternal: 'Se repiten listeners en el mismo puerto/protocolo de la API.', driverPortLimit: 'Se pueden configurar hasta 32 listeners.', driverPortExposure: 'Este listener quedará disponible en todas las interfaces. El script no cambia el firewall. Restrinja el acceso y revise la seguridad del Driver antes de aplicar.', driverPortDefaults: 'En Docker, use 1502 (u otro puerto desde 1024) como puerto interno de Modbus TCP Server; el proceso de la API no puede escuchar en puertos inferiores a 1024. Si hace falta, publique el puerto 502 del host hacia el puerto interno 1502. BACnet/IP usa UDP 47808 por defecto; broadcast aún depende de la red.',
-    hostTitle: 'Aplicación en el host', hostText: 'Descargue el script de la plataforma, colóquelo en la carpeta que contiene docker-compose.stable.yml y .env, revíselo y ejecute el comando siguiente desde esa carpeta con una cuenta autorizada para administrar Docker. Valida puertos y Compose antes del cambio, respalda los archivos de configuración, comprueba la salud e intenta restaurarlos si falla. No modifica el firewall ni elimina volúmenes.',
+    driversLabel: 'Equipos y protocolos:', driversDetails: 'configure cada Data Source. En un driver cliente, como Modbus TCP, el puerto predeterminado 502 pertenece al equipo remoto; SCADIVO no necesita publicar ese puerto. Modbus TCP Server escucha dentro de la API, pero este Compose no publica ese listener en el host. BACnet/IP usa UDP 47808 para localPort; el descubrimiento por broadcast depende de la red y este asistente no lo configura.',
+    hostTitle: 'Aplicación en el host', hostText: 'Descargue el script de la plataforma, colóquelo en la carpeta que contiene docker-compose.stable.yml y .env, revíselo y ejecute el comando siguiente desde esa carpeta con una cuenta autorizada para administrar Docker. Valida puertos y Compose antes del cambio, respalda .env, comprueba la salud e intenta restaurar la configuración si falla. No modifica el firewall ni elimina volúmenes.',
     powershell: 'Descargar script PowerShell', bash: 'Descargar script Linux', command: 'Comando de aplicación', copyCommand: 'Copiar comando', copied: 'Comando copiado.', noClipboard: 'El navegador no permitió copiar; seleccione y copie el comando manualmente.',
     invalidId: 'Use un ID de 1 a 48 caracteres: minúsculas, números o guiones; comience con letra o número.', invalidPort: 'Cada puerto debe ser un entero de 1 a 65535.', duplicatePorts: 'Web, API y base de datos necesitan puertos distintos.', wildcardWarn: 'Con 0.0.0.0, el servicio escucha en todas las interfaces. SCADIVO no abre firewalls ni configura TLS; use un proxy TLS y una política de firewall antes del acceso externo.', portPrivilege: 'Los puertos inferiores a 1024 pueden requerir configuración privilegiada del host Docker.', newInstance: 'Para crear otra instalación, ejecute el comando solo en una carpeta nueva, con su .env propio y el ID elegido ya definido. El script rechaza IDs o volúmenes existentes.',
-    tableService: 'Servicio', appPort: 'Puerto interno', hostPort: 'Puerto del host', status: 'Exposición', clickHelp: 'Abrir instrucciones completas en Ayuda',
-    driverPortTcp: 'TCP', driverPortUdp: 'UDP'
+    tableService: 'Servicio', appPort: 'Puerto interno', hostPort: 'Puerto del host', status: 'Exposición', clickHelp: 'Abrir instrucciones completas en Ayuda'
   }
 } as const;
 
@@ -87,7 +73,7 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
   const [copied, setCopied] = useState(false);
   const [copyFailure, setCopyFailure] = useState(false);
   const [commandPlatform, setCommandPlatform] = useState<'powershell' | 'bash'>('powershell');
-  const [draft, setDraft] = useState<Draft>({ instanceId: '', webBind: '127.0.0.1', apiBind: '127.0.0.1', webPort: '18080', apiPort: '15080', databasePort: '15432', driverPorts: [] });
+  const [draft, setDraft] = useState<Draft>({ instanceId: '', webBind: '127.0.0.1', apiBind: '127.0.0.1', webPort: '18080', apiPort: '15080', databasePort: '15432' });
 
   async function loadProfile() {
     setLoading(true);
@@ -104,13 +90,7 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
         apiBind: profile.api.bindAddress === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1',
         webPort: String(profile.web.publishedPort),
         apiPort: String(profile.api.publishedPort),
-        databasePort: String(profile.database.publishedPort),
-        driverPorts: (profile.driverPorts ?? []).map(port => ({
-          transport: port.transport.toLowerCase() === 'udp' ? 'udp' : 'tcp',
-          bindAddress: port.bindAddress === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1',
-          publishedPort: String(port.publishedPort),
-          internalPort: String(port.internalPort)
-        }))
+        databasePort: String(profile.database.publishedPort)
       });
     } catch {
       setFailure('failed');
@@ -128,31 +108,17 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
     const ports = [draft.webPort, draft.apiPort, draft.databasePort].map(Number);
     if (ports.some(port => !Number.isInteger(port) || port < 1 || port > 65535)) errors.push(t.invalidPort);
     if (ports.every(port => Number.isInteger(port) && port >= 1 && port <= 65535) && new Set(ports).size !== ports.length) errors.push(t.duplicatePorts);
-    if (draft.driverPorts.length > 32) errors.push(t.driverPortLimit);
-    const mappingPorts = draft.driverPorts.flatMap(mapping => [Number(mapping.publishedPort), Number(mapping.internalPort)]);
-    if (mappingPorts.some(port => !Number.isInteger(port) || port < 1 || port > 65535)) errors.push(t.invalidPort);
-    const validDriverPorts = draft.driverPorts.filter(mapping =>
-      Number.isInteger(Number(mapping.publishedPort)) && Number(mapping.publishedPort) >= 1 && Number(mapping.publishedPort) <= 65535 &&
-      Number.isInteger(Number(mapping.internalPort)) && Number(mapping.internalPort) >= 1 && Number(mapping.internalPort) <= 65535);
-    if (validDriverPorts.some(mapping => Number(mapping.internalPort) < 1024)) errors.push(t.driverPortPrivilegedInternal);
-    const publishedKeys = validDriverPorts.map(mapping => `${mapping.transport}:${Number(mapping.publishedPort)}`);
-    if (new Set(publishedKeys).size !== publishedKeys.length) errors.push(t.driverPortDuplicateHost);
-    const internalKeys = validDriverPorts.map(mapping => `${mapping.transport}:${Number(mapping.internalPort)}`);
-    if (new Set(internalKeys).size !== internalKeys.length) errors.push(t.driverPortDuplicateInternal);
-    if (validDriverPorts.some(mapping => mapping.transport === 'tcp' && ports.includes(Number(mapping.publishedPort)))) errors.push(t.driverPortCollision);
-    if (validDriverPorts.some(mapping => mapping.transport === 'tcp' && Number(mapping.internalPort) === 5080)) errors.push(t.driverPortInternalCollision);
     return errors;
-  }, [draft, t]);
+  }, [draft, t.invalidId, t.invalidPort, t.duplicatePorts]);
 
   const command = useMemo(() => {
     if (!current || validation.length) return '';
     const newInstance = draft.instanceId !== current.instanceId;
     const newInstall = newInstance ? ` -NewInstallation -SourceInstanceId ${current.instanceId} -ConfirmIsolatedSecrets` : '';
     const newInstallBash = newInstance ? ` --new-installation --source-instance-id ${current.instanceId} --confirm-isolated-secrets` : '';
-    const driverPorts = draft.driverPorts.map(port => `${port.transport}:${port.bindAddress}:${Number(port.publishedPort)}:${Number(port.internalPort)}`).join(';');
     return commandPlatform === 'powershell'
-      ? `powershell -NoProfile -ExecutionPolicy Bypass -File .\\apply-network-profile.ps1 -InstallDirectory . -InstanceId ${draft.instanceId} -WebBind ${draft.webBind} -ApiBind ${draft.apiBind} -WebPort ${draft.webPort} -ApiPort ${draft.apiPort} -DatabasePort ${draft.databasePort} -ReplaceDriverPorts -DriverPorts '${driverPorts}'${newInstall}`
-      : `bash ./apply-network-profile.sh --install-directory . --instance-id ${draft.instanceId} --web-bind ${draft.webBind} --api-bind ${draft.apiBind} --web-port ${draft.webPort} --api-port ${draft.apiPort} --database-port ${draft.databasePort} --replace-driver-ports --driver-ports '${driverPorts}'${newInstallBash}`;
+      ? `powershell -NoProfile -ExecutionPolicy Bypass -File .\\apply-network-profile.ps1 -InstallDirectory . -InstanceId ${draft.instanceId} -WebBind ${draft.webBind} -ApiBind ${draft.apiBind} -WebPort ${draft.webPort} -ApiPort ${draft.apiPort} -DatabasePort ${draft.databasePort}${newInstall}`
+      : `bash ./apply-network-profile.sh --install-directory . --instance-id ${draft.instanceId} --web-bind ${draft.webBind} --api-bind ${draft.apiBind} --web-port ${draft.webPort} --api-port ${draft.apiPort} --database-port ${draft.databasePort}${newInstallBash}`;
   }, [commandPlatform, current, draft, validation.length]);
 
   async function copyCommand() {
@@ -164,13 +130,6 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
       setCopied(false);
       setCopyFailure(true);
     }
-  }
-
-  function addDriverPort() {
-    setDraft(value => value.driverPorts.length >= 32 ? value : ({
-      ...value,
-      driverPorts: [...value.driverPorts, { transport: 'tcp', bindAddress: '127.0.0.1', publishedPort: '1502', internalPort: '1502' }]
-    }));
   }
 
   function downloadScript(extension: 'ps1' | 'sh') {
@@ -205,30 +164,8 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
           <label>{t.apiPort}<input type="number" min="1" max="65535" step="1" value={draft.apiPort} onChange={event => setDraft(value => ({ ...value, apiPort: event.target.value }))}/></label>
           <label>{t.dbPort}<input type="number" min="1" max="65535" step="1" value={draft.databasePort} onChange={event => setDraft(value => ({ ...value, databasePort: event.target.value }))}/><small>{t.databaseBind}</small></label>
         </div>
-        <div className="installation-network__driver-ports">
-          <div><h4>{t.driverPortsTitle}</h4><p>{t.driverPortsHelp}</p></div>
-          <div className="installation-network__configured-listeners">
-            <h5>{t.configuredDriverListeners}</h5>
-            <p>{t.configuredDriverListenersHelp}</p>
-            {(current.configuredDriverListeners ?? []).length === 0 ? <p>{t.configuredDriverListenerNone}</p> :
-              <div className="installation-network__table-wrap"><table><thead><tr><th>{t.configuredDriverListenerName}</th><th>{t.configuredDriverListenerProtocol}</th><th>{t.configuredDriverListenerEndpoint}</th><th>{t.configuredDriverListenerState}</th></tr></thead><tbody>
-                {current.configuredDriverListeners.map((listener, index) => <tr key={`${listener.dataSourceName}-${listener.internalPort}-${index}`}><th>{listener.dataSourceName}</th><td>{listener.transport}</td><td>{formatDriverListenerEndpoint(listener.bindAddress, listener.internalPort)}</td><td>{formatDriverListenerState(listener.state, t)}</td></tr>)}
-              </tbody></table></div>}
-          </div>
-          {draft.driverPorts.map((mapping, index) => <fieldset className="installation-network__driver-port" key={index}>
-            <legend>{t.driverPortsTitle} {index + 1}</legend>
-            <label>{t.driverPortProtocol}<select value={mapping.transport} onChange={event => setDraft(value => ({ ...value, driverPorts: value.driverPorts.map((item, itemIndex) => itemIndex === index ? { ...item, transport: event.target.value as DriverPortDraft['transport'] } : item) }))}><option value="tcp">{t.driverPortTcp}</option><option value="udp">{t.driverPortUdp}</option></select></label>
-            <label>{t.driverPortBind}<select value={mapping.bindAddress} onChange={event => setDraft(value => ({ ...value, driverPorts: value.driverPorts.map((item, itemIndex) => itemIndex === index ? { ...item, bindAddress: event.target.value as DriverPortDraft['bindAddress'] } : item) }))}><option value="127.0.0.1">{t.loopback} (127.0.0.1)</option><option value="0.0.0.0">{t.allInterfaces} (0.0.0.0)</option></select></label>
-            <label>{t.driverPortHost}<input type="number" min="1" max="65535" step="1" value={mapping.publishedPort} onChange={event => setDraft(value => ({ ...value, driverPorts: value.driverPorts.map((item, itemIndex) => itemIndex === index ? { ...item, publishedPort: event.target.value } : item) }))}/></label>
-            <label>{t.driverPortInternal}<input type="number" min="1" max="65535" step="1" value={mapping.internalPort} onChange={event => setDraft(value => ({ ...value, driverPorts: value.driverPorts.map((item, itemIndex) => itemIndex === index ? { ...item, internalPort: event.target.value } : item) }))}/></label>
-            <button type="button" className="secondary" aria-label={`${t.driverPortRemove} ${index + 1}`} onClick={() => setDraft(value => ({ ...value, driverPorts: value.driverPorts.filter((_, itemIndex) => itemIndex !== index) }))}>{t.driverPortRemove}</button>
-          </fieldset>)}
-          <p>{t.driverPortDefaults}</p>
-          <button type="button" className="secondary" disabled={draft.driverPorts.length >= 32} onClick={addDriverPort}>{t.driverPortAdd}</button>
-          {draft.driverPorts.some(mapping => mapping.bindAddress === '0.0.0.0') && <p className="installation-network__warning" role="note">{t.driverPortExposure}</p>}
-        </div>
         {(draft.webBind === '0.0.0.0' || draft.apiBind === '0.0.0.0') && <p className="installation-network__warning" role="note">{t.wildcardWarn}</p>}
-        {[draft.webPort, draft.apiPort, draft.databasePort, ...draft.driverPorts.flatMap(mapping => [mapping.publishedPort, mapping.internalPort])].some(port => Number(port) > 0 && Number(port) < 1024) && <p className="installation-network__warning" role="note">{t.portPrivilege}</p>}
+        {[draft.webPort, draft.apiPort, draft.databasePort].some(port => Number(port) > 0 && Number(port) < 1024) && <p className="installation-network__warning" role="note">{t.portPrivilege}</p>}
         {validation.map(error => <p className="installation-network__error" role="alert" key={error}>{error}</p>)}
       </div>
       <div className="installation-network__preview">
@@ -252,26 +189,8 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
 }
 
 function PortTable({ profile, t }: { profile: NetworkProfile; t: (typeof copy)[EngineeringLocale] }) {
-  const rows: Array<[string, EndpointProfile]> = [
-    ['Web', profile.web], ['API', profile.api], [t.dbPort, profile.database], ['Media control', profile.mediaControl], ['HLS', profile.mediaPlayback],
-    ...(profile.driverPorts ?? []).map((port, index) => [`${t.driverPortsTitle} ${index + 1}`, port] as [string, EndpointProfile])
-  ];
+  const rows = [
+    ['Web', profile.web], ['API', profile.api], [t.dbPort, profile.database], ['Media control', profile.mediaControl], ['HLS', profile.mediaPlayback]
+  ] as const;
   return <div className="installation-network__table-wrap"><table><thead><tr><th>{t.tableService}</th><th>{t.transport}</th><th>{t.internal}</th><th>{t.hostPort}</th><th>{t.status}</th></tr></thead><tbody>{rows.map(([name, port]) => <tr key={name}><th>{name}</th><td>{port.transport}</td><td>{port.internalPort}</td><td>{port.publishedToHost ? `${port.bindAddress}:${port.publishedPort}` : '—'}</td><td>{port.publishedToHost ? t.exposed : t.private}</td></tr>)}</tbody></table></div>;
-}
-
-function formatDriverListenerState(state: string, t: (typeof copy)[EngineeringLocale]) {
-  const labels: Record<string, string> = {
-    healthy: t.configuredDriverListenerHealthy,
-    faulted: t.configuredDriverListenerFaulted,
-    stopped: t.configuredDriverListenerStopped,
-    starting: t.configuredDriverListenerStarting,
-    stopping: t.configuredDriverListenerStopping,
-    degraded: t.configuredDriverListenerDegraded,
-    reconnecting: t.configuredDriverListenerReconnecting
-  };
-  return labels[state.toLowerCase()] ?? `${t.configuredDriverListenerState}: ${state}`;
-}
-
-function formatDriverListenerEndpoint(address: string, port: number) {
-  return `${address.includes(':') ? `[${address}]` : address}:${port}`;
 }

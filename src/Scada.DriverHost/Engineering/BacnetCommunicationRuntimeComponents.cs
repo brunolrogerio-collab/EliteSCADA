@@ -339,8 +339,7 @@ public sealed class BacnetCommunicationRuntimeFactory : ICommunicationDriverRunt
             services.Registry,
             bacnetPlan.Points,
             session,
-            bacnetPlan.ScanRate,
-            localUdpPort: bacnetPlan.SessionOptions.LocalPort);
+            bacnetPlan.ScanRate);
         return new BacnetCoordinatorRuntimeDriver(driver, bacnetPlan.DataSourceKey, bacnetPlan.Points.Count);
     }
 

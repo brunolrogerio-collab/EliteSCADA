@@ -74,7 +74,6 @@ PATH_RULES = (
     ("INSTALLATION", (
         "projectpackages", "systemrecovery", "persistedruntime",
         "web/scada-web/src/engineering/installationswitchingworkspace",
-        "web/scada-web/src/engineering/installationnetworkworkspace",
         "src/scada.api/installation/",
     )),
     ("HA_DISTRIBUTED", (
@@ -141,10 +140,7 @@ E2E_PROFILE_DEFAULTS = {
     "ONLINE_LICENSE_RECOVERY": ("tests-e2e/online-license-confirmation.spec.ts",),
     "ELITEGO_RUNTIME": ("tests-e2e/runtime.spec.ts",),
     "DATABASE_TOPOLOGY": ("tests-e2e/database-topology-mounted.spec.ts",),
-    "INSTALLATION": (
-        "tests-e2e/local-auth.spec.ts",
-        "tests-e2e/installation-network-profile.spec.ts",
-    ),
+    "INSTALLATION": ("tests-e2e/local-auth.spec.ts",),
     "HA_DISTRIBUTED": ("tests-e2e/ha-admin-workspace.spec.ts",),
 }
 
@@ -183,9 +179,6 @@ E2E_PATH_RULES = (
     ), ("tests-e2e/data-source-catalog-editor-mounted.spec.ts",)),
     (("web/scada-web/src/security/",), ("tests-e2e/security.spec.ts",)),
     (("installationswitchingworkspace",), ("tests-e2e/local-auth.spec.ts",)),
-    (("web/scada-web/src/engineering/installationnetworkworkspace",), (
-        "tests-e2e/installation-network-profile.spec.ts",
-    )),
     (("web/scada-web/src/engineering/scripts/",), ("tests-e2e/script-engineering-workspace-contract.spec.ts",)),
 )
 

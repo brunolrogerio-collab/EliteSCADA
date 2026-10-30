@@ -153,40 +153,6 @@ apply_profile "$install_b" "$project_b" "$b_web" "$b_api" "$b_db" \
 assert_healthy "$install_a" "$project_a" "$a_web" "$a_api"
 assert_healthy "$install_b" "$project_b" "$b_web" "$b_api"
 
-echo 'Publishing optional TCP and UDP Driver listeners on the first installation.'
-read -r a_driver_tcp a_driver_udp unused_port < <(choose_ports)
-apply_profile "$install_a" "$project_a" "$a_web" "$a_api" "$a_db" \
-  --replace-driver-ports --driver-ports "tcp:127.0.0.1:$a_driver_tcp:1502;udp:127.0.0.1:$a_driver_udp:47808"
-assert_healthy "$install_a" "$project_a" "$a_web" "$a_api"
-api_container=$(docker compose --project-name "$project_a" --env-file "$install_a/.env" \
-  -f "$install_a/docker-compose.stable.yml" -f "$install_a/docker-compose.network-profile.override.yml" ps --quiet api)
-docker inspect --format '{{json .NetworkSettings.Ports}}' "$api_container" | python3 -c \
-  'import json,sys; p=json.load(sys.stdin); checks={"1502/tcp":sys.argv[1],"47808/udp":sys.argv[2]};
-for target,expected in checks.items():
- bindings=p.get(target) or []
- assert any(x.get("HostIp")=="127.0.0.1" and x.get("HostPort")==expected for x in bindings), f"missing host mapping for {target}: {bindings}"' \
-  "$a_driver_tcp" "$a_driver_udp"
-too_many_driver_ports=''
-for index in $(seq 1 33); do
-  [[ -z "$too_many_driver_ports" ]] || too_many_driver_ports+=';'
-  too_many_driver_ports+="tcp:127.0.0.1:$((25000 + index)):$((10000 + index))"
-done
-for invalid_driver_ports in "$too_many_driver_ports" "tcp:127.0.0.1:$a_driver_tcp:502"; do
-  if apply_profile "$install_a" "$project_a" "$a_web" "$a_api" "$a_db" \
-    --replace-driver-ports --driver-ports "$invalid_driver_ports"; then
-    echo 'An invalid Driver listener profile was unexpectedly accepted.' >&2
-    exit 1
-  fi
-done
-python3 - "$install_a/.env" "$a_driver_tcp" "$a_driver_udp" <<'PY'
-import pathlib, sys
-env = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
-expected = f"SCADIVO_DRIVER_PORTS=tcp:127.0.0.1:{sys.argv[2]}:1502;udp:127.0.0.1:{sys.argv[3]}:47808"
-assert expected in env.splitlines(), "rejecting an invalid mapping list changed the saved profile"
-PY
-assert_healthy "$install_a" "$project_a" "$a_web" "$a_api"
-assert_healthy "$install_b" "$project_b" "$b_web" "$b_api"
-
 echo 'Changing the first installation ports while both installations are running.'
 read -r a_web_new a_api_new a_db_new < <(choose_ports)
 apply_profile "$install_a" "$project_a" "$a_web_new" "$a_api_new" "$a_db_new"
@@ -217,4 +183,4 @@ wait "$listener_pid" 2>/dev/null || true
 assert_healthy "$install_a" "$project_a" "$a_web_new" "$a_api_new"
 assert_healthy "$install_b" "$project_b" "$b_web" "$b_api"
 
-echo 'PASS: Linux-host stable Docker profile supports isolated installations, TCP/UDP Driver listener publication, port changes and fail-safe collision rejection.'
+echo 'PASS: Linux-host stable Docker profile supports two isolated installations, port changes and fail-safe collision rejection.'

@@ -224,14 +224,6 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertEqual(result["e2e_specs"], ["tests-e2e/local-auth.spec.ts"])
         self.assertTrue(result["run_installation_linux"])
 
-    def test_installation_network_ui_routes_to_its_mounted_browser_evidence(self):
-        result = self.classify(
-            ["web/scada-web/src/engineering/InstallationNetworkWorkspace.tsx"],
-            "VALIDATION_PROFILE: INSTALLATION",
-        )
-        self.assertIn("INSTALLATION", result["effective_profiles"])
-        self.assertIn("tests-e2e/installation-network-profile.spec.ts", result["e2e_specs"])
-
     def test_unrelated_profile_does_not_start_linux_installation_evidence(self):
         result = self.classify(["docs/README.md"], "VALIDATION_PROFILE: DOCS_I18N_HELP")
         self.assertFalse(result["run_installation_linux"])

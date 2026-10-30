@@ -50,7 +50,6 @@ services:
       InstallationNetwork__ApiBindAddress: ${SCADIVO_API_BIND:-127.0.0.1}
       InstallationNetwork__ApiPublishedPort: ${ELITESCADA_API_PORT:-15080}
       InstallationNetwork__DatabasePublishedPort: ${ELITESCADA_DB_PORT:-15432}
-      InstallationNetwork__DriverPorts: "${SCADIVO_DRIVER_PORTS:-}"
     networks: [default, media_relay]
     volumes:
       - protected_material_data:/app/data/protected-material

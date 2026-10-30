@@ -174,6 +174,7 @@ public sealed class BacnetCoordinatorConvergenceTests
         Assert.True(activation.Activated, JoinIssues(activation));
         Assert.Equal(1, sessions.CreateCalls);
         Assert.NotNull(sessions.LastOptions);
+        Assert.Equal(47809, sessions.LastOptions!.LocalPort);
         Assert.Equal(1, session.SubscribeCalls);
         Assert.True(session.ReadCalls >= 1);
         Assert.True(coordinator.TryGetCurrent(tagId, out var initial));
@@ -188,8 +189,6 @@ public sealed class BacnetCoordinatorConvergenceTests
         Assert.Equal(CommunicationDriverOperationalState.Healthy, diagnostics.State);
         var details = Assert.IsAssignableFrom<IReadOnlyDictionary<string, string>>(diagnostics.ProtocolDetails);
         Assert.Equal("1201", details["deviceInstance"]);
-        Assert.Equal("47809", details["localUdpPort"]);
-        Assert.Equal("0.0.0.0", details["localUdpBindAddress"]);
         Assert.Equal("true", details["deviceReachable"]);
         Assert.Equal("0", details["covTagCount"]);
         Assert.Equal("1", details["polledTagCount"]);

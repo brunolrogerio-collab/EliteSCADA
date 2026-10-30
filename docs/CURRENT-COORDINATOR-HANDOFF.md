@@ -1,65 +1,20 @@
 # Current coordinator pointer - Wave 15
 
-## Evidência atual consolidada — 30/10/2026
+## Ponto de retomada atual — #828 integrada — 30/10/2026
 
-Produto em 4098965b4d5450ad94e449a4a1f668f9e47bc2f7: CI manual 41072067106 SUCCESS no SHA exato. Proprietário executou test_native_windows_service.ps1 elevado; relatório real-scm-fixture passou em início, duas portas independentes, reinício SCM e recuperação explícita. Serviço temporário removido, cleanupFailure=null. Isso valida adaptador/provisionador contra fixture SCM real, não o host completo do produto (productHostValidated=false). Geradores de perfil Web/API Windows/Linux implementados; Linux laboratório 15/15, Windows ACL real passou. Banco suporta trocas consecutivas sem editar perfil.
+**Produto integrado:** `wave15/corrections-integration@7e7cb0e21c34a2918a56465fee8a9407ffb7c464`, merge do [PR #828](https://github.com/brunolrogerio-collab/EliteSCADA/pull/828). Candidato exato: `eab5fd80f2da3f7065a0bef0eea107638178aa2b`. Frente #780, coordenação #305. Este checkpoint substitui as anotações antigas que ainda descreviam #828 como draft ou sem integração.
 
-PR #828 ainda reporta 56795e2c apesar da branch remota e CI estarem em 4098965b. Não integrar usando head antigo. Próximas lacunas: registro pelo executor/identidade de leitura da API, perfil banco/mídia, readiness autenticada completa, serviços systemd e host produto reais, permissões de diretórios/locks e sessão HTTP/browser de mídia. Não reabrir como ausentes a geração Web/API, recuperação abrupta Web ou ensaio SCM fixture. Preview preservado. Atualização documental local posterior deve ser publicada e validada antes de integração.
+**Validação e disposição:** T1 [41100334699](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/41100334699) SUCCESS no candidato após retomada somente do Z-Wave Linux cancelado. T2 [41106832753](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/41106832753) FAILURE no merge: Web e Chromium passaram; backend falhou exclusivamente em `RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack`, timeout de promoção com standby synchronization-incomplete. [Ocorrência registrada na #423](https://github.com/brunolrogerio-collab/EliteSCADA/issues/423#issuecomment-6531814184). Estado: INTEGRATED / T1 VERIFIED / T2 WITH KNOWN HA-D2 FAILURE. Não declarar T2 verde, produto globalmente VERIFIED ou FROZEN. Sem retry/investigação HA nesta frente, conforme proprietário.
 
-## Ponto de retomada atual — #780 / PR #828 — 30/10/2026
+**Entregue:** portas Web/API/banco/mídia Windows/Linux/Docker; UI nativa com campos condicionados ao perfil e planos separados; padrões novos Web18080/API15120/banco15432, valores existentes preservados; geradores de perfil com registro explícito, backup/journals protegidos, recuperação, lock entre operações, preflight SQL e revalidação de topologia; readiness autenticada opcional nos três adaptadores; Help/manual pt-BR/en/es. Drivers, firewall e servidores externos não são reconfigurados por analogia.
 
-Frente única: configuração de portas por instalação. Branch `work/w15-service-ports-780`. Último CI verde: run `41060048953`, SHA `10bf8c9768420f702f5f26d880049e5a24029a6f`. Correção posterior `91fc40af` exige resposta de saúde SCADIVO, sem redirect/proxy no Linux; testes locais 14/14 Linux e roteiro Windows passaram. Essa correção ainda precisa de T1 no seu SHA próprio; consultar head vivo do PR após publicação.
+**Evidência e limites:** fixtures SCM Windows e systemd Linux reais passaram no CI, incluindo plano/troca/recuperação e leitura do perfil como LocalSystem. API real com JWT de teste e banco descartável confirmou401 anônimo e prontidão após reinício/novas portas; não é sessão de navegador. Testes de interface API11/11, Chromium6/6 e TypeScript passaram localmente. Esses resultados não homologam instalador/host completo ou conta customizada de produção: a distribuição completa permanece Wave16/#408. Qualificação de campo, reprodução de mídia com sessão real e ajuste da identidade efetiva pelo executor mantêm seus limites explícitos.
 
-Implementado: Docker Web/API/banco e mídia privada; inventário e readiness autenticados; Web/API nativos independentes; adaptadores administrativos Web/API, banco e mídia Windows/Linux; backups/journals protegidos; recuperação explícita nas três operações; recusa de sobreposição com outra recuperação pendente; revalidação de topologia após parar API local. Help/manual pt-BR/en/es atualizado, padrão novo API 15120. Valores novos Web18080/API15120/banco15432; existentes preservados; Drivers ficam nos Data Sources.
+**Ambientes preservados:** Preview EEE, Portal, Demo, dados/volumes e licença não foram atualizados por esta integração. Laboratórios criados foram exclusivos e removidos; relatório SCM do proprietário confirmou limpeza sem falha.
 
-Evidência: testes .NET de instalação 11/11; Help 11/11; mídia 7/7; banco 6/6 com ACL Windows real; laboratório Linux atual 14/14 com PostgreSQL/HTTP/flock reais, serviços OS simulados. MediaMTX real 8/8 e relay real 21/21 foram rodadas anteriores, não sessão HTTP/browser completa. Falha de fixtures Historian reproduzida em banco vazio e corrigida no teste, 6/6; CI posterior verde. HA-D2 separado apresentou timeout conhecido em 41056595183, sem investigação/retry nesta frente.
+**Próximo passo:** integrar esta atualização documental pelo fluxo de revisão; manter #423 como pendência de HA. Conferir a fila autorizada na #305/#306 antes de abrir a próxima frente, sem reabrir #828 como não implementada nem continuar alterando seu código após o merge sem defeito comprovado. Estado vivo também registrado na [#780](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780#issuecomment-6531814799) e [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6531815324).
 
-Pendências reais: provisionamento protegido do perfil pelo executor (instalador completo é Wave16); readiness autenticada completa nos adaptadores; ensaios SCM/systemd reais; permissões de diretórios/locks; HTTP/browser de mídia e revisão final. Recuperação abrupta Web, proteção de backups/journals, conflito entre recuperações e atualização do Help já foram implementados: não reabrir como ausentes.
-
-PR continua draft e #780 aberta, sem merge ou atualização de Preview. Próximo passo: conferir T1 do novo head e resolver o próximo item implementável sem ampliar para instalador Wave16 nem HA-D2. Todos os checkpoints abaixo são históricos.
-
-### Complemento validado — adaptadores e proteção de arquivos
-
-Mídia agora possui wrappers administrativos Windows/Linux, controle de serviços reutilizado, lock da instalação, verificação local limitada de controle/HLS e recuperação explícita após interrupção. Backups Web/API, banco e mídia Windows são criados com DACL restrita antes de copiar conteúdo; journals banco/mídia também nascem protegidos. Linux mantém 0600. Perfil administrativo só libera comando se configuração persistida corresponder às URLs efetivas e serviço tiver identificador válido.
-
-Verificação local desta etapa: banco 6/6 com ACL Windows real; mídia 7/7; roteiro Web Windows com ACL real e serviços simulados; laboratório Linux 11/11 com PostgreSQL real e modos de arquivos verificados. Ensaio anterior de MediaMTX real 8/8 inclui verificador de controle/HLS, mas não serviços OS reais nem playback autenticado. Pendências principais continuam: provisionamento nativo, coordenação com manutenção de topologia, readiness completa nos adaptadores, serviços SCM/systemd reais, HTTP/browser e Help/revisão final. Permissões dos diretórios de estado e locks ainda precisam da revisão do provisionador. PR #828 draft, sem merge ou mudança no Preview.
-## Checkpoint prioritário — #780 — 30/10/2026
-
-Branch `work/w15-service-ports-780`, PR draft #828. Produto conferido em `5b8b1c3794717b016ef740bbd29911081615a5c2`. Padrões novos: Web 18080, API 15120, PostgreSQL gerenciado 15432; valores existentes preservados. Drivers ficam nos Data Sources. Preview e Portal preservados.
-
-Implementado no candidato: inventário autenticado e sem segredos; readiness SQL canônica na API/UI; listeners nativos Web/API independentes com isolamento dos arquivos Web; preparação de comando na interface condicionada ao perfil administrativo; adaptadores Web Windows/Linux com backup e rollback; coordenador de banco com journal e recuperação. Mídia tem núcleo candidato e ensaios reais, mas ainda não tem aplicação administrativa completa.
-
-Evidências: relay real com gateway/câmera isolados passou 21/21 localmente; vídeo autorizado foi usado somente em laboratório. Isso não comprova autenticação HTTP completa nem navegador. CI exato 41002079222: instalação Linux, Web e Chromium passaram; focused .NET falhou em `PointReadCommissioningTests.Modbus_PointRead_MapsTransportTimeoutToBadCommunication`, Assert.NotEmpty na linha 142. Não atribuir causa ao produto nem declarar CI verde. Não repetir automaticamente nem investigar HA-D2 nesta frente.
-
-Pendências para entrega: provisionamento do perfil administrativo nativo; aplicação/recuperação de mídia; readiness integrada aos adaptadores; ACL de backups Windows; coordenação com manutenção de topologia; serviços SCM/systemd e produto reais; autorização HTTP e navegador de mídia; Help e revisão final. PR permanece draft, #780 aberta, sem merge. Resultados antigos abaixo são históricos e não substituem este checkpoint.
-
-
-
-## Retomada atual — portas nativas e Docker — 30/10/2026
-
-Frente: #780, PR draft #828, branch `work/w15-service-ports-780`. O produto deve atender Windows/Linux nativos e Docker. API, interface Web, banco local gerenciado e mídia usam padrões automáticos na instalação; alterar depois é opcional. Portas de Data Sources permanecem nos Drivers. Publicação adicional de listeners de Drivers foi retirada em `0c1067c1`.
-
-Implementado na branch: perfil Docker com scripts e portas internas privadas de mídia; inventário autenticado de endpoints; inventário na UI; hospedagem Web nativa opt-in por `InstallationNetwork:WebRootPath`. No perfil nativo integrado Web/API compartilham endpoint/porta Kestrel, inclusive no inventário. Pasta Web e defaults devem ser fornecidos pelo executor de instalação. Build passou; últimos testes de inventário e host Web real: 3/3. Chromium anterior: 2/2.
-
-Pendente: aplicar configuração persistente por adaptadores nativos com inventário real dos serviços, backup, preflight de portas, reinício, saúde e rollback para API/Web/banco/mídia. Não declarar esse fluxo entregue pela mera existência do inventário ou do host Web. Seguir #361/#408 e ADR-025; não fabricar nomes de serviços nem converter scripts Docker em scripts nativos por troca de rótulo. Instalador completo permanece Wave 16.
-
-T1 `40995879643`, SHA `df43f932`, falhou somente em `AuthorityPolicyTwoApiPostgreSqlEvidenceTests.RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(sharedDatabase: False)`; 2018 passaram, 1 ignorado. Web, Chromium, instalação e sidecars passaram. Sem retry ou investigação HA nesta frente, conforme proprietário. Não transferir esse resultado aos commits posteriores. PR draft e #780 aberta. Preview preservado.
-
-Registros anteriores abaixo são históricos e não substituem este checkpoint.
-
-
-## Current product checkpoint - installation network configuration (#780), 29 October 2026
-
-The active product lane is #780 after the integrated #779 retention work. Draft PR #828 is on branch `work/w15-service-ports-780`, based on `wave15/corrections-integration@16849faa66c84a4078126c08abb978e0c6014e0b` (#827); use the live PR for its exact head. The profile publishes Web/API/PostgreSQL on the Docker host and allows internal MediaMTX control/HLS ports to be changed while keeping them private and synchronizing API relay URLs. Driver ports stay in their Data Sources and are not published by this feature.
-
-The previous exact-head T1 [#40984942107](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/40984942107) passed on older product head `64649629345741ae6120584f24f5b9452982bec6`, proving two isolated Docker installations, host-port changes and occupied-port rejection. It does not cover the current candidate. Local validation on the corrected candidate: Web build, Installation Network API 2/2, Chromium 1/1, profile router 40/40, Compose custom-media-port/private-publication check, Bash syntax, PowerShell 5.1 parse and diff-check. Fresh exact-head T1 is required after push; previous pending T1 #40992730787 belongs to the broader Driver-listener head and is not transferable. Preview untouched.
-
-The current Help/manual distinguish host-published Web/API/database ports from internal media ports. Media control/HLS can be changed in the profile, stay private, and are synchronized with API relay configuration. Driver protocol ports remain configured in Data Sources; the profile does not publish Driver listeners or configure BACnet broadcast.
-
-#780 remains open and PR #828 remains draft. Run a new exact-head T1 for the corrected candidate. Native Windows Service/systemd settings remain in the installation/distribution sequence; this Docker profile does not manage them. Do not resume Driver listener publication/BACnet broadcast work under this issue without a new owner decision. If exact T1 fails only because of known HA-D2 intermittency, record that evidence and leave HA-D2 in its existing follow-up; do not debug or blindly rerun it in this lane. Preview untouched.
-
----
-
+## Histórico anterior — não substitui o checkpoint acima
 ## Previous product checkpoint - online licensing status projection, 28 October 2026
 
 Owning product issue #301. Branch `work/w15-online-license-status` starts at integrated/verified merge `a1264964419c15345fe27709230c0ac96231518d` (#807). The branch adds a safe, read-only online-device summary to the existing EngineeringRead-gated `GET /api/licensing/status`, reusing `FileOnlineLicenseStateStore.ReadStatusAsync`. It distinguishes unconfigured, empty, stored, reset, pending, clock rollback, reauthentication and unreadable-journal states. The projection omits activation/request IDs, lease contents, credentials and Portal details; a stored lease is explicitly not Runtime authorization. No activation, confirmation, reset or reauthentication mutation endpoint is added.

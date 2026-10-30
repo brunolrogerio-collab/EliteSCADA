@@ -1,5 +1,16 @@
 # Current coordinator pointer - Wave 15
 
+## Checkpoint prioritário — #780 — 30/10/2026
+
+Branch `work/w15-service-ports-780`, PR draft #828. Padrões autorizados de acesso: Web 18080, API 15120 independentes, banco gerenciado novo 15432. Instalação usa padrões automaticamente; alteração posterior opcional. Docker internos 80/5080/5432; não mudar Drivers. Preservar valores existentes explícitos. Nenhuma integração nem atualização de Preview nesta frente.
+
+Evidência real local: `scripts/ci/test_native_network_container.ps1` em PowerShell 5.1 executou 8/8 no Linux com imagem PostgreSQL fixada por digest, cluster descartável, nenhuma porta publicada, repositório read-only. Comprova listener/SQL PostgreSQL real, troca, recuperação explícita, rollback após falha simulada da API e flock Linux real. API/SCM/systemd continuam simulados; não declarar produto nativo completo verificado. Script remove somente seu próprio contêiner com --rm.
+
+Candidatos implementados: inventário efetivo/seguro; verificação SQL canônica autenticada na API/UI; adaptadores Web nativos; coordenador de banco com backup, journal, recuperação e locks. Host Web integrado opt-in existe, mas NÃO satisfaz o pedido final de portas Web/API independentes no perfil nativo. Corrigir esse perfil antes de fechar #780.
+
+Pendências concretas: perfil nativo com listeners independentes; aplicação coordenada de mídia; readiness autenticada integrada aos adaptadores; segurança de ACL backups Windows; integração entre operações administrativas/topologia; ensaios SCM/systemd e produto reais; interface/Help finais e revisão de todo #828. Ainda não expor candidatos de aplicação nativa como concluídos. Antes de novos commits, conferir CI do SHA atual; não perseguir falhas HA-D2 conhecidas nem transferir verde entre SHAs. Registros abaixo são históricos.
+
+
 ## Retomada atual — portas nativas e Docker — 30/10/2026
 
 Frente: #780, PR draft #828, branch `work/w15-service-ports-780`. O produto deve atender Windows/Linux nativos e Docker. API, interface Web, banco local gerenciado e mídia usam padrões automáticos na instalação; alterar depois é opcional. Portas de Data Sources permanecem nos Drivers. Publicação adicional de listeners de Drivers foi retirada em `0c1067c1`.

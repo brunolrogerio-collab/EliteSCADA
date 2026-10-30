@@ -51,6 +51,9 @@ try {
         if ([IO.File]::ReadAllText($config) -ne $original) { throw 'Plan mutated configuration.' }
         & $adapter -ProfilePath $profile -WebPort $ports[2] -ApiPort $ports[3] -Apply
         Check-Health $ports[2]; Check-Health $ports[3]
+        $profileRead=Invoke-RestMethod -Uri "http://127.0.0.1:$($ports[3])/proof/profile-read" -TimeoutSec 5 -MaximumRedirection 0
+        if ($profileRead.profileRead -ne $true -or $profileRead.systemAccount -ne $true) { throw 'Real service account did not read its protected administrative profile.' }
+        $checks+='LocalSystem service account reads matching protected administrative profile'
         $checks+='Real SCM restart with independent port changes'
         $changed=Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
         if ($changed.proof -ne 'preserve') { throw 'Configuration value lost.' }

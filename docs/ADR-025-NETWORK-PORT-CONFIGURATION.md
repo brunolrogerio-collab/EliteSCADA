@@ -201,3 +201,9 @@ Validação local: API 3/3, Chromium 4/4 e build Web passaram. Teste usa perfil 
 ### Disponibilidade do perfil administrativo na UI
 
 O endpoint nativo agora informa AdministrativeProfileAvailable após conferir arquivo configurado em InstallationNetwork:AdministrativeProfilePath, schema/plataforma/nomes Web/Api e existência do arquivo de configuração referido. Não retorna esses caminhos. A UI só gera comando quando essa conferência básica passa; do contrário explica que a instalação ainda precisa fornecer o perfil. Isso não substitui preflight dos scripts, registro efetivo do serviço, ACLs ou homologação do executor. API 4/4 e Chromium 5/5 passaram, incluindo perfil ausente/malformado e comando vazio enquanto não provisionado.
+
+### Preparação coordenada de mídia nativa
+
+`native_media_ports.prepare` transforma em memória o JSON da API e os scalars raiz apiAddress/hlsAddress do MediaMTX. Portas omitidas preservam os valores atuais; nenhuma porta informada retorna os bytes originais. Confere a correspondência anterior entre relay e listeners, recusa duplicidade YAML, colisão e faixa inválida. Preserva endereço de bind e demais configurações; não publica porta no host nem altera Drivers.
+
+Três testes passaram para mudança conjunta/isolada, preservação de segredo/configuração e recusas. Ainda não há mutação/restart/rollback dos serviços de mídia, integração à UI ou evidência de reprodução real: somente preparação testada. Incluído no job Linux.

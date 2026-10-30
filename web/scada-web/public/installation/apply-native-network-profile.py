@@ -7,7 +7,8 @@ import socket
 import subprocess
 import time
 from urllib.parse import urlsplit, urlunsplit
-from urllib.request import urlopen
+from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler
+from urllib.error import HTTPError
 import uuid
 
 
@@ -16,14 +17,21 @@ def ensure_no_other_recovery(config, allowed=None):
         if operation != allowed and config.with_name(config.name + '.' + operation + '-port-pending.json').exists():
             raise RuntimeError('Another administrative operation requires recovery')
 
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, new_url):
+        return None
+
+
 def health(url):
+    opener = build_opener(ProxyHandler({}), NoRedirect())
     for _ in range(30):
         try:
-            with urlopen(url, timeout=2) as response:
-                if response.status == 200:
+            with opener.open(url, timeout=2) as response:
+                payload=response.read(4097)
+                if response.status == 200 and len(payload) <= 4096 and json.loads(payload) == {'status':'ok','service':'scada-api'}:
                     return
-        except Exception:
-            pass
+        except (OSError, ValueError) as failure:
+            if isinstance(failure, HTTPError): failure.close()
         time.sleep(1)
     raise RuntimeError('Service health check failed')
 

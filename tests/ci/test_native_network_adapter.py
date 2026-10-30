@@ -7,6 +7,8 @@ import types
 import sys
 import unittest
 import subprocess
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
 
 MODULE = Path(__file__).resolve().parents[2] / 'web/scada-web/public/installation/apply-native-network-profile.py'
@@ -15,6 +17,32 @@ adapter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adapter)
 
 class NativeNetworkAdapterTests(unittest.TestCase):
+    def test_health_requires_product_response_and_does_not_follow_redirect(self):
+        class Handler(BaseHTTPRequestHandler):
+            body=b'{"status":"ok","service":"scada-api"}'
+            redirect=False
+            unexpected_hits=0
+            def log_message(self,*args): pass
+            def do_GET(self):
+                if self.path != '/health': Handler.unexpected_hits += 1
+                self.send_response(302 if self.redirect and self.path=='/health' else 200)
+                if self.redirect: self.send_header('Location','/other')
+                self.end_headers(); self.wfile.write(self.body)
+        server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+        thread=threading.Thread(target=server.serve_forever,daemon=True); thread.start()
+        try:
+            url=f'http://127.0.0.1:{server.server_port}/health'
+            adapter.health(url)
+            with patch.object(adapter.time,'sleep'):
+                for body in (b'<html>Login</html>',b'{"status":"ok","service":"unrelated"}'):
+                    Handler.body=body
+                    with self.assertRaises(RuntimeError): adapter.health(url)
+                Handler.body=b'{"status":"ok","service":"scada-api"}'; Handler.redirect=True
+                with self.assertRaises(RuntimeError): adapter.health(url)
+            self.assertEqual(Handler.unexpected_hits,0)
+        finally:
+            server.shutdown(); server.server_close(); thread.join()
+
     def test_interrupted_access_change_requires_explicit_recovery(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); config=root/'app.json'; profile=root/'profile.json'

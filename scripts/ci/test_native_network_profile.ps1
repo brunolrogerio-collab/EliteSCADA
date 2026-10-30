@@ -3,7 +3,7 @@ $root=Join-Path ([IO.Path]::GetTempPath()) ('scadivo-native-network-test-'+[Guid
 [void][IO.Directory]::CreateDirectory($root)
 function Get-Service { param($Name,$ErrorAction) [pscustomobject]@{Status='Running'} }
 function Restart-Service { param($Name,$ErrorAction) $global:NativeRestartCount++ }
-function Invoke-WebRequest { param($Uri,[switch]$UseBasicParsing,$TimeoutSec,$MaximumRedirection) if ($global:NativeRestartCount -eq 1 -and $global:NativeForceFailure) { throw 'simulated failure' }; [pscustomobject]@{StatusCode=200} }
+function Invoke-WebRequest { param($Uri,[switch]$UseBasicParsing,$TimeoutSec,$MaximumRedirection) if ($global:NativeRestartCount -eq 1 -and $global:NativeForceFailure) { throw 'simulated failure' }; [pscustomobject]@{StatusCode=200;Content='{"status":"ok","service":"scada-api"}'} }
 function Start-Sleep { param($Seconds) }
 try {
  $config=Join-Path $root 'appsettings.json'; $profile=Join-Path $root 'profile.json'

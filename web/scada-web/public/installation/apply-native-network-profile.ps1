@@ -12,7 +12,8 @@ function Wait-NativeHealth([string]$Url) {
     for ($attempt=0; $attempt -lt 30; $attempt++) {
         try {
             $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2 -MaximumRedirection 0
-            if ($response.StatusCode -eq 200) { return }
+            $body=$response.Content | ConvertFrom-Json
+            if ($response.StatusCode -eq 200 -and $body.status -eq 'ok' -and $body.service -eq 'scada-api') { return }
         } catch { }
         Start-Sleep -Seconds 1
     }

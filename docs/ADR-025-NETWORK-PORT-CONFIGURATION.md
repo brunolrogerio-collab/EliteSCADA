@@ -154,3 +154,7 @@ Padrões de acesso aprovados para novas instalações: Web 18080, API separada 1
 O núcleo `native_database_port.py` aceita plataforma Windows com ações SCM limitadas a start/stop/restart e nomes de serviço restritos. `apply-native-database-port.ps1` segura o mesmo lock exclusivo do adaptador Web e invoca o núcleo Python com perfil administrativo. Python é um pré-requisito deste candidato administrativo e precisa ser provisionado/validado pelo perfil de distribuição; não presumir sua presença no cliente final. O wrapper e núcleo ficam juntos no payload administrativo protegido.
 
 Validação atual: parser PowerShell e testes simulados do núcleo/ações Windows passaram; serviço SCM/PostgreSQL real e execução completa do wrapper ainda pendentes. Não ligar à UI antes de validar ACLs dos backups no Windows, recuperação, configuração efetiva e readiness da aplicação. O mecanismo Linux de modo 0600 não prova proteção de ACL Windows.
+
+### Espera SCM no coordenador PostgreSQL Windows
+
+Ações Windows agora aguardam o estado SCM esperado por até 30 segundos: Stopped após stop, Running após start/restart. O timeout do processo é 45 segundos. A espera SCM não substitui as consultas SQL autenticadas; ambas precisam passar antes da próxima etapa. Teste do fluxo completo simulado foi parametrizado para Linux/Windows e cobre a mesma ordem, prontidão transitória, timeout, identidade divergente e restauração. Serviços reais continuam pendentes.

@@ -19,7 +19,9 @@ def control_service(platform, action, name):
     elif platform == 'windows':
         # Name is restricted above; no credentials or arbitrary commands allowed.
         verb = {'stop':'Stop-Service', 'start':'Start-Service', 'restart':'Restart-Service'}[action]
-        script = f"$ErrorActionPreference='Stop'; {verb} -Name '{name}' -ErrorAction Stop"
+        state = 'Stopped' if action == 'stop' else 'Running'
+        script = (f"$ErrorActionPreference='Stop'; {verb} -Name '{name}' -ErrorAction Stop; "
+                  f"(Get-Service -Name '{name}').WaitForStatus('{state}', [TimeSpan]::FromSeconds(30))")
         command = ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script]
     else:
         raise ValueError('Unsupported platform')

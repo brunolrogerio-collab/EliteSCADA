@@ -21,6 +21,7 @@ class NativeDatabasePortTests(unittest.TestCase):
             arguments = command.call_args.args[0]
             self.assertEqual(arguments[:3], ['powershell.exe', '-NoProfile', '-NonInteractive'])
             self.assertIn("Restart-Service -Name 'scadivo-db'", arguments[-1])
+            self.assertIn("WaitForStatus('Running'", arguments[-1])
             command.reset_mock()
             with self.assertRaises(ValueError): module.control_service('windows', 'restart', "bad'; command")
             with self.assertRaises(ValueError): module.control_service('windows', 'delete', 'scadivo-db')
@@ -38,20 +39,33 @@ class NativeDatabasePortTests(unittest.TestCase):
                 operation.assert_not_called()
             self.assertEqual(config.read_text(), '{}')
 
+    def test_windows_plan_apply_and_recovery_preserve_files_and_order(self):
+        self._exercise_flow('windows')
+
     def test_plan_apply_and_recovery_preserve_files_and_order(self):
+        self._exercise_flow('linux')
+
+    def _exercise_flow(self, platform):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             app, pg, topology, psql, profile = [root / name for name in ('app.json','postgresql.conf','topology.json','psql','profile.json')]
             original = b'{"secret":"keep-private"}'
             app.write_bytes(original); pg.write_bytes(b'port = 5432\n'); psql.touch()
             topology.write_text(json.dumps({'schemaVersion':1,'active':{'mode':'LocalManaged'},'pending':None}))
-            profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':'linux','topologyFile':str(topology),'configurationFile':str(app),'serviceName':'scadivo.service','database':{'serviceName':'postgresql.service','configurationFile':str(pg),'psqlExecutable':str(psql),'currentPort':5432,'username':'test','databaseName':'plant'}}))
+            profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':platform,'topologyFile':str(topology),'configurationFile':str(app),'serviceName':'scadivo.service','database':{'serviceName':'postgresql.service','configurationFile':str(pg),'psqlExecutable':str(psql),'currentPort':5432,'username':'test','databaseName':'plant'}}))
             with socket.socket() as listener:
                 listener.bind(('127.0.0.1',0)); port=listener.getsockname()[1]
             actions=[]; fail=False; transient=0; timeout=False; wrong_identity=False
             def command(args, **kwargs):
                 if args[0]=='systemctl':
                     actions.append(args[1:]); return subprocess.CompletedProcess(args,0,'','')
+                if args[0]=='powershell.exe':
+                    script=args[-1]
+                    action='restart' if 'Restart-Service' in script else 'stop' if 'Stop-Service' in script else 'start'
+                    name='postgresql.service' if 'postgresql.service' in script else 'scadivo.service'
+                    actions.append([action,name])
+                    self.assertIn('WaitForStatus',script)
+                    return subprocess.CompletedProcess(args,0,'','')
                 query=args[-1]; at_port=int(args[args.index('-p')+1])
                 nonlocal transient
                 if at_port == port and transient:

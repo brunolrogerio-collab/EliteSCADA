@@ -15,6 +15,26 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 class NativeDatabasePortTests(unittest.TestCase):
+    def test_readiness_retries_startup_but_rejects_wrong_database(self):
+        with patch.object(module.time, 'sleep') as sleep:
+            read = unittest.mock.Mock(side_effect=[subprocess.TimeoutExpired('psql', 15), ['plant', '15432']])
+            module.wait_database_identity(read, 'plant', 15432)
+            self.assertEqual(read.call_count, 2)
+            sleep.assert_called_once_with(1)
+            sleep.reset_mock()
+            read = unittest.mock.Mock(return_value=['other', '15432'])
+            with self.assertRaisesRegex(RuntimeError, 'identity'):
+                module.wait_database_identity(read, 'plant', 15432)
+            read.assert_called_once()
+            sleep.assert_not_called()
+
+    def test_readiness_timeout_is_bounded(self):
+        read = unittest.mock.Mock(side_effect=OSError('unavailable'))
+        with patch.object(module.time, 'monotonic', side_effect=[0, 61]), patch.object(module.time, 'sleep') as sleep:
+            with self.assertRaisesRegex(RuntimeError, 'journal retained'):
+                module.wait_database_identity(read, 'plant', 15432)
+            sleep.assert_not_called()
+
     def test_windows_service_actions_are_bounded(self):
         with patch.object(module.subprocess, 'run') as command:
             module.control_service('windows', 'restart', 'scadivo-db')
@@ -55,7 +75,7 @@ class NativeDatabasePortTests(unittest.TestCase):
             profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':platform,'topologyFile':str(topology),'configurationFile':str(app),'serviceName':'scadivo.service','database':{'serviceName':'postgresql.service','configurationFile':str(pg),'psqlExecutable':str(psql),'currentPort':5432,'username':'test','databaseName':'plant'}}))
             with socket.socket() as listener:
                 listener.bind(('127.0.0.1',0)); port=listener.getsockname()[1]
-            actions=[]; fail=False; transient=0; timeout=False; wrong_identity=False; interrupted=False
+            actions=[]; fail=False; transient=0; recovery_transient=0; timeout=False; wrong_identity=False; interrupted=False
             def command(args, **kwargs):
                 if interrupted and args[0] in ('systemctl', 'powershell.exe'):
                     raise KeyboardInterrupt('simulated process interruption')
@@ -69,7 +89,10 @@ class NativeDatabasePortTests(unittest.TestCase):
                     self.assertIn('WaitForStatus',script)
                     return subprocess.CompletedProcess(args,0,'','')
                 query=args[-1]; at_port=int(args[args.index('-p')+1])
-                nonlocal transient
+                nonlocal transient, recovery_transient
+                if query == 'SELECT current_database(); SHOW port;' and recovery_transient:
+                    recovery_transient -= 1
+                    raise subprocess.TimeoutExpired('psql', 15)
                 if at_port == port and transient:
                     transient -= 1
                     raise subprocess.CalledProcessError(1, ['psql'])
@@ -130,7 +153,9 @@ class NativeDatabasePortTests(unittest.TestCase):
                 self.assertEqual(actions,before)
                 self.assertTrue(pending.exists())
                 pending.write_text(json.dumps(recovery))
+                recovery_transient=2
                 module.recover_locked(profile)
+                self.assertEqual(recovery_transient,0)
                 self.assertFalse(pending.exists())
                 self.assertEqual(app.read_bytes(),original)
                 self.assertEqual(pg.read_bytes(),b'port = 5432\n')

@@ -9,13 +9,29 @@ import time
 import uuid
 
 
+def wait_database_identity(read_identity, database_name, port):
+    """Retry startup failures, but reject a responding unexpected database immediately."""
+    deadline = time.monotonic() + 60
+    while True:
+        try:
+            identity = read_identity()
+        except (subprocess.SubprocessError, OSError):
+            if time.monotonic() >= deadline:
+                raise RuntimeError('Database readiness timed out; journal retained') from None
+            time.sleep(1)
+            continue
+        if identity != [database_name, str(port)]:
+            raise RuntimeError('Database identity or effective port mismatch; journal retained')
+        return
+
+
 def recover_locked(profile_path):
     """Caller must hold the same installation network lock as execute_locked."""
     profile = json.loads(Path(profile_path).read_text())
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
         raise ValueError('Registered native profile required')
     topology = json.loads(Path(profile['topologyFile']).read_text())
-    if topology.get('active', {}).get('mode') != 'LocalManaged' or topology.get('pending') is not None:
+    if topology.get('schemaVersion') != 1 or topology.get('active', {}).get('mode') != 'LocalManaged' or topology.get('pending') is not None:
         raise ValueError('Idle local topology required for recovery')
     app = Path(profile['configurationFile']).resolve(strict=True)
     pg = Path(profile['database']['configurationFile']).resolve(strict=True)
@@ -40,12 +56,13 @@ def recover_locked(profile_path):
     for target, content in restored:
         target.write_bytes(content)
     control_service(profile['platform'], 'restart', db['serviceName'])
-    result = subprocess.run([str(psql), '-X', '-w', '-h', '127.0.0.1', '-p', str(record['oldPort']),
+    def read_identity():
+        result = subprocess.run([str(psql), '-X', '-w', '-h', '127.0.0.1', '-p', str(record['oldPort']),
                              '-U', db['username'], '-d', db['databaseName'], '-At', '-c',
                              'SELECT current_database(); SHOW port;'],
                             check=True, capture_output=True, text=True, timeout=15)
-    if result.stdout.strip().splitlines() != [db['databaseName'], str(record['oldPort'])]:
-        raise RuntimeError('Recovered database identity or port differs; journal retained')
+        return result.stdout.strip().splitlines()
+    wait_database_identity(read_identity, db['databaseName'], record['oldPort'])
     control_service(profile['platform'], 'start', profile['serviceName'])
     journal.unlink()
     return 'Previous database configuration restored; application readiness still requires validation'
@@ -120,19 +137,9 @@ def execute_locked(profile_path, port=None, apply=False):
         control_service(profile['platform'], action, name)
 
     def wait_database(at_port):
-        deadline = time.monotonic() + 60
-        while True:
-            try:
-                actual_port = sql(at_port, 'SHOW port')
-                actual_database = sql(at_port, 'SELECT current_database()')
-            except (subprocess.SubprocessError, OSError):
-                if time.monotonic() >= deadline:
-                    raise RuntimeError('Database readiness timed out') from None
-                time.sleep(1)
-                continue
-            if actual_port != str(at_port) or actual_database != db['databaseName']:
-                raise RuntimeError('Database identity or effective port mismatch')
-            return
+        wait_database_identity(
+            lambda: [sql(at_port, 'SELECT current_database()'), sql(at_port, 'SHOW port')],
+            db['databaseName'], at_port)
 
     if Path(sql(old_port, 'SHOW config_file')).resolve() != pg_path or sql(old_port, 'SHOW port') != str(old_port):
         raise ValueError('PostgreSQL effective configuration differs from registered profile')

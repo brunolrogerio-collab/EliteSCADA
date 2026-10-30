@@ -57,6 +57,8 @@ def recover_locked(profile_path):
     app = Path(profile['configurationFile']).resolve(strict=True)
     ensure_no_other_recovery(app, 'database')
     pg = Path(profile['database']['configurationFile']).resolve(strict=True)
+    if app == pg or profile['serviceName'] == profile['database']['serviceName']:
+        raise ValueError('Distinct application and database files and services required')
     journal = app.with_name(app.name + '.database-port-pending.json')
     record = json.loads(journal.read_text())
     if record.get('schema') != 'scadivo-database-port-recovery-v1' or not isinstance(record.get('oldPort'), int) or not 1 <= record['oldPort'] <= 65535:
@@ -140,6 +142,8 @@ def execute_locked(profile_path, port=None, apply=False):
     app_path = Path(profile['configurationFile']).resolve(strict=True)
     ensure_no_other_recovery(app_path, 'database')
     pg_path = Path(db['configurationFile']).resolve(strict=True)
+    if app_path == pg_path:
+        raise ValueError('Distinct application and database configuration files required')
     psql = Path(db['psqlExecutable']).resolve(strict=True)
     journal = app_path.with_name(app_path.name + '.database-port-pending.json')
     if journal.exists():

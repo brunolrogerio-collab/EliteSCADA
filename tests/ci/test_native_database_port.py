@@ -15,6 +15,21 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 class NativeDatabasePortTests(unittest.TestCase):
+    def test_recovery_rejects_aliased_services_and_configuration_before_actions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); app=root/'app.json'; pg=root/'pg.conf'; topology=root/'topology.json'; profile=root/'profile.json'
+            app.write_text('{}'); pg.write_text('port=15432')
+            topology.write_text(json.dumps({'schemaVersion':1,'active':{'mode':'LocalManaged'},'pending':None}))
+            for same_file,same_service in ((True,False),(False,True)):
+                profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':'windows',
+                    'topologyFile':str(topology),'configurationFile':str(app),'serviceName':'api',
+                    'database':{'configurationFile':str(app if same_file else pg),'serviceName':'api' if same_service else 'database'}}))
+                with patch.object(module,'control_service') as service:
+                    with self.assertRaisesRegex(ValueError,'Distinct'): module.recover_locked(profile)
+                    service.assert_not_called()
+                self.assertEqual(app.read_text(),'{}')
+                self.assertEqual(pg.read_text(),'port=15432')
+
     def test_readiness_retries_startup_but_rejects_wrong_database(self):
         with patch.object(module.time, 'sleep') as sleep:
             read = unittest.mock.Mock(side_effect=[subprocess.TimeoutExpired('psql', 15), ['plant', '15432']])

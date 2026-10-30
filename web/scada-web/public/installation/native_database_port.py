@@ -7,6 +7,15 @@ import socket
 import subprocess
 import time
 import uuid
+import importlib.util
+
+
+def authenticated_readiness(application):
+    config=json.loads(Path(application).read_text(encoding='utf-8-sig'))
+    origin=config['Kestrel']['Endpoints']['Api']['Url']
+    spec=importlib.util.spec_from_file_location('native_authenticated_postflight',Path(__file__).with_name('verify_native_readiness.py'))
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    return module.verify(origin,os.environ.get('SCADIVO_INSTALLATION_BEARER',''))
 
 
 def ensure_no_other_recovery(config, allowed=None):
@@ -21,13 +30,14 @@ def main():
     parser.add_argument('--database-port', type=int)
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--recover', action='store_true')
+    parser.add_argument('--verify-authenticated', action='store_true')
     args = parser.parse_args()
     if args.recover and (args.apply or args.database_port is not None):
         parser.error('Recovery cannot be combined with a port change')
     profile = json.loads(Path(args.profile).read_text())
     if profile.get('platform') != 'linux' or os.name != 'posix':
         raise ValueError('Use the Windows administrative wrapper on Windows')
-    print(execute(args.profile, args.database_port, args.apply, args.recover))
+    print(execute(args.profile, args.database_port, args.apply, args.recover,args.verify_authenticated))
 
 
 def wait_database_identity(read_identity, database_name, port):
@@ -46,9 +56,11 @@ def wait_database_identity(read_identity, database_name, port):
         return
 
 
-def recover_locked(profile_path):
+def recover_locked(profile_path, verify_authenticated=False):
     """Caller must hold the same installation network lock as execute_locked."""
     profile = json.loads(Path(profile_path).read_text())
+    if verify_authenticated and not os.environ.get('SCADIVO_INSTALLATION_BEARER'):
+        raise ValueError('Temporary administrator session required before recovery')
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
         raise ValueError('Registered native profile required')
     topology = json.loads(Path(profile['topologyFile']).read_text())
@@ -90,8 +102,9 @@ def recover_locked(profile_path):
         return result.stdout.strip().splitlines()
     wait_database_identity(read_identity, db['databaseName'], record['oldPort'])
     control_service(profile['platform'], 'start', profile['serviceName'])
+    if verify_authenticated: authenticated_readiness(app)
     journal.unlink()
-    return 'Previous database configuration restored; application readiness still requires validation'
+    return 'Previous database configuration restored; authenticated readiness verified' if verify_authenticated else 'Previous database configuration restored; application readiness still requires validation'
 
 
 def control_service(platform, action, name):
@@ -113,7 +126,7 @@ def control_service(platform, action, name):
     subprocess.run(command, check=True, capture_output=True, timeout=45)
 
 
-def execute(profile_path, port=None, apply=False, recover=False):
+def execute(profile_path, port=None, apply=False, recover=False, verify_authenticated=False):
     # Linux advisory lock is released by the kernel after process termination.
     # All native administrative operations for this installation must share it.
     import fcntl
@@ -123,13 +136,17 @@ def execute(profile_path, port=None, apply=False, recover=False):
     descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
     try:
         fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if verify_authenticated:
+            return recover_locked(profile_path,True) if recover else execute_locked(profile_path,port,apply,True)
         return recover_locked(profile_path) if recover else execute_locked(profile_path, port, apply)
     finally:
         os.close(descriptor)
 
 
-def execute_locked(profile_path, port=None, apply=False):
+def execute_locked(profile_path, port=None, apply=False, verify_authenticated=False):
     profile = json.loads(Path(profile_path).read_text())
+    if verify_authenticated and not os.environ.get('SCADIVO_INSTALLATION_BEARER'):
+        raise ValueError('Temporary administrator session required before a change')
     if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('linux', 'windows'):
         raise ValueError('Registered native profile required')
     topology = json.loads(Path(profile['topologyFile']).read_text())
@@ -179,6 +196,7 @@ def execute_locked(profile_path, port=None, apply=False):
     if sql(old_port, 'SELECT current_database()') != db['databaseName']:
         raise ValueError('Database identity differs from profile')
     if port == old_port:
+        if verify_authenticated: authenticated_readiness(app_path)
         return 'No change required'
     with socket.socket() as probe:
         probe.bind(('0.0.0.0', port))
@@ -235,8 +253,9 @@ def execute_locked(profile_path, port=None, apply=False):
         service('restart', db_service)
         wait_database(port)
         service('start', api_service)
+        if verify_authenticated: authenticated_readiness(app_path)
         journal.unlink()
-        return 'Database port applied; application readiness still requires validation'
+        return 'Database port applied; authenticated readiness verified' if verify_authenticated else 'Database port applied; application readiness still requires validation'
     except Exception:
         try:
             service('stop', api_service)
@@ -245,6 +264,7 @@ def execute_locked(profile_path, port=None, apply=False):
             service('restart', db_service)
             wait_database(old_port)
             service('start', api_service)
+            if verify_authenticated: authenticated_readiness(app_path)
         except Exception:
             raise RuntimeError('Recovery failed; use the protected configuration backups') from None
         journal.unlink()

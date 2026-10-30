@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory=$true)][string]$PythonExecutable,
     [ValidateRange(1,65535)][int]$DatabasePort,
     [switch]$Apply,
-    [switch]$Recover
+    [switch]$Recover,
+    [switch]$VerifyAuthenticated
 )
 $ErrorActionPreference='Stop'
 $resolvedProfile=(Resolve-Path -LiteralPath $ProfilePath).Path
@@ -32,10 +33,12 @@ try:
     module=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     port=None if sys.argv[3]=='current' else int(sys.argv[3])
-    print(module.recover_locked(sys.argv[2]) if sys.argv[4]=='recover' else module.execute_locked(sys.argv[2],port,sys.argv[4]=='apply'))
+    verify=sys.argv[5]=='verify'
+    print(module.recover_locked(sys.argv[2],verify) if sys.argv[4]=='recover' else module.execute_locked(sys.argv[2],port,sys.argv[4]=='apply',verify))
 except Exception:
     raise SystemExit('Native database operation failed. Check protected backups and service diagnostics.')
 '@
-    & $python -c $runner $module $resolvedProfile $portArgument $applyArgument
+    $verification='none'; if ($VerifyAuthenticated) { $verification='verify' }
+    & $python -c $runner $module $resolvedProfile $portArgument $applyArgument $verification
     if ($LASTEXITCODE -ne 0) { throw 'Native database operation failed; inspect protected backups before retrying.' }
 } finally { $lock.Dispose() }

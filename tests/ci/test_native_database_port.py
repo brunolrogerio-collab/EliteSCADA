@@ -15,6 +15,14 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 class NativeDatabasePortTests(unittest.TestCase):
+    def test_authenticated_change_requires_session_before_service_or_sql(self):
+        with tempfile.TemporaryDirectory() as directory:
+            profile=Path(directory)/'profile.json';profile.write_text('{}')
+            with patch.dict(module.os.environ,{},clear=True),patch.object(module.subprocess,'run') as process:
+                with self.assertRaisesRegex(ValueError,'session required'):module.execute_locked(profile,25432,True,True)
+                with self.assertRaisesRegex(ValueError,'session required'):module.recover_locked(profile,True)
+                process.assert_not_called()
+
     def test_recovery_rejects_aliased_services_and_configuration_before_actions(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); app=root/'app.json'; pg=root/'pg.conf'; topology=root/'topology.json'; profile=root/'profile.json'
@@ -192,11 +200,24 @@ class NativeDatabasePortTests(unittest.TestCase):
                 self.assertTrue(pending.exists())
                 pending.write_text(json.dumps(recovery))
                 recovery_transient=2
-                module.recover_locked(profile)
+                with patch.dict(module.os.environ,{'SCADIVO_INSTALLATION_BEARER':'fixture-only'}), patch.object(module,'authenticated_readiness',side_effect=lambda path:self.assertTrue(pending.exists())) as readiness:
+                    module.recover_locked(profile,True)
+                    readiness.assert_called_once_with(app.resolve())
                 self.assertEqual(recovery_transient,0)
                 self.assertFalse(pending.exists())
                 self.assertEqual(app.read_bytes(),original)
                 self.assertEqual(pg.read_bytes(),b'port = 5432\n')
+                actions.clear()
+                with patch.dict(module.os.environ,{'SCADIVO_INSTALLATION_BEARER':'fixture-only'}), patch.object(module,'authenticated_readiness',side_effect=[RuntimeError('API database unready'),None]) as readiness:
+                    with self.assertRaisesRegex(RuntimeError,'configuration restored'): module.execute_locked(profile,port,True,True)
+                    self.assertEqual(readiness.call_count,2)
+                self.assertEqual(app.read_bytes(),original)
+                self.assertFalse(pending.exists())
+                with patch.dict(module.os.environ,{'SCADIVO_INSTALLATION_BEARER':'fixture-only'}), patch.object(module,'authenticated_readiness',side_effect=lambda path:self.assertTrue(pending.exists())) as readiness:
+                    module.execute_locked(profile,port,True,True)
+                    readiness.assert_called_once_with(app.resolve())
+                self.assertFalse(pending.exists())
+                app.write_bytes(original);pg.write_bytes(b'port = 5432\n')
                 actions.clear(); topology_change=True
                 with self.assertRaisesRegex(RuntimeError,'database unchanged'):
                     module.execute_locked(profile,port,True)

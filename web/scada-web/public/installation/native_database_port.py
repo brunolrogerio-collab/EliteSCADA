@@ -9,6 +9,22 @@ import time
 import uuid
 
 
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description='Administrative local PostgreSQL port configuration')
+    parser.add_argument('--profile', required=True)
+    parser.add_argument('--database-port', type=int)
+    parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--recover', action='store_true')
+    args = parser.parse_args()
+    if args.recover and (args.apply or args.database_port is not None):
+        parser.error('Recovery cannot be combined with a port change')
+    profile = json.loads(Path(args.profile).read_text())
+    if profile.get('platform') != 'linux' or os.name != 'posix':
+        raise ValueError('Use the Windows administrative wrapper on Windows')
+    print(execute(args.profile, args.database_port, args.apply, args.recover))
+
+
 def wait_database_identity(read_identity, database_name, port):
     """Retry startup failures, but reject a responding unexpected database immediately."""
     deadline = time.monotonic() + 60
@@ -218,3 +234,10 @@ def execute_locked(profile_path, port=None, apply=False):
             raise RuntimeError('Recovery failed; use the protected configuration backups') from None
         journal.unlink()
         raise RuntimeError('Change failed; configuration restored and database connection verified') from None
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception:
+        raise SystemExit('Native database operation failed. Check protected backups and service diagnostics.')

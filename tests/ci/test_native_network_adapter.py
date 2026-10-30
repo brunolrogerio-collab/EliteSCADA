@@ -6,6 +6,7 @@ import tempfile
 import types
 import sys
 import unittest
+import subprocess
 from unittest.mock import patch
 
 MODULE = Path(__file__).resolve().parents[2] / 'web/scada-web/public/installation/apply-native-network-profile.py'
@@ -25,7 +26,7 @@ class NativeNetworkAdapterTests(unittest.TestCase):
             config = Path(directory) / 'app.json'
             config.write_text('{}')
             profile = Path(directory) / 'profile.json'
-            profile.write_text(json.dumps({'configurationFile': str(config)}))
+            profile.write_text(json.dumps({'platform':'linux','configurationFile': str(config)}))
             with config.with_name('app.json.network.lock').open('w') as lock:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 with patch.object(adapter, 'run_locked') as web, patch.object(database, 'execute_locked') as db:
@@ -33,6 +34,17 @@ class NativeNetworkAdapterTests(unittest.TestCase):
                     with self.assertRaises(BlockingIOError): database.execute(profile, 25432, True)
                     web.assert_not_called()
                     db.assert_not_called()
+                # Exercise the actual Bash/Python process boundary while the
+                # canonical installation lock is held by another process.
+                result=subprocess.run(['bash',str(db_path.with_name('apply-native-database-port.sh')),
+                    '--profile',str(profile),'--database-port','25432','--apply'],capture_output=True,text=True,timeout=10)
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn('Native database operation failed',result.stderr)
+                self.assertEqual(config.read_text(),'{}')
+                invalid=subprocess.run(['bash',str(db_path.with_name('apply-native-database-port.sh')),
+                    '--profile',str(profile),'--database-port','25432','--recover'],capture_output=True,text=True,timeout=10)
+                self.assertNotEqual(invalid.returncode,0)
+                self.assertIn('Recovery cannot be combined',invalid.stderr)
             with patch.object(adapter, 'run_locked', return_value='released'):
                 self.assertEqual(adapter.run(profile), 'released')
 

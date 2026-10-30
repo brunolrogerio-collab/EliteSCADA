@@ -73,3 +73,20 @@ test('native installation shows inventory without Docker apply controls', async 
   await expect(inventory.getByRole('row', { name: /Vídeo HLS.*Não informado.*Não informado/ })).toBeVisible();
   await expect(page.locator('.installation-network__apply')).toHaveCount(0);
 });
+
+
+test('database readiness distinguishes compatible connection, unready and failed session', async ({ page }) => {
+  await page.route('**/api/installation/network-profile', route => route.fulfill({ status: 404, body: '{}' }));
+  let status = 200;
+  await page.route('**/api/installation/database-readiness', route => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ ready: status === 200 }) }));
+  await page.goto(`${harnessPath}?locale=pt-BR`);
+  const panel = page.getByTestId('installation-database-readiness');
+  await panel.getByRole('button', { name: 'Verificar banco' }).click();
+  await expect(panel.getByRole('status')).toHaveText('Banco disponível e compatível.');
+  status = 503;
+  await panel.getByRole('button', { name: 'Verificar banco' }).click();
+  await expect(panel.getByRole('alert')).toContainText('O banco ainda não está pronto');
+  status = 401;
+  await panel.getByRole('button', { name: 'Verificar banco' }).click();
+  await expect(panel.getByRole('alert')).toContainText('Confira sua sessão');
+});

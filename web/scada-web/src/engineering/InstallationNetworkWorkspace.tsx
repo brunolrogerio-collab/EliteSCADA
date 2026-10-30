@@ -150,6 +150,7 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
   return <section className="installation-network" aria-label={t.title} data-testid="installation-network">
     <header className="installation-network__header"><div><span>{locale === 'pt-BR' ? 'INSTALAÇÃO' : locale === 'es' ? 'INSTALACIÓN' : 'INSTALLATION'}</span><h2>{t.title}</h2><p>{t.intro}</p></div><button type="button" className="secondary" onClick={() => void loadProfile()}>{t.retry}</button></header>
     <ServiceEndpointInventory locale={locale}/>
+    <DatabaseReadinessCheck locale={locale}/>
     {failure === 'unsupported' && <p className="installation-network__notice" role="status">{t.unavailable}</p>}
     {failure === 'failed' && <p className="installation-network__error" role="alert">{t.error} <button type="button" className="secondary" onClick={() => void loadProfile()}>{t.retry}</button></p>}
     {current && <>
@@ -235,5 +236,29 @@ function ServiceEndpointInventory({ locale }: { locale: EngineeringLocale }) {
     {state === 'failed' && <p role="alert">{t[3]}</p>}
     {state === 'ready' && <div className="installation-network__table-wrap"><table><thead><tr><th>{t[4]}</th><th>{t[5]}</th><th>{t[6]}</th></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row.service}-${index}`}><th>{names[row.service]?.[language] ?? row.service}</th><td>{row.host ?? t[2]}</td><td>{row.port ?? t[2]}</td></tr>)}</tbody></table></div>}
     <button type="button" className="secondary" disabled={state === 'loading'} onClick={() => void refresh()}>{t[7]}</button>
+  </div>;
+}
+
+function DatabaseReadinessCheck({ locale }: { locale: EngineeringLocale }) {
+  const t = {
+    'pt-BR': { title: 'Verificar o banco da aplicação', text: 'Confere a conexão e a compatibilidade do banco principal e do histórico configurados. Faça esta verificação após uma alteração. O resultado não valida drivers ou o funcionamento completo da aplicação.', button: 'Verificar banco', busy: 'Verificando banco…', ready: 'Banco disponível e compatível.', unavailable: 'O banco ainda não está pronto. Consulte Administração do banco para verificar conexão, operação pendente ou recuperação.', failed: 'Não foi possível verificar o banco. Confira sua sessão e a conexão com o servidor.' },
+    en: { title: 'Check application database', text: 'Checks the configured primary and Historian database connection and compatibility. Run after a change. This does not validate drivers or the complete application.', button: 'Check database', busy: 'Checking database…', ready: 'Database available and compatible.', unavailable: 'Database is not ready. Open database administration to check connection, pending operations or recovery.', failed: 'Could not check the database. Check your session and server connection.' },
+    es: { title: 'Verificar la base de la aplicación', text: 'Comprueba conexión y compatibilidad de las bases principal e histórica configuradas. Ejecute después de un cambio. No valida drivers ni toda la aplicación.', button: 'Verificar base', busy: 'Verificando base…', ready: 'Base disponible y compatible.', unavailable: 'La base aún no está lista. Consulte Administración de base para revisar conexión, operaciones pendientes o recuperación.', failed: 'No se pudo verificar la base. Compruebe su sesión y la conexión con el servidor.' }
+  }[locale];
+  const [state, setState] = useState<'idle' | 'busy' | 'ready' | 'unavailable' | 'failed'>('idle');
+  async function check() {
+    setState('busy');
+    try {
+      const response = await fetch(`${API}/api/installation/database-readiness`, { credentials: 'same-origin', headers: { accept: 'application/json' } });
+      if (response.status !== 200 && response.status !== 503) throw new Error('Readiness unavailable');
+      const result = await response.json() as { ready?: unknown };
+      if (typeof result.ready !== 'boolean') throw new Error('Invalid readiness');
+      setState(response.status === 200 && result.ready ? 'ready' : 'unavailable');
+    } catch { setState('failed'); }
+  }
+  return <div className="installation-network__current" data-testid="installation-database-readiness">
+    <h3>{t.title}</h3><p>{t.text}</p>
+    <button type="button" disabled={state === 'busy'} onClick={() => void check()}>{state === 'busy' ? t.busy : t.button}</button>
+    {state !== 'idle' && state !== 'busy' && <p role={state === 'ready' ? 'status' : 'alert'}>{t[state]}</p>}
   </div>;
 }

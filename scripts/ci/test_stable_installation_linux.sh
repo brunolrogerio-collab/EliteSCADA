@@ -7,6 +7,7 @@ python3 -m unittest discover -s "$repo_root/tests/ci" -p test_native_database_po
 python3 -m unittest discover -s "$repo_root/tests/ci" -p test_native_media_ports.py
 python3 -m unittest discover -s "$repo_root/tests/ci" -p test_native_operation_coordination.py
 python3 -m unittest discover -s "$repo_root/tests/ci" -p test_native_profile_provisioning.py
+python3 -m unittest discover -s "$repo_root/tests/ci" -p test_native_authenticated_readiness.py
 python3 -m unittest discover -s "$repo_root/tests/ci" -p test_native_postgresql_integration.py
 nonce=$(python3 -c 'import secrets; print(secrets.token_hex(6))')
 run_tag="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$nonce"

@@ -48,4 +48,8 @@ Se a recuperação falhar, o registro permanece para diagnóstico. Não o apague
 
 ## Conferência final
 
+O componente `verify_native_readiness.py --origin http://127.0.0.1:PORTA_API` consulta o endpoint canônico `/api/installation/database-readiness`. Recebe somente uma credencial Bearer de sessão administrativa já existente pela variável temporária `SCADIVO_INSTALLATION_BEARER`; não cria login, não amplia permissões e não renova a sessão. O executor deve fornecê-la por seu caminho protegido, sem incluí-la no comando ou gravá-la em arquivo. Remova a variável ao terminar. Não extraia credenciais do navegador nem desative autenticação para usar o verificador; sem um caminho protegido de sessão, faça a conferência pela interface autenticada.
+
+O componente aceita somente origem local, ignora proxies, não segue redirecionamentos e falha se a sessão for negada, o contrato da resposta estiver incorreto ou a prontidão não chegar dentro do prazo. Isso verifica banco/topologia pela API; não comprova Runtime, comandos ou reprodução de mídia. Sua ligação automática aos adaptadores ainda está pendente neste candidato.
+
 Abra a interface no novo endereço e verifique o banco em **Instalação > Rede e serviços > Verificar banco**. Confira também o Runtime e a reprodução de mídia usados pela aplicação. Um serviço reiniciado, uma resposta `/health` ou o listener HLS aberto não comprovam todo esse funcionamento. Os adaptadores ainda não integram automaticamente essa conferência autenticada completa.

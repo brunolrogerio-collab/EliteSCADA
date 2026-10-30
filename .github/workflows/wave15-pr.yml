@@ -880,7 +880,7 @@ jobs:
       - name: Exercise database and media adapters with Windows file permissions
         shell: powershell
         run: |
-          python -m unittest tests.ci.test_native_database_port tests.ci.test_native_media_ports tests.ci.test_native_operation_coordination -v
+          python -m unittest tests.ci.test_native_database_port tests.ci.test_native_media_ports tests.ci.test_native_operation_coordination tests.ci.test_native_authenticated_readiness -v
           if ($LASTEXITCODE -ne 0) { throw 'Native database/media adapter evidence failed.' }
       - name: Exercise protected profiles, adapters and real temporary SCM service
         shell: powershell

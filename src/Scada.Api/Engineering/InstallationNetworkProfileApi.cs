@@ -26,6 +26,7 @@ public static class InstallationNetworkProfileApi
 {
     public static void MapInstallationNetworkProfileEndpoints(this WebApplication app)
     {
+        app.MapInstallationServiceInventoryEndpoints();
         app.MapGet("/api/installation/network-profile", async (
             HttpContext context,
             ScadaRuntimeFacade runtime,

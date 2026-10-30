@@ -66,6 +66,11 @@ class NativePostgreSqlPortIntegrationTests(unittest.TestCase):
                 adapter.execute(profile, new_port, True)
                 self.assertEqual(api_actions, ['stop', 'start'])
                 self.assertEqual(json.loads(app.read_text())['DatabaseTopology']['LocalManagedPort'],new_port)
+                # Reuse the unchanged installation profile after a successful change.
+                # The effective persisted application setting now owns the port.
+                self.assertEqual(adapter.execute(profile), 'No change required')
+                self.assertEqual(adapter.execute(profile, new_port, True), 'No change required')
+                self.assertEqual(api_actions, ['stop', 'start'])
                 # Restore through the recovery path using the retained real backups.
                 backups = sorted(root.glob('app.json.network-backup-*'))
                 pg_backups = sorted(data.glob('postgresql.conf.network-backup-*'))

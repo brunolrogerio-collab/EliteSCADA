@@ -138,6 +138,10 @@ class NativeDatabasePortTests(unittest.TestCase):
                 self.assertEqual(json.loads(app.read_text())['DatabaseTopology']['LocalManagedPort'],port)
                 self.assertEqual(json.loads(app.read_text())['secret'],'keep-private')
                 self.assertEqual(actions,[['stop','scadivo.service'],['restart','postgresql.service'],['start','scadivo.service']])
+                before=list(actions)
+                self.assertEqual(module.execute_locked(profile),'No change required')
+                self.assertEqual(module.execute_locked(profile,port,True),'No change required')
+                self.assertEqual(actions,before)
                 app.write_bytes(original); pg.write_bytes(b'port = 5432\n'); actions.clear(); fail=True
                 with self.assertRaisesRegex(RuntimeError,'configuration restored'):
                     module.execute_locked(profile,port,True)

@@ -146,7 +146,11 @@ def execute_locked(profile_path, port=None, apply=False):
         raise RuntimeError('An interrupted database port operation requires recovery before another change')
     app_bytes, pg_bytes = app_path.read_bytes(), pg_path.read_bytes()
     app = json.loads(app_bytes.decode('utf-8-sig'))
-    old_port = int(db['currentPort'])
+    # The profile records the installation's initial port. Subsequent successful
+    # operations persist the effective override consumed by the product resolver.
+    old_port = app.get('DatabaseTopology', {}).get('LocalManagedPort', db['currentPort'])
+    if not isinstance(old_port, int) or isinstance(old_port, bool) or not 1 <= old_port <= 65535:
+        raise ValueError('Invalid persisted local database port')
     port = old_port if port is None else int(port)
     if not 1 <= port <= 65535:
         raise ValueError('Invalid port')

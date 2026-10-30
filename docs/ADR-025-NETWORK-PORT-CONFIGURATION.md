@@ -223,3 +223,9 @@ O ensaio revelou preflight recusando uma porta recém-liberada por TIME_WAIT. Aj
 ### Reprodução HLS com vídeo autorizado — 30/10/2026
 
 Teste opcional SCADIVO_MEDIA_TEST_VIDEO usa arquivo local fornecido pelo proprietário, montado read-only em laboratório descartável. FFmpeg publica em RTSP no MediaMTX real; o teste solicita playlists/recursos HLS com cookies e decodifica 1 segundo via FFmpeg antes/depois da mudança de portas e após rollback. Execução local passou (1 teste de integração, ~16 segundos). Não é teste visual de navegador nem relay autenticado do produto; API lifecycle permanece simulado. Nenhum vídeo foi versionado/enviado ao GitHub, original não alterado, nenhum host port publicado. FFmpeg instalado somente no contêiner descartável. A primeira configuração do harness duplicava chaves RTSP/paths e foi corrigida antes da execução válida.
+
+### Relay do produto — isolamento da causa e evidência local
+
+Com câmera/gateway na mesma rede Docker descartável, 21/21 testes RuntimeMediaRelayTests/RuntimeMediaGatewayLabTests passaram. O gateway recebeu o RTSP pelo IP privado do contêiner, enquanto .NET no host acessou somente controle/HLS publicados em loopback. Confirmados provisionamento idempotente, playlists reescritas, tíquetes opacos limitados ao escopo/revisão, segmento fMP4 e inicialização reais. O HTTP 500 anterior desapareceu ao retirar o caminho RTSP pelo endereço de rede Windows: evidência de problema na topologia do laboratório, sem alteração do produto.
+
+Procedimento em scripts/ci/test_runtime_media_relay_container.ps1 (parser passou; comandos equivalentes executados no ensaio). Câmera sintética, não vídeo do proprietário nesta rodada. Não equivale a sessão HTTP autenticada completa nem exibição no navegador. Contêineres/rede exclusivos removidos em finally; Preview preservado.

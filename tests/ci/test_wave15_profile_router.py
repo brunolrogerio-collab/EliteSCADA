@@ -365,17 +365,19 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertIn("router_mode='dispatch'", workflow)
         self.assertIn('--mode "$router_mode"', workflow)
 
-    def test_generic_dotnet_ci_excludes_only_s6_lab_test_and_keeps_l3_gate(self):
+    def test_generic_dotnet_ci_quarantines_ha_d2_but_keeps_dedicated_gates(self):
         dotnet_workflow = (ROOT / ".github/workflows/dotnet-ci.yml").read_text(encoding="utf-8")
         generic_test_step = next(
             line.strip()
             for line in dotnet_workflow.splitlines()
             if line.strip().startswith("run: dotnet test ScadaPlatform.sln")
         )
-        self.assertIn(
-            '--filter "FullyQualifiedName!~L3DriverInteractionS6Tests"',
-            generic_test_step,
-        )
+        self.assertIn('FullyQualifiedName!~L3DriverInteractionS6Tests', generic_test_step)
+        self.assertIn('FullyQualifiedName!~RealApiProcesses_HaD2', generic_test_step)
+        self.assertIn('FullyQualifiedName!~RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation', generic_test_step)
+
+        wave15_workflow = (ROOT / ".github/workflows/wave15-pr.yml").read_text(encoding="utf-8")
+        self.assertIn('name: Run explicit HA-D2 and session-lease evidence', wave15_workflow)
 
         l3_workflow = (ROOT / ".github/workflows/l3-seven-driver-lab.yml").read_text(encoding="utf-8")
         self.assertIn(

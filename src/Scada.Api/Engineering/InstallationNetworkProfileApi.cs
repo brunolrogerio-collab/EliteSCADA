@@ -86,7 +86,7 @@ public static class InstallationNetworkProfileApi
                 HostMappingIndependentlyVerified: false);
     }
 
-    public sealed record NativeAccessProfile(string Platform, int WebPort, int ApiPort);
+    public sealed record NativeAccessProfile(string Platform, int WebPort, int ApiPort, bool AdministrativeProfileAvailable);
 
     public static NativeAccessProfile? ReadNative(IConfiguration configuration)
     {
@@ -96,7 +96,27 @@ public static class InstallationNetworkProfileApi
             !Uri.TryCreate(configuration["Kestrel:Endpoints:Api:Url"], UriKind.Absolute, out var api) ||
             web.Scheme is not ("http" or "https") || api.Scheme is not ("http" or "https") ||
             web.Port == api.Port || web.Port < 1 || api.Port < 1) return null;
-        return new(profile == "native-windows" ? "windows" : "linux", web.Port, api.Port);
+        var platform = profile == "native-windows" ? "windows" : "linux";
+        var available = false;
+        try
+        {
+            var path = configuration["InstallationNetwork:AdministrativeProfilePath"];
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+                var root = document.RootElement;
+                available = root.GetProperty("schema").GetString() == "scadivo-native-network-v1" &&
+                    root.GetProperty("platform").GetString() == platform &&
+                    root.GetProperty("endpointName").GetString() == "Web" &&
+                    root.GetProperty("apiEndpointName").GetString() == "Api" &&
+                    File.Exists(root.GetProperty("configurationFile").GetString());
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            available = false;
+        }
+        return new(platform, web.Port, api.Port, available);
     }
 
     private static int ReadPort(IConfiguration configuration, string key, int fallback)

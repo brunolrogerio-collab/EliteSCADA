@@ -197,3 +197,7 @@ A tentativa de laboratório Linux desta revisão falhou antes dos testes porque 
 Endpoint SystemAdmin `/api/installation/native-network-profile` aceita apenas perfil declarado native-windows/native-linux e listeners Kestrel Web/Api válidos/distintos. Retorna plataforma/portas, sem caminhos ou segredos. Painel nativo preenche os valores atuais, valida faixa/colisão e gera comando de prévia do adaptador da plataforma. O comando pressupõe pasta administrativa e `native-network-profile.json` fornecidos pela instalação; não pede ao usuário comum criar o perfil. Aplicação continua explícita pelo procedimento, não executada pelo navegador. Banco/mídia não entram nesse comando. Provisionamento final do perfil e Help completo continuam pendentes.
 
 Validação local: API 3/3, Chromium 4/4 e build Web passaram. Teste usa perfil simulado para UI; não equivale a instalação nativa completa.
+
+### Disponibilidade do perfil administrativo na UI
+
+O endpoint nativo agora informa AdministrativeProfileAvailable após conferir arquivo configurado em InstallationNetwork:AdministrativeProfilePath, schema/plataforma/nomes Web/Api e existência do arquivo de configuração referido. Não retorna esses caminhos. A UI só gera comando quando essa conferência básica passa; do contrário explica que a instalação ainda precisa fornecer o perfil. Isso não substitui preflight dos scripts, registro efetivo do serviço, ACLs ou homologação do executor. API 4/4 e Chromium 5/5 passaram, incluindo perfil ausente/malformado e comando vazio enquanto não provisionado.

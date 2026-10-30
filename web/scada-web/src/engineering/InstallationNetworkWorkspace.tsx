@@ -270,7 +270,7 @@ function NativeAccessPortPreparation({ locale }: { locale: EngineeringLocale }) 
     en: ['Native access ports', 'Web port', 'API port', 'Run from the administrative folder supplied by the installation, containing its profile and adapters. The command previews the plan; applying requires the Apply option described by the procedure. It does not change database or media.', 'Ports must be valid and distinct.', 'Could not retrieve the native profile.', 'Preview command'],
     es: ['Puertos de acceso nativos', 'Puerto Web', 'Puerto API', 'Ejecute desde la carpeta administrativa de la instalación, con perfil y adaptadores. El comando presenta el plan; aplicar requiere la opción Apply del procedimiento. No cambia base ni multimedia.', 'Los puertos deben ser válidos y distintos.', 'No se pudo consultar el perfil nativo.', 'Comando de vista previa']
   }[locale];
-  const [profile, setProfile] = useState<{ platform: 'windows' | 'linux'; webPort: number; apiPort: number } | null>(null);
+  const [profile, setProfile] = useState<{ platform: 'windows' | 'linux'; webPort: number; apiPort: number; administrativeProfileAvailable: boolean } | null>(null);
   const [failed, setFailed] = useState(false);
   const [web, setWeb] = useState('');
   const [api, setApi] = useState('');
@@ -291,13 +291,14 @@ function NativeAccessPortPreparation({ locale }: { locale: EngineeringLocale }) 
   if (failed) return <p role="alert">{t[5]}</p>;
   if (!profile) return null;
   const valid = [web, api].every(value => /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535) && Number(web) !== Number(api);
-  const command = !valid ? '' : profile.platform === 'windows'
+  const command = !valid || !profile.administrativeProfileAvailable ? '' : profile.platform === 'windows'
     ? `powershell -NoProfile -File ./apply-native-network-profile.ps1 -ProfilePath ./native-network-profile.json -WebPort ${Number(web)} -ApiPort ${Number(api)}`
     : `bash ./apply-native-network-profile.sh --profile ./native-network-profile.json --web-port ${Number(web)} --api-port ${Number(api)}`;
   return <div className="installation-network__form" data-testid="native-access-ports"><h3>{t[0]}</h3><p>{t[3]}</p>
     <label>{t[1]}<input type="number" min="1" max="65535" value={web} onChange={event => setWeb(event.target.value)}/></label>
     <label>{t[2]}<input type="number" min="1" max="65535" value={api} onChange={event => setApi(event.target.value)}/></label>
     {!valid && <p role="alert">{t[4]}</p>}
+    {!profile.administrativeProfileAvailable && <p role="status">{locale === 'pt-BR' ? 'O perfil administrativo ainda não foi fornecido pela instalação. A preparação do comando ficará disponível quando esse provisionamento for concluído.' : locale === 'es' ? 'La instalación aún no proporcionó el perfil administrativo. El comando estará disponible después del aprovisionamiento.' : 'The installation has not supplied its administrative profile. The command will be available after provisioning.'}</p>}
     <textarea aria-label={t[6]} value={command} readOnly rows={3}/>
   </div>;
 }

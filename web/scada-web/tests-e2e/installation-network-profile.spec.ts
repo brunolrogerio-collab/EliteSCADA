@@ -95,7 +95,7 @@ test('database readiness distinguishes compatible connection, unready and failed
 
 test('native access form loads current distinct ports and validates its plan', async ({ page }) => {
   await page.route('**/api/installation/network-profile', route => route.fulfill({ status: 404, body: '{}' }));
-  await page.route('**/api/installation/native-network-profile', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ platform:'linux', webPort:18080, apiPort:15120 }) }));
+  await page.route('**/api/installation/native-network-profile', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ platform:'linux', webPort:18080, apiPort:15120, administrativeProfileAvailable:true }) }));
   await page.goto(`${harnessPath}?locale=pt-BR`);
   const panel = page.getByTestId('native-access-ports');
   await expect(panel.getByLabel('Porta Web', { exact:true })).toHaveValue('18080');
@@ -104,5 +104,15 @@ test('native access form loads current distinct ports and validates its plan', a
   await expect(panel.locator('textarea')).toHaveValue(/--web-port 28080 --api-port 15120/);
   await panel.getByLabel('Porta API', { exact:true }).fill('28080');
   await expect(panel.getByRole('alert')).toContainText('válidas e diferentes');
+  await expect(panel.locator('textarea')).toHaveValue('');
+});
+
+
+test('native command waits for the provisioned administrative profile', async ({ page }) => {
+  await page.route('**/api/installation/network-profile', route => route.fulfill({ status:404, body:'{}' }));
+  await page.route('**/api/installation/native-network-profile', route => route.fulfill({ contentType:'application/json', body:JSON.stringify({ platform:'windows', webPort:18080, apiPort:15120, administrativeProfileAvailable:false }) }));
+  await page.goto(`${harnessPath}?locale=pt-BR`);
+  const panel = page.getByTestId('native-access-ports');
+  await expect(panel.getByRole('status')).toContainText('ainda não foi fornecido');
   await expect(panel.locator('textarea')).toHaveValue('');
 });

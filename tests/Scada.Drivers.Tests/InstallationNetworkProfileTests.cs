@@ -78,10 +78,35 @@ public sealed class InstallationNetworkProfileTests
         };
         IConfiguration Build() => new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var profile = Assert.IsType<InstallationNetworkProfileApi.NativeAccessProfile>(InstallationNetworkProfileApi.ReadNative(Build()));
+        Assert.False(profile.AdministrativeProfileAvailable);
         Assert.Equal(("windows", 18080, 15120), (profile.Platform, profile.WebPort, profile.ApiPort));
         settings["Kestrel:Endpoints:Api:Url"] = "http://127.0.0.1:18080";
         Assert.Null(InstallationNetworkProfileApi.ReadNative(Build()));
         settings["InstallationNetwork:Profile"] = "stable-docker";
         Assert.Null(InstallationNetworkProfileApi.ReadNative(Build()));
+    }
+
+    [Fact]
+    public void NativeProfile_RequiresMatchingAdministrativeArtifact()
+    {
+        var path = Path.GetTempFileName();
+        var config = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(new {
+                schema = "scadivo-native-network-v1", platform = "linux", endpointName = "Web", apiEndpointName = "Api", configurationFile = config
+            }));
+            var settings = new Dictionary<string, string?> {
+                ["InstallationNetwork:Profile"] = "native-linux",
+                ["InstallationNetwork:AdministrativeProfilePath"] = path,
+                ["Kestrel:Endpoints:Web:Url"] = "http://127.0.0.1:18080",
+                ["Kestrel:Endpoints:Api:Url"] = "http://127.0.0.1:15120"
+            };
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+            Assert.True(InstallationNetworkProfileApi.ReadNative(configuration)!.AdministrativeProfileAvailable);
+            File.WriteAllText(path, "{}");
+            Assert.False(InstallationNetworkProfileApi.ReadNative(configuration)!.AdministrativeProfileAvailable);
+        }
+        finally { File.Delete(path); File.Delete(config); }
     }
 }

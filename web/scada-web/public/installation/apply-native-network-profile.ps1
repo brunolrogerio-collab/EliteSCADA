@@ -3,9 +3,21 @@ param(
     [Parameter(Mandatory = $true)][string]$ProfilePath,
     [ValidateRange(1,65535)][int]$WebPort,
     [ValidateRange(1,65535)][int]$ApiPort,
-    [switch]$Apply
+    [switch]$Apply,
+    [switch]$Recover
 )
 $ErrorActionPreference = 'Stop'
+if ($Recover -and ($Apply -or $PSBoundParameters.ContainsKey('WebPort') -or $PSBoundParameters.ContainsKey('ApiPort'))) { throw 'Recovery cannot be combined with a port change.' }
+function Wait-NativeHealth([string]$Url) {
+    for ($attempt=0; $attempt -lt 30; $attempt++) {
+        try {
+            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2 -MaximumRedirection 0
+            if ($response.StatusCode -eq 200) { return }
+        } catch { }
+        Start-Sleep -Seconds 1
+    }
+    throw 'The service did not become healthy after the port change.'
+}
 # The installed host adapter owns this profile. It must identify the effective
 # appsettings file and endpoint, not a container profile or an arbitrary command.
 $profile = Get-Content -LiteralPath $ProfilePath -Raw | ConvertFrom-Json
@@ -19,6 +31,30 @@ $configPath = [IO.Path]::GetFullPath($profile.configurationFile)
 $networkLock = [IO.File]::Open("$configPath.network.lock", [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
 try {
 if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { throw 'Configuration file is missing.' }
+$journal="$configPath.access-port-pending.json"
+if ($Recover) {
+    $record=Get-Content -LiteralPath $journal -Raw | ConvertFrom-Json
+    if ($record.schema -ne 'scadivo-access-port-recovery-v1') { throw 'Invalid access port recovery record.' }
+    $restorePath=(Resolve-Path -LiteralPath $record.backup).Path
+    if ([IO.Path]::GetDirectoryName($restorePath) -ne [IO.Path]::GetDirectoryName($configPath) -or -not $restorePath.StartsWith("$configPath.network-backup-",[StringComparison]::OrdinalIgnoreCase)) { throw 'Backup is outside registered configuration directory.' }
+    $restoreBytes=[IO.File]::ReadAllBytes($restorePath)
+    $restoreConfig=[Text.Encoding]::UTF8.GetString($restoreBytes).TrimStart([char]0xfeff) | ConvertFrom-Json
+    $checks=@()
+    $names=@($profile.endpointName)
+    if ($profile.apiEndpointName) { $names += $profile.apiEndpointName }
+    foreach ($name in $names) {
+        $uri=$null
+        if (-not [Uri]::TryCreate([string]$restoreConfig.Kestrel.Endpoints.PSObject.Properties[$name].Value.Url,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -notin @('http','https') -or $uri.UserInfo -or $uri.Query -or $uri.Fragment -or $uri.AbsolutePath -ne '/') { throw 'Invalid backup listener.' }
+        $check=[UriBuilder]::new($uri); $check.Host='127.0.0.1'; $check.Path='health'; $checks += $check.Uri.AbsoluteUri
+    }
+    [IO.File]::WriteAllBytes($configPath,$restoreBytes)
+    Restart-Service -Name $profile.serviceName -ErrorAction Stop
+    foreach ($check in $checks) { Wait-NativeHealth $check }
+    Remove-Item -LiteralPath $journal
+    Write-Output 'Previous access configuration restored and health checks passed.'
+    return
+}
+if (Test-Path -LiteralPath $journal) { throw 'Interrupted access port operation requires recovery.' }
 $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
 $endpoint = $config.Kestrel.Endpoints.PSObject.Properties[$profile.endpointName]
 if ($null -eq $endpoint) { throw 'The registered Kestrel endpoint is missing.' }
@@ -68,16 +104,11 @@ if (-not $Apply) {
 }
 $backup = "$configPath.network-backup-$([Guid]::NewGuid().ToString('N'))"
 & (Join-Path $PSScriptRoot 'copy-native-protected-backup.ps1') -SourcePath $configPath -DestinationPath $backup
-function Wait-NativeHealth([string]$Url) {
-    for ($attempt=0; $attempt -lt 30; $attempt++) {
-        try {
-            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2 -MaximumRedirection 0
-            if ($response.StatusCode -eq 200) { return }
-        } catch { }
-        Start-Sleep -Seconds 1
-    }
-    throw 'The service did not become healthy after the port change.'
-}
+& (Join-Path $PSScriptRoot 'copy-native-protected-backup.ps1') -SourcePath $configPath -DestinationPath $journal -CreateEmpty
+$journalBytes=[Text.Encoding]::UTF8.GetBytes((@{schema='scadivo-access-port-recovery-v1';backup=$backup} | ConvertTo-Json))
+$journalStream=[IO.File]::Open($journal,[IO.FileMode]::Open,[IO.FileAccess]::Write,[IO.FileShare]::None)
+try { $journalStream.Write($journalBytes,0,$journalBytes.Length); $journalStream.Flush($true) } finally { $journalStream.Dispose() }
+
 try {
     $endpoint.Value.Url = $target.Uri.AbsoluteUri.TrimEnd('/')
     if ($apiEndpoint) { $apiEndpoint.Value.Url=$apiTarget.Uri.AbsoluteUri.TrimEnd('/') }
@@ -99,8 +130,10 @@ try {
     } catch {
         throw "Port change failed and automatic recovery failed. Restore the protected configuration backup: $backup"
     }
+    Remove-Item -LiteralPath $journal
     throw 'Port change failed. The previous configuration was restored and its health check passed.'
 }
+Remove-Item -LiteralPath $journal
 } finally {
     $networkLock.Dispose()
 }

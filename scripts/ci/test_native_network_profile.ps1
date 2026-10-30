@@ -62,7 +62,23 @@ try {
  $global:NativeForceFailure=$false; $global:NativeRestartCount=0; $failed=$false
  try { & $script -ProfilePath $profile -WebPort 28080 -ApiPort 28080 -Apply } catch { $failed=$true }
  if (-not $failed -or $global:NativeRestartCount -ne 0) { throw 'Listener collision was not rejected.' }
- 'PASS: defaults, plan-only, apply, secret preservation and recovery with simulated service/health.'
+ # Simulate a stopped administrative process with a persisted recovery record.
+ $backup=Join-Path $root 'appsettings.json.network-backup-interrupted'
+ & $copyHelper -SourcePath $config -DestinationPath $backup
+ $journal="$config.access-port-pending.json"
+ & $copyHelper -SourcePath $config -DestinationPath $journal -CreateEmpty
+ @{schema='scadivo-access-port-recovery-v1';backup=$backup} | ConvertTo-Json | Set-Content -LiteralPath $journal
+ [IO.File]::WriteAllText($config,'{}')
+ $global:NativeRestartCount=0; $failed=$false
+ try { & $script -ProfilePath $profile -WebPort 28080 -Apply } catch { $failed=$true }
+ if (-not $failed -or $global:NativeRestartCount -ne 0) { throw 'Pending recovery did not block a new change.' }
+ $global:NativeForceFailure=$true; $failed=$false
+ try { & $script -ProfilePath $profile -Recover } catch { $failed=$true }
+ if (-not $failed -or -not (Test-Path -LiteralPath $journal)) { throw 'Failed recovery lost its journal.' }
+ $global:NativeForceFailure=$false
+ & $script -ProfilePath $profile -Recover
+ if ((Test-Path -LiteralPath $journal) -or [IO.File]::ReadAllText($config) -ne $dual) { throw 'Explicit recovery failed.' }
+ 'PASS: defaults, plan-only, apply, protected backups/journals and explicit recovery with simulated service/health.'
 } finally {
  $resolved=[IO.Path]::GetFullPath($root)
  if (-not $resolved.StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()))) { throw 'Unsafe cleanup target' }

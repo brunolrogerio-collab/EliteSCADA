@@ -15,6 +15,38 @@ adapter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adapter)
 
 class NativeNetworkAdapterTests(unittest.TestCase):
+    def test_interrupted_access_change_requires_explicit_recovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); config=root/'app.json'; profile=root/'profile.json'
+            original=b'{"Kestrel":{"Endpoints":{"Web":{"Url":"http://127.0.0.1:18080"},"Api":{"Url":"http://127.0.0.1:15120"}}},"secret":"preserved"}'
+            config.write_bytes(original)
+            profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':'linux','serviceName':'api',
+                'configurationFile':str(config),'endpointName':'Web','apiEndpointName':'Api'}))
+            with socket.socket() as listener:
+                listener.bind(('127.0.0.1',0)); port=listener.getsockname()[1]
+            with patch.object(adapter.subprocess,'run',side_effect=[None,KeyboardInterrupt()]), patch.object(adapter,'health'):
+                with self.assertRaises(KeyboardInterrupt): adapter.run_locked(profile,port,True)
+            journal=config.with_name(config.name+'.access-port-pending.json')
+            self.assertTrue(journal.exists())
+            self.assertNotIn('preserved',journal.read_text())
+            record=json.loads(journal.read_text())
+            with patch.object(adapter.subprocess,'run') as service, patch.object(adapter,'health') as health:
+                with self.assertRaisesRegex(RuntimeError,'requires recovery'): adapter.run_locked(profile,port,True)
+                service.assert_not_called()
+                journal.write_text(json.dumps(dict(record,backup=str(profile))))
+                with self.assertRaises(ValueError): adapter.recover_locked(profile)
+                service.assert_not_called()
+                journal.write_text(json.dumps(record))
+                health.side_effect=RuntimeError('unavailable')
+                with self.assertRaises(RuntimeError): adapter.recover_locked(profile)
+                self.assertTrue(journal.exists())
+                health.side_effect=None
+                adapter.recover_locked(profile)
+                self.assertFalse(journal.exists())
+                self.assertEqual(config.read_bytes(),original)
+                self.assertEqual(health.call_args_list[-2].args[0],'http://127.0.0.1:18080/health')
+                self.assertEqual(health.call_args_list[-1].args[0],'http://127.0.0.1:15120/health')
+
     @unittest.skipUnless(sys.platform.startswith('linux'), 'Linux flock integration')
     def test_real_linux_lock_blocks_web_and_database_entrypoints(self):
         import fcntl

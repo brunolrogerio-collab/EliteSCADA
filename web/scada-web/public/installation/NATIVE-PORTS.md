@@ -30,9 +30,9 @@ Acrescente `-Apply` somente depois de conferir o plano. Backups são criados com
 
 ## Após uma interrupção
 
-Uma operação interrompida de banco/mídia mantém um registro junto da configuração. Preserve esse registro e os backups associados. Para tentar restaurar o estado anterior, use somente `--recover` (Linux) ou `-Recover` (Windows) no respectivo comando, com o mesmo perfil. Não combine recuperação com portas ou aplicação de novo plano.
+Uma operação interrompida de Web/API, banco ou mídia mantém um registro junto da configuração. Preserve esse registro e os backups associados. Para tentar restaurar o estado anterior, use somente `--recover` (Linux) ou `-Recover` (Windows) no respectivo comando, com o mesmo perfil. Não combine recuperação com portas ou aplicação de novo plano.
 
-Se a recuperação falhar, o registro permanece para diagnóstico. Não o apague para forçar outra troca. O adaptador Web restaura automaticamente a configuração em falhas tratadas; recuperação de interrupção abrupta do adaptador Web ainda requer procedimento administrativo e não tem journal equivalente.
+Se a recuperação falhar, o registro permanece para diagnóstico. Não o apague para forçar outra troca. Os adaptadores também tentam restaurar automaticamente a configuração quando detectam uma falha durante a aplicação. A recuperação explícita atende a interrupções em que essa restauração não chegou a terminar.
 
 ## Conferência final
 

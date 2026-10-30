@@ -84,3 +84,11 @@ A porta da própria interface Web faz parte do requisito. Ao alterá-la, apresen
 Neste perfil integrado, Web e API compartilham o endpoint Kestrel e sua porta, configurável por `Kestrel:Endpoints`/URLs ASP.NET. Isso mantém chamadas API/WebSocket na mesma origem; não exige Docker nem uma nova porta preenchida pelo usuário. Padrões e a pasta são fornecidos pelo perfil de instalação. Um proxy externo pode continuar sendo outro perfil com listener próprio. O executor nativo ainda precisa aplicar configuração persistente, reinício, saúde e rollback; esta hospedagem não declara o instalador concluído.
 
 Teste com Kestrel real valida SPA, arquivo estático, API existente, 404 de API/arquivo ausentes e cabeçalhos de isolamento do navegador. Não substitui teste do pacote nativo completo.
+
+## Adaptador Windows nativo — candidato
+
+`public/installation/apply-native-network-profile.ps1` consome um perfil administrativo fornecido pela instalação, schema `scadivo-native-network-v1`, platform `windows`, com `serviceName`, `configurationFile` e `endpointName`. O arquivo deve identificar o appsettings efetivamente carregado pelo serviço e seu endpoint Kestrel. O executor/instalador deve fornecer esse perfil protegido; não pedir ao usuário comum que invente esses valores.
+
+Sem WebPort mantém a porta atual sem gravar/reiniciar. Com WebPort prepara o plano; Apply explícito aplica. Web/API integrados compartilham o listener. Valida disponibilidade da nova porta antes da troca, guarda backup, preserva demais valores do JSON, reinicia somente o serviço registrado, verifica /health e tenta restaurar configuração/serviço/saúde em caso de falha. Não reconfigura banco, mídia, TLS, ambiente/command-line que sobrescreva o endpoint nem instala serviços. Esses casos precisam de adaptadores próprios e verificação da configuração efetiva.
+
+Teste `scripts/ci/test_native_network_profile.ps1`: default sem alteração, plano sem escrita, aplicação com segredo preservado e recuperação após falha de saúde. Serviço/HTTP simulados; não representa aceite SCM real. Ainda pendentes integração à UI, serviço real Windows, adaptador Linux e aplicação coordenada de banco/mídia.

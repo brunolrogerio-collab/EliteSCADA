@@ -50,6 +50,18 @@ try {
     & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $mediaProfile -MediaConfigurationPath $media -MediaServiceName MediaTest
     $result=Get-Content -LiteralPath $mediaProfile -Raw | ConvertFrom-Json
     if ($result.media.serviceName -ne 'MediaTest' -or $result.media.configurationFile -ne $media) { throw 'Media profile not registered.' }
+    $topology=Join-Path $root 'topology.json'; $pg=Join-Path $root 'pg.conf'; $psql=Join-Path $root 'psql.exe'; $declaration=Join-Path $root 'db.json'; $dbProfile=Join-Path $root 'db-profile.json'
+    @{schemaVersion=1;active=@{mode='LocalManaged'};pending=$null} | ConvertTo-Json | Set-Content -LiteralPath $topology
+    [IO.File]::WriteAllText($pg,'port=15432'); [IO.File]::WriteAllText($psql,'fixture-only-not-executed')
+    $db=@{topologyFile=$topology;configurationFile=$pg;psqlExecutable=$psql;serviceName='DatabaseTest';currentPort=15432;username='test-account';databaseName='plant';password='must-reject'}
+    $db | ConvertTo-Json | Set-Content -LiteralPath $declaration
+    $failed=$false
+    try { & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $dbProfile -DatabaseRegistrationPath $declaration } catch { $failed=$true }
+    if (-not $failed -or (Test-Path -LiteralPath $dbProfile)) { throw 'Database credentials accepted.' }
+    $db.Remove('password'); $db | ConvertTo-Json | Set-Content -LiteralPath $declaration
+    & $script -ConfigurationPath $config -ServiceName ScadivoTest -DestinationPath $dbProfile -DatabaseRegistrationPath $declaration
+    $result=Get-Content -LiteralPath $dbProfile -Raw | ConvertFrom-Json
+    if ($result.database.serviceName -ne 'DatabaseTest' -or $result.topologyFile -ne $topology) { throw 'Database profile not registered.' }
     'PASS: profile generation, protected Windows ACL, no secret copy, no overwrite, no application mutation; service lookup simulated.'
 } finally {
     $expected=[IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetFileName($root))))

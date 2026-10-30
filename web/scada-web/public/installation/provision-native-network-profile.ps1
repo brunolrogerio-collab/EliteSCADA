@@ -5,7 +5,8 @@ param(
     [Parameter(Mandatory=$true)][string]$DestinationPath,
     [switch]$Register,
     [string]$MediaConfigurationPath,
-    [string]$MediaServiceName
+    [string]$MediaServiceName,
+    [string]$DatabaseRegistrationPath
 )
 $ErrorActionPreference='Stop'
 if ($ServiceName -notmatch '^[A-Za-z0-9_.-]+$') { throw 'Invalid service identity.' }
@@ -52,6 +53,24 @@ try {
         }
         if ($mediaPorts[0] -eq $mediaPorts[1]) { throw 'Media listeners must differ.' }
         $profile.media=@{configurationFile=$mediaPath;serviceName=$MediaServiceName}
+    }
+    if ($DatabaseRegistrationPath) {
+        $db=Get-Content -LiteralPath $DatabaseRegistrationPath -Raw | ConvertFrom-Json
+        $required=@('topologyFile','configurationFile','psqlExecutable','serviceName','currentPort','username','databaseName')
+        if (@($db.PSObject.Properties).Count -ne $required.Count -or @($db.PSObject.Properties.Name | Where-Object { $_ -notin $required }).Count -gt 0) { throw 'Only declared database fields are accepted; no credentials.' }
+        $topologyPath=(Resolve-Path -LiteralPath $db.topologyFile).Path
+        $topology=Get-Content -LiteralPath $topologyPath -Raw | ConvertFrom-Json
+        if ($topology.schemaVersion -ne 1 -or $topology.active.mode -ne 'LocalManaged' -or $null -ne $topology.pending) { throw 'Idle local database topology required.' }
+        $pg=(Resolve-Path -LiteralPath $db.configurationFile).Path
+        $psql=(Resolve-Path -LiteralPath $db.psqlExecutable).Path
+        if (-not (Test-Path -LiteralPath $pg -PathType Leaf) -or -not (Test-Path -LiteralPath $psql -PathType Leaf) -or $pg -eq $configPath -or $db.serviceName -in @($ServiceName,$MediaServiceName) -or $db.serviceName -notmatch '^[A-Za-z0-9_.-]+$') { throw 'Distinct database service and files required.' }
+        if ($db.currentPort -isnot [int] -and $db.currentPort -isnot [long]) { throw 'Integer database port required.' }
+        if ($db.currentPort -lt 1 -or $db.currentPort -gt 65535 -or ($null -ne $config.DatabaseTopology.LocalManagedPort -and $config.DatabaseTopology.LocalManagedPort -ne $db.currentPort)) { throw 'Database registration port differs from configuration.' }
+        foreach ($key in @('username','databaseName')) { if ($db.$key -isnot [string] -or [string]::IsNullOrWhiteSpace($db.$key) -or $db.$key.StartsWith('-')) { throw 'Database identity required.' } }
+        $dbService=Get-Service -Name $db.serviceName -ErrorAction Stop
+        if ($null -eq $dbService) { throw 'Database service missing.' }
+        $profile.topologyFile=$topologyPath
+        $profile.database=@{configurationFile=$pg;psqlExecutable=$psql;serviceName=$db.serviceName;currentPort=$db.currentPort;username=$db.username;databaseName=$db.databaseName}
     }
     # Creates the protected file before writing any content; refuses replacement.
     & (Join-Path $PSScriptRoot 'copy-native-protected-backup.ps1') -SourcePath $configPath -DestinationPath $destination -CreateEmpty

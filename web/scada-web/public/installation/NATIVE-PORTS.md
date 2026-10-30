@@ -14,6 +14,8 @@ Uma instalação nova deve usar Web 18080, API 15120 e banco local gerenciado 15
 
 ## Linux
 
+Para incluir PostgreSQL local, o executor fornece um arquivo de registro JSON via `--database-registration` (Linux) ou `-DatabaseRegistrationPath` (Windows). Campos exatos: `topologyFile`, `configurationFile` (PostgreSQL), `psqlExecutable`, `serviceName`, `currentPort`, `username` e `databaseName`. Não inclua senha, connection string ou outros campos: o gerador os recusa. A autenticação SQL usa a conta/passfile protegido do host, conforme o adaptador existente. A topologia deve estar em LocalManaged sem operação pendente. O gerador confere arquivos, serviço e porta declarada; o adaptador confirma os valores efetivos por SQL antes de alterar. Existência de executável/serviço não comprova sua identidade ou associação com o arquivo: essa homologação continua responsabilidade do executor.
+
 Para incluir mídia no perfil, o executor informa também `--media-configuration` e `--media-service` ao gerador Linux, ou `-MediaConfigurationPath` e `-MediaServiceName` no Windows. Os dois parâmetros são obrigatórios em conjunto. O gerador valida serviço distinto, arquivo existente e correspondência das portas controle/HLS com os endereços locais da API antes de criar o perfil. Não modifica MediaMTX, não copia credenciais e não substitui a conferência de que o serviço carrega aquele arquivo.
 
 Python 3 e os módulos administrativos devem estar na pasta fornecida pela instalação. Primeiro confira o plano:

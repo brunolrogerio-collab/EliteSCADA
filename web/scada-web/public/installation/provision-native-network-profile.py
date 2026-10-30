@@ -10,7 +10,7 @@ import importlib.util
 from urllib.parse import urlsplit
 
 
-def provision(configuration, service, destination, register=False, media_configuration=None, media_service=None):
+def provision(configuration, service, destination, register=False, media_configuration=None, media_service=None, database_registration=None):
     import fcntl
     if not re.fullmatch(r'[A-Za-z0-9_.-]+', service):
         raise ValueError('Invalid service identity')
@@ -60,6 +60,28 @@ def provision(configuration, service, destination, register=False, media_configu
                 if urlsplit(document['MediaSources'][key]).hostname not in ('127.0.0.1','::1','localhost'):
                     raise ValueError('Native media endpoints must be local')
             profile['media']={'configurationFile':str(media_path),'serviceName':media_service}
+        if database_registration is not None:
+            declaration=json.loads(Path(database_registration).read_text(encoding='utf-8-sig'))
+            required={'topologyFile','configurationFile','psqlExecutable','serviceName','currentPort','username','databaseName'}
+            if set(declaration) != required: raise ValueError('Only declared database registration fields are allowed; credentials are not accepted')
+            topology_path=Path(declaration['topologyFile']).resolve(strict=True)
+            topology=json.loads(topology_path.read_text(encoding='utf-8-sig'))
+            if topology.get('schemaVersion') != 1 or topology.get('active',{}).get('mode') != 'LocalManaged' or topology.get('pending') is not None:
+                raise ValueError('Idle local database topology required')
+            pg=Path(declaration['configurationFile']).resolve(strict=True)
+            psql=Path(declaration['psqlExecutable']).resolve(strict=True)
+            if not pg.is_file() or not psql.is_file() or pg == config or declaration['serviceName'] in (service,media_service) or not re.fullmatch(r'[A-Za-z0-9_.-]+',declaration['serviceName']):
+                raise ValueError('Distinct registered local database service and files required')
+            port=declaration['currentPort']
+            if type(port) is not int or not 1 <= port <= 65535 or document.get('DatabaseTopology',{}).get('LocalManagedPort',port) != port:
+                raise ValueError('Database registration port differs from configuration')
+            if any(not isinstance(declaration[key],str) or not declaration[key].strip() or declaration[key].startswith('-') for key in ('username','databaseName')):
+                raise ValueError('Database account and identity required')
+            state=subprocess.run(['systemctl','show','--property=LoadState','--value',declaration['serviceName']],check=True,capture_output=True,text=True,timeout=15)
+            if state.stdout.strip() != 'loaded': raise ValueError('Database service not loaded')
+            profile['topologyFile']=str(topology_path)
+            profile['database']={key:value for key,value in declaration.items() if key != 'topologyFile'}
+            profile['database'].update(configurationFile=str(pg),psqlExecutable=str(psql))
         with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as output:
             json.dump(profile, output, indent=2)
             output.flush(); os.fsync(output.fileno())
@@ -92,8 +114,9 @@ if __name__ == '__main__':
     parser.add_argument('--register', action='store_true')
     parser.add_argument('--media-configuration')
     parser.add_argument('--media-service')
+    parser.add_argument('--database-registration')
     args = parser.parse_args()
     try:
-        print(provision(args.configuration, args.service, args.destination, args.register,args.media_configuration,args.media_service))
+        print(provision(args.configuration, args.service, args.destination, args.register,args.media_configuration,args.media_service,args.database_registration))
     except Exception:
         raise SystemExit('Native profile provisioning failed. Check deployment registration and protected files.')

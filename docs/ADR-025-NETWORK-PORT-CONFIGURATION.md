@@ -207,3 +207,9 @@ O endpoint nativo agora informa AdministrativeProfileAvailable após conferir ar
 `native_media_ports.prepare` transforma em memória o JSON da API e os scalars raiz apiAddress/hlsAddress do MediaMTX. Portas omitidas preservam os valores atuais; nenhuma porta informada retorna os bytes originais. Confere a correspondência anterior entre relay e listeners, recusa duplicidade YAML, colisão e faixa inválida. Preserva endereço de bind e demais configurações; não publica porta no host nem altera Drivers.
 
 Três testes passaram para mudança conjunta/isolada, preservação de segredo/configuração e recusas. Ainda não há mutação/restart/rollback dos serviços de mídia, integração à UI ou evidência de reprodução real: somente preparação testada. Incluído no job Linux.
+
+### Coordenador de aplicação de mídia — candidato interno
+
+`native_media_ports.apply_locked` exige que o chamador detenha o lock da instalação e forneça controle de serviço/verificação de mídia. Prepara configuração, valida portas livres, salva dois backups e journal antes da parada, grava arquivos, reinicia mídia, verifica-a e inicia API. Falha restaura ambos e verifica o estado anterior; recuperação falha retém journal. Nenhum CLI/UI é disponibilizado por este módulo. Callbacks de serviço/saúde ainda precisam ser ligados ao host; não declarar verificação real HLS por esse código. Backup ACL Windows, recuperação explícita após interrupção e prontidão completa permanecem pendentes.
+
+Quatro testes de mídia passaram, incluindo plano sem escrita, ordem, preservação de segredos e rollback dos dois arquivos após falha simulada de verificação. Não há evidência de reprodução real nesta etapa.

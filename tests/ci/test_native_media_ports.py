@@ -2,6 +2,8 @@ import importlib.util
 import json
 from pathlib import Path
 import unittest
+import tempfile
+from unittest.mock import Mock
 
 source = Path(__file__).resolve().parents[2] / 'web/scada-web/public/installation/native_media_ports.py'
 spec = importlib.util.spec_from_file_location('native_media', source)
@@ -10,6 +12,34 @@ spec.loader.exec_module(media)
 
 
 class NativeMediaPortTests(unittest.TestCase):
+    def test_apply_and_failed_verification_restore_both_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            app=root/'app.json'; gateway=root/'media.yml'; profile=root/'profile.json'
+            app.write_bytes(self.application); gateway.write_bytes(self.gateway)
+            profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':'linux',
+                'configurationFile':str(app),'serviceName':'api-service',
+                'media':{'configurationFile':str(gateway),'serviceName':'media-service'}}))
+            import socket
+            with socket.socket() as listener:
+                listener.bind(('127.0.0.1',0)); port=listener.getsockname()[1]
+            service=Mock(); verify=Mock()
+            media.apply_locked(profile,service,verify,control_port=port)
+            self.assertEqual(app.read_bytes(),self.application)
+            service.assert_not_called()
+            media.apply_locked(profile,service,verify,control_port=port,apply=True)
+            self.assertEqual(service.call_args_list[0].args,('stop','api-service'))
+            self.assertEqual(service.call_args_list[1].args,('restart','media-service'))
+            self.assertEqual(service.call_args_list[2].args,('start','api-service'))
+            self.assertEqual(json.loads(app.read_bytes())['secret'],'preserved')
+            app.write_bytes(self.application); gateway.write_bytes(self.gateway)
+            verify.side_effect=[RuntimeError('new media unreachable'),None]
+            with self.assertRaisesRegex(RuntimeError,'previous configuration restored'):
+                media.apply_locked(profile,service,verify,control_port=port,apply=True)
+            self.assertEqual(app.read_bytes(),self.application)
+            self.assertEqual(gateway.read_bytes(),self.gateway)
+            self.assertFalse(app.with_name(app.name+'.media-port-pending.json').exists())
+
     def setUp(self):
         self.application = json.dumps({'secret':'preserved', 'MediaSources':{
             'GatewayControlUrl':'http://127.0.0.1:9997',

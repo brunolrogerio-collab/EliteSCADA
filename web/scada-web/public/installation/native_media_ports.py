@@ -2,6 +2,10 @@
 import json
 import re
 from urllib.parse import urlsplit, urlunsplit
+from pathlib import Path
+import os
+import socket
+import uuid
 
 
 def prepare(application_bytes, media_bytes, control_port=None, hls_port=None):
@@ -43,3 +47,62 @@ def prepare(application_bytes, media_bytes, control_port=None, hls_port=None):
     for (start, end), replacement in reversed(changes):
         media = media[:start] + replacement + media[end:]
     return json.dumps(application, indent=2).encode('utf-8'), media.encode('utf-8')
+
+
+def apply_locked(profile_path, service_control, verify, control_port=None, hls_port=None, apply=False):
+    """Administrative caller holds the installation lock; callbacks own OS/health."""
+    profile = json.loads(Path(profile_path).read_text())
+    if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
+        raise ValueError('Registered native profile required')
+    app = Path(profile['configurationFile']).resolve(strict=True)
+    gateway = Path(profile['media']['configurationFile']).resolve(strict=True)
+    if app == gateway:
+        raise ValueError('Distinct configuration files required')
+    api_service, media_service = profile['serviceName'], profile['media']['serviceName']
+    if api_service == media_service or any(not re.fullmatch(r'[A-Za-z0-9_.-]+', name) for name in (api_service, media_service)):
+        raise ValueError('Distinct registered service identities required')
+    journal = app.with_name(app.name + '.media-port-pending.json')
+    if journal.exists():
+        raise RuntimeError('Interrupted media operation requires recovery')
+    original = app.read_bytes(), gateway.read_bytes()
+    updated = prepare(*original, control_port, hls_port)
+    if updated == original:
+        return 'No change required'
+    # Preflight only changed listeners. The callback checks actual service readiness.
+    previous = json.loads(original[0])['MediaSources']
+    desired = json.loads(updated[0])['MediaSources']
+    for key in ('GatewayControlUrl', 'GatewayPlaybackUrl'):
+        old, new = urlsplit(previous[key]), urlsplit(desired[key])
+        if old.port != new.port:
+            with socket.socket() as listener:
+                listener.bind(('0.0.0.0', new.port))
+    if not apply:
+        return 'Media/API configuration plan validated'
+    backups = []
+    for target, content in zip((app, gateway), original):
+        backup = target.with_name(target.name + '.network-backup-' + uuid.uuid4().hex)
+        with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as output:
+            output.write(content); output.flush(); os.fsync(output.fileno())
+        backups.append(str(backup))
+    with os.fdopen(os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as output:
+        json.dump({'schema':'scadivo-media-port-recovery-v1', 'backups':backups}, output)
+        output.flush(); os.fsync(output.fileno())
+    try:
+        service_control('stop', api_service)
+        app.write_bytes(updated[0]); gateway.write_bytes(updated[1])
+        service_control('restart', media_service)
+        verify(updated[0])
+        service_control('start', api_service)
+    except Exception:
+        try:
+            service_control('stop', api_service)
+            app.write_bytes(original[0]); gateway.write_bytes(original[1])
+            service_control('restart', media_service)
+            verify(original[0])
+            service_control('start', api_service)
+        except Exception:
+            raise RuntimeError('Media recovery failed; protected journal retained') from None
+        journal.unlink()
+        raise RuntimeError('Media change failed; previous configuration restored') from None
+    journal.unlink()
+    return 'Media configuration applied; application and playback acceptance still required'

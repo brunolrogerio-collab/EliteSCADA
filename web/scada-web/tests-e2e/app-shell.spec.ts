@@ -29,7 +29,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
       buildCommit: 'abcdef123456'
     }
   }));
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page).toHaveTitle('SCADIVO');
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/scadivo-mark.svg');
 
@@ -46,7 +46,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await expect(theme).toBeVisible();
   await theme.selectOption('light');
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
-  await page.reload();
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
 
   const runtimeViews = page.getByRole('navigation', { name: 'Runtime views' });
@@ -57,7 +57,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
     await expectCssToken(page.locator('.runtime-history-page'), 'background-color', '--app-bg');
   }
 
-  await page.goto('/engineering');
+  await page.goto('/engineering', { waitUntil: 'domcontentloaded' });
   navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: 'Engenharia' })).toHaveAttribute('aria-current', 'page');
   await page.locator('.eng-overview-advanced > summary').click();
@@ -100,13 +100,13 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await engineeringNavigation.getByRole('button', { name: /Diagnósticos|Diagnostics/ }).click();
   await expect(page.getByText(/TAG Monitor/i)).toBeVisible();
 
-  await page.goto('/audit');
+  await page.goto('/audit', { waitUntil: 'domcontentloaded' });
   navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: /Auditoria/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.audit-panel').first()).toBeVisible();
   await expectCssToken(page.locator('.audit-panel').first(), 'background-color', '--app-surface');
 
-  await page.goto('/licensing');
+  await page.goto('/licensing', { waitUntil: 'domcontentloaded' });
   navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: /Licenciamento/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'Licenciamento' })).toBeVisible();

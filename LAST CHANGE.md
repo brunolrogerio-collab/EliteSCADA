@@ -1,4 +1,12 @@
-# Delegated online renewal implementation checkpoint - 2026-10-27
+# Product checkpoint — installation network configuration (#780) — 2026-10-29
+
+Active branch: `work/w15-service-ports-780`, based on integrated `wave15/corrections-integration@16849faa66c84a4078126c08abb978e0c6014e0b` (#827). The working tree contains the first Docker stable slice for configuring per-installation identity, Web/API binds and published Web/API/PostgreSQL ports; the API's read-only profile requires `SystemAdmin`. PowerShell/Bash host scripts validate conflicts and Compose configuration before applying, preserve secrets/volumes, perform health checks and rollback. Contextual Help/manual pt-BR/en/es and ADR-025 are included.
+
+T0 evidence on this candidate: Compose default and isolated second-profile checks passed; PowerShell parsing and mocked application/secret-preservation/rollback/refusal scenarios passed; Git Bash `bash -n` passed (no Linux runtime execution); focused API tests 2/2, contextual Help tests 32/32, Web production build passed, and `git diff --check` passed. No Preview containers, data or volumes were changed. These are local results, not PR CI evidence.
+
+Scope boundary: this is not full #780 acceptance. Two real Compose stacks have not been started together; native Windows-service/systemd settings and Driver TCP/UDP protocol listeners are not implemented. #780 stays open. Next: finish exact diff review, commit/push this branch, open a draft PR with `VALIDATION_PROFILE: INSTALLATION`, then evaluate T1 on the PR head. Do not merge or claim full delivery without completing the remaining accepted criteria or an explicit owner-approved scope split.
+
+## Historical checkpoint — delegated online renewal, 27 October 2026
 
 ## Current implementation checkpoint - delegated online renewal, 27 October 2026
 

@@ -151,6 +151,45 @@ Before relying on automatic failover, exercise the scenario on the actual topolo
 
 **Related Help:** `/help?topic=ha.overview`, `/help?topic=licensing.overview`, `/help?topic=security.users-roles-capabilities`, `/help?topic=diagnostics.overview`.
 
+## Network ports for the stable Docker package
+
+In **Engineering > Installation > Network and services**, a `SystemAdmin` user can prepare ports for the stable Docker distribution. The page displays the Compose configuration reported by the current container, but cannot confirm by itself that the host computer actually published each port.
+
+### Ports controlled by this profile
+
+| Service | Host default | Inside container | Notes |
+| --- | ---: | ---: | --- |
+| Web | `127.0.0.1:18080` | `80/TCP` | Runtime and Engineering navigation |
+| Direct API | `127.0.0.1:15080` | `5080/TCP` | Web forwards `/api` to this API |
+| PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | Host publication remains loopback-only |
+| Media control | Not published | `9997/TCP` | Internal Docker network |
+| HLS | Not published | `8888/TCP` | Internal Docker network |
+
+Listeners inside the containers are fixed in this package. PLC/device ports belong to their Data Sources/Drivers; remote database ports and HA peer addresses are configured in their own integrations. This page does not open a firewall, change external services, or change protocol/discovery ports.
+
+### Change ports for the same installation
+
+1. Open **Engineering > Installation > Network and services** and check the current ID, binds, and ports.
+2. Enter integer ports from 1 to 65535, with different numbers for Web, API, and database. Web and API can bind to `127.0.0.1` (host only) or `0.0.0.0` (all interfaces). The database remains on `127.0.0.1`.
+3. Review the new address and restart impact. For example, setting Web to `28080` moves navigation to `http://localhost:28080`.
+4. Download the PowerShell script (Windows/Docker Desktop) or Bash script (Linux), place it beside `docker-compose.stable.yml` and `.env`, review it, and run the displayed command in a terminal on the Docker host.
+5. The script checks free ports, ports already published by other containers, and `docker compose config` before the change. It then backs up `.env`, applies the profile, and checks Web/API/database health. It does not remove volumes. If a check fails, it attempts to restore the prior `.env` and services.
+6. Open the new Web address. The previous tab may disconnect while the container is recreated.
+
+Do not put secrets in the command: it contains only the instance ID, bind addresses, and port numbers. `.env` remains on the host; its `.env.network-backup-*` backup and `network-profile-audit.log` also stay in the installation folder.
+
+### Create another installation
+
+Use another installation folder, create an independent `.env` with its own passwords/keys/identity, and set its new `SCADIVO_INSTALLATION_ID` before running the command. Do not copy the first installation's `.env`. In second-installation mode, the script requires the ID to be set in the new `.env` and refuses an ID that already has containers or volumes. The ID separates the Compose project and volumes, so the new installation starts with its own database and data; it does not duplicate the first installation's data.
+
+Binding Web/API to `0.0.0.0` allows them to respond on every network interface. For remote access, explicitly configure TLS/reverse proxy and firewall policy outside SCADIVO. If HA is enabled, update peers and check health after changing URLs; this is not done automatically.
+
+### Recover access
+
+If the page no longer opens, use the new address shown in the profile. If the script reports rollback, keep the backup and check host logs/health. To restore manually, copy the correct `.env.network-backup-*` to `.env`, then run `docker compose -f docker-compose.stable.yml up -d` in that installation folder. Do not use `down -v`; that deletes persistent data.
+
+**Related Help:** `/help?topic=installation.network-ports`, [stable Docker installation](../../LOCAL-DOCKER-STABLE.md).
+
 ## License Generator
 
 The License Generator is an offline/controlled licensing-authority tool. The signing private key must never be placed in GitHub, normal CI, a client installer, or Runtime.

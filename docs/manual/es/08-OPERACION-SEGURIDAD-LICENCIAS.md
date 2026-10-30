@@ -151,6 +151,45 @@ Antes de depender del failover automático, ensaye el escenario en la topología
 
 **Ayuda relacionada:** `/help?topic=ha.overview`, `/help?topic=licensing.overview`, `/help?topic=security.users-roles-capabilities`, `/help?topic=diagnostics.overview`.
 
+## Puertos de red del paquete Docker estable
+
+En **Engineering > Instalación > Red y servicios**, un usuario con `SystemAdmin` puede preparar puertos para la distribución Docker estable. La página muestra la configuración de Compose informada por el container actual, pero no puede confirmar por sí sola que el equipo host haya publicado cada puerto.
+
+### Puertos controlados por este perfil
+
+| Servicio | Predeterminado en host | Dentro del container | Observación |
+| --- | ---: | ---: | --- |
+| Web | `127.0.0.1:18080` | `80/TCP` | Navegación de Runtime y Engineering |
+| API directa | `127.0.0.1:15080` | `5080/TCP` | Web reenvía `/api` a esta API |
+| PostgreSQL | `127.0.0.1:15432` | `5432/TCP` | La publicación del host sigue limitada a loopback |
+| Media control | Sin publicar | `9997/TCP` | Red interna Docker |
+| HLS | Sin publicar | `8888/TCP` | Red interna Docker |
+
+Los listeners dentro de los containers son fijos en este paquete. Los puertos de PLCs/equipos pertenecen a sus Data Sources/Drivers; los puertos de una base remota y las direcciones de peers HA se configuran en sus propias integraciones. Esta página no abre el firewall, cambia servicios externos ni puertos de protocolo/discovery.
+
+### Cambiar puertos de la misma instalación
+
+1. Abra **Engineering > Instalación > Red y servicios** y revise el ID, binds y puertos actuales.
+2. Indique puertos enteros de 1 a 65535, distintos para Web, API y base. Web y API pueden vincularse a `127.0.0.1` (solo host) o a `0.0.0.0` (todas las interfaces). La base permanece en `127.0.0.1`.
+3. Revise la nueva dirección y el impacto del reinicio. Por ejemplo, si Web usa `28080`, la navegación pasa a `http://localhost:28080`.
+4. Descargue el script PowerShell (Windows/Docker Desktop) o Bash (Linux), colóquelo junto a `docker-compose.stable.yml` y `.env`, revíselo y ejecute el comando mostrado en una terminal del host Docker.
+5. El script comprueba puertos disponibles, puertos publicados por otros containers y `docker compose config` antes del cambio. Después crea una copia de `.env`, aplica el perfil y verifica la salud de Web/API/base. No elimina volúmenes. Si una verificación falla, intenta restaurar `.env` y los servicios anteriores.
+6. Abra la nueva dirección Web. La pestaña anterior puede desconectarse mientras se recrea el container.
+
+No incluya secretos en el comando: solo contiene ID de instancia, direcciones bind y números de puerto. `.env` permanece en el host; la copia `.env.network-backup-*` y `network-profile-audit.log` también quedan en la carpeta de instalación.
+
+### Crear otra instalación
+
+Use otra carpeta, cree un `.env` independiente con contraseñas/claves/identidad propias y defina allí el nuevo `SCADIVO_INSTALLATION_ID` antes de ejecutar el comando. No copie el `.env` de la primera instalación. En modo de segunda instalación, el script exige que el ID ya esté definido en el nuevo `.env` y rechaza uno que ya tenga containers o volúmenes. El ID separa el proyecto Compose y sus volúmenes, así que la nueva instalación empieza con base y datos propios; no duplica los datos de la primera.
+
+Vincular Web/API a `0.0.0.0` permite responder en todas las interfaces de red. Para acceso remoto, configure explícitamente TLS/reverse proxy y la política del firewall fuera de SCADIVO. Si HA está habilitado, actualice peers y compruebe su salud después de cambiar URLs; el producto no lo hace automáticamente.
+
+### Recuperar el acceso
+
+Si la página deja de abrir, use la nueva dirección indicada en el perfil. Si el script informa rollback, conserve la copia y revise logs/salud en el host. Para restaurar manualmente, copie el `.env.network-backup-*` correcto a `.env` y ejecute `docker compose -f docker-compose.stable.yml up -d` en la carpeta de esa instalación. No use `down -v`: elimina datos persistentes.
+
+**Ayuda relacionada:** `/help?topic=installation.network-ports`, [instalación Docker estable](../../LOCAL-DOCKER-STABLE.md).
+
 ## License Generator
 
 License Generator es una herramienta offline/controlada de la autoridad de licenciamiento. La clave privada de firma nunca debe incluirse en GitHub, CI normal, un instalador de cliente ni Runtime.

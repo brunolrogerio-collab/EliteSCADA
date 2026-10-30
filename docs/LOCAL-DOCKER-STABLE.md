@@ -26,9 +26,43 @@ restarts, image rebuilds and `docker compose down`.
    created. The API is also available at `http://localhost:15080` and the
    database at `localhost:15432` for local tools.
 
-The default ports are bound to `127.0.0.1` and do not occupy the usual test
-ports 5173, 5080, 5081 or 5432. Override the three `*_PORT` values in `.env` if
-one of the alternate ports is already in use.
+The default Web and API ports are bound to `127.0.0.1`; PostgreSQL remains
+loopback-only. The installation ID defaults to `elitescada-stable` and names
+the Compose project and its three persistent volumes. Keep that ID stable to
+reuse the same data. Override `ELITESCADA_WEB_PORT`, `ELITESCADA_API_PORT`, and
+`ELITESCADA_DB_PORT` in `.env` when a host port is already in use.
+
+### Prepare another isolated installation
+
+Use a separate directory with its own `.env`, unique database/JWT/history keys
+and machine identity. Never copy the first installation's `.env`. Choose a
+different `SCADIVO_INSTALLATION_ID` and set it in the new `.env` before running
+the helper. The helper does not change an existing installation ID and, in
+second-installation mode, refuses IDs that already have containers or volumes.
+The Compose project ID also namespaces the persistent volumes, so the second
+installation cannot silently reuse the first one's database or protected
+material.
+
+In Engineering > Installation > Network and services, compare the current
+Compose values, prepare a profile, then download the PowerShell or Bash helper.
+Place the reviewed helper beside `docker-compose.stable.yml` and `.env`, and run
+the displayed command from that directory on the Docker host. The helper checks
+port availability and `docker compose config` before applying, backs up `.env`,
+checks Web/API/database health, and attempts to restore the prior profile if
+health fails. It never runs from the browser, changes firewall rules, prints
+secrets, or deletes volumes. Keep the generated backup and local audit log.
+
+The default port publication is local-only. Binding Web or API to `0.0.0.0`
+allows the Docker host to listen on all its network interfaces. The product
+does not configure TLS, reverse proxies or host/cloud firewall rules. Put a
+remote deployment behind an explicitly configured TLS proxy and firewall.
+Database publication remains fixed to loopback.
+
+This helper covers the stable Docker Compose package on Windows/Docker Desktop
+and Linux. Native Windows Service/systemd installations, remote databases, HA
+peer URLs, MediaMTX's internal control/HLS listeners, and protocol/device ports
+are separate configuration surfaces. Media control `9997` and HLS `8888` are
+not published on the host; Driver ports belong to their Data Source settings.
 
 ## Stop, restart and data
 

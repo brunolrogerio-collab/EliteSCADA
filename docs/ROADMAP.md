@@ -1,4 +1,10 @@
-# OWNER CORRECTION PROGRAM — QUEUED; HELP ACTIVE, LICENSING NEXT — 2026-10-26
+# CURRENT PRODUCT LANE — INSTALLATION NETWORK CONFIGURATION (#780) — 2026-10-29
+
+The integrated base is #827 at `16849faa66c84a4078126c08abb978e0c6014e0b`; the active branch is `work/w15-service-ports-780`. The current first slice configures network bindings and published ports for the stable Docker package, with reviewed host scripts, health/rollback behavior, and synchronized Help/manual. Local T0 is green; PR/T1 are pending. This does not finish #780: two simultaneously running isolated instances, native Windows/systemd service port configuration, and Driver protocol listeners remain unproven or unimplemented. Follow the live #780/#305 records; do not claim full delivery.
+
+---
+
+## Historical queue snapshot — owner correction program, 26 October 2026
 
 Owner-authorized [program #788](https://github.com/brunolrogerio-collab/EliteSCADA/issues/788) consolidates #789 alarm suppression by alarm/area/subarea, #790 authorable CheckBox/ComboBox, #791 Intelligence contract/API/UI adherence audit and #792 Matter exact-artifact upstream qualification, alongside existing alarm/driver/HA findings. See [scope, evidence and documentation criteria](WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md). These are authorized queued tasks, not delivered behavior or a new active lane. **Finish Help/manual → product licensing #301 → post-licensing queue**. Preserve the previously fixed internal order #779 → #780 → #781 → #782. Every accepted product correction updates installed Help/manual/examples and actual affected figures; no future feature is presented as available. Runtime dashboard generation is accepted for Intelligence; adherence still requires an end-user/API/contracts audit. Field validation remains deferred under #701.
 

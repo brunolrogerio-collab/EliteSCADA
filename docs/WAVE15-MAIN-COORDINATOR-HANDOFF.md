@@ -1,4 +1,16 @@
-# Wave 15 - current integration checkpoint (2026-10-27)
+# Wave 15 — current integration checkpoint (2026-10-29)
+
+## Current product lane — installation network configuration (#780)
+
+Base: integrated #827 at `16849faa66c84a4078126c08abb978e0c6014e0b`. Candidate branch: `work/w15-service-ports-780`. The first Docker stable slice covers per-installation Compose identity, Web/API binds and published Web/API/PostgreSQL ports, a SystemAdmin-only read-only profile, reviewed PowerShell/Bash host scripts with preflight/backup/health/rollback, and synchronized Help/manual plus ADR-025.
+
+T0 passed locally: default and isolated second-profile Compose checks; PowerShell syntax and mocked apply/rollback/secret/port/volume guards; Git Bash syntax only (no Linux runtime); API focused tests 2/2; contextual Help tests 32/32; Web production build; diff check. No Preview containers, data or volumes changed. No PR/CI exists at this checkpoint.
+
+#780 remains open and is not fully delivered: two real simultaneous Compose stacks were not started, native Windows-service/systemd changes are absent, and Driver protocol TCP/UDP listeners remain separate. Next: final diff review, commit/push and draft PR using `VALIDATION_PROFILE: INSTALLATION`; exact-head T1 is pending. The #305 execution DAG and #780 issue remain authoritative for sequencing and acceptance.
+
+---
+
+## Historical checkpoint — delegated online renewal, 27 October 2026
 
 ## Current implementation checkpoint - delegated online renewal, 27 October 2026
 

@@ -1,6 +1,16 @@
 # Current coordinator pointer - Wave 15
 
-## Current product checkpoint - online licensing status projection, 28 October 2026
+## Current product checkpoint - installation network configuration (#780), 29 October 2026
+
+The active product lane is #780 after the integrated #779 retention work. Branch `work/w15-service-ports-780` is based on `wave15/corrections-integration@16849faa66c84a4078126c08abb978e0c6014e0b` (#827). The current candidate prepares installation ID, Web/API binds and published Web/API/PostgreSQL ports for the official stable Docker package, exposes the declared profile only to `SystemAdmin`, and provides reviewed host scripts with preflight, secret/volume preservation, health checks and rollback. Help/manual pt-BR/en/es and ADR-025 are included.
+
+Local T0 evidence: default/second-profile Compose validation passed; PowerShell parse and mocked apply/rollback/secret-preservation/port/volume-refusal checks passed; Git Bash syntax passed (no Linux runtime execution); focused API 2/2, contextual Help 32/32 and Web production build passed. No Preview service/data/volume was changed. No PR or CI result exists yet.
+
+This is the first Docker slice, not completion of #780: simultaneous live stacks are unproven, and native Windows-service/systemd settings plus Driver TCP/UDP listeners remain outside the current candidate. Next: finalize review, commit and open draft PR with `VALIDATION_PROFILE: INSTALLATION`; await exact-head T1 and preserve #780 acceptance limits.
+
+---
+
+## Previous product checkpoint - online licensing status projection, 28 October 2026
 
 Owning product issue #301. Branch `work/w15-online-license-status` starts at integrated/verified merge `a1264964419c15345fe27709230c0ac96231518d` (#807). The branch adds a safe, read-only online-device summary to the existing EngineeringRead-gated `GET /api/licensing/status`, reusing `FileOnlineLicenseStateStore.ReadStatusAsync`. It distinguishes unconfigured, empty, stored, reset, pending, clock rollback, reauthentication and unreadable-journal states. The projection omits activation/request IDs, lease contents, credentials and Portal details; a stored lease is explicitly not Runtime authorization. No activation, confirmation, reset or reauthentication mutation endpoint is added.
 

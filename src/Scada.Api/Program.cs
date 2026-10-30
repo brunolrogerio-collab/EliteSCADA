@@ -237,6 +237,7 @@ app.MapTimingPolicyV1Endpoints();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
 app.MapEngineeringMutationEndpoints();
+app.MapInstallationNetworkProfileEndpoints();
 Scada.Api.VisualAssets.StaticArtworkEndpoints.MapStaticArtworkEndpoints(app);
 app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();

@@ -57,6 +57,9 @@ def execute_locked(profile_path, port=None, apply=False):
     app_path = Path(profile['configurationFile']).resolve(strict=True)
     pg_path = Path(db['configurationFile']).resolve(strict=True)
     psql = Path(db['psqlExecutable']).resolve(strict=True)
+    journal = app_path.with_name(app_path.name + '.database-port-pending.json')
+    if journal.exists():
+        raise RuntimeError('An interrupted database port operation requires recovery before another change')
     app_bytes, pg_bytes = app_path.read_bytes(), pg_path.read_bytes()
     app = json.loads(app_bytes.decode('utf-8-sig'))
     old_port = int(db['currentPort'])
@@ -104,7 +107,17 @@ def execute_locked(profile_path, port=None, apply=False):
         backup = path.with_name(path.name + '.network-backup-' + uuid.uuid4().hex)
         with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as output:
             output.write(original)
+            output.flush()
+            os.fsync(output.fileno())
         backups.append(backup)
+    # Persist recovery references before the first disruptive action. No credentials.
+    recovery = {'schema': 'scadivo-database-port-recovery-v1', 'oldPort': old_port,
+                'newPort': port, 'applicationBackup': str(backups[0]),
+                'postgresqlBackup': str(backups[1])}
+    with os.fdopen(os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as output:
+        json.dump(recovery, output)
+        output.flush()
+        os.fsync(output.fileno())
     try:
         service('stop', api_service)
         app.setdefault('DatabaseTopology', {})['LocalManagedPort'] = port
@@ -113,6 +126,7 @@ def execute_locked(profile_path, port=None, apply=False):
         service('restart', db_service)
         wait_database(port)
         service('start', api_service)
+        journal.unlink()
         return 'Database port applied; application readiness still requires validation'
     except Exception:
         try:
@@ -124,4 +138,5 @@ def execute_locked(profile_path, port=None, apply=False):
             service('start', api_service)
         except Exception:
             raise RuntimeError('Recovery failed; use the protected configuration backups') from None
+        journal.unlink()
         raise RuntimeError('Change failed; configuration restored and database connection verified') from None

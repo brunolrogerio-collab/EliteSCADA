@@ -158,3 +158,7 @@ Validação atual: parser PowerShell e testes simulados do núcleo/ações Windo
 ### Espera SCM no coordenador PostgreSQL Windows
 
 Ações Windows agora aguardam o estado SCM esperado por até 30 segundos: Stopped após stop, Running após start/restart. O timeout do processo é 45 segundos. A espera SCM não substitui as consultas SQL autenticadas; ambas precisam passar antes da próxima etapa. Teste do fluxo completo simulado foi parametrizado para Linux/Windows e cobre a mesma ordem, prontidão transitória, timeout, identidade divergente e restauração. Serviços reais continuam pendentes.
+
+### Interrupção do coordenador PostgreSQL
+
+Antes da primeira parada, o candidato persiste backups com flush/fsync e um registro privado `.database-port-pending.json` contendo somente portas e caminhos de recuperação. Registro existente recusa nova operação; não tentar continuar automaticamente sobre estado incerto. Sucesso operacional ou rollback verificado remove o registro; interrupção/falha de recuperação o preserva. Ainda não há comando automático de recuperação após interrupção nem aceite de perda de energia real. Testes simulam interrupção antes da parada e confirmam referência a backup íntegro, ausência de segredo e bloqueio de nova tentativa em Linux/Windows.

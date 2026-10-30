@@ -55,8 +55,10 @@ class NativeDatabasePortTests(unittest.TestCase):
             profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':platform,'topologyFile':str(topology),'configurationFile':str(app),'serviceName':'scadivo.service','database':{'serviceName':'postgresql.service','configurationFile':str(pg),'psqlExecutable':str(psql),'currentPort':5432,'username':'test','databaseName':'plant'}}))
             with socket.socket() as listener:
                 listener.bind(('127.0.0.1',0)); port=listener.getsockname()[1]
-            actions=[]; fail=False; transient=0; timeout=False; wrong_identity=False
+            actions=[]; fail=False; transient=0; timeout=False; wrong_identity=False; interrupted=False
             def command(args, **kwargs):
+                if interrupted and args[0] in ('systemctl', 'powershell.exe'):
+                    raise KeyboardInterrupt('simulated process interruption')
                 if args[0]=='systemctl':
                     actions.append(args[1:]); return subprocess.CompletedProcess(args,0,'','')
                 if args[0]=='powershell.exe':
@@ -80,11 +82,19 @@ class NativeDatabasePortTests(unittest.TestCase):
                 result=str(pg) if query=='SHOW config_file' else str(at_port) if query=='SHOW port' else 'plant'
                 return subprocess.CompletedProcess(args,0,result,'')
             with patch.object(module.subprocess,'run',side_effect=command), patch.object(module.time,'sleep'):
+                pending = app.with_name(app.name + '.database-port-pending.json')
+                pending.write_text('{}')
+                with self.assertRaisesRegex(RuntimeError, 'interrupted'):
+                    module.execute_locked(profile,port,True)
+                self.assertEqual(actions, [])
+                self.assertEqual(app.read_bytes(), original)
+                pending.unlink()
                 module.execute_locked(profile,port)
                 self.assertEqual(app.read_bytes(),original); self.assertEqual(actions,[])
                 transient=2
                 module.execute_locked(profile,port,True)
                 self.assertEqual(transient,0)
+                self.assertFalse(pending.exists())
                 self.assertEqual(json.loads(app.read_text())['DatabaseTopology']['LocalManagedPort'],port)
                 self.assertEqual(json.loads(app.read_text())['secret'],'keep-private')
                 self.assertEqual(actions,[['stop','scadivo.service'],['restart','postgresql.service'],['start','scadivo.service']])
@@ -92,6 +102,7 @@ class NativeDatabasePortTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'configuration restored'):
                     module.execute_locked(profile,port,True)
                 self.assertEqual(app.read_bytes(),original); self.assertEqual(pg.read_bytes(),b'port = 5432\n')
+                self.assertFalse(pending.exists())
                 fail=False; timeout=True; actions.clear()
                 with patch.object(module.time, 'monotonic', side_effect=[0, 61, 62]):
                     with self.assertRaisesRegex(RuntimeError, 'configuration restored'):
@@ -103,5 +114,12 @@ class NativeDatabasePortTests(unittest.TestCase):
                     module.execute_locked(profile,port,True)
                 self.assertEqual(app.read_bytes(), original)
                 self.assertEqual(pg.read_bytes(), b'port = 5432\n')
+                wrong_identity=False; interrupted=True
+                with self.assertRaises(KeyboardInterrupt): module.execute_locked(profile,port,True)
+                recovery=json.loads(pending.read_text())
+                self.assertEqual(Path(recovery['applicationBackup']).read_bytes(),original)
+                self.assertNotIn('keep-private', pending.read_text())
+                with self.assertRaisesRegex(RuntimeError,'interrupted'): module.execute_locked(profile,port,True)
+                pending.unlink()
                 topology.write_text(json.dumps({'schemaVersion':1,'active':{'mode':'Remote'},'pending':None}))
                 with self.assertRaises(ValueError): module.execute_locked(profile,port,True)

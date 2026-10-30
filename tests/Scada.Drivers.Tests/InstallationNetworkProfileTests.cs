@@ -5,6 +5,25 @@ namespace Scada.Drivers.Tests;
 
 public sealed class InstallationNetworkProfileTests
 {
+    [Theory]
+    [InlineData("http://user:private@127.0.0.1:18080")]
+    [InlineData("http://127.0.0.1:18080/private")]
+    [InlineData("http://127.0.0.1:18080/?token=private")]
+    [InlineData("http://127.0.0.1:18080/#private")]
+    public void NativeProfile_RejectsUrlsThatAreNotListenerAddresses(string invalidUrl)
+    {
+        foreach (var endpoint in new[] { "Web", "Api" })
+        {
+            var settings = new Dictionary<string, string?> {
+                ["InstallationNetwork:Profile"] = "native-linux",
+                ["Kestrel:Endpoints:Web:Url"] = "http://127.0.0.1:18080",
+                ["Kestrel:Endpoints:Api:Url"] = "http://127.0.0.1:15120"
+            };
+            settings[$"Kestrel:Endpoints:{endpoint}:Url"] = invalidUrl.Replace(":18080", endpoint == "Api" ? ":15120" : ":18080");
+            Assert.Null(InstallationNetworkProfileApi.ReadNative(new ConfigurationBuilder().AddInMemoryCollection(settings).Build()));
+        }
+    }
+
     [Fact]
     public void Read_StableDockerProfile_ReportsPublishedAndInternalPortsWithoutSecrets()
     {

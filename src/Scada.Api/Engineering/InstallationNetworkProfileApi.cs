@@ -95,6 +95,10 @@ public static class InstallationNetworkProfileApi
         if (!Uri.TryCreate(configuration["Kestrel:Endpoints:Web:Url"], UriKind.Absolute, out var web) ||
             !Uri.TryCreate(configuration["Kestrel:Endpoints:Api:Url"], UriKind.Absolute, out var api) ||
             web.Scheme is not ("http" or "https") || api.Scheme is not ("http" or "https") ||
+            !string.IsNullOrEmpty(web.UserInfo) || !string.IsNullOrEmpty(api.UserInfo) ||
+            !string.IsNullOrEmpty(web.Query) || !string.IsNullOrEmpty(api.Query) ||
+            !string.IsNullOrEmpty(web.Fragment) || !string.IsNullOrEmpty(api.Fragment) ||
+            web.AbsolutePath != "/" || api.AbsolutePath != "/" ||
             web.Port == api.Port || web.Port < 1 || api.Port < 1) return null;
         var platform = profile == "native-windows" ? "windows" : "linux";
         var available = false;

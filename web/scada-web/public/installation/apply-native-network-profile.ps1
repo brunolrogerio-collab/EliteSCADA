@@ -64,7 +64,7 @@ $endpoint = $config.Kestrel.Endpoints.PSObject.Properties[$profile.endpointName]
 if ($null -eq $endpoint) { throw 'The registered Kestrel endpoint is missing.' }
 $current = $null
 if (-not [Uri]::TryCreate([string]$endpoint.Value.Url, [UriKind]::Absolute, [ref]$current) -or
-    $current.Scheme -notin @('http','https') -or $current.UserInfo -or $current.Query -or $current.AbsolutePath -ne '/') {
+    $current.Scheme -notin @('http','https') -or $current.UserInfo -or $current.Query -or $current.Fragment -or $current.AbsolutePath -ne '/') {
     throw 'The registered endpoint must be an HTTP or HTTPS listener URL.'
 }
 if (-not $PSBoundParameters.ContainsKey('WebPort')) { $WebPort = $current.Port }
@@ -81,7 +81,7 @@ if ($profile.apiEndpointName) {
     $apiEndpoint=$config.Kestrel.Endpoints.PSObject.Properties[$profile.apiEndpointName]
     if ($null -eq $apiEndpoint -or $profile.apiEndpointName -eq $profile.endpointName) { throw 'Distinct registered Web/API endpoints required.' }
     if (-not [Uri]::TryCreate([string]$apiEndpoint.Value.Url,[UriKind]::Absolute,[ref]$apiCurrent) -or
-        $apiCurrent.Scheme -notin @('http','https') -or $apiCurrent.UserInfo -or $apiCurrent.Query -or $apiCurrent.AbsolutePath -ne '/') { throw 'Invalid API listener URL.' }
+        $apiCurrent.Scheme -notin @('http','https') -or $apiCurrent.UserInfo -or $apiCurrent.Query -or $apiCurrent.Fragment -or $apiCurrent.AbsolutePath -ne '/') { throw 'Invalid API listener URL.' }
     if (-not $PSBoundParameters.ContainsKey('ApiPort')) { $ApiPort=$apiCurrent.Port }
     if ($WebPort -eq $ApiPort) { throw 'Web and API must have distinct access ports.' }
     $apiTarget=[UriBuilder]::new($apiCurrent); $apiTarget.Port=$ApiPort

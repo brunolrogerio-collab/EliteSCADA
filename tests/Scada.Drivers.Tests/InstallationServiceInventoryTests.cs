@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Scada.Api.Engineering;
+using Scada.Api.Persistence;
 
 namespace Scada.Drivers.Tests;
 
@@ -37,5 +38,22 @@ public sealed class InstallationServiceInventoryTests
         var endpoints = InstallationServiceInventoryApi.Read(configuration);
         Assert.Contains(endpoints, endpoint => endpoint.Service == "Web" && endpoint.Port == 28080);
         Assert.Contains(endpoints, endpoint => endpoint.Service == "API" && endpoint.Port == 28080);
+    }
+
+    [Fact]
+    public void Read_UsesEffectiveDatabaseConnectionsInsteadOfStaleFileValues()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:EliteScada"] = "Host=localhost;Port=5432;Password=stale-secret"
+        }).Build();
+        var effective = new DatabaseRuntimeConnectionSet(DatabaseTopologyProfile.LocalManaged,
+            "Host=localhost;Port=25432;Password=active-secret", "Host=localhost;Port=25432;Password=active-secret", true);
+        var endpoints = InstallationServiceInventoryApi.Read(configuration, effective);
+        Assert.Contains(endpoints, item => item.Service == "EliteScada" && item.Port == 25432 && item.Source == "ActiveDatabaseTopology");
+        Assert.Contains(endpoints, item => item.Service == "Historian" && item.Port == 25432);
+        var json = System.Text.Json.JsonSerializer.Serialize(endpoints);
+        Assert.DoesNotContain("stale-secret", json);
+        Assert.DoesNotContain("active-secret", json);
     }
 }

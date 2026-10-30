@@ -1,4 +1,5 @@
 using Npgsql;
+using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Security.Authorization;
@@ -13,18 +14,18 @@ public static class InstallationServiceInventoryApi
     {
         app.MapGet("/api/installation/service-endpoints", async (
             HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security,
-            IConfiguration configuration, CancellationToken cancellationToken) =>
+            IConfiguration configuration, DatabaseRuntimeConnectionSet databaseConnections, CancellationToken cancellationToken) =>
         {
             var authorization = await security.CheckRuntimeAsync(context, runtime,
                 SecurityCapability.SystemAdmin, cancellationToken: cancellationToken);
             var failure = authorization.FailureResult();
-            return failure ?? Results.Ok(Read(configuration));
+            return failure ?? Results.Ok(Read(configuration, databaseConnections));
         });
     }
 
     // Report configured endpoints only. No configuration value, credential, URI path,
     // or query is returned, and this inventory grants no host-management capability.
-    public static IReadOnlyList<InstallationServiceEndpoint> Read(IConfiguration configuration)
+    public static IReadOnlyList<InstallationServiceEndpoint> Read(IConfiguration configuration, DatabaseRuntimeConnectionSet? databaseConnections = null)
     {
         var endpoints = new List<InstallationServiceEndpoint>();
         foreach (var endpoint in configuration.GetSection("Kestrel:Endpoints").GetChildren())
@@ -44,11 +45,13 @@ public static class InstallationServiceInventoryApi
         AddUri(endpoints, "MediaPlayback", "MediaSources:GatewayPlaybackUrl", configuration["MediaSources:GatewayPlaybackUrl"]);
         foreach (var name in new[] { "EliteScada", "Historian" })
         {
-            var connection = configuration.GetConnectionString(name);
+            var connection = databaseConnections is null
+                ? configuration.GetConnectionString(name)
+                : name == "EliteScada" ? databaseConnections.PrimaryConnectionString : databaseConnections.HistorianConnectionString;
             try
             {
                 var parsed = string.IsNullOrWhiteSpace(connection) ? null : new NpgsqlConnectionStringBuilder(connection);
-                endpoints.Add(new(name, $"ConnectionStrings:{name}", parsed?.Host, parsed?.Port));
+                endpoints.Add(new(name, databaseConnections is null ? $"ConnectionStrings:{name}" : "ActiveDatabaseTopology", parsed?.Host, parsed?.Port));
             }
             catch (ArgumentException)
             {

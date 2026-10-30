@@ -104,3 +104,9 @@ Sem --web-port mantém a porta atual. Sem --apply apresenta o plano. A aplicaç�
 `DatabaseTopology:LocalManagedPort` é uma opção de provisionamento do host, ausente por padrão. O resolver aplica o valor somente ao modo LocalManaged, usando NpgsqlConnectionStringBuilder nas conexões locais principal/Historian. Exige host loopback e faixa válida; preserva senha (inclusive delimitadores), identidade do banco, TLS e demais opções. Topologia Remote continua pelo caminho próprio, sem alterar seu endpoint.
 
 Esta opção é preparação para o adaptador coordenado de PostgreSQL, não uma ação de migração nem uma troca de porta completa. Ainda é necessário mudar o listener PostgreSQL, parar/reiniciar consumidores, verificar a conexão real e restaurar todas as configurações se houver falha. Não orientar o usuário a mudar apenas essa opção antes desse procedimento. Teste focal validou preservação de credenciais e recusas de endpoint remoto/porta inválida.
+
+## Pré-condição de validação do banco — 30/10/2026
+
+O inventário da API deve usar DatabaseRuntimeConnectionSet, a seleção efetiva do produto, para banco principal/Historian. Não pode inferir estado em execução apenas das connection strings do arquivo, pois uma topologia remota ou porta local provisionada pode substituí-las. A resposta mantém somente host/porta/origem e não inclui credenciais.
+
+`/health` atual em Program.cs informa apenas que a API está respondendo; não consulta PostgreSQL. Portanto o adaptador coordenado do banco precisa verificar conexão autenticada, identidade do banco/instalação e endpoint efetivo antes de concluir. Um TCP aberto, pg_isready ou HTTP 200 isoladamente não bastam. Reutilizar as operações de teste da topologia e suas fronteiras de manutenção; não copiar/migrar dados ao alterar somente porta. Essa validação ainda não está implementada nos scripts nativos candidatos.

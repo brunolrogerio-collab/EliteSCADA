@@ -255,11 +255,6 @@ function EngineeringRuntimeApplicationContent({
   };
 
   const runtimeToolbar = <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
-    {!compact && <a className="runtime-operator-tool" href={`/?screen=${encodeURIComponent(activeScreenKey ?? '')}`}
-      target="_blank" rel="noopener noreferrer"
-      title={locale === 'pt-BR' ? 'Abrir esta tela em outra janela' : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window'}>
-      {locale === 'pt-BR' ? 'Nova janela' : locale === 'es' ? 'Nueva ventana' : 'New window'}
-    </a>}
     {header?.overviewVisible !== false && <RuntimeOperatorTool
       label={text.runtimeOverview} icon="overview" active={!historyOpen && !alarmsOpen} onClick={showOverview}
     />}
@@ -329,6 +324,10 @@ function EngineeringRuntimeApplicationContent({
         </> : null}
       </div>
       <div className="runtime-operator-side runtime-operator-side--right">
+        {!compact ? <a className="runtime-operator-tool" href={`/?screen=${encodeURIComponent(activeScreenKey ?? '')}`}
+          target="_blank" rel="noopener noreferrer"
+          aria-label={locale === 'pt-BR' ? 'Abrir esta tela em outra janela' : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window'}
+          title={locale === 'pt-BR' ? 'Abrir esta tela em outra janela' : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window'}>↗</a> : null}
         {controlsPosition !== 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
         {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'right'
           ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}

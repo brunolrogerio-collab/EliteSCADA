@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$SourcePath,
-    [Parameter(Mandatory=$true)][string]$DestinationPath
+    [Parameter(Mandatory=$true)][string]$DestinationPath,
+    [switch]$CreateEmpty
 )
 $ErrorActionPreference='Stop'
 $source=(Resolve-Path -LiteralPath $SourcePath).Path
@@ -20,6 +21,9 @@ foreach ($sid in @($current.Value,'S-1-5-18','S-1-5-32-544') | Select-Object -Un
 # creation, before any configuration bytes can reach the destination.
 $output=[IO.FileStream]::new($destination,[IO.FileMode]::CreateNew,[Security.AccessControl.FileSystemRights]::FullControl,[IO.FileShare]::None,4096,[IO.FileOptions]::WriteThrough,$security)
 try {
-    $inputStream=[IO.File]::OpenRead($source)
-    try { $inputStream.CopyTo($output); $output.Flush($true) } finally { $inputStream.Dispose() }
+    if (-not $CreateEmpty) {
+        $inputStream=[IO.File]::OpenRead($source)
+        try { $inputStream.CopyTo($output) } finally { $inputStream.Dispose() }
+    }
+    $output.Flush($true)
 } finally { $output.Dispose() }

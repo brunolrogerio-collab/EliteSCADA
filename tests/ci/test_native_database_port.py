@@ -154,6 +154,7 @@ class NativeDatabasePortTests(unittest.TestCase):
                 with self.assertRaises(KeyboardInterrupt): module.execute_locked(profile,port,True)
                 recovery=json.loads(pending.read_text())
                 if sys.platform != 'win32':
+                    self.assertEqual(pending.stat().st_mode & 0o777,0o600)
                     for key in ('applicationBackup','postgresqlBackup'):
                         self.assertEqual(Path(recovery[key]).stat().st_mode & 0o777,0o600)
                 self.assertEqual(Path(recovery['applicationBackup']).read_bytes(),original)

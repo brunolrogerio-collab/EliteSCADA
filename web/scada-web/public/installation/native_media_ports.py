@@ -201,7 +201,15 @@ def apply_locked(profile_path, service_control, verify, control_port=None, hls_p
             with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as output:
                 output.write(content); output.flush(); os.fsync(output.fileno())
         backups.append(str(backup))
-    with os.fdopen(os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as output:
+    if os.name == 'nt':
+        subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+                        str(Path(__file__).with_name('copy-native-protected-backup.ps1')),
+                        '-SourcePath', str(app), '-DestinationPath', str(journal), '-CreateEmpty'],
+                       check=True, capture_output=True, timeout=30)
+        descriptor = os.open(journal, os.O_WRONLY)
+    else:
+        descriptor = os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w') as output:
         json.dump({'schema':'scadivo-media-port-recovery-v1', 'backups':backups}, output)
         output.flush(); os.fsync(output.fileno())
     try:

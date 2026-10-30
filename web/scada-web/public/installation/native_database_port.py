@@ -169,7 +169,15 @@ def execute_locked(profile_path, port=None, apply=False):
     recovery = {'schema': 'scadivo-database-port-recovery-v1', 'oldPort': old_port,
                 'newPort': port, 'applicationBackup': str(backups[0]),
                 'postgresqlBackup': str(backups[1])}
-    with os.fdopen(os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as output:
+    if os.name == 'nt':
+        subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+                        str(Path(__file__).with_name('copy-native-protected-backup.ps1')),
+                        '-SourcePath', str(app_path), '-DestinationPath', str(journal), '-CreateEmpty'],
+                       check=True, capture_output=True, timeout=30)
+        descriptor = os.open(journal, os.O_WRONLY)
+    else:
+        descriptor = os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w') as output:
         json.dump(recovery, output)
         output.flush()
         os.fsync(output.fileno())

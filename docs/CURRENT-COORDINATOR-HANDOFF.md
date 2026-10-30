@@ -1,5 +1,10 @@
 # Current coordinator pointer - Wave 15
 
+### Complemento validado — adaptadores e proteção de arquivos
+
+Mídia agora possui wrappers administrativos Windows/Linux, controle de serviços reutilizado, lock da instalação, verificação local limitada de controle/HLS e recuperação explícita após interrupção. Backups Web/API, banco e mídia Windows são criados com DACL restrita antes de copiar conteúdo; journals banco/mídia também nascem protegidos. Linux mantém 0600. Perfil administrativo só libera comando se configuração persistida corresponder às URLs efetivas e serviço tiver identificador válido.
+
+Verificação local desta etapa: banco 6/6 com ACL Windows real; mídia 7/7; roteiro Web Windows com ACL real e serviços simulados; laboratório Linux 11/11 com PostgreSQL real e modos de arquivos verificados. Ensaio anterior de MediaMTX real 8/8 inclui verificador de controle/HLS, mas não serviços OS reais nem playback autenticado. Pendências principais continuam: provisionamento nativo, coordenação com manutenção de topologia, readiness completa nos adaptadores, serviços SCM/systemd reais, HTTP/browser e Help/revisão final. Permissões dos diretórios de estado e locks ainda precisam da revisão do provisionador. PR #828 draft, sem merge ou mudança no Preview.
 ## Checkpoint prioritário — #780 — 30/10/2026
 
 Branch `work/w15-service-ports-780`, PR draft #828. Produto conferido em `5b8b1c3794717b016ef740bbd29911081615a5c2`. Padrões novos: Web 18080, API 15120, PostgreSQL gerenciado 15432; valores existentes preservados. Drivers ficam nos Data Sources. Preview e Portal preservados.

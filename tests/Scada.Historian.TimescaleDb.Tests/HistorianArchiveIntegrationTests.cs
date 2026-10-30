@@ -21,6 +21,9 @@ public sealed class HistorianArchiveIntegrationTests
         var to = from.AddDays(1);
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await using var service = new TimescaleDbHistorianArchiveService(connectionString, root);
+        // Initialize through the public service before direct SQL fixture writes.
+        // Each test must also work when it is the first user of a fresh database.
+        await service.ListAsync();
         try
         {
             await service.CreateAsync(from, to, deleteSourceAfterVerification: true);
@@ -96,6 +99,9 @@ public sealed class HistorianArchiveIntegrationTests
         var to = from.AddDays(1);
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await using var service = new TimescaleDbHistorianArchiveService(connectionString, root);
+        // Initialize through the public service before direct SQL fixture writes.
+        // Each test must also work when it is the first user of a fresh database.
+        await service.ListAsync();
         try
         {
             var job = await service.CreateAsync(from, to, deleteSourceAfterVerification: false);
@@ -152,6 +158,9 @@ public sealed class HistorianArchiveIntegrationTests
         var to = from.AddDays(1);
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await using var service = new TimescaleDbHistorianArchiveService(connectionString, root);
+        // Initialize through the public service before direct SQL fixture writes.
+        // Each test must also work when it is the first user of a fresh database.
+        await service.ListAsync();
         try
         {
             await InsertSampleAsync(dataSource, tagId, timestamp, "must-remain-until-verified");
@@ -207,6 +216,9 @@ public sealed class HistorianArchiveIntegrationTests
         var to = from.AddDays(2);
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await using var service = new TimescaleDbHistorianArchiveService(connectionString, root);
+        // Initialize through the public service before direct SQL fixture writes.
+        // Each test must also work when it is the first user of a fresh database.
+        await service.ListAsync();
         try
         {
             await InsertSampleAsync(dataSource, tagId, archivedFirst, "same-payload");
@@ -269,6 +281,9 @@ public sealed class HistorianArchiveIntegrationTests
         var to = from.AddDays(1);
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await using var service = new TimescaleDbHistorianArchiveService(connectionString, root);
+        // Initialize through the public service before direct SQL fixture writes.
+        // Each test must also work when it is the first user of a fresh database.
+        await service.ListAsync();
         try
         {
             await InsertSampleAsync(dataSource, tagId, from.AddHours(1), "still-live");
@@ -333,6 +348,9 @@ public sealed class HistorianArchiveIntegrationTests
         var start = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-4), TimeSpan.Zero);
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await using var service = new TimescaleDbHistorianArchiveService(connectionString, root);
+        // Initialize through the public service before direct SQL fixture writes.
+        // Each test must also work when it is the first user of a fresh database.
+        await service.ListAsync();
         try
         {
             await DeleteSourceForTestAsync(dataSource, tagId);

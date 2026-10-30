@@ -41,7 +41,11 @@ try {
         Check-Health $ports[0]; Check-Health $ports[1]
         $checks+='Real SCM start and two loopback listeners'
         $installation=Join-Path $repository 'web/scada-web/public/installation'
-        & (Join-Path $installation 'provision-native-network-profile.ps1') -ConfigurationPath $config -ServiceName $name -DestinationPath $profile
+        & (Join-Path $installation 'provision-native-network-profile.ps1') -ConfigurationPath $config -ServiceName $name -DestinationPath $profile -Register
+        $registered=Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
+        if ($registered.InstallationNetwork.Profile -ne 'native-windows' -or $registered.InstallationNetwork.AdministrativeProfilePath -ne $profile) { throw 'Administrative registration missing.' }
+        $original=[IO.File]::ReadAllText($config)
+        $checks+='Protected profile registration preserving listener ports'
         $adapter=Join-Path $installation 'apply-native-network-profile.ps1'
         & $adapter -ProfilePath $profile -WebPort $ports[2] -ApiPort $ports[3]
         if ([IO.File]::ReadAllText($config) -ne $original) { throw 'Plan mutated configuration.' }

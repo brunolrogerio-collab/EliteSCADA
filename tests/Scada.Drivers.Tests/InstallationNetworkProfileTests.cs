@@ -6,6 +6,40 @@ namespace Scada.Drivers.Tests;
 public sealed class InstallationNetworkProfileTests
 {
     [Theory]
+    [InlineData("windows")]
+    [InlineData("linux")]
+    public void NativeProfile_RecognizesRegisteredArtifactAfterConfigurationReload(string platform)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "scadivo-profile-reload-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var config = Path.Combine(directory, "app.json");
+            var profile = Path.Combine(directory, "profile.json");
+            File.WriteAllText(profile, System.Text.Json.JsonSerializer.Serialize(new {
+                schema = "scadivo-native-network-v1", platform, serviceName = "scadivo-service",
+                configurationFile = config, endpointName = "Web", apiEndpointName = "Api"
+            }));
+            void Write(int port) => File.WriteAllText(config, System.Text.Json.JsonSerializer.Serialize(new {
+                InstallationNetwork = new { Profile = "native-" + platform, AdministrativeProfilePath = profile },
+                Kestrel = new { Endpoints = new { Web = new { Url = "http://127.0.0.1:" + port }, Api = new { Url = "http://127.0.0.1:15120" } } }
+            }));
+            Write(18080);
+            var configuration = new ConfigurationBuilder().AddJsonFile(config, optional: false, reloadOnChange: false).Build();
+            using var configurationLifetime = (IDisposable)configuration;
+            Assert.True(InstallationNetworkProfileApi.ReadNative(configuration)!.AdministrativeProfileAvailable);
+            Write(28080);
+            Assert.False(InstallationNetworkProfileApi.ReadNative(configuration)!.AdministrativeProfileAvailable);
+            configuration.Reload();
+            var reloaded = InstallationNetworkProfileApi.ReadNative(configuration)!;
+            Assert.True(reloaded.AdministrativeProfileAvailable);
+            Assert.Equal(28080, reloaded.WebPort);
+            Assert.DoesNotContain(directory, System.Text.Json.JsonSerializer.Serialize(reloaded));
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Theory]
     [InlineData("http://user:private@127.0.0.1:18080")]
     [InlineData("http://127.0.0.1:18080/private")]
     [InlineData("http://127.0.0.1:18080/?token=private")]

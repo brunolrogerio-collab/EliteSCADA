@@ -134,3 +134,9 @@ Os entrypoints de alteração Web/API e PostgreSQL usam o mesmo arquivo `<config
 ### Bloqueio administrativo Windows
 
 O adaptador PowerShell Web/API abre `<configurationFile>.network.lock` com FileShare.None antes de ler/mudar configuração e libera em finally. Uma segunda operação participante falha antes de gravação/reinício; o sistema operacional libera o handle após término do processo. Teste usa handle exclusivo real no Windows e confirma recusa sem mutação, liberação e execução posterior. Serviços/HTTP permanecem simulados. O adaptador PostgreSQL Windows ainda não está implementado.
+
+### Prontidão autenticada do banco da aplicação
+
+GET `/api/installation/database-readiness`, autorizado por SystemAdmin, reutiliza GetStatusAsync(refreshHealth: true) da administração canônica de topologia. Faz as sondagens SQL/compatibilidade já existentes. Retorna somente Ready, RestartRequired e RecoveryRequired; HTTP 503 se houver falha, reinício/recuperação ou operação pendente. Não substitui /health público, não retorna diagnósticos/credenciais e não declara prontidão de todos os módulos do produto.
+
+Teste de projeção e núcleo de topologia: 22/22; nova conferência focal após ajuste de FailureCode: 1/1. A integração autenticada dos adaptadores com essa verificação ainda está pendente; não armazenar senha/token nos perfis públicos ou comandos.

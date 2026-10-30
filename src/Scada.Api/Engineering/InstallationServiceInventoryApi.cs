@@ -12,6 +12,7 @@ public static class InstallationServiceInventoryApi
 {
     public static void MapInstallationServiceInventoryEndpoints(this WebApplication app)
     {
+        app.MapInstallationDatabaseReadiness();
         app.MapGet("/api/installation/service-endpoints", async (
             HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security,
             IConfiguration configuration, DatabaseRuntimeConnectionSet databaseConnections, CancellationToken cancellationToken) =>

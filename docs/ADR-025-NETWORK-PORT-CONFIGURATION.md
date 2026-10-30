@@ -185,3 +185,9 @@ Teste local com Kestrel real abriu duas portas temporárias distintas, verificou
 ### Portas independentes no adaptador Windows
 
 Perfil pode registrar endpointName=Web e apiEndpointName=Api. Parâmetros WebPort e ApiPort são opcionais e preservam os valores atuais quando omitidos. O adaptador valida colisões, mantém um backup, grava as duas alterações juntas quando solicitadas, reinicia uma vez e verifica ambos os acessos /health. Falha restaura o arquivo inteiro e verifica os dois endereços anteriores. Testes PowerShell 5.1 passaram para alteração Web sem afetar API, API sem afetar Web, rollback e recusa de portas iguais; serviço/HTTP simulados. /health continua liveness, não substitui a verificação autenticada de banco/produto. Linux e UI precisam da mesma adequação.
+
+### Portas independentes no adaptador Linux
+
+O adaptador aceita --web-port e --api-port opcionais com endpointName/apiEndpointName distintos no perfil. O valor omitido preserva a porta atual. Valida colisão antes de operações, aplica ambos ao mesmo backup/configuração/restart e verifica os dois acessos; falha restaura ambos. Testes locais: 7 passaram, 1 flock exclusivo Linux ignorado neste Windows. Casos incluem Web isolada, API isolada, falha na saúde da API e recusa de portas iguais.
+
+A tentativa de laboratório Linux desta revisão falhou antes dos testes porque apk não obteve Python por erro TLS no repositório Alpine. Não transferir o 8/8 real da revisão anterior para este código; nova evidência Linux continua pendente. Preview preservado.

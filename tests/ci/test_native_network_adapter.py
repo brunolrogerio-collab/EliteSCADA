@@ -49,6 +49,35 @@ class NativeNetworkAdapterTests(unittest.TestCase):
             self.assertTrue(config.with_name('app.json.network.lock').exists())
             self.assertEqual(config.read_text(), '{}')
 
+    def test_independent_web_api_ports_and_rollback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / 'app.json'
+            original = json.dumps({'Kestrel': {'Endpoints': {'Web': {'Url':'http://127.0.0.1:18080'}, 'Api': {'Url':'http://127.0.0.1:15120'}}}}).encode()
+            profile = Path(directory) / 'profile.json'
+            profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':'linux','serviceName':'test','configurationFile':str(config),'endpointName':'Web','apiEndpointName':'Api'}))
+            with socket.socket() as listener:
+                listener.bind(('127.0.0.1',0)); target=listener.getsockname()[1]
+            with patch.object(adapter.subprocess,'run') as service, patch.object(adapter,'health') as health:
+                config.write_bytes(original)
+                adapter.run_locked(profile,target,True)
+                endpoints=json.loads(config.read_text())['Kestrel']['Endpoints']
+                self.assertIn(str(target),endpoints['Web']['Url'])
+                self.assertEqual(endpoints['Api']['Url'],'http://127.0.0.1:15120')
+                config.write_bytes(original)
+                adapter.run_locked(profile,None,True,target)
+                endpoints=json.loads(config.read_text())['Kestrel']['Endpoints']
+                self.assertEqual(endpoints['Web']['Url'],'http://127.0.0.1:18080')
+                self.assertIn(str(target),endpoints['Api']['Url'])
+                config.write_bytes(original); service.reset_mock()
+                health.side_effect=[None,RuntimeError('API unavailable'),None,None]
+                with self.assertRaisesRegex(RuntimeError,'restored and healthy'):
+                    adapter.run_locked(profile,None,True,target)
+                self.assertEqual(config.read_bytes(),original)
+                self.assertEqual(sum(call.args[0][1]=='restart' for call in service.call_args_list),2)
+                service.reset_mock()
+                with self.assertRaises(ValueError): adapter.run_locked(profile,28080,True,28080)
+                service.assert_not_called()
+
     def test_plan_apply_and_rollback_preserve_configuration(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

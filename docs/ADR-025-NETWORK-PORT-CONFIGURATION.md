@@ -110,3 +110,11 @@ Esta opção é preparação para o adaptador coordenado de PostgreSQL, não uma
 O inventário da API deve usar DatabaseRuntimeConnectionSet, a seleção efetiva do produto, para banco principal/Historian. Não pode inferir estado em execução apenas das connection strings do arquivo, pois uma topologia remota ou porta local provisionada pode substituí-las. A resposta mantém somente host/porta/origem e não inclui credenciais.
 
 `/health` atual em Program.cs informa apenas que a API está respondendo; não consulta PostgreSQL. Portanto o adaptador coordenado do banco precisa verificar conexão autenticada, identidade do banco/instalação e endpoint efetivo antes de concluir. Um TCP aberto, pg_isready ou HTTP 200 isoladamente não bastam. Reutilizar as operações de teste da topologia e suas fronteiras de manutenção; não copiar/migrar dados ao alterar somente porta. Essa validação ainda não está implementada nos scripts nativos candidatos.
+
+## Coordenador de porta PostgreSQL Linux — candidato interno
+
+`native_database_port.py` ainda não tem CLI nem vínculo de UI. Usa perfil administrativo e topologia persistida para recusar Remote ou operação pendente. Antes de alterar, consulta PostgreSQL autenticado por psql (`-w`, sem senha na linha de comando), confere config_file, porta e identidade do banco. Credenciais usam a configuração protegida libpq do executor. O perfil fornece os caminhos/serviços; usuário comum não os preenche.
+
+Candidato salva dois backups privados, para API, altera porta do PostgreSQL e opção LocalManagedPort, reinicia PostgreSQL, verifica conexão/identidade e inicia API. Falha tenta restaurar ambos os arquivos e conexão anterior. Teste simulado cobre prévia sem escrita, ordem, preservação de segredo, reversão e recusa Remote.
+
+Não liberado: faltam serialização com outras operações administrativas/topologia, readiness autenticada do produto após iniciar API, espera de readiness PostgreSQL, tratamento de interrupção do host, Windows equivalente, perfil provisionado real e teste PostgreSQL/systemd real. O retorno explícito do candidato diz que a readiness da aplicação ainda precisa de validação. Não concluir #780 por esse teste.

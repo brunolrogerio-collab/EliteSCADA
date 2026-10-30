@@ -208,6 +208,8 @@ Tras una interrupción, conserve los backups y el registro de recuperación. Use
 
 Los comandos completos y requisitos están en `installation/NATIVE-PORTS.md` del paquete administrativo. No se cambian automáticamente firewall, Drivers ni peers HA. El aprovisionamiento de carpetas protegidas y la verificación autenticada completa en los adaptadores aún requieren homologación.
 
+Cuando el perfil registra PostgreSQL local administrado y/o multimedia, **Base y multimedia locales** muestra sus puertos configurados. Edite los campos y revise el plan separado de cada servicio. Los puertos inválidos o repetidos bloquean los planes. Sin registro válido no aparecen estos controles; la pantalla no supone puertos desconocidos. Ejecute un procedimiento por vez y recargue la página después del cambio.
+
 ## License Generator
 
 License Generator es una herramienta offline/controlada de la autoridad de licenciamiento. La clave privada de firma nunca debe incluirse en GitHub, CI normal, un instalador de cliente ni Runtime.

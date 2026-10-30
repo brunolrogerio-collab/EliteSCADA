@@ -116,3 +116,18 @@ test('native command waits for the provisioned administrative profile', async ({
   await expect(panel.getByRole('status')).toContainText('ainda não foi fornecido');
   await expect(panel.locator('textarea')).toHaveValue('');
 });
+
+test('native local database and media prepare distinct plans only when reported', async ({ page }) => {
+  await page.route('**/api/installation/network-profile',route=>route.fulfill({status:404,body:'{}'}));
+  await page.route('**/api/installation/native-network-profile',route=>route.fulfill({json:{platform:'linux',webPort:18080,apiPort:15120,administrativeProfileAvailable:true,databasePort:15432,mediaControlPort:9997,mediaPlaybackPort:8888}}));
+  await page.goto(`${harnessPath}?locale=pt-BR`);
+  const panel=page.getByTestId('native-dependent-ports');
+  await expect(panel.getByLabel('Porta do banco local',{exact:true})).toHaveValue('15432');
+  await panel.getByLabel('Porta do banco local',{exact:true}).fill('25432');
+  await expect(panel.getByLabel('Plano do banco local',{exact:true})).toHaveValue(/--database-port 25432/);
+  await expect(panel.getByLabel('Plano da mídia local',{exact:true})).toHaveValue(/--control-port 9997 --hls-port 8888/);
+  await panel.getByLabel('Porta HLS',{exact:true}).fill('25432');
+  await expect(panel.getByRole('alert')).toContainText('válidas e distintas');
+  await expect(panel.getByLabel('Plano do banco local',{exact:true})).toHaveValue('');
+  await expect(panel.getByLabel('Plano da mídia local',{exact:true})).toHaveValue('');
+});

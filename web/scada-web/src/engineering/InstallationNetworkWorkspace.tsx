@@ -270,7 +270,7 @@ function NativeAccessPortPreparation({ locale }: { locale: EngineeringLocale }) 
     en: ['Native access ports', 'Web port', 'API port', 'Run from the administrative folder supplied by the installation, containing its profile and adapters. The command previews the plan; applying requires the Apply option described by the procedure. It does not change database or media.', 'Ports must be valid and distinct.', 'Could not retrieve the native profile.', 'Preview command'],
     es: ['Puertos de acceso nativos', 'Puerto Web', 'Puerto API', 'Ejecute desde la carpeta administrativa de la instalación, con perfil y adaptadores. El comando presenta el plan; aplicar requiere la opción Apply del procedimiento. No cambia base ni multimedia.', 'Los puertos deben ser válidos y distintos.', 'No se pudo consultar el perfil nativo.', 'Comando de vista previa']
   }[locale];
-  const [profile, setProfile] = useState<{ platform: 'windows' | 'linux'; webPort: number; apiPort: number; administrativeProfileAvailable: boolean } | null>(null);
+  const [profile, setProfile] = useState<NativePortProfile | null>(null);
   const [failed, setFailed] = useState(false);
   const [web, setWeb] = useState('');
   const [api, setApi] = useState('');
@@ -300,5 +300,36 @@ function NativeAccessPortPreparation({ locale }: { locale: EngineeringLocale }) 
     {!valid && <p role="alert">{t[4]}</p>}
     {!profile.administrativeProfileAvailable && <p role="status">{locale === 'pt-BR' ? 'O perfil administrativo ainda não foi fornecido pela instalação. A preparação do comando ficará disponível quando esse provisionamento for concluído.' : locale === 'es' ? 'La instalación aún no proporcionó el perfil administrativo. El comando estará disponible después del aprovisionamiento.' : 'The installation has not supplied its administrative profile. The command will be available after provisioning.'}</p>}
     <textarea aria-label={t[6]} value={command} readOnly rows={3}/>
+    {profile.administrativeProfileAvailable && <NativeDependentPortPreparation profile={profile} locale={locale} web={web} api={api}/>}
+  </div>;
+}
+
+type NativePortProfile = { platform: 'windows' | 'linux'; webPort: number; apiPort: number; administrativeProfileAvailable: boolean; databasePort?: number | null; mediaControlPort?: number | null; mediaPlaybackPort?: number | null };
+
+function NativeDependentPortPreparation({ profile, locale, web, api }: { profile: NativePortProfile; locale: EngineeringLocale; web: string; api: string }) {
+  const [database, setDatabase] = useState(String(profile.databasePort ?? ''));
+  const [control, setControl] = useState(String(profile.mediaControlPort ?? ''));
+  const [playback, setPlayback] = useState(String(profile.mediaPlaybackPort ?? ''));
+  const hasDatabase = Number.isInteger(profile.databasePort) && Number(profile.databasePort) > 0;
+  const hasMedia = Number.isInteger(profile.mediaControlPort) && Number.isInteger(profile.mediaPlaybackPort) && Number(profile.mediaControlPort) > 0 && Number(profile.mediaPlaybackPort) > 0;
+  if (!hasDatabase && !hasMedia) return null;
+  const t = {
+    'pt-BR': ['Banco e mídia locais', 'Porta do banco local', 'Porta do controle de mídia', 'Porta HLS', 'Execute um procedimento por vez. Os comandos apresentam planos; aplique somente após revisar. No Windows, use o Python fornecido pela instalação. Banco remoto e Drivers não são alterados.', 'Use portas válidas e distintas para os serviços locais.', 'Plano do banco local', 'Plano da mídia local'],
+    en: ['Local database and media', 'Local database port', 'Media control port', 'HLS port', 'Run one procedure at a time. Commands preview plans; apply only after review. On Windows, use the installation-provided Python. Remote databases and Drivers are not changed.', 'Use valid, distinct ports for local services.', 'Local database plan', 'Local media plan'],
+    es: ['Base y multimedia locales', 'Puerto de base local', 'Puerto de control multimedia', 'Puerto HLS', 'Ejecute un procedimiento por vez. Los comandos presentan planes; aplique solo después de revisar. En Windows use Python de la instalación. No se cambian bases remotas ni Drivers.', 'Use puertos válidos y distintos para servicios locales.', 'Plan de base local', 'Plan multimedia local']
+  }[locale];
+  const values = [web, api, ...(hasDatabase ? [database] : []), ...(hasMedia ? [control, playback] : [])];
+  const valid = values.every(value => /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535) && new Set(values.map(Number)).size === values.length;
+  const windows = profile.platform === 'windows';
+  const databaseCommand = !valid ? '' : windows
+    ? `powershell -NoProfile -File ./apply-native-database-port.ps1 -ProfilePath ./native-network-profile.json -PythonExecutable $PythonDaInstalacao -DatabasePort ${Number(database)}`
+    : `bash ./apply-native-database-port.sh --profile ./native-network-profile.json --database-port ${Number(database)}`;
+  const mediaCommand = !valid ? '' : windows
+    ? `powershell -NoProfile -File ./apply-native-media-ports.ps1 -ProfilePath ./native-network-profile.json -PythonExecutable $PythonDaInstalacao -ControlPort ${Number(control)} -HlsPort ${Number(playback)}`
+    : `bash ./apply-native-media-ports.sh --profile ./native-network-profile.json --control-port ${Number(control)} --hls-port ${Number(playback)}`;
+  return <div data-testid="native-dependent-ports"><h4>{t[0]}</h4><p>{t[4]}</p>
+    {hasDatabase && <><label>{t[1]}<input type="number" min="1" max="65535" value={database} onChange={event => setDatabase(event.target.value)}/></label><textarea aria-label={t[6]} readOnly value={databaseCommand} rows={3}/></>}
+    {hasMedia && <><label>{t[2]}<input type="number" min="1" max="65535" value={control} onChange={event => setControl(event.target.value)}/></label><label>{t[3]}<input type="number" min="1" max="65535" value={playback} onChange={event => setPlayback(event.target.value)}/></label><textarea aria-label={t[7]} readOnly value={mediaCommand} rows={3}/></>}
+    {!valid && <p role="alert">{t[5]}</p>}
   </div>;
 }

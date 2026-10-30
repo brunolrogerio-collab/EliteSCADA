@@ -208,6 +208,8 @@ After interruption, preserve backups and the recovery record. Run the relevant c
 
 Full commands and prerequisites are in `installation/NATIVE-PORTS.md` in the administrative package. Firewall, Drivers, and HA peers are not changed automatically. Protected directory provisioning and complete authenticated verification in the adapters still require qualification.
 
+When the profile registers locally managed PostgreSQL and/or media, **Local database and media** also shows their configured ports. Edit the fields and review each separate service plan. Invalid or duplicate ports block the plans. Without valid registration these controls are hidden; the screen does not assume unknown service ports. Run one procedure at a time and reload the page after a change.
+
 ## License Generator
 
 The License Generator is an offline/controlled licensing-authority tool. The signing private key must never be placed in GitHub, normal CI, a client installer, or Runtime.

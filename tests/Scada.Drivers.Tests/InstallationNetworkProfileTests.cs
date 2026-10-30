@@ -5,6 +5,41 @@ namespace Scada.Drivers.Tests;
 
 public sealed class InstallationNetworkProfileTests
 {
+    [Fact]
+    public void NativeProfile_ReportsDependentPortsOnlyForRegisteredLocalServices()
+    {
+        var directory=Path.Combine(Path.GetTempPath(),"scadivo-native-dependent-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var config=Path.Combine(directory,"app.json");var profile=Path.Combine(directory,"profile.json");
+            var topology=Path.Combine(directory,"topology.json");var pg=Path.Combine(directory,"pg.conf");var media=Path.Combine(directory,"media.yml");
+            File.WriteAllText(config,"""{"Kestrel":{"Endpoints":{"Web":{"Url":"http://127.0.0.1:18080"},"Api":{"Url":"http://127.0.0.1:15120"}}}}""");
+            File.WriteAllText(pg,"port=15432");File.WriteAllText(media,"apiAddress: :9997\nhlsAddress: :8888");
+            File.WriteAllText(profile,System.Text.Json.JsonSerializer.Serialize(new {
+                schema="scadivo-native-network-v1",platform="linux",serviceName="api",configurationFile=config,endpointName="Web",apiEndpointName="Api",topologyFile=topology,
+                database=new {serviceName="database",configurationFile=pg},media=new {serviceName="media",configurationFile=media}
+            }));
+            File.WriteAllText(topology,"""{"schemaVersion":1,"active":{"mode":"LocalManaged"},"pending":null}""");
+            var settings=new Dictionary<string,string?> {
+                ["InstallationNetwork:Profile"]="native-linux",["InstallationNetwork:AdministrativeProfilePath"]=profile,
+                ["Kestrel:Endpoints:Web:Url"]="http://127.0.0.1:18080",["Kestrel:Endpoints:Api:Url"]="http://127.0.0.1:15120",
+                ["ConnectionStrings:EliteScada"]="Host=127.0.0.1;Port=15432;Password=must-not-leak",
+                ["MediaSources:GatewayControlUrl"]="http://127.0.0.1:9997",["MediaSources:GatewayPlaybackUrl"]="http://127.0.0.1:8888"
+            };
+            var configuration=new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+            var result=InstallationNetworkProfileApi.ReadNative(configuration)!;
+            Assert.Equal((15432,9997,8888),(result.DatabasePort,result.MediaControlPort,result.MediaPlaybackPort));
+            var json=System.Text.Json.JsonSerializer.Serialize(result);
+            Assert.DoesNotContain(directory,json);Assert.DoesNotContain("must-not-leak",json);
+            File.WriteAllText(topology,"""{"schemaVersion":1,"active":{"mode":"Remote"},"pending":null}""");
+            Assert.Null(InstallationNetworkProfileApi.ReadNative(configuration)!.DatabasePort);
+            File.Delete(media);
+            Assert.Null(InstallationNetworkProfileApi.ReadNative(configuration)!.MediaControlPort);
+        }
+        finally {Directory.Delete(directory,true);}
+    }
+
     [Theory]
     [InlineData("windows")]
     [InlineData("linux")]

@@ -208,6 +208,8 @@ Se houver interrupção, preserve os backups e o registro de recuperação. Use 
 
 Os comandos completos e requisitos estão no arquivo `installation/NATIVE-PORTS.md` do pacote administrativo. Não há mudança automática de firewall, Drivers ou peers HA. A configuração dos diretórios protegidos e a verificação autenticada completa nos adaptadores ainda precisam de homologação.
 
+Quando o perfil registra PostgreSQL local e/ou mídia, aparece também **Banco e mídia locais**, com as portas informadas pela configuração da instalação. Ajuste os campos e confira o plano separado de cada serviço. Portas inválidas ou repetidas bloqueiam os planos. Sem registro válido, esses controles não aparecem; a tela não presume portas de serviços desconhecidos. Execute um procedimento por vez e recarregue a página após a mudança.
+
 ## License Generator
 
 

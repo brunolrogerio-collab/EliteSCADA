@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Scada.Api.Engineering;
+using Scada.Drivers.Abstractions;
+using Scada.Drivers.Modbus;
 
 namespace Scada.Drivers.Tests;
 
@@ -58,6 +60,70 @@ public sealed class InstallationNetworkProfileTests
 
         var mapping = Assert.Single(profile.DriverPorts);
         Assert.Equal(("TCP", "127.0.0.1", 2502, 1502), (mapping.Transport, mapping.BindAddress, mapping.PublishedPort, mapping.InternalPort));
+    }
+
+    [Fact]
+    public void Read_ReportsConfiguredModbusTcpServerListenerFromActiveRuntime()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["InstallationNetwork:Profile"] = "stable-docker"
+            })
+            .Build();
+        var now = DateTimeOffset.UtcNow;
+        var diagnostics = new[]
+        {
+            new CommunicationDriverDiagnosticSnapshot(
+                DataSourceKey: "modbus.tcp.server:plant",
+                DataSourceName: "Plant Modbus listener",
+                DriverType: ModbusTcpServerDriverDescriptorProvider.DriverTypeId,
+                RuntimeInstanceId: "runtime-instance",
+                Endpoint: "0.0.0.0:1502",
+                State: CommunicationDriverOperationalState.Healthy,
+                StateChangedAt: now,
+                CapturedAt: now,
+                LastSuccessfulCommunicationAt: null,
+                LastFailedCommunicationAt: null,
+                LastError: null,
+                DataAge: null,
+                ConfiguredScanInterval: null,
+                LastOperationDuration: null,
+                AverageOperationDuration: null,
+                LastScanDuration: null,
+                RecentFailureRate: 0,
+                AssociatedTagCount: 1,
+                TagQuality: new CommunicationTagQualitySummary(0, 0, 0, 0, 0, 0, 0, 0, 0),
+                Counters: new CommunicationDriverCounters(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+            new CommunicationDriverDiagnosticSnapshot(
+                DataSourceKey: "modbus.tcp:equipment",
+                DataSourceName: "Outbound Modbus client",
+                DriverType: ModbusTcpDriverDescriptorProvider.DriverTypeId,
+                RuntimeInstanceId: "runtime-client",
+                Endpoint: "192.0.2.10:502",
+                State: CommunicationDriverOperationalState.Healthy,
+                StateChangedAt: now,
+                CapturedAt: now,
+                LastSuccessfulCommunicationAt: null,
+                LastFailedCommunicationAt: null,
+                LastError: null,
+                DataAge: null,
+                ConfiguredScanInterval: null,
+                LastOperationDuration: null,
+                AverageOperationDuration: null,
+                LastScanDuration: null,
+                RecentFailureRate: 0,
+                AssociatedTagCount: 1,
+                TagQuality: new CommunicationTagQualitySummary(0, 0, 0, 0, 0, 0, 0, 0, 0),
+                Counters: new CommunicationDriverCounters(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        };
+
+        var profile = Assert.IsType<InstallationNetworkProfileView>(
+            InstallationNetworkProfileApi.Read(configuration, diagnostics));
+
+        var listener = Assert.Single(profile.ConfiguredDriverListeners);
+        Assert.Equal(("Plant Modbus listener", "TCP", "0.0.0.0", 1502, "Healthy"),
+            (listener.DataSourceName, listener.Transport, listener.BindAddress, listener.InternalPort, listener.State));
     }
 
     [Fact]

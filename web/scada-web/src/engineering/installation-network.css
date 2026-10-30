@@ -49,6 +49,9 @@
 .installation-network__grid small { color: var(--eng-muted); line-height: 1.4; }
 .installation-network__driver-ports { display: grid; gap: 10px; border-top: 1px solid var(--eng-border-soft); padding-top: 12px; }
 .installation-network__driver-ports h4 { margin: 0 0 4px; }
+.installation-network__driver-ports h5 { margin: 0 0 4px; font-size: 13px; }
+.installation-network__configured-listeners { display: grid; gap: 6px; border: 1px solid var(--eng-border-soft); border-radius: 8px; padding: 12px; }
+.installation-network__configured-listeners p { margin: 0; }
 .installation-network__driver-ports p { margin: 0; }
 .installation-network__driver-port { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; border: 1px solid var(--eng-border-soft); border-radius: 8px; padding: 12px; }
 .installation-network__driver-port legend { padding: 0 5px; color: var(--eng-muted); }

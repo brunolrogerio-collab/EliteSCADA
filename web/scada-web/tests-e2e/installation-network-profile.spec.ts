@@ -21,6 +21,13 @@ const profile = {
   mediaControl: endpoint('TCP', 9997, 0, false),
   mediaPlayback: endpoint('TCP', 8888, 0, false),
   driverPorts: [],
+  configuredDriverListeners: [{
+    dataSourceName: 'Modbus Server EEE',
+    transport: 'TCP',
+    bindAddress: '0.0.0.0',
+    internalPort: 1502,
+    state: 'Healthy'
+  }],
   applyThroughUi: false,
   hostMappingIndependentlyVerified: false
 };
@@ -42,6 +49,7 @@ test('installation network UI validates Driver listeners and prepares platform-s
   const app = page.getByTestId('installation-network');
   await expect(app.getByRole('heading', { name: 'Rede e serviços' })).toBeVisible();
   await expect(app.getByText('scadivo-stable', { exact: true })).toBeVisible();
+  await expect(app.getByRole('row', { name: /Modbus Server EEE.*TCP.*0\.0\.0\.0:1502.*Em execução/ })).toBeVisible();
   await expect(app.getByRole('cell', { name: 'Somente rede Docker' })).toHaveCount(2);
 
   await app.getByRole('button', { name: 'Adicionar listener' }).click();

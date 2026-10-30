@@ -1,5 +1,8 @@
+using System.Net;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
+using Scada.Drivers.Abstractions;
+using Scada.Drivers.Modbus;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Engineering;
@@ -18,6 +21,13 @@ public sealed record InstallationNetworkDriverPortProfile(
     int InternalPort,
     bool PublishedToHost);
 
+public sealed record InstallationNetworkConfiguredDriverListener(
+    string DataSourceName,
+    string Transport,
+    string BindAddress,
+    int InternalPort,
+    string State);
+
 public sealed record InstallationNetworkProfileView(
     string Profile,
     string InstanceId,
@@ -27,6 +37,7 @@ public sealed record InstallationNetworkProfileView(
     InstallationNetworkEndpointProfile MediaControl,
     InstallationNetworkEndpointProfile MediaPlayback,
     IReadOnlyList<InstallationNetworkDriverPortProfile> DriverPorts,
+    IReadOnlyList<InstallationNetworkConfiguredDriverListener> ConfiguredDriverListeners,
     bool ApplyThroughUi,
     bool HostMappingIndependentlyVerified);
 
@@ -49,14 +60,16 @@ public static class InstallationNetworkProfileApi
             var failure = authorization.FailureResult();
             if (failure is not null) return failure;
 
-            var profile = Read(configuration);
+            var profile = Read(configuration, runtime.Describe().CommunicationDrivers);
             if (profile is null)
                 return Results.NotFound(new { error = "This installation does not report a supported Docker network profile." });
             return Results.Ok(profile);
         });
     }
 
-    public static InstallationNetworkProfileView? Read(IConfiguration configuration)
+    public static InstallationNetworkProfileView? Read(
+        IConfiguration configuration,
+        IReadOnlyCollection<CommunicationDriverDiagnosticSnapshot>? runtimeDrivers = null)
     {
         if (!string.Equals(configuration["InstallationNetwork:Profile"], "stable-docker", StringComparison.Ordinal))
             return null;
@@ -78,8 +91,38 @@ public static class InstallationNetworkProfileApi
                 new("TCP", "Docker network only", 9997, 9997, false),
                 new("TCP", "Docker network only", 8888, 8888, false),
                 driverPorts,
+                ReadConfiguredDriverListeners(runtimeDrivers),
                 ApplyThroughUi: false,
                 HostMappingIndependentlyVerified: false);
+    }
+
+    private static IReadOnlyList<InstallationNetworkConfiguredDriverListener> ReadConfiguredDriverListeners(
+        IReadOnlyCollection<CommunicationDriverDiagnosticSnapshot>? runtimeDrivers)
+    {
+        if (runtimeDrivers is null || runtimeDrivers.Count == 0)
+            return Array.Empty<InstallationNetworkConfiguredDriverListener>();
+
+        var listeners = new List<InstallationNetworkConfiguredDriverListener>();
+        foreach (var driver in runtimeDrivers)
+        {
+            var rawEndpoint = driver.Endpoint;
+            if (!string.Equals(
+                    driver.DriverType,
+                    ModbusTcpServerDriverDescriptorProvider.DriverTypeId,
+                    StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(rawEndpoint) ||
+                !IPEndPoint.TryParse(rawEndpoint, out var endpoint))
+                continue;
+
+            listeners.Add(new InstallationNetworkConfiguredDriverListener(
+                driver.DataSourceName,
+                "TCP",
+                endpoint.Address.ToString(),
+                endpoint.Port,
+                driver.State.ToString()));
+        }
+
+        return listeners;
     }
 
     private static int ReadPort(IConfiguration configuration, string key, int fallback)

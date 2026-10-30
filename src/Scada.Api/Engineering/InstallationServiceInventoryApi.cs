@@ -30,18 +30,21 @@ public static class InstallationServiceInventoryApi
     {
         var endpoints = new List<InstallationServiceEndpoint>();
         foreach (var endpoint in configuration.GetSection("Kestrel:Endpoints").GetChildren())
-            AddUri(endpoints, "API", $"Kestrel:Endpoints:{endpoint.Key}:Url", endpoint["Url"]);
+            AddUri(endpoints, endpoint.Key.Equals("Web", StringComparison.OrdinalIgnoreCase) ? "Web" : "API", $"Kestrel:Endpoints:{endpoint.Key}:Url", endpoint["Url"]);
         if (endpoints.Count == 0)
             foreach (var url in (configuration["urls"] ?? string.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries))
                 AddUri(endpoints, "API", "urls", url);
         if (endpoints.Count == 0) endpoints.Add(new("API", "not-reported", null, null));
-        if (!string.IsNullOrWhiteSpace(configuration["InstallationNetwork:WebRootPath"]) &&
-            string.IsNullOrWhiteSpace(configuration["InstallationNetwork:WebUrl"]))
+        if (!endpoints.Any(endpoint => endpoint.Service == "Web"))
         {
-            foreach (var api in endpoints.Where(endpoint => endpoint.Service == "API").ToArray())
-                endpoints.Add(api with { Service = "Web" });
+            if (!string.IsNullOrWhiteSpace(configuration["InstallationNetwork:WebRootPath"]) &&
+                string.IsNullOrWhiteSpace(configuration["InstallationNetwork:WebUrl"]))
+            {
+                foreach (var api in endpoints.Where(endpoint => endpoint.Service == "API").ToArray())
+                    endpoints.Add(api with { Service = "Web" });
+            }
+            else AddUri(endpoints, "Web", "InstallationNetwork:WebUrl", configuration["InstallationNetwork:WebUrl"]);
         }
-        else AddUri(endpoints, "Web", "InstallationNetwork:WebUrl", configuration["InstallationNetwork:WebUrl"]);
         AddUri(endpoints, "MediaControl", "MediaSources:GatewayControlUrl", configuration["MediaSources:GatewayControlUrl"]);
         AddUri(endpoints, "MediaPlayback", "MediaSources:GatewayPlaybackUrl", configuration["MediaSources:GatewayPlaybackUrl"]);
         foreach (var name in new[] { "EliteScada", "Historian" })

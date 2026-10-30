@@ -174,3 +174,10 @@ O núcleo disponibiliza recover_locked; no Linux execute(..., recover=True) segu
 ### Evidência real PostgreSQL em contêiner Linux — 30/10/2026
 
 Executado localmente em Docker desktop-linux com postgres:18-alpine, sem portas publicadas, bind do repositório somente leitura, cluster descartável em /tmp e usuário postgres. O ensaio rodou PostgreSQL/pg_ctl/psql reais: mudança de porta, consulta SQL, recuperação explícita e rollback automático após falha simulada de start da API. Também passou o teste flock Linux real entre Web e banco. Total 8/8, nenhum skip. Serviço API e SCM/systemd permanecem simulados; não equivale a validar o produto completo. Contêiner removido por --rm; Preview não foi usado. Python foi instalado apenas no contêiner descartável do laboratório.
+
+
+### Listeners nativos independentes Web/API
+
+O host nativo aceita endpoints Kestrel nomeados Web e Api com URLs independentes: perfil novo deve fornecer Web 18080 e Api 15120 automaticamente. WebRootPath continua fornecido pelo executor. Os arquivos estáticos/SPA são servidos somente no listener Web; o listener Api mantém rotas API e não serve a UI. O listener Web também atende /api e /ws pelas mesmas rotas/autorização do processo, mantendo mesma origem para o navegador (sem exigir CORS ou URL API preenchida pelo usuário). Isso não cria um segundo backend.
+
+Teste local com Kestrel real abriu duas portas temporárias distintas, verificou UI/assets somente no Web, API nos dois acessos e inventário correto. 5/5 testes de host/inventário passaram. O modo integrado anterior permanece opt-in para configurações que não declaram Web; não substitui o padrão de portas independentes solicitado. Provisionamento final, ajuste das duas portas pelos adaptadores/UI e pacote completo continuam pendentes.

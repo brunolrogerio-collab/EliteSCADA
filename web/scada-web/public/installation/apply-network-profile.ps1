@@ -39,11 +39,14 @@ function Get-ProjectContainerOwners([string]$ProjectName, [string]$ComposeFile) 
     $owners = @()
     foreach ($id in $ids) {
         if ([string]::IsNullOrWhiteSpace($id)) { continue }
-        $owner = & docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' $id 2>$null
+        $labelsJson = & docker inspect --format '{{json .Config.Labels}}' $id 2>$null
         if ($LASTEXITCODE -ne 0) { throw 'Docker could not inspect a Compose container. No change was made.' }
-        $owners += [System.IO.Path]::GetFullPath([string]$owner.Trim())
+        $labels = $labelsJson | ConvertFrom-Json
+        $owner = [string]$labels.'com.docker.compose.project.working_dir'
+        if ([string]::IsNullOrWhiteSpace($owner)) { throw 'Docker container has no Compose working-directory label. No change was made.' }
+        $owners += [System.IO.Path]::GetFullPath($owner.Trim())
     }
-    return ,$owners
+    return $owners
 }
 
 function Test-TcpPortAvailable([string]$Address, [int]$Port) {
@@ -76,9 +79,10 @@ function Test-DockerPublishedPortAvailable([string]$Address, [int]$Port) {
 }
 
 function Test-ProjectVolumesExist([string]$ProjectName) {
+    $volumeNames = @(& docker volume ls --quiet)
+    if ($LASTEXITCODE -ne 0) { throw 'Docker could not inspect existing data volumes.' }
     foreach ($suffix in @('database', 'protected-material', 'host-keys')) {
-        & docker volume inspect "$ProjectName-$suffix" *> $null
-        if ($LASTEXITCODE -eq 0) { return $true }
+        if ($volumeNames -contains "$ProjectName-$suffix") { return $true }
     }
     return $false
 }
@@ -89,7 +93,7 @@ function Add-AuditRecord([string]$Path, [string]$Result, [string]$OldId, [string
     [System.IO.File]::AppendAllText($Path, $line + [Environment]::NewLine, $script:Utf8NoBom)
 }
 
-if ($InstanceId -notmatch '^[a-z0-9][a-z0-9-]{0,47}$') { throw 'Instance ID must use 1–48 lowercase letters, numbers or hyphens and start with a letter or number.' }
+if ($InstanceId -notmatch '^[a-z0-9][a-z0-9-]{0,47}$') { throw 'Instance ID must use 1-48 lowercase letters, numbers or hyphens and start with a letter or number.' }
 if ($NewInstallation) {
     if ($SourceInstanceId -notmatch '^[a-z0-9][a-z0-9-]{0,47}$' -or $SourceInstanceId -eq $InstanceId) { throw 'A new installation needs a different, valid source instance ID.' }
     if (-not $ConfirmIsolatedSecrets) { throw 'A new installation requires -ConfirmIsolatedSecrets after preparing its own .env and unique secrets.' }
@@ -184,7 +188,7 @@ try {
     if (-not $healthy) { throw 'Health checks did not pass within 120 seconds.' }
 
     Add-AuditRecord $auditPath 'applied' $oldId $InstanceId
-    Write-Host "Network profile applied. Web: http://localhost:$WebPort — API: http://localhost:$ApiPort"
+    Write-Host "Network profile applied. Web: http://localhost:$WebPort; API: http://localhost:$ApiPort"
     Write-Host "Previous .env backup: $backup"
     if ($InstanceId -ne $oldId) { Write-Host 'This is a separate installation. Keep its own directory, .env secrets and backup.' }
     Write-Host 'No firewall rules were changed. Remote access requires a separately configured TLS/reverse-proxy and firewall policy.'
@@ -199,7 +203,7 @@ try {
         }
         Add-AuditRecord $auditPath 'rolled-back' $oldId $InstanceId
     }
-    throw "Profile was not accepted: $failure. Previous .env and data volumes were preserved. See the local backup and network-profile-audit.log."
+    throw "Profile was not accepted: ${failure}. Previous .env and data volumes were preserved. See the local backup and network-profile-audit.log."
 } finally {
     Remove-Item -LiteralPath $candidate -Force -ErrorAction SilentlyContinue
 }

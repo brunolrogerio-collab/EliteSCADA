@@ -1,6 +1,6 @@
 # CURRENT PRODUCT LANE — INSTALLATION NETWORK CONFIGURATION (#780) — 2026-10-29
 
-The integrated base is #827 at `16849faa66c84a4078126c08abb978e0c6014e0b`; the active branch is `work/w15-service-ports-780`. The current first slice configures network bindings and published ports for the stable Docker package, with reviewed host scripts, health/rollback behavior, and synchronized Help/manual. Local T0 is green; PR/T1 are pending. This does not finish #780: two simultaneously running isolated instances, native Windows/systemd service port configuration, and Driver protocol listeners remain unproven or unimplemented. Follow the live #780/#305 records; do not claim full delivery.
+The integrated base is #827 at `16849faa66c84a4078126c08abb978e0c6014e0b`; the active branch is `work/w15-service-ports-780`, draft PR #828. A disposable Windows-host Docker Desktop run started two isolated installations via the PowerShell 5.1 script and changed ports on one while both stayed healthy. Script compatibility fixes are in local changes; T1 #40980978486 passed only on the superseded `5b34ca82`, so fresh exact-head T1 remains required. This does not finish #780: Linux-host validation, native Windows/systemd service port configuration and Driver protocol listeners remain outstanding. Follow live #780/#305 records; do not claim full delivery.
 
 ---
 

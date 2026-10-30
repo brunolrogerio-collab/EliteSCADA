@@ -2,11 +2,11 @@
 
 ## Current product checkpoint - installation network configuration (#780), 29 October 2026
 
-The active product lane is #780 after the integrated #779 retention work. Branch `work/w15-service-ports-780` is based on `wave15/corrections-integration@16849faa66c84a4078126c08abb978e0c6014e0b` (#827). The current candidate prepares installation ID, Web/API binds and published Web/API/PostgreSQL ports for the official stable Docker package, exposes the declared profile only to `SystemAdmin`, and provides reviewed host scripts with preflight, secret/volume preservation, health checks and rollback. Help/manual pt-BR/en/es and ADR-025 are included.
+The active product lane is #780 after the integrated #779 retention work. Draft PR #828 is on branch `work/w15-service-ports-780`, based on `wave15/corrections-integration@16849faa66c84a4078126c08abb978e0c6014e0b` (#827). The candidate prepares installation ID, Web/API binds and published Web/API/PostgreSQL ports for the official stable Docker package, exposes the declared profile only to `SystemAdmin`, and provides reviewed host scripts with preflight, secret/volume preservation, health checks and rollback. Help/manual pt-BR/en/es and ADR-025 are included.
 
-Local T0 evidence: default/second-profile Compose validation passed; PowerShell parse and mocked apply/rollback/secret-preservation/port/volume-refusal checks passed; Git Bash syntax passed (no Linux runtime execution); focused API 2/2, contextual Help 32/32 and Web production build passed. No Preview service/data/volume was changed. No PR or CI result exists yet.
+Local T0 evidence: default/second-profile Compose validation passed; Windows PowerShell 5.1 syntax and mocked safety checks passed; Git Bash syntax passed (no Linux-host runtime); focused API 2/2, contextual Help 32/32 and Web production build passed. A live disposable Docker Desktop trial used the PS 5.1 host script to start two isolated installations and change ports on one; both stacks stayed healthy. That uncovered 5.1 parser/volume/owner-label issues, now fixed in uncommitted changes. T1 #40980978486 passed on superseded head `5b34ca82` and must not be transferred to the corrected code. Preview was untouched.
 
-This is the first Docker slice, not completion of #780: simultaneous live stacks are unproven, and native Windows-service/systemd settings plus Driver TCP/UDP listeners remain outside the current candidate. Next: finalize review, commit and open draft PR with `VALIDATION_PROFILE: INSTALLATION`; await exact-head T1 and preserve #780 acceptance limits.
+This is the first Docker slice, not completion of #780: the live two-stack evidence is Docker Desktop on a Windows host, not Linux-host validation; native Windows-service/systemd settings plus Driver TCP/UDP listeners remain outside this candidate. Next: commit/push the script fixes and await fresh exact-head T1 on draft PR #828. Preserve #780 acceptance limits.
 
 ---
 

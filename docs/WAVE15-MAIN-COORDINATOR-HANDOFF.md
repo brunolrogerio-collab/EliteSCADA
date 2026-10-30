@@ -2,11 +2,11 @@
 
 ## Current product lane — installation network configuration (#780)
 
-Base: integrated #827 at `16849faa66c84a4078126c08abb978e0c6014e0b`. Candidate branch: `work/w15-service-ports-780`. The first Docker stable slice covers per-installation Compose identity, Web/API binds and published Web/API/PostgreSQL ports, a SystemAdmin-only read-only profile, reviewed PowerShell/Bash host scripts with preflight/backup/health/rollback, and synchronized Help/manual plus ADR-025.
+Base: integrated #827 at `16849faa66c84a4078126c08abb978e0c6014e0b`. Candidate branch: `work/w15-service-ports-780`, draft PR #828. The first Docker stable slice covers per-installation Compose identity, Web/API binds and published Web/API/PostgreSQL ports, a SystemAdmin-only read-only profile, reviewed PowerShell/Bash host scripts with preflight/backup/health/rollback, and synchronized Help/manual plus ADR-025.
 
-T0 passed locally: default and isolated second-profile Compose checks; PowerShell syntax and mocked apply/rollback/secret/port/volume guards; Git Bash syntax only (no Linux runtime); API focused tests 2/2; contextual Help tests 32/32; Web production build; diff check. No Preview containers, data or volumes changed. No PR/CI exists at this checkpoint.
+T0 passed locally: default and isolated second-profile Compose checks; Windows PowerShell 5.1 syntax and mocked safety guards; Git Bash syntax only (no Linux-host runtime); API focused tests 2/2; contextual Help tests 32/32; Web production build; diff check. A live Windows-host Docker Desktop run created two separate stacks with the host script, then changed ports on one while Web/API/PostgreSQL remained healthy on both. This identified script compatibility issues now fixed in local changes. T1 #40980978486 passed only on superseded head `5b34ca82`; corrected code requires a new exact-head T1. Preview unchanged.
 
-#780 remains open and is not fully delivered: two real simultaneous Compose stacks were not started, native Windows-service/systemd changes are absent, and Driver protocol TCP/UDP listeners remain separate. Next: final diff review, commit/push and draft PR using `VALIDATION_PROFILE: INSTALLATION`; exact-head T1 is pending. The #305 execution DAG and #780 issue remain authoritative for sequencing and acceptance.
+#780 remains open and is not fully delivered: Linux-host validation, native Windows-service/systemd changes and Driver protocol TCP/UDP listeners remain outstanding. Next: commit/push the PS 5.1 fixes and evaluate a fresh exact-head T1 on PR #828. The #305 DAG and #780 issue remain authoritative for sequencing and acceptance.
 
 ---
 

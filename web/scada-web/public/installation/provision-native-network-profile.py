@@ -1,0 +1,62 @@
+"""Deployment component: creates an access profile, never installs services."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+from urllib.parse import urlsplit
+
+
+def provision(configuration, service, destination):
+    import fcntl
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+', service):
+        raise ValueError('Invalid service identity')
+    config = Path(configuration).resolve(strict=True)
+    target = Path(destination).absolute()
+    if target.parent != config.parent:
+        raise ValueError('Profile must remain in the registered configuration directory')
+    descriptor = os.open(config.with_name(config.name + '.network.lock'), os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        for operation in ('access', 'database', 'media'):
+            if config.with_name(config.name + '.' + operation + '-port-pending.json').exists():
+                raise RuntimeError('Complete pending recovery before provisioning')
+        # Existence is necessary; the deployment executor must also verify that
+        # this service actually loads the declared external configuration file.
+        result = subprocess.run(['systemctl', 'show', '--property=LoadState', '--value', service],
+                                check=True, capture_output=True, text=True, timeout=15)
+        if result.stdout.strip() != 'loaded':
+            raise ValueError('Registered service is not loaded')
+        document = json.loads(config.read_text(encoding='utf-8-sig'))
+        ports = []
+        for name in ('Web', 'Api'):
+            uri = urlsplit(document['Kestrel']['Endpoints'][name]['Url'])
+            if uri.scheme not in ('http', 'https') or not uri.hostname or uri.username or uri.password or uri.query or uri.fragment or uri.path not in ('', '/'):
+                raise ValueError('Valid Web and Api listeners required')
+            port = uri.port or (443 if uri.scheme == 'https' else 80)
+            if not 1 <= port <= 65535:
+                raise ValueError('Invalid listener port')
+            ports.append(port)
+        if ports[0] == ports[1]:
+            raise ValueError('Web and API ports must differ')
+        profile = dict(schema='scadivo-native-network-v1', platform='linux', configurationFile=str(config),
+                       serviceName=service, endpointName='Web', apiEndpointName='Api')
+        with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as output:
+            json.dump(profile, output, indent=2)
+            output.flush(); os.fsync(output.fileno())
+        return 'Protected access profile created; deployment registration still requires verification'
+    finally:
+        os.close(descriptor)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--configuration', required=True)
+    parser.add_argument('--service', required=True)
+    parser.add_argument('--destination', required=True)
+    args = parser.parse_args()
+    try:
+        print(provision(args.configuration, args.service, args.destination))
+    except Exception:
+        raise SystemExit('Native profile provisioning failed. Check deployment registration and protected files.')

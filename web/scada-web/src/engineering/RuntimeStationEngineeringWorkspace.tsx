@@ -76,7 +76,7 @@ export function RuntimeStationEngineeringWorkspace({ snapshot, onApplied, locale
       {profile.windows.length < 4 ? <button type="button" onClick={() => update(profiles.map((item, index) => index === profileIndex ? { ...item, windows: [...item.windows, { screenKey: screens[0].key, mode: 'fixed' }] } : item))}>{text.addWindow}</button> : null}
       <button type="button" onClick={() => update(profiles.filter((_, index) => index !== profileIndex))}>{text.remove}</button>
     </section>)}
-    {profiles.length ? <div className="branding-editor__actions"><button type="button" disabled={busy} onClick={() => void validate()}>{text.validate}</button><button type="button" disabled={busy || !preview?.canApply || previewSignature !== signature} onClick={() => void apply()}>{text.apply}</button></div> : null}
+    <div className="branding-editor__actions"><button type="button" disabled={busy} onClick={() => void validate()}>{text.validate}</button><button type="button" disabled={busy || !preview?.canApply || previewSignature !== signature} onClick={() => void apply()}>{text.apply}</button></div>
     {profiles.some(profile => profile.windows.length < 1 || profile.windows.length > 4) ? <p role="note">{text.limit}</p> : null}
     {message ? <p role="status">{message}</p> : null}
   </section>;

@@ -865,6 +865,9 @@ jobs:
       - name: Exercise two isolated installations, port change and collision preflight
         shell: bash
         run: bash scripts/ci/test_stable_installation_linux.sh
+      - name: Exercise native adapters with an isolated transient systemd service
+        shell: bash
+        run: sudo python3 scripts/ci/test_native_linux_systemd.py
 
   installation-windows:
     name: Native port adapters on Windows

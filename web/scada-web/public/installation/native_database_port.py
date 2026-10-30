@@ -53,6 +53,8 @@ def recover_locked(profile_path):
         if not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
             raise ValueError('Invalid service identity')
     control_service(profile['platform'], 'stop', profile['serviceName'])
+    if json.loads(Path(profile['topologyFile']).read_text()) != topology:
+        raise RuntimeError('Topology changed before recovery; no configuration restored and journal retained')
     for target, content in restored:
         target.write_bytes(content)
     control_service(profile['platform'], 'restart', db['serviceName'])
@@ -181,8 +183,21 @@ def execute_locked(profile_path, port=None, apply=False):
         json.dump(recovery, output)
         output.flush()
         os.fsync(output.fileno())
+    # Revalidate after quiescing the owning API service: the initial read alone
+    # cannot exclude a migration prepared while SQL/preflight/backups ran.
     try:
         service('stop', api_service)
+        quiesced_topology = json.loads(Path(profile['topologyFile']).read_text())
+        if quiesced_topology != topology:
+            raise RuntimeError('Database topology changed during preparation')
+    except Exception:
+        try:
+            service('start', api_service)
+        except Exception:
+            raise RuntimeError('API recovery failed before database mutation; journal retained') from None
+        journal.unlink()
+        raise RuntimeError('Preparation failed; database unchanged and API restarted') from None
+    try:
         app.setdefault('DatabaseTopology', {})['LocalManagedPort'] = port
         app_path.write_text(json.dumps(app, indent=2), encoding='utf-8')
         pg_path.write_bytes(pg_bytes + f'\n# SCADIVO managed local port\nport = {port}\n'.encode())

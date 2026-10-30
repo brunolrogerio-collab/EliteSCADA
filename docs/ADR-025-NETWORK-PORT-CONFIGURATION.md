@@ -233,3 +233,7 @@ Procedimento em scripts/ci/test_runtime_media_relay_container.ps1 (parser passou
 ### Disponibilidade do perfil administrativo — correspondência efetiva
 
 A preparação de comando nativo exige serviço com identificador válido, caminho absoluto de configuração e URLs Web/Api persistidas iguais às URLs efetivas reportadas pela API. Arquivo vazio ou configuração divergente não libera o comando. Testes focados 4/4 passaram. Isso ainda não comprova registro SCM/systemd, ACL nem provisionamento pelo instalador.
+
+### Coordenação com manutenção de topologia local
+
+A troca de porta PostgreSQL relê a topologia persistida depois de parar o serviço API registrado. Se o documento mudou durante preflight/backups, aborta sem escrever configurações ou reiniciar PostgreSQL, preserva a operação de migração e reinicia a API. Recuperação também recusa restaurar arquivos se a topologia mudar entre leitura e parada, mantendo journal. Isso depende de o perfil identificar o serviço proprietário das operações locais; não é exclusão distribuída para APIs externas ou nós HA. Testes simulam migração surgindo durante a parada nas duas plataformas; 6/6 locais e 11/11 no laboratório Linux com PostgreSQL real passaram.

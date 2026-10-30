@@ -75,7 +75,7 @@ class NativeDatabasePortTests(unittest.TestCase):
             profile.write_text(json.dumps({'schema':'scadivo-native-network-v1','platform':platform,'topologyFile':str(topology),'configurationFile':str(app),'serviceName':'scadivo.service','database':{'serviceName':'postgresql.service','configurationFile':str(pg),'psqlExecutable':str(psql),'currentPort':5432,'username':'test','databaseName':'plant'}}))
             with socket.socket() as listener:
                 listener.bind(('127.0.0.1',0)); port=listener.getsockname()[1]
-            actions=[]; fail=False; transient=0; recovery_transient=0; timeout=False; wrong_identity=False; interrupted=False
+            actions=[]; fail=False; transient=0; recovery_transient=0; timeout=False; wrong_identity=False; interrupted=False; topology_change=False
             real_run = subprocess.run
             def command(args, **kwargs):
                 if args[0] == 'powershell.exe' and '-File' in args:
@@ -91,11 +91,15 @@ class NativeDatabasePortTests(unittest.TestCase):
                 if interrupted and args[0] in ('systemctl', 'powershell.exe'):
                     raise KeyboardInterrupt('simulated process interruption')
                 if args[0]=='systemctl':
+                    if topology_change and args[1] == 'stop':
+                        topology.write_text(json.dumps({'schemaVersion':1,'active':{'mode':'LocalManaged'},'pending':{'operationId':'concurrent-migration'}}))
                     actions.append(args[1:]); return subprocess.CompletedProcess(args,0,'','')
                 if args[0]=='powershell.exe':
                     script=args[-1]
                     action='restart' if 'Restart-Service' in script else 'stop' if 'Stop-Service' in script else 'start'
                     name='postgresql.service' if 'postgresql.service' in script else 'scadivo.service'
+                    if topology_change and action == 'stop':
+                        topology.write_text(json.dumps({'schemaVersion':1,'active':{'mode':'LocalManaged'},'pending':{'operationId':'concurrent-migration'}}))
                     actions.append([action,name])
                     self.assertIn('WaitForStatus',script)
                     return subprocess.CompletedProcess(args,0,'','')
@@ -174,5 +178,13 @@ class NativeDatabasePortTests(unittest.TestCase):
                 self.assertFalse(pending.exists())
                 self.assertEqual(app.read_bytes(),original)
                 self.assertEqual(pg.read_bytes(),b'port = 5432\n')
+                actions.clear(); topology_change=True
+                with self.assertRaisesRegex(RuntimeError,'database unchanged'):
+                    module.execute_locked(profile,port,True)
+                self.assertEqual(actions,[['stop','scadivo.service'],['start','scadivo.service']])
+                self.assertEqual(app.read_bytes(),original)
+                self.assertEqual(pg.read_bytes(),b'port = 5432\n')
+                self.assertFalse(pending.exists())
+                self.assertIsNotNone(json.loads(topology.read_text())['pending'])
                 topology.write_text(json.dumps({'schemaVersion':1,'active':{'mode':'Remote'},'pending':None}))
                 with self.assertRaises(ValueError): module.execute_locked(profile,port,True)

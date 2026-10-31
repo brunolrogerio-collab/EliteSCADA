@@ -110,6 +110,72 @@
   background: color-mix(in srgb, var(--app-accent) 8%, var(--app-surface));
 }
 
+.user-admin-session-config {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 7px;
+  background: var(--app-panel, #0f161e);
+}
+
+.user-admin-session-config-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.user-admin-session-config-heading strong {
+  color: var(--app-text-primary, #d5e0e9);
+}
+
+.user-admin-session-config-heading span,
+.user-admin-session-config > small,
+.user-admin-session-config p {
+  color: var(--eng-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.user-admin-session-config p {
+  margin: 0;
+}
+
+.user-admin-session-config-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.user-admin-session-config-controls label {
+  display: grid;
+  gap: 5px;
+  color: var(--eng-muted);
+  font-size: 12px;
+}
+
+.user-admin-session-duration-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-admin-session-duration-input input {
+  width: 150px;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid var(--eng-border);
+  border-radius: 6px;
+  background: var(--app-surface, #0c1218);
+  color: var(--eng-text);
+}
+
+.user-admin-session-duration-input span {
+  color: var(--eng-muted);
+  font-size: 12px;
+}
+
 .user-admin-session-policy > div {
   display: grid;
   gap: 3px;

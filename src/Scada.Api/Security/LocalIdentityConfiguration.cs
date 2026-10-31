@@ -169,6 +169,12 @@ public static class LocalIdentityConfiguration
                     connectionString!,
                     sp.GetService<IDurableWriteAdmission>())
                 : new InMemoryAuthorityLifecycleStore());
+        builder.Services.AddSingleton<ILocalAuthenticationSessionPolicyStore>(sp =>
+            durableStore
+                ? new PostgreSqlLocalAuthenticationSessionPolicyStore(
+                    connectionString!,
+                    sp.GetService<IDurableWriteAdmission>())
+                : new InMemoryLocalAuthenticationSessionPolicyStore());
         builder.Services.AddSingleton<JwtTokenIssuer>();
         builder.Services.AddSingleton<LocalLoginAttemptLimiter>();
         builder.Services.AddSingleton<AuthorityBackupService>();
@@ -193,6 +199,10 @@ public static class LocalIdentityConfiguration
 
         var store = app.Services.GetRequiredService<ILocalIdentityStore>();
         await store.InitializeAsync();
+        var initialSessionMinutes = app.Configuration.GetValue<int?>("Authentication:Local:AccessTokenMinutes")
+            ?? LocalAuthenticationSessionPolicy.DefaultAccessTokenMinutes;
+        await app.Services.GetRequiredService<ILocalAuthenticationSessionPolicyStore>()
+            .InitializeAsync(initialSessionMinutes);
         var lifecycle = app.Services.GetRequiredService<IAuthorityLifecycleStore>();
         await lifecycle.InitializeAsync();
         var lifecycleSnapshot = await lifecycle.GetAsync();

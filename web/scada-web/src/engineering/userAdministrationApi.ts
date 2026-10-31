@@ -14,6 +14,17 @@ export type LocalRole = {
   description?: string | null;
 };
 
+export type LocalAuthenticationSessionPolicy = {
+  version: number;
+  accessTokenMinutes: number;
+  persistent: boolean;
+};
+
+export type UpdateLocalAuthenticationSessionPolicyInput = {
+  expectedVersion: number;
+  accessTokenMinutes: number;
+};
+
 export type CreateLocalUserInput = {
   username: string;
   displayName: string;
@@ -167,6 +178,11 @@ export class AdministrationHttpError extends Error {
 export const localUserAdministrationApi = {
   listUsers: () => requestJson<LocalUser[]>('/api/auth/users'),
   listRoles: () => requestJson<LocalRole[]>('/api/auth/roles'),
+  getSessionPolicy: () => requestJson<LocalAuthenticationSessionPolicy>('/api/auth/local-session-policy'),
+  updateSessionPolicy: (input: UpdateLocalAuthenticationSessionPolicyInput) => requestJson<LocalAuthenticationSessionPolicy>('/api/auth/local-session-policy', {
+    method: 'PUT',
+    body: JSON.stringify(input)
+  }),
   createUser: (input: CreateLocalUserInput) => requestJson<LocalUser>('/api/auth/users', {
     method: 'POST',
     body: JSON.stringify(input)

@@ -35,6 +35,15 @@ public sealed record UpdateLocalUserRequest(
 
 public sealed record ResetLocalUserPasswordRequest(string Password);
 
+public sealed record LocalAuthenticationSessionPolicyAdminResponse(
+    long Version,
+    int AccessTokenMinutes,
+    bool Persistent);
+
+public sealed record UpdateLocalAuthenticationSessionPolicyRequest(
+    long ExpectedVersion,
+    int AccessTokenMinutes);
+
 public static class LocalUserAdministrationApi
 {
     private const string ListAction = "auth.user.list";
@@ -42,6 +51,8 @@ public static class LocalUserAdministrationApi
     private const string UpdateAction = "auth.user.update";
     private const string ResetPasswordAction = "auth.user.password_reset";
     private const string RolesAction = "auth.role.list";
+    private const string SessionPolicyReadAction = "auth.local_session_policy.read";
+    private const string SessionPolicyUpdateAction = "auth.local_session_policy.update";
 
     public static IEndpointRouteBuilder MapLocalUserAdministrationEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -98,6 +109,102 @@ public static class LocalUserAdministrationApi
                     ["resultCount"] = roles.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 });
             return Results.Ok(roles);
+        });
+
+        endpoints.MapGet("/api/auth/local-session-policy", async (
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            ILocalAuthenticationSessionPolicyStore store,
+            LocalIdentityRuntimeOptions identityRuntime,
+            CancellationToken ct) =>
+        {
+            var authorization = await AuthorizeAsync(context, security, audit, SessionPolicyReadAction, "local-login");
+            if (authorization.Failure is not null) return authorization.Failure;
+
+            var policy = await store.GetAsync(ct);
+            await audit.RecordAsync(
+                context,
+                authorization.Check!.Principal,
+                SessionPolicyReadAction,
+                AuditOutcome.Succeeded,
+                "local-authentication-session-policy",
+                "local-login",
+                new Dictionary<string, string>
+                {
+                    ["version"] = policy.Version.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["accessTokenMinutes"] = policy.AccessTokenMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                });
+            return Results.Ok(ToSessionPolicyResponse(policy, identityRuntime));
+        });
+
+        endpoints.MapPut("/api/auth/local-session-policy", async (
+            UpdateLocalAuthenticationSessionPolicyRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            ILocalAuthenticationSessionPolicyStore store,
+            LocalIdentityRuntimeOptions identityRuntime,
+            CancellationToken ct) =>
+        {
+            var authorization = await AuthorizeAsync(context, security, audit, SessionPolicyUpdateAction, "local-login");
+            if (authorization.Failure is not null) return authorization.Failure;
+
+            if (request.ExpectedVersion < 1)
+                return Results.BadRequest(new { error = "Expected session policy version must be positive." });
+
+            try
+            {
+                LocalAuthenticationSessionPolicy.ValidateAccessTokenMinutes(request.AccessTokenMinutes);
+                var previous = await store.GetAsync(ct);
+                var updated = await store.TryUpdateAsync(
+                    request.ExpectedVersion,
+                    request.AccessTokenMinutes,
+                    ct);
+                if (updated is null)
+                {
+                    var current = await store.GetAsync(ct);
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Check!.Principal,
+                        SessionPolicyUpdateAction,
+                        AuditOutcome.Failed,
+                        "local-authentication-session-policy",
+                        "local-login",
+                        new Dictionary<string, string>
+                        {
+                            ["reason"] = "version-conflict",
+                            ["expectedVersion"] = request.ExpectedVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            ["currentVersion"] = current.Version.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        });
+                    return Results.Conflict(new
+                    {
+                        error = "The local login session setting changed elsewhere. Reload it before saving again.",
+                        currentVersion = current.Version
+                    });
+                }
+
+                await audit.RecordAsync(
+                    context,
+                    authorization.Check!.Principal,
+                    SessionPolicyUpdateAction,
+                    AuditOutcome.Succeeded,
+                    "local-authentication-session-policy",
+                    "local-login",
+                    new Dictionary<string, string>
+                    {
+                        ["previousAccessTokenMinutes"] = previous.AccessTokenMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["accessTokenMinutes"] = updated.AccessTokenMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["version"] = updated.Version.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                return Results.Ok(ToSessionPolicyResponse(updated, identityRuntime));
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
         });
 
         endpoints.MapPost("/api/auth/users", async (
@@ -351,6 +458,13 @@ public static class LocalUserAdministrationApi
             error = "One or more assigned role keys are not defined in the canonical Security Authority.",
             unknownRoles = unknown
         });
+
+    private static LocalAuthenticationSessionPolicyAdminResponse ToSessionPolicyResponse(
+        LocalAuthenticationSessionPolicy policy,
+        LocalIdentityRuntimeOptions identityRuntime) => new(
+        policy.Version,
+        policy.AccessTokenMinutes,
+        identityRuntime.DurableStore);
 
     private static bool HasEnabledLocalAdministrator(
         IEnumerable<LocalUserAccount> users,

@@ -10,6 +10,12 @@ Open Engineering > Security to register who signs into this installation. Local 
 
 Managing users requires UserRoleAdmin or SystemAdmin. Editing the project does not grant that access. Before changing roles or passwords, check your current account and preserve at least one enabled local administrator.
 
+### Local session duration
+
+In Security, set when the product asks the user to sign in again. The timer starts at login and sets the maximum lifetime of a local login; it is not an inactivity timer. Closing the browser does not end the session.
+
+Choose 5 to 1,440 minutes (5 minutes to 24 hours). The product's initial value is 480 minutes, or 8 hours, unless the installation defines a different initial value in server configuration. The new value applies to future logins. Open sessions keep the expiry they already received; after it expires, the user must sign in again.
+
 ### Procedure: create and test an operator
 
 1. Check available roles, which actions each allows and for which resources. If a suitable role is missing, prepare and apply policy first.

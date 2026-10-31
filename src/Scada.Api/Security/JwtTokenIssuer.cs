@@ -19,12 +19,17 @@ public sealed class JwtTokenIssuer
     private readonly string _issuer;
     private readonly string _audience;
     private readonly SigningCredentials _credentials;
-    private readonly TimeSpan _lifetime;
+    private readonly int _configuredDefaultLifetimeMinutes;
     private readonly IAuthorityLifecycleStore _authorityLifecycle;
+    private readonly ILocalAuthenticationSessionPolicyStore? _localSessionPolicy;
 
-    public JwtTokenIssuer(IConfiguration configuration, IAuthorityLifecycleStore authorityLifecycle)
+    public JwtTokenIssuer(
+        IConfiguration configuration,
+        IAuthorityLifecycleStore authorityLifecycle,
+        ILocalAuthenticationSessionPolicyStore? localSessionPolicy = null)
     {
         _authorityLifecycle = authorityLifecycle ?? throw new ArgumentNullException(nameof(authorityLifecycle));
+        _localSessionPolicy = localSessionPolicy;
         var jwt = configuration.GetSection("Authentication:Jwt");
         _issuer = jwt["Issuer"]?.Trim()
             ?? throw new InvalidOperationException("Authentication:Jwt:Issuer is required for token issuance.");
@@ -34,11 +39,18 @@ public sealed class JwtTokenIssuer
         if (string.IsNullOrWhiteSpace(signingKey) || Encoding.UTF8.GetByteCount(signingKey) < 32)
             throw new InvalidOperationException("Authentication:Jwt:SigningKey must contain at least 32 UTF-8 bytes for token issuance.");
 
-        var minutes = configuration.GetValue<int?>("Authentication:Local:AccessTokenMinutes") ?? 480;
-        if (minutes is < 5 or > 1440)
-            throw new InvalidOperationException("Authentication:Local:AccessTokenMinutes must be between 5 and 1440.");
-
-        _lifetime = TimeSpan.FromMinutes(minutes);
+        var minutes = configuration.GetValue<int?>("Authentication:Local:AccessTokenMinutes")
+            ?? LocalAuthenticationSessionPolicy.DefaultAccessTokenMinutes;
+        try
+        {
+            _configuredDefaultLifetimeMinutes = LocalAuthenticationSessionPolicy.ValidateAccessTokenMinutes(minutes);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            throw new InvalidOperationException(
+                "Authentication:Local:AccessTokenMinutes must be between 5 and 1440.",
+                ex);
+        }
         _credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
             SecurityAlgorithms.HmacSha256);
@@ -57,8 +69,11 @@ public sealed class JwtTokenIssuer
         if (!lifecycle.AllowsAuthorization)
             throw new InvalidOperationException("Local Authority is not available for token issuance.");
 
+        var lifetimeMinutes = _localSessionPolicy is null
+            ? _configuredDefaultLifetimeMinutes
+            : (await _localSessionPolicy.GetAsync(cancellationToken)).AccessTokenMinutes;
         var now = nowUtc ?? DateTimeOffset.UtcNow;
-        var expires = now.Add(_lifetime);
+        var expires = now.AddMinutes(lifetimeMinutes);
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, account.Id.ToString()),

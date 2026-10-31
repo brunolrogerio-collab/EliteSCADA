@@ -54,19 +54,19 @@ Selecione Novo alarme ou uma definição existente. O caminho identifica qual si
 
 ### Comportamento e som
 
-Expanda Comportamento do alarme. Algumas opções são salvas na definição, mas têm limitações no Runtime atual; elas estão descritas junto ao campo.
+Expanda Comportamento do alarme. O atraso começa quando a condição é observada e só ativa o alarme depois do intervalo configurado. O campo Requer reconhecimento ainda tem a limitação indicada junto a ele.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
 | Habilitado | Inclui a definição na avaliação quando a revisão for ativada. Desabilitar não corrige o sinal nem a causa física. | Marcado |  |
-| Atraso de ativação (ms) | Representa o atraso desejado. Limitação atual: o valor é salvo, mas não retarda a ativação no Runtime. Não conte com ele para eliminar oscilações. | 1000 ms = 1 s | Campo inteiro; atraso ainda não aplicado. |
+| Atraso de ativação (ms) | Depois que a condição fica ativa, o Runtime espera este intervalo antes de ativar o alarme. Se a condição voltar ao normal ou a qualidade ficar diferente de Good antes do fim, a contagem é cancelada. Para alarmes de comunicação, qualidade diferente de Good é a condição ativa. | 1000 ms = 1 s | Campo inteiro não negativo; 0 ou vazio ativa imediatamente. A contagem pendente recomeça após reinício do Runtime. |
 | Requer reconhecimento | Indica a intenção de exigir ACK do operador. Limitação atual: desmarcar não elimina a pendência de reconhecimento no Runtime, inclusive após retorno. | Marcado |  |
 | Permitir shelving | Autoriza que esta definição possa ser colocada em estado suprimido pela operação disponível. A ação ainda exige permissão AlarmShelve. O Alarm Center descrito aqui não oferece botão de shelving. | Conforme procedimento da planta | Não é Silenciar sons; não se promete expiração automática. |
 | Perfil sonoro / prévia | Escolha nenhum, pulso curto, duplo, triplo, ascendente ou alternado e teste a prévia. No Runtime, o operador precisa ativar sons no navegador. Volume, saída de áudio e permissão do navegador influenciam a reprodução. | double | Silenciar no navegador não reconhece o alarme. |
 
 ### Se o resultado não for o esperado
 
-Confira TAG/revisão ativa, escala/unidade, sinal booleano, habilitação e qualidade. Alta prioridade não força ativação. Um limite que oscila não ganha histerese por mudar a mensagem ou a classe. Preview valida o candidato; não comprova leitura de campo. Atraso e dispensa de ACK continuam com as limitações descritas. Caso o projeto mude durante a edição, recarregue e valide de novo em vez de aplicar um candidato antigo.
+Confira TAG/revisão ativa, escala/unidade, sinal booleano, habilitação e qualidade. Alta prioridade não força ativação. Uma condição que volta ao normal antes do fim cancela a contagem; isso não cria histerese para um limite que oscila. Alarmes de comunicação consideram qualidade diferente de Good como condição ativa. A opção Requer reconhecimento ainda tem a limitação indicada no campo. Preview valida o candidato; não comprova leitura de campo. Caso o projeto mude durante a edição, recarregue e valide de novo em vez de aplicar um candidato antigo.
 
 [Abrir este guia na Ajuda instalada](/help?topic=alarms.configuration)
 

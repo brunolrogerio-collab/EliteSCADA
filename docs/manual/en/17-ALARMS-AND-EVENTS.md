@@ -54,19 +54,19 @@ Select New alarm or an existing definition. The path identifies the signal to ev
 
 ### Behavior and sound
 
-Expand Alarm behavior. Some options are saved in the definition but have current Runtime limitations, described alongside the field.
+Expand Alarm behavior. The delay starts when the condition is observed and activates the alarm only after the configured interval. The Requires acknowledgement field still has the limitation described beside it.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
 | Enabled | Includes the definition in evaluation when the revision is activated. Disabling fixes neither the signal nor the physical cause. | Checked |  |
-| Activation delay (ms) | Represents the intended delay. Current limitation: the value is saved but does not delay Runtime activation. Do not rely on it to filter chatter. | 1000 ms = 1 s | Integer field; delay not yet applied. |
+| Activation delay (ms) | After the condition becomes active, Runtime waits for this interval before activating the alarm. If the condition returns to normal or quality becomes non-Good before the interval ends, the timer is canceled. For communication alarms, non-Good quality is the active condition. | 1000 ms = 1 s | Non-negative integer; 0 or blank activates immediately. A pending timer starts over after Runtime restarts. |
 | Requires acknowledgement | Expresses the intent to require operator ACK. Current limitation: clearing it does not remove pending acknowledgement in Runtime, including after return. | Checked |  |
 | Allow shelving | Allows this definition to enter a suppressed state through an available operation. The action still requires AlarmShelve permission. The Alarm Center described here has no shelving button. | According to plant procedure | Not Mute sounds; no automatic expiry is promised. |
 | Sound profile / preview | Choose none, short pulse, double, triple, rising or alternating and try the preview. In Runtime, operators must enable sounds in the browser. Volume, output device and browser permission affect playback. | double | Muting in the browser does not acknowledge the alarm. |
 
 ### If the result differs
 
-Check the TAG/active revision, scaling/unit, boolean polarity, enablement and quality. High priority does not force activation. A chattering threshold gains no hysteresis from a different message or class. Preview validates a candidate; it does not prove field acquisition. Delay and ACK exemption retain the limitations described. If the project changes while editing, reload and validate again rather than applying an old candidate.
+Check the TAG/active revision, scaling/unit, boolean polarity, enablement and quality. High priority does not force activation. A condition that returns to normal before the interval ends cancels the timer; this does not add hysteresis to a chattering threshold. Communication alarms treat non-Good quality as their active condition. The Requires acknowledgement option still has the limitation described beside the field. Preview validates a candidate; it does not prove field acquisition. If the project changes while editing, reload and validate again rather than applying an old candidate.
 
 [Open this guide in installed Help](/help?topic=alarms.configuration)
 

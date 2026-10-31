@@ -37,13 +37,27 @@ function RuntimeHistoricalBrowserApp() {
 }
 
 function AuthenticatedApplication() {
-  const { authenticationEnabled } = useAuth();
+  const { authenticationEnabled, publicRuntimeActive } = useAuth();
+  if (publicRuntimeActive) {
+    return <RuntimeSessionClassProvider authenticationEnabled={authenticationEnabled}>
+      <PublicRuntimeApplication />
+    </RuntimeSessionClassProvider>;
+  }
   return <RuntimeSessionClassProvider authenticationEnabled={authenticationEnabled}>
     <>
       <AppNavigation />
       <ApplicationSurface />
     </>
   </RuntimeSessionClassProvider>;
+}
+
+function PublicRuntimeApplication() {
+  const locale = useAppShellLocale();
+  const signIn = locale === 'pt-BR' ? 'Entrar' : locale === 'es' ? 'Ingresar' : 'Sign in';
+  return <div className="public-runtime-app">
+    <a className="public-runtime-login-link" href="/?login=1">{signIn}</a>
+    <RuntimeApplicationMount showHistoryNavigation={false} showFullscreenControl={false} />
+  </div>;
 }
 
 function RuntimeReportsApp() {

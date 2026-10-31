@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { EngineeringLocale } from './i18n';
+import { PublicRuntimeAccessPanel } from './PublicRuntimeAccessPanel';
 import {
   assignedUsersForRole,
   authorityPolicyErrorMessage,
@@ -657,6 +658,19 @@ export function AuthorityPolicyAdministration({
           </button>
         </div>
       </footer>
+
+      <PublicRuntimeAccessPanel
+        locale={locale}
+        policyVersion={baseline.version}
+        policy={baseline.publicRuntime}
+        disabled={dirty || busy !== null}
+        onApplied={applied => {
+          setBaseline(clonePolicy(applied));
+          setDraft(clonePolicy(applied));
+          setPreviewValid(false);
+          void onPolicyApplied?.();
+        }}
+      />
     </section>
   );
 }

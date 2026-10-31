@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from 'react';
 import {
   admitRuntimeSession,
+  getActiveRuntimeSession,
   heartbeatRuntimeSession,
   releaseRuntimeSession,
   setActiveRuntimeSession,
@@ -95,11 +96,12 @@ const RuntimeSessionContext = createContext<RuntimeSessionContextValue | null>(n
 const SESSION_HEARTBEAT_INTERVAL_MS = 20_000;
 
 export function RuntimeSessionClassProvider({ children, authenticationEnabled }: { children: ReactNode; authenticationEnabled: boolean }) {
-  const lease = useRef<RuntimeSessionAdmissionOutcome | null>(null);
+  const initialSession = getActiveRuntimeSession();
+  const lease = useRef<RuntimeSessionAdmissionOutcome | null>(initialSession);
   const ensureInFlight = useRef<Promise<void> | null>(null);
   const endInFlight = useRef<Promise<void> | null>(null);
   const currentLocale = useRef<EngineeringLocale>('pt-BR');
-  const [outcome, setOutcome] = useState<RuntimeSessionAdmissionOutcome | null>(null);
+  const [outcome, setOutcome] = useState<RuntimeSessionAdmissionOutcome | null>(initialSession);
   const [busy, setBusy] = useState<RuntimeSessionConnectionClass | 'end' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -247,6 +249,7 @@ export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale
   const text = copy[locale];
   const session = useContext(RuntimeSessionContext);
   if (!session) throw new Error('RuntimeSessionClassPanel requires RuntimeSessionClassProvider.');
+  if (session.outcome?.publicRuntime) return null;
   if (!session.admissionSupported) return null;
   const { outcome, busy, error, notice } = session;
 

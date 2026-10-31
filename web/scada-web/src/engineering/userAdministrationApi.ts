@@ -94,6 +94,30 @@ export type AuthorityPolicyDocument = {
   version: number;
   roles: AuthorityRole[];
   scopes: AuthorityScopeNode[];
+  publicRuntime?: RuntimePublicAccessPolicy | null;
+};
+
+export type RuntimePublicAccessPolicy = {
+  enabled: boolean;
+  startScreenId?: string | null;
+  screenIds: string[];
+  popupIds: string[];
+  tagIds: string[];
+  visualAssetIds: string[];
+  projectKey?: string | null;
+  revision?: number | null;
+};
+
+export type RuntimePublicResourceOption = { id: string; key?: string | null; name?: string | null };
+export type RuntimePublicTagOption = { id: string; key: string; name: string; dataType: string; engineeringUnit?: string | null };
+export type RuntimePublicResourceCatalog = {
+  projectKey: string;
+  revision: number;
+  startupScreenId?: string | null;
+  screens: RuntimePublicResourceOption[];
+  popups: RuntimePublicResourceOption[];
+  visualAssets: RuntimePublicResourceOption[];
+  tags: RuntimePublicTagOption[];
 };
 
 export type AuthorityPolicyMutationRequest = {
@@ -166,6 +190,11 @@ export const authorityPolicyAdministrationApi = {
   apply: (input: AuthorityPolicyMutationRequest) => requestJson<AuthorityPolicyDocument>('/api/auth/authority-policy', {
     method: 'PUT',
     body: JSON.stringify(input)
+  }),
+  publicRuntimeResources: () => requestJson<RuntimePublicResourceCatalog>('/api/auth/authority-policy/public-runtime/resources'),
+  applyPublicRuntime: (expectedVersion: number, policy: RuntimePublicAccessPolicy) => requestJson<AuthorityPolicyDocument>('/api/auth/authority-policy/public-runtime', {
+    method: 'PUT',
+    body: JSON.stringify({ schema: AUTHORITY_POLICY_SCHEMA, schemaVersion: AUTHORITY_POLICY_SCHEMA_VERSION, expectedVersion, policy })
   }),
   effectiveCapabilities: () => requestJson<EffectiveCapabilities>('/api/auth/effective-capabilities')
 };

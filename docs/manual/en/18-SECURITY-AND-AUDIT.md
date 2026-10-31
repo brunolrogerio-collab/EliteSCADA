@@ -105,6 +105,32 @@ The product refuses deletion of an assigned role or loss of the last administrat
 
 [Open this guide in installed Help](/help?topic=security.policy-scopes)
 
+## Public Runtime: show screens without opening Engineering
+
+Public Runtime lets someone view a presentation without creating an account. It starts disabled. When enabled, only the selected Active revision and chosen resources are available; normal user sign-in continues to work.
+
+### Configure the public view
+
+Sign in with an account allowed to manage Security Authority and modify Engineering. First publish and activate the revision to show. Then open Engineering > Security > Public Runtime.
+
+1. Select Allow public viewing without sign-in.
+2. Choose a Public screen as the Start screen. The start screen must also be selected under Public screens.
+3. Select only the pop-ups, TAGs and images needed. Anyone opening the address can read a selected TAG, so leave it out if its value must remain private.
+4. Save the public policy. This policy belongs to the installation Authority; it does not change the `.escadapkg` or replace publishing and activating the application.
+5. Open the address in a private window or another browser without a signed-in session and check what is actually shown.
+
+### What visitors can do
+
+Visitors can open the Runtime screen and read selected TAGs. The session uses View Only capacity from the license or Demo; if no seat is available, access is refused. The Sign in link returns to the normal login page.
+
+Visitors do not receive an account, role or Authority permission. Commands, TAG writes, alarm acknowledgment and shelving, Engineering, history, reports, media sources and administration remain protected. Hiding a button does not change these rules: the server also refuses direct access to protected routes.
+
+### Disable access and troubleshoot
+
+Clear Allow public viewing without sign-in and save to remove anonymous access. Changing the policy or activating another revision also invalidates existing public sessions. If the address shows login, check that the option is enabled and the Active revision matches the configured one. If Runtime does not open, check available View Only capacity. An incompatible Authority or application state fails closed.
+
+[Open this guide in installed Help](/help?topic=security.public-runtime-view)
+
 ## Audit: find actions and check recording health
 
 Use appropriate filters, read outcomes and distinguish an empty list from persistence failure.

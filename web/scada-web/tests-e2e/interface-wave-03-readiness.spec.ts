@@ -46,7 +46,7 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
 
     const account = page.locator('.user-session-menu');
     await expect(account).toBeVisible();
-    await expect(account.locator('summary')).toHaveAttribute('aria-label', /Conta: Local Developer/);
+    await expect(page.getByTestId('session-menu-toggle')).toHaveAttribute('aria-label', /Conta: Local Developer/);
 
     await navigation.locator('a[href="/engineering"]').click();
     await expect(page).toHaveURL(/\/engineering$/);
@@ -58,7 +58,7 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
     await expect(page.getByRole('heading', { name: 'Auditoria' })).toBeVisible();
     await expect(page.locator('.user-session-menu')).toBeVisible();
 
-    await page.locator('.user-session-menu summary').click();
+    await page.getByTestId('session-menu-toggle').click();
     await page.getByRole('button', { name: 'Sair' }).click();
     await expect(page.locator('.auth-card')).toBeVisible();
     await expect.poll(async () => page.evaluate(async () => (await fetch('/api/auth/me')).status)).toBe(401);

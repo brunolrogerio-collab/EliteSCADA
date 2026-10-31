@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
+import { admitInteractiveRuntimeSession, E2E_RUNTIME_CLIENT_INSTANCE_ID, terminateRuntimeSession } from './runtimeSessionLease';
 import { createE2eJwt } from './jwt';
 
 // Real API + PostgreSQL + Runtime activation. No page.route or mocked Active package.
@@ -65,6 +65,9 @@ test('persisted Active media and PDF identities survive draft changes and render
     expect(projection.revision).toBe(revision);
     expect(projection.package.screens[0].elements.map((item: any) => item.type)).toEqual(['core.pdfViewer', 'core.videoPlayer']);
 
+    await page.addInitScript(clientInstanceId => {
+      window.sessionStorage.setItem('elitescada.runtime.client-instance-id', clientInstanceId);
+    }, E2E_RUNTIME_CLIENT_INSTANCE_ID);
     await page.context().setExtraHTTPHeaders({ Authorization: `Bearer ${createE2eJwt('e2e-developer', ['developer'], 'E2E Developer')}`, ...runtimeHeaders });
     await page.goto('/');
     await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();

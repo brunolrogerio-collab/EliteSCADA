@@ -1,5 +1,6 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 import { createE2eJwt } from './jwt';
+import { endRuntimeSessionInUi } from './runtimeSessionLease';
 import {
   annotateReadinessIssue,
   E2E_BASE_URL,
@@ -43,6 +44,9 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
     await expect(page.locator('.eng-shell')).toHaveCount(0);
     await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
+
+    // Release the Runtime seat before this scenario navigates into Engineering.
+    await endRuntimeSessionInUi(page);
 
     const account = page.locator('.user-session-menu');
     await expect(account).toBeVisible();
@@ -108,6 +112,9 @@ test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics
   expect(history[0].timestamp).toBeTruthy();
   expect(history[0]).toHaveProperty('quality');
   expect(history[0].quality).not.toBeNull();
+
+  // End the Runtime lease before opening the Engineering diagnostic route.
+  await endRuntimeSessionInUi(page);
 
   await page.goto('/engineering/diagnostics/tag-monitor');
   const tagMonitor = page.getByTestId('engineering-tag-monitor');
@@ -228,6 +235,10 @@ for (const expected of localeExpectations) {
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
     await expect(page.locator('.runtime-operator-toolbar').getByRole('button', { name: expected.overview, exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.user-session-menu')).toBeVisible();
+
+    // These locale journeys run consecutively in one CI database; do not leave
+    // a 60-second lease behind when the next journey starts.
+    await endRuntimeSessionInUi(page);
 
     const engineeringLink = runtimeNavigation.locator('a[href="/engineering"]');
     await expect(engineeringLink).toHaveAttribute('href', '/engineering');

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { endRuntimeSessionInUi } from './runtimeSessionLease';
 
 const projectKey = 'e2e-wave03';
 const runtimeTagId = '63000000-0000-0000-0000-000000000001';
@@ -152,6 +153,8 @@ test('Wave 03 integrated composition publishes without bypassing the runtime bin
 
   await page.goto('/');
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 15_000 });
+
+  await endRuntimeSessionInUi(page);
 
   await page.goto('/engineering/diagnostics/tag-monitor');
   const tagMonitor = page.getByTestId('engineering-tag-monitor');

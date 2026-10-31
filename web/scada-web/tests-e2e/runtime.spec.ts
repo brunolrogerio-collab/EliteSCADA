@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { endRuntimeSessionInUi } from './runtimeSessionLease';
 
 test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) => {
   test.setTimeout(90_000);
@@ -301,4 +302,6 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
       expect(runtimeAfterRestore.live.revision).toBe(fixtureActiveRevision);
     }
   }
+
+  await endRuntimeSessionInUi(page);
 });

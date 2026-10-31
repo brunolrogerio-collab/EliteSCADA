@@ -4,9 +4,9 @@
 
 ## Sequência e limites
 
-1. A frente ativa continua Help/manual #424/#425, PR draft/NO_MERGE #772.
-2. **Licenciamento do produto #301 permanece a próxima etapa.**
-3. Os pacotes abaixo entram na fila pós-licenciamento. A precedência já autorizada #779 → #780 → #781 → #782 é preservada; o programa não abre lanes paralelas ou ativa outra frente agora. A ativação de cada lote fixa base/head e depende de seus contratos e evidências.
+1. Este plano é uma fila autorizada de correções; sua ordem operacional deve seguir o checkpoint atual em #305 e #788, não o estado histórico deste documento.
+2. Correções de alarme #751 e #753 precedem #789 → #790, depois #791 e #792, conforme retomada de 31/10/2026 registrada em #305. As dependências #779 → #780 → #781 → #782 permanecem sujeitas ao estado vivo de cada issue.
+3. Trabalhar uma frente por vez; fixar base/head e validar os contratos e evidências antes de avançar. Não abrir lanes paralelas por inferência deste plano.
 
 Base de produto observada: `wave15/corrections-integration@d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`, a revalidar antes de implementar. Checkpoint do Help anterior ao registro: `97832859558e06d723e2b999ddddc818cd0c91f7`, T1 40340409686 aprovado. Esse resultado não se transfere a commits posteriores.
 
@@ -20,7 +20,7 @@ Preservar o trabalho paralelo do proprietário, Preview/DEMO, dados, volumes e l
 | CheckBox e ComboBox autoráveis | [#790](https://github.com/brunolrogerio-collab/EliteSCADA/issues/790) | Inventariar/reutilizar o que existir e fechar o fluxo completo de objeto no editor/Runtime; checkbox HTML de configuração não conta |
 | Aderência de Intelligence | [#791](https://github.com/brunolrogerio-collab/EliteSCADA/issues/791) | Auditoria autorizada, ainda não executada; comparar premissas, contratos, APIs, UI e percurso real do gestor |
 | Matter e correções upstream | [#792](https://github.com/brunolrogerio-collab/EliteSCADA/issues/792) | Revalidar o artefato experimental exato e decidir eventual atualização com evidência, sem promoção automática |
-| Atraso de ativação de alarme | #751 | Defeito Runtime reproduzido; campo salvo, comportamento de atraso ausente |
+| Atraso de ativação de alarme | #751 | Comportamento Runtime integrado e verificado em PR #845; issue reaberta apenas para alinhar o catálogo `/api/help`, testes e handoff com o comportamento entregue |
 | RequiresAcknowledgement=false | #753 | Defeito Runtime reproduzido; retorno continua exigindo ACK |
 | Seleção Home/Building | #785 | Corrigir seleção explícita HAB/Zigbee2MQTT, sem materializar tudo silenciosamente |
 | Vínculo por driver | #786 | Corrigir projeção de autoria KNX/Zigbee/Z-Wave/S7/Logix conforme cada contrato, sem relaxar os validadores |

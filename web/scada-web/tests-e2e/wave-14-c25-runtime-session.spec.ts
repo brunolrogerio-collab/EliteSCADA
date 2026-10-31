@@ -282,6 +282,88 @@ test('a fixed station window requests View Only before showing its active Runtim
   expect(admissions[0].connectionClass).toBe('viewOnly');
 });
 
+test('starting a four-window station opens isolated Runtime sessions with the configured modes', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, undefined, [], {
+    historicalPlaybackEnabled: false,
+    version: 1,
+    stationProfiles: [{
+      id: 'eee-control-room',
+      name: 'Sala de controle',
+      windows: [
+        { screenKey: 'home', mode: 'navigation' },
+        { screenKey: 'home', mode: 'fixed' },
+        { screenKey: 'home', mode: 'fixed' },
+        { screenKey: 'home', mode: 'fixed' }
+      ]
+    }]
+  });
+
+  const admissions: Array<{ clientInstanceId: string; connectionClass: string; url: string }> = [];
+  await page.context().route('**/api/runtime/sessions', route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    const sessionId = `00000000-0000-0000-0000-${String(admissions.length + 1).padStart(12, '0')}`;
+    admissions.push({
+      clientInstanceId: request.clientInstanceId,
+      connectionClass: request.connectionClass,
+      url: route.request().frame().page().url()
+    });
+    return route.fulfill({ status: 201, json: {
+      sessionId,
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  const stationWindows: Page[] = [];
+  const allWindowsOpened = new Promise<void>(resolve => {
+    const onPage = (openedPage: Page) => {
+      stationWindows.push(openedPage);
+      if (stationWindows.length === 4) {
+        page.context().off('page', onPage);
+        resolve();
+      }
+    };
+    page.context().on('page', onPage);
+  });
+  await page.getByRole('button', { name: 'Iniciar estação' }).click();
+  await allWindowsOpened;
+
+  await Promise.all(stationWindows.map(window =>
+    expect(window.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 20_000 })
+  ));
+  expect(stationWindows).toHaveLength(4);
+  const observedSlots = new Set<number>();
+  for (const stationWindow of stationWindows) {
+    const query = new URL(stationWindow.url()).searchParams;
+    expect(query.get('screen')).toBe('home');
+    expect(query.get('station')).toBe('eee-control-room');
+    const slot = Number(query.get('slot'));
+    expect(Number.isInteger(slot) && slot >= 0 && slot < 4).toBe(true);
+    observedSlots.add(slot);
+    expect(query.get('stationMode')).toBe(slot === 0 ? 'navigation' : 'fixed');
+    expect(await stationWindow.evaluate(() => window.opener === null)).toBe(true);
+  }
+  expect(observedSlots).toEqual(new Set([0, 1, 2, 3]));
+
+  await expect.poll(() => admissions.length).toBe(5);
+  expect(new Set(admissions.map(admission => admission.clientInstanceId)).size).toBe(5);
+  const parentAdmission = admissions.find(admission => new URL(admission.url).searchParams.get('slot') === null);
+  expect(parentAdmission?.connectionClass).toBe('interactive');
+  for (let index = 0; index < stationWindows.length; index++) {
+    const admission = admissions.find(candidate =>
+      new URL(candidate.url).searchParams.get('slot') === String(index)
+    );
+    expect(admission?.connectionClass).toBe(index === 0 ? 'interactive' : 'viewOnly');
+  }
+});
+
 test('blocked station popups provide a manual link for every configured screen', async ({ page }) => {
   await installSessionContract(page, administrator);
   await installEngineeringRuntimeProjection(page, undefined, [], {

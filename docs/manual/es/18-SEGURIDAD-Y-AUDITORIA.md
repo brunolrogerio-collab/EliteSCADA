@@ -16,6 +16,8 @@ En Seguridad, ajuste cuándo se pedirá ingresar nuevamente. El plazo comienza a
 
 Elija de 5 a 1.440 minutos (de 5 minutos a 24 horas). El valor inicial del producto es 480 minutos, u 8 horas, salvo que la instalación defina otro valor inicial en la configuración del servidor. La nueva duración se aplica a ingresos futuros. Las sesiones abiertas conservan el vencimiento recibido; al vencer, será necesario ingresar nuevamente.
 
+Si el plazo vence mientras la aplicación está abierta, no aparece automáticamente la pantalla de ingreso. El servidor deja de aceptar acciones protegidas y termina las actualizaciones en tiempo real. La pantalla puede seguir mostrando los últimos valores recibidos. Actualice la página o vuelva a abrir la aplicación para regresar al ingreso. Al cambiar de turno, elija **Salir** antes de entregar la estación y pida al siguiente operador que use su propia cuenta.
+
 ### Procedimiento: crear y probar un operador
 
 1. Compruebe roles disponibles, acciones permitidas y recursos de cada uno. Si falta el adecuado, prepare y aplique política primero.

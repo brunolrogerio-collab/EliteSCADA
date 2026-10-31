@@ -16,6 +16,8 @@ Na área de Segurança, ajuste quando o sistema pedirá login novamente. O prazo
 
 Escolha de 5 a 1.440 minutos (de 5 minutos a 24 horas). O valor inicial do produto é 480 minutos, ou 8 horas, salvo se a instalação definir outro valor inicial na configuração do servidor. O novo valor vale para próximos logins. Sessões já abertas mantêm o vencimento que receberam; depois dele, será necessário entrar novamente.
 
+Se o prazo vencer com a aplicação aberta, ela não mostra o login automaticamente. O servidor deixa de aceitar ações protegidas e encerra a atualização em tempo real. A tela pode continuar exibindo os últimos valores recebidos. Atualize a página ou abra a aplicação novamente para voltar ao login. Na troca de turno, use **Sair** antes de entregar a estação e peça ao próximo operador para entrar com a própria conta.
+
 ### Procedimento: cadastrar e testar um operador
 
 1. Confira os papéis disponíveis e o que cada um permite fazer e em quais recursos. Se faltar um papel adequado, prepare e aplique a política primeiro.

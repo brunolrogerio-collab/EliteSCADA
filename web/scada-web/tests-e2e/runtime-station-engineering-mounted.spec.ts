@@ -11,6 +11,7 @@ test('Runtime station profile supports up to four windows and validates without 
   const source = await packageResponse.json() as { screens?: Array<{ key: string }> };
   expect(source.screens?.length ?? 0).toBeGreaterThan(0);
 
+  await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto('/engineering/stations');
   const workspace = page.getByTestId('runtime-station-editor');
   await expect(workspace).toBeVisible();

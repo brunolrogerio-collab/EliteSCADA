@@ -43,7 +43,9 @@ Uma janela fixa solicita uma sessão de Visualização; uma janela de navegaçã
 
 ### Encerrar, reabrir e resolver problemas
 
-Para encerrar a sessão e liberar uma vaga, abra o menu da conta em cada janela e escolha Encerrar sessão antes de fechá-la. Fechar a janela ou perder um monitor não avisa ao servidor que a conexão terminou. Se a janela fechar inesperadamente, a licença pode continuar contando essa conexão até a sessão expirar automaticamente. Para voltar, inicie a estação novamente e organize as janelas nos monitores; o produto não restaura as posições anteriores.
+Para encerrar a sessão e liberar uma vaga imediatamente, abra o menu da conta em cada janela e escolha Encerrar sessão antes de fechá-la. Fechar a janela ou perder um monitor não garante que o servidor receba esse encerramento; a licença pode continuar contando a conexão até a sessão expirar.
+
+Se uma janela da estação fechar enquanto a janela de origem continua aberta, a linha correspondente muda para “janela fechada” e aparece o link “Reabrir tela N”. Clique nele para abrir apenas aquela tela novamente. A nova janela solicita uma sessão Runtime própria; confira o resultado de admissão e a vaga na licença antes de usá-la. A posição física do monitor não é recuperada. Se também fechou ou recarregou a janela de origem, entre no Runtime, inicie a estação outra vez e distribua as janelas manualmente. Se não houver vaga, encerre sessões que não estiver usando ou aguarde a sessão anterior expirar.
 
 Se o seletor de estação não aparecer, confira se o cabeçalho está habilitado, se o Runtime não está em tela cheia e se a revisão em uso contém o perfil. Se uma janela abrir na tela errada, confira a tela selecionada naquela linha e ative a revisão atualizada. Se uma janela fixa não mudar de tela, ela está funcionando como foi configurada. Se o acesso interativo for limitado ou recusado, confira quantas conexões da licença estão em uso e as permissões da conta.
 

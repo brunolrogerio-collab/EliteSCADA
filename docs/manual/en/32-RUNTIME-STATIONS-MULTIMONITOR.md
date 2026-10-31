@@ -43,7 +43,9 @@ A fixed window asks for View Only access; a navigation window asks for Interacti
 
 ### End, reopen and troubleshoot
 
-To end the session and free a license connection, open the account menu in each window and choose End session before closing it. Closing a window or losing a monitor does not tell the server that the connection ended. If a window closes unexpectedly, the license may keep counting that connection until the session expires automatically. To resume, start the station again and arrange the windows on the monitors; the product does not restore their previous positions.
+To end a session and free a license seat immediately, open the account menu in each window and choose End session before closing it. Closing a window or losing a monitor does not guarantee that the server receives the termination; the license may keep counting that connection until the session expires.
+
+If a station window closes while its launcher remains open, the row changes to “window closed” and a “Reopen screen N” link appears. Use it to open only that screen again. The new window requests its own Runtime session; check the admission result and license capacity before using it. The physical monitor position is not restored. If you also closed or reloaded the launcher window, open Runtime, start the station again and arrange the windows manually. If there is no available seat, end sessions you are not using or wait for the previous session to expire.
 
 If the station selector is missing, check that the header is enabled, Runtime is not in full screen and the revision in use includes the profile. If a window opens on the wrong screen, check the screen selected on that row and activate the updated revision. A fixed window that cannot change screens is working as configured. If Interactive access is limited or denied, check how many licensed connections are in use and the account permissions.
 

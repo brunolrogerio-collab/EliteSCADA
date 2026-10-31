@@ -16,19 +16,27 @@ Before changing anything, read Current state and Next action. Choosing a databas
 
 ### Historian usage and retention
 
-In **Historian usage and retention**, review the measured sizes in the database used by the Historian. **Historian database** includes all data in that database; **Historian total** combines raw samples and aggregates the provider could measure. With separate databases, this page measures only the Historian database; it does not add the primary database or represent free space on the server volume. Free space and daily growth appear only when a reliable measurement is available. If the page says they were not reported, that does not mean zero.
+In Historian usage and retention, review the measured sizes in the database used by the Historian. Historian database includes all data in that database; Historian total combines raw samples and aggregates the provider could measure. With separate databases, this page measures only the Historian database; it does not add the primary database or represent free space on the server volume. Server free space and daily growth appear only when a reliable measurement is available. If the page says they were not reported, that does not mean zero.
 
-**No automatic expiry** means SCADIVO has not scheduled a date to remove raw samples. It does not mean disk space is unlimited. To keep raw samples for a period, clear the option and enter the number of days. A shorter policy can remove old samples; check the confirmation only after reviewing the period and its impact. TimescaleDB runs the retention policy, so removal may not happen at the moment you save.
+No automatic expiry means SCADIVO has not scheduled a date to remove raw samples. It does not mean disk space is unlimited. To keep raw samples for a period, clear No automatic expiry and enter the number of days. A shorter policy can remove old samples; check the confirmation only after reviewing the period and its impact. TimescaleDB runs the retention policy, so removal may not happen at the moment you save.
 
 For the first application, when no SCADIVO policy is recorded, the form asks you to confirm before taking over Timescale retention and aggregate-refresh policies. Aggregate tiers with no recorded configuration will be disabled, and unrecorded external rules will be lost. Check with the database administrator before proceeding.
 
-#### Set a size limit
+The GiB limit applies only to raw Historian samples and includes TimescaleDB chunks, indexes and auxiliary data. It does not limit aggregates, alarms, events, Audit, the primary database or server free space. Aggregates keep their own retention policy.
 
-The limit in **GiB** controls only measured raw Historian data, including TimescaleDB chunks, indexes and auxiliary data. It does not limit aggregates, alarms, events, Audit, the primary database or free space on the server. Aggregates keep their own retention policy.
+Under When the limit is reached, Warn only shows a warning without deleting data. Delete complete oldest chunks requires confirmation of permanent raw-sample loss. Every minute, maintenance can remove up to four complete old time intervals and keeps the newest interval. Chunk size makes this a target rather than an instant ceiling; usage may remain above it.
 
-Under **When the limit is reached**, choose **Warn only** to show a warning without deleting data. **Delete complete oldest chunks** requires confirmation that raw samples may be permanently lost. Every minute, maintenance can remove up to four complete old time intervals and always preserves the newest interval. Because chunks have their own size and duration, this limit is a target: usage may exceed it until the next run and may remain above it when only the protected interval is left. It is not an instant ceiling or a promise of free space on the server volume.
+The size limit and retention by days can coexist; whichever condition removes samples first takes effect. Review the measurement after maintenance and plan with a margin. If samples must be kept outside the active database, configure and monitor archiving before a retention or size policy removes them.
 
-The size limit and retention by days can be used together; whichever condition removes samples first takes effect. Review the measured value after maintenance and plan capacity with a margin. **Archiving and verified restore are not available on this page yet.**
+Under Archive and restore samples, create an archive for a selected period or configure scheduled archiving. An archive contains raw Historian samples only. It does not include aggregates, alarms, events, Audit, the project, Authority, licensing, or HA state. Dates entered in the browser are converted to UTC.
+
+In the schedule, Start archiving from sets the initial cursor. Archive only data at least this many days old leaves a buffer for recent data. Run every controls when the next batch may start; Archive up to per run limits the number of days handled in one batch. SCADIVO advances the cursor only after the archive is verified and completed. A blocked job needs the destination fixed and a manual resume; source data stays available.
+
+Keep archive files without an expiry date to retain .scadhist packages. If you set a retention period, rotation removes completed archive files older than that many days; it does not remove database samples. In Docker, mount the destination folder on persistent storage. If the API has multiple nodes, all nodes must use the same shared persistent folder; different local folders cannot be a common archive destination.
+
+Source removal is separate from file rotation and starts unchecked. It starts only after the complete package has been read back and verified. Progress is saved one segment at a time in the same transaction as that segment's source deletion; after a restart, already confirmed segments are skipped and later-arriving samples remain in the database. The batch is marked Completed only after every authorized segment is processed. The schedule requires its own confirmation. Check the cursor and job state, and test a restore before relying on archiving to free space. If the raw-sample size limit removes chunks before the cursor reaches them, those samples can no longer be archived.
+
+To restore, choose a .scadhist file and select Verify and restore. SCADIVO validates the entire package before inserting samples. For each segment, it compares how many identical occurrences are already present and inserts only the missing rows, avoiding duplicates that remain in the database. Progress is recorded in the active Historian. Repeating the archive does not duplicate samples and can refill data removed later by a retention policy. Keep copies outside the rotated folder if you need the files longer.
 
 ### Prepare the target
 
@@ -85,7 +93,5 @@ Start with the message received. For no connection, check name/address, port and
 For incompatibility, read PostgreSQL version, TimescaleDB requirements when applicable and schema, the data structure the product expects. For invalid phase, refresh state and follow Next action; do not start another copy while one is in progress.
 
 When the database is unavailable, Runtime can be degraded. The product must not present memory writes as database persistence. For support, record time, phase and operation ID; omit passwords.
-
-For Historian sample retention, scheduled archives, rotation and restore, see [Historian capture and query](07-HISTORIAN-CAPTURE-QUERY.md). Historian archive files are managed by the API and are not part of the project configuration backup.
 
 [Open this guide in installed Help](/help?topic=database.topology)

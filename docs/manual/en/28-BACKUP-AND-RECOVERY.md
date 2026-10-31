@@ -16,7 +16,7 @@ Export the application through the supported flow and check project, revision an
 
 Switch this installation’s application offers Application and Authority backups before detach, the unlinking step. You can export and return without switching. Do not detach just to test a backup.
 
-New backup password protects the exported Authority file; it is not the login password. Store it through a protected channel separate from the file. Also prepare database/Historian and driver-key copies/recovery. This flow does not set retention or include Historian archive files. To archive and restore raw samples, use Archive and restore samples as described in [Historian capture and query](07-HISTORIAN-CAPTURE-QUERY.md); those files are managed separately by the API.
+New backup password protects the exported Authority file; it is not the login password. Store it through a protected channel separate from the file. Also prepare database/Historian and driver-key copies/recovery. This flow sets no retention/archiving policy or automatic inclusion in the package.
 
 ### Recover Authority and application on a neutral installation
 

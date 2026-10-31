@@ -27,6 +27,7 @@ Para un término nuevo consulte el [glosario de Fundamentos](01-FUNDAMENTOS-ELIT
 ## Operación, histórico y análisis
 
 - [Sesiones Runtime y diagnóstico](27-SESIONES-Y-DIAGNOSTICO.md)
+- [Estaciones Runtime en varios monitores](32-ESTACIONES-RUNTIME-MULTIMONITOR.md)
 - [Alarmas y eventos: configuración y operación](17-ALARMAS-Y-EVENTOS.md)
 - [Historian: captura y consulta](07-HISTORIAN-CAPTURA-CONSULTA.md)
 - [Informes: diseño y operación](16-INFORMES.md)

@@ -1,6 +1,78 @@
 {
   "pt-BR": [
     {
+      "id": "runtime.station-multimonitor",
+      "category": "runtime",
+      "title": "Estações Runtime: usar janelas em vários monitores",
+      "summary": "Configure uma tela por janela e organize cada janela no desktop estendido.",
+      "sections": [
+        {
+          "heading": "O que uma estação organiza",
+          "body": "Uma estação reúne de uma a quatro janelas independentes da mesma aplicação Runtime. Para cada janela, o perfil define qual tela abre primeiro e se a janela pode navegar ou fica presa a essa tela. O perfil não escolhe um monitor físico nem guarda posição, tamanho ou escala da janela. Depois de abrir, você distribui as janelas manualmente com os recursos do sistema operacional e do navegador. Isso também funciona quando o Runtime é acessado pela rede a partir de um computador com vários monitores.",
+          "fields": null
+        },
+        {
+          "heading": "Configurar o perfil",
+          "body": "1. Crie e aplique ao projeto as telas que pretende usar. 2. Abra Engenharia > Estações / Monitores e escolha Adicionar estação. 3. Dê um nome que ajude a identificar o posto, como Sala de controle EEE. 4. Em cada janela, escolha a tela inicial e o comportamento. Use Adicionar janela para incluir mais posições, até quatro; cada posição representa uma futura janela do Runtime. 5. Clique Validar e resolva qualquer erro mostrado. 6. Quando a configuração estiver válida, escolha Aplicar ao Working. 7. Salve e publique a revisão e ative-a pelo ciclo do projeto. Só depois a estação aparecerá na aplicação Runtime ativa.",
+          "fields": null
+        },
+        {
+          "heading": "Entender os campos",
+          "body": "O número da janela acompanha a ordem em que ela será aberta. Não é o número de um monitor. Os seletores usam as telas existentes no projeto; criar uma estação não cria nem publica as telas.",
+          "fields": [
+            {
+              "key": "station.name",
+              "label": "Nome da estação",
+              "description": "Identifica o conjunto no seletor do Runtime. Escolha um nome que a equipe reconheça; ele não identifica um computador ou monitor físico.",
+              "example": "Sala de controle EEE",
+              "constraints": "O perfil precisa ter ao menos uma janela."
+            },
+            {
+              "key": "station.screen",
+              "label": "Tela de cada janela",
+              "description": "Escolhe qual tela existente será mostrada primeiro naquela janela. Configure cada linha separadamente para colocar informações diferentes lado a lado.",
+              "example": "Tela 1: Visão geral; Tela 2: Bombas",
+              "constraints": "A tela precisa existir na aplicação que será ativada."
+            },
+            {
+              "key": "station.mode",
+              "label": "Comportamento da janela",
+              "description": "Navegação permite trocar de tela naquela janela. Tela fixa mantém a tela escolhida e solicita uma sessão de Visualização; isso não altera as permissões da conta.",
+              "example": "Visão geral: Navegação; Bombas: Tela fixa",
+              "constraints": "Cada janela autenticada conta como uma conexão Runtime independente. Os limites da licença e as permissões da conta continuam valendo."
+            },
+            {
+              "key": "station.windows",
+              "label": "Adicionar janela",
+              "description": "Acrescenta mais uma tela ao conjunto. Cada linha vira uma janela independente quando a estação é iniciada.",
+              "example": "Quatro janelas para quatro áreas de operação",
+              "constraints": "O perfil aceita de uma a quatro janelas; a posição física em cada monitor é organizada manualmente."
+            }
+          ]
+        },
+        {
+          "heading": "Iniciar e distribuir as janelas",
+          "body": "Abra o Runtime em uma janela normal, com o cabeçalho visível. Se estiver em tela cheia, saia dela primeiro. No cabeçalho, escolha a estação e clique Iniciar estação. O navegador pode bloquear novas janelas; nesse caso o Runtime mostra links para abri-las uma a uma. Coloque cada janela no monitor desejado arrastando-a. Ajuste o tamanho e, se for útil, coloque cada uma em tela cheia. O produto não detecta nem restaura automaticamente a posição física, a orientação ou a escala dos monitores.",
+          "fields": null
+        },
+        {
+          "heading": "Permissões e conexões por janela",
+          "body": "Uma janela fixa solicita uma sessão de Visualização; uma janela de navegação solicita uma sessão Interativa. O servidor define o nível de acesso de cada janela autenticada, considerando os limites da licença e as permissões da conta. Confira o resultado no menu da conta antes de enviar comandos. Se não houver vaga para uso interativo, a janela pode ficar somente para visualização ou ter o acesso recusado. A Visualização permite acompanhar a tela, mas não enviar comandos. Consulte também Sessão Runtime: visualizar, interagir e encerrar.",
+          "fields": null
+        },
+        {
+          "heading": "Encerrar, reabrir e resolver problemas",
+          "body": "Para encerrar a sessão e liberar uma vaga, abra o menu da conta em cada janela e escolha Encerrar sessão antes de fechá-la. Fechar a janela ou perder um monitor não avisa ao servidor que a conexão terminou. Se a janela fechar inesperadamente, a licença pode continuar contando essa conexão até a sessão expirar automaticamente. Para voltar, inicie a estação novamente e organize as janelas nos monitores; o produto não restaura as posições anteriores.\n\nSe o seletor de estação não aparecer, confira se o cabeçalho está habilitado, se o Runtime não está em tela cheia e se a revisão em uso contém o perfil. Se uma janela abrir na tela errada, confira a tela selecionada naquela linha e ative a revisão atualizada. Se uma janela fixa não mudar de tela, ela está funcionando como foi configurada. Se o acesso interativo for limitado ou recusado, confira quantas conexões da licença estão em uso e as permissões da conta.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "runtime.session-classes",
+        "engineering.lifecycle",
+        "application.presentation"
+      ]
+    },
+    {
       "id": "templates.overview",
       "category": "templates",
       "title": "Templates: criar um faceplate reutilizável",
@@ -6869,6 +6941,78 @@
   ],
   "en": [
     {
+      "id": "runtime.station-multimonitor",
+      "category": "runtime",
+      "title": "Runtime stations: use windows across monitors",
+      "summary": "Choose a screen for each window, then arrange the windows on an extended desktop.",
+      "sections": [
+        {
+          "heading": "What a station profile organizes",
+          "body": "A station groups one to four independent windows of the same Runtime application. For each window, the profile chooses the first screen and whether that window can navigate or stays on that screen. The profile does not select a physical monitor or save the window's position, size or scale. After opening the windows, arrange them manually with the operating system and browser. This also works when Runtime is reached over the network from a computer with several monitors.",
+          "fields": null
+        },
+        {
+          "heading": "Configure the profile",
+          "body": "1. Create and apply the screens you plan to use. 2. Open Engineering > Stations / Monitors and choose Add station. 3. Give the profile a name the team will recognize, such as EEE control room. 4. For each window, choose its first screen and behavior. Use Add window to add positions, up to four; each position becomes a Runtime window. 5. Select Validate and resolve any reported errors. 6. When the configuration is valid, choose Apply to Working. 7. Save and publish the revision, then activate it through the project lifecycle. The station appears in active Runtime only after activation.",
+          "fields": null
+        },
+        {
+          "heading": "Understand the fields",
+          "body": "The window number follows the order in which the windows open. It is not a monitor number. The selectors use screens already in the project; creating a station does not create or publish those screens.",
+          "fields": [
+            {
+              "key": "station.name",
+              "label": "Station name",
+              "description": "Identifies the set in the Runtime selector. Choose a name your team recognizes; it does not identify a computer or physical monitor.",
+              "example": "EEE control room",
+              "constraints": "The profile needs at least one window."
+            },
+            {
+              "key": "station.screen",
+              "label": "Screen for each window",
+              "description": "Chooses which existing screen opens first in that window. Configure each row separately to place different information side by side.",
+              "example": "Window 1: Overview; Window 2: Pumps",
+              "constraints": "The screen must exist in the application being activated."
+            },
+            {
+              "key": "station.mode",
+              "label": "Window behavior",
+              "description": "Navigation allows changing screens in that window. Fixed screen keeps the selected screen and requests a View Only session; it does not change the account's permissions.",
+              "example": "Overview: Navigation; Pumps: Fixed screen",
+              "constraints": "Each authenticated window counts as a separate Runtime connection. License limits and account permissions still apply."
+            },
+            {
+              "key": "station.windows",
+              "label": "Add window",
+              "description": "Adds another screen to the set. Each row becomes an independent window when the station starts.",
+              "example": "Four windows for four operating areas",
+              "constraints": "A profile supports one to four windows; physical monitor placement is manual."
+            }
+          ]
+        },
+        {
+          "heading": "Start and arrange the windows",
+          "body": "Open Runtime in a normal window with its header visible. If it is in full screen, exit full screen first. In the header, choose the station and select Start station. The browser may block new windows; if so, Runtime shows links to open them one at a time. Drag each window to the monitor you want. Resize it and, if useful, put each window in full screen. The product does not automatically detect or restore physical monitor position, orientation or scale.",
+          "fields": null
+        },
+        {
+          "heading": "Permissions and connections for each window",
+          "body": "A fixed window asks for View Only access; a navigation window asks for Interactive access. The server decides each authenticated window's access using the license limits and account permissions. Check the result in the account menu before sending commands. If no Interactive client is available, the window may be limited to View Only or denied access. View Only lets you follow the screen but does not allow commands. See also Runtime session: view, interact and end.",
+          "fields": null
+        },
+        {
+          "heading": "End, reopen and troubleshoot",
+          "body": "To end the session and free a license connection, open the account menu in each window and choose End session before closing it. Closing a window or losing a monitor does not tell the server that the connection ended. If a window closes unexpectedly, the license may keep counting that connection until the session expires automatically. To resume, start the station again and arrange the windows on the monitors; the product does not restore their previous positions.\n\nIf the station selector is missing, check that the header is enabled, Runtime is not in full screen and the revision in use includes the profile. If a window opens on the wrong screen, check the screen selected on that row and activate the updated revision. A fixed window that cannot change screens is working as configured. If Interactive access is limited or denied, check how many licensed connections are in use and the account permissions.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "runtime.session-classes",
+        "engineering.lifecycle",
+        "application.presentation"
+      ]
+    },
+    {
       "id": "templates.overview",
       "category": "templates",
       "title": "Templates: create a reusable faceplate",
@@ -13736,6 +13880,78 @@
     }
   ],
   "es": [
+    {
+      "id": "runtime.station-multimonitor",
+      "category": "runtime",
+      "title": "Estaciones Runtime: usar ventanas en varios monitores",
+      "summary": "Elija una pantalla por ventana y organícelas en el escritorio extendido.",
+      "sections": [
+        {
+          "heading": "Qué organiza una estación",
+          "body": "Una estación agrupa de una a cuatro ventanas independientes de la misma aplicación Runtime. Para cada ventana, el perfil define la pantalla que abre primero y si puede navegar o permanece fija en ella. El perfil no selecciona un monitor físico ni guarda posición, tamaño o escala de la ventana. Después de abrirlas, distribúyalas manualmente con el sistema operativo y el navegador. También funciona al acceder al Runtime por red desde un equipo con varios monitores.",
+          "fields": null
+        },
+        {
+          "heading": "Configurar el perfil",
+          "body": "1. Cree y aplique las pantallas que usará. 2. Abra Ingeniería > Estaciones / Monitores y elija Añadir estación. 3. Asigne un nombre reconocible, como Sala de control EEE. 4. Para cada ventana, elija la pantalla inicial y el comportamiento. Use Añadir ventana para agregar posiciones, hasta cuatro; cada posición se convertirá en una ventana Runtime. 5. Seleccione Validar y resuelva los errores indicados. 6. Cuando la configuración sea válida, elija Aplicar a Working. 7. Guarde y publique la revisión y actívela mediante el ciclo del proyecto. La estación aparecerá en Runtime activo después de activarla.",
+          "fields": null
+        },
+        {
+          "heading": "Entender los campos",
+          "body": "El número de ventana indica el orden en que se abrirá. No es el número del monitor. Los selectores usan pantallas ya existentes en el proyecto; crear una estación no crea ni publica pantallas.",
+          "fields": [
+            {
+              "key": "station.name",
+              "label": "Nombre de la estación",
+              "description": "Identifica el conjunto en el selector Runtime. Elija un nombre que el equipo reconozca; no identifica un equipo ni un monitor físico.",
+              "example": "Sala de control EEE",
+              "constraints": "El perfil necesita al menos una ventana."
+            },
+            {
+              "key": "station.screen",
+              "label": "Pantalla de cada ventana",
+              "description": "Elige qué pantalla existente se abrirá primero en esa ventana. Configure cada fila por separado para mostrar información distinta en paralelo.",
+              "example": "Ventana 1: General; Ventana 2: Bombas",
+              "constraints": "La pantalla debe existir en la aplicación que se activará."
+            },
+            {
+              "key": "station.mode",
+              "label": "Comportamiento de la ventana",
+              "description": "Navegación permite cambiar de pantalla en esa ventana. Pantalla fija conserva la pantalla elegida y solicita sesión Solo visualización; no cambia los permisos de la cuenta.",
+              "example": "General: Navegación; Bombas: Pantalla fija",
+              "constraints": "Cada ventana autenticada cuenta como una conexión Runtime independiente. Siguen aplicándose los límites de licencia y los permisos de la cuenta."
+            },
+            {
+              "key": "station.windows",
+              "label": "Añadir ventana",
+              "description": "Agrega otra pantalla al conjunto. Cada fila se convierte en una ventana independiente al iniciar la estación.",
+              "example": "Cuatro ventanas para cuatro áreas operativas",
+              "constraints": "El perfil admite de una a cuatro ventanas; la ubicación física en cada monitor es manual."
+            }
+          ]
+        },
+        {
+          "heading": "Iniciar y distribuir las ventanas",
+          "body": "Abra Runtime en una ventana normal, con el encabezado visible. Si está a pantalla completa, salga primero. En el encabezado, seleccione la estación y pulse Iniciar estación. El navegador puede bloquear ventanas nuevas; en ese caso Runtime muestra enlaces para abrirlas una por una. Arrastre cada ventana al monitor deseado. Ajuste su tamaño y, si resulta útil, ponga cada una a pantalla completa. El producto no detecta ni restaura automáticamente la posición física, la orientación o la escala de los monitores.",
+          "fields": null
+        },
+        {
+          "heading": "Permisos y conexiones por ventana",
+          "body": "Una ventana fija solicita acceso de Solo visualización; una ventana de navegación solicita acceso Interactivo. El servidor decide el acceso de cada ventana autenticada según los límites de licencia y los permisos de la cuenta. Compruebe el resultado en el menú de cuenta antes de enviar comandos. Si no hay una conexión Interactiva disponible, la ventana puede quedar en Solo visualización o ser rechazada. Solo visualización permite observar, pero no enviar comandos. Consulte también Sesión Runtime: visualizar, interactuar y finalizar.",
+          "fields": null
+        },
+        {
+          "heading": "Finalizar, reabrir y resolver problemas",
+          "body": "Para finalizar la sesión y liberar una conexión de licencia, abra el menú de cuenta en cada ventana y elija Finalizar sesión antes de cerrarla. Cerrar la ventana o perder un monitor no avisa al servidor que la conexión terminó. Si la ventana se cierra inesperadamente, la licencia puede seguir contando esa conexión hasta que la sesión expire automáticamente. Para volver, inicie la estación otra vez y distribuya las ventanas en los monitores; el producto no restaura las posiciones anteriores.\n\nSi no aparece el selector de estación, compruebe que el encabezado esté habilitado, que Runtime no esté a pantalla completa y que la revisión en uso incluya el perfil. Si una ventana aparece en la pantalla equivocada, revise la pantalla seleccionada en esa fila y active la revisión actualizada. Si una ventana fija no cambia de pantalla, funciona según la configuración. Si el acceso Interactivo se limita o se rechaza, compruebe cuántas conexiones de licencia están en uso y los permisos de la cuenta.",
+          "fields": null
+        }
+      ],
+      "relatedTopicIds": [
+        "runtime.session-classes",
+        "engineering.lifecycle",
+        "application.presentation"
+      ]
+    },
     {
       "id": "templates.overview",
       "category": "templates",

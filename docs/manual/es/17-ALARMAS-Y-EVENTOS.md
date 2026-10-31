@@ -54,19 +54,19 @@ Seleccione Nueva alarma o una definición existente. La ruta identifica la seña
 
 ### Comportamiento y sonido
 
-Expanda Comportamiento de la alarma. Algunas opciones se guardan en la definición, pero tienen limitaciones actuales en Runtime, indicadas junto al campo.
+Expanda Comportamiento de la alarma. El retardo comienza cuando se observa la condición y activa la alarma solo después del intervalo configurado. El campo Requiere reconocimiento aún tiene la limitación indicada junto a él.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
 | Habilitada | Incluye la definición en la evaluación al activar la revisión. Deshabilitar no corrige la señal ni la causa física. | Marcada |  |
-| Retardo de activación (ms) | Representa el retardo deseado. Limitación actual: se guarda, pero no retrasa la activación en Runtime. No dependa de él para filtrar oscilaciones. | 1000 ms = 1 s | Campo entero; retardo aún no aplicado. |
+| Retardo de activación (ms) | Cuando la condición se activa, Runtime espera este intervalo antes de activar la alarma. Si la condición vuelve a la normalidad o la calidad deja de ser Good antes de terminar, se cancela la cuenta. En las alarmas de comunicación, una calidad distinta de Good es la condición activa. | 1000 ms = 1 s | Campo entero no negativo; 0 o vacío activa inmediatamente. La cuenta pendiente comienza de nuevo después de reiniciar Runtime. |
 | Requiere reconocimiento | Indica la intención de exigir ACK del operador. Limitación actual: desmarcar no elimina el reconocimiento pendiente en Runtime, incluso tras el retorno. | Marcada |  |
 | Permitir shelving | Permite suprimir esta definición mediante la operación disponible. La acción sigue requiriendo permiso AlarmShelve. El Alarm Center descrito aquí no tiene botón de shelving. | Según el procedimiento de planta | No es Silenciar sonidos; no se promete vencimiento automático. |
 | Perfil sonoro / prueba | Elija ninguno, pulso corto, doble, triple, ascendente o alternado y pruebe la vista previa. En Runtime, el operador debe activar sonidos en el navegador. Volumen, salida y permiso del navegador afectan la reproducción. | double | Silenciar en el navegador no reconoce la alarma. |
 
 ### Si el resultado es distinto
 
-Compruebe TAG/revisión activa, escala/unidad, polaridad, habilitación y calidad. La prioridad alta no fuerza activación. Cambiar mensaje o clase no añade histéresis a un límite oscilante. Preview valida un candidato; no demuestra adquisición de campo. Retardo y exención de ACK conservan las limitaciones descritas. Si el proyecto cambia durante la edición, recargue y valide de nuevo en lugar de aplicar un candidato antiguo.
+Compruebe TAG/revisión activa, escala/unidad, polaridad, habilitación y calidad. La prioridad alta no fuerza activación. Si la condición vuelve a la normalidad antes de terminar el intervalo, se cancela la cuenta; esto no añade histéresis a un límite oscilante. Las alarmas de comunicación consideran una calidad distinta de Good como condición activa. La opción Requiere reconocimiento aún tiene la limitación indicada junto al campo. Preview valida un candidato; no demuestra adquisición de campo. Si el proyecto cambia durante la edición, recargue y valide de nuevo en lugar de aplicar un candidato antiguo.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=alarms.configuration)
 

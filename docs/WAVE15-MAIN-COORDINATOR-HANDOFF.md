@@ -1,18 +1,16 @@
 # Wave 15 — current integration checkpoint (2026-10-31)
 
-## Ponto de retomada atual — #753 em correção — 31/10/2026
+## Ponto de retomada atual — #789 supressão operacional de alarmes — 31/10/2026
 
-**Base integrada:** `wave15/corrections-integration@37b0a14f5467510ac3b8c19e47fd6486cf98bb59`, merge do PR #846, revisão final de Ajuda para #751. A próxima correção de produto é [#753](https://github.com/brunolrogerio-collab/EliteSCADA/issues/753), coordenada em #305. #756 é o caderno do portal e não altera esta fila.
+**Base integrada:** `wave15/corrections-integration@4c8396ed8bb14c5dc5718e2394309f260d88eaf8`, merge do PR #847. A #753 está concluída e fechada após T1 `41222308442` e T2 `41251835189` verdes nos escopos registrados em #305. A próxima correção autorizada é [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789), conforme a ordem viva #789 → #790 → #791 → #792.
 
-**#751 concluída:** comportamento de atraso integrado no PR #845; a revisão de Ajuda/testes foi integrada no PR #846 (`37b0a14f`). T1 #41219535952 e T2 #41220169333 passaram dentro dos escopos registrados. O E2E completo de navegador foi pulado em T2; não alegar cobertura que não executou. #423 permanece fora do escopo.
+**Desenho registrado:** [ADR-026](ADR-026-ALARM-SUPPRESSION-789.md), também publicado em [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789#issuecomment-6550584034). O código já possui uma árvore operacional estável (`LocationEngineeringDto.Id/ParentLocationId` e `EquipmentEngineeringDto.LocationId`), mas `AlarmDefinition.Area` é somente texto para autorização. O shelving existente é volátil e altera estado; a nova supressão ficará como overlay visível, persistido e herdável, sem mudar avaliação, ACK ou histórico.
 
-**#753 em andamento:** `RequiresAcknowledgement=false` faz com que `Returned` sem ACK saia de `activeOnly`, preservando estado completo, reativação, ACK manual e shelving. A implementação fica no engine, com testes determinísticos; Help/manual em pt-BR/en/es acompanha o comportamento.
+**Estado desta retomada:** branch `work/w15-alarm-suppression-789`, iniciada no SHA-base acima. O inventário de contratos e dependências está concluído. Implementação, testes, PR/T1/T2 e Help/manual nos três idiomas ainda pendentes; não declarar #789 entregue até validar esses itens no SHA exato.
 
-**Validação local alinhada ao gate:** Core Release 837/837; Drivers Release 2.068/2.068 com um teste ignorado, usando os filtros exatos do workflow; Help contextual 127/127; `EngineeringRuntimeCoordinatorTests` 10/10, incluindo a passagem da opção pelo pacote Engineering ao Runtime. A execução completa sem filtros mostrou uma falha Logix que passou 1/1 isolada e uma falha do laboratório L3 por ausência de variáveis locais; o gate exclui esses dois casos, além dos testes HA-D2 já isolados. O capítulo 17 foi gerado da fonte instalada nos três idiomas. O verificador global ainda aponta somente o capítulo 18 de Segurança/Auditoria; esses arquivos não foram alterados nesta frente. Classificação local, T1, integração e T2 seguem pendentes.
+**Limites preservados:** sem alteração no Portal/#741, Preview/DEMO, aplicação EEE RHO, dados/volumes, licenças, drivers ou solução de HA-D2 #423. A replicação HA só pode receber estado de supressão por extensão aditiva do transporte existente e por teste focado desta mudança.
 
-**Fronteiras:** não alterar HA, Preview, DEMO, Portal, licenças ou dados nesta correção.
-
-**Próximo passo:** revisão final do diff, abrir PR para #753, validar exatamente o head candidato e depois o merge. Só após fechar essa etapa seguir a sequência vigente de #305/#788 para #789.
+**Próximo passo:** implementar os vínculos estáveis de alarme à Location/Equipment e o armazenamento/overlay de supressão conforme ADR-026; depois endpoints, Runtime e evidências focadas. #790 permanece bloqueada até a API tipada de #789 estar integrada e verificada.
 
 ## Último checkpoint integrado — #828 (histórico)
 

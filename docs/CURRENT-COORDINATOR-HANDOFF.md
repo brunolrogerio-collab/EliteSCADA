@@ -1,18 +1,16 @@
 # Current coordinator pointer - Wave 15
 
-## Ponto de retomada atual — #753 em correção — 31/10/2026
+## Ponto de retomada atual — #789 supressão operacional de alarmes — 31/10/2026
 
-**Base integrada:** `wave15/corrections-integration@37b0a14f5467510ac3b8c19e47fd6486cf98bb59`, merge do PR #846, que concluiu a revisão da Ajuda de #751. A próxima correção autorizada é [#753](https://github.com/brunolrogerio-collab/EliteSCADA/issues/753), sob coordenação #305. A issue #756 continua reservada ao portal.
+**Base integrada:** `wave15/corrections-integration@4c8396ed8bb14c5dc5718e2394309f260d88eaf8`, merge do PR #847. A #753 está concluída e fechada após T1 `41222308442` e T2 `41251835189` verdes nos escopos registrados em #305. A próxima correção autorizada é [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789), conforme a ordem viva #789 → #790 → #791 → #792.
 
-**#751 concluída:** produto integrado pelo PR #845 (`8aaf04a4`) e Ajuda/testes alinhados pelo PR #846 (`37b0a14f`). T1 #41219535952 e T2 #41220169333 passaram nos escopos descritos na issue; o E2E completo do navegador foi explicitamente pulado em T2. A limitação HA-D2 já conhecida em #423 não foi investigada nem alterada.
+**Desenho registrado:** [ADR-026](ADR-026-ALARM-SUPPRESSION-789.md), também publicado em [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789#issuecomment-6550584034). O código já possui uma árvore operacional estável (`LocationEngineeringDto.Id/ParentLocationId` e `EquipmentEngineeringDto.LocationId`), mas `AlarmDefinition.Area` é somente texto para autorização. O shelving existente é volátil e altera estado; a nova supressão ficará como overlay visível, persistido e herdável, sem mudar avaliação, ACK ou histórico.
 
-**#753 em andamento:** o Runtime deve tirar da lista `activeOnly` um alarme `Returned` sem ACK apenas quando `RequiresAcknowledgement=false`, mantendo o estado na visão completa, sem fabricar ACK. Reativação inicia novo ciclo; `true`, ACK manual e shelving preservam seus contratos. O trabalho inclui Core, testes determinísticos e Ajuda/manual pt-BR/en/es.
+**Estado desta retomada:** branch `work/w15-alarm-suppression-789`, iniciada no SHA-base acima. O inventário de contratos e dependências está concluído. Implementação, testes, PR/T1/T2 e Help/manual nos três idiomas ainda pendentes; não declarar #789 entregue até validar esses itens no SHA exato.
 
-**Estado desta retomada:** branch `work/w15-alarm-ack-exemption-753` baseada no merge acima. Core Release passou 837/837; Drivers Release com os filtros exatos do workflow passou 2.068/2.068, com um teste ignorado; Help contextual passou 127/127; integração Engineering→Runtime passou dentro dos 10 testes do coordenador. O manual do capítulo 17 foi gerado da fonte instalada nos três idiomas. O verificador global continua apontando apenas o capítulo 18 de Segurança/Auditoria, preservado sem alteração por estar fora do escopo. Uma execução Drivers sem filtros teve a falha Logix passar 1/1 isolada e o laboratório L3 falhar pela falta de variáveis locais; ambos são excluídos do gate normal, e nada foi alterado nesses escopos. Ainda faltam revisão final, T1/CI, integração e T2; não declarar #753 fechada antes dessas etapas.
+**Limites preservados:** sem alteração no Portal/#741, Preview/DEMO, aplicação EEE RHO, dados/volumes, licenças, drivers ou solução de HA-D2 #423. A replicação HA só pode receber estado de supressão por extensão aditiva do transporte existente e por teste focado desta mudança.
 
-**Limites preservados:** sem alterações em HA, Preview, DEMO, Portal, dados, licenças ou portas nesta frente.
-
-**Próximo passo:** terminar os testes e o alinhamento do Help/manual, conferir o perfil de validação em #753, abrir PR e executar T1/T2 nos SHAs exatos. Após concluir #753, seguir a sequência viva em #305/#788; não antecipar #789 antes da integração/validação desta correção.
+**Próximo passo:** implementar os vínculos estáveis de alarme à Location/Equipment e o armazenamento/overlay de supressão conforme ADR-026; depois endpoints, Runtime e evidências focadas. #790 permanece bloqueada até a API tipada de #789 estar integrada e verificada.
 
 ## Histórico anterior — não substitui o checkpoint acima
 ## Previous product checkpoint - online licensing status projection, 28 October 2026

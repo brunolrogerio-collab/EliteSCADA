@@ -23,6 +23,7 @@ const copy = {
     unavailable: 'Não há uma revisão ativa disponível para configurar o Runtime público.',
     disabled: 'A visualização anônima está desligada. O Runtime continua exigindo login.',
     active: 'A visualização pública está ligada para a revisão publicada indicada.',
+    stale: 'A revisão publicada mudou. A política anterior foi desativada; revise os recursos desta revisão e salve novamente.',
     readOnly: 'Visitantes não executam comandos, escrevem TAGs, reconhecem alarmes nem acessam Engineering, histórico ou administração.',
     login: 'O login continua disponível para usuários autorizados.',
     help: 'Como configurar e testar',
@@ -45,6 +46,7 @@ const copy = {
     unavailable: 'There is no active revision available for public Runtime setup.',
     disabled: 'Anonymous viewing is off. Runtime still requires sign-in.',
     active: 'Public viewing is on for the published revision shown here.',
+    stale: 'The published revision changed. The previous policy is inactive; review this revision’s resources and save again.',
     readOnly: 'Visitors cannot execute commands, write TAGs, acknowledge alarms, or access Engineering, history, or administration.',
     login: 'Sign-in remains available to authorized users.',
     help: 'How to configure and test',
@@ -67,6 +69,7 @@ const copy = {
     unavailable: 'No hay una revisión activa disponible para configurar Runtime público.',
     disabled: 'La visualización anónima está desactivada. Runtime sigue requiriendo inicio de sesión.',
     active: 'La visualización pública está activada para la revisión publicada indicada.',
+    stale: 'La revisión publicada cambió. La política anterior está inactiva; revise los recursos de esta revisión y vuelva a guardar.',
     readOnly: 'Los visitantes no ejecutan comandos, escriben TAG, reconocen alarmas ni acceden a Engineering, historial o administración.',
     login: 'El inicio de sesión sigue disponible para usuarios autorizados.',
     help: 'Cómo configurar y probar',
@@ -119,12 +122,26 @@ export function PublicRuntimeAccessPanel({
     void authorityPolicyAdministrationApi.publicRuntimeResources().then(value => {
       if (!active) return;
       setCatalog(value);
-      setDraft(current => current.enabled ? ({
+      setDraft(current => {
+        if (!current.enabled) return current;
+        const screenIds = current.screenIds.filter(id => value.screens.some(screen => screen.id === id));
+        const popupIds = current.popupIds.filter(id => value.popups.some(popup => popup.id === id));
+        const tagIds = current.tagIds.filter(id => value.tags.some(tag => tag.id === id));
+        const visualAssetIds = current.visualAssetIds.filter(id => value.visualAssets.some(asset => asset.id === id));
+        const startScreenId = current.startScreenId && screenIds.includes(current.startScreenId)
+          ? current.startScreenId
+          : screenIds.includes(value.startupScreenId ?? '') ? value.startupScreenId! : screenIds[0] ?? null;
+        return {
           ...current,
+          screenIds,
+          popupIds,
+          tagIds,
+          visualAssetIds,
           projectKey: value.projectKey,
           revision: value.revision,
-          startScreenId: current.startScreenId ?? value.startupScreenId ?? null
-        }) : current);
+          startScreenId
+        };
+      });
     }).catch(reason => {
       if (!active) return;
       setError(reason instanceof Error ? reason.message : text.loadError);
@@ -141,6 +158,11 @@ export function PublicRuntimeAccessPanel({
     draft.screenIds.filter(id => catalog?.screens.some(screen => screen.id === id)),
   [catalog, draft.screenIds]);
   const dirty = savedVersion !== policyVersion || JSON.stringify(draft) !== JSON.stringify(initialDraft(policy));
+  const policyRevisionMatches = !policy?.enabled || Boolean(catalog &&
+    policy.projectKey?.toLocaleLowerCase() === catalog.projectKey.toLocaleLowerCase() &&
+    policy.revision === catalog.revision);
+  const policyIsStale = Boolean(policy?.enabled && catalog && !policyRevisionMatches);
+  const canSave = dirty && (!draft.enabled || Boolean(draft.startScreenId && availableSelectedScreens.includes(draft.startScreenId)));
 
   const toggleId = (field: 'screenIds' | 'popupIds' | 'tagIds' | 'visualAssetIds', id: string) => {
     setDraft(current => {
@@ -179,7 +201,7 @@ export function PublicRuntimeAccessPanel({
       <div>
         <h3>{text.title}</h3>
         <p>{text.hint}</p>
-        <p><strong>{policy?.enabled ? text.active : text.disabled}</strong></p>
+        <p><strong>{policyIsStale ? text.stale : policy?.enabled ? text.active : text.disabled}</strong></p>
         <p>{text.readOnly} {text.login}</p>
         <a href="/help?topic=security.public-runtime-view">{text.help}</a>
         {catalog ? <small>{catalog.projectKey} · revisão {catalog.revision}</small> : null}
@@ -209,7 +231,7 @@ export function PublicRuntimeAccessPanel({
       <ResourceChoices title={text.tag} values={catalog.tags.map(tag => ({ id: tag.id, key: tag.key, name: `${tag.name} (${tag.dataType}${tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''})` }))} selected={draft.tagIds} disabled={!draft.enabled} onToggle={id => toggleId('tagIds', id)} />
       <ResourceChoices title={text.asset} values={catalog.visualAssets} selected={draft.visualAssetIds} disabled={!draft.enabled} onToggle={id => toggleId('visualAssetIds', id)} />
       {dirty ? <p role="status">{text.dirty}</p> : null}
-      <button type="button" className="user-admin-button primary" disabled={saving || disabled || loading || !dirty} onClick={() => void apply()}>
+      <button type="button" className="user-admin-button primary" disabled={saving || disabled || loading || !canSave} onClick={() => void apply()}>
         {saving ? text.saving : text.save}
       </button>
     </> : null}

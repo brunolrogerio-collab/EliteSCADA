@@ -1,6 +1,6 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 import { createE2eJwt } from './jwt';
-import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
+import { admitInteractiveRuntimeSession, endRuntimeSessionInUi, terminateRuntimeSession } from './runtimeSessionLease';
 
 const adminUsername = 'local-developer';
 const adminPassword = 'E2Epass8';
@@ -873,6 +873,12 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(reloadedLocalSession.status).toBe(200);
     expect(reloadedLocalSession.body.authenticated).toBe(true);
     expect(reloadedLocalSession.body.username).toBe(adminUsername);
+
+    // A full navigation can interrupt the best-effort unmount cleanup. Reopen
+    // Runtime and release its lease explicitly before closing this test context.
+    await page.goto('/');
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 15_000 });
+    await endRuntimeSessionInUi(page);
   } finally {
     await context.close();
   }
@@ -898,27 +904,36 @@ test('auth system chrome follows semantic Light and Dark themes including passwo
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
 
-  const light = await page.locator('.auth-card').evaluate(element => ({
+  const readThemeColors = () => page.locator('.auth-card').evaluate(element => ({
     card: getComputedStyle(element).backgroundColor,
     password: getComputedStyle(document.querySelector('input[name="bootstrap-password"]')!).backgroundColor
   }));
+  await expect(page.locator('.auth-card')).toBeVisible();
+  await expect.poll(async () => {
+    const colors = await readThemeColors();
+    return Boolean(colors.card && colors.password);
+  }).toBe(true);
+  const light = await readThemeColors();
   await page.getByRole('button', { name: /Restore backup|Restaurar backup|Restaurar backup/i }).click();
+  await expect(page.getByTestId('recovery-application-file')).toBeVisible();
   const lightFile = await page.getByTestId('recovery-application-file')
     .evaluate(element => getComputedStyle(element).backgroundColor);
 
   await page.evaluate(() => localStorage.setItem('elitescada.app.theme', 'dark'));
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
-
-  const dark = await page.locator('.auth-card').evaluate(element => ({
-    card: getComputedStyle(element).backgroundColor,
-    password: getComputedStyle(document.querySelector('input[name="bootstrap-password"]')!).backgroundColor
-  }));
+  await expect(page.locator('.auth-card')).toBeVisible();
+  await expect.poll(async () => {
+    const colors = await readThemeColors();
+    return colors.card !== light.card && colors.password !== light.password;
+  }).toBe(true);
+  const dark = await readThemeColors();
   await page.getByRole('button', { name: /Restore backup|Restaurar backup|Restaurar backup/i }).click();
+  await expect(page.getByTestId('recovery-application-file')).toBeVisible();
   const darkFile = await page.getByTestId('recovery-application-file')
     .evaluate(element => getComputedStyle(element).backgroundColor);
 
-  expect(light.card).not.toBe(dark.card);
-  expect(light.password).not.toBe(dark.password);
+  expect(dark.card).not.toBe(light.card);
+  expect(dark.password).not.toBe(light.password);
   expect(lightFile).not.toBe(darkFile);
 });

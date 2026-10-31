@@ -1,4 +1,4 @@
-import type { APIRequestContext } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 const runtimeSessionHeader = 'X-EliteSCADA-Runtime-Session';
 const runtimeClientInstanceHeader = 'X-EliteSCADA-Runtime-Client-Instance';
@@ -67,4 +67,21 @@ export async function terminateRuntimeSession(
   if (response.status() !== 204) {
     throw new Error(`Runtime session termination expected 204, received ${response.status()}: ${await response.text()}`);
   }
+}
+
+/** Ends the browser-owned Runtime lease through the same UI path an operator uses. */
+export async function endRuntimeSessionInUi(page: Page): Promise<void> {
+  const menuToggle = page.getByTestId('session-menu-toggle');
+  await menuToggle.click();
+
+  const endButton = page.getByTestId('runtime-session-end');
+  await expect(endButton).toBeVisible();
+  const terminated = page.waitForResponse(response =>
+    response.request().method() === 'POST' &&
+    /\/api\/runtime\/sessions\/[^/]+\/terminate$/.test(new URL(response.url()).pathname));
+  await endButton.click();
+  expect((await terminated).status()).toBe(204);
+  await expect(page.getByTestId('runtime-session-empty')).toBeVisible();
+
+  await menuToggle.click();
 }

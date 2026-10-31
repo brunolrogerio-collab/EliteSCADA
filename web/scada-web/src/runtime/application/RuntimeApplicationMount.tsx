@@ -141,6 +141,7 @@ function EngineeringRuntimeApplicationContent({
   const [requestedScreen, setRequestedScreen] = useState<string | null>(null);
   const [stationProfileId, setStationProfileId] = useState('');
   const [stationLaunchMessage, setStationLaunchMessage] = useState('');
+  const [blockedStationWindows, setBlockedStationWindows] = useState<ReadonlyArray<{ index: number; href: string }>>([]);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -231,15 +232,26 @@ function EngineeringRuntimeApplicationContent({
 
   const startStation = () => {
     if (!selectedStation) return;
-    let opened = 0;
+    const blocked: Array<{ index: number; href: string }> = [];
     for (const [index, slot] of selectedStation.windows.entries()) {
       const query = new URLSearchParams({ screen: slot.screenKey, station: selectedStation.id, slot: String(index), stationMode: slot.mode });
-      const child = window.open(`/?${query.toString()}`, '_blank');
-      if (child) { child.opener = null; opened++; }
+      const href = `/?${query.toString()}`;
+      try {
+        const child = window.open(href, '_blank');
+        if (child) child.opener = null;
+        else blocked.push({ index, href });
+      } catch {
+        blocked.push({ index, href });
+      }
     }
-    setStationLaunchMessage(opened === selectedStation.windows.length
+    setBlockedStationWindows(blocked);
+    setStationLaunchMessage(blocked.length === 0
       ? (locale === 'pt-BR' ? 'Janelas abertas. Mova cada uma para o monitor desejado e use tela cheia.' : locale === 'es' ? 'Ventanas abiertas. Mueva cada una al monitor y active pantalla completa.' : 'Windows opened. Move each to a monitor and enter fullscreen.')
-      : (locale === 'pt-BR' ? 'O navegador bloqueou janelas. Permita pop-ups e tente novamente.' : locale === 'es' ? 'El navegador bloqueó ventanas. Permita ventanas emergentes e inténtelo otra vez.' : 'The browser blocked some windows. Allow pop-ups and try again.'));
+      : (locale === 'pt-BR'
+        ? `O navegador bloqueou ${blocked.length} de ${selectedStation.windows.length} janelas. Abra as telas abaixo manualmente, mova cada janela para o monitor desejado e use tela cheia.`
+        : locale === 'es'
+          ? `El navegador bloqueó ${blocked.length} de ${selectedStation.windows.length} ventanas. Abra manualmente las pantallas de abajo, mueva cada ventana al monitor deseado y active pantalla completa.`
+          : `The browser blocked ${blocked.length} of ${selectedStation.windows.length} windows. Open the screens below manually, move each window to its monitor, and enter fullscreen.`));
   };
 
   const toggleAlarms = () => {
@@ -360,7 +372,12 @@ function EngineeringRuntimeApplicationContent({
             runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
         </div> : null}
       </div>
-      {stationLaunchMessage ? <span role="status" className="runtime-station-launch-status">{stationLaunchMessage}</span> : null}
+      {stationLaunchMessage ? <div role="status" className="runtime-station-launch-status">
+        <span>{stationLaunchMessage}</span>
+        {blockedStationWindows.map(window => <a key={window.index} href={window.href} target="_blank" rel="noopener noreferrer">
+          {locale === 'pt-BR' ? `Abrir tela ${window.index + 1}` : locale === 'es' ? `Abrir pantalla ${window.index + 1}` : `Open screen ${window.index + 1}`}
+        </a>)}
+      </div> : null}
     </header> : <div className="runtime-hidden-header-session" aria-label={text.runtime}>
       <UserSessionMenu locale={locale} includeRuntimeSessionControls runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
     </div>}

@@ -205,6 +205,44 @@ test('new Runtime window starts on the selected screen and admits a distinct cli
   expect(new Set(clientIds).size).toBe(3);
 });
 
+test('blocked station popups provide a manual link for every configured screen', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, undefined, [], {
+    historicalPlaybackEnabled: false,
+    version: 1,
+    stationProfiles: [{
+      id: 'eee-control-room',
+      name: 'Sala de controle',
+      windows: [
+        { screenKey: 'home', mode: 'navigation' },
+        { screenKey: 'home', mode: 'fixed' }
+      ]
+    }]
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'open', { configurable: true, value: () => null });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.getByRole('button', { name: 'Iniciar estação' }).click();
+
+  const status = page.getByRole('status').filter({ hasText: 'O navegador bloqueou 2 de 2 janelas' });
+  await expect(status).toBeVisible();
+  const first = status.getByRole('link', { name: 'Abrir tela 1' });
+  const second = status.getByRole('link', { name: 'Abrir tela 2' });
+  await expect(first).toHaveAttribute('href', '/?screen=home&station=eee-control-room&slot=0&stationMode=navigation');
+  await expect(second).toHaveAttribute('href', '/?screen=home&station=eee-control-room&slot=1&stationMode=fixed');
+  await expect(first).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(second).toHaveAttribute('target', '_blank');
+
+  const fallbackWindowPromise = page.context().waitForEvent('page');
+  await first.click();
+  const fallbackWindow = await fallbackWindowPromise;
+  await expect(fallbackWindow).toHaveURL(/screen=home.*station=eee-control-room.*slot=0.*stationMode=navigation/);
+  await expect(fallbackWindow.getByTestId('runtime-engineering-application')).toBeVisible();
+});
+
 test('external identity does not expose local switch-user even when local login is enabled', async ({ page }) => {
   await installSessionContract(page, externalDeveloper);
 

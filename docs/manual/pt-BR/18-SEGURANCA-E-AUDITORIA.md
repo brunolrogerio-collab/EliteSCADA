@@ -10,6 +10,12 @@ Abra Engenharia > Segurança para cadastrar quem entra nesta instalação. As co
 
 Para administrar usuários, é preciso permissão UserRoleAdmin ou SystemAdmin. Editar o projeto não concede esse acesso. Antes de mudar papéis ou senha, confira qual conta está usando e preserve pelo menos um administrador local habilitado.
 
+### Prazo da sessão local
+
+Na área de Segurança, ajuste quando o sistema pedirá login novamente. O prazo começa no momento em que a pessoa entra e define a validade máxima do login local; não é um temporizador de inatividade. Fechar o navegador não encerra a sessão.
+
+Escolha de 5 a 1.440 minutos (de 5 minutos a 24 horas). O valor inicial do produto é 480 minutos, ou 8 horas, salvo se a instalação definir outro valor inicial na configuração do servidor. O novo valor vale para próximos logins. Sessões já abertas mantêm o vencimento que receberam; depois dele, será necessário entrar novamente.
+
 ### Procedimento: cadastrar e testar um operador
 
 1. Confira os papéis disponíveis e o que cada um permite fazer e em quais recursos. Se faltar um papel adequado, prepare e aplique a política primeiro.

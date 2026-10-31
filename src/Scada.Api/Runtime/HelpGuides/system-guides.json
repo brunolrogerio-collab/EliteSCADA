@@ -1574,6 +1574,11 @@
           "fields": null
         },
         {
+          "heading": "Prazo da sessão local",
+          "body": "Em Segurança, ajuste o tempo para pedir login novamente. Ele começa quando a pessoa entra e define a validade máxima do login local; não é um temporizador de inatividade. Fechar o navegador não encerra a sessão. O novo prazo vale para próximos logins, enquanto sessões já abertas mantêm o vencimento que receberam. Escolha de 5 a 1.440 minutos (5 minutos a 24 horas); o valor inicial do produto é 480 minutos, ou 8 horas, salvo se a instalação definir outro valor inicial na configuração do servidor.",
+          "fields": null
+        },
+        {
           "heading": "Procedimento: cadastrar e testar um operador",
           "body": "1. Confira os papéis disponíveis e o que cada um permite fazer e em quais recursos. Se faltar um papel adequado, prepare e aplique a política primeiro.\n2. Use Novo usuário e preencha login, nome, senha privada e habilitação.\n3. Selecione apenas os papéis necessários e crie a conta.\n4. Ao editar depois, revise o resumo e confirme o salvamento. Mudar um campo não salva sozinho.\n5. Em outra sessão, entre com a conta criada e teste uma leitura permitida e uma ação que deve ser negada. A licença e a classe View Only/Interactive continuam limitando as ações.\n6. Volte à conta administrativa para corrigir concessões se necessário. Uma mesma sessão não comprova o acesso de dois usuários diferentes.",
           "fields": null
@@ -8514,6 +8519,11 @@
           "fields": null
         },
         {
+          "heading": "Local session duration",
+          "body": "In Security, set when the product should ask the user to sign in again. The timer starts at login and sets the maximum lifetime of a local login; it is not an inactivity timer. Closing the browser does not end the session. The new duration applies to future logins, while open sessions keep the expiry they already received. Choose 5 to 1,440 minutes (5 minutes to 24 hours); the product's initial value is 480 minutes, or 8 hours, unless the installation defines a different initial value in server configuration.",
+          "fields": null
+        },
+        {
           "heading": "Procedure: create and test an operator",
           "body": "1. Check available roles, which actions each allows and for which resources. If a suitable role is missing, prepare and apply policy first.\n2. Use New user and fill login, name, private password and enabled state.\n3. Select only needed roles and create the account.\n4. For later edits, review the summary and confirm saving. Changing a field does not save by itself.\n5. In another session, sign in with the new account and test one allowed reading and one action that must be denied. License and View Only/Interactive class still limit actions.\n6. Return to the administrator account to correct grants if needed. One session does not prove access for two different users.",
           "fields": null
@@ -15451,6 +15461,11 @@
         {
           "heading": "Antes de administrar cuentas",
           "body": "Abra Ingeniería > Seguridad para registrar quién entra a esta instalación. Cuentas locales, contraseñas y permisos pertenecen a Security Authority, el registro de seguridad de la instalación. No son objetos del proyecto ni viajan en el paquete de ingeniería. Cuenta local tampoco es cuenta del portal comercial.\n\nAdministrar usuarios requiere UserRoleAdmin o SystemAdmin. Editar el proyecto no concede acceso. Antes de cambiar roles o contraseña compruebe su cuenta y conserve al menos un administrador local habilitado.",
+          "fields": null
+        },
+        {
+          "heading": "Duración de la sesión local",
+          "body": "En Seguridad, ajuste cuándo se pedirá ingresar nuevamente. El plazo comienza al iniciar sesión y define la validez máxima del ingreso local; no es un temporizador de inactividad. Cerrar el navegador no termina la sesión. La nueva duración se aplica a ingresos futuros; las sesiones abiertas conservan el vencimiento recibido. Elija de 5 a 1.440 minutos (5 minutos a 24 horas); el valor inicial del producto es 480 minutos, u 8 horas, salvo que la instalación defina otro valor inicial en la configuración del servidor.",
           "fields": null
         },
         {

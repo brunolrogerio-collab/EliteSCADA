@@ -407,6 +407,59 @@ test('API distinguishes access levels and records protected-operation audit even
   expect(events.every(event => !event.details || !('authorization' in event.details))).toBeTruthy();
 });
 
+test('Security lets an administrator change and retain the local login session duration', async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL,
+    locale: 'pt-BR',
+    extraHTTPHeaders: { Authorization: `Bearer ${createE2eJwt('session-duration-admin', ['developer'])}` }
+  });
+  const page = await context.newPage();
+  let originalMinutes: number | null = null;
+
+  try {
+    const initialResponse = await page.request.get('/api/auth/local-session-policy');
+    expect(initialResponse.ok()).toBeTruthy();
+    const initial = await initialResponse.json() as { version: number; accessTokenMinutes: number };
+    originalMinutes = initial.accessTokenMinutes;
+    const nextMinutes = originalMinutes > 5 ? originalMinutes - 1 : originalMinutes + 1;
+
+    await page.goto('/engineering');
+    await page.getByRole('button', { name: /Segurança/ }).click();
+    const durationInput = page.getByTestId('local-session-duration-input');
+    await expect(durationInput).toHaveValue(String(originalMinutes));
+    await durationInput.fill(String(nextMinutes));
+
+    const saveResponse = page.waitForResponse(response =>
+      response.url().endsWith('/api/auth/local-session-policy') &&
+      response.request().method() === 'PUT' &&
+      response.status() === 200);
+    await page.getByTestId('local-session-duration-save').click();
+    await saveResponse;
+    await expect(page.getByText('Prazo de login atualizado.')).toBeVisible();
+
+    const persistedResponse = await page.request.get('/api/auth/local-session-policy');
+    expect((await persistedResponse.json()).accessTokenMinutes).toBe(nextMinutes);
+
+    await page.reload();
+    await page.getByRole('button', { name: /Segurança/ }).click();
+    await expect(page.getByTestId('local-session-duration-input')).toHaveValue(String(nextMinutes));
+  } finally {
+    if (originalMinutes !== null) {
+      const currentResponse = await page.request.get('/api/auth/local-session-policy');
+      if (currentResponse.ok()) {
+        const current = await currentResponse.json() as { version: number; accessTokenMinutes: number };
+        if (current.accessTokenMinutes !== originalMinutes) {
+          const restoreResponse = await page.request.put('/api/auth/local-session-policy', {
+            data: { expectedVersion: current.version, accessTokenMinutes: originalMinutes }
+          });
+          expect(restoreResponse.ok()).toBeTruthy();
+        }
+      }
+    }
+    await context.close();
+  }
+});
+
 test('realtime WebSocket requires identity, filters TAGs and expires with JWT', async ({ browser }) => {
   const context = await browser.newContext({
     extraHTTPHeaders: { Authorization: '' }

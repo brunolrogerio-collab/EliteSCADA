@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthGate';
 import {
   countAdministrationUsers,
@@ -12,6 +12,7 @@ import { AuthorityPolicyAdministration } from './AuthorityPolicyAdministration';
 import {
   AdministrationHttpError,
   localUserAdministrationApi,
+  type LocalAuthenticationSessionPolicy,
   type LocalRole,
   type LocalUser
 } from './userAdministrationApi';
@@ -59,6 +60,18 @@ type UiStrings = {
   passwordSuccess: string;
   sessionPolicyTitle: string;
   sessionNote: string;
+  sessionDurationTitle: string;
+  sessionDurationDescription: string;
+  sessionDurationLabel: string;
+  sessionDurationMinutes: string;
+  sessionDurationRange: string;
+  sessionDurationCurrent: string;
+  sessionDurationBehavior: string;
+  sessionDurationSave: string;
+  sessionDurationSaving: string;
+  sessionDurationSaved: string;
+  sessionDurationLoadError: string;
+  sessionDurationPersistenceWarning: string;
   currentAccount: string;
   currentAccountWarning: string;
   sessionExpires: string;
@@ -134,6 +147,18 @@ const strings: Record<EngineeringLocale, UiStrings> = {
     passwordSuccess: 'Senha redefinida. Sessões locais anteriores dessa conta foram invalidadas.',
     sessionPolicyTitle: 'Consequência de sessão',
     sessionNote: 'Salvar nome, estado ou papéis e redefinir senha invalida os JWTs locais anteriores da conta alterada e encerra conexões realtime dessa identidade.',
+    sessionDurationTitle: 'Tempo para pedir login novamente',
+    sessionDurationDescription: 'Define por quanto tempo um login local pode permanecer válido.',
+    sessionDurationLabel: 'Duração da sessão',
+    sessionDurationMinutes: 'minutos',
+    sessionDurationRange: 'Escolha de 5 a 1.440 minutos (até 24 horas).',
+    sessionDurationCurrent: 'Equivale a',
+    sessionDurationBehavior: 'O prazo começa quando a pessoa entra. Fechar o navegador não encerra a sessão. Ao vencer, será preciso entrar novamente. O novo prazo vale para próximos logins; sessões abertas mantêm o vencimento que já receberam.',
+    sessionDurationSave: 'Salvar prazo',
+    sessionDurationSaving: 'Salvando…',
+    sessionDurationSaved: 'Prazo de login atualizado.',
+    sessionDurationLoadError: 'Não foi possível carregar o prazo de login.',
+    sessionDurationPersistenceWarning: 'Este ambiente não usa banco persistente. O ajuste se perde se a API reiniciar.',
     currentAccount: 'Sua conta atual',
     currentAccountWarning: 'Você está alterando a conta usada neste navegador. A confirmação pode invalidar esta sessão imediatamente.',
     sessionExpires: 'Sessão atual expira',
@@ -207,6 +232,18 @@ const strings: Record<EngineeringLocale, UiStrings> = {
     passwordSuccess: 'Password reset. Previous local sessions for this account were invalidated.',
     sessionPolicyTitle: 'Session consequence',
     sessionNote: 'Saving name, status or roles and resetting a password invalidates prior local JWTs for the changed account and closes realtime connections for that identity.',
+    sessionDurationTitle: 'Ask for login again after',
+    sessionDurationDescription: 'Sets how long a local login can remain valid.',
+    sessionDurationLabel: 'Session duration',
+    sessionDurationMinutes: 'minutes',
+    sessionDurationRange: 'Choose between 5 and 1,440 minutes (up to 24 hours).',
+    sessionDurationCurrent: 'Equivalent to',
+    sessionDurationBehavior: 'The timer starts when the user signs in. Closing the browser does not end the session. After it expires, the user must sign in again. The new duration applies to future logins; open sessions keep their existing expiry.',
+    sessionDurationSave: 'Save duration',
+    sessionDurationSaving: 'Saving…',
+    sessionDurationSaved: 'Login duration updated.',
+    sessionDurationLoadError: 'Could not load the login duration.',
+    sessionDurationPersistenceWarning: 'This environment has no persistent database. The setting is lost if the API restarts.',
     currentAccount: 'Your current account',
     currentAccountWarning: 'You are changing the account used by this browser. Confirmation may invalidate this session immediately.',
     sessionExpires: 'Current session expires',
@@ -280,6 +317,18 @@ const strings: Record<EngineeringLocale, UiStrings> = {
     passwordSuccess: 'Contraseña restablecida. Las sesiones locales anteriores de esta cuenta fueron invalidadas.',
     sessionPolicyTitle: 'Consecuencia de sesión',
     sessionNote: 'Guardar nombre, estado o roles y restablecer la contraseña invalida los JWT locales anteriores de la cuenta modificada y cierra conexiones realtime de esa identidad.',
+    sessionDurationTitle: 'Pedir ingreso nuevamente después de',
+    sessionDurationDescription: 'Define cuánto tiempo puede seguir válido un ingreso local.',
+    sessionDurationLabel: 'Duración de la sesión',
+    sessionDurationMinutes: 'minutos',
+    sessionDurationRange: 'Elija entre 5 y 1.440 minutos (hasta 24 horas).',
+    sessionDurationCurrent: 'Equivale a',
+    sessionDurationBehavior: 'El plazo comienza al ingresar. Cerrar el navegador no termina la sesión. Al vencer, será necesario ingresar nuevamente. El nuevo plazo se aplica a futuros ingresos; las sesiones abiertas conservan su vencimiento actual.',
+    sessionDurationSave: 'Guardar plazo',
+    sessionDurationSaving: 'Guardando…',
+    sessionDurationSaved: 'Duración de ingreso actualizada.',
+    sessionDurationLoadError: 'No fue posible cargar la duración de ingreso.',
+    sessionDurationPersistenceWarning: 'Este entorno no usa una base de datos persistente. El ajuste se pierde si se reinicia la API.',
     currentAccount: 'Su cuenta actual',
     currentAccountWarning: 'Está modificando la cuenta usada por este navegador. La confirmación puede invalidar esta sesión inmediatamente.',
     sessionExpires: 'La sesión actual vence',
@@ -315,11 +364,25 @@ const strings: Record<EngineeringLocale, UiStrings> = {
   }
 };
 
+function formatSessionDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours > 0 && remainingMinutes > 0) return `${hours} h ${remainingMinutes} min`;
+  if (hours > 0) return `${hours} h`;
+  return `${minutes} min`;
+}
+
 export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
   const s = strings[locale];
   const { profile } = useAuth();
   const [users, setUsers] = useState<LocalUser[]>([]);
   const [roles, setRoles] = useState<LocalRole[]>([]);
+  const [sessionPolicy, setSessionPolicy] = useState<LocalAuthenticationSessionPolicy | null>(null);
+  const [sessionMinutesDraft, setSessionMinutesDraft] = useState('');
+  const [sessionPolicyLoading, setSessionPolicyLoading] = useState(true);
+  const [sessionPolicySaving, setSessionPolicySaving] = useState(false);
+  const [sessionPolicyError, setSessionPolicyError] = useState<string | null>(null);
+  const observedSessionPolicyVersion = useRef<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [accessFailure, setAccessFailure] = useState<AccessFailure>(null);
@@ -363,9 +426,33 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
     }
   }, [s]);
 
+  const loadSessionPolicy = useCallback(async () => {
+    setSessionPolicyLoading(true);
+    setSessionPolicyError(null);
+    try {
+      const next = await localUserAdministrationApi.getSessionPolicy();
+      if (observedSessionPolicyVersion.current !== next.version) {
+        setSessionMinutesDraft(String(next.accessTokenMinutes));
+        observedSessionPolicyVersion.current = next.version;
+      }
+      setSessionPolicy(next);
+    } catch (reason) {
+      if (reason instanceof AdministrationHttpError && reason.status === 401) {
+        setAccessFailure('unauthorized');
+      } else if (reason instanceof AdministrationHttpError && reason.status === 403) {
+        setAccessFailure('forbidden');
+      } else {
+        setSessionPolicyError(administrationErrorMessage(reason, s));
+      }
+    } finally {
+      setSessionPolicyLoading(false);
+    }
+  }, [s]);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadSessionPolicy();
+  }, [load, loadSessionPolicy]);
 
   const selected = useMemo(
     () => users.find(user => user.id === selectedId) ?? null,
@@ -376,6 +463,9 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
     [users, query, statusFilter]
   );
   const counts = useMemo(() => countAdministrationUsers(users), [users]);
+  const parsedSessionMinutes = Number(sessionMinutesDraft);
+  const validSessionMinutes = Number.isInteger(parsedSessionMinutes) && parsedSessionMinutes >= 5 && parsedSessionMinutes <= 1440;
+  const sessionPolicyChanged = sessionPolicy !== null && parsedSessionMinutes !== sessionPolicy.accessTokenMinutes;
 
   if (loading) {
     return <section className="eng-panel user-admin"><div className="user-admin-state">{s.title}…</div></section>;
@@ -413,6 +503,31 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
     setOperationError(administrationErrorMessage(reason, s));
   };
 
+  const saveSessionPolicy = async () => {
+    if (!sessionPolicy || !validSessionMinutes || !sessionPolicyChanged) return;
+    setSessionPolicySaving(true);
+    setSessionPolicyError(null);
+    setOperationError(null);
+    setNotice(null);
+    try {
+      const updated = await localUserAdministrationApi.updateSessionPolicy({
+        expectedVersion: sessionPolicy.version,
+        accessTokenMinutes: parsedSessionMinutes
+      });
+      setSessionPolicy(updated);
+      setSessionMinutesDraft(String(updated.accessTokenMinutes));
+      observedSessionPolicyVersion.current = updated.version;
+      setNotice(s.sessionDurationSaved);
+    } catch (reason) {
+      if (reason instanceof AdministrationHttpError && reason.status === 409) {
+        await loadSessionPolicy();
+      }
+      reportOperationError(reason);
+    } finally {
+      setSessionPolicySaving(false);
+    }
+  };
+
   return (
     <section className="eng-panel user-admin" data-testid="user-administration">
       <header className="user-admin-header">
@@ -427,7 +542,10 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
             type="button"
             className="user-admin-button secondary"
             disabled={refreshing}
-            onClick={() => void load(undefined, true)}
+            onClick={() => {
+              void load(undefined, true);
+              void loadSessionPolicy();
+            }}
           >
             {refreshing ? s.refreshing : s.refresh}
           </button>
@@ -457,6 +575,53 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
         </div>
         <small>{s.individualSessionsUnavailable}</small>
       </div>
+
+      <section className="user-admin-session-config" data-testid="local-session-duration">
+        <div className="user-admin-session-config-heading">
+          <strong>{s.sessionDurationTitle}</strong>
+          <span>{s.sessionDurationDescription}</span>
+        </div>
+        {sessionPolicyLoading && <small>{s.refreshing}</small>}
+        {sessionPolicyError && <div className="user-admin-state error" role="alert">{s.sessionDurationLoadError}<small>{sessionPolicyError}</small></div>}
+        {sessionPolicy && (
+          <>
+            <div className="user-admin-session-config-controls">
+              <label htmlFor="local-session-duration-minutes">
+                <span>{s.sessionDurationLabel}</span>
+                <div className="user-admin-session-duration-input">
+                  <input
+                    id="local-session-duration-minutes"
+                    type="number"
+                    min={5}
+                    max={1440}
+                    step={1}
+                    inputMode="numeric"
+                    value={sessionMinutesDraft}
+                    onChange={event => setSessionMinutesDraft(event.target.value)}
+                    disabled={sessionPolicyLoading || sessionPolicySaving}
+                    aria-describedby="local-session-duration-help"
+                    data-testid="local-session-duration-input"
+                  />
+                  <span>{s.sessionDurationMinutes}</span>
+                </div>
+              </label>
+              <button
+                type="button"
+                className="user-admin-button primary"
+                disabled={sessionPolicySaving || sessionPolicyLoading || !validSessionMinutes || !sessionPolicyChanged}
+                onClick={() => void saveSessionPolicy()}
+                data-testid="local-session-duration-save"
+              >
+                {sessionPolicySaving ? s.sessionDurationSaving : s.sessionDurationSave}
+              </button>
+            </div>
+            <small id="local-session-duration-help">{s.sessionDurationRange}</small>
+            <small>{s.sessionDurationCurrent} {formatSessionDuration(sessionPolicy.accessTokenMinutes)}</small>
+            <p>{s.sessionDurationBehavior}</p>
+            {!sessionPolicy.persistent && <div className="user-admin-state warning" role="status">{s.sessionDurationPersistenceWarning}</div>}
+          </>
+        )}
+      </section>
 
       {notice && <div className="user-admin-notice" role="status">{notice}</div>}
       {operationError && <div className="user-admin-state error" role="alert">{operationError}</div>}

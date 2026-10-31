@@ -10,6 +10,12 @@ Abra Ingeniería > Seguridad para registrar quién entra a esta instalación. Cu
 
 Administrar usuarios requiere UserRoleAdmin o SystemAdmin. Editar el proyecto no concede acceso. Antes de cambiar roles o contraseña compruebe su cuenta y conserve al menos un administrador local habilitado.
 
+### Duración de la sesión local
+
+En Seguridad, ajuste cuándo se pedirá ingresar nuevamente. El plazo comienza al iniciar sesión y define la validez máxima del ingreso local; no es un temporizador de inactividad. Cerrar el navegador no termina la sesión.
+
+Elija de 5 a 1.440 minutos (de 5 minutos a 24 horas). El valor inicial del producto es 480 minutos, u 8 horas, salvo que la instalación defina otro valor inicial en la configuración del servidor. La nueva duración se aplica a ingresos futuros. Las sesiones abiertas conservan el vencimiento recibido; al vencer, será necesario ingresar nuevamente.
+
 ### Procedimiento: crear y probar un operador
 
 1. Compruebe roles disponibles, acciones permitidas y recursos de cada uno. Si falta el adecuado, prepare y aplique política primero.

@@ -16,6 +16,7 @@ public static class DistributedRuntimeFoundationApi
     public static IEndpointRouteBuilder MapDistributedRuntimeFoundationEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapRuntimePublicSessionEndpoints();
         endpoints.MapPost("/api/runtime/sessions", async (
             RuntimeSessionAdmissionRequest request,
             HttpContext context,

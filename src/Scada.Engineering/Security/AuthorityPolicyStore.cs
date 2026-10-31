@@ -2,6 +2,7 @@ using Scada.Engineering.Contracts;
 using Scada.Security.Authorization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Scada.Engineering.Security;
 
@@ -9,7 +10,8 @@ namespace Scada.Engineering.Security;
 public sealed record AuthorityPolicySnapshot(
     long Version,
     IReadOnlyCollection<SecurityRoleEngineeringDto> Roles,
-    IReadOnlyCollection<SecurityScopeEngineeringDto> Scopes);
+    IReadOnlyCollection<SecurityScopeEngineeringDto> Scopes,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RuntimePublicAccessPolicy? PublicRuntime = null);
 
 public sealed record AuthorityPolicyWriteResult(bool Applied, AuthorityPolicySnapshot Snapshot, string? Error = null);
 
@@ -22,6 +24,18 @@ public interface IAuthorityPolicyStore
         IReadOnlyCollection<SecurityRoleEngineeringDto> roles,
         IReadOnlyCollection<SecurityScopeEngineeringDto> scopes,
         CancellationToken cancellationToken = default);
+
+    Task<AuthorityPolicyWriteResult> TryReplacePublicRuntimeAsync(
+        long expectedVersion,
+        RuntimePublicAccessPolicy? publicRuntime,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new AuthorityPolicyWriteResult(false, Snapshot(), "AUTHORITY_POLICY_PUBLIC_RUNTIME_UNSUPPORTED"));
+
+    Task<AuthorityPolicyWriteResult> TryReplaceSnapshotAsync(
+        long expectedVersion,
+        AuthorityPolicySnapshot snapshot,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new AuthorityPolicyWriteResult(false, Snapshot(), "AUTHORITY_POLICY_SNAPSHOT_REPLACE_UNSUPPORTED"));
 }
 
 public sealed record AuthorityPolicyReplicationApplyResult(
@@ -49,12 +63,13 @@ public static class AuthorityPolicySnapshotDigest
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         if (snapshot.Version < 0) throw new ArgumentOutOfRangeException(nameof(snapshot));
-        InMemoryAuthorityPolicyStore.Validate(snapshot.Roles, snapshot.Scopes);
+        InMemoryAuthorityPolicyStore.Validate(snapshot.Roles, snapshot.Scopes, snapshot.PublicRuntime);
 
         var canonicalSnapshot = InMemoryAuthorityPolicyStore.Copy(
             snapshot.Version,
             snapshot.Roles,
-            snapshot.Scopes);
+            snapshot.Scopes,
+            snapshot.PublicRuntime);
         using var document = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(canonicalSnapshot));
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
@@ -110,7 +125,7 @@ public sealed class InMemoryAuthorityPolicyStore : IAuthorityPolicyStore, IAutho
 
     public AuthorityPolicySnapshot Snapshot()
     {
-        lock (_sync) return Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes);
+        lock (_sync) return Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime);
     }
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -129,14 +144,14 @@ public sealed class InMemoryAuthorityPolicyStore : IAuthorityPolicyStore, IAutho
         cancellationToken.ThrowIfCancellationRequested();
         if (snapshot.Version < 0)
             throw new InvalidDataException("Replicated Authority policy version must be non-negative.");
-        Validate(snapshot.Roles, snapshot.Scopes);
-        var incoming = Copy(snapshot.Version, snapshot.Roles, snapshot.Scopes);
+        Validate(snapshot.Roles, snapshot.Scopes, snapshot.PublicRuntime);
+        var incoming = Copy(snapshot.Version, snapshot.Roles, snapshot.Scopes, snapshot.PublicRuntime);
         lock (_sync)
         {
             if (incoming.Version < _snapshot.Version)
                 return Task.FromResult(new AuthorityPolicyReplicationApplyResult(
                     false,
-                    Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes),
+                    Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime),
                     "AUTHORITY_POLICY_REPLICA_STALE"));
 
             var incomingDigest = AuthorityPolicySnapshotDigest.Compute(incoming);
@@ -144,14 +159,14 @@ public sealed class InMemoryAuthorityPolicyStore : IAuthorityPolicyStore, IAutho
             {
                 var currentDigest = AuthorityPolicySnapshotDigest.Compute(_snapshot);
                 return Task.FromResult(incomingDigest == currentDigest
-                    ? new AuthorityPolicyReplicationApplyResult(true, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes))
-                    : new AuthorityPolicyReplicationApplyResult(false, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes), "AUTHORITY_POLICY_REPLICA_DIGEST_MISMATCH"));
+                    ? new AuthorityPolicyReplicationApplyResult(true, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime))
+                    : new AuthorityPolicyReplicationApplyResult(false, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime), "AUTHORITY_POLICY_REPLICA_DIGEST_MISMATCH"));
             }
 
             _snapshot = incoming;
             return Task.FromResult(new AuthorityPolicyReplicationApplyResult(
                 true,
-                Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes)));
+                Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime)));
         }
     }
 
@@ -167,25 +182,62 @@ public sealed class InMemoryAuthorityPolicyStore : IAuthorityPolicyStore, IAutho
         lock (_sync)
         {
             if (_snapshot.Version != expectedVersion)
-                return Task.FromResult(new AuthorityPolicyWriteResult(false, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes), "AUTHORITY_POLICY_CONCURRENCY_CONFLICT"));
+                return Task.FromResult(new AuthorityPolicyWriteResult(false, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime), "AUTHORITY_POLICY_CONCURRENCY_CONFLICT"));
 
-            _snapshot = Copy(checked(_snapshot.Version + 1), roles, scopes);
-            return Task.FromResult(new AuthorityPolicyWriteResult(true, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes)));
+            _snapshot = Copy(checked(_snapshot.Version + 1), roles, scopes, _snapshot.PublicRuntime);
+            return Task.FromResult(new AuthorityPolicyWriteResult(true, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime)));
+        }
+    }
+
+    public Task<AuthorityPolicyWriteResult> TryReplacePublicRuntimeAsync(
+        long expectedVersion,
+        RuntimePublicAccessPolicy? publicRuntime,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        RuntimePublicAccessPolicy.Validate(publicRuntime);
+        lock (_sync)
+        {
+            if (_snapshot.Version != expectedVersion)
+                return Task.FromResult(new AuthorityPolicyWriteResult(false, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime), "AUTHORITY_POLICY_CONCURRENCY_CONFLICT"));
+            _snapshot = Copy(checked(_snapshot.Version + 1), _snapshot.Roles, _snapshot.Scopes, publicRuntime);
+            return Task.FromResult(new AuthorityPolicyWriteResult(true, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime)));
+        }
+    }
+
+    public Task<AuthorityPolicyWriteResult> TryReplaceSnapshotAsync(
+        long expectedVersion,
+        AuthorityPolicySnapshot snapshot,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        cancellationToken.ThrowIfCancellationRequested();
+        Validate(snapshot.Roles, snapshot.Scopes, snapshot.PublicRuntime);
+        lock (_sync)
+        {
+            if (_snapshot.Version != expectedVersion)
+                return Task.FromResult(new AuthorityPolicyWriteResult(false, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime), "AUTHORITY_POLICY_CONCURRENCY_CONFLICT"));
+            _snapshot = Copy(checked(_snapshot.Version + 1), snapshot.Roles, snapshot.Scopes, snapshot.PublicRuntime);
+            return Task.FromResult(new AuthorityPolicyWriteResult(true, Copy(_snapshot.Version, _snapshot.Roles, _snapshot.Scopes, _snapshot.PublicRuntime)));
         }
     }
 
     public static AuthorityPolicySnapshot Copy(
         long version,
         IEnumerable<SecurityRoleEngineeringDto> roles,
-        IEnumerable<SecurityScopeEngineeringDto> scopes) => new(
+        IEnumerable<SecurityScopeEngineeringDto> scopes,
+        RuntimePublicAccessPolicy? publicRuntime = null) => new(
         version,
         roles.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase).ToArray(),
-        scopes.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase).ToArray());
+        scopes.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase).ToArray(),
+        publicRuntime is null ? null : RuntimePublicAccessPolicy.Normalize(publicRuntime));
 
     public static void Validate(
         IEnumerable<SecurityRoleEngineeringDto> roles,
-        IEnumerable<SecurityScopeEngineeringDto> scopes)
+        IEnumerable<SecurityScopeEngineeringDto> scopes,
+        RuntimePublicAccessPolicy? publicRuntime = null)
     {
+        RuntimePublicAccessPolicy.Validate(publicRuntime);
         var roleList = roles.ToArray();
         var scopeList = scopes.ToArray();
         if (roleList.Any(role => !role.Id.HasValue || role.Id.Value == Guid.Empty) ||

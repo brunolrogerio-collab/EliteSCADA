@@ -105,6 +105,32 @@ O produto recusa excluir papel ainda atribuído e perder o último administrador
 
 [Abrir este guia na Ajuda instalada](/help?topic=security.policy-scopes)
 
+## Runtime público: mostrar telas sem abrir a Engenharia
+
+Runtime público permite que alguém acompanhe uma apresentação sem criar uma conta. Ele começa desligado. Ao habilitá-lo, somente a revisão Active indicada e os recursos escolhidos ficam disponíveis; o login dos usuários continua funcionando.
+
+### Configurar a visualização
+
+Entre com uma conta autorizada a administrar a Security Authority e alterar a Engenharia. Primeiro publique e ative a revisão que deve ser mostrada. Depois abra Engenharia > Segurança > Runtime público.
+
+1. Marque Permitir visualização pública sem login.
+2. Escolha uma das telas públicas para Tela inicial. A tela inicial também precisa estar selecionada em Telas públicas.
+3. Marque somente os pop-ups, TAGs e imagens necessários. Uma TAG selecionada pode ser lida por quem abrir o endereço; não a selecione se o valor não puder ser divulgado.
+4. Salve a política pública. Essa política pertence à Authority da instalação; não altera o pacote `.escadapkg` nem substitui publicar e ativar a aplicação.
+5. Abra o endereço em janela privada ou em outro navegador sem login e confira o conteúdo realmente exibido.
+
+### O que o visitante pode fazer
+
+O visitante abre a tela Runtime e lê as TAGs que foram selecionadas. A sessão usa a capacidade View Only da licença ou da Demo; se não houver vaga, o acesso é recusado. O link Entrar leva de volta ao login normal.
+
+O visitante não recebe uma conta, papel ou permissão da Authority. Comandos, escritas de TAG, reconhecimento e supressão de alarmes, Engenharia, histórico, relatórios, fontes de mídia e administração continuam protegidos. Ocultar um botão na tela não altera essas regras: o servidor também recusa acesso direto às rotas protegidas.
+
+### Desativar e resolver problemas
+
+Desmarque Permitir visualização pública sem login e salve para retirar o acesso anônimo. Alterar a política ou ativar outra revisão também invalida as sessões públicas anteriores. Se o endereço mostrar login, confirme se a opção está ligada e se a revisão Active coincide com a configuração. Se o Runtime não abrir, confira se há capacidade View Only disponível. Em estado de Authority ou aplicação incompatível, o acesso falha fechado.
+
+[Abrir este guia na Ajuda instalada](/help?topic=security.public-runtime-view)
+
 ## Auditoria: localizar ações e conferir a gravação
 
 Use os filtros certos, leia o resultado e diferencie lista vazia de falha de persistência.

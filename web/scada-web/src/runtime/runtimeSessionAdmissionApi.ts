@@ -4,6 +4,7 @@ export const RUNTIME_SESSION_HEADER = 'X-EliteSCADA-Runtime-Session';
 export const RUNTIME_CLIENT_INSTANCE_HEADER = 'X-EliteSCADA-Runtime-Client-Instance';
 
 const CLIENT_INSTANCE_STORAGE_KEY = 'elitescada.runtime.client-instance-id';
+const PUBLIC_RUNTIME_SESSION_STORAGE_KEY = 'scadivo.public-runtime-session';
 let ephemeralClientInstanceId: string | undefined;
 let identityClaim: Promise<string> | undefined;
 const tabToken = createClientInstanceId();
@@ -45,6 +46,7 @@ export type RuntimeSessionAdmissionOutcome = {
   grantedClass: RuntimeSessionConnectionClass | null;
   admissionReasonCode: string | null;
   capacityReasonCode: string | null;
+  publicRuntime?: boolean;
 };
 
 let activeRuntimeSession: RuntimeSessionAdmissionOutcome | null = null;
@@ -212,10 +214,67 @@ export async function admitRuntimeSession(
   };
 }
 
+export async function admitPublicRuntimeSession(fetcher: RuntimeSessionFetch = fetch): Promise<RuntimeSessionAdmissionOutcome> {
+  let response: Response;
+  try {
+    response = await fetcher(`${API}/api/runtime/public/session`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' }
+    });
+  } catch (reason) {
+    throw new RuntimeSessionAdmissionError(reason instanceof Error ? reason.message : String(reason));
+  }
+  if (!response.ok) {
+    const body = await response.text();
+    throw new RuntimeSessionAdmissionError(body || `${response.status} ${response.statusText}`, response.status);
+  }
+  const payload = await response.json() as RuntimeSessionAdmission;
+  if (typeof payload.sessionId !== 'string' || typeof payload.clientInstanceId !== 'string')
+    throw new RuntimeSessionAdmissionError('Public Runtime session returned an invalid identity.', response.status);
+  const outcome: RuntimeSessionAdmissionOutcome = {
+    sessionId: payload.sessionId,
+    clientInstanceId: payload.clientInstanceId,
+    headers: {
+      [RUNTIME_SESSION_HEADER]: payload.sessionId,
+      [RUNTIME_CLIENT_INSTANCE_HEADER]: payload.clientInstanceId
+    },
+    requestedClass: 'viewOnly',
+    grantedClass: 'viewOnly',
+    admissionReasonCode: 'public-runtime-read-only',
+    capacityReasonCode: null,
+    publicRuntime: true
+  };
+  activeRuntimeSession = outcome;
+  try { window.sessionStorage.setItem(PUBLIC_RUNTIME_SESSION_STORAGE_KEY, JSON.stringify(outcome)); } catch { /* Private storage is optional. */ }
+  return outcome;
+}
+
+export async function releaseStoredPublicRuntimeSession(fetcher: RuntimeSessionFetch = fetch): Promise<void> {
+  let stored: RuntimeSessionAdmissionOutcome | null = null;
+  try {
+    const raw = window.sessionStorage.getItem(PUBLIC_RUNTIME_SESSION_STORAGE_KEY);
+    if (raw) stored = JSON.parse(raw) as RuntimeSessionAdmissionOutcome;
+  } catch { stored = null; }
+  if (stored?.publicRuntime) await releaseRuntimeSession(stored, fetcher);
+}
+
 export async function heartbeatRuntimeSession(
   outcome: RuntimeSessionAdmissionOutcome,
   fetcher: RuntimeSessionFetch = fetch
 ): Promise<RuntimeSessionAdmissionOutcome> {
+  if (outcome.publicRuntime) {
+    const response = await fetcher(`${API}/api/runtime/public/session/heartbeat`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { accept: 'application/json', 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ sessionId: outcome.sessionId, clientInstanceId: outcome.clientInstanceId })
+    });
+    if (!response.ok) throw new RuntimeSessionAdmissionError(await response.text() || `${response.status} ${response.statusText}`, response.status, outcome);
+    const renewed = { ...outcome };
+    try { window.sessionStorage.setItem(PUBLIC_RUNTIME_SESSION_STORAGE_KEY, JSON.stringify(renewed)); } catch { /* Private storage is optional. */ }
+    return renewed;
+  }
   let response: Response;
   try {
     response = await fetcher(`${API}/api/runtime/sessions/${encodeURIComponent(outcome.sessionId)}/heartbeat`, {
@@ -260,9 +319,22 @@ export async function heartbeatRuntimeSession(
 
 /** Releases a server-owned lease when the caller deliberately cannot consume it. */
 export async function releaseRuntimeSession(
-  outcome: Pick<RuntimeSessionAdmissionOutcome, 'sessionId' | 'clientInstanceId'>,
+  outcome: Pick<RuntimeSessionAdmissionOutcome, 'sessionId' | 'clientInstanceId'> &
+    Partial<Pick<RuntimeSessionAdmissionOutcome, 'publicRuntime'>>,
   fetcher: RuntimeSessionFetch = fetch
 ): Promise<void> {
+  if (outcome.publicRuntime) {
+    const response = await fetcher(`${API}/api/runtime/public/session/terminate`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { accept: 'application/json', 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ sessionId: outcome.sessionId, clientInstanceId: outcome.clientInstanceId })
+    });
+    if (!response.ok) throw new RuntimeSessionAdmissionError(await response.text() || `${response.status} ${response.statusText}`, response.status);
+    activeRuntimeSession = null;
+    try { window.sessionStorage.removeItem(PUBLIC_RUNTIME_SESSION_STORAGE_KEY); } catch { /* Private storage is optional. */ }
+    return;
+  }
   let response: Response;
   try {
     response = await fetcher(`${API}/api/runtime/sessions/${encodeURIComponent(outcome.sessionId)}/terminate`, {

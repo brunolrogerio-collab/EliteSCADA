@@ -61,7 +61,7 @@ public sealed class AuthorityDetachService(
         if (await identities.CountAsync(cancellationToken) != 0)
             throw new InvalidOperationException("Authority detach cannot complete while local identities remain.");
         var policy = policies.Snapshot();
-        if (policy.Roles.Count != 0 || policy.Scopes.Count != 0)
+        if (policy.Roles.Count != 0 || policy.Scopes.Count != 0 || policy.PublicRuntime is not null)
             throw new InvalidOperationException("Authority detach cannot complete while canonical policy remains.");
 
         await lifecycle.CompleteDetachAsync(cancellationToken);
@@ -72,12 +72,14 @@ public sealed class AuthorityDetachService(
         for (var attempt = 0; attempt < 3; attempt++)
         {
             var current = policies.Snapshot();
-            if (current.Roles.Count == 0 && current.Scopes.Count == 0) return;
+            if (current.Roles.Count == 0 && current.Scopes.Count == 0 && current.PublicRuntime is null) return;
 
-            var cleared = await policies.TryReplaceAsync(
+            var cleared = await policies.TryReplaceSnapshotAsync(
                 current.Version,
-                Array.Empty<Scada.Engineering.Contracts.SecurityRoleEngineeringDto>(),
-                Array.Empty<Scada.Engineering.Contracts.SecurityScopeEngineeringDto>(),
+                new AuthorityPolicySnapshot(
+                    current.Version,
+                    Array.Empty<Scada.Engineering.Contracts.SecurityRoleEngineeringDto>(),
+                    Array.Empty<Scada.Engineering.Contracts.SecurityScopeEngineeringDto>()),
                 cancellationToken);
             if (cleared.Applied) return;
         }

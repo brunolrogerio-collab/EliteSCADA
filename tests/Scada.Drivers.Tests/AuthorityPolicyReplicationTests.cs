@@ -1,10 +1,50 @@
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Security;
+using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
 public sealed class AuthorityPolicyReplicationTests
 {
+    [Fact]
+    public async Task PublicRuntimePolicyIsReplicatedAndIncludedInDigestFence()
+    {
+        var screenId = Guid.Parse("95000000-0000-0000-0000-000000000011");
+        var tagId = Guid.Parse("95000000-0000-0000-0000-000000000012");
+        var initial = new InMemoryAuthorityPolicyStore();
+        var policy = new RuntimePublicAccessPolicy(true, screenId, [screenId], [], [tagId], [], "project-a", 3);
+
+        var changed = await initial.TryReplacePublicRuntimeAsync(0, policy);
+        Assert.True(changed.Applied);
+        Assert.Equal(1, changed.Snapshot.Version);
+        AssertPublicPolicy(policy, changed.Snapshot.PublicRuntime!);
+
+        var replica = new InMemoryAuthorityPolicyStore();
+        var replicated = await replica.ApplyReplicatedSnapshotAsync(changed.Snapshot);
+        Assert.True(replicated.Applied);
+        AssertPublicPolicy(policy, replica.Snapshot().PublicRuntime!);
+
+        var changedSameVersion = changed.Snapshot with
+        {
+            PublicRuntime = policy with { TagIds = [Guid.Parse("95000000-0000-0000-0000-000000000013")] }
+        };
+        var mismatch = await replica.ApplyReplicatedSnapshotAsync(changedSameVersion);
+        Assert.False(mismatch.Applied);
+        Assert.Equal("AUTHORITY_POLICY_REPLICA_DIGEST_MISMATCH", mismatch.Error);
+    }
+
+    private static void AssertPublicPolicy(RuntimePublicAccessPolicy expected, RuntimePublicAccessPolicy actual)
+    {
+        Assert.Equal(expected.Enabled, actual.Enabled);
+        Assert.Equal(expected.StartScreenId, actual.StartScreenId);
+        Assert.Equal(expected.ScreenIds.Order(), actual.ScreenIds.Order());
+        Assert.Equal(expected.PopupIds.Order(), actual.PopupIds.Order());
+        Assert.Equal(expected.TagIds.Order(), actual.TagIds.Order());
+        Assert.Equal(expected.VisualAssetIds.Order(), actual.VisualAssetIds.Order());
+        Assert.Equal(expected.ProjectKey, actual.ProjectKey);
+        Assert.Equal(expected.Revision, actual.Revision);
+    }
+
     [Fact]
     public async Task ReplicaApply_IsMonotonicIdempotentAndDigestFenced()
     {

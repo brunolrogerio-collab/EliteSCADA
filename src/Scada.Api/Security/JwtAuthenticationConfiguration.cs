@@ -72,13 +72,31 @@ public static class JwtAuthenticationConfiguration
                             !string.IsNullOrWhiteSpace(cookieToken))
                         {
                             context.Token = cookieToken;
+                            return Task.CompletedTask;
                         }
+
+                        if ((context.HttpContext.Request.Path.StartsWithSegments("/api") ||
+                             context.HttpContext.Request.Path.StartsWithSegments("/ws/tags")) &&
+                            context.Request.Cookies.TryGetValue(PublicRuntimeSessionSecurity.CookieName, out var publicToken) &&
+                            !string.IsNullOrWhiteSpace(publicToken))
+                            context.Token = publicToken;
 
                         return Task.CompletedTask;
                     },
                     OnTokenValidated = async context =>
                     {
                         var provider = context.Principal?.FindFirst(JwtTokenIssuer.IdentityProviderClaim)?.Value;
+                        if (string.Equals(provider, JwtTokenIssuer.PublicRuntimeIdentityProvider, StringComparison.Ordinal))
+                        {
+                            var publicLifecycle = context.HttpContext.RequestServices.GetService<IAuthorityLifecycleStore>();
+                            if (publicLifecycle is null || !await PublicRuntimeJwtSessionValidator.IsCurrentAsync(
+                                    context.Principal!,
+                                    publicLifecycle,
+                                    context.HttpContext.RequestAborted))
+                                context.Fail("Public Runtime Authority session is no longer current.");
+                            return;
+                        }
+
                         if (!string.Equals(provider, JwtTokenIssuer.LocalIdentityProvider, StringComparison.Ordinal))
                             return;
 

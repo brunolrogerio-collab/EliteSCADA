@@ -16,6 +16,11 @@ public sealed class AuthorityDetachServiceTests
         var identities = new InMemoryLocalIdentityStore();
         var lifecycle = new InMemoryAuthorityLifecycleStore();
         var policy = Policy("authority-admin", SecurityCapability.SystemAdmin);
+        await policy.TryReplacePublicRuntimeAsync(0, new RuntimePublicAccessPolicy(
+            true,
+            Guid.Parse("71000000-0000-0000-0000-000000000021"),
+            [Guid.Parse("71000000-0000-0000-0000-000000000021")],
+            [], [], [], "project-a", 1));
         await lifecycle.MarkAuthorityPresentAsync();
         var account = Account("authority-admin");
         await identities.CreateAsync(account);
@@ -31,6 +36,7 @@ public sealed class AuthorityDetachServiceTests
         Assert.Equal(0, await identities.CountAsync());
         Assert.Empty(policy.Snapshot().Roles);
         Assert.Empty(policy.Snapshot().Scopes);
+        Assert.Null(policy.Snapshot().PublicRuntime);
     }
 
     [Fact]
@@ -214,12 +220,18 @@ public sealed class AuthorityDetachServiceTests
         var issued = await lifecycle.GetAsync();
         var replacement = Account("replacement-admin");
         var replacementRoles = new[] { Role("replacement-admin", SecurityCapability.SystemAdmin) };
+        var replacementPublicRuntime = new RuntimePublicAccessPolicy(
+            true,
+            Guid.Parse("71000000-0000-0000-0000-000000000031"),
+            [Guid.Parse("71000000-0000-0000-0000-000000000031")],
+            [], [], [], "project-a", 3);
         var backup = new AuthorityBackupService().Export(
             [replacement],
             new AuthorityBackupPolicyPayload(
                 1,
                 System.Text.Json.JsonSerializer.Serialize(replacementRoles),
-                System.Text.Json.JsonSerializer.Serialize(Array.Empty<SecurityScopeEngineeringDto>())),
+                System.Text.Json.JsonSerializer.Serialize(Array.Empty<SecurityScopeEngineeringDto>()),
+                System.Text.Json.JsonSerializer.Serialize(replacementPublicRuntime)),
             "authority-switch-test-password");
         var service = new AuthoritySwitchService(
             lifecycle,
@@ -238,6 +250,7 @@ public sealed class AuthorityDetachServiceTests
         Assert.True(AuthorityLifecycleSessionFence.IsCurrent(result.Attach.After, result.Attach.After.Epoch));
         Assert.Equal(replacement.Id, Assert.Single(await identities.ListAsync()).Id);
         Assert.Equal("replacement-admin", Assert.Single(policies.Snapshot().Roles).Key);
+        Assert.Equal(replacementPublicRuntime.StartScreenId, policies.Snapshot().PublicRuntime!.StartScreenId);
     }
 
     [Fact]

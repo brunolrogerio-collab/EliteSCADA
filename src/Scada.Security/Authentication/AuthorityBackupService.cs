@@ -43,7 +43,11 @@ public sealed record AuthorityBackupPreview(
     string? PolicyStatus = null);
 
 /// <summary>Encrypted v2 Authority policy payload. Values are canonical JSON owned by the Authority store.</summary>
-public sealed record AuthorityBackupPolicyPayload(long Version, string RolesJson, string ScopesJson);
+public sealed record AuthorityBackupPolicyPayload(
+    long Version,
+    string RolesJson,
+    string ScopesJson,
+    string? PublicRuntimeJson = null);
 
 public sealed record AuthorityBackupOpenResult(
     AuthorityBackupPreview Preview,

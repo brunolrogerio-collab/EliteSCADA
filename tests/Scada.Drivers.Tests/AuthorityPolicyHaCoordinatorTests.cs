@@ -77,6 +77,22 @@ public sealed class AuthorityPolicyHaCoordinatorTests
             Assert.Equal(
                 AuthorityPolicySnapshotDigest.Compute(await policyA.RefreshAsync()),
                 AuthorityPolicySnapshotDigest.Compute(await policyB.RefreshAsync()));
+
+            var screenId = Guid.Parse("b3000000-0000-0000-0000-000000000091");
+            var tagId = Guid.Parse("b3000000-0000-0000-0000-000000000092");
+            var publicPolicy = new RuntimePublicAccessPolicy(true, screenId, [screenId], [], [tagId], [], "project-a", 7);
+            var publicMutation = await coordinatorA.ApplyPublicRuntimeMutationAsync(0, publicPolicy);
+            Assert.True(publicMutation.Applied, publicMutation.Error);
+            var replicaPublicPolicy = (await policyB.RefreshAsync()).PublicRuntime!;
+            Assert.Equal(publicPolicy.Enabled, replicaPublicPolicy.Enabled);
+            Assert.Equal(publicPolicy.StartScreenId, replicaPublicPolicy.StartScreenId);
+            Assert.Equal(publicPolicy.ScreenIds.Order(), replicaPublicPolicy.ScreenIds.Order());
+            Assert.Equal(publicPolicy.TagIds.Order(), replicaPublicPolicy.TagIds.Order());
+            Assert.Equal(publicPolicy.ProjectKey, replicaPublicPolicy.ProjectKey);
+            Assert.Equal(publicPolicy.Revision, replicaPublicPolicy.Revision);
+            Assert.Equal(
+                AuthorityPolicySnapshotDigest.Compute(await policyA.RefreshAsync()),
+                AuthorityPolicySnapshotDigest.Compute(await policyB.RefreshAsync()));
         }
         finally
         {

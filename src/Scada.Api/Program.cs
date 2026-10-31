@@ -294,6 +294,14 @@ app.MapGet("/api/gateway/diagnostics", (IGatewayRuntimeDiagnosticsProvider gatew
 
 app.MapGet("/api/auth/me", (HttpContext context, ApiAuthorizationService security) =>
 {
+    // A public Runtime visitor has a signed, short-lived token for read-only
+    // resource checks, but is not an application user session.
+    if (PublicRuntimeSessionSecurity.TryRead(context.User, out _))
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        return Results.Unauthorized();
+    }
+
     var principal = security.GetPrincipal(context);
     if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
         return Results.Unauthorized();
@@ -824,6 +832,7 @@ app.Map("/ws/tags", async (
     long? localAuthorityEpoch = null;
     Guid? runtimeSessionId = null;
     string? runtimeClientInstanceId = null;
+    PublicRuntimeSessionIdentity? publicRuntimeVisitor = null;
     if (security.AuthenticationEnabled)
     {
         if (!long.TryParse(context.User.FindFirst("exp")?.Value, out var expiresAtUnix))
@@ -865,6 +874,17 @@ app.Map("/ws/tags", async (
 
         var sessionIds = context.Request.Query["runtimeSessionId"];
         var clientInstanceIds = context.Request.Query["clientInstanceId"];
+        if (PublicRuntimeSessionSecurity.TryRead(context.User, out var publicVisitor))
+        {
+            if (sessionIds.Count != 1 || !Guid.TryParse(sessionIds.ToString(), out var publicSessionId) ||
+                publicSessionId != publicVisitor.SessionId || clientInstanceIds.Count != 1 ||
+                !string.Equals(clientInstanceIds.ToString(), publicVisitor.ClientInstanceId, StringComparison.Ordinal))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+            publicRuntimeVisitor = publicVisitor;
+        }
         if (!RuntimeSessionWebSocketAdmission.IsLegacyEngineeringSocket(sessionIds, clientInstanceIds))
         {
             // A socket opting into Runtime Session identity must use the same logical lease as
@@ -897,7 +917,8 @@ app.Map("/ws/tags", async (
         localAuthorityEpoch,
         context.RequestAborted,
         runtimeSessionId,
-        runtimeClientInstanceId);
+        runtimeClientInstanceId,
+        publicRuntimeVisitor);
 });
 
 app.Run();

@@ -59,12 +59,17 @@ public sealed class AuthoritySwitchService(
 
         SecurityRoleEngineeringDto[] roles;
         SecurityScopeEngineeringDto[] scopes;
+        Scada.Security.Authorization.RuntimePublicAccessPolicy? publicRuntime;
         try
         {
             roles = JsonSerializer.Deserialize<SecurityRoleEngineeringDto[]>(policy.RolesJson)
                 ?? throw new InvalidDataException("Authority backup policy roles are missing.");
             scopes = JsonSerializer.Deserialize<SecurityScopeEngineeringDto[]>(policy.ScopesJson)
                 ?? throw new InvalidDataException("Authority backup policy scopes are missing.");
+            publicRuntime = string.IsNullOrWhiteSpace(policy.PublicRuntimeJson)
+                ? null
+                : JsonSerializer.Deserialize<Scada.Security.Authorization.RuntimePublicAccessPolicy>(policy.PublicRuntimeJson)
+                    ?? throw new InvalidDataException("Authority backup public Runtime policy is invalid.");
         }
         catch (JsonException exception)
         {
@@ -72,7 +77,7 @@ public sealed class AuthoritySwitchService(
         }
 
         var accounts = AuthorityRestoreSecurity.RefreshSecurityVersions(opened.Accounts, currentAccounts);
-        var target = new AuthorityAttachTarget(accounts, roles, scopes);
+        var target = new AuthorityAttachTarget(accounts, roles, scopes, publicRuntime);
         AuthorityAttachService.ValidateTarget(target);
         return target;
     }

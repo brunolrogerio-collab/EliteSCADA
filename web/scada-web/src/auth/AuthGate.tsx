@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { admitPublicRuntimeSession, releaseStoredPublicRuntimeSession, setActiveRuntimeSession } from '../runtime/runtimeSessionAdmissionApi';
 import {
   RestoreFirstPanel,
   recoveryContinuationFromSelection,
@@ -41,6 +42,7 @@ export type AuthProfile = {
 type AuthContextValue = {
   profile: AuthProfile | null;
   authenticationEnabled: boolean;
+  publicRuntimeActive: boolean;
   canSwitchUser: boolean;
   switchUser: () => Promise<void>;
   logout: () => Promise<void>;
@@ -51,6 +53,7 @@ type RecoveryMode = 'bootstrap' | 'application' | null;
 const AuthContext = createContext<AuthContextValue>({
   profile: null,
   authenticationEnabled: true,
+  publicRuntimeActive: false,
   canSwitchUser: false,
   switchUser: async () => undefined,
   logout: async () => undefined
@@ -128,7 +131,10 @@ const messages = {
     invalid: 'Usuário ou senha inválidos.',
     unavailable: 'Não foi possível acessar o serviço de autenticação.',
     external: 'Este servidor exige autenticação externa. O login local não está habilitado.',
-    retry: 'Tentar novamente'
+    retry: 'Tentar novamente',
+    publicUnavailable: 'Não foi possível abrir a visualização pública agora. Você ainda pode entrar com sua conta.',
+    publicStatusUnavailable: 'Não foi possível verificar se há uma visualização pública disponível. Entre com sua conta ou tente novamente.',
+    signInForFullAccess: 'Entrar'
   },
   en: {
     title: 'SCADIVO',
@@ -162,7 +168,10 @@ const messages = {
     invalid: 'Invalid username or password.',
     unavailable: 'The authentication service could not be reached.',
     external: 'This server requires external authentication. Local login is not enabled.',
-    retry: 'Retry'
+    retry: 'Retry',
+    publicUnavailable: 'The public view could not be opened right now. You can still sign in to your account.',
+    publicStatusUnavailable: 'The public view could not be checked. Sign in to your account or try again.',
+    signInForFullAccess: 'Sign in'
   },
   es: {
     title: 'SCADIVO',
@@ -196,7 +205,10 @@ const messages = {
     invalid: 'Usuario o contraseña inválidos.',
     unavailable: 'No fue posible acceder al servicio de autenticación.',
     external: 'Este servidor requiere autenticación externa. El acceso local no está habilitado.',
-    retry: 'Reintentar'
+    retry: 'Reintentar',
+    publicUnavailable: 'No fue posible abrir la vista pública ahora. Aún puede ingresar con su cuenta.',
+    publicStatusUnavailable: 'No fue posible comprobar si hay una vista pública disponible. Ingrese con su cuenta o vuelva a intentarlo.',
+    signInForFullAccess: 'Ingresar'
   }
 } as const;
 
@@ -261,6 +273,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const t = messages[locale];
   const [configuration, setConfiguration] = useState<AuthConfiguration | null>(null);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
+  const [publicRuntimeActive, setPublicRuntimeActive] = useState(false);
+  const [publicRuntimeMessage, setPublicRuntimeMessage] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [checkingProject, setCheckingProject] = useState(false);
   const [projectSetupRequired, setProjectSetupRequired] = useState(false);
@@ -306,20 +320,56 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const check = useCallback(async () => {
     setChecking(true);
     setUnavailable(false);
+    setPublicRuntimeMessage(null);
     try {
+      const explicitLogin = new URLSearchParams(window.location.search).get('login') === '1';
+      if (explicitLogin) {
+        try { await releaseStoredPublicRuntimeSession(); } catch { /* Login remains available if lease cleanup is temporarily unavailable. */ }
+        setActiveRuntimeSession(null);
+        setPublicRuntimeActive(false);
+      }
+
       const config = await getConfiguration();
       setConfiguration(config);
       if (!config.authenticationEnabled) {
         await acceptAuthenticatedProfile(null);
         return;
       }
-      await acceptAuthenticatedProfile(await getProfile(config.localLoginEnabled));
+      const currentProfile = await getProfile(config.localLoginEnabled);
+      await acceptAuthenticatedProfile(currentProfile);
+      if (currentProfile || explicitLogin || window.location.pathname !== '/') {
+        setPublicRuntimeActive(false);
+        return;
+      }
+
+      try {
+        const statusResponse = await fetch(`${API}/api/runtime/public/status`, {
+          cache: 'no-store',
+          headers: { accept: 'application/json' }
+        });
+        if (!statusResponse.ok) throw new Error(`${statusResponse.status} ${statusResponse.statusText}`);
+        const status = await statusResponse.json() as { enabled?: unknown };
+        if (status.enabled !== true) {
+          try { await releaseStoredPublicRuntimeSession(); } catch { /* Expired leases are reclaimed by the server. */ }
+          setActiveRuntimeSession(null);
+          setPublicRuntimeActive(false);
+          return;
+        }
+
+        const outcome = await admitPublicRuntimeSession();
+        setActiveRuntimeSession(outcome);
+        setPublicRuntimeActive(true);
+      } catch {
+        setActiveRuntimeSession(null);
+        setPublicRuntimeActive(false);
+        setPublicRuntimeMessage(t.publicStatusUnavailable);
+      }
     } catch {
       setUnavailable(true);
     } finally {
       setChecking(false);
     }
-  }, [acceptAuthenticatedProfile]);
+  }, [acceptAuthenticatedProfile, t.publicStatusUnavailable]);
 
   useEffect(() => { void check(); }, [check]);
 
@@ -377,6 +427,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (!username.trim() || !password) return;
     setSigningIn(true);
     setInvalid(false);
+    setPublicRuntimeMessage(null);
     try {
       const response = await fetch(`${API}/api/auth/login`, {
         method: 'POST',
@@ -392,6 +443,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       }
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       setPassword('');
+      setPublicRuntimeActive(false);
+      setActiveRuntimeSession(null);
       await acceptAuthenticatedProfile(await response.json() as AuthProfile);
       setSwitchUserSignInRequired(false);
       if (recoverySelection || recoveryContinuation) {
@@ -518,10 +571,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const authContextValue = useMemo<AuthContextValue>(() => ({
     profile,
     authenticationEnabled: configuration?.authenticationEnabled ?? true,
+    publicRuntimeActive,
     canSwitchUser,
     switchUser,
     logout
-  }), [canSwitchUser, configuration?.authenticationEnabled, logout, profile, switchUser]);
+  }), [canSwitchUser, configuration?.authenticationEnabled, logout, profile, publicRuntimeActive, switchUser]);
 
   if (checking || checkingProject) {
     return <div className="auth-page"><div className="auth-card auth-loading"><img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO"/><strong>{t.title}</strong></div></div>;
@@ -617,6 +671,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (profile) {
+    return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
+  }
+
+  if (publicRuntimeActive) {
     return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
   }
 
@@ -720,6 +778,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
         <h1>{t.title}</h1>
         <p>{t.subtitle}</p>
+        {publicRuntimeMessage && <div className="auth-status" role="status">{publicRuntimeMessage}</div>}
         {recoverySignInRequired && <div className="auth-status" role="status">{t.recoverySignInRequired}</div>}
         {switchUserSignInRequired && <div className="auth-status" role="status">{t.switchUserSignInRequired}</div>}
         <label>

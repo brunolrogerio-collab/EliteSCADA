@@ -4,7 +4,7 @@
 
 Choose a screen for each window, then arrange the windows on an extended desktop.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-781: https://github.com/brunolrogerio-collab/EliteSCADA/issues/781; topic=runtime.station-multimonitor; fields=station.name,station.screen,station.mode,station.windows; status=WAITING_PREVIEW_ACCEPTANCE_AND_REAL_SCREENSHOTS -->
+<!-- HELP-REVIEW-AFTER-PRODUCT-781: https://github.com/brunolrogerio-collab/EliteSCADA/issues/781; topic=runtime.station-multimonitor; fields=station.name,station.screen,station.mode,station.windows; status=WAITING_PREVIEW_ACCEPTANCE -->
 
 ### What a station profile organizes
 
@@ -44,5 +44,17 @@ A fixed window asks for View Only access; a navigation window asks for Interacti
 To end the session and free a license connection, open the account menu in each window and choose End session before closing it. Closing a window or losing a monitor does not tell the server that the connection ended. If a window closes unexpectedly, the license may keep counting that connection until the session expires automatically. To resume, start the station again and arrange the windows on the monitors; the product does not restore their previous positions.
 
 If the station selector is missing, check that the header is enabled, Runtime is not in full screen and the revision in use includes the profile. If a window opens on the wrong screen, check the screen selected on that row and activate the updated revision. A fixed window that cannot change screens is working as configured. If Interactive access is limited or denied, check how many licensed connections are in use and the account permissions.
+
+#### Visual example
+
+These captures show the real interface in Portuguese during an automated test. The application name and “Demo Overview” are sample data; in your project, choose the right screen for each window.
+
+**Before validation**
+
+![Four-window profile filled in, before validation](../assets/runtime-station-profile-before-validation.png)
+
+**After selecting Validate**
+
+![Four-window profile with a valid configuration](../assets/runtime-station-profile-validated.png)
 
 [Open this guide in installed Help](/help?topic=runtime.station-multimonitor)

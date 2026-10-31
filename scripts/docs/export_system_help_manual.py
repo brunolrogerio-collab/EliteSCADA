@@ -40,6 +40,38 @@ INTELLIGENCE = {'pt-BR': '12-INTELIGENCIA-ATIVOS-PROCESSOS.md', 'en': '12-ASSET-
 for locale, (name, title) in {'pt-BR': ('26-MATTER-VERSAO-EM-TESTE.md', 'Matter Wi-Fi: versão em teste'), 'en': ('26-MATTER-TEST-VERSION.md', 'Matter Wi-Fi: test version'), 'es': ('26-MATTER-VERSION-EN-PRUEBA.md', 'Matter Wi-Fi: versión en prueba')}.items():
     CHAPTERS[locale].append((name, title, ['drivers.matter-test-workflow']))
 APPEND_MARKER = '<!-- installed-system-guides -->'
+MANUAL_ILLUSTRATIONS = {
+    'pt-BR': {
+        'runtime.station-multimonitor': {
+            'heading': 'Exemplo visual',
+            'intro': 'As capturas mostram a interface real em português durante um teste automatizado. O nome da aplicação e “Demo Overview” são dados de demonstração; no seu projeto, escolha a tela adequada em cada janela.',
+            'images': [
+                ('Antes de validar', 'Perfil de quatro janelas preenchido, antes da validação', '../assets/runtime-station-profile-before-validation.png'),
+                ('Depois de clicar em Validar', 'Perfil de quatro janelas com a configuração válida', '../assets/runtime-station-profile-validated.png'),
+            ],
+        },
+    },
+    'en': {
+        'runtime.station-multimonitor': {
+            'heading': 'Visual example',
+            'intro': 'These captures show the real interface in Portuguese during an automated test. The application name and “Demo Overview” are sample data; in your project, choose the right screen for each window.',
+            'images': [
+                ('Before validation', 'Four-window profile filled in, before validation', '../assets/runtime-station-profile-before-validation.png'),
+                ('After selecting Validate', 'Four-window profile with a valid configuration', '../assets/runtime-station-profile-validated.png'),
+            ],
+        },
+    },
+    'es': {
+        'runtime.station-multimonitor': {
+            'heading': 'Ejemplo visual',
+            'intro': 'Las capturas muestran la interfaz real en portugués durante una prueba automatizada. El nombre de la aplicación y “Demo Overview” son datos de demostración; en su proyecto, elija la pantalla adecuada para cada ventana.',
+            'images': [
+                ('Antes de validar', 'Perfil de cuatro ventanas rellenado, antes de validar', '../assets/runtime-station-profile-before-validation.png'),
+                ('Después de seleccionar Validar', 'Perfil de cuatro ventanas con la configuración válida', '../assets/runtime-station-profile-validated.png'),
+            ],
+        },
+    },
+}
 for locale, (name, title) in {'pt-BR': ('30-PRIMEIRO-PROJETO.md', 'Primeiro projeto: da entrada ao Runtime'), 'en': ('30-FIRST-PROJECT.md', 'First project: from sign-in to Runtime'), 'es': ('30-PRIMER-PROYECTO.md', 'Primer proyecto: de la entrada al Runtime')}.items():
     CHAPTERS[locale].append((name, title, ['getting-started.first-project']))
 for locale, (name, title) in {'pt-BR': ('31-TROCA-DA-APLICACAO.md', 'Trocar a aplicação da instalação'), 'en': ('31-SWITCHING-APPLICATION.md', 'Switching the installation application'), 'es': ('31-CAMBIO-DE-APLICACION.md', 'Cambiar la aplicación de la instalación')}.items():
@@ -74,6 +106,11 @@ def article(topic, locale):
             for field in section['fields']:
                 text.append('| ' + ' | '.join(cell(field[name]) for name in ('label', 'description', 'example', 'constraints')) + ' |')
             text.append('')
+    illustration = MANUAL_ILLUSTRATIONS.get(locale, {}).get(topic['id'])
+    if illustration:
+        text.extend([f'#### {illustration["heading"]}', '', illustration['intro'], ''])
+        for heading, alt, path in illustration['images']:
+            text.extend([f'**{heading}**', '', f'![{alt}]({path})', ''])
     label = {'pt-BR': 'Abrir este guia na Ajuda instalada', 'en': 'Open this guide in installed Help', 'es': 'Abrir esta guía en Ayuda instalada'}[locale]
     text.extend([f'[{label}](/help?topic={topic["id"]})', ''])
     return '\n'.join(text)

@@ -184,8 +184,8 @@
       "station.mode",
       "station.windows"
     ],
-    "status": "WAITING_PREVIEW_ACCEPTANCE_AND_REAL_SCREENSHOTS",
-    "reviewWhen": "The Product Owner accepts physical placement and recovery in Preview and real screenshots are captured from the accepted product interface.",
-    "review": "Verify the profile fields, 1–4 windows, navigation/fixed behavior, blocked-popup fallback, per-window session result and close/reopen/reconnect instructions against the accepted Preview. Add actual product captures to the relevant manual steps. Keep manual physical placement and lack of automatic monitor-position restoration explicit unless the product changes."
+    "status": "WAITING_PREVIEW_ACCEPTANCE",
+    "reviewWhen": "The Product Owner accepts physical placement and recovery in Preview and confirms that the E2E captures match the accepted interface; replace them if the Preview differs.",
+    "review": "Verify the profile fields, 1–4 windows, navigation/fixed behavior, blocked-popup fallback, per-window session result and close/reopen/reconnect instructions against the accepted Preview. The current manual images are real captures from the product UI in a CI E2E run; compare them with Preview and replace them if any visible difference exists. Keep manual physical placement and lack of automatic monitor-position restoration explicit unless the product changes."
   }
 ]

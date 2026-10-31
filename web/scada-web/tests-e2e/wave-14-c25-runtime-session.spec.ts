@@ -290,7 +290,7 @@ test('a fixed station window requests View Only before showing its active Runtim
 });
 
 test('starting a four-window station opens isolated Runtime sessions with the configured modes', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(150_000);
   const admissions: RuntimeSessionObservation[] = [];
   await installSessionContract(page, administrator, 'success', true, admission => admissions.push(admission));
   await installEngineeringRuntimeProjection(page, undefined, [], {
@@ -355,6 +355,27 @@ test('starting a four-window station opens isolated Runtime sessions with the co
       index === 0 ? 'sessão Interativa confirmada' : 'sessão Somente visualização confirmada'
     );
   }
+
+  const originalStationRun = new URL(stationWindows[3].url()).searchParams.get('stationRun');
+  await stationWindows[3].close();
+  await expect(page.getByTestId('runtime-station-window-4-status')).toContainText('janela fechada');
+  const reopenedPagePromise = page.context().waitForEvent('page');
+  await page.getByRole('link', { name: 'Reabrir tela 4' }).click();
+  const reopenedWindow = await reopenedPagePromise;
+  await expect(reopenedWindow.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 45_000 });
+  const reopenedQuery = new URL(reopenedWindow.url()).searchParams;
+  expect(reopenedQuery.get('station')).toBe('eee-control-room');
+  expect(reopenedQuery.get('slot')).toBe('3');
+  expect(reopenedQuery.get('stationRun')).toBe(originalStationRun);
+  await expect.poll(() => admissions.length).toBe(6);
+  await expect(page.getByTestId('runtime-station-window-4-status')).toContainText(
+    'sessão Somente visualização confirmada'
+  );
+  const fourthWindowAdmissions = admissions.filter(admission =>
+    new URL(admission.url).searchParams.get('slot') === '3'
+  );
+  expect(fourthWindowAdmissions).toHaveLength(2);
+  expect(fourthWindowAdmissions[0].clientInstanceId).not.toBe(fourthWindowAdmissions[1].clientInstanceId);
 });
 
 test('station launcher reports when the server rejects a window for exhausted licensed seats', async ({ page }) => {

@@ -37,8 +37,22 @@ const TRUNCATED_RESPONSE_SIGNATURE = 'content-length header of network response 
 const STATION_ADMISSION_REPORT_TIMEOUT_MS = 20_000;
 
 type RuntimeStationWindowReport = Omit<RuntimeStationAdmissionMessage, 'status'> & {
-  status: RuntimeStationWindowAdmissionState;
+  status: RuntimeStationWindowAdmissionState | 'closed';
 };
+
+type RuntimeStationRecoveryLink = Readonly<{
+  runId: string;
+  index: number;
+  href: string;
+  reason: 'blocked' | 'closed';
+}>;
+
+type RuntimeStationWindowReference = Readonly<{
+  runId: string;
+  slot: number;
+  href: string;
+  handle: Window;
+}>;
 
 export type RuntimeApplicationMountProps = {
   showHistoryNavigation?: boolean;
@@ -250,10 +264,12 @@ function EngineeringRuntimeApplicationContent({
   const [requestedScreen, setRequestedScreen] = useState<string | null>(null);
   const [stationProfileId, setStationProfileId] = useState('');
   const [stationLaunchMessage, setStationLaunchMessage] = useState('');
-  const [blockedStationWindows, setBlockedStationWindows] = useState<ReadonlyArray<{ index: number; href: string }>>([]);
+  const [stationRecoveryLinks, setStationRecoveryLinks] = useState<RuntimeStationRecoveryLink[]>([]);
   const [stationAdmissionReports, setStationAdmissionReports] = useState<RuntimeStationWindowReport[]>([]);
   const stationAdmissionChannelRef = useRef<BroadcastChannel | null>(null);
   const stationAdmissionTimeoutRef = useRef<number | null>(null);
+  const stationWindowReferencesRef = useRef(new Map<number, RuntimeStationWindowReference>());
+  const stationWindowCloseWatchRef = useRef<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -315,6 +331,9 @@ function EngineeringRuntimeApplicationContent({
   useEffect(() => () => {
     stationAdmissionChannelRef.current?.close();
     if (stationAdmissionTimeoutRef.current !== null) window.clearTimeout(stationAdmissionTimeoutRef.current);
+    if (stationWindowCloseWatchRef.current !== null) window.clearInterval(stationWindowCloseWatchRef.current);
+    stationWindowCloseWatchRef.current = null;
+    stationWindowReferencesRef.current.clear();
   }, []);
 
   useEffect(() => {
@@ -347,11 +366,54 @@ function EngineeringRuntimeApplicationContent({
     else await fullscreenRoot.current?.requestFullscreen();
   };
 
+  const stopStationWindowCloseWatch = () => {
+    if (stationWindowCloseWatchRef.current !== null) window.clearInterval(stationWindowCloseWatchRef.current);
+    stationWindowCloseWatchRef.current = null;
+  };
+
+  const trackStationWindow = (runId: string, slot: number, href: string, handle: Window) => {
+    try { handle.opener = null; } catch { /* The link remains usable even if the browser restricts opener access. */ }
+    stationWindowReferencesRef.current.set(slot, { runId, slot, href, handle });
+    if (stationWindowCloseWatchRef.current !== null) return;
+
+    stationWindowCloseWatchRef.current = window.setInterval(() => {
+      const closedWindows: RuntimeStationWindowReference[] = [];
+      for (const [slotIndex, reference] of stationWindowReferencesRef.current) {
+        try {
+          if (!reference.handle.closed) continue;
+        } catch {
+          continue;
+        }
+        stationWindowReferencesRef.current.delete(slotIndex);
+        closedWindows.push(reference);
+      }
+
+      if (closedWindows.length) {
+        const closedKeys = new Set(closedWindows.map(reference => `${reference.runId}:${reference.slot}`));
+        setStationAdmissionReports(current => current.map(report =>
+          closedKeys.has(`${report.runId}:${report.slot}`) ? { ...report, status: 'closed' } : report
+        ));
+        setStationRecoveryLinks(current => {
+          const next = current.filter(link => !closedKeys.has(`${link.runId}:${link.index}`));
+          for (const reference of closedWindows) {
+            next.push({ runId: reference.runId, index: reference.slot, href: reference.href, reason: 'closed' });
+          }
+          return next;
+        });
+      }
+
+      if (!stationWindowReferencesRef.current.size) stopStationWindowCloseWatch();
+    }, 1000);
+  };
+
   const startStation = () => {
     if (!selectedStation) return;
     const runId = createRuntimeStationRunId();
     stationAdmissionChannelRef.current?.close();
     if (stationAdmissionTimeoutRef.current !== null) window.clearTimeout(stationAdmissionTimeoutRef.current);
+    stopStationWindowCloseWatch();
+    stationWindowReferencesRef.current.clear();
+    setStationRecoveryLinks([]);
     const channel = openRuntimeStationAdmissionChannel(runId);
     stationAdmissionChannelRef.current = channel;
     const initialReports: RuntimeStationWindowReport[] = selectedStation.windows.map((slot, index) => ({
@@ -369,24 +431,29 @@ function EngineeringRuntimeApplicationContent({
         const report = parseRuntimeStationAdmissionMessage(event.data);
         if (!report || report.runId !== runId || report.stationId !== selectedStation.id ||
             report.slot >= selectedStation.windows.length) return;
+        if (report.status !== 'pending') {
+          setStationRecoveryLinks(current => current.filter(link =>
+            link.runId !== runId || link.index !== report.slot
+          ));
+        }
         setStationAdmissionReports(current => current.map(item =>
           item.runId === runId && item.slot === report.slot ? report : item
         ));
       });
     }
-    const blocked: Array<{ index: number; href: string }> = [];
+    const blocked: RuntimeStationRecoveryLink[] = [];
     for (const [index, slot] of selectedStation.windows.entries()) {
       const query = new URLSearchParams({ screen: slot.screenKey, station: selectedStation.id, slot: String(index), stationMode: slot.mode, stationRun: runId });
       const href = `/?${query.toString()}`;
       try {
         const child = window.open(href, '_blank');
-        if (child) child.opener = null;
-        else blocked.push({ index, href });
+        if (child) trackStationWindow(runId, index, href, child);
+        else blocked.push({ runId, index, href, reason: 'blocked' });
       } catch {
-        blocked.push({ index, href });
+        blocked.push({ runId, index, href, reason: 'blocked' });
       }
     }
-    setBlockedStationWindows(blocked);
+    setStationRecoveryLinks(blocked);
     if (blocked.length) {
       const blockedSlots = new Set(blocked.map(item => item.index));
       setStationAdmissionReports(current => current.map(item => blockedSlots.has(item.slot) ? { ...item, status: 'blocked' } : item));
@@ -532,8 +599,17 @@ function EngineeringRuntimeApplicationContent({
             {runtimeStationAdmissionLabel(report, locale)}
           </li>)}
         </ul> : null}
-        {blockedStationWindows.map(window => <a key={window.index} href={window.href} target="_blank" rel="noopener noreferrer">
-          {locale === 'pt-BR' ? `Abrir tela ${window.index + 1}` : locale === 'es' ? `Abrir pantalla ${window.index + 1}` : `Open screen ${window.index + 1}`}
+        {stationRecoveryLinks.map(recovery => <a key={`${recovery.runId}-${recovery.index}`} href={recovery.href} target="_blank" rel="noopener noreferrer"
+          onClick={event => {
+            let child: Window | null = null;
+            try { child = window.open(recovery.href, '_blank'); } catch { /* The browser's normal link behavior remains available. */ }
+            if (!child) return;
+            event.preventDefault();
+            trackStationWindow(recovery.runId, recovery.index, recovery.href, child);
+          }}>
+          {recovery.reason === 'closed'
+            ? locale === 'pt-BR' ? `Reabrir tela ${recovery.index + 1}` : locale === 'es' ? `Reabrir pantalla ${recovery.index + 1}` : `Reopen screen ${recovery.index + 1}`
+            : locale === 'pt-BR' ? `Abrir tela ${recovery.index + 1}` : locale === 'es' ? `Abrir pantalla ${recovery.index + 1}` : `Open screen ${recovery.index + 1}`}
         </a>)}
       </div> : null}
     </header> : <div className="runtime-hidden-header-session" aria-label={text.runtime}>
@@ -740,6 +816,11 @@ function runtimeStationAdmissionLabel(report: RuntimeStationWindowReport, locale
     return locale === 'pt-BR' ? `Tela ${screen}: janela bloqueada pelo navegador; abra pelo link abaixo.`
       : locale === 'es' ? `Pantalla ${screen}: ventana bloqueada por el navegador; ábrala con el enlace de abajo.`
         : `Screen ${screen}: the browser blocked this window; open it using the link below.`;
+  }
+  if (report.status === 'closed') {
+    return locale === 'pt-BR' ? `Tela ${screen}: janela fechada. Você pode reabri-la pelo link abaixo.`
+      : locale === 'es' ? `Pantalla ${screen}: ventana cerrada. Puede volver a abrirla con el enlace de abajo.`
+        : `Screen ${screen}: window closed. You can reopen it using the link below.`;
   }
   if (report.status === 'not-required') {
     return locale === 'pt-BR' ? `Tela ${screen}: esta instalação não usa admissão autenticada de sessões.`

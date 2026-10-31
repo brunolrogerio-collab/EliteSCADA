@@ -43,7 +43,9 @@ Una ventana fija solicita acceso de Solo visualización; una ventana de navegaci
 
 ### Finalizar, reabrir y resolver problemas
 
-Para finalizar la sesión y liberar una conexión de licencia, abra el menú de cuenta en cada ventana y elija Finalizar sesión antes de cerrarla. Cerrar la ventana o perder un monitor no avisa al servidor que la conexión terminó. Si la ventana se cierra inesperadamente, la licencia puede seguir contando esa conexión hasta que la sesión expire automáticamente. Para volver, inicie la estación otra vez y distribuya las ventanas en los monitores; el producto no restaura las posiciones anteriores.
+Para finalizar una sesión y liberar una conexión de licencia de inmediato, abra el menú de cuenta en cada ventana y elija Finalizar sesión antes de cerrarla. Cerrar la ventana o perder un monitor no garantiza que el servidor reciba la finalización; la licencia puede seguir contando esa conexión hasta que expire la sesión.
+
+Si se cierra una ventana de la estación mientras la ventana de origen sigue abierta, la fila cambia a “ventana cerrada” y aparece el enlace “Volver a abrir pantalla N”. Úselo para abrir solo esa pantalla otra vez. La nueva ventana solicita su propia sesión Runtime; confirme el resultado de admisión y que haya una conexión disponible en la licencia antes de usarla. No se restaura la posición física en el monitor. Si también cerró o recargó la ventana de origen, abra Runtime, inicie la estación otra vez y distribuya las ventanas manualmente. Si no hay una conexión disponible, finalice sesiones que no use o espere a que expire la sesión anterior.
 
 Si no aparece el selector de estación, compruebe que el encabezado esté habilitado, que Runtime no esté a pantalla completa y que la revisión en uso incluya el perfil. Si una ventana aparece en la pantalla equivocada, revise la pantalla seleccionada en esa fila y active la revisión actualizada. Si una ventana fija no cambia de pantalla, funciona según la configuración. Si el acceso Interactivo se limita o se rechaza, compruebe cuántas conexiones de licencia están en uso y los permisos de la cuenta.
 

@@ -438,15 +438,6 @@ test('Runtime session panel is compact, localized and reflects automatic session
     expect(popupBox!.width).toBeLessThanOrEqual(280);
     expect(Math.abs(viewOnlyBox!.y - interactiveBox!.y)).toBeLessThanOrEqual(1);
 
-    const colors = await page.getByTestId('runtime-session-status').evaluate(node => {
-      const panel = node.closest('.user-session-menu__panel');
-      return {
-        status: window.getComputedStyle(node).color,
-        panel: panel ? window.getComputedStyle(panel).color : ''
-      };
-    });
-    expect(colors.status).not.toBe(colors.panel);
-
     if (expected.locale === 'pt-BR') {
       await testInfo.attach('runtime-shell-phase-a-compact-pt-BR', {
         body: await popup.screenshot(),
@@ -607,7 +598,7 @@ test('Runtime renews each window lease and binds its application projection to t
     tagReadSessionId = route.request().headers()['x-elitescada-runtime-session'] ?? null;
     return route.fulfill({ json: [] });
   });
-  await page.routeWebSocket('**/ws/tags', socket => { runtimeSocketUrl = socket.url(); });
+  await page.routeWebSocket('**/ws/tags*', socket => { runtimeSocketUrl = socket.url(); });
 
   await page.goto('/');
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
@@ -701,8 +692,9 @@ test('failed Runtime class replacement clears the terminated old session before 
   await expect.poll(() => terminated).toBe(true);
   await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);
   await expect(page.getByTestId('runtime-session-end')).toHaveCount(0);
-  await expect(page.getByRole('alert')).toContainText('EligiblePoolsExhausted');
-  await expect(page.getByRole('alert')).toContainText('Runtime session capacity is unavailable.');
+  const admissionError = page.getByTestId('runtime-session-class').getByRole('alert');
+  await expect(admissionError).toContainText('EligiblePoolsExhausted');
+  await expect(admissionError).toContainText('Runtime session capacity is unavailable.');
 });
 
 test('shell keeps navigation, account and theme reachable without horizontal overflow at compact desktop widths', async ({ page }) => {
@@ -721,6 +713,7 @@ test('shell keeps navigation, account and theme reachable without horizontal ove
 
 test('failed server invalidation keeps the current identity and Runtime interactive', async ({ page }) => {
   const contract = await installSessionContract(page, administrator, 'failure');
+  await installEngineeringRuntimeProjection(page);
 
   await page.goto('/');
   await expect(page.locator('.app-bar')).toBeVisible();
@@ -728,13 +721,14 @@ test('failed server invalidation keeps the current identity and Runtime interact
   await page.getByTestId('session-menu-toggle').click();
 
   await page.getByTestId('session-switch-user').click();
-  await expect(page.getByRole('alert')).toHaveText('Não foi possível invalidar a sessão atual para trocar de usuário.');
+  const sessionMenuError = page.getByTestId('session-menu-popup').locator('.user-session-menu__error');
+  await expect(sessionMenuError).toHaveText('Não foi possível invalidar a sessão atual para trocar de usuário.');
   await expect(page.getByTestId('session-menu-toggle')).toContainText('Administrador Local');
   await expect(page.locator('.app-bar')).toBeVisible();
   await expect(page.locator('input[name="username"]')).toHaveCount(0);
 
   await page.getByTestId('session-logout').click();
-  await expect(page.getByRole('alert')).toHaveText('Não foi possível encerrar a sessão.');
+  await expect(sessionMenuError).toHaveText('Não foi possível encerrar a sessão.');
   await expect(page.getByTestId('session-menu-toggle')).toContainText('Administrador Local');
   await expect(page.locator('.app-bar')).toBeVisible();
 

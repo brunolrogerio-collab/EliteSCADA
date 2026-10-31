@@ -4,10 +4,6 @@
 
 Configure a notice for a known condition and test what the operator will see. The example uses high pressure without commanding equipment.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-751: https://github.com/brunolrogerio-collab/EliteSCADA/issues/751; topic=alarms.configuration; fields=alarm.activationDelayMilliseconds; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
-<!-- HELP-REVIEW-AFTER-PRODUCT-753: https://github.com/brunolrogerio-collab/EliteSCADA/issues/753; topic=alarms.configuration; fields=alarm.requiresAcknowledgement; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Before you begin
 
 Start with one simple condition: notify when pressure reaches its high limit. In Engineering > Alarms, use a test TAG whose value, type, scale and unit you have checked. A TAG is the variable providing the reading.
@@ -35,6 +31,7 @@ Here, 10 bar is only a teaching value. ACK means acknowledgement: the operator c
 5. With Good quality, send 9: the condition is Normal. Send 10: it becomes Active. Equality also activates.
 6. Acknowledge in Runtime while keeping the TAG at 10: it becomes Acknowledged, but pressure has not changed. Send 9: it becomes Returned and leaves the active list because it already had ACK.
 7. Activate again with 10 and return to 9 without acknowledging: Returned remains pending. Acknowledge and check that it leaves the active list. Query history for previous transitions.
+8. To test the unchecked option, publish a revision with Requires acknowledgement off. Activate at 10 and return to 9: the state remains Returned without ACK, but leaves the active list. The full view still shows Returned; if the TAG returns to 10, a new Active cycle appears.
 
 ### Identity and condition
 
@@ -54,27 +51,25 @@ Select New alarm or an existing definition. The path identifies the signal to ev
 
 ### Behavior and sound
 
-Expand Alarm behavior. The delay starts when the condition is observed and activates the alarm only after the configured interval. The Requires acknowledgement field still has the limitation described beside it.
+Expand Alarm behavior. The delay starts when the condition is observed and activates the alarm only after the configured interval. Requires acknowledgement controls whether a Returned alarm without ACK remains in the active list: checked keeps it pending; unchecked removes it without recording a synthetic ACK.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
 | Enabled | Includes the definition in evaluation when the revision is activated. Disabling fixes neither the signal nor the physical cause. | Checked |  |
 | Activation delay (ms) | After the condition becomes active, Runtime waits for this interval before activating the alarm. If the condition returns to normal or quality becomes non-Good before the interval ends, the timer is canceled. For communication alarms, non-Good quality is the active condition. | 1000 ms = 1 s | Non-negative integer; 0 or blank activates immediately. A pending timer starts over after Runtime restarts. |
-| Requires acknowledgement | Expresses the intent to require operator ACK. Current limitation: clearing it does not remove pending acknowledgement in Runtime, including after return. | Checked |  |
+| Requires acknowledgement | Controls whether return requires ACK to leave the active list. Checked keeps Returned without ACK pending. Unchecked removes it without creating an ACK; the full view still shows Returned. Reactivation starts a new Active cycle. | Checked |  |
 | Allow shelving | Allows this definition to enter a suppressed state through an available operation. The action still requires AlarmShelve permission. The Alarm Center described here has no shelving button. | According to plant procedure | Not Mute sounds; no automatic expiry is promised. |
 | Sound profile / preview | Choose none, short pulse, double, triple, rising or alternating and try the preview. In Runtime, operators must enable sounds in the browser. Volume, output device and browser permission affect playback. | double | Muting in the browser does not acknowledge the alarm. |
 
 ### If the result differs
 
-Check the TAG/active revision, scaling/unit, boolean polarity, enablement and quality. High priority does not force activation. A condition that returns to normal before the interval ends cancels the timer; this does not add hysteresis to a chattering threshold. Communication alarms treat non-Good quality as their active condition. The Requires acknowledgement option still has the limitation described beside the field. Preview validates a candidate; it does not prove field acquisition. If the project changes while editing, reload and validate again rather than applying an old candidate.
+Check the TAG/active revision, scaling/unit, boolean polarity, enablement and quality. High priority does not force activation. A condition that returns to normal before the interval ends cancels the timer; this does not add hysteresis to a chattering threshold. Communication alarms treat non-Good quality as their active condition. With Requires acknowledgement checked, Returned without ACK stays in the active list; when unchecked, it leaves without a synthetic ACK. Preview validates a candidate; it does not prove field acquisition. If the project changes while editing, reload and validate again rather than applying an old candidate.
 
 [Open this guide in installed Help](/help?topic=alarms.configuration)
 
 ## Runtime alarms: states, acknowledgement and sounds
 
 Read the current condition, acknowledge it and distinguish silence, return and history.
-
-<!-- HELP-REVIEW-AFTER-PRODUCT-753-RUNTIME: https://github.com/brunolrogerio-collab/EliteSCADA/issues/753; topic=alarms.runtime-operation; fields=alarmState.returned; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
 
 ### Where to look and how to interpret
 
@@ -86,14 +81,14 @@ Select a row and check equipment, message, priority, area, value and times. Deta
 
 ACK confirms that the operator is aware of the alarm. It is separate from the physical condition, so an acknowledged alarm can still be active.
 
-The active list includes Active, Acknowledged and Returned still without ACK. It can become empty after items return and are acknowledged, while previous transitions remain in history. The table explains the states shown in details.
+The active list includes Active and Acknowledged. Returned without ACK is also listed when Requires acknowledgement is checked. When unchecked, it leaves the active list without receiving an ACK; the full view still shows Returned. The table explains the states shown in details.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
 | Normal | Condition is not active now; a previous cycle may exist in history. | 9 < 10 |  |
 | Active | Condition is present and this cycle is not yet acknowledged. | 10 ≥ 10 |  |
 | Acknowledged | ACK recorded but the condition remains present. It does not mean the cause was resolved. | ACK while pressure remains 10 |  |
-| Returned | Condition is no longer active. Without ACK it remains pending in the active list. After ACK it leaves that list. | 10 → 9 |  |
+| Returned | The condition is no longer active. Without ACK it remains in the active list only when Requires acknowledgement is checked. When unchecked, it leaves that list and remains Returned in the full view. | 10 → 9 |  |
 | Disabled | Definition disabled for evaluation. Does not indicate healthy equipment. | Enabled unchecked |  |
 | Shelved | Notification suppressed by shelving. Value and underlying state continue to be tracked; removing suppression restores the current underlying state. | Controlled maintenance | The current center provides no button for this action. |
 
@@ -107,7 +102,7 @@ The active list includes Active, Acknowledged and Returned still without ACK. It
 
 ### Sounds, mute and unavailability
 
-To hear notices, use Enable alarm sounds in this browser session. Check support, volume and audio output. Profiles repeat while an alarm is pending, including Returned without ACK.
+To hear notices, use Enable alarm sounds in this browser session. Check support, volume and audio output. Profiles repeat while an alarm is pending; Returned without ACK stays pending only when Requires acknowledgement is checked.
 
 Muting is local: it does not acknowledge, disable or shelve. Shelving suppresses the notification. Acknowledging does not send a process command either. These are different effects.
 

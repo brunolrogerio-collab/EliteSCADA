@@ -1242,7 +1242,7 @@
         },
         {
           "heading": "Procedimento: testar um limite alto",
-          "body": "Neste teste, 10 bar é apenas um valor didático. ACK significa reconhecimento: o operador confirma que tomou ciência da notificação.\n\n1. Crie um alarme high para o TAG de pressão simulado, com setpoint 10. Confira a unidade bar no TAG.\n2. Preencha prioridade, área e mensagem clara. Mantenha Requer reconhecimento marcado neste teste.\n3. Execute Preview, leia os erros e aplique ao Workspace, o rascunho de edição. Se editar de novo, valide de novo.\n4. Salve, publique e ative a revisão correta. Aplicar ao Workspace não ativa o Runtime sozinho.\n5. Com qualidade Good, envie 9: a condição fica Normal. Envie 10: fica Active. A igualdade também ativa.\n6. Reconheça no Runtime mantendo 10 no TAG: o estado fica Acknowledged, mas a pressão não mudou. Envie 9: fica Returned e sai da lista ativa porque já teve ACK.\n7. Repita a ativação com 10 e volte a 9 sem reconhecer: Returned continua pendente. Reconheça e confira a saída da lista ativa. Consulte o histórico para ver as transições anteriores.",
+          "body": "Neste teste, 10 bar é apenas um valor didático. ACK significa reconhecimento: o operador confirma que tomou ciência da notificação.\n\n1. Crie um alarme high para o TAG de pressão simulado, com setpoint 10. Confira a unidade bar no TAG.\n2. Preencha prioridade, área e mensagem clara. Mantenha Requer reconhecimento marcado neste teste.\n3. Execute Preview, leia os erros e aplique ao Workspace, o rascunho de edição. Se editar de novo, valide de novo.\n4. Salve, publique e ative a revisão correta. Aplicar ao Workspace não ativa o Runtime sozinho.\n5. Com qualidade Good, envie 9: a condição fica Normal. Envie 10: fica Active. A igualdade também ativa.\n6. Reconheça no Runtime mantendo 10 no TAG: o estado fica Acknowledged, mas a pressão não mudou. Envie 9: fica Returned e sai da lista ativa porque já teve ACK.\n7. Repita a ativação com 10 e volte a 9 sem reconhecer: Returned continua pendente. Reconheça e confira a saída da lista ativa. Consulte o histórico para ver as transições anteriores.\n8. Para testar a opção desmarcada, publique uma revisão com Requer reconhecimento desativado. Ative com 10 e volte a 9: o estado continua Returned, sem ACK, mas sai da lista ativa. A visão completa continua mostrando Returned; se o TAG voltar a 10, uma nova ativação aparece como Active.",
           "fields": null
         },
         {
@@ -1316,7 +1316,7 @@
         },
         {
           "heading": "Comportamento e som",
-          "body": "Expanda Comportamento do alarme. O atraso começa quando a condição é observada e só ativa o alarme depois do intervalo configurado. O campo Requer reconhecimento ainda tem a limitação indicada junto a ele.",
+          "body": "Expanda Comportamento do alarme. O atraso começa quando a condição é observada e só ativa o alarme depois do intervalo configurado. Requer reconhecimento define se um retorno sem ACK continua na lista ativa: marcado mantém a pendência; desmarcado remove o retorno dessa lista sem registrar um ACK artificial.",
           "fields": [
             {
               "key": "alarm.enabled",
@@ -1335,7 +1335,7 @@
             {
               "key": "alarm.requiresAcknowledgement",
               "label": "Requer reconhecimento",
-              "description": "Indica a intenção de exigir ACK do operador. Limitação atual: desmarcar não elimina a pendência de reconhecimento no Runtime, inclusive após retorno.",
+              "description": "Define se o retorno exige ACK para sair da lista ativa. Marcado, Returned sem ACK continua pendente. Desmarcado, o retorno sai da lista sem criar ACK; a visão completa ainda mostra Returned. Nova ativação volta a Active.",
               "example": "Marcado",
               "constraints": ""
             },
@@ -1357,7 +1357,7 @@
         },
         {
           "heading": "Se o resultado não for o esperado",
-          "body": "Confira TAG/revisão ativa, escala/unidade, sinal booleano, habilitação e qualidade. Alta prioridade não força ativação. Uma condição que volta ao normal antes do fim cancela a contagem; isso não cria histerese para um limite que oscila. Alarmes de comunicação consideram qualidade diferente de Good como condição ativa. A opção Requer reconhecimento ainda tem a limitação indicada no campo. Preview valida o candidato; não comprova leitura de campo. Caso o projeto mude durante a edição, recarregue e valide de novo em vez de aplicar um candidato antigo.",
+          "body": "Confira TAG/revisão ativa, escala/unidade, sinal booleano, habilitação e qualidade. Alta prioridade não força ativação. Uma condição que volta ao normal antes do fim cancela a contagem; isso não cria histerese para um limite que oscila. Alarmes de comunicação consideram qualidade diferente de Good como condição ativa. Com Requer reconhecimento marcado, Returned sem ACK continua na lista ativa; desmarcado, sai sem gerar ACK artificial. Preview valida o candidato; não comprova leitura de campo. Caso o projeto mude durante a edição, recarregue e valide de novo em vez de aplicar um candidato antigo.",
           "fields": null
         }
       ],
@@ -1383,7 +1383,7 @@
         },
         {
           "heading": "Estados que aparecem nos detalhes",
-          "body": "ACK é a confirmação de que o operador tomou ciência do alarme. Ela é separada da condição física. Por isso, um alarme pode já estar reconhecido e continuar ativo.\n\nA lista ativa inclui Active, Acknowledged e Returned ainda sem ACK. Ela pode ficar vazia depois de resolver e reconhecer os itens, embora as transições anteriores continuem no histórico. A tabela explica os estados que aparecem nos detalhes.",
+          "body": "ACK é a confirmação de que o operador tomou ciência do alarme. Ela é separada da condição física. Por isso, um alarme pode já estar reconhecido e continuar ativo.\n\nA lista ativa inclui Active e Acknowledged. Returned sem ACK também fica nela quando Requer reconhecimento está marcado. Com a opção desmarcada, o retorno sai da lista sem receber ACK; a visão completa ainda mostra o estado Returned. A tabela explica os estados que aparecem nos detalhes.",
           "fields": [
             {
               "key": "alarmState.normal",
@@ -1409,7 +1409,7 @@
             {
               "key": "alarmState.returned",
               "label": "Returned",
-              "description": "Condição deixou de estar ativa. Se ainda não houve ACK, permanece pendente na lista ativa. Depois de ACK, sai dessa lista.",
+              "description": "A condição deixou de estar ativa. Sem ACK, continua na lista ativa apenas quando Requer reconhecimento está marcado. Com a opção desmarcada, sai da lista e permanece Returned na visão completa.",
               "example": "10 → 9",
               "constraints": ""
             },
@@ -1436,7 +1436,7 @@
         },
         {
           "heading": "Sons, silêncio e indisponibilidade",
-          "body": "Para ouvir avisos, use Ativar sons de alarmes nesta sessão do navegador. Confira suporte, volume e saída de áudio. Os perfis repetem enquanto houver alarme pendente, inclusive Returned sem ACK.\n\nSilenciar sons é local: não reconhece, desabilita ou coloca em shelving. Shelving é a supressão da notificação. Reconhecer também não envia comando ao processo. São efeitos diferentes.\n\nSem acesso, confira login, classe de sessão e permissão para a área. Sem dados ou serviço disponível, atualize e consulte o diagnóstico do Runtime; mudar o TAG não resolve uma recusa de autorização. Para o passado, abra Histórico e escolha alarm.events no período desejado. Esse conjunto é de alarmes; operational.events e Audit têm outras finalidades.",
+          "body": "Para ouvir avisos, use Ativar sons de alarmes nesta sessão do navegador. Confira suporte, volume e saída de áudio. Os perfis repetem enquanto houver alarme pendente; Returned sem ACK só permanece pendente quando Requer reconhecimento está marcado.\n\nSilenciar sons é local: não reconhece, desabilita ou coloca em shelving. Shelving é a supressão da notificação. Reconhecer também não envia comando ao processo. São efeitos diferentes.\n\nSem acesso, confira login, classe de sessão e permissão para a área. Sem dados ou serviço disponível, atualize e consulte o diagnóstico do Runtime; mudar o TAG não resolve uma recusa de autorização. Para o passado, abra Histórico e escolha alarm.events no período desejado. Esse conjunto é de alarmes; operational.events e Audit têm outras finalidades.",
           "fields": null
         }
       ],
@@ -8187,7 +8187,7 @@
         },
         {
           "heading": "Procedure: test a high threshold",
-          "body": "Here, 10 bar is only a teaching value. ACK means acknowledgement: the operator confirms awareness of the notice.\n\n1. Create a high alarm for the simulated pressure TAG, with setpoint 10. Check the TAG’s bar unit.\n2. Fill priority, area and a clear message. Keep Requires acknowledgement checked for this test.\n3. Run Preview, read errors and apply to Workspace, the editing draft. If you edit again, validate again.\n4. Save, publish and activate the correct revision. Applying to Workspace does not activate Runtime by itself.\n5. With Good quality, send 9: the condition is Normal. Send 10: it becomes Active. Equality also activates.\n6. Acknowledge in Runtime while keeping the TAG at 10: it becomes Acknowledged, but pressure has not changed. Send 9: it becomes Returned and leaves the active list because it already had ACK.\n7. Activate again with 10 and return to 9 without acknowledging: Returned remains pending. Acknowledge and check that it leaves the active list. Query history for previous transitions.",
+          "body": "Here, 10 bar is only a teaching value. ACK means acknowledgement: the operator confirms awareness of the notice.\n\n1. Create a high alarm for the simulated pressure TAG, with setpoint 10. Check the TAG’s bar unit.\n2. Fill priority, area and a clear message. Keep Requires acknowledgement checked for this test.\n3. Run Preview, read errors and apply to Workspace, the editing draft. If you edit again, validate again.\n4. Save, publish and activate the correct revision. Applying to Workspace does not activate Runtime by itself.\n5. With Good quality, send 9: the condition is Normal. Send 10: it becomes Active. Equality also activates.\n6. Acknowledge in Runtime while keeping the TAG at 10: it becomes Acknowledged, but pressure has not changed. Send 9: it becomes Returned and leaves the active list because it already had ACK.\n7. Activate again with 10 and return to 9 without acknowledging: Returned remains pending. Acknowledge and check that it leaves the active list. Query history for previous transitions.\n8. To test the unchecked option, publish a revision with Requires acknowledgement off. Activate at 10 and return to 9: the state remains Returned without ACK, but leaves the active list. The full view still shows Returned; if the TAG returns to 10, a new Active cycle appears.",
           "fields": null
         },
         {
@@ -8261,7 +8261,7 @@
         },
         {
           "heading": "Behavior and sound",
-          "body": "Expand Alarm behavior. The delay starts when the condition is observed and activates the alarm only after the configured interval. The Requires acknowledgement field still has the limitation described beside it.",
+          "body": "Expand Alarm behavior. The delay starts when the condition is observed and activates the alarm only after the configured interval. Requires acknowledgement controls whether a Returned alarm without ACK remains in the active list: checked keeps it pending; unchecked removes it without recording a synthetic ACK.",
           "fields": [
             {
               "key": "alarm.enabled",
@@ -8280,7 +8280,7 @@
             {
               "key": "alarm.requiresAcknowledgement",
               "label": "Requires acknowledgement",
-              "description": "Expresses the intent to require operator ACK. Current limitation: clearing it does not remove pending acknowledgement in Runtime, including after return.",
+              "description": "Controls whether return requires ACK to leave the active list. Checked keeps Returned without ACK pending. Unchecked removes it without creating an ACK; the full view still shows Returned. Reactivation starts a new Active cycle.",
               "example": "Checked",
               "constraints": ""
             },
@@ -8302,7 +8302,7 @@
         },
         {
           "heading": "If the result differs",
-          "body": "Check the TAG/active revision, scaling/unit, boolean polarity, enablement and quality. High priority does not force activation. A condition that returns to normal before the interval ends cancels the timer; this does not add hysteresis to a chattering threshold. Communication alarms treat non-Good quality as their active condition. The Requires acknowledgement option still has the limitation described beside the field. Preview validates a candidate; it does not prove field acquisition. If the project changes while editing, reload and validate again rather than applying an old candidate.",
+          "body": "Check the TAG/active revision, scaling/unit, boolean polarity, enablement and quality. High priority does not force activation. A condition that returns to normal before the interval ends cancels the timer; this does not add hysteresis to a chattering threshold. Communication alarms treat non-Good quality as their active condition. With Requires acknowledgement checked, Returned without ACK stays in the active list; when unchecked, it leaves without a synthetic ACK. Preview validates a candidate; it does not prove field acquisition. If the project changes while editing, reload and validate again rather than applying an old candidate.",
           "fields": null
         }
       ],
@@ -8328,7 +8328,7 @@
         },
         {
           "heading": "States shown in details",
-          "body": "ACK confirms that the operator is aware of the alarm. It is separate from the physical condition, so an acknowledged alarm can still be active.\n\nThe active list includes Active, Acknowledged and Returned still without ACK. It can become empty after items return and are acknowledged, while previous transitions remain in history. The table explains the states shown in details.",
+          "body": "ACK confirms that the operator is aware of the alarm. It is separate from the physical condition, so an acknowledged alarm can still be active.\n\nThe active list includes Active and Acknowledged. Returned without ACK is also listed when Requires acknowledgement is checked. When unchecked, it leaves the active list without receiving an ACK; the full view still shows Returned. The table explains the states shown in details.",
           "fields": [
             {
               "key": "alarmState.normal",
@@ -8354,7 +8354,7 @@
             {
               "key": "alarmState.returned",
               "label": "Returned",
-              "description": "Condition is no longer active. Without ACK it remains pending in the active list. After ACK it leaves that list.",
+              "description": "The condition is no longer active. Without ACK it remains in the active list only when Requires acknowledgement is checked. When unchecked, it leaves that list and remains Returned in the full view.",
               "example": "10 → 9",
               "constraints": ""
             },
@@ -8381,7 +8381,7 @@
         },
         {
           "heading": "Sounds, mute and unavailability",
-          "body": "To hear notices, use Enable alarm sounds in this browser session. Check support, volume and audio output. Profiles repeat while an alarm is pending, including Returned without ACK.\n\nMuting is local: it does not acknowledge, disable or shelve. Shelving suppresses the notification. Acknowledging does not send a process command either. These are different effects.\n\nFor denied access, check login, session class and area permission. For missing data or unavailable service, refresh and consult Runtime diagnostics; changing a TAG does not resolve an authorization refusal. For past records, open History and choose alarm.events for the period. This dataset concerns alarms; operational.events and Audit serve other purposes.",
+          "body": "To hear notices, use Enable alarm sounds in this browser session. Check support, volume and audio output. Profiles repeat while an alarm is pending; Returned without ACK stays pending only when Requires acknowledgement is checked.\n\nMuting is local: it does not acknowledge, disable or shelve. Shelving suppresses the notification. Acknowledging does not send a process command either. These are different effects.\n\nFor denied access, check login, session class and area permission. For missing data or unavailable service, refresh and consult Runtime diagnostics; changing a TAG does not resolve an authorization refusal. For past records, open History and choose alarm.events for the period. This dataset concerns alarms; operational.events and Audit serve other purposes.",
           "fields": null
         }
       ],
@@ -15132,7 +15132,7 @@
         },
         {
           "heading": "Procedimiento: probar un límite alto",
-          "body": "Aquí, 10 bar es solo un valor didáctico. ACK significa reconocimiento: el operador confirma que ha visto el aviso.\n\n1. Cree una alarma high para el TAG de presión simulado con setpoint 10. Compruebe unidad bar en el TAG.\n2. Complete prioridad, área y mensaje claro. Mantenga Requiere reconocimiento marcado para esta prueba.\n3. Ejecute Preview, lea errores y aplique al Workspace, el borrador de edición. Si edita de nuevo, valide de nuevo.\n4. Guarde, publique y active la revisión correcta. Aplicar al Workspace no activa Runtime por sí solo.\n5. Con calidad Good envíe 9: queda Normal. Envíe 10: queda Active. La igualdad también activa.\n6. Reconozca en Runtime manteniendo 10 en el TAG: queda Acknowledged, pero la presión no cambió. Envíe 9: queda Returned y sale de la lista activa porque ya tuvo ACK.\n7. Active otra vez con 10 y vuelva a 9 sin reconocer: Returned sigue pendiente. Reconozca y compruebe la salida de la lista activa. Consulte histórico para las transiciones anteriores.",
+          "body": "Aquí, 10 bar es solo un valor didáctico. ACK significa reconocimiento: el operador confirma que ha visto el aviso.\n\n1. Cree una alarma high para el TAG de presión simulado con setpoint 10. Compruebe unidad bar en el TAG.\n2. Complete prioridad, área y mensaje claro. Mantenga Requiere reconocimiento marcado para esta prueba.\n3. Ejecute Preview, lea errores y aplique al Workspace, el borrador de edición. Si edita de nuevo, valide de nuevo.\n4. Guarde, publique y active la revisión correcta. Aplicar al Workspace no activa Runtime por sí solo.\n5. Con calidad Good envíe 9: queda Normal. Envíe 10: queda Active. La igualdad también activa.\n6. Reconozca en Runtime manteniendo 10 en el TAG: queda Acknowledged, pero la presión no cambió. Envíe 9: queda Returned y sale de la lista activa porque ya tuvo ACK.\n7. Active otra vez con 10 y vuelva a 9 sin reconocer: Returned sigue pendiente. Reconozca y compruebe la salida de la lista activa. Consulte histórico para las transiciones anteriores.\n8. Para probar la opción desmarcada, publique una revisión con Requiere reconocimiento desactivado. Active con 10 y vuelva a 9: el estado sigue Returned, sin ACK, pero sale de la lista activa. La vista completa aún muestra Returned; si el TAG vuelve a 10, aparece un nuevo ciclo Active.",
           "fields": null
         },
         {
@@ -15206,7 +15206,7 @@
         },
         {
           "heading": "Comportamiento y sonido",
-          "body": "Expanda Comportamiento de la alarma. El retardo comienza cuando se observa la condición y activa la alarma solo después del intervalo configurado. El campo Requiere reconocimiento aún tiene la limitación indicada junto a él.",
+          "body": "Expanda Comportamiento de la alarma. El retardo comienza cuando se observa la condición y activa la alarma solo después del intervalo configurado. Requiere reconocimiento define si un retorno sin ACK continúa en la lista activa: marcado mantiene la pendiente; desmarcado retira el retorno de esa lista sin registrar un ACK artificial.",
           "fields": [
             {
               "key": "alarm.enabled",
@@ -15225,7 +15225,7 @@
             {
               "key": "alarm.requiresAcknowledgement",
               "label": "Requiere reconocimiento",
-              "description": "Indica la intención de exigir ACK del operador. Limitación actual: desmarcar no elimina el reconocimiento pendiente en Runtime, incluso tras el retorno.",
+              "description": "Define si el retorno exige ACK para salir de la lista activa. Marcado, Returned sin ACK sigue pendiente. Desmarcado, el retorno sale de la lista sin crear ACK; la vista completa aún muestra Returned. Una nueva activación vuelve a Active.",
               "example": "Marcada",
               "constraints": ""
             },
@@ -15247,7 +15247,7 @@
         },
         {
           "heading": "Si el resultado es distinto",
-          "body": "Compruebe TAG/revisión activa, escala/unidad, polaridad, habilitación y calidad. La prioridad alta no fuerza activación. Si la condición vuelve a la normalidad antes de terminar el intervalo, se cancela la cuenta; esto no añade histéresis a un límite oscilante. Las alarmas de comunicación consideran una calidad distinta de Good como condición activa. La opción Requiere reconocimiento aún tiene la limitación indicada junto al campo. Preview valida un candidato; no demuestra adquisición de campo. Si el proyecto cambia durante la edición, recargue y valide de nuevo en lugar de aplicar un candidato antiguo.",
+          "body": "Compruebe TAG/revisión activa, escala/unidad, polaridad, habilitación y calidad. La prioridad alta no fuerza activación. Si la condición vuelve a la normalidad antes de terminar el intervalo, se cancela la cuenta; esto no añade histéresis a un límite oscilante. Las alarmas de comunicación consideran una calidad distinta de Good como condición activa. Con Requiere reconocimiento marcado, Returned sin ACK sigue en la lista activa; desmarcado, sale sin generar ACK artificial. Preview valida un candidato; no demuestra adquisición de campo. Si el proyecto cambia durante la edición, recargue y valide de nuevo en lugar de aplicar un candidato antiguo.",
           "fields": null
         }
       ],
@@ -15273,7 +15273,7 @@
         },
         {
           "heading": "Estados de los detalles",
-          "body": "ACK confirma que el operador ha visto la alarma. Es distinto de la condición física; una alarma reconocida puede seguir activa.\n\nLa lista activa incluye Active, Acknowledged y Returned aún sin ACK. Puede quedar vacía tras retorno y reconocimiento, aunque las transiciones anteriores sigan en el histórico. La tabla explica los estados de los detalles.",
+          "body": "ACK confirma que el operador ha visto la alarma. Es distinto de la condición física; una alarma reconocida puede seguir activa.\n\nLa lista activa incluye Active y Acknowledged. Returned sin ACK también aparece cuando Requiere reconocimiento está marcado. Desmarcado, sale de la lista sin recibir ACK; la vista completa aún muestra el estado Returned. La tabla explica los estados de los detalles.",
           "fields": [
             {
               "key": "alarmState.normal",
@@ -15299,7 +15299,7 @@
             {
               "key": "alarmState.returned",
               "label": "Returned",
-              "description": "La condición dejó de estar activa. Sin ACK queda pendiente en la lista activa. Tras ACK sale de esa lista.",
+              "description": "La condición dejó de estar activa. Sin ACK, solo sigue en la lista activa si Requiere reconocimiento está marcado. Desmarcado, sale de esa lista y permanece Returned en la vista completa.",
               "example": "10 → 9",
               "constraints": ""
             },
@@ -15326,7 +15326,7 @@
         },
         {
           "heading": "Sonidos, silencio e indisponibilidad",
-          "body": "Para oír avisos, use Activar sonidos de alarmas en esta sesión del navegador. Compruebe soporte, volumen y salida de audio. Los perfiles se repiten mientras haya alarma pendiente, incluso Returned sin ACK.\n\nSilenciar es local: no reconoce, deshabilita ni aplica shelving. Shelving suprime la notificación. Reconocer tampoco envía un comando al proceso. Son efectos distintos.\n\nSin acceso, compruebe login, clase de sesión y permiso del área. Sin datos o servicio, actualice y consulte diagnóstico de Runtime; cambiar el TAG no resuelve una denegación. Para el pasado, abra Histórico y elija alarm.events en el período. Ese conjunto es de alarmas; operational.events y Audit tienen otras finalidades.",
+          "body": "Para oír avisos, use Activar sonidos de alarmas en esta sesión del navegador. Compruebe soporte, volumen y salida de audio. Los perfiles se repiten mientras haya una alarma pendiente; Returned sin ACK solo sigue pendiente cuando Requiere reconocimiento está marcado.\n\nSilenciar es local: no reconoce, deshabilita ni aplica shelving. Shelving suprime la notificación. Reconocer tampoco envía un comando al proceso. Son efectos distintos.\n\nSin acceso, compruebe login, clase de sesión y permiso del área. Sin datos o servicio, actualice y consulte diagnóstico de Runtime; cambiar el TAG no resuelve una denegación. Para el pasado, abra Histórico y elija alarm.events en el período. Ese conjunto es de alarmas; operational.events y Audit tienen otras finalidades.",
           "fields": null
         }
       ],

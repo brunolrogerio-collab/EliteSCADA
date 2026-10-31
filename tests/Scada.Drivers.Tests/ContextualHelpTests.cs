@@ -296,9 +296,9 @@ public sealed class ContextualHelpTests
             }, alarmText, StringComparison.Ordinal);
             Assert.Contains(locale switch
             {
-                "en" => "clearing the option does not remove the ACK requirement",
-                "es" => "desmarcar la opción no elimina el requisito de ACK",
-                _ => "desmarcar a opção não dispensa o ACK"
+                "en" => "When unchecked, it leaves that list",
+                "es" => "Si está desmarcado, sale de esa lista",
+                _ => "Se estiver desmarcado, o retorno sai da lista"
             }, alarmText, StringComparison.Ordinal);
             Assert.Contains("emit_operational_event", eventText, StringComparison.Ordinal);
             Assert.Contains("operational.events", eventText, StringComparison.Ordinal);

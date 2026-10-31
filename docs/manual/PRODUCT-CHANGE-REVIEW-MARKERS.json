@@ -1,38 +1,5 @@
 [
   {
-    "id": "HELP-REVIEW-AFTER-PRODUCT-751",
-    "issue": 751,
-    "topicId": "alarms.configuration",
-    "fieldKeys": [
-      "alarm.activationDelayMilliseconds"
-    ],
-    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
-    "reviewWhen": "Activation delay is implemented and verified on the accepted Runtime revision.",
-    "review": "Replace the current saved-but-ignored limitation with verified delay/reset/quality semantics and a tested timing example in all locales. Do not remove the limitation merely because the issue is closed."
-  },
-  {
-    "id": "HELP-REVIEW-AFTER-PRODUCT-753",
-    "issue": 753,
-    "topicId": "alarms.configuration",
-    "fieldKeys": [
-      "alarm.requiresAcknowledgement"
-    ],
-    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
-    "reviewWhen": "RequiresAcknowledgement=false is implemented and verified on the accepted Runtime revision.",
-    "review": "Update the field limitation and the related Runtime state/ACK/audio procedure. Verify return without ACK, active-list membership, sounds and new activation with both option values in all locales."
-  },
-  {
-    "id": "HELP-REVIEW-AFTER-PRODUCT-753-RUNTIME",
-    "issue": 753,
-    "topicId": "alarms.runtime-operation",
-    "fieldKeys": [
-      "alarmState.returned"
-    ],
-    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
-    "reviewWhen": "The accepted Runtime supports alarms that do not require acknowledgement.",
-    "review": "Qualify state/list/audio explanations by the verified RequiresAcknowledgement setting; retain the current requires-ACK example as an explicit case rather than an unconditional rule."
-  },
-  {
     "id": "HELP-REVIEW-AFTER-PRODUCT-779-DATABASE",
     "issue": 779,
     "topicId": "database.topology",

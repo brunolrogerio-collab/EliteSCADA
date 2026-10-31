@@ -1,4 +1,4 @@
-# Plano consolidado de correções e auditorias — 26/10/2026
+# Plano consolidado de correções e auditorias — atualizado em 31/10/2026
 
 **Autorizado pelo proprietário / em fila.** Programa [#788](https://github.com/brunolrogerio-collab/EliteSCADA/issues/788), pais #297/#306 e coordenação #305. Este documento reúne trabalho futuro; não declara as funcionalidades implementadas, a auditoria concluída ou defeitos corrigidos.
 
@@ -8,7 +8,7 @@
 2. Correções de alarme #751 e #753 precedem #789 → #790, depois #791 e #792, conforme retomada de 31/10/2026 registrada em #305. As dependências #779 → #780 → #781 → #782 permanecem sujeitas ao estado vivo de cada issue.
 3. Trabalhar uma frente por vez; fixar base/head e validar os contratos e evidências antes de avançar. Não abrir lanes paralelas por inferência deste plano.
 
-Base de produto observada: `wave15/corrections-integration@d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`, a revalidar antes de implementar. Checkpoint do Help anterior ao registro: `97832859558e06d723e2b999ddddc818cd0c91f7`, T1 40340409686 aprovado. Esse resultado não se transfere a commits posteriores.
+Base de produto observada para #753: `wave15/corrections-integration@37b0a14f5467510ac3b8c19e47fd6486cf98bb59`, merge do PR #846. A revalidar antes de qualquer próxima frente. A evidência anterior do Help não se transfere a commits posteriores.
 
 Preservar o trabalho paralelo do proprietário, Preview/DEMO, dados, volumes e licenças. Uma tarefa de Intelligence não autoriza alterar HA; uma correção documental não autoriza mudar o comportamento do produto.
 
@@ -20,8 +20,8 @@ Preservar o trabalho paralelo do proprietário, Preview/DEMO, dados, volumes e l
 | CheckBox e ComboBox autoráveis | [#790](https://github.com/brunolrogerio-collab/EliteSCADA/issues/790) | Inventariar/reutilizar o que existir e fechar o fluxo completo de objeto no editor/Runtime; checkbox HTML de configuração não conta |
 | Aderência de Intelligence | [#791](https://github.com/brunolrogerio-collab/EliteSCADA/issues/791) | Auditoria autorizada, ainda não executada; comparar premissas, contratos, APIs, UI e percurso real do gestor |
 | Matter e correções upstream | [#792](https://github.com/brunolrogerio-collab/EliteSCADA/issues/792) | Revalidar o artefato experimental exato e decidir eventual atualização com evidência, sem promoção automática |
-| Atraso de ativação de alarme | #751 | Comportamento Runtime integrado e verificado em PR #845; issue reaberta apenas para alinhar o catálogo `/api/help`, testes e handoff com o comportamento entregue |
-| RequiresAcknowledgement=false | #753 | Defeito Runtime reproduzido; retorno continua exigindo ACK |
+| Atraso de ativação de alarme | #751 | Correção Runtime no PR #845; complemento de catálogo `/api/help`, testes e handoff integrado no PR #846. T1 #41219535952 e T2 #41220169333 passaram; o E2E completo foi pulado em T2. Fechada no escopo confirmado |
+| RequiresAcknowledgement=false | #753 | Defeito Runtime reproduzido; correção ativa nesta frente. `Returned` sem ACK deve sair de `activeOnly` quando a opção está desmarcada, sem sintetizar ACK; preservar visão completa, nova ativação, ACK manual, shelving e padrão `true`. Core Release 837/837; Drivers Release com filtros do workflow 2.068/2.068 (1 ignorado); `EngineeringRuntimeCoordinatorTests` 10/10; Help contextual 127/127. O capítulo 17 está alinhado à Ajuda instalada; o verificador global aponta apenas Segurança/Auditoria, capítulo 18, fora desta frente. T1/T2 ainda pendentes |
 | Seleção Home/Building | #785 | Corrigir seleção explícita HAB/Zigbee2MQTT, sem materializar tudo silenciosamente |
 | Vínculo por driver | #786 | Corrigir projeção de autoria KNX/Zigbee/Z-Wave/S7/Logix conforme cada contrato, sem relaxar os validadores |
 | Inventário Zigbee2MQTT | #787 | Interpretar definition.exposes do formato externo, preservando identidade e limites |

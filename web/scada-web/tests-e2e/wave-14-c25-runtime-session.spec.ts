@@ -50,16 +50,24 @@ const authConfiguration = {
 
 async function installSessionContract(
   page: Page,
-  initialProfile: SessionProfile,
-  initialLogoutMode: LogoutMode = 'success'
+  initialProfile: SessionProfile | null,
+  initialLogoutMode: LogoutMode = 'success',
+  authenticationEnabled = true
 ) {
   let currentProfile: SessionProfile | null = initialProfile;
   let logoutMode = initialLogoutMode;
   let logoutRequests = 0;
   let loginRequests = 0;
   let runtimeCapabilityRequests = 0;
+  let runtimeSessionAdmissions = 0;
+  let runtimeSessionSequence = 0;
+  const runtimeSessions = new Map<string, { clientInstanceId: string; requestedClass: string; grantedClass: string }>();
 
-  await page.context().route('**/api/auth/config', route => route.fulfill({ json: authConfiguration }));
+  await page.context().route('**/api/auth/config', route => route.fulfill({ json: {
+    ...authConfiguration,
+    authenticationEnabled,
+    localLoginEnabled: authenticationEnabled && authConfiguration.localLoginEnabled
+  }}));
   await page.context().route('**/api/auth/me', route => {
     if (!currentProfile) return route.fulfill({ status: 401, body: '' });
     return route.fulfill({ json: currentProfile });
@@ -80,13 +88,13 @@ async function installSessionContract(
       json: runtimeOnly
         ? {
             authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
-            authenticationEnabled: true,
+            authenticationEnabled,
             runtime: ['View'],
             workspace: []
           }
         : {
             authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
-            authenticationEnabled: true,
+            authenticationEnabled,
             runtime: ['View', 'TrendUse', 'SystemAdmin'],
             workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
           }
@@ -111,6 +119,43 @@ async function installSessionContract(
     currentProfile = runtimeOperator;
     return route.fulfill({ json: runtimeOperator });
   });
+  await page.context().route('**/api/runtime/sessions', route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    runtimeSessionAdmissions++;
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    const sessionId = `00000000-0000-0000-0000-${String(++runtimeSessionSequence).padStart(12, '0')}`;
+    runtimeSessions.set(sessionId, {
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass
+    });
+    return route.fulfill({ status: 201, json: {
+      sessionId,
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.context().route('**/api/runtime/sessions/*/heartbeat', route => {
+    const sessionId = new URL(route.request().url()).pathname.split('/').at(-2) ?? '';
+    const lease = runtimeSessions.get(sessionId);
+    if (!lease) return route.fulfill({ status: 404, json: { error: 'session-not-found' } });
+    return route.fulfill({ json: {
+      sessionId,
+      clientInstanceId: lease.clientInstanceId,
+      requestedClass: lease.requestedClass,
+      grantedClass: lease.grantedClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.context().route('**/api/runtime/sessions/*/terminate', route => {
+    const sessionId = new URL(route.request().url()).pathname.split('/').at(-2) ?? '';
+    runtimeSessions.delete(sessionId);
+    return route.fulfill({ status: 204, body: '' });
+  });
 
   return {
     setLogoutMode(next: LogoutMode) {
@@ -124,6 +169,9 @@ async function installSessionContract(
     },
     get runtimeCapabilityRequests() {
       return runtimeCapabilityRequests;
+    },
+    get runtimeSessionAdmissions() {
+      return runtimeSessionAdmissions;
     }
   };
 }
@@ -132,10 +180,12 @@ async function installEngineeringRuntimeProjection(
   page: Page,
   branding?: unknown,
   visualAssets: unknown[] = [],
-  runtimePresentation?: unknown
+  runtimePresentation?: unknown,
+  onRequest?: (headers: Record<string, string>) => void
 ) {
-  await page.context().route('**/api/runtime/application', route => route.fulfill({
-    json: {
+  await page.context().route('**/api/runtime/application', route => {
+    onRequest?.(route.request().headers());
+    return route.fulfill({ json: {
       mode: 'engineering',
       projectKey: 'c25-session-runtime',
       projectName: 'C25 Session Runtime',
@@ -159,11 +209,11 @@ async function installEngineeringRuntimeProjection(
         branding,
         runtimePresentation
       }
-    }
-  }));
+    }});
+  });
 }
 
-test('new Runtime window starts on the selected screen and admits a distinct client', async ({ page }) => {
+test('each Runtime window auto-admits with a distinct logical client identity', async ({ page }) => {
   await installSessionContract(page, administrator);
   await installEngineeringRuntimeProjection(page);
   const clientIds: string[] = [];
@@ -187,11 +237,6 @@ test('new Runtime window starts on the selected screen and admits a distinct cli
   const secondWindow = await popupPromise;
   await expect(secondWindow).toHaveURL(/\?screen=home$/);
   await expect(secondWindow.getByTestId('runtime-engineering-application')).toBeVisible();
-
-  await page.getByTestId('session-menu-toggle').click();
-  await page.getByTestId('runtime-session-request-viewOnly').click();
-  await secondWindow.getByTestId('session-menu-toggle').click();
-  await secondWindow.getByTestId('runtime-session-request-viewOnly').click();
   await expect.poll(() => clientIds.length).toBe(2);
   expect(clientIds[0]).not.toBe(clientIds[1]);
 
@@ -199,10 +244,42 @@ test('new Runtime window starts on the selected screen and admits a distinct cli
   await page.evaluate(() => window.open('/?screen=home', 'runtime-duplicated-tab'));
   const duplicatedTab = await duplicatePromise;
   await expect(duplicatedTab.getByTestId('runtime-engineering-application')).toBeVisible();
-  await duplicatedTab.getByTestId('session-menu-toggle').click();
-  await duplicatedTab.getByTestId('runtime-session-request-viewOnly').click();
   await expect.poll(() => clientIds.length).toBe(3);
   expect(new Set(clientIds).size).toBe(3);
+});
+
+test('Runtime without Authority authentication preserves its existing public projection without a session lease', async ({ page }) => {
+  const contract = await installSessionContract(page, null, 'success', false);
+  await installEngineeringRuntimeProjection(page);
+
+  await page.goto('/');
+
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  expect(contract.runtimeSessionAdmissions).toBe(0);
+  await expect(page.getByTestId('runtime-session-required')).toHaveCount(0);
+});
+
+test('a fixed station window requests View Only before showing its active Runtime projection', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  const admissions: Array<{ clientInstanceId: string; connectionClass: string }> = [];
+  await page.context().route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    admissions.push(request);
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000781',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+
+  await page.goto('/?screen=home&station=eee-control-room&slot=1&stationMode=fixed');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => admissions.length).toBe(1);
+  expect(admissions[0].connectionClass).toBe('viewOnly');
 });
 
 test('blocked station popups provide a manual link for every configured screen', async ({ page }) => {
@@ -328,14 +405,14 @@ test('Runtime toolbar keeps icon controls localized, labeled and keyboard discov
   }
 });
 
-test('Runtime session panel is compact, localized and keeps the inactive state subordinate', async ({ page }, testInfo) => {
+test('Runtime session panel is compact, localized and reflects automatic session admission', async ({ page }, testInfo) => {
   await installSessionContract(page, administrator);
   await installEngineeringRuntimeProjection(page);
 
   const expectations = [
-    { locale: 'pt-BR', viewOnly: 'Visualização', interactive: 'Interativa', inactive: 'Sem sessão Runtime ativa.' },
-    { locale: 'en', viewOnly: 'View only', interactive: 'Interactive', inactive: 'No Runtime session is active.' },
-    { locale: 'es', viewOnly: 'Visualización', interactive: 'Interactiva', inactive: 'No hay sesión Runtime activa.' }
+    { locale: 'pt-BR', viewOnly: 'Visualização', interactive: 'Interativa' },
+    { locale: 'en', viewOnly: 'View only', interactive: 'Interactive' },
+    { locale: 'es', viewOnly: 'Visualización', interactive: 'Interactiva' }
   ];
 
   for (const expected of expectations) {
@@ -347,8 +424,10 @@ test('Runtime session panel is compact, localized and keeps the inactive state s
     await expect(page.getByTestId('runtime-session-request-viewOnly')).toHaveText(expected.viewOnly);
     await expect(page.getByTestId('runtime-session-request-interactive')).toHaveText(expected.interactive);
 
-    const inactive = page.getByTestId('runtime-session-empty');
-    await expect(inactive).toHaveText(expected.inactive);
+    await expect(page.getByTestId('runtime-session-status').locator('dd')).toHaveText([
+      expected.interactive,
+      expected.interactive
+    ]);
 
     const popupBox = await popup.boundingBox();
     const viewOnlyBox = await page.getByTestId('runtime-session-request-viewOnly').boundingBox();
@@ -359,14 +438,14 @@ test('Runtime session panel is compact, localized and keeps the inactive state s
     expect(popupBox!.width).toBeLessThanOrEqual(280);
     expect(Math.abs(viewOnlyBox!.y - interactiveBox!.y)).toBeLessThanOrEqual(1);
 
-    const colors = await inactive.evaluate(node => {
+    const colors = await page.getByTestId('runtime-session-status').evaluate(node => {
       const panel = node.closest('.user-session-menu__panel');
       return {
-        inactive: window.getComputedStyle(node).color,
+        status: window.getComputedStyle(node).color,
         panel: panel ? window.getComputedStyle(panel).color : ''
       };
     });
-    expect(colors.inactive).not.toBe(colors.panel);
+    expect(colors.status).not.toBe(colors.panel);
 
     if (expected.locale === 'pt-BR') {
       await testInfo.attach('runtime-shell-phase-a-compact-pt-BR', {
@@ -483,6 +562,68 @@ test('Runtime session class shows requested/granted truth and explicitly ends it
   await page.getByTestId('runtime-session-end').click();
   await expect.poll(() => terminated).toBe(true);
   await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);
+  await expect(page.getByTestId('runtime-session-required')).toBeVisible();
+});
+
+test('Runtime renews each window lease and binds its application projection to that lease', async ({ page }) => {
+  test.setTimeout(45_000);
+  await installSessionContract(page, administrator);
+  const sessionId = '00000000-0000-0000-0000-000000000782';
+  let clientInstanceId = '';
+  let heartbeatRequests = 0;
+  const boundProjectionSessions: string[] = [];
+  let tagReadSessionId: string | null = null;
+  let runtimeSocketUrl: string | null = null;
+  await installEngineeringRuntimeProjection(page, undefined, [], undefined, headers => {
+    const value = headers['x-elitescada-runtime-session'];
+    if (value) boundProjectionSessions.push(value);
+  });
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    clientInstanceId = request.clientInstanceId;
+    return route.fulfill({ status: 201, json: {
+      sessionId,
+      clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    const request = route.request().postDataJSON() as { clientInstanceId: string };
+    expect(request.clientInstanceId).toBe(clientInstanceId);
+    return route.fulfill({ json: {
+      sessionId,
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: 'interactive',
+      grantedClass: 'interactive',
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/tags', route => {
+    tagReadSessionId = route.request().headers()['x-elitescada-runtime-session'] ?? null;
+    return route.fulfill({ json: [] });
+  });
+  await page.routeWebSocket('**/ws/tags', socket => { runtimeSocketUrl = socket.url(); });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => boundProjectionSessions).toContain(sessionId);
+  await page.evaluate(async () => {
+    const moduleUrl = new URL('/src/runtime/liveTagTransport.ts', window.location.origin).toString();
+    const transport = await import(/* @vite-ignore */ moduleUrl);
+    await transport.loadReadableRuntimeTags();
+    transport.openRuntimeTagSocket();
+  });
+  await expect.poll(() => tagReadSessionId).toBe(sessionId);
+  await expect.poll(() => runtimeSocketUrl).not.toBeNull();
+  expect(new URL(runtimeSocketUrl!).searchParams.get('runtimeSessionId')).toBe(sessionId);
+  expect(new URL(runtimeSocketUrl!).searchParams.get('clientInstanceId')).toBe(clientInstanceId);
+  await expect.poll(() => heartbeatRequests, { timeout: 25_000 }).toBe(1);
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
 });
 
 test('failed Runtime class replacement clears the terminated old session before showing the admission error', async ({ page }) => {
@@ -499,9 +640,9 @@ test('failed Runtime class replacement clears the terminated old session before 
         sessionId: '00000000-0000-0000-0000-000000000456',
         clientInstanceId: request.clientInstanceId,
         requestedClass: request.connectionClass,
-        grantedClass: 'viewOnly',
-        admissionReasonCode: 'ExplicitViewOnly',
-        capacityReasonCode: 'ViewOnlyReserved'
+        grantedClass: 'interactive',
+        admissionReasonCode: 'InteractiveGranted',
+        capacityReasonCode: 'InteractiveSeatReserved'
       }});
     }
 
@@ -517,10 +658,8 @@ test('failed Runtime class replacement clears the terminated old session before 
 
   await page.goto('/');
   await page.getByTestId('session-menu-toggle').click();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
   await page.getByTestId('runtime-session-request-viewOnly').click();
-  await expect(page.getByTestId('runtime-session-status')).toContainText('Visualização');
-
-  await page.getByTestId('runtime-session-request-interactive').click();
 
   await expect.poll(() => terminated).toBe(true);
   await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);

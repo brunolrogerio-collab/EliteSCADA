@@ -13,6 +13,8 @@ import { HistoricalPlaybackProvider, useHistoricalPlayback } from '../historical
 import { HistoricalPlaybackOverlay } from '../historical-playback/HistoricalPlaybackOverlay';
 import { historicalPlaybackCopy } from '../historical-playback/historicalPlaybackI18n';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
+import { useRuntimeSessionAdmission } from './RuntimeSessionClassPanel';
+import type { RuntimeSessionConnectionClass } from '../runtimeSessionAdmissionApi';
 import {
   loadRuntimeApplicationProjection,
   RuntimeApplicationProjectionError,
@@ -37,11 +39,20 @@ export function RuntimeApplicationMount({
 }: RuntimeApplicationMountProps = {}) {
   const locale = useAppShellLocale();
   const text = appShellText(locale);
+  const session = useRuntimeSessionAdmission();
+  const requestedSessionClass: RuntimeSessionConnectionClass =
+    new URLSearchParams(window.location.search).get('stationMode') === 'fixed' ? 'viewOnly' : 'interactive';
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
+  const [projectionSessionId, setProjectionSessionId] = useState<string | null>(null);
   const lastSuccessfulProjection = useRef<RuntimeApplicationProjection | null>(null);
+  const currentLocale = useRef(locale);
+  currentLocale.current = locale;
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    // Authentication-disabled installations retain their existing public Runtime
+    // projection. Authenticated windows must hold the canonical server seat first.
+    if (session.admissionSupported && !session.outcome) return;
     let disposed = false;
     let inFlight = false;
     let activeController: AbortController | null = null;
@@ -55,6 +66,7 @@ export function RuntimeApplicationMount({
         const next = await loadRuntimeApplicationProjection(controller.signal);
         if (disposed) return;
         lastSuccessfulProjection.current = next;
+        setProjectionSessionId(session.outcome?.sessionId ?? null);
         setProjection(current => sameRuntimeProjection(current, next) ? current : next);
         setError(null);
       } catch (reason) {
@@ -80,7 +92,38 @@ export function RuntimeApplicationMount({
       window.clearInterval(timer);
       activeController?.abort();
     };
-  }, []);
+  }, [session.admissionSupported, session.outcome?.sessionId]);
+
+  useEffect(() => {
+    if (!session.admissionSupported) return;
+    let disposed = false;
+    void session.ensure(requestedSessionClass, currentLocale.current).then(() => {
+      if (disposed) void session.end(currentLocale.current);
+    });
+    return () => {
+      disposed = true;
+      void session.end(currentLocale.current);
+    };
+  }, [requestedSessionClass, session.admissionSupported, session.ensure, session.end]);
+
+  useEffect(() => {
+    if (session.admissionSupported && projection && projection.mode !== 'engineering' && session.outcome) {
+      void session.end(locale);
+    }
+  }, [projection?.mode, locale, session.admissionSupported, session.end, session.outcome?.sessionId]);
+
+  if (session.admissionSupported && !session.outcome && session.error) {
+    const retryLabel = locale === 'pt-BR' ? 'Abrir sessão Runtime'
+      : locale === 'es' ? 'Abrir sesión Runtime' : 'Open Runtime session';
+    return <main className="shell" data-testid="runtime-session-required">
+      <section className="runtime-visual-diagnostic" role="alert">
+        <strong>{text.runtimeUnavailable}</strong>
+        <span>{session.error}</span>
+        <button type="button" disabled={session.busy !== null}
+          onClick={() => void session.ensure(session.lastRequestedClass ?? requestedSessionClass, locale)}>{retryLabel}</button>
+      </section>
+    </main>;
+  }
 
   if (error) {
     const status = error instanceof RuntimeApplicationProjectionError ? error.status : 500;
@@ -96,6 +139,23 @@ export function RuntimeApplicationMount({
     return <main className="shell" data-testid="runtime-application-loading">
       <section className="runtime-visual-diagnostic" role="status">
         <strong>Runtime</strong><span>…</span>
+      </section>
+    </main>;
+  }
+
+  if (session.admissionSupported && projection.mode === 'engineering' &&
+      (!session.outcome || projectionSessionId !== session.outcome.sessionId)) {
+    const copy = locale === 'pt-BR'
+      ? { waiting: 'Abrindo sessão Runtime…', ended: 'A sessão Runtime desta janela não está ativa.', retry: 'Abrir sessão Runtime' }
+      : locale === 'es'
+        ? { waiting: 'Abriendo sesión Runtime…', ended: 'La sesión Runtime de esta ventana no está activa.', retry: 'Abrir sesión Runtime' }
+        : { waiting: 'Opening Runtime session…', ended: 'This window’s Runtime session is not active.', retry: 'Open Runtime session' };
+    return <main className="shell" data-testid="runtime-session-required">
+      <section className="runtime-visual-diagnostic" role={session.error ? 'alert' : 'status'}>
+        <strong>{session.error ? text.runtimeUnavailable : session.busy ? copy.waiting : copy.ended}</strong>
+        {session.error ? <span>{session.error}</span> : null}
+        <button type="button" disabled={session.busy !== null}
+          onClick={() => void session.ensure(session.lastRequestedClass ?? requestedSessionClass, locale)}>{copy.retry}</button>
       </section>
     </main>;
   }

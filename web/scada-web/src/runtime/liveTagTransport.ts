@@ -1,3 +1,5 @@
+import { getActiveRuntimeSession } from './runtimeSessionAdmissionApi';
+
 export type RuntimeTagCurrentValue = Readonly<{
   tagId: string;
   value: unknown;
@@ -36,9 +38,10 @@ export type RuntimeTagRealtimeMessage = Readonly<{
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export async function loadReadableRuntimeTags(signal?: AbortSignal): Promise<readonly RuntimeTagSnapshot[]> {
+  const session = getActiveRuntimeSession();
   const response = await fetch(`${API}/api/tags`, {
     credentials: 'same-origin',
-    headers: { accept: 'application/json' },
+    headers: { accept: 'application/json', ...(session?.headers ?? {}) },
     signal
   });
   if (!response.ok) throw new Error(`Runtime TAG request failed with HTTP ${response.status}.`);
@@ -50,10 +53,15 @@ export async function loadReadableRuntimeTags(signal?: AbortSignal): Promise<rea
 }
 
 export function openRuntimeTagSocket(): WebSocket {
-  const url = API
+  const url = new URL(API
     ? `${API.replace(/^http/i, 'ws')}/ws/tags`
-    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/tags`;
-  return new WebSocket(url);
+    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/tags`);
+  const session = getActiveRuntimeSession();
+  if (session) {
+    url.searchParams.set('runtimeSessionId', session.sessionId);
+    url.searchParams.set('clientInstanceId', session.clientInstanceId);
+  }
+  return new WebSocket(url.toString());
 }
 
 export function parseRuntimeTagRealtimeMessage(data: unknown): RuntimeTagRealtimeMessage | null {

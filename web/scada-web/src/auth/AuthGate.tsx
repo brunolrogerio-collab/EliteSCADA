@@ -40,6 +40,7 @@ export type AuthProfile = {
 
 type AuthContextValue = {
   profile: AuthProfile | null;
+  authenticationEnabled: boolean;
   canSwitchUser: boolean;
   switchUser: () => Promise<void>;
   logout: () => Promise<void>;
@@ -49,6 +50,7 @@ type RecoveryMode = 'bootstrap' | 'application' | null;
 
 const AuthContext = createContext<AuthContextValue>({
   profile: null,
+  authenticationEnabled: true,
   canSwitchUser: false,
   switchUser: async () => undefined,
   logout: async () => undefined
@@ -515,10 +517,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const canSwitchUser = Boolean(configuration?.localLoginEnabled && profile?.identityProvider === 'local');
   const authContextValue = useMemo<AuthContextValue>(() => ({
     profile,
+    authenticationEnabled: configuration?.authenticationEnabled ?? true,
     canSwitchUser,
     switchUser,
     logout
-  }), [canSwitchUser, logout, profile, switchUser]);
+  }), [canSwitchUser, configuration?.authenticationEnabled, logout, profile, switchUser]);
 
   if (checking || checkingProject) {
     return <div className="auth-page"><div className="auth-card auth-loading"><img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO"/><strong>{t.title}</strong></div></div>;

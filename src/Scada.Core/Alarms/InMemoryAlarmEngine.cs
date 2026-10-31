@@ -94,7 +94,8 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
             if (activeOnly)
                 values = values.Where(x =>
                     x.State is AlarmState.Active or AlarmState.Acknowledged ||
-                    (x.State == AlarmState.Returned && x.AcknowledgedAt is null));
+                    (x.State == AlarmState.Returned && x.AcknowledgedAt is null &&
+                     _definitions.TryGetValue(x.DefinitionId, out var definition) && definition.RequiresAcknowledgement));
             return values.OrderByDescending(x => x.Priority).ThenByDescending(x => x.LastTransition).ToArray();
         }
     }

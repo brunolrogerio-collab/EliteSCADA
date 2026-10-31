@@ -4,7 +4,7 @@
 
 Configure uma tela por janela e organize cada janela no desktop estendido.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-781: https://github.com/brunolrogerio-collab/EliteSCADA/issues/781; topic=runtime.station-multimonitor; fields=station.name,station.screen,station.mode,station.windows; status=WAITING_PREVIEW_ACCEPTANCE_AND_REAL_SCREENSHOTS -->
+<!-- HELP-REVIEW-AFTER-PRODUCT-781: https://github.com/brunolrogerio-collab/EliteSCADA/issues/781; topic=runtime.station-multimonitor; fields=station.name,station.screen,station.mode,station.windows; status=WAITING_PREVIEW_ACCEPTANCE -->
 
 ### O que uma estação organiza
 
@@ -44,5 +44,17 @@ Uma janela fixa solicita uma sessão de Visualização; uma janela de navegaçã
 Para encerrar a sessão e liberar uma vaga, abra o menu da conta em cada janela e escolha Encerrar sessão antes de fechá-la. Fechar a janela ou perder um monitor não avisa ao servidor que a conexão terminou. Se a janela fechar inesperadamente, a licença pode continuar contando essa conexão até a sessão expirar automaticamente. Para voltar, inicie a estação novamente e organize as janelas nos monitores; o produto não restaura as posições anteriores.
 
 Se o seletor de estação não aparecer, confira se o cabeçalho está habilitado, se o Runtime não está em tela cheia e se a revisão em uso contém o perfil. Se uma janela abrir na tela errada, confira a tela selecionada naquela linha e ative a revisão atualizada. Se uma janela fixa não mudar de tela, ela está funcionando como foi configurada. Se o acesso interativo for limitado ou recusado, confira quantas conexões da licença estão em uso e as permissões da conta.
+
+#### Exemplo visual
+
+As capturas mostram a interface real em português durante um teste automatizado. O nome da aplicação e “Demo Overview” são dados de demonstração; no seu projeto, escolha a tela adequada em cada janela.
+
+**Antes de validar**
+
+![Perfil de quatro janelas preenchido, antes da validação](../assets/runtime-station-profile-before-validation.png)
+
+**Depois de clicar em Validar**
+
+![Perfil de quatro janelas com a configuração válida](../assets/runtime-station-profile-validated.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=runtime.station-multimonitor)

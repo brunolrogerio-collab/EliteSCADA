@@ -4,7 +4,7 @@
 
 Elija una pantalla por ventana y organícelas en el escritorio extendido.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-781: https://github.com/brunolrogerio-collab/EliteSCADA/issues/781; topic=runtime.station-multimonitor; fields=station.name,station.screen,station.mode,station.windows; status=WAITING_PREVIEW_ACCEPTANCE_AND_REAL_SCREENSHOTS -->
+<!-- HELP-REVIEW-AFTER-PRODUCT-781: https://github.com/brunolrogerio-collab/EliteSCADA/issues/781; topic=runtime.station-multimonitor; fields=station.name,station.screen,station.mode,station.windows; status=WAITING_PREVIEW_ACCEPTANCE -->
 
 ### Qué organiza una estación
 
@@ -44,5 +44,17 @@ Una ventana fija solicita acceso de Solo visualización; una ventana de navegaci
 Para finalizar la sesión y liberar una conexión de licencia, abra el menú de cuenta en cada ventana y elija Finalizar sesión antes de cerrarla. Cerrar la ventana o perder un monitor no avisa al servidor que la conexión terminó. Si la ventana se cierra inesperadamente, la licencia puede seguir contando esa conexión hasta que la sesión expire automáticamente. Para volver, inicie la estación otra vez y distribuya las ventanas en los monitores; el producto no restaura las posiciones anteriores.
 
 Si no aparece el selector de estación, compruebe que el encabezado esté habilitado, que Runtime no esté a pantalla completa y que la revisión en uso incluya el perfil. Si una ventana aparece en la pantalla equivocada, revise la pantalla seleccionada en esa fila y active la revisión actualizada. Si una ventana fija no cambia de pantalla, funciona según la configuración. Si el acceso Interactivo se limita o se rechaza, compruebe cuántas conexiones de licencia están en uso y los permisos de la cuenta.
+
+#### Ejemplo visual
+
+Las capturas muestran la interfaz real en portugués durante una prueba automatizada. El nombre de la aplicación y “Demo Overview” son datos de demostración; en su proyecto, elija la pantalla adecuada para cada ventana.
+
+**Antes de validar**
+
+![Perfil de cuatro ventanas rellenado, antes de validar](../assets/runtime-station-profile-before-validation.png)
+
+**Después de seleccionar Validar**
+
+![Perfil de cuatro ventanas con la configuración válida](../assets/runtime-station-profile-validated.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=runtime.station-multimonitor)

@@ -1,15 +1,15 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
+import { admitViewOnlyRuntimeSession, E2E_RUNTIME_VIEW_ONLY_CLIENT_INSTANCE_ID, terminateRuntimeSession } from './runtimeSessionLease';
 import { createE2eJwt } from './jwt';
 
 // Real API + PostgreSQL + Runtime activation. No page.route or mocked Active package.
 test('persisted Active media and PDF identities survive draft changes and render in Runtime', async ({ page, request }) => {
   test.setTimeout(90_000);
-  let runtimeHeaders = await admitInteractiveRuntimeSession(request);
+  let runtimeHeaders = await admitViewOnlyRuntimeSession(request);
   const runtimeGet = async (url: string) => {
     // Activation invalidates the previous revision-bound lease by design.
-    runtimeHeaders = await admitInteractiveRuntimeSession(request);
+    runtimeHeaders = await admitViewOnlyRuntimeSession(request);
     return request.get(url, { headers: runtimeHeaders });
   };
   const original = await (await request.get('/api/engineering/export/json')).json();
@@ -65,8 +65,11 @@ test('persisted Active media and PDF identities survive draft changes and render
     expect(projection.revision).toBe(revision);
     expect(projection.package.screens[0].elements.map((item: any) => item.type)).toEqual(['core.pdfViewer', 'core.videoPlayer']);
 
+    await page.addInitScript(clientInstanceId => {
+      window.sessionStorage.setItem('elitescada.runtime.client-instance-id', clientInstanceId);
+    }, E2E_RUNTIME_VIEW_ONLY_CLIENT_INSTANCE_ID);
     await page.context().setExtraHTTPHeaders({ Authorization: `Bearer ${createE2eJwt('e2e-developer', ['developer'], 'E2E Developer')}`, ...runtimeHeaders });
-    await page.goto('/');
+    await page.goto('/?stationMode=fixed');
     await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
     const frame = page.locator('iframe[title="persisted-pdf"]');
     await expect(frame).toBeVisible();
@@ -82,7 +85,7 @@ test('persisted Active media and PDF identities survive draft changes and render
     await request.delete(`/api/engineering/media-sources/${sourceId}`, { headers: await version(request) });
     if (assetId) await request.delete(`/api/engineering/visual-assets/${assetId}`, { headers: await version(request) });
     await activate(request, projectKey);
-    await terminateRuntimeSession(request, await admitInteractiveRuntimeSession(request));
+    await terminateRuntimeSession(request, await admitViewOnlyRuntimeSession(request));
   }
 });
 

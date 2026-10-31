@@ -176,6 +176,58 @@ public sealed class EngineeringRuntimeCoordinatorTests
     }
 
     [Fact]
+    public async Task ActivateAsync_PassesAcknowledgementExemptionThroughEngineeringIntoRuntime()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[10] = 123;
+        server.Start();
+
+        var tagId = Guid.NewGuid();
+        var alarmId = Guid.NewGuid();
+        var package = CreatePackage(
+            server.Port,
+            tagId,
+            alarmId,
+            "holding:10",
+            requiresAcknowledgement: false);
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+
+        var result = await runtime.ActivateAsync("plant-a", 1, package);
+
+        Assert.True(result.Activated);
+        Assert.False(Assert.Single(runtime.AlarmDefinitions()).RequiresAcknowledgement);
+        await WaitForAsync(
+            () => runtime.Alarms(activeOnly: true).Any(x =>
+                x.DefinitionId == alarmId && x.State == AlarmState.Active),
+            TimeSpan.FromSeconds(2));
+
+        server.HoldingRegisters[10] = 99;
+        await WaitForAsync(
+            () => runtime.Alarms().Any(x =>
+                x.DefinitionId == alarmId && x.State == AlarmState.Returned),
+            TimeSpan.FromSeconds(2));
+
+        var returned = Assert.Single(runtime.Alarms());
+        Assert.Equal(AlarmState.Returned, returned.State);
+        Assert.Null(returned.AcknowledgedAt);
+        Assert.Empty(runtime.Alarms(activeOnly: true));
+
+        server.HoldingRegisters[10] = 123;
+        await WaitForAsync(
+            () => runtime.Alarms(activeOnly: true).Any(x =>
+                x.DefinitionId == alarmId && x.State == AlarmState.Active),
+            TimeSpan.FromSeconds(2));
+
+        var reactivated = Assert.Single(runtime.Alarms(activeOnly: true));
+        Assert.Equal(AlarmState.Active, reactivated.State);
+        Assert.Null(reactivated.AcknowledgedAt);
+        Assert.Null(reactivated.AcknowledgedBy);
+    }
+
+    [Fact]
     public async Task ActivateAsync_DriverPollingOutlivesActivationRequestCancellation()
     {
         await using var server = new TestModbusTcpServer();
@@ -377,7 +429,8 @@ public sealed class EngineeringRuntimeCoordinatorTests
         Guid tagId,
         Guid alarmId,
         string address,
-        bool readOnly = true)
+        bool readOnly = true,
+        bool requiresAcknowledgement = true)
     {
         var tag = new TagEngineeringDto(
             tagId,
@@ -397,7 +450,8 @@ public sealed class EngineeringRuntimeCoordinatorTests
             AlarmPriority.High,
             Setpoint: 100,
             Area: "Plant",
-            Message: "Setpoint above 100");
+            Message: "Setpoint above 100",
+            RequiresAcknowledgement: requiresAcknowledgement);
 
         var dataSource = new DataSourceEngineeringDto(
             null,

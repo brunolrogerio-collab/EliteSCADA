@@ -4,10 +4,6 @@
 
 Configure um aviso para uma condição conhecida e teste o que o operador verá. O exemplo usa pressão alta sem comandar equipamento.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-751: https://github.com/brunolrogerio-collab/EliteSCADA/issues/751; topic=alarms.configuration; fields=alarm.activationDelayMilliseconds; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
-<!-- HELP-REVIEW-AFTER-PRODUCT-753: https://github.com/brunolrogerio-collab/EliteSCADA/issues/753; topic=alarms.configuration; fields=alarm.requiresAcknowledgement; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Antes de começar
 
 Comece por uma condição simples: avisar quando a pressão chegar ao limite alto. Em Engenharia > Alarmes, use um TAG de teste cujo valor, tipo, escala e unidade você já conferiu. Um TAG é a variável que fornece a leitura.
@@ -35,6 +31,7 @@ Neste teste, 10 bar é apenas um valor didático. ACK significa reconhecimento: 
 5. Com qualidade Good, envie 9: a condição fica Normal. Envie 10: fica Active. A igualdade também ativa.
 6. Reconheça no Runtime mantendo 10 no TAG: o estado fica Acknowledged, mas a pressão não mudou. Envie 9: fica Returned e sai da lista ativa porque já teve ACK.
 7. Repita a ativação com 10 e volte a 9 sem reconhecer: Returned continua pendente. Reconheça e confira a saída da lista ativa. Consulte o histórico para ver as transições anteriores.
+8. Para testar a opção desmarcada, publique uma revisão com Requer reconhecimento desativado. Ative com 10 e volte a 9: o estado continua Returned, sem ACK, mas sai da lista ativa. A visão completa continua mostrando Returned; se o TAG voltar a 10, uma nova ativação aparece como Active.
 
 ### Identificação e condição
 
@@ -54,27 +51,25 @@ Selecione Novo alarme ou uma definição existente. O caminho identifica qual si
 
 ### Comportamento e som
 
-Expanda Comportamento do alarme. O atraso começa quando a condição é observada e só ativa o alarme depois do intervalo configurado. O campo Requer reconhecimento ainda tem a limitação indicada junto a ele.
+Expanda Comportamento do alarme. O atraso começa quando a condição é observada e só ativa o alarme depois do intervalo configurado. Requer reconhecimento define se um retorno sem ACK continua na lista ativa: marcado mantém a pendência; desmarcado remove o retorno dessa lista sem registrar um ACK artificial.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
 | Habilitado | Inclui a definição na avaliação quando a revisão for ativada. Desabilitar não corrige o sinal nem a causa física. | Marcado |  |
 | Atraso de ativação (ms) | Depois que a condição fica ativa, o Runtime espera este intervalo antes de ativar o alarme. Se a condição voltar ao normal ou a qualidade ficar diferente de Good antes do fim, a contagem é cancelada. Para alarmes de comunicação, qualidade diferente de Good é a condição ativa. | 1000 ms = 1 s | Campo inteiro não negativo; 0 ou vazio ativa imediatamente. A contagem pendente recomeça após reinício do Runtime. |
-| Requer reconhecimento | Indica a intenção de exigir ACK do operador. Limitação atual: desmarcar não elimina a pendência de reconhecimento no Runtime, inclusive após retorno. | Marcado |  |
+| Requer reconhecimento | Define se o retorno exige ACK para sair da lista ativa. Marcado, Returned sem ACK continua pendente. Desmarcado, o retorno sai da lista sem criar ACK; a visão completa ainda mostra Returned. Nova ativação volta a Active. | Marcado |  |
 | Permitir shelving | Autoriza que esta definição possa ser colocada em estado suprimido pela operação disponível. A ação ainda exige permissão AlarmShelve. O Alarm Center descrito aqui não oferece botão de shelving. | Conforme procedimento da planta | Não é Silenciar sons; não se promete expiração automática. |
 | Perfil sonoro / prévia | Escolha nenhum, pulso curto, duplo, triplo, ascendente ou alternado e teste a prévia. No Runtime, o operador precisa ativar sons no navegador. Volume, saída de áudio e permissão do navegador influenciam a reprodução. | double | Silenciar no navegador não reconhece o alarme. |
 
 ### Se o resultado não for o esperado
 
-Confira TAG/revisão ativa, escala/unidade, sinal booleano, habilitação e qualidade. Alta prioridade não força ativação. Uma condição que volta ao normal antes do fim cancela a contagem; isso não cria histerese para um limite que oscila. Alarmes de comunicação consideram qualidade diferente de Good como condição ativa. A opção Requer reconhecimento ainda tem a limitação indicada no campo. Preview valida o candidato; não comprova leitura de campo. Caso o projeto mude durante a edição, recarregue e valide de novo em vez de aplicar um candidato antigo.
+Confira TAG/revisão ativa, escala/unidade, sinal booleano, habilitação e qualidade. Alta prioridade não força ativação. Uma condição que volta ao normal antes do fim cancela a contagem; isso não cria histerese para um limite que oscila. Alarmes de comunicação consideram qualidade diferente de Good como condição ativa. Com Requer reconhecimento marcado, Returned sem ACK continua na lista ativa; desmarcado, sai sem gerar ACK artificial. Preview valida o candidato; não comprova leitura de campo. Caso o projeto mude durante a edição, recarregue e valide de novo em vez de aplicar um candidato antigo.
 
 [Abrir este guia na Ajuda instalada](/help?topic=alarms.configuration)
 
 ## Alarmes no Runtime: estados, reconhecimento e sons
 
 Leia a condição atual, reconheça com segurança e diferencie silêncio, retorno e histórico.
-
-<!-- HELP-REVIEW-AFTER-PRODUCT-753-RUNTIME: https://github.com/brunolrogerio-collab/EliteSCADA/issues/753; topic=alarms.runtime-operation; fields=alarmState.returned; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
 
 ### Onde olhar e como interpretar
 
@@ -86,14 +81,14 @@ Selecione uma linha e confira equipamento, mensagem, prioridade, área, valor e 
 
 ACK é a confirmação de que o operador tomou ciência do alarme. Ela é separada da condição física. Por isso, um alarme pode já estar reconhecido e continuar ativo.
 
-A lista ativa inclui Active, Acknowledged e Returned ainda sem ACK. Ela pode ficar vazia depois de resolver e reconhecer os itens, embora as transições anteriores continuem no histórico. A tabela explica os estados que aparecem nos detalhes.
+A lista ativa inclui Active e Acknowledged. Returned sem ACK também fica nela quando Requer reconhecimento está marcado. Com a opção desmarcada, o retorno sai da lista sem receber ACK; a visão completa ainda mostra o estado Returned. A tabela explica os estados que aparecem nos detalhes.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
 | Normal | Condição não ativa no momento; um ciclo anterior pode existir no histórico. | 9 < 10 |  |
 | Active | Condição presente e ainda sem reconhecimento desse ciclo. | 10 ≥ 10 |  |
 | Acknowledged | ACK registrado, mas a condição continua presente. Não significa que a causa foi resolvida. | ACK com pressão ainda em 10 |  |
-| Returned | Condição deixou de estar ativa. Se ainda não houve ACK, permanece pendente na lista ativa. Depois de ACK, sai dessa lista. | 10 → 9 |  |
+| Returned | A condição deixou de estar ativa. Sem ACK, continua na lista ativa apenas quando Requer reconhecimento está marcado. Com a opção desmarcada, sai da lista e permanece Returned na visão completa. | 10 → 9 |  |
 | Disabled | Definição desabilitada para avaliação. Não indica equipamento saudável. | Habilitado desmarcado |  |
 | Shelved | Notificação suprimida pela operação de shelving. O valor e o estado subjacente continuam sendo acompanhados; ao retirar a supressão, reaparece o estado subjacente atual. | Manutenção controlada | A central atual não oferece botão para essa ação. |
 
@@ -107,7 +102,7 @@ A lista ativa inclui Active, Acknowledged e Returned ainda sem ACK. Ela pode fic
 
 ### Sons, silêncio e indisponibilidade
 
-Para ouvir avisos, use Ativar sons de alarmes nesta sessão do navegador. Confira suporte, volume e saída de áudio. Os perfis repetem enquanto houver alarme pendente, inclusive Returned sem ACK.
+Para ouvir avisos, use Ativar sons de alarmes nesta sessão do navegador. Confira suporte, volume e saída de áudio. Os perfis repetem enquanto houver alarme pendente; Returned sem ACK só permanece pendente quando Requer reconhecimento está marcado.
 
 Silenciar sons é local: não reconhece, desabilita ou coloca em shelving. Shelving é a supressão da notificação. Reconhecer também não envia comando ao processo. São efeitos diferentes.
 

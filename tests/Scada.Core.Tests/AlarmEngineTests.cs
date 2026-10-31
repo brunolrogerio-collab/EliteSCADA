@@ -18,6 +18,7 @@ public sealed class AlarmEngineTests
         using var alarms = new InMemoryAlarmEngine(bus);
         var tag = TagDefinition.Create("Pressure", "Demo.Pressure", TagDataType.Double);
         var definition = alarms.Register(AlarmDefinition.Create("High Pressure", tag.Id, AlarmType.High, AlarmPriority.High, 10));
+        Assert.True(definition.RequiresAcknowledgement);
 
         await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 11.2));
         Assert.Equal(AlarmState.Active, alarms.Snapshot().Single().State);
@@ -277,6 +278,7 @@ public sealed class AlarmEngineTests
         using var alarms = new InMemoryAlarmEngine(bus);
         var tag = TagDefinition.Create("Pressure", "Demo.Pressure", TagDataType.Double);
         var definition = alarms.Register(AlarmDefinition.Create("High Pressure", tag.Id, AlarmType.High, AlarmPriority.High, 10));
+        Assert.True(definition.RequiresAcknowledgement);
 
         await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 11.2));
         await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 8.0));
@@ -295,6 +297,83 @@ public sealed class AlarmEngineTests
         var nextActivationReturned = Assert.Single(alarms.Snapshot(activeOnly: true));
         Assert.Equal(AlarmState.Returned, nextActivationReturned.State);
         Assert.Null(nextActivationReturned.AcknowledgedAt);
+    }
+
+    [Fact]
+    public async Task Returned_alarm_without_acknowledgement_requirement_leaves_active_list_and_reactivation_starts_new_cycle()
+    {
+        IScadaEventBus bus = new InMemoryScadaEventBus();
+        var cache = new CurrentTagCache(bus);
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var tag = TagDefinition.Create("Pressure", "Demo.Pressure", TagDataType.Double);
+        var definition = alarms.Register(AlarmDefinition.Create(
+            "High Pressure", tag.Id, AlarmType.High, AlarmPriority.High, 10,
+            requiresAcknowledgement: false));
+
+        Assert.False(definition.RequiresAcknowledgement);
+
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 11));
+        Assert.Equal(AlarmState.Active, Assert.Single(alarms.Snapshot(activeOnly: true)).State);
+
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 9));
+        var returnedWithoutAck = Assert.Single(alarms.Snapshot());
+        Assert.Equal(AlarmState.Returned, returnedWithoutAck.State);
+        Assert.Null(returnedWithoutAck.AcknowledgedAt);
+        Assert.Empty(alarms.Snapshot(activeOnly: true));
+
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 11));
+        var reactivated = Assert.Single(alarms.Snapshot(activeOnly: true));
+        Assert.Equal(AlarmState.Active, reactivated.State);
+        Assert.Null(reactivated.AcknowledgedAt);
+        Assert.Null(reactivated.AcknowledgedBy);
+
+        Assert.True(await alarms.AcknowledgeAsync(definition.Id, "operator"));
+        Assert.Equal(AlarmState.Acknowledged, Assert.Single(alarms.Snapshot(activeOnly: true)).State);
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 9));
+        var acknowledgedReturn = Assert.Single(alarms.Snapshot());
+        Assert.Equal(AlarmState.Returned, acknowledgedReturn.State);
+        Assert.Equal("operator", acknowledgedReturn.AcknowledgedBy);
+        Assert.Empty(alarms.Snapshot(activeOnly: true));
+
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 11));
+        var newActivation = Assert.Single(alarms.Snapshot(activeOnly: true));
+        Assert.Equal(AlarmState.Active, newActivation.State);
+        Assert.Null(newActivation.AcknowledgedAt);
+        Assert.Null(newActivation.AcknowledgedBy);
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 9));
+
+        var unacknowledgedReturn = Assert.Single(alarms.Snapshot());
+        Assert.Equal(AlarmState.Returned, unacknowledgedReturn.State);
+        Assert.Null(unacknowledgedReturn.AcknowledgedAt);
+        Assert.Empty(alarms.Snapshot(activeOnly: true));
+        Assert.True(await alarms.AcknowledgeAsync(definition.Id, "operator-2"));
+        Assert.Equal("operator-2", Assert.Single(alarms.Snapshot()).AcknowledgedBy);
+        Assert.Empty(alarms.Snapshot(activeOnly: true));
+    }
+
+    [Fact]
+    public async Task Shelved_return_without_acknowledgement_requirement_stays_out_of_active_list_after_unshelving()
+    {
+        IScadaEventBus bus = new InMemoryScadaEventBus();
+        var cache = new CurrentTagCache(bus);
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var tag = TagDefinition.Create("Pressure", "Demo.Pressure", TagDataType.Double);
+        var definition = alarms.Register(AlarmDefinition.Create(
+            "High Pressure", tag.Id, AlarmType.High, AlarmPriority.High, 10,
+            requiresAcknowledgement: false));
+
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 11));
+        Assert.True(await alarms.ShelveAsync(definition.Id, "operator"));
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 9));
+
+        Assert.Equal(AlarmState.Shelved, Assert.Single(alarms.Snapshot()).State);
+        Assert.Empty(alarms.Snapshot(activeOnly: true));
+        Assert.True(await alarms.UnshelveAsync(definition.Id, "operator"));
+
+        var returned = Assert.Single(alarms.Snapshot());
+        Assert.Equal(AlarmState.Returned, returned.State);
+        Assert.Null(returned.AcknowledgedAt);
+        Assert.Empty(alarms.Snapshot(activeOnly: true));
     }
 
     [Fact]

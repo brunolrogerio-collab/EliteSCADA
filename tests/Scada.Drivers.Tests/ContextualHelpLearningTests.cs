@@ -143,6 +143,33 @@ public sealed class ContextualHelpLearningTests
     }
 
     [Theory]
+    [InlineData("pt-BR", "desmarcado", "lista ativa", "visão completa")]
+    [InlineData("en", "unchecked", "active list", "full view")]
+    [InlineData("es", "desmarcado", "lista activa", "vista completa")]
+    public void PublishedAlarmHelpExplainsAcknowledgementExemptionAndReturnedVisibility(
+        string locale,
+        string uncheckedLabel,
+        string activeListLabel,
+        string fullViewLabel)
+    {
+        var catalog = ContextualHelpCatalog.Build(locale);
+        var configuration = catalog.Topics.Single(topic => topic.Id == "alarms.configuration");
+        var acknowledgementField = Assert.Single(configuration.Sections
+            .SelectMany(section => section.Fields ?? []), field => field.Key == "alarm.requiresAcknowledgement");
+        Assert.Contains(uncheckedLabel, acknowledgementField.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(activeListLabel, acknowledgementField.Description, StringComparison.OrdinalIgnoreCase);
+
+        var runtime = catalog.Topics.Single(topic => topic.Id == "alarms.runtime-operation");
+        var runtimeText = string.Join("\n", runtime.Sections.Select(section => section.Body));
+        var returnedField = Assert.Single(runtime.Sections.SelectMany(section => section.Fields ?? []),
+            field => field.Key == "alarmState.returned");
+        Assert.Contains(activeListLabel, runtimeText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(fullViewLabel, runtimeText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(activeListLabel, returnedField.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(fullViewLabel, returnedField.Description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
     [InlineData("pt-BR")]
     [InlineData("en")]
     [InlineData("es")]

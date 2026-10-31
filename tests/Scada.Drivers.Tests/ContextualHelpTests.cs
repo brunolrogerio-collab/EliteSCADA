@@ -278,15 +278,27 @@ public sealed class ContextualHelpTests
             Assert.Contains("System", alarmText, StringComparison.Ordinal);
             Assert.Contains(locale switch
             {
-                "en" => "current Runtime does not use it",
-                "es" => "Runtime actual no lo usa",
-                _ => "Runtime atual não o usa"
+                "en" => "Runtime applies the configured activation delay",
+                "es" => "Runtime aplica el retardo de activación configurado",
+                _ => "Runtime aplica o atraso de ativação configurado"
             }, alarmText, StringComparison.Ordinal);
             Assert.Contains(locale switch
             {
-                "en" => "Clearing Requires acknowledgement also does not yet remove the ACK requirement",
-                "es" => "Desmarcar Requiere reconocimiento tampoco elimina todavía el requisito de ACK",
-                _ => "Desmarcar Requer reconhecimento também ainda não dispensa o ACK"
+                "en" => "returning to normal cancels the timer",
+                "es" => "volver a la normalidad cancela la cuenta",
+                _ => "voltar ao normal cancela a contagem"
+            }, alarmText, StringComparison.Ordinal);
+            Assert.DoesNotContain(locale switch
+            {
+                "en" => "current Runtime does not use it to delay the alarm",
+                "es" => "Runtime actual no lo usa para retrasar la alarma",
+                _ => "o Runtime atual não o usa para atrasar o alarme"
+            }, alarmText, StringComparison.Ordinal);
+            Assert.Contains(locale switch
+            {
+                "en" => "clearing the option does not remove the ACK requirement",
+                "es" => "desmarcar la opción no elimina el requisito de ACK",
+                _ => "desmarcar a opção não dispensa o ACK"
             }, alarmText, StringComparison.Ordinal);
             Assert.Contains("emit_operational_event", eventText, StringComparison.Ordinal);
             Assert.Contains("operational.events", eventText, StringComparison.Ordinal);

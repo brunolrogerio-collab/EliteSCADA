@@ -528,12 +528,12 @@ test('alarm and operational event guides teach fields, state paths and emission 
   await expect(article.getByRole('rowheader', { name: 'Setpoint (limite)', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('help-alarm-progressive-desktop.png'), fullPage: true });
   await expect(article).toContainText('A igualdade também ativa');
-  await expect(article).toContainText('não retarda a ativação');
+  await expect(article).toContainText('O atraso começa quando a condição é observada');
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
-  await expect(article).toContainText('does not delay Runtime activation');
+  await expect(article).toContainText('The delay starts when the condition is observed');
   await expect(article).toContainText('Send 10: it becomes Active');
   await page.getByLabel('Language', { exact: true }).selectOption('es');
-  await expect(article).toContainText('no retrasa la activación');
+  await expect(article).toContainText('El retardo comienza cuando se observa la condición');
   await expect(article).toContainText('La igualdad también activa');
   await page.getByLabel('Idioma', { exact: true }).selectOption('pt-BR');
   await page.goto('/help?topic=operational-events.configuration');

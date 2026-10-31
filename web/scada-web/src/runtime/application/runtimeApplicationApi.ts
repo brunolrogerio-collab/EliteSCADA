@@ -12,6 +12,7 @@ import type {
   ScriptEngineeringDefinition,
   ScriptVisualEventReference
 } from '../../engineering/scripts/scriptEngineeringTypes';
+import { getActiveRuntimeSession } from '../runtimeSessionAdmissionApi';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
@@ -62,9 +63,10 @@ export async function loadRuntimeApplicationProjection(
   signal?: AbortSignal
 ): Promise<RuntimeApplicationProjection> {
   let response: Response;
+  const session = getActiveRuntimeSession();
   try {
     response = await fetch(`${API}/api/runtime/application`, {
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', ...(session?.headers ?? {}) },
       signal
     });
   } catch (reason) {

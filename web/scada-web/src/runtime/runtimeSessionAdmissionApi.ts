@@ -47,6 +47,16 @@ export type RuntimeSessionAdmissionOutcome = {
   capacityReasonCode: string | null;
 };
 
+let activeRuntimeSession: RuntimeSessionAdmissionOutcome | null = null;
+
+export function getActiveRuntimeSession(): RuntimeSessionAdmissionOutcome | null {
+  return activeRuntimeSession;
+}
+
+export function setActiveRuntimeSession(outcome: RuntimeSessionAdmissionOutcome | null): void {
+  activeRuntimeSession = outcome;
+}
+
 type RuntimeSessionAdmission = {
   sessionId?: unknown;
   clientInstanceId?: unknown;
@@ -106,6 +116,18 @@ export async function admitInteractiveRuntimeSession(
   fetcher: RuntimeSessionFetch = fetch,
   clientInstanceId?: string
 ): Promise<Record<string, string>> {
+  if (activeRuntimeSession &&
+      (!clientInstanceId || clientInstanceId === activeRuntimeSession.clientInstanceId)) {
+    if (activeRuntimeSession.grantedClass !== 'interactive') {
+      throw new RuntimeSessionAdmissionError(
+        'This Runtime window is admitted as View Only. Switch this window to Interactive before issuing commands or writes.',
+        undefined,
+        activeRuntimeSession
+      );
+    }
+    return activeRuntimeSession.headers;
+  }
+
   const outcome = await admitRuntimeSession('interactive', fetcher, clientInstanceId);
   if (outcome.grantedClass && outcome.grantedClass !== 'interactive') {
     try {
@@ -190,6 +212,52 @@ export async function admitRuntimeSession(
   };
 }
 
+export async function heartbeatRuntimeSession(
+  outcome: RuntimeSessionAdmissionOutcome,
+  fetcher: RuntimeSessionFetch = fetch
+): Promise<RuntimeSessionAdmissionOutcome> {
+  let response: Response;
+  try {
+    response = await fetcher(`${API}/api/runtime/sessions/${encodeURIComponent(outcome.sessionId)}/heartbeat`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { accept: 'application/json', 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ clientInstanceId: outcome.clientInstanceId })
+    });
+  } catch (reason) {
+    throw new RuntimeSessionAdmissionError(reason instanceof Error ? reason.message : String(reason));
+  }
+
+  if (!response.ok) {
+    const body = await response.text();
+    const failure = parseAdmissionFailure(body);
+    throw new RuntimeSessionAdmissionError(
+      failure.message || `${response.status} ${response.statusText}`.trim(),
+      response.status,
+      outcome,
+      failure.capacityReasonCode
+    );
+  }
+
+  let admission: RuntimeSessionAdmission;
+  try {
+    admission = await response.json() as RuntimeSessionAdmission;
+  } catch {
+    throw new RuntimeSessionAdmissionError('Runtime session heartbeat returned an invalid response.', response.status, outcome);
+  }
+  if (admission.sessionId !== outcome.sessionId || admission.clientInstanceId !== outcome.clientInstanceId) {
+    throw new RuntimeSessionAdmissionError('Runtime session heartbeat changed the logical client identity.', response.status, outcome);
+  }
+
+  return {
+    ...outcome,
+    requestedClass: parseConnectionClass(admission.requestedClass) ?? outcome.requestedClass,
+    grantedClass: parseConnectionClass(admission.grantedClass) ?? outcome.grantedClass,
+    admissionReasonCode: stringValue(admission.admissionReasonCode) ?? outcome.admissionReasonCode,
+    capacityReasonCode: stringValue(admission.capacityReasonCode) ?? outcome.capacityReasonCode
+  };
+}
+
 /** Releases a server-owned lease when the caller deliberately cannot consume it. */
 export async function releaseRuntimeSession(
   outcome: Pick<RuntimeSessionAdmissionOutcome, 'sessionId' | 'clientInstanceId'>,
@@ -206,7 +274,10 @@ export async function releaseRuntimeSession(
   } catch (reason) {
     throw new RuntimeSessionAdmissionError(reason instanceof Error ? reason.message : String(reason));
   }
-  if (response.ok) return;
+  if (response.ok) {
+    if (activeRuntimeSession?.sessionId === outcome.sessionId) activeRuntimeSession = null;
+    return;
+  }
   const body = await response.text();
   throw new RuntimeSessionAdmissionError(body || `${response.status} ${response.statusText}`.trim(), response.status);
 }

@@ -4,7 +4,7 @@ import { AppNavigation } from './AppNavigation';
 import { appShellText, useAppShellLocale } from './appShellI18n';
 import { initializeAppTheme } from './appTheme';
 import { AuditApp } from './audit';
-import { AuthGate } from './auth/AuthGate';
+import { AuthGate, useAuth } from './auth/AuthGate';
 import {
   hasRuntimeCapability,
   resolveAppSurfaceAccess,
@@ -34,6 +34,16 @@ function RuntimeHistoricalBrowserApp() {
       <HistoricalDataBrowserRuntime locale={locale} />
     </main>
   );
+}
+
+function AuthenticatedApplication() {
+  const { authenticationEnabled } = useAuth();
+  return <RuntimeSessionClassProvider authenticationEnabled={authenticationEnabled}>
+    <>
+      <AppNavigation />
+      <ApplicationSurface />
+    </>
+  </RuntimeSessionClassProvider>;
 }
 
 function RuntimeReportsApp() {
@@ -105,11 +115,6 @@ function ApplicationSurface() {
 
 createRoot(document.getElementById('root')!).render(
   <AuthGate>
-    <RuntimeSessionClassProvider>
-      <>
-        <AppNavigation />
-        <ApplicationSurface />
-      </>
-    </RuntimeSessionClassProvider>
+    <AuthenticatedApplication />
   </AuthGate>
 );

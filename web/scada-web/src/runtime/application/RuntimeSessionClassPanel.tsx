@@ -2,7 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from 'react';
 import {
   admitRuntimeSession,
+  heartbeatRuntimeSession,
   releaseRuntimeSession,
+  setActiveRuntimeSession,
   RuntimeSessionAdmissionError,
   type RuntimeSessionAdmissionOutcome,
   type RuntimeSessionConnectionClass
@@ -78,29 +80,72 @@ const copy: Record<EngineeringLocale, Copy> = {
 };
 
 type RuntimeSessionContextValue = {
+  admissionSupported: boolean;
   outcome: RuntimeSessionAdmissionOutcome | null;
   busy: RuntimeSessionConnectionClass | 'end' | null;
   error: string | null;
   notice: string | null;
+  lastRequestedClass: RuntimeSessionConnectionClass | null;
   request: (requestedClass: RuntimeSessionConnectionClass, locale: EngineeringLocale) => Promise<void>;
+  ensure: (requestedClass: RuntimeSessionConnectionClass, locale: EngineeringLocale) => Promise<void>;
   end: (locale: EngineeringLocale) => Promise<void>;
 };
 
 const RuntimeSessionContext = createContext<RuntimeSessionContextValue | null>(null);
+const SESSION_HEARTBEAT_INTERVAL_MS = 20_000;
 
-export function RuntimeSessionClassProvider({ children }: { children: ReactNode }) {
+export function RuntimeSessionClassProvider({ children, authenticationEnabled }: { children: ReactNode; authenticationEnabled: boolean }) {
   const lease = useRef<RuntimeSessionAdmissionOutcome | null>(null);
+  const ensureInFlight = useRef<Promise<void> | null>(null);
+  const endInFlight = useRef<Promise<void> | null>(null);
+  const currentLocale = useRef<EngineeringLocale>('pt-BR');
   const [outcome, setOutcome] = useState<RuntimeSessionAdmissionOutcome | null>(null);
   const [busy, setBusy] = useState<RuntimeSessionConnectionClass | 'end' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [lastRequestedClass, setLastRequestedClass] = useState<RuntimeSessionConnectionClass | null>(null);
 
   useEffect(() => () => {
     const current = lease.current;
+    lease.current = null;
+    setActiveRuntimeSession(null);
     if (current) void releaseRuntimeSession(current);
   }, []);
 
+  useEffect(() => {
+    if (!outcome) return;
+    let disposed = false;
+    let inFlight = false;
+    const timer = window.setInterval(() => {
+      if (disposed || inFlight || !lease.current) return;
+      inFlight = true;
+      const current = lease.current;
+      void heartbeatRuntimeSession(current).then(renewed => {
+        if (disposed || lease.current?.sessionId !== current.sessionId) return;
+        lease.current = renewed;
+        setOutcome(renewed);
+        setActiveRuntimeSession(renewed);
+      }).catch(reason => {
+        if (disposed || lease.current?.sessionId !== current.sessionId) return;
+        lease.current = null;
+        setOutcome(null);
+        setActiveRuntimeSession(null);
+        const text = copy[currentLocale.current];
+        const detail = reason instanceof Error ? reason.message : String(reason);
+        setError([text.rejected, detail].filter(Boolean).join(' '));
+        setNotice(null);
+      }).finally(() => { inFlight = false; });
+    }, SESSION_HEARTBEAT_INTERVAL_MS);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [outcome?.sessionId]);
+
   const request = useCallback(async (requestedClass: RuntimeSessionConnectionClass, locale: EngineeringLocale) => {
+    if (!authenticationEnabled) return;
+    currentLocale.current = locale;
+    setLastRequestedClass(requestedClass);
     const text = copy[locale];
     setBusy(requestedClass); setError(null); setNotice(null);
     try {
@@ -108,10 +153,12 @@ export function RuntimeSessionClassProvider({ children }: { children: ReactNode 
         await releaseRuntimeSession(lease.current);
         lease.current = null;
         setOutcome(null);
+        setActiveRuntimeSession(null);
       }
       const next = await admitRuntimeSession(requestedClass);
       lease.current = next;
       setOutcome(next);
+      setActiveRuntimeSession(next);
       if (requestedClass === 'interactive' && next.grantedClass === 'viewOnly') setNotice(text.fallback);
       else if (requestedClass === 'viewOnly' && next.grantedClass === 'viewOnly') setNotice(text.viewOnlyGranted);
     } catch (reason) {
@@ -121,22 +168,72 @@ export function RuntimeSessionClassProvider({ children }: { children: ReactNode 
         setError(reason instanceof Error ? reason.message : String(reason));
       }
     } finally { setBusy(null); }
-  }, []);
+  }, [authenticationEnabled]);
+
+  const ensure = useCallback(async (requestedClass: RuntimeSessionConnectionClass, locale: EngineeringLocale) => {
+    // The server does not expose seat leases when global Authority authentication is
+    // disabled. Keep the existing anonymous/demo Runtime path intact; optional public
+    // Runtime seat policy belongs to the separate #782 contract.
+    if (!authenticationEnabled) return;
+    currentLocale.current = locale;
+    setLastRequestedClass(requestedClass);
+    if (lease.current) return;
+    if (ensureInFlight.current) return ensureInFlight.current;
+
+    const text = copy[locale];
+    const operation = (async () => {
+      setBusy(requestedClass); setError(null); setNotice(null);
+      try {
+        const next = await admitRuntimeSession(requestedClass);
+        lease.current = next;
+        setOutcome(next);
+        setActiveRuntimeSession(next);
+        if (requestedClass === 'interactive' && next.grantedClass === 'viewOnly') setNotice(text.fallback);
+        else if (requestedClass === 'viewOnly' && next.grantedClass === 'viewOnly') setNotice(text.viewOnlyGranted);
+      } catch (reason) {
+        if (reason instanceof RuntimeSessionAdmissionError) {
+          setError([text.rejected, reason.capacityReasonCode, reason.message].filter(Boolean).join(' '));
+        } else {
+          setError(reason instanceof Error ? reason.message : String(reason));
+        }
+      } finally { setBusy(null); }
+    })();
+    ensureInFlight.current = operation;
+    try { await operation; }
+    finally { if (ensureInFlight.current === operation) ensureInFlight.current = null; }
+  }, [authenticationEnabled]);
 
   const end = useCallback(async (locale: EngineeringLocale) => {
+    currentLocale.current = locale;
+    if (endInFlight.current) return endInFlight.current;
     if (!lease.current) return;
+    const current = lease.current;
     setBusy('end'); setError(null); setNotice(null);
-    try {
-      await releaseRuntimeSession(lease.current);
-      lease.current = null; setOutcome(null);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally { setBusy(null); }
+    const operation = (async () => {
+      try {
+        await releaseRuntimeSession(current);
+        if (lease.current?.sessionId === current.sessionId) {
+          lease.current = null; setOutcome(null);
+          setActiveRuntimeSession(null);
+        }
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      } finally { setBusy(null); }
+    })();
+    endInFlight.current = operation;
+    try { await operation; }
+    finally { if (endInFlight.current === operation) endInFlight.current = null; }
   }, []);
 
-  return <RuntimeSessionContext.Provider value={{ outcome, busy, error, notice, request, end }}>
+  return <RuntimeSessionContext.Provider value={{ admissionSupported: authenticationEnabled, outcome, busy, error, notice, lastRequestedClass, request, ensure, end }}>
     {children}
   </RuntimeSessionContext.Provider>;
+}
+
+export function useRuntimeSessionAdmission(): RuntimeSessionContextValue {
+  const session = useContext(RuntimeSessionContext);
+  if (!session) throw new Error('Runtime session admission requires RuntimeSessionClassProvider.');
+  return session;
 }
 
 function sessionClassLabel(value: RuntimeSessionConnectionClass | null | undefined, text: Copy) {
@@ -150,6 +247,7 @@ export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale
   const text = copy[locale];
   const session = useContext(RuntimeSessionContext);
   if (!session) throw new Error('RuntimeSessionClassPanel requires RuntimeSessionClassProvider.');
+  if (!session.admissionSupported) return null;
   const { outcome, busy, error, notice } = session;
 
   return <div className="runtime-session-class" data-testid="runtime-session-class">

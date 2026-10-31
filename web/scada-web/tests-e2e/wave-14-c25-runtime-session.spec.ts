@@ -566,7 +566,7 @@ test('Runtime session class shows requested/granted truth and explicitly ends it
 });
 
 test('Runtime renews each window lease and binds its application projection to that lease', async ({ page }) => {
-  test.setTimeout(45_000);
+  await page.clock.install();
   await installSessionContract(page, administrator);
   const sessionId = '00000000-0000-0000-0000-000000000782';
   let clientInstanceId = '';
@@ -622,8 +622,45 @@ test('Runtime renews each window lease and binds its application projection to t
   await expect.poll(() => runtimeSocketUrl).not.toBeNull();
   expect(new URL(runtimeSocketUrl!).searchParams.get('runtimeSessionId')).toBe(sessionId);
   expect(new URL(runtimeSocketUrl!).searchParams.get('clientInstanceId')).toBe(clientInstanceId);
-  await expect.poll(() => heartbeatRequests, { timeout: 25_000 }).toBe(1);
+  await page.clock.fastForward(20_000);
+  await expect.poll(() => heartbeatRequests).toBe(1);
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+});
+
+test('Runtime closes the projection after lease renewal fails and can reacquire a seat', async ({ page }) => {
+  await page.clock.install();
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  let admissions = 0;
+  let heartbeatRequests = 0;
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    admissions++;
+    const sessionId = `00000000-0000-0000-0000-${String(780 + admissions).padStart(12, '0')}`;
+    return route.fulfill({ status: 201, json: {
+      sessionId,
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    return route.fulfill({ status: 410, json: { error: 'Runtime session lease expired.' } });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.clock.fastForward(20_000);
+  await expect.poll(() => heartbeatRequests).toBe(1);
+  await expect(page.getByTestId('runtime-session-required')).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Abrir sessão Runtime' }).click();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  expect(admissions).toBe(2);
 });
 
 test('failed Runtime class replacement clears the terminated old session before showing the admission error', async ({ page }) => {

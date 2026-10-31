@@ -45,7 +45,8 @@ public sealed class TagRealtimeHub : IDisposable
         long? localAuthorityEpoch,
         CancellationToken cancellationToken,
         Guid? runtimeSessionId = null,
-        string? runtimeClientInstanceId = null)
+        string? runtimeClientInstanceId = null,
+        PublicRuntimeSessionIdentity? publicRuntimeVisitor = null)
     {
         if (Volatile.Read(ref _disposed) != 0)
         {
@@ -78,6 +79,7 @@ public sealed class TagRealtimeHub : IDisposable
             localAuthorityEpoch,
             runtimeSessionId,
             runtimeClientInstanceId,
+            publicRuntimeVisitor,
             lifetime.Token,
             SendTimeout);
         _clients[clientId] = client;
@@ -220,7 +222,30 @@ public sealed class TagRealtimeHub : IDisposable
             }
         }
 
-        if (client.EnforceAuthorization)
+        if (client.PublicRuntimeVisitor is { } publicVisitor)
+        {
+            if (!_security.IsPublicRuntimePolicyCurrent(publicVisitor, _runtime))
+            {
+                RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "public runtime policy revoked");
+                return;
+            }
+
+            try
+            {
+                if (!await _security.CanReadPublicRuntimeTagAsync(
+                        publicVisitor,
+                        _runtime,
+                        evt.Tag,
+                        _disposeCancellation.Token))
+                    return;
+            }
+            catch
+            {
+                RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "public runtime authorization unavailable");
+                return;
+            }
+        }
+        else if (client.EnforceAuthorization)
         {
             try
             {
@@ -294,6 +319,7 @@ public sealed class TagRealtimeHub : IDisposable
             long? localAuthorityEpoch,
             Guid? runtimeSessionId,
             string? runtimeClientInstanceId,
+            PublicRuntimeSessionIdentity? publicRuntimeVisitor,
             CancellationToken connectionLifetime,
             TimeSpan sendTimeout)
         {
@@ -304,6 +330,7 @@ public sealed class TagRealtimeHub : IDisposable
             LocalAuthorityEpoch = localAuthorityEpoch;
             RuntimeSessionId = runtimeSessionId;
             RuntimeClientInstanceId = runtimeClientInstanceId;
+            PublicRuntimeVisitor = publicRuntimeVisitor;
             _senderCancellation = CancellationTokenSource.CreateLinkedTokenSource(connectionLifetime);
             _sendTimeout = sendTimeout;
         }
@@ -319,6 +346,7 @@ public sealed class TagRealtimeHub : IDisposable
         public long? LocalAuthorityEpoch { get; }
         public Guid? RuntimeSessionId { get; }
         public string? RuntimeClientInstanceId { get; }
+        public PublicRuntimeSessionIdentity? PublicRuntimeVisitor { get; }
 
         public bool TryQueue(ReadOnlyMemory<byte> payload)
         {

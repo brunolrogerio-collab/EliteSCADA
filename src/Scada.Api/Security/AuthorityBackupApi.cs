@@ -52,7 +52,8 @@ public static class AuthorityBackupApi
                     new AuthorityBackupPolicyPayload(
                         policy.Version,
                         JsonSerializer.Serialize(policy.Roles),
-                        JsonSerializer.Serialize(policy.Scopes)),
+                        JsonSerializer.Serialize(policy.Scopes),
+                        JsonSerializer.Serialize(policy.PublicRuntime)),
                     request.Password);
                 await audit.RecordAsync(
                     context,
@@ -271,7 +272,7 @@ public static class AuthorityBackupApi
             if (opened.Policy is null)
                 return Results.Conflict(new { error = "AUTHORITY_POLICY_REQUIRED: v1 backups are readable but cannot restore a complete Security Authority." });
 
-            if (!TryReadPolicy(opened.Policy, out var roles, out var scopes)) return InvalidBackup();
+            if (!TryReadPolicy(opened.Policy, out var roles, out var scopes, out var publicRuntime)) return InvalidBackup();
 
             await using var installationLease = await installationGate.EnterAsync(ct);
             var status = await LocalIdentityApi.ResolveBootstrapStatusAsync(
@@ -293,7 +294,7 @@ public static class AuthorityBackupApi
 
             try
             {
-                AuthorityAttachService.ValidateTarget(new AuthorityAttachTarget(replacement, roles!, scopes!));
+                AuthorityAttachService.ValidateTarget(new AuthorityAttachTarget(replacement, roles!, scopes!, publicRuntime));
             }
             catch (InvalidDataException)
             {
@@ -306,7 +307,7 @@ public static class AuthorityBackupApi
                 try
                 {
                     await authorityAttach.AttachAsync(
-                        new AuthorityAttachTarget(replacement, roles!, scopes!),
+                        new AuthorityAttachTarget(replacement, roles!, scopes!, publicRuntime),
                         ct);
                 }
                 catch (InvalidOperationException)
@@ -320,13 +321,19 @@ public static class AuthorityBackupApi
             else
             {
                 var previousPolicy = policyStore.Snapshot();
-                var policyRestore = await policyStore.TryReplaceAsync(previousPolicy.Version, roles!, scopes!, ct);
+                var policyRestore = await policyStore.TryReplaceSnapshotAsync(
+                    previousPolicy.Version,
+                    new AuthorityPolicySnapshot(previousPolicy.Version, roles!, scopes!, publicRuntime),
+                    ct);
                 if (!policyRestore.Applied)
                     return Results.Conflict(new { error = policyRestore.Error, currentVersion = policyRestore.Snapshot.Version });
 
                 if (!await store.TryReplaceAllIfEmptyAsync(replacement, ct))
                 {
-                    await policyStore.TryReplaceAsync(policyRestore.Snapshot.Version, previousPolicy.Roles, previousPolicy.Scopes, CancellationToken.None);
+                    await policyStore.TryReplaceSnapshotAsync(
+                        policyRestore.Snapshot.Version,
+                        new AuthorityPolicySnapshot(previousPolicy.Version, previousPolicy.Roles, previousPolicy.Scopes, previousPolicy.PublicRuntime),
+                        CancellationToken.None);
                     return Results.Conflict(new
                     {
                         error = "Anonymous Authority restore is already closed because another identity initialization won the race."
@@ -505,17 +512,21 @@ public static class AuthorityBackupApi
     private static bool TryReadPolicy(
         AuthorityBackupPolicyPayload policy,
         out SecurityRoleEngineeringDto[]? roles,
-        out SecurityScopeEngineeringDto[]? scopes)
+        out SecurityScopeEngineeringDto[]? scopes,
+        out RuntimePublicAccessPolicy? publicRuntime)
     {
         roles = null;
         scopes = null;
+        publicRuntime = null;
         try
         {
             if (policy.Version < 0) return false;
             roles = JsonSerializer.Deserialize<SecurityRoleEngineeringDto[]>(policy.RolesJson);
             scopes = JsonSerializer.Deserialize<SecurityScopeEngineeringDto[]>(policy.ScopesJson);
             if (roles is null || scopes is null) return false;
-            InMemoryAuthorityPolicyStore.Validate(roles, scopes);
+            if (!string.IsNullOrWhiteSpace(policy.PublicRuntimeJson))
+                publicRuntime = JsonSerializer.Deserialize<RuntimePublicAccessPolicy>(policy.PublicRuntimeJson);
+            InMemoryAuthorityPolicyStore.Validate(roles, scopes, publicRuntime);
             return true;
         }
         catch (JsonException) { return false; }

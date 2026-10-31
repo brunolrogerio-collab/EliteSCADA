@@ -154,23 +154,58 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
         long expectedVersion,
         IReadOnlyCollection<SecurityRoleEngineeringDto> roles,
         IReadOnlyCollection<SecurityScopeEngineeringDto> scopes,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await ApplySnapshotMutationAsync(
+            expectedVersion,
+            before =>
+            {
+                var candidate = InMemoryAuthorityPolicyStore.Copy(
+                    checked(expectedVersion + 1), roles, scopes, before.PublicRuntime);
+                InMemoryAuthorityPolicyStore.Validate(candidate.Roles, candidate.Scopes, candidate.PublicRuntime);
+                return candidate;
+            },
+            (version, candidate, ct) => _policyStore.TryReplaceAsync(version, candidate.Roles, candidate.Scopes, ct),
+            cancellationToken);
+
+    public Task<AuthorityPolicyWriteResult> ApplyPublicRuntimeMutationAsync(
+        long expectedVersion,
+        Scada.Security.Authorization.RuntimePublicAccessPolicy? publicRuntime,
+        CancellationToken cancellationToken = default) =>
+        ApplySnapshotMutationAsync(
+            expectedVersion,
+            before =>
+            {
+                var candidate = InMemoryAuthorityPolicyStore.Copy(
+                    checked(expectedVersion + 1), before.Roles, before.Scopes, publicRuntime);
+                InMemoryAuthorityPolicyStore.Validate(candidate.Roles, candidate.Scopes, candidate.PublicRuntime);
+                return candidate;
+            },
+            (version, candidate, ct) => _policyStore.TryReplacePublicRuntimeAsync(version, candidate.PublicRuntime, ct),
+            cancellationToken);
+
+    private async Task<AuthorityPolicyWriteResult> ApplySnapshotMutationAsync(
+        long expectedVersion,
+        Func<AuthorityPolicySnapshot, AuthorityPolicySnapshot> createCandidate,
+        Func<long, AuthorityPolicySnapshot, CancellationToken, Task<AuthorityPolicyWriteResult>> persist,
+        CancellationToken cancellationToken)
     {
+        var before = await _replicationStore.RefreshAsync(cancellationToken);
+        if (before.Version != expectedVersion)
+            return new(false, before, "AUTHORITY_POLICY_CONCURRENCY_CONFLICT");
+        var candidate = createCandidate(before);
+
         if (!_highAvailability.Enabled)
         {
             _executionGate.InvalidateAll();
-            return await _policyStore.TryReplaceAsync(expectedVersion, roles, scopes, cancellationToken);
+            return await persist(expectedVersion, candidate, cancellationToken);
         }
 
         var readiness = await CheckAsync(cancellationToken);
         if (!readiness.Allowed)
             return new(false, _policyStore.Snapshot(), readiness.ReasonCode);
+        if (readiness.PolicyVersion != expectedVersion)
+            return new(false, await _replicationStore.RefreshAsync(cancellationToken), "AUTHORITY_POLICY_CONCURRENCY_CONFLICT");
 
-        var before = await _replicationStore.RefreshAsync(cancellationToken);
-        if (before.Version != expectedVersion)
-            return new(false, before, "AUTHORITY_POLICY_CONCURRENCY_CONFLICT");
-        var candidate = InMemoryAuthorityPolicyStore.Copy(checked(expectedVersion + 1), roles, scopes);
-        InMemoryAuthorityPolicyStore.Validate(candidate.Roles, candidate.Scopes);
         var digest = AuthorityPolicySnapshotDigest.Compute(candidate);
         var reference = await _referenceStore.ReadAsync(cancellationToken);
         if (reference is null || reference.LeaseId == Guid.Empty || _highAvailability.LocalNodeId is null)
@@ -192,14 +227,14 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
             _executionGate.InvalidateAll();
-            _logger.LogWarning(exception, "Could not durably begin Stage 1 Authority policy update; the mutation was not attempted.");
+            _logger.LogWarning(exception, "Could not durably begin Authority policy update; the mutation was not attempted.");
             return new(false, before, "AUTHORITY_POLICY_HA_REFERENCE_WRITE_FAILED");
         }
         if (!pending.Accepted || pending.Authority is null)
             return new(false, before, pending.ReasonCode.ToUpperInvariant().Replace('-', '_'));
 
         _executionGate.InvalidateAll();
-        var write = await _policyStore.TryReplaceAsync(expectedVersion, candidate.Roles, candidate.Scopes, cancellationToken);
+        var write = await persist(expectedVersion, candidate, cancellationToken);
         if (!write.Applied)
         {
             var aborted = await _referenceStore.AbortAuthorityPolicyUpdateAsync(
@@ -221,11 +256,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
             return new(false, write.Snapshot, "AUTHORITY_POLICY_HA_PERSISTED_SNAPSHOT_MISMATCH");
         }
 
-        var synchronized = await SendSnapshotToPeerAsync(
-            pending.Authority,
-            write.Snapshot,
-            digest,
-            cancellationToken);
+        var synchronized = await SendSnapshotToPeerAsync(pending.Authority, write.Snapshot, digest, cancellationToken);
         if (!synchronized)
             return new(false, write.Snapshot, "AUTHORITY_POLICY_HA_REPLICATION_PENDING");
 
@@ -242,13 +273,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            // The peer has acknowledged, but until the durable reference commit
-            // is confirmed this process must remain fenced and report an
-            // explicit pending outcome instead of leaking an HTTP 500.
-            _logger.LogError(
-                exception,
-                "Authority policy replica acknowledged, but the HA fence commit could not be persisted; version {PolicyVersion} remains pending.",
-                candidate.Version);
+            _logger.LogError(exception, "Authority policy replica acknowledged, but the HA fence commit could not be persisted; version {PolicyVersion} remains pending.", candidate.Version);
             _executionGate.InvalidateAll();
             return new(false, write.Snapshot, "AUTHORITY_POLICY_HA_COMMIT_UNCONFIRMED");
         }

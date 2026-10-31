@@ -1,9 +1,11 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Scada.Api.Persistence;
 using Scada.Api.Security;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Security;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Runtime;
@@ -81,6 +83,7 @@ public static class RuntimeEngineeringPackageApi
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
+            IAuthorityPolicyStore authorityPolicies,
             RuntimeHighAvailabilityService highAvailability,
             HighAvailabilityRuntimeCoordinator runtimeCoordinator,
             CancellationToken cancellationToken) =>
@@ -93,6 +96,15 @@ public static class RuntimeEngineeringPackageApi
             if (authorizationFailure is not null) return authorizationFailure;
 
             var before = runtime.Describe();
+            var publicVisitor = PublicRuntimeSessionSecurity.TryRead(context.User, out var visitorIdentity)
+                ? visitorIdentity
+                : null;
+            var authoritySnapshot = authorityPolicies.Snapshot();
+            var publicPolicy = authoritySnapshot.PublicRuntime;
+            if (publicVisitor is not null &&
+                (publicVisitor.PolicyVersion != authoritySnapshot.Version ||
+                 !RuntimePublicSessionApi.MatchesActiveRuntime(publicPolicy, before)))
+                return Results.Json(new { error = "PUBLIC_RUNTIME_POLICY_REVOKED" }, statusCode: StatusCodes.Status403Forbidden);
             if (!IsEngineering(before))
             {
                 return Results.Ok(new
@@ -149,7 +161,9 @@ public static class RuntimeEngineeringPackageApi
                     var root = JsonSerializer.SerializeToElement(
                         passiveApplication,
                         RuntimeHaPeerReplicationCoordinator.WireJson);
-                    var projection = ProjectHmiPackage(root);
+                    var projection = publicVisitor is null
+                        ? ProjectHmiPackage(root)
+                        : ProjectPublicHmiPackage(root, publicPolicy!);
                     var localProjectName = snapshot is not null &&
                         snapshot.ProjectKey.Equals(before.ProjectKey, StringComparison.OrdinalIgnoreCase)
                             ? snapshot.ProjectName
@@ -160,6 +174,9 @@ public static class RuntimeEngineeringPackageApi
                     {
                         return RuntimeChanged();
                     }
+
+                    if (publicVisitor is not null && !security.IsPublicRuntimePolicyCurrent(publicVisitor, runtime))
+                        return Results.Json(new { error = "PUBLIC_RUNTIME_POLICY_REVOKED" }, statusCode: StatusCodes.Status403Forbidden);
 
                     return Results.Ok(new
                     {
@@ -208,10 +225,14 @@ public static class RuntimeEngineeringPackageApi
                 var root = document.RootElement;
                 ValidateSnapshotPayload(snapshot, root);
 
-                var projection = ProjectHmiPackage(root);
+                var projection = publicVisitor is null
+                    ? ProjectHmiPackage(root)
+                    : ProjectPublicHmiPackage(root, publicPolicy!);
                 var afterProjection = runtime.Describe();
                 if (!SameRuntime(before, afterProjection))
                     return RuntimeChanged();
+                if (publicVisitor is not null && !security.IsPublicRuntimePolicyCurrent(publicVisitor, runtime))
+                    return Results.Json(new { error = "PUBLIC_RUNTIME_POLICY_REVOKED" }, statusCode: StatusCodes.Status403Forbidden);
 
                 return Results.Ok(new
                 {
@@ -238,6 +259,7 @@ public static class RuntimeEngineeringPackageApi
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
+            IAuthorityPolicyStore authorityPolicies,
             CancellationToken cancellationToken) =>
         {
             var authorizationFailure = await AuthorizeRuntimeViewAsync(
@@ -246,6 +268,15 @@ public static class RuntimeEngineeringPackageApi
                 security,
                 cancellationToken);
             if (authorizationFailure is not null) return authorizationFailure;
+
+            if (PublicRuntimeSessionSecurity.TryRead(context.User, out var publicVisitor))
+            {
+                var currentPolicy = authorityPolicies.Snapshot();
+                if (currentPolicy.Version != publicVisitor.PolicyVersion ||
+                    currentPolicy.PublicRuntime?.VisualAssetIds.Contains(id) != true ||
+                    !security.IsPublicRuntimePolicyCurrent(publicVisitor, runtime))
+                    return Results.NotFound();
+            }
 
             var before = runtime.Describe();
             if (!IsEngineering(before))
@@ -394,6 +425,319 @@ public static class RuntimeEngineeringPackageApi
         branding = OptionalObjectProperty(root, "branding"),
         runtimePresentation = OptionalObjectProperty(root, "runtimePresentation")
     };
+
+    internal static JsonObject ProjectPublicHmiPackage(JsonElement root, RuntimePublicAccessPolicy policy)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("Active Engineering package root must be an object.");
+
+        // Construct the public projection from an allowlist. Starting with a clone of the
+        // Engineering package would carry fields such as credentials, data sources, alarms,
+        // unexposed TAG catalogs, and future schema additions into an anonymous response.
+        var package = new JsonObject
+        {
+            ["schema"] = JsonValue.Create(RequiredString(root, "schema")),
+            ["schemaVersion"] = JsonValue.Create(RequiredInt32(root, "schemaVersion")),
+            ["exportedAt"] = CloneOptionalProperty(root, "exportedAt"),
+            ["startupScreenId"] = JsonValue.Create(policy.StartScreenId?.ToString("D")),
+            ["screens"] = CloneOptionalProperty(root, "screens") ?? new JsonArray(),
+            ["popups"] = CloneOptionalProperty(root, "popups") ?? new JsonArray(),
+            ["dynamos"] = CloneOptionalProperty(root, "dynamos") ?? new JsonArray(),
+            ["equipment"] = CloneOptionalProperty(root, "equipment") ?? new JsonArray(),
+            ["templates"] = CloneOptionalProperty(root, "templates") ?? new JsonArray(),
+            ["scripts"] = new JsonArray(),
+            ["scriptVisualEventReferences"] = new JsonArray(),
+            ["visualAssets"] = CloneOptionalProperty(root, "visualAssets") ?? new JsonArray(),
+            ["branding"] = CloneOptionalProperty(root, "branding"),
+            ["runtimePresentation"] = CloneOptionalProperty(root, "runtimePresentation")
+        };
+        var publicScreenIds = policy.ScreenIds.ToHashSet();
+        var publicPopupIds = policy.PopupIds.ToHashSet();
+        var publicAssetIds = policy.VisualAssetIds.ToHashSet();
+        var publicTagIds = policy.TagIds.ToHashSet();
+
+        package["screens"] = FilterByStableIds(package["screens"], publicScreenIds);
+        package["popups"] = FilterByStableIds(package["popups"], publicPopupIds);
+        package["visualAssets"] = FilterByStableIds(package["visualAssets"], publicAssetIds);
+        var publicScreenKeys = ReadPublicScreenKeys(package["screens"]);
+
+        var dependencies = new PublicRuntimeVisualDependencies();
+        CollectPublicVisualDependencies(package["screens"], dependencies);
+        CollectPublicVisualDependencies(package["popups"], dependencies);
+        package["dynamos"] = FilterByReferences(package["dynamos"], "id", dependencies.DynamoIds, "key", dependencies.DynamoKeys);
+        CollectPublicVisualDependencies(package["dynamos"], dependencies);
+        package["equipment"] = FilterByReferences(package["equipment"], "id", dependencies.EquipmentIds, "path", dependencies.EquipmentPaths);
+        CollectPublicVisualDependencies(package["equipment"], dependencies);
+        package["templates"] = FilterByReferences(package["templates"], "id", dependencies.TemplateIds, "key", dependencies.TemplateKeys);
+
+        ScrubPublicVisualNode(package, publicTagIds);
+        package["branding"] = ProjectPublicBranding(package["branding"], publicAssetIds);
+        package["runtimePresentation"] = ProjectPublicRuntimePresentation(
+            package["runtimePresentation"], publicScreenKeys, publicAssetIds);
+        return package;
+    }
+
+    private static JsonNode? CloneOptionalProperty(JsonElement root, string propertyName) =>
+        root.TryGetProperty(propertyName, out var value) && value.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined
+            ? JsonNode.Parse(value.GetRawText())
+            : null;
+
+    private static HashSet<string> ReadPublicScreenKeys(JsonNode? screens)
+    {
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (screens is not JsonArray array) return keys;
+        foreach (var screen in array.OfType<JsonObject>())
+        {
+            var key = ReadNodeText(screen["key"]);
+            if (!string.IsNullOrWhiteSpace(key)) keys.Add(key);
+        }
+        return keys;
+    }
+
+    private static JsonNode? ProjectPublicBranding(JsonNode? source, HashSet<Guid> publicAssetIds)
+    {
+        if (source is not JsonObject branding) return null;
+        var projected = new JsonObject();
+        CopyKnownProperties(branding, projected, "mode", "text", "subtitle");
+        if (TryGuid(branding["visualAssetId"], out var assetId) && publicAssetIds.Contains(assetId))
+            projected["visualAssetId"] = assetId.ToString("D");
+        else if (branding["mode"] is JsonValue mode && mode.TryGetValue<string>(out var modeValue) &&
+                 string.Equals(modeValue, "image", StringComparison.OrdinalIgnoreCase))
+            projected["mode"] = "default";
+        return projected;
+    }
+
+    private static JsonNode? ProjectPublicRuntimePresentation(
+        JsonNode? source,
+        HashSet<string> publicScreenKeys,
+        HashSet<Guid> publicAssetIds)
+    {
+        if (source is not JsonObject presentation) return null;
+        var projected = new JsonObject
+        {
+            ["historicalPlaybackEnabled"] = false,
+            ["version"] = CloneNode(presentation["version"]) ?? JsonValue.Create(1)
+        };
+        CopyKnownProperties(presentation, projected, "mobileOrientation");
+
+        if (presentation["mobileScreens"] is JsonObject mobileScreens)
+        {
+            var safeMobileScreens = new JsonObject();
+            foreach (var entry in mobileScreens)
+            {
+                var screenKey = ReadNodeText(entry.Value);
+                if (!string.IsNullOrWhiteSpace(screenKey) && publicScreenKeys.Contains(screenKey))
+                    safeMobileScreens[entry.Key] = screenKey;
+            }
+            projected["mobileScreens"] = safeMobileScreens;
+        }
+
+        if (presentation["header"] is JsonObject header)
+        {
+            var safeHeader = new JsonObject
+            {
+                ["historyVisible"] = false,
+                ["alarmsVisible"] = false,
+                ["playbackVisible"] = false
+            };
+            CopyKnownProperties(header, safeHeader,
+                "enabled", "height", "backgroundColor", "titlePosition", "controlsPosition", "controlsOrder",
+                "showScreenName", "overviewVisible");
+            safeHeader["titleStyle"] = ProjectPublicHeaderTextStyle(header["titleStyle"]);
+            safeHeader["screenNameStyle"] = ProjectPublicHeaderTextStyle(header["screenNameStyle"]);
+            safeHeader["dateTime"] = ProjectPublicHeaderDateTime(header["dateTime"]);
+            if (header["links"] is JsonArray links)
+            {
+                var safeLinks = new JsonArray();
+                foreach (var link in links.OfType<JsonObject>())
+                {
+                    var screenKey = ReadNodeText(link["screenKey"]);
+                    if (string.IsNullOrWhiteSpace(screenKey) || !publicScreenKeys.Contains(screenKey)) continue;
+                    var safeLink = new JsonObject();
+                    CopyKnownProperties(link, safeLink, "label", "screenKey");
+                    if (TryGuid(link["visualAssetId"], out var assetId) && publicAssetIds.Contains(assetId))
+                        safeLink["visualAssetId"] = assetId.ToString("D");
+                    safeLinks.Add(safeLink);
+                }
+                safeHeader["links"] = safeLinks;
+            }
+            projected["header"] = safeHeader;
+        }
+        return projected;
+    }
+
+    private static JsonNode? ProjectPublicHeaderTextStyle(JsonNode? source)
+    {
+        if (source is not JsonObject style) return null;
+        var projected = new JsonObject();
+        CopyKnownProperties(style, projected, "fontFamily", "fontSize", "fontWeight", "color");
+        return projected;
+    }
+
+    private static JsonNode? ProjectPublicHeaderDateTime(JsonNode? source)
+    {
+        if (source is not JsonObject dateTime) return null;
+        var projected = new JsonObject();
+        CopyKnownProperties(dateTime, projected, "mode", "position", "order", "dateFormat", "timeFormat");
+        return projected;
+    }
+
+    private static void CopyKnownProperties(JsonObject source, JsonObject destination, params string[] propertyNames)
+    {
+        foreach (var name in propertyNames)
+        {
+            var property = source.FirstOrDefault(pair => pair.Key.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (property.Key is not null && property.Value is not null)
+                destination[name] = property.Value.DeepClone();
+        }
+    }
+
+    private static JsonNode? CloneNode(JsonNode? node) => node?.DeepClone();
+
+    private static JsonArray FilterByStableIds(JsonNode? source, HashSet<Guid> allowedIds)
+    {
+        var result = new JsonArray();
+        if (source is not JsonArray values) return result;
+        foreach (var value in values)
+        {
+            if (value is JsonObject item && TryGuid(item["id"], out var id) && allowedIds.Contains(id))
+                result.Add(item.DeepClone());
+        }
+        return result;
+    }
+
+    private static JsonArray FilterByReferences(
+        JsonNode? source,
+        string idField,
+        HashSet<Guid> allowedIds,
+        string keyField,
+        HashSet<string> allowedKeys)
+    {
+        var result = new JsonArray();
+        if (source is not JsonArray values) return result;
+        foreach (var value in values)
+        {
+            if (value is not JsonObject item) continue;
+            var idAllowed = TryGuid(item[idField], out var id) && allowedIds.Contains(id);
+            var key = ReadNodeText(item[keyField]);
+            if (idAllowed || (!string.IsNullOrWhiteSpace(key) && allowedKeys.Contains(key)))
+                result.Add(item.DeepClone());
+        }
+        return result;
+    }
+
+    private static void CollectPublicVisualDependencies(JsonNode? node, PublicRuntimeVisualDependencies dependencies)
+    {
+        if (node is JsonObject obj)
+        {
+            AddGuid(obj, "dynamoDefinitionId", dependencies.DynamoIds);
+            AddText(obj, "dynamoKey", dependencies.DynamoKeys);
+            AddGuid(obj, "equipmentId", dependencies.EquipmentIds);
+            AddText(obj, "equipmentPath", dependencies.EquipmentPaths);
+            AddGuid(obj, "templateId", dependencies.TemplateIds);
+            AddText(obj, "templateKey", dependencies.TemplateKeys);
+            foreach (var value in obj.Select(pair => pair.Value))
+                CollectPublicVisualDependencies(value, dependencies);
+        }
+        else if (node is JsonArray array)
+        {
+            foreach (var value in array) CollectPublicVisualDependencies(value, dependencies);
+        }
+    }
+
+    private static void ScrubPublicVisualNode(JsonNode? node, HashSet<Guid> publicTagIds)
+    {
+        if (node is JsonObject obj)
+        {
+            foreach (var property in obj.ToArray())
+            {
+                if (property.Key.Equals("actions", StringComparison.OrdinalIgnoreCase))
+                {
+                    obj.Remove(property.Key);
+                    continue;
+                }
+                if (property.Key.Equals("bindings", StringComparison.OrdinalIgnoreCase) && property.Value is JsonArray bindings)
+                {
+                    var safeBindings = new JsonArray();
+                    foreach (var binding in bindings)
+                    {
+                        if (binding is JsonObject bindingObject &&
+                            TryGuid((bindingObject["tagReference"] as JsonObject)?["tagId"], out var tagId) &&
+                            publicTagIds.Contains(tagId))
+                        {
+                            var copy = (JsonObject)bindingObject.DeepClone();
+                            ScrubPublicVisualNode(copy, publicTagIds);
+                            safeBindings.Add(copy);
+                        }
+                    }
+                    obj[property.Key] = safeBindings;
+                    continue;
+                }
+                if (property.Key.Equals("tagReference", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (property.Value is not JsonObject reference ||
+                        !TryGuid(reference["tagId"], out var referencedId) ||
+                        !publicTagIds.Contains(referencedId))
+                        obj.Remove(property.Key);
+                    else
+                        ScrubPublicVisualNode(property.Value, publicTagIds);
+                    continue;
+                }
+                if (property.Key.Equals("tagId", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!TryGuid(property.Value, out var referencedId) || !publicTagIds.Contains(referencedId))
+                        obj.Remove(property.Key);
+                    continue;
+                }
+                if (property.Key.Contains("tagPath", StringComparison.OrdinalIgnoreCase) ||
+                    property.Key.Equals("targetTagPath", StringComparison.OrdinalIgnoreCase))
+                {
+                    obj.Remove(property.Key);
+                    continue;
+                }
+                ScrubPublicVisualNode(property.Value, publicTagIds);
+            }
+        }
+        else if (node is JsonArray array)
+        {
+            for (var index = array.Count - 1; index >= 0; index--)
+            {
+                var value = array[index];
+                if (value is JsonObject item && TryGuid(item["tagId"], out var tagId) && !publicTagIds.Contains(tagId))
+                {
+                    array.RemoveAt(index);
+                    continue;
+                }
+                ScrubPublicVisualNode(value, publicTagIds);
+            }
+        }
+    }
+
+    private static void AddGuid(JsonObject source, string property, HashSet<Guid> target)
+    {
+        if (TryGuid(source[property], out var id)) target.Add(id);
+    }
+
+    private static void AddText(JsonObject source, string property, HashSet<string> target)
+    {
+        var value = ReadNodeText(source[property]);
+        if (!string.IsNullOrWhiteSpace(value)) target.Add(value);
+    }
+
+    private static string? ReadNodeText(JsonNode? node) =>
+        node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+
+    private static bool TryGuid(JsonNode? node, out Guid value) => Guid.TryParse(ReadNodeText(node), out value);
+
+    private sealed class PublicRuntimeVisualDependencies
+    {
+        public HashSet<Guid> DynamoIds { get; } = [];
+        public HashSet<string> DynamoKeys { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<Guid> EquipmentIds { get; } = [];
+        public HashSet<string> EquipmentPaths { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<Guid> TemplateIds { get; } = [];
+        public HashSet<string> TemplateKeys { get; } = new(StringComparer.OrdinalIgnoreCase);
+    }
 
     private static string RequiredString(JsonElement root, string name)
     {

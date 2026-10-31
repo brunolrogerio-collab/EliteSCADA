@@ -32,15 +32,25 @@ public sealed class PostgreSqlAuthorityPolicyStoreTests
             var applied = await first.TryReplaceAsync(0, roles, scopes);
             Assert.True(applied.Applied);
             Assert.Equal(1, applied.Snapshot.Version);
+            var screenId = Guid.Parse("94000000-0000-0000-0000-000000000011");
+            var tagId = Guid.Parse("94000000-0000-0000-0000-000000000012");
+            var publicRuntime = new RuntimePublicAccessPolicy(true, screenId, [screenId], [], [tagId], [], "project-a", 3);
+            var publicApplied = await first.TryReplacePublicRuntimeAsync(applied.Snapshot.Version, publicRuntime);
+            Assert.True(publicApplied.Applied);
+            Assert.Equal(2, publicApplied.Snapshot.Version);
         }
 
         await using (var restarted = new PostgreSqlAuthorityPolicyStore(ConnectionString))
         {
             await restarted.InitializeAsync();
             var loaded = restarted.Snapshot();
-            Assert.Equal(1, loaded.Version);
+            Assert.Equal(2, loaded.Version);
             Assert.Equal(roleId, Assert.Single(loaded.Roles).Id);
             Assert.Equal(scopeId, Assert.Single(loaded.Scopes).Id);
+            Assert.Equal(Guid.Parse("94000000-0000-0000-0000-000000000011"), loaded.PublicRuntime!.StartScreenId);
+            Assert.Equal(Guid.Parse("94000000-0000-0000-0000-000000000012"), Assert.Single(loaded.PublicRuntime.TagIds));
+            Assert.Equal("project-a", loaded.PublicRuntime.ProjectKey);
+            Assert.Equal(3, loaded.PublicRuntime.Revision);
             var loadedRole = Assert.Single(loaded.Roles);
             Assert.Contains(loadedRole.Grants!, grant =>
                 grant.Capability == SecurityCapability.AssetProcessIntelligenceManage && grant.Scope is null);

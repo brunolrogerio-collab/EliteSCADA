@@ -27,17 +27,16 @@ public sealed class AuthorityAttachService(
         await policies.InitializeAsync(cancellationToken);
         var existingUsers = await identities.ListAsync(cancellationToken);
         var existingPolicy = policies.Snapshot();
-        if (existingUsers.Count != 0 || existingPolicy.Roles.Count != 0 || existingPolicy.Scopes.Count != 0)
+        if (existingUsers.Count != 0 || existingPolicy.Roles.Count != 0 || existingPolicy.Scopes.Count != 0 || existingPolicy.PublicRuntime is not null)
         {
             await lifecycle.MarkInvalidAsync(cancellationToken);
             throw new InvalidOperationException("Detached Authority contains residual data and is invalid; attach is fail-closed.");
         }
 
         await lifecycle.BeginAttachAsync(cancellationToken);
-        var policyApplied = await policies.TryReplaceAsync(
+        var policyApplied = await policies.TryReplaceSnapshotAsync(
             existingPolicy.Version,
-            target.Roles,
-            target.Scopes,
+            new AuthorityPolicySnapshot(existingPolicy.Version, target.Roles, target.Scopes, target.PublicRuntime),
             cancellationToken);
         if (!policyApplied.Applied)
             throw new InvalidOperationException("Authority attach policy write conflicted; recovery will return to a closed neutral Authority.");
@@ -48,7 +47,9 @@ public sealed class AuthorityAttachService(
         if (await identities.CountAsync(cancellationToken) != target.Accounts.Count)
             throw new InvalidOperationException("Authority attach cannot complete while local identity verification fails.");
         var applied = policies.Snapshot();
-        if (applied.Roles.Count != target.Roles.Count || applied.Scopes.Count != target.Scopes.Count)
+        if (applied.Roles.Count != target.Roles.Count || applied.Scopes.Count != target.Scopes.Count ||
+            AuthorityPolicySnapshotDigest.Compute(applied) != AuthorityPolicySnapshotDigest.Compute(
+                new AuthorityPolicySnapshot(applied.Version, target.Roles, target.Scopes, target.PublicRuntime)))
             throw new InvalidOperationException("Authority attach cannot complete while canonical policy verification fails.");
 
         var after = await lifecycle.CompleteAttachAsync(cancellationToken);
@@ -60,7 +61,7 @@ public sealed class AuthorityAttachService(
         ArgumentNullException.ThrowIfNull(target);
         if (target.Accounts.Count == 0)
             throw new InvalidDataException("Authority attach target has no local identities.");
-        InMemoryAuthorityPolicyStore.Validate(target.Roles, target.Scopes);
+        InMemoryAuthorityPolicyStore.Validate(target.Roles, target.Scopes, target.PublicRuntime);
         if (!HasEnabledAdministrator(target))
             throw new InvalidDataException("Authority attach target requires an enabled UserRoleAdmin or SystemAdmin.");
     }
@@ -85,7 +86,8 @@ public sealed class AuthorityAttachService(
 public sealed record AuthorityAttachTarget(
     IReadOnlyCollection<LocalUserAccount> Accounts,
     IReadOnlyCollection<SecurityRoleEngineeringDto> Roles,
-    IReadOnlyCollection<SecurityScopeEngineeringDto> Scopes);
+    IReadOnlyCollection<SecurityScopeEngineeringDto> Scopes,
+    RuntimePublicAccessPolicy? PublicRuntime = null);
 
 public sealed record AuthorityAttachResult(
     AuthorityLifecycleSnapshot Before,

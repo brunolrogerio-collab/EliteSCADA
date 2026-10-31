@@ -191,6 +191,9 @@ public sealed class ApiAuthorizationService
         AuthorizationResource? resource = null,
         CancellationToken cancellationToken = default)
     {
+        if (PublicRuntimeSessionSecurity.TryRead(context.User, out var publicVisitor))
+            return await CheckPublicRuntimeViewAsync(context, runtime, capability, publicVisitor, cancellationToken);
+
         var baseline = await CheckRuntimeAsync(
             GetPrincipal(context),
             runtime,
@@ -234,6 +237,9 @@ public sealed class ApiAuthorizationService
         TagAccessOperation operation,
         CancellationToken cancellationToken = default)
     {
+        if (PublicRuntimeSessionSecurity.TryRead(context.User, out var publicVisitor))
+            return await CheckPublicRuntimeTagAsync(context, runtime, tag, operation, publicVisitor, cancellationToken);
+
         var baseline = await CheckRuntimeTagAsync(
             GetPrincipal(context),
             runtime,
@@ -313,6 +319,22 @@ public sealed class ApiAuthorizationService
         if (!_authenticationEnabled)
             return new RuntimeReadableTagsResult(principal, false, true, tags);
 
+        if (PublicRuntimeSessionSecurity.TryRead(context.User, out var publicVisitor))
+        {
+            context.Response.Headers.CacheControl = "private, no-store";
+            if (!IsPublicRuntimeTagReadRequest(context))
+                return new RuntimeReadableTagsResult(principal, true, false, Array.Empty<TagDefinition>());
+
+            var publicPolicySnapshot = authorityPolicies.Snapshot();
+            if (!await ValidatePublicRuntimeSessionAsync(runtime, publicVisitor, cancellationToken) ||
+                publicPolicySnapshot.Version != publicVisitor.PolicyVersion ||
+                publicPolicySnapshot.PublicRuntime is null)
+                return new RuntimeReadableTagsResult(principal, true, false, Array.Empty<TagDefinition>());
+            var publicTagIds = publicPolicySnapshot.PublicRuntime.TagIds.ToHashSet();
+            var publicTags = tags.Where(tag => publicTagIds.Contains(tag.Id)).ToArray();
+            return new RuntimeReadableTagsResult(principal, true, true, publicTags);
+        }
+
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
         {
             return new RuntimeReadableTagsResult(
@@ -389,6 +411,138 @@ public sealed class ApiAuthorizationService
             TagAccessOperation.Read,
             cancellationToken);
         return check.Allowed;
+    }
+
+    public async Task<bool> CanReadPublicRuntimeTagAsync(
+        PublicRuntimeSessionIdentity visitor,
+        ScadaRuntimeFacade runtime,
+        TagDefinition tag,
+        CancellationToken cancellationToken = default)
+    {
+        var snapshot = authorityPolicies.Snapshot();
+        if (visitor.PolicyVersion != snapshot.Version ||
+            snapshot.PublicRuntime?.TagIds.Contains(tag.Id) != true ||
+            !RuntimePublicSessionApi.MatchesActiveRuntime(snapshot.PublicRuntime, runtime.Describe()))
+            return false;
+        return await ValidatePublicRuntimeSessionAsync(runtime, visitor, cancellationToken);
+    }
+
+    public bool IsPublicRuntimePolicyCurrent(PublicRuntimeSessionIdentity visitor, ScadaRuntimeFacade runtime)
+    {
+        var snapshot = authorityPolicies.Snapshot();
+        return visitor.PolicyVersion == snapshot.Version &&
+            RuntimePublicSessionApi.MatchesActiveRuntime(snapshot.PublicRuntime, runtime.Describe());
+    }
+
+    private async Task<ApiAuthorizationCheck> CheckPublicRuntimeViewAsync(
+        HttpContext context,
+        ScadaRuntimeFacade runtime,
+        SecurityCapability capability,
+        PublicRuntimeSessionIdentity visitor,
+        CancellationToken cancellationToken)
+    {
+        var principal = GetPrincipal(context);
+        context.Response.Headers.CacheControl = "private, no-store";
+        if (!IsPublicRuntimeViewRequest(context))
+            return new ApiAuthorizationCheck(principal, AuthorizationDecision.Denied(
+                capability,
+                "This endpoint is not part of the explicitly exposed public Runtime surface."));
+        if (capability != SecurityCapability.View)
+            return new ApiAuthorizationCheck(principal, AuthorizationDecision.Denied(capability, "Public Runtime sessions are limited to explicitly exposed read-only Runtime content."));
+        var allowed = await ValidatePublicRuntimeSessionAsync(runtime, visitor, cancellationToken);
+        return new ApiAuthorizationCheck(principal, allowed
+            ? new AuthorizationDecision(true, capability, "Public Runtime read-only policy and View Only lease are current.", Array.Empty<string>())
+            : AuthorizationDecision.Denied(capability, "Public Runtime policy or View Only lease is unavailable or revoked."));
+    }
+
+    private async Task<ApiAuthorizationCheck> CheckPublicRuntimeTagAsync(
+        HttpContext context,
+        ScadaRuntimeFacade runtime,
+        TagDefinition tag,
+        TagAccessOperation operation,
+        PublicRuntimeSessionIdentity visitor,
+        CancellationToken cancellationToken)
+    {
+        var principal = new SecurityPrincipal(visitor.SubjectId, "Public Runtime visitor", Array.Empty<string>(), true);
+        context.Response.Headers.CacheControl = "private, no-store";
+        var capability = operation switch
+        {
+            TagAccessOperation.Read => SecurityCapability.TagRead,
+            TagAccessOperation.Write => SecurityCapability.ProcessValueWrite,
+            TagAccessOperation.Configure => SecurityCapability.EngineeringModify,
+            _ => throw new ArgumentOutOfRangeException(nameof(operation))
+        };
+        var snapshot = authorityPolicies.Snapshot();
+        var allowed = IsPublicRuntimeTagReadRequest(context) &&
+            operation == TagAccessOperation.Read &&
+            visitor.PolicyVersion == snapshot.Version &&
+            snapshot.PublicRuntime?.TagIds.Contains(tag.Id) == true &&
+            runtime.TryGetTag(tag.Id, out var currentTag) && currentTag is not null &&
+            currentTag.Path.Equals(tag.Path, StringComparison.OrdinalIgnoreCase) &&
+            RuntimePublicSessionApi.MatchesActiveRuntime(snapshot.PublicRuntime, runtime.Describe()) &&
+            await ValidatePublicRuntimeSessionAsync(runtime, visitor, cancellationToken);
+        return new ApiAuthorizationCheck(principal, allowed
+            ? new AuthorizationDecision(true, capability, "TAG is explicitly exposed to the current public Runtime session.", Array.Empty<string>())
+            : AuthorizationDecision.Denied(capability, "Public Runtime TAG access is not explicitly allowed or its lease has been revoked."));
+    }
+
+    internal static bool IsPublicRuntimeViewRequest(HttpContext context)
+    {
+        if (!HttpMethods.IsGet(context.Request.Method)) return false;
+        var path = context.Request.Path;
+        if (path.Equals("/api/runtime/application", StringComparison.OrdinalIgnoreCase) ||
+            path.Equals("/api/auth/effective-capabilities", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var segments = path.Value?.Split('/', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+        return segments.Length == 5 &&
+            segments[0].Equals("api", StringComparison.OrdinalIgnoreCase) &&
+            segments[1].Equals("runtime", StringComparison.OrdinalIgnoreCase) &&
+            segments[2].Equals("visual-assets", StringComparison.OrdinalIgnoreCase) &&
+            Guid.TryParse(segments[3], out _) &&
+            segments[4].Equals("content", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool IsPublicRuntimeTagReadRequest(HttpContext context)
+    {
+        if (!HttpMethods.IsGet(context.Request.Method)) return false;
+        var path = context.Request.Path;
+        if (path.Equals("/api/tags", StringComparison.OrdinalIgnoreCase) ||
+            path.Equals("/api/tags/current", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return path.StartsWithSegments("/api/tags/by-path", out var remaining) &&
+            !string.IsNullOrWhiteSpace(remaining.Value?.Trim('/'));
+    }
+
+    private async Task<bool> ValidatePublicRuntimeSessionAsync(
+        ScadaRuntimeFacade runtime,
+        PublicRuntimeSessionIdentity visitor,
+        CancellationToken cancellationToken)
+    {
+        var authorityLifecycle = services.GetService<IAuthorityLifecycleStore>();
+        if (authorityLifecycle is null || !await PublicRuntimeJwtSessionValidator.IsCurrentAsync(
+                visitor,
+                authorityLifecycle,
+                cancellationToken))
+            return false;
+
+        var snapshot = authorityPolicies.Snapshot();
+        var descriptor = runtime.Describe();
+        if (visitor.PolicyVersion != snapshot.Version ||
+            !RuntimePublicSessionApi.MatchesActiveRuntime(snapshot.PublicRuntime, descriptor))
+            return false;
+        var lease = await RuntimeSessions.ValidateAsync(
+            visitor.SessionId,
+            visitor.SubjectId,
+            descriptor,
+            visitor.ClientInstanceId,
+            cancellationToken);
+        var latestPolicy = authorityPolicies.Snapshot();
+        return lease.IsValid &&
+            lease.Lease?.ConnectionClass == RuntimeConnectionClass.ViewOnly &&
+            latestPolicy.Version == visitor.PolicyVersion &&
+            RuntimePublicSessionApi.MatchesActiveRuntime(latestPolicy.PublicRuntime, runtime.Describe()) &&
+            await PublicRuntimeJwtSessionValidator.IsCurrentAsync(visitor, authorityLifecycle, cancellationToken);
     }
 
     public async Task<RuntimeSessionLeaseValidation> ValidateRuntimeSessionAsync(

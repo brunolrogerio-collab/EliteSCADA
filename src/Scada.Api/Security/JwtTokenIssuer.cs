@@ -12,6 +12,7 @@ public sealed class JwtTokenIssuer
 {
     public const string IdentityProviderClaim = "elitescada_identity_provider";
     public const string LocalIdentityProvider = "local";
+    public const string PublicRuntimeIdentityProvider = "public-runtime";
     public const string LocalUserVersionClaim = "elitescada_local_user_version";
     public const string AuthorityEpochClaim = "elitescada_authority_epoch";
 
@@ -80,6 +81,48 @@ public sealed class JwtTokenIssuer
             expires: expires.UtcDateTime,
             signingCredentials: _credentials);
 
+        return new IssuedAccessToken(new JwtSecurityTokenHandler().WriteToken(token), expires);
+    }
+
+    public async Task<IssuedAccessToken> IssuePublicRuntimeSessionAsync(
+        string subjectId,
+        Guid sessionId,
+        string clientInstanceId,
+        long policyVersion,
+        DateTimeOffset? nowUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(subjectId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientInstanceId);
+        if (sessionId == Guid.Empty || policyVersion < 0)
+            throw new ArgumentOutOfRangeException(nameof(sessionId));
+
+        var lifecycle = await _authorityLifecycle.GetAsync(cancellationToken);
+        if (!lifecycle.AllowsAuthorization)
+            throw new InvalidOperationException("Local Authority is not available for public Runtime session issuance.");
+
+        var now = nowUtc ?? DateTimeOffset.UtcNow;
+        var expires = now.AddMinutes(15);
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, subjectId),
+            new Claim("name", "Public Runtime visitor"),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64),
+            new Claim(IdentityProviderClaim, PublicRuntimeIdentityProvider),
+            new Claim(PublicRuntimeSessionSecurity.MarkerClaim, "1"),
+            new Claim(PublicRuntimeSessionSecurity.SessionIdClaim, sessionId.ToString("D")),
+            new Claim(PublicRuntimeSessionSecurity.ClientInstanceClaim, clientInstanceId),
+            new Claim(PublicRuntimeSessionSecurity.PolicyVersionClaim, policyVersion.ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64),
+            new Claim(AuthorityEpochClaim, lifecycle.Epoch.ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64)
+        };
+        var token = new JwtSecurityToken(
+            issuer: _issuer,
+            audience: _audience,
+            claims: claims,
+            notBefore: now.UtcDateTime,
+            expires: expires.UtcDateTime,
+            signingCredentials: _credentials);
         return new IssuedAccessToken(new JwtSecurityTokenHandler().WriteToken(token), expires);
     }
 }

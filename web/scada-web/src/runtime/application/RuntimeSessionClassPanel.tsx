@@ -83,6 +83,7 @@ const copy: Record<EngineeringLocale, Copy> = {
 type RuntimeSessionContextValue = {
   admissionSupported: boolean;
   outcome: RuntimeSessionAdmissionOutcome | null;
+  capacityReasonCode: string | null;
   busy: RuntimeSessionConnectionClass | 'end' | null;
   error: string | null;
   notice: string | null;
@@ -102,6 +103,7 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
   const endInFlight = useRef<Promise<void> | null>(null);
   const currentLocale = useRef<EngineeringLocale>('pt-BR');
   const [outcome, setOutcome] = useState<RuntimeSessionAdmissionOutcome | null>(initialSession);
+  const [capacityReasonCode, setCapacityReasonCode] = useState<string | null>(null);
   const [busy, setBusy] = useState<RuntimeSessionConnectionClass | 'end' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -126,12 +128,14 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
         if (disposed || lease.current?.sessionId !== current.sessionId) return;
         lease.current = renewed;
         setOutcome(renewed);
+        setCapacityReasonCode(null);
         setActiveRuntimeSession(renewed);
       }).catch(reason => {
         if (disposed || lease.current?.sessionId !== current.sessionId) return;
         lease.current = null;
         setOutcome(null);
         setActiveRuntimeSession(null);
+        setCapacityReasonCode(reason instanceof RuntimeSessionAdmissionError ? reason.capacityReasonCode ?? null : null);
         const text = copy[currentLocale.current];
         const detail = reason instanceof Error ? reason.message : String(reason);
         setError([text.rejected, detail].filter(Boolean).join(' '));
@@ -149,7 +153,7 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
     currentLocale.current = locale;
     setLastRequestedClass(requestedClass);
     const text = copy[locale];
-    setBusy(requestedClass); setError(null); setNotice(null);
+    setBusy(requestedClass); setError(null); setNotice(null); setCapacityReasonCode(null);
     try {
       if (lease.current) {
         await releaseRuntimeSession(lease.current);
@@ -160,13 +164,16 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
       const next = await admitRuntimeSession(requestedClass);
       lease.current = next;
       setOutcome(next);
+      setCapacityReasonCode(null);
       setActiveRuntimeSession(next);
       if (requestedClass === 'interactive' && next.grantedClass === 'viewOnly') setNotice(text.fallback);
       else if (requestedClass === 'viewOnly' && next.grantedClass === 'viewOnly') setNotice(text.viewOnlyGranted);
     } catch (reason) {
       if (reason instanceof RuntimeSessionAdmissionError) {
+        setCapacityReasonCode(reason.capacityReasonCode ?? null);
         setError([text.rejected, reason.capacityReasonCode, reason.message].filter(Boolean).join(' '));
       } else {
+        setCapacityReasonCode(null);
         setError(reason instanceof Error ? reason.message : String(reason));
       }
     } finally { setBusy(null); }
@@ -184,18 +191,21 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
 
     const text = copy[locale];
     const operation = (async () => {
-      setBusy(requestedClass); setError(null); setNotice(null);
+      setBusy(requestedClass); setError(null); setNotice(null); setCapacityReasonCode(null);
       try {
         const next = await admitRuntimeSession(requestedClass);
         lease.current = next;
         setOutcome(next);
+        setCapacityReasonCode(null);
         setActiveRuntimeSession(next);
         if (requestedClass === 'interactive' && next.grantedClass === 'viewOnly') setNotice(text.fallback);
         else if (requestedClass === 'viewOnly' && next.grantedClass === 'viewOnly') setNotice(text.viewOnlyGranted);
       } catch (reason) {
         if (reason instanceof RuntimeSessionAdmissionError) {
+          setCapacityReasonCode(reason.capacityReasonCode ?? null);
           setError([text.rejected, reason.capacityReasonCode, reason.message].filter(Boolean).join(' '));
         } else {
+          setCapacityReasonCode(null);
           setError(reason instanceof Error ? reason.message : String(reason));
         }
       } finally { setBusy(null); }
@@ -210,7 +220,7 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
     if (endInFlight.current) return endInFlight.current;
     if (!lease.current) return;
     const current = lease.current;
-    setBusy('end'); setError(null); setNotice(null);
+    setBusy('end'); setError(null); setNotice(null); setCapacityReasonCode(null);
     const operation = (async () => {
       try {
         await releaseRuntimeSession(current);
@@ -219,6 +229,7 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
           setActiveRuntimeSession(null);
         }
       } catch (reason) {
+        setCapacityReasonCode(reason instanceof RuntimeSessionAdmissionError ? reason.capacityReasonCode ?? null : null);
         setError(reason instanceof Error ? reason.message : String(reason));
       } finally { setBusy(null); }
     })();
@@ -227,7 +238,7 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
     finally { if (endInFlight.current === operation) endInFlight.current = null; }
   }, []);
 
-  return <RuntimeSessionContext.Provider value={{ admissionSupported: authenticationEnabled, outcome, busy, error, notice, lastRequestedClass, request, ensure, end }}>
+  return <RuntimeSessionContext.Provider value={{ admissionSupported: authenticationEnabled, outcome, capacityReasonCode, busy, error, notice, lastRequestedClass, request, ensure, end }}>
     {children}
   </RuntimeSessionContext.Provider>;
 }

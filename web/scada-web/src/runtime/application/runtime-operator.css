@@ -402,6 +402,7 @@
   background:var(--app-surface-elevated); color:var(--app-text-primary); box-shadow:0 8px 24px #0005; font-size:12px;
 }
 .runtime-station-launch-status a { color:var(--app-accent); text-decoration:underline; text-underline-offset:2px; }
+.runtime-station-launch-status ul { display:grid; gap:4px; margin:0; padding-left:18px; }
 .runtime-operator-brand { flex:0 1 auto; }
 .runtime-operator-actions { justify-self:auto; }
 .runtime-operator-user-slot { order:1000; flex:0 0 auto; margin-left:2px; }

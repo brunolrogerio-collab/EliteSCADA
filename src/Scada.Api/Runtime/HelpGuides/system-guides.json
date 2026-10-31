@@ -1575,7 +1575,7 @@
         },
         {
           "heading": "Prazo da sessão local",
-          "body": "Em Segurança, ajuste o tempo para pedir login novamente. Ele começa quando a pessoa entra e define a validade máxima do login local; não é um temporizador de inatividade. Fechar o navegador não encerra a sessão. O novo prazo vale para próximos logins, enquanto sessões já abertas mantêm o vencimento que receberam. Escolha de 5 a 1.440 minutos (5 minutos a 24 horas); o valor inicial do produto é 480 minutos, ou 8 horas, salvo se a instalação definir outro valor inicial na configuração do servidor.",
+          "body": "Em Segurança, ajuste o tempo para pedir login novamente. Ele começa quando a pessoa entra e define a validade máxima do login local; não é um temporizador de inatividade. Fechar o navegador não encerra a sessão. O novo prazo vale para próximos logins, enquanto sessões já abertas mantêm o vencimento que receberam. Escolha de 5 a 1.440 minutos (5 minutos a 24 horas); o valor inicial do produto é 480 minutos, ou 8 horas, salvo se a instalação definir outro valor inicial na configuração do servidor.\n\nSe o prazo vencer com a aplicação aberta, ela não mostra o login automaticamente. O servidor deixa de aceitar ações protegidas e encerra a atualização em tempo real. A tela pode continuar exibindo os últimos valores recebidos. Atualize a página ou abra a aplicação novamente para voltar ao login. Na troca de turno, use Sair antes de entregar a estação e peça ao próximo operador para entrar com a própria conta.",
           "fields": null
         },
         {
@@ -8520,7 +8520,7 @@
         },
         {
           "heading": "Local session duration",
-          "body": "In Security, set when the product should ask the user to sign in again. The timer starts at login and sets the maximum lifetime of a local login; it is not an inactivity timer. Closing the browser does not end the session. The new duration applies to future logins, while open sessions keep the expiry they already received. Choose 5 to 1,440 minutes (5 minutes to 24 hours); the product's initial value is 480 minutes, or 8 hours, unless the installation defines a different initial value in server configuration.",
+          "body": "In Security, set when the product should ask the user to sign in again. The timer starts at login and sets the maximum lifetime of a local login; it is not an inactivity timer. Closing the browser does not end the session. The new duration applies to future logins, while open sessions keep the expiry they already received. Choose 5 to 1,440 minutes (5 minutes to 24 hours); the product's initial value is 480 minutes, or 8 hours, unless the installation defines a different initial value in server configuration.\n\nIf the duration expires while the application is open, it does not automatically show the sign-in screen. The server stops accepting protected actions and ends live updates. The screen may continue to show the last values it received. Refresh the page or reopen the application to return to sign-in. When handing over a station, choose Sign out first and have the next operator use their own account.",
           "fields": null
         },
         {
@@ -15465,7 +15465,7 @@
         },
         {
           "heading": "Duración de la sesión local",
-          "body": "En Seguridad, ajuste cuándo se pedirá ingresar nuevamente. El plazo comienza al iniciar sesión y define la validez máxima del ingreso local; no es un temporizador de inactividad. Cerrar el navegador no termina la sesión. La nueva duración se aplica a ingresos futuros; las sesiones abiertas conservan el vencimiento recibido. Elija de 5 a 1.440 minutos (5 minutos a 24 horas); el valor inicial del producto es 480 minutos, u 8 horas, salvo que la instalación defina otro valor inicial en la configuración del servidor.",
+          "body": "En Seguridad, ajuste cuándo se pedirá ingresar nuevamente. El plazo comienza al iniciar sesión y define la validez máxima del ingreso local; no es un temporizador de inactividad. Cerrar el navegador no termina la sesión. La nueva duración se aplica a ingresos futuros; las sesiones abiertas conservan el vencimiento recibido. Elija de 5 a 1.440 minutos (5 minutos a 24 horas); el valor inicial del producto es 480 minutos, u 8 horas, salvo que la instalación defina otro valor inicial en la configuración del servidor.\n\nSi el plazo vence mientras la aplicación está abierta, no aparece automáticamente la pantalla de ingreso. El servidor deja de aceptar acciones protegidas y termina las actualizaciones en tiempo real. La pantalla puede seguir mostrando los últimos valores recibidos. Actualice la página o vuelva a abrir la aplicación para regresar al ingreso. Al cambiar de turno, elija Salir antes de entregar la estación y pida al siguiente operador que use su propia cuenta.",
           "fields": null
         },
         {

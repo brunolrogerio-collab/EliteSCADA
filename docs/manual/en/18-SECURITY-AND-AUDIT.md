@@ -16,6 +16,8 @@ In Security, set when the product asks the user to sign in again. The timer star
 
 Choose 5 to 1,440 minutes (5 minutes to 24 hours). The product's initial value is 480 minutes, or 8 hours, unless the installation defines a different initial value in server configuration. The new value applies to future logins. Open sessions keep the expiry they already received; after it expires, the user must sign in again.
 
+If the duration expires while the application is open, it does not automatically show the sign-in screen. The server stops accepting protected actions and ends live updates. The screen may continue to show the last values it received. Refresh the page or reopen the application to return to sign-in. When handing over a station, choose **Sign out** first and have the next operator use their own account.
+
 ### Procedure: create and test an operator
 
 1. Check available roles, which actions each allows and for which resources. If a suitable role is missing, prepare and apply policy first.

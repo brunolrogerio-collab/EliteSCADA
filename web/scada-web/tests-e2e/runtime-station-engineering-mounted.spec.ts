@@ -23,7 +23,7 @@ test('Runtime station profile supports up to four windows and validates without 
   await expect(profile.getByRole('button', { name: 'Adicionar janela' })).toHaveCount(0);
   await profile.getByLabel('Comportamento da janela 4').selectOption('fixed');
 
-  await workspace.getByRole('button', { name: 'Validar preview' }).click();
+  await workspace.getByRole('button', { name: 'Validar' }).click();
   await expect(workspace.getByRole('status')).toContainText('Configuração válida');
   await expect(workspace.getByRole('button', { name: 'Aplicar ao Working' })).toBeEnabled();
 

@@ -393,7 +393,7 @@ function EngineeringRuntimeApplicationContent({
     }
     stationAdmissionTimeoutRef.current = window.setTimeout(() => {
       setStationAdmissionReports(current => current.map(item =>
-        item.runId === runId && (item.status === 'pending' || item.status === 'blocked')
+        item.runId === runId && item.status === 'pending'
           ? { ...item, status: 'unavailable' }
           : item
       ));

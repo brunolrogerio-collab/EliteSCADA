@@ -417,6 +417,7 @@ test('station launcher reports when the server rejects a window for exhausted li
 });
 
 test('blocked station popups provide a manual link for every configured screen', async ({ page }) => {
+  await page.clock.install();
   await installSessionContract(page, administrator);
   await installEngineeringRuntimeProjection(page, undefined, [], {
     historicalPlaybackEnabled: false,
@@ -458,6 +459,9 @@ test('blocked station popups provide a manual link for every configured screen',
   expect(secondHref.searchParams.get('stationRun')).toBe(firstHref.searchParams.get('stationRun'));
   await expect(first).toHaveAttribute('rel', 'noopener noreferrer');
   await expect(second).toHaveAttribute('target', '_blank');
+  await expect(page.getByTestId('runtime-station-window-1-status')).toContainText('janela bloqueada pelo navegador');
+  await page.clock.fastForward(20_000);
+  await expect(page.getByTestId('runtime-station-window-1-status')).toContainText('janela bloqueada pelo navegador');
 
   const fallbackWindowPromise = page.context().waitForEvent('page');
   await first.click();

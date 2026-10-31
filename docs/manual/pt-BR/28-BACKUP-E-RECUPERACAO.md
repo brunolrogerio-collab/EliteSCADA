@@ -16,7 +16,7 @@ Exporte a aplicação pelo fluxo disponível e confira projeto, revisão e desti
 
 Em Trocar a aplicação desta instalação existem Backup da Application e Backup da Authority antes do detach, a desvinculação. Você pode exportar e voltar sem executar a troca. Não faça detach só para testar backup.
 
-Na Authority, Nova senha do backup protege o arquivo exportado; não é senha de login. Guarde-a por meio protegido separado do arquivo. Prepare também cópias e recuperação do banco/Historian e chaves de drivers. Este fluxo não define retenção nem inclui arquivos do Historian. Para arquivar e restaurar amostras brutas, use a seção Arquivar e restaurar amostras descrita em [Captura e consulta do Historian](07-HISTORIAN-CAPTURA-CONSULTA.md); esse arquivo é administrado separadamente pela API.
+Na Authority, Nova senha do backup protege o arquivo exportado; não é senha de login. Guarde-a por meio protegido separado do arquivo. Prepare também cópias e recuperação do banco/Historian e chaves de drivers. Este fluxo não define retenção/arquivamento nem os inclui automaticamente no pacote.
 
 ### Recuperar Authority e aplicação em uma instalação neutra
 

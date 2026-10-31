@@ -16,19 +16,27 @@ Antes de mudar algo, leia Estado atual e Próxima ação. Escolher um banco defi
 
 ### Uso e retenção do Historian
 
-Na seção **Uso e retenção do Historian**, confira os tamanhos medidos na base usada pelo Historian. **Banco do Historian** inclui todos os dados daquela base; **Historian total** reúne as amostras brutas e os agregados que o provider conseguiu medir. Se a topologia usa bancos separados, esta tela mede apenas o banco do Historian; não soma o banco principal nem representa o espaço livre do volume do servidor. Espaço livre e crescimento diário só aparecem quando há uma medição confiável. Se a tela disser que não foram informados, isso não significa zero.
+Na seção Uso e retenção do Historian, confira os tamanhos medidos na base usada pelo Historian. Banco do Historian inclui todos os dados daquela base; Historian total reúne as amostras brutas e os agregados que o provider conseguiu medir. Se a topologia usa bancos separados, esta tela mede apenas o banco do Historian; não soma o banco principal nem representa o espaço livre do volume do servidor. Espaço livre no servidor e crescimento diário só aparecem quando há uma medição confiável. Se a tela disser que não foram informados, isso não significa zero.
 
-**Sem expiração automática** significa que o SCADIVO não programou uma data para remover amostras brutas. Não quer dizer que o disco seja ilimitado. Para guardar as amostras por um período, desmarque a opção e informe a quantidade de dias. Uma política mais curta pode apagar amostras antigas; marque a confirmação apenas depois de revisar o período e o impacto. A política do TimescaleDB executa a remoção, então ela pode não acontecer no instante em que você salva.
+Sem expiração automática significa que o SCADIVO não programou uma data para remover amostras brutas. Não quer dizer que o disco seja ilimitado. Para guardar as amostras por um período, desmarque Sem expiração automática e informe a quantidade de dias. Uma política mais curta pode apagar amostras antigas; marque a confirmação apenas depois de revisar o período e o impacto. A remoção é executada pela política do TimescaleDB, não necessariamente no instante em que você salva.
 
 Na primeira aplicação, se nenhuma política do SCADIVO estiver registrada, o formulário pede confirmação antes de assumir as políticas Timescale de retenção e atualização dos agregados. Faixas de agregação sem configuração registrada serão desativadas, e regras externas não registradas serão perdidas. Confirme com quem administra o banco antes de prosseguir.
 
-#### Definir um limite por tamanho
+O limite em GiB controla somente as amostras brutas do Historian e inclui blocos, índices e dados auxiliares do TimescaleDB. Não limita agregados, alarmes, eventos, Auditoria, banco principal nem espaço livre do servidor. Os agregados mantêm a retenção própria.
 
-O limite em **GiB** controla apenas o espaço medido dos dados brutos do Historian, incluindo os blocos, índices e dados auxiliares do TimescaleDB. Ele não limita agregados, alarmes, eventos, Auditoria, banco principal nem espaço livre do servidor. Os agregados continuam usando a própria retenção.
+Em Ao alcançar o limite, Somente avisar mostra o aviso sem apagar dados. Remover blocos completos mais antigos exige confirmação de perda permanente. A cada minuto, a manutenção pode remover até quatro intervalos antigos completos e preserva o intervalo mais recente. O tamanho dos blocos faz desse valor uma meta, não um teto imediato: o uso pode permanecer acima do limite.
 
-Em **Ao alcançar o limite**, escolha **Somente avisar** para receber o aviso sem apagar dados. A opção **Remover blocos completos mais antigos** exige a confirmação de possível perda permanente de amostras. A cada minuto, a manutenção pode excluir até quatro intervalos completos antigos e sempre preserva o intervalo mais recente. Como os blocos têm tamanho e duração próprios, o limite é uma meta: o uso pode ultrapassá-lo até a próxima execução e ainda ficar acima quando só restar o intervalo protegido. Não é um teto instantâneo nem uma garantia de espaço livre no volume.
+Limite por tamanho e retenção por dias podem coexistir; a primeira condição que remover as amostras prevalece. Confira a medição depois da manutenção e planeje margem. Antes de permitir que uma dessas políticas apague amostras, configure e acompanhe o arquivamento se precisar conservá-las fora da base ativa.
 
-O limite por tamanho e a retenção por dias podem coexistir; vence a primeira condição que remover as amostras. Confira o valor medido depois da manutenção e planeje a capacidade com margem. **Arquivamento e restauração verificada ainda não estão disponíveis nesta tela.**
+Em Arquivar e restaurar amostras, crie um arquivo manual para um intervalo ou configure o arquivamento periódico. O arquivo inclui amostras brutas do Historian, não agregados, alarmes, eventos, Auditoria, projeto, Authority, licença ou estado HA. Datas informadas no navegador são convertidas para UTC.
+
+No agendamento, Começar a arquivar a partir de define o cursor inicial. Arquivar somente dados com pelo menos estes dias mantém uma margem para dados recentes. Executar a cada controla quando o próximo lote pode começar; Arquivar até por execução limita a quantidade de dias processada em cada lote. O SCADIVO avança o cursor somente após verificar e concluir o arquivo. Uma tarefa bloqueada exige corrigir o destino e retomar; os dados de origem permanecem.
+
+Manter os arquivos sem prazo conserva os pacotes .scadhist. Se você definir um prazo, a rotação remove os arquivos concluídos mais antigos depois dessa quantidade de dias; ela não remove dados da base. Em Docker, monte a pasta do destino em volume persistente. Em uma instalação com vários nós da API, todos precisam usar a mesma pasta compartilhada e persistente; uma pasta local diferente em cada nó não serve como destino comum.
+
+A opção de remover a origem é independente da rotação e começa desmarcada. Ela só é executada depois que o pacote completo foi lido de volta e verificado. O progresso é salvo por segmento na mesma transação que remove aquele segmento; após reinício, segmentos já confirmados não são repetidos e amostras que chegarem depois permanecem na base. O lote só fica Concluído depois que todos os segmentos autorizados forem tratados. O agendamento exige uma confirmação específica. Confira o cursor e o estado das tarefas e faça um teste de restauração antes de depender da rotina para liberar espaço. Se o limite por tamanho remover blocos antes de o cursor alcançá-los, esses dados já não poderão ser arquivados.
+
+Para restaurar, selecione um .scadhist e use Verificar e restaurar. O SCADIVO valida o pacote inteiro antes de inserir amostras. Em cada segmento, compara quantas ocorrências idênticas já existem e insere somente a quantidade que falta, evitando duplicar dados que continuam na base. O progresso fica registrado no Historian ativo. Repetir o arquivo não duplica amostras e pode repor dados removidos depois por uma política de retenção. Guarde cópias fora da pasta rotacionada se precisar mantê-los por mais tempo.
 
 ### Prepare o destino
 
@@ -85,7 +93,5 @@ Comece pela mensagem recebida. Sem conexão, confira nome/endereço, porta e ace
 Em incompatibilidade, leia os requisitos de versão PostgreSQL, TimescaleDB quando exigido e schema, a estrutura de dados esperada pelo produto. Em fase inválida, atualize o estado e siga Próxima ação; não inicie outra cópia enquanto uma já está ocorrendo.
 
 Com banco indisponível, o Runtime pode ficar degradado. O produto não deve apresentar gravações em memória como se fossem persistidas no banco. Para suporte, registre horário, fase e ID da operação; não inclua senha.
-
-Para retenção de amostras, arquivos programados, rotação e restauração do Historian, consulte [Captura e consulta do Historian](07-HISTORIAN-CAPTURA-CONSULTA.md). Arquivos do Historian são administrados pela API e não fazem parte do backup de configuração do projeto.
 
 [Abrir este guia na Ajuda instalada](/help?topic=database.topology)

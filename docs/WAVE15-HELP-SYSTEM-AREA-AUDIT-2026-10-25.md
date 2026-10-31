@@ -1,7 +1,5 @@
 # Help/manual — whole-product depth review, 25 October 2026
 
-Owner correction: the previous Screen/object expansion was not the full manual. Intelligence, HA, Database, Templates, Equipment and all other material user workflows need contextual introductions, actual field meanings/options, concrete examples, ordered procedures, expected outcomes and symptom-based troubleshooting. A topic ID or a matrix row is inventory, not evidence that someone can use the feature.
-
 ## Active delivery
 
 Continue existing draft PR #772 over product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`. Predecessor `2361d615e1c05ef654bb6a6987bd25b919df6dbf` passed T1 #40192872747; that result must not be attributed to later changes. No HA, database, Intelligence execution or licensing contracts are changed by this documentation work.
@@ -293,3 +291,9 @@ Found legacy chapter08 references to300-minute Demo/timeout during final reading
 Validation appropriate to this documentation-only batch:66 generated-manual files aligned;222 relative file links resolve;321 installed-Help references map to existing Topic IDs. Each locale has28 indexed chapter files,28 glossary entries and matching six-section introduction structure. All original link targets and critical boundaries retained; git diff --check passed. No src/web/test/dependency/workflow modifications, no new permanent tests and no repeat of unchanged local runtime suites. Prior code candidate581d9ced/T1 40499569914 exact result is recorded in live#424/#425/#305/#756; local121/121 and76/76 from that candidate are not transferred to a different code revision. New exact documentation commit/run/status also lives there.
 
 The named entry-language/reading-route corrections are complete for this batch. Next is consolidated delivery review of PR#772 against #424/#425 and its exact CI, rather than another unspecified prose queue. Help/manual acceptance remains open: #357 interface audit/final real product figures and global semantic-parity review keep their recorded sequence; pending-product markers require follow-up after delivery. Do not infer complete product/manual acceptance from link counts or a green run. #301 licensing remains next product stage, #788 and#779–#782 preserved. PR#772 draft/NO_MERGE. Earlier#423 HA/policy-rejoin incidents and job/navigation timeout receipts remain cause-unconfirmed where recorded; later greens are not fixes. No HA/backend tests/runtime/Authority/license/driver/dependency/Preview/DEMO/Portal, timeout/retry/filter/profile, merge or deployment changes.
+
+## Atualização documentada da #781 — 31/10/2026
+
+A Ajuda instalada e o capítulo 32 foram preparados nos três idiomas a partir de `RuntimeStationEngineeringWorkspace.tsx`, `RuntimeApplicationMount.tsx` e da admissão real de sessões. O guia explica criação/aplicação do perfil, abertura, alternativa quando pop-ups são bloqueados, organização manual, classes de sessão por janela e limites de posição física/restauração. A revisão de interface na Preview, o aceite físico e as capturas reais continuam pendentes; este registro não encerra #781 nem afirma teste com monitores físicos.
+
+Owner correction: the previous Screen/object expansion was not the full manual. Intelligence, HA, Database, Templates, Equipment and all other material user workflows need contextual introductions, actual field meanings/options, concrete examples, ordered procedures, expected outcomes and symptom-based troubleshooting. A topic ID or a matrix row is inventory, not evidence that someone can use the feature.

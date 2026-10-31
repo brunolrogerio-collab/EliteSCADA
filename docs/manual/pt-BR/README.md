@@ -27,6 +27,7 @@ Se algum termo não estiver claro, consulte o [glossário de Fundamentos](01-FUN
 ## Operação, histórico e análise
 
 - [Sessões Runtime e diagnóstico](27-SESSOES-E-DIAGNOSTICO.md)
+- [Estações Runtime em vários monitores](32-ESTACOES-RUNTIME-MULTIMONITOR.md)
 - [Alarmes e eventos: configuração e operação](17-ALARMES-E-EVENTOS.md)
 - [Historian: captura e consulta](07-HISTORIAN-CAPTURA-CONSULTA.md)
 - [Relatórios: autoria e operação](16-RELATORIOS.md)

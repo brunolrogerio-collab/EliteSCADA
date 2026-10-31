@@ -173,5 +173,19 @@
     "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
     "reviewWhen": "The exact installed Matter artifacts and their supported availability/platform/operation subset have been requalified and accepted.",
     "review": "Review the test-version availability and operational bounds against the accepted artifact, not an upstream closed issue or release number. Preserve unsupported commissioning/Thread/HA limits unless separately implemented and validated."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-781",
+    "issue": 781,
+    "topicId": "runtime.station-multimonitor",
+    "fieldKeys": [
+      "station.name",
+      "station.screen",
+      "station.mode",
+      "station.windows"
+    ],
+    "status": "WAITING_PREVIEW_ACCEPTANCE_AND_REAL_SCREENSHOTS",
+    "reviewWhen": "The Product Owner accepts physical placement and recovery in Preview and real screenshots are captured from the accepted product interface.",
+    "review": "Verify the profile fields, 1–4 windows, navigation/fixed behavior, blocked-popup fallback, per-window session result and close/reopen/reconnect instructions against the accepted Preview. Add actual product captures to the relevant manual steps. Keep manual physical placement and lack of automatic monitor-position restoration explicit unless the product changes."
   }
 ]

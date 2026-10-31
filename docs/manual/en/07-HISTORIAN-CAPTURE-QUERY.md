@@ -54,28 +54,6 @@ Sorting changes presentation order, not record selection. Moving pages continues
 
 These are different decisions. Capture selects observations to record. Retention defines how long to keep them. Aggregation summarizes samples; backup keeps a recoverable copy. Configuring TAG capture does not define a global database quota or archiving.
 
-### Create a Historian archive
-
-In Engineering > Database, under Archive and restore samples, choose the start and end of the period. The browser's local time zone is converted to UTC in the archive. The period must end in the past. The archive contains only raw samples from the Historian table; it does not include aggregates, alarms, events, Audit, the application, Authority, licensing, or HA state.
-
-The destination is a folder on the API server. The service administrator can set it with `Historian:Archive:RootPath`. In Docker, mount this folder as a persistent volume so the files survive container recreation. With a remote Historian database, samples stream through the SCADIVO service; the PostgreSQL host does not need access to the archive folder.
-
-Use Create verified archive. The service splits the period into UTC-day segments, compresses each segment, checks its row count and SHA-256 by reading it back, and saves progress before continuing. The list shows Queued, In progress, Paused, or Completed and verified. If the process restarts, confirmed segments resume. If the destination is full or unavailable, the job pauses and original samples remain; fix the destination and choose Resume.
-
-Download only when the state is Completed and verified. To restore, select the `.scadhist` file and choose Verify and restore. SCADIVO checks the whole package before inserting samples. For each segment, it compares the number of identical occurrences already present and inserts only the missing rows, avoiding duplicates when the original samples remain in the database. Progress is recorded in the active Historian database. Repeating the archive does not duplicate samples and can restore data that a retention policy removed later.
-
-Deleting original samples is optional and is unchecked by default. To enable it, check the option and the additional confirmation. Removal happens only after the complete package has been closed, read back, and verified. It affects raw samples only in the selected period; aggregate retention is a separate policy. Keep the source if you still need the samples in the active Historian.
-
-### Schedule archives and set file rotation
-
-Configure one schedule for this installation in the same section. Start archiving from sets the first cursor position. Archive only data at least this many days old leaves recent data outside the batch; Run every sets the frequency; Archive up to per run limits each batch to 31 days. The cursor advances only after a batch archive is completed and verified. Review the displayed cursor and job state. A paused job does not advance; fix the destination and choose Resume.
-
-Keep archive files without an expiry date to retain every completed package. If you set a period, rotation deletes completed `.scadhist` packages after they become older than that period. It does not delete Historian database samples. The policy applies to files created manually as well as scheduled files. Make external copies if you need to keep them longer.
-
-The destination is a folder on the API server. In Docker, mount it on persistent storage. If multiple API nodes use the same database, configure the same path on every node and point it to one shared persistent folder; independent local storage on each node is not enough. For a remote Historian database, the folder still belongs to the SCADIVO service, not the PostgreSQL host.
-
-The schedule can also remove source samples, but this option starts unchecked and requires explicit confirmation. Removal starts only after the complete package has been read back and verified. Progress is saved one segment at a time in the same database transaction as that segment's source deletion; after a restart, already confirmed segments are skipped and later-arriving samples remain in the database. The batch is marked Completed only after every authorized segment is processed. Configure the archive age before retention or the size limit; those policies can remove samples before the schedule cursor reaches them. Test restore and monitor jobs before relying on archiving to free space.
-
 Playback displays historical values. It does not restore the process or allow commands from the past. Return to live mode before operating. Missing samples do not mean zero or stopped equipment.
 
 [Open this guide in installed Help](/help?topic=historian.capture-query)

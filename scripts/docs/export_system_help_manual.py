@@ -44,6 +44,8 @@ for locale, (name, title) in {'pt-BR': ('30-PRIMEIRO-PROJETO.md', 'Primeiro proj
     CHAPTERS[locale].append((name, title, ['getting-started.first-project']))
 for locale, (name, title) in {'pt-BR': ('31-TROCA-DA-APLICACAO.md', 'Trocar a aplicação da instalação'), 'en': ('31-SWITCHING-APPLICATION.md', 'Switching the installation application'), 'es': ('31-CAMBIO-DE-APLICACION.md', 'Cambiar la aplicación de la instalación')}.items():
     CHAPTERS[locale].append((name, title, ['installation.switch-workflow']))
+for locale, (name, title) in {'pt-BR': ('32-ESTACOES-RUNTIME-MULTIMONITOR.md', 'Estações Runtime em vários monitores'), 'en': ('32-RUNTIME-STATIONS-MULTIMONITOR.md', 'Runtime stations across monitors'), 'es': ('32-ESTACIONES-RUNTIME-MULTIMONITOR.md', 'Estaciones Runtime en varios monitores')}.items():
+    CHAPTERS[locale].append((name, title, ['runtime.station-multimonitor']))
 for locale, (name, title) in {'pt-BR': ('29-MONITORES-E-INFORMACOES.md', 'Monitores e Informações'), 'en': ('29-MONITORS-AND-INFORMATION.md', 'Monitors and Information'), 'es': ('29-MONITORES-E-INFORMACION.md', 'Monitores e Información')}.items():
     CHAPTERS[locale].append((name, title, ['engineering.development-monitor', 'engineering.tag-monitor', 'engineering.information']))
 for locale, (name, title) in {'pt-BR': ('27-SESSOES-E-DIAGNOSTICO.md', 'Sessões Runtime e diagnóstico'), 'en': ('27-SESSIONS-AND-DIAGNOSTICS.md', 'Runtime sessions and diagnostics'), 'es': ('27-SESIONES-Y-DIAGNOSTICO.md', 'Sesiones Runtime y diagnóstico')}.items():

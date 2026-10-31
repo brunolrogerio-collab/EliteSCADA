@@ -16,7 +16,7 @@ Exporte la aplicación por el flujo disponible y compruebe proyecto, revisión y
 
 Cambiar la aplicación ofrece backups Application y Authority antes de detach, la desvinculación. Puede exportar y volver sin cambiar. No haga detach solo para probar backup.
 
-Nueva contraseña del backup protege el archivo Authority; no es contraseña de login. Guárdela por medio protegido separado del archivo. Prepare copias/recuperación de base/Historian y claves de drivers. Este flujo no define la retención ni incluye archivos del Historian. Para archivar y restaurar muestras sin procesar, use Archivar y restaurar muestras, explicado en [Captura y consulta del Historian](07-HISTORIAN-CAPTURA-CONSULTA.md); la API administra esos archivos por separado.
+Nueva contraseña del backup protege el archivo Authority; no es contraseña de login. Guárdela por medio protegido separado del archivo. Prepare copias/recuperación de base/Historian y claves de drivers. El flujo no define retención/archivado ni los incluye automáticamente.
 
 ### Recuperar Authority y aplicación en instalación neutra
 

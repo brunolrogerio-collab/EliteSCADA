@@ -27,6 +27,7 @@ For an unfamiliar term, consult the [Fundamentals glossary](01-ELITESCADA-FUNDAM
 ## Operation, history and analysis
 
 - [Runtime sessions and diagnostics](27-SESSIONS-AND-DIAGNOSTICS.md)
+- [Runtime stations across monitors](32-RUNTIME-STATIONS-MULTIMONITOR.md)
 - [Alarms and events: configuration and operation](17-ALARMS-AND-EVENTS.md)
 - [Historian: capture and queries](07-HISTORIAN-CAPTURE-QUERY.md)
 - [Reports: authoring and operation](16-REPORTS.md)

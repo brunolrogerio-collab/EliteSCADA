@@ -13,6 +13,32 @@ namespace Scada.Drivers.Tests;
 
 public sealed class ContextualHelpLearningTests
 {
+    [Fact]
+    public void RuntimeStationGuideExplainsCurrentWorkflowAndLimitationsInEveryLocale()
+    {
+        var expectedFields = new[] { "station.name", "station.screen", "station.mode", "station.windows" };
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            var topic = Assert.Single(catalog.Topics, item => item.Id == "runtime.station-multimonitor");
+            var fields = topic.Sections.SelectMany(section => section.Fields ?? []).Select(field => field.Key);
+            Assert.Equal(expectedFields, fields);
+            Assert.Contains("runtime.session-classes", topic.RelatedTopicIds ?? []);
+            var fullText = string.Join("\n", topic.Sections.Select(section => section.Heading + "\n" + section.Body));
+            var manualPlacement = locale switch
+            {
+                "pt-BR" => "posição física",
+                "en" => "physical monitor",
+                _ => "monitor físico"
+            };
+            Assert.Contains(manualPlacement, fullText, StringComparison.OrdinalIgnoreCase);
+            var viewOnlyLabel = locale switch { "pt-BR" => "Visualização", "en" => "View Only", _ => "Solo visualización" };
+            var interactiveLabel = locale switch { "pt-BR" => "Interativa", "en" => "Interactive", _ => "Interactiva" };
+            Assert.Contains(topic.Sections, section => section.Body.Contains(viewOnlyLabel, StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(topic.Sections, section => section.Body.Contains(interactiveLabel, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     [Theory]
     [InlineData("pt-BR")]
     [InlineData("en")]

@@ -338,6 +338,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
         _listener.Stop();
         try { await _loop; }
         catch (OperationCanceledException) { }
+        catch (SocketException) when (_cts.IsCancellationRequested) { }
         _cts.Dispose();
     }
 }

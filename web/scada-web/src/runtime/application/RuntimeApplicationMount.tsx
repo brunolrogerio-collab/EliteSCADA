@@ -139,6 +139,8 @@ function EngineeringRuntimeApplicationContent({
   const fullscreenRoot = useRef<HTMLElement>(null);
   const mobile = useMobileRuntime();
   const [requestedScreen, setRequestedScreen] = useState<string | null>(null);
+  const [stationProfileId, setStationProfileId] = useState('');
+  const [stationLaunchMessage, setStationLaunchMessage] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -161,6 +163,9 @@ function EngineeringRuntimeApplicationContent({
     screen.key.toLocaleLowerCase() === screenFromUrl?.toLocaleLowerCase()
   )?.key;
   const activeScreenKey = requestedScreen ?? linkedScreen ?? startup.screenKey;
+  const stationProfiles = engineeringPackage.runtimePresentation?.stationProfiles ?? [];
+  const selectedStation = stationProfiles.find(profile => profile.id === stationProfileId) ?? stationProfiles[0];
+  const stationFixed = new URLSearchParams(window.location.search).get('stationMode') === 'fixed';
   const activeScreen = (engineeringPackage.screens ?? []).find(screen =>
     screen.key.toLocaleLowerCase() === activeScreenKey?.toLocaleLowerCase()
   );
@@ -224,6 +229,19 @@ function EngineeringRuntimeApplicationContent({
     else await fullscreenRoot.current?.requestFullscreen();
   };
 
+  const startStation = () => {
+    if (!selectedStation) return;
+    let opened = 0;
+    for (const [index, slot] of selectedStation.windows.entries()) {
+      const query = new URLSearchParams({ screen: slot.screenKey, station: selectedStation.id, slot: String(index), stationMode: slot.mode });
+      const child = window.open(`/?${query.toString()}`, '_blank');
+      if (child) { child.opener = null; opened++; }
+    }
+    setStationLaunchMessage(opened === selectedStation.windows.length
+      ? (locale === 'pt-BR' ? 'Janelas abertas. Mova cada uma para o monitor desejado e use tela cheia.' : locale === 'es' ? 'Ventanas abiertas. Mueva cada una al monitor y active pantalla completa.' : 'Windows opened. Move each to a monitor and enter fullscreen.')
+      : (locale === 'pt-BR' ? 'O navegador bloqueou janelas. Permita pop-ups e tente novamente.' : locale === 'es' ? 'El navegador bloqueó ventanas. Permita ventanas emergentes e inténtelo otra vez.' : 'The browser blocked some windows. Allow pop-ups and try again.'));
+  };
+
   const toggleAlarms = () => {
     setAlarmsOpen(current => {
       const next = !current;
@@ -273,12 +291,12 @@ function EngineeringRuntimeApplicationContent({
     {showFullscreenControl && !compact ? <RuntimeOperatorTool
       label={text.fullscreen} icon="fullscreen" active={false} onClick={() => void toggleFullscreen()}
     /> : null}
-    {(header?.links ?? []).map((link, index) => <button key={index} type="button"
+    {!stationFixed ? (header?.links ?? []).map((link, index) => <button key={index} type="button"
       className={`runtime-operator-tool runtime-operator-tool--custom${link.visualAssetId ? ' runtime-operator-tool--custom-image' : ''}`}
       data-testid="runtime-custom-screen-link"
       title={link.label} aria-label={link.label} onClick={() => { setRequestedScreen(link.screenKey); showOverview(); }}>
       {link.visualAssetId ? <img src={runtimeVisualAssetContentUrl(link.visualAssetId)} alt=""/> : <span>{link.label}</span>}
-    </button>)}
+    </button>) : null}
   </div>;
 
   if (!startup.screenKey) {
@@ -324,6 +342,12 @@ function EngineeringRuntimeApplicationContent({
         </> : null}
       </div>
       <div className="runtime-operator-side runtime-operator-side--right">
+        {!compact && stationProfiles.length ? <div className="runtime-operator-station-controls">
+          <select aria-label={locale === 'pt-BR' ? 'Estação do Runtime' : locale === 'es' ? 'Estación Runtime' : 'Runtime station'} value={selectedStation?.id ?? ''} onChange={event => setStationProfileId(event.currentTarget.value)}>
+            {stationProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+          </select>
+          <button type="button" onClick={startStation}>{locale === 'pt-BR' ? 'Iniciar estação' : locale === 'es' ? 'Iniciar estación' : 'Start station'}</button>
+        </div> : null}
         {!compact ? <a className="runtime-operator-tool" href={`/?screen=${encodeURIComponent(activeScreenKey ?? '')}`}
           target="_blank" rel="noopener noreferrer"
           aria-label={locale === 'pt-BR' ? 'Abrir esta tela em outra janela' : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window'}
@@ -336,6 +360,7 @@ function EngineeringRuntimeApplicationContent({
             runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
         </div> : null}
       </div>
+      {stationLaunchMessage ? <span role="status" className="runtime-station-launch-status">{stationLaunchMessage}</span> : null}
     </header> : <div className="runtime-hidden-header-session" aria-label={text.runtime}>
       <UserSessionMenu locale={locale} includeRuntimeSessionControls runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
     </div>}
@@ -344,6 +369,7 @@ function EngineeringRuntimeApplicationContent({
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
         initialScreenKey={activeScreenKey}
+        fixedScreen={stationFixed}
         runtimeProjectKey={projection.projectKey ?? null}
         runtimeRevision={projection.revision ?? null}
         performanceAnalyticsEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'TrendUse')}

@@ -43,6 +43,7 @@ import { RuntimeHistoricalPlaybackReadOnlyError } from '../historical-playback/r
 export type RuntimeVisualNavigatorProps = Readonly<{
   engineeringPackage: Pick<EngineeringPackageView, 'screens' | 'popups' | 'dynamos' | 'equipment' | 'templates'>;
   initialScreenKey: string;
+  fixedScreen?: boolean;
   mobileOrientation?: 'landscape' | 'portrait';
   mobileScreens?: Readonly<Record<string, string>>;
   locale?: EngineeringLocale;
@@ -82,6 +83,7 @@ const POPUP_FALLBACK_TITLE: Readonly<Record<EngineeringLocale, string>> = Object
 export function RuntimeVisualNavigator({
   engineeringPackage,
   initialScreenKey,
+  fixedScreen = false,
   mobileOrientation = 'landscape',
   mobileScreens,
   locale = 'pt-BR',
@@ -179,6 +181,7 @@ export function RuntimeVisualNavigator({
       const rawAction = resolveVisualNavigationAction(event.element, event.eventKey);
       if (!rawAction) return;
       const action = normalizeVisualActionWireKind(rawAction);
+      if (fixedScreen && action.kind === 'NavigateScreen') return;
       operational = ['ExecuteCommand', 'ExecuteRichCommand', 'SetTagValue', 'ToggleTagBoolean'].includes(action.kind);
       if (operational) {
         if (actionInFlight.current.has(objectId)) return;

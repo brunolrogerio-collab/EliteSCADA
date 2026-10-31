@@ -651,8 +651,15 @@ export type RuntimePresentationEngineering = Readonly<{
   historicalPlaybackEnabled: boolean;
   mobileOrientation?: 'landscape' | 'portrait';
   mobileScreens?: Readonly<Record<string, string>> | null;
+  stationProfiles?: readonly RuntimeStationProfile[] | null;
   header?: RuntimeHeaderEngineering | null;
   version: number;
+}>;
+
+export type RuntimeStationProfile = Readonly<{
+  id: string;
+  name: string;
+  windows: readonly Readonly<{ screenKey: string; mode: 'navigation' | 'fixed' }>[];
 }>;
 
 export type RuntimeHeaderTextStyleEngineering = Readonly<{

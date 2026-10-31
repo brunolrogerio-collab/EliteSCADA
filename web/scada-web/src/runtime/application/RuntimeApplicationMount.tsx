@@ -16,6 +16,13 @@ import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNaviga
 import { useRuntimeSessionAdmission } from './RuntimeSessionClassPanel';
 import type { RuntimeSessionConnectionClass } from '../runtimeSessionAdmissionApi';
 import {
+  createRuntimeStationRunId,
+  openRuntimeStationAdmissionChannel,
+  parseRuntimeStationAdmissionMessage,
+  type RuntimeStationAdmissionMessage,
+  type RuntimeStationWindowAdmissionState
+} from './runtimeStationAdmissionChannel';
+import {
   loadRuntimeApplicationProjection,
   RuntimeApplicationProjectionError,
   RuntimeApplicationTransportError,
@@ -27,6 +34,11 @@ import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
 const REFRESH_INTERVAL_MS = 1500;
 const RETRYABLE_RUNTIME_PROJECTION_STATUSES = new Set([502, 503, 504]);
 const TRUNCATED_RESPONSE_SIGNATURE = 'content-length header of network response exceeds response body';
+const STATION_ADMISSION_REPORT_TIMEOUT_MS = 20_000;
+
+type RuntimeStationWindowReport = Omit<RuntimeStationAdmissionMessage, 'status'> & {
+  status: RuntimeStationWindowAdmissionState;
+};
 
 export type RuntimeApplicationMountProps = {
   showHistoryNavigation?: boolean;
@@ -40,14 +52,51 @@ export function RuntimeApplicationMount({
   const locale = useAppShellLocale();
   const text = appShellText(locale);
   const session = useRuntimeSessionAdmission();
+  const stationQuery = new URLSearchParams(window.location.search);
   const requestedSessionClass: RuntimeSessionConnectionClass =
-    new URLSearchParams(window.location.search).get('stationMode') === 'fixed' ? 'viewOnly' : 'interactive';
+    stationQuery.get('stationMode') === 'fixed' ? 'viewOnly' : 'interactive';
+  const stationRunId = stationQuery.get('stationRun');
+  const stationId = stationQuery.get('station');
+  const stationSlotValue = stationQuery.get('slot');
+  const stationSlot = stationSlotValue !== null && /^\d+$/.test(stationSlotValue)
+    ? Number(stationSlotValue) : null;
+  const stationAdmissionChannel = useRef<BroadcastChannel | null>(null);
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
   const [projectionSessionId, setProjectionSessionId] = useState<string | null>(null);
   const lastSuccessfulProjection = useRef<RuntimeApplicationProjection | null>(null);
   const currentLocale = useRef(locale);
   currentLocale.current = locale;
   const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!stationRunId || !stationId || stationSlot === null || stationSlot > 3) return;
+    const channel = openRuntimeStationAdmissionChannel(stationRunId);
+    if (!channel) return;
+    stationAdmissionChannel.current = channel;
+    return () => {
+      channel.close();
+      if (stationAdmissionChannel.current === channel) stationAdmissionChannel.current = null;
+    };
+  }, [stationId, stationRunId, stationSlot]);
+
+  useEffect(() => {
+    const channel = stationAdmissionChannel.current;
+    if (!channel || !stationRunId || !stationId || stationSlot === null || stationSlot > 3) return;
+    const status = !session.admissionSupported ? 'not-required'
+      : session.outcome ? 'admitted'
+        : session.capacityReasonCode ? 'capacity-rejected'
+          : session.error ? 'unavailable' : 'pending';
+    channel.postMessage({
+      runId: stationRunId,
+      stationId,
+      slot: stationSlot,
+      status,
+      requestedClass: requestedSessionClass,
+      grantedClass: session.outcome?.grantedClass ?? null,
+      capacityReasonCode: session.capacityReasonCode
+    } satisfies RuntimeStationAdmissionMessage);
+  }, [requestedSessionClass, session.admissionSupported, session.capacityReasonCode, session.error,
+    session.outcome?.sessionId, session.outcome?.grantedClass, stationId, stationRunId, stationSlot]);
 
   useEffect(() => {
     // Authentication-disabled installations retain their existing public Runtime
@@ -202,6 +251,9 @@ function EngineeringRuntimeApplicationContent({
   const [stationProfileId, setStationProfileId] = useState('');
   const [stationLaunchMessage, setStationLaunchMessage] = useState('');
   const [blockedStationWindows, setBlockedStationWindows] = useState<ReadonlyArray<{ index: number; href: string }>>([]);
+  const [stationAdmissionReports, setStationAdmissionReports] = useState<RuntimeStationWindowReport[]>([]);
+  const stationAdmissionChannelRef = useRef<BroadcastChannel | null>(null);
+  const stationAdmissionTimeoutRef = useRef<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -260,6 +312,11 @@ function EngineeringRuntimeApplicationContent({
     [engineeringPackage.branding, engineeringPackage.visualAssets]
   );
 
+  useEffect(() => () => {
+    stationAdmissionChannelRef.current?.close();
+    if (stationAdmissionTimeoutRef.current !== null) window.clearTimeout(stationAdmissionTimeoutRef.current);
+  }, []);
+
   useEffect(() => {
     const changed = () => setIsFullscreen(document.fullscreenElement === fullscreenRoot.current);
     document.addEventListener('fullscreenchange', changed);
@@ -292,9 +349,34 @@ function EngineeringRuntimeApplicationContent({
 
   const startStation = () => {
     if (!selectedStation) return;
+    const runId = createRuntimeStationRunId();
+    stationAdmissionChannelRef.current?.close();
+    if (stationAdmissionTimeoutRef.current !== null) window.clearTimeout(stationAdmissionTimeoutRef.current);
+    const channel = openRuntimeStationAdmissionChannel(runId);
+    stationAdmissionChannelRef.current = channel;
+    const initialReports: RuntimeStationWindowReport[] = selectedStation.windows.map((slot, index) => ({
+      runId,
+      stationId: selectedStation.id,
+      slot: index,
+      status: 'pending',
+      requestedClass: slot.mode === 'fixed' ? 'viewOnly' : 'interactive',
+      grantedClass: null,
+      capacityReasonCode: null
+    }));
+    setStationAdmissionReports(initialReports);
+    if (channel) {
+      channel.addEventListener('message', event => {
+        const report = parseRuntimeStationAdmissionMessage(event.data);
+        if (!report || report.runId !== runId || report.stationId !== selectedStation.id ||
+            report.slot >= selectedStation.windows.length) return;
+        setStationAdmissionReports(current => current.map(item =>
+          item.runId === runId && item.slot === report.slot ? report : item
+        ));
+      });
+    }
     const blocked: Array<{ index: number; href: string }> = [];
     for (const [index, slot] of selectedStation.windows.entries()) {
-      const query = new URLSearchParams({ screen: slot.screenKey, station: selectedStation.id, slot: String(index), stationMode: slot.mode });
+      const query = new URLSearchParams({ screen: slot.screenKey, station: selectedStation.id, slot: String(index), stationMode: slot.mode, stationRun: runId });
       const href = `/?${query.toString()}`;
       try {
         const child = window.open(href, '_blank');
@@ -305,13 +387,24 @@ function EngineeringRuntimeApplicationContent({
       }
     }
     setBlockedStationWindows(blocked);
+    if (blocked.length) {
+      const blockedSlots = new Set(blocked.map(item => item.index));
+      setStationAdmissionReports(current => current.map(item => blockedSlots.has(item.slot) ? { ...item, status: 'blocked' } : item));
+    }
+    stationAdmissionTimeoutRef.current = window.setTimeout(() => {
+      setStationAdmissionReports(current => current.map(item =>
+        item.runId === runId && (item.status === 'pending' || item.status === 'blocked')
+          ? { ...item, status: 'unavailable' }
+          : item
+      ));
+    }, STATION_ADMISSION_REPORT_TIMEOUT_MS);
     setStationLaunchMessage(blocked.length === 0
-      ? (locale === 'pt-BR' ? 'Janelas abertas. Mova cada uma para o monitor desejado e use tela cheia.' : locale === 'es' ? 'Ventanas abiertas. Mueva cada una al monitor y active pantalla completa.' : 'Windows opened. Move each to a monitor and enter fullscreen.')
+      ? (locale === 'pt-BR' ? 'Janelas abertas. Aguardando a confirmação da sessão de cada tela; depois mova-as para os monitores e use tela cheia.' : locale === 'es' ? 'Ventanas abiertas. Esperando la confirmación de sesión de cada pantalla; luego muévalas a los monitores y active pantalla completa.' : 'Windows opened. Waiting for each screen to confirm its Runtime session; then move them to the monitors and enter fullscreen.')
       : (locale === 'pt-BR'
-        ? `O navegador bloqueou ${blocked.length} de ${selectedStation.windows.length} janelas. Abra as telas abaixo manualmente, mova cada janela para o monitor desejado e use tela cheia.`
+        ? `O navegador bloqueou ${blocked.length} de ${selectedStation.windows.length} janelas. Abra as telas abaixo; a situação de cada sessão aparecerá aqui.`
         : locale === 'es'
-          ? `El navegador bloqueó ${blocked.length} de ${selectedStation.windows.length} ventanas. Abra manualmente las pantallas de abajo, mueva cada ventana al monitor deseado y active pantalla completa.`
-          : `The browser blocked ${blocked.length} of ${selectedStation.windows.length} windows. Open the screens below manually, move each window to its monitor, and enter fullscreen.`));
+          ? `El navegador bloqueó ${blocked.length} de ${selectedStation.windows.length} ventanas. Abra las pantallas de abajo; aquí aparecerá el estado de cada sesión.`
+          : `The browser blocked ${blocked.length} of ${selectedStation.windows.length} windows. Open the screens below; each session status will appear here.`));
   };
 
   const toggleAlarms = () => {
@@ -434,6 +527,11 @@ function EngineeringRuntimeApplicationContent({
       </div>
       {stationLaunchMessage ? <div role="status" className="runtime-station-launch-status">
         <span>{stationLaunchMessage}</span>
+        {stationAdmissionReports.length ? <ul aria-label={runtimeStationAdmissionListLabel(locale)} data-testid="runtime-station-admission-results">
+          {stationAdmissionReports.map(report => <li key={report.slot} data-testid={`runtime-station-window-${report.slot + 1}-status`}>
+            {runtimeStationAdmissionLabel(report, locale)}
+          </li>)}
+        </ul> : null}
         {blockedStationWindows.map(window => <a key={window.index} href={window.href} target="_blank" rel="noopener noreferrer">
           {locale === 'pt-BR' ? `Abrir tela ${window.index + 1}` : locale === 'es' ? `Abrir pantalla ${window.index + 1}` : `Open screen ${window.index + 1}`}
         </a>)}
@@ -599,6 +697,58 @@ function isRetryableRuntimeProjectionFailure(failure: Error): boolean {
   if (RETRYABLE_RUNTIME_PROJECTION_STATUSES.has(failure.status)) return true;
   return failure.status === 500 &&
     failure.message.toLowerCase().includes(TRUNCATED_RESPONSE_SIGNATURE);
+}
+
+function runtimeStationAdmissionListLabel(locale: 'pt-BR' | 'en' | 'es'): string {
+  return locale === 'pt-BR' ? 'Situação das sessões por tela'
+    : locale === 'es' ? 'Estado de las sesiones por pantalla'
+      : 'Runtime session status by screen';
+}
+
+function runtimeStationAdmissionLabel(report: RuntimeStationWindowReport, locale: 'pt-BR' | 'en' | 'es'): string {
+  const screen = report.slot + 1;
+  const granted = report.grantedClass === 'viewOnly'
+    ? (locale === 'pt-BR' ? 'Somente visualização' : locale === 'es' ? 'Solo visualización' : 'View Only')
+    : (locale === 'pt-BR' ? 'Interativa' : locale === 'es' ? 'Interactiva' : 'Interactive');
+  if (report.status === 'pending') {
+    return locale === 'pt-BR' ? `Tela ${screen}: aguardando confirmação da sessão.`
+      : locale === 'es' ? `Pantalla ${screen}: esperando la confirmación de sesión.`
+        : `Screen ${screen}: waiting for Runtime session confirmation.`;
+  }
+  if (report.status === 'admitted') {
+    return locale === 'pt-BR' ? `Tela ${screen}: sessão ${granted} confirmada.`
+      : locale === 'es' ? `Pantalla ${screen}: sesión ${granted} confirmada.`
+        : `Screen ${screen}: ${granted} session confirmed.`;
+  }
+  if (report.status === 'capacity-rejected') {
+    const reason = (report.capacityReasonCode ?? '').replace(/[^a-z]/gi, '').toLowerCase();
+    if (reason === 'viewonlyquotaexhausted') {
+      return locale === 'pt-BR' ? `Tela ${screen}: sem vaga de visualização disponível na licença.`
+        : locale === 'es' ? `Pantalla ${screen}: no hay una plaza de visualización disponible en la licencia.`
+          : `Screen ${screen}: no View Only seat is available in the license.`;
+    }
+    if (reason === 'interactivequotaexhaustednoeligibleviewonly') {
+      return locale === 'pt-BR' ? `Tela ${screen}: sem vaga interativa ou de visualização compatível.`
+        : locale === 'es' ? `Pantalla ${screen}: no hay una plaza interactiva ni de visualización compatible.`
+          : `Screen ${screen}: no compatible Interactive or View Only seat is available.`;
+    }
+    return locale === 'pt-BR' ? `Tela ${screen}: o servidor não encontrou vaga de Runtime compatível na licença.`
+      : locale === 'es' ? `Pantalla ${screen}: el servidor no encontró una plaza Runtime compatible en la licencia.`
+        : `Screen ${screen}: the server found no compatible Runtime seat in the license.`;
+  }
+  if (report.status === 'blocked') {
+    return locale === 'pt-BR' ? `Tela ${screen}: janela bloqueada pelo navegador; abra pelo link abaixo.`
+      : locale === 'es' ? `Pantalla ${screen}: ventana bloqueada por el navegador; ábrala con el enlace de abajo.`
+        : `Screen ${screen}: the browser blocked this window; open it using the link below.`;
+  }
+  if (report.status === 'not-required') {
+    return locale === 'pt-BR' ? `Tela ${screen}: esta instalação não usa admissão autenticada de sessões.`
+      : locale === 'es' ? `Pantalla ${screen}: esta instalación no usa admisión autenticada de sesiones.`
+        : `Screen ${screen}: this installation does not use authenticated session admission.`;
+  }
+  return locale === 'pt-BR' ? `Tela ${screen}: não foi possível confirmar a sessão. Confira o aviso nessa janela.`
+    : locale === 'es' ? `Pantalla ${screen}: no fue posible confirmar la sesión. Revise el aviso en esa ventana.`
+      : `Screen ${screen}: the session could not be confirmed. Check the message in that window.`;
 }
 
 function sameRuntimeProjection(

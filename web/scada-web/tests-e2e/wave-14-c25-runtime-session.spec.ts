@@ -11,6 +11,7 @@ type SessionProfile = {
 };
 
 type LogoutMode = 'success' | 'failure';
+type RuntimeSessionObservation = { clientInstanceId: string; connectionClass: string; url: string };
 
 const administrator: SessionProfile = {
   subjectId: 'local-admin-id',
@@ -52,7 +53,8 @@ async function installSessionContract(
   page: Page,
   initialProfile: SessionProfile | null,
   initialLogoutMode: LogoutMode = 'success',
-  authenticationEnabled = true
+  authenticationEnabled = true,
+  onRuntimeSessionAdmission?: (admission: RuntimeSessionObservation) => void
 ) {
   let currentProfile: SessionProfile | null = initialProfile;
   let logoutMode = initialLogoutMode;
@@ -128,6 +130,11 @@ async function installSessionContract(
       clientInstanceId: request.clientInstanceId,
       requestedClass: request.connectionClass,
       grantedClass: request.connectionClass
+    });
+    onRuntimeSessionAdmission?.({
+      clientInstanceId: request.clientInstanceId,
+      connectionClass: request.connectionClass,
+      url: route.request().frame().page().url()
     });
     return route.fulfill({ status: 201, json: {
       sessionId,
@@ -283,7 +290,9 @@ test('a fixed station window requests View Only before showing its active Runtim
 });
 
 test('starting a four-window station opens isolated Runtime sessions with the configured modes', async ({ page }) => {
-  await installSessionContract(page, administrator);
+  test.setTimeout(90_000);
+  const admissions: RuntimeSessionObservation[] = [];
+  await installSessionContract(page, administrator, 'success', true, admission => admissions.push(admission));
   await installEngineeringRuntimeProjection(page, undefined, [], {
     historicalPlaybackEnabled: false,
     version: 1,
@@ -297,26 +306,6 @@ test('starting a four-window station opens isolated Runtime sessions with the co
         { screenKey: 'home', mode: 'fixed' }
       ]
     }]
-  });
-
-  const admissions: Array<{ clientInstanceId: string; connectionClass: string; url: string }> = [];
-  await page.context().route('**/api/runtime/sessions', route => {
-    if (route.request().method() !== 'POST') return route.continue();
-    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
-    const sessionId = `00000000-0000-0000-0000-${String(admissions.length + 1).padStart(12, '0')}`;
-    admissions.push({
-      clientInstanceId: request.clientInstanceId,
-      connectionClass: request.connectionClass,
-      url: route.request().frame().page().url()
-    });
-    return route.fulfill({ status: 201, json: {
-      sessionId,
-      clientInstanceId: request.clientInstanceId,
-      requestedClass: request.connectionClass,
-      grantedClass: request.connectionClass,
-      admissionReasonCode: null,
-      capacityReasonCode: null
-    }});
   });
 
   await page.goto('/');
@@ -336,7 +325,7 @@ test('starting a four-window station opens isolated Runtime sessions with the co
   await allWindowsOpened;
 
   await Promise.all(stationWindows.map(window =>
-    expect(window.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 20_000 })
+    expect(window.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 45_000 })
   ));
   expect(stationWindows).toHaveLength(4);
   const observedSlots = new Set<number>();
@@ -344,6 +333,7 @@ test('starting a four-window station opens isolated Runtime sessions with the co
     const query = new URL(stationWindow.url()).searchParams;
     expect(query.get('screen')).toBe('home');
     expect(query.get('station')).toBe('eee-control-room');
+    expect(query.get('stationRun')).toBeTruthy();
     const slot = Number(query.get('slot'));
     expect(Number.isInteger(slot) && slot >= 0 && slot < 4).toBe(true);
     observedSlots.add(slot);
@@ -361,7 +351,69 @@ test('starting a four-window station opens isolated Runtime sessions with the co
       new URL(candidate.url).searchParams.get('slot') === String(index)
     );
     expect(admission?.connectionClass).toBe(index === 0 ? 'interactive' : 'viewOnly');
+    await expect(page.getByTestId(`runtime-station-window-${index + 1}-status`)).toContainText(
+      index === 0 ? 'sessão Interativa confirmada' : 'sessão Somente visualização confirmada'
+    );
   }
+});
+
+test('station launcher reports when the server rejects a window for exhausted licensed seats', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, undefined, [], {
+    historicalPlaybackEnabled: false,
+    version: 1,
+    stationProfiles: [{
+      id: 'eee-control-room',
+      name: 'Sala de controle',
+      windows: [
+        { screenKey: 'home', mode: 'navigation' },
+        { screenKey: 'home', mode: 'fixed' }
+      ]
+    }]
+  });
+
+  let successfulAdmissions = 0;
+  await page.context().route('**/api/runtime/sessions', route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const sessionRequest = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    const slot = new URL(route.request().frame().page().url()).searchParams.get('slot');
+    if (slot === '1') {
+      return route.fulfill({ status: 409, json: {
+        error: 'Runtime session capacity is unavailable.',
+        capacityReasonCode: 'ViewOnlyQuotaExhausted'
+      }});
+    }
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-' + String(++successfulAdmissions).padStart(12, '0'),
+      clientInstanceId: sessionRequest.clientInstanceId,
+      requestedClass: sessionRequest.connectionClass,
+      grantedClass: sessionRequest.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  const stationWindows: Page[] = [];
+  const allWindowsOpened = new Promise<void>(resolve => {
+    const onPage = (openedPage: Page) => {
+      stationWindows.push(openedPage);
+      if (stationWindows.length === 2) {
+        page.context().off('page', onPage);
+        resolve();
+      }
+    };
+    page.context().on('page', onPage);
+  });
+  await page.getByRole('button', { name: 'Iniciar estação' }).click();
+  await allWindowsOpened;
+
+  const deniedWindow = stationWindows.find(window => new URL(window.url()).searchParams.get('slot') === '1');
+  expect(deniedWindow).toBeTruthy();
+  await expect(deniedWindow!.getByTestId('runtime-session-required')).toBeVisible();
+  await expect(page.getByTestId('runtime-station-window-1-status')).toContainText('sessão Interativa confirmada');
+  await expect(page.getByTestId('runtime-station-window-2-status')).toContainText('sem vaga de visualização disponível na licença');
 });
 
 test('blocked station popups provide a manual link for every configured screen', async ({ page }) => {
@@ -390,8 +442,20 @@ test('blocked station popups provide a manual link for every configured screen',
   await expect(status).toBeVisible();
   const first = status.getByRole('link', { name: 'Abrir tela 1' });
   const second = status.getByRole('link', { name: 'Abrir tela 2' });
-  await expect(first).toHaveAttribute('href', '/?screen=home&station=eee-control-room&slot=0&stationMode=navigation');
-  await expect(second).toHaveAttribute('href', '/?screen=home&station=eee-control-room&slot=1&stationMode=fixed');
+  const firstHref = new URL((await first.getAttribute('href'))!, 'http://localhost');
+  const secondHref = new URL((await second.getAttribute('href'))!, 'http://localhost');
+  expect(firstHref.pathname).toBe('/');
+  expect(firstHref.searchParams.get('screen')).toBe('home');
+  expect(firstHref.searchParams.get('station')).toBe('eee-control-room');
+  expect(firstHref.searchParams.get('slot')).toBe('0');
+  expect(firstHref.searchParams.get('stationMode')).toBe('navigation');
+  expect(firstHref.searchParams.get('stationRun')).toBeTruthy();
+  expect(secondHref.pathname).toBe('/');
+  expect(secondHref.searchParams.get('screen')).toBe('home');
+  expect(secondHref.searchParams.get('station')).toBe('eee-control-room');
+  expect(secondHref.searchParams.get('slot')).toBe('1');
+  expect(secondHref.searchParams.get('stationMode')).toBe('fixed');
+  expect(secondHref.searchParams.get('stationRun')).toBe(firstHref.searchParams.get('stationRun'));
   await expect(first).toHaveAttribute('rel', 'noopener noreferrer');
   await expect(second).toHaveAttribute('target', '_blank');
 

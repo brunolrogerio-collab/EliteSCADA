@@ -72,7 +72,11 @@ Interpret results together with coverage, quality, timestamps, and each signal's
 
 ## 6. Generate Screen drafts
 
-Choose a profile or stage and generate an available Screen. Generation uses TAG metadata to create an editable Screen; it does not query live values or Historian and does not invent KPIs. Review the draft in the editor, run Preview, and use Apply to Workspace. Then save, publish, and activate through the explicit lifecycle steps. The generated Screen is not activated automatically.
+Save pending Intelligence configuration changes first. At the top of the page, find **Create a Runtime dashboard** and choose an equipment profile or process stage under **Dashboard content**. The list uses names already in the project; you do not type IDs. The basic generator needs at least one resolved numeric TAG. If no source can be selected, complete the profile, assignment or stage, and check the license and permissions.
+
+Select **Generate dashboard draft**. SCADIVO opens a normal editable Screen in the canonical editor, with value cards, a trend and coverage arranged from existing TAGs. This is a draft: it does not query live values or Historian, invent KPIs or publish the Screen.
+
+In the editor, review names, units, dimensions, bindings and readability. Use **Preview** and **Apply to Workspace**; then save, publish and activate the project revision, and configure/check Runtime navigation. Only then can operators open the Screen. Specialized guided actions appear with their related analyses and may require additional rules or ranges.
 
 ## 7. Common problems
 
@@ -219,12 +223,11 @@ Check which configuration you are using before copying limits. Units and upper-l
 
 ### Generate the screen and check the full chain
 
-1. Choose the equipment assignment or process stage and the desired screen type.
-2. Complete the requested signals and options. If the button is blocked, read the reason beside the field.
-3. Generate the draft. This organizes objects and references; it does not yet read Historian data or activate the screen.
-4. In the editor, check title, dimensions, objects, bindings and how to open the screen. Run Preview and Apply to put the edit in the project.
-5. Save the revision, publish and activate. Open the Runtime screen through configured navigation.
-6. In the analysis object, set the period and request the query. Check window and result. A stage screen groups its equipment; that does not create an aggregate indicator or establish that one equipment caused another’s result.
+1. Save the current configuration. In Create a Runtime dashboard, choose an equipment profile or process stage under Dashboard content.
+2. Select Generate dashboard draft. The button is disabled if the configuration is unsaved, the license or permission is missing, or the source has no valid numeric TAG.
+3. In the Screen editor, check the title, dimensions, objects, bindings and readability. Run Preview and Apply to Workspace to add the edit to the project.
+4. Save, publish and activate the revision. Set up or check navigation and open the Screen in Runtime.
+5. In the analysis object, set the period and request the query. Check the window and result. A stage Screen groups its equipment; it does not create an aggregate indicator or establish that one piece of equipment caused another’s result.
 
 ### How to investigate an empty result
 

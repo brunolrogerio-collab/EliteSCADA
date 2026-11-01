@@ -6,7 +6,7 @@ const assignmentId = '15000000-0000-0000-0000-000000000203';
 const tagId = '15000000-0000-0000-0000-000000000101';
 const stageId = '15000000-0000-0000-0000-000000000204';
 
-test('Intelligence opens a generated screen in the canonical editor without persisting the draft', async ({ page }) => {
+test('Intelligence generates visible equipment and process dashboards in the canonical editor without persisting drafts', async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   await page.addInitScript(() => window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
   const writes: string[] = [];
@@ -104,14 +104,27 @@ test('Intelligence opens a generated screen in the canonical editor without pers
 
   await openIntelligence();
   const intelligence = page.getByTestId('intelligence-stage2-authoring');
-  const generate = intelligence.getByTestId(`intelligence-dashboard-assignment-${assignmentId}`);
+  const dashboardGenerator = page.getByTestId('intelligence-dashboard-generator');
+  await expect(dashboardGenerator).toBeVisible();
+  const generate = dashboardGenerator.getByTestId('intelligence-dashboard-generate');
   await expect(generate).toBeDisabled();
+
+  const profileName = intelligence.getByRole('region', { name: 'Perfis reutilizáveis' }).getByLabel('Nome de exibição');
+  await profileName.fill('Pump process profile - unsaved');
+  await expect(dashboardGenerator.getByRole('status')).toContainText('Salve a configuração atual da Intelligence');
+  await expect(generate).toBeDisabled();
+  await profileName.fill('Pump process profile');
 
   intelligenceLicensed = true;
   await openIntelligence();
-  const licensedIntelligence = page.getByTestId('intelligence-stage2-authoring');
-  const licensedGenerate = licensedIntelligence.getByTestId(`intelligence-dashboard-assignment-${assignmentId}`);
+  const licensedGenerator = page.getByTestId('intelligence-dashboard-generator');
+  const licensedGenerate = licensedGenerator.getByTestId('intelligence-dashboard-generate');
+  await expect(licensedGenerate).toBeDisabled();
+  await licensedGenerator.getByTestId('intelligence-dashboard-source').selectOption({
+    label: 'Perfil de equipamento · Pump P-101 · Pump process profile'
+  });
   await expect(licensedGenerate).toBeEnabled();
+  await licensedGenerator.screenshot({ path: testInfo.outputPath('intelligence-dashboard-generator.png') });
   await licensedGenerate.click();
 
   await expect(page).toHaveURL(/\/engineering\/screens$/);
@@ -124,7 +137,20 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(editor.getByTestId('runtime-intelligence-profile-coverage')).toBeVisible();
   await expect(editor.getByTestId('visual-editor-preview')).toBeEnabled();
   await expect(editor.getByTestId('visual-editor-apply')).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath('intelligence-equipment-dashboard-draft.png'), fullPage: true });
   expect(coverageQueries).toEqual([]);
+
+  await openIntelligence();
+  const processDashboardGenerator = page.getByTestId('intelligence-dashboard-generator');
+  await processDashboardGenerator.getByTestId('intelligence-dashboard-source').selectOption({
+    label: 'Etapa do processo · Pumping train'
+  });
+  await processDashboardGenerator.getByTestId('intelligence-dashboard-generate').click();
+  await expect(page).toHaveURL(/\/engineering\/screens$/);
+  const processDashboardEditor = page.getByTestId('visual-editor-workspace');
+  await expect(processDashboardEditor.getByLabel('Nome de exibição')).toHaveValue(/Pumping train/);
+  await expect(processDashboardEditor.getByTestId('visual-editor-generated-drafts').getByRole('button')).toHaveCount(1);
+  await expect(processDashboardEditor.getByTestId('visual-editor-apply')).toBeDisabled();
 
   await openIntelligence();
   const coveragePanel = page.getByTestId(`intelligence-profile-coverage-${profileId}`);

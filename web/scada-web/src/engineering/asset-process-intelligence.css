@@ -77,6 +77,31 @@
   border-top: 1px solid var(--border, #cbd5e1);
 }
 
+.asset-process-intelligence__dashboard-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.asset-process-intelligence__dashboard-form label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__dashboard-form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.asset-process-intelligence__dashboard-next-steps {
+  margin: 0;
+  color: var(--text-muted, #64748b);
+  line-height: 1.5;
+}
+
 .asset-process-intelligence__split {
   display: grid;
   grid-template-columns: minmax(190px, 0.7fr) minmax(0, 2fr);
@@ -483,6 +508,10 @@
   }
 
   .asset-process-intelligence__split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .asset-process-intelligence__dashboard-form {
     grid-template-columns: minmax(0, 1fr);
   }
 }

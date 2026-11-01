@@ -72,7 +72,11 @@ Interprete o resultado junto com a cobertura, quality, timestamps e limitações
 
 ## 6. Gerar rascunhos de telas
 
-Escolha um perfil ou uma etapa e gere a tela disponível. A geração usa metadados dos TAGs para criar uma Screen editável; não consulta valor ao vivo nem Historian e não inventa KPIs. Analise o rascunho no editor, execute Preview e use Apply ao Workspace. Depois, salve, publique e ative pelas etapas explícitas do lifecycle. A tela gerada não é ativada automaticamente.
+Salve primeiro as alterações pendentes da configuração da Intelligence. Na parte superior da página, localize **Gerar painel para o Runtime** e selecione em **Conteúdo do painel** um perfil de equipamento ou uma etapa do processo. A lista mostra os nomes cadastrados; você não precisa digitar IDs. O gerador básico precisa encontrar ao menos um TAG numérico resolvido. Se nada puder ser escolhido, complete o perfil, a associação ou a etapa e confira a licença e as permissões.
+
+Clique em **Gerar rascunho do painel**. O SCADIVO abre uma Tela comum e editável no editor canônico, com cartões de valores, tendência e cobertura construídos a partir dos TAGs existentes. Isso é um rascunho: não consulta valores atuais nem Historian, não inventa KPIs e não publica a Tela.
+
+No editor, confira nomes, unidades, dimensões, vínculos e legibilidade. Use **Pré-visualizar** e **Aplicar ao Workspace**; depois salve, publique e ative a revisão do projeto e configure/confira a navegação do Runtime. Só então a Tela poderá ser aberta pelos operadores. As ações guiadas especializadas ficam junto às análises correspondentes e podem pedir regras ou faixas adicionais.
 
 ## 7. Problemas comuns
 
@@ -219,12 +223,11 @@ Confira qual configuração está usando antes de copiar limites. A unidade e a 
 
 ### Gere a tela e confira a cadeia completa
 
-1. Escolha a associação do equipamento ou a etapa do processo e o tipo de tela desejado.
-2. Complete os sinais e opções pedidos. Se o botão estiver bloqueado, leia o motivo junto do campo.
-3. Gere o rascunho. Esse passo organiza objetos e referências; ainda não lê dados do Historian nem ativa a tela.
-4. No editor, confira título, dimensões, objetos, vínculos e forma de abrir a tela. Execute Pré-visualização e Aplicar para levar a edição ao projeto.
-5. Salve a revisão, publique e ative. Abra a tela no Runtime pela navegação configurada.
-6. No objeto de análise, configure o período e solicite a consulta. Confira a janela e o resultado. Uma tela de etapa reúne seus equipamentos; isso não cria um indicador agregado nem demonstra que um equipamento causou o resultado de outro.
+1. Salve a configuração atual. No bloco Gerar painel para o Runtime, escolha um perfil de equipamento ou uma etapa do processo em Conteúdo do painel.
+2. Selecione Gerar rascunho do painel. O botão fica bloqueado se a configuração ainda não foi salva, faltar licença ou permissão, ou se a origem não tiver um TAG numérico válido.
+3. No editor de Telas, confira título, dimensões, objetos, vínculos e legibilidade. Execute Pré-visualizar e Aplicar ao Workspace para levar a edição ao projeto.
+4. Salve a revisão, publique e ative. Configure ou confira a navegação e abra a Tela no Runtime.
+5. No objeto de análise, configure o período e solicite a consulta. Confira a janela e o resultado. Uma Tela de etapa reúne seus equipamentos; isso não cria um indicador agregado nem demonstra que um equipamento causou o resultado de outro.
 
 ### Roteiro para investigar resultado vazio
 

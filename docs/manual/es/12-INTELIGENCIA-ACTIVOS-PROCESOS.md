@@ -72,7 +72,11 @@ Interprete el resultado junto con cobertura, quality, timestamps y las limitacio
 
 ## 6. Generar borradores de Pantallas
 
-Elija un perfil o etapa y genere una Pantalla disponible. La generación usa metadatos de TAG para crear una Pantalla editable; no consulta valores en vivo ni Historian y no inventa KPIs. Revise el borrador en el editor, ejecute Preview y use Aplicar al Workspace. Después, guarde, publique y active mediante los pasos explícitos del lifecycle. La Pantalla generada no se activa automáticamente.
+Guarde primero los cambios pendientes de la configuración de Intelligence. En la parte superior de la página, localice **Crear un panel para Runtime** y elija un perfil de equipo o una etapa del proceso en **Contenido del panel**. La lista muestra nombres ya registrados; no es necesario escribir IDs. El generador básico necesita al menos un TAG numérico resuelto. Si no puede elegir una fuente, complete el perfil, la asignación o la etapa y compruebe la licencia y los permisos.
+
+Pulse **Generar borrador del panel**. SCADIVO abre una Pantalla normal y editable en el editor canónico, con tarjetas de valores, una tendencia y cobertura organizadas a partir de TAGs existentes. Es un borrador: no consulta valores actuales ni Historian, no inventa KPI ni publica la Pantalla.
+
+En el editor, revise nombres, unidades, dimensiones, vínculos y legibilidad. Use **Preview** y **Aplicar al Workspace**; luego guarde, publique y active la revisión del proyecto, y configure/compruebe la navegación de Runtime. Solo entonces los operadores podrán abrir la Pantalla. Las acciones guiadas especializadas aparecen junto a sus análisis y pueden pedir reglas o intervalos adicionales.
 
 ## 7. Problemas comunes
 
@@ -219,12 +223,11 @@ Compruebe qué configuración usa antes de copiar límites. La unidad y la inclu
 
 ### Genere pantalla y compruebe la cadena completa
 
-1. Elija la asociación del equipo o la etapa del proceso y el tipo de pantalla.
-2. Complete señales y opciones solicitadas. Si el botón está bloqueado, lea el motivo junto al campo.
-3. Genere el borrador. Organiza objetos y referencias; todavía no lee Historian ni activa la pantalla.
-4. En el editor, compruebe título, dimensiones, objetos, vínculos y apertura. Ejecute Vista previa y Aplicar para llevar la edición al proyecto.
-5. Guarde la revisión, publique y active. Abra la pantalla en Runtime mediante la navegación configurada.
-6. En el objeto de análisis, configure período y solicite la consulta. Compruebe ventana y resultado. Una pantalla de etapa reúne equipos; no crea un indicador agregado ni demuestra que un equipo causó el resultado de otro.
+1. Guarde la configuración actual. En Crear un panel para Runtime, elija un perfil de equipo o una etapa del proceso en Contenido del panel.
+2. Seleccione Generar borrador del panel. El botón queda deshabilitado si la configuración sigue sin guardar, falta licencia o permiso, o la fuente no tiene un TAG numérico válido.
+3. En el editor de Pantallas, compruebe título, dimensiones, objetos, vínculos y legibilidad. Ejecute Preview y Aplicar al Workspace para llevar la edición al proyecto.
+4. Guarde, publique y active la revisión. Configure o compruebe la navegación y abra la Pantalla en Runtime.
+5. En el objeto de análisis, configure el período y solicite la consulta. Compruebe la ventana y el resultado. Una Pantalla de etapa agrupa sus equipos; no crea un indicador agregado ni demuestra que un equipo causó el resultado de otro.
 
 ### Cómo investigar resultado vacío
 

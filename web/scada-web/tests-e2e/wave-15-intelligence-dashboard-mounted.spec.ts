@@ -7,6 +7,7 @@ const tagId = '15000000-0000-0000-0000-000000000101';
 const stageId = '15000000-0000-0000-0000-000000000204';
 
 test('Intelligence opens a generated screen in the canonical editor without persisting the draft', async ({ page }) => {
+  test.setTimeout(90_000);
   await page.addInitScript(() => window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
   const writes: string[] = [];
   const dataReads: string[] = [];
@@ -86,15 +87,28 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   page.on('websocket', socket => {
     if (new URL(socket.url()).pathname === '/ws/tags') dataReads.push('WS /ws/tags');
   });
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+
+  const openIntelligence = async () => {
+    await page.goto('/engineering');
+    await expect(page.getByTestId('engineering-lock-management')).toBeVisible();
+    const intelligenceNavigation = page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ });
+    await expect(intelligenceNavigation).toBeEnabled();
+    const scopesResponse = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname === '/api/engineering/asset-process-intelligence/scopes' && response.request().method() === 'GET';
+    });
+    await intelligenceNavigation.click();
+    expect((await scopesResponse).status()).toBe(200);
+    await expect(page.getByTestId('intelligence-stage2-authoring')).toBeVisible();
+  };
+
+  await openIntelligence();
   const intelligence = page.getByTestId('intelligence-stage2-authoring');
   const generate = intelligence.getByTestId(`intelligence-dashboard-assignment-${assignmentId}`);
   await expect(generate).toBeDisabled();
 
   intelligenceLicensed = true;
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  await openIntelligence();
   const licensedIntelligence = page.getByTestId('intelligence-stage2-authoring');
   const licensedGenerate = licensedIntelligence.getByTestId(`intelligence-dashboard-assignment-${assignmentId}`);
   await expect(licensedGenerate).toBeEnabled();
@@ -112,8 +126,7 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(editor.getByTestId('visual-editor-apply')).toBeDisabled();
   expect(coverageQueries).toEqual([]);
 
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  await openIntelligence();
   const coveragePanel = page.getByTestId(`intelligence-profile-coverage-${profileId}`);
   await coveragePanel.getByRole('button', { name: /Revisar cobertura histórica|Review historical coverage|Revisar cobertura histórica/ }).click();
   await coveragePanel.getByTestId(`intelligence-coverage-create-screen-${profileId}`).click();
@@ -124,8 +137,7 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(coverageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(coverageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
 
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  await openIntelligence();
   const stageCoverage = page.getByTestId(`intelligence-stage-coverage-${stageId}`);
   await expect(stageCoverage).toBeEnabled();
   await stageCoverage.click();
@@ -136,8 +148,7 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(stageCoverageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(stageCoverageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
 
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  await openIntelligence();
   const guidedStageDashboard = page.getByTestId(`intelligence-guided-stage-dashboard-${stageId}`);
   await expect(guidedStageDashboard).toBeEnabled();
   await expect(page.getByTestId(`intelligence-process-stage-insights-${stageId}`)).toBeDisabled();

@@ -5,7 +5,7 @@ import type { VisualDynamicDiagnostic, VisualDynamicSample } from './visualDynam
 import { quantizeAndClamp, resolveSliderConfiguration } from './sliderVisualModel';
 import './SliderVisualElement.css';
 
-export type SliderTagWrite = (tagId: string, value: number) => Promise<void>;
+export type SliderTagWrite = (tagId: string, value: string | number | boolean) => Promise<void>;
 
 export type SliderVisualElementProps = Readonly<{
   element: VisualElementEngineering;

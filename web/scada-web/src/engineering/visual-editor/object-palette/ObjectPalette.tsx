@@ -38,6 +38,8 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   alarmBrowser: 'Alarm Browser',
   eventBrowser: 'Event Browser',
   button: 'Button',
+  checkBox: 'CheckBox',
+  comboBox: 'ComboBox',
   slider: 'Slider',
   numericInput: 'Numeric input',
   measurementDial: 'Measurement dial',

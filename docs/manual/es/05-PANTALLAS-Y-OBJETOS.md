@@ -93,6 +93,19 @@ En **Eventos**, elija qué debe ocurrir en una interacción. Una acción prepara
 
 Para escribir una variable de prueba, seleccione acción y referencia real respetando tipo e intervalo. Para ejecutar un comando, seleccione el comando real. `CommandExecute` y `ProcessValueWrite` son autorizaciones distintas; ninguna propiedad visual las concede. Use retorno y estado real para indicar éxito: cambiar el color del botón no confirma que el equipo arrancó.
 
+### CheckBox: mostrar o cambiar un estado Booleano
+
+1. Inserte una **Casilla** y escriba una etiqueta clara, como `Bomba en automático`. La etiqueta es el texto para el operador; no define el TAG ni la acción.
+2. En **Dinámicas**, vincule `checked` a cualquier fuente Booleana compatible del selector, como un TAG, una expresión u otra función que devuelva verdadero/falso. La casilla puede mostrar estados como automático/manual, habilitado/deshabilitado o una condición propia de la aplicación.
+3. Para solo observar, deje **Permitir ajuste del operador** desactivado. Para que el operador cambie el estado, actívelo y use un vínculo con TAG Booleano escribible; el permiso de sesión y la autorización del servidor siguen aplicándose. Runtime confirma el cambio mediante el valor que recibe. Mala calidad, TAG ausente o escritura rechazada no deben parecer éxito.
+4. **Suprimir una alarma** es un modo opcional separado, no un requisito de la casilla genérica. En ese modo, elija una definición por nombre e indique motivo y duración. Runtime sigue validando el permiso y muestra si la supresión se hereda de otra ubicación.
+
+### ComboBox: elegir un valor de una lista
+
+1. Inserte un **ComboBox** y, en **Opciones de la lista**, agregue cada valor que puede recibir el TAG y la etiqueta legible para el operador. Por ejemplo, valor `AUTO` y etiqueta `Automático`; los valores deben ser distintos.
+2. En **Dinámicas**, vincule `text` a un TAG String o Enum. Su valor actual debe coincidir con una opción. El control no elige otra opción cuando falta el valor, la lista es inválida, la calidad no es Good o el tipo no coincide.
+3. Para permitir cambios, active **Permitir ajuste del operador** y use un TAG escribible. Pruebe primero con una variable segura y compruebe el valor confirmado por el proceso; una selección visual no demuestra que el equipo aceptó el cambio.
+
 ## 7. Cree y abra un Popup
 
 1. Abra **Popups**, cree uno y llámelo `Detalles de la bomba`. Elija dimensiones adecuadas al dispositivo. Seleccione una plantilla existente solo si la aplicación la necesita; un Popup también puede ser independiente.
@@ -118,10 +131,12 @@ Los recursos visuales son archivos importados, como imágenes. Los dínamos son 
 | El objeto cambia pese al valor fijo | Dinámicas, vínculos y Script sobre la misma propiedad. |
 | Botón sin efecto | Acción/evento, destino existente, habilitación, revisión y autorización. |
 | Escritura rechazada | Tipo/intervalo, dirección de escritura del TAG, permiso y clase de sesión Runtime. |
+| CheckBox o ComboBox no permite interacción | **Permitir ajuste del operador**, dirección de escritura, tipo del TAG, calidad actual y autorización de sesión. |
+| ComboBox no muestra el valor actual | Compare el valor del TAG con los valores configurados; la etiqueta visible es distinta del valor guardado. |
 | Objeto ausente | Visibilidad, posición/tamaño, superposición, recurso e intervalo/escala. |
 | Aplicar se rechaza después de validar | El proyecto puede haber cambiado; actualice, revise cambios y valide de nuevo. |
 | Runtime muestra el dibujo anterior | Guardar, publicar y activar son distintos de aplicar el dibujo. Revise la revisión activa. |
 
 ## 10. Continúe con Ayuda
 
-Temas instalados: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters` y `libraries.reusable-resources`. Abra uno mediante `/help?topic=<identificador>` en el producto. Las capturas finales procederán de la interfaz real después de la auditoría visual; una imagen ilustrada no sustituye la interfaz aceptada.
+Temas instalados: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters`, `visual.object.core.checkbox`, `visual.object.core.combobox` y `libraries.reusable-resources`. Abra uno mediante `/help?topic=<identificador>` en el producto. Las capturas finales procederán de la interfaz real después de la auditoría visual; una imagen ilustrada no sustituye la interfaz aceptada.

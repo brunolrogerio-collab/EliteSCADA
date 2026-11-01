@@ -103,6 +103,8 @@ export function VisualEditorAuthoringToolbar({
     [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser, '!', 'alarmBrowser', 'Alarm browser'],
     [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser, '≡', 'eventBrowser', 'Event browser'],
     [BUILTIN_VISUAL_OBJECT_TYPES.button, '▰', 'button', 'Button'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.checkBox, '☑', 'checkBox', 'CheckBox'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.comboBox, '▾', 'comboBox', 'ComboBox'],
     [BUILTIN_VISUAL_OBJECT_TYPES.slider, '☷', 'slider', 'Slider'],
     [BUILTIN_VISUAL_OBJECT_TYPES.numericInput, '123', 'numericInput', 'Numeric input'],
     [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, '◔', 'measurementDial', 'Measurement dial'],

@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from '../../i18n';
 import type { VisualEditorPropertyInspectorContractProps } from '../visualEditorContracts';
-import type { VisualAssetEngineering, VisualElementEngineering, VisualEngineeringPropertyValue } from '../../types';
+import type { AlarmEngineering, VisualAssetEngineering, VisualElementEngineering, VisualEngineeringPropertyValue } from '../../types';
 import type { ReportEngineeringDto } from '../../reports/reportContracts';
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../../visual-runtime';
 import { BrowserConfigurationEditor } from '../BrowserConfigurationEditor';
 import { SvgPaintOverrideEditor } from '../SvgPaintOverrideEditor';
 import { EventsEditor } from '../events-editor/EventsEditor';
 import { TrendPenEditor } from '../TrendPenEditor';
+import { CheckBoxConfigurationEditor, ComboBoxConfigurationEditor } from '../ControlConfigurationEditors';
 import { c07VisualEditorText, useC07VisualEditorText } from '../c07VisualEditorI18n';
 import {
   trendInspectorControlCopy,
@@ -63,6 +64,7 @@ export type PropertyInspectorCopy = Readonly<{
 
 export type PropertyInspectorProps = VisualEditorPropertyInspectorContractProps & Readonly<{
   visualAssets?: readonly VisualAssetEngineering[];
+  alarms?: readonly AlarmEngineering[];
   reports?: readonly ReportEngineeringDto[];
   copy?: Partial<PropertyInspectorCopy>;
   showEvents?: boolean;
@@ -128,6 +130,7 @@ export function PropertyInspector({
   selectedElements,
   onMutationIntent,
   visualAssets = [],
+  alarms = [],
   reports = [],
   copy,
   showEvents = true,
@@ -199,6 +202,12 @@ export function PropertyInspector({
     selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol
       ? selectedElements[0]
       : null;
+  const selectedCheckBox = selectedElements.length === 1 && selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.checkBox
+    ? selectedElements[0]
+    : null;
+  const selectedComboBox = selectedElements.length === 1 && selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.comboBox
+    ? selectedElements[0]
+    : null;
 
   return (
     <aside className="property-inspector" data-testid="visual-property-inspector">
@@ -269,6 +278,8 @@ export function PropertyInspector({
         onMutationIntent={onMutationIntent}
       /> : null}
       {selectedBrowser ? <BrowserConfigurationEditor element={selectedBrowser} locale={locale} onMutationIntent={onMutationIntent} /> : null}
+      {selectedCheckBox ? <CheckBoxConfigurationEditor element={selectedCheckBox} alarms={alarms} locale={locale} onMutationIntent={onMutationIntent} /> : null}
+      {selectedComboBox ? <ComboBoxConfigurationEditor element={selectedComboBox} alarms={alarms} locale={locale} onMutationIntent={onMutationIntent} /> : null}
 
       {showEvents && selectedElements.length === 1 && selectedElements[0].id ? (
         <EventsEditor

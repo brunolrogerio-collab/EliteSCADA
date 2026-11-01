@@ -38,6 +38,7 @@ import {
 import { resolveVisualDynamicState } from './visualDynamicRuntime';
 import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
 import { NumericInputVisualElement } from './NumericInputVisualElement';
+import { CheckBoxVisualElement, ComboBoxVisualElement } from './ControlVisualElements';
 import { MeasurementVisualElement } from './MeasurementVisualElement';
 import { IntelligencePerformanceVisualElement } from './IntelligencePerformanceVisualElement';
 import { IntelligenceProfileCoverageVisualElement } from './IntelligenceProfileCoverageVisualElement';
@@ -79,6 +80,8 @@ export type CanonicalVisualRendererProps = {
   bindingSamples?: ReadonlyMap<string, VisualLiveScalarSample>;
   operatorTimeRangeControls?: boolean;
   historicalQueriesEnabled?: boolean;
+  processValueWriteEnabled?: boolean;
+  alarmShelveEnabled?: boolean;
 };
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
@@ -106,7 +109,9 @@ export function CanonicalVisualRenderer({
   liveBindings = true,
   bindingSamples,
   operatorTimeRangeControls = false,
-  historicalQueriesEnabled = true
+  historicalQueriesEnabled = true,
+  processValueWriteEnabled = false,
+  alarmShelveEnabled = false
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
   const runtimeBindingElements = React.useMemo(
@@ -132,6 +137,8 @@ export function CanonicalVisualRenderer({
       showTechnicalFallbackText={showTechnicalFallbackText}
       operatorTimeRangeControls={operatorTimeRangeControls}
       historicalQueriesEnabled={historicalQueriesEnabled}
+      processValueWriteEnabled={processValueWriteEnabled}
+      alarmShelveEnabled={alarmShelveEnabled}
     />)}
   </div>;
 }
@@ -149,7 +156,9 @@ function CanonicalElement({
   visualAssetUrl,
   showTechnicalFallbackText,
   operatorTimeRangeControls,
-  historicalQueriesEnabled = true
+  historicalQueriesEnabled = true,
+  processValueWriteEnabled = false,
+  alarmShelveEnabled = false
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -164,6 +173,8 @@ function CanonicalElement({
   showTechnicalFallbackText: boolean;
   operatorTimeRangeControls: boolean;
   historicalQueriesEnabled?: boolean;
+  processValueWriteEnabled?: boolean;
+  alarmShelveEnabled?: boolean;
 }) {
   if ((element.dynamoDefinitionId || element.dynamoKey) && dynamoDefinitions) {
     return <CanonicalDynamoElement
@@ -178,6 +189,8 @@ function CanonicalElement({
       visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
       operatorTimeRangeControls={operatorTimeRangeControls}
+      processValueWriteEnabled={processValueWriteEnabled}
+      alarmShelveEnabled={alarmShelveEnabled}
     />;
   }
 
@@ -188,6 +201,8 @@ function CanonicalElement({
       onVisualEvent={onVisualEvent} onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
       operatorTimeRangeControls={operatorTimeRangeControls}
+      processValueWriteEnabled={processValueWriteEnabled}
+      alarmShelveEnabled={alarmShelveEnabled}
     />;
   }
 
@@ -221,6 +236,22 @@ function CanonicalElement({
     const elementTitle = combineTitles(tooltipTitle, diagnosticTitle);
     const diagnosticState = dynamic.diagnostics.length > 0 ? 'unavailable' : 'available';
 
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.checkBox) {
+      return <CheckBoxVisualElement
+        element={element} values={values} liveSamples={liveSamples} style={style}
+        runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}
+        processValueWriteEnabled={processValueWriteEnabled} alarmShelveEnabled={alarmShelveEnabled} onTagWrite={onTagWrite}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.comboBox) {
+      return <ComboBoxVisualElement
+        element={element} values={values} liveSamples={liveSamples} style={style}
+        runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}
+        processValueWriteEnabled={processValueWriteEnabled} alarmShelveEnabled={alarmShelveEnabled} onTagWrite={onTagWrite}
+      />;
+    }
+
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.group) {
       return <div
         className="visual-editor-object visual-editor-group"
@@ -245,7 +276,9 @@ function CanonicalElement({
           onTagWrite={onTagWrite}
           visualAssetUrl={visualAssetUrl}
           showTechnicalFallbackText={showTechnicalFallbackText}
-      operatorTimeRangeControls={operatorTimeRangeControls}
+          operatorTimeRangeControls={operatorTimeRangeControls}
+          processValueWriteEnabled={processValueWriteEnabled}
+          alarmShelveEnabled={alarmShelveEnabled}
         />)}
       </div>;
     }
@@ -746,7 +779,9 @@ function CanonicalDynamoElement({
   onTagWrite,
   visualAssetUrl,
   showTechnicalFallbackText,
-  operatorTimeRangeControls
+  operatorTimeRangeControls,
+  processValueWriteEnabled,
+  alarmShelveEnabled
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -759,6 +794,8 @@ function CanonicalDynamoElement({
   visualAssetUrl: VisualAssetUrlResolver;
   showTechnicalFallbackText: boolean;
   operatorTimeRangeControls: boolean;
+  processValueWriteEnabled: boolean;
+  alarmShelveEnabled: boolean;
 }) {
   try {
     const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey, element.dynamoDefinitionId);
@@ -830,6 +867,8 @@ function CanonicalDynamoElement({
           visualAssetUrl={visualAssetUrl}
           showTechnicalFallbackText={showTechnicalFallbackText}
           operatorTimeRangeControls={operatorTimeRangeControls}
+          processValueWriteEnabled={processValueWriteEnabled}
+          alarmShelveEnabled={alarmShelveEnabled}
         />)}
       </div>
     </div>;
@@ -854,7 +893,9 @@ function positiveDynamoDimension(value: unknown, fallback: number): number {
 
 function CanonicalEquipmentElement({
   element, locale, liveSamples, equipmentDefinitions, templateDefinitions,
-  onVisualEvent, onTagWrite, visualAssetUrl, showTechnicalFallbackText, operatorTimeRangeControls
+  onVisualEvent, onTagWrite, visualAssetUrl, showTechnicalFallbackText, operatorTimeRangeControls,
+  processValueWriteEnabled,
+  alarmShelveEnabled
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -866,6 +907,8 @@ function CanonicalEquipmentElement({
   visualAssetUrl: VisualAssetUrlResolver;
   showTechnicalFallbackText: boolean;
   operatorTimeRangeControls: boolean;
+  processValueWriteEnabled: boolean;
+  alarmShelveEnabled: boolean;
 }) {
   const equipment = equipmentDefinitions.find(item => item.id === element.equipmentId);
   const template = equipment && templateDefinitions.find(item =>
@@ -898,6 +941,8 @@ function CanonicalEquipmentElement({
       onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
       operatorTimeRangeControls={operatorTimeRangeControls}
+      processValueWriteEnabled={processValueWriteEnabled}
+      alarmShelveEnabled={alarmShelveEnabled}
     />)}
   </div>;
 }

@@ -93,6 +93,19 @@ Em **Eventos**, escolha o que deve acontecer numa interação. Uma ação pronta
 
 Para escrever numa variável de teste, selecione a ação de escrita e a referência real, respeitando tipo e faixa. Para executar um comando, selecione o comando real. `CommandExecute` e `ProcessValueWrite` são autorizações distintas: nenhuma propriedade visual concede essas capacidades. Após solicitar um comando, use o retorno e o estado real para indicar sucesso; trocar a cor do botão não confirma que o equipamento partiu.
 
+### CheckBox: mostrar ou alterar um estado Booleano
+
+1. Insira uma **Caixa de seleção** e escreva uma legenda clara, como `Bomba em automático`. A legenda é apenas o texto visto pelo operador; ela não define o TAG nem a ação.
+2. Em **Dinâmicas**, vincule o estado `checked` a qualquer fonte booleana compatível escolhida no seletor, como TAG, expressão ou outra função que retorne verdadeiro/falso. Assim, a caixa pode indicar estados como automático/manual, habilitado/desabilitado ou uma condição própria da aplicação.
+3. Para apenas observar, mantenha **Permitir ajuste pelo operador** desligado. Para deixar o operador mudar o estado, habilite essa opção e use vínculo com TAG Booleano gravável; a permissão da sessão e a autorização do servidor continuam valendo. O Runtime confirma a mudança pelo valor recebido. Qualidade ruim, TAG ausente ou escrita recusada não devem parecer sucesso.
+4. A configuração **Supressão de um alarme** é um modo opcional e separado, não uma exigência do CheckBox genérico. Nesse modo, escolha a definição de alarme pelo nome e informe motivo e duração. O Runtime ainda verifica a autorização de supressão e mostra se a supressão é herdada de outra área.
+
+### ComboBox: escolher um valor de uma lista
+
+1. Insira uma **Lista de seleção** e, em **Opções da lista**, acrescente cada valor que o TAG pode receber e o rótulo legível que o operador verá. Por exemplo, valor `AUTO` com rótulo `Automático`; os valores precisam ser distintos.
+2. Em **Dinâmicas**, vincule `text` a um TAG do tipo String ou Enum. O valor atual do TAG precisa coincidir com uma das opções. O controle não escolhe outra opção quando o valor está ausente, a lista é inválida, a qualidade não é boa ou o tipo não corresponde.
+3. Para permitir mudança, habilite **Permitir ajuste pelo operador** e use um TAG gravável. Teste primeiro com uma variável segura e confira o valor confirmado pelo processo; a seleção visual não comprova que o equipamento aceitou a mudança.
+
 ## 7. Crie e abra um Popup
 
 1. Abra **Popups**, crie um e use um nome como `Detalhes da bomba`. Escolha dimensões adequadas ao dispositivo. Selecione um template existente somente se sua aplicação precisar dele; um Popup também pode ser independente.
@@ -118,10 +131,12 @@ Recursos visuais são arquivos importados, como uma imagem. Dínamos são desenh
 | Objeto muda apesar do valor fixo | Dinâmicas, vínculos e Script que atuam na mesma propriedade. |
 | Botão não faz nada | Ação/evento configurado, destino existente, habilitação, revisão e autorização. |
 | Escrita recusada | Tipo/faixa do valor, direção de escrita do TAG, permissão e classe de sessão Runtime. |
+| CheckBox ou ComboBox não permite interação | **Permitir ajuste pelo operador**, direção de escrita, tipo do TAG, qualidade atual e autorização da sessão. |
+| ComboBox não mostra o valor atual | Compare o valor recebido no TAG com os valores cadastrados; o rótulo visível é separado do valor gravado. |
 | Objeto não aparece | Visibilidade, posição/tamanho, ordem de sobreposição, recurso visual e faixa/escala. |
 | Aplicação rejeitada após validar | O projeto pode ter mudado; atualize, revise suas alterações e valide novamente. |
 | Runtime mostra o desenho anterior | Salvar, publicar e ativar são passos distintos de aplicar o desenho. Confira a revisão ativa. |
 
 ## 10. Continue pela Ajuda
 
-Tópicos instalados: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters` e `libraries.reusable-resources`. Para abrir um diretamente, use `/help?topic=<identificador>` no produto. As capturas finais deste capítulo serão feitas na interface real após a auditoria visual; nenhuma imagem ilustrada substitui a interface aceita.
+Tópicos instalados: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters`, `visual.object.core.checkbox`, `visual.object.core.combobox` e `libraries.reusable-resources`. Para abrir um diretamente, use `/help?topic=<identificador>` no produto. As capturas finais deste capítulo serão feitas na interface real após a auditoria visual; nenhuma imagem ilustrada substitui a interface aceita.

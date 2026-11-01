@@ -26,6 +26,8 @@ public static class BuiltinVisualObjectSchemas
     public const string AlarmBrowserType = "core.alarmBrowser";
     public const string EventBrowserType = "core.eventBrowser";
     public const string ButtonType = "core.button";
+    public const string CheckBoxType = "core.checkBox";
+    public const string ComboBoxType = "core.comboBox";
     public const string SliderType = "core.slider";
     public const string NumericInputType = "core.numericInput";
     public const string MeasurementDialType = "core.measurementDial";
@@ -41,6 +43,8 @@ public static class BuiltinVisualObjectSchemas
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
     public const string SvgPaintOverridesProperty = "svgPaintOverrides";
+    public const string CheckBoxConfigProperty = "checkBoxConfig";
+    public const string ComboBoxOptionsProperty = "comboBoxOptions";
 
     private const string TrendModeProperty = "trendMode";
     private const string TrendWindowSecondsProperty = "trendWindowSeconds";
@@ -128,6 +132,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Stroke)
             .Concat(CommonVisualPropertyDefinitions.Effects)
             .Concat(CommonVisualPropertyDefinitions.Text)
+            .Concat(CommonVisualPropertyDefinitions.CheckBox)
             .Concat(CommonVisualPropertyDefinitions.Image)
             .Concat(CommonVisualPropertyDefinitions.Media)
             .Concat(CommonVisualPropertyDefinitions.ReportLauncher)
@@ -365,6 +370,25 @@ public static class BuiltinVisualObjectSchemas
             .Concat([VisualPropertyKeys.CornerRadius])
             .Concat(TextProperties));
 
+    public static VisualObjectPropertySchema CheckBox { get; } = Create(
+        CheckBoxType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(Stroke)
+            .Concat([VisualPropertyKeys.CornerRadius])
+            .Concat(TextProperties)
+            .Concat(CommonVisualPropertyDefinitions.CheckBox.Select(property => property.Key))
+            .Concat([VisualPropertyKeys.InteractionEnabled]));
+
+    public static VisualObjectPropertySchema ComboBox { get; } = Create(
+        ComboBoxType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(Stroke)
+            .Concat([VisualPropertyKeys.CornerRadius])
+            .Concat(TextProperties)
+            .Concat([VisualPropertyKeys.InteractionEnabled]));
+
     public static VisualObjectPropertySchema Slider { get; } = Create(
         SliderType,
         Base.Concat(
@@ -510,6 +534,8 @@ public static class BuiltinVisualObjectSchemas
         AlarmBrowser,
         EventBrowser,
         Button,
+        CheckBox,
+        ComboBox,
         Slider,
         NumericInput,
         MeasurementDial,

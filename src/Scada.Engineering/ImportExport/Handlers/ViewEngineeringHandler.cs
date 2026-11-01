@@ -196,7 +196,7 @@ internal sealed class ViewEngineeringHandler
             ValidateDynamicReferences(element, kind, entityKey, package, issues);
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
-                _tags, element.Bindings, kind, entityKey, package, issues);
+                _tags, element.Bindings, kind, entityKey, package, issues, element.Type);
 
             var dynamo = ValidateDynamoReference(element, kind, entityKey, package, issues);
             if (dynamo is not null)

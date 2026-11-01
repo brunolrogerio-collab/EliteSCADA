@@ -21,6 +21,13 @@ import {
   normalizeSvgPaintOverrides,
   svgPaintOverridesAsEngineeringValue
 } from './svgSymbolModel';
+import {
+  CHECK_BOX_CONFIG_PROPERTY,
+  COMBO_BOX_OPTIONS_PROPERTY,
+  comboBoxOptionsEngineeringValue,
+  normalizeComboBoxOptions,
+  readCheckBoxAlarmSuppressionConfig
+} from './controlVisualModel';
 
 export {
   NEW_SCREEN_IDENTITY,
@@ -85,6 +92,46 @@ export function applyVisualEditorMutationIntent(
       return updateCanonicalEventBrowserConfig(screen, objectId, normalizeEventBrowserConfig(intent.value));
     }
     throw new Error(`Visual object '${objectId}' does not own browserConfig.`);
+  }
+
+  if (intent.kind === 'property.set' &&
+      (intent.propertyKey === CHECK_BOX_CONFIG_PROPERTY || intent.propertyKey === COMBO_BOX_OPTIONS_PROPERTY)) {
+    if (intent.objectIds.length !== 1) throw new Error('Control configuration requires exactly one visual object.');
+    assertVisualElementsAuthoringEditable(screen, intent.objectIds);
+    const objectId = intent.objectIds[0];
+    const element = findElement(screen.elements ?? [], objectId);
+    if (!element) throw new Error(`Visual control '${objectId}' was not found.`);
+    let propertyValue: import('../types').VisualEngineeringPropertyValue;
+    if (intent.propertyKey === CHECK_BOX_CONFIG_PROPERTY && element.type === BUILTIN_VISUAL_OBJECT_TYPES.checkBox) {
+      const normalized = readCheckBoxAlarmSuppressionConfig(intent.value);
+      if (!normalized) throw new Error('CheckBox alarm-suppression configuration is required.');
+      propertyValue = normalized as import('../types').VisualEngineeringPropertyValue;
+    } else if (intent.propertyKey === COMBO_BOX_OPTIONS_PROPERTY && element.type === BUILTIN_VISUAL_OBJECT_TYPES.comboBox) {
+      propertyValue = comboBoxOptionsEngineeringValue(normalizeComboBoxOptions(intent.value));
+    } else {
+      throw new Error(`Visual control '${objectId}' does not own ${intent.propertyKey}.`);
+    }
+    return updateScreenElement(screen, objectId, current => ({
+      ...current,
+      properties: { ...(current.properties ?? {}), [intent.propertyKey]: propertyValue }
+    }));
+  }
+
+  if (intent.kind === 'property.remove' &&
+      (intent.propertyKey === CHECK_BOX_CONFIG_PROPERTY || intent.propertyKey === COMBO_BOX_OPTIONS_PROPERTY)) {
+    if (intent.objectIds.length !== 1) throw new Error('Control configuration requires exactly one visual object.');
+    assertVisualElementsAuthoringEditable(screen, intent.objectIds);
+    const objectId = intent.objectIds[0];
+    const element = findElement(screen.elements ?? [], objectId);
+    const expectedType = intent.propertyKey === CHECK_BOX_CONFIG_PROPERTY
+      ? BUILTIN_VISUAL_OBJECT_TYPES.checkBox
+      : BUILTIN_VISUAL_OBJECT_TYPES.comboBox;
+    if (!element || element.type !== expectedType) throw new Error(`Visual control '${objectId}' does not own ${intent.propertyKey}.`);
+    return updateScreenElement(screen, objectId, current => {
+      const properties = { ...(current.properties ?? {}) };
+      delete properties[intent.propertyKey];
+      return { ...current, properties };
+    });
   }
 
   return applyProtectedVisualEditorMutationIntent(screen, intent, options);

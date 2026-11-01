@@ -261,18 +261,21 @@ export function createBindingSetIntent(
   const kind = requireCanonicalKind(source.kind);
   const target = requireStableReference(source.target, 'binding source target');
   const tagReference = normalizeTagValueReference(source, kind);
-  if (!isBindingSourceCompatible({ key: propertyKey, type: destination.type }, source)) {
+  if (!isBindingSourceCompatibleForObject(element.type, { key: propertyKey, type: destination.type }, source)) {
     throw new VisualBindingEditorError(
       'binding.source.typeMismatch',
       `Binding source '${target}' data type '${source.dataType ?? 'unknown'}' is not compatible with visual property '${propertyKey}' type '${destination.type}'.`,
       propertyKey
     );
   }
-  const normalizedDirection = normalizeDirection(
-    direction ?? ((element.type === 'core.slider' || element.type === 'core.numericInput') && propertyKey === 'value'
-      ? source.writable === true ? 'readWrite' : 'read'
-      : undefined)
-  );
+  const numericControl = (element.type === 'core.slider' || element.type === 'core.numericInput') && propertyKey === 'value';
+  const booleanControl = element.type === 'core.checkBox' && propertyKey === 'checked';
+  const choiceControl = element.type === 'core.comboBox' && propertyKey === 'text';
+  const isControlBinding = numericControl || booleanControl || choiceControl;
+  const booleanOrChoiceControl = booleanControl || choiceControl;
+  const canWriteThroughControl = source.writable === true && (!booleanOrChoiceControl || kind === 'Tag');
+  const controlDirection = isControlBinding ? canWriteThroughControl ? 'readWrite' : 'read' : undefined;
+  const normalizedDirection = normalizeDirection(direction ?? controlDirection);
   const scalarText = propertyKey === 'text' && source.dataType != null;
   const metadata = {
     ...(scalarText ? {
@@ -298,6 +301,21 @@ export function createBindingSetIntent(
     objectId,
     binding: Object.freeze(binding)
   });
+}
+
+export function isBindingSourceCompatibleForObject(
+  objectType: string,
+  destination: Pick<BindableVisualProperty, 'key' | 'type'>,
+  source: VisualEditorBindingSourceCatalogItem
+): boolean {
+  const dataType = source.dataType?.trim().toLowerCase();
+  if (objectType === 'core.checkBox' && destination.key === 'checked') {
+    return dataType === 'boolean' && isBindingSourceCompatible(destination, source);
+  }
+  if (objectType === 'core.comboBox' && destination.key === 'text') {
+    return source.kind === 'Tag' && (dataType === 'string' || dataType === 'enum');
+  }
+  return isBindingSourceCompatible(destination, source);
 }
 
 export function createBindingRemoveIntent(

@@ -12,6 +12,7 @@ import {
   findBindingSourceForBinding,
   findVisualBinding,
   isBindingSourceCompatible,
+  isBindingSourceCompatibleForObject,
   listBindableVisualProperties,
   normalizeBindingSourceCatalog,
   resolveBindingSourceReference,
@@ -91,8 +92,8 @@ export function BindingEditor({
 
   const selectedDestination = destinations.find(item => item.key === propertyKey);
   const sourceResult = useMemo(
-    () => computeSources(sourceCatalog, selectedDestination),
-    [sourceCatalog, selectedDestination]
+    () => computeSources(element.type, sourceCatalog, selectedDestination),
+    [element.type, sourceCatalog, selectedDestination]
   );
   const sources = sourceResult.value;
 
@@ -170,7 +171,7 @@ export function BindingEditor({
     const target = exactReference.trim();
     if (!target || !selectedDestination) return;
     const resolved = resolveBindingSourceReference(sourceCatalog, target);
-    if (resolved.status !== 'found' || !resolved.source || !isBindingSourceCompatible(selectedDestination, resolved.source)) {
+    if (resolved.status !== 'found' || !resolved.source || !isBindingSourceCompatibleForObject(element.type, selectedDestination, resolved.source)) {
       setActionError(text.exactNotFound);
       return;
     }
@@ -372,12 +373,15 @@ function computeDestinations(objectType: string): Computed<readonly BindableVisu
 }
 
 function computeSources(
+  objectType: string,
   sourceCatalog: VisualEditorBindingEditorContractProps['sourceCatalog'],
   destination: BindableVisualProperty | undefined
 ): Computed<readonly VisualEditorBindingEditorContractProps['sourceCatalog'][number][]> {
   if (!destination) return { value: [], error: null };
   try {
-    return { value: compatibleBindingSources(destination, sourceCatalog), error: null };
+    const compatible = compatibleBindingSources(destination, sourceCatalog)
+      .filter(source => isBindingSourceCompatibleForObject(objectType, destination, source));
+    return { value: compatible, error: null };
   } catch (cause) {
     return { value: [], error: errorText(cause) };
   }

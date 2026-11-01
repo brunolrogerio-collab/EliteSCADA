@@ -624,6 +624,8 @@ function EngineeringRuntimeApplicationContent({
         runtimeProjectKey={projection.projectKey ?? null}
         runtimeRevision={projection.revision ?? null}
         performanceAnalyticsEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'TrendUse')}
+        processValueWriteEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'ProcessValueWrite')}
+        alarmShelveEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'AlarmShelve')}
         mobileScreens={engineeringPackage.runtimePresentation?.mobileScreens ?? undefined}
         mobileOrientation={engineeringPackage.runtimePresentation?.mobileOrientation ?? 'landscape'}
         locale={locale}

@@ -1,0 +1,56 @@
+.visual-control {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.3rem;
+  overflow: auto;
+  padding: 0.35rem 0.55rem;
+  color: inherit;
+  font: inherit;
+}
+
+.visual-control__checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.visual-control__checkbox-label input {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: var(--scada-accent, #00b7a8);
+}
+
+.visual-control__checkbox-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.visual-control--combobox select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid currentColor;
+  border-radius: 0.25rem;
+  color: inherit;
+  background: var(--scada-control-background, #111820);
+  font: inherit;
+}
+
+.visual-control__status {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--scada-muted, #9baab7);
+  font-size: 0.78em;
+  line-height: 1.25;
+}
+
+.visual-control__status--error {
+  color: var(--scada-danger, #ff727d);
+}

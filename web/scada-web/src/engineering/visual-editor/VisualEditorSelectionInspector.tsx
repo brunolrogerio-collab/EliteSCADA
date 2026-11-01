@@ -1,6 +1,6 @@
 import React from 'react';
 import type { EngineeringLocale } from '../i18n';
-import type { ScreenEngineering, VisualAssetEngineering, VisualElementEngineering } from '../types';
+import type { AlarmEngineering, ScreenEngineering, VisualAssetEngineering, VisualElementEngineering } from '../types';
 import type { ReportEngineeringDto } from '../reports/reportContracts';
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../visual-runtime';
 import { BindingEditor } from './binding-editor';
@@ -21,6 +21,7 @@ export function VisualEditorSelectionInspector({
   selectedObjectIds,
   sourceCatalog,
   visualAssets,
+  alarms = [],
   reports = [],
   locale,
   activeTab,
@@ -38,6 +39,7 @@ export function VisualEditorSelectionInspector({
   selectedObjectIds: readonly string[];
   sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[];
   visualAssets: readonly VisualAssetEngineering[];
+  alarms?: readonly AlarmEngineering[];
   reports?: readonly ReportEngineeringDto[];
   locale: EngineeringLocale;
   activeTab: VisualEditorInspectorTab;
@@ -101,6 +103,7 @@ export function VisualEditorSelectionInspector({
         <PropertyInspector
           selectedElements={selectedElements}
           visualAssets={visualAssets}
+          alarms={alarms}
           reports={reports}
           onMutationIntent={onMutationIntent}
           showEvents={false}
@@ -134,7 +137,7 @@ export function VisualEditorSelectionInspector({
           onSetPropertyMap={configuration => onMutationIntent({ kind: 'propertyMap.set', objectId: selectedElement.id!, configuration })}
           onRemovePropertyMap={propertyKey => onMutationIntent({ kind: 'propertyMap.remove', objectId: selectedElement.id!, propertyKey })}
         />
-        {!isValueBindingControl(selectedElement.type) ? <BindingEditor
+        {!isValueBindingControl(selectedElement.type) && !isAlarmSuppressionCheckBox(selectedElement) ? <BindingEditor
           element={selectedElement}
           sourceCatalog={sourceCatalog}
           onMutationIntent={onMutationIntent}
@@ -178,6 +181,12 @@ function isValueBindingControl(objectType: string): boolean {
   return objectType === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay ||
     objectType === BUILTIN_VISUAL_OBJECT_TYPES.slider ||
     objectType === BUILTIN_VISUAL_OBJECT_TYPES.numericInput;
+}
+
+function isAlarmSuppressionCheckBox(element: VisualElementEngineering): boolean {
+  return element.type === BUILTIN_VISUAL_OBJECT_TYPES.checkBox &&
+    Boolean(element.properties?.checkBoxConfig && typeof element.properties.checkBoxConfig === 'object' &&
+      !Array.isArray(element.properties.checkBoxConfig));
 }
 
 function valueBindingProperty(objectType: string): string {

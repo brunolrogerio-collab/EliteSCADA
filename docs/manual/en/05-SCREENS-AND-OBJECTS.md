@@ -93,6 +93,19 @@ In **Events**, choose what an interaction should do. A ready-made action can ope
 
 To write a test variable, select the write action and actual reference, respecting type and range. To execute a command, select the actual command. `CommandExecute` and `ProcessValueWrite` are distinct authorizations; visual properties grant neither. After requesting a command, use the result and actual state to indicate success; changing a button's color does not confirm the equipment started.
 
+### CheckBox: display or change a Boolean state
+
+1. Insert a **CheckBox** and give it a clear label, such as `Pump in automatic`. The label is what the operator sees; it does not define the TAG or the action.
+2. In **Dynamics**, bind `checked` to any compatible Boolean source selected from the picker, such as a TAG, expression, or another function that returns true/false. The CheckBox can show states such as automatic/manual, enabled/disabled, or a condition specific to the application.
+3. For display only, leave **Allow operator adjustment** off. To let the operator change the state, enable it and use a writable Boolean TAG binding; session permission and server authorization still apply. Runtime confirms the change through the value it receives. Bad quality, a missing TAG or a rejected write must not look like success.
+4. **Suppress one alarm** is a separate optional mode, not a requirement for the generic CheckBox. In that mode, choose an alarm definition by name and set a reason and duration. Runtime still enforces suppression permission and shows when suppression is inherited from another location.
+
+### ComboBox: choose a value from a list
+
+1. Insert a **ComboBox** and, under **List options**, add each value the TAG can receive and the readable label shown to the operator. For example, value `AUTO` with label `Automatic`; values must be unique.
+2. In **Dynamics**, bind `text` to a String or Enum TAG. Its current value must match one of the options. The control does not select a different option when the value is missing, the list is invalid, quality is not Good, or the type does not match.
+3. To allow changes, enable **Allow operator adjustment** and use a writable TAG. Test first with a safe variable and check the process-confirmed value; a visual selection does not prove the equipment accepted the change.
+
 ## 7. Create and open a Popup
 
 1. Open **Popups**, create one and name it `Pump details`. Choose dimensions suitable for the device. Select an existing template only if the application needs one; a Popup can also be standalone.
@@ -118,10 +131,12 @@ Visual assets are imported files, such as images. Dynamos are reusable drawings 
 | Object changes despite fixed value | Dynamics, bindings and Script affecting the same property. |
 | Button does nothing | Configured action/event, existing target, enabled state, revision and authorization. |
 | Write is rejected | Value type/range, TAG write direction, permission and Runtime session class. |
+| CheckBox or ComboBox does not allow interaction | **Allow operator adjustment**, write direction, TAG type, current quality and session authorization. |
+| ComboBox does not show the current value | Compare the TAG value with configured values; the visible label is separate from the stored value. |
 | Object is absent | Visibility, position/size, overlap order, visual asset and range/scale. |
 | Apply is rejected after validation | The project may have changed; refresh, review changes and validate again. |
 | Runtime shows the old drawing | Save, publish and activate are separate from applying the drawing. Check the active revision. |
 
 ## 10. Continue with Help
 
-Installed topics: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters` and `libraries.reusable-resources`. Open one through `/help?topic=<identifier>` in the product. Final chapter captures will come from the actual UI after the visual audit; an illustrated image cannot substitute for the accepted interface.
+Installed topics: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters`, `visual.object.core.checkbox`, `visual.object.core.combobox` and `libraries.reusable-resources`. Open one through `/help?topic=<identifier>` in the product. Final chapter captures will come from the actual UI after the visual audit; an illustrated image cannot substitute for the accepted interface.

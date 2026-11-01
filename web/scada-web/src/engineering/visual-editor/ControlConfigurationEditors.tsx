@@ -25,7 +25,7 @@ const COPY = {
   'pt-BR': {
     checkboxTitle: 'Configuração da caixa de seleção',
     checkboxHint: 'Vincule uma fonte Boolean para indicar qualquer estado verdadeiro/falso. Para alterar o processo, use um TAG Booleano gravável; supressão de alarme é um modo opcional.',
-    checkboxMode: 'Uso', booleanMode: 'Booleano do processo', suppressionMode: 'Supressão de um alarme',
+    checkboxMode: 'Uso', booleanMode: 'Estado Booleano', suppressionMode: 'Supressão de um alarme',
     alarm: 'Alarme', chooseAlarm: 'Selecione um alarme', noAlarms: 'Nenhum alarme com identidade estável está disponível.',
     reason: 'Motivo', duration: 'Duração', untilReleased: 'Até liberar', oneHour: '1 hora', fourHours: '4 horas', eightHours: '8 horas',
     maintenance: 'Manutenção', startup: 'Partida', testing: 'Teste', other: 'Outro', save: 'Aplicar configuração',
@@ -37,7 +37,7 @@ const COPY = {
   en: {
     checkboxTitle: 'CheckBox configuration',
     checkboxHint: 'Bind a Boolean source to display any true/false state. To change the process, use a writable Boolean TAG; alarm suppression is an optional mode.',
-    checkboxMode: 'Use', booleanMode: 'Process Boolean', suppressionMode: 'Suppress one alarm',
+    checkboxMode: 'Use', booleanMode: 'Boolean state', suppressionMode: 'Suppress one alarm',
     alarm: 'Alarm', chooseAlarm: 'Choose an alarm', noAlarms: 'No alarm with a stable identity is available.',
     reason: 'Reason', duration: 'Duration', untilReleased: 'Until released', oneHour: '1 hour', fourHours: '4 hours', eightHours: '8 hours',
     maintenance: 'Maintenance', startup: 'Startup', testing: 'Test', other: 'Other', save: 'Apply configuration',
@@ -49,7 +49,7 @@ const COPY = {
   es: {
     checkboxTitle: 'Configuración de la casilla',
     checkboxHint: 'Vincule una fuente Booleana para mostrar cualquier estado verdadero/falso. Para cambiar el proceso, use un TAG Booleano escribible; suprimir alarmas es un modo opcional.',
-    checkboxMode: 'Uso', booleanMode: 'Booleano del proceso', suppressionMode: 'Suprimir una alarma',
+    checkboxMode: 'Uso', booleanMode: 'Estado Booleano', suppressionMode: 'Suprimir una alarma',
     alarm: 'Alarma', chooseAlarm: 'Seleccione una alarma', noAlarms: 'No hay alarmas con identidad estable disponibles.',
     reason: 'Motivo', duration: 'Duración', untilReleased: 'Hasta liberar', oneHour: '1 hora', fourHours: '4 horas', eightHours: '8 horas',
     maintenance: 'Mantenimiento', startup: 'Arranque', testing: 'Prueba', other: 'Otro', save: 'Aplicar configuración',

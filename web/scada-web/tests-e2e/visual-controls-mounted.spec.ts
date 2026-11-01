@@ -160,6 +160,7 @@ test('Engineering inspector keeps generic Boolean use primary and exposes alarm 
   const use = page.getByLabel('Uso');
   await expect(section).toContainText('Vincule uma fonte Boolean para indicar qualquer estado verdadeiro/falso.');
   await expect(use).toHaveValue('boolean');
+  await expect(use.locator('option[value="boolean"]')).toHaveText('Estado Booleano');
   await expect(section.getByRole('combobox', { name: 'Alarme', exact: true })).toHaveCount(0);
 
   await use.selectOption('alarmSuppression');
@@ -174,6 +175,21 @@ test('Engineering inspector keeps generic Boolean use primary and exposes alarm 
   expect(mutations).toHaveLength(2);
   expect(mutations[0]).toMatchObject({ kind: 'property.set', propertyKey: 'checkBoxConfig', value: { mode: 'alarmSuppression', alarmDefinitionId: alarmId } });
   expect(mutations[1]).toMatchObject({ kind: 'binding.remove', propertyKey: 'checked' });
+});
+
+test('generic CheckBox Boolean mode keeps the same broad meaning in all editor locales', async ({ page }) => {
+  const expected = {
+    'pt-BR': { field: 'Uso', option: 'Estado Booleano' },
+    en: { field: 'Use', option: 'Boolean state' },
+    es: { field: 'Uso', option: 'Estado Booleano' }
+  } as const;
+
+  for (const locale of ['pt-BR', 'en', 'es'] as const) {
+    await page.goto(`/tests-e2e/visual-controls-harness.html?surface=inspector&locale=${locale}`);
+    const use = page.getByLabel(expected[locale].field);
+    await expect(use).toHaveValue('boolean');
+    await expect(use.locator('option[value="boolean"]')).toHaveText(expected[locale].option);
+  }
 });
 
 test('Engineering inspector edits typed ComboBox labels and values without exposing technical IDs', async ({ page }) => {

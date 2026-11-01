@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { AlarmEngineering, VisualElementEngineering, VisualEngineeringPropertyValue } from '../src/engineering/types';
 import type { VisualEditorMutationIntent } from '../src/engineering/visual-editor/visualEditorContracts';
 import { CheckBoxVisualElement, ComboBoxVisualElement } from '../src/engineering/visual-editor/ControlVisualElements';
+import { C07VisualEditorI18nProvider } from '../src/engineering/visual-editor/c07VisualEditorI18n';
 import { PropertyInspector } from '../src/engineering/visual-editor/property-inspector/PropertyInspector';
 import { visualTagSampleKey, type VisualDynamicSample } from '../src/engineering/visual-editor/visualDynamicRuntime';
 
@@ -74,7 +75,9 @@ function Harness() {
   ];
 
   if (params.get('surface') === 'inspector') {
-    return <PropertyInspector selectedElements={[element]} alarms={alarms} onMutationIntent={onMutationIntent} showEvents={false} />;
+    return <C07VisualEditorI18nProvider locale={locale}>
+      <PropertyInspector selectedElements={[element]} alarms={alarms} onMutationIntent={onMutationIntent} showEvents={false} />
+    </C07VisualEditorI18nProvider>;
   }
 
   return <main>

@@ -99,6 +99,12 @@ El resultado muestra instantes evaluados y en calentamiento. La desviación comb
 
 Use Cancelar consulta para interrumpir. Cambiar períodos, contexto, señales o cadencia descarta el resultado anterior; consulte de nuevo. Si no se puede ajustar la referencia, revise datos, calidad, sincronización, contexto y variación de señales antes de ampliar períodos.
 
+## Entienda los conteos y las condiciones
+
+Los análisis se consultan bajo demanda: editar perfiles o activar un alcance no inicia análisis continuo. En la referencia, lea los motivos junto a No disponible. Una señal obligatoria de texto, opción o verdadero/falso no entra en la cohorte numérica obligatoria; los conteos numéricos del perfil se muestran por separado. Un conteo cero de un tipo no consultado no demuestra ausencia de histórico.
+
+En las consultas de contexto, revise primero Condiciones del contexto: lecturas aceptadas y cuántas cumplieron cada condición. Un modo textual puede seleccionar instantes válidos de corriente o caudal. Después revise las mediciones en las condiciones seleccionadas. Estos conteos no demuestran salud ni eficiencia.
+
 ## Compare dos períodos y cancele consultas
 
 En las consultas de referencia y condiciones del contexto, marque Comparar con otro período para revisar evidencia en dos ventanas. Indique inicio y fin de la comparación. Cada ventana admite hasta 31 días, y la comparación debe comenzar estrictamente después del fin de referencia: no use el mismo instante en ambos límites. La consulta permanece deshabilitada con campos vacíos, fechas invertidas o superposición.

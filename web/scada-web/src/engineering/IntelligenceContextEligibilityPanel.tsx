@@ -7,11 +7,13 @@ import { coverageCopy, coverageErrorText, localDateTimeInput, parseWindow, type 
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 type SignalWindow = { rawObservationCount: number; acceptedSynchronizedUniqueCount: number; contextEligibleObservationCount: number; status: string; rejectionCounts: Record<string, number> };
+type PredicateEvidence = { tagId: string; referenceAcceptedCount: number; referenceMatchCount: number; comparisonAcceptedCount: number | null; comparisonMatchCount: number | null; status: string };
 type ContextResult = {
   contractVersion: number; projectKey: string; activeRevision: number; assignmentId: string; measurementProfileId: string;
   operatingContextProfileId: string; profileVersion: number; referenceWindow: WindowValue;
   comparisonWindow?: WindowValue | null;
-  signals: Array<{ signalId: string; tagPath: string; engineeringUnit: string | null; reference: SignalWindow; comparison?: SignalWindow | null }>;
+  predicates: PredicateEvidence[];
+  signals: Array<{ signalId: string; tagId: string; tagPath: string; engineeringUnit: string | null; reference: SignalWindow; comparison?: SignalWindow | null }>;
 };
 export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmentId, profileId, contexts, projectKey, activeRevision, canQuery }: {
   locale: EngineeringLocale; scopeId: string; assignmentId: string; profileId: string;
@@ -56,11 +58,18 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
           Date.parse(payload.referenceWindow?.fromUtc) !== Date.parse(window.fromUtc) ||
           Date.parse(payload.referenceWindow?.toUtc) !== Date.parse(window.toUtc) ||
           !matchesIntelligenceWindow(payload.comparisonWindow, comparison.window) ||
+          !Array.isArray(payload.predicates) || payload.predicates.length !== context.predicates.length || payload.predicates.length > 16 ||
+          new Set(payload.predicates.map((predicate: PredicateEvidence) => predicate?.tagId?.toLowerCase())).size !== payload.predicates.length ||
+          !payload.predicates.every((predicate: PredicateEvidence) => typeof predicate?.tagId === 'string' && typeof predicate.status === 'string' &&
+            context.predicates.some(item => item.tagId.toLowerCase() === predicate.tagId.toLowerCase()) &&
+            [predicate.referenceAcceptedCount, predicate.referenceMatchCount, ...(comparison.window ? [predicate.comparisonAcceptedCount, predicate.comparisonMatchCount] : [])]
+              .every(count => Number.isInteger(count) && Number(count) >= 0)) ||
           !Array.isArray(payload.signals) || payload.signals.length > 16 ||
           !payload.signals.every((signal: ContextResult['signals'][number]) => typeof signal?.tagPath === 'string' &&
-            typeof signal.signalId === 'string' && (signal.engineeringUnit == null || typeof signal.engineeringUnit === 'string') && signal.reference &&
+            typeof signal.signalId === 'string' && typeof signal.tagId === 'string' && (signal.engineeringUnit == null || typeof signal.engineeringUnit === 'string') && signal.reference &&
             (comparison.window ? !!signal.comparison : signal.comparison == null) &&
             [signal.reference, ...(comparison.window ? [signal.comparison] : [])].every(evidence => !!evidence &&
+              typeof evidence.status === 'string' &&
               [evidence.rawObservationCount, evidence.acceptedSynchronizedUniqueCount, evidence.contextEligibleObservationCount]
                 .every(count => Number.isInteger(count) && count >= 0)))) throw new Error('INVALID_RESPONSE');
       if (!current.signal.aborted && sequence.current === request) setResult(payload);
@@ -76,7 +85,7 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
     } finally { if (sequence.current === request) setBusy(false); }
   }
   const options = contexts.filter(item => item.assignmentId === assignmentId);
-  return <details className="asset-process-intelligence__coverage" data-testid={`intelligence-context-eligibility-${assignmentId}`}>
+  return <details className="asset-process-intelligence__coverage asset-process-intelligence__analysis" data-testid={`intelligence-context-eligibility-${assignmentId}`}>
     <summary>{text('Conferir condições do contexto', 'Check context conditions', 'Revisar condiciones del contexto')}</summary>
     <p>{text('Confira quantas leituras atendem a todas as condições do contexto salvo. Isso ajuda a escolher dados comparáveis pelas condições declaradas; não comprova equivalência física entre regimes.',
       'Check how many readings meet all conditions in the saved context. This helps select data matching the declared conditions; it does not prove physical equivalence between operating regimes.',
@@ -99,13 +108,22 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
       {busy && <button type="button" onClick={() => { controller.current?.abort(); sequence.current++; setBusy(false); }}>{text('Cancelar consulta', 'Cancel query', 'Cancelar consulta')}</button>}
     </form>
     {error && <p role="alert">{error}</p>}
-    {result && <div data-testid="intelligence-context-eligibility-result">
-      {result.signals.map(signal => <article key={signal.signalId}><strong>{signal.tagPath}{signal.engineeringUnit ? ` (${signal.engineeringUnit})` : ''}</strong>
+    {result && <div className="asset-process-intelligence__coverage-result" data-testid="intelligence-context-eligibility-result">
+      <h4>{text('Condições do contexto', 'Context conditions', 'Condiciones del contexto')}</h4>
+      <div className="asset-process-intelligence__coverage-signals">{result.predicates.map(predicate => <article key={predicate.tagId}>
+        <strong>{result.signals.find(signal => signal.tagId.toLowerCase() === predicate.tagId.toLowerCase())?.tagPath ?? text('Condição salva', 'Saved condition', 'Condición guardada')}</strong>
+        <p>{intelligenceEvidenceText(predicate.status, locale)}</p>
+        <p>{text('Leituras aceitas / que atendem à condição', 'Accepted readings / matching this condition', 'Lecturas aceptadas / que cumplen la condición')}: {predicate.referenceAcceptedCount} / {predicate.referenceMatchCount}</p>
+        {comparison.window && <p>{text('Comparação', 'Comparison', 'Comparación')}: {predicate.comparisonAcceptedCount} / {predicate.comparisonMatchCount}</p>}
+        <p>{text('Esta condição seleciona os instantes comparáveis. Seus valores não precisam ser numéricos.', 'This condition selects matching timestamps. Its values do not need to be numeric.', 'Esta condición selecciona instantes comparables. Sus valores no necesitan ser numéricos.')}</p>
+      </article>)}</div>
+      <h4>{text('Medições nas condições selecionadas', 'Measurements under the selected conditions', 'Mediciones en las condiciones seleccionadas')}</h4>
+      <div className="asset-process-intelligence__coverage-signals">{result.signals.filter(signal => signal.reference.status !== 'target_type_not_applicable' || !result.predicates.some(predicate => predicate.tagId.toLowerCase() === signal.tagId.toLowerCase())).map(signal => <article key={signal.signalId}><strong>{signal.tagPath}{signal.engineeringUnit ? ` (${signal.engineeringUnit})` : ''}</strong>
         <p>{intelligenceEvidenceText(signal.reference.status, locale)}</p>
         <p>{text('Leituras recebidas / sincronizadas / compatíveis com todas as condições', 'Readings received / synchronized / matching all conditions', 'Lecturas recibidas / sincronizadas / compatibles con todas las condiciones')}: {signal.reference.rawObservationCount} / {signal.reference.acceptedSynchronizedUniqueCount} / {signal.reference.contextEligibleObservationCount}</p>
         {signal.comparison && <><p>{text('Comparação', 'Comparison', 'Comparación')}: {intelligenceEvidenceText(signal.comparison.status, locale)}</p>
           <p>{signal.comparison.rawObservationCount} / {signal.comparison.acceptedSynchronizedUniqueCount} / {signal.comparison.contextEligibleObservationCount}</p></>}
-      </article>)}
+      </article>)}</div>
     </div>}
   </details>;
 }

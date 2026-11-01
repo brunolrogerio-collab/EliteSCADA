@@ -93,7 +93,7 @@ export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignment
     } finally { if (sequence.current === request) setBusy(false); }
   }
   const number = (value: number | null) => value === null ? '—' : new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }).format(value);
-  return <details className="asset-process-intelligence__coverage" data-testid={`intelligence-joint-deviation-${assignmentId}`}>
+  return <details className="asset-process-intelligence__coverage asset-process-intelligence__analysis" data-testid={`intelligence-joint-deviation-${assignmentId}`}>
     <summary>{text('Desvio conjunto experimental', 'Experimental joint deviation', 'Desviación conjunta experimental')}</summary>
     <p>{text('Compare de dois a oito sinais com uma referência escolhida, sob as condições do contexto salvo. O cálculo observa mudanças de nível e da relação entre sinais.',
       'Compare two to eight signals against a selected reference, under saved context conditions. The calculation observes changes in level and relationships between signals.',
@@ -128,12 +128,12 @@ export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignment
     {result && <div data-testid="intelligence-joint-deviation-result">
       <p role="status">{result.referenceFitStatus === 'available' ? text('Referência ajustada para esta consulta.', 'Reference fitted for this query.', 'Referencia ajustada para esta consulta.') : unavailable}</p>
       <p>{text('Instantes completos na referência / avaliados com score / em aquecimento', 'Complete reference timestamps / scored / warming up', 'Instantes completos de referencia / evaluados con score / en calentamiento')}: {result.referenceCompleteCohortCount} / {result.evaluationScoredCohortCount} / {result.evaluationWarmupCohortCount}</p>
-      {result.scores.length > 0 && <table><thead><tr><th>{text('Horário local', 'Local time', 'Hora local')}</th><th>{text('Desvio conjunto', 'Joint deviation', 'Desviación conjunta')}</th><th>{text('Componente de nível', 'Level component', 'Componente de nivel')}</th><th>{text('Componente de relação', 'Relationship component', 'Componente de relación')}</th></tr></thead>
+      {result.scores.length > 0 && <div className="asset-process-intelligence__analysis-table" tabIndex={0} role="region" aria-label={text('Resultados do desvio conjunto', 'Joint deviation results', 'Resultados de desviación conjunta')}><table><thead><tr><th>{text('Horário local', 'Local time', 'Hora local')}</th><th>{text('Desvio conjunto', 'Joint deviation', 'Desviación conjunta')}</th><th>{text('Componente de nível', 'Level component', 'Componente de nivel')}</th><th>{text('Componente de relação', 'Relationship component', 'Componente de relación')}</th></tr></thead>
         <tbody>{result.scores.map((point, index) => <tr key={`${point.sourceTimestampUtc}:${index}`}><td>{new Date(point.sourceTimestampUtc).toLocaleString(locale)}</td><td>{number(point.score)}
           <details><summary>{text('Contribuições das medições', 'Measurement contributions', 'Contribuciones de las mediciones')}</summary>
             {point.targetContributions.map(item => <p key={item.signalId}>{options.find(option => option.id === item.signalId)?.label}: {text('nível', 'level', 'nivel')} {number(item.level)}; {text('variância marginal', 'marginal variance', 'varianza marginal')} {number(item.marginalVariance)}</p>)}
             <p>{text('Interação entre sinais', 'Cross-signal interaction', 'Interacción entre señales')}: {number(point.crossSignalInteraction)}</p>
-          </details></td><td>{number(point.levelComponent)}</td><td>{number(point.relationshipComponent)}</td></tr>)}</tbody></table>}
+          </details></td><td>{number(point.levelComponent)}</td><td>{number(point.relationshipComponent)}</td></tr>)}</tbody></table></div>}
       <p>{text('Os números descrevem afastamento desta referência, sem unidade física. Um valor maior não confirma defeito. As contribuições ajudam a investigar quais medições mudaram; não identificam a causa.',
         'Numbers describe deviation from this reference, without a physical unit. A higher value does not confirm a fault. Contributions help investigate which measurements changed; they do not identify the cause.',
         'Los números describen alejamiento de esta referencia, sin unidad física. Un valor mayor no confirma un fallo. Las contribuciones ayudan a investigar qué mediciones cambiaron; no identifican la causa.')}</p>

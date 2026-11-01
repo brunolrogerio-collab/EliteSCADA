@@ -28,7 +28,9 @@ for (const mode of ['reference', 'context'] as const) {
         operatingContextProfileId: request.operatingContextProfileId, profileVersion: 3,
         referenceWindow: request.referenceWindow, comparisonWindow: request.comparisonWindow,
         referenceCohort: { completeRequiredNumericCohortCount: 12 },
-        signals: [{ signalId: firstContextSignalId, tagPath: 'Pump.Current', unit: 'A', engineeringUnit: 'A',
+        comparisonCohort: request.comparisonWindow ? { completeRequiredNumericCohortCount: 12 } : null,
+        predicates: [{ tagId: speedTagId, referenceAcceptedCount: 12, referenceMatchCount: 8, comparisonAcceptedCount: 12, comparisonMatchCount: 8, status: 'context_match_available' }],
+        signals: [{ signalId: firstContextSignalId, tagId: firstContextTagId, tagPath: 'Pump.Current', unit: 'A', engineeringUnit: 'A',
           required: true, reference: evidence, comparison: request.comparisonWindow ? evidence : null }] };
       if (calls === 2) await gate;
       await route.fulfill({ json: payload }).catch(() => {});
@@ -124,7 +126,8 @@ test('context eligibility uses the saved version, explains mismatches and discar
     await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: 4,
       assignmentId, measurementProfileId: profileId, operatingContextProfileId: request.operatingContextProfileId,
       profileVersion: stale ? 2 : 3, referenceWindow: request.referenceWindow,
-      signals: [{ signalId: firstContextSignalId, tagPath: 'Planta.Bomba01.Corrente', engineeringUnit: 'A',
+      predicates: [{ tagId: speedTagId, referenceAcceptedCount: 12, referenceMatchCount: 0, comparisonAcceptedCount: null, comparisonMatchCount: null, status: 'predicate_mismatch' }],
+      signals: [{ signalId: firstContextSignalId, tagId: firstContextTagId, tagPath: 'Planta.Bomba01.Corrente', engineeringUnit: 'A',
         reference: { rawObservationCount: 15, acceptedSynchronizedUniqueCount: 12, contextEligibleObservationCount: 0,
           status: 'predicate_mismatch', rejectionCounts: {} } }] } });
   });
@@ -138,6 +141,9 @@ test('context eligibility uses the saved version, explains mismatches and discar
   await panel.getByRole('button', { name: 'Consultar condições', exact: true }).click();
   await expect(panel.getByTestId('intelligence-context-eligibility-result')).toContainText('As condições selecionadas não foram atendidas');
   await expect(panel.getByTestId('intelligence-context-eligibility-result')).toContainText('15 / 12 / 0');
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toContainText('Leituras aceitas / que atendem à condição: 12 / 0');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await panel.getByLabel('Início do período (horário local)').fill('2026-10-20T11:00');
   await expect(panel.getByTestId('intelligence-context-eligibility-result')).toHaveCount(0);
   stale = true;
@@ -157,7 +163,8 @@ test('reference evidence queries explicitly, clears changed periods and rejects 
     expect(request).toMatchObject({ scopeKind: 0, scopeId: equipmentId, profileId });
     await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: revision,
       scopeId: equipmentId, profileId, referenceWindow: request.referenceWindow,
-      referenceCohort: { completeRequiredNumericCohortCount: 12 },
+      referenceCohort: { completeRequiredNumericCohortCount: null, completeSelectedNumericCohortCount: 12,
+        requiredReasons: ['required_signal_unsupported_non_numeric_tag_type'] },
       signals: [{ signalId: firstContextSignalId, tagPath: 'Pump.Current', unit: 'A', required: true,
         reference: { rawObservationCount: 15, acceptedSynchronizedCount: 12, rejectedObservationCount: 3 } }] } });
   });
@@ -169,6 +176,8 @@ test('reference evidence queries explicitly, clears changed periods and rejects 
   await panel.getByLabel('Fim da referência (horário local)').fill('2026-10-21T10:00');
   await panel.getByRole('button', { name: 'Consultar referência', exact: true }).click();
   await expect(panel.getByTestId('intelligence-reference-evidence-result')).toContainText('15 / 12 / 3');
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toContainText('Um sinal obrigatório não é numérico');
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toContainText('Leituras simultâneas dos sinais numéricos do perfil: 12');
   expect(requests).toBe(1);
   await panel.getByLabel('Início da referência (horário local)').fill('2026-10-20T11:00');
   await expect(panel.getByTestId('intelligence-reference-evidence-result')).toHaveCount(0);

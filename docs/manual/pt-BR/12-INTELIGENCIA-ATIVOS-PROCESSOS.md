@@ -99,6 +99,12 @@ O resultado mostra quantos instantes puderam ser avaliados e quantos ficaram em 
 
 Use Cancelar consulta para interromper. Mudar período, contexto, sinais ou cadência descarta o resultado anterior; é preciso consultar novamente. Se a referência não puder ser ajustada, confira dados, qualidade, sincronização, contexto e variação dos sinais antes de ampliar períodos.
 
+## Entenda as contagens e as condições
+
+As análises são consultadas sob demanda: editar perfis ou ativar um escopo não inicia análise contínua. Na referência, leia os motivos ao lado de Não disponível. Um sinal obrigatório de texto, opção ou verdadeiro/falso não entra na coorte numérica obrigatória; a contagem dos sinais numéricos do perfil continua sendo apresentada separadamente. Contagem zero de um tipo não consultado não prova ausência de histórico.
+
+Na consulta de contexto, veja primeiro Condições do contexto: leituras aceitas e quantas atenderam a cada condição. Uma condição de modo pode ser textual e ainda selecionar os instantes válidos para corrente ou vazão. Depois confira as medições nas condições selecionadas. Essas contagens não comprovam saúde ou eficiência.
+
 ## Compare dois períodos e cancele consultas
 
 Nas consultas de referência e condições do contexto, marque Comparar com outro período se quiser conferir a evidência em duas janelas. Preencha o início e o fim da comparação. Cada janela pode ter até 31 dias, e o início da comparação deve ser estritamente posterior ao fim da referência: não use o mesmo instante nos dois limites. A consulta fica indisponível enquanto houver campos vazios, período invertido ou sobreposição.

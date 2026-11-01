@@ -99,6 +99,12 @@ Results show scored timestamps and warmup counts. Deviation combines changes in 
 
 Use Cancel query to stop. Changing periods, context, signals or cadence discards previous results; query again. If the reference cannot be fitted, check data, quality, synchronization, context and signal variation before widening periods.
 
+## Understand counts and conditions
+
+Analyses are queried on demand: editing profiles or activating a scope does not start continuous analysis. In reference evidence, read the reasons beside Unavailable. A required text, enum or Boolean signal is outside the required numeric cohort; numeric profile counts are shown separately. A zero count for an unqueried type does not prove there is no history.
+
+In context queries, start with Context conditions: accepted readings and how many matched each condition. A textual operating mode can still select valid timestamps for current or flow. Then review measurements under the selected conditions. These counts do not prove health or efficiency.
+
 ## Compare two periods and cancel queries
 
 In reference and context-condition queries, select Compare with another period to inspect evidence in two windows. Enter comparison start and end. Each window supports up to 31 days, and comparison must start strictly after the reference ends: do not use the same instant for both boundaries. Querying remains unavailable while fields are empty, dates are reversed or periods overlap.

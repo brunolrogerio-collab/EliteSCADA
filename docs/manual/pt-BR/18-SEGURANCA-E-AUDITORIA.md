@@ -12,11 +12,9 @@ Para administrar usuários, é preciso permissão UserRoleAdmin ou SystemAdmin. 
 
 ### Prazo da sessão local
 
-Na área de Segurança, ajuste quando o sistema pedirá login novamente. O prazo começa no momento em que a pessoa entra e define a validade máxima do login local; não é um temporizador de inatividade. Fechar o navegador não encerra a sessão.
+Em Segurança, ajuste o tempo para pedir login novamente. Ele começa quando a pessoa entra e define a validade máxima do login local; não é um temporizador de inatividade. Fechar o navegador não encerra a sessão. O novo prazo vale para próximos logins, enquanto sessões já abertas mantêm o vencimento que receberam. Escolha de 5 a 1.440 minutos (5 minutos a 24 horas); o valor inicial do produto é 480 minutos, ou 8 horas, salvo se a instalação definir outro valor inicial na configuração do servidor.
 
-Escolha de 5 a 1.440 minutos (de 5 minutos a 24 horas). O valor inicial do produto é 480 minutos, ou 8 horas, salvo se a instalação definir outro valor inicial na configuração do servidor. O novo valor vale para próximos logins. Sessões já abertas mantêm o vencimento que receberam; depois dele, será necessário entrar novamente.
-
-Se o prazo vencer com a aplicação aberta, ela não mostra o login automaticamente. O servidor deixa de aceitar ações protegidas e encerra a atualização em tempo real. A tela pode continuar exibindo os últimos valores recebidos. Atualize a página ou abra a aplicação novamente para voltar ao login. Na troca de turno, use **Sair** antes de entregar a estação e peça ao próximo operador para entrar com a própria conta.
+Se o prazo vencer com a aplicação aberta, ela não mostra o login automaticamente. O servidor deixa de aceitar ações protegidas e encerra a atualização em tempo real. A tela pode continuar exibindo os últimos valores recebidos. Atualize a página ou abra a aplicação novamente para voltar ao login. Na troca de turno, use Sair antes de entregar a estação e peça ao próximo operador para entrar com a própria conta.
 
 ### Procedimento: cadastrar e testar um operador
 
@@ -112,32 +110,6 @@ A decisão final é do servidor, considerando pessoa, recurso e alcance. No Runt
 O produto recusa excluir papel ainda atribuído e perder o último administrador. Se um nó não existe ou é incompatível, escolha um vínculo válido. Não aumente para global apenas para eliminar o erro.
 
 [Abrir este guia na Ajuda instalada](/help?topic=security.policy-scopes)
-
-## Runtime público: mostrar telas sem abrir a Engenharia
-
-Runtime público permite que alguém acompanhe uma apresentação sem criar uma conta. Ele começa desligado. Ao habilitá-lo, somente a revisão Active indicada e os recursos escolhidos ficam disponíveis; o login dos usuários continua funcionando.
-
-### Configurar a visualização
-
-Entre com uma conta autorizada a administrar a Security Authority e alterar a Engenharia. Primeiro publique e ative a revisão que deve ser mostrada. Depois abra Engenharia > Segurança > Runtime público.
-
-1. Marque Permitir visualização pública sem login.
-2. Escolha uma das telas públicas para Tela inicial. A tela inicial também precisa estar selecionada em Telas públicas.
-3. Marque somente os pop-ups, TAGs e imagens necessários. Uma TAG selecionada pode ser lida por quem abrir o endereço; não a selecione se o valor não puder ser divulgado.
-4. Salve a política pública. Essa política pertence à Authority da instalação; não altera o pacote `.escadapkg` nem substitui publicar e ativar a aplicação.
-5. Abra o endereço em janela privada ou em outro navegador sem login e confira o conteúdo realmente exibido.
-
-### O que o visitante pode fazer
-
-O visitante abre a tela Runtime e lê as TAGs que foram selecionadas. A sessão usa a capacidade View Only da licença ou da Demo; se não houver vaga, o acesso é recusado. O link Entrar leva de volta ao login normal.
-
-O visitante não recebe uma conta, papel ou permissão da Authority. Comandos, escritas de TAG, reconhecimento e supressão de alarmes, Engenharia, histórico, relatórios, fontes de mídia e administração continuam protegidos. Ocultar um botão na tela não altera essas regras: o servidor também recusa acesso direto às rotas protegidas.
-
-### Desativar e resolver problemas
-
-Desmarque Permitir visualização pública sem login e salve para retirar o acesso anônimo. Alterar a política ou ativar outra revisão também invalida as sessões públicas anteriores. Se o endereço mostrar login, confirme se a opção está ligada e se a revisão Active coincide com a configuração. Se o Runtime não abrir, confira se há capacidade View Only disponível. Em estado de Authority ou aplicação incompatível, o acesso falha fechado.
-
-[Abrir este guia na Ajuda instalada](/help?topic=security.public-runtime-view)
 
 ## Auditoria: localizar ações e conferir a gravação
 

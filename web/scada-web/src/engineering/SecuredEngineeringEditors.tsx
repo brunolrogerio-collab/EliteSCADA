@@ -526,6 +526,29 @@ export function AlarmEditor({ model, locale, projectKey = 'workspace' }: EditorP
     digitalActiveValue: type === 'digital' ? (alarm.digitalActiveValue ?? true) : alarm.digitalActiveValue
   }));
 
+  const scopeNoneLabel = locale === 'en' ? 'Not linked' : locale === 'es' ? 'Sin vínculo' : 'Sem vínculo';
+  const equipmentScopeLabel = locale === 'en' ? 'Equipment scope' : locale === 'es' ? 'Alcance del equipo' : 'Vínculo com equipamento';
+  const locationScopeLabel = locale === 'en' ? 'Area or subarea scope' : locale === 'es' ? 'Alcance de área o subárea' : 'Área ou subárea operacional';
+  const equipmentLocationHint = locale === 'en'
+    ? 'The Runtime follows the equipment’s current area.'
+    : locale === 'es'
+      ? 'Runtime sigue el área actual del equipo.'
+      : 'O Runtime acompanha a área atual do equipamento.';
+  const equipmentScopeOptions = [
+    { value: '', label: scopeNoneLabel },
+    ...(model.equipment ?? []).filter(item => item.id).map(item => ({
+      value: item.id!,
+      label: `${item.name || item.path}${item.locationId ? ` · ${locationPathLabel(item.locationId, model.locations ?? [])}` : ''}`
+    }))
+  ];
+  const locationScopeOptions = [
+    { value: '', label: scopeNoneLabel },
+    ...(model.locations ?? []).filter(item => item.id).map(item => ({
+      value: item.id!,
+      label: locationPathLabel(item.id!, model.locations ?? [])
+    }))
+  ];
+
   const filtered = alarms.filter(alarm =>
     `${alarm.name} ${alarm.tagPath ?? alarm.tagId ?? ''} ${alarm.type} ${alarm.priority} ${alarm.area ?? ''} ${alarm.alarmClass ?? ''}`
       .toLowerCase()
@@ -581,6 +604,8 @@ export function AlarmEditor({ model, locale, projectKey = 'workspace' }: EditorP
                 {draft.type === 'digital' && <BooleanField label={text('editor.field.digitalActiveValue')} checked={draft.digitalActiveValue !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, digitalActiveValue: value }))} />}
                 <TextField label={text('editor.field.alarmClass')} value={draft.alarmClass ?? ''} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, alarmClass: emptyToNull(value) }))} />
                 <TextField label={text('editor.field.area')} value={draft.area ?? ''} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, area: emptyToNull(value) }))} />
+                <SelectField label={equipmentScopeLabel} hint={equipmentLocationHint} value={draft.equipmentId ?? ''} options={equipmentScopeOptions} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, equipmentId: emptyToNull(value), locationId: null }))} />
+                <SelectField label={locationScopeLabel} hint={draft.equipmentId ? equipmentLocationHint : undefined} disabled={Boolean(draft.equipmentId)} value={draft.equipmentId ? '' : draft.locationId ?? ''} options={locationScopeOptions} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, equipmentId: null, locationId: emptyToNull(value) }))} />
                 <TextAreaField label={text('editor.field.message')} value={draft.message ?? ''} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, message: emptyToNull(value) }))} />
               </div>
               </WorkflowFormSection>
@@ -847,12 +872,12 @@ function TextAreaField({ label, value, onChange }: { label: string; value: strin
 
 type SelectFieldOption = string | Readonly<{ value: string; label: string }>;
 
-function SelectField({ label, value, options, onChange, testId }: { label: string; value: string; options: SelectFieldOption[]; onChange: (value: string) => void; testId?: string }) {
+function SelectField({ label, value, options, onChange, testId, disabled = false, hint }: { label: string; value: string; options: SelectFieldOption[]; onChange: (value: string) => void; testId?: string; disabled?: boolean; hint?: string }) {
   const normalized = options.map(option => typeof option === 'string' ? { value: option, label: option } : option);
   const effective = normalized.some(option => option.value === value)
     ? normalized
     : [{ value, label: value }, ...normalized];
-  return <label className="eng-editor-field"><span>{label}</span><select data-testid={testId} value={value} onChange={event => onChange(event.target.value)}>{effective.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
+  return <label className="eng-editor-field"><span>{label}</span><select data-testid={testId} disabled={disabled} value={value} onChange={event => onChange(event.target.value)}>{effective.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{hint && <small aria-hidden="true">{hint}</small>}</label>;
 }
 
 function controlledUnitOptionValue(catalogVersion: number, code: string): string {
@@ -887,6 +912,7 @@ function newDataSourceDraft(): DataSourceEngineering {
 function newAlarmDraft(): AlarmEngineering {
   return {
     name: '', tagPath: '', type: 'high', priority: 'medium', setpoint: null,
+    locationId: null, equipmentId: null,
     digitalActiveValue: true, activationDelayMilliseconds: null,
     requiresAcknowledgement: true, shelvingAllowed: true, enabled: true, soundProfile: null
   };
@@ -918,6 +944,20 @@ function updateAlarm(setter: React.Dispatch<React.SetStateAction<AlarmEngineerin
 function tagIdentity(tag: TagEngineering) { return tag.id ? `id:${tag.id}` : `path:${tag.path}`; }
 function dataSourceIdentity(source: DataSourceEngineering) { return source.id ? `id:${source.id}` : `key:${source.key}`; }
 function alarmIdentity(alarm: AlarmEngineering) { return alarm.id ? `id:${alarm.id}` : `key:${alarm.name}:${alarm.tagPath ?? alarm.tagId ?? ''}`; }
+function locationPathLabel(locationId: string, locations: NonNullable<EngineeringPackageView['locations']>): string {
+  const byId = new Map(locations.filter(location => location.id).map(location => [location.id!, location]));
+  const names: string[] = [];
+  const visited = new Set<string>();
+  let current: string | null | undefined = locationId;
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    const location = byId.get(current);
+    if (!location) break;
+    names.unshift(location.name);
+    current = location.parentLocationId;
+  }
+  return names.length ? names.join(' / ') : locationId;
+}
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function emptyToNull(value: string): string | null { return value.trim().length === 0 ? null : value; }
 function parseNullableNumber(value: string, integer: boolean): number | null {
@@ -1010,9 +1050,9 @@ function workflowText(locale: EngineeringLocale) {
     advancedSettings: 'Advanced source settings',
     advancedSettingsHint: 'Low-frequency technical settings and secret references stay out of the primary setup task.',
     alarmCondition: 'Alarm condition',
-    alarmConditionHint: 'Define the TAG, condition, priority and operator-facing context first.',
+    alarmConditionHint: 'Define the TAG, condition, priority and context first. Area is used for access policy; the equipment or location link defines operational scope.',
     alarmBehavior: 'Alarm behavior',
-    alarmBehaviorHint: 'Timing, acknowledgement and shelving are secondary operational behavior.'
+    alarmBehaviorHint: 'Timing and acknowledgement are separate from operator suppression. Allow operational suppression only for alarms that may be silenced while remaining visible.',
   };
   if (locale === 'es') return {
     identity: 'Identidad y conexión',
@@ -1023,9 +1063,9 @@ function workflowText(locale: EngineeringLocale) {
     advancedSettings: 'Opciones avanzadas de la fuente',
     advancedSettingsHint: 'Opciones técnicas poco frecuentes y referencias secretas quedan fuera de la tarea principal.',
     alarmCondition: 'Condición de alarma',
-    alarmConditionHint: 'Defina primero el TAG, condición, prioridad y contexto del operador.',
+    alarmConditionHint: 'Defina primero el TAG, la condición, la prioridad y el contexto. Área se usa para permisos; el vínculo con equipo o ubicación define el alcance operativo.',
     alarmBehavior: 'Comportamiento de la alarma',
-    alarmBehaviorHint: 'Temporización, reconocimiento y shelving son comportamiento operativo secundario.'
+    alarmBehaviorHint: 'Temporización y reconocimiento son independientes de la supresión del operador. Permítala solo en alarmas que puedan silenciarse y seguir visibles.',
   };
   return {
     identity: 'Identidade e conexão',
@@ -1036,8 +1076,8 @@ function workflowText(locale: EngineeringLocale) {
     advancedSettings: 'Configurações avançadas da fonte',
     advancedSettingsHint: 'Opções técnicas pouco frequentes e referências secretas ficam fora da tarefa principal.',
     alarmCondition: 'Condição do alarme',
-    alarmConditionHint: 'Defina primeiro TAG, condição, prioridade e contexto para o operador.',
+    alarmConditionHint: 'Defina TAG, condição, prioridade e contexto. Área define a política de acesso; o vínculo com equipamento ou localização define o alcance operacional.',
     alarmBehavior: 'Comportamento do alarme',
-    alarmBehaviorHint: 'Temporização, reconhecimento e shelving são comportamento operacional secundário.'
+    alarmBehaviorHint: 'Temporização e reconhecimento são diferentes da supressão pelo operador. Permita-a somente nos alarmes que possam ser silenciados e continuar visíveis.'
   };
 }

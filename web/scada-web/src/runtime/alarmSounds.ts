@@ -32,6 +32,7 @@ export function selectUnacknowledgedAlarmSounds(
 ): SoundEntry[] {
   const soundById = new Map(definitions.map(definition => [definition.id, definition.soundProfile]));
   return alarms.flatMap(alarm => {
+    if (alarm.isSuppressed) return [];
     const state = normalizeRuntimeAlarmState(alarm.state);
     if (state !== 'active' && !(state === 'returned' && !alarm.acknowledgedAt)) return [];
     const profile = soundById.get(alarm.definitionId);

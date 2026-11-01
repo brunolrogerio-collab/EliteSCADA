@@ -12,11 +12,9 @@ Administrar usuarios requiere UserRoleAdmin o SystemAdmin. Editar el proyecto no
 
 ### Duración de la sesión local
 
-En Seguridad, ajuste cuándo se pedirá ingresar nuevamente. El plazo comienza al iniciar sesión y define la validez máxima del ingreso local; no es un temporizador de inactividad. Cerrar el navegador no termina la sesión.
+En Seguridad, ajuste cuándo se pedirá ingresar nuevamente. El plazo comienza al iniciar sesión y define la validez máxima del ingreso local; no es un temporizador de inactividad. Cerrar el navegador no termina la sesión. La nueva duración se aplica a ingresos futuros; las sesiones abiertas conservan el vencimiento recibido. Elija de 5 a 1.440 minutos (5 minutos a 24 horas); el valor inicial del producto es 480 minutos, u 8 horas, salvo que la instalación defina otro valor inicial en la configuración del servidor.
 
-Elija de 5 a 1.440 minutos (de 5 minutos a 24 horas). El valor inicial del producto es 480 minutos, u 8 horas, salvo que la instalación defina otro valor inicial en la configuración del servidor. La nueva duración se aplica a ingresos futuros. Las sesiones abiertas conservan el vencimiento recibido; al vencer, será necesario ingresar nuevamente.
-
-Si el plazo vence mientras la aplicación está abierta, no aparece automáticamente la pantalla de ingreso. El servidor deja de aceptar acciones protegidas y termina las actualizaciones en tiempo real. La pantalla puede seguir mostrando los últimos valores recibidos. Actualice la página o vuelva a abrir la aplicación para regresar al ingreso. Al cambiar de turno, elija **Salir** antes de entregar la estación y pida al siguiente operador que use su propia cuenta.
+Si el plazo vence mientras la aplicación está abierta, no aparece automáticamente la pantalla de ingreso. El servidor deja de aceptar acciones protegidas y termina las actualizaciones en tiempo real. La pantalla puede seguir mostrando los últimos valores recibidos. Actualice la página o vuelva a abrir la aplicación para regresar al ingreso. Al cambiar de turno, elija Salir antes de entregar la estación y pida al siguiente operador que use su propia cuenta.
 
 ### Procedimiento: crear y probar un operador
 
@@ -112,32 +110,6 @@ El servidor decide con persona, recurso y alcance; Runtime considera también cl
 Se rechaza eliminar rol asignado o perder el último administrador. Ante nodo ausente o incompatible elija vínculo válido. No amplíe a global solo para eliminar el error.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=security.policy-scopes)
-
-## Runtime público: mostrar pantallas sin abrir Engineering
-
-Runtime público permite que alguien vea una presentación sin crear una cuenta. Empieza deshabilitado. Al habilitarlo, solo quedan disponibles la revisión Active elegida y los recursos seleccionados; el inicio de sesión normal continúa funcionando.
-
-### Configurar la vista pública
-
-Inicie sesión con una cuenta autorizada para administrar Security Authority y modificar Engineering. Primero publique y active la revisión que se mostrará. Después abra Engineering > Security > Runtime público.
-
-1. Marque Permitir visualización pública sin inicio de sesión.
-2. Elija una pantalla pública como Pantalla inicial. También debe estar seleccionada en Pantallas públicas.
-3. Marque solo las ventanas emergentes, TAG e imágenes necesarios. Quien abra la dirección podrá leer cada TAG seleccionado; no lo incluya si su valor debe mantenerse privado.
-4. Guarde la política pública. Esta política pertenece a Authority de la instalación; no cambia el paquete `.escadapkg` ni sustituye publicar y activar la aplicación.
-5. Abra la dirección en una ventana privada u otro navegador sin sesión y compruebe lo que aparece.
-
-### Qué pueden hacer los visitantes
-
-El visitante puede abrir la pantalla Runtime y leer los TAG seleccionados. La sesión usa la capacidad View Only de la licencia o Demo; si no hay plaza, se rechaza el acceso. El enlace Ingresar vuelve al login normal.
-
-El visitante no recibe cuenta, role ni permiso de Authority. Commands, escrituras de TAG, reconocimiento y supresión de alarmas, Engineering, histórico, informes, fuentes multimedia y administración siguen protegidos. Ocultar un botón no cambia estas reglas: el servidor también rechaza el acceso directo a las rutas protegidas.
-
-### Deshabilitar el acceso y resolver problemas
-
-Desmarque Permitir visualización pública sin inicio de sesión y guarde para retirar el acceso anónimo. Cambiar la política o activar otra revisión también invalida las sesiones públicas existentes. Si la dirección muestra login, compruebe que la opción esté habilitada y que la revisión Active coincida con la configuración. Si Runtime no abre, compruebe la capacidad View Only disponible. Un estado incompatible de Authority o de la aplicación cierra el acceso de forma segura.
-
-[Abrir esta guía en Ayuda instalada](/help?topic=security.public-runtime-view)
 
 ## Auditoría: localizar acciones y comprobar la grabación
 

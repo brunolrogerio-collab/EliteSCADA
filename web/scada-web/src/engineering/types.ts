@@ -366,6 +366,10 @@ export type AlarmEngineering = {
   digitalActiveValue?: boolean;
   alarmClass?: string | null;
   area?: string | null;
+  /** Stable operational scope. Set one of this or equipmentId, not both. */
+  locationId?: string | null;
+  /** Stable equipment link; its current Location is resolved at Runtime activation. */
+  equipmentId?: string | null;
   message?: string | null;
   activationDelayMilliseconds?: number | null;
   requiresAcknowledgement?: boolean;

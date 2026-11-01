@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Scada.Api.Persistence;
 using Scada.Api.Security;
+using Scada.Core.Alarms;
 using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
@@ -207,7 +208,9 @@ public sealed record RuntimeHaAuthoritativeStateSnapshot(
     IReadOnlyCollection<RuntimeSessionLeaseContinuityTombstoneEnvelope> SessionTombstones,
     DateTimeOffset CapturedAtUtc,
     EngineeringPackage? Application = null,
-    DateTimeOffset? RuntimeActivatedAtUtc = null);
+    DateTimeOffset? RuntimeActivatedAtUtc = null,
+    long? AlarmSuppressionRevision = null,
+    IReadOnlyCollection<AlarmSuppressionRecord>? AlarmSuppressions = null);
 
 public sealed record RuntimeHaPeerReplicationEnvelope(
     string Schema,
@@ -222,7 +225,7 @@ public sealed record RuntimeHaPeerReplicationEnvelope(
     DateTimeOffset SentAtUtc)
 {
     public const string SchemaName = "elitescada.runtime-ha-peer-replication";
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 }
 
 public sealed record RuntimeHaPeerReplicationAck(
@@ -793,6 +796,7 @@ public sealed class RuntimeHaPeerReplicationCoordinator
     private readonly ScadaRuntimeFacade _runtime;
     private readonly HighAvailabilityRuntimeCoordinator _runtimeCoordinator;
     private readonly IRuntimeSessionLeaseStore _sessionLeaseStore;
+    private readonly IAlarmSuppressionStore _alarmSuppressionStore;
     private readonly IProductLicenseService _licensing;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<RuntimeHaPeerReplicationCoordinator> _logger;
@@ -809,6 +813,7 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         ScadaRuntimeFacade runtime,
         HighAvailabilityRuntimeCoordinator runtimeCoordinator,
         IRuntimeSessionLeaseStore sessionLeaseStore,
+        IAlarmSuppressionStore alarmSuppressionStore,
         IProductLicenseService licensing,
         TimeProvider timeProvider,
         ILogger<RuntimeHaPeerReplicationCoordinator> logger)
@@ -821,6 +826,7 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         _runtime = runtime;
         _runtimeCoordinator = runtimeCoordinator;
         _sessionLeaseStore = sessionLeaseStore;
+        _alarmSuppressionStore = alarmSuppressionStore;
         _licensing = licensing;
         _timeProvider = timeProvider;
         _logger = logger;
@@ -832,7 +838,8 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         return _transportState.Snapshot();
     }
 
-    public RuntimeHaPeerReplicationEnvelope CreateOutboundEnvelope()
+    public async Task<RuntimeHaPeerReplicationEnvelope> CreateOutboundEnvelopeAsync(
+        CancellationToken cancellationToken = default)
     {
         if (!_highAvailability.Enabled ||
             _highAvailability.ClusterId is null ||
@@ -876,6 +883,12 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                         SourceNodeId = localNodeId
                     })
                     .ToArray();
+                var suppressionSnapshot = await _alarmSuppressionStore.ReadSnapshotAsync(
+                    descriptor.ProjectKey!,
+                    now,
+                    cancellationToken);
+                if (!suppressionSnapshot.ProjectKey.Equals(descriptor.ProjectKey, StringComparison.Ordinal))
+                    throw new InvalidOperationException("HA alarm suppression state belongs to a different project.");
 
                 authoritative = new RuntimeHaAuthoritativeStateSnapshot(
                     RuntimeHaRuntimeIdentity.From(descriptor),
@@ -888,7 +901,9 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                     tombstones,
                     now,
                     application,
-                    descriptor.ActivatedAtUtc);
+                    descriptor.ActivatedAtUtc,
+                    suppressionSnapshot.Revision,
+                    suppressionSnapshot.Records);
             }
         }
 
@@ -1045,6 +1060,44 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                 _transportState.RecordFailure("peer-application-required");
                 RefreshLocalReadiness();
                 return Conflict("peer-application-required", envelope.ReplicationSequence);
+            }
+
+            if (!authoritativeState.AlarmSuppressionRevision.HasValue ||
+                authoritativeState.AlarmSuppressionRevision.Value < 0 ||
+                authoritativeState.AlarmSuppressions is null ||
+                authoritativeState.AlarmSuppressions.Any(record =>
+                    !record.ProjectKey.Equals(authoritativeState.Runtime.ProjectKey, StringComparison.Ordinal)))
+            {
+                _mirror.MarkStale("peer-alarm-suppression-state-required");
+                _transportState.RecordFailure("peer-alarm-suppression-state-required");
+                RefreshLocalReadiness();
+                return Conflict("peer-alarm-suppression-state-required", envelope.ReplicationSequence);
+            }
+
+            try
+            {
+                await _alarmSuppressionStore.ReplaceProjectSnapshotAsync(
+                    authoritativeState.Runtime.ProjectKey,
+                    authoritativeState.AlarmSuppressionRevision.Value,
+                    authoritativeState.AlarmSuppressions,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(
+                    exception,
+                    "HA node {NodeId} could not persist peer alarm suppression state for project {ProjectKey} at revision {Revision}.",
+                    _highAvailability.LocalNodeId,
+                    authoritativeState.Runtime.ProjectKey,
+                    authoritativeState.AlarmSuppressionRevision);
+                _mirror.MarkStale("peer-alarm-suppression-state-rejected");
+                _transportState.RecordFailure("peer-alarm-suppression-state-rejected");
+                RefreshLocalReadiness();
+                return Conflict("peer-alarm-suppression-state-rejected", envelope.ReplicationSequence);
             }
 
             var localLicense = RuntimeHaPeerLicenseEvidence.From(
@@ -1310,6 +1363,10 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         }
         if (state.Application is null)
             return (false, "peer-application-unavailable");
+        if (!state.AlarmSuppressionRevision.HasValue ||
+            state.AlarmSuppressionRevision.Value < 0 ||
+            state.AlarmSuppressions is null)
+            return (false, "peer-alarm-suppression-state-unavailable");
         if (state.Application.Tags.Count != state.ProjectTagCount)
             return (false, "peer-application-tag-count-mismatch");
 
@@ -1594,7 +1651,7 @@ public sealed class RuntimeHaPeerTransportHostedService : BackgroundService
                 }
                 else
                 {
-                    var envelope = _coordinator.CreateOutboundEnvelope();
+                    var envelope = await _coordinator.CreateOutboundEnvelopeAsync(stoppingToken);
                     var body = _coordinator.Serialize(envelope);
                     using var request = new HttpRequestMessage(
                         HttpMethod.Post,

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Scada.Api.Persistence;
+using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Security.Authorization;
 
@@ -855,6 +856,7 @@ public sealed class RuntimeHaProtectionCoordinator
     private readonly HighAvailabilityRuntimeCoordinator _runtime;
     private readonly IPublishedRuntimeActivationService? _runtimeActivation;
     private readonly IRuntimeSessionLeaseStore _sessions;
+    private readonly IAlarmSuppressionStore? _alarmSuppressionStore;
     private readonly RuntimeHaHostConfigurationAuthority? _hostConfiguration;
     private readonly Func<DateTimeOffset> _utcNow;
     private readonly IRuntimeHaProtectionOperationHistoryStore? _operationHistoryStore;
@@ -877,7 +879,8 @@ public sealed class RuntimeHaProtectionCoordinator
         RuntimeHaHostConfigurationAuthority? hostConfiguration = null,
         IRuntimeHaProtectionOperationHistoryStore? operationHistoryStore = null,
         ILogger<RuntimeHaProtectionCoordinator>? logger = null,
-        IPublishedRuntimeActivationService? runtimeActivation = null)
+        IPublishedRuntimeActivationService? runtimeActivation = null,
+        IAlarmSuppressionStore? alarmSuppressionStore = null)
         : this(
             options,
             highAvailability,
@@ -890,7 +893,8 @@ public sealed class RuntimeHaProtectionCoordinator
             hostConfiguration,
             operationHistoryStore,
             logger,
-            runtimeActivation)
+            runtimeActivation,
+            alarmSuppressionStore)
     {
     }
 
@@ -906,7 +910,8 @@ public sealed class RuntimeHaProtectionCoordinator
         RuntimeHaHostConfigurationAuthority? hostConfiguration = null,
         IRuntimeHaProtectionOperationHistoryStore? operationHistoryStore = null,
         ILogger<RuntimeHaProtectionCoordinator>? logger = null,
-        IPublishedRuntimeActivationService? runtimeActivation = null)
+        IPublishedRuntimeActivationService? runtimeActivation = null,
+        IAlarmSuppressionStore? alarmSuppressionStore = null)
     {
         _options = options;
         _highAvailability = highAvailability;
@@ -916,6 +921,7 @@ public sealed class RuntimeHaProtectionCoordinator
         _runtime = runtime;
         _runtimeActivation = runtimeActivation;
         _sessions = sessions;
+        _alarmSuppressionStore = alarmSuppressionStore;
         _hostConfiguration = hostConfiguration;
         _utcNow = utcNow;
         _operationHistoryStore = operationHistoryStore;
@@ -1234,6 +1240,12 @@ public sealed class RuntimeHaProtectionCoordinator
                                 preferLocalActiveRevision: sameNodeRestartReconciled || initialAuthorityBootstrap);
                             if (activationFailure is not null)
                                 return activationFailure;
+
+                            var suppressionRestoreFailure = await RestoreAlarmSuppressionStateAsync(
+                                authoritativeState,
+                                takeoverToken);
+                            if (suppressionRestoreFailure is not null)
+                                return suppressionRestoreFailure;
 
                             // The target has fenced authority and its active runtime is
                             // ready. Commit the local runtime fence before restoring values.
@@ -1784,6 +1796,12 @@ public sealed class RuntimeHaProtectionCoordinator
                 if (activationFailure is not null)
                     return activationFailure;
 
+                var suppressionRestoreFailure = await RestoreAlarmSuppressionStateAsync(
+                    state,
+                    takeoverToken);
+                if (suppressionRestoreFailure is not null)
+                    return suppressionRestoreFailure;
+
                 if (!MarkTakeoverCommitted(authority, "takeover-state-restoration-in-progress"))
                     return "takeover-reference-changed-before-state-restore";
                 var restoreFailure = await RestoreAuthoritativeValuesAsync(
@@ -2050,6 +2068,46 @@ public sealed class RuntimeHaProtectionCoordinator
         }
 
         return null;
+    }
+
+    private async Task<string?> RestoreAlarmSuppressionStateAsync(
+        RuntimeHaAuthoritativeStateSnapshot state,
+        CancellationToken cancellationToken)
+    {
+        if (_alarmSuppressionStore is null ||
+            !state.AlarmSuppressionRevision.HasValue ||
+            state.AlarmSuppressionRevision.Value < 0 ||
+            state.AlarmSuppressions is null ||
+            string.IsNullOrWhiteSpace(state.Runtime.ProjectKey) ||
+            state.AlarmSuppressions.Any(record =>
+                !record.ProjectKey.Equals(state.Runtime.ProjectKey, StringComparison.Ordinal)))
+        {
+            return "takeover-alarm-suppression-state-unavailable";
+        }
+
+        try
+        {
+            await _alarmSuppressionStore.ReplaceProjectSnapshotAsync(
+                state.Runtime.ProjectKey,
+                state.AlarmSuppressionRevision.Value,
+                state.AlarmSuppressions,
+                cancellationToken);
+            return null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger?.LogError(
+                exception,
+                "HA alarm suppression restore failed for project {ProjectKey} at revision {Revision} with {RecordCount} targets.",
+                state.Runtime.ProjectKey,
+                state.AlarmSuppressionRevision,
+                state.AlarmSuppressions.Count);
+            return "takeover-alarm-suppression-state-restore-failed";
+        }
     }
 
     private async Task FailClosedAfterClaimAsync(

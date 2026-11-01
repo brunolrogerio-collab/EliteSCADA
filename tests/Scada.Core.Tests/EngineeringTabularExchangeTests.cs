@@ -64,6 +64,7 @@ public sealed class EngineeringTabularExchangeTests
                 break;
             case EngineeringTabularEntity.Alarms:
                 Assert.Equal("Plant.Temperature", rows[1][Array.IndexOf(headers, "TagPath")]);
+                Assert.Equal("Plant.Pump01", rows[1][Array.IndexOf(headers, "EquipmentPath")]);
                 break;
             case EngineeringTabularEntity.GatewayRoutes:
                 Assert.Equal("Plant.Temperature", rows[1][Array.IndexOf(headers, "SourceTagPath")]);
@@ -82,9 +83,50 @@ public sealed class EngineeringTabularExchangeTests
             package.Alarms.Single().Id!.Value,
             package.DataSources!.Single().Id!.Value,
             package.Gateways!.Single().Id!.Value,
-            package.OperationalEvents!.Single().Id!.Value
+            package.OperationalEvents!.Single().Id!.Value,
+            package.Locations!.Single().Id!.Value,
+            package.Equipment!.Single().Id!.Value
         };
         Assert.All(internalIds, id => Assert.DoesNotContain(id.ToString("D"), string.Join(',', rows.SelectMany(row => row)), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Alarm_csv_import_resolves_equipment_and_location_by_readable_path()
+    {
+        var package = Package();
+        var equipmentId = package.Equipment!.Single().Id;
+        var locationId = package.Locations!.Single().Id;
+
+        var equipmentRoundTrip = _exchange.ParseCsv(
+            package,
+            EngineeringTabularEntity.Alarms,
+            _exchange.ExportCsv(package, EngineeringTabularEntity.Alarms));
+        Assert.Equal(equipmentId, equipmentRoundTrip.Alarms.Single().EquipmentId);
+        Assert.Null(equipmentRoundTrip.Alarms.Single().LocationId);
+
+        var locationPackage = package with
+        {
+            Alarms = [package.Alarms.Single() with { EquipmentId = null, LocationId = locationId }]
+        };
+        var locationRoundTrip = _exchange.ParseXlsx(
+            locationPackage,
+            EngineeringTabularEntity.Alarms,
+            _exchange.ExportXlsx(locationPackage, EngineeringTabularEntity.Alarms));
+        Assert.Equal(locationId, locationRoundTrip.Alarms.Single().LocationId);
+        Assert.Null(locationRoundTrip.Alarms.Single().EquipmentId);
+    }
+
+    [Fact]
+    public void Alarm_csv_import_rejects_unknown_operational_paths()
+    {
+        var package = Package();
+        var csv = _exchange.ExportCsv(package, EngineeringTabularEntity.Alarms)
+            .Replace("Plant.Pump01", "Plant.MissingPump", StringComparison.Ordinal);
+
+        var error = Assert.Throws<InvalidDataException>(() =>
+            _exchange.ParseCsv(package, EngineeringTabularEntity.Alarms, csv));
+
+        Assert.Contains("Equipment path 'Plant.MissingPump' was not found", error.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -668,6 +710,8 @@ public sealed class EngineeringTabularExchangeTests
         var tagId = Guid.NewGuid();
         var destinationId = Guid.NewGuid();
         var historianProfileId = Guid.NewGuid();
+        var locationId = Guid.NewGuid();
+        var equipmentId = Guid.NewGuid();
         return new EngineeringPackage(
             EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion,
@@ -678,10 +722,12 @@ public sealed class EngineeringTabularExchangeTests
                 Metadata: new Dictionary<string, string> { ["note"] = "line 1\nline 2" },
                 DataSourceId: sourceId, HistorianCaptureProfileId: historianProfileId)],
             [new AlarmEngineeringDto(Guid.NewGuid(), "High temperature", tagId, "Plant.Temperature",
-                AlarmType.High, AlarmPriority.High, 80.5, Message: "High, \"hot\"")],
+                AlarmType.High, AlarmPriority.High, 80.5, Message: "High, \"hot\"", EquipmentId: equipmentId)],
             DataSources: [new DataSourceEngineeringDto(sourceId, "plc", "PLC", "ModbusTcp", true,
                 new Dictionary<string, string> { ["host"] = "192.0.2.10" },
                 new Dictionary<string, string> { ["password"] = "env://SCADA_PLC_PASSWORD" })],
+            Equipment: [new EquipmentEngineeringDto(equipmentId, "Plant.Pump01", "Pump 01", LocationId: locationId)],
+            Locations: [new LocationEngineeringDto(locationId, "Pump bay")],
             Gateways: [new GatewayRouteEngineeringDto(Guid.NewGuid(), "mirror", "Mirror", tagId, "Plant.Temperature",
                 destinationId, "Plant.Mirror", GatewayTransferMode.Periodic, GatewayQualityPolicy.GoodOnly,
                 GatewayConversionPolicy.CheckedNumeric, GatewayInitialTransferPolicy.WaitForNextAcceptableValue,
@@ -813,6 +859,8 @@ public sealed class EngineeringTabularExchangeTests
                 Assert.Null(package.Alarms.Single().Id);
                 Assert.Null(package.Alarms.Single().TagId);
                 Assert.Equal("Plant.Temperature", package.Alarms.Single().TagPath);
+                Assert.Null(package.Alarms.Single().LocationId);
+                Assert.NotNull(package.Alarms.Single().EquipmentId);
                 break;
             case EngineeringTabularEntity.DataSources:
                 Assert.Single(package.DataSources ?? []);

@@ -224,7 +224,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             views,
             commands,
             _driverInteractions);
-        _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
+        _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler, assets);
         _assetHandler = new AssetEngineeringHandler(assets, tags, _visualAssets, dataSources, commands);
         _visualAssetHandler = new VisualAssetEngineeringHandler(_visualAssets);
         _viewHandler = new ViewEngineeringHandler(views, assets, tags, dataSources, _visualAssets, commands, _mediaSources);
@@ -308,7 +308,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     public string ExportAlarmsCsv()
     {
         var package = ExportPackage();
-        return _csv.ExportAlarms(package.Alarms, package.Tags);
+        return _csv.ExportAlarms(package.Alarms, package.Tags, package.Locations, package.Equipment);
     }
 
     public string ExportDataSourcesCsv() =>
@@ -390,8 +390,14 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         };
     }
 
-    public EngineeringPackage ParseAlarmsCsv(string csv) =>
-        EmptyWithCurrentAuthorityReference() with { Alarms = _csv.ParseAlarms(csv) };
+    public EngineeringPackage ParseAlarmsCsv(string csv)
+    {
+        var package = ExportPackage();
+        return EmptyWithCurrentAuthorityReference() with
+        {
+            Alarms = _csv.ParseAlarms(csv, package.Locations, package.Equipment)
+        };
+    }
 
     public EngineeringPackage ParseDataSourcesCsv(string csv) =>
         EmptyWithCurrentAuthorityReference() with { DataSources = _csv.ParseDataSources(csv) };

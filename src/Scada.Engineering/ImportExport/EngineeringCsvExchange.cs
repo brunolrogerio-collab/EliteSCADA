@@ -22,7 +22,8 @@ internal sealed class EngineeringCsvExchange
     private static readonly string[] AlarmColumns =
     [
         "Id", "Name", "TagId", "TagPath", "Type", "Priority", "Setpoint", "DigitalActiveValue", "Class", "Area", "Message",
-        "ActivationDelayMilliseconds", "RequiresAcknowledgement", "ShelvingAllowed", "Enabled", "SoundProfile", "MetadataJson"
+        "ActivationDelayMilliseconds", "RequiresAcknowledgement", "ShelvingAllowed", "Enabled", "SoundProfile", "MetadataJson",
+        "LocationPath", "EquipmentPath", "LocationId", "EquipmentId"
     ];
     private static readonly string[] DataSourceColumns =
         ["Id", "Key", "Name", "Driver", "Enabled", "SettingsJson", "SecretReferencesJson", "MetadataJson"];
@@ -111,11 +112,18 @@ internal sealed class EngineeringCsvExchange
     }
 
     public string ExportAlarms(IReadOnlyCollection<AlarmEngineeringDto> alarms)
-        => ExportAlarms(alarms, []);
+        => ExportAlarms(alarms, [], [], []);
 
     public string ExportAlarms(
         IReadOnlyCollection<AlarmEngineeringDto> alarms,
         IReadOnlyCollection<TagEngineeringDto>? tags)
+        => ExportAlarms(alarms, tags, [], []);
+
+    public string ExportAlarms(
+        IReadOnlyCollection<AlarmEngineeringDto> alarms,
+        IReadOnlyCollection<TagEngineeringDto>? tags,
+        IReadOnlyCollection<LocationEngineeringDto>? locations,
+        IReadOnlyCollection<EquipmentEngineeringDto>? equipment)
     {
         var rows = new List<IReadOnlyList<string?>>
         {
@@ -123,12 +131,16 @@ internal sealed class EngineeringCsvExchange
             {
                 "Name", "TagPath", "Type", "Priority", "Setpoint", "DigitalActiveValue",
                 "Class", "Area", "Message", "ActivationDelayMilliseconds", "RequiresAcknowledgement",
-                "ShelvingAllowed", "Enabled", "SoundProfile", "MetadataJson"
+                "ShelvingAllowed", "Enabled", "SoundProfile", "MetadataJson", "LocationPath", "EquipmentPath"
             }
         };
         var tagPaths = (tags ?? Array.Empty<TagEngineeringDto>())
             .Where(item => item.Id.HasValue)
             .ToDictionary(item => item.Id!.Value, item => item.Path);
+        var locationPaths = BuildLocationPaths(locations ?? Array.Empty<LocationEngineeringDto>());
+        var equipmentPaths = BuildEquipmentPaths(equipment ?? Array.Empty<EquipmentEngineeringDto>());
+        _ = BuildPathLookup(locationPaths, "Location");
+        _ = BuildPathLookup(equipmentPaths, "Equipment");
 
         var alarmWithUnresolvedTag = alarms.FirstOrDefault(alarm =>
             alarm.TagId.HasValue &&
@@ -136,6 +148,13 @@ internal sealed class EngineeringCsvExchange
             !tagPaths.ContainsKey(alarm.TagId.Value));
         if (alarmWithUnresolvedTag is not null)
             throw new InvalidDataException($"Alarm '{alarmWithUnresolvedTag.Name}' references a TAG that cannot be resolved to a readable path.");
+
+        var invalidOperationalTarget = alarms.FirstOrDefault(alarm =>
+            alarm.LocationId.HasValue && alarm.EquipmentId.HasValue ||
+            alarm.LocationId.HasValue && !locationPaths.ContainsKey(alarm.LocationId.Value) ||
+            alarm.EquipmentId.HasValue && !equipmentPaths.ContainsKey(alarm.EquipmentId.Value));
+        if (invalidOperationalTarget is not null)
+            throw new InvalidDataException($"Alarm '{invalidOperationalTarget.Name}' has an operational target that cannot be resolved to one unique readable path.");
 
         foreach (var alarm in alarms)
         {
@@ -148,7 +167,9 @@ internal sealed class EngineeringCsvExchange
                 alarm.Type.ToString(), alarm.Priority.ToString(),
                 CsvCodec.Number(alarm.Setpoint), alarm.DigitalActiveValue.ToString(), alarm.AlarmClass, alarm.Area, alarm.Message,
                 alarm.ActivationDelayMilliseconds?.ToString(CultureInfo.InvariantCulture), alarm.RequiresAcknowledgement.ToString(),
-                alarm.ShelvingAllowed.ToString(), alarm.Enabled.ToString(), alarm.SoundProfile, JsonMap(alarm.Metadata)
+                alarm.ShelvingAllowed.ToString(), alarm.Enabled.ToString(), alarm.SoundProfile, JsonMap(alarm.Metadata),
+                alarm.LocationId.HasValue ? locationPaths[alarm.LocationId.Value] : null,
+                alarm.EquipmentId.HasValue ? equipmentPaths[alarm.EquipmentId.Value] : null
             });
         }
 
@@ -309,11 +330,18 @@ internal sealed class EngineeringCsvExchange
         throw new InvalidDataException($"Unsupported ControlledEngineeringUnitContractVersion '{value}'. Supported versions are 1 and 2.");
     }
 
-    public IReadOnlyCollection<AlarmEngineeringDto> ParseAlarms(string csv)
+    public IReadOnlyCollection<AlarmEngineeringDto> ParseAlarms(string csv) => ParseAlarms(csv, null, null);
+
+    public IReadOnlyCollection<AlarmEngineeringDto> ParseAlarms(
+        string csv,
+        IReadOnlyCollection<LocationEngineeringDto>? locations,
+        IReadOnlyCollection<EquipmentEngineeringDto>? equipment)
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("Alarm CSV import requires a header row.");
         var header = Header(table.Headers, AlarmColumns, "Name", "Type", "Priority");
+        var locationIdsByPath = locations is null ? null : BuildPathLookup(BuildLocationPaths(locations), "Location");
+        var equipmentIdsByPath = equipment is null ? null : BuildPathLookup(BuildEquipmentPaths(equipment), "Equipment");
         return ParseRows(table, row => new AlarmEngineeringDto(
             GuidOrNull(Get(row.Cells, header, "Id")),
             Get(row.Cells, header, "Name"),
@@ -331,7 +359,17 @@ internal sealed class EngineeringCsvExchange
             Bool(Get(row.Cells, header, "ShelvingAllowed"), true),
             Bool(Get(row.Cells, header, "Enabled"), true),
             ParseMap(Get(row.Cells, header, "MetadataJson")),
-            Null(Get(row.Cells, header, "SoundProfile"))));
+            Null(Get(row.Cells, header, "SoundProfile")),
+            ResolveOperationalTargetId(
+                Get(row.Cells, header, "LocationPath"),
+                Get(row.Cells, header, "LocationId"),
+                locationIdsByPath,
+                "Location"),
+            ResolveOperationalTargetId(
+                Get(row.Cells, header, "EquipmentPath"),
+                Get(row.Cells, header, "EquipmentId"),
+                equipmentIdsByPath,
+                "Equipment")));
     }
 
     public IReadOnlyCollection<DataSourceEngineeringDto> ParseDataSources(string csv)
@@ -545,6 +583,89 @@ internal sealed class EngineeringCsvExchange
             throw new InvalidDataException($"TAG CSV address selector index '{indexText}' is invalid.");
 
         return new TagValueSelector(kind, index);
+    }
+
+    private static Dictionary<Guid, string> BuildLocationPaths(IReadOnlyCollection<LocationEngineeringDto> source)
+    {
+        var locations = new Dictionary<Guid, LocationEngineeringDto>();
+        foreach (var location in source)
+        {
+            if (!location.Id.HasValue) continue;
+            if (location.Id.Value == Guid.Empty || !locations.TryAdd(location.Id.Value, location))
+                throw new InvalidDataException("Operational Locations contain an invalid or duplicate identity.");
+        }
+
+        var result = new Dictionary<Guid, string>();
+        foreach (var (id, location) in locations)
+        {
+            var names = new List<string> { location.Name };
+            var visited = new HashSet<Guid> { id };
+            var parentId = location.ParentLocationId;
+            while (parentId.HasValue)
+            {
+                if (!visited.Add(parentId.Value))
+                    throw new InvalidDataException("Operational Location hierarchy contains a cycle.");
+                if (!locations.TryGetValue(parentId.Value, out var parent))
+                    throw new InvalidDataException("Operational Location hierarchy has a missing parent.");
+                names.Add(parent.Name);
+                parentId = parent.ParentLocationId;
+            }
+
+            names.Reverse();
+            result.Add(id, string.Join(" / ", names));
+        }
+
+        return result;
+    }
+
+    private static Dictionary<Guid, string> BuildEquipmentPaths(IReadOnlyCollection<EquipmentEngineeringDto> source)
+    {
+        var result = new Dictionary<Guid, string>();
+        foreach (var equipment in source)
+        {
+            if (!equipment.Id.HasValue) continue;
+            if (equipment.Id.Value == Guid.Empty || string.IsNullOrWhiteSpace(equipment.Path) ||
+                !result.TryAdd(equipment.Id.Value, equipment.Path))
+                throw new InvalidDataException("Equipment contains an invalid or duplicate stable identity or path.");
+        }
+        return result;
+    }
+
+    private static Dictionary<string, Guid> BuildPathLookup(
+        IReadOnlyDictionary<Guid, string> pathsById,
+        string targetName)
+    {
+        var result = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (id, path) in pathsById)
+        {
+            var key = path.Trim();
+            if (string.IsNullOrWhiteSpace(key) || !result.TryAdd(key, id))
+                throw new InvalidDataException($"{targetName} paths are empty or ambiguous; use a unique readable path.");
+        }
+        return result;
+    }
+
+    private static Guid? ResolveOperationalTargetId(
+        string? pathValue,
+        string? legacyIdValue,
+        IReadOnlyDictionary<string, Guid>? idsByPath,
+        string targetName)
+    {
+        var path = Null(pathValue);
+        var legacyId = GuidOrNull(legacyIdValue);
+        Guid? resolvedId = null;
+        if (path is not null)
+        {
+            if (idsByPath is null)
+                throw new InvalidDataException($"{targetName} path '{path}' requires the active project references to be loaded before import.");
+            if (!idsByPath.TryGetValue(path.Trim(), out var id))
+                throw new InvalidDataException($"{targetName} path '{path}' was not found uniquely in the current project.");
+            resolvedId = id;
+        }
+
+        if (legacyId.HasValue && resolvedId.HasValue && legacyId != resolvedId)
+            throw new InvalidDataException($"{targetName} path and legacy identity refer to different targets.");
+        return resolvedId ?? legacyId;
     }
 
     private static Dictionary<string, int> Header(string[] row, IReadOnlyCollection<string> supported, params string[] required)

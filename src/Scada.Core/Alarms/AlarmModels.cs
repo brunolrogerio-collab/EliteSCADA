@@ -35,14 +35,18 @@ public sealed record AlarmDefinition(
     bool RequiresAcknowledgement = true,
     bool ShelvingAllowed = true,
     IReadOnlyDictionary<string, string>? Metadata = null,
-    string? SoundProfile = null)
+    string? SoundProfile = null,
+    Guid? LocationId = null,
+    Guid? EquipmentId = null)
 {
     public static AlarmDefinition Create(string name, Guid tagId, AlarmType type, AlarmPriority priority,
         double? setpoint = null, bool digitalActiveValue = true, string? area = null, string? message = null,
         string? alarmClass = null, TimeSpan? activationDelay = null, bool requiresAcknowledgement = true,
-        bool shelvingAllowed = true, IReadOnlyDictionary<string, string>? metadata = null, string? soundProfile = null) =>
+        bool shelvingAllowed = true, IReadOnlyDictionary<string, string>? metadata = null, string? soundProfile = null,
+        Guid? locationId = null, Guid? equipmentId = null) =>
         new(Guid.NewGuid(), name, tagId, type, priority, setpoint, digitalActiveValue, area, message, true,
-            alarmClass, activationDelay, requiresAcknowledgement, shelvingAllowed, metadata, soundProfile);
+            alarmClass, activationDelay, requiresAcknowledgement, shelvingAllowed, metadata, soundProfile,
+            locationId, equipmentId);
 }
 
 public sealed record AlarmInstance(

@@ -84,6 +84,10 @@ public static class EngineeringValidator
             issues.Add(Error("ALARM_TAG_REQUIRED", "Alarm must reference a tag by TagId or TagPath.", ImportEntityKind.Alarm, key));
         if ((alarm.Type is AlarmType.High or AlarmType.HighHigh or AlarmType.Low or AlarmType.LowLow) && alarm.Setpoint is null)
             issues.Add(Error("ALARM_SETPOINT_REQUIRED", "Analog alarm requires a setpoint.", ImportEntityKind.Alarm, key));
+        if (alarm.LocationId == Guid.Empty)
+            issues.Add(Error("ALARM_LOCATION_ID_EMPTY", "Alarm operational Location identity cannot be empty.", ImportEntityKind.Alarm, key));
+        if (alarm.EquipmentId == Guid.Empty)
+            issues.Add(Error("ALARM_EQUIPMENT_ID_EMPTY", "Alarm Equipment identity cannot be empty.", ImportEntityKind.Alarm, key));
         if (alarm.ActivationDelayMilliseconds < 0)
             issues.Add(Error("ALARM_DELAY_INVALID", "Alarm activation delay cannot be negative.", ImportEntityKind.Alarm, key));
         if (!AlarmSoundProfiles.IsValid(alarm.SoundProfile))

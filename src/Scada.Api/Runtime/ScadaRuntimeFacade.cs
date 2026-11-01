@@ -6,6 +6,7 @@ using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
+using Scada.Engineering.Contracts;
 
 namespace Scada.Api.Runtime;
 
@@ -26,7 +27,8 @@ public sealed class ScadaRuntimeFacade(
     IScadaEventBus? eventBus = null,
     IConfiguration? configuration = null,
     IInstallationRuntimeFence? installationFence = null,
-    RuntimeHighAvailabilityService? highAvailability = null)
+    RuntimeHighAvailabilityService? highAvailability = null,
+    IRuntimeApplicationProjectionProvider? applicationProjection = null)
 {
     private IOperationalEventRuntime? EventRuntime =>
         operationalEvents ?? engineeringRuntime as IOperationalEventRuntime;
@@ -103,6 +105,11 @@ public sealed class ScadaRuntimeFacade(
         IsInstallationNeutral || !IsEngineeringActive
             ? Array.Empty<AlarmInstance>()
             : engineeringRuntime.Alarms(activeOnly);
+
+    public EngineeringPackage? CaptureActiveApplication() =>
+        !IsInstallationNeutral && IsEngineeringActive
+            ? applicationProjection?.CaptureApplication()
+            : null;
 
     public IReadOnlyCollection<CommandDefinition> Commands() =>
         IsInstallationNeutral || !IsEngineeringActive

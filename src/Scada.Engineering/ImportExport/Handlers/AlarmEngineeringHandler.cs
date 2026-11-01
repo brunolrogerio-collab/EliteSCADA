@@ -1,4 +1,5 @@
 using Scada.Core.Alarms;
+using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
 
@@ -8,11 +9,13 @@ internal sealed class AlarmEngineeringHandler
 {
     private readonly IAlarmEngine _alarms;
     private readonly TagEngineeringHandler _tags;
+    private readonly IEngineeringAssetRegistry _assets;
 
-    public AlarmEngineeringHandler(IAlarmEngine alarms, TagEngineeringHandler tags)
+    public AlarmEngineeringHandler(IAlarmEngine alarms, TagEngineeringHandler tags, IEngineeringAssetRegistry assets)
     {
         _alarms = alarms;
         _tags = tags;
+        _assets = assets;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -34,6 +37,8 @@ internal sealed class AlarmEngineeringHandler
                     ImportEntityKind.Alarm,
                     dto.Name,
                     true));
+
+            ValidateOperationalTarget(dto, package, issues);
 
             EngineeringHandlerSupport.AddPreview(
                 items,
@@ -76,7 +81,9 @@ internal sealed class AlarmEngineeringHandler
                 dto.RequiresAcknowledgement,
                 dto.ShelvingAllowed,
                 dto.Metadata,
-                dto.SoundProfile);
+                dto.SoundProfile,
+                dto.LocationId,
+                dto.EquipmentId);
 
             _alarms.Register(definition);
             if (existing is null) created++; else updated++;
@@ -93,5 +100,45 @@ internal sealed class AlarmEngineeringHandler
             ? null
             : _alarms.Definitions().FirstOrDefault(x =>
                 x.TagId == tag.Id && x.Name.Equals(dto.Name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ValidateOperationalTarget(
+        AlarmEngineeringDto dto,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        var packageLocations = package.Locations ?? Array.Empty<LocationEngineeringDto>();
+        var packageEquipment = package.Equipment ?? Array.Empty<EquipmentEngineeringDto>();
+        var location = dto.LocationId.HasValue
+            ? packageLocations.FirstOrDefault(item => item.Id == dto.LocationId) ?? _assets.FindLocation(dto.LocationId.Value)
+            : null;
+        var equipment = dto.EquipmentId.HasValue
+            ? packageEquipment.FirstOrDefault(item => item.Id == dto.EquipmentId) ?? _assets.FindEquipment(dto.EquipmentId.Value)
+            : null;
+
+        if (dto.LocationId.HasValue && location is null)
+            issues.Add(new(
+                "ALARM_LOCATION_NOT_FOUND",
+                $"Operational Location '{dto.LocationId:D}' for alarm '{dto.Name}' was not found.",
+                ImportEntityKind.Alarm,
+                dto.Name,
+                true));
+
+        if (dto.LocationId.HasValue && dto.EquipmentId.HasValue)
+            issues.Add(new(
+                "ALARM_OPERATIONAL_TARGET_AMBIGUOUS",
+                $"Alarm '{dto.Name}' must link to either an Equipment or a Location, not both.",
+                ImportEntityKind.Alarm,
+                dto.Name,
+                true));
+
+        if (dto.EquipmentId.HasValue && equipment is null)
+            issues.Add(new(
+                "ALARM_EQUIPMENT_NOT_FOUND",
+                $"Equipment '{dto.EquipmentId:D}' for alarm '{dto.Name}' was not found.",
+                ImportEntityKind.Alarm,
+                dto.Name,
+                true));
+
     }
 }

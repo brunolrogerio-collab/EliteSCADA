@@ -15,6 +15,7 @@ public static class AuditActions
     public const string CommandExecute = "command.execute";
     public const string AlarmAcknowledge = "alarm.acknowledge";
     public const string AlarmShelve = "alarm.shelve";
+    public const string AlarmSuppression = "alarm.suppression";
     public const string EngineeringImportApply = "engineering.import.apply";
     public const string AssetProcessIntelligenceConfigure = "engineering.intelligence.scopes.configure";
     public const string AssetProcessIntelligenceConfigurationConfigure = "engineering.intelligence.configuration.configure";

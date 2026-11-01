@@ -129,13 +129,14 @@ test('ComboBox can be operated with the keyboard', async ({ page }) => {
   await expect(combo).toHaveValue('MANUAL');
 });
 
-test('CheckBox touch target works in a narrow mobile viewport', async ({ page }) => {
+test('CheckBox touch target works in a narrow mobile viewport', async ({ page }, testInfo) => {
   const browser = page.context().browser();
   expect(browser).not.toBeNull();
   const mobileContext = await browser!.newContext({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
   try {
     const mobilePage = await mobileContext.newPage();
-    await mobilePage.goto('http://127.0.0.1:5174/tests-e2e/visual-controls-harness.html?source=tag');
+    const baseURL = String(testInfo.project.use.baseURL ?? 'http://127.0.0.1:5173');
+    await mobilePage.goto(new URL('/tests-e2e/visual-controls-harness.html?source=tag', baseURL).toString());
     const checkbox = mobilePage.getByRole('checkbox', { name: 'Bomba disponível' });
     const label = mobilePage.locator('.visual-control__checkbox-label');
     await expect(label).toBeVisible();

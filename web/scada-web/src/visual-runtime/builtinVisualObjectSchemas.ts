@@ -24,6 +24,8 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   alarmBrowser: 'core.alarmBrowser',
   eventBrowser: 'core.eventBrowser',
   button: 'core.button',
+  checkBox: 'core.checkBox',
+  comboBox: 'core.comboBox',
   slider: 'core.slider',
   numericInput: 'core.numericInput',
   measurementDial: 'core.measurementDial',
@@ -267,6 +269,23 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     ...STROKE,
     VISUAL_PROPERTY_KEYS.cornerRadius,
     ...TEXT
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.checkBox, schema(BUILTIN_VISUAL_OBJECT_TYPES.checkBox, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.backgroundColor,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.cornerRadius,
+    ...TEXT,
+    VISUAL_PROPERTY_KEYS.checked,
+    VISUAL_PROPERTY_KEYS.interactionEnabled
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.comboBox, schema(BUILTIN_VISUAL_OBJECT_TYPES.comboBox, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.backgroundColor,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.cornerRadius,
+    ...TEXT,
+    VISUAL_PROPERTY_KEYS.interactionEnabled
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.slider, schema(BUILTIN_VISUAL_OBJECT_TYPES.slider, [
     ...BASE,

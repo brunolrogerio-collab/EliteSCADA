@@ -27,6 +27,8 @@ const expectedTypes = [
   'core.alarmBrowser',
   'core.eventBrowser',
   'core.button',
+  'core.checkBox',
+  'core.comboBox',
   'core.slider',
   'core.numericInput',
   'core.measurementDial',
@@ -211,6 +213,15 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(slider.declares(VISUAL_PROPERTY_KEYS.enabled)).toBeTruthy();
   expect(slider.declares(VISUAL_PROPERTY_KEYS.interactionEnabled)).toBeTruthy();
   expect(slider.declares(VISUAL_PROPERTY_KEYS.orientation)).toBeTruthy();
+
+  const checkBox = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.checkBox);
+  expect(checkBox.declares(VISUAL_PROPERTY_KEYS.checked)).toBeTruthy();
+  expect(checkBox.getRequired(VISUAL_PROPERTY_KEYS.checked).type).toBe('boolean');
+  expect(checkBox.declares(VISUAL_PROPERTY_KEYS.interactionEnabled)).toBeTruthy();
+
+  const comboBox = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.comboBox);
+  expect(comboBox.declares(VISUAL_PROPERTY_KEYS.text)).toBeTruthy();
+  expect(comboBox.declares(VISUAL_PROPERTY_KEYS.interactionEnabled)).toBeTruthy();
 
   for (const objectType of [
     BUILTIN_VISUAL_OBJECT_TYPES.measurementDial,

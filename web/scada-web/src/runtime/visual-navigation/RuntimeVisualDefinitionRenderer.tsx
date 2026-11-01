@@ -64,6 +64,8 @@ export type RuntimeVisualDefinitionRendererProps = Readonly<{
   projectKey?: string | null;
   activeRevision?: number | null;
   performanceAnalyticsEnabled?: boolean;
+  processValueWriteEnabled?: boolean;
+  alarmShelveEnabled?: boolean;
 }>;
 
 /**
@@ -95,7 +97,9 @@ export function RuntimeVisualDefinitionRenderer({
   visualAssetUrl,
   projectKey = null,
   activeRevision = null,
-  performanceAnalyticsEnabled = false
+  performanceAnalyticsEnabled = false,
+  processValueWriteEnabled = false,
+  alarmShelveEnabled = false
 }: RuntimeVisualDefinitionRendererProps) {
   const runtimeLocale = locale ?? 'pt-BR';
   const runtimeText = c07VisualEditorText(runtimeLocale).runtimeState;
@@ -253,6 +257,8 @@ export function RuntimeVisualDefinitionRenderer({
         showTechnicalFallbackText={false}
         liveBindings={!historical}
         bindingSamples={historical ? playback?.samples : undefined}
+        processValueWriteEnabled={!historical && processValueWriteEnabled}
+        alarmShelveEnabled={!historical && alarmShelveEnabled}
         operatorTimeRangeControls
       />
     </IntelligencePerformanceRuntimeProvider>

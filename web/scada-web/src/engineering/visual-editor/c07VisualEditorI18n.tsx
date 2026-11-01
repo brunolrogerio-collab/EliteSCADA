@@ -18,6 +18,7 @@ const ptBR = {
     fit: { cover: 'Cobrir', contain: 'Conter', stretch: 'Esticar', center: 'Centralizar', tile: 'Repetir' }
   },
   palette: {
+    checkBox: 'Caixa de seleção', comboBox: 'Lista de opções',
     arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmes', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visualizador PDF', reportLauncher: 'Abrir relatório',
     measurementDial: 'Mostrador semicircular', measurementRing: 'Anel de medição', measurementBar: 'Barra graduada', measurementThermometer: 'Régua vertical', measurementBands: 'Faixas de intervalo', measurementTarget: 'Valor atual e meta'
   },
@@ -53,6 +54,7 @@ const en: C07VisualEditorText = {
     fit: { cover: 'Cover', contain: 'Contain', stretch: 'Stretch', center: 'Center', tile: 'Tile' }
   },
   palette: {
+    checkBox: 'CheckBox', comboBox: 'ComboBox',
     arc: 'Arc', bezier: 'Bezier curve', alarmBrowser: 'Alarm Browser', eventBrowser: 'Event Browser', videoPlayer: 'Video', pdfViewer: 'PDF viewer', reportLauncher: 'Report launcher',
     measurementDial: 'Semicircular dial', measurementRing: 'Measurement ring', measurementBar: 'Graduated bar', measurementThermometer: 'Vertical ruler', measurementBands: 'Range bands', measurementTarget: 'Actual vs target'
   },
@@ -85,6 +87,7 @@ const es: C07VisualEditorText = {
     fit: { cover: 'Cubrir', contain: 'Contener', stretch: 'Estirar', center: 'Centrar', tile: 'Repetir' }
   },
   palette: {
+    checkBox: 'Casilla de verificación', comboBox: 'Lista de opciones',
     arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmas', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visor PDF', reportLauncher: 'Abrir informe',
     measurementDial: 'Indicador semicircular', measurementRing: 'Anillo de medición', measurementBar: 'Barra graduada', measurementThermometer: 'Regla vertical', measurementBands: 'Bandas de rango', measurementTarget: 'Valor actual y objetivo'
   },

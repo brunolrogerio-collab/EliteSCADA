@@ -28,6 +28,8 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.alarmBrowser",
             "core.eventBrowser",
             "core.button",
+            "core.checkBox",
+            "core.comboBox",
             "core.slider",
             "core.numericInput",
             "core.measurementDial",
@@ -76,6 +78,12 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(BuiltinVisualObjectSchemas.Button.Declares(VisualPropertyKeys.BackgroundColor));
         Assert.True(BuiltinVisualObjectSchemas.Button.Declares(VisualPropertyKeys.CornerRadius));
         Assert.True(BuiltinVisualObjectSchemas.Button.Declares(VisualPropertyKeys.Text));
+        Assert.True(BuiltinVisualObjectSchemas.CheckBox.Declares(VisualPropertyKeys.Checked));
+        Assert.True(BuiltinVisualObjectSchemas.CheckBox.GetRequired(VisualPropertyKeys.Checked).SupportsBinding);
+        Assert.True(BuiltinVisualObjectSchemas.CheckBox.Declares(VisualPropertyKeys.InteractionEnabled));
+        Assert.True(BuiltinVisualObjectSchemas.ComboBox.Declares(VisualPropertyKeys.Text));
+        Assert.True(BuiltinVisualObjectSchemas.ComboBox.Declares(VisualPropertyKeys.InteractionEnabled));
+        Assert.False(BuiltinVisualObjectSchemas.ComboBox.Declares(BuiltinVisualObjectSchemas.ComboBoxOptionsProperty));
 
         Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.Value));
         Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.Minimum));

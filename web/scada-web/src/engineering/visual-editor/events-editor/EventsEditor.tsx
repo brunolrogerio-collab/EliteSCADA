@@ -132,8 +132,9 @@ export function EventsEditor({
   useEffect(() => {
     if (visualDefinitionId) setResolvedVisualDefinitionId(visualDefinitionId);
     if (sourceCatalog) setResolvedSourceCatalog(sourceCatalog);
-    if (visualDefinitionId && sourceCatalog) return;
 
+    // The workspace may provide the current definition and reference catalog,
+    // but navigation actions still need the canonical screen/popup targets.
     let cancelled = false;
     void Promise.all([loadEngineeringSnapshot(), initializeClientMemory()])
       .then(([snapshot, memoryDefinitions]) => {

@@ -94,6 +94,10 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateWritableNumericControl(element, entityKind, entityKey, "Slider", "VISUAL_SLIDER"));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.NumericInputType, StringComparison.Ordinal))
             issues.AddRange(ValidateWritableNumericControl(element, entityKind, entityKey, "Numeric Input", "VISUAL_NUMERIC_INPUT"));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.CheckBoxType, StringComparison.Ordinal))
+            issues.AddRange(ValidateCheckBox(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.ComboBoxType, StringComparison.Ordinal))
+            issues.AddRange(ValidateComboBox(element, entityKind, entityKey));
         if (IsMeasurementType(element.Type))
             issues.AddRange(ValidateMeasurementDisplay(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligencePerformanceV1BType, StringComparison.Ordinal))
@@ -119,6 +123,105 @@ public static class BuiltinVisualEngineeringValidation
         BuiltinVisualObjectSchemas.MeasurementThermometerType or
         BuiltinVisualObjectSchemas.MeasurementBandsType or
         BuiltinVisualObjectSchemas.MeasurementTargetType;
+
+    private static IEnumerable<ImportIssue> ValidateCheckBox(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        var config = default(JsonElement);
+        var hasSuppression = element.Properties is not null &&
+            element.Properties.TryGetValue(BuiltinVisualObjectSchemas.CheckBoxConfigProperty, out config);
+        if (hasSuppression)
+        {
+            if (config.ValueKind != JsonValueKind.Object ||
+                !config.TryGetProperty("mode", out var mode) || mode.ValueKind != JsonValueKind.String || mode.GetString() != "alarmSuppression" ||
+                !config.TryGetProperty("alarmDefinitionId", out var alarmId) ||
+                alarmId.ValueKind != JsonValueKind.String ||
+                !Guid.TryParse(alarmId.GetString(), out var parsedAlarmId) || parsedAlarmId == Guid.Empty ||
+                !config.TryGetProperty("reasonCode", out var reason) ||
+                reason.ValueKind != JsonValueKind.String ||
+                reason.GetString() is not ("maintenance" or "startup" or "testing" or "other") ||
+                !config.TryGetProperty("duration", out var duration) ||
+                duration.ValueKind != JsonValueKind.String ||
+                duration.GetString() is not ("untilReleased" or "1h" or "4h" or "8h"))
+            {
+                yield return Error("VISUAL_CHECKBOX_SUPPRESSION_CONFIG_INVALID",
+                    $"CheckBox '{element.Key}' has an invalid alarm-suppression target or duration.", entityKind, entityKey);
+                yield break;
+            }
+
+            if ((element.Bindings ?? Array.Empty<EngineeringBindingDto>()).Any(binding =>
+                    binding is not null && binding.Key.Equals(VisualPropertyKeys.Checked, StringComparison.Ordinal)))
+                yield return Error("VISUAL_CHECKBOX_MODE_CONFLICT",
+                    $"CheckBox '{element.Key}' cannot bind a Boolean TAG and suppress an alarm at the same time.", entityKind, entityKey);
+            yield break;
+        }
+
+        if (!ReadBoolean(element, VisualPropertyKeys.InteractionEnabled, false)) yield break;
+        var bindings = (element.Bindings ?? Array.Empty<EngineeringBindingDto>())
+            .Where(binding => binding is not null && binding.Key.Equals(VisualPropertyKeys.Checked, StringComparison.Ordinal))
+            .ToArray();
+        var binding = bindings.Length == 1 ? bindings[0] : null;
+        if (binding is null || binding.Kind != EngineeringBindingKind.Tag ||
+            binding.TagReference is null || binding.TagReference.TagId == Guid.Empty ||
+            binding.TagReference.Selector is not null || !IsWriteDirection(binding.Direction))
+            yield return Error("VISUAL_CHECKBOX_BOOLEAN_TAG_REQUIRED",
+                $"Interactive CheckBox '{element.Key}' requires one writable Boolean TAG binding.", entityKind, entityKey);
+    }
+
+    private static IEnumerable<ImportIssue> ValidateComboBox(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        var options = default(JsonElement);
+        var hasOptions = element.Properties is not null &&
+            element.Properties.TryGetValue(BuiltinVisualObjectSchemas.ComboBoxOptionsProperty, out options);
+        var interactive = ReadBoolean(element, VisualPropertyKeys.InteractionEnabled, false);
+        if (!hasOptions)
+        {
+            if (interactive)
+                yield return Error("VISUAL_COMBOBOX_OPTIONS_REQUIRED",
+                    $"Interactive ComboBox '{element.Key}' requires at least one configured option.", entityKind, entityKey);
+            yield break;
+        }
+        if (options.ValueKind != JsonValueKind.Array || options.GetArrayLength() is 0 or > 64)
+        {
+            yield return Error("VISUAL_COMBOBOX_OPTIONS_INVALID",
+                $"ComboBox '{element.Key}' options must be a JSON list with 1 to 64 entries.", entityKind, entityKey);
+            yield break;
+        }
+
+        var values = new HashSet<string>(StringComparer.Ordinal);
+        var index = 0;
+        foreach (var option in options.EnumerateArray())
+        {
+            index++;
+            if (option.ValueKind != JsonValueKind.Object ||
+                !option.TryGetProperty("value", out var value) || value.ValueKind != JsonValueKind.String ||
+                !option.TryGetProperty("label", out var label) || label.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(value.GetString()) || value.GetString()!.Length > 120 ||
+                string.IsNullOrWhiteSpace(label.GetString()) || label.GetString()!.Length > 120 ||
+                !values.Add(value.GetString()!.Trim()))
+            {
+                yield return Error("VISUAL_COMBOBOX_OPTION_INVALID",
+                    $"ComboBox '{element.Key}' option {index} must have a unique text value and a label of at most 120 characters.", entityKind, entityKey);
+                yield break;
+            }
+        }
+
+        if (!interactive) yield break;
+        var bindings = (element.Bindings ?? Array.Empty<EngineeringBindingDto>())
+            .Where(binding => binding is not null && binding.Key.Equals(VisualPropertyKeys.Text, StringComparison.Ordinal))
+            .ToArray();
+        var binding = bindings.Length == 1 ? bindings[0] : null;
+        if (binding is null || binding.Kind != EngineeringBindingKind.Tag ||
+            binding.TagReference is null || binding.TagReference.TagId == Guid.Empty ||
+            binding.TagReference.Selector is not null || !IsWriteDirection(binding.Direction))
+            yield return Error("VISUAL_COMBOBOX_ENUM_TAG_REQUIRED",
+                $"Interactive ComboBox '{element.Key}' requires one writable String or Enum TAG binding.", entityKind, entityKey);
+    }
 
     private static IEnumerable<ImportIssue> ValidateMeasurementDisplay(
         VisualElementEngineeringDto element,
@@ -817,6 +920,8 @@ public static class BuiltinVisualEngineeringValidation
             BuiltinVisualObjectSchemas.AlarmBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
             BuiltinVisualObjectSchemas.EventBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
             BuiltinVisualObjectSchemas.SvgSymbolType => BuiltinVisualObjectSchemas.SvgPaintOverridesProperty,
+            BuiltinVisualObjectSchemas.CheckBoxType => BuiltinVisualObjectSchemas.CheckBoxConfigProperty,
+            BuiltinVisualObjectSchemas.ComboBoxType => BuiltinVisualObjectSchemas.ComboBoxOptionsProperty,
             _ => null
         };
 

@@ -323,6 +323,7 @@ public static class VisualPropertyKeys
     public const string Opacity = "opacity";
     public const string Tooltip = "tooltip";
     public const string Enabled = "enabled";
+    public const string Checked = "checked";
     public const string FillStyle = "fillStyle";
     public const string PolygonFillRule = "polygonFillRule";
     public const string FillColor = "fillColor";
@@ -411,6 +412,11 @@ public static class VisualPropertyKeys
 
 public static class CommonVisualPropertyDefinitions
 {
+    public static IReadOnlyList<VisualPropertyDefinition> CheckBox { get; } =
+    [
+        Boolean(VisualPropertyKeys.Checked, false)
+    ];
+
     public static IReadOnlyList<VisualPropertyDefinition> Geometry { get; } =
     [
         Number(VisualPropertyKeys.X, 0, animatable: true, unit: "px"),

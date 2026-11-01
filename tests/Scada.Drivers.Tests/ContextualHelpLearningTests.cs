@@ -226,6 +226,26 @@ public sealed class ContextualHelpLearningTests
     }
 
     [Fact]
+    public void CheckBoxAndComboBoxHelpExplainGenericBindingsInEveryLocale()
+    {
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            var checkBox = Assert.Single(catalog.Topics, item => item.Id == ContextualHelpCatalog.VisualObjectTopicId(BuiltinVisualObjectSchemas.CheckBoxType));
+            var checkBoxText = string.Join("\n", new[] { checkBox.Summary }.Concat(checkBox.Sections.Select(section => section.Body)));
+            Assert.Contains("Boolean", checkBoxText);
+            Assert.Contains("TAG", checkBoxText);
+            Assert.Contains(locale == "en" ? "optional" : "opcional", checkBoxText);
+            Assert.Contains(checkBox.Sections.SelectMany(section => section.Fields ?? []), field => field.Key == VisualPropertyKeys.Checked);
+
+            var comboBox = Assert.Single(catalog.Topics, item => item.Id == ContextualHelpCatalog.VisualObjectTopicId(BuiltinVisualObjectSchemas.ComboBoxType));
+            var comboBoxText = string.Join("\n", new[] { comboBox.Summary }.Concat(comboBox.Sections.Select(section => section.Body)));
+            Assert.Contains("String", comboBoxText, StringComparison.Ordinal);
+            Assert.Contains("Enum", comboBoxText, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void FieldReferencesKeepObjectSpecificDifferencesAndSourceConstraints()
     {
         var catalog = ContextualHelpCatalog.Build("en");

@@ -44,6 +44,8 @@ const PALETTE_ORDER: readonly BuiltinVisualObjectType[] = Object.freeze([
   BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser,
   BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser,
   BUILTIN_VISUAL_OBJECT_TYPES.button,
+  BUILTIN_VISUAL_OBJECT_TYPES.checkBox,
+  BUILTIN_VISUAL_OBJECT_TYPES.comboBox,
   BUILTIN_VISUAL_OBJECT_TYPES.slider,
   BUILTIN_VISUAL_OBJECT_TYPES.numericInput,
   BUILTIN_VISUAL_OBJECT_TYPES.measurementDial,
@@ -77,6 +79,8 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser]: { labelKey: 'alarmBrowser', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser]: { labelKey: 'eventBrowser', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.button]: { labelKey: 'button', category: 'control' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.checkBox]: { labelKey: 'checkBox', category: 'control' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.comboBox]: { labelKey: 'comboBox', category: 'control' },
   [BUILTIN_VISUAL_OBJECT_TYPES.slider]: { labelKey: 'slider', category: 'control' },
   [BUILTIN_VISUAL_OBJECT_TYPES.numericInput]: { labelKey: 'numericInput', category: 'control' },
   [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial]: { labelKey: 'measurementDial', category: 'content' },
@@ -137,6 +141,10 @@ export function createObjectAddIntent(
     objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementBands ||
     objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
     ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 220, [VISUAL_PROPERTY_KEYS.height]: 90 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.checkBox
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 180, [VISUAL_PROPERTY_KEYS.height]: 42 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.comboBox
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 220, [VISUAL_PROPERTY_KEYS.height]: 42 })
     : objectType === BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher
     ? Object.freeze({
         [VISUAL_PROPERTY_KEYS.width]: 190,

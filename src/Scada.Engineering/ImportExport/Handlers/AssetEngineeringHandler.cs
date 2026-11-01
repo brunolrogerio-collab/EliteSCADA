@@ -240,7 +240,8 @@ internal sealed class AssetEngineeringHandler
                 ImportEntityKind.Dynamo,
                 entityKey,
                 package,
-                issues);
+                issues,
+                element.Type);
             ValidateDynamoVisualElements(element.Children, entityKey, package, issues);
         }
     }

@@ -55,6 +55,8 @@ export type RuntimeVisualNavigatorProps = Readonly<{
   runtimeProjectKey?: string | null;
   runtimeRevision?: number | null;
   performanceAnalyticsEnabled?: boolean;
+  processValueWriteEnabled?: boolean;
+  alarmShelveEnabled?: boolean;
   onVisualContextChange?: (context: Readonly<{ screenKey: string; popupKeys: readonly string[] }>) => void;
 }>;
 
@@ -95,6 +97,8 @@ export function RuntimeVisualNavigator({
   runtimeProjectKey = null,
   runtimeRevision = null,
   performanceAnalyticsEnabled = false,
+  processValueWriteEnabled = false,
+  alarmShelveEnabled = false,
   onVisualContextChange
 }: RuntimeVisualNavigatorProps) {
   const playback = useOptionalHistoricalPlayback();
@@ -414,6 +418,8 @@ export function RuntimeVisualNavigator({
             projectKey={runtimeProjectKey}
             activeRevision={runtimeRevision}
             performanceAnalyticsEnabled={performanceAnalyticsEnabled}
+            processValueWriteEnabled={processValueWriteEnabled}
+            alarmShelveEnabled={alarmShelveEnabled}
           />
         </section>
 
@@ -473,6 +479,8 @@ export function RuntimeVisualNavigator({
                     projectKey={runtimeProjectKey}
                     activeRevision={runtimeRevision}
                     performanceAnalyticsEnabled={performanceAnalyticsEnabled}
+                    processValueWriteEnabled={processValueWriteEnabled}
+                    alarmShelveEnabled={alarmShelveEnabled}
                   />
                 </div>
               </section>;

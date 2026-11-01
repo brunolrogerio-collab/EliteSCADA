@@ -592,6 +592,7 @@ function PopupVisualEditorWorkspaceBody({
               selectedObjectIds={selectedObjectIds}
               sourceCatalog={bindingSourceCatalog}
               visualAssets={visualAssets}
+              alarms={snapshot.package.alarms ?? []}
               reports={reportCollection(snapshot.package)}
               locale={locale}
               activeTab={inspectorTab}

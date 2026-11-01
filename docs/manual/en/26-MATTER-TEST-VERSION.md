@@ -6,8 +6,6 @@ Check availability, prepare the source and distinguish reading an already-commis
 
 <!-- HELP-REVIEW-AFTER-PRODUCT-786-MATTER: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.matter-test-workflow; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-792-MATTER: https://github.com/brunolrogerio-collab/EliteSCADA/issues/792; topic=drivers.matter-test-workflow; fields=address,settings; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Start with availability
 
 Before configuring, check whether Matter Wi-Fi is available in your installation. SCADIVO is multiplatform, but this connector is an isolated preview for a Linux x64 host with a local helper process called a sidecar. It is not Matter availability for every installation.

@@ -6,8 +6,6 @@ Verifique a disponibilidade, prepare a fonte e diferencie a leitura de um atribu
 
 <!-- HELP-REVIEW-AFTER-PRODUCT-786-MATTER: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.matter-test-workflow; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-792-MATTER: https://github.com/brunolrogerio-collab/EliteSCADA/issues/792; topic=drivers.matter-test-workflow; fields=address,settings; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Comece pela disponibilidade
 
 Antes de configurar, confirme se Matter Wi-Fi aparece na sua instalação. O SCADIVO é multiplataforma, mas este conector é uma prévia isolada para host Linux x64, com processo auxiliar local, chamado sidecar. Não é uma liberação de Matter para toda instalação.

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 
 test.use({ locale: 'pt-BR' });
@@ -35,6 +35,13 @@ type ExportedPackage = {
     [key: string]: unknown;
   }>;
   popups?: Array<{
+    id?: string;
+    key: string;
+    name: string;
+    elements?: ExportedVisualElement[] | null;
+    [key: string]: unknown;
+  }>;
+  templates?: Array<{
     id?: string;
     key: string;
     name: string;
@@ -677,6 +684,10 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
   const originalScreen = originalPackage.screens?.find(candidate => candidate.id === originalPackage.startupScreenId)
     ?? originalPackage.screens?.[0];
   expect(originalScreen, 'the fixture must provide a screen for canonical control authoring').toBeTruthy();
+  const originalPopup = originalPackage.popups?.[0];
+  expect(originalPopup, 'the fixture must provide a popup for canonical control authoring').toBeTruthy();
+  const originalTemplate = originalPackage.templates?.[0];
+  expect(originalTemplate, 'the fixture must provide a template for canonical control authoring').toBeTruthy();
 
   const suffix = `${Date.now()}-${randomUUID().slice(0, 8)}`;
   const projectKeyResponse = await request.get('/api/engineering/workspace');
@@ -725,51 +736,9 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     await page.goto('/engineering');
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
-    const palette = page.getByTestId('visual-editor-authoring-toolbar');
-
-    await palette.locator('[data-insert-object-type="core.checkBox"]').click();
-    const checkBoxCanvas = page.locator('[data-canvas-object-type="core.checkBox"]').last();
-    await checkBoxCanvas.click();
-    const checkBoxId = await checkBoxCanvas.getAttribute('data-canvas-object-id');
-    expect(checkBoxId).toBeTruthy();
-    await page.locator('[data-property-key="text"] input').fill('E2E boolean control');
-    await page.locator('[data-property-key="text"] input').press('Enter');
-    const checkBoxWritable = page.locator('[data-property-key="interactionEnabled"] input[type="checkbox"]');
-    await checkBoxWritable.check();
-    await page.getByTestId('visual-editor-inspector-tab-dynamics').click();
-    const checkBoxBinding = page.getByTestId('visual-binding-editor');
-    await checkBoxBinding.getByLabel('Propriedade visual').selectOption('checked');
-    await selectBindingSourceByPath(checkBoxBinding.getByLabel('Fonte do projeto'), booleanTagPath);
-    await checkBoxBinding.getByRole('button', { name: 'Aplicar binding' }).click();
-    await expect(checkBoxBinding.getByTestId('visual-binding-current')).toContainText(booleanTagPath);
-    await page.getByTestId('visual-editor-inspector-tab-properties').click();
-    const checkBoxConfig = page.getByTestId('visual-checkbox-configuration');
-    await expect(checkBoxConfig.getByLabel('Uso')).toHaveValue('boolean');
-    await checkBoxConfig.getByRole('button', { name: 'Aplicar configuração' }).click();
-
-    await palette.locator('[data-insert-object-type="core.comboBox"]').click();
-    const comboBoxCanvas = page.locator('[data-canvas-object-type="core.comboBox"]').last();
-    await comboBoxCanvas.click();
-    const comboBoxId = await comboBoxCanvas.getAttribute('data-canvas-object-id');
-    expect(comboBoxId).toBeTruthy();
-    await page.locator('[data-property-key="text"] input').fill('E2E mode selector');
-    await page.locator('[data-property-key="text"] input').press('Enter');
-    const comboBoxWritable = page.locator('[data-property-key="interactionEnabled"] input[type="checkbox"]');
-    await comboBoxWritable.check();
-    const comboBoxConfig = page.getByTestId('visual-combobox-configuration');
-    await comboBoxConfig.getByLabel('Valor do TAG 1').fill('AUTO');
-    await comboBoxConfig.getByLabel('Texto exibido 1').fill('Automático');
-    await comboBoxConfig.getByRole('button', { name: 'Adicionar opção' }).click();
-    await comboBoxConfig.getByLabel('Valor do TAG 2').fill('MANUAL');
-    await comboBoxConfig.getByLabel('Texto exibido 2').fill('Manual');
-    await comboBoxConfig.getByRole('button', { name: 'Aplicar configuração' }).click();
-
-    await page.getByTestId('visual-editor-inspector-tab-dynamics').click();
-    const comboBoxBinding = page.getByTestId('visual-binding-editor');
-    await comboBoxBinding.getByLabel('Propriedade visual').selectOption('text');
-    await selectBindingSourceByPath(comboBoxBinding.getByLabel('Fonte do projeto'), stringTagPath);
-    await comboBoxBinding.getByRole('button', { name: 'Aplicar binding' }).click();
-    await expect(comboBoxBinding.getByTestId('visual-binding-current')).toContainText(stringTagPath);
+    const screenRoot = page.getByTestId('visual-editor-workspace');
+    const checkBoxId = await authorCheckBoxControl(screenRoot, booleanTagPath, 'E2E boolean control');
+    const comboBoxId = await authorComboBoxControl(screenRoot, stringTagPath, 'E2E mode selector');
 
     await page.getByTestId('visual-editor-preview').click();
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
@@ -798,6 +767,52 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
       })
     });
 
+    await page.locator('.eng-nav').getByRole('button', { name: /Popups/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalPopup.key }).click();
+    const popupRoot = page.getByTestId('popup-visual-editor-workspace');
+    const popupCheckBoxId = await authorCheckBoxControl(popupRoot, booleanTagPath, 'E2E popup boolean control');
+    await page.getByTestId('popup-visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await applyAndAwaitCanonicalCompletion(page, 'popup-visual-editor-apply');
+    await page.reload();
+    await page.locator('.eng-nav').getByRole('button', { name: /Popups/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalPopup.key }).click();
+    await expect(page.getByTestId('visual-editor-canonical-layer').locator(`[data-object-id="${popupCheckBoxId}"]`)).toBeVisible();
+    const popupPackageResponse = await request.get('/api/engineering/export/json');
+    expect(popupPackageResponse.ok()).toBeTruthy();
+    const popupPackage = await popupPackageResponse.json() as ExportedPackage;
+    const persistedPopup = popupPackage.popups?.find(candidate => candidate.id === originalPopup.id || candidate.key === originalPopup.key);
+    expect(flatten(persistedPopup?.elements ?? []).find(element => element.id === popupCheckBoxId)).toMatchObject({
+      id: popupCheckBoxId, type: 'core.checkBox', bindings: [expect.objectContaining({
+        key: 'checked', target: booleanTagPath, direction: 'readWrite'
+      })]
+    });
+
+    await page.locator('.eng-nav').getByRole('button', { name: /Templates/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalTemplate.key }).click();
+    const templateRoot = page.getByTestId('visual-editor-workspace');
+    const templateComboBoxId = await authorComboBoxControl(templateRoot, stringTagPath, 'E2E template mode selector');
+    await page.getByTestId('visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await applyAndAwaitCanonicalCompletion(page, 'visual-editor-apply');
+    await page.reload();
+    await page.locator('.eng-nav').getByRole('button', { name: /Templates/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalTemplate.key }).click();
+    await expect(page.getByTestId('visual-editor-canonical-layer').locator(`[data-object-id="${templateComboBoxId}"]`)).toBeVisible();
+    const templatePackageResponse = await request.get('/api/engineering/export/json');
+    expect(templatePackageResponse.ok()).toBeTruthy();
+    const templatePackage = await templatePackageResponse.json() as ExportedPackage;
+    const persistedTemplate = templatePackage.templates?.find(candidate => candidate.id === originalTemplate.id || candidate.key === originalTemplate.key);
+    expect(flatten(persistedTemplate?.elements ?? []).find(element => element.id === templateComboBoxId)).toMatchObject({
+      id: templateComboBoxId, type: 'core.comboBox', bindings: [expect.objectContaining({
+        key: 'text', target: stringTagPath, direction: 'readWrite'
+      })]
+    });
+
+    await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
     runtimeMayHaveChanged = true;
     await savePublishActivate(request, projectKey!, 'visual-controls-790-e2e');
     await page.goto('/');
@@ -1067,6 +1082,61 @@ async function selectBindingSourceByPath(select: import('@playwright/test').Loca
   const label = await option.textContent();
   expect(label).toBeTruthy();
   await select.selectOption({ label: label! });
+}
+
+async function authorCheckBoxControl(root: Locator, sourcePath: string, label: string): Promise<string> {
+  await root.getByTestId('visual-editor-authoring-toolbar').locator('[data-insert-object-type="core.checkBox"]').click();
+  const canvasObject = root.locator('[data-canvas-object-type="core.checkBox"]').last();
+  await canvasObject.click();
+  const id = await canvasObject.getAttribute('data-canvas-object-id');
+  expect(id).toBeTruthy();
+  const inspector = root.getByTestId('visual-property-inspector');
+  const labelInput = inspector.locator('[data-property-key="text"] input');
+  await labelInput.fill(label);
+  await labelInput.press('Enter');
+  await inspector.locator('[data-property-key="interactionEnabled"] input[type="checkbox"]').check();
+
+  await root.getByTestId('visual-editor-inspector-tab-dynamics').click();
+  const binding = root.getByTestId('visual-binding-editor');
+  await binding.getByLabel('Propriedade visual').selectOption('checked');
+  await selectBindingSourceByPath(binding.getByLabel('Fonte do projeto'), sourcePath);
+  await binding.getByRole('button', { name: 'Aplicar binding' }).click();
+  await expect(binding.getByTestId('visual-binding-current')).toContainText(sourcePath);
+
+  await root.getByTestId('visual-editor-inspector-tab-properties').click();
+  const configuration = root.getByTestId('visual-checkbox-configuration');
+  await expect(configuration.getByLabel('Uso')).toHaveValue('boolean');
+  await configuration.getByRole('button', { name: 'Aplicar configuração' }).click();
+  return id!;
+}
+
+async function authorComboBoxControl(root: Locator, sourcePath: string, label: string): Promise<string> {
+  await root.getByTestId('visual-editor-authoring-toolbar').locator('[data-insert-object-type="core.comboBox"]').click();
+  const canvasObject = root.locator('[data-canvas-object-type="core.comboBox"]').last();
+  await canvasObject.click();
+  const id = await canvasObject.getAttribute('data-canvas-object-id');
+  expect(id).toBeTruthy();
+  const inspector = root.getByTestId('visual-property-inspector');
+  const labelInput = inspector.locator('[data-property-key="text"] input');
+  await labelInput.fill(label);
+  await labelInput.press('Enter');
+  await inspector.locator('[data-property-key="interactionEnabled"] input[type="checkbox"]').check();
+
+  const configuration = root.getByTestId('visual-combobox-configuration');
+  await configuration.getByLabel('Valor do TAG 1').fill('AUTO');
+  await configuration.getByLabel('Texto exibido 1').fill('Automático');
+  await configuration.getByRole('button', { name: 'Adicionar opção' }).click();
+  await configuration.getByLabel('Valor do TAG 2').fill('MANUAL');
+  await configuration.getByLabel('Texto exibido 2').fill('Manual');
+  await configuration.getByRole('button', { name: 'Aplicar configuração' }).click();
+
+  await root.getByTestId('visual-editor-inspector-tab-dynamics').click();
+  const binding = root.getByTestId('visual-binding-editor');
+  await binding.getByLabel('Propriedade visual').selectOption('text');
+  await selectBindingSourceByPath(binding.getByLabel('Fonte do projeto'), sourcePath);
+  await binding.getByRole('button', { name: 'Aplicar binding' }).click();
+  await expect(binding.getByTestId('visual-binding-current')).toContainText(sourcePath);
+  return id!;
 }
 
 async function selectSourceByPath(select: import('@playwright/test').Locator, path: string): Promise<void> {

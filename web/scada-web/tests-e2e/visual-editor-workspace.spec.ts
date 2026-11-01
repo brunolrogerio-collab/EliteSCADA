@@ -755,12 +755,12 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     const controls = flatten(persistedScreen?.elements ?? []);
     expect(controls.find(element => element.id === checkBoxId)).toMatchObject({
       id: checkBoxId, type: 'core.checkBox', bindings: [expect.objectContaining({
-        key: 'checked', kind: 'Tag', target: booleanTagPath, direction: 'readWrite'
+        key: 'checked', kind: 'tag', target: booleanTagPath, direction: 'readWrite'
       })], properties: expect.objectContaining({ text: 'E2E boolean control', interactionEnabled: true })
     });
     expect(controls.find(element => element.id === comboBoxId)).toMatchObject({
       id: comboBoxId, type: 'core.comboBox', bindings: [expect.objectContaining({
-        key: 'text', kind: 'Tag', target: stringTagPath, direction: 'readWrite'
+        key: 'text', kind: 'tag', target: stringTagPath, direction: 'readWrite'
       })], properties: expect.objectContaining({
         text: 'E2E mode selector', interactionEnabled: true,
         comboBoxOptions: [{ value: 'AUTO', label: 'Automático' }, { value: 'MANUAL', label: 'Manual' }]

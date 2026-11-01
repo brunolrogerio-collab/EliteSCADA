@@ -80,6 +80,8 @@ In the editor, review names, units, dimensions, bindings and readability. Use **
 
 ## 7. Common problems
 
+Generated dashboards use their own dark canvas to retain contrast under either application theme. You can change it under Background in the Screen editor; check text and value colors when choosing another background.
+
 - **Resource blocked:** check the license, `EngineeringModify`, `AssetProcessIntelligenceManage`, and scope.
 - **Incomplete profile/assignment:** check Equipment, profile, TAGs, and required qualifiers.
 - **No coverage/history:** confirm that the TAG received useful samples with quality and timestamps and that capture existed during the period. Historian does not backfill data.

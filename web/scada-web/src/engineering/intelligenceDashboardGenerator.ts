@@ -168,7 +168,7 @@ function generateDashboardDraft(
   }
   if (resolved.length === 0) throw new Error(copy.noNumericSignals);
 
-  const draft = createScreenDraft(existingScreens, locale);
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
   const key = uniqueScreenKey(existingScreens, `intelligence-${slug(source.stableKey)}`);
   const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
   const profileAssignment = source.kind === 'equipment-profile' && source.assignments.length === 1
@@ -512,7 +512,7 @@ export function generateIntelligencePerformanceScreenDraft(
   const displayName = selection.displayName.trim() || selection.scopeId;
   const key = uniqueScreenKey(existingScreens, `intelligence-performance-${slug(displayName)}`);
   const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
-  const draft = createScreenDraft(existingScreens, locale);
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
   const allocateId = createUniqueIdAllocator(createId);
   const title = locale === 'en' ? `Recorded performance · ${displayName}`
     : locale === 'es' ? `Rendimiento registrado · ${displayName}`
@@ -606,7 +606,7 @@ export function generateIntelligenceProfileCoverageScreenDraft(
   const displayName = selection.displayName.trim() || selection.scopeId;
   const key = uniqueScreenKey(existingScreens, `intelligence-coverage-${slug(displayName)}`);
   const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
-  const draft = createScreenDraft(existingScreens, locale);
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
   const allocateId = createUniqueIdAllocator(createId);
   const title = locale === 'en' ? `Historical coverage · ${displayName}`
     : locale === 'es' ? `Cobertura histórica · ${displayName}`
@@ -691,7 +691,7 @@ export function generateIntelligenceProcessStageCoverageScreenDraft(
   const displayName = selection.stageName;
   const key = uniqueScreenKey(existingScreens, `intelligence-stage-coverage-${slug(selection.stageKey)}`);
   const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
-  const draft = createScreenDraft(existingScreens, locale);
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
   const allocateId = createUniqueIdAllocator(createId);
   const title = locale === 'en' ? `Process-stage coverage · ${displayName}`
     : locale === 'es' ? `Cobertura de etapa · ${displayName}`
@@ -957,7 +957,7 @@ function generateIntelligenceProcessStageInsightsScreenDraft(
 ): ScreenEngineering {
   const key = uniqueScreenKey(existingScreens, `intelligence-process-stage-insights-${slug(selection.stageKey)}`);
   const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
-  const draft = createScreenDraft(existingScreens, locale);
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
   const allocateId = createUniqueIdAllocator(createId);
   const title = locale === 'en' ? `Process-stage member insights · ${selection.stageName}`
     : locale === 'es' ? `Análisis de miembros de etapa · ${selection.stageName}`
@@ -1053,7 +1053,7 @@ export function generateIntelligenceContextualDeviationScreenDraft(
   const displayName = selection.displayName.trim() || selection.scopeId;
   const key = uniqueScreenKey(existingScreens, `intelligence-contextual-deviation-${slug(displayName)}`);
   const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
-  const draft = createScreenDraft(existingScreens, locale);
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
   const allocateId = createUniqueIdAllocator(createId);
   const title = locale === 'en' ? `Contextual deviation · ${displayName}`
     : locale === 'es' ? `Desviación contextual · ${displayName}`
@@ -1254,5 +1254,14 @@ function dashboardText(locale: EngineeringLocale): DashboardText {
     signalLabel: item => `${item.assignment.equipmentName} · ${item.signal.key}${item.tag.engineeringUnit ? ` (${item.tag.engineeringUnit})` : ''}`,
     summary: counts => `${counts.shown} cartões de valor para ${counts.supported} TAGs numéricos; ${counts.trended} referências TAG configuradas na tendência histórica, ocultas até ativação no Runtime.${counts.missing ? ` ${counts.missing} referências ausentes.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} sinais não numéricos omitidos.` : ''}${counts.duplicates ? ` ${counts.duplicates} referências TAG duplicadas omitidas.` : ''}${counts.omitted ? ` ${counts.omitted} sinais numéricos adicionais omitidos dos cartões.` : ''}${counts.profileCoverage === 'included' ? ' Esta tela inclui um relatório separado de cobertura do perfil, consultado somente após ação explícita no Runtime.' : counts.profileCoverage === 'unavailable' ? ' A cobertura do perfil foi omitida porque faltam referências canônicas de Equipamento/perfil.' : ''} Tela inicial: não calcula KPIs de processo, desvios, eficiência, diagnóstico nem predições.`,
     noNumericSignals: 'Esta origem não tem TAGs numéricos resolvíveis para uma tela somente leitura.'
+  };
+}
+
+// Generated foregrounds use a coordinated dark palette. Persist its matching
+// canvas so the result keeps readable contrast under either application theme.
+function createIntelligenceScreenDraft(existing: readonly ScreenEngineering[], locale: EngineeringLocale): ScreenEngineering {
+  return {
+    ...createScreenDraft(existing, locale),
+    properties: { backgroundMode: 'color', backgroundColor: '#0F172A' }
   };
 }

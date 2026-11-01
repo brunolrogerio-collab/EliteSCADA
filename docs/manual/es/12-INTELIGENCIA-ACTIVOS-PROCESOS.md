@@ -80,6 +80,8 @@ En el editor, revise nombres, unidades, dimensiones, vínculos y legibilidad. Us
 
 ## 7. Problemas comunes
 
+Los paneles generados usan un fondo oscuro propio para conservar el contraste en ambos temas del sistema. Puede cambiarlo en Fondo, en el editor de Pantallas; compruebe también los colores de textos y valores al elegir otro fondo.
+
 - **Recurso bloqueado:** compruebe licencia, `EngineeringModify`, `AssetProcessIntelligenceManage` y scope.
 - **Perfil/asignación incompletos:** compruebe equipo, perfil, TAGs y calificadores obligatorios.
 - **Sin cobertura/historial:** confirme que el TAG recibía muestras útiles con quality y timestamps y que había captura en el período. Historian no completa datos retroactivamente.

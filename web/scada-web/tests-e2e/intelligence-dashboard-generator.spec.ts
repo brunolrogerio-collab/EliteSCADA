@@ -62,6 +62,7 @@ test('dashboard generator builds a canonical editable screen from stable TAG ref
   const trend = screen.elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.trend);
 
   expect(screen).toMatchObject({ key: 'intelligence-plant.p-101-pump-standard', route: '/intelligence-plant.p-101-pump-standard' });
+  expect(screen.properties).toMatchObject({ backgroundMode: 'color', backgroundColor: '#0F172A' });
   expect(screen.metadata).toMatchObject({
     intelligenceDashboardGenerator: 'stage5b.1',
     intelligenceDashboardSourceKind: 'equipment-profile'

@@ -80,6 +80,8 @@ No editor, confira nomes, unidades, dimensões, vínculos e legibilidade. Use **
 
 ## 7. Problemas comuns
 
+Os painéis gerados usam um fundo escuro próprio para manter o contraste nos temas claro e escuro do sistema. Você pode alterá-lo em Fundo, no editor de Telas; confira também as cores dos textos e valores ao escolher outro fundo.
+
 - **Recurso bloqueado:** confira licença, `EngineeringModify`, `AssetProcessIntelligenceManage` e escopo.
 - **Perfil ou associação incompleta:** confira equipamento, perfil, TAGs e qualificadores obrigatórios.
 - **Sem cobertura/histórico:** confirme se o TAG recebia amostras com quality e timestamps úteis e se a captura existia no período. Historian não preenche dados retroativamente.

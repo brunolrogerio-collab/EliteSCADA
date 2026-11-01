@@ -10,6 +10,38 @@ const secondContextSignalId = '15000000-0000-0000-0000-000000000214';
 const firstContextTagId = '15000000-0000-0000-0000-000000000105';
 const secondContextTagId = '15000000-0000-0000-0000-000000000106';
 
+test('reference evidence queries explicitly, clears changed periods and rejects another revision', async ({ page }) => {
+  await installWorkspace(page);
+  let requests = 0;
+  let revision = 4;
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/reference-evidence/v1/query', async route => {
+    requests++;
+    const request = route.request().postDataJSON();
+    expect(request).toMatchObject({ scopeKind: 0, scopeId: equipmentId, profileId });
+    await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: revision,
+      scopeId: equipmentId, profileId, referenceWindow: request.referenceWindow,
+      referenceCohort: { completeRequiredNumericCohortCount: 12 },
+      signals: [{ signalId: firstContextSignalId, tagPath: 'Pump.Current', unit: 'A', required: true,
+        reference: { rawObservationCount: 15, acceptedSynchronizedCount: 12, rejectedObservationCount: 3 } }] } });
+  });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-reference-evidence-${profileId}`);
+  await panel.getByText('Conferir dados da referência', { exact: true }).click();
+  expect(requests).toBe(0);
+  await panel.getByLabel('Início da referência (horário local)').fill('2026-10-20T10:00');
+  await panel.getByLabel('Fim da referência (horário local)').fill('2026-10-21T10:00');
+  await panel.getByRole('button', { name: 'Consultar referência', exact: true }).click();
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toContainText('15 / 12 / 3');
+  expect(requests).toBe(1);
+  await panel.getByLabel('Início da referência (horário local)').fill('2026-10-20T11:00');
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toHaveCount(0);
+  expect(requests).toBe(1);
+  revision = 5;
+  await panel.getByRole('button', { name: 'Consultar referência', exact: true }).click();
+  await expect(panel.getByRole('alert')).toBeVisible();
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toHaveCount(0);
+});
+
 test('profile coverage runs only on explicit request and renders canonical quality, alignment and provenance', async ({ page }) => {
   const fixture = await installWorkspace(page);
   await openIntelligence(page);

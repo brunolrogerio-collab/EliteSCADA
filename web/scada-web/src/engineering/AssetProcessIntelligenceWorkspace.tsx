@@ -33,6 +33,7 @@ import {
   type IntelligenceProcessStageInsightsDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
+import { IntelligenceReferenceEvidencePanel } from './IntelligenceReferenceEvidencePanel';
 import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
 import { AssetProcessIntelligenceContextualDeviationPanel } from './AssetProcessIntelligenceContextualDeviationPanel';
 import './asset-process-intelligence.css';
@@ -938,6 +939,11 @@ export function AssetProcessIntelligenceWorkspace({
                         displayName: `${equipmentResource.name} · ${profile.name}`
                       })
                     : undefined}
+                /> : null}
+                {equipmentResource && profile ? <IntelligenceReferenceEvidencePanel
+                  locale={locale} scopeId={assignment.equipmentId} profileId={assignment.profileId}
+                  projectKey={snapshot.execution.projectKey} activeRevision={snapshot.execution.activeRevision}
+                  canQuery={!coverageBlockedReason}
                 /> : null}
                 {equipmentResource && profile ? <AssetProcessIntelligencePerformancePanel
                   locale={locale}

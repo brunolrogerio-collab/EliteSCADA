@@ -1,16 +1,16 @@
 # Current coordinator pointer - Wave 15
 
-## Ponto de retomada atual — #789 supressão operacional de alarmes — 31/10/2026
+## Ponto de retomada atual — #789 supressão operacional de alarmes — 01/11/2026
 
-**Base integrada:** `wave15/corrections-integration@4c8396ed8bb14c5dc5718e2394309f260d88eaf8`, merge do PR #847. A #753 está concluída e fechada após T1 `41222308442` e T2 `41251835189` verdes nos escopos registrados em #305. A próxima correção autorizada é [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789), conforme a ordem viva #789 → #790 → #791 → #792.
+**Base integrada:** `wave15/corrections-integration@4c8396ed8bb14c5dc5718e2394309f260d88eaf8`, merge do PR #847. A #753 está concluída e fechada após T1 `41222308442` e T2 `41251835189` verdes nos escopos registrados em #305. A sequência autorizada segue #789 → #790 → #791 → #792.
 
-**Desenho registrado:** [ADR-026](ADR-026-ALARM-SUPPRESSION-789.md), também publicado em [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789#issuecomment-6550584034). O código já possui uma árvore operacional estável (`LocationEngineeringDto.Id/ParentLocationId` e `EquipmentEngineeringDto.LocationId`), mas `AlarmDefinition.Area` é somente texto para autorização. O shelving existente é volátil e altera estado; a nova supressão ficará como overlay visível, persistido e herdável, sem mudar avaliação, ACK ou histórico.
+**Desenho registrado:** [ADR-026](ADR-026-ALARM-SUPPRESSION-789.md), também publicado em [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789#issuecomment-6550584034). A supressão permanece como overlay durável e herdável; não altera avaliação, ACK ou histórico do alarme. Usa a árvore operacional para alcance e o grafo canônico da Authority para autorização.
 
-**Estado desta retomada:** branch `work/w15-alarm-suppression-789`, iniciada no SHA-base acima. O inventário de contratos e dependências está concluído. Implementação, testes, PR/T1/T2 e Help/manual nos três idiomas ainda pendentes; não declarar #789 entregue até validar esses itens no SHA exato.
+**Estado validado:** implementação e Help/manual pt-BR, inglês e espanhol estão no PR draft [#848](https://github.com/brunolrogerio-collab/EliteSCADA/pull/848), branch `work/w15-alarm-suppression-789`, head `5a4bea119f89afeea0a2a1a8e1077778787ebd5a`, sobre a base acima. T1 exato [run 41259426051](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/41259426051) passou. Classificador, sanity, Web, .NET focado, HA-D1 dois processos, HA-D2 banco compartilhado/continuidade de sessão e Chromium passaram. Testes de sidecars foram corretamente ignorados por não haver mudanças de driver relacionadas. T1 não executou a aceitação HA-D2 de bancos separados, que continua temporariamente em quarentena por autorização do proprietário; não declarar essa topologia validada. O Chromium passou após o workflow usar o espelho Ubuntu HTTPS observado como acessível.
 
-**Limites preservados:** sem alteração no Portal/#741, Preview/DEMO, aplicação EEE RHO, dados/volumes, licenças, drivers ou solução de HA-D2 #423. A replicação HA só pode receber estado de supressão por extensão aditiva do transporte existente e por teste focado desta mudança.
+**Limites preservados:** não houve alteração no Portal/#741, Preview/DEMO, aplicação EEE RHO, dados/volumes, licença ou código de driver/protocolo. O ajuste de CI apenas seleciona sidecars quando os arquivos de driver correspondentes mudam.
 
-**Próximo passo:** implementar os vínculos estáveis de alarme à Location/Equipment e o armazenamento/overlay de supressão conforme ADR-026; depois endpoints, Runtime e evidências focadas. #790 permanece bloqueada até a API tipada de #789 estar integrada e verificada.
+**Próximo passo:** concluir a revisão e a integração do PR #848; depois executar o CI pós-merge do checkpoint exato e atualizar #789/#305. Manter a aceitação HA-D2 com bancos separados registrada como pendência. #790 segue downstream e não será iniciado antes de #789 integrada e verificada.
 
 ## Histórico anterior — não substitui o checkpoint acima
 ## Previous product checkpoint - online licensing status projection, 28 October 2026

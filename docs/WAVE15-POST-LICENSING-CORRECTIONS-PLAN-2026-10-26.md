@@ -1,4 +1,4 @@
-# Plano consolidado de correções e auditorias — atualizado em 31/10/2026
+# Plano consolidado de correções e auditorias — atualizado em 01/11/2026
 
 **Autorizado pelo proprietário / em fila.** Programa [#788](https://github.com/brunolrogerio-collab/EliteSCADA/issues/788), pais #297/#306 e coordenação #305. Este documento reúne trabalho futuro; não declara as funcionalidades implementadas, a auditoria concluída ou defeitos corrigidos.
 
@@ -16,7 +16,7 @@ Preservar o trabalho paralelo do proprietário, Preview/DEMO, dados, volumes e l
 
 | Pacote | Issue | Situação e resultado esperado |
 |---|---|---|
-| Supressão individual/hierárquica | [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789) | Requisito novo a fechar; reutilizar shelving quando adequado e explicar estado efetivo por alarme, área e subárea |
+| Supressão individual/hierárquica | [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789) | Implementada no PR draft #848; T1 exato `41259426051` passou. Revisar/integrar e validar pós-merge; HA-D2 com bancos separados segue temporariamente em quarentena e não é declarada verificada |
 | CheckBox e ComboBox autoráveis | [#790](https://github.com/brunolrogerio-collab/EliteSCADA/issues/790) | Inventariar/reutilizar o que existir e fechar o fluxo completo de objeto no editor/Runtime; checkbox HTML de configuração não conta |
 | Aderência de Intelligence | [#791](https://github.com/brunolrogerio-collab/EliteSCADA/issues/791) | Auditoria autorizada, ainda não executada; comparar premissas, contratos, APIs, UI e percurso real do gestor |
 | Matter e correções upstream | [#792](https://github.com/brunolrogerio-collab/EliteSCADA/issues/792) | Revalidar o artefato experimental exato e decidir eventual atualização com evidência, sem promoção automática |

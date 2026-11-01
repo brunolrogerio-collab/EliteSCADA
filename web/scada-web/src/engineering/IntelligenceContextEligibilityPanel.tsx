@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { EngineeringLocale } from './i18n';
 import { intelligenceEvidenceText } from './intelligenceEvidenceText';
+import { IntelligenceComparisonPeriod, matchesIntelligenceWindow, useIntelligenceComparisonPeriod } from './IntelligenceComparisonPeriod';
 import type { AssetProcessIntelligenceOperatingContextProfileEngineering } from './types';
 import { coverageCopy, coverageErrorText, localDateTimeInput, parseWindow, type WindowValue } from './AssetProcessIntelligenceCoveragePanel';
 
@@ -9,7 +10,8 @@ type SignalWindow = { rawObservationCount: number; acceptedSynchronizedUniqueCou
 type ContextResult = {
   contractVersion: number; projectKey: string; activeRevision: number; assignmentId: string; measurementProfileId: string;
   operatingContextProfileId: string; profileVersion: number; referenceWindow: WindowValue;
-  signals: Array<{ signalId: string; tagPath: string; engineeringUnit: string | null; reference: SignalWindow }>;
+  comparisonWindow?: WindowValue | null;
+  signals: Array<{ signalId: string; tagPath: string; engineeringUnit: string | null; reference: SignalWindow; comparison?: SignalWindow | null }>;
 };
 export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmentId, profileId, contexts, projectKey, activeRevision, canQuery }: {
   locale: EngineeringLocale; scopeId: string; assignmentId: string; profileId: string;
@@ -21,6 +23,8 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
   const context = contexts.find(item => item.id === contextId && item.assignmentId === assignmentId);
   const [from, setFrom] = useState(() => localDateTimeInput(new Date(Date.now() - 86400000)));
   const [to, setTo] = useState(() => localDateTimeInput(new Date()));
+  const window = parseWindow(from, to).window;
+  const comparison = useIntelligenceComparisonPeriod(window);
   const [result, setResult] = useState<ContextResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,11 +34,10 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
     controller.current?.abort(); sequence.current++;
     setResult(null); setError(null); setBusy(false);
     return () => controller.current?.abort();
-  }, [scopeId, assignmentId, profileId, context?.id, context?.version, projectKey, activeRevision, canQuery, from, to]);
-  const window = parseWindow(from, to).window;
+  }, [scopeId, assignmentId, profileId, context?.id, context?.version, projectKey, activeRevision, canQuery, from, to, comparison.key]);
   async function query(event: FormEvent) {
     event.preventDefault();
-    if (!canQuery || !context || !projectKey || activeRevision === null || !window) return;
+    if (!canQuery || !context || !projectKey || activeRevision === null || !window || !comparison.valid) return;
     controller.current?.abort();
     const current = new AbortController(); controller.current = current;
     const request = ++sequence.current;
@@ -43,7 +46,7 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
       const response = await fetch(`${API}/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/query`, {
         method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({ scopeKind: 0, scopeId, assignmentId, operatingContextProfileId: context.id,
-          expectedProfileVersion: context.version, referenceWindow: window }), signal: current.signal
+          expectedProfileVersion: context.version, referenceWindow: window, comparisonWindow: comparison.window }), signal: current.signal
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(typeof payload?.code === 'string' ? payload.code : `HTTP_${response.status}`);
@@ -52,11 +55,14 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
           payload.operatingContextProfileId !== context.id || payload.profileVersion !== context.version ||
           Date.parse(payload.referenceWindow?.fromUtc) !== Date.parse(window.fromUtc) ||
           Date.parse(payload.referenceWindow?.toUtc) !== Date.parse(window.toUtc) ||
+          !matchesIntelligenceWindow(payload.comparisonWindow, comparison.window) ||
           !Array.isArray(payload.signals) || payload.signals.length > 16 ||
           !payload.signals.every((signal: ContextResult['signals'][number]) => typeof signal?.tagPath === 'string' &&
-            typeof signal.signalId === 'string' && signal.reference &&
-            [signal.reference.rawObservationCount, signal.reference.acceptedSynchronizedUniqueCount, signal.reference.contextEligibleObservationCount]
-              .every(count => Number.isInteger(count) && count >= 0))) throw new Error('INVALID_RESPONSE');
+            typeof signal.signalId === 'string' && (signal.engineeringUnit == null || typeof signal.engineeringUnit === 'string') && signal.reference &&
+            (comparison.window ? !!signal.comparison : signal.comparison == null) &&
+            [signal.reference, ...(comparison.window ? [signal.comparison] : [])].every(evidence => !!evidence &&
+              [evidence.rawObservationCount, evidence.acceptedSynchronizedUniqueCount, evidence.contextEligibleObservationCount]
+                .every(count => Number.isInteger(count) && count >= 0)))) throw new Error('INVALID_RESPONSE');
       if (!current.signal.aborted && sequence.current === request) setResult(payload);
     } catch (cause) {
       if (!current.signal.aborted && sequence.current === request) {
@@ -88,7 +94,8 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
         <input type="datetime-local" value={to} onChange={event => setTo(event.currentTarget.value)}/></label>
       <p>{text('Até 31 dias. Os horários locais são convertidos para UTC.', 'Up to 31 days. Local times are converted to UTC.', 'Hasta 31 días. Las horas locales se convierten a UTC.')}</p>
       {!window && <p role="alert">{text('Confira o início e o fim do período.', 'Check the start and end of the period.', 'Revise el inicio y el fin del período.')}</p>}
-      <button type="submit" disabled={!canQuery || !context || !window || busy}>{text('Consultar condições', 'Query conditions', 'Consultar condiciones')}</button>
+      <IntelligenceComparisonPeriod locale={locale} period={comparison}/>
+      <button type="submit" disabled={!canQuery || !context || !window || !comparison.valid || busy}>{text('Consultar condições', 'Query conditions', 'Consultar condiciones')}</button>
       {busy && <button type="button" onClick={() => { controller.current?.abort(); sequence.current++; setBusy(false); }}>{text('Cancelar consulta', 'Cancel query', 'Cancelar consulta')}</button>}
     </form>
     {error && <p role="alert">{error}</p>}
@@ -96,6 +103,8 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
       {result.signals.map(signal => <article key={signal.signalId}><strong>{signal.tagPath}{signal.engineeringUnit ? ` (${signal.engineeringUnit})` : ''}</strong>
         <p>{intelligenceEvidenceText(signal.reference.status, locale)}</p>
         <p>{text('Leituras recebidas / sincronizadas / compatíveis com todas as condições', 'Readings received / synchronized / matching all conditions', 'Lecturas recibidas / sincronizadas / compatibles con todas las condiciones')}: {signal.reference.rawObservationCount} / {signal.reference.acceptedSynchronizedUniqueCount} / {signal.reference.contextEligibleObservationCount}</p>
+        {signal.comparison && <><p>{text('Comparação', 'Comparison', 'Comparación')}: {intelligenceEvidenceText(signal.comparison.status, locale)}</p>
+          <p>{signal.comparison.rawObservationCount} / {signal.comparison.acceptedSynchronizedUniqueCount} / {signal.comparison.contextEligibleObservationCount}</p></>}
       </article>)}
     </div>}
   </details>;

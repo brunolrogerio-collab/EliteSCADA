@@ -99,6 +99,12 @@ O resultado mostra quantos instantes puderam ser avaliados e quantos ficaram em 
 
 Use Cancelar consulta para interromper. Mudar período, contexto, sinais ou cadência descarta o resultado anterior; é preciso consultar novamente. Se a referência não puder ser ajustada, confira dados, qualidade, sincronização, contexto e variação dos sinais antes de ampliar períodos.
 
+## Compare dois períodos e cancele consultas
+
+Nas consultas de referência e condições do contexto, marque Comparar com outro período se quiser conferir a evidência em duas janelas. Preencha o início e o fim da comparação. Cada janela pode ter até 31 dias, e o início da comparação deve ser estritamente posterior ao fim da referência: não use o mesmo instante nos dois limites. A consulta fica indisponível enquanto houver campos vazios, período invertido ou sobreposição.
+
+Consulte e leia as contagens de cada período. A comparação de contagens não é, por si só, um indicador de eficiência. Desmarcar a comparação ou alterar qualquer limite remove o resultado anterior. Durante a leitura, use Cancelar consulta: uma resposta atrasada não deve reaparecer na tela. Para consultar novamente, confira os parâmetros e clique no botão de consulta.
+
 <!-- installed-system-guides -->
 
 ## Intelligence: habilitar, pausar e resolver bloqueios

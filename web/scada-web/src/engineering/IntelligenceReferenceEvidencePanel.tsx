@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { EngineeringLocale } from './i18n';
 import { intelligenceEvidenceText } from './intelligenceEvidenceText';
+import { IntelligenceComparisonPeriod, matchesIntelligenceWindow, useIntelligenceComparisonPeriod } from './IntelligenceComparisonPeriod';
 import { coverageCopy, coverageErrorText, localDateTimeInput, parseWindow, type WindowValue } from './AssetProcessIntelligenceCoveragePanel';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
+type SignalEvidenceWindow = { rawObservationCount: number; acceptedSynchronizedCount: number; rejectedObservationCount: number; rejectionCounts?: Record<string, number> };
 type Evidence = {
   contractVersion: number; projectKey: string; activeRevision: number; scopeId: string; profileId: string;
   referenceWindow: WindowValue;
+  comparisonWindow?: WindowValue | null;
   referenceCohort: { completeRequiredNumericCohortCount: number | null };
   signals: Array<{ signalId: string; tagPath: string; unit: string | null; required: boolean;
-    reference: { rawObservationCount: number; acceptedSynchronizedCount: number; rejectedObservationCount: number; rejectionCounts?: Record<string, number> } }>;
+    reference: SignalEvidenceWindow; comparison?: SignalEvidenceWindow | null }>;
 };
 
 export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId, projectKey, activeRevision, canQuery }: {
@@ -19,6 +22,8 @@ export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId,
   const text = (pt: string, en: string, es: string) => locale === 'pt-BR' ? pt : locale === 'es' ? es : en;
   const [from, setFrom] = useState(() => localDateTimeInput(new Date(Date.now() - 86400000)));
   const [to, setTo] = useState(() => localDateTimeInput(new Date()));
+  const window = parseWindow(from, to).window;
+  const comparison = useIntelligenceComparisonPeriod(window);
   const [result, setResult] = useState<Evidence | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -29,11 +34,10 @@ export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId,
     sequence.current++;
     setResult(null); setError(null); setBusy(false);
     return () => controller.current?.abort();
-  }, [scopeId, profileId, projectKey, activeRevision, canQuery, from, to]);
-  const window = parseWindow(from, to).window;
+  }, [scopeId, profileId, projectKey, activeRevision, canQuery, from, to, comparison.key]);
   async function query(event: FormEvent) {
     event.preventDefault();
-    if (!canQuery || !projectKey || activeRevision === null || !window) return;
+    if (!canQuery || !projectKey || activeRevision === null || !window || !comparison.valid) return;
     controller.current?.abort();
     const current = new AbortController(); controller.current = current;
     const request = ++sequence.current;
@@ -41,7 +45,7 @@ export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId,
     try {
       const response = await fetch(`${API}/api/engineering/asset-process-intelligence/analytics/reference-evidence/v1/query`, {
         method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ scopeKind: 0, scopeId, profileId, referenceWindow: window }), signal: current.signal
+        body: JSON.stringify({ scopeKind: 0, scopeId, profileId, referenceWindow: window, comparisonWindow: comparison.window }), signal: current.signal
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(typeof payload?.code === 'string' ? payload.code : `HTTP_${response.status}`);
@@ -49,13 +53,16 @@ export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId,
           payload.scopeId?.toLowerCase() !== scopeId.toLowerCase() || payload.profileId?.toLowerCase() !== profileId.toLowerCase() ||
           Date.parse(payload.referenceWindow?.fromUtc) !== Date.parse(window.fromUtc) ||
           Date.parse(payload.referenceWindow?.toUtc) !== Date.parse(window.toUtc) ||
+          !matchesIntelligenceWindow(payload.comparisonWindow, comparison.window) ||
           !payload.referenceCohort || !(payload.referenceCohort.completeRequiredNumericCohortCount === null ||
             Number.isInteger(payload.referenceCohort.completeRequiredNumericCohortCount) && payload.referenceCohort.completeRequiredNumericCohortCount >= 0) ||
           !Array.isArray(payload.signals) || payload.signals.length > 16 ||
           !payload.signals.every((signal: Evidence['signals'][number]) => typeof signal?.tagPath === 'string' &&
-            typeof signal.signalId === 'string' && signal.reference &&
-            [signal.reference.rawObservationCount, signal.reference.acceptedSynchronizedCount, signal.reference.rejectedObservationCount]
-              .every(count => Number.isInteger(count) && count >= 0))) throw new Error('INVALID_RESPONSE');
+            typeof signal.signalId === 'string' && (signal.unit == null || typeof signal.unit === 'string') && signal.reference &&
+            (comparison.window ? !!signal.comparison : signal.comparison == null) &&
+            [signal.reference, ...(comparison.window ? [signal.comparison] : [])].every(evidence => !!evidence &&
+              [evidence.rawObservationCount, evidence.acceptedSynchronizedCount, evidence.rejectedObservationCount]
+                .every(count => Number.isInteger(count) && count >= 0)))) throw new Error('INVALID_RESPONSE');
       if (!current.signal.aborted && sequence.current === request) setResult(payload);
     } catch (cause) {
       if (!current.signal.aborted && sequence.current === request)
@@ -79,7 +86,8 @@ export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId,
         <input type="datetime-local" value={to} disabled={!canQuery} onChange={event => setTo(event.currentTarget.value)}/></label>
       <p>{text('Use um intervalo de até 31 dias. Os horários serão convertidos para UTC.', 'Use a period of up to 31 days. Times are converted to UTC.', 'Use un período de hasta 31 días. Las horas se convierten a UTC.')}</p>
       {!window && <p role="alert">{text('Confira o início e o fim do período.', 'Check the start and end of the period.', 'Revise el inicio y el fin del período.')}</p>}
-      <button type="submit" disabled={!canQuery || !window || busy}>{text('Consultar referência', 'Query reference', 'Consultar referencia')}</button>
+      <IntelligenceComparisonPeriod locale={locale} period={comparison}/>
+      <button type="submit" disabled={!canQuery || !window || !comparison.valid || busy}>{text('Consultar referência', 'Query reference', 'Consultar referencia')}</button>
       {busy && <button type="button" onClick={() => { controller.current?.abort(); sequence.current++; setBusy(false); }}>{text('Cancelar consulta', 'Cancel query', 'Cancelar consulta')}</button>}
     </form>
     {error && <p role="alert">{error}</p>}
@@ -90,6 +98,7 @@ export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId,
         <p>{text('Leituras recebidas / aceitas com origem sincronizada / rejeitadas', 'Readings received / accepted with synchronized source / rejected', 'Lecturas recibidas / aceptadas con origen sincronizado / rechazadas')}: {signal.reference.rawObservationCount} / {signal.reference.acceptedSynchronizedCount} / {signal.reference.rejectedObservationCount}</p>
         {Object.entries(signal.reference.rejectionCounts ?? {}).filter(([, count]) => Number.isInteger(count) && count > 0)
           .map(([reason, count]) => <p key={reason}>{intelligenceEvidenceText(reason, locale)}: {count}</p>)}
+        {signal.comparison && <p>{text('Comparação: recebidas / aceitas / rejeitadas', 'Comparison: received / accepted / rejected', 'Comparación: recibidas / aceptadas / rechazadas')}: {signal.comparison.rawObservationCount} / {signal.comparison.acceptedSynchronizedCount} / {signal.comparison.rejectedObservationCount}</p>}
       </article>)}
       <p>{text('A contagem de leituras não comprova saúde, representatividade ou completude do período.', 'Reading counts do not prove health, representativeness or completeness of the period.', 'El número de lecturas no demuestra salud, representatividad ni integridad del período.')}</p>
     </div>}

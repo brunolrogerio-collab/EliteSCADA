@@ -23,7 +23,7 @@ export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignment
   const [cadence, setCadence] = useState('');
   const [from, setFrom] = useState(() => localDateTimeInput(new Date(Date.now() - 172800000)));
   const [to, setTo] = useState(() => localDateTimeInput(new Date(Date.now() - 86400000)));
-  const [evaluationFrom, setEvaluationFrom] = useState(() => localDateTimeInput(new Date(Date.now() - 86400000)));
+  const [evaluationFrom, setEvaluationFrom] = useState(() => localDateTimeInput(new Date(Date.now() - 86340000)));
   const [evaluationTo, setEvaluationTo] = useState(() => localDateTimeInput(new Date()));
   const [result, setResult] = useState<JointResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignment
   const evaluation = parseWindow(evaluationFrom, evaluationTo).window;
   const seconds = Number(cadence);
   const targetOptions = targets.map(id => options.find(option => option.id === id));
-  const valid = !!context && !!reference && !!evaluation && Date.parse(reference.toUtc) <= Date.parse(evaluation.fromUtc) &&
+  const valid = !!context && !!reference && !!evaluation && Date.parse(reference.toUtc) < Date.parse(evaluation.fromUtc) &&
     Number.isInteger(seconds) && seconds >= 1 && seconds <= 86400 && targets.length >= 2 && targets.length <= 8 &&
     targetOptions.every(Boolean) && new Set(targetOptions.map(option => option?.tagId.toLowerCase())).size === targets.length;
   const unavailable = text('Dados insuficientes para ajustar a referência. Confira o período, a variação dos sinais e o contexto.',

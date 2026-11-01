@@ -10,6 +10,62 @@ const secondContextSignalId = '15000000-0000-0000-0000-000000000214';
 const firstContextTagId = '15000000-0000-0000-0000-000000000105';
 const secondContextTagId = '15000000-0000-0000-0000-000000000106';
 
+for (const mode of ['reference', 'context'] as const) {
+  test(`${mode} comparison rejects overlapping periods and ignores a cancelled late response`, async ({ page }) => {
+    await installWorkspace(page, { operatingContexts: true });
+    let calls = 0;
+    let completed = 0;
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const endpoint = mode === 'reference' ? 'reference-evidence' : 'context-eligibility';
+    await page.route(`**/api/engineering/asset-process-intelligence/analytics/${endpoint}/v1/query`, async route => {
+      calls++;
+      const request = route.request().postDataJSON();
+      const evidence = { rawObservationCount: 15, acceptedSynchronizedCount: 12, rejectedObservationCount: 3,
+        acceptedSynchronizedUniqueCount: 12, contextEligibleObservationCount: 8, status: 'context_match_available' };
+      const payload = { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: 4,
+        scopeId: equipmentId, profileId, assignmentId, measurementProfileId: profileId,
+        operatingContextProfileId: request.operatingContextProfileId, profileVersion: 3,
+        referenceWindow: request.referenceWindow, comparisonWindow: request.comparisonWindow,
+        referenceCohort: { completeRequiredNumericCohortCount: 12 },
+        signals: [{ signalId: firstContextSignalId, tagPath: 'Pump.Current', unit: 'A', engineeringUnit: 'A',
+          required: true, reference: evidence, comparison: request.comparisonWindow ? evidence : null }] };
+      if (calls === 2) await gate;
+      await route.fulfill({ json: payload }).catch(() => {});
+      completed++;
+    });
+    await openIntelligence(page);
+    const panel = page.getByTestId(mode === 'reference' ? `intelligence-reference-evidence-${profileId}` : `intelligence-context-eligibility-${assignmentId}`);
+    await panel.locator('summary').click();
+    if (mode === 'context') await panel.getByLabel('Contexto salvo').selectOption({ label: 'Bomba em operação' });
+    await panel.getByLabel(mode === 'reference' ? 'Início da referência (horário local)' : 'Início do período (horário local)').fill('2026-10-20T10:00');
+    await panel.getByLabel(mode === 'reference' ? 'Fim da referência (horário local)' : 'Fim do período (horário local)').fill('2026-10-21T10:00');
+    const submit = panel.getByRole('button', { name: mode === 'reference' ? 'Consultar referência' : 'Consultar condições', exact: true });
+    await panel.getByLabel('Comparar com outro período').check();
+    await expect(submit).toBeDisabled();
+    await panel.getByLabel('Início da comparação (horário local)').fill('2026-10-21T09:00');
+    await panel.getByLabel('Fim da comparação (horário local)').fill('2026-10-22T10:00');
+    await expect(submit).toBeDisabled();
+    expect(calls).toBe(0);
+    await panel.getByLabel('Início da comparação (horário local)').fill('2026-10-21T10:00');
+    await expect(submit).toBeDisabled();
+    await panel.getByLabel('Início da comparação (horário local)').fill('2026-10-21T10:01');
+    await submit.click();
+    const result = panel.getByTestId(mode === 'reference' ? 'intelligence-reference-evidence-result' : 'intelligence-context-eligibility-result');
+    await expect(result).toContainText('Comparação');
+    await panel.getByLabel('Comparar com outro período').uncheck();
+    await expect(result).toHaveCount(0);
+    expect(calls).toBe(1);
+    await submit.click();
+    await expect.poll(() => calls).toBe(2);
+    await panel.getByRole('button', { name: 'Cancelar consulta' }).click();
+    release?.();
+    await expect.poll(() => completed).toBe(2);
+    await expect(result).toHaveCount(0);
+    await expect(submit).toBeEnabled();
+  });
+}
+
 test('joint deviation selects named signals and rejects an unexpected decision threshold', async ({ page }) => {
   await installWorkspace(page, { jointReady: true });
   let calls = 0;
@@ -42,6 +98,8 @@ test('joint deviation selects named signals and rejects an unexpected decision t
   await panel.getByLabel('Fim da referência', { exact: true }).fill('2026-10-20T10:00');
   await panel.getByLabel('Início da avaliação', { exact: true }).fill('2026-10-20T10:00');
   await panel.getByLabel('Fim da avaliação', { exact: true }).fill('2026-10-21T10:00');
+  await expect(panel.getByRole('button', { name: 'Calcular desvio conjunto' })).toBeDisabled();
+  await panel.getByLabel('Início da avaliação', { exact: true }).fill('2026-10-20T10:01');
   expect(calls).toBe(0);
   await panel.getByRole('button', { name: 'Calcular desvio conjunto' }).click();
   await expect(panel.getByTestId('intelligence-joint-deviation-result')).toContainText('Referência ajustada para esta consulta');

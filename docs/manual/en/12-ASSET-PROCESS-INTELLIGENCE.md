@@ -99,6 +99,12 @@ Results show scored timestamps and warmup counts. Deviation combines changes in 
 
 Use Cancel query to stop. Changing periods, context, signals or cadence discards previous results; query again. If the reference cannot be fitted, check data, quality, synchronization, context and signal variation before widening periods.
 
+## Compare two periods and cancel queries
+
+In reference and context-condition queries, select Compare with another period to inspect evidence in two windows. Enter comparison start and end. Each window supports up to 31 days, and comparison must start strictly after the reference ends: do not use the same instant for both boundaries. Querying remains unavailable while fields are empty, dates are reversed or periods overlap.
+
+Query and read each period's counts. Comparing counts is not, by itself, an efficiency indicator. Disabling comparison or changing any boundary clears the previous result. During reading, use Cancel query: a delayed response must not reappear. To query again, review the parameters and select the query button.
+
 <!-- installed-system-guides -->
 
 ## Intelligence: enable, pause and resolve blocks

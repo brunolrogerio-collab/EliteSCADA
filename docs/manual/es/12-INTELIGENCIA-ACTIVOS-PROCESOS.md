@@ -99,6 +99,12 @@ El resultado muestra instantes evaluados y en calentamiento. La desviación comb
 
 Use Cancelar consulta para interrumpir. Cambiar períodos, contexto, señales o cadencia descarta el resultado anterior; consulte de nuevo. Si no se puede ajustar la referencia, revise datos, calidad, sincronización, contexto y variación de señales antes de ampliar períodos.
 
+## Compare dos períodos y cancele consultas
+
+En las consultas de referencia y condiciones del contexto, marque Comparar con otro período para revisar evidencia en dos ventanas. Indique inicio y fin de la comparación. Cada ventana admite hasta 31 días, y la comparación debe comenzar estrictamente después del fin de referencia: no use el mismo instante en ambos límites. La consulta permanece deshabilitada con campos vacíos, fechas invertidas o superposición.
+
+Consulte y lea los conteos de cada período. Comparar conteos no es, por sí solo, un indicador de eficiencia. Desmarcar la comparación o cambiar cualquier límite elimina el resultado anterior. Durante la lectura, use Cancelar consulta: una respuesta tardía no debe reaparecer. Para consultar de nuevo, revise los parámetros y pulse el botón de consulta.
+
 <!-- installed-system-guides -->
 
 ## Intelligence: habilitar, pausar y resolver bloqueos

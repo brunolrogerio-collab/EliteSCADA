@@ -4,7 +4,7 @@ using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.VisualScripting;
 
-namespace Scada.Persistence.PostgreSql.Tests;
+namespace Scada.Drivers.Tests;
 
 public sealed class VisualControl790ValidationTests
 {

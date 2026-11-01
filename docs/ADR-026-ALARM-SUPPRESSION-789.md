@@ -1,7 +1,7 @@
 # ADR-026 — Operational alarm suppression by alarm and location
 
-**Status:** accepted for implementation in product issue [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789)  
-**Baseline:** `wave15/corrections-integration@4c8396ed8bb14c5dc5718e2394309f260d88eaf8`  
+**Status:** accepted for implementation in product issue [#789](https://github.com/brunolrogerio-collab/EliteSCADA/issues/789)
+**Baseline:** `wave15/corrections-integration@4c8396ed8bb14c5dc5718e2394309f260d88eaf8`
 **Date:** 2026-10-31
 
 ## Evidence from the current product

@@ -64,9 +64,9 @@ def node_env(node_id: str, own_url: str, peer_url: str, state_path: Path, refere
         "HighAvailability__Protection__LeaseSeconds": "4",
         "HighAvailability__Protection__PollMilliseconds": "250",
         "HighAvailability__Protection__ReadyWitnessMaximumAgeSeconds": "20",
-        # This is isolated HA protocol evidence, not database-topology acceptance.
-        # Product Production startup remains fail-closed without durable PostgreSQL.
-        "DatabaseTopology__RequireDurable": "false",
+        # D1 uses shared disposable PostgreSQL only so each node can durably persist peer state.
+        # Separate-database topology acceptance remains an independent, quarantined D2 case.
+        "DatabaseTopology__RequireDurable": "true",
         "DatabaseTopology__StateFile": str(state_path.with_name(state_path.stem + "-database-topology.json")),
         "DatabaseTopology__Secrets__StoreFile": str(state_path.with_name(state_path.stem + "-database-secrets.json")),
         "Logging__LogLevel__Default": "Warning",
@@ -280,7 +280,7 @@ def main() -> int:
             now = utc_now()
             envelope = {
                 "schema": "elitescada.runtime-ha-peer-replication",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "clusterId": CLUSTER,
                 "topologyVersion": 3,
                 "sourceNodeId": "node-a",
@@ -343,6 +343,8 @@ def main() -> int:
                     }],
                     "sessions": [],
                     "sessionTombstones": [],
+                    "alarmSuppressionRevision": 0,
+                    "alarmSuppressions": [],
                     "capturedAtUtc": now,
                 },
                 "sentAtUtc": now,

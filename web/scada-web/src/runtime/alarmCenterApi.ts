@@ -3,6 +3,7 @@ import type {
   RuntimeAlarmCenterEndpoint,
   RuntimeAlarmCenterItem,
   RuntimeAlarmDefinition,
+  RuntimeAlarmSuppressionCause,
   RuntimeAlarmSuppressionResult,
   RuntimeAlarmSuppressionSnapshot,
   RuntimeAlarmSuppressionTargetKind
@@ -36,7 +37,57 @@ export async function loadRuntimeAlarmDefinitions(
 export async function loadRuntimeAlarmSuppressions(
   signal?: AbortSignal
 ): Promise<RuntimeAlarmCenterEndpoint<RuntimeAlarmSuppressionSnapshot>> {
-  return loadAlarmEndpoint<RuntimeAlarmSuppressionSnapshot>(`${API}/api/alarms/suppressions`, signal);
+  const result = await loadAlarmEndpoint<AlarmSuppressionRuntimeWireSnapshot>(`${API}/api/alarms/suppressions`, signal);
+  if (!result.available) return result;
+
+  try {
+    return { available: true, value: normalizeAlarmSuppressionSnapshot(result.value) };
+  } catch (error) {
+    return {
+      available: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+type AlarmSuppressionRuntimeWireSnapshot = Omit<RuntimeAlarmSuppressionSnapshot, 'alarms'> & {
+  alarms: Array<{
+    alarmId: string;
+    alarmName: string;
+    area?: string | null;
+    locationId?: string | null;
+    locationPath?: string | null;
+    isSuppressed: boolean;
+    causes: Array<Omit<RuntimeAlarmSuppressionCause, 'targetKind'> & { targetKind: number | string }>;
+  }>;
+};
+
+function normalizeAlarmSuppressionSnapshot(wire: AlarmSuppressionRuntimeWireSnapshot): RuntimeAlarmSuppressionSnapshot {
+  if (!Array.isArray(wire.alarms) || !Array.isArray(wire.locations)) {
+    throw new Error('The alarm suppression service returned an invalid snapshot.');
+  }
+
+  return {
+    ...wire,
+    alarms: wire.alarms.map(alarm => ({
+      definitionId: alarm.alarmId,
+      name: alarm.alarmName,
+      area: alarm.area ?? null,
+      locationId: alarm.locationId ?? null,
+      locationPath: alarm.locationPath ?? null,
+      isSuppressed: alarm.isSuppressed,
+      suppressionCauses: alarm.causes.map(cause => ({
+        ...cause,
+        targetKind: normalizeSuppressionTargetKind(cause.targetKind)
+      }))
+    }))
+  };
+}
+
+function normalizeSuppressionTargetKind(value: number | string): RuntimeAlarmSuppressionCause['targetKind'] {
+  if (value === 1 || (typeof value === 'string' && value.trim().toLowerCase() === 'alarm')) return 'alarm';
+  if (value === 2 || (typeof value === 'string' && value.trim().toLowerCase() === 'location')) return 'location';
+  throw new Error('The alarm suppression service returned an unknown target kind.');
 }
 
 export async function setRuntimeAlarmSuppression(

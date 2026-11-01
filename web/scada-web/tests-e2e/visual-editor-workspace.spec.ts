@@ -28,6 +28,7 @@ type ExportedVisualElement = {
 };
 
 type ExportedPackage = {
+  alarms?: Array<{ id?: string; name: string; shelvingAllowed?: boolean }>;
   screens?: Array<{
     id?: string;
     key: string;
@@ -679,7 +680,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
 });
 
 test('W15 CheckBox and ComboBox can be authored, bound, published, and operated through the canonical Runtime', async ({ page, request }, testInfo) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;
@@ -688,6 +689,8 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
   expect(originalScreen, 'the fixture must provide a screen for canonical control authoring').toBeTruthy();
   const originalPopup = originalPackage.popups?.[0];
   expect(originalPopup, 'the fixture must provide a popup for canonical control authoring').toBeTruthy();
+  const suppressionAlarm = originalPackage.alarms?.find(alarm => alarm.shelvingAllowed !== false);
+  expect(suppressionAlarm?.id, 'the fixture must provide a stable alarm that allows operator suppression').toBeTruthy();
   const originalTemplate = originalPackage.templates?.[0];
   expect(originalTemplate, 'the fixture must provide a template for canonical control authoring').toBeTruthy();
 
@@ -729,6 +732,9 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
   let seeded = false;
   let runtimeMayHaveChanged = false;
   let runtimeSessionHeaders: Record<string, string> | null = null;
+  let alarmSuppressionApplied = false;
+  let popupCheckBoxId = '';
+  let openPopupButtonId = '';
   try {
     const seed = await request.post('/api/engineering/import/json/apply', {
       headers: { 'content-type': 'application/json; charset=utf-8' }, data: seededPackage
@@ -743,6 +749,8 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     const checkBoxId = await authorCheckBoxControl(screenRoot, booleanTagPath, 'E2E boolean control');
     const comboBoxId = await authorComboBoxControl(screenRoot, stringTagPath, 'E2E mode selector');
     await nudgeVisualObjectRight(screenRoot, comboBoxId, 24);
+    openPopupButtonId = await authorOpenPopupButton(screenRoot, originalPopup!.key, 'Abrir supressão do alarme');
+    await nudgeVisualObjectDown(screenRoot, openPopupButtonId, 8);
 
     await page.getByTestId('visual-editor-preview').click();
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
@@ -774,7 +782,7 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     await page.locator('.eng-nav').getByRole('button', { name: /Popups/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalPopup.key }).click();
     const popupRoot = page.getByTestId('popup-visual-editor-workspace');
-    const popupCheckBoxId = await authorCheckBoxControl(popupRoot, booleanTagPath, 'E2E popup boolean control');
+    popupCheckBoxId = await authorAlarmSuppressionCheckBox(popupRoot, suppressionAlarm!.id!, 'Suprimir alarme da bomba', suppressionAlarm!.name);
     await page.getByTestId('popup-visual-editor-preview').click();
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
     page.once('dialog', dialog => dialog.accept());
@@ -787,11 +795,14 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     expect(popupPackageResponse.ok()).toBeTruthy();
     const popupPackage = await popupPackageResponse.json() as ExportedPackage;
     const persistedPopup = popupPackage.popups?.find(candidate => candidate.id === originalPopup.id || candidate.key === originalPopup.key);
-    expect(flatten(persistedPopup?.elements ?? []).find(element => element.id === popupCheckBoxId)).toMatchObject({
-      id: popupCheckBoxId, type: 'core.checkBox', bindings: [expect.objectContaining({
-        key: 'checked', target: booleanTagPath, direction: 'readWrite'
-      })]
+    const persistedPopupCheckBox = flatten(persistedPopup?.elements ?? []).find(element => element.id === popupCheckBoxId);
+    expect(persistedPopupCheckBox).toMatchObject({
+      id: popupCheckBoxId, type: 'core.checkBox', properties: expect.objectContaining({
+        text: 'Suprimir alarme da bomba', interactionEnabled: true,
+        checkBoxConfig: { mode: 'alarmSuppression', alarmDefinitionId: suppressionAlarm!.id, reasonCode: 'maintenance', duration: 'untilReleased' }
+      })
     });
+    expect(persistedPopupCheckBox?.bindings ?? []).toHaveLength(0);
 
     await page.locator('.eng-nav').getByRole('button', { name: /Templates/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalTemplate.key }).click();
@@ -851,11 +862,40 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
       const body = await response.json() as { current?: { value?: unknown } | null };
       return body.current?.value ?? null;
     }).toBe('MANUAL');
+    await page.locator(`[data-object-id="${openPopupButtonId}"]`).click();
+    const popupSuppressionCheckBox = page.locator(`[data-object-id="${popupCheckBoxId}"] input[type="checkbox"]`);
+    await expect(popupSuppressionCheckBox).toBeVisible();
+    await expect(popupSuppressionCheckBox).toBeEnabled();
+    const suppressionPut = page.waitForResponse(response => response.url().includes(`/api/alarms/suppressions/alarm/${suppressionAlarm!.id}`) && response.request().method() === 'PUT');
+    await popupSuppressionCheckBox.click();
+    const suppressionPutResponse = await suppressionPut;
+    expect(suppressionPutResponse.status(), 'popup CheckBox suppression PUT should be accepted by the canonical API').toBe(200);
+    alarmSuppressionApplied = true;
+    await expect(popupSuppressionCheckBox).toBeChecked();
+    await expect.poll(async () => {
+      const response = await request.get('/api/alarms/suppressions', { headers: runtimeSessionHeaders ?? undefined });
+      if (!response.ok()) return null;
+      const body = await response.json() as { alarms?: Array<{ alarmId: string; isSuppressed: boolean }> };
+      return body.alarms?.find(alarm => alarm.alarmId === suppressionAlarm!.id)?.isSuppressed ?? null;
+    }).toBe(true);
+    const suppressionDelete = page.waitForResponse(response => response.url().includes(`/api/alarms/suppressions/alarm/${suppressionAlarm!.id}`) && response.request().method() === 'DELETE');
+    await popupSuppressionCheckBox.click();
+    const suppressionDeleteResponse = await suppressionDelete;
+    expect(suppressionDeleteResponse.status(), 'popup CheckBox release should be accepted by the canonical API').toBe(200);
+    alarmSuppressionApplied = false;
+    await expect(popupSuppressionCheckBox).not.toBeChecked();
     await testInfo.attach('checkbox-combobox-active-runtime', {
       body: await page.getByTestId('runtime-engineering-canvas').screenshot(), contentType: 'image/png'
     });
   } finally {
     try {
+      if (alarmSuppressionApplied && runtimeSessionHeaders && suppressionAlarm?.id) {
+        const release = await request.delete(`/api/alarms/suppressions/alarm/${suppressionAlarm.id}`, {
+          headers: runtimeSessionHeaders
+        });
+        expect(release.ok(), `temporary alarm suppression cleanup failed (HTTP ${release.status()})`).toBeTruthy();
+      }
+
       if (seeded) {
         const restore = await request.post('/api/engineering/import/json/apply', {
           headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
@@ -1116,6 +1156,7 @@ async function authorCheckBoxControl(root: Locator, sourcePath: string, label: s
   const id = await canvasObject.getAttribute('data-canvas-object-id');
   expect(id).toBeTruthy();
   const inspector = root.getByTestId('visual-property-inspector');
+  await root.getByTestId('visual-editor-inspector-tab-properties').click();
   const labelInput = inspector.locator('[data-property-key="text"] input');
   await labelInput.fill(label);
   await labelInput.press('Enter');
@@ -1135,6 +1176,58 @@ async function authorCheckBoxControl(root: Locator, sourcePath: string, label: s
   return id!;
 }
 
+async function authorAlarmSuppressionCheckBox(root: Locator, alarmId: string, label: string, alarmName: string): Promise<string> {
+  await root.getByTestId('visual-editor-authoring-toolbar').locator('[data-insert-object-type="core.checkBox"]').click();
+  const canvasObject = root.locator('[data-canvas-object-type="core.checkBox"]').last();
+  await canvasObject.click();
+  const id = await canvasObject.getAttribute('data-canvas-object-id');
+  expect(id).toBeTruthy();
+  const inspector = root.getByTestId('visual-property-inspector');
+  await root.getByTestId('visual-editor-inspector-tab-properties').click();
+  const labelInput = inspector.locator('[data-property-key="text"] input');
+  await labelInput.fill(label);
+  await labelInput.press('Enter');
+  await inspector.locator('[data-property-key="interactionEnabled"] input[type="checkbox"]').check();
+
+  const configuration = root.getByTestId('visual-checkbox-configuration');
+  const mode = configuration.getByLabel('Uso');
+  await expect(mode).toHaveValue('boolean');
+  await mode.selectOption('alarmSuppression');
+  const alarmSelect = configuration.locator('.visual-control-config__grid select').nth(0);
+  await alarmSelect.selectOption(alarmId);
+  await expect(alarmSelect).toHaveValue(alarmId);
+  await configuration.getByLabel('Motivo').selectOption('maintenance');
+  await configuration.getByLabel('Duração').selectOption('untilReleased');
+  await configuration.getByRole('button', { name: 'Aplicar configuração' }).click();
+  await expect(alarmSelect).toHaveValue(alarmId);
+  await expect(alarmSelect.locator('option:checked')).toHaveText(alarmName);
+  return id!;
+}
+
+async function authorOpenPopupButton(root: Locator, popupKey: string, label: string): Promise<string> {
+  await root.getByTestId('visual-editor-authoring-toolbar').locator('[data-insert-object-type="core.button"]').click();
+  const canvasObject = root.locator('[data-canvas-object-type="core.button"]').last();
+  await canvasObject.click();
+  const id = await canvasObject.getAttribute('data-canvas-object-id');
+  expect(id).toBeTruthy();
+  const inspector = root.getByTestId('visual-property-inspector');
+  await root.getByTestId('visual-editor-inspector-tab-properties').click();
+  const labelInput = inspector.locator('[data-property-key="text"] input');
+  await labelInput.fill(label);
+  await labelInput.press('Enter');
+
+  await root.getByTestId('visual-editor-inspector-tab-events').click();
+  const events = root.getByTestId('visual-events-editor');
+  await expect(events).toBeVisible();
+  await events.getByTestId('visual-events-quick-kind').selectOption('openPopup');
+  await events.getByTestId('visual-events-quick-target').selectOption(popupKey);
+  const add = events.getByTestId('visual-events-quick-add');
+  await expect(add).toBeEnabled();
+  await add.click();
+  await expect(events.locator('.visual-editor-events__configured')).toContainText('Open popup');
+  return id!;
+}
+
 async function nudgeVisualObjectRight(root: Locator, objectId: string, coarseSteps: number): Promise<void> {
   const object = root.locator(`[data-canvas-object-id="${objectId}"]`);
   const before = await object.boundingBox();
@@ -1149,6 +1242,20 @@ async function nudgeVisualObjectRight(root: Locator, objectId: string, coarseSte
   }).toBeTruthy();
 }
 
+async function nudgeVisualObjectDown(root: Locator, objectId: string, coarseSteps: number): Promise<void> {
+  const object = root.locator(`[data-canvas-object-id="${objectId}"]`);
+  const before = await object.boundingBox();
+  expect(before, `expected canvas object ${objectId} to be visible before moving`).not.toBeNull();
+  await object.click();
+  const canvasSurface = root.locator('.visual-editor-canvas__surface');
+  await canvasSurface.focus();
+  for (let step = 0; step < coarseSteps; step += 1) await canvasSurface.press('Shift+ArrowDown');
+  await expect.poll(async () => {
+    const after = await object.boundingBox();
+    return after ? after.y > before!.y + 50 : false;
+  }).toBeTruthy();
+}
+
 async function authorComboBoxControl(root: Locator, sourcePath: string, label: string): Promise<string> {
   await root.getByTestId('visual-editor-authoring-toolbar').locator('[data-insert-object-type="core.comboBox"]').click();
   const canvasObject = root.locator('[data-canvas-object-type="core.comboBox"]').last();
@@ -1156,6 +1263,7 @@ async function authorComboBoxControl(root: Locator, sourcePath: string, label: s
   const id = await canvasObject.getAttribute('data-canvas-object-id');
   expect(id).toBeTruthy();
   const inspector = root.getByTestId('visual-property-inspector');
+  await root.getByTestId('visual-editor-inspector-tab-properties').click();
   const labelInput = inspector.locator('[data-property-key="text"] input');
   await labelInput.fill(label);
   await labelInput.press('Enter');

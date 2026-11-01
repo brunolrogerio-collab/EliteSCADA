@@ -61,6 +61,26 @@ function snapshot(suppressed: boolean): RuntimeAlarmSuppressionSnapshot {
   };
 }
 
+function wireSnapshot(suppressed: boolean) {
+  const current = snapshot(suppressed);
+  return {
+    ...current,
+    alarms: current.alarms.map(alarm => ({
+      alarmId: alarm.definitionId,
+      alarmName: alarm.name,
+      area: alarm.area,
+      locationId: alarm.locationId,
+      equipmentId: null,
+      locationPath: alarm.locationPath,
+      isSuppressed: alarm.isSuppressed,
+      causes: (alarm.suppressionCauses ?? []).map(cause => ({
+        ...cause,
+        targetKind: cause.targetKind === 'alarm' ? 1 : 2
+      }))
+    }))
+  };
+}
+
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 }
@@ -72,7 +92,7 @@ async function installApi(page: Page) {
   await page.route('**/api/alarms**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/alarms/suppressions' && route.request().method() === 'GET')
-      return fulfillJson(route, snapshot(suppressed));
+      return fulfillJson(route, wireSnapshot(suppressed));
     if (url.pathname === '/api/alarms/definitions')
       return fulfillJson(route, [{ id: alarmId, name: 'Pressão alta da bomba', tagId: '33333333-3333-3333-3333-333333333333', type: 'High', priority: 'high', area: 'Authority.Process', soundProfile: 'short' }]);
     if (url.pathname === '/api/alarms' && route.request().method() === 'GET')

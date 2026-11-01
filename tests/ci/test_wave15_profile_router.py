@@ -377,7 +377,12 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertIn('FullyQualifiedName!~RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation', generic_test_step)
 
         wave15_workflow = (ROOT / ".github/workflows/wave15-pr.yml").read_text(encoding="utf-8")
-        self.assertIn('name: Run explicit HA-D2 and session-lease evidence', wave15_workflow)
+        ha_d2_job = wave15_workflow.split("  ha-d2-acceptance:", 1)[1].split("  native-zigbee-sidecar:", 1)[0]
+        self.assertIn("name: HA D2 shared-database lifecycle and session continuity", ha_d2_job)
+        selected_tests = next(line.strip() for line in ha_d2_job.splitlines() if "--filter '" in line)
+        self.assertIn("FullyQualifiedName~RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack", selected_tests)
+        self.assertNotIn("FullyQualifiedName~RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack", selected_tests)
+        self.assertIn("Separate-database HA-D2 acceptance is temporarily quarantined", ha_d2_job)
 
         l3_workflow = (ROOT / ".github/workflows/l3-seven-driver-lab.yml").read_text(encoding="utf-8")
         self.assertIn(

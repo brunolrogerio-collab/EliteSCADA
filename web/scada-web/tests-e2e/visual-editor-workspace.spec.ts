@@ -1,5 +1,7 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { createE2eJwt } from './jwt';
+import { admitInteractiveRuntimeSession, E2E_RUNTIME_CLIENT_INSTANCE_ID, terminateRuntimeSession } from './runtimeSessionLease';
 
 test.use({ locale: 'pt-BR' });
 test.describe.configure({ mode: 'serial' });
@@ -726,6 +728,7 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
 
   let seeded = false;
   let runtimeMayHaveChanged = false;
+  let runtimeSessionHeaders: Record<string, string> | null = null;
   try {
     const seed = await request.post('/api/engineering/import/json/apply', {
       headers: { 'content-type': 'application/json; charset=utf-8' }, data: seededPackage
@@ -739,6 +742,7 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     const screenRoot = page.getByTestId('visual-editor-workspace');
     const checkBoxId = await authorCheckBoxControl(screenRoot, booleanTagPath, 'E2E boolean control');
     const comboBoxId = await authorComboBoxControl(screenRoot, stringTagPath, 'E2E mode selector');
+    await nudgeVisualObjectRight(screenRoot, comboBoxId, 24);
 
     await page.getByTestId('visual-editor-preview').click();
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
@@ -815,6 +819,14 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
     runtimeMayHaveChanged = true;
     await savePublishActivate(request, projectKey!, 'visual-controls-790-e2e');
+    runtimeSessionHeaders = await admitInteractiveRuntimeSession(request);
+    await page.addInitScript(clientInstanceId => {
+      window.sessionStorage.setItem('elitescada.runtime.client-instance-id', clientInstanceId);
+    }, E2E_RUNTIME_CLIENT_INSTANCE_ID);
+    await page.context().setExtraHTTPHeaders({
+      Authorization: `Bearer ${createE2eJwt('e2e-developer', ['developer'], 'E2E Developer')}`,
+      ...runtimeSessionHeaders
+    });
     await page.goto('/');
     const runtimeCheckBox = page.locator(`[data-object-id="${checkBoxId}"] input[type="checkbox"]`);
     const runtimeComboBox = page.locator(`[data-object-id="${comboBoxId}"] select`);
@@ -822,16 +834,19 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     await expect(runtimeCheckBox).not.toBeChecked();
     await expect(runtimeComboBox).toBeEnabled();
     await expect(runtimeComboBox).toHaveValue('AUTO');
-    await runtimeCheckBox.check();
+    // The checkbox is server-authoritative: the click submits a write, while
+    // its checked state follows the Runtime projection after the write lands.
+    await runtimeCheckBox.click();
     await expect.poll(async () => {
-      const response = await request.get(`/api/tags/by-path/${encodeURIComponent(booleanTagPath)}`);
+      const response = await request.get(`/api/tags/by-path/${encodeURIComponent(booleanTagPath)}`, { headers: runtimeSessionHeaders ?? undefined });
       if (!response.ok()) return null;
       const body = await response.json() as { current?: { value?: unknown } | null };
       return body.current?.value ?? null;
     }).toBe(true);
+    await expect(runtimeCheckBox).toBeChecked();
     await runtimeComboBox.selectOption('MANUAL');
     await expect.poll(async () => {
-      const response = await request.get(`/api/tags/by-path/${encodeURIComponent(stringTagPath)}`);
+      const response = await request.get(`/api/tags/by-path/${encodeURIComponent(stringTagPath)}`, { headers: runtimeSessionHeaders ?? undefined });
       if (!response.ok()) return null;
       const body = await response.json() as { current?: { value?: unknown } | null };
       return body.current?.value ?? null;
@@ -840,33 +855,43 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
       body: await page.getByTestId('runtime-engineering-canvas').screenshot(), contentType: 'image/png'
     });
   } finally {
-    if (seeded) {
-      const restore = await request.post('/api/engineering/import/json/apply', {
-        headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
-      });
-      expect(restore.ok(), `could not restore original Engineering package (HTTP ${restore.status()})`).toBeTruthy();
-    }
+    try {
+      if (seeded) {
+        const restore = await request.post('/api/engineering/import/json/apply', {
+          headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+        });
+        expect(restore.ok(), `could not restore original Engineering package (HTTP ${restore.status()})`).toBeTruthy();
+      }
 
-    for (const tagId of [booleanTagId, stringTagId]) {
+      for (const tagId of [booleanTagId, stringTagId]) {
+        const currentWorkspaceResponse = await request.get('/api/engineering/workspace');
+        expect(currentWorkspaceResponse.ok()).toBeTruthy();
+        const currentWorkspace = await currentWorkspaceResponse.json() as { changeVersion: number };
+        const deletion = await request.delete(`/api/engineering/tags/${tagId}`, {
+          headers: { 'x-elitescada-workspace-version': String(currentWorkspace.changeVersion) }
+        });
+        expect(deletion.ok() || deletion.status() === 404, `temporary TAG cleanup failed (HTTP ${deletion.status()})`).toBeTruthy();
+      }
+
       const currentWorkspaceResponse = await request.get('/api/engineering/workspace');
       expect(currentWorkspaceResponse.ok()).toBeTruthy();
       const currentWorkspace = await currentWorkspaceResponse.json() as { changeVersion: number };
-      const deletion = await request.delete(`/api/engineering/tags/${tagId}`, {
+      const sourceDeletion = await request.delete(`/api/engineering/data-sources/${memoryDataSourceId}`, {
         headers: { 'x-elitescada-workspace-version': String(currentWorkspace.changeVersion) }
       });
-      expect(deletion.ok() || deletion.status() === 404, `temporary TAG cleanup failed (HTTP ${deletion.status()})`).toBeTruthy();
+      expect(sourceDeletion.ok() || sourceDeletion.status() === 404,
+        `temporary memory Data Source cleanup failed (HTTP ${sourceDeletion.status()})`).toBeTruthy();
+
+    } finally {
+      try {
+        if (runtimeSessionHeaders) {
+          await page.goto('/engineering');
+          await terminateRuntimeSession(request, runtimeSessionHeaders);
+        }
+      } finally {
+        if (runtimeMayHaveChanged) await savePublishActivate(request, projectKey!, 'visual-controls-790-e2e-restore');
+      }
     }
-
-    const currentWorkspaceResponse = await request.get('/api/engineering/workspace');
-    expect(currentWorkspaceResponse.ok()).toBeTruthy();
-    const currentWorkspace = await currentWorkspaceResponse.json() as { changeVersion: number };
-    const sourceDeletion = await request.delete(`/api/engineering/data-sources/${memoryDataSourceId}`, {
-      headers: { 'x-elitescada-workspace-version': String(currentWorkspace.changeVersion) }
-    });
-    expect(sourceDeletion.ok() || sourceDeletion.status() === 404,
-      `temporary memory Data Source cleanup failed (HTTP ${sourceDeletion.status()})`).toBeTruthy();
-
-    if (runtimeMayHaveChanged) await savePublishActivate(request, projectKey!, 'visual-controls-790-e2e-restore');
   }
 });
 
@@ -1108,6 +1133,20 @@ async function authorCheckBoxControl(root: Locator, sourcePath: string, label: s
   await expect(configuration.getByLabel('Uso')).toHaveValue('boolean');
   await configuration.getByRole('button', { name: 'Aplicar configuração' }).click();
   return id!;
+}
+
+async function nudgeVisualObjectRight(root: Locator, objectId: string, coarseSteps: number): Promise<void> {
+  const object = root.locator(`[data-canvas-object-id="${objectId}"]`);
+  const before = await object.boundingBox();
+  expect(before, `expected canvas object ${objectId} to be visible before moving`).not.toBeNull();
+  await object.click();
+  const canvasSurface = root.locator('.visual-editor-canvas__surface');
+  await canvasSurface.focus();
+  for (let step = 0; step < coarseSteps; step += 1) await canvasSurface.press('Shift+ArrowRight');
+  await expect.poll(async () => {
+    const after = await object.boundingBox();
+    return after ? after.x > before!.x + 80 : false;
+  }).toBeTruthy();
 }
 
 async function authorComboBoxControl(root: Locator, sourcePath: string, label: string): Promise<string> {

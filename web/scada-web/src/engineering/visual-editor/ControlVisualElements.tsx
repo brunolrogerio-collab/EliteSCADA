@@ -119,7 +119,7 @@ export function CheckBoxVisualElement({
   const inherited = Boolean(inheritedCause);
   const checked = configResult.state === 'suppression' ? Boolean(directCause) : booleanValueGood ? sample!.value as boolean : values[VISUAL_PROPERTY_KEYS.checked] === true;
   const tagCanWrite = configResult.state === 'boolean' && enabled && interactionEnabled && processValueWriteEnabled &&
-    Boolean(onTagWrite && tagId && binding?.kind === 'Tag' && isWriteDirection(binding.direction) && booleanValueGood && sample?.readOnly !== true && !busy);
+    Boolean(onTagWrite && tagId && binding?.kind?.trim().toLowerCase() === 'tag' && isWriteDirection(binding.direction) && booleanValueGood && sample?.readOnly !== true && !busy);
   const suppressionCanWrite = Boolean(configResult.state === 'suppression' && config && enabled && interactionEnabled && alarmShelveEnabled &&
     alarm && !inherited && !suppressionError && !busy);
   const disabled = configResult.state === 'invalid' ? true : configResult.state === 'suppression'
@@ -211,7 +211,7 @@ export function ComboBoxVisualElement({
   const enabled = values[VISUAL_PROPERTY_KEYS.enabled] !== false;
   const interactionEnabled = values[VISUAL_PROPERTY_KEYS.interactionEnabled] === true;
   const tagId = binding?.tagReference?.tagId?.trim() ?? '';
-  const writable = Boolean(onTagWrite && tagId && binding && isWriteDirection(binding.direction) && sample &&
+  const writable = Boolean(onTagWrite && tagId && binding?.kind?.trim().toLowerCase() === 'tag' && isWriteDirection(binding.direction) && sample &&
     isGoodSample(sample) && sample.readOnly !== true && (sample.dataType.trim().toLowerCase() === 'string' || sample.dataType.trim().toLowerCase() === 'enum') &&
     typeof sample.value === 'string' && selection.state === 'selected');
 

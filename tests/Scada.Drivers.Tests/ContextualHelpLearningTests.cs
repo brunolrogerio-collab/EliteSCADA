@@ -225,6 +225,21 @@ public sealed class ContextualHelpLearningTests
         }
     }
 
+    [Theory]
+    [InlineData("pt-BR", "9999,99", "notação científica", "sete caracteres")]
+    [InlineData("en", "9999.99", "scientific notation", "seven characters")]
+    [InlineData("es", "9999,99", "notación científica", "siete caracteres")]
+    public void TrendHelpExplainsAdaptiveSevenCharacterAxisLabelsInEveryLocale(string locale, string example, string scientificText, string characterText)
+    {
+        var catalog = ContextualHelpCatalog.Build(locale);
+        var topic = Assert.Single(catalog.Topics, item => item.Id == ContextualHelpCatalog.VisualObjectTopicId(BuiltinVisualObjectSchemas.TrendType));
+        var text = string.Join("\n", new[] { topic.Summary }.Concat(topic.Sections.Select(section => section.Body)));
+
+        Assert.Contains(example, text, StringComparison.Ordinal);
+        Assert.Contains(scientificText, text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(characterText, text, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void CheckBoxAndComboBoxHelpExplainGenericBindingsInEveryLocale()
     {

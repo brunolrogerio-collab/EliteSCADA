@@ -38,6 +38,7 @@ import {
   type TrendSample,
   type TrendSeries
 } from '../../runtime/trendVisualQueryModel';
+import { formatTrendAxisLabel } from './trendAxisNumberFormat';
 
 export type TrendVisualElementProps = Readonly<{
   element: VisualElementEngineering;
@@ -683,7 +684,7 @@ const MAX_ZOOM_FACTOR = 16;
 function plotForAxisFontSize(fontSize: number): TrendPlot {
   // Reserve a line above the plot for the unit so it never collides with the
   // maximum tick label, including when the operator enlarges axis typography.
-  const margin = Math.max(58, fontSize * 2.5);
+  const margin = Math.max(80, fontSize * 5.5 + 16);
   return Object.freeze({ left: margin, right: CHART_WIDTH - margin, top: Math.max(44, fontSize * 1.8), bottom: CHART_HEIGHT - Math.max(32, fontSize * 1.2) });
 }
 
@@ -811,7 +812,7 @@ function AxisScale({ domain, side, unit, fontSize, locale, plot }: Readonly<{
       const fraction = index / 5;
       const y = plot.top + fraction * (plot.bottom - plot.top);
       const value = domain.maximum - fraction * (domain.maximum - domain.minimum);
-      return <text key={index} x={x} y={y + fontSize * 0.35} fontSize={fontSize} data-testid="visual-trend-axis-label">{formatNumber(value, locale)}</text>;
+      return <text key={index} x={x} y={y + fontSize * 0.35} fontSize={fontSize} data-axis-side={side} data-testid="visual-trend-axis-label">{formatTrendAxisLabel(value, locale)}</text>;
     })}
     {unit ? <text x={x} y={fontSize} fontSize={Math.max(8, fontSize - 2)} opacity="0.8" data-testid="visual-trend-axis-unit">{unit}</text> : null}
   </g>;

@@ -24,6 +24,8 @@ const showTimeAxis = params.get('timeAxis') !== 'off';
 const renderDynamo = params.get('dynamo') === 'on';
 const axisFontSize = Number(params.get('axisFontSize') ?? 16);
 const legendFontSize = Number(params.get('legendFontSize') ?? 14);
+const requestedTrendWidth = Number(params.get('width') ?? 760);
+const trendWidth = Number.isFinite(requestedTrendWidth) ? Math.min(760, Math.max(280, requestedTrendWidth)) : 760;
 
 const pressure = createTrendPen({
   id: tagOne,
@@ -82,7 +84,7 @@ function trendElement(
     properties: {
       [VISUAL_PROPERTY_KEYS.x]: 10,
       [VISUAL_PROPERTY_KEYS.y]: y,
-      [VISUAL_PROPERTY_KEYS.width]: 760,
+      [VISUAL_PROPERTY_KEYS.width]: trendWidth,
       [VISUAL_PROPERTY_KEYS.height]: 240,
       [VISUAL_PROPERTY_KEYS.zIndex]: y,
       [VISUAL_PROPERTY_KEYS.trendMode]: mode,

@@ -38,27 +38,27 @@ Para editar, su cuenta necesita los permisos `EngineeringModify` y `AssetProcess
 
 ## 2. Crear un perfil de medición y una asignación
 
-1. Abra Engineering > Inteligencia de activos y cree un Perfil de medición con un nombre/clave identificables.
-2. Añada los TAGs que describen el equipo. Marque cada señal como obligatoria u opcional y complete los calificadores semánticos solicitados; una etiqueta no sustituye la unidad ni la referencia real del TAG.
+1. Abra Engineering > Inteligencia de activos y cree un Perfil de medición. Asígnele un nombre que ayude a reconocer el conjunto, como “Bomba de transferencia”.
+2. Añada los TAGs que describen el equipo. Para cada TAG, explique qué mide, indique si el análisis lo necesita y complete los detalles de medición solicitados. Compruebe la unidad y la referencia real del TAG.
 3. Guarde la configuración en Working.
-4. En las asignaciones, elija el Equipo existente y el perfil. Una identidad de equipo puede usar varios perfiles.
+4. En las asignaciones, elija el Equipo existente y el perfil. Un equipo puede usar más de un perfil.
 5. Revise las referencias ausentes y duplicadas antes de guardar y seguir el lifecycle normal del proyecto.
 
-El perfil organiza referencias y significado de señales. No crea TAGs, no habilita por sí solo la captura de Historian ni demuestra que los instrumentos estén calibrados.
+El perfil organiza referencias y significado de señales. El sistema crea sus claves internas; no necesita inventar IDs ni códigos. El perfil no crea TAGs, no habilita por sí solo la captura de Historian ni demuestra que los instrumentos estén calibrados.
 
 ## 3. Configurar el contexto operacional
 
 Mayor corriente puede ser esperable si aumenta velocidad o carga. El contexto explicita condiciones, como bomba en marcha y velocidad dentro de un intervalo, para seleccionar evidencia comparable. No aprende automáticamente el modo ni convierte correlación en diagnóstico. Defina límites con conocimiento del equipo.
 
-Elija la asociación del equipo y dé al contexto una clave estable y un nombre que explique la condición, como Bomba encendida con caudal normal. Añada al menos un predicado obligatorio. Un predicado es una condición comprobada en un TAG del perfil asociado.
+Elija la asociación del equipo y dé al contexto un nombre que explique la condición, como “Bomba encendida con caudal normal”. Añada al menos una condición usando un TAG del perfil asociado. El sistema crea la clave interna del contexto.
 
 Para números, el intervalo incluye mínimo y máximo en la unidad actual del TAG. Para booleanos, elija True o False. Para String o Enum, use el valor exacto, incluidas mayúsculas cuando corresponda.
 
-Todas las condiciones necesitan evidencia con el mismo timestamp UTC de origen, sincronizado y exacto. Lecturas solo próximas no bastan. El servidor controla la versión del perfil; ante conflicto de edición, actualice y revise antes de guardar.
+Todas las condiciones deben coincidir con lecturas que tengan exactamente la misma hora UTC de origen. Lecturas solo próximas no bastan. Si otra edición cambia el contexto, actualice la pantalla y revise sus condiciones antes de guardar.
 
 ## 4. Organizar etapas del proceso
 
-Use **Etapas ordenadas del proceso** para montar la secuencia que desea supervisar. Cree cada etapa con una clave estable y un nombre legible; añada las asignaciones de Equipo/perfil y ajuste explícitamente el orden. La etapa organiza miembros, pero no infiere por sí sola causalidad, balance ni un KPI agregado del proceso.
+Use **Etapas ordenadas del proceso** para montar la secuencia que desea supervisar. Dé a cada etapa un nombre legible, añada las asignaciones de Equipo/perfil y ajuste el orden. El sistema crea la clave interna de cada etapa. La etapa organiza miembros, pero no infiere por sí sola causalidad, balance ni un KPI agregado del proceso.
 
 Guarde la configuración en Working. Los datos y análisis de Runtime siguen sujetos a la revisión Active y a las autorizaciones vigentes.
 
@@ -79,7 +79,7 @@ Elija un perfil o etapa y genere una Pantalla disponible. La generación usa met
 - **Recurso bloqueado:** compruebe licencia, `EngineeringModify`, `AssetProcessIntelligenceManage` y scope.
 - **Perfil/asignación incompletos:** compruebe equipo, perfil, TAGs y calificadores obligatorios.
 - **Sin cobertura/historial:** confirme que el TAG recibía muestras útiles con quality y timestamps y que había captura en el período. Historian no completa datos retroactivamente.
-- **Sin coincidencia de contexto:** revise predicados, unidad, intervalo y la sincronización/igualdad temporal requerida.
+- **Sin coincidencia de contexto:** revise las condiciones, la unidad, el intervalo y si las lecturas tienen la misma hora de origen.
 - **Borrador no disponible:** complete las selecciones requeridas por ese tipo de Pantalla y refine el resultado en el editor normal.
 - **El resultado cambia tras editar:** guarde la configuración correcta, compruebe la revisión Active y solicite explícitamente una consulta nueva.
 

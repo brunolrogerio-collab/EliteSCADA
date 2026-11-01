@@ -82,7 +82,17 @@ test('Performance V1B is transient, explicitly queried and unavailable in histor
     signalIds
   });
   expect(Date.parse(queries[0].window.fromUtc)).toBeLessThan(Date.parse(queries[0].window.toUtc));
-  await expect(indicator.getByText(/not a diagnosis, field-validated efficiency claim/i)).toBeVisible();
+  await expect(indicator.getByRole('heading', { name: 'Active input power' })).toBeVisible();
+  await expect(indicator.getByRole('heading', { name: 'Good production volume rate' })).toBeVisible();
+  await expect(indicator.getByText('Sufficient data')).toBeVisible();
+  await expect(indicator).toContainText(/Reading quality is not suitable for the calculation/);
+  await expect(indicator).toContainText(/Communication failure: 2/);
+  await expect(indicator).toContainText(/Combines readings with the same source time marked as synchronized/);
+  await expect(indicator).not.toContainText('internal-signal-ref');
+  await expect(indicator).not.toContainText(signalIds[0]);
+  await expect(indicator).not.toContainText('quality_not_good');
+  await expect(indicator).not.toContainText('exact_synchronized_source_timestamp');
+  await expect(indicator.getByText(/not a diagnosis or field-validated efficiency claim/i)).toBeVisible();
 
   await runtime.getByRole('button', { name: /Historical Playback/ }).click();
   const playback = page.getByTestId('runtime-playback-overlay');
@@ -163,15 +173,15 @@ function performanceResponse(body: Record<string, any>) {
     scopeKind: 'Equipment', scopeId: body.scopeId, assignmentId: body.assignmentId,
     equipmentId: body.scopeId, profileId: body.profileId, window: body.window,
     signals: [
-      { signalId: signalIds[0], signalKey: 'Active input power', roleCode: 'equipment.active_input_power', canonicalUnit: 'W' },
-      { signalId: signalIds[1], signalKey: 'Net good production rate', roleCode: 'process.net_good_production_volume_rate', canonicalUnit: 'm³/s' }
+      { signalId: signalIds[0], signalKey: 'internal-signal-ref-001', roleCode: 'equipment.active_input_power', canonicalUnit: 'W' },
+      { signalId: signalIds[1], signalKey: 'internal-signal-ref-002', roleCode: 'process.net_good_production_volume_rate', canonicalUnit: 'm³/s' }
     ],
     inputs: signalIds.map(signalId => ({
       signalId, rawObservationCount: 10, eligibleSynchronizedCount: 8,
-      pairedCount: 4, qualifiedCount: 3, qualityCounts: { Good: 8 }, rejectionCounts: { Uncertain: 2 }
+      pairedCount: 4, qualifiedCount: 3, qualityCounts: { Good: 8, BadCommunication: 2 }, rejectionCounts: { quality_not_good: 2 }
     })),
     totalRawObservationCount: 20,
-    summary: { status: 'available', unit: 'kWh/m³', reasonCodes: [], qualifiedTupleCount: 3,
+    summary: { status: 'available', unit: 'kWh/m³', reasonCodes: ['quality_not_good'], qualifiedTupleCount: 3,
       minimum: 1.2, maximum: 1.8, arithmeticMean: 1.5, meanSemantics: 'arithmetic mean over qualified tuples' },
     provenance: { dataset: 'historian.samples', datasetContractVersion: 2,
       timestampPairing: 'exact_synchronized_source_timestamp', acquisitionAlignment: 'unverified',

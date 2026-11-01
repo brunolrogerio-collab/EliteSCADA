@@ -195,7 +195,7 @@ export function CoverageResult({ result, locale, copy }: {
   const number = (value: number | null | undefined) => value === null || value === undefined || !Number.isFinite(value)
     ? copy.unknown
     : new Intl.NumberFormat(localeCode, { maximumFractionDigits: 6 }).format(value);
-  const alignmentText = describeAlignment(result.temporalAlignment.status, copy);
+  const alignmentText = describeAlignment(result.temporalAlignment.status, copy, locale);
 
   return <div className="asset-process-intelligence__coverage-result" data-testid="intelligence-profile-coverage-result">
     <p role="status"><strong>{copy.queryWindow}</strong> {formatUtc(result.window.fromUtc, localeCode)} – {formatUtc(result.window.toUtc, localeCode)}</p>
@@ -205,20 +205,19 @@ export function CoverageResult({ result, locale, copy }: {
       <dl className="asset-process-intelligence__coverage-facts">
         <Fact label={copy.requiredWithData} value={`${number(result.temporalAlignment.requiredSignalsWithGoodSamples)} / ${number(result.temporalAlignment.requiredSignalCount)}`}/>
         <Fact label={copy.exactTimestampIntersection} value={number(result.temporalAlignment.exactHistorianTimestampIntersectionCount)}/>
-        <Fact label={copy.timestampBasis} value={result.temporalAlignment.timestampBasis}/>
-        <Fact label={copy.sourceAcquisitionAlignment} value={result.temporalAlignment.sourceAcquisitionAlignment}/>
-        <Fact label={copy.expectedCadence} value={result.temporalAlignment.expectedCadence}/>
-        <Fact label={copy.completeness} value={result.temporalAlignment.completeness}/>
+        <Fact label={copy.timestampBasis} value={describeTemporalEvidence(result.temporalAlignment.timestampBasis, locale)}/>
+        <Fact label={copy.sourceAcquisitionAlignment} value={describeTemporalEvidence(result.temporalAlignment.sourceAcquisitionAlignment, locale)}/>
+        <Fact label={copy.expectedCadence} value={describeTemporalEvidence(result.temporalAlignment.expectedCadence, locale)}/>
+        <Fact label={copy.completeness} value={describeTemporalEvidence(result.temporalAlignment.completeness, locale)}/>
       </dl>
     </section>
     <section>
       <h4>{copy.signals}</h4>
       <div className="asset-process-intelligence__coverage-signals">
         {result.signals.map(signal => <article key={signal.signalId}>
-          <h5>{signal.signalKey} {signal.required ? `· ${copy.required}` : `· ${copy.optional}`}</h5>
+          <h5>{describeSignalName(signal.signalKey, signal.signalRoleMetadata, signal.tagPath, locale)} {signal.required ? `· ${copy.required}` : `· ${copy.optional}`}</h5>
           <p>{signal.tagPath} · {signal.tagDataType}{signal.unit ? ` · ${signal.unit}` : ''}</p>
-          <p><strong>{copy.signalStatus}:</strong> {describeSignalStatus(signal.status, copy)}</p>
-          <p><strong>{copy.roleMetadata}:</strong> {signal.signalRoleMetadata || copy.unknown}</p>
+          <p><strong>{copy.signalStatus}:</strong> {describeSignalStatus(signal.status, copy, locale)}</p>
           {signal.summary ? <>
             <dl className="asset-process-intelligence__coverage-facts">
               <Fact label={copy.rawObservations} value={number(signal.summary.rawObservationCount)}/>
@@ -227,11 +226,11 @@ export function CoverageResult({ result, locale, copy }: {
               <Fact label={copy.minimum} value={number(signal.summary.minimum)}/>
               <Fact label={copy.maximum} value={number(signal.summary.maximum)}/>
               <Fact label={copy.sampleMean} value={number(signal.summary.sampleMean)}/>
-              <Fact label={copy.completeness} value={signal.summary.completeness}/>
+              <Fact label={copy.completeness} value={describeTemporalEvidence(signal.summary.completeness, locale)}/>
               <Fact label={copy.expectedSamples} value={number(signal.summary.expectedSampleCount)}/>
             </dl>
             <p><strong>{copy.qualityCounts}:</strong> {Object.entries(signal.summary.qualityCounts ?? {}).sort(([left], [right]) => left.localeCompare(right))
-              .map(([quality, count]) => `${quality}: ${number(count)}`).join(' · ') || copy.none}</p>
+              .map(([quality, count]) => `${describeQuality(quality, locale)}: ${number(count)}`).join(' · ') || copy.none}</p>
           </> : null}
         </article>)}
       </div>
@@ -239,16 +238,94 @@ export function CoverageResult({ result, locale, copy }: {
     <section>
       <h4>{copy.provenance}</h4>
       <dl className="asset-process-intelligence__coverage-facts">
-        <Fact label={copy.dataset} value={result.provenance.dataset}/>
-        <Fact label={copy.contractVersion} value={number(result.provenance.datasetContractVersion)}/>
-        <Fact label={copy.ruleVersion} value={result.provenance.ruleVersion}/>
-        <Fact label={copy.roleInterpretation} value={result.provenance.signalRoleInterpretation}/>
-        <Fact label={copy.unitConversion} value={result.provenance.unitConversion}/>
-        <Fact label={copy.processKpiDisposition} value={result.provenance.processKpiDisposition}/>
+        <Fact label={copy.dataset} value={describeDataset(result.provenance.dataset, localeCode)}/>
+        <Fact label={copy.roleInterpretation} value={describeCoverageEvidence(result.provenance.signalRoleInterpretation, locale)}/>
+        <Fact label={copy.unitConversion} value={describeCoverageEvidence(result.provenance.unitConversion, locale)}/>
+        <Fact label={copy.processKpiDisposition} value={describeCoverageEvidence(result.provenance.processKpiDisposition, locale)}/>
       </dl>
       <p className="asset-process-intelligence__coverage-note">{copy.nonClaim}</p>
     </section>
   </div>;
+}
+
+function describeDataset(dataset: string, locale: string): string {
+  if (dataset === 'historian.samples' || dataset === 'historian.samples.v2') {
+    return locale === 'pt-BR' ? 'Amostras do Historian' : locale === 'es-ES' ? 'Muestras del Historian' : 'Historian samples';
+  }
+  return humanizeEvidence(dataset, locale === 'pt-BR' ? 'pt-BR' : locale === 'es-ES' ? 'es' : 'en');
+}
+
+function describeSignalName(signalKey: string, roleMetadata: string, tagPath: string, locale: EngineeringLocale): string {
+  const key = signalKey.trim();
+  const looksInternal = !key || /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(key) || /^(?:internal|signal|tag)[._-]/i.test(key);
+  return looksInternal ? roleMetadata || tagPath : humanizeEvidence(key, locale);
+}
+
+function describeQuality(quality: string, locale: EngineeringLocale): string {
+  const labels: Record<string, Record<EngineeringLocale, string>> = {
+    Good: { 'pt-BR': 'Boa', en: 'Good', es: 'Buena' },
+    Uncertain: { 'pt-BR': 'Incerta', en: 'Uncertain', es: 'Incierta' },
+    Bad: { 'pt-BR': 'Ruim', en: 'Bad', es: 'Mala' },
+    BadCommunication: { 'pt-BR': 'Falha de comunicação', en: 'Communication failure', es: 'Fallo de comunicación' },
+    BadConfiguration: { 'pt-BR': 'Configuração inválida', en: 'Invalid configuration', es: 'Configuración no válida' },
+    BadDevice: { 'pt-BR': 'Falha do equipamento', en: 'Device failure', es: 'Fallo del dispositivo' },
+    Stale: { 'pt-BR': 'Desatualizada', en: 'Stale', es: 'Desactualizada' },
+    Disabled: { 'pt-BR': 'Desabilitada', en: 'Disabled', es: 'Deshabilitada' },
+    Unavailable: { 'pt-BR': 'Indisponível', en: 'Unavailable', es: 'No disponible' },
+    Missing: { 'pt-BR': 'Ausente', en: 'Missing', es: 'Ausente' }
+  };
+  return labels[quality]?.[locale] ?? humanizeEvidence(quality, locale);
+}
+
+function describeTemporalEvidence(value: string, locale: EngineeringLocale): string {
+  const normalized = value.trim().toLowerCase();
+  const labels: Record<string, Record<EngineeringLocale, string>> = {
+    'historian event time': { 'pt-BR': 'Horário registrado pelo Historian', en: 'Historian-recorded time', es: 'Hora registrada por Historian' },
+    'distinct exact historian event timestamps; not source acquisition time': {
+      'pt-BR': 'Usa o horário registrado pelo Historian; isso não confirma quando os sensores fizeram a leitura.',
+      en: 'Uses the Historian-recorded time; this does not confirm when the sensors took the readings.',
+      es: 'Usa la hora registrada por Historian; no confirma cuándo los sensores tomaron las lecturas.'
+    },
+    unverified: {
+      'pt-BR': 'Não verificado: horários iguais não comprovam aquisição simultânea nem relógios sincronizados.',
+      en: 'Not verified: matching timestamps do not prove simultaneous acquisition or synchronized clocks.',
+      es: 'No verificado: las horas coincidentes no prueban adquisición simultánea ni relojes sincronizados.'
+    },
+    unknown: { 'pt-BR': 'Não informado', en: 'Not provided', es: 'No informado' },
+    unknown_without_expected_cadence: {
+      'pt-BR': 'Indeterminada: não há cadência esperada configurada para comparação.',
+      en: 'Unknown: no expected sampling interval is configured for comparison.',
+      es: 'Indeterminada: no hay una frecuencia esperada configurada para comparar.'
+    }
+  };
+  return labels[normalized]?.[locale] ?? humanizeEvidence(value, locale);
+}
+
+function describeCoverageEvidence(value: string, locale: EngineeringLocale): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'not interpreted' || normalized.startsWith('metadata only; signalrole is not interpreted')) {
+    return locale === 'pt-BR' ? 'O papel informado para o sinal é apenas descritivo; não é usado para calcular um KPI.'
+      : locale === 'es' ? 'El papel informado para la señal es descriptivo; no se usa para calcular un KPI.'
+        : 'The signal role is descriptive only; it is not used to calculate a KPI.';
+  }
+  if (normalized === 'none' || normalized.startsWith('none; each descriptive trend retains')) {
+    return locale === 'pt-BR' ? 'Os valores são apresentados na unidade original da TAG; nenhuma conversão é aplicada.'
+      : locale === 'es' ? 'Los valores se muestran en la unidad original de la TAG; no se aplica conversión.'
+        : 'Values use the TAG’s original unit; no conversion is applied.';
+  }
+  if (normalized.replaceAll('-', '_') === 'unsupported_without_a_canonical_semantic_and_unit_dimension_contract') {
+    return locale === 'pt-BR' ? 'Não calculado: ainda não existe uma definição validada para combinar esses sinais em um KPI.'
+      : locale === 'es' ? 'No calculado: todavía no existe una definición validada para combinar estas señales en un KPI.'
+        : 'Not calculated: there is no validated definition for combining these signals into a KPI yet.';
+  }
+  return humanizeEvidence(value, locale);
+}
+
+function humanizeEvidence(value: string, locale: EngineeringLocale): string {
+  if (!value || value === '—') return value;
+  const spaced = value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (locale === 'pt-BR') return spaced.charAt(0).toLocaleUpperCase('pt-BR') + spaced.slice(1);
+  return spaced.charAt(0).toLocaleUpperCase(locale === 'es' ? 'es-ES' : 'en-US') + spaced.slice(1);
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
@@ -271,10 +348,10 @@ export function coverageCopy(locale: EngineeringLocale) {
     runtimeDescription: 'Request this report only when you choose Analyze. The result exists only in the current Runtime session and is not saved.',
     runtimeOnly: 'This visualization runs only in the canonical Runtime screen.', runtimeUnavailable: 'Coverage queries are unavailable during historical playback or without an active Runtime View/TrendUse context.',
     from: 'From (local time)', to: 'To (local time)', utcHint: 'The selected local times are sent to the server as UTC. Maximum window: 31 days. No query runs until Analyze is selected.',
-    analyze: 'Analyze coverage', loading: 'Analyzing…', unavailable: 'Analysis is currently unavailable.',
+    analyze: 'Analyze coverage', loading: 'Analyzing…', unavailable: 'Analysis is currently unavailable.', windowTooDense: 'This time range contains too many samples. Choose a shorter range.',
     windowRequired: 'Choose both ends of the time window.', windowInvalid: 'The end must be after the start and the window cannot exceed 31 days.',
     queryFailed: 'Coverage query failed', networkError: 'Coverage could not be retrieved. Check connectivity and authorization, then retry explicitly.',
-    unknown: 'unknown', none: 'none reported', queryWindow: 'Requested window:', temporalAlignment: 'Temporal alignment',
+    unknown: 'Not provided', none: 'none reported', queryWindow: 'Requested window:', temporalAlignment: 'Temporal alignment',
     requiredWithData: 'Required signals with Good numeric samples', exactTimestampIntersection: 'Exact Historian timestamp intersection',
     timestampBasis: 'Timestamp basis', sourceAcquisitionAlignment: 'Source acquisition alignment', expectedCadence: 'Expected cadence',
     completeness: 'Completeness', signals: 'Signals', required: 'required', optional: 'optional', signalStatus: 'Status', roleMetadata: 'Role metadata',
@@ -282,7 +359,7 @@ export function coverageCopy(locale: EngineeringLocale) {
     minimum: 'Minimum', maximum: 'Maximum', sampleMean: 'Arithmetic sample mean (not time-weighted)', expectedSamples: 'Expected sample count',
     qualityCounts: 'Quality counts', provenance: 'Provenance and limits', dataset: 'Dataset', contractVersion: 'Dataset contract version',
     ruleVersion: 'Rule version', roleInterpretation: 'Signal role interpretation', unitConversion: 'Unit conversion', processKpiDisposition: 'Process KPI disposition',
-    nonClaim: 'Exact Historian event-time equality does not prove source-acquisition synchronization. Unknown completeness/cadence stays unknown; signal role metadata is not interpreted and no process KPI is inferred.',
+    nonClaim: 'Matching Historian times do not prove sensors measured at the same moment. Without an expected sampling interval, missing readings cannot be assessed. Signal-role labels do not establish a process KPI.',
     unavailableResponse: 'The response did not match this profile and time window.', networkUnavailable: 'The analysis is unavailable.',
     observed: 'Exact Historian event-time overlap observed', noOverlap: 'No exact Historian event-time overlap observed',
     noRequired: 'No required signals configured', missingRequired: 'Required signal data is insufficient', singleRequired: 'Only one required signal; no alignment comparison',
@@ -301,10 +378,10 @@ export function coverageCopy(locale: EngineeringLocale) {
     runtimeDescription: 'Solicite este informe solo al pulsar Analizar. El resultado existe únicamente en la sesión actual de Runtime y no se guarda.',
     runtimeOnly: 'Esta visualización solo funciona en la pantalla canónica de Runtime.', runtimeUnavailable: 'Las consultas de cobertura no están disponibles durante la reproducción histórica ni sin un contexto activo de Runtime View/TrendUse.',
     from: 'Desde (hora local)', to: 'Hasta (hora local)', utcHint: 'Las horas locales se envían al servidor en UTC. Intervalo máximo: 31 días. No se consulta hasta pulsar Analizar.',
-    analyze: 'Analizar cobertura', loading: 'Analizando…', unavailable: 'El análisis no está disponible ahora.',
+    analyze: 'Analizar cobertura', loading: 'Analizando…', unavailable: 'El análisis no está disponible ahora.', windowTooDense: 'El intervalo contiene demasiadas muestras. Seleccione uno más corto.',
     windowRequired: 'Seleccione ambos extremos del intervalo.', windowInvalid: 'El final debe ser posterior al inicio y el intervalo no puede superar 31 días.',
     queryFailed: 'Falló la consulta de cobertura', networkError: 'No se pudo obtener la cobertura. Compruebe la conexión y autorización y vuelva a intentarlo explícitamente.',
-    unknown: 'desconocido', none: 'sin datos', queryWindow: 'Intervalo consultado:', temporalAlignment: 'Alineación temporal',
+    unknown: 'No informado', none: 'sin datos', queryWindow: 'Intervalo consultado:', temporalAlignment: 'Alineación temporal',
     requiredWithData: 'Señales requeridas con muestras numéricas Good', exactTimestampIntersection: 'Intersección exacta de marcas Historian',
     timestampBasis: 'Base temporal', sourceAcquisitionAlignment: 'Alineación de adquisición de origen', expectedCadence: 'Cadencia esperada',
     completeness: 'Completitud', signals: 'Señales', required: 'requerida', optional: 'opcional', signalStatus: 'Estado', roleMetadata: 'Metadatos de rol',
@@ -312,7 +389,7 @@ export function coverageCopy(locale: EngineeringLocale) {
     minimum: 'Mínimo', maximum: 'Máximo', sampleMean: 'Media aritmética de muestras (no ponderada por tiempo)', expectedSamples: 'Muestras esperadas',
     qualityCounts: 'Conteo por calidad', provenance: 'Procedencia y límites', dataset: 'Dataset', contractVersion: 'Versión del contrato del dataset',
     ruleVersion: 'Versión de regla', roleInterpretation: 'Interpretación del rol', unitConversion: 'Conversión de unidades', processKpiDisposition: 'Estado KPI de proceso',
-    nonClaim: 'La igualdad exacta de tiempo del Historian no demuestra sincronización de adquisición. La completitud/cadencia desconocida sigue desconocida; no se interpreta el rol ni se infiere un KPI de proceso.',
+    nonClaim: 'Que coincida la hora registrada por Historian no demuestra que los sensores midieran al mismo tiempo. Sin una frecuencia de muestreo esperada, no se pueden evaluar las lecturas faltantes. El nombre del papel de la señal no determina un KPI de proceso.',
     unavailableResponse: 'La respuesta no coincide con este perfil e intervalo.', networkUnavailable: 'El análisis no está disponible.',
     observed: 'Se observó solapamiento temporal exacto de Historian', noOverlap: 'No se observó solapamiento temporal exacto de Historian',
     noRequired: 'No hay señales requeridas configuradas', missingRequired: 'Datos insuficientes para señales requeridas', singleRequired: 'Una sola señal requerida; sin comparación de alineación',
@@ -331,10 +408,10 @@ export function coverageCopy(locale: EngineeringLocale) {
     runtimeDescription: 'Solicite este relatório somente ao clicar em Analisar. O resultado existe apenas nesta sessão do Runtime e não é salvo.',
     runtimeOnly: 'Esta visualização funciona somente em uma tela do Runtime canônico.', runtimeUnavailable: 'Consultas de cobertura ficam indisponíveis durante reprodução histórica ou sem um contexto ativo de Runtime View/TrendUse.',
     from: 'De (horário local)', to: 'Até (horário local)', utcHint: 'Os horários locais selecionados são enviados ao servidor em UTC. Janela máxima: 31 dias. Nenhuma consulta ocorre até clicar em Analisar.',
-    analyze: 'Analisar cobertura', loading: 'Analisando…', unavailable: 'A análise não está disponível neste momento.',
+    analyze: 'Analisar cobertura', loading: 'Analisando…', unavailable: 'A análise não está disponível neste momento.', windowTooDense: 'O período tem amostras demais para uma única análise. Escolha um intervalo menor.',
     windowRequired: 'Escolha os dois extremos da janela.', windowInvalid: 'O fim deve ser posterior ao início e a janela não pode exceder 31 dias.',
     queryFailed: 'Falha na consulta de cobertura', networkError: 'Não foi possível obter a cobertura. Confira a conexão e autorização e tente novamente explicitamente.',
-    unknown: 'desconhecido', none: 'nenhum informado', queryWindow: 'Janela consultada:', temporalAlignment: 'Alinhamento temporal',
+    unknown: 'Não informado', none: 'nenhum informado', queryWindow: 'Janela consultada:', temporalAlignment: 'Alinhamento temporal',
     requiredWithData: 'Sinais obrigatórios com amostras numéricas Good', exactTimestampIntersection: 'Interseção exata de timestamps do Historian',
     timestampBasis: 'Base do timestamp', sourceAcquisitionAlignment: 'Alinhamento da aquisição de origem', expectedCadence: 'Cadência esperada',
     completeness: 'Completude', signals: 'Sinais', required: 'obrigatório', optional: 'opcional', signalStatus: 'Estado', roleMetadata: 'Metadados do papel',
@@ -342,7 +419,7 @@ export function coverageCopy(locale: EngineeringLocale) {
     minimum: 'Mínimo', maximum: 'Máximo', sampleMean: 'Média aritmética das amostras (não ponderada pelo tempo)', expectedSamples: 'Quantidade esperada de amostras',
     qualityCounts: 'Contagens por qualidade', provenance: 'Proveniência e limites', dataset: 'Dataset', contractVersion: 'Versão do contrato do dataset',
     ruleVersion: 'Versão da regra', roleInterpretation: 'Interpretação do papel do sinal', unitConversion: 'Conversão de unidade', processKpiDisposition: 'Situação do KPI de processo',
-    nonClaim: 'Igualdade exata de tempo do Historian não comprova sincronização da aquisição de origem. Completude/cadência desconhecida permanece desconhecida; o papel do sinal não é interpretado e nenhum KPI de processo é inferido.',
+    nonClaim: 'Horários iguais no Historian não comprovam que os sensores mediram no mesmo instante. Sem um intervalo esperado entre leituras, não é possível avaliar dados ausentes. O nome do papel do sinal não comprova um KPI de processo.',
     unavailableResponse: 'A resposta não corresponde a este perfil e janela.', networkUnavailable: 'A análise não está disponível.',
     observed: 'Sobreposição de timestamps exatos do Historian observada', noOverlap: 'Nenhuma sobreposição de timestamps exatos do Historian observada',
     noRequired: 'Nenhum sinal obrigatório configurado', missingRequired: 'Dados de sinais obrigatórios insuficientes', singleRequired: 'Um único sinal obrigatório; sem comparação de alinhamento',
@@ -414,37 +491,37 @@ function formatUtc(value: string, locale: string) {
   return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }).format(date) : value;
 }
 
-function describeAlignment(status: string, copy: CoverageCopy) {
+function describeAlignment(status: string, copy: CoverageCopy, locale: EngineeringLocale) {
   switch (status) {
     case 'exact_historian_timestamp_overlap_observed': return copy.observed;
     case 'insufficient_exact_historian_timestamp_overlap': return copy.noOverlap;
     case 'insufficient_no_required_signals': return copy.noRequired;
     case 'insufficient_required_signal_data': return copy.missingRequired;
     case 'single_required_signal_no_alignment_comparison': return copy.singleRequired;
-    default: return status;
+    default: return humanizeEvidence(status, locale);
   }
 }
 
-function describeSignalStatus(status: string, copy: CoverageCopy) {
+function describeSignalStatus(status: string, copy: CoverageCopy, locale: EngineeringLocale) {
   switch (status) {
     case 'descriptive_trend_available': return copy.descriptive;
     case 'insufficient_no_good_numeric_samples': return copy.noGood;
     case 'unsupported_non_numeric_tag_type': return copy.nonNumeric;
-    default: return status;
+    default: return humanizeEvidence(status, locale);
   }
 }
 
 export function coverageErrorText(code: string, copy: CoverageCopy) {
   switch (code) {
-    case 'INTELLIGENCE_ENTITLEMENT_REQUIRED': return `${copy.queryFailed}: ${code}`;
-    case 'INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE': return `${copy.queryFailed}: ${code}`;
-    case 'INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS': return `${copy.queryFailed}: ${code}`;
-    case 'INTELLIGENCE_EXECUTION_PERMIT_REQUIRED': return `${copy.queryFailed}: ${code}`;
-    case 'INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE': return `${copy.queryFailed}: ${code}`;
-    case 'INTELLIGENCE_WORKSPACE_CHANGED': return `${copy.queryFailed}: ${code}`;
-    case 'HISTORICAL_QUERY_FORBIDDEN': return `${copy.queryFailed}: ${code}`;
+    case 'INTELLIGENCE_ENTITLEMENT_REQUIRED': return copy.blockedLicenseRequired;
+    case 'INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE': return copy.blockedAuthorityUnavailable;
+    case 'INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS': return copy.blockedScopeInactive;
+    case 'INTELLIGENCE_EXECUTION_PERMIT_REQUIRED': return copy.blockedPermitRequired;
+    case 'INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE': return copy.windowTooDense;
+    case 'INTELLIGENCE_WORKSPACE_CHANGED': return copy.blockedWorkspaceDirty;
+    case 'HISTORICAL_QUERY_FORBIDDEN': return copy.runtimeUnavailable;
     case 'INVALID_RESPONSE': return copy.unavailableResponse;
-    default: return `${copy.queryFailed}: ${code}`;
+    default: return copy.networkError;
   }
 }
 

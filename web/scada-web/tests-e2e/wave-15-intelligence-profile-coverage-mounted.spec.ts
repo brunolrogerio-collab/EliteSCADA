@@ -33,11 +33,11 @@ test('profile coverage runs only on explicit request and renders canonical quali
   expect(Date.parse(fixture.requests[0].window.toUtc) - Date.parse(fixture.requests[0].window.fromUtc)).toBe(25 * 60 * 60 * 1000);
   await expect(panel.getByText(/Sobreposição de timestamps exatos do Historian observada/)).toBeVisible();
   await expect(panel.getByRole('heading', { name: 'Corrente · obrigatório' })).toBeVisible();
-  const qualityCounts = panel.getByText('Good: 2 · Uncertain: 1');
+  const qualityCounts = panel.getByText('Boa: 2 · Incerta: 1');
   await expect(qualityCounts).toHaveCount(2);
   await expect(qualityCounts.first()).toBeVisible();
-  await expect(panel.getByText('não comprova sincronização da aquisição de origem')).toBeVisible();
-  await expect(panel.getByText('unsupported_without_a_canonical_semantic_and_unit-dimension-contract')).toBeVisible();
+  await expect(panel.getByText('não comprovam que os sensores mediram no mesmo instante')).toBeVisible();
+  await expect(panel.getByText(/não existe uma definição validada para combinar esses sinais em um KPI/)).toBeVisible();
   await expect.poll(() => fixture.dataReads).toEqual([]);
   expect(fixture.otherWrites).toEqual([]);
 
@@ -72,9 +72,9 @@ test('Performance V1B runs only on explicit request and binds its transient resu
   });
   expect(Date.parse(fixture.performanceRequests[0].window.fromUtc)).toBeLessThan(Date.parse(fixture.performanceRequests[0].window.toUtc));
   expect(Date.parse(fixture.performanceRequests[0].window.toUtc) - Date.parse(fixture.performanceRequests[0].window.fromUtc)).toBe(25 * 60 * 60 * 1000);
-  await expect(panel.getByText('equipment.active_input_power · W')).toBeVisible();
-  await expect(panel.getByText('process.net_good_production_volume_rate · m³/s')).toBeVisible();
-  await expect(panel.getByText(/não comprova eficiência em campo/)).toBeVisible();
+  await expect(panel.getByText('Potência ativa de entrada')).toBeVisible();
+  await expect(panel.getByText('Volume de produção aprovada por tempo')).toBeVisible();
+  await expect(panel.getByText(/não um diagnóstico nem uma eficiência validada em campo/)).toBeVisible();
   expect(fixture.dataReads).toEqual([]);
   expect(fixture.otherWrites).toEqual([]);
 
@@ -260,7 +260,7 @@ test('Performance V1B clears prior output and reports a bounded server-query err
   await panel.getByLabel('De (horário local)').fill('2026-10-20T10:00');
   await panel.getByLabel('Até (horário local)').fill('2026-10-21T11:00');
   await panel.getByRole('button', { name: 'Analisar desempenho' }).click();
-  await expect(panel.getByRole('alert')).toContainText('INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE');
+  await expect(panel.getByRole('alert')).toContainText('Há registros demais nesse período para uma análise. Escolha um intervalo menor.');
   await expect(panel.getByTestId('intelligence-performance-result')).toHaveCount(0);
   expect(fixture.performanceRequests).toHaveLength(1);
 });
@@ -292,7 +292,8 @@ test('profile coverage preserves unsupported and insufficient signal states with
   await expect(panel.getByText('Dados de sinais obrigatórios insuficientes')).toBeVisible();
   await expect(panel.getByText('Tipo de TAG não numérico não suportado')).toBeVisible();
   await expect(panel.getByText('Sem amostras numéricas Good')).toBeVisible();
-  await expect(panel.getByText('desconhecido', { exact: true })).toHaveCount(4);
+  await expect(panel.getByText('Não informado', { exact: true }).first()).toBeVisible();
+  await expect(panel).not.toContainText('desconhecido');
   expect(fixture.requests).toHaveLength(1);
 });
 
@@ -331,7 +332,7 @@ test('profile coverage rejects invalid window locally and presents bounded-query
   await panel.getByLabel('De (horário local)').fill('2026-10-20T10:00');
   await panel.getByLabel('Até (horário local)').fill('2026-10-21T11:00');
   await panel.getByRole('button', { name: 'Analisar cobertura' }).click();
-  await expect(panel.getByRole('alert')).toContainText('INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE');
+  await expect(panel.getByRole('alert')).toContainText('O período tem amostras demais para uma única análise. Escolha um intervalo menor.');
   expect(fixture.requests).toHaveLength(1);
   await expect(panel.getByTestId('intelligence-profile-coverage-result')).toHaveCount(0);
 });

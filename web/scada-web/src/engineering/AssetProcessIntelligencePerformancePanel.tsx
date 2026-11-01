@@ -273,7 +273,8 @@ export function AssetProcessIntelligencePerformancePanel({
             <p><strong>{copy.formula}:</strong> {selected.rule.formula}</p>
             <p><strong>{copy.inputSelection}:</strong> {selected.reason ? selected.reason : selected.signalIds.map(id => {
               const signal = profile.signals.find(item => item.id.toLowerCase() === id.toLowerCase());
-              return signal?.key ?? id;
+              const tag = signal ? tags.find(item => item.id?.toLowerCase() === signal.tagId.toLowerCase()) : undefined;
+              return signal?.signalRole?.trim() || tag?.path || copy.unknown;
             }).join(' · ')}</p>
             <p><strong>{copy.bounds}:</strong> {selected.rule.bounds}</p>
             <p><strong>{copy.timeRequirement}:</strong> {selected.rule.temporalRequirement}</p>
@@ -489,17 +490,19 @@ export function PerformanceResult({ result, rule, locale, copy, profile }: {
     <p role="status"><strong>{copy.queryWindow}</strong> {formatUtc(result.window.fromUtc, localeCode)} – {formatUtc(result.window.toUtc, localeCode)}</p>
     <section>
       <h4>{ruleTitle(result.ruleId, copy)} · {result.summary.unit || copy.unknown}</h4>
-      <p><strong>{copy.status}:</strong> {result.summary.status}</p>
+      <p><strong>{copy.status}:</strong> {describePerformanceStatus(result.summary.status, locale)}</p>
       <dl className="asset-process-intelligence__coverage-facts">
         <Fact label={copy.qualifiedTuples} value={number(result.summary.qualifiedTupleCount)}/>
         <Fact label={copy.minimum} value={number(result.summary.minimum)}/>
         <Fact label={copy.maximum} value={number(result.summary.maximum)}/>
         <Fact label={copy.arithmeticMean} value={number(result.summary.arithmeticMean)}/>
-        <Fact label={copy.meanSemantics} value={result.summary.meanSemantics}/>
+        <Fact label={copy.meanSemantics} value={describeMeanSemantics(locale)}/>
         <Fact label={copy.totalRawObservations} value={number(result.totalRawObservationCount)}/>
       </dl>
-      <p><strong>{copy.formula}:</strong> {rule.formula}</p>
-      <p><strong>{copy.reasonCodes}:</strong> {result.summary.reasonCodes.length ? result.summary.reasonCodes.join(' · ') : copy.none}</p>
+      <p><strong>{copy.formula}:</strong> {describePerformanceFormula(rule.id, locale)}</p>
+      <p><strong>{copy.reasonCodes}:</strong> {result.summary.reasonCodes.length
+        ? result.summary.reasonCodes.map(code => describePerformanceCode(code, locale)).join(' · ')
+        : copy.none}</p>
     </section>
     <section>
       <h4>{copy.inputs}</h4>
@@ -507,17 +510,18 @@ export function PerformanceResult({ result, rule, locale, copy, profile }: {
         {result.inputs.map(input => {
           const signal = signalById.get(input.signalId.toLowerCase());
           const description = signalDescription.get(input.signalId.toLowerCase());
+          const label = describeMeasurementRole(description?.roleCode, locale) || signal?.signalRole?.trim() || copy.unknown;
           return <article key={input.signalId}>
-            <h5>{signal?.key ?? description?.signalKey ?? input.signalId}</h5>
-            <p>{description?.roleCode ?? copy.unknown} · {description?.canonicalUnit ?? copy.unknown}</p>
+            <h5>{label}</h5>
+            <p>{description?.canonicalUnit ?? copy.unknown}</p>
             <dl className="asset-process-intelligence__coverage-facts">
               <Fact label={copy.rawObservations} value={number(input.rawObservationCount)}/>
               <Fact label={copy.eligibleSynchronized} value={number(input.eligibleSynchronizedCount)}/>
               <Fact label={copy.paired} value={number(input.pairedCount)}/>
               <Fact label={copy.qualified} value={number(input.qualifiedCount)}/>
             </dl>
-            <p><strong>{copy.qualityCounts}:</strong> {formatCounts(input.qualityCounts, copy)}</p>
-            <p><strong>{copy.rejectionCounts}:</strong> {formatCounts(input.rejectionCounts, copy)}</p>
+            <p><strong>{copy.qualityCounts}:</strong> {formatCounts(input.qualityCounts, copy, locale)}</p>
+            <p><strong>{copy.rejectionCounts}:</strong> {formatCounts(input.rejectionCounts, copy, locale)}</p>
           </article>;
         })}
       </div>
@@ -525,26 +529,183 @@ export function PerformanceResult({ result, rule, locale, copy, profile }: {
     <section>
       <h4>{copy.provenance}</h4>
       <dl className="asset-process-intelligence__coverage-facts">
-        <Fact label={copy.dataset} value={`${result.provenance.dataset} · v${number(result.provenance.datasetContractVersion)}`}/>
-        <Fact label={copy.timestampPairing} value={result.provenance.timestampPairing}/>
-        <Fact label={copy.acquisitionAlignment} value={result.provenance.acquisitionAlignment}/>
-        <Fact label={copy.regimeEquivalence} value={result.provenance.operatingRegimeEquivalence}/>
-        <Fact label={copy.expectedCadence} value={result.provenance.expectedCadence}/>
-        <Fact label={copy.completeness} value={result.provenance.completeness}/>
-        <Fact label={copy.measurementInterpretation} value={result.provenance.measurementInterpretation}/>
+        <Fact label={copy.dataset} value={describePerformanceDataset(result.provenance.dataset, locale)}/>
+        <Fact label={copy.timestampPairing} value={describePerformanceEvidence(result.provenance.timestampPairing, locale)}/>
+        <Fact label={copy.acquisitionAlignment} value={describePerformanceEvidence(result.provenance.acquisitionAlignment, locale)}/>
+        <Fact label={copy.regimeEquivalence} value={describePerformanceEvidence(result.provenance.operatingRegimeEquivalence, locale)}/>
+        <Fact label={copy.expectedCadence} value={describePerformanceEvidence(result.provenance.expectedCadence, locale)}/>
+        <Fact label={copy.completeness} value={describePerformanceEvidence(result.provenance.completeness, locale)}/>
+        <Fact label={copy.measurementInterpretation} value={describeMeasurementInterpretation(result.ruleId, locale)}/>
       </dl>
       <p className="asset-process-intelligence__coverage-note">{copy.nonClaim}</p>
     </section>
   </div>;
 }
 
+function describeMeasurementRole(roleCode: string | undefined, locale: EngineeringLocale): string | null {
+  const labels: Record<string, Partial<Record<EngineeringLocale, string>>> = {
+    'equipment.active_input_power': { 'pt-BR': 'Potência ativa de entrada', en: 'Active input power', es: 'Potencia activa de entrada' },
+    'process.net_good_production_volume_rate': { 'pt-BR': 'Volume de produção aprovada por tempo', en: 'Good production volume rate', es: 'Volumen de producción buena por tiempo' },
+    'process.net_good_production_mass_rate': { 'pt-BR': 'Massa de produção aprovada por tempo', en: 'Good production mass rate', es: 'Masa de producción buena por tiempo' },
+    'process.net_good_production_item_rate': { 'pt-BR': 'Unidades aprovadas por tempo', en: 'Good units per time', es: 'Unidades buenas por tiempo' },
+    'pump.electrical_current': { 'pt-BR': 'Corrente elétrica', en: 'Electrical current', es: 'Corriente eléctrica' },
+    'pump.drive_frequency': { 'pt-BR': 'Frequência de acionamento', en: 'Drive frequency', es: 'Frecuencia de accionamiento' },
+    'pump.discharge_pressure': { 'pt-BR': 'Pressão de descarga', en: 'Discharge pressure', es: 'Presión de descarga' },
+    'pump.discharge_volumetric_flow': { 'pt-BR': 'Vazão volumétrica', en: 'Volumetric flow', es: 'Caudal volumétrico' },
+    'pump.direct_differential_pressure': { 'pt-BR': 'Pressão diferencial da bomba', en: 'Pump differential pressure', es: 'Presión diferencial de la bomba' }
+  };
+  return roleCode ? labels[roleCode]?.[locale] ?? null : null;
+}
+
 function Fact({ label, value }: { label: string; value: string }) {
   return <div><dt>{label}</dt><dd>{value}</dd></div>;
 }
 
-function formatCounts(values: Record<string, number>, copy: PerformanceCopy) {
+function formatCounts(values: Record<string, number>, copy: PerformanceCopy, locale: EngineeringLocale) {
   return Object.entries(values ?? {}).sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `${key}: ${new Intl.NumberFormat().format(value)}`).join(' · ') || copy.none;
+    .map(([key, value]) => `${describePerformanceCode(key, locale)}: ${new Intl.NumberFormat(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : 'pt-BR').format(value)}`).join(' · ') || copy.none;
+}
+
+function describePerformanceStatus(status: string, locale: EngineeringLocale): string {
+  if (status === 'available') return locale === 'pt-BR' ? 'Dados suficientes' : locale === 'es' ? 'Datos suficientes' : 'Sufficient data';
+  if (status === 'insufficient_data') return locale === 'pt-BR' ? 'Dados insuficientes' : locale === 'es' ? 'Datos insuficientes' : 'Insufficient data';
+  return humanizePerformanceEvidence(status, locale);
+}
+
+function describePerformanceDataset(dataset: string, locale: EngineeringLocale): string {
+  if (dataset === 'historian.samples' || dataset === 'historian.samples.v2') {
+    return locale === 'pt-BR' ? 'Amostras do Historian' : locale === 'es' ? 'Muestras del Historian' : 'Historian samples';
+  }
+  return humanizePerformanceEvidence(dataset, locale);
+}
+
+function describePerformanceEvidence(value: string, locale: EngineeringLocale): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.startsWith('exact equality of each selected tag')) {
+    return locale === 'pt-BR'
+      ? 'Só são combinadas leituras com o mesmo horário de origem, marcado como sincronizado. Não há interpolação nem preenchimento de valores.'
+      : locale === 'es'
+        ? 'Solo se combinan lecturas con la misma hora de origen marcada como sincronizada. No se interpolan ni completan valores.'
+        : 'Only readings with the same source time marked as synchronized are combined. Values are not interpolated or carried forward.';
+  }
+  if (normalized === 'exact_synchronized_source_timestamp') {
+    return locale === 'pt-BR'
+      ? 'Combina leituras com o mesmo horário de origem marcado como sincronizado.'
+      : locale === 'es'
+        ? 'Combina lecturas con la misma hora de origen marcada como sincronizada.'
+        : 'Combines readings with the same source time marked as synchronized.';
+  }
+  if (normalized.startsWith('exact equality of distinct synchronized source timestamps')) {
+    return locale === 'pt-BR' ? 'Combina leituras que têm o mesmo horário de origem sincronizado.'
+      : locale === 'es' ? 'Combina lecturas que tienen la misma hora de origen sincronizada.'
+        : 'Combines readings that have the same synchronized source time.';
+  }
+  if (normalized.startsWith('unverified')) {
+    return locale === 'pt-BR' ? 'Não verificado: horários iguais não comprovam aquisição simultânea nem relógios sincronizados.'
+      : locale === 'es' ? 'No verificado: las horas coincidentes no prueban adquisición simultánea ni relojes sincronizados.'
+        : 'Not verified: matching timestamps do not prove simultaneous acquisition or synchronized clocks.';
+  }
+  if (normalized === 'unknown') return locale === 'pt-BR' ? 'Não informado' : locale === 'es' ? 'No informado' : 'Not provided';
+  if (normalized === 'unknown_without_expected_cadence') {
+    return locale === 'pt-BR' ? 'Indeterminada: não há cadência esperada configurada para comparação.'
+      : locale === 'es' ? 'Indeterminada: no hay una frecuencia esperada configurada para comparar.'
+        : 'Unknown: no expected sampling interval is configured for comparison.';
+  }
+  return humanizePerformanceEvidence(value, locale);
+}
+
+function describeMeasurementInterpretation(ruleId: string, locale: EngineeringLocale): string {
+  const text: Record<string, Record<EngineeringLocale, string>> = {
+    'specific-active-energy-at-recorded-production-rate.v1': {
+      'pt-BR': 'Potência elétrica ativa registrada dividida pela taxa registrada de produção aprovada. Não representa a energia total consumida no período.',
+      en: 'Recorded active electrical power divided by the recorded rate of accepted production. It is not total energy consumed over the period.',
+      es: 'Potencia eléctrica activa registrada dividida por la tasa registrada de producción aceptada. No representa la energía total consumida en el período.'
+    },
+    'recorded-differential-pressure-power.v1': {
+      'pt-BR': 'Vazão multiplicada pela pressão diferencial medida diretamente. É potência associada à pressão, não potência total nem eficiência da bomba.',
+      en: 'Flow multiplied by directly measured differential pressure. This is pressure-related power, not total pump power or efficiency.',
+      es: 'Caudal multiplicado por la presión diferencial medida directamente. Es potencia asociada a la presión, no potencia total ni eficiencia de la bomba.'
+    },
+    'recorded-pressure-power-input-ratio.v1': {
+      'pt-BR': 'Compara a potência associada à pressão com a potência elétrica ativa medida. Não representa a eficiência total da bomba ou do sistema.',
+      en: 'Compares pressure-related power with measured active electrical power. It is not the total efficiency of the pump or system.',
+      es: 'Compara la potencia asociada a la presión con la potencia eléctrica activa medida. No representa la eficiencia total de la bomba o del sistema.'
+    }
+  };
+  return text[ruleId]?.[locale] ?? humanizePerformanceEvidence(ruleId, locale);
+}
+
+function describePerformanceFormula(ruleId: string, locale: EngineeringLocale): string {
+  const text: Record<string, Record<EngineeringLocale, string>> = {
+    'specific-active-energy-at-recorded-production-rate.v1': {
+      'pt-BR': 'Potência elétrica ativa ÷ produção aprovada por segundo. O resultado é kWh por unidade produzida.',
+      en: 'Active electrical power ÷ accepted production per second. The result is kWh per produced unit.',
+      es: 'Potencia eléctrica activa ÷ producción aceptada por segundo. El resultado es kWh por unidad producida.'
+    },
+    'recorded-differential-pressure-power.v1': {
+      'pt-BR': 'Vazão × diferença entre a pressão de saída e a pressão de entrada. O resultado é potência associada à pressão, em watts.',
+      en: 'Flow × the difference between outlet and inlet pressure. The result is pressure-related power in watts.',
+      es: 'Caudal × diferencia entre la presión de salida y la de entrada. El resultado es potencia asociada a la presión, en vatios.'
+    },
+    'recorded-pressure-power-input-ratio.v1': {
+      'pt-BR': '100 × vazão × pressão diferencial ÷ potência elétrica ativa medida. É uma comparação, não a eficiência total do sistema.',
+      en: '100 × flow × differential pressure ÷ measured active electrical power. This is a comparison, not total system efficiency.',
+      es: '100 × caudal × presión diferencial ÷ potencia eléctrica activa medida. Es una comparación, no la eficiencia total del sistema.'
+    }
+  };
+  return text[ruleId]?.[locale] ?? humanizePerformanceEvidence(ruleId, locale);
+}
+
+function describeMeanSemantics(locale: EngineeringLocale): string {
+  return locale === 'pt-BR'
+    ? 'Média aritmética dos resultados válidos; cada horário tem o mesmo peso.'
+    : locale === 'es'
+      ? 'Media aritmética de los resultados válidos; cada hora tiene el mismo peso.'
+      : 'Arithmetic mean of valid results; each timestamp has equal weight.';
+}
+
+function describePerformanceCode(code: string, locale: EngineeringLocale): string {
+  const labels: Record<string, Record<EngineeringLocale, string>> = {
+    fewer_than_two_qualified_tuples: { 'pt-BR': 'Menos de duas leituras válidas coincidentes', en: 'Fewer than two valid matching readings', es: 'Menos de dos lecturas válidas coincidentes' },
+    source_timestamp_missing: { 'pt-BR': 'Leitura sem horário de origem', en: 'Reading has no source time', es: 'Lectura sin hora de origen' },
+    source_timestamp_evidence_missing: { 'pt-BR': 'Sem confirmação de sincronização do horário', en: 'No confirmation that source time is synchronized', es: 'Sin confirmación de sincronización de la hora' },
+    source_timestamp_not_synchronized: { 'pt-BR': 'Horário de origem não sincronizado', en: 'Source time is not synchronized', es: 'Hora de origen no sincronizada' },
+    source_timestamp_outside_requested_window: { 'pt-BR': 'Leitura fora do período selecionado', en: 'Reading is outside the selected time range', es: 'Lectura fuera del período seleccionado' },
+    ambiguous_source_timestamp: { 'pt-BR': 'Mais de uma leitura no mesmo horário de origem', en: 'Multiple readings have the same source time', es: 'Varias lecturas tienen la misma hora de origen' },
+    no_exact_source_timestamp_pair: { 'pt-BR': 'Sem leitura correspondente no mesmo horário', en: 'No matching reading at the same source time', es: 'Sin lectura correspondiente a la misma hora' },
+    value_not_finite_numeric: { 'pt-BR': 'Valor ausente ou não numérico', en: 'Value is missing or not numeric', es: 'Valor ausente o no numérico' },
+    unit_conversion_non_finite: { 'pt-BR': 'Não foi possível converter a unidade', en: 'The unit could not be converted', es: 'No se pudo convertir la unidad' },
+    nonpositive_production_rate: { 'pt-BR': 'Taxa de produção precisa ser maior que zero', en: 'Production rate must be greater than zero', es: 'La tasa de producción debe ser mayor que cero' },
+    negative_power: { 'pt-BR': 'Potência registrada abaixo de zero', en: 'Recorded power is below zero', es: 'Potencia registrada por debajo de cero' },
+    flow_not_forward_positive: { 'pt-BR': 'Vazão precisa ser positiva no sentido de saída', en: 'Flow must be positive in the discharge direction', es: 'El caudal debe ser positivo en la dirección de salida' },
+    negative_differential_pressure: { 'pt-BR': 'Pressão diferencial abaixo de zero', en: 'Differential pressure is below zero', es: 'Presión diferencial por debajo de cero' },
+    nonpositive_input_power: { 'pt-BR': 'Potência elétrica precisa ser maior que zero', en: 'Electrical input power must be greater than zero', es: 'La potencia eléctrica debe ser mayor que cero' },
+    non_finite_arithmetic: { 'pt-BR': 'O cálculo não produziu um número válido', en: 'The calculation did not produce a valid number', es: 'El cálculo no produjo un número válido' },
+    non_finite_arithmetic_mean: { 'pt-BR': 'Não foi possível obter uma média válida', en: 'A valid mean could not be calculated', es: 'No se pudo calcular una media válida' },
+    result_above_100_percent_observed_not_clipped: { 'pt-BR': 'Resultado acima de 100%; mantido sem ajuste e requer interpretação', en: 'Result above 100%; retained as measured and needs interpretation', es: 'Resultado superior al 100%; se conserva y requiere interpretación' },
+    quality_missing: { 'pt-BR': 'Qualidade da leitura não informada', en: 'Reading quality was not provided', es: 'No se informó la calidad de la lectura' },
+    quality_not_good: { 'pt-BR': 'Leitura com qualidade inadequada para o cálculo', en: 'Reading quality is not suitable for the calculation', es: 'La calidad de la lectura no es adecuada para el cálculo' }
+  };
+  const qualityLabels: Record<string, Record<EngineeringLocale, string>> = {
+    Good: { 'pt-BR': 'Boa', en: 'Good', es: 'Buena' },
+    Uncertain: { 'pt-BR': 'Incerta', en: 'Uncertain', es: 'Incierta' },
+    Bad: { 'pt-BR': 'Ruim', en: 'Bad', es: 'Mala' },
+    BadCommunication: { 'pt-BR': 'Falha de comunicação', en: 'Communication failure', es: 'Fallo de comunicación' },
+    BadConfiguration: { 'pt-BR': 'Configuração inválida', en: 'Invalid configuration', es: 'Configuración no válida' },
+    BadDevice: { 'pt-BR': 'Falha do equipamento', en: 'Device failure', es: 'Fallo del dispositivo' },
+    Stale: { 'pt-BR': 'Desatualizada', en: 'Stale', es: 'Desactualizada' },
+    Disabled: { 'pt-BR': 'Desabilitada', en: 'Disabled', es: 'Deshabilitada' },
+    Unavailable: { 'pt-BR': 'Indisponível', en: 'Unavailable', es: 'No disponible' },
+    Missing: { 'pt-BR': 'Ausente', en: 'Missing', es: 'Ausente' }
+  };
+  return labels[code]?.[locale] ?? qualityLabels[code]?.[locale] ?? humanizePerformanceEvidence(code, locale);
+}
+
+function humanizePerformanceEvidence(value: string, locale: EngineeringLocale): string {
+  const spaced = value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return locale === 'pt-BR'
+    ? spaced.charAt(0).toLocaleUpperCase('pt-BR') + spaced.slice(1)
+    : spaced.charAt(0).toLocaleUpperCase(locale === 'es' ? 'es-ES' : 'en-US') + spaced.slice(1);
 }
 
 export function parseWindow(fromLocal: string, toLocal: string, maximumDays: number): { window: WindowValue | null; error: 'missing' | 'invalid' | null } {
@@ -575,12 +736,12 @@ export function ruleTitle(id: string, copy: PerformanceCopy) {
 export function errorText(code: string, copy: PerformanceCopy) {
   switch (code) {
     case 'INTELLIGENCE_PERFORMANCE_SIGNAL_SELECTION_INVALID':
-    case 'INTELLIGENCE_PERFORMANCE_SIGNAL_IDENTITY_INVALID': return `${copy.queryFailed}: ${code}`;
-    case 'INTELLIGENCE_PERFORMANCE_SEMANTICS_UNSUPPORTED': return `${copy.queryFailed}: ${copy.semanticUnsupported} (${code})`;
-    case 'INTELLIGENCE_PERFORMANCE_UNITS_UNSUPPORTED': return `${copy.queryFailed}: ${copy.unitUnsupported} (${code})`;
-    case 'INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE': return `${copy.queryFailed}: ${code}`;
+    case 'INTELLIGENCE_PERFORMANCE_SIGNAL_IDENTITY_INVALID': return `${copy.queryFailed}: ${copy.inputMissing}`;
+    case 'INTELLIGENCE_PERFORMANCE_SEMANTICS_UNSUPPORTED': return `${copy.queryFailed}: ${copy.semanticUnsupported}`;
+    case 'INTELLIGENCE_PERFORMANCE_UNITS_UNSUPPORTED': return `${copy.queryFailed}: ${copy.unitUnsupported}`;
+    case 'INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE': return `${copy.queryFailed}: ${copy.windowTooDense}`;
     case 'INVALID_RESPONSE': return copy.invalidResponse;
-    default: return `${copy.queryFailed}: ${code}`;
+    default: return copy.networkError;
   }
 }
 
@@ -597,19 +758,19 @@ export function performanceCopy(locale: EngineeringLocale) {
     bounds: 'Rule bounds', timeRequirement: 'Timestamp requirement', from: 'From (local time)', to: 'To (local time)',
     utcHint: 'Selected local times are sent as UTC. Maximum window: 31 days. No Historian query runs until Analyze is selected.',
     windowRequired: 'Choose both ends of the time window.', windowInvalid: 'The end must be after the start and the window cannot exceed 31 days.',
-    analyze: 'Analyze performance', loading: 'Analyzing…', queryFailed: 'Performance query failed', networkError: 'The performance report could not be retrieved.',
+    analyze: 'Analyze performance', loading: 'Analyzing…', queryFailed: 'Performance query failed', networkError: 'The performance report could not be retrieved.', windowTooDense: 'This time range has too many records for one analysis. Choose a shorter range.',
     invalidResponse: 'The response does not match the selected rule, assignment, profile, project revision or window.',
     inputMissing: 'Missing a unique signal for one or more catalog roles.', inputAmbiguous: 'Multiple profile signals match a required role; resolve the assignment first.',
     tagUnavailable: 'A canonical TAG reference is unavailable.', numericTagRequired: 'A selected TAG is not numeric.',
     unitUnsupported: 'The TAG unit is missing or not accepted by the catalog rule.', semanticUnsupported: 'The canonical typed semantics or qualifiers do not match the rule.',
-    duplicateTag: 'The selection contains duplicate signal or TAG identities.', unknown: 'unknown', none: 'none reported', queryWindow: 'Requested window:',
-    status: 'Status', qualifiedTuples: 'Qualified tuples', minimum: 'Minimum', maximum: 'Maximum', arithmeticMean: 'Arithmetic mean',
-    meanSemantics: 'Mean semantics', totalRawObservations: 'Total raw observations', reasonCodes: 'Reason codes', inputs: 'Input evidence',
+    duplicateTag: 'The selection contains duplicate signal or TAG identities.', unknown: 'Not provided', none: 'none reported', queryWindow: 'Requested window:',
+    status: 'Result', qualifiedTuples: 'Valid matching readings', minimum: 'Minimum', maximum: 'Maximum', arithmeticMean: 'Arithmetic mean',
+    meanSemantics: 'How the mean is calculated', totalRawObservations: 'Readings checked', reasonCodes: 'What affected the result', inputs: 'Input signals',
     rawObservations: 'Raw observations', eligibleSynchronized: 'Eligible synchronized observations', paired: 'Paired tuples', qualified: 'Qualified tuples',
-    qualityCounts: 'Quality counts', rejectionCounts: 'Rejection counts', provenance: 'Provenance and limits', dataset: 'Dataset',
-    timestampPairing: 'Timestamp pairing', acquisitionAlignment: 'Acquisition alignment', regimeEquivalence: 'Operating-regime equivalence',
-    expectedCadence: 'Expected cadence', completeness: 'Completeness', measurementInterpretation: 'Measurement interpretation',
-    nonClaim: 'Unknown cadence/completeness and unverified physical acquisition/regime equivalence remain explicit. The selected rule is not a diagnosis, field-validated efficiency claim, or total-system measure unless its canonical contract says so.',
+    qualityCounts: 'Reading quality', rejectionCounts: 'Readings not used', provenance: 'Data source and limits', dataset: 'Data source',
+    timestampPairing: 'How readings are matched', acquisitionAlignment: 'Sensor timing', regimeEquivalence: 'Operating conditions',
+    expectedCadence: 'Expected sampling interval', completeness: 'Data completeness', measurementInterpretation: 'What this result means',
+    nonClaim: 'The records do not confirm that sensors measured at exactly the same moment or under equivalent operating conditions. Without an expected sampling interval, missing data cannot be assessed. This is an analysis of recorded values, not a diagnosis or field-validated efficiency claim.',
     specificEnergy: 'Specific active energy per recorded production', pressurePower: 'Recorded differential-pressure power', pressurePowerRatio: 'Recorded pressure-power / input ratio'
   };
   if (locale === 'es') return {
@@ -619,19 +780,19 @@ export function performanceCopy(locale: EngineeringLocale) {
     bounds: 'Límites de la regla', timeRequirement: 'Requisito temporal', from: 'Desde (hora local)', to: 'Hasta (hora local)',
     utcHint: 'Las horas locales se envían como UTC. Intervalo máximo: 31 días. Historian no se consulta hasta pulsar Analizar.',
     windowRequired: 'Seleccione ambos extremos del intervalo.', windowInvalid: 'El final debe ser posterior al inicio y el intervalo no puede superar 31 días.',
-    analyze: 'Analizar rendimiento', loading: 'Analizando…', queryFailed: 'Falló la consulta de rendimiento', networkError: 'No se pudo obtener el informe de rendimiento.',
+    analyze: 'Analizar rendimiento', loading: 'Analizando…', queryFailed: 'Falló la consulta de rendimiento', networkError: 'No se pudo obtener el informe de rendimiento.', windowTooDense: 'El intervalo contiene demasiados registros para un análisis. Seleccione uno más corto.',
     invalidResponse: 'La respuesta no coincide con la regla, asignación, perfil, revisión o intervalo seleccionado.',
     inputMissing: 'Falta una señal única para uno o más roles del catálogo.', inputAmbiguous: 'Varias señales del perfil coinciden con un rol requerido; resuelva la asignación primero.',
     tagUnavailable: 'No está disponible una referencia TAG canónica.', numericTagRequired: 'Una TAG seleccionada no es numérica.',
     unitUnsupported: 'La unidad TAG falta o no es aceptada por la regla del catálogo.', semanticUnsupported: 'La semántica tipada o los calificadores canónicos no coinciden con la regla.',
-    duplicateTag: 'La selección contiene identidades de señales o TAG duplicadas.', unknown: 'desconocido', none: 'sin datos', queryWindow: 'Intervalo consultado:',
-    status: 'Estado', qualifiedTuples: 'Tuplas calificadas', minimum: 'Mínimo', maximum: 'Máximo', arithmeticMean: 'Media aritmética',
-    meanSemantics: 'Semántica de la media', totalRawObservations: 'Observaciones brutas totales', reasonCodes: 'Códigos de motivo', inputs: 'Evidencia de entradas',
+    duplicateTag: 'La selección contiene identidades de señales o TAG duplicadas.', unknown: 'No informado', none: 'sin datos', queryWindow: 'Intervalo consultado:',
+    status: 'Resultado', qualifiedTuples: 'Lecturas coincidentes válidas', minimum: 'Mínimo', maximum: 'Máximo', arithmeticMean: 'Media aritmética',
+    meanSemantics: 'Cómo se calcula la media', totalRawObservations: 'Lecturas revisadas', reasonCodes: 'Qué influyó en el resultado', inputs: 'Señales de entrada',
     rawObservations: 'Observaciones brutas', eligibleSynchronized: 'Observaciones sincronizadas elegibles', paired: 'Tuplas emparejadas', qualified: 'Tuplas calificadas',
-    qualityCounts: 'Conteo por calidad', rejectionCounts: 'Conteo de rechazos', provenance: 'Procedencia y límites', dataset: 'Dataset',
-    timestampPairing: 'Emparejamiento temporal', acquisitionAlignment: 'Alineación de adquisición', regimeEquivalence: 'Equivalencia de régimen operativo',
-    expectedCadence: 'Cadencia esperada', completeness: 'Completitud', measurementInterpretation: 'Interpretación de medición',
-    nonClaim: 'La cadencia/completitud desconocida y la equivalencia física de adquisición/régimen no verificada siguen explícitas. La regla no es diagnóstico ni afirmación de eficiencia de campo validada.',
+    qualityCounts: 'Calidad de las lecturas', rejectionCounts: 'Lecturas no utilizadas', provenance: 'Origen y límites de los datos', dataset: 'Origen de los datos',
+    timestampPairing: 'Cómo se emparejan las lecturas', acquisitionAlignment: 'Horario de los sensores', regimeEquivalence: 'Condiciones de operación',
+    expectedCadence: 'Frecuencia de muestreo esperada', completeness: 'Completitud de los datos', measurementInterpretation: 'Qué significa el resultado',
+    nonClaim: 'Los registros no confirman que los sensores midieran exactamente al mismo tiempo ni bajo condiciones de operación equivalentes. Sin una frecuencia de muestreo esperada, no es posible evaluar si faltan datos. Es un análisis de valores registrados, no un diagnóstico ni una eficiencia validada en campo.',
     specificEnergy: 'Energía activa específica por producción registrada', pressurePower: 'Potencia por presión diferencial registrada', pressurePowerRatio: 'Relación potencia de presión / entrada registrada'
   };
   return {
@@ -641,19 +802,19 @@ export function performanceCopy(locale: EngineeringLocale) {
     bounds: 'Limites da regra', timeRequirement: 'Requisito temporal', from: 'De (horário local)', to: 'Até (horário local)',
     utcHint: 'Os horários locais são enviados em UTC. Janela máxima: 31 dias. O Historian só é consultado após clicar em Analisar.',
     windowRequired: 'Informe os dois extremos da janela.', windowInvalid: 'O fim deve ser posterior ao início e a janela não pode exceder 31 dias.',
-    analyze: 'Analisar desempenho', loading: 'Analisando…', queryFailed: 'Falha na consulta de desempenho', networkError: 'Não foi possível obter o relatório de desempenho.',
+    analyze: 'Analisar desempenho', loading: 'Analisando…', queryFailed: 'Falha na consulta de desempenho', networkError: 'Não foi possível obter o relatório de desempenho.', windowTooDense: 'Há registros demais nesse período para uma análise. Escolha um intervalo menor.',
     invalidResponse: 'A resposta não corresponde à regra, associação, perfil, revisão do projeto ou janela selecionada.',
     inputMissing: 'Falta um sinal único para um ou mais papéis do catálogo.', inputAmbiguous: 'Vários sinais do perfil correspondem a um papel obrigatório; resolva a associação primeiro.',
     tagUnavailable: 'Referência canônica de TAG indisponível.', numericTagRequired: 'Uma TAG selecionada não é numérica.',
     unitUnsupported: 'A unidade da TAG está ausente ou não é aceita pela regra do catálogo.', semanticUnsupported: 'A semântica tipada ou os qualificadores canônicos não correspondem à regra.',
-    duplicateTag: 'A seleção contém identidade de sinal ou TAG duplicada.', unknown: 'desconhecido', none: 'nenhum informado', queryWindow: 'Janela consultada:',
-    status: 'Estado', qualifiedTuples: 'Tuplas qualificadas', minimum: 'Mínimo', maximum: 'Máximo', arithmeticMean: 'Média aritmética',
-    meanSemantics: 'Semântica da média', totalRawObservations: 'Observações brutas totais', reasonCodes: 'Códigos de motivo', inputs: 'Evidência das entradas',
+    duplicateTag: 'A seleção contém identidade de sinal ou TAG duplicada.', unknown: 'Não informado', none: 'nenhum informado', queryWindow: 'Janela consultada:',
+    status: 'Resultado', qualifiedTuples: 'Leituras coincidentes válidas', minimum: 'Mínimo', maximum: 'Máximo', arithmeticMean: 'Média aritmética',
+    meanSemantics: 'Como a média é calculada', totalRawObservations: 'Leituras verificadas', reasonCodes: 'O que influenciou o resultado', inputs: 'Sinais de entrada',
     rawObservations: 'Observações brutas', eligibleSynchronized: 'Observações sincronizadas elegíveis', paired: 'Tuplas pareadas', qualified: 'Tuplas qualificadas',
-    qualityCounts: 'Contagens por qualidade', rejectionCounts: 'Contagens de rejeição', provenance: 'Proveniência e limites', dataset: 'Dataset',
-    timestampPairing: 'Pareamento de timestamps', acquisitionAlignment: 'Alinhamento da aquisição', regimeEquivalence: 'Equivalência do regime operacional',
-    expectedCadence: 'Cadência esperada', completeness: 'Completude', measurementInterpretation: 'Interpretação da medição',
-    nonClaim: 'Cadência/completude desconhecida e equivalência física de aquisição/regime não verificada permanecem explícitas. A regra não é diagnóstico nem alegação de eficiência de campo validada; não denomina potência de pressão como eficiência total da bomba.',
+    qualityCounts: 'Qualidade das leituras', rejectionCounts: 'Leituras não utilizadas', provenance: 'Origem e limites dos dados', dataset: 'Origem dos dados',
+    timestampPairing: 'Como as leituras são pareadas', acquisitionAlignment: 'Horário dos sensores', regimeEquivalence: 'Condições de operação',
+    expectedCadence: 'Intervalo esperado entre leituras', completeness: 'Completude dos dados', measurementInterpretation: 'O que este resultado significa',
+    nonClaim: 'Os registros não confirmam que os sensores mediram exatamente ao mesmo tempo nem em condições de operação equivalentes. Sem um intervalo esperado entre leituras, não é possível avaliar se faltam dados. Esta é uma análise dos valores registrados, não um diagnóstico nem uma eficiência validada em campo.',
     specificEnergy: 'Energia ativa específica por produção registrada', pressurePower: 'Potência da pressão diferencial registrada', pressurePowerRatio: 'Relação potência de pressão / entrada registrada'
   };
 }

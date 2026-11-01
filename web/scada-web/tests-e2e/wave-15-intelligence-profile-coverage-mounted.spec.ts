@@ -10,6 +10,41 @@ const secondContextSignalId = '15000000-0000-0000-0000-000000000214';
 const firstContextTagId = '15000000-0000-0000-0000-000000000105';
 const secondContextTagId = '15000000-0000-0000-0000-000000000106';
 
+test('context eligibility uses the saved version, explains mismatches and discards stale responses', async ({ page }) => {
+  await installWorkspace(page, { operatingContexts: true });
+  let calls = 0;
+  let stale = false;
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/query', async route => {
+    calls++;
+    const request = route.request().postDataJSON();
+    expect(request).toMatchObject({ scopeKind: 0, scopeId: equipmentId, assignmentId,
+      operatingContextProfileId: '15000000-0000-0000-0000-000000000401', expectedProfileVersion: 3 });
+    await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: 4,
+      assignmentId, measurementProfileId: profileId, operatingContextProfileId: request.operatingContextProfileId,
+      profileVersion: stale ? 2 : 3, referenceWindow: request.referenceWindow,
+      signals: [{ signalId: firstContextSignalId, tagPath: 'Planta.Bomba01.Corrente', engineeringUnit: 'A',
+        reference: { rawObservationCount: 15, acceptedSynchronizedUniqueCount: 12, contextEligibleObservationCount: 0,
+          status: 'predicate_mismatch', rejectionCounts: {} } }] } });
+  });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-context-eligibility-${assignmentId}`);
+  await panel.getByText('Conferir condições do contexto', { exact: true }).click();
+  await panel.getByLabel('Contexto salvo').selectOption({ label: 'Bomba em operação' });
+  await panel.getByLabel('Início do período (horário local)').fill('2026-10-20T10:00');
+  await panel.getByLabel('Fim do período (horário local)').fill('2026-10-21T10:00');
+  expect(calls).toBe(0);
+  await panel.getByRole('button', { name: 'Consultar condições', exact: true }).click();
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toContainText('As condições selecionadas não foram atendidas');
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toContainText('15 / 12 / 0');
+  await panel.getByLabel('Início do período (horário local)').fill('2026-10-20T11:00');
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toHaveCount(0);
+  stale = true;
+  await panel.getByRole('button', { name: 'Consultar condições', exact: true }).click();
+  await expect(panel.getByRole('alert')).toBeVisible();
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toHaveCount(0);
+  expect(calls).toBe(2);
+});
+
 test('reference evidence queries explicitly, clears changed periods and rejects another revision', async ({ page }) => {
   await installWorkspace(page);
   let requests = 0;
@@ -392,6 +427,7 @@ async function installWorkspace(page: Page, options: {
   unsupportedPerformanceUnit?: boolean;
   mismatchedPumpFlowUnitPair?: boolean;
   performanceFailCode?: string;
+  operatingContexts?: boolean;
 } = {}) {
   const requests: Array<Record<string, any>> = [];
   const performanceCatalogRequests: string[] = [];
@@ -517,7 +553,10 @@ async function installWorkspace(page: Page, options: {
       configuration: {
         version: 2,
         scopes: [{ kind: 'Equipment', scopeId: equipmentId, active: options.active !== false, executionArmed: options.armed !== false }],
-        profiles: [profile], assignments: [{ id: assignmentId, equipmentId, profileId }], processStages: [], operatingContextProfiles: []
+        profiles: [profile], assignments: [{ id: assignmentId, equipmentId, profileId }], processStages: [],
+        operatingContextProfiles: options.operatingContexts ? [{ id: '15000000-0000-0000-0000-000000000401',
+          key: 'running', displayLabel: 'Bomba em operação', assignmentId, version: 3,
+          predicates: [{ tagId: speedTagId, kind: 'NumericInterval', minimum: 1000, maximum: 1800 }] }] : []
       },
       resources: [{ kind: 'Equipment', scopeId: equipmentId, path: 'Planta.Bomba01', name: 'Bomba P-101' }],
       tags, licensed: options.licensed !== false,

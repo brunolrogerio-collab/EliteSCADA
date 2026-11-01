@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { EngineeringLocale } from './i18n';
+import { intelligenceEvidenceText } from './intelligenceEvidenceText';
 import { coverageCopy, coverageErrorText, localDateTimeInput, parseWindow, type WindowValue } from './AssetProcessIntelligenceCoveragePanel';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
@@ -8,7 +9,7 @@ type Evidence = {
   referenceWindow: WindowValue;
   referenceCohort: { completeRequiredNumericCohortCount: number | null };
   signals: Array<{ signalId: string; tagPath: string; unit: string | null; required: boolean;
-    reference: { rawObservationCount: number; acceptedSynchronizedCount: number; rejectedObservationCount: number } }>;
+    reference: { rawObservationCount: number; acceptedSynchronizedCount: number; rejectedObservationCount: number; rejectionCounts?: Record<string, number> } }>;
 };
 
 export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId, projectKey, activeRevision, canQuery }: {
@@ -87,6 +88,8 @@ export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId,
       {result.signals.map(signal => <article key={signal.signalId}>
         <strong>{signal.tagPath}{signal.unit ? ` (${signal.unit})` : ''}</strong>
         <p>{text('Leituras recebidas / aceitas com origem sincronizada / rejeitadas', 'Readings received / accepted with synchronized source / rejected', 'Lecturas recibidas / aceptadas con origen sincronizado / rechazadas')}: {signal.reference.rawObservationCount} / {signal.reference.acceptedSynchronizedCount} / {signal.reference.rejectedObservationCount}</p>
+        {Object.entries(signal.reference.rejectionCounts ?? {}).filter(([, count]) => Number.isInteger(count) && count > 0)
+          .map(([reason, count]) => <p key={reason}>{intelligenceEvidenceText(reason, locale)}: {count}</p>)}
       </article>)}
       <p>{text('A contagem de leituras não comprova saúde, representatividade ou completude do período.', 'Reading counts do not prove health, representativeness or completeness of the period.', 'El número de lecturas no demuestra salud, representatividad ni integridad del período.')}</p>
     </div>}

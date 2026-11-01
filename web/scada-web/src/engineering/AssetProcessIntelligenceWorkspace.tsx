@@ -34,6 +34,7 @@ import {
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
 import { IntelligenceReferenceEvidencePanel } from './IntelligenceReferenceEvidencePanel';
+import { IntelligenceContextEligibilityPanel } from './IntelligenceContextEligibilityPanel';
 import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
 import { AssetProcessIntelligenceContextualDeviationPanel } from './AssetProcessIntelligenceContextualDeviationPanel';
 import './asset-process-intelligence.css';
@@ -942,6 +943,12 @@ export function AssetProcessIntelligenceWorkspace({
                 /> : null}
                 {equipmentResource && profile ? <IntelligenceReferenceEvidencePanel
                   locale={locale} scopeId={assignment.equipmentId} profileId={assignment.profileId}
+                  projectKey={snapshot.execution.projectKey} activeRevision={snapshot.execution.activeRevision}
+                  canQuery={!coverageBlockedReason}
+                /> : null}
+                {equipmentResource && profile ? <IntelligenceContextEligibilityPanel
+                  locale={locale} scopeId={assignment.equipmentId} assignmentId={assignment.id} profileId={assignment.profileId}
+                  contexts={initialConfig.operatingContextProfiles}
                   projectKey={snapshot.execution.projectKey} activeRevision={snapshot.execution.activeRevision}
                   canQuery={!coverageBlockedReason}
                 /> : null}

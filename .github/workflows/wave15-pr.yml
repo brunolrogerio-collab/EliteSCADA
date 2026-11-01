@@ -167,14 +167,14 @@ jobs:
           directory = Path("src/Scada.DriverHost/Sidecars/MatterWifi")
           selected = any(pattern.fullmatch(path) for path in changed) and (directory / "package.json").is_file()
           if selected:
-              required = ("package.json", "package-lock.json", "src/bootstrap.mjs", "src/bridge.mjs", "test/bootstrap-preflight.test.mjs", "test/linux-fake-startup-harness.mjs")
+              required = ("package.json", "package-lock.json", "SBOM.cdx.json", "THIRD-PARTY-NOTICES.md", "licenses/LICENSE-0BSD.txt", "licenses/LICENSE-Apache-2.0-OR-MIT.txt", "licenses/LICENSE-Apache-2.0.txt", "licenses/LICENSE-BlueOak-1.0.0.txt", "licenses/LICENSE-BSD-2-Clause.txt", "licenses/LICENSE-BSD-3-Clause.txt", "licenses/LICENSE-ISC.txt", "licenses/LICENSE-MIT-OR-Apache-2.0.txt", "licenses/LICENSE-MIT-X11.txt", "licenses/LICENSE-MIT.txt", "licenses/LICENSE-Public-Domain.txt", "scripts/generate-compliance.mjs", "scripts/verify-dependencies.mjs", "src/bootstrap.mjs", "src/bridge.mjs", "test/bootstrap-preflight.test.mjs", "test/linux-fake-startup-harness.mjs", "test/pinned-upstream-security-regressions.test.mjs")
               missing = [name for name in required if not (directory / name).is_file()]
               if missing:
-                  raise RuntimeError("Matter Wi-Fi fake-only evidence is incomplete: " + ", ".join(missing))
+                  raise RuntimeError("Matter Wi-Fi pinned-artifact evidence is incomplete: " + ", ".join(missing))
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write(f"run_matter_fake_sidecar={str(selected).lower()}\n")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write(f"Matter Wi-Fi isolated fake-sidecar evidence selected: {selected}\n")
+              summary.write(f"Matter Wi-Fi exact-pin artifact evidence selected: {selected}\n")
           PY
 
   common-sanity:
@@ -854,7 +854,7 @@ jobs:
           NODE
 
   matter-wifi-fake-sidecar:
-    name: Matter Wi-Fi isolated fake-only Node evidence
+    name: Matter Wi-Fi pinned artifact and isolated fake-only Node evidence
     needs: classify
     if: needs.classify.outputs.run_matter_fake_sidecar == 'true'
     runs-on: ubuntu-latest
@@ -863,8 +863,63 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24.19.0'
-      - name: Run dependency-free sidecar contract tests
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: src/Scada.DriverHost/Sidecars/MatterWifi/package-lock.json
+      - name: Use the qualified npm version
+        run: npm install --global npm@11.19.0 --no-audit --no-fund
+      - name: Install the exact pinned Matter dependency graph without lifecycle scripts
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = v24.21.0
+          test "$(npm --version)" = 11.19.0
+          npm ci --no-audit --no-fund --ignore-scripts
+      - name: Verify exact pins, complete SBOM and third-party notices
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        run: npm run verify:dependencies
+      - name: Verify registry signatures and provenance attestations
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        env:
+          MATTER_SIGNATURE_REPORT: ${{ runner.temp }}/matter-npm-signatures.json
+        run: |
+          set -euo pipefail
+          npm audit signatures --json --include-attestations > "$MATTER_SIGNATURE_REPORT"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync(process.env.MATTER_SIGNATURE_REPORT, 'utf8'));
+          const invalid = Array.isArray(report.invalid) ? report.invalid : [];
+          const missing = Array.isArray(report.missing) ? report.missing : [];
+          if (invalid.length || missing.length || !Array.isArray(report.verified)) {
+            throw new Error(`NPM_PROVENANCE_VERIFICATION_FAILED: invalid=${invalid.length}, missing=${missing.length}`);
+          }
+          const verified = report.verified;
+          const required = new Set([
+            'matter-server@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/ble-proxy@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/custom-clusters@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/dashboard@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/ws-client@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/ws-controller@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter/general@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/main@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/model@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/node@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/nodejs@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/protocol@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/types@0.18.0-alpha.0-20261008-6066b7499',
+          ]);
+          const verifiedIds = new Set(verified.map(item => `${item.name}@${item.version}`));
+          const missingMatter = [...required].filter(item => !verifiedIds.has(item));
+          if (missingMatter.length) throw new Error(`MATTER_ATTESTATION_MISSING:${missingMatter.join(',')}`);
+          const line = `npm registry signatures/provenance: invalid=${invalid.length}, missing=${missing.length}, verified=${verified.length}`;
+          console.log(line);
+          await import('node:fs/promises').then(fs => fs.appendFile(process.env.GITHUB_STEP_SUMMARY, `${line}\n`));
+          NODE
+      - name: Audit production dependency graph for known vulnerabilities
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        run: npm audit --omit=dev
+      - name: Run installed pinned-artifact regression tests
         working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
         run: npm test
       - name: Run Linux x64 fake-server startup and RPC harness (no Matter network)
@@ -877,11 +932,13 @@ jobs:
         if: always()
         run: |
           {
-            echo '## Matter Wi-Fi isolated preview evidence'
+            echo '## Matter Wi-Fi exact-pin and isolated preview evidence'
             echo "Tested checkout: $(git rev-parse HEAD)"
             echo "Node: $(node --version)"
-            echo 'Candidate package install/start: not performed'
-            echo 'Matter network / commissioning: not used'
+            echo "npm: $(npm --version)"
+            sha256sum package-lock.json SBOM.cdx.json THIRD-PARTY-NOTICES.md
+            echo 'Exact dependency installation and import-level protocol tests: performed'
+            echo 'Matter Server process start, Matter network and commissioning: not used'
             if [ -f '${{ runner.temp }}/matter-wifi-fake-linux-startup.json' ]; then
               sha256sum '${{ runner.temp }}/matter-wifi-fake-linux-startup.json'
               cat '${{ runner.temp }}/matter-wifi-fake-linux-startup.json'

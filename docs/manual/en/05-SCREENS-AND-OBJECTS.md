@@ -98,7 +98,7 @@ To write a test variable, select the write action and actual reference, respecti
 1. Insert a **CheckBox** and give it a clear label, such as `Pump in automatic`. The label is what the operator sees; it does not define the TAG or the action.
 2. In **Dynamics**, bind `checked` to any compatible Boolean source selected from the picker, such as a TAG, expression, or another function that returns true/false. The CheckBox can show states such as automatic/manual, enabled/disabled, or a condition specific to the application.
 3. For display only, leave **Allow operator adjustment** off. To let the operator change the state, enable it and use a writable Boolean TAG binding; session permission and server authorization still apply. Runtime confirms the change through the value it receives. Bad quality, a missing TAG or a rejected write must not look like success.
-4. **Suppress one alarm** is a separate optional mode, not a requirement for the generic CheckBox. In that mode, choose an alarm definition by name and set a reason and duration. Runtime still enforces suppression permission and shows when suppression is inherited from another location.
+4. **Suppress one alarm** is a separate optional mode, not a requirement for the generic CheckBox. In that mode, choose an alarm definition by name and set a reason and duration. Runtime still enforces suppression permission and shows when suppression is inherited from another location. Runtime refreshes the state, including changes made by another operator; if it cannot confirm the latest state, the control stays unavailable.
 
 ### ComboBox: choose a value from a list
 

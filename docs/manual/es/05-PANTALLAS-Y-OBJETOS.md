@@ -98,7 +98,7 @@ Para escribir una variable de prueba, seleccione acción y referencia real respe
 1. Inserte una **Casilla** y escriba una etiqueta clara, como `Bomba en automático`. La etiqueta es el texto para el operador; no define el TAG ni la acción.
 2. En **Dinámicas**, vincule `checked` a cualquier fuente Booleana compatible del selector, como un TAG, una expresión u otra función que devuelva verdadero/falso. La casilla puede mostrar estados como automático/manual, habilitado/deshabilitado o una condición propia de la aplicación.
 3. Para solo observar, deje **Permitir ajuste del operador** desactivado. Para que el operador cambie el estado, actívelo y use un vínculo con TAG Booleano escribible; el permiso de sesión y la autorización del servidor siguen aplicándose. Runtime confirma el cambio mediante el valor que recibe. Mala calidad, TAG ausente o escritura rechazada no deben parecer éxito.
-4. **Suprimir una alarma** es un modo opcional separado, no un requisito de la casilla genérica. En ese modo, elija una definición por nombre e indique motivo y duración. Runtime sigue validando el permiso y muestra si la supresión se hereda de otra ubicación.
+4. **Suprimir una alarma** es un modo opcional separado, no un requisito de la casilla genérica. En ese modo, elija una definición por nombre e indique motivo y duración. Runtime sigue validando el permiso y muestra si la supresión se hereda de otra ubicación. Runtime actualiza el estado, incluso cuando otro operador cambia la supresión; si no puede confirmar la lectura más reciente, el control queda indisponible.
 
 ### ComboBox: elegir un valor de una lista
 

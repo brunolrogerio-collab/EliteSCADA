@@ -4,10 +4,13 @@ import type { VisualElementEngineering, VisualEngineeringPropertyValue } from '.
 import { VISUAL_PROPERTY_KEYS } from '../../visual-runtime';
 import {
   releaseRuntimeAlarmSuppression,
-  loadRuntimeAlarmSuppressions,
   setRuntimeAlarmSuppression
 } from '../../runtime/alarmCenterApi';
 import type { RuntimeAlarmSuppressionSnapshot } from '../../runtime/alarmCenterTypes';
+import {
+  refreshRuntimeAlarmSuppressionSnapshot,
+  subscribeRuntimeAlarmSuppressionSnapshot
+} from '../../runtime/alarmSuppressionSnapshotStore';
 import { visualTagSampleKey, type VisualDynamicSample } from './visualDynamicRuntime';
 import {
   CHECK_BOX_CONFIG_PROPERTY,
@@ -99,11 +102,22 @@ export function CheckBoxVisualElement({
 
   useEffect(() => {
     if (!config) { setSuppressionSnapshot(null); setSuppressionError(null); return; }
-    const controller = new AbortController();
-    void refreshSuppression(config.alarmDefinitionId, controller.signal)
-      .then(snapshot => { setSuppressionSnapshot(snapshot); setSuppressionError(null); })
-      .catch(error => { if (!controller.signal.aborted) setSuppressionError(error instanceof Error ? error.message : String(error)); });
-    return () => controller.abort();
+    setSuppressionSnapshot(null);
+    setSuppressionError(null);
+    return subscribeRuntimeAlarmSuppressionSnapshot(endpoint => {
+      if (!endpoint.available) {
+        setSuppressionSnapshot(null);
+        setSuppressionError(endpoint.error);
+        return;
+      }
+      if (!endpoint.value.alarms.some(item => item.definitionId.toLocaleLowerCase() === config.alarmDefinitionId.toLocaleLowerCase())) {
+        setSuppressionSnapshot(null);
+        setSuppressionError('The selected alarm is not available in the active Runtime.');
+        return;
+      }
+      setSuppressionSnapshot(endpoint.value);
+      setSuppressionError(null);
+    });
   }, [config?.alarmDefinitionId]);
 
   useEffect(() => {
@@ -285,8 +299,8 @@ function safeId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '-');
 }
 
-async function refreshSuppression(alarmDefinitionId: string, signal?: AbortSignal): Promise<RuntimeAlarmSuppressionSnapshot> {
-  const result = await loadRuntimeAlarmSuppressions(signal);
+async function refreshSuppression(alarmDefinitionId: string): Promise<RuntimeAlarmSuppressionSnapshot> {
+  const result = await refreshRuntimeAlarmSuppressionSnapshot(true);
   if (!result.available) throw new Error(result.error);
   const target = result.value.alarms.find(item => item.definitionId.toLocaleLowerCase() === alarmDefinitionId.toLocaleLowerCase());
   if (!target) throw new Error('The selected alarm is not available in the active Runtime.');

@@ -98,7 +98,7 @@ Para escrever numa variável de teste, selecione a ação de escrita e a referê
 1. Insira uma **Caixa de seleção** e escreva uma legenda clara, como `Bomba em automático`. A legenda é apenas o texto visto pelo operador; ela não define o TAG nem a ação.
 2. Em **Dinâmicas**, vincule o estado `checked` a qualquer fonte booleana compatível escolhida no seletor, como TAG, expressão ou outra função que retorne verdadeiro/falso. Assim, a caixa pode indicar estados como automático/manual, habilitado/desabilitado ou uma condição própria da aplicação.
 3. Para apenas observar, mantenha **Permitir ajuste pelo operador** desligado. Para deixar o operador mudar o estado, habilite essa opção e use vínculo com TAG Booleano gravável; a permissão da sessão e a autorização do servidor continuam valendo. O Runtime confirma a mudança pelo valor recebido. Qualidade ruim, TAG ausente ou escrita recusada não devem parecer sucesso.
-4. A configuração **Supressão de um alarme** é um modo opcional e separado, não uma exigência do CheckBox genérico. Nesse modo, escolha a definição de alarme pelo nome e informe motivo e duração. O Runtime ainda verifica a autorização de supressão e mostra se a supressão é herdada de outra área.
+4. A configuração **Supressão de um alarme** é um modo opcional e separado, não uma exigência do CheckBox genérico. Nesse modo, escolha a definição de alarme pelo nome e informe motivo e duração. O Runtime ainda verifica a autorização de supressão e mostra se a supressão é herdada de outra área. O estado é atualizado pelo Runtime, inclusive quando outro operador altera a supressão; se não for possível confirmar a leitura, o controle fica indisponível.
 
 ### ComboBox: escolher um valor de uma lista
 

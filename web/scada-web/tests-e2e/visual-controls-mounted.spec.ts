@@ -31,7 +31,7 @@ test('optional alarm-suppression CheckBox does not dispatch without AlarmShelve'
     if (route.request().method() !== 'GET') mutations++;
     await route.fulfill({ json: {
       suppressionRevision: 1,
-      alarms: [{ definitionId: 'c76c7e0b-3235-4a8b-936d-0e23a3f8b62e', name: 'High pressure', isSuppressed: false, suppressionCauses: [] }],
+      alarms: [{ alarmId: 'c76c7e0b-3235-4a8b-936d-0e23a3f8b62e', alarmName: 'High pressure', isSuppressed: false, causes: [] }],
       locations: []
     } });
   });
@@ -57,9 +57,9 @@ test('optional alarm-suppression CheckBox uses the admitted Runtime session and 
     await route.fulfill({ json: {
       suppressionRevision: suppressed ? 1 : 0,
       alarms: [{
-        definitionId: alarmId, name: 'High pressure', isSuppressed: suppressed,
-        suppressionCauses: suppressed ? [{
-          targetKind: 'alarm', targetId: alarmId, targetName: 'High pressure', targetPath: 'High pressure',
+        alarmId, alarmName: 'High pressure', isSuppressed: suppressed,
+        causes: suppressed ? [{
+          targetKind: 1, targetId: alarmId, targetName: 'High pressure', targetPath: 'High pressure',
           actor: 'Operator', reasonCode: 'maintenance', appliedAtUtc: '2026-10-31T12:00:00Z', expiresAtUtc: null
         }] : []
       }],
@@ -94,7 +94,7 @@ test('optional alarm-suppression CheckBox reports a denied mutation and keeps th
   await page.route('**/api/alarms/suppressions', async route => {
     await route.fulfill({ json: {
       suppressionRevision: 0,
-      alarms: [{ definitionId: 'c76c7e0b-3235-4a8b-936d-0e23a3f8b62e', name: 'High pressure', isSuppressed: false, suppressionCauses: [] }],
+      alarms: [{ alarmId: 'c76c7e0b-3235-4a8b-936d-0e23a3f8b62e', alarmName: 'High pressure', isSuppressed: false, causes: [] }],
       locations: []
     } });
   });
@@ -109,14 +109,83 @@ test('optional alarm-suppression CheckBox reports a denied mutation and keeps th
   await expect(checkbox).not.toBeChecked();
 });
 
-test('CheckBox writes a Boolean TAG through the shared writer and waits for process confirmation', async ({ page }) => {
+test('CheckBox writes a Boolean TAG with the keyboard through the shared writer and waits for process confirmation', async ({ page }) => {
   await page.goto('/tests-e2e/visual-controls-harness.html?source=tag');
   const checkbox = page.getByRole('checkbox', { name: 'Bomba disponível' });
   await expect(checkbox).toBeEnabled();
-  await checkbox.check();
+  await checkbox.focus();
+  await page.keyboard.press('Space');
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __controlWrites?: unknown[] }).__controlWrites?.length ?? 0)).toBe(1);
   await expect(checkbox).toBeChecked();
   await expect(page.getByRole('status')).toContainText('confirmado');
+});
+
+test('ComboBox can be operated with the keyboard', async ({ page }) => {
+  await page.goto('/tests-e2e/visual-controls-harness.html?control=combo');
+  const combo = page.getByRole('combobox', { name: 'pump-mode' });
+  await combo.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { __controlWrites?: unknown[] }).__controlWrites?.length ?? 0)).toBe(1);
+  await expect(combo).toHaveValue('MANUAL');
+});
+
+test('CheckBox touch target works in a narrow mobile viewport', async ({ page }) => {
+  const browser = page.context().browser();
+  expect(browser).not.toBeNull();
+  const mobileContext = await browser!.newContext({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
+  try {
+    const mobilePage = await mobileContext.newPage();
+    await mobilePage.goto('http://127.0.0.1:5174/tests-e2e/visual-controls-harness.html?source=tag');
+    const checkbox = mobilePage.getByRole('checkbox', { name: 'Bomba disponível' });
+    const label = mobilePage.locator('.visual-control__checkbox-label');
+    await expect(label).toBeVisible();
+    await label.tap();
+    await expect(checkbox).toBeChecked();
+    await expect.poll(() => mobilePage.evaluate(() => (window as typeof window & { __controlWrites?: unknown[] }).__controlWrites?.length ?? 0)).toBe(1);
+  } finally {
+    await mobileContext.close();
+  }
+});
+
+test('CheckBox and ComboBox inherit the active theme colors and control surface', async ({ page }) => {
+  await page.goto('/tests-e2e/visual-controls-harness.html?source=tag');
+  await page.addStyleTag({ content: 'main { color: rgb(220, 230, 240); --scada-accent: rgb(10, 160, 140); --scada-control-background: rgb(25, 35, 45); }' });
+  const checkbox = page.getByRole('checkbox', { name: 'Bomba disponível' });
+  expect(await checkbox.evaluate(element => getComputedStyle(element).accentColor)).toBe('rgb(10, 160, 140)');
+  expect(await checkbox.evaluate(element => getComputedStyle(element.closest('.visual-control')!).color)).toBe('rgb(220, 230, 240)');
+
+  await page.goto('/tests-e2e/visual-controls-harness.html?control=combo');
+  await page.addStyleTag({ content: 'main { color: rgb(220, 230, 240); --scada-control-background: rgb(25, 35, 45); }' });
+  const combo = page.getByRole('combobox', { name: 'pump-mode' });
+  expect(await combo.evaluate(element => getComputedStyle(element).color)).toBe('rgb(220, 230, 240)');
+  expect(await combo.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(25, 35, 45)');
+});
+
+test('CheckBox reflects an external suppression change and inherited cause from the canonical snapshot', async ({ page }) => {
+  const alarmId = 'c76c7e0b-3235-4a8b-936d-0e23a3f8b62e';
+  let externallySuppressed = false;
+  await page.route('**/api/alarms/suppressions', async route => {
+    await route.fulfill({ json: {
+      suppressionRevision: externallySuppressed ? 2 : 1,
+      alarms: [{
+        alarmId, alarmName: 'High pressure', isSuppressed: externallySuppressed,
+        causes: externallySuppressed ? [{
+          targetKind: 2, targetId: 'location-boiler-room', targetName: 'Casa de bombas', targetPath: 'Planta / Casa de bombas',
+          actor: 'Another operator', reasonCode: 'maintenance', appliedAtUtc: '2026-11-01T12:00:00Z', expiresAtUtc: null
+        }] : []
+      }],
+      locations: []
+    } });
+  });
+
+  await page.goto('/tests-e2e/visual-controls-harness.html?source=suppression');
+  const checkbox = page.getByRole('checkbox', { name: 'Bomba disponível' });
+  await expect(checkbox).toBeEnabled();
+  externallySuppressed = true;
+  await expect(checkbox).toHaveAttribute('aria-checked', 'mixed', { timeout: 12_000 });
+  await expect(checkbox).toBeDisabled();
+  await expect(checkbox).toHaveAttribute('data-quality', 'inherited');
+  await expect(page.getByRole('status')).toContainText('Supressão herdada de Planta / Casa de bombas.');
 });
 
 test('CheckBox with bad quality fails closed and announces unavailable state', async ({ page }) => {

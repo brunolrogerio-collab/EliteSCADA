@@ -79,6 +79,8 @@ Para conferir cor e transparência, teste primeiro com o fundo real da tela. Em 
 
 Adicione uma série para pressão e outra para corrente. Dê legendas claras, como `Pressão de descarga` e `Corrente do motor`. Use um eixo para bar e outro para A: reunir unidades incompatíveis na mesma escala dificulta a interpretação. Diferencie cor e estilo. Uma escala fixa de 0–10 bar ajuda a comparar amplitudes; se o valor estiver fora dela, a curva pode ficar fora da área visível.
 
+Os rótulos numéricos dos eixos ocupam no máximo sete caracteres, contando sinal e separador decimal, e mostram até duas casas decimais. O SCADIVO reduz as casas quando necessário (por exemplo, 9999,99; 99999,9; 9999999), usa o separador decimal do idioma e não agrupa milhares. Para valores muito grandes ou pequenos, apresenta notação científica compacta em vez de cortar dígitos. Isso muda apenas a leitura do eixo; não modifica os dados nem o histórico.
+
 Confira modo ao vivo/histórico, janela, atualização e captura no Historian. Selecionar um período não cria amostras que nunca foram armazenadas. Comece sem filtros restritivos em navegadores e acrescente um filtro por vez; uma lista vazia pode ser consequência da configuração.
 
 ## 6. Adicione movimento e interação com intenção clara

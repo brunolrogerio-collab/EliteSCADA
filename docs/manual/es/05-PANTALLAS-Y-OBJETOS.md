@@ -79,6 +79,8 @@ Compruebe color y transparencia con el fondo real de la pantalla. En un color de
 
 Añada una serie de presión y otra de corriente. Dé leyendas claras como `Presión de descarga` y `Corriente del motor`. Use un eje para bar y otro para A: mezclar unidades incompatibles dificulta interpretar la escala. Distinga color y estilo. Una escala fija 0–10 bar facilita comparar amplitudes; valores fuera de ella pueden quedar fuera del área visible.
 
+Las etiquetas numéricas del eje ocupan como máximo siete caracteres, incluidos el signo y el separador decimal, y muestran hasta dos decimales. SCADIVO reduce los decimales cuando hace falta (por ejemplo, 9999,99; 99999,9; 9999999), usa el separador decimal del idioma y no agrupa los miles. Para valores muy grandes o pequeños, muestra notación científica compacta en vez de cortar dígitos. Esto cambia solo la lectura del eje; no modifica los datos ni el historial.
+
 Compruebe modo en vivo/histórico, ventana, actualización y captura del Historian. Seleccionar un período no crea muestras nunca almacenadas. Empiece los navegadores sin filtros restrictivos y añada uno cada vez; una lista vacía puede deberse a configuración.
 
 ## 6. Añada dinámicas e interacción con intención clara

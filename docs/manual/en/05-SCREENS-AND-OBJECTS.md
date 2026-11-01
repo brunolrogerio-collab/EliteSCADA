@@ -79,6 +79,8 @@ Check color and transparency against the actual screen background. In an eight-d
 
 Add one pressure series and one current series. Give them clear legends such as `Discharge pressure` and `Motor current`. Use one axis for bar and another for A: mixing incompatible units on one scale makes interpretation difficult. Differentiate color and style. A fixed 0–10 bar scale helps compare amplitudes; values outside it may be outside the visible area.
 
+Numeric axis labels use at most seven characters, including the sign and decimal separator, and at most two decimal places. SCADIVO drops decimal places when needed (for example, 9999.99; 99999.9; 9999999), follows the interface locale and does not group thousands. Very large or small values use compact scientific notation instead of clipping digits. This changes only the axis display; stored values and history remain unchanged.
+
 Check live/history mode, window, refresh and Historian capture. Selecting a period does not create samples that were never stored. Start browsers without restrictive filters, then add one filter at a time; an empty list may result from configuration.
 
 ## 6. Add dynamics and interaction with clear intent

@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route, type WebSocketRoute } from '@playwright/test';
+import { formatTrendAxisLabel, MAX_TREND_AXIS_LABEL_CHARACTERS } from '../src/engineering/visual-editor/trendAxisNumberFormat';
 
 const harnessPath = '/tests-e2e/trend-visual-harness.html';
 const tagOne = '11111111-1111-1111-1111-111111111111';
@@ -62,6 +63,70 @@ async function openHarness(page: Page, query = '') {
   await page.goto(`${harnessPath}${query}`);
   await expect(page.getByTestId('visual-trend').first()).toBeVisible();
 }
+
+test('Trend axis labels adapt precision, locale and extreme values to seven characters', () => {
+  expect(formatTrendAxisLabel(9999.99, 'pt-BR')).toBe('9999,99');
+  expect(formatTrendAxisLabel(99999.9, 'pt-BR')).toBe('99999,9');
+  expect(formatTrendAxisLabel(9999999, 'pt-BR')).toBe('9999999');
+  expect(formatTrendAxisLabel(9999.99, 'en')).toBe('9999.99');
+  expect(formatTrendAxisLabel(9999.99, 'es')).toBe('9999,99');
+  expect(formatTrendAxisLabel(12345678, 'pt-BR')).toBe('1,23E7');
+  expect(formatTrendAxisLabel(-12345678, 'pt-BR')).toBe('-1,23E7');
+  expect(formatTrendAxisLabel(12345678, 'en')).toBe('1.23E7');
+  expect(formatTrendAxisLabel(12345678, 'es')).toBe('1,23E7');
+
+  for (const locale of ['pt-BR', 'en', 'es'] as const) {
+    for (const value of [-9999999, -12345678, 12345678, Number.MAX_VALUE, -Number.MAX_VALUE, 1e-320, -1e-320]) {
+      const label = formatTrendAxisLabel(value, locale);
+      expect(label.length, locale + ' ' + value + ' => ' + label).toBeLessThanOrEqual(MAX_TREND_AXIS_LABEL_CHARACTERS);
+    }
+    expect(formatTrendAxisLabel(1e-9, locale)).not.toBe('0');
+    expect(formatTrendAxisLabel(-1e-9, locale)).not.toBe('-0');
+    expect(formatTrendAxisLabel(Number.POSITIVE_INFINITY, locale)).toBe('—');
+    expect(formatTrendAxisLabel(Number.NaN, locale)).toBe('—');
+  }
+});
+
+test('Trend axis labels remain inside the plot at narrow widths and large fonts', async ({ page }) => {
+  const now = Date.now();
+  await page.route('**/api/historical/data-query', async route => {
+    const request = route.request().postDataJSON();
+    await fulfillJson(route, historyResponse([
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 5_000).toISOString(), 1, 'Good'),
+      row(tagTwo, 'Area/Pump/Flow', new Date(now - 5_000).toISOString(), -1, 'Good')
+    ], request));
+  });
+
+  await openHarness(page, '?locale=pt-BR&controls=on&axisFontSize=32&width=320');
+  const trend = page.getByTestId('visual-trend');
+  const chart = page.getByTestId('visual-trend-chart');
+  await chart.click({ button: 'right', position: { x: 80, y: 80 } });
+  const menu = page.getByTestId('visual-trend-context-menu');
+  await menu.getByTestId('trend-axis-left-minimum').fill('-9999999');
+  await menu.getByTestId('trend-axis-left-maximum').fill('9999999');
+  await menu.getByRole('button', { name: 'Aplicar escala' }).click();
+
+  const labels = page.getByTestId('visual-trend-axis-label');
+  await expect(labels).toHaveCount(12);
+  const rendered = await labels.evaluateAll(elements => elements.map(element => {
+    const label = element as SVGTextElement;
+    const bounds = label.getBBox();
+    return {
+      text: label.textContent ?? '',
+      x: bounds.x,
+      right: bounds.x + bounds.width,
+      side: label.getAttribute('data-axis-side')
+    };
+  }));
+  expect(rendered.map(label => label.text)).toContain('9999999');
+  expect(rendered.map(label => label.text)).toContain('-1E7');
+  for (const label of rendered) {
+    expect(label.text.length).toBeLessThanOrEqual(MAX_TREND_AXIS_LABEL_CHARACTERS);
+    expect(label.x, label.side + ' axis label ' + label.text).toBeGreaterThanOrEqual(0);
+    expect(label.right, label.side + ' axis label ' + label.text).toBeLessThanOrEqual(1000);
+  }
+  expect(await trend.evaluate(element => element.getBoundingClientRect().width)).toBeLessThanOrEqual(320);
+});
 
 test('C15 mounted canonical Trend renders multiple historian Pens through one bounded transient sampled query', async ({ page }) => {
   const requests: any[] = [];

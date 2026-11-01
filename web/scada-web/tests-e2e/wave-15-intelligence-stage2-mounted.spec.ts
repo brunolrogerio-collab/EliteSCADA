@@ -136,6 +136,28 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
   });
 }
 
+test('profile keys are generated uniquely and stay hidden when display names match', async ({ page }) => {
+  let saved: Record<string, any> | null = null;
+  const configuration = { version: 2, scopes: [], profiles: [], assignments: [], processStages: [] } as Record<string, any>;
+  await mockWorkspace(page, () => configuration, next => { saved = next; });
+
+  await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
+  const workspace = page.getByTestId('intelligence-stage2-authoring');
+  await workspace.getByRole('button', { name: 'Novo perfil' }).click();
+  await workspace.getByLabel('Nome de exibição').fill('Bomba de recalque');
+  await workspace.getByRole('button', { name: 'Novo perfil' }).click();
+  await workspace.getByLabel('Nome de exibição').fill('Bomba de recalque');
+  await workspace.getByRole('button', { name: 'Salvar configuração de processo', exact: true }).first().click();
+  await expect.poll(() => saved).not.toBeNull();
+
+  const profiles = (saved as unknown as { profiles: Array<{ key: string; name: string }> }).profiles;
+  expect(profiles).toHaveLength(2);
+  expect(profiles.every(profile => /^profile-[a-f0-9]{32}$/.test(profile.key))).toBe(true);
+  expect(new Set(profiles.map(profile => profile.key)).size).toBe(2);
+  expect(profiles.map(profile => profile.name)).toEqual(['Bomba de recalque', 'Bomba de recalque']);
+  for (const profile of profiles) await expect(workspace).not.toContainText(profile.key);
+});
+
 test('controlled signal role authoring keeps legacy text and sends complete typed qualifiers', async ({ page }) => {
   let saved: Record<string, any> | null = null;
   const configuration = {

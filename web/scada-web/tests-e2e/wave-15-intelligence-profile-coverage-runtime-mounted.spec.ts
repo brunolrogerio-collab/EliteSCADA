@@ -79,9 +79,16 @@ test('profile coverage is Runtime-only, explicitly queried and transient on inpu
   expect(Date.parse(queries[0].window.fromUtc)).toBeLessThan(Date.parse(queries[0].window.toUtc));
   await expect(visual.getByText('Motor current')).toBeVisible();
   await expect(visual.getByText('Plant.Pump.Current')).toBeVisible();
-  await expect(visual.getByText('Historian event time')).toBeVisible();
+  await expect(visual.getByText('Historian-recorded time')).toBeVisible();
   await expect(visual.getByText(/Good: 8/)).toBeVisible();
-  await expect(visual.getByText('historian.samples')).toBeVisible();
+  await expect(visual.getByText(/Communication failure: 1/)).toBeVisible();
+  await expect(visual.getByText(/Not verified: matching timestamps do not prove simultaneous acquisition/i)).toBeVisible();
+  await expect(visual.getByText('Historian samples')).toBeVisible();
+  await expect(visual).not.toContainText('internal-signal-ref-001');
+  await expect(visual).not.toContainText('15000000-0000-0000-0000-000000000211');
+  await expect(visual).not.toContainText('unverified');
+  await expect(visual).not.toContainText('unknown');
+  await expect(visual).not.toContainText('unsupported_without_a_canonical_semantic');
 
   await visual.getByLabel('From (local time)').fill('2026-10-20T12:00');
   await visual.getByLabel('To (local time)').fill('2026-10-20T13:00');
@@ -122,7 +129,13 @@ test('profile coverage is Runtime-only, explicitly queried and transient on inpu
     await visual.getByLabel('From (local time)').fill(`2026-10-21T${fromHour}:00`);
     await visual.getByLabel('To (local time)').fill(`2026-10-21T${toHour}:00`);
     await visual.getByRole('button', { name: 'Analyze coverage' }).click();
-    await expect(visual.getByRole('alert')).toContainText(code);
+    const userMessage = index === 0
+      ? 'The Asset & Process Intelligence license is required.'
+      : index === 1
+        ? 'Activate this scope before requesting historical analysis.'
+        : 'The current execution permit is not armed.';
+    await expect(visual.getByRole('alert')).toContainText(userMessage);
+    await expect(visual.getByRole('alert')).not.toContainText(code);
     await expect(visual.getByTestId('intelligence-profile-coverage-result')).toHaveCount(0);
   }
 
@@ -183,8 +196,8 @@ function coverageResponse(body: Record<string, any>) {
     window: body.window,
     signals: [{
       signalId: '40000000-0000-0000-0000-000000000004',
-      signalKey: 'Motor current',
-      signalRoleMetadata: 'current',
+      signalKey: 'internal-signal-ref-001',
+      signalRoleMetadata: 'Motor current',
       required: true,
       tagId: '50000000-0000-0000-0000-000000000005',
       tagPath: 'Plant.Pump.Current',
@@ -193,7 +206,7 @@ function coverageResponse(body: Record<string, any>) {
       status: 'descriptive_trend_available',
       summary: {
         rawObservationCount: 10, acceptedSampleCount: 8, rejectedSampleCount: 2,
-        qualityCounts: { Good: 8, Uncertain: 2 }, validSampleCount: 8,
+        qualityCounts: { Good: 8, Uncertain: 1, BadCommunication: 1 }, validSampleCount: 8,
         minimum: 10, maximum: 12, sampleMean: 11, completeness: 'unknown', expectedSampleCount: null
       }
     }],

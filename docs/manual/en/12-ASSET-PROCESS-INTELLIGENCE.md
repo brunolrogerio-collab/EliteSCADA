@@ -38,27 +38,27 @@ To edit, your account needs `EngineeringModify` and `AssetProcessIntelligenceMan
 
 ## 2. Create a measurement profile and assignment
 
-1. Open Engineering > Asset Intelligence and create a Measurement profile with an identifiable name/key.
-2. Add the TAGs that describe the Equipment. Mark each signal required or optional and complete any requested semantic qualifiers; a label does not replace the unit or actual TAG reference.
+1. Open Engineering > Asset Intelligence and create a Measurement profile. Give it a name that helps identify the group, such as “Transfer pump”.
+2. Add the TAGs that describe the Equipment. For each TAG, explain what it measures, mark whether the analysis needs it, and complete the requested measurement details. Check the unit and actual TAG reference.
 3. Save the configuration to Working.
-4. In assignments, choose the existing Equipment and profile. One Equipment identity can use more than one profile.
+4. In assignments, choose the existing Equipment and profile. One piece of Equipment can use more than one profile.
 5. Review missing and duplicate references before saving and following the normal project lifecycle.
 
-The profile organizes signal references and meaning. It does not create TAGs, enable Historian capture by itself, or prove that instruments are calibrated.
+The profile organizes signal references and their meaning. The system creates its internal keys for you; you do not need to invent IDs or codes. The profile does not create TAGs, enable Historian capture by itself, or prove that instruments are calibrated.
 
 ## 3. Configure operating context
 
 Higher current may be expected when speed or load rises. An operating context states conditions, such as pump running and speed within a defined range, to select comparable evidence. It does not automatically learn operating mode or turn correlation into diagnosis. Choose limits using Equipment knowledge.
 
-Choose the equipment assignment and give the context a stable key and a name explaining the condition, such as Pump running at normal flow. Add at least one required predicate. A predicate is a condition checked against a TAG in the assigned profile.
+Choose the equipment assignment and give the context a name explaining the condition, such as “Pump running at normal flow”. Add at least one condition using a TAG from the assigned profile. The system creates the context’s internal key.
 
 For numbers, the range includes minimum and maximum in the TAG’s current unit. For booleans, choose True or False. For String or Enum, use the exact value, including case when applicable.
 
-Every condition needs evidence at the same synchronized, exact source UTC timestamp. Readings merely close in time are not enough. The server controls profile version; on an editing conflict, refresh configuration and review before saving.
+Every condition must match readings with exactly the same source UTC time. Readings merely close in time are not enough. If another edit changes the context, refresh the screen and review its conditions before saving.
 
 ## 4. Organize process stages
 
-Use **Ordered process stages** to build the sequence you want to monitor. Create each stage with a stable key and readable name; add Equipment/profile assignments and explicitly set their order. A stage organizes members but does not itself infer causality, balance, or an aggregate process KPI.
+Use **Ordered process stages** to build the sequence you want to monitor. Give each stage a readable name, add Equipment/profile assignments and set their order. The system creates each stage’s internal key. A stage organizes members but does not itself infer causality, balance, or an aggregate process KPI.
 
 Save the configuration to Working. Runtime data and analyses remain subject to the Active revision and current authorization.
 
@@ -79,7 +79,7 @@ Choose a profile or stage and generate an available Screen. Generation uses TAG 
 - **Resource blocked:** check the license, `EngineeringModify`, `AssetProcessIntelligenceManage`, and scope.
 - **Incomplete profile/assignment:** check Equipment, profile, TAGs, and required qualifiers.
 - **No coverage/history:** confirm that the TAG received useful samples with quality and timestamps and that capture existed during the period. Historian does not backfill data.
-- **No context match:** review predicates, unit, interval, and the required temporal synchronization/equality.
+- **No context match:** review the conditions, unit, range and whether readings have the same source time.
 - **Draft unavailable:** complete the selections required by that Screen type and use the normal editor to refine the result.
 - **Result differs after editing:** save the correct configuration, check the Active revision, and explicitly run a new query.
 

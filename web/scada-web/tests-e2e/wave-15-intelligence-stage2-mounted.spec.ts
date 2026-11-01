@@ -2,30 +2,30 @@ import { expect, test } from '@playwright/test';
 
 const locales = {
   'pt-BR': {
-    createProfile: 'Novo perfil', profileKey: 'Chave estável', profileName: 'Nome de exibição',
-    signalKey: 'Chave do sinal', signalRole: 'Texto de papel legado', tagReference: 'Referência do TAG', addSignal: 'Adicionar sinal',
-    equipment: 'Equipamento', profile: 'Perfil', assignProfile: 'Associar perfil', newStage: 'Nova etapa', stageKey: 'Chave estável',
+    createProfile: 'Novo perfil', profileName: 'Nome de exibição',
+    signalRole: 'O que esta medição representa?', tagReference: 'Referência do TAG', addSignal: 'Adicionar sinal',
+    equipment: 'Equipamento', profile: 'Perfil', assignProfile: 'Associar perfil', newStage: 'Nova etapa',
     stageName: 'Nome de exibição', stageAssignment: 'Associação', addToStage: 'Adicionar à etapa', moveUp: 'Mover para cima', moveDown: 'Mover para baixo',
     save: 'Salvar configuração de processo', noProfiles: 'Nenhum perfil ainda. Crie um para definir referências estáticas de sinais.',
-    noEquipment: 'Nenhum equipamento estável disponível.', noTags: 'Nenhum TAG estável disponível', missingTag: 'Referência de TAG ausente',
+    noEquipment: 'Nenhum equipamento disponível.', noTags: 'Nenhum TAG disponível', missingTag: 'Referência de TAG ausente',
     missingEquipment: 'Equipamento ausente', missingProfile: 'Perfil ausente', referenceMissing: 'Referência ausente'
   },
   en: {
-    createProfile: 'New profile', profileKey: 'Stable key', profileName: 'Display name',
-    signalKey: 'Signal key', signalRole: 'Legacy domain role text', tagReference: 'TAG reference', addSignal: 'Add signal',
-    equipment: 'Equipment', profile: 'Profile', assignProfile: 'Assign profile', newStage: 'New stage', stageKey: 'Stable key',
+    createProfile: 'New profile', profileName: 'Display name',
+    signalRole: 'What does this measurement represent?', tagReference: 'TAG reference', addSignal: 'Add signal',
+    equipment: 'Equipment', profile: 'Profile', assignProfile: 'Assign profile', newStage: 'New stage',
     stageName: 'Display name', stageAssignment: 'Assignment', addToStage: 'Add to stage', moveUp: 'Move up', moveDown: 'Move down',
     save: 'Save process configuration', noProfiles: 'No profiles yet. Create one to define static signal references.',
-    noEquipment: 'No stable Equipment is available.', noTags: 'No stable TAGs available', missingTag: 'Missing TAG reference',
+    noEquipment: 'No Equipment is available.', noTags: 'No TAGs are available', missingTag: 'Missing TAG reference',
     missingEquipment: 'Missing Equipment', missingProfile: 'Missing profile', referenceMissing: 'Reference is missing'
   },
   es: {
-    createProfile: 'Nuevo perfil', profileKey: 'Clave estable', profileName: 'Nombre',
-    signalKey: 'Clave de señal', signalRole: 'Texto de rol heredado', tagReference: 'Referencia TAG', addSignal: 'Añadir señal',
-    equipment: 'Equipo', profile: 'Perfil', assignProfile: 'Asignar perfil', newStage: 'Nueva etapa', stageKey: 'Clave estable',
+    createProfile: 'Nuevo perfil', profileName: 'Nombre',
+    signalRole: '¿Qué representa esta medición?', tagReference: 'Referencia TAG', addSignal: 'Añadir señal',
+    equipment: 'Equipo', profile: 'Perfil', assignProfile: 'Asignar perfil', newStage: 'Nueva etapa',
     stageName: 'Nombre', stageAssignment: 'Asignación', addToStage: 'Añadir a etapa', moveUp: 'Mover arriba', moveDown: 'Mover abajo',
     save: 'Guardar configuración', noProfiles: 'Aún no hay perfiles. Cree uno para definir referencias estáticas.',
-    noEquipment: 'No hay equipos estables.', noTags: 'No hay TAGs estables', missingTag: 'Falta la referencia TAG',
+    noEquipment: 'No hay equipos disponibles.', noTags: 'No hay TAGs disponibles', missingTag: 'Falta la referencia TAG',
     missingEquipment: 'Equipo inexistente', missingProfile: 'Perfil inexistente', referenceMissing: 'Falta la referencia'
   }
 } as const;
@@ -43,11 +43,12 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
       await expect(workspace.getByRole('heading', { name: /perfis reutilizáveis|perfiles reutilizables/i })).toBeVisible();
     });
     await workspace.getByRole('button', { name: copy.createProfile }).click();
-    await workspace.getByLabel(copy.profileKey).fill('pump-service');
     await workspace.getByLabel(copy.profileName).fill('Pump service');
-    await workspace.getByLabel(copy.signalKey).fill('temperature');
     await workspace.getByLabel(copy.signalRole).fill('thermal');
     await workspace.getByLabel(copy.tagReference).selectOption('15000000-0000-0000-0000-000000000101');
+    await workspace.getByRole('button', { name: copy.addSignal }).click();
+    await workspace.getByLabel(copy.signalRole).fill('thermal');
+    await workspace.getByLabel(copy.tagReference).selectOption('15000000-0000-0000-0000-000000000102');
     await workspace.getByRole('button', { name: copy.addSignal }).click();
 
     const equipment = workspace.getByRole('combobox', { name: copy.equipment, exact: true });
@@ -62,7 +63,6 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
     await workspace.getByRole('button', { name: copy.newStage }).click();
     const firstStageId = await selectedStageId(workspace);
     let stageEditor = workspace.locator('.asset-process-intelligence__editor').last();
-    await stageEditor.getByLabel(copy.stageKey).fill('feed');
     await stageEditor.getByLabel(copy.stageName).fill('Feed');
     await chooseFirstAssignment(workspace.getByRole('combobox', { name: copy.stageAssignment, exact: true }));
     await workspace.getByRole('button', { name: copy.addToStage }).click();
@@ -71,7 +71,6 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
 
     await workspace.getByRole('button', { name: copy.newStage }).click();
     stageEditor = workspace.locator('.asset-process-intelligence__editor').last();
-    await stageEditor.getByLabel(copy.stageKey).fill('treatment');
     await stageEditor.getByLabel(copy.stageName).fill('Treatment');
     await chooseFirstAssignment(workspace.getByRole('combobox', { name: copy.stageAssignment, exact: true }));
     await workspace.getByRole('button', { name: copy.addToStage }).click();
@@ -84,20 +83,27 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
     await workspace.getByRole('button', { name: copy.save, exact: true }).first().click();
     await expect.poll(() => saved).not.toBeNull();
     const payload = saved as unknown as {
-      profiles: Array<{ key: string; name: string; signals: Array<{ tagId: string; signalRole: string }> }>;
+      profiles: Array<{ key: string; name: string; signals: Array<{ key: string; tagId: string; signalRole: string }> }>;
       assignments: Array<{ equipmentId: string; profileId: string }>;
-      processStages: Array<{ key: string; order: number; links: Array<{ assignmentId: string; order: number }> }>;
+      processStages: Array<{ key: string; name: string; order: number; links: Array<{ assignmentId: string; order: number }> }>;
     };
     expect(payload.profiles).toHaveLength(1);
-    expect(payload.profiles[0]).toMatchObject({ key: 'pump-service', name: 'Pump service' });
-    expect(payload.profiles[0].signals[0]).toMatchObject({ tagId: '15000000-0000-0000-0000-000000000101', signalRole: 'thermal' });
+    expect(payload.profiles[0].key).toMatch(/^profile-[a-f0-9]{32}$/);
+    expect(payload.profiles[0].name).toBe('Pump service');
+    expect(payload.profiles[0].signals[0]).toMatchObject({ key: 'thermal', tagId: '15000000-0000-0000-0000-000000000101', signalRole: 'thermal' });
+    expect(payload.profiles[0].signals[1]).toMatchObject({ key: 'thermal-2', tagId: '15000000-0000-0000-0000-000000000102', signalRole: 'thermal' });
     expect(payload.assignments).toHaveLength(2);
     expect(new Set(payload.assignments.map(item => item.profileId)).size).toBe(1);
-    expect(payload.processStages.map(item => item.key)).toEqual(['treatment', 'feed']);
-    const feed = payload.processStages.find(item => item.key === 'feed')!;
+    expect(payload.processStages.map(item => item.name)).toEqual(['Treatment', 'Feed']);
+    expect(payload.processStages.every(item => /^stage-[a-f0-9]{32}$/.test(item.key))).toBe(true);
+    expect(new Set(payload.processStages.map(item => item.key)).size).toBe(2);
+    const feed = payload.processStages.find(item => item.name === 'Feed')!;
     expect(feed.links.map(item => item.order)).toEqual([0, 1]);
     expect(feed.links[0].assignmentId).toBe(payload.assignments[1].id);
     expect(firstStageId).toBeTruthy();
+    await expect(workspace).not.toContainText(payload.profiles[0].key);
+    for (const stage of payload.processStages) await expect(workspace).not.toContainText(stage.key);
+    await expect(workspace).not.toContainText('15000000-0000-0000-0000-000000000101');
   });
 
   test(`Stage 2 displays empty and missing-reference states (${locale})`, async ({ page }) => {
@@ -124,6 +130,9 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
     await expect(loaded.getByText(copy.missingTag)).toBeVisible();
     await expect(loaded.getByText(copy.missingEquipment, { exact: false }).first()).toBeVisible();
     await expect(loaded.getByText(copy.referenceMissing, { exact: false }).first()).toBeVisible();
+    await expect(loaded).not.toContainText('15000000-0000-0000-0000-000000000299');
+    await expect(loaded).not.toContainText('15000000-0000-0000-0000-000000000298');
+    await expect(loaded).not.toContainText('15000000-0000-0000-0000-000000000297');
   });
 }
 
@@ -180,11 +189,11 @@ test('v2 controlled process roles retain their catalog version through editing a
     scopes: [],
     profiles: [{
       id: '15000000-0000-0000-0000-000000000501',
-      key: 'pump',
+      key: 'internal-profile-ref-501',
       name: 'Pump',
       signals: [{
         id: '15000000-0000-0000-0000-000000000502',
-        key: 'active-power',
+        key: 'internal-signal-ref-502',
         signalRole: 'Input power',
         tagId: '15000000-0000-0000-0000-000000000104',
         required: true
@@ -198,9 +207,12 @@ test('v2 controlled process roles retain their catalog version through editing a
   await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
   const workspace = page.getByTestId('intelligence-stage2-authoring');
   const saveButton = workspace.locator('.asset-process-intelligence__authoring-footer').getByRole('button', { name: 'Salvar configuração de processo' });
-  await workspace.getByTestId('intelligence-semantic-role-active-power').selectOption('2:equipment.active_input_power');
-  await expect(workspace.getByTestId('intelligence-semantic-signalKind-active-power')).toBeVisible();
-  await workspace.getByTestId('intelligence-semantic-signalKind-active-power').selectOption('measured_total_input');
+  const semanticRole = workspace.getByTestId('intelligence-semantic-role-internal-signal-ref-502');
+  await expect(semanticRole.getByRole('option', { name: 'Potência ativa de entrada' })).toBeAttached();
+  await semanticRole.selectOption('2:equipment.active_input_power');
+  await expect(workspace.getByTestId('intelligence-semantic-signalKind-internal-signal-ref-502')).toBeVisible();
+  await expect(workspace.getByTestId('intelligence-semantic-signalKind-internal-signal-ref-502').getByRole('option', { name: 'Total medido na entrada' })).toBeAttached();
+  await workspace.getByTestId('intelligence-semantic-signalKind-internal-signal-ref-502').selectOption('measured_total_input');
   await expect(workspace.getByText('Anotação controlada completa')).toBeVisible();
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
@@ -208,9 +220,13 @@ test('v2 controlled process roles retain their catalog version through editing a
 
   const payload = saved as unknown as {
     semanticContractVersion: number;
-    profiles: Array<{ signals: Array<{ semanticBinding: Record<string, unknown> }> }>;
+    profiles: Array<{ key: string; signals: Array<{ key: string; semanticBinding: Record<string, unknown> }> }>;
   };
   expect(payload.semanticContractVersion).toBe(2);
+  expect(payload.profiles[0].key).toBe('internal-profile-ref-501');
+  expect(payload.profiles[0].signals[0].key).toBe('internal-signal-ref-502');
+  await expect(workspace).not.toContainText('internal-profile-ref-501');
+  await expect(workspace).not.toContainText('internal-signal-ref-502');
   expect(payload.profiles[0].signals[0].semanticBinding).toMatchObject({
     catalogVersion: 2,
     roleCode: 'equipment.active_input_power',

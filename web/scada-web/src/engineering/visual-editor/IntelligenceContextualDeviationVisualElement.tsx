@@ -253,7 +253,7 @@ export function IntelligenceContextualDeviationVisualElement({
       if (!requestController.signal.aborted && requestVersion.current === version) {
         const code = reason instanceof DeviationVisualError ? reason.code
           : reason instanceof Error ? reason.message : 'NETWORK_ERROR';
-        setError((copy.errors as Readonly<Record<string, string>>)[code] ?? `${copy.requestFailed}: ${code}`);
+        setError((copy.errors as Readonly<Record<string, string>>)[code] ?? copy.requestFailed);
       }
     } finally {
       if (requestVersion.current === version) setLoading(false);
@@ -314,7 +314,7 @@ export function IntelligenceContextualDeviationVisualElement({
 
 function DeviationResult({ result, locale, copy }: { result: Response; locale: EngineeringLocale; copy: ReturnType<typeof visualCopy> }) {
   const formatter = new Intl.NumberFormat(locale === 'pt-BR' ? 'pt-BR' : locale, { maximumFractionDigits: 5 });
-  const targets = new Map(result.targetStatistics.map(statistic => [statistic.signal.signalId, statistic.signal.signalKey]));
+  const targets = new Map(result.targetStatistics.map(statistic => [statistic.signal.signalId, statistic.signal.tagPath]));
   const visibleVectors = result.evaluationVectors.slice(-MAX_VISIBLE_VECTORS);
   return <section className="runtime-intelligence-contextual-deviation__result" data-testid="runtime-intelligence-contextual-deviation-result" aria-live="polite">
     <section>
@@ -324,7 +324,7 @@ function DeviationResult({ result, locale, copy }: { result: Response; locale: E
         <Fact label={copy.evaluationVectors} value={formatCount(result.completeEvaluationVectorCount, locale)}/>
         <Fact label={copy.inJointContext} value={formatCount(result.jointContextEvaluationVectorCount, locale)}/>
         <Fact label={copy.rawRows} value={formatCount(result.totalRawObservationCount, locale)}/>
-        <Fact label={copy.provenance} value={result.provenance.vectorTimestampBasis}/>
+        <Fact label={copy.provenance} value={describeVectorTimestampBasis(result.provenance.vectorTimestampBasis, locale)}/>
       </dl>
       <p>{copy.noCombinedDiagnosis}</p>
     </section>
@@ -332,7 +332,7 @@ function DeviationResult({ result, locale, copy }: { result: Response; locale: E
       <h3>{copy.perTarget}</h3>
       <div className="runtime-intelligence-contextual-deviation__targets">
         {result.targetStatistics.map(statistic => <article key={statistic.signal.signalId}>
-          <h4>{statistic.signal.signalKey}</h4>
+          <h4>{statistic.signal.tagPath}</h4>
           <dl>
             <Fact label={copy.referenceMedian} value={formatOptional(statistic.referenceMedian, formatter)}/>
             <Fact label={copy.referenceMad} value={formatOptional(statistic.referenceMad, formatter)}/>
@@ -495,22 +495,39 @@ function formatTimestamp(value: string, locale: EngineeringLocale): string {
 function formatNumber(value: number, formatter: Intl.NumberFormat): string { return Number.isFinite(value) ? formatter.format(value) : '—'; }
 function formatOptional(value: number | null, formatter: Intl.NumberFormat): string { return value === null ? '—' : formatNumber(value, formatter); }
 function unavailableReason(reason: string | null, copy: ReturnType<typeof visualCopy>): string {
-  return reason ? (copy.reasons as Readonly<Record<string, string>>)[reason] ?? reason : copy.unavailable;
+  return reason ? (copy.reasons as Readonly<Record<string, string>>)[reason] ?? copy.unavailable : copy.unavailable;
+}
+
+function describeVectorTimestampBasis(value: string, locale: EngineeringLocale): string {
+  const text = value.toLowerCase();
+  if (text.includes('source timestamp match') || text.includes('exact equality of non-null utc source.timestamp')) {
+    return locale === 'pt-BR'
+      ? 'Compara leituras com o mesmo horário de origem sincronizado nas duas condições e em todos os sinais. Isso não comprova que os sensores mediram no mesmo instante.'
+      : locale === 'es'
+        ? 'Compara lecturas con la misma hora de origen sincronizada en ambas condiciones y en todas las señales. Esto no demuestra que los sensores midieran al mismo instante.'
+        : 'Compares readings with the same synchronized source time across both conditions and all signals. This does not prove the sensors measured at the same instant.';
+  }
+  if (text.includes('historian observation timestamp')) {
+    return locale === 'pt-BR' ? 'Horário em que a leitura foi registrada pelo Historian.'
+      : locale === 'es' ? 'Hora en que Historian registró la lectura.'
+        : 'Time when Historian recorded the reading.';
+  }
+  return locale === 'pt-BR' ? 'Base de horário definida pelo relatório.' : locale === 'es' ? 'Base temporal definida por el informe.' : 'Time basis defined by the report.';
 }
 
 function visualCopy(locale: EngineeringLocale) {
   if (locale === 'en') return {
-    title: 'Contextual deviation', transient: 'V2 · temporary read-only evidence', runtimeOnly: 'This visual is interactive only in live Runtime. The Engineering editor never queries Historian.',
+    title: 'Contextual deviation', transient: 'Temporary read-only analysis', runtimeOnly: 'This visual is interactive only in live Runtime. The Engineering editor never queries Historian.',
     runtimeUnavailable: 'Queries are unavailable during playback or unless Runtime View and TrendUse are effective.', invalidConfig: 'The configured scope, assignment, profile, signals or canonical ranges are invalid. This visual fails closed.',
     operatorAction: 'Historian is queried only after selecting Analyze. Reference and evaluation windows must be separate and chronological; each request rechecks server authorization.',
     reference: 'Reference window', evaluation: 'Evaluation window', referenceFrom: 'Reference from (local time)', referenceTo: 'Reference to (local time)', evaluationFrom: 'Evaluation from (local time)', evaluationTo: 'Evaluation to (local time)', analyze: 'Analyze', loading: 'Querying…',
     windowInvalid: 'Both windows must be valid and no longer than 31 days each.', windowsOrder: 'The reference window must end before the evaluation window begins.',
     windowHint: 'Local times are sent as UTC. Windows must not overlap. Results and samples stay only in this Runtime view.', requestFailed: 'Request failed',
-    summary: 'Evidence summary', referenceVectors: 'Joint-context reference vectors', evaluationVectors: 'Complete evaluation vectors', inJointContext: 'Evaluation vectors in declared context', rawRows: 'Raw observations read', provenance: 'Timestamp basis',
+    summary: 'Result summary', referenceVectors: 'Reference samples in both selected conditions', evaluationVectors: 'Complete evaluation samples', inJointContext: 'Evaluation samples in the selected conditions', rawRows: 'Historian records checked', provenance: 'How readings are matched',
     noCombinedDiagnosis: 'Each target is described independently against the joint-context reference cohort. No combined anomaly, diagnosis, fault or remaining-life estimate is produced.',
-    perTarget: 'Per-target reference', referenceMedian: 'Reference median', referenceMad: 'Reference MAD', referenceCount: 'Joint reference count', evaluationCount: 'Returned evaluation values', robustScore: 'Robust score', available: 'Available per sample below', unavailable: 'Unavailable',
-    evaluationEvidence: 'Evaluation evidence', showingVectors: (shown: number, returned: number, omitted: number) => `Showing ${shown} latest of ${returned} returned vectors; ${omitted} additional vectors were omitted by the server limit.`,
-    contextValues: 'Context values (canonical)', inJointContextLabel: 'inside both declared ranges', outsideJointContext: 'outside joint context', difference: 'difference from reference median', noEvaluationVectors: 'No complete evaluation vectors were returned.',
+    perTarget: 'Results by signal', referenceMedian: 'Reference median', referenceMad: 'Reference variation (median absolute deviation, MAD)', referenceCount: 'Samples in both reference conditions', evaluationCount: 'Evaluation samples returned', robustScore: 'Deviation relative to usual variation', available: 'Shown for each sample below', unavailable: 'Not available',
+    evaluationEvidence: 'Evaluation samples', showingVectors: (shown: number, returned: number, omitted: number) => `Showing ${shown} most recent samples out of ${returned}; ${omitted} more were omitted because of the display limit.`,
+    contextValues: 'Condition readings (controlled units)', inJointContextLabel: 'within both selected ranges', outsideJointContext: 'outside the selected conditions', difference: 'difference from reference median', noEvaluationVectors: 'No complete evaluation samples were returned.',
     errors: {
       INVALID_CATALOG: 'The active contextual-deviation catalog is unavailable or incompatible.', INVALID_RESPONSE: 'The server response does not match this Screen configuration or active Runtime revision.',
       INTELLIGENCE_ENTITLEMENT_REQUIRED: 'The Intelligence license is not effective for this Runtime.', INTELLIGENCE_EXECUTION_PERMIT_REQUIRED: 'An active Intelligence execution permit is required.',
@@ -518,37 +535,37 @@ function visualCopy(locale: EngineeringLocale) {
       INTELLIGENCE_CONTEXTUAL_DEVIATION_VECTOR_V2_CONTEXT_UNIT_UNSUPPORTED: 'Both context signals need compatible controlled units.',
       INTELLIGENCE_CONTEXTUAL_DEVIATION_VECTOR_V2_CONTEXT_RANGE_INVALID: 'A declared canonical context range is invalid.'
     },
-    reasons: { fewer_than_30_complete_joint_context_reference_vectors: 'Fewer than 30 reference vectors', reference_mad_zero: 'Reference MAD is zero', no_complete_joint_context_reference_vectors: 'No complete joint-context reference vectors', outside_joint_declared_context: 'Outside declared context' }
+    reasons: { fewer_than_30_complete_joint_context_reference_vectors: 'Fewer than 30 reference samples', reference_mad_zero: 'Reference values do not vary, so a relative score cannot be calculated', no_complete_joint_context_reference_vectors: 'No complete samples match both reference conditions', outside_joint_declared_context: 'Outside the selected conditions', non_finite_raw_difference: 'Could not calculate a valid difference', non_finite_reference_statistic: 'Could not calculate a valid reference range', non_finite_robust_score: 'Could not calculate a valid relative score' }
   };
   if (locale === 'es') return {
-    title: 'Desviación contextual', transient: 'V2 · evidencia temporal de solo lectura', runtimeOnly: 'Este visual solo es interactivo en Runtime en vivo. Engineering nunca consulta Historian.',
+    title: 'Desviación contextual', transient: 'Análisis temporal de solo lectura', runtimeOnly: 'Este visual solo es interactivo en Runtime en vivo. Engineering nunca consulta Historian.',
     runtimeUnavailable: 'No se puede consultar durante la reproducción ni sin Runtime View y TrendUse efectivos.', invalidConfig: 'El alcance, asignación, perfil, señales o rangos canónicos no son válidos. El visual se cierra de forma segura.',
     operatorAction: 'Historian solo se consulta al seleccionar Analizar. Las ventanas deben ser cronológicas y separadas; el servidor revalida cada solicitud.',
     reference: 'Ventana de referencia', evaluation: 'Ventana de evaluación', referenceFrom: 'Desde referencia (hora local)', referenceTo: 'Hasta referencia (hora local)', evaluationFrom: 'Desde evaluación (hora local)', evaluationTo: 'Hasta evaluación (hora local)', analyze: 'Analizar', loading: 'Consultando…',
     windowInvalid: 'Cada ventana debe ser válida y tener como máximo 31 días.', windowsOrder: 'La ventana de referencia debe terminar antes de que comience la de evaluación.',
     windowHint: 'Las horas locales se envían como UTC. Las ventanas no se superponen. Los resultados quedan solo en esta vista Runtime.', requestFailed: 'Falló la solicitud',
-    summary: 'Resumen de evidencia', referenceVectors: 'Vectores de referencia en contexto conjunto', evaluationVectors: 'Vectores completos de evaluación', inJointContext: 'Vectores de evaluación en el contexto declarado', rawRows: 'Observaciones leídas', provenance: 'Base temporal',
+    summary: 'Resumen de resultados', referenceVectors: 'Muestras de referencia en ambas condiciones seleccionadas', evaluationVectors: 'Muestras completas de evaluación', inJointContext: 'Muestras de evaluación dentro de las condiciones', rawRows: 'Registros revisados en Historian', provenance: 'Cómo se comparan las lecturas',
     noCombinedDiagnosis: 'Cada objetivo se describe por separado frente a la cohorte de referencia. No se genera anomalía combinada, diagnóstico, falla ni vida restante.',
-    perTarget: 'Referencia por objetivo', referenceMedian: 'Mediana de referencia', referenceMad: 'MAD de referencia', referenceCount: 'Conteo de referencia conjunta', evaluationCount: 'Valores de evaluación devueltos', robustScore: 'Puntuación robusta', available: 'Disponible por muestra abajo', unavailable: 'No disponible',
-    evaluationEvidence: 'Evidencia de evaluación', showingVectors: (shown: number, returned: number, omitted: number) => `Se muestran ${shown} vectores más recientes de ${returned}; el servidor omitió ${omitted} adicionales por límite.`,
-    contextValues: 'Valores de contexto (canónicos)', inJointContextLabel: 'dentro de ambos rangos', outsideJointContext: 'fuera del contexto conjunto', difference: 'diferencia frente a mediana', noEvaluationVectors: 'No se devolvieron vectores completos.',
+    perTarget: 'Resultados por señal', referenceMedian: 'Mediana de referencia', referenceMad: 'Variación de referencia (desviación absoluta mediana, MAD)', referenceCount: 'Muestras en ambas condiciones de referencia', evaluationCount: 'Muestras de evaluación devueltas', robustScore: 'Desviación respecto a la variación habitual', available: 'Se muestra para cada muestra abajo', unavailable: 'No disponible',
+    evaluationEvidence: 'Muestras de evaluación', showingVectors: (shown: number, returned: number, omitted: number) => `Se muestran las ${shown} muestras más recientes de ${returned}; se omitieron ${omitted} por el límite de visualización.`,
+    contextValues: 'Lecturas de condición (unidades controladas)', inJointContextLabel: 'dentro de ambos rangos elegidos', outsideJointContext: 'fuera de las condiciones elegidas', difference: 'diferencia frente a la mediana de referencia', noEvaluationVectors: 'No se devolvieron muestras completas de evaluación.',
     errors: { INVALID_CATALOG: 'El catálogo activo no está disponible o es incompatible.', INVALID_RESPONSE: 'La respuesta no coincide con esta pantalla o revisión Runtime.', INTELLIGENCE_ENTITLEMENT_REQUIRED: 'La licencia Intelligence no está activa para este Runtime.', INTELLIGENCE_EXECUTION_PERMIT_REQUIRED: 'Se requiere un permiso Intelligence activo.', INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE: 'El alcance seleccionado no está activo en esta revisión Runtime.' },
-    reasons: { fewer_than_30_complete_joint_context_reference_vectors: 'Menos de 30 vectores de referencia', reference_mad_zero: 'MAD de referencia igual a cero', no_complete_joint_context_reference_vectors: 'Sin vectores completos de referencia conjunta', outside_joint_declared_context: 'Fuera del contexto declarado' }
+    reasons: { fewer_than_30_complete_joint_context_reference_vectors: 'Menos de 30 muestras de referencia', reference_mad_zero: 'Los valores de referencia no varían y no permiten calcular una puntuación relativa', no_complete_joint_context_reference_vectors: 'No hay muestras completas en ambas condiciones de referencia', outside_joint_declared_context: 'Fuera de las condiciones elegidas', non_finite_raw_difference: 'No se pudo calcular una diferencia válida', non_finite_reference_statistic: 'No se pudo calcular un intervalo de referencia válido', non_finite_robust_score: 'No se pudo calcular una puntuación relativa válida' }
   };
   return {
-    title: 'Desvio contextual', transient: 'V2 · evidência temporária somente leitura', runtimeOnly: 'Este visual só é interativo no Runtime ao vivo. O Engineering nunca consulta o Historian.',
+    title: 'Desvio contextual', transient: 'Análise temporária somente para leitura', runtimeOnly: 'Este visual só é interativo no Runtime ao vivo. O Engineering nunca consulta o Historian.',
     runtimeUnavailable: 'Consultas não ficam disponíveis durante reprodução nem sem Runtime View e TrendUse efetivos.', invalidConfig: 'Escopo, associação, perfil, sinais ou faixas canônicas inválidas. O visual falha fechado.',
     operatorAction: 'O Historian só é consultado ao selecionar Analisar. As janelas devem ser cronológicas e separadas; cada solicitação é revalidada pelo servidor.',
     reference: 'Janela de referência', evaluation: 'Janela de avaliação', referenceFrom: 'Início da referência (horário local)', referenceTo: 'Fim da referência (horário local)', evaluationFrom: 'Início da avaliação (horário local)', evaluationTo: 'Fim da avaliação (horário local)', analyze: 'Analisar', loading: 'Consultando…',
     windowInvalid: 'Cada janela precisa ser válida e ter no máximo 31 dias.', windowsOrder: 'A janela de referência deve terminar antes do início da janela de avaliação.',
     windowHint: 'Horários locais são enviados em UTC. As janelas não podem se sobrepor. Resultados e amostras ficam apenas nesta visualização Runtime.', requestFailed: 'Falha na solicitação',
-    summary: 'Resumo das evidências', referenceVectors: 'Vetores de referência no contexto conjunto', evaluationVectors: 'Vetores completos de avaliação', inJointContext: 'Vetores de avaliação no contexto declarado', rawRows: 'Observações lidas', provenance: 'Base temporal',
+    summary: 'Resumo dos resultados', referenceVectors: 'Amostras de referência nas duas condições selecionadas', evaluationVectors: 'Amostras completas de avaliação', inJointContext: 'Amostras de avaliação nas condições selecionadas', rawRows: 'Registros consultados no Historian', provenance: 'Como as leituras são comparadas',
     noCombinedDiagnosis: 'Cada alvo é descrito individualmente contra a coorte de referência. Não é produzida anomalia combinada, diagnóstico, falha ou estimativa de vida restante.',
-    perTarget: 'Referência por alvo', referenceMedian: 'Mediana de referência', referenceMad: 'MAD de referência', referenceCount: 'Contagem na referência conjunta', evaluationCount: 'Valores de avaliação retornados', robustScore: 'Escore robusto', available: 'Disponível por amostra abaixo', unavailable: 'Indisponível',
-    evaluationEvidence: 'Evidências da avaliação', showingVectors: (shown: number, returned: number, omitted: number) => `Exibindo ${shown} vetores mais recentes dos ${returned} retornados; o servidor omitiu outros ${omitted} pelo limite.`,
-    contextValues: 'Valores de contexto (canônicos)', inJointContextLabel: 'dentro das duas faixas', outsideJointContext: 'fora do contexto conjunto', difference: 'diferença da mediana de referência', noEvaluationVectors: 'Nenhum vetor completo de avaliação foi retornado.',
+    perTarget: 'Resultados por sinal', referenceMedian: 'Mediana de referência', referenceMad: 'Variação de referência (desvio absoluto mediano, MAD)', referenceCount: 'Amostras nas duas condições de referência', evaluationCount: 'Amostras de avaliação retornadas', robustScore: 'Desvio em relação à variação habitual', available: 'Exibido para cada amostra abaixo', unavailable: 'Indisponível',
+    evaluationEvidence: 'Amostras de avaliação', showingVectors: (shown: number, returned: number, omitted: number) => `Exibindo as ${shown} amostras mais recentes de ${returned}; ${omitted} foram omitidas pelo limite de exibição.`,
+    contextValues: 'Leituras das condições (unidades controladas)', inJointContextLabel: 'dentro das duas faixas escolhidas', outsideJointContext: 'fora das condições escolhidas', difference: 'diferença da mediana de referência', noEvaluationVectors: 'Nenhuma amostra completa de avaliação foi retornada.',
     errors: { INVALID_CATALOG: 'O catálogo ativo de desvio contextual está indisponível ou incompatível.', INVALID_RESPONSE: 'A resposta do servidor não corresponde à configuração desta tela ou à revisão Runtime ativa.', INTELLIGENCE_ENTITLEMENT_REQUIRED: 'A licença de Intelligence não está efetiva neste Runtime.', INTELLIGENCE_EXECUTION_PERMIT_REQUIRED: 'É necessária uma permissão ativa de execução de Intelligence.', INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE: 'O escopo Intelligence selecionado não está ativo nesta revisão Runtime.' },
-    reasons: { fewer_than_30_complete_joint_context_reference_vectors: 'Menos de 30 vetores de referência', reference_mad_zero: 'MAD de referência igual a zero', no_complete_joint_context_reference_vectors: 'Sem vetores completos de referência no contexto conjunto', outside_joint_declared_context: 'Fora do contexto declarado' }
+    reasons: { fewer_than_30_complete_joint_context_reference_vectors: 'Menos de 30 amostras de referência', reference_mad_zero: 'Os valores de referência não variam e não permitem calcular um escore relativo', no_complete_joint_context_reference_vectors: 'Não há amostras completas nas duas condições de referência', outside_joint_declared_context: 'Fora das condições escolhidas', non_finite_raw_difference: 'Não foi possível calcular uma diferença válida', non_finite_reference_statistic: 'Não foi possível calcular uma faixa de referência válida', non_finite_robust_score: 'Não foi possível calcular um escore relativo válido' }
   };
 }
 

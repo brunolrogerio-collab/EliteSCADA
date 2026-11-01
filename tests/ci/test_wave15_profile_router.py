@@ -1,5 +1,6 @@
 import importlib.util
 import pathlib
+import re
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -364,6 +365,30 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertNotIn('git diff --name-only "${GITHUB_SHA}^" "$GITHUB_SHA"', workflow)
         self.assertIn("router_mode='dispatch'", workflow)
         self.assertIn('--mode "$router_mode"', workflow)
+
+    def test_shared_workflow_edit_does_not_force_unrelated_driver_sidecar_audits(self):
+        workflow = (ROOT / ".github/workflows/wave15-pr.yml").read_text(encoding="utf-8")
+        probes = {
+            "native_scope": "src/Scada.DriverHost/Sidecars/ZigbeeNative/package.json",
+            "knx_scope": "src/Scada.DriverHost/Sidecars/KnxIp/main.py",
+            "zwave_scope": "src/Scada.DriverHost/Sidecars/ZWaveJs/src/sidecar.mjs",
+            "matter_scope": "src/Scada.DriverHost/Sidecars/MatterWifi/src/bootstrap.mjs",
+        }
+        for scope_name, driver_path in probes.items():
+            start = workflow.index(f"      - id: {scope_name}")
+            following = workflow.find("      - id:", start + 1)
+            block = workflow[start:following if following >= 0 else len(workflow)]
+            pattern_match = re.search(r'pattern = re\.compile\(r"([^"]+)"\)', block)
+            self.assertIsNotNone(pattern_match, scope_name)
+            pattern = re.compile(pattern_match.group(1))
+            self.assertFalse(pattern.fullmatch(".github/workflows/wave15-pr.yml"), scope_name)
+            self.assertTrue(pattern.fullmatch(driver_path), scope_name)
+
+    def test_playwright_jobs_route_ubuntu_browser_libraries_over_https(self):
+        workflow = (ROOT / ".github/workflows/wave15-pr.yml").read_text(encoding="utf-8")
+        self.assertEqual(workflow.count("Prefer the reachable HTTPS Ubuntu archive for browser libraries"), 2)
+        self.assertEqual(workflow.count("run: npx playwright install-deps chromium"), 2)
+        self.assertEqual(workflow.count("https://archive.ubuntu.com/ubuntu/"), 4)
 
     def test_generic_dotnet_ci_quarantines_ha_d2_but_keeps_dedicated_gates(self):
         dotnet_workflow = (ROOT / ".github/workflows/dotnet-ci.yml").read_text(encoding="utf-8")

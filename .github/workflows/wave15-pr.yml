@@ -77,6 +77,7 @@ jobs:
             --github-output "$GITHUB_OUTPUT" \
             --summary-file /tmp/profile-summary.md
           cat /tmp/profile-summary.md >> "$GITHUB_STEP_SUMMARY"
+      # The shared PR workflow owns unrelated jobs too; sidecar evidence is selected by driver artifacts/configuration.
       - id: native_scope
         name: Select Native Zigbee sidecar evidence
         env:
@@ -89,7 +90,7 @@ jobs:
           from pathlib import Path
 
           changed = Path(os.environ["NATIVE_CHANGED_FILES_PATH"]).read_text().splitlines()
-          pattern = re.compile(r"^(\.github/workflows/wave15-pr\.yml|scripts/ci/wave15_profile_router\.py|src/Scada.DriverHost/(Sidecars/(ZigbeeNative/.*|ManagedSidecar.*|SystemManagedSidecar.*)|Engineering/(ZigbeeNative.*|CommunicationDriverRuntime.*))|src/Scada.Drivers/HostResources/.*|tests/Scada.Drivers.Tests/(ZigbeeNative.*|ManagedSidecar.*|HostResource.*))$")
+          pattern = re.compile(r"^(scripts/ci/wave15_profile_router\.py|src/Scada.DriverHost/(Sidecars/(ZigbeeNative/.*|ManagedSidecar.*|SystemManagedSidecar.*)|Engineering/(ZigbeeNative.*|CommunicationDriverRuntime.*))|src/Scada.Drivers/HostResources/.*|tests/Scada.Drivers.Tests/(ZigbeeNative.*|ManagedSidecar.*|HostResource.*))$")
           artifact = Path("src/Scada.DriverHost/Sidecars/ZigbeeNative")
           component = Path("src/Scada.DriverHost/Engineering/ZigbeeNativeCommunicationRuntimeComponents.cs")
           selected = any(pattern.fullmatch(path) for path in changed) and (artifact.exists() or component.exists())
@@ -112,7 +113,7 @@ jobs:
           from pathlib import Path
 
           changed = Path(os.environ["KNX_CHANGED_FILES_PATH"]).read_text().splitlines()
-          pattern = re.compile(r"^(\.github/workflows/wave15-pr\.yml|docs/examples/home-building/KNX-IP-SECURE-SETUP\.md|docs/research/home-building-drivers/KNX-IP-IMPLEMENTATION-ADR\.md|src/Scada\.Api/(Engineering/(EngineeringDriverCatalogApi|ManagedProtocolHostConfiguration)\.cs|ProjectPackages/IntegrationProtectedMaterialEndpoints\.cs|Scada\.Api\.csproj|Security/(HostAuthorityDriverMaterialResolver|IntegrationProtectedMaterialReferences)\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|KnxIpCommunicationRuntimeComponents)\.cs|Sidecars/KnxIp/.*)|tests/Scada\.Drivers\.Tests/(KnxIpRuntimeTests|IntegrationProtectedMaterialServiceTests|HostAuthorityDriverMaterialResolverTests|ManagedProtocolHostConfigurationTests)\.cs)$")
+          pattern = re.compile(r"^(docs/examples/home-building/KNX-IP-SECURE-SETUP\.md|docs/research/home-building-drivers/KNX-IP-IMPLEMENTATION-ADR\.md|src/Scada\.Api/(Engineering/(EngineeringDriverCatalogApi|ManagedProtocolHostConfiguration)\.cs|ProjectPackages/IntegrationProtectedMaterialEndpoints\.cs|Scada\.Api\.csproj|Security/(HostAuthorityDriverMaterialResolver|IntegrationProtectedMaterialReferences)\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|KnxIpCommunicationRuntimeComponents)\.cs|Sidecars/KnxIp/.*)|tests/Scada\.Drivers\.Tests/(KnxIpRuntimeTests|IntegrationProtectedMaterialServiceTests|HostAuthorityDriverMaterialResolverTests|ManagedProtocolHostConfigurationTests)\.cs)$")
           directory = Path("src/Scada.DriverHost/Sidecars/KnxIp")
           selected = any(pattern.fullmatch(path) for path in changed) and (directory / "main.py").is_file()
           if selected:
@@ -137,7 +138,7 @@ jobs:
           from pathlib import Path
 
           changed = Path(os.environ["ZWAVE_CHANGED_FILES_PATH"]).read_text().splitlines()
-          pattern = re.compile(r"^(\.github/workflows/wave15-pr\.yml|docs/examples/home-building/ZWAVE-JS-CONTROLLER-SETUP\.md|src/Scada\.Api/(Engineering/(EngineeringDriverCatalogApi|ManagedProtocolHostConfiguration)\.cs|Scada\.Api\.csproj|Security/IntegrationProtectedMaterialReferences\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|ZWaveJsCommunicationRuntimeComponents)\.cs|Sidecars/ZWaveJs/.*)|tests/Scada\.Drivers\.Tests/(EngineeringDataSourceTypeCatalogTests|ManagedProtocolHostConfigurationTests|ZWaveJs.*)\.cs)$")
+          pattern = re.compile(r"^(docs/examples/home-building/ZWAVE-JS-CONTROLLER-SETUP\.md|src/Scada\.Api/(Engineering/(EngineeringDriverCatalogApi|ManagedProtocolHostConfiguration)\.cs|Scada\.Api\.csproj|Security/IntegrationProtectedMaterialReferences\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|ZWaveJsCommunicationRuntimeComponents)\.cs|Sidecars/ZWaveJs/.*)|tests/Scada\.Drivers\.Tests/(EngineeringDataSourceTypeCatalogTests|ManagedProtocolHostConfigurationTests|ZWaveJs.*)\.cs)$")
           directory = Path("src/Scada.DriverHost/Sidecars/ZWaveJs")
           selected = any(pattern.fullmatch(path) for path in changed) and (directory / "package.json").is_file()
           if selected:
@@ -162,7 +163,7 @@ jobs:
           from pathlib import Path
 
           changed = Path(os.environ["MATTER_CHANGED_FILES_PATH"]).read_text().splitlines()
-          pattern = re.compile(r"^(\.github/workflows/wave15-pr\.yml|docs/research/home-building-drivers/MATTER-WIFI-V1-IMPLEMENTATION-ADR\.md|src/Scada\.Api/(Engineering/EngineeringDriverCatalogApi\.cs|ProjectPackages/(MatterWifiProtectedMaterialEndpoints|ProjectPackageEndpoints)\.cs|Scada\.Api\.csproj|Security/(MatterWifiProtectedMaterial|ProtectedMaterialAuthorityComposition)\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|MatterWifiCommunicationDriver|MatterWifiCommunicationRuntimeFactory|MatterWifiCommunicationRuntimePlanner)\.cs|Sidecars/MatterWifi/.*)|tests/Scada\.Drivers\.Tests/MatterWifi.*\.cs)$")
+          pattern = re.compile(r"^(docs/research/home-building-drivers/MATTER-WIFI-V1-IMPLEMENTATION-ADR\.md|src/Scada\.Api/(Engineering/EngineeringDriverCatalogApi\.cs|ProjectPackages/(MatterWifiProtectedMaterialEndpoints|ProjectPackageEndpoints)\.cs|Scada\.Api\.csproj|Security/(MatterWifiProtectedMaterial|ProtectedMaterialAuthorityComposition)\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|MatterWifiCommunicationDriver|MatterWifiCommunicationRuntimeFactory|MatterWifiCommunicationRuntimePlanner)\.cs|Sidecars/MatterWifi/.*)|tests/Scada\.Drivers\.Tests/MatterWifi.*\.cs)$")
           directory = Path("src/Scada.DriverHost/Sidecars/MatterWifi")
           selected = any(pattern.fullmatch(path) for path in changed) and (directory / "package.json").is_file()
           if selected:
@@ -460,6 +461,16 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('web/scada-web/package-lock.json') }}
+      - name: Prefer the reachable HTTPS Ubuntu archive for browser libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f /etc/apt/apt-mirrors.txt ]]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          if [[ -f /etc/apt/sources.list.d/ubuntu.sources ]]; then
+            sudo sed -i -E 's#http://azure\.archive\.ubuntu\.com/ubuntu/?#https://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/ubuntu.sources
+          fi
       - working-directory: web/scada-web
         run: npx playwright install-deps chromium
       - if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -516,6 +527,16 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('web/scada-web/package-lock.json') }}
+      - name: Prefer the reachable HTTPS Ubuntu archive for browser libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f /etc/apt/apt-mirrors.txt ]]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          if [[ -f /etc/apt/sources.list.d/ubuntu.sources ]]; then
+            sudo sed -i -E 's#http://azure\.archive\.ubuntu\.com/ubuntu/?#https://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/ubuntu.sources
+          fi
       - working-directory: web/scada-web
         run: npx playwright install-deps chromium
       - if: steps.playwright-cache.outputs.cache-hit != 'true'

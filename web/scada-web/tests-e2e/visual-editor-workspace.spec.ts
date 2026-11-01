@@ -46,8 +46,19 @@ type ExportedPackage = {
     name: string;
     path: string;
     dataType: string;
+    source?: string | null;
+    dataSourceId?: string | null;
     readOnly?: boolean;
     engineeringUnit?: string | null;
+    initialValue?: { dataType: string; value: unknown } | null;
+  }>;
+  dataSources?: Array<{
+    id?: string;
+    key: string;
+    name: string;
+    driver: string;
+    enabled?: boolean;
+    settings?: Record<string, string> | null;
   }>;
   startupScreenId?: string | null;
   [key: string]: unknown;
@@ -655,6 +666,192 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
       headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
     });
     expect(restore.ok()).toBeTruthy();
+  }
+});
+
+test('W15 CheckBox and ComboBox can be authored, bound, published, and operated through the canonical Runtime', async ({ page, request }, testInfo) => {
+  test.setTimeout(120_000);
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as ExportedPackage;
+  const originalScreen = originalPackage.screens?.find(candidate => candidate.id === originalPackage.startupScreenId)
+    ?? originalPackage.screens?.[0];
+  expect(originalScreen, 'the fixture must provide a screen for canonical control authoring').toBeTruthy();
+
+  const suffix = `${Date.now()}-${randomUUID().slice(0, 8)}`;
+  const projectKeyResponse = await request.get('/api/engineering/workspace');
+  expect(projectKeyResponse.ok()).toBeTruthy();
+  const workspace = await projectKeyResponse.json() as { projectKey?: string | null };
+  const projectKey = workspace.projectKey;
+  expect(projectKey, 'the fixture must provide a project for Runtime activation').toBeTruthy();
+
+  const memoryDataSourceId = randomUUID();
+  const memoryDataSourceKey = `w15-controls-${suffix}`;
+  const booleanTagId = randomUUID();
+  const booleanTagPath = `E2E.W15.Controls.${suffix}.Enabled`;
+  const stringTagId = randomUUID();
+  const stringTagPath = `E2E.W15.Controls.${suffix}.Mode`;
+  const seededPackage = structuredClone(originalPackage);
+  seededPackage.dataSources = [...(seededPackage.dataSources ?? []), {
+    id: memoryDataSourceId,
+    key: memoryDataSourceKey,
+    name: `Temporary visual controls ${suffix}`,
+    driver: 'builtin.memory.server',
+    enabled: true,
+    settings: {}
+  }];
+  seededPackage.tags = [...(seededPackage.tags ?? []),
+    {
+      id: booleanTagId, name: 'Temporary Boolean state', path: booleanTagPath,
+      dataType: 'boolean', source: memoryDataSourceKey, dataSourceId: memoryDataSourceId,
+      readOnly: false, initialValue: { dataType: 'boolean', value: false }
+    },
+    {
+      id: stringTagId, name: 'Temporary operator mode', path: stringTagPath,
+      dataType: 'string', source: memoryDataSourceKey, dataSourceId: memoryDataSourceId,
+      readOnly: false, initialValue: { dataType: 'string', value: 'AUTO' }
+    }
+  ];
+
+  let seeded = false;
+  let runtimeMayHaveChanged = false;
+  try {
+    const seed = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' }, data: seededPackage
+    });
+    expect(seed.ok(), `could not seed temporary control TAGs (HTTP ${seed.status()})`).toBeTruthy();
+    seeded = true;
+
+    await page.goto('/engineering');
+    await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
+    const palette = page.getByTestId('visual-editor-authoring-toolbar');
+
+    await palette.locator('[data-insert-object-type="core.checkBox"]').click();
+    const checkBoxCanvas = page.locator('[data-canvas-object-type="core.checkBox"]').last();
+    await checkBoxCanvas.click();
+    const checkBoxId = await checkBoxCanvas.getAttribute('data-canvas-object-id');
+    expect(checkBoxId).toBeTruthy();
+    await page.locator('[data-property-key="text"] input').fill('E2E boolean control');
+    await page.locator('[data-property-key="text"] input').press('Enter');
+    const checkBoxWritable = page.locator('[data-property-key="interactionEnabled"] input[type="checkbox"]');
+    await checkBoxWritable.check();
+    await page.getByTestId('visual-editor-inspector-tab-dynamics').click();
+    const checkBoxBinding = page.getByTestId('visual-binding-editor');
+    await checkBoxBinding.getByLabel('Propriedade visual').selectOption('checked');
+    await selectBindingSourceByPath(checkBoxBinding.getByLabel('Fonte do projeto'), booleanTagPath);
+    await checkBoxBinding.getByRole('button', { name: 'Aplicar binding' }).click();
+    await expect(checkBoxBinding.getByTestId('visual-binding-current')).toContainText(booleanTagPath);
+    await page.getByTestId('visual-editor-inspector-tab-properties').click();
+    const checkBoxConfig = page.getByTestId('visual-checkbox-configuration');
+    await expect(checkBoxConfig.getByLabel('Uso')).toHaveValue('boolean');
+    await checkBoxConfig.getByRole('button', { name: 'Aplicar configuração' }).click();
+
+    await palette.locator('[data-insert-object-type="core.comboBox"]').click();
+    const comboBoxCanvas = page.locator('[data-canvas-object-type="core.comboBox"]').last();
+    await comboBoxCanvas.click();
+    const comboBoxId = await comboBoxCanvas.getAttribute('data-canvas-object-id');
+    expect(comboBoxId).toBeTruthy();
+    await page.locator('[data-property-key="text"] input').fill('E2E mode selector');
+    await page.locator('[data-property-key="text"] input').press('Enter');
+    const comboBoxWritable = page.locator('[data-property-key="interactionEnabled"] input[type="checkbox"]');
+    await comboBoxWritable.check();
+    const comboBoxConfig = page.getByTestId('visual-combobox-configuration');
+    await comboBoxConfig.getByLabel('Valor do TAG 1').fill('AUTO');
+    await comboBoxConfig.getByLabel('Texto exibido 1').fill('Automático');
+    await comboBoxConfig.getByRole('button', { name: 'Adicionar opção' }).click();
+    await comboBoxConfig.getByLabel('Valor do TAG 2').fill('MANUAL');
+    await comboBoxConfig.getByLabel('Texto exibido 2').fill('Manual');
+    await comboBoxConfig.getByRole('button', { name: 'Aplicar configuração' }).click();
+
+    await page.getByTestId('visual-editor-inspector-tab-dynamics').click();
+    const comboBoxBinding = page.getByTestId('visual-binding-editor');
+    await comboBoxBinding.getByLabel('Propriedade visual').selectOption('text');
+    await selectBindingSourceByPath(comboBoxBinding.getByLabel('Fonte do projeto'), stringTagPath);
+    await comboBoxBinding.getByRole('button', { name: 'Aplicar binding' }).click();
+    await expect(comboBoxBinding.getByTestId('visual-binding-current')).toContainText(stringTagPath);
+
+    await page.getByTestId('visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await applyAndAwaitCanonicalCompletion(page, 'visual-editor-apply');
+    await page.reload();
+    await expect(page.getByTestId('visual-editor-canonical-layer').locator(`[data-object-id="${checkBoxId}"]`)).toBeVisible();
+    await expect(page.getByTestId('visual-editor-canonical-layer').locator(`[data-object-id="${comboBoxId}"]`)).toBeVisible();
+
+    const persistedResponse = await request.get('/api/engineering/export/json');
+    expect(persistedResponse.ok()).toBeTruthy();
+    const persisted = await persistedResponse.json() as ExportedPackage;
+    const persistedScreen = persisted.screens?.find(candidate => candidate.id === originalScreen!.id || candidate.key === originalScreen!.key);
+    const controls = flatten(persistedScreen?.elements ?? []);
+    expect(controls.find(element => element.id === checkBoxId)).toMatchObject({
+      id: checkBoxId, type: 'core.checkBox', bindings: [expect.objectContaining({
+        key: 'checked', kind: 'Tag', target: booleanTagPath, direction: 'readWrite'
+      })], properties: expect.objectContaining({ text: 'E2E boolean control', interactionEnabled: true })
+    });
+    expect(controls.find(element => element.id === comboBoxId)).toMatchObject({
+      id: comboBoxId, type: 'core.comboBox', bindings: [expect.objectContaining({
+        key: 'text', kind: 'Tag', target: stringTagPath, direction: 'readWrite'
+      })], properties: expect.objectContaining({
+        text: 'E2E mode selector', interactionEnabled: true,
+        comboBoxOptions: [{ value: 'AUTO', label: 'Automático' }, { value: 'MANUAL', label: 'Manual' }]
+      })
+    });
+
+    runtimeMayHaveChanged = true;
+    await savePublishActivate(request, projectKey!, 'visual-controls-790-e2e');
+    await page.goto('/');
+    const runtimeCheckBox = page.locator(`[data-object-id="${checkBoxId}"] input[type="checkbox"]`);
+    const runtimeComboBox = page.locator(`[data-object-id="${comboBoxId}"] select`);
+    await expect(runtimeCheckBox).toBeEnabled();
+    await expect(runtimeCheckBox).not.toBeChecked();
+    await expect(runtimeComboBox).toBeEnabled();
+    await expect(runtimeComboBox).toHaveValue('AUTO');
+    await runtimeCheckBox.check();
+    await expect.poll(async () => {
+      const response = await request.get(`/api/tags/by-path/${encodeURIComponent(booleanTagPath)}`);
+      if (!response.ok()) return null;
+      const body = await response.json() as { current?: { value?: unknown } | null };
+      return body.current?.value ?? null;
+    }).toBe(true);
+    await runtimeComboBox.selectOption('MANUAL');
+    await expect.poll(async () => {
+      const response = await request.get(`/api/tags/by-path/${encodeURIComponent(stringTagPath)}`);
+      if (!response.ok()) return null;
+      const body = await response.json() as { current?: { value?: unknown } | null };
+      return body.current?.value ?? null;
+    }).toBe('MANUAL');
+    await testInfo.attach('checkbox-combobox-active-runtime', {
+      body: await page.getByTestId('runtime-engineering-canvas').screenshot(), contentType: 'image/png'
+    });
+  } finally {
+    if (seeded) {
+      const restore = await request.post('/api/engineering/import/json/apply', {
+        headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+      });
+      expect(restore.ok(), `could not restore original Engineering package (HTTP ${restore.status()})`).toBeTruthy();
+    }
+
+    for (const tagId of [booleanTagId, stringTagId]) {
+      const currentWorkspaceResponse = await request.get('/api/engineering/workspace');
+      expect(currentWorkspaceResponse.ok()).toBeTruthy();
+      const currentWorkspace = await currentWorkspaceResponse.json() as { changeVersion: number };
+      const deletion = await request.delete(`/api/engineering/tags/${tagId}`, {
+        headers: { 'x-elitescada-workspace-version': String(currentWorkspace.changeVersion) }
+      });
+      expect(deletion.ok() || deletion.status() === 404, `temporary TAG cleanup failed (HTTP ${deletion.status()})`).toBeTruthy();
+    }
+
+    const currentWorkspaceResponse = await request.get('/api/engineering/workspace');
+    expect(currentWorkspaceResponse.ok()).toBeTruthy();
+    const currentWorkspace = await currentWorkspaceResponse.json() as { changeVersion: number };
+    const sourceDeletion = await request.delete(`/api/engineering/data-sources/${memoryDataSourceId}`, {
+      headers: { 'x-elitescada-workspace-version': String(currentWorkspace.changeVersion) }
+    });
+    expect(sourceDeletion.ok() || sourceDeletion.status() === 404,
+      `temporary memory Data Source cleanup failed (HTTP ${sourceDeletion.status()})`).toBeTruthy();
+
+    if (runtimeMayHaveChanged) await savePublishActivate(request, projectKey!, 'visual-controls-790-e2e-restore');
   }
 });
 

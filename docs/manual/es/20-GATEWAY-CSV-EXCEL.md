@@ -95,6 +95,8 @@ Use punto decimal (2.5) y booleanos true/false; no añada unidades al número. J
 
 Conserve rutas/claves como texto para evitar fechas/números automáticos. Fórmulas XLSX se rechazan incluso con resultado guardado: pegue valores antes de guardar.
 
+En la tabla Alarmas, LocationPath identifica la ubicación por sus nombres desde el área principal hasta la subárea, por ejemplo Planta / Bombas / Sala 1. EquipmentPath identifica el equipo con una ruta legible, como Plant.Pump01. Complete solo un campo. Al importar, el producto busca la ruta en el proyecto actual y guarda el vínculo estable correspondiente; no escriba GUID. Corrija en Ingeniería las referencias inexistentes o ambiguas y vuelva a exportar.
+
 Una sola hoja: Tags, Alarms, DataSources, GatewayRoutes u OperationalEvents según entidad. No incluya usuarios, hashes de contraseñas, credenciales ni secretos; referencias protegidas no son secretos.
 
 Para campos complejos parta de exportación real.

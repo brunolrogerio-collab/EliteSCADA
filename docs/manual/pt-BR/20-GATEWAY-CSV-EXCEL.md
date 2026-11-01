@@ -95,6 +95,8 @@ Use ponto decimal (2.5) e booleanos true/false; não acrescente unidade ao núme
 
 Preserve caminhos/chaves como texto para evitar conversão automática em data/número. Fórmulas XLSX são recusadas, mesmo com resultado calculado: cole valores antes de salvar.
 
+Na tabela de Alarmes, LocationPath identifica a localização pela sequência de nomes até a subárea, como Planta / Bombas / Casa 1. EquipmentPath identifica o equipamento por um caminho legível, como Plant.Pump01. Preencha apenas um dos campos. Na importação, o produto procura o caminho no projeto atual e grava o vínculo estável correspondente; não digite GUIDs. Corrija referências ausentes ou ambíguas em Engenharia e exporte de novo.
+
 A única aba deve ser Tags, Alarms, DataSources, GatewayRoutes ou OperationalEvents conforme a entidade. Não inclua usuários, password hashes, credenciais de login ou segredos; referências protegidas de Data Source não são os segredos em si.
 
 Campos complexos devem partir de exportação real, não de um exemplo simplificado.

@@ -18,6 +18,41 @@ export type RuntimeAlarmCenterItem = {
   acknowledgedBy?: string | null;
   shelvedAt?: string | null;
   shelvedBy?: string | null;
+  locationId?: string | null;
+  locationPath?: string | null;
+  isSuppressed?: boolean;
+  suppressionCauses?: RuntimeAlarmSuppressionCause[];
+};
+
+export type RuntimeAlarmSuppressionTargetKind = 'alarm' | 'location';
+
+export type RuntimeAlarmSuppressionCause = {
+  targetKind: RuntimeAlarmSuppressionTargetKind;
+  targetId: string;
+  targetName: string;
+  targetPath: string;
+  actor: string;
+  reasonCode: string;
+  appliedAtUtc: string;
+  expiresAtUtc?: string | null;
+};
+
+export type RuntimeAlarmSuppressionLocation = {
+  id: string;
+  parentLocationId?: string | null;
+  name: string;
+  path: string;
+  alarmCount: number;
+  suppressedAlarmCount: number;
+};
+
+export type RuntimeAlarmSuppressionSnapshot = {
+  projectKey?: string | null;
+  engineeringRevision?: number | null;
+  suppressionRevision: number;
+  alarms: Array<Pick<RuntimeAlarmCenterItem,
+    'definitionId' | 'name' | 'area' | 'locationId' | 'locationPath' | 'isSuppressed' | 'suppressionCauses'>>;
+  locations: RuntimeAlarmSuppressionLocation[];
 };
 
 /**
@@ -45,6 +80,10 @@ export type RuntimeAlarmCenterEndpoint<T> =
 
 export type RuntimeAlarmAcknowledgeResult =
   | { ok: true; status: number }
+  | { ok: false; status?: number; error: string };
+
+export type RuntimeAlarmSuppressionResult =
+  | { ok: true; status: number; changed: boolean }
   | { ok: false; status?: number; error: string };
 
 export type RuntimeAlarmCenterSummary = {

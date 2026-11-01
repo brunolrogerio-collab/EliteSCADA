@@ -164,7 +164,9 @@ public sealed record AlarmEngineeringDto(
     bool ShelvingAllowed = true,
     bool Enabled = true,
     Dictionary<string, string>? Metadata = null,
-    string? SoundProfile = null);
+    string? SoundProfile = null,
+    Guid? LocationId = null,
+    Guid? EquipmentId = null);
 
 /// <summary>
 /// First-class, protocol-neutral operational process Event definition. This is

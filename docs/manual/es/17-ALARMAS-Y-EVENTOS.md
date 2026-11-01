@@ -47,6 +47,8 @@ Seleccione Nueva alarma o una definición existente. La ruta identifica la seña
 | Prioridad | Ordena y destaca la atención: low, medium, high o critical. No cambia límite, permiso ni lógica de parada. | high |  |
 | Clase | Etiqueta para organizar definiciones. Escribir un nombre no instala una regla de protección. | Proceso |  |
 | Área | Contexto del proceso usado también para autorizar acciones por área. Use el nombre previsto en la política; escribir un área no concede acceso. | Estacao01 |  |
+| Vínculo con equipo | Opcional. Elija el equipo que produce o se supervisa con esta alarma. Runtime usa su ubicación actual; si el equipo cambia de área, el alcance sigue su nueva ubicación. | Bomba 01 | No elija también un área o subárea operativa. |
+| Área o subárea operativa | Opcional. Elija una ubicación del árbol operativo cuando la alarma no esté vinculada a un equipo. La supresión en esa ubicación también alcanza sus descendientes. No es el campo Área de la política de acceso. | Planta / Sala de bombas | Deshabilitado si hay un equipo vinculado. |
 | Mensaje | Explique condición y ubicación de forma útil. Una instrucción escrita no ejecuta un comando. | Bomba 01: comprobar presión de descarga |  |
 
 ### Comportamiento y sonido
@@ -58,7 +60,7 @@ Expanda Comportamiento de la alarma. El retardo comienza cuando se observa la co
 | Habilitada | Incluye la definición en la evaluación al activar la revisión. Deshabilitar no corrige la señal ni la causa física. | Marcada |  |
 | Retardo de activación (ms) | Cuando la condición se activa, Runtime espera este intervalo antes de activar la alarma. Si la condición vuelve a la normalidad o la calidad deja de ser Good antes de terminar, se cancela la cuenta. En las alarmas de comunicación, una calidad distinta de Good es la condición activa. | 1000 ms = 1 s | Campo entero no negativo; 0 o vacío activa inmediatamente. La cuenta pendiente comienza de nuevo después de reiniciar Runtime. |
 | Requiere reconocimiento | Define si el retorno exige ACK para salir de la lista activa. Marcado, Returned sin ACK sigue pendiente. Desmarcado, el retorno sale de la lista sin crear ACK; la vista completa aún muestra Returned. Una nueva activación vuelve a Active. | Marcada |  |
-| Permitir shelving | Permite suprimir esta definición mediante la operación disponible. La acción sigue requiriendo permiso AlarmShelve. El Alarm Center descrito aquí no tiene botón de shelving. | Según el procedimiento de planta | No es Silenciar sonidos; no se promete vencimiento automático. |
+| Permitir supresión operativa | Requiere AlarmShelve en Authority y acceso al alcance canónico del equipo/ubicación vinculado cuando el grant es limitado. La condición y el estado siguen visibles en Runtime. | Marcado para alarmas que pueden silenciarse durante una intervención | No reconoce, deshabilita ni cambia la condición del proceso. |
 | Perfil sonoro / prueba | Elija ninguno, pulso corto, doble, triple, ascendente o alternado y pruebe la vista previa. En Runtime, el operador debe activar sonidos en el navegador. Volumen, salida y permiso del navegador afectan la reproducción. | double | Silenciar en el navegador no reconoce la alarma. |
 
 ### Si el resultado es distinto
@@ -90,7 +92,11 @@ La lista activa incluye Active y Acknowledged. Returned sin ACK también aparece
 | Acknowledged | ACK registrado, pero la condición sigue presente. No significa causa resuelta. | ACK con presión aún en 10 |  |
 | Returned | La condición dejó de estar activa. Sin ACK, solo sigue en la lista activa si Requiere reconocimiento está marcado. Desmarcado, sale de esa lista y permanece Returned en la vista completa. | 10 → 9 |  |
 | Disabled | Definición deshabilitada para evaluación. No indica equipo sano. | Habilitada desmarcada |  |
-| Shelved | Notificación suprimida mediante shelving. Se sigue observando valor y estado subyacente; retirar la supresión restaura el estado subyacente actual. | Mantenimiento controlado | La central actual no ofrece botón para esta acción. |
+| Shelved | Shelved representa el estado de la operación de shelving existente. La supresión operativa del panel es una capa separada y conserva estados como Active y Acknowledged. | Mantenimiento controlado | No use este estado para identificar la supresión operativa. |
+
+### Supresión operativa
+
+En Alarm Center, abra Supresión operativa. Elija Alarma para afectar una sola definición o Área o subárea para alcanzar la ubicación elegida y sus descendientes en el árbol operativo. El vínculo con equipo sigue su ubicación actual; el árbol usa relaciones explícitas con el padre, no nombres ni prefijos. Elija motivo y duración: hasta liberación manual o 1, 4 u 8 horas. El permiso AlarmShelve y el campo Permitir supresión operativa deben autorizar todas las alarmas afectadas; si alguna no lo permite, no se aplica ninguna. La autorización se comprueba con el vínculo estable del equipo o la ubicación en Authority. El árbol operativo define qué alarmas se afectan; la jerarquía separada de Authority define quién puede actuar. Si una alarma no tiene un recurso vinculado a un alcance de Authority, un permiso limitado no la autoriza. El campo Área sigue siendo contexto de la alarma, pero escribir texto allí no concede acceso. La lista sigue mostrando cada alarma y su condición real (Active, Acknowledged o Returned); solo se suprimen los avisos sonoros. ACK, evaluación, comandos e histórico no cambian. Cuando coinciden varias supresiones, el panel muestra cada causa: liberar una no libera las demás. La vigencia expira automáticamente en el horario elegido. En HA con bases separadas, un nodo solo asume después de restaurar la instantánea de supresiones recibida del par; si falta, la toma de control falla de forma segura.
 
 ### Procedimiento: reconocer una notificación
 
@@ -102,11 +108,11 @@ La lista activa incluye Active y Acknowledged. Returned sin ACK también aparece
 
 ### Sonidos, silencio e indisponibilidad
 
+Activar sonidos solo habilita audio en esta sesión del navegador. Silenciar también es local. Ninguna opción reconoce ni cambia la alarma. Shelved es un estado de la operación de shelving existente; la supresión operativa descrita arriba mantiene la alarma visible con su estado real. Reconocer tampoco envía un comando al proceso. Son acciones distintas.
+
 Para oír avisos, use Activar sonidos de alarmas en esta sesión del navegador. Compruebe soporte, volumen y salida de audio. Los perfiles se repiten mientras haya una alarma pendiente; Returned sin ACK solo sigue pendiente cuando Requiere reconocimiento está marcado.
 
-Silenciar es local: no reconoce, deshabilita ni aplica shelving. Shelving suprime la notificación. Reconocer tampoco envía un comando al proceso. Son efectos distintos.
-
-Sin acceso, compruebe login, clase de sesión y permiso del área. Sin datos o servicio, actualice y consulte diagnóstico de Runtime; cambiar el TAG no resuelve una denegación. Para el pasado, abra Histórico y elija alarm.events en el período. Ese conjunto es de alarmas; operational.events y Audit tienen otras finalidades.
+Sin acceso, compruebe login, clase de sesión y el permiso correspondiente en Authority. Si se rechaza una supresión, compruebe AlarmShelve y el vínculo estable del equipo o la ubicación. Sin datos o servicio, actualice y consulte diagnóstico de Runtime; cambiar el TAG no resuelve una denegación. Para el pasado, abra Histórico y elija alarm.events en el período. Ese conjunto es de alarmas; operational.events y Audit tienen otras finalidades.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=alarms.runtime-operation)
 

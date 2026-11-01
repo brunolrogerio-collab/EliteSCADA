@@ -58,6 +58,7 @@ builder.Services.Configure<JsonOptions>(options => options.SerializerOptions.Con
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian(databaseConnections);
 builder.AddConfiguredServerMemoryRetention(databaseConnections);
+builder.AddConfiguredAlarmSuppression(databaseConnections);
 builder.Services.AddSingleton<RuntimeHaHostConfigurationAuthority>();
 builder.Services.AddSingleton(sp =>
 {
@@ -213,6 +214,8 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
         .WithExposedHeaders(TimingCorrelationMiddleware.CorrelationResponseHeader)));
 
 builder.Services.AddSingleton<ScadaRuntimeFacade>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<AlarmSuppressionRuntimeProjection>();
 var historicalQueryEnabled = builder.AddConfiguredHistoricalQuery(databaseConnections);
 
 var app = builder.Build();
@@ -220,6 +223,7 @@ var app = builder.Build();
 // Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
+await app.InitializeAlarmSuppressionAsync();
 await app.InitializeRuntimeSessionLeaseStoreAsync();
 await app.Services.GetRequiredService<ProductLicenseLifecycleCoordinator>().ReconcilePendingAsync();
 // Durable Engineering storage, Authority hydration, installation-journal recovery and
@@ -242,6 +246,7 @@ app.MapInstallationNetworkProfileEndpoints();
 Scada.Api.VisualAssets.StaticArtworkEndpoints.MapStaticArtworkEndpoints(app);
 app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
+app.MapAlarmSuppressionEndpoints();
 app.MapCommandEndpoints();
 app.MapHmiRichCommandEndpoints();
 app.MapInternalMemoryEndpoints();
@@ -458,9 +463,11 @@ app.MapGet("/api/alarms", async (
     bool? activeOnly,
     HttpContext context,
     ScadaRuntimeFacade runtime,
+    AlarmSuppressionRuntimeProjection suppressionProjection,
     ApiAuthorizationService security,
     CancellationToken ct) =>
 {
+    if (!runtime.IsEngineeringActive) return Results.Ok(Array.Empty<RuntimeAlarmProjection>());
     var tagAccess = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
     var failure = tagAccess.FailureResult();
     if (failure is not null) return failure;
@@ -478,7 +485,19 @@ app.MapGet("/api/alarms", async (
             visible.Add(alarm);
     }
 
-    return Results.Ok(visible);
+    try
+    {
+        var snapshot = await suppressionProjection.BuildAsync(runtime, ct);
+        return Results.Ok(AlarmSuppressionRuntimeProjection.ProjectAlarms(visible, snapshot));
+    }
+    catch (AlarmSuppressionUnavailableException)
+    {
+        return Results.Problem("Durable alarm suppression storage is unavailable.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
+    {
+        return Results.Problem("Alarm suppression state could not be read safely.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
 });
 
 app.MapGet("/api/alarms/definitions", async (

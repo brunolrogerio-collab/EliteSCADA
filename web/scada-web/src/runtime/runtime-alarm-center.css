@@ -45,6 +45,22 @@
 .runtime-alarm-summary-item.danger { box-shadow: inset 3px 0 var(--app-error); }
 .runtime-alarm-summary-item.danger strong { color: var(--app-error); }
 
+.runtime-alarm-suppression { padding: 14px 16px; border-bottom: 1px solid var(--app-divider); background: var(--app-surface); }
+.runtime-alarm-suppression > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.runtime-alarm-suppression h3 { margin: 0; font-size: 14px; }
+.runtime-alarm-suppression p { margin: 4px 0 0; color: var(--app-text-secondary); font-size: 11px; }
+.runtime-alarm-suppression > header button,
+.runtime-alarm-suppression-current button,
+.runtime-alarm-suppressed-detail button { border: 1px solid var(--app-border); border-radius: 6px; background: var(--app-surface-elevated); color: var(--app-text-primary); padding: 6px 10px; cursor: pointer; }
+.runtime-alarm-suppression-form { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)) auto; align-items: end; gap: 10px; margin-top: 12px; }
+.runtime-alarm-suppression-form label { display: flex; flex-direction: column; gap: 4px; color: var(--app-text-secondary); font-size: 10px; }
+.runtime-alarm-suppression-form select { min-width: 0; width: 100%; border: 1px solid var(--app-border); border-radius: 6px; background: var(--app-surface-elevated); color: var(--app-text-primary); padding: 7px 9px; }
+.runtime-alarm-suppress { border: 1px solid var(--app-warning); border-radius: 6px; background: var(--app-warning-bg); color: var(--app-warning); padding: 8px 12px; font-weight: 700; cursor: pointer; }
+.runtime-alarm-suppression-form button:disabled { opacity: .55; cursor: wait; }
+.runtime-alarm-suppression-current { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; border-left: 3px solid var(--app-warning); border-radius: 5px; background: var(--app-warning-bg); padding: 9px 11px; font-size: 11px; }
+.runtime-alarm-suppression-current > span { color: var(--app-text-secondary); }
+.runtime-alarm-suppression-unavailable { color: var(--app-warning) !important; }
+
 .runtime-alarm-feedback { margin: 14px 16px 0; padding: 10px 12px; border-radius: 7px; font-size: 12px; }
 .runtime-alarm-feedback.success { border: 1px solid var(--app-success); background: var(--app-success-bg); color: var(--app-success); }
 .runtime-alarm-feedback.warning { border: 1px solid var(--app-warning); background: var(--app-warning-bg); color: var(--app-warning); }
@@ -86,6 +102,7 @@
 .runtime-alarm-row-copy { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .runtime-alarm-row-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .runtime-alarm-row-copy span { color: var(--app-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.runtime-alarm-row-copy .runtime-alarm-suppressed-label { color: var(--app-warning); font-weight: 700; }
 .runtime-alarm-row-meta { display: grid; justify-items: end; gap: 2px; color: var(--app-text-secondary); font-size: 10px; }
 .runtime-alarm-row-meta b { color: var(--app-text-primary); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
 .runtime-alarm-row-meta time { font-variant-numeric: tabular-nums; }
@@ -110,6 +127,9 @@
 .runtime-alarm-ack { border: 1px solid var(--app-error); border-radius: 7px; background: var(--app-error-bg); color: var(--app-error); padding: 9px 14px; font-weight: 700; cursor: pointer; }
 .runtime-alarm-ack:hover:not(:disabled) { background: color-mix(in srgb, var(--app-error-bg) 75%, var(--app-error)); }
 .runtime-alarm-ack:disabled { opacity: .45; cursor: not-allowed; }
+.runtime-alarm-suppressed-detail { display: grid; gap: 7px; margin-top: 13px; border: 1px solid var(--app-warning); border-radius: 7px; background: var(--app-warning-bg); padding: 10px; color: var(--app-warning); font-size: 11px; }
+.runtime-alarm-suppressed-detail > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding-top: 7px; border-top: 1px solid color-mix(in srgb, var(--app-warning) 30%, transparent); }
+.runtime-alarm-suppressed-detail small { color: var(--app-text-secondary); }
 
 .runtime-alarm-empty,
 .runtime-alarm-state { min-height: 170px; display: flex; align-items: center; justify-content: center; color: var(--app-text-secondary); font-size: 12px; }
@@ -121,6 +141,7 @@
   .runtime-alarm-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .runtime-alarm-workspace { grid-template-columns: 1fr; }
   .runtime-alarm-list { border-right: 0; border-bottom: 1px solid var(--app-divider); max-height: 360px; }
+  .runtime-alarm-suppression-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
@@ -128,6 +149,7 @@
   .runtime-alarm-header { flex-direction: column; }
   .runtime-alarm-refresh { width: 100%; justify-content: space-between; gap: 6px; white-space: normal; flex-wrap: wrap; }
   .runtime-alarm-summary { grid-template-columns: 1fr; }
+  .runtime-alarm-suppression-form { grid-template-columns: 1fr; }
   .runtime-alarm-row { grid-template-columns: 4px minmax(0, 1fr); }
   .runtime-alarm-row-meta { grid-column: 2; grid-template-columns: repeat(3, auto); gap: 8px; justify-content: start; justify-items: start; }
   .runtime-alarm-facts { grid-template-columns: 1fr; }

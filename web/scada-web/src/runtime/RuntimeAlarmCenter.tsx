@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { acknowledgeRuntimeAlarm, loadActiveRuntimeAlarms, loadRuntimeAlarmDefinitions } from './alarmCenterApi';
+import {
+  acknowledgeRuntimeAlarm,
+  loadActiveRuntimeAlarms,
+  loadRuntimeAlarmDefinitions,
+  loadRuntimeAlarmSuppressions,
+  releaseRuntimeAlarmSuppression,
+  setRuntimeAlarmSuppression
+} from './alarmCenterApi';
 import {
   buildRuntimeAlarmCenterSummary,
   canAcknowledgeRuntimeAlarm,
@@ -14,7 +21,10 @@ import type {
   RuntimeAlarmCenterEndpoint,
   RuntimeAlarmCenterItem,
   RuntimeAlarmDefinition,
-  RuntimeAlarmCenterLocale
+  RuntimeAlarmCenterLocale,
+  RuntimeAlarmSuppressionCause,
+  RuntimeAlarmSuppressionSnapshot,
+  RuntimeAlarmSuppressionTargetKind
 } from './alarmCenterTypes';
 import { playAlarmSoundProfile, resumeAlarmAudio, selectUnacknowledgedAlarmSounds, supportsAlarmAudio } from './alarmSounds';
 import './runtime-alarm-center.css';
@@ -92,6 +102,30 @@ type Copy = {
   soundsEnabled: string;
   soundsDisabled: string;
   soundUnavailable: string;
+  suppressionTitle: string;
+  suppressionDescription: string;
+  suppressionTarget: string;
+  suppressionAlarm: string;
+  suppressionLocation: string;
+  suppressionReason: string;
+  suppressionMaintenance: string;
+  suppressionStartup: string;
+  suppressionTesting: string;
+  suppressionOther: string;
+  suppressionDuration: string;
+  suppressionUntilReleased: string;
+  suppressionOneHour: string;
+  suppressionFourHours: string;
+  suppressionEightHours: string;
+  suppress: string;
+  releaseSuppression: string;
+  applyingSuppression: string;
+  suppressionActive: string;
+  suppressionInherited: string;
+  suppressionNoTargets: string;
+  suppressionUnavailable: string;
+  suppressionSaved: string;
+  suppressionReleased: string;
 };
 
 const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
@@ -108,7 +142,8 @@ const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
     unavailable: 'O serviço de alarmes está indisponível no momento.', retry: 'Tentar novamente', unknown: 'Desconhecido', noArea: 'Sem área',
     priorityLow: 'Baixa', priorityMedium: 'Média', priorityHigh: 'Alta', priorityCritical: 'Crítica',
     stateNormal: 'Normal', stateActive: 'Ativo', stateAcknowledged: 'Reconhecido', stateReturned: 'Retornado', stateDisabled: 'Desabilitado', stateShelved: 'Suprimido',
-    enableSounds: 'Ativar sons de alarmes', muteSounds: 'Silenciar sons', soundsEnabled: 'Sons de alarme ativados nesta sessão.', soundsDisabled: 'Sons de alarme silenciados.', soundUnavailable: 'O navegador não conseguiu ativar o áudio.'
+    enableSounds: 'Ativar sons de alarmes', muteSounds: 'Silenciar sons', soundsEnabled: 'Sons de alarme ativados nesta sessão.', soundsDisabled: 'Sons de alarme silenciados.', soundUnavailable: 'O navegador não conseguiu ativar o áudio.',
+    suppressionTitle: 'Supressão operacional', suppressionDescription: 'A supressão silencia o anúncio, mas mantém a condição e o alarme visíveis no Runtime.', suppressionTarget: 'Aplicar a', suppressionAlarm: 'Alarme', suppressionLocation: 'Área ou subárea', suppressionReason: 'Motivo', suppressionMaintenance: 'Manutenção', suppressionStartup: 'Partida', suppressionTesting: 'Teste', suppressionOther: 'Outro', suppressionDuration: 'Duração', suppressionUntilReleased: 'Até liberar manualmente', suppressionOneHour: '1 hora', suppressionFourHours: '4 horas', suppressionEightHours: '8 horas', suppress: 'Suprimir anúncio', releaseSuppression: 'Liberar supressão', applyingSuppression: 'Aplicando...', suppressionActive: 'Supressão ativa', suppressionInherited: 'Esta supressão vem de uma área ou subárea acima.', suppressionNoTargets: 'Não há alarmes ou áreas visíveis para configurar.', suppressionUnavailable: 'Não foi possível carregar a configuração de supressão.', suppressionSaved: 'Supressão aplicada. O alarme continua visível com sua condição real.', suppressionReleased: 'Supressão liberada.'
   },
   en: {
     title: 'Alarm center',
@@ -123,7 +158,8 @@ const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
     unavailable: 'The alarm service is currently unavailable.', retry: 'Retry', unknown: 'Unknown', noArea: 'No area',
     priorityLow: 'Low', priorityMedium: 'Medium', priorityHigh: 'High', priorityCritical: 'Critical',
     stateNormal: 'Normal', stateActive: 'Active', stateAcknowledged: 'Acknowledged', stateReturned: 'Returned', stateDisabled: 'Disabled', stateShelved: 'Shelved',
-    enableSounds: 'Enable alarm sounds', muteSounds: 'Mute sounds', soundsEnabled: 'Alarm sounds enabled for this session.', soundsDisabled: 'Alarm sounds are muted.', soundUnavailable: 'The browser could not enable audio.'
+    enableSounds: 'Enable alarm sounds', muteSounds: 'Mute sounds', soundsEnabled: 'Alarm sounds enabled for this session.', soundsDisabled: 'Alarm sounds are muted.', soundUnavailable: 'The browser could not enable audio.',
+    suppressionTitle: 'Operational suppression', suppressionDescription: 'Suppression silences annunciation while keeping the condition and alarm visible in Runtime.', suppressionTarget: 'Apply to', suppressionAlarm: 'Alarm', suppressionLocation: 'Area or subarea', suppressionReason: 'Reason', suppressionMaintenance: 'Maintenance', suppressionStartup: 'Startup', suppressionTesting: 'Test', suppressionOther: 'Other', suppressionDuration: 'Duration', suppressionUntilReleased: 'Until manually released', suppressionOneHour: '1 hour', suppressionFourHours: '4 hours', suppressionEightHours: '8 hours', suppress: 'Suppress annunciation', releaseSuppression: 'Release suppression', applyingSuppression: 'Applying...', suppressionActive: 'Suppression active', suppressionInherited: 'This suppression comes from a parent area or subarea.', suppressionNoTargets: 'There are no visible alarms or areas to configure.', suppressionUnavailable: 'Could not load suppression settings.', suppressionSaved: 'Suppression applied. The alarm remains visible with its actual condition.', suppressionReleased: 'Suppression released.'
   },
   es: {
     title: 'Centro de alarmas',
@@ -138,7 +174,8 @@ const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
     unavailable: 'El servicio de alarmas no está disponible en este momento.', retry: 'Reintentar', unknown: 'Desconocido', noArea: 'Sin área',
     priorityLow: 'Baja', priorityMedium: 'Media', priorityHigh: 'Alta', priorityCritical: 'Crítica',
     stateNormal: 'Normal', stateActive: 'Activa', stateAcknowledged: 'Reconocida', stateReturned: 'Retornada', stateDisabled: 'Deshabilitada', stateShelved: 'Suprimida',
-    enableSounds: 'Activar sonidos de alarmas', muteSounds: 'Silenciar sonidos', soundsEnabled: 'Sonidos de alarma activados en esta sesión.', soundsDisabled: 'Sonidos de alarma silenciados.', soundUnavailable: 'El navegador no pudo activar el audio.'
+    enableSounds: 'Activar sonidos de alarmas', muteSounds: 'Silenciar sonidos', soundsEnabled: 'Sonidos de alarma activados en esta sesión.', soundsDisabled: 'Sonidos de alarma silenciados.', soundUnavailable: 'No se pudo activar el audio del navegador.',
+    suppressionTitle: 'Supresión operativa', suppressionDescription: 'La supresión silencia el anuncio, pero mantiene la condición y la alarma visibles en Runtime.', suppressionTarget: 'Aplicar a', suppressionAlarm: 'Alarma', suppressionLocation: 'Área o subárea', suppressionReason: 'Motivo', suppressionMaintenance: 'Mantenimiento', suppressionStartup: 'Arranque', suppressionTesting: 'Prueba', suppressionOther: 'Otro', suppressionDuration: 'Duración', suppressionUntilReleased: 'Hasta liberar manualmente', suppressionOneHour: '1 hora', suppressionFourHours: '4 horas', suppressionEightHours: '8 horas', suppress: 'Suprimir anuncio', releaseSuppression: 'Liberar supresión', applyingSuppression: 'Aplicando...', suppressionActive: 'Supresión activa', suppressionInherited: 'Esta supresión viene de un área o subárea superior.', suppressionNoTargets: 'No hay alarmas o áreas visibles para configurar.', suppressionUnavailable: 'No se pudo cargar la configuración de supresión.', suppressionSaved: 'Supresión aplicada. La alarma sigue visible con su condición real.', suppressionReleased: 'Supresión liberada.'
   }
 };
 
@@ -160,9 +197,16 @@ export function RuntimeAlarmCenter({
   const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<AckFeedback | null>(null);
   const [definitionEndpoint, setDefinitionEndpoint] = useState<RuntimeAlarmCenterEndpoint<RuntimeAlarmDefinition[]> | null>(null);
+  const [suppressionEndpoint, setSuppressionEndpoint] = useState<RuntimeAlarmCenterEndpoint<RuntimeAlarmSuppressionSnapshot> | null>(null);
+  const [suppressionTargetKind, setSuppressionTargetKind] = useState<RuntimeAlarmSuppressionTargetKind>('alarm');
+  const [suppressionTargetId, setSuppressionTargetId] = useState('');
+  const [suppressionReason, setSuppressionReason] = useState('maintenance');
+  const [suppressionDuration, setSuppressionDuration] = useState('until-released');
+  const [suppressionBusy, setSuppressionBusy] = useState(false);
   const [alarmSoundsEnabled, setAlarmSoundsEnabled] = useState(false);
   const loadController = useRef<AbortController | null>(null);
   const definitionsController = useRef<AbortController | null>(null);
+  const suppressionController = useRef<AbortController | null>(null);
   const ackController = useRef<AbortController | null>(null);
   const soundQueueRef = useRef<ReturnType<typeof selectUnacknowledgedAlarmSounds>>([]);
 
@@ -208,23 +252,48 @@ export function RuntimeAlarmCenter({
     }
   }, [definitionsLoader]);
 
+  const refreshSuppressions = useCallback(async () => {
+    suppressionController.current?.abort();
+    const controller = new AbortController();
+    suppressionController.current = controller;
+    try {
+      const next = await loadRuntimeAlarmSuppressions(controller.signal);
+      if (!controller.signal.aborted) setSuppressionEndpoint(next);
+      return next;
+    } catch (error) {
+      if (controller.signal.aborted) return null;
+      const next: RuntimeAlarmCenterEndpoint<RuntimeAlarmSuppressionSnapshot> = {
+        available: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+      setSuppressionEndpoint(next);
+      return next;
+    } finally {
+      if (suppressionController.current === controller) suppressionController.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     if (!visible && !alarmSoundsEnabled) return;
     void refresh();
     void refreshDefinitions();
+    void refreshSuppressions();
     const timer = refreshIntervalMs > 0
       ? window.setInterval(() => void refresh(), refreshIntervalMs)
       : undefined;
     const definitionsTimer = window.setInterval(() => void refreshDefinitions(), Math.max(30000, refreshIntervalMs * 8));
+    const suppressionsTimer = window.setInterval(() => void refreshSuppressions(), Math.max(10000, refreshIntervalMs * 3));
 
     return () => {
       if (timer !== undefined) window.clearInterval(timer);
       window.clearInterval(definitionsTimer);
+      window.clearInterval(suppressionsTimer);
       loadController.current?.abort();
       definitionsController.current?.abort();
+      suppressionController.current?.abort();
       ackController.current?.abort();
     };
-  }, [refresh, refreshDefinitions, refreshIntervalMs, visible, alarmSoundsEnabled]);
+  }, [refresh, refreshDefinitions, refreshSuppressions, refreshIntervalMs, visible, alarmSoundsEnabled]);
 
   const alarms = useMemo(
     () => sortRuntimeAlarmsForAttention(endpoint?.available ? endpoint.value : []),
@@ -233,6 +302,7 @@ export function RuntimeAlarmCenter({
   const summary = useMemo(() => buildRuntimeAlarmCenterSummary(alarms), [alarms]);
   const selected = alarms.find(alarm => alarm.definitionId === selectedId) ?? alarms[0] ?? null;
   const definitions = definitionEndpoint?.available ? definitionEndpoint.value : [];
+  const suppressionSnapshot = suppressionEndpoint?.available ? suppressionEndpoint.value : null;
   const soundQueue = useMemo(() => selectUnacknowledgedAlarmSounds(alarms, definitions), [alarms, definitions]);
   const soundQueueSignature = soundQueue.map(item => `${item.definitionId}:${item.profile}`).join('|');
   soundQueueRef.current = soundQueue;
@@ -266,11 +336,106 @@ export function RuntimeAlarmCenter({
     }
   }, [alarms, selectedId]);
 
+  useEffect(() => {
+    const choices = suppressionTargetKind === 'alarm'
+      ? suppressionSnapshot?.alarms.map(alarm => ({ id: alarm.definitionId })) ?? []
+      : suppressionSnapshot?.locations.map(location => ({ id: location.id })) ?? [];
+    if (choices.some(choice => choice.id === suppressionTargetId)) return;
+    const preferred = suppressionTargetKind === 'alarm'
+      ? selected?.definitionId
+      : undefined;
+    setSuppressionTargetId(
+      (preferred && choices.some(choice => choice.id === preferred) ? preferred : choices[0]?.id) ?? '');
+  }, [selected?.definitionId, suppressionSnapshot, suppressionTargetId, suppressionTargetKind]);
+
   useEffect(() => () => {
     loadController.current?.abort();
     definitionsController.current?.abort();
+    suppressionController.current?.abort();
     ackController.current?.abort();
   }, []);
+
+  const suppressionTargetName = suppressionTargetKind === 'alarm'
+    ? suppressionSnapshot?.alarms.find(alarm => alarm.definitionId === suppressionTargetId)?.name ?? ''
+    : suppressionSnapshot?.locations.find(location => location.id === suppressionTargetId)?.path ?? '';
+  const targetCauses = useMemo(() => {
+    if (!suppressionSnapshot || !suppressionTargetId) return [] as RuntimeAlarmSuppressionCause[];
+    const alarmsForTarget = suppressionTargetKind === 'alarm'
+      ? suppressionSnapshot.alarms.filter(alarm => alarm.definitionId === suppressionTargetId)
+      : suppressionSnapshot.alarms;
+    const unique = new Map<string, RuntimeAlarmSuppressionCause>();
+    for (const alarm of alarmsForTarget) {
+      for (const cause of alarm.suppressionCauses ?? []) {
+        if (cause.targetKind === suppressionTargetKind && cause.targetId === suppressionTargetId)
+          unique.set(`${cause.targetKind}:${cause.targetId}`, cause);
+      }
+    }
+    return [...unique.values()];
+  }, [suppressionSnapshot, suppressionTargetId, suppressionTargetKind]);
+
+  const selectedSuppressionCauses = selected
+    ? suppressionSnapshot?.alarms.find(alarm => alarm.definitionId === selected.definitionId)?.suppressionCauses ?? selected.suppressionCauses ?? []
+    : [];
+
+  const changeSuppressionTargetKind = (value: string) => {
+    const kind = value === 'location' ? 'location' : 'alarm';
+    setSuppressionTargetKind(kind);
+    const nextId = kind === 'alarm'
+      ? suppressionSnapshot?.alarms.find(alarm => alarm.definitionId === selected?.definitionId)?.definitionId
+        ?? suppressionSnapshot?.alarms[0]?.definitionId
+      : suppressionSnapshot?.locations[0]?.id;
+    setSuppressionTargetId(nextId ?? '');
+  };
+
+  const applySuppression = async () => {
+    if (!suppressionTargetId || !suppressionTargetName || suppressionBusy) return;
+    const durationMs: Record<string, number | null> = {
+      'until-released': null,
+      '1-hour': 60 * 60 * 1000,
+      '4-hours': 4 * 60 * 60 * 1000,
+      '8-hours': 8 * 60 * 60 * 1000
+    };
+    const duration = durationMs[suppressionDuration];
+    const expiresAtUtc = duration == null ? null : new Date(Date.now() + duration).toISOString();
+    setSuppressionBusy(true);
+    setFeedback(null);
+    try {
+      const result = await setRuntimeAlarmSuppression(
+        suppressionTargetKind,
+        suppressionTargetId,
+        suppressionReason,
+        expiresAtUtc);
+      if (!result.ok) {
+        setFeedback({ tone: 'error', message: result.status ? issueMessage(result.status, text) : result.error || text.unavailable });
+        return;
+      }
+      await Promise.all([refreshSuppressions(), refresh()]);
+      setFeedback({ tone: 'success', message: text.suppressionSaved });
+    } catch (error) {
+      setFeedback({ tone: 'error', message: error instanceof Error ? error.message : text.unavailable });
+    } finally {
+      setSuppressionBusy(false);
+    }
+  };
+
+  const releaseSuppression = async (kind: RuntimeAlarmSuppressionTargetKind, targetId: string) => {
+    if (suppressionBusy) return;
+    setSuppressionBusy(true);
+    setFeedback(null);
+    try {
+      const result = await releaseRuntimeAlarmSuppression(kind, targetId);
+      if (!result.ok) {
+        setFeedback({ tone: 'error', message: result.status ? issueMessage(result.status, text) : result.error || text.unavailable });
+        return;
+      }
+      await Promise.all([refreshSuppressions(), refresh()]);
+      setFeedback({ tone: 'success', message: text.suppressionReleased });
+    } catch (error) {
+      setFeedback({ tone: 'error', message: error instanceof Error ? error.message : text.unavailable });
+    } finally {
+      setSuppressionBusy(false);
+    }
+  };
 
   const toggleAlarmSounds = async () => {
     if (alarmSoundsEnabled) {
@@ -357,6 +522,53 @@ export function RuntimeAlarmCenter({
         <Summary label={text.acknowledged} value={summary.acknowledged} />
       </div>
 
+      <section className="runtime-alarm-suppression" aria-label={text.suppressionTitle}>
+        <header>
+          <div><h3>{text.suppressionTitle}</h3><p>{text.suppressionDescription}</p></div>
+          <button type="button" disabled={suppressionBusy} onClick={() => void refreshSuppressions()}>{text.refresh}</button>
+        </header>
+        {!suppressionSnapshot ? (
+          <p className="runtime-alarm-suppression-unavailable" role="status">{text.suppressionUnavailable}</p>
+        ) : suppressionSnapshot.alarms.length === 0 && suppressionSnapshot.locations.length === 0 ? (
+          <p className="runtime-alarm-suppression-unavailable">{text.suppressionNoTargets}</p>
+        ) : (
+          <div className="runtime-alarm-suppression-form">
+            <label><span>{text.suppressionTarget}</span><select value={suppressionTargetKind} onChange={event => changeSuppressionTargetKind(event.target.value)}>
+              <option value="alarm">{text.suppressionAlarm}</option>
+              <option value="location" disabled={suppressionSnapshot.locations.length === 0}>{text.suppressionLocation}</option>
+            </select></label>
+            <label><span>{suppressionTargetKind === 'alarm' ? text.suppressionAlarm : text.suppressionLocation}</span><select value={suppressionTargetId} onChange={event => setSuppressionTargetId(event.target.value)}>
+              {suppressionTargetKind === 'alarm'
+                ? suppressionSnapshot.alarms.map(alarm => <option key={alarm.definitionId} value={alarm.definitionId}>{alarm.name}{alarm.locationPath ? ` · ${alarm.locationPath}` : ''}</option>)
+                : suppressionSnapshot.locations.map(location => <option key={location.id} value={location.id}>{location.path} · {location.alarmCount}</option>)}
+            </select></label>
+            <label><span>{text.suppressionReason}</span><select value={suppressionReason} onChange={event => setSuppressionReason(event.target.value)}>
+              <option value="maintenance">{text.suppressionMaintenance}</option>
+              <option value="startup">{text.suppressionStartup}</option>
+              <option value="testing">{text.suppressionTesting}</option>
+              <option value="other">{text.suppressionOther}</option>
+            </select></label>
+            <label><span>{text.suppressionDuration}</span><select value={suppressionDuration} onChange={event => setSuppressionDuration(event.target.value)}>
+              <option value="until-released">{text.suppressionUntilReleased}</option>
+              <option value="1-hour">{text.suppressionOneHour}</option>
+              <option value="4-hours">{text.suppressionFourHours}</option>
+              <option value="8-hours">{text.suppressionEightHours}</option>
+            </select></label>
+            {targetCauses.length > 0 ? (
+              <div className="runtime-alarm-suppression-current" role="status">
+                <strong>{text.suppressionActive}: {suppressionTargetName}</strong>
+                {targetCauses.map(cause => <span key={`${cause.targetKind}:${cause.targetId}`}>{suppressionReasonLabel(cause.reasonCode, text)} · {cause.expiresAtUtc ? formatMoment(cause.expiresAtUtc, locale) : text.suppressionUntilReleased}</span>)}
+                <button type="button" disabled={suppressionBusy} onClick={() => void releaseSuppression(suppressionTargetKind, suppressionTargetId)}>{suppressionBusy ? text.applyingSuppression : text.releaseSuppression}</button>
+              </div>
+            ) : (
+              <button type="button" className="runtime-alarm-suppress" disabled={suppressionBusy || !suppressionTargetId || !suppressionTargetName} onClick={() => void applySuppression()}>
+                {suppressionBusy ? text.applyingSuppression : text.suppress}
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
       {feedback && <div className={`runtime-alarm-feedback ${feedback.tone}`} role={feedback.tone === 'error' ? 'alert' : 'status'}>{feedback.message}</div>}
 
       {alarms.length === 0 ? (
@@ -379,6 +591,7 @@ export function RuntimeAlarmCenter({
                   <span className="runtime-alarm-row-copy">
                     <strong>{alarm.message || alarm.name}</strong>
                     <span>{alarm.name} · {alarm.area || text.noArea}</span>
+                    {alarm.isSuppressed && <span className="runtime-alarm-suppressed-label">{text.suppressionActive} · {stateLabel(state, text)}</span>}
                   </span>
                   <span className="runtime-alarm-row-meta">
                     <b>{priorityLabel(priority, text)}</b>
@@ -417,6 +630,16 @@ export function RuntimeAlarmCenter({
                   <Fact label={text.tagId} value={selected.tagId} mono />
                   <Fact label={text.definitionId} value={selected.definitionId} mono />
                 </dl>
+
+                {selected.isSuppressed && <div className="runtime-alarm-suppressed-detail" role="status">
+                  <strong>{text.suppressionActive} · {stateLabel(normalizeRuntimeAlarmState(selected.state), text)}</strong>
+                  {selectedSuppressionCauses.map(cause => <div key={`${cause.targetKind}:${cause.targetId}`}>
+                    <span>{cause.targetKind === 'location' ? cause.targetPath : cause.targetName} · {suppressionReasonLabel(cause.reasonCode, text)}</span>
+                    {cause.targetKind === 'location' && <small>{text.suppressionInherited}</small>}
+                    <small>{cause.expiresAtUtc ? formatMoment(cause.expiresAtUtc, locale) : text.suppressionUntilReleased}</small>
+                    <button type="button" disabled={suppressionBusy} onClick={() => void releaseSuppression(cause.targetKind, cause.targetId)}>{text.releaseSuppression}</button>
+                  </div>)}
+                </div>}
 
                 <div className="runtime-alarm-actions">
                   <button
@@ -462,6 +685,13 @@ function stateLabel(state: ReturnType<typeof normalizeRuntimeAlarmState>, text: 
   if (state === 'disabled') return text.stateDisabled;
   if (state === 'shelved') return text.stateShelved;
   return text.unknown;
+}
+
+function suppressionReasonLabel(reason: string, text: Copy): string {
+  if (reason === 'maintenance') return text.suppressionMaintenance;
+  if (reason === 'startup') return text.suppressionStartup;
+  if (reason === 'testing') return text.suppressionTesting;
+  return text.suppressionOther;
 }
 
 function issueMessage(status: number | undefined, text: Copy): string {

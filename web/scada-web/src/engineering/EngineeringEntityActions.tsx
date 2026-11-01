@@ -362,7 +362,7 @@ function mutationText(locale: EngineeringLocale) {
     validPreview: 'Valid bulk candidate', invalidPreview: 'Invalid bulk candidate', affected: 'Affected', updates: 'Updates', errors: 'Errors',
     noEntities: 'No persisted entities are available.', trueValue: 'True', falseValue: 'False',
     readOnly: 'Read-only', historianEnabled: 'Historian enabled', enabled: 'Enabled', priority: 'Priority',
-    requiresAcknowledgement: 'Requires acknowledgement', shelvingAllowed: 'Shelving allowed'
+    requiresAcknowledgement: 'Requires acknowledgement', shelvingAllowed: 'Allow operational suppression'
   };
   if (locale === 'es') return {
     currentEntity: 'Entidad actual', newDraft: 'Nuevo borrador', newDraftHint: 'Cree y valide la entidad antes de usar acciones destructivas.',
@@ -378,7 +378,7 @@ function mutationText(locale: EngineeringLocale) {
     validPreview: 'Candidato válido', invalidPreview: 'Candidato inválido', affected: 'Afectadas', updates: 'Actualizaciones', errors: 'Errores',
     noEntities: 'No hay entidades persistidas disponibles.', trueValue: 'Verdadero', falseValue: 'Falso',
     readOnly: 'Solo lectura', historianEnabled: 'Historiador habilitado', enabled: 'Habilitado', priority: 'Prioridad',
-    requiresAcknowledgement: 'Requiere reconocimiento', shelvingAllowed: 'Permite shelving'
+    requiresAcknowledgement: 'Requiere reconocimiento', shelvingAllowed: 'Permitir supresión operativa'
   };
   return {
     currentEntity: 'Entidade atual', newDraft: 'Novo rascunho', newDraftHint: 'Crie e valide a entidade antes de usar ações destrutivas.',
@@ -394,6 +394,6 @@ function mutationText(locale: EngineeringLocale) {
     validPreview: 'Candidato de lote válido', invalidPreview: 'Candidato de lote inválido', affected: 'Afetadas', updates: 'Atualizações', errors: 'Erros',
     noEntities: 'Nenhuma entidade persistida disponível.', trueValue: 'Verdadeiro', falseValue: 'Falso',
     readOnly: 'Somente leitura', historianEnabled: 'Historiador habilitado', enabled: 'Habilitado', priority: 'Prioridade',
-    requiresAcknowledgement: 'Exige reconhecimento', shelvingAllowed: 'Permite shelving'
+    requiresAcknowledgement: 'Exige reconhecimento', shelvingAllowed: 'Permitir supressão operacional'
   };
 }

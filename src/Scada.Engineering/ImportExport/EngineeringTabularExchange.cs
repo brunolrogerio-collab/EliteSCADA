@@ -36,7 +36,7 @@ public sealed class EngineeringTabularExchange
     public string ExportCsv(EngineeringPackage package, EngineeringTabularEntity entity) => entity switch
     {
         EngineeringTabularEntity.Tags => _csv.ExportTags(package.Tags, package.DataSources, package.HistorianCaptureProfiles),
-        EngineeringTabularEntity.Alarms => _csv.ExportAlarms(package.Alarms, package.Tags),
+        EngineeringTabularEntity.Alarms => _csv.ExportAlarms(package.Alarms, package.Tags, package.Locations, package.Equipment),
         EngineeringTabularEntity.DataSources => _csv.ExportDataSources(package.DataSources ?? []),
         EngineeringTabularEntity.GatewayRoutes => _csv.ExportGatewayRoutes(package.Gateways ?? [], package.Tags),
         EngineeringTabularEntity.OperationalEvents => _csv.ExportOperationalEvents(package.OperationalEvents ?? [], package.Tags),
@@ -101,7 +101,8 @@ public sealed class EngineeringTabularExchange
     {
         EngineeringTabularEntity.Tags => ParseTagsPackage(csv, current.HistorianCaptureProfiles),
         EngineeringTabularEntity.Alarms => new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
-            EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow, [], _csv.ParseAlarms(csv)),
+            EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow, [],
+            _csv.ParseAlarms(csv, current.Locations, current.Equipment)),
         EngineeringTabularEntity.DataSources => new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow, [], [],
             DataSources: _csv.ParseDataSources(csv)),

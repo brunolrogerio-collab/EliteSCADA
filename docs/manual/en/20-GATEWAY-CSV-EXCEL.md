@@ -95,6 +95,8 @@ Use decimal point (2.5) and booleans true/false; do not append units to numbers.
 
 Preserve paths/keys as text to prevent automatic date/number conversion. XLSX formulas are rejected even with cached results: paste values before saving.
 
+In the Alarms table, LocationPath identifies a location by its names from the parent area to the subarea, such as Plant / Pumps / Room 1. EquipmentPath identifies equipment by a readable path, such as Plant.Pump01. Fill only one field. On import, the product finds that path in the current project and stores the corresponding stable link; do not type GUIDs. Fix missing or ambiguous references in Engineering and export again.
+
 The single sheet must be Tags, Alarms, DataSources, GatewayRoutes or OperationalEvents for the chosen entity. Include no users, password hashes, login credentials or secrets; protected Data Source references are not secrets themselves.
 
 Start complex fields from a real export, not a simplified example.

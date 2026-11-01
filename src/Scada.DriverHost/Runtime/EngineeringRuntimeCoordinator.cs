@@ -1102,6 +1102,22 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     {
         foreach (var dto in package.Alarms.Where(x => x.Enabled))
         {
+            var equipment = dto.EquipmentId.HasValue
+                ? package.Equipment?.FirstOrDefault(item => item.Id == dto.EquipmentId)
+                : null;
+            var locationExists = !dto.LocationId.HasValue ||
+                package.Locations?.Any(item => item.Id == dto.LocationId) == true;
+            if (dto.EquipmentId.HasValue && equipment is null ||
+                !locationExists ||
+                dto.LocationId.HasValue && dto.EquipmentId.HasValue)
+            {
+                issues.Add(new(
+                    "RUNTIME_ALARM_OPERATIONAL_TARGET_INVALID",
+                    $"Alarm '{dto.Name}' references an unresolved or inconsistent Equipment/Location operational target.",
+                    dto.Name));
+                continue;
+            }
+
             TagDefinition? tag = null;
             if (dto.TagId.HasValue)
                 state.Registry.TryGet(dto.TagId.Value, out tag);
@@ -1135,8 +1151,17 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 dto.RequiresAcknowledgement,
                 dto.ShelvingAllowed,
                 dto.Metadata,
-                dto.SoundProfile));
+                dto.SoundProfile,
+                ResolveAlarmLocationId(dto, package),
+                dto.EquipmentId));
         }
+    }
+
+    private static Guid? ResolveAlarmLocationId(AlarmEngineeringDto alarm, EngineeringPackage package)
+    {
+        if (alarm.LocationId.HasValue) return alarm.LocationId;
+        if (!alarm.EquipmentId.HasValue) return null;
+        return package.Equipment?.FirstOrDefault(item => item.Id == alarm.EquipmentId)?.LocationId;
     }
 
     private static void RegisterCommands(

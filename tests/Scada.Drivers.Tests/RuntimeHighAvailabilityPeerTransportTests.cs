@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Scada.Api.Runtime;
+using Scada.Core.Alarms;
 using Scada.Core.Tags;
 
 namespace Scada.Drivers.Tests;
@@ -194,6 +195,10 @@ public sealed class RuntimeHighAvailabilityPeerTransportTests
                 "durable-state-loaded-awaiting-live-resync",
                 loaded.ReasonCode);
             Assert.Equal(7, loaded.AuthoritativeState!.Runtime.Revision);
+            Assert.Equal(9, loaded.AuthoritativeState.AlarmSuppressionRevision);
+            Assert.Equal(
+                Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                Assert.Single(loaded.AuthoritativeState.AlarmSuppressions!).TargetId);
         }
         finally
         {
@@ -245,7 +250,17 @@ public sealed class RuntimeHighAvailabilityPeerTransportTests
             },
             Array.Empty<RuntimeSessionLeaseContinuityEnvelope>(),
             Array.Empty<RuntimeSessionLeaseContinuityTombstoneEnvelope>(),
-            now);
+            now,
+            AlarmSuppressionRevision: 9,
+            AlarmSuppressions: [new AlarmSuppressionRecord(
+                "project-a",
+                AlarmSuppressionTargetKind.Location,
+                Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                AlarmSuppressionReasonCodes.Maintenance,
+                "operator",
+                now,
+                now.AddHours(1),
+                Version: 4)]);
         return new RuntimeHaPeerReplicationEnvelope(
             RuntimeHaPeerReplicationEnvelope.SchemaName,
             RuntimeHaPeerReplicationEnvelope.CurrentSchemaVersion,

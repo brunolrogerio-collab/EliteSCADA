@@ -930,6 +930,7 @@ jobs:
         run: node test/linux-fake-startup-harness.mjs
       - name: Record fake-only evidence
         if: always()
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
         run: |
           {
             echo '## Matter Wi-Fi exact-pin and isolated preview evidence'

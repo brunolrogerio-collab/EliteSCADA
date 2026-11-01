@@ -342,7 +342,7 @@ async function main() {
         'managed stop command closes the bridge and exits cleanly',
       ],
       ready,
-      matterServerCandidateInstalledOrStarted: false,
+      matterServerCandidateProcessStarted: false,
       matterNetworkUsed: false,
       completedAtUtc: new Date().toISOString(),
     };

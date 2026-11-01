@@ -1,0 +1,1 @@
+Upstream package metadata declares this package Public Domain. Its exact locked tarball did not include a separate LICENSE/COPYING/NOTICE file; this notice records the declaration and does not create or reproduce license terms.

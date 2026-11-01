@@ -8,7 +8,9 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "generate:compliance": "node scripts/generate-compliance.mjs",
+    "verify:dependencies": "node scripts/verify-dependencies.mjs"
   },
   "dependencies": {
     "matter-server": "1.5.0-alpha.0-20261013-75a39cb",
@@ -25,5 +27,9 @@
     "@matter/protocol": "0.18.0-alpha.0-20261008-6066b7499",
     "@matter/types": "0.18.0-alpha.0-20261008-6066b7499",
     "ws": "8.22.0"
+  },
+  "overrides": {
+    "body-parser": "2.4.0",
+    "qs": "6.16.1"
   }
 }

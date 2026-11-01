@@ -130,18 +130,6 @@
     "review": "Replace the incomplete-authoring limitation only after real component output passes the strict planner and survives reopening. Address text and host-key provisioning alone do not create the binding; review all locales and screenshots."
   },
   {
-    "id": "HELP-REVIEW-AFTER-PRODUCT-792-MATTER",
-    "issue": 792,
-    "topicId": "drivers.matter-test-workflow",
-    "fieldKeys": [
-      "address",
-      "settings"
-    ],
-    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
-    "reviewWhen": "The exact installed Matter artifacts and their supported availability/platform/operation subset have been requalified and accepted.",
-    "review": "Review the test-version availability and operational bounds against the accepted artifact, not an upstream closed issue or release number. Preserve unsupported commissioning/Thread/HA limits unless separately implemented and validated."
-  },
-  {
     "id": "HELP-REVIEW-AFTER-PRODUCT-781",
     "issue": 781,
     "topicId": "runtime.station-multimonitor",

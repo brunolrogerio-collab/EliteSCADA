@@ -85,6 +85,20 @@ Choose a profile or stage and generate an available Screen. Generation uses TAG 
 
 **Related Help:** `/help?topic=historian.overview`, `/help?topic=tags.quality`, `/help?topic=tags.timestamps`, `/help?topic=screens.overview`, `/help?topic=engineering.lifecycle`.
 
+## Check the data before interpreting
+
+In Engineering > Asset intelligence, locate the equipment assignment. Under Check reference data, choose the start and end of a known period and select Query reference. Times are local and converted to UTC. Each period supports up to 31 days. Accepted readings have the required source evidence; rejections explain why other readings were excluded. Counts do not prove that the equipment was healthy.
+
+Under Check context conditions, select a saved context by name and query the period. SCADIVO uses its saved version automatically. Results show how many readings meet all conditions at the same source time. Zero matching readings may mean unmet conditions or insufficient data; read the explanation. Publish changes and activate the equipment before querying.
+
+## Use experimental joint deviation
+
+Open Experimental joint deviation in the assignment. Choose the saved context and two to eight numeric measurements; measurements defining context conditions are excluded from target choices. Enter the actual acquisition interval in seconds, from 1 to 86,400. Do not invent this value: it describes the expected reading frequency. Choose a reference and a later, non-overlapping evaluation period, then select Calculate joint deviation.
+
+Results show scored timestamps and warmup counts. Deviation combines changes in level and relationships between signals. Expand Measurement contributions to investigate each signal's contribution. These numbers have no physical unit and do not diagnose causes, faults or remaining life. This experimental function is validated by simulation only and has no field-validated alarm threshold.
+
+Use Cancel query to stop. Changing periods, context, signals or cadence discards previous results; query again. If the reference cannot be fitted, check data, quality, synchronization, context and signal variation before widening periods.
+
 <!-- installed-system-guides -->
 
 ## Intelligence: enable, pause and resolve blocks

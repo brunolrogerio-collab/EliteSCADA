@@ -10,6 +10,50 @@ const secondContextSignalId = '15000000-0000-0000-0000-000000000214';
 const firstContextTagId = '15000000-0000-0000-0000-000000000105';
 const secondContextTagId = '15000000-0000-0000-0000-000000000106';
 
+test('joint deviation selects named signals and rejects an unexpected decision threshold', async ({ page }) => {
+  await installWorkspace(page, { jointReady: true });
+  let calls = 0;
+  let invalidThreshold = false;
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/experimental-joint-deviation/v1/query', async route => {
+    calls++;
+    const request = route.request().postDataJSON();
+    expect(request).toMatchObject({ scopeKind: 0, scopeId: equipmentId, assignmentId, expectedProfileVersion: 3, expectedCadenceSeconds: 60 });
+    expect(request.targetSignalIds).toHaveLength(2);
+    await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: 4,
+      scopeId: equipmentId, assignmentId, measurementProfileId: profileId,
+      operatingContextProfileId: request.operatingContextProfileId, operatingContextProfileVersion: 3,
+      expectedCadenceSeconds: 60, validationStatus: 'experimental_not_field_validated', classificationStatus: 'none',
+      decisionThreshold: invalidThreshold ? 1 : null, referenceWindow: request.referenceWindow, evaluationWindow: request.evaluationWindow,
+      referenceFitStatus: 'available', referenceCompleteCohortCount: 120, evaluationScoredCohortCount: 1,
+      evaluationWarmupCohortCount: 24, omittedEvaluationScores: 0,
+      targetSignals: request.targetSignalIds.map((signalId: string) => ({ signalId })),
+      scores: [{ sourceTimestampUtc: request.evaluationWindow.fromUtc, score: 2, levelComponent: 1, relationshipComponent: 1,
+        crossSignalInteraction: 0, targetContributions: request.targetSignalIds.map((signalId: string) => ({ signalId, level: 0.5, marginalVariance: 0.5 })) }] } });
+  });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-joint-deviation-${assignmentId}`);
+  await panel.getByText('Desvio conjunto experimental', { exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Calcular desvio conjunto' })).toBeDisabled();
+  await panel.getByLabel('Contexto salvo').selectOption({ label: 'Bomba em operação' });
+  await panel.getByLabel('Corrente', { exact: true }).check();
+  await panel.getByLabel('Velocidade', { exact: true }).check();
+  await panel.getByLabel('Intervalo esperado entre leituras (segundos)').fill('60');
+  await panel.getByLabel('Início da referência', { exact: true }).fill('2026-10-19T10:00');
+  await panel.getByLabel('Fim da referência', { exact: true }).fill('2026-10-20T10:00');
+  await panel.getByLabel('Início da avaliação', { exact: true }).fill('2026-10-20T10:00');
+  await panel.getByLabel('Fim da avaliação', { exact: true }).fill('2026-10-21T10:00');
+  expect(calls).toBe(0);
+  await panel.getByRole('button', { name: 'Calcular desvio conjunto' }).click();
+  await expect(panel.getByTestId('intelligence-joint-deviation-result')).toContainText('Referência ajustada para esta consulta');
+  await expect(panel.getByRole('table')).toContainText('Componente de relação');
+  await panel.getByLabel('Fim da avaliação', { exact: true }).fill('2026-10-21T11:00');
+  await expect(panel.getByTestId('intelligence-joint-deviation-result')).toHaveCount(0);
+  invalidThreshold = true;
+  await panel.getByRole('button', { name: 'Calcular desvio conjunto' }).click();
+  await expect(panel.getByRole('alert')).toBeVisible();
+  await expect(panel.getByTestId('intelligence-joint-deviation-result')).toHaveCount(0);
+});
+
 test('context eligibility uses the saved version, explains mismatches and discards stale responses', async ({ page }) => {
   await installWorkspace(page, { operatingContexts: true });
   let calls = 0;
@@ -428,6 +472,7 @@ async function installWorkspace(page: Page, options: {
   mismatchedPumpFlowUnitPair?: boolean;
   performanceFailCode?: string;
   operatingContexts?: boolean;
+  jointReady?: boolean;
 } = {}) {
   const requests: Array<Record<string, any>> = [];
   const performanceCatalogRequests: string[] = [];
@@ -458,7 +503,7 @@ async function installWorkspace(page: Page, options: {
     id: profileId,
     key: 'pump-drive',
     name: 'Perfil da bomba',
-    signals: performanceSignals
+    signals: [...performanceSignals, ...(options.jointReady ? [{ id: firstContextSignalId, key: 'Temperatura', signalRole: 'processo', tagId: firstContextTagId, required: true }] : [])]
   };
   const tags = [
     { id: currentTagId,
@@ -475,6 +520,7 @@ async function installWorkspace(page: Page, options: {
       controlledEngineeringUnit: options.pumpPerformanceReady
         ? { catalogVersion: 2, code: 'unit.pressure.pascal' }
         : { catalogVersion: 2, code: 'unit.volumetric_flow.cubic_metre_per_second' } },
+    ...(options.jointReady ? [{ id: firstContextTagId, name: 'Temperatura', path: 'Planta.Bomba01.Temperatura', dataType: 'Double', engineeringUnit: '°C', readOnly: true }] : []),
     ...(options.duplicatePerformanceRole ? [{ id: '15000000-0000-0000-0000-000000000103', name: 'Potência duplicada', path: 'Planta.Bomba01.Potencia2', dataType: 'Double', engineeringUnit: 'W', readOnly: true,
       controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.power.watt' } }] : []),
     ...(options.guidedDashboardReady ? [
@@ -554,9 +600,9 @@ async function installWorkspace(page: Page, options: {
         version: 2,
         scopes: [{ kind: 'Equipment', scopeId: equipmentId, active: options.active !== false, executionArmed: options.armed !== false }],
         profiles: [profile], assignments: [{ id: assignmentId, equipmentId, profileId }], processStages: [],
-        operatingContextProfiles: options.operatingContexts ? [{ id: '15000000-0000-0000-0000-000000000401',
+        operatingContextProfiles: options.operatingContexts || options.jointReady ? [{ id: '15000000-0000-0000-0000-000000000401',
           key: 'running', displayLabel: 'Bomba em operação', assignmentId, version: 3,
-          predicates: [{ tagId: speedTagId, kind: 'NumericInterval', minimum: 1000, maximum: 1800 }] }] : []
+          predicates: [{ tagId: options.jointReady ? firstContextTagId : speedTagId, kind: 'NumericInterval', minimum: 1000, maximum: 1800 }] }] : []
       },
       resources: [{ kind: 'Equipment', scopeId: equipmentId, path: 'Planta.Bomba01', name: 'Bomba P-101' }],
       tags, licensed: options.licensed !== false,

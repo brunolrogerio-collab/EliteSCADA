@@ -85,6 +85,20 @@ Escolha um perfil ou uma etapa e gere a tela disponível. A geração usa metada
 
 **Ajuda relacionada:** `/help?topic=historian.overview`, `/help?topic=tags.quality`, `/help?topic=tags.timestamps`, `/help?topic=screens.overview`, `/help?topic=engineering.lifecycle`.
 
+## Confira os dados antes de interpretar
+
+Em Engenharia > Inteligência de ativos, localize a associação do equipamento. Em Conferir dados da referência, escolha início e fim de um período conhecido e clique em Consultar referência. Os horários são locais e convertidos para UTC. Cada período pode ter até 31 dias. Leituras aceitas têm a evidência de origem exigida; rejeições explicam por que outras leituras ficaram de fora. A contagem não comprova que o equipamento estava saudável.
+
+Em Conferir condições do contexto, selecione um contexto salvo pelo nome e consulte o período. O SCADIVO usa a versão salva automaticamente. O resultado informa quantas leituras atendem a todas as condições no mesmo instante de origem. Zero leituras compatíveis pode significar condições não atendidas ou dados insuficientes; confira a explicação apresentada. Publique as alterações e ative o equipamento antes de consultar.
+
+## Use o desvio conjunto experimental
+
+Abra Desvio conjunto experimental na associação. Escolha o contexto salvo e de duas a oito medições numéricas; medições que definem as condições do contexto ficam fora da lista de alvos. Informe o intervalo real de aquisição em segundos, de 1 a 86.400. Não invente esse valor: ele descreve a frequência esperada das leituras. Escolha uma referência e um período posterior de avaliação, sem sobreposição, e clique em Calcular desvio conjunto.
+
+O resultado mostra quantos instantes puderam ser avaliados e quantos ficaram em aquecimento. O desvio combina mudanças de nível e da relação entre sinais. Expanda Contribuições das medições para investigar a participação de cada sinal. Esses números não têm unidade física e não diagnosticam causa, falha ou vida útil. A função é experimental, validada somente por simulação e sem limiar de alarme validado em campo.
+
+Use Cancelar consulta para interromper. Mudar período, contexto, sinais ou cadência descarta o resultado anterior; é preciso consultar novamente. Se a referência não puder ser ajustada, confira dados, qualidade, sincronização, contexto e variação dos sinais antes de ampliar períodos.
+
 <!-- installed-system-guides -->
 
 ## Intelligence: habilitar, pausar e resolver bloqueios

@@ -265,6 +265,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         Assert.True(referenceResponse.StatusCode == HttpStatusCode.OK,
             $"Reference evidence endpoint returned {(int)referenceResponse.StatusCode}: {referenceEvidence}");
         Assert.Equal(3, referenceEvidence.GetProperty("signals").GetArrayLength());
+        Assert.Equal(comparison.FromUtc, referenceEvidence.GetProperty("comparisonWindow").GetProperty("fromUtc").GetDateTimeOffset());
+        Assert.Equal(comparison.ToUtc, referenceEvidence.GetProperty("comparisonWindow").GetProperty("toUtc").GetDateTimeOffset());
         Assert.Equal(180, referenceEvidence.GetProperty("referenceCohort").GetProperty("completeSelectedNumericCohortCount").GetInt32());
         Assert.Equal(180, referenceEvidence.GetProperty("comparisonCohort").GetProperty("completeSelectedNumericCohortCount").GetInt32());
 
@@ -281,6 +283,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             eligibilityRequest);
         var eligibility = await eligibilityResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(HttpStatusCode.OK, eligibilityResponse.StatusCode);
+        Assert.Equal(comparison.FromUtc, eligibility.GetProperty("comparisonWindow").GetProperty("fromUtc").GetDateTimeOffset());
+        Assert.Equal(comparison.ToUtc, eligibility.GetProperty("comparisonWindow").GetProperty("toUtc").GetDateTimeOffset());
         Assert.Equal(180, eligibility.GetProperty("predicates").EnumerateArray().Single().GetProperty("referenceMatchCount").GetInt32());
         Assert.Equal(180, eligibility.GetProperty("predicates").EnumerateArray().Single().GetProperty("comparisonMatchCount").GetInt32());
 

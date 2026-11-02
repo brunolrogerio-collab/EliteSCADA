@@ -106,6 +106,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageCoverageV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProcessStageCoverageV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageInsightsV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceProcessStageCoverageV1(element, entityKind, entityKey, insights: true));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceContextualDeviationV2Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceContextualDeviationV2(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
@@ -348,8 +350,11 @@ public static class BuiltinVisualEngineeringValidation
     private static IEnumerable<ImportIssue> ValidateIntelligenceProcessStageCoverageV1(
         VisualElementEngineeringDto element,
         ImportEntityKind entityKind,
-        string entityKey)
+        string entityKey,
+        bool insights = false)
     {
+        var errorCode = insights ? "VISUAL_INTELLIGENCE_PROCESS_STAGE_INSIGHTS_CONFIG_INVALID"
+            : "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID";
         var stageId = ReadString(element, VisualPropertyKeys.IntelligenceStageId);
         var stageKey = ReadString(element, VisualPropertyKeys.IntelligenceStageKey);
         var stageName = ReadString(element, VisualPropertyKeys.IntelligenceStageName);
@@ -357,10 +362,10 @@ public static class BuiltinVisualEngineeringValidation
         if (entityKind != ImportEntityKind.Screen || !Guid.TryParseExact(stageId, "D", out _) ||
             string.IsNullOrWhiteSpace(stageKey) || stageKey != stageKey.Trim() || stageKey.Length > 64 ||
             string.IsNullOrWhiteSpace(stageName) || stageName != stageName.Trim() || stageName.Length > 128 ||
-            membersJson is not { Length: <= 32768 })
+            membersJson is null || membersJson.Length > (insights ? 65536 : 32768))
         {
             yield return Error(
-                "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID",
+                errorCode,
                 $"Process-stage coverage visual '{element.Key}' requires canonical stage identity, bounded labels and Screen scope.",
                 entityKind,
                 entityKey);
@@ -373,7 +378,7 @@ public static class BuiltinVisualEngineeringValidation
         if (members is not { Length: >= 1 and <= 32 })
         {
             yield return Error(
-                "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID",
+                errorCode,
                 $"Process-stage coverage visual '{element.Key}' requires between one and 32 stable member references.",
                 entityKind,
                 entityKey);
@@ -393,10 +398,11 @@ public static class BuiltinVisualEngineeringValidation
                 !TryReadNonNegativeInt32(member, "order", out var order) ||
                 !assignmentIds.Add(assignmentId) ||
                 !scopeProfiles.Add((scopeId, profileId)) ||
-                !orders.Add(order))
+                !orders.Add(order) ||
+                (insights && !ValidStageMemberReports(member)))
             {
                 yield return Error(
-                    "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID",
+                    errorCode,
                     $"Process-stage coverage visual '{element.Key}' contains an absent, ambiguous or invalid member reference.",
                     entityKind,
                     entityKey);
@@ -404,6 +410,44 @@ public static class BuiltinVisualEngineeringValidation
             }
         }
     }
+
+    private static bool ValidStageMemberReports(JsonElement member)
+    {
+        var partial = member.TryGetProperty("availabilityVersion", out var version);
+        if (partial && (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var number) || number != 2))
+            return false;
+        var hasPerformance = member.TryGetProperty("performance", out var performance);
+        var hasDeviation = member.TryGetProperty("contextualDeviation", out var deviation);
+        if (!partial && (!hasPerformance || !hasDeviation)) return false;
+        if (hasPerformance && (performance.ValueKind != JsonValueKind.Object ||
+            !TryReadBoundedString(performance, "ruleId", 128, out _) ||
+            !TryReadBoundedString(performance, "ruleVersion", 32, out _) ||
+            !TryReadStageSignalIds(performance, "signalIds", 3, out _))) return false;
+        if (!hasDeviation) return true;
+        if (deviation.ValueKind != JsonValueKind.Object ||
+            !TryReadStageSignalIds(deviation, "targetSignalIds", 8, out var targetIds) ||
+            !TryReadGuid(deviation, "firstContextSignalId", out var first) ||
+            !TryReadGuid(deviation, "secondContextSignalId", out var second) ||
+            first == second || targetIds.Contains(first) || targetIds.Contains(second)) return false;
+        return ValidStageContextRange(deviation, "firstContextLowerInclusiveCanonical", "firstContextUpperExclusiveCanonical") &&
+            ValidStageContextRange(deviation, "secondContextLowerInclusiveCanonical", "secondContextUpperExclusiveCanonical");
+    }
+
+    private static bool TryReadStageSignalIds(JsonElement report, string key, int maximum, out HashSet<Guid> ids)
+    {
+        ids = [];
+        if (!report.TryGetProperty(key, out var signals) || signals.ValueKind != JsonValueKind.Array ||
+            signals.GetArrayLength() < 2 || signals.GetArrayLength() > maximum) return false;
+        foreach (var signal in signals.EnumerateArray())
+            if (signal.ValueKind != JsonValueKind.String || !Guid.TryParseExact(signal.GetString(), "D", out var id) || !ids.Add(id))
+                return false;
+        return true;
+    }
+
+    private static bool ValidStageContextRange(JsonElement report, string lowerKey, string upperKey) =>
+        report.TryGetProperty(lowerKey, out var lower) && lower.ValueKind == JsonValueKind.Number && lower.TryGetDouble(out var low) &&
+        report.TryGetProperty(upperKey, out var upper) && upper.ValueKind == JsonValueKind.Number && upper.TryGetDouble(out var high) &&
+        double.IsFinite(low) && double.IsFinite(high) && low < high;
 
     private static IEnumerable<ImportIssue> ValidateIntelligenceContextualDeviationV2(
         VisualElementEngineeringDto element,

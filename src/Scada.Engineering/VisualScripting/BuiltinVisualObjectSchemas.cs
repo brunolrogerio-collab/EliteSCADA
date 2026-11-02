@@ -39,6 +39,7 @@ public static class BuiltinVisualObjectSchemas
     public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
     public const string IntelligenceProfileCoverageV1Type = "core.intelligenceProfileCoverageV1";
     public const string IntelligenceProcessStageCoverageV1Type = "core.intelligenceProcessStageCoverageV1";
+    public const string IntelligenceProcessStageInsightsV1Type = "core.intelligenceProcessStageInsightsV1";
     public const string IntelligenceContextualDeviationV2Type = "core.intelligenceContextualDeviationV2";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
@@ -498,6 +499,15 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.IntelligenceStageMembers
         ]));
 
+    public static VisualObjectPropertySchema IntelligenceProcessStageInsightsV1 { get; } = Create(
+        IntelligenceProcessStageInsightsV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceStageId,
+            VisualPropertyKeys.IntelligenceStageKey,
+            VisualPropertyKeys.IntelligenceStageName,
+            VisualPropertyKeys.IntelligenceStageMembers
+        ]));
+
     public static VisualObjectPropertySchema IntelligenceContextualDeviationV2 { get; } = Create(
         IntelligenceContextualDeviationV2Type,
         Base.Concat([
@@ -547,6 +557,7 @@ public static class BuiltinVisualObjectSchemas
         IntelligencePerformanceV1B,
         IntelligenceProfileCoverageV1,
         IntelligenceProcessStageCoverageV1,
+        IntelligenceProcessStageInsightsV1,
         IntelligenceContextualDeviationV2
     ];
 

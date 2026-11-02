@@ -248,7 +248,7 @@ public sealed class ZigbeeNativeCommunicationRuntimePlanner : ICommunicationDriv
             access,
             dto.AddressSelector,
             dto.CommunicationBinding,
-            dto.DataSourceId);
+            dto.DataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static EngineeringDriverIssue Error(string code, string message, string dataSourceKey, string? tagPath = null) =>

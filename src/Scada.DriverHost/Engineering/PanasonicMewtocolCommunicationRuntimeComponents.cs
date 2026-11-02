@@ -174,7 +174,7 @@ public sealed class PanasonicMewtocolCommunicationRuntimePlanner : ICommunicatio
             dto.Id.Value, dto.Name, dto.Path, dto.DataType, dto.Source, dto.EngineeringUnit,
             dto.Description, dto.ReadOnly, metadata,
             dto.AccessPolicy is null ? null : new TagAccessPolicy(dto.AccessPolicy.ReadRoles?.ToArray(), dto.AccessPolicy.WriteRoles?.ToArray(), dto.AccessPolicy.ConfigureRoles?.ToArray()),
-            dto.AddressSelector, binding, dto.DataSourceId);
+            dto.AddressSelector, binding, dto.DataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
         return new PanasonicMewtocolPoint(tag, address, physicalType, configuredWritable, transform);
     }
 

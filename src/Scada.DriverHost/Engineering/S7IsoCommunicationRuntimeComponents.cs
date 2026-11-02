@@ -284,7 +284,7 @@ public sealed class S7IsoCommunicationRuntimePlanner : ICommunicationDriverRunti
             metadata,
             access,
             dto.AddressSelector,
-            dto.CommunicationBinding);
+            dto.CommunicationBinding, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static string PhysicalIdentity(S7IsoPoint point) =>

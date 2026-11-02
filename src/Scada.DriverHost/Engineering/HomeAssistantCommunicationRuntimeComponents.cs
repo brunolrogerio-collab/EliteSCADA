@@ -271,7 +271,7 @@ public sealed class HomeAssistantCommunicationRuntimePlanner : ICommunicationDri
             access,
             dto.AddressSelector,
             dto.CommunicationBinding,
-            dto.DataSourceId);
+            dto.DataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static bool IsEntityId(string entityId)

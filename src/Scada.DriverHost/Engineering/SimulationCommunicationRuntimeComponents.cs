@@ -68,7 +68,7 @@ public sealed class SimulationCommunicationRuntimePlanner : ICommunicationDriver
             var access = dto.AccessPolicy is null ? null : new TagAccessPolicy(
                 dto.AccessPolicy.ReadRoles?.ToArray(), dto.AccessPolicy.WriteRoles?.ToArray(), dto.AccessPolicy.ConfigureRoles?.ToArray());
             var tag = new TagDefinition(dto.Id.Value, dto.Name, dto.Path, dto.DataType, dto.Source, dto.EngineeringUnit,
-                dto.Description, dto.ReadOnly, metadata, access, dto.AddressSelector, dto.CommunicationBinding, dto.DataSourceId);
+                dto.Description, dto.ReadOnly, metadata, access, dto.AddressSelector, dto.CommunicationBinding, dto.DataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
             points.Add(new SimulationPoint(tag, signal, minimum, maximum, period, constant, step));
         }
 

@@ -215,7 +215,7 @@ public sealed class MqttCommunicationRuntimePlanner : ICommunicationDriverRuntim
             metadata,
             access,
             dto.AddressSelector,
-            dto.CommunicationBinding);
+            dto.CommunicationBinding, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static Dictionary<string, string> CaseInsensitive(IReadOnlyDictionary<string, string>? source) =>

@@ -13,6 +13,28 @@ namespace Scada.Drivers.Tests;
 public sealed class EngineeringRuntimeInternalMemoryIntegrationTests
 {
     [Fact]
+    public async Task ActivateAsync_PreservesControlledUnitThroughSerializationAndReactivation()
+    {
+        var tagId = Guid.NewGuid();
+        var unit = new ControlledEngineeringUnitReference(2, "unit.power.watt");
+        var package = ServerPackage(tagId, 5);
+        package = package with { Tags = package.Tags.Select(tag => tag with
+        {
+            EngineeringUnit = "W", ControlledEngineeringUnit = unit
+        }).ToArray() };
+        var persisted = JsonSerializer.Deserialize<EngineeringPackage>(JsonSerializer.Serialize(package))!;
+        await using var runtime = CreateRuntime(new InMemoryServerMemoryRetentionStore());
+
+        foreach (var revision in new[] { 1, 2 })
+        {
+            Assert.True((await runtime.ActivateAsync("memory-units", revision, persisted)).Activated);
+            Assert.True(runtime.TryGetTag(tagId, out var active));
+            Assert.Equal(unit, active!.ControlledEngineeringUnit);
+            Assert.Equal("W", active.EngineeringUnit);
+        }
+    }
+
+    [Fact]
     public async Task ResetServerMemoryRetainedValueAsync_ClearsRetentionAndPublishesEngineeredInitialValue()
     {
         var tagId = Guid.NewGuid();

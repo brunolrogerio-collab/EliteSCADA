@@ -417,7 +417,8 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
                 dto.Description,
                 dto.ReadOnly,
                 metadata,
-                access);
+                access,
+                ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
             registry.Register(tag);
             if (!tag.ReadOnly && !dataSource.Driver.Equals(EngineeringDriverCompiler.SimulationDriverKey, StringComparison.OrdinalIgnoreCase))
                 writableTagIds.Add(tag.Id);

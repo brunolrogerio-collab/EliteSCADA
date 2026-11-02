@@ -281,7 +281,7 @@ public sealed class MqttEngineeringCompiler
             dto.ReadOnly,
             metadata,
             access,
-            dto.AddressSelector);
+            dto.AddressSelector, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static bool IsSupportedDataType(TagDataType dataType) => dataType is

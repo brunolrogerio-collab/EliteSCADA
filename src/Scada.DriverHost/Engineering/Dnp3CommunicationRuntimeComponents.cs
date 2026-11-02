@@ -502,7 +502,7 @@ public sealed class Dnp3CommunicationRuntimePlanner : ICommunicationDriverRuntim
             access,
             dto.AddressSelector,
             dto.CommunicationBinding,
-            dataSourceId);
+            dataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static void Set(Dictionary<string, string> metadata, string key, double? value)

@@ -80,6 +80,14 @@ En el editor, revise nombres, unidades, dimensiones, vínculos y legibilidad. Us
 
 ## 7. Problemas comunes
 
+### Elegir objetos y análisis del panel
+
+Después de elegir la fuente, abra cada medición en **Objetos de medición**. Elija valor numérico, dial semicircular, anillo, barra horizontal, regla vertical, intervalos o valor con meta. La presentación no cambia el TAG ni el cálculo. Los temas de objetos son claro, oscuro o alto contraste.
+
+Los objetos con escala requieren mínimo y máximo reales en la unidad del TAG. Se rellena una escala válida ya registrada; de lo contrario, indique límites reales. Los intervalos necesitan dos límites ordenados dentro de la escala y la meta debe estar dentro de sus límites. Los rangos incompletos o inválidos bloquean la generación. Use Valor numérico si no conoce una escala adecuada.
+
+En **Análisis del panel**, rendimiento y desviación contextual quedan disponibles cuando sus selecciones en la asignación estén completas. Use **Configurar análisis de la asignación** para acceder a los controles existentes. Cada análisis puede incluirse por separado. Las vistas generadas reciben botones de navegación entre Pantallas. Un análisis no disponible no bloquea las otras vistas; lea el motivo antes de cambiar el significado de las señales.
+
 Los paneles generados usan un fondo oscuro propio para conservar el contraste en ambos temas del sistema. Puede cambiarlo en Fondo, en el editor de Pantallas; compruebe también los colores de textos y valores al elegir otro fondo.
 
 - **Recurso bloqueado:** compruebe licencia, `EngineeringModify`, `AssetProcessIntelligenceManage` y scope.

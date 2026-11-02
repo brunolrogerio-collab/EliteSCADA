@@ -80,6 +80,14 @@ No editor, confira nomes, unidades, dimensões, vínculos e legibilidade. Use **
 
 ## 7. Problemas comuns
 
+### Escolher os objetos e as análises do painel
+
+Depois de escolher a origem, abra cada medição em **Objetos de medição**. Você pode usar valor numérico, gauge semicircular, anel, barra horizontal, régua vertical, faixas ou valor com meta. A escolha visual não muda o TAG nem o cálculo. O tema dos objetos pode ser claro, escuro ou de alto contraste.
+
+Para um objeto com escala, confira mínimo e máximo na unidade do TAG. Se já houver escala válida no cadastro, ela será preenchida; caso contrário, informe os limites reais. Em Faixas, informe dois limites ordenados dentro da escala. Em Valor e meta, informe uma meta dentro dos limites. A geração fica bloqueada com intervalos incompletos ou inválidos. Você pode usar Valor numérico quando não dispõe de uma escala adequada.
+
+Em **Conteúdo analítico do painel**, desempenho e desvio contextual ficam disponíveis quando suas seleções estiverem completas na associação. Use **Configurar análises da associação** para chegar aos controles existentes. Cada análise pode ser incluída independentemente. Ao gerar mais de uma vista, as Telas recebem botões de navegação entre si. Uma análise indisponível não impede gerar as outras vistas; confira o motivo antes de alterar o significado dos sinais.
+
 Os painéis gerados usam um fundo escuro próprio para manter o contraste nos temas claro e escuro do sistema. Você pode alterá-lo em Fundo, no editor de Telas; confira também as cores dos textos e valores ao escolher outro fundo.
 
 - **Recurso bloqueado:** confira licença, `EngineeringModify`, `AssetProcessIntelligenceManage` e escopo.

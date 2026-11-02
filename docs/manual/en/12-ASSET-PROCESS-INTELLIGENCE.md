@@ -80,7 +80,15 @@ In the editor, review names, units, dimensions, bindings and readability. Use **
 
 ## 7. Common problems
 
-Generated dashboards use their own dark canvas to retain contrast under either application theme. You can change it under Background in the Screen editor; check text and value colors when choosing another background.
+### Choose dashboard objects and analyses
+
+After choosing the source, open each measurement under **Measurement objects**. Choose a numeric value, semicircular dial, ring, horizontal bar, vertical ruler, bands or value with a target. Presentation does not change the TAG or calculation. Object themes are light, dark or high contrast.
+
+Scaled objects require actual minimum and maximum limits in the TAG unit. A valid configured TAG scale is prefilled. Otherwise enter the real limits. Bands require two ordered boundaries inside the scale; a target must be within its limits. Incomplete or invalid ranges block generation. Use Numeric value when no suitable scale is known.
+
+Under **Dashboard analyses**, performance and contextual deviation become available when their assignment selections are complete. Use **Configure assignment analyses** to reach the existing controls. Each analysis can be included independently. Multiple generated views receive navigation buttons linking their Screens. An unavailable analysis does not block the other views; read its reason before changing a signal's meaning.
+
+Generated dashboards use their own dark background to retain contrast under either application theme. You can change it under Background in the Screen editor; check text and value colors when choosing another background.
 
 - **Resource blocked:** check the license, `EngineeringModify`, `AssetProcessIntelligenceManage`, and scope.
 - **Incomplete profile/assignment:** check Equipment, profile, TAGs, and required qualifiers.

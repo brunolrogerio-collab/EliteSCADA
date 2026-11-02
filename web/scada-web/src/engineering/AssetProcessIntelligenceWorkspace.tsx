@@ -16,6 +16,7 @@ import type {
 import { loadEngineeringSemanticCatalog, type EngineeringSemanticCatalogResponse, type VersionedSemanticCatalog } from './semanticCatalogApi';
 import {
   generateIntelligenceDashboardDraft,
+  generateIntelligenceDashboardCompositionDrafts,
   generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
   generateIntelligenceContextualDeviationScreenDraft,
@@ -25,6 +26,7 @@ import {
   generateIntelligenceGuidedDashboardDrafts,
   isNumericTagDataType,
   type IntelligenceDashboardAssignmentSource,
+  type IntelligenceDashboardAppearance,
   type IntelligenceDashboardSource,
   type IntelligenceContextualDeviationDashboardSelection,
   type IntelligencePerformanceDashboardSelection,
@@ -40,6 +42,7 @@ import { IntelligenceExperimentalJointPanel } from './IntelligenceExperimentalJo
 import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
 import { AssetProcessIntelligenceContextualDeviationPanel } from './AssetProcessIntelligenceContextualDeviationPanel';
 import './asset-process-intelligence.css';
+import { IntelligenceDashboardComposer } from './IntelligenceDashboardComposer';
 
 type ScopeKind = 'Equipment' | 'Location';
 type Scope = { kind: ScopeKind; scopeId: string; active: boolean; executionArmed?: boolean };
@@ -428,7 +431,7 @@ export function AssetProcessIntelligenceWorkspace({
     return { ...coverage, members: members as NonNullable<typeof members[number]>[] };
   };
 
-  const generateDashboard = (source: IntelligenceDashboardSource | null) => {
+  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean }) => {
     setError(null);
     setMessage(null);
     if (!snapshot?.licensed) {
@@ -448,7 +451,11 @@ export function AssetProcessIntelligenceWorkspace({
       return;
     }
     try {
-      onCreateDashboardDraft(generateIntelligenceDashboardDraft(screens, source, tags, locale));
+      const assignmentId = source.kind === 'equipment-profile' ? source.assignments[0]?.assignmentId : undefined;
+      onCreateDashboardDraft(appearance ? generateIntelligenceDashboardCompositionDrafts(screens, source, tags, {
+        performance: analyses?.performance && assignmentId ? guidedPerformanceSelections[assignmentId] ?? undefined : undefined,
+        contextualDeviation: analyses?.deviation && assignmentId ? guidedDeviationSelections[assignmentId] ?? undefined : undefined
+      }, appearance, locale) : generateIntelligenceDashboardDraft(screens, source, tags, locale));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : copy.dashboardSourceUnavailable);
     }
@@ -810,10 +817,15 @@ export function AssetProcessIntelligenceWorkspace({
             <option value="">{copy.chooseDashboardSource}</option>
             {dashboardSourceOptions.map(option => <option key={option.key} value={option.key} disabled={!option.hasNumericSignal}>{option.label}</option>)}
           </select></label>
-          <button type="button" data-testid="intelligence-dashboard-generate"
-            disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !selectedDashboardSource?.hasNumericSignal || dirtyConfiguration}
-            onClick={() => generateDashboard(selectedDashboardSource?.source ?? null)}>{copy.generateDashboard}</button>
+          {!selectedDashboardSource && <button type="button" data-testid="intelligence-dashboard-generate" disabled>{copy.generateDashboard}</button>}
         </div>}
+        {selectedDashboardSource && <IntelligenceDashboardComposer key={selectedDashboardSource.key} locale={locale}
+          tags={tags.filter(tag => tag.id && isNumericTagDataType(tag.dataType) && selectedDashboardSource.source.assignments.some(item => item.profile.signals.some(signal => signal.tagId.toLowerCase() === tag.id!.toLowerCase())))}
+          disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !selectedDashboardSource.hasNumericSignal || dirtyConfiguration}
+          performanceAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedPerformanceSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
+          deviationAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedDeviationSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
+          configurationHref={selectedDashboardSource.source.kind === 'equipment-profile' ? `#intelligence-assignment-${selectedDashboardSource.source.assignments[0]?.assignmentId}` : undefined}
+          onGenerate={(appearance, analyses) => generateDashboard(selectedDashboardSource.source, appearance, analyses)}/>}
         {selectedDashboardSource && !selectedDashboardSource.hasNumericSignal ? <p role="status">{copy.dashboardSourceNeedsNumeric}</p> : null}
         {dirtyConfiguration ? <p role="status">{copy.dashboardConfigurationNeedsSaving}</p> : null}
         <p className="asset-process-intelligence__dashboard-next-steps">{copy.dashboardNextSteps}</p>
@@ -975,7 +987,7 @@ export function AssetProcessIntelligenceWorkspace({
                                       : new Set(profile.signals.map(signal => signal.tagId.toLowerCase())).size !== profile.signals.length
                                         ? 'duplicate-tags'
                                         : null;
-              return <article className="asset-process-intelligence__row" key={assignment.id}>
+              return <article className="asset-process-intelligence__row" id={`intelligence-assignment-${assignment.id}`} key={assignment.id}>
                 <span><strong>{equipmentResource?.name ?? copy.missingEquipment} · {profile?.name ?? copy.missingProfile}</strong>{equipmentResource ? <small>{equipmentResource.path ?? equipmentResource.name}</small> : null}</span>
                 {(!equipmentResource || !profile) ? <span className="asset-process-intelligence__missing">{copy.referenceMissing}</span> : null}
                 <button type="button" className="secondary" data-testid={`intelligence-guided-dashboard-assignment-${assignment.id}`}

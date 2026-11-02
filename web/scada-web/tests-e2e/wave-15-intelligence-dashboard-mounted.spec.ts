@@ -124,6 +124,12 @@ test('Intelligence generates visible equipment and process dashboards in the can
     label: 'Perfil de equipamento · Pump P-101 · Pump process profile'
   });
   await expect(licensedGenerate).toBeEnabled();
+  await licensedGenerator.locator('details').filter({ hasText: 'Discharge flow' }).locator('summary').click();
+  await licensedGenerator.getByLabel('Objeto · Discharge flow', { exact: true }).selectOption('measurementDial');
+  await expect(licensedGenerate).toBeDisabled();
+  await licensedGenerator.getByLabel('Mínimo · Discharge flow', { exact: true }).fill('0');
+  await licensedGenerator.getByLabel('Máximo · Discharge flow', { exact: true }).fill('100');
+  await expect(licensedGenerate).toBeEnabled();
   await licensedGenerator.screenshot({ path: testInfo.outputPath('intelligence-dashboard-generator.png') });
   await licensedGenerate.click();
 
@@ -135,6 +141,7 @@ test('Intelligence generates visible equipment and process dashboards in the can
   await expect(editor.locator('.visual-editor-header-status')).toContainText('7 objetos');
   await expect(editor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(editor.getByTestId('runtime-intelligence-profile-coverage')).toBeVisible();
+  await expect(editor.locator('[data-widget-type="core.measurementDial"]')).toBeVisible();
   await expect(editor.getByTestId('visual-editor-preview')).toBeEnabled();
   await expect(editor.getByTestId('visual-editor-apply')).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath('intelligence-equipment-dashboard-draft.png'), fullPage: true });

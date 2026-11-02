@@ -6,6 +6,7 @@ import type {
 } from '../src/engineering/types';
 import {
   generateIntelligenceDashboardDraft,
+  generateIntelligenceDashboardCompositionDrafts,
   generateIntelligenceContextualDeviationScreenDraft,
   generateIntelligenceGuidedDashboardDrafts,
   generateIntelligenceProfileCoverageScreenDraft,
@@ -83,6 +84,25 @@ test('dashboard generator builds a canonical editable screen from stable TAG ref
   expect(screen.elements?.some(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.numericInput)).toBe(false);
   expect(screen.metadata?.intelligenceDashboardSummary).toContain('não calcula KPIs');
   expect(screen.metadata?.intelligenceDashboardSummary).toContain('A cobertura do perfil foi omitida');
+});
+
+test('measurement layouts require real scales and retain authored bands, targets and theme', () => {
+  const source = { kind: 'equipment-profile' as const, stableKey: 'pump', displayName: 'Pump', assignments: [equipmentAssignment] };
+  const tags = [numericTag('tag-current', 'Plant.Current')];
+  const layouts = ['measurementDial', 'measurementRing', 'measurementBar', 'measurementThermometer', 'measurementBands', 'measurementTarget'] as const;
+  for (const layout of layouts) {
+    const appearance = { theme: 'high-contrast' as const, measurements: {
+      'tag-current': { layout, minimum: 10, maximum: 110, target: 60, bandOneEnd: 30, bandTwoEnd: 80 }
+    } };
+    const screen = generateIntelligenceDashboardDraft([], source, tags, 'pt-BR', ids(), appearance);
+    const widget = screen.elements?.find(element => element.type === `core.${layout}`);
+    expect(widget?.properties).toMatchObject({ minimum: 10, maximum: 110, measurementTheme: 'high-contrast', measurementUnit: 'A' });
+    if (layout === 'measurementTarget') expect(widget?.properties?.measurementTarget).toBe(60);
+    if (layout === 'measurementBands') expect(widget?.properties).toMatchObject({ measurementBandOneEnd: 30, measurementBandTwoEnd: 80 });
+    expect(() => generateIntelligenceDashboardDraft([], source, tags, 'pt-BR', ids(), {
+      ...appearance, measurements: { 'tag-current': { layout } }
+    })).toThrow(/limites/);
+  }
 });
 
 test('single-equipment dashboard composes bounded profile coverage beside its signal/trend view', () => {
@@ -180,6 +200,19 @@ test('guided single-equipment dashboard creates four linked canonical screens wi
   }, 'pt-BR', ids());
 
   expect(screens).toHaveLength(4);
+  const partial = generateIntelligenceDashboardCompositionDrafts([], {
+    kind: 'equipment-profile', stableKey: 'pump', displayName: 'Pump',
+    assignments: [{ equipmentName: 'Pump', equipmentPath: 'Plant.Pump', scopeId, assignmentId, profile }]
+  }, tags, { performance: {
+    scopeId, assignmentId, profileId, ruleId: 'specific-active-energy-at-recorded-production-rate.v1',
+    ruleVersion: '1.0', signalIds: [signalIds[0], signalIds[1]], displayName: 'Pump'
+  } }, { theme: 'dark', measurements: {} }, 'pt-BR', ids());
+  expect(partial).toHaveLength(2);
+  expect(partial.map(screen => screen.metadata?.intelligenceDashboardViewRole)).toEqual(['values-trend', 'performance']);
+  for (const screen of partial) {
+    expect(screen.elements?.filter(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.button)).toHaveLength(1);
+    expect(screen.elements?.some(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2)).toBe(false);
+  }
   expect(screens.map(screen => screen.metadata?.intelligenceDashboardViewRole)).toEqual([
     'values-trend', 'profile-coverage', 'performance', 'contextual-deviation'
   ]);

@@ -15,6 +15,14 @@ import {
 import { createScreenDraft } from './visual-editor/visualEditorCanonicalModel';
 
 export const INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS = 15;
+export type IntelligenceMeasurementDraft = Readonly<{
+  layout: 'value' | 'measurementDial' | 'measurementRing' | 'measurementBar' | 'measurementThermometer' | 'measurementBands' | 'measurementTarget';
+  minimum?: number; maximum?: number; target?: number; bandOneEnd?: number; bandTwoEnd?: number;
+}>;
+export type IntelligenceDashboardAppearance = Readonly<{
+  theme: 'light' | 'dark' | 'high-contrast';
+  measurements: Readonly<Record<string, IntelligenceMeasurementDraft>>;
+}>;
 export const INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS = 8;
 export const INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS = 32;
 const NUMERIC_DATA_TYPES = new Set([
@@ -117,6 +125,7 @@ type DashboardText = Readonly<{
     profileCoverage: 'included' | 'unavailable' | 'not-applicable';
   }>) => string;
   noNumericSignals: string;
+  invalidMeasurementScale: (name: string) => string;
 }>;
 
 export function generateIntelligenceDashboardDraft(
@@ -124,9 +133,10 @@ export function generateIntelligenceDashboardDraft(
   source: IntelligenceDashboardSource,
   tags: readonly TagEngineering[],
   locale: EngineeringLocale,
-  createId: () => string = () => crypto.randomUUID()
+  createId: () => string = () => crypto.randomUUID(),
+  appearance?: IntelligenceDashboardAppearance
 ): ScreenEngineering {
-  return generateDashboardDraft(existingScreens, source, tags, locale, createId, true);
+  return generateDashboardDraft(existingScreens, source, tags, locale, createId, true, appearance);
 }
 
 function generateDashboardDraft(
@@ -135,7 +145,8 @@ function generateDashboardDraft(
   tags: readonly TagEngineering[],
   locale: EngineeringLocale,
   createId: () => string,
-  includeProfileCoverage: boolean
+  includeProfileCoverage: boolean,
+  appearance?: IntelligenceDashboardAppearance
 ): ScreenEngineering {
   const copy = dashboardText(locale);
   const tagsById = new Map(tags.filter((tag): tag is TagEngineering & { id: string } => Boolean(tag.id?.trim()))
@@ -234,7 +245,11 @@ function generateDashboardDraft(
     const x = 64 + column * (cardWidth + columnGap);
     const y = 166 + row * (cardHeight + rowGap);
     const label = copy.signalLabel(item);
-    const scale = validScale(item.tag.scaleMinimum, item.tag.scaleMaximum);
+    const choice = appearance?.measurements[item.tag.id];
+    const scale = choice ? validScale(choice.minimum, choice.maximum) : validScale(item.tag.scaleMinimum, item.tag.scaleMaximum);
+    if (choice && choice.layout !== 'value' && !scale) throw new Error(copy.invalidMeasurementScale(item.tag.name));
+    if (choice?.layout === 'measurementTarget' && (!Number.isFinite(choice.target) || choice.target! < scale!.minimum || choice.target! > scale!.maximum)) throw new Error(copy.invalidMeasurementScale(item.tag.name));
+    if (choice?.layout === 'measurementBands' && (!Number.isFinite(choice.bandOneEnd) || !Number.isFinite(choice.bandTwoEnd) || choice.bandOneEnd! <= scale!.minimum || choice.bandTwoEnd! >= scale!.maximum || choice.bandOneEnd! >= choice.bandTwoEnd!)) throw new Error(copy.invalidMeasurementScale(item.tag.name));
     elements.push({
       id: allocateId(), key: `signal-label-${slug(item.signal.key)}-${index + 1}`, type: BUILTIN_VISUAL_OBJECT_TYPES.text,
       properties: {
@@ -247,16 +262,20 @@ function generateDashboardDraft(
       }
     });
 
-    if (scale) {
+    if (scale && choice?.layout !== 'value') {
       elements.push({
         id: allocateId(), key: `measurement-${slug(item.signal.key)}-${index + 1}`,
-        type: BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
+        type: choice ? BUILTIN_VISUAL_OBJECT_TYPES[choice.layout as Exclude<IntelligenceMeasurementDraft['layout'], 'value'>] : BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
         bindings: [tagBinding(item.tag, VISUAL_PROPERTY_KEYS.value)],
         properties: {
           x, y: y + 36, width: cardWidth, height: 92,
           [VISUAL_PROPERTY_KEYS.minimum]: scale.minimum,
           [VISUAL_PROPERTY_KEYS.maximum]: scale.maximum,
           [VISUAL_PROPERTY_KEYS.measurementUnit]: item.tag.engineeringUnit ?? '',
+          [VISUAL_PROPERTY_KEYS.measurementTheme]: appearance?.theme ?? 'dark',
+          ...(choice?.target !== undefined ? { [VISUAL_PROPERTY_KEYS.measurementTarget]: choice.target } : {}),
+          ...(choice?.bandOneEnd !== undefined ? { [VISUAL_PROPERTY_KEYS.measurementBandOneEnd]: choice.bandOneEnd } : {}),
+          ...(choice?.bandTwoEnd !== undefined ? { [VISUAL_PROPERTY_KEYS.measurementBandTwoEnd]: choice.bandTwoEnd } : {}),
           [VISUAL_PROPERTY_KEYS.measurementFreshnessVisible]: true
         }
       });
@@ -438,8 +457,45 @@ export function generateIntelligenceGuidedDashboardDrafts(
     displayName: source.displayName
   }, locale, allocateVisualId));
 
-  const navigationLabels = guidedDashboardNavigationLabels(locale);
   const viewRoles = ['values-trend', 'profile-coverage', 'performance', 'contextual-deviation'] as const;
+  return linkDashboardDrafts(drafts, viewRoles, locale, allocateVisualId);
+}
+
+/** Compose only analyses explicitly configured for this equipment, independently. */
+export function generateIntelligenceDashboardCompositionDrafts(
+  existingScreens: readonly ScreenEngineering[], source: IntelligenceDashboardSource, tags: readonly TagEngineering[],
+  selections: Partial<IntelligenceGuidedDashboardSelections>, appearance: IntelligenceDashboardAppearance,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): readonly ScreenEngineering[] {
+  const allocateId = createUniqueIdAllocator(createId);
+  const drafts = [generateIntelligenceDashboardDraft(existingScreens, source, tags, locale, allocateId, appearance)];
+  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation'> = ['values-trend'];
+  const member = source.kind === 'equipment-profile' && source.assignments.length === 1 ? source.assignments[0] : null;
+  const valid = (selection: { scopeId: string; assignmentId: string; profileId: string }, signalIds: readonly string[]) =>
+    member && selection.scopeId.toLowerCase() === member.scopeId?.toLowerCase() &&
+    selection.assignmentId.toLowerCase() === member.assignmentId?.toLowerCase() &&
+    selection.profileId.toLowerCase() === member.profile.id?.toLowerCase() &&
+    signalIds.every(id => member.profile.signals.some(signal => signal.id.toLowerCase() === id.toLowerCase()));
+  if (selections.performance) {
+    if (!valid(selections.performance, selections.performance.signalIds)) throw new Error('Performance selection does not belong to this equipment profile.');
+    drafts.push(generateIntelligencePerformanceScreenDraft([...existingScreens, ...drafts], selections.performance, locale, allocateId));
+    roles.push('performance');
+  }
+  if (selections.contextualDeviation) {
+    const selection = selections.contextualDeviation;
+    if (!valid(selection, [...selection.targetSignalIds, selection.firstContextSignalId, selection.secondContextSignalId])) throw new Error('Contextual deviation selection does not belong to this equipment profile.');
+    drafts.push(generateIntelligenceContextualDeviationScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
+    roles.push('contextual-deviation');
+  }
+  return drafts.length === 1 ? drafts : linkDashboardDrafts(drafts, roles, locale, allocateId);
+}
+
+function linkDashboardDrafts(
+  drafts: readonly ScreenEngineering[],
+  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation')[],
+  locale: EngineeringLocale, allocateVisualId: () => string
+): readonly ScreenEngineering[] {
+  const navigationLabels = guidedDashboardNavigationLabels(locale);
   return drafts.map((screen, index) => {
     const elements = (screen.elements ?? []).map(element => {
       if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.text ||
@@ -473,7 +529,7 @@ export function generateIntelligenceGuidedDashboardDrafts(
     }));
     const titledElements = elements.map(element => {
       if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.text || element.key !== 'intelligence-dashboard-scope-note') return element;
-      return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: guidedDashboardSummary(locale) } };
+      return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: viewRoles.map(role => navigationLabels[role]).join(' · ') } };
     });
     return {
       ...screen,
@@ -1229,6 +1285,7 @@ function isCanonicalUuid(value: string): boolean {
 
 function dashboardText(locale: EngineeringLocale): DashboardText {
   if (locale === 'en') return {
+    invalidMeasurementScale: name => `Check the scale, bands or target for ${name}. Enter valid limits; they are not inferred.`,
     generatedTitle: source => `Intelligence · ${source}`,
     assignmentSubtitle: source => source.kind === 'process-stage'
       ? `Process stage · ${source.displayName} · read-only TAG overview`
@@ -1238,6 +1295,7 @@ function dashboardText(locale: EngineeringLocale): DashboardText {
     noNumericSignals: 'This source has no resolvable numeric TAGs to place on a read-only dashboard.'
   };
   if (locale === 'es') return {
+    invalidMeasurementScale: name => `Revise escala, intervalos o meta de ${name}. Indique límites válidos; no se infieren.`,
     generatedTitle: source => `Inteligencia · ${source}`,
     assignmentSubtitle: source => source.kind === 'process-stage'
       ? `Etapa del proceso · ${source.displayName} · resumen de TAG de solo lectura`
@@ -1247,6 +1305,7 @@ function dashboardText(locale: EngineeringLocale): DashboardText {
     noNumericSignals: 'Esta fuente no tiene TAG numéricos resolubles para una pantalla de solo lectura.'
   };
   return {
+    invalidMeasurementScale: name => `Confira escala, faixas ou meta de ${name}. Informe limites válidos; eles não são inferidos.`,
     generatedTitle: source => `Inteligência · ${source}`,
     assignmentSubtitle: source => source.kind === 'process-stage'
       ? `Etapa do processo · ${source.displayName} · visão somente leitura dos TAGs`

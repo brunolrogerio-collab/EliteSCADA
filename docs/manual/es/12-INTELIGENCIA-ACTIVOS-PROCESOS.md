@@ -80,6 +80,18 @@ Para consultar condiciones de los equipos de una etapa, elija la etapa en el gen
 
 ![Condiciones del equipo seleccionado de etapa, con datos sintéticos](../../evidence/intelligence-855/stage-context-second-results.png)
 
+Para ver la desviación conjunta en Runtime, elija un perfil de equipo en el generador y marque Desviación conjunta experimental. Necesita un contexto guardado y al menos dos mediciones numéricas distintas fuera de sus condiciones. Añade una Pantalla propia sin requerir rendimiento o desviación contextual. Aplique el conjunto, guarde, publique y active.
+
+En Runtime en vivo, abra Desviación conjunta (experimental), elija Contexto guardado y marque de dos a ocho mediciones por nombre. Indique el intervalo real entre lecturas en segundos: por ejemplo, 60 para una lectura por minuto. Elija referencia y evaluación sin solapamiento y seleccione Calcular desviación conjunta. Abrir la Pantalla no consulta.
+
+Primero revise cuántos instantes completos sustentan la referencia, cuántos produjeron score y cuántos estaban en calentamiento. Datos insuficientes no significan funcionamiento normal: revise contexto, períodos y lecturas. Abra Contribuciones de las mediciones para investigar cuáles variaron. El score describe alejamiento de la referencia sin unidad física; un número mayor no confirma un fallo.
+
+Es experimental, validado por simulación, sin predicción de vida útil ni umbral de alarma validado en campo.
+
+Cambiar contexto, mediciones, cadencia o períodos borra el resultado. El editor y reproducción histórica no calculan. Si cambia el contexto en Ingeniería, genere y publique de nuevo. Su inclusión en el selector de equipos de etapas sigue pendiente; use la Pantalla del perfil.
+
+![Desviación conjunta en Runtime con datos sintéticos](../../evidence/intelligence-855/joint-results.png)
+
 ## 5. Solicitar análisis
 
 Seleccione el Equipo asignado y elija el análisis disponible, como cobertura del perfil, rendimiento o desviación contextual. Defina el período y solicite explícitamente la consulta. La desviación contextual requiere condiciones operacionales configuradas y evidencia temporal suficiente. El análisis es de solo lectura; no cambia un TAG, no controla equipos ni sustituye Alarmas.
@@ -269,6 +281,16 @@ Para consultar referencias de los equipos de una etapa, elija la etapa en el gen
 Para llevar las condiciones de operación al Runtime, primero guarde un contexto en la asignación del equipo. En el generador, elija ese perfil y marque Condiciones de operación. Añade una Pantalla propia y funciona sin rendimiento o desviación configurados. Aplique el conjunto, guarde, publique y active. En Runtime en vivo, abra Condiciones de operación, elija Contexto guardado por nombre, indique inicio y fin del período y seleccione Consultar condiciones. Para comparar, use un período posterior sin solapamiento. El resultado muestra cuántas lecturas cumplen cada condición y cuántas cumplen todas a la vez. Por ejemplo, una condición de presión entre 0 y 200 kPa puede seleccionar lecturas que un intervalo de 0 a 50 kPa excluye. Cero lecturas compatibles no significa equipo sano: significa que el período no proporciona datos en las condiciones elegidas. Cambiar el contexto o los períodos borra el resultado anterior. Si el contexto cambia en Ingeniería, genere y publique de nuevo la vista; no asume una nueva versión silenciosamente. El editor y la reproducción histórica no ejecutan la consulta.
 
 Para consultar condiciones de los equipos de una etapa, elija la etapa en el generador y marque Condiciones de operación por equipo. Basta con un contexto guardado en al menos una asignación de la etapa; no requiere configurar rendimiento o desviación. Las condiciones usan la misma Pantalla de análisis, manteniendo el conjunto con hasta tres Pantallas. En Runtime, abra Análisis por equipo, elija el equipo, seleccione Condiciones de operación y elija Contexto guardado por nombre. Indique los períodos y consulte. Solo aparecen contextos de ese equipo. Si no tiene un contexto incluido, la página explica qué falta y mantiene sus otros análisis disponibles. Cambiar de equipo o análisis cierra el informe anterior, cancela la lectura pendiente y borra el resultado. No se consulta automáticamente. Si cambia un contexto en Ingeniería, genere y publique de nuevo la vista para usar su nueva versión.
+
+Para ver la desviación conjunta en Runtime, elija un perfil de equipo en el generador y marque Desviación conjunta experimental. Necesita un contexto guardado y al menos dos mediciones numéricas distintas fuera de sus condiciones. Añade una Pantalla propia sin requerir rendimiento o desviación contextual. Aplique el conjunto, guarde, publique y active.
+
+En Runtime en vivo, abra Desviación conjunta (experimental), elija Contexto guardado y marque de dos a ocho mediciones por nombre. Indique el intervalo real entre lecturas en segundos: por ejemplo, 60 para una lectura por minuto. Elija referencia y evaluación sin solapamiento y seleccione Calcular desviación conjunta. Abrir la Pantalla no consulta.
+
+Primero revise cuántos instantes completos sustentan la referencia, cuántos produjeron score y cuántos estaban en calentamiento. Datos insuficientes no significan funcionamiento normal: revise contexto, períodos y lecturas. Abra Contribuciones de las mediciones para investigar cuáles variaron. El score describe alejamiento de la referencia sin unidad física; un número mayor no confirma un fallo.
+
+Es experimental, validado por simulación, sin predicción de vida útil ni umbral de alarma validado en campo.
+
+Cambiar contexto, mediciones, cadencia o períodos borra el resultado. El editor y reproducción histórica no calculan. Si cambia el contexto en Ingeniería, genere y publique de nuevo. Su inclusión en el selector de equipos de etapas sigue pendiente; use la Pantalla del perfil.
 
 ### Cómo investigar resultado vacío
 

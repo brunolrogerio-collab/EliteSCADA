@@ -80,6 +80,18 @@ To query conditions for stage equipment, choose the stage in the generator and s
 
 ![Conditions of the selected stage equipment, with synthetic data](../../evidence/intelligence-855/stage-context-second-results.png)
 
+To view joint deviation in Runtime, choose an equipment profile in the generator and select Experimental joint deviation. You need a saved context and at least two distinct numeric measurements outside its conditions. This adds a separate Screen without requiring performance or contextual deviation. Apply the set, save, publish and activate.
+
+In live Runtime, open Joint deviation (experimental), choose Saved context and select two to eight measurements by name. Enter the actual interval between readings in seconds: for example, 60 for one reading per minute. Choose non-overlapping reference and evaluation periods, then select Calculate joint deviation. Opening the Screen does not query.
+
+First check how many complete timestamps support the reference, how many produced a score and how many were warming up. Insufficient data does not mean normal operation: review the context, periods and readings. In the results, open Measurement contributions to investigate which measurements varied. The score describes deviation from the reference without a physical unit; a higher number does not confirm a fault.
+
+This analysis is experimental, validated by simulation, without remaining-life prediction or a field-validated alarm threshold.
+
+Changing context, measurements, cadence or periods clears the result. The editor and historical playback do not calculate. If the context changes in Engineering, generate and publish the view again. Inclusion in the stage equipment selector is still pending; use the profile Screen.
+
+![Joint deviation in Runtime with synthetic data](../../evidence/intelligence-855/joint-results.png)
+
 ## 5. Request analyses
 
 Select an assigned Equipment and choose an available analysis, such as profile coverage, performance, or contextual deviation. Set the time range and explicitly request the query. Contextual deviation requires configured operating conditions and sufficient temporal evidence. Analysis is read-only; it does not change a TAG, command Equipment, or replace Alarms.
@@ -269,6 +281,16 @@ To check reference data for stage equipment, choose the stage in the generator a
 To bring operating conditions into Runtime, first save a context in the equipment assignment. In the generator, choose that profile and select Operating conditions. This adds a separate Screen and works without configured performance or deviation. Apply the set, save, publish and activate. In live Runtime, open Operating conditions, choose Saved context by name, enter the period start and end, and select Query conditions. To compare, use a later, non-overlapping period. The result shows how many readings meet each condition and how many meet all conditions together. For example, a pressure condition from 0 to 200 kPa may select readings that a range from 0 to 50 kPa excludes. Zero matching readings does not mean healthy equipment: it means the period provides no data under the selected conditions. Changing the context or periods clears the previous result. If the context changes in Engineering, generate and publish the view again; it does not silently assume a new version. The editor and historical playback do not execute the query.
 
 To query conditions for stage equipment, choose the stage in the generator and select Operating conditions per equipment. At least one stage assignment must have a saved context; performance or deviation configuration is not required. Conditions use the same analyses Screen, keeping the set to at most three Screens. In Runtime, open Member analyses, choose the equipment, select Operating conditions and choose Saved context by name. Enter the periods and query. Only contexts belonging to that equipment appear. If no context is included for it, the page explains what is missing and keeps its other analyses available. Changing equipment or analysis closes the previous report, cancels a pending read and clears the result. No query starts automatically. If you change a context in Engineering, generate and publish the view again to use its new version.
+
+To view joint deviation in Runtime, choose an equipment profile in the generator and select Experimental joint deviation. You need a saved context and at least two distinct numeric measurements outside its conditions. This adds a separate Screen without requiring performance or contextual deviation. Apply the set, save, publish and activate.
+
+In live Runtime, open Joint deviation (experimental), choose Saved context and select two to eight measurements by name. Enter the actual interval between readings in seconds: for example, 60 for one reading per minute. Choose non-overlapping reference and evaluation periods, then select Calculate joint deviation. Opening the Screen does not query.
+
+First check how many complete timestamps support the reference, how many produced a score and how many were warming up. Insufficient data does not mean normal operation: review the context, periods and readings. In the results, open Measurement contributions to investigate which measurements varied. The score describes deviation from the reference without a physical unit; a higher number does not confirm a fault.
+
+This analysis is experimental, validated by simulation, without remaining-life prediction or a field-validated alarm threshold.
+
+Changing context, measurements, cadence or periods clears the result. The editor and historical playback do not calculate. If the context changes in Engineering, generate and publish the view again. Inclusion in the stage equipment selector is still pending; use the profile Screen.
 
 ### How to investigate an empty result
 

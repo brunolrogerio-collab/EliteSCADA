@@ -1,0 +1,16 @@
+{
+  "generatedScreens": [
+    {
+      "id": "e79b52f5-3bb1-4b8b-abef-d84ee4ad6d19",
+      "key": "intelligence-joint-deviation-bomba-de-validacao-local-painel-analitico-sintetico",
+      "role": "experimental-joint"
+    },
+    {
+      "id": "6e06d6e8-0f43-4cba-8c9d-cd03381a845e",
+      "key": "intelligence-planta.bomba-validacao-painel-855-4",
+      "role": "values-trend"
+    }
+  ],
+  "syntheticOnly": true,
+  "revision": 48
+}

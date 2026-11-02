@@ -858,3 +858,20 @@ function coverageResponse(body: Record<string, any>, insufficient = false) {
   }
   return response;
 }
+
+test('central composer adds the reference report without analytical reads and authoring cannot query it', async ({ page }) => {
+  const fixture = await installWorkspace(page);
+  await openIntelligence(page);
+  const generator = page.getByTestId('intelligence-dashboard-generator');
+  await generator.getByRole('checkbox', { name: 'Conferir dados da referência', exact: true }).check();
+  await generator.getByTestId('intelligence-dashboard-generate').click();
+  const editor = page.getByTestId('visual-editor-workspace');
+  const drafts = editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
+  await expect(drafts).toHaveCount(2);
+  await drafts.last().click();
+  const report = editor.getByTestId('runtime-intelligence-reference-evidence');
+  await expect(report).toBeVisible();
+  await expect(report.getByRole('button', { name: 'Consultar referência', exact: true, includeHidden: true })).toBeDisabled();
+  expect(fixture.requests).toEqual([]);
+  expect(fixture.otherWrites).toEqual([]);
+});

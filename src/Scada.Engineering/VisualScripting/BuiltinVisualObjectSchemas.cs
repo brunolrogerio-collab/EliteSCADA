@@ -38,6 +38,7 @@ public static class BuiltinVisualObjectSchemas
     public const string MeasurementTargetType = "core.measurementTarget";
     public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
     public const string IntelligenceProfileCoverageV1Type = "core.intelligenceProfileCoverageV1";
+    public const string IntelligenceReferenceEvidenceV1Type = "core.intelligenceReferenceEvidenceV1";
     public const string IntelligenceProcessStageCoverageV1Type = "core.intelligenceProcessStageCoverageV1";
     public const string IntelligenceProcessStageInsightsV1Type = "core.intelligenceProcessStageInsightsV1";
     public const string IntelligenceContextualDeviationV2Type = "core.intelligenceContextualDeviationV2";
@@ -499,6 +500,13 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.IntelligenceStageMembers
         ]));
 
+    public static VisualObjectPropertySchema IntelligenceReferenceEvidenceV1 { get; } = Create(
+        IntelligenceReferenceEvidenceV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceProfileId
+        ]));
+
     public static VisualObjectPropertySchema IntelligenceProcessStageInsightsV1 { get; } = Create(
         IntelligenceProcessStageInsightsV1Type,
         Base.Concat([
@@ -556,6 +564,7 @@ public static class BuiltinVisualObjectSchemas
         MeasurementTarget,
         IntelligencePerformanceV1B,
         IntelligenceProfileCoverageV1,
+        IntelligenceReferenceEvidenceV1,
         IntelligenceProcessStageCoverageV1,
         IntelligenceProcessStageInsightsV1,
         IntelligenceContextualDeviationV2

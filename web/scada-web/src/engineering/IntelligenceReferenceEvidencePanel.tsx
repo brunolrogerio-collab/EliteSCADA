@@ -26,9 +26,10 @@ function isCohortEvidence(value: unknown): value is CohortEvidence {
       Array.isArray(items) && items.length <= 32 && items.every(item => typeof item === 'string'));
 }
 
-export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId, projectKey, activeRevision, canQuery }: {
+export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId, projectKey, activeRevision, canQuery, runtimeView = false }: {
   locale: EngineeringLocale; scopeId: string; profileId: string;
   projectKey: string | null; activeRevision: number | null; canQuery: boolean;
+  runtimeView?: boolean;
 }) {
   const text = (pt: string, en: string, es: string) => locale === 'pt-BR' ? pt : locale === 'es' ? es : en;
   const [from, setFrom] = useState(() => localDateTimeInput(new Date(Date.now() - 86400000)));
@@ -90,12 +91,15 @@ export function IntelligenceReferenceEvidencePanel({ locale, scopeId, profileId,
     {cohort.completeSelectedNumericCohortCount !== undefined && <p>{text('Leituras simultâneas dos sinais numéricos do perfil', 'Simultaneous readings of numeric profile signals', 'Lecturas simultáneas de señales numéricas del perfil')}: {cohort.completeSelectedNumericCohortCount ?? text('Não disponível', 'Unavailable', 'No disponible')}</p>}
     {cohort.selectedReasons?.map(reason => <p key={reason}>{intelligenceEvidenceText(reason, locale)}</p>)}
   </section>;
-  return <details className="asset-process-intelligence__coverage asset-process-intelligence__analysis" data-testid={`intelligence-reference-evidence-${profileId}`}>
+  return <details open={runtimeView || undefined} className="asset-process-intelligence__coverage asset-process-intelligence__analysis" data-testid={`intelligence-reference-evidence-${profileId}`}>
     <summary>{text('Conferir dados da referência', 'Check reference data', 'Revisar datos de referencia')}</summary>
     <p>{text('Escolha um período conhecido do equipamento. A consulta mostra quais leituras podem ser utilizadas; não confirma que o equipamento estava saudável.',
       'Choose a known equipment period. The query shows which readings can be used; it does not confirm that the equipment was healthy.',
       'Elija un período conocido del equipo. La consulta muestra qué lecturas se pueden usar; no confirma que el equipo estuviera sano.')}</p>
-    {!canQuery && <p role="note">{text('Publique as alterações e ative este equipamento com as permissões de consulta antes de continuar.',
+    {!canQuery && <p role="note">{runtimeView ? text('A consulta fica disponível no Runtime ao vivo. No editor e na reprodução histórica, os dados da referência não são consultados.',
+      'This query is available in live Runtime. Reference data is not queried in the editor or historical playback.',
+      'La consulta está disponible en Runtime en vivo. No se consultan datos de referencia en el editor ni en reproducción histórica.')
+      : text('Publique as alterações e ative este equipamento com as permissões de consulta antes de continuar.',
       'Publish changes and activate this equipment with query permissions before continuing.',
       'Publique los cambios y active este equipo con permisos de consulta antes de continuar.')}</p>}
     <form className="asset-process-intelligence__coverage-form" onSubmit={event => void query(event)}>

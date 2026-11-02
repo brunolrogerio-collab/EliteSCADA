@@ -470,7 +470,7 @@ export function AssetProcessIntelligenceWorkspace({
     ? processStages.find(stage => stage.key === selectedDashboardSource.source.stableKey) : undefined;
   const dashboardStageReports = dashboardStage ? createProcessStageReportSelection(dashboardStage) : null;
 
-  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean }) => {
+  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean }) => {
     setError(null);
     setMessage(null);
     if (!snapshot?.licensed) {
@@ -504,8 +504,10 @@ export function AssetProcessIntelligenceWorkspace({
           { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true }, locale));
         return;
       }
+      const member = source.kind === "equipment-profile" && source.assignments.length === 1 ? source.assignments[0] : null;
       const assignmentId = source.kind === 'equipment-profile' ? source.assignments[0]?.assignmentId : undefined;
       onCreateDashboardDraft(appearance ? generateIntelligenceDashboardCompositionDrafts(screens, source, tags, {
+        referenceEvidence: analyses?.referenceEvidence && member?.scopeId ? { scopeId: member.scopeId, profileId: member.profile.id, displayName: source.displayName } : undefined,
         performance: analyses?.performance && assignmentId ? guidedPerformanceSelections[assignmentId] ?? undefined : undefined,
         contextualDeviation: analyses?.deviation && assignmentId ? guidedDeviationSelections[assignmentId] ?? undefined : undefined
       }, appearance, locale) : generateIntelligenceDashboardDraft(screens, source, tags, locale));
@@ -875,6 +877,7 @@ export function AssetProcessIntelligenceWorkspace({
         {selectedDashboardSource && <IntelligenceDashboardComposer key={selectedDashboardSource.key} locale={locale}
           tags={selectedDashboardTags}
           disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !selectedDashboardSource.hasNumericSignal || dirtyConfiguration}
+          referenceAvailable={selectedDashboardSource.source.kind === "equipment-profile" && selectedDashboardSource.source.assignments.length === 1 && Boolean(selectedDashboardSource.source.assignments[0].scopeId)}
           performanceAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedPerformanceSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
           deviationAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedDeviationSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
           deviationSignalCount={selectedDashboardSource.source.kind === 'equipment-profile' ? new Set(selectedDashboardTags.map(tag => tag.id!.toLowerCase())).size : undefined}

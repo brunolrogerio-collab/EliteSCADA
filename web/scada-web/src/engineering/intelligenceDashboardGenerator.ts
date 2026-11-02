@@ -471,18 +471,27 @@ export function generateIntelligenceGuidedDashboardDrafts(
 /** Compose only analyses explicitly configured for this equipment, independently. */
 export function generateIntelligenceDashboardCompositionDrafts(
   existingScreens: readonly ScreenEngineering[], source: IntelligenceDashboardSource, tags: readonly TagEngineering[],
-  selections: Partial<IntelligenceGuidedDashboardSelections>, appearance: IntelligenceDashboardAppearance,
+  selections: Partial<IntelligenceGuidedDashboardSelections> & { referenceEvidence?: IntelligenceProfileCoverageDashboardSelection }, appearance: IntelligenceDashboardAppearance,
   locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
 ): readonly ScreenEngineering[] {
   const allocateId = createUniqueIdAllocator(createId);
   const drafts = [generateIntelligenceDashboardDraft(existingScreens, source, tags, locale, allocateId, appearance)];
-  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation'> = ['values-trend'];
+  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation' | 'reference-evidence'> = ['values-trend'];
   const member = source.kind === 'equipment-profile' && source.assignments.length === 1 ? source.assignments[0] : null;
   const valid = (selection: { scopeId: string; assignmentId: string; profileId: string }, signalIds: readonly string[]) =>
     member && selection.scopeId.toLowerCase() === member.scopeId?.toLowerCase() &&
     selection.assignmentId.toLowerCase() === member.assignmentId?.toLowerCase() &&
     selection.profileId.toLowerCase() === member.profile.id?.toLowerCase() &&
     signalIds.every(id => member.profile.signals.some(signal => signal.id.toLowerCase() === id.toLowerCase()));
+  if (selections.referenceEvidence) {
+    const selection = selections.referenceEvidence;
+    if (!member || selection.scopeId.toLowerCase() !== member.scopeId?.toLowerCase() ||
+        selection.profileId.toLowerCase() !== member.profile.id.toLowerCase()) {
+      throw new Error('Reference evidence selection does not belong to this equipment profile.');
+    }
+    drafts.push(generateIntelligenceReferenceEvidenceScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
+    roles.push('reference-evidence');
+  }
   if (selections.performance) {
     if (!valid(selections.performance, selections.performance.signalIds)) throw new Error('Performance selection does not belong to this equipment profile.');
     drafts.push(generateIntelligencePerformanceScreenDraft([...existingScreens, ...drafts], selections.performance, locale, allocateId));
@@ -499,7 +508,7 @@ export function generateIntelligenceDashboardCompositionDrafts(
 
 function linkDashboardDrafts(
   drafts: readonly ScreenEngineering[],
-  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights')[],
+  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence')[],
   locale: EngineeringLocale, allocateVisualId: () => string
 ): readonly ScreenEngineering[] {
   const navigationLabels = guidedDashboardNavigationLabels(locale);
@@ -657,21 +666,39 @@ export function generateIntelligencePerformanceScreenDraft(
  * the requested window and returned coverage report are transient Runtime state.
  */
 export function generateIntelligenceProfileCoverageScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceProfileCoverageDashboardSelection,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  return generateIntelligenceProfileReportScreenDraft(existingScreens, selection, locale, createId, false);
+}
+
+export function generateIntelligenceReferenceEvidenceScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceProfileCoverageDashboardSelection,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  return generateIntelligenceProfileReportScreenDraft(existingScreens, selection, locale, createId, true);
+}
+
+function generateIntelligenceProfileReportScreenDraft(
   existingScreens: readonly ScreenEngineering[],
   selection: IntelligenceProfileCoverageDashboardSelection,
   locale: EngineeringLocale,
-  createId: () => string = () => crypto.randomUUID()
+  createId: () => string,
+  referenceEvidence: boolean
 ): ScreenEngineering {
   if (!isCanonicalUuid(selection.scopeId) || !isCanonicalUuid(selection.profileId)) {
     throw new Error('A coverage screen requires canonical Equipment scope and profile UUIDs.');
   }
 
   const displayName = selection.displayName.trim() || selection.scopeId;
-  const key = uniqueScreenKey(existingScreens, `intelligence-coverage-${slug(displayName)}`);
+  const reportKey = referenceEvidence ? "reference-evidence" : "coverage";
+  const key = uniqueScreenKey(existingScreens, `intelligence-${reportKey}-${slug(displayName)}`);
   const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
   const draft = createIntelligenceScreenDraft(existingScreens, locale);
   const allocateId = createUniqueIdAllocator(createId);
-  const title = locale === 'en' ? `Historical coverage · ${displayName}`
+  const title = referenceEvidence
+    ? `${locale === 'pt-BR' ? 'Dados da referência' : locale === 'es' ? 'Datos de referencia' : 'Reference data'} · ${displayName}`
+    : locale === 'en' ? `Historical coverage · ${displayName}`
     : locale === 'es' ? `Cobertura histórica · ${displayName}`
       : `Cobertura histórica · ${displayName}`;
   const subtitle = locale === 'en'
@@ -687,10 +714,10 @@ export function generateIntelligenceProfileCoverageScreenDraft(
     route,
     elements: [
       {
-        id: allocateId(), key: 'intelligence-coverage-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        id: allocateId(), key: `intelligence-${reportKey}-title`, type: BUILTIN_VISUAL_OBJECT_TYPES.text,
         properties: {
           x: 64, y: 36, width: 1792, height: 52,
-          [VISUAL_PROPERTY_KEYS.text]: title,
+          [VISUAL_PROPERTY_KEYS.text]: referenceEvidence ? title.split(' · ')[0] : title,
           [VISUAL_PROPERTY_KEYS.fontSize]: 32,
           [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
           [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
@@ -698,18 +725,18 @@ export function generateIntelligenceProfileCoverageScreenDraft(
         }
       },
       {
-        id: allocateId(), key: 'intelligence-coverage-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        id: allocateId(), key: `intelligence-${reportKey}-subtitle`, type: BUILTIN_VISUAL_OBJECT_TYPES.text,
         properties: {
-          x: 64, y: 98, width: 1792, height: 34,
-          [VISUAL_PROPERTY_KEYS.text]: subtitle,
+          x: 64, y: 98, width: 1792, height: referenceEvidence ? 48 : 34,
+          [VISUAL_PROPERTY_KEYS.text]: referenceEvidence ? displayName : subtitle,
           [VISUAL_PROPERTY_KEYS.fontSize]: 16,
           [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
           [VISUAL_PROPERTY_KEYS.textWrap]: true
         }
       },
       {
-        id: allocateId(), key: 'intelligence-profile-coverage-v1',
-        type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1,
+        id: allocateId(), key: referenceEvidence ? 'intelligence-reference-evidence-v1' : 'intelligence-profile-coverage-v1',
+        type: referenceEvidence ? BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1 : BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1,
         properties: {
           x: 64, y: 152, width: 1792, height: 790,
           [VISUAL_PROPERTY_KEYS.intelligenceScopeId]: selection.scopeId,
@@ -717,7 +744,7 @@ export function generateIntelligenceProfileCoverageScreenDraft(
         }
       },
       {
-        id: allocateId(), key: 'intelligence-coverage-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        id: allocateId(), key: `intelligence-${reportKey}-limits`, type: BUILTIN_VISUAL_OBJECT_TYPES.text,
         properties: {
           x: 64, y: 960, width: 1792, height: 74,
           [VISUAL_PROPERTY_KEYS.text]: locale === 'en'
@@ -734,7 +761,7 @@ export function generateIntelligenceProfileCoverageScreenDraft(
     metadata: {
       ...(draft.metadata ?? {}),
       intelligenceDashboardGenerator: 'stage5b.5',
-      intelligenceProfileCoverageProfileId: selection.profileId
+      ...(referenceEvidence ? { intelligenceReferenceEvidenceProfileId: selection.profileId } : { intelligenceProfileCoverageProfileId: selection.profileId })
     }
   };
 }
@@ -1239,24 +1266,24 @@ export function isNumericTagDataType(dataType: string | null | undefined): boole
 }
 
 function guidedDashboardNavigationLabels(locale: EngineeringLocale): Readonly<Record<
-  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights', string
+  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence', string
 >> {
   if (locale === 'en') return {
-    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses',
+    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses', 'reference-evidence': 'Reference data',
     'values-trend': 'Values & trend',
     'profile-coverage': 'Coverage',
     performance: 'Performance',
     'contextual-deviation': 'Contextual deviation'
   };
   if (locale === 'es') return {
-    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo',
+    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo', 'reference-evidence': 'Datos de referencia',
     'values-trend': 'Valores y tendencia',
     'profile-coverage': 'Cobertura',
     performance: 'Rendimiento',
     'contextual-deviation': 'Desviación contextual'
   };
   return {
-    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento',
+    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento', 'reference-evidence': 'Dados da referência',
     'values-trend': 'Valores e tendência',
     'profile-coverage': 'Cobertura',
     performance: 'Desempenho',

@@ -10,6 +10,7 @@ import {
   generateIntelligenceContextualDeviationScreenDraft,
   generateIntelligenceGuidedDashboardDrafts,
   generateIntelligenceProfileCoverageScreenDraft,
+  generateIntelligenceReferenceEvidenceScreenDraft,
   generateIntelligenceProcessStageCoverageScreenDraft,
   generateIntelligenceProcessStageGuidedDashboardDrafts,
   generateIntelligenceProcessStageInsightsDashboardDraft,
@@ -854,4 +855,28 @@ test('numeric source filtering excludes state and text TAGs', () => {
   expect(isNumericTagDataType('Float32')).toBe(true);
   expect(isNumericTagDataType('Boolean')).toBe(false);
   expect(isNumericTagDataType('String')).toBe(false);
+});
+
+test('reference evidence is an independent canonical view with stable references and complete navigation', () => {
+  const scopeId = '10000000-0000-0000-0000-000000000001';
+  const profileId = '30000000-0000-0000-0000-000000000003';
+  const selection = { scopeId, profileId, displayName: 'Pump reference' };
+  const source = { kind: 'equipment-profile' as const, stableKey: 'pump', displayName: 'Pump', assignments: [
+    { ...equipmentAssignment, scopeId, profile: { ...equipmentAssignment.profile, id: profileId } }
+  ] };
+  const drafts = generateIntelligenceDashboardCompositionDrafts([], source, [numericTag('tag-current', 'Plant.Current')],
+    { referenceEvidence: selection }, { theme: 'dark', measurements: {} }, 'en', ids());
+  expect(drafts).toHaveLength(2);
+  const report = drafts[1].elements?.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1);
+  expect(report?.properties).toMatchObject({ intelligenceScopeId: scopeId, intelligenceProfileId: profileId });
+  expect(JSON.stringify(report)).not.toMatch(/referenceWindow|comparisonWindow|referenceCohort|password|result/);
+  for (const screen of drafts) {
+    const links = screen.elements?.flatMap(element => element.actions ?? []) ?? [];
+    expect(links).toHaveLength(1);
+    expect(drafts.some(target => target.key === links[0].targetKey && target.key !== screen.key)).toBe(true);
+  }
+  expect(() => generateIntelligenceDashboardCompositionDrafts([], source, [numericTag('tag-current', 'Plant.Current')], {
+    referenceEvidence: { ...selection, scopeId: '90000000-0000-0000-0000-000000000009' }
+  }, { theme: 'dark', measurements: {} }, 'en', ids())).toThrow(/Reference evidence selection/);
+  expect(() => generateIntelligenceReferenceEvidenceScreenDraft([], { ...selection, profileId: 'invalid' }, 'en')).toThrow();
 });

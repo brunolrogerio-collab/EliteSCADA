@@ -104,6 +104,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateIntelligencePerformanceV1B(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProfileCoverageV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceReferenceEvidenceV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey, referenceEvidence: true));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageCoverageV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProcessStageCoverageV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageInsightsV1Type, StringComparison.Ordinal))
@@ -330,7 +332,8 @@ public static class BuiltinVisualEngineeringValidation
     private static IEnumerable<ImportIssue> ValidateIntelligenceProfileCoverageV1(
         VisualElementEngineeringDto element,
         ImportEntityKind entityKind,
-        string entityKey)
+        string entityKey,
+        bool referenceEvidence = false)
     {
         var identifiers = new[]
         {
@@ -340,8 +343,8 @@ public static class BuiltinVisualEngineeringValidation
         if (entityKind != ImportEntityKind.Screen || identifiers.Any(value => !Guid.TryParseExact(value, "D", out _)))
         {
             yield return Error(
-                "VISUAL_INTELLIGENCE_COVERAGE_CONFIG_INVALID",
-                $"Profile coverage visual '{element.Key}' requires canonical scope/profile UUIDs on a Screen.",
+                referenceEvidence ? "VISUAL_INTELLIGENCE_REFERENCE_CONFIG_INVALID" : "VISUAL_INTELLIGENCE_COVERAGE_CONFIG_INVALID",
+                $"Intelligence profile report '{element.Key}' requires canonical scope/profile UUIDs on a Screen.",
                 entityKind,
                 entityKey);
         }

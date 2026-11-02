@@ -36,6 +36,7 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   measurementTarget: 'core.measurementTarget',
   intelligencePerformanceV1B: 'core.intelligencePerformanceV1B',
   intelligenceProfileCoverageV1: 'core.intelligenceProfileCoverageV1',
+  intelligenceReferenceEvidenceV1: 'core.intelligenceReferenceEvidenceV1',
   intelligenceProcessStageCoverageV1: 'core.intelligenceProcessStageCoverageV1',
   intelligenceProcessStageInsightsV1: 'core.intelligenceProcessStageInsightsV1',
   intelligenceContextualDeviationV2: 'core.intelligenceContextualDeviationV2'
@@ -345,6 +346,11 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.intelligenceSignalIds
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1, [
     ...BASE,
     VISUAL_PROPERTY_KEYS.intelligenceScopeId,
     VISUAL_PROPERTY_KEYS.intelligenceProfileId

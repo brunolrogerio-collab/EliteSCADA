@@ -41,6 +41,7 @@ import { NumericInputVisualElement } from './NumericInputVisualElement';
 import { CheckBoxVisualElement, ComboBoxVisualElement } from './ControlVisualElements';
 import { MeasurementVisualElement } from './MeasurementVisualElement';
 import { IntelligencePerformanceVisualElement } from './IntelligencePerformanceVisualElement';
+import { IntelligenceReferenceEvidenceVisualElement } from './IntelligenceReferenceEvidenceVisualElement';
 import { IntelligenceProfileCoverageVisualElement } from './IntelligenceProfileCoverageVisualElement';
 import { IntelligenceProcessStageCoverageVisualElement } from './IntelligenceProcessStageCoverageVisualElement';
 import { IntelligenceProcessStageInsightsVisualElement } from './IntelligenceProcessStageInsightsVisualElement';
@@ -296,6 +297,13 @@ function CanonicalElement({
         locale={locale}
         title={elementTitle}
       />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1) {
+      return <IntelligenceReferenceEvidenceVisualElement
+        scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        style={style} runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}/>;
     }
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1) {

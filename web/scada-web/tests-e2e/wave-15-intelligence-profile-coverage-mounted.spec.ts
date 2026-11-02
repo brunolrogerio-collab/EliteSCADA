@@ -875,3 +875,23 @@ test('central composer adds the reference report without analytical reads and au
   expect(fixture.requests).toEqual([]);
   expect(fixture.otherWrites).toEqual([]);
 });
+
+test('stage composer creates reference-only member reports independently of performance and deviation', async ({ page }) => {
+  const fixture = await installWorkspace(page, { stageReady: true });
+  await openIntelligence(page);
+  const generator = page.getByTestId('intelligence-dashboard-generator');
+  await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+  await expect(generator.getByRole('checkbox', { name: 'Análises por equipamento', exact: true })).toBeDisabled();
+  await generator.getByRole('checkbox', { name: 'Dados da referência por equipamento', exact: true }).check();
+  await generator.getByTestId('intelligence-dashboard-generate').click();
+  const editor = page.getByTestId('visual-editor-workspace');
+  const drafts = editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
+  await expect(drafts).toHaveCount(3);
+  await drafts.last().click();
+  const insights = editor.getByTestId('runtime-intelligence-process-stage-insights');
+  await expect(insights.getByTestId('runtime-intelligence-process-stage-insights-reference')).toBeVisible();
+  await expect(insights.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeDisabled();
+  await expect(insights.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeDisabled();
+  expect(fixture.requests).toEqual([]);
+  expect(fixture.otherWrites).toEqual([]);
+});

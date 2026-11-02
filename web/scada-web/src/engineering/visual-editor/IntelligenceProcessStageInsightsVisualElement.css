@@ -5,6 +5,10 @@
   font: 13px/1.4 system-ui, sans-serif;
 }
 
+.runtime-intelligence-process-stage-insights > * {
+  flex-shrink: 0;
+}
+
 .runtime-intelligence-process-stage-insights__header {
   display: grid;
   gap: 0.15rem;

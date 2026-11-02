@@ -105,7 +105,7 @@ export type IntelligenceProcessStageInsightsDashboardSelection = Omit<Intelligen
 }>;
 
 export type IntelligenceProcessStageReportMember = Omit<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'> &
-  Partial<Pick<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'>> & Readonly<{ availabilityVersion?: 2 }>;
+  Partial<Pick<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'>> & Readonly<{ availabilityVersion?: 2; referenceEvidence?: true }>;
 
 export type IntelligenceProcessStageReportSelection = Omit<IntelligenceProcessStageCoverageDashboardSelection, 'members'> & Readonly<{
   members: readonly IntelligenceProcessStageReportMember[];
@@ -1023,6 +1023,7 @@ function validateProcessStageReports(
       ? [...deviation.targetSignalIds, deviation.firstContextSignalId, deviation.secondContextSignalId]
       : [];
     if (!member || (member.availabilityVersion !== undefined && member.availabilityVersion !== 2) ||
+        (member.referenceEvidence !== undefined && (member.referenceEvidence !== true || member.availabilityVersion !== 2)) ||
         (allowPartial ? member.availabilityVersion !== 2 : !performance || !deviation) ||
         (performance !== undefined && (!performance ||
         performance.signalIds.length < 2 || performance.signalIds.length > 3 ||
@@ -1065,7 +1066,7 @@ export function generateIntelligenceProcessStageCompositionDrafts(
   if (include.coverage) { drafts.push(pair[1]); roles.push('process-stage-coverage'); }
   if (include.reports) {
     if (!reports || reports.stageId !== coverage.stageId || reports.stageKey !== coverage.stageKey || reports.stageName !== coverage.stageName ||
-        !reports.members.some(member => member.performance || member.contextualDeviation)) {
+        !reports.members.some(member => member.performance || member.contextualDeviation || member.referenceEvidence)) {
       throw new Error('Stage reports require matching references and at least one configured member analysis.');
     }
     const ordered = validateProcessStageReports(source, reports, true);

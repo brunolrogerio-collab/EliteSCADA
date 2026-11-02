@@ -4,11 +4,12 @@ import type { EngineeringLocale } from '../i18n';
 import type { IntelligenceProcessStageReportMember as Member } from '../intelligenceDashboardGenerator';
 import { IntelligenceContextualDeviationVisualElement } from './IntelligenceContextualDeviationVisualElement';
 import { IntelligencePerformanceVisualElement } from './IntelligencePerformanceVisualElement';
+import { IntelligenceReferenceEvidenceVisualElement } from './IntelligenceReferenceEvidenceVisualElement';
 import './IntelligenceProcessStageInsightsVisualElement.css';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type ReportKind = 'performance' | 'contextual-deviation' | null;
+type ReportKind = 'performance' | 'contextual-deviation' | 'reference-evidence' | null;
 
 type Props = Readonly<{
   stageId: string;
@@ -30,7 +31,8 @@ export function IntelligenceProcessStageInsightsVisualElement({
   const selected = members.find(member => member.assignmentId === selectedAssignmentId) ?? members[0] ?? null;
   const copy = text(locale);
   const activeReport = report === 'performance' && selected?.performance ? report
-    : report === 'contextual-deviation' && selected?.contextualDeviation ? report : null;
+    : report === 'contextual-deviation' && selected?.contextualDeviation ? report
+      : report === 'reference-evidence' && selected?.referenceEvidence ? report : null;
   const configValid = UUID_PATTERN.test(stageId) && stageKey.length > 0 && stageKey === stageKey.trim() &&
     stageKey.length <= 64 && stageName.length > 0 && stageName === stageName.trim() && stageName.length <= 128 &&
     members.length > 0 && members.length <= 32;
@@ -53,7 +55,7 @@ export function IntelligenceProcessStageInsightsVisualElement({
     color: 'var(--app-text-primary, #E2E8F0)'
   };
   const reportStyle: CSSProperties = {
-    position: 'relative', left: 0, top: 0, width: '100%', height: '100%', minHeight: 560,
+    position: 'relative', left: 0, top: 0, width: '100%', height: 'auto', minHeight: 560,
     transform: 'none', boxSizing: 'border-box', overflow: 'auto'
   };
 
@@ -87,6 +89,8 @@ export function IntelligenceProcessStageInsightsVisualElement({
         </select>
       </label>
       <div className="runtime-intelligence-process-stage-insights__actions" role="group" aria-label={copy.reports}>
+        {selected?.referenceEvidence && <button type="button" data-testid="runtime-intelligence-process-stage-insights-reference"
+          aria-pressed={activeReport === 'reference-evidence'} onClick={() => setReport('reference-evidence')}>{copy.reference}</button>}
         <button type="button" data-testid="runtime-intelligence-process-stage-insights-performance"
           disabled={!selected?.performance} aria-pressed={activeReport === 'performance'} onClick={() => setReport('performance')}>{copy.performance}</button>
         <button type="button" data-testid="runtime-intelligence-process-stage-insights-deviation"
@@ -95,7 +99,11 @@ export function IntelligenceProcessStageInsightsVisualElement({
       {!selected?.performance && <p>{copy.performanceMissing}</p>}
       {!selected?.contextualDeviation && <p>{copy.deviationMissing}</p>}
       {!activeReport || !selected ? <p className="runtime-intelligence-process-stage-insights__hint">{copy.chooseReport}</p>
-        : <div className="runtime-intelligence-process-stage-insights__report">{activeReport === 'performance' && selected.performance ? <IntelligencePerformanceVisualElement
+        : <div className="runtime-intelligence-process-stage-insights__report">{activeReport === 'reference-evidence' ? <IntelligenceReferenceEvidenceVisualElement
+          key={`reference:${selected.assignmentId}`} scopeId={selected.scopeId} profileId={selected.profileId}
+          style={reportStyle} runtimeObjectId={runtimeObjectId ? `${runtimeObjectId}:${selected.assignmentId}:reference` : undefined}
+          locale={locale} title={selected.displayLabel}/>
+        : activeReport === 'performance' && selected.performance ? <IntelligencePerformanceVisualElement
           key={`performance:${selected.assignmentId}`}
           scopeId={selected.scopeId}
           assignmentId={selected.assignmentId}
@@ -145,6 +153,7 @@ function parseMembers(value: string): Member[] {
           member.displayLabel !== member.displayLabel.trim() || member.displayLabel.length > 320 ||
           typeof member.order !== 'number' || !Number.isInteger(member.order) || member.order < 0 ||
           (member.availabilityVersion !== undefined && !partial) ||
+          (member.referenceEvidence !== undefined && (!partial || member.referenceEvidence !== true)) ||
           ((!partial || member.performance !== undefined) && !validPerformance(member.performance)) ||
           ((!partial || member.contextualDeviation !== undefined) && !validDeviation(member.contextualDeviation))) return null;
       return member as Member;
@@ -185,6 +194,7 @@ function validRange(lower: number, upper: number): boolean {
 
 function text(locale: EngineeringLocale) {
   if (locale === 'en') return {
+    reference: 'Reference data',
     performanceMissing: 'Performance is not configured for this equipment. Other available analyses remain usable.',
     deviationMissing: 'Contextual deviation is not configured for this equipment. Other available analyses remain usable.',
     header: 'Process-stage member insights', description: 'Select one configured member, then explicitly open one of its independent read-only analyses.',
@@ -194,6 +204,7 @@ function text(locale: EngineeringLocale) {
     invalid: 'This process-stage analysis has invalid or incomplete stable references.'
   };
   if (locale === 'es') return {
+    reference: 'Datos de referencia',
     performanceMissing: 'Rendimiento no configurado para este equipo. Puede usar los otros análisis disponibles.',
     deviationMissing: 'Desviación contextual no configurada para este equipo. Puede usar los otros análisis disponibles.',
     header: 'Análisis de miembros de etapa', description: 'Seleccione un miembro configurado y abra explícitamente uno de sus análisis independientes y de solo lectura.',
@@ -203,6 +214,7 @@ function text(locale: EngineeringLocale) {
     invalid: 'Este análisis de etapa contiene referencias estables no válidas o incompletas.'
   };
   return {
+    reference: 'Dados da referência',
     performanceMissing: 'Desempenho não configurado para este equipamento. As outras análises disponíveis continuam acessíveis.',
     deviationMissing: 'Desvio contextual não configurado para este equipamento. As outras análises disponíveis continuam acessíveis.',
     header: 'Análises dos membros da etapa', description: 'Selecione um membro configurado e abra explicitamente uma análise independente e somente leitura.',

@@ -419,6 +419,8 @@ public static class BuiltinVisualEngineeringValidation
         var partial = member.TryGetProperty("availabilityVersion", out var version);
         if (partial && (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var number) || number != 2))
             return false;
+        if (member.TryGetProperty("referenceEvidence", out var reference) &&
+            (!partial || reference.ValueKind != JsonValueKind.True)) return false;
         var hasPerformance = member.TryGetProperty("performance", out var performance);
         var hasDeviation = member.TryGetProperty("contextualDeviation", out var deviation);
         if (!partial && (!hasPerformance || !hasDeviation)) return false;

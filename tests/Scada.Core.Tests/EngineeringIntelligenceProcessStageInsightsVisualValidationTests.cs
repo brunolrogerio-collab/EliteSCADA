@@ -32,6 +32,22 @@ public sealed class EngineeringIntelligenceProcessStageInsightsVisualValidationT
     }
 
     [Fact]
+    public void ReferenceOnlyMember_IsValidAndPersistsItsExistingScopeAndProfile()
+    {
+        var member = Member(0);
+        member.Remove("performance"); member.Remove("contextualDeviation"); member["referenceEvidence"] = true;
+        var element = Element(member);
+        Assert.DoesNotContain(Validate(element), issue => issue.IsError);
+        var persisted = VisualEngineeringPropertyMigration.NormalizeCurrentElements([element])!.Single();
+        var actual = JsonNode.Parse(persisted.Properties![VisualPropertyKeys.IntelligenceStageMembers].GetString()!)![0]!;
+        Assert.True(actual["referenceEvidence"]!.GetValue<bool>());
+        Assert.Equal(member["scopeId"]!.GetValue<string>(), actual["scopeId"]!.GetValue<string>());
+        Assert.Equal(member["profileId"]!.GetValue<string>(), actual["profileId"]!.GetValue<string>());
+        Assert.Null(actual["performance"]);
+        Assert.Null(actual["contextualDeviation"]);
+    }
+
+    [Fact]
     public void LegacyBothReports_RemainsValidWithoutAvailabilityMarker()
     {
         var member = Member(0);
@@ -43,6 +59,9 @@ public sealed class EngineeringIntelligenceProcessStageInsightsVisualValidationT
 
     [Theory]
     [InlineData("unknown-version")]
+    [InlineData("legacy-reference")]
+    [InlineData("false-reference")]
+    [InlineData("null-reference")]
     [InlineData("null-performance")]
     [InlineData("null-deviation")]
     [InlineData("duplicate-signals")]
@@ -56,6 +75,9 @@ public sealed class EngineeringIntelligenceProcessStageInsightsVisualValidationT
         var member = Member(0);
         switch (scenario)
         {
+            case "legacy-reference": member.Remove("availabilityVersion"); member["referenceEvidence"] = true; break;
+            case "false-reference": member["referenceEvidence"] = false; break;
+            case "null-reference": member["referenceEvidence"] = null; break;
             case "unknown-version": member["availabilityVersion"] = 3; break;
             case "null-performance": member["performance"] = null; break;
             case "null-deviation": member["contextualDeviation"] = null; break;

@@ -470,7 +470,7 @@ export function AssetProcessIntelligenceWorkspace({
     ? processStages.find(stage => stage.key === selectedDashboardSource.source.stableKey) : undefined;
   const dashboardStageReports = dashboardStage ? createProcessStageReportSelection(dashboardStage) : null;
 
-  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean }) => {
+  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean }) => {
     setError(null);
     setMessage(null);
     if (!snapshot?.licensed) {
@@ -495,13 +495,21 @@ export function AssetProcessIntelligenceWorkspace({
         const coverage = stage ? createProcessStageCoverageSelection(stage) : null;
         if (!stage) throw new Error(copy.dashboardSourceUnavailable);
         if (!coverage) {
-          if (analyses?.stageCoverage || analyses?.stageReports) throw new Error(copy.dashboardSourceUnavailable);
+          if (analyses?.stageCoverage || analyses?.stageReports || analyses?.stageReferenceEvidence) throw new Error(copy.dashboardSourceUnavailable);
           onCreateDashboardDraft(generateIntelligenceDashboardDraft(screens, source, tags, locale, undefined, appearance));
           return;
         }
+        const availableReports = createProcessStageReportSelection(stage);
+        const reports = availableReports ? { ...availableReports, members: availableReports.members.map(member => {
+          const { performance, contextualDeviation, ...identity } = member;
+          return { ...identity,
+            ...(analyses?.stageReports ? { performance, contextualDeviation } : {}),
+            ...(analyses?.stageReferenceEvidence ? { referenceEvidence: true as const } : {})
+          };
+        }) } : null;
         onCreateDashboardDraft(generateIntelligenceProcessStageCompositionDrafts(screens, source, coverage,
-          createProcessStageReportSelection(stage), tags, appearance,
-          { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true }, locale));
+          reports, tags, appearance,
+          { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true || analyses?.stageReferenceEvidence === true }, locale));
         return;
       }
       const member = source.kind === "equipment-profile" && source.assignments.length === 1 ? source.assignments[0] : null;

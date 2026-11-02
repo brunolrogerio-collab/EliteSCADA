@@ -773,6 +773,17 @@ test('stage composition preserves independent member reports, authored widgets a
   expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, bad, tags, appearance, { coverage: true, reports: true }, 'en', ids())).toThrow(/belonging/);
   expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, { ...reports, stageId: id(9) }, tags, appearance, { coverage: true, reports: true }, 'en', ids())).toThrow(/matching/);
   expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, { ...reports, members: reports.members.map(m => ({ ...m, availabilityVersion: 3 })) } as any, tags, appearance, { coverage: true, reports: true }, 'en', ids())).toThrow();
+  const references = { ...coverage, members: coverage.members.map(member => ({ ...member, availabilityVersion: 2 as const, referenceEvidence: true as const })) };
+  const referenceDrafts = generateIntelligenceProcessStageCompositionDrafts([], source, coverage, references, tags, appearance, { coverage: false, reports: true }, 'en', ids());
+  expect(referenceDrafts).toHaveLength(2);
+  const referenceWidget = referenceDrafts[1].elements!.find(e => e.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1)!;
+  const referenceMembers = JSON.parse(String(referenceWidget.properties?.intelligenceStageMembers));
+  expect(referenceMembers).toEqual(references.members);
+  expect(referenceMembers.every((m: any) => m.referenceEvidence && !m.performance && !m.contextualDeviation)).toBe(true);
+  for (const marker of [false, null, 'true']) {
+    const invalid = { ...references, members: references.members.map(m => ({ ...m, referenceEvidence: marker })) };
+    expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, invalid as any, tags, appearance, { coverage: false, reports: true }, 'en', ids())).toThrow();
+  }
   const basic = generateIntelligenceProcessStageCompositionDrafts([], source, coverage, null, tags, appearance, { coverage: false, reports: false }, 'en', ids());
   expect(basic).toHaveLength(1);
   expect(basic[0].elements!.flatMap(e => e.actions ?? []).filter(a => a.kind === 'NavigateScreen')).toEqual([]);

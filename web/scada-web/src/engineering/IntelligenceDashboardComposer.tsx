@@ -13,7 +13,7 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     assignmentId: string; label: string; performance: boolean; deviation: boolean; onConfigure: () => void;
   }>[] }>;
 
-  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean; stageCoverage: boolean; stageReports: boolean; referenceEvidence: boolean }) => void;
+  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean; stageCoverage: boolean; stageReports: boolean; referenceEvidence: boolean; stageReferenceEvidence: boolean }) => void;
 }) {
   const copy = TEXT[locale];
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -22,6 +22,7 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
   const [deviation, setDeviation] = useState(true);
   const [stageCoverage, setStageCoverage] = useState(true);
   const [stageReports, setStageReports] = useState(true);
+  const [stageReferenceEvidence, setStageReferenceEvidence] = useState(false);
   const [referenceEvidence, setReferenceEvidence] = useState(false);
   const stageReportsAvailable = stage?.members.some(member => member.performance || member.deviation) ?? false;
   const number = (value: string) => value.trim() && Number.isFinite(Number(value)) ? Number(value) : undefined;
@@ -64,6 +65,8 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     {stage ? <>
       <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageCoverage && stage.coverageAvailable} disabled={disabled || !stage.coverageAvailable} onChange={e => setStageCoverage(e.currentTarget.checked)}/>{copy.stageCoverage}</label>
       <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageReports && stageReportsAvailable} disabled={disabled || !stageReportsAvailable} onChange={e => setStageReports(e.currentTarget.checked)}/>{copy.stageReports}</label>
+      <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageReferenceEvidence && stage.coverageAvailable} disabled={disabled || !stage.coverageAvailable} onChange={e => setStageReferenceEvidence(e.currentTarget.checked)}/>{copy.stageReference}</label>
+      <p>{copy.stageReferenceHint}</p>
       <p>{copy.stageHint}</p>
       {!stage.coverageAvailable && <p>{copy.stageCoverageMissing}</p>}
       {stage.members.map(member => <article key={member.assignmentId} className="asset-process-intelligence__row">
@@ -82,12 +85,13 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     </>}
     <p>{copy.otherAnalyses}</p>
     <button type="button" data-testid="intelligence-dashboard-generate" disabled={disabled || !rows.length || rows.some(row => !row.valid)}
-      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable })}>{copy.generate}</button>
+      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable, stageReferenceEvidence: Boolean(stage && stageReferenceEvidence && stage.coverageAvailable) })}>{copy.generate}</button>
   </div>;
 }
 
 const TEXT = {
   'pt-BR': {
+    stageReference: 'Dados da referência por equipamento', stageReferenceHint: 'Acrescente a conferência da referência à tela de análises da etapa. Você escolhe um equipamento de cada vez e consulta os períodos desejados. Não exige configurar desempenho ou desvio.',
     referenceEvidence: 'Conferir dados da referência', referenceHint: 'Acrescente uma tela para escolher um período conhecido e conferir as leituras disponíveis. Isso ajuda a avaliar os dados antes de uma comparação; não confirma que o equipamento estava saudável.',
     stageBase: 'Sempre incluído: medições e tendência. Abaixo, escolha se quer acrescentar cobertura e análises dos equipamentos.',
     stageAnalysesHint: 'O painel pode ter até três telas ligadas por botões: medições, cobertura e análises. Na tela de análises, escolha o equipamento e o relatório que quer consultar.',
@@ -104,6 +108,7 @@ const TEXT = {
     performance: 'Desempenho', performanceMissing: 'Desempenho ainda não configurado para esta origem. Escolha uma regra elegível na associação do equipamento.', deviation: 'Desvio contextual', deviationMissing: 'Desvio contextual ainda não configurado para esta origem. Escolha os sinais e as duas faixas de contexto na associação do equipamento.', configure: 'Configurar análises da associação', generate: 'Gerar painel e vistas selecionadas'
   },
   en: {
+    stageReference: 'Reference data per equipment', stageReferenceHint: 'Add reference-data checks to the stage analyses screen. Choose one equipment at a time and query the desired periods. Performance or deviation configuration is not required.',
     referenceEvidence: 'Check reference data', referenceHint: 'Add a screen to choose a known period and check the available readings. This helps review the data before a comparison; it does not confirm the equipment was healthy.',
     stageBase: 'Always included: measurements and trend. Below, choose whether to add equipment coverage and analyses.',
     stageAnalysesHint: 'The dashboard can contain up to three screens linked by buttons: measurements, coverage and analyses. On the analyses screen, choose the equipment and report to query.',
@@ -120,6 +125,7 @@ const TEXT = {
     performance: 'Performance', performanceMissing: 'Performance is not configured for this source yet. Choose an eligible rule in the equipment assignment.', deviation: 'Contextual deviation', deviationMissing: 'Contextual deviation is not configured for this source yet. Choose signals and both context ranges in the equipment assignment.', configure: 'Configure assignment analyses', generate: 'Generate dashboard and selected views'
   },
   es: {
+    stageReference: 'Datos de referencia por equipo', stageReferenceHint: 'Agregue la revisión de referencia a la pantalla de análisis de etapa. Elija un equipo cada vez y consulte los períodos deseados. No requiere configurar rendimiento o desviación.',
     referenceEvidence: 'Revisar datos de referencia', referenceHint: 'Agregue una pantalla para elegir un período conocido y revisar las lecturas disponibles. Ayuda a evaluar los datos antes de comparar; no confirma que el equipo estuviera sano.',
     stageBase: 'Siempre incluido: mediciones y tendencia. Abajo, elija si desea agregar cobertura y análisis de los equipos.',
     stageAnalysesHint: 'El panel puede tener hasta tres pantallas enlazadas por botones: mediciones, cobertura y análisis. En la pantalla de análisis, elija el equipo y el informe que desea consultar.',

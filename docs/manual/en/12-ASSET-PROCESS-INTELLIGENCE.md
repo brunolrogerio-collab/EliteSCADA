@@ -78,7 +78,10 @@ Select **Generate dashboard draft**. SCADIVO opens a normal editable Screen in t
 
 In the editor, review names, units, dimensions, bindings and readability. Use **Preview** and **Apply to Workspace**; then save, publish and activate the project revision, and configure/check Runtime navigation. Only then can operators open the Screen. Specialized guided actions appear with their related analyses and may require additional rules or ranges.
 
+When the generator creates linked Screens, Preview and Apply to Workspace include the whole set to preserve navigation destinations. Review the set before applying.
+
 ## 7. Common problems
+
 
 ### Choose dashboard objects and analyses
 
@@ -235,7 +238,7 @@ Check which configuration you are using before copying limits. Units and upper-l
 
 1. Save the current configuration. In Create a Runtime dashboard, choose an equipment profile or process stage under Dashboard content.
 2. Select Generate dashboard draft. The button is disabled if the configuration is unsaved, the license or permission is missing, or the source has no valid numeric TAG.
-3. In the Screen editor, check the title, dimensions, objects, bindings and readability. Run Preview and Apply to Workspace to add the edit to the project.
+3. In the Screen editor, check the title, dimensions, objects, bindings and readability. For linked Screens generated together, Preview and Apply to Workspace include the whole set to preserve navigation. Review the set before applying.
 4. Save, publish and activate the revision. Set up or check navigation and open the Screen in Runtime.
 5. In the analysis object, set the period and request the query. Check the window and result. A stage Screen groups its equipment; it does not create an aggregate indicator or establish that one piece of equipment caused another’s result.
 

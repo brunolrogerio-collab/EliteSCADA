@@ -78,7 +78,10 @@ Pulse **Generar borrador del panel**. SCADIVO abre una Pantalla normal y editabl
 
 En el editor, revise nombres, unidades, dimensiones, vínculos y legibilidad. Use **Preview** y **Aplicar al Workspace**; luego guarde, publique y active la revisión del proyecto, y configure/compruebe la navegación de Runtime. Solo entonces los operadores podrán abrir la Pantalla. Las acciones guiadas especializadas aparecen junto a sus análisis y pueden pedir reglas o intervalos adicionales.
 
+Si el generador crea Pantallas vinculadas, Preview y Aplicar al Workspace incluyen el conjunto completo para conservar los destinos de navegación. Revise el conjunto antes de aplicar.
+
 ## 7. Problemas comunes
+
 
 ### Elegir objetos y análisis del panel
 
@@ -235,7 +238,7 @@ Compruebe qué configuración usa antes de copiar límites. La unidad y la inclu
 
 1. Guarde la configuración actual. En Crear un panel para Runtime, elija un perfil de equipo o una etapa del proceso en Contenido del panel.
 2. Seleccione Generar borrador del panel. El botón queda deshabilitado si la configuración sigue sin guardar, falta licencia o permiso, o la fuente no tiene un TAG numérico válido.
-3. En el editor de Pantallas, compruebe título, dimensiones, objetos, vínculos y legibilidad. Ejecute Preview y Aplicar al Workspace para llevar la edición al proyecto.
+3. En el editor de Pantallas, compruebe título, dimensiones, objetos, vínculos y legibilidad. Para Pantallas vinculadas generadas juntas, Preview y Aplicar al Workspace incluyen el conjunto completo para conservar la navegación. Revise el conjunto antes de aplicar.
 4. Guarde, publique y active la revisión. Configure o compruebe la navegación y abra la Pantalla en Runtime.
 5. En el objeto de análisis, configure el período y solicite la consulta. Compruebe la ventana y el resultado. Una Pantalla de etapa agrupa sus equipos; no crea un indicador agregado ni demuestra que un equipo causó el resultado de otro.
 

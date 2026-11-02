@@ -1,0 +1,51 @@
+{
+  "syntheticOnly": true,
+  "sampleCount": 960,
+  "dataDropped": 0,
+  "activeRevision": 17,
+  "referenceWindow": {
+    "fromUtc": "2026-11-01T16:57:00+00:00",
+    "toUtc": "2026-11-01T18:56:00+00:00"
+  },
+  "evaluationWindow": {
+    "fromUtc": "2026-11-01T20:57:00+00:00",
+    "toUtc": "2026-11-01T22:56:00+00:00"
+  },
+  "performance": {
+    "status": "available",
+    "unit": "kWh/mÂ³",
+    "reasonCodes": [],
+    "qualifiedTupleCount": 120,
+    "minimum": 0.00015631357103800154,
+    "maximum": 0.00017807660855930033,
+    "arithmeticMean": 0.00016665286390744858,
+    "meanSemantics": "arithmetic mean of qualified pointwise formula results; not time-weighted"
+  },
+  "deviation": {
+    "completeReferenceVectorCount": 120,
+    "jointContextReferenceVectorCount": 120,
+    "completeEvaluationVectorCount": 120,
+    "jointContextEvaluationVectorCount": 120,
+    "totalRawObservationCount": 960
+  },
+  "targets": [
+    {
+      "unit": "W",
+      "status": "available",
+      "referenceMedian": 1000.407015438145,
+      "referenceMad": 14.218210145197645,
+      "returnedValueCount": 120,
+      "minimumRobustScore": 8.520362934524497,
+      "maximumRobustScore": 10.417148870616845
+    },
+    {
+      "unit": "mÂ³/s",
+      "status": "available",
+      "referenceMedian": 2.0003537048054314,
+      "referenceMad": 0.07107107269795754,
+      "returnedValueCount": 120,
+      "minimumRobustScore": -0.9523193318437493,
+      "maximumRobustScore": 0.945298748619248
+    }
+  ]
+}

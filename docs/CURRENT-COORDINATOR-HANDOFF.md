@@ -1,12 +1,12 @@
 # Current coordinator pointer - Wave 15
 
-## Ponto de retomada atual — Intelligence #791 / #853 — 01/11/2026
+## Ponto de retomada atual — Intelligence #791 / #853 / #855 — 02/11/2026
 
-Frente ativa: auditoria e interface de Intelligence. PR #852 continua draft; #854 contém sua cadeia e as consultas de referência/contexto/desvio conjunto. Último CI aprovado: T1 `41315209090`, head `c9b7b31c`; HA-D2 e HA dois processos ignorados.
+Frente ativa: auditoria e composição dos dashboards de Intelligence, candidata no PR draft #854 (inclui a cadeia #852). O head anterior `e85431d0` passou no T1 `41380091621`; esse verde não se transfere às correções posteriores.
 
-Continuação local: a interface real, API normal e TimescaleDB isolado demonstraram as três consultas com dados sintéticos. Corrigidos textos antigos de Stage 1, motivos ausentes da referência, condições ocultas no resultado de contexto e apresentação desktop/mobile. [Roteiro, resultados e limites](WAVE15-INTELLIGENCE-853-LOCAL-UI-EVIDENCE-2026-11-01.md). Novo head/CI devem ser conferidos no registro vivo da #853; o verde anterior não se transfere ao incremento.
+API e PostgreSQL reais, em ambiente sintético isolado, comprovaram três Telas vinculadas, quatro widgets visíveis e resultados de desempenho/desvio contextual. Corrigidos descarte da unidade controlada na ativação dos TAGs, rejeição do enum numérico real pela interface, prévia incompleta do conjunto e layout comprimido do desvio. [Desenho, evidência e pendências](WAVE15-INTELLIGENCE-DASHBOARD-COMPOSITION-855.md). Não confundir HTTP 200 ou gerador existente com funcionalidade aceita.
 
-Próximo passo: concluir o CI da candidata, revisar visualmente e integrar a cadeia somente após o aceite registrado. Preview/DEMO e Portal preservados; não iniciar HA-D2. A auditoria #791 e o KPI agregado de processo não estão encerrados.
+Próximo passo: conferir testes e CI do head exato no registro vivo #855/#854, revisar visualmente e concluir a composição das etapas e as lacunas Runtime registradas. #855/#791 continuam abertas: falta a prova real de composição parcial sem sensor, composição central das vistas de membros das etapas, consumidores Runtime de referência/condições/score conjunto e aceite visual. Não declarar KPI agregado entregue. Preview/DEMO e Portal preservados; HA-D2 não iniciado.
 
 ## Checkpoint anterior — histórico
 

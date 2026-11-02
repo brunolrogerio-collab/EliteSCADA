@@ -78,7 +78,10 @@ Clique em **Gerar rascunho do painel**. O SCADIVO abre uma Tela comum e editáve
 
 No editor, confira nomes, unidades, dimensões, vínculos e legibilidade. Use **Pré-visualizar** e **Aplicar ao Workspace**; depois salve, publique e ative a revisão do projeto e configure/confira a navegação do Runtime. Só então a Tela poderá ser aberta pelos operadores. As ações guiadas especializadas ficam junto às análises correspondentes e podem pedir regras ou faixas adicionais.
 
+Se o gerador criar Telas vinculadas, Pré-visualizar e Aplicar ao Workspace incluem todo o conjunto para preservar os destinos da navegação. Revise o conjunto antes de aplicar.
+
 ## 7. Problemas comuns
+
 
 ### Escolher os objetos e as análises do painel
 
@@ -235,7 +238,7 @@ Confira qual configuração está usando antes de copiar limites. A unidade e a 
 
 1. Salve a configuração atual. No bloco Gerar painel para o Runtime, escolha um perfil de equipamento ou uma etapa do processo em Conteúdo do painel.
 2. Selecione Gerar rascunho do painel. O botão fica bloqueado se a configuração ainda não foi salva, faltar licença ou permissão, ou se a origem não tiver um TAG numérico válido.
-3. No editor de Telas, confira título, dimensões, objetos, vínculos e legibilidade. Execute Pré-visualizar e Aplicar ao Workspace para levar a edição ao projeto.
+3. No editor de Telas, confira título, dimensões, objetos, vínculos e legibilidade. Quando houver Telas vinculadas geradas juntas, Pré-visualizar e Aplicar ao Workspace incluem todas elas para preservar a navegação. Revise o conjunto antes de aplicar.
 4. Salve a revisão, publique e ative. Configure ou confira a navegação e abra a Tela no Runtime.
 5. No objeto de análise, configure o período e solicite a consulta. Confira a janela e o resultado. Uma Tela de etapa reúne seus equipamentos; isso não cria um indicador agregado nem demonstra que um equipamento causou o resultado de outro.
 

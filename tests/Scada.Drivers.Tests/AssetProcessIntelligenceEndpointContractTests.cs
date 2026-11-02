@@ -1,20 +1,24 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Scada.Api.Historian;
 using Scada.Api.Persistence;
 using Scada.Api.Licensing;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Engineering.Assets;
 using Scada.Core.Alarms;
+using Scada.Core.Abstractions;
 using Scada.Core.Commands;
 using Scada.Core.Events;
 using Scada.Core.HistoricalQueries;
@@ -29,6 +33,7 @@ using Scada.Engineering.Intelligence;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Security;
+using Scada.Historian.TimescaleDb;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
 
@@ -195,6 +200,117 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         Assert.Equal(JsonValueKind.Null, catalog.GetProperty("decisionThreshold").ValueKind);
         Assert.Contains("no imputation", catalog.GetProperty("sourceTimestampRule").GetString(), StringComparison.Ordinal);
         Assert.Contains("must not be summed", catalog.GetProperty("evidenceCounterRule").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task IntelligenceAnalyticsHttpEndpointsReadSyntheticEvidenceFromIsolatedPostgreSql()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var api = await EndpointHarness.StartAsync(
+            CreateVerification("valid"),
+            includeActivationPipeline: true,
+            includeAnalyticsEndpoints: true,
+            seedAnalyticsConfiguration: true,
+            postgreSqlHistorianConnectionString: connectionString);
+
+        using var activation = await api.Client.PostAsync(api.ActivatePath, content: null);
+        Assert.Equal(HttpStatusCode.OK, activation.StatusCode);
+
+        var now = DateTimeOffset.UtcNow;
+        var minuteTicks = TimeSpan.TicksPerMinute;
+        var anchor = new DateTimeOffset(now.AddHours(-20).Ticks / minuteTicks * minuteTicks, TimeSpan.Zero);
+        var reference = new AssetProcessIntelligenceAnalyticsWindow(anchor, anchor.AddMinutes(179));
+        var comparison = new AssetProcessIntelligenceAnalyticsWindow(anchor.AddMinutes(240), anchor.AddMinutes(419));
+        var evaluation = new AssetProcessIntelligenceAnalyticsWindow(anchor.AddMinutes(600), anchor.AddMinutes(749));
+        var random = new Random(712);
+        var state = new double[2];
+        var simulatedValues = new (double Current, double Flow)[750];
+        for (var minute = 0; minute < simulatedValues.Length; minute++)
+        {
+            var sharedNoise = random.NextDouble() - 0.5;
+            state[0] = 0.4 * state[0] + sharedNoise;
+            state[1] = 0.3 * state[1] + 0.35 * sharedNoise + random.NextDouble() - 0.5;
+            simulatedValues[minute] = (state[0], state[1]);
+        }
+
+        var written = 0;
+
+        for (var minute = 0; minute <= 749; minute++)
+        {
+            if (minute is > 179 and < 240 or > 419 and < 600) continue;
+            var timestamp = anchor.AddMinutes(minute);
+            var shiftedEvaluation = minute >= 600;
+            var current = simulatedValues[minute].Current + (shiftedEvaluation ? 0.25d : 0d);
+            var flow = simulatedValues[minute].Flow;
+            await api.PublishSyntheticSampleAsync(api.TagId, timestamp, current);
+            await api.PublishSyntheticSampleAsync(api.SecondTargetTagId, timestamp, flow);
+            await api.PublishSyntheticSampleAsync(api.ContextTagId, timestamp, "RUN");
+            written += 3;
+        }
+
+        await api.WaitForSyntheticSamplesAsync(written);
+
+        var referenceRequest = new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            AssetProcessIntelligenceScopeKind.Equipment,
+            api.EquipmentId,
+            api.AnalyticsProfileId,
+            reference,
+            comparison);
+        using var referenceResponse = await api.Client.PostAsJsonAsync(
+            AssetProcessIntelligenceAnalyticsApi.Route + "/reference-evidence/v1/query",
+            referenceRequest);
+        var referenceEvidence = await referenceResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(referenceResponse.StatusCode == HttpStatusCode.OK,
+            $"Reference evidence endpoint returned {(int)referenceResponse.StatusCode}: {referenceEvidence}");
+        Assert.Equal(3, referenceEvidence.GetProperty("signals").GetArrayLength());
+        Assert.Equal(comparison.FromUtc, referenceEvidence.GetProperty("comparisonWindow").GetProperty("fromUtc").GetDateTimeOffset());
+        Assert.Equal(comparison.ToUtc, referenceEvidence.GetProperty("comparisonWindow").GetProperty("toUtc").GetDateTimeOffset());
+        Assert.Equal(180, referenceEvidence.GetProperty("referenceCohort").GetProperty("completeSelectedNumericCohortCount").GetInt32());
+        Assert.Equal(180, referenceEvidence.GetProperty("comparisonCohort").GetProperty("completeSelectedNumericCohortCount").GetInt32());
+
+        var eligibilityRequest = new AssetProcessIntelligenceContextEligibilityV1QueryRequest(
+            AssetProcessIntelligenceScopeKind.Equipment,
+            api.EquipmentId,
+            api.AnalyticsAssignmentId,
+            api.OperatingContextProfileId,
+            ExpectedProfileVersion: 1,
+            reference,
+            comparison);
+        using var eligibilityResponse = await api.Client.PostAsJsonAsync(
+            AssetProcessIntelligenceAnalyticsApi.Route + "/context-eligibility/v1/query",
+            eligibilityRequest);
+        var eligibility = await eligibilityResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(HttpStatusCode.OK, eligibilityResponse.StatusCode);
+        Assert.Equal(comparison.FromUtc, eligibility.GetProperty("comparisonWindow").GetProperty("fromUtc").GetDateTimeOffset());
+        Assert.Equal(comparison.ToUtc, eligibility.GetProperty("comparisonWindow").GetProperty("toUtc").GetDateTimeOffset());
+        Assert.Equal(180, eligibility.GetProperty("predicates").EnumerateArray().Single().GetProperty("referenceMatchCount").GetInt32());
+        Assert.Equal(180, eligibility.GetProperty("predicates").EnumerateArray().Single().GetProperty("comparisonMatchCount").GetInt32());
+
+        var jointRequest = new AssetProcessIntelligenceExperimentalJointDeviationV1QueryRequest(
+            AssetProcessIntelligenceScopeKind.Equipment,
+            api.EquipmentId,
+            api.AnalyticsAssignmentId,
+            api.OperatingContextProfileId,
+            ExpectedProfileVersion: 1,
+            api.AnalyticsTargetSignalIds.ToArray(),
+            ExpectedCadenceSeconds: 60,
+            reference,
+            evaluation);
+        using var jointResponse = await api.Client.PostAsJsonAsync(
+            EndpointHarness.ExperimentalJointDeviationV1QueryPath,
+            jointRequest);
+        var joint = await jointResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(HttpStatusCode.OK, jointResponse.StatusCode);
+        Assert.Equal("experimental_not_field_validated", joint.GetProperty("validationStatus").GetString());
+        Assert.Equal("none", joint.GetProperty("classificationStatus").GetString());
+        Assert.Equal(JsonValueKind.Null, joint.GetProperty("decisionThreshold").ValueKind);
+        Assert.Equal("available", joint.GetProperty("referenceFitStatus").GetString());
+        Assert.Equal(180, joint.GetProperty("referenceCompleteCohortCount").GetInt32());
+        Assert.Equal(150, joint.GetProperty("evaluationCompleteCohortCount").GetInt32());
+        Assert.True(joint.GetProperty("evaluationScoredCohortCount").GetInt32() > 0, joint.ToString());
+        Assert.True(joint.GetProperty("scores").GetArrayLength() > 0, joint.ToString());
     }
 
     [Fact]
@@ -631,6 +747,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         private readonly WebApplication _app;
         private readonly IEngineeringProjectPersistenceService? _persistence;
         private readonly IEngineeringExchangeService? _exchange;
+        private readonly InMemoryScadaEventBus _eventBus;
+        private readonly TimescaleDbHistorian? _databaseHistorian;
         private EndpointHarness(
             WebApplication app,
             HttpClient client,
@@ -641,6 +759,14 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             IEngineeringRuntimeCoordinator runtime,
             InMemoryAuditSink audit,
             RecordingHistoricalQueryService historicalQueries,
+            InMemoryScadaEventBus eventBus,
+            TimescaleDbHistorian? databaseHistorian,
+            Guid? secondTargetTagId,
+            Guid? contextTagId,
+            Guid? analyticsProfileId,
+            Guid? analyticsAssignmentId,
+            Guid? operatingContextProfileId,
+            IReadOnlyCollection<Guid>? analyticsTargetSignalIds,
             IEngineeringProjectPersistenceService? persistence,
             IEngineeringExchangeService? exchange,
             IReadOnlyCollection<string> routes)
@@ -656,6 +782,14 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             Runtime = runtime;
             Audit = audit;
             HistoricalQueries = historicalQueries;
+            _eventBus = eventBus;
+            _databaseHistorian = databaseHistorian;
+            SecondTargetTagId = secondTargetTagId ?? Guid.Empty;
+            ContextTagId = contextTagId ?? Guid.Empty;
+            AnalyticsProfileId = analyticsProfileId ?? Guid.Empty;
+            AnalyticsAssignmentId = analyticsAssignmentId ?? Guid.Empty;
+            OperatingContextProfileId = operatingContextProfileId ?? Guid.Empty;
+            AnalyticsTargetSignalIds = analyticsTargetSignalIds ?? Array.Empty<Guid>();
             Routes = routes;
             ActivatePath = $"{ScopesPath}/Equipment/{equipmentId:D}/activate";
         }
@@ -668,6 +802,12 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public IEngineeringRuntimeCoordinator Runtime { get; }
         public InMemoryAuditSink Audit { get; }
         public RecordingHistoricalQueryService HistoricalQueries { get; }
+        public Guid SecondTargetTagId { get; }
+        public Guid ContextTagId { get; }
+        public Guid AnalyticsProfileId { get; }
+        public Guid AnalyticsAssignmentId { get; }
+        public Guid OperatingContextProfileId { get; }
+        public IReadOnlyCollection<Guid> AnalyticsTargetSignalIds { get; }
         public int ProcessWriteCalls => (Runtime as TestRuntimeCoordinator)?.ProcessWriteCalls ?? 0;
         public IReadOnlyCollection<string> Routes { get; }
         public string ActivatePath { get; }
@@ -681,7 +821,9 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             bool seedControlledSemanticTag = false,
             bool seedSemanticAnnotations = false,
             bool engineeringViewGranted = true,
-            bool includeAnalyticsEndpoints = false)
+            bool includeAnalyticsEndpoints = false,
+            bool seedAnalyticsConfiguration = false,
+            string? postgreSqlHistorianConnectionString = null)
         {
             var workspace = new EngineeringWorkspace(seedDemo: false);
             var equipmentId = Guid.NewGuid();
@@ -701,8 +843,64 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                 ControlledEngineeringUnit: seedControlledSemanticTag
                     ? new ControlledEngineeringUnitReference(1, "unit.electric_current.ampere")
                     : null));
-            workspace.AssetProcessIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Scopes:
-            [new(AssetProcessIntelligenceScopeKind.Equipment, equipmentId)]));
+            Guid? secondTargetTagId = null;
+            Guid? contextTagId = null;
+            Guid? analyticsProfileId = null;
+            Guid? analyticsAssignmentId = null;
+            Guid? operatingContextProfileId = null;
+            Guid? targetSignalOneId = null;
+            Guid? targetSignalTwoId = null;
+            if (seedAnalyticsConfiguration)
+            {
+                secondTargetTagId = Guid.NewGuid();
+                contextTagId = Guid.NewGuid();
+                analyticsProfileId = Guid.NewGuid();
+                analyticsAssignmentId = Guid.NewGuid();
+                operatingContextProfileId = Guid.NewGuid();
+                targetSignalOneId = Guid.NewGuid();
+                targetSignalTwoId = Guid.NewGuid();
+                var contextSignalId = Guid.NewGuid();
+                workspace.Tags.Register(new TagDefinition(
+                    secondTargetTagId.Value,
+                    "Flow",
+                    "Plant.Pump.Flow",
+                    TagDataType.Double,
+                    null,
+                    "m3/h",
+                    null,
+                    true));
+                workspace.Tags.Register(new TagDefinition(
+                    contextTagId.Value,
+                    "Operating mode",
+                    "Plant.Pump.Mode",
+                    TagDataType.Enum,
+                    null,
+                    null,
+                    null,
+                    true));
+                workspace.AssetProcessIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(
+                    Version: 3,
+                    Scopes: [new(AssetProcessIntelligenceScopeKind.Equipment, equipmentId)],
+                    Profiles:
+                    [
+                        new(analyticsProfileId.Value, "pump-measurements", "Pump measurements",
+                        [
+                            new(targetSignalOneId.Value, "current", "Current", tagId),
+                            new(targetSignalTwoId.Value, "flow", "Flow", secondTargetTagId.Value),
+                            new(contextSignalId, "operating-mode", "Operating mode", contextTagId.Value)
+                        ])
+                    ],
+                    Assignments: [new(analyticsAssignmentId.Value, equipmentId, analyticsProfileId.Value)],
+                    OperatingContextProfiles:
+                    [
+                        new(operatingContextProfileId.Value, "normal-running", "Normal running", analyticsAssignmentId.Value, 1,
+                        [new(contextTagId.Value, AssetProcessIntelligenceOperatingContextPredicateKind.EnumEquals,
+                            ExactValue: "RUN")])
+                    ]));
+            }
+            else
+                workspace.AssetProcessIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Scopes:
+                [new(AssetProcessIntelligenceScopeKind.Equipment, equipmentId)]));
             if (seedSemanticAnnotations)
             {
                 if (!seedControlledSemanticTag)
@@ -722,14 +920,19 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                     Guid.NewGuid(),
                     "operator",
                     "Operator",
-                    Grants: CreateGrants(managerGrantOnTargetEquipment, engineeringModifyGranted, equipmentScopeId, otherScopeId, engineeringViewGranted))],
+                    Grants: CreateGrants(managerGrantOnTargetEquipment, engineeringModifyGranted, equipmentScopeId, otherScopeId, engineeringViewGranted, includeAnalyticsEndpoints))],
                 [
                     new SecurityScopeEngineeringDto(equipmentScopeId, "equipment-p01", "Pump", SecurityScopeNodeKind.Equipment, ResourceId: equipmentId),
                     new SecurityScopeEngineeringDto(otherScopeId, "equipment-p02", "Fan", SecurityScopeNodeKind.Equipment, ResourceId: otherEquipmentId)
                 ]);
             var gate = new AssetProcessIntelligenceExecutionGate();
-            IEngineeringRuntimeCoordinator runtime = new TestRuntimeCoordinator(ProjectKey, 1);
+            var eventBus = new InMemoryScadaEventBus();
+            IEngineeringRuntimeCoordinator runtime = new TestRuntimeCoordinator(
+                ProjectKey,
+                1,
+                seedAnalyticsConfiguration ? workspace.Tags.Snapshot() : Array.Empty<TagDefinition>());
             IEngineeringProjectPersistenceService? persistence = null;
+            TimescaleDbHistorian? databaseHistorian = null;
             IEngineeringExchangeService? exchange = CreateExchange(workspace);
             if (includeActivationPipeline)
             {
@@ -744,17 +947,22 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                     "test");
                 var projectStore = new HarnessEngineeringProjectStore(seeded);
                 persistence = new EngineeringProjectPersistenceService(exchange, projectStore, workspace.VisualAssets);
-                var liveRuntime = new EngineeringRuntimeCoordinator(
-                    new InMemoryScadaEventBus(),
-                    new EngineeringDriverCompiler(),
-                    TimeSpan.FromSeconds(2));
-                var initialRuntime = await liveRuntime.ActivateAsync(
-                    ProjectKey,
-                    seeded.Revision,
-                    exchange.ParseJson(seeded.EngineeringJson));
-                Assert.True(initialRuntime.Activated);
-                runtime = liveRuntime;
+                if (!seedAnalyticsConfiguration)
+                {
+                    var liveRuntime = new EngineeringRuntimeCoordinator(
+                        eventBus,
+                        new EngineeringDriverCompiler(),
+                        TimeSpan.FromSeconds(2));
+                    var initialRuntime = await liveRuntime.ActivateAsync(
+                        ProjectKey,
+                        seeded.Revision,
+                        exchange.ParseJson(seeded.EngineeringJson));
+                    Assert.True(initialRuntime.Activated);
+                    runtime = liveRuntime;
+                }
             }
+            if (!string.IsNullOrWhiteSpace(postgreSqlHistorianConnectionString))
+                databaseHistorian = new TimescaleDbHistorian(eventBus, postgreSqlHistorianConnectionString, batchSize: 100);
             var sink = new InMemoryAuditSink();
             var historicalQueries = new RecordingHistoricalQueryService();
             var configuration = new ConfigurationBuilder()
@@ -777,7 +985,22 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             builder.Services.AddSingleton(new ScadaRuntimeFacade(runtime));
             if (includeAnalyticsEndpoints)
             {
-                builder.Services.AddSingleton<IHistoricalQueryService>(historicalQueries);
+                if (string.IsNullOrWhiteSpace(postgreSqlHistorianConnectionString))
+                    builder.Services.AddSingleton<IHistoricalQueryService>(historicalQueries);
+                else
+                {
+                    var provider = new TimescaleHistoricalQueryProvider(postgreSqlHistorianConnectionString, workspace.Tags);
+                    builder.Services.AddSingleton(provider);
+                    builder.Services.AddSingleton<IHistoricalDatasetProvider>(provider);
+                    builder.Services.AddSingleton<IHistoricalDatasetProvider>(new TimescaleHistorianV2TestAdapter(provider));
+                    builder.Services.AddSingleton(new HistoricalQueryCursorCodec(RandomNumberGenerator.GetBytes(32)));
+                    builder.Services.AddHttpContextAccessor();
+                    builder.Services.AddSingleton<IHistoricalQueryAuthorizer>(sp => new ApiHistoricalQueryAuthorizer(
+                        sp.GetRequiredService<IHttpContextAccessor>(),
+                        sp.GetRequiredService<ApiAuthorizationService>(),
+                        sp.GetRequiredService<ScadaRuntimeFacade>()));
+                    builder.Services.AddScoped<IHistoricalQueryService, HistoricalQueryService>();
+                }
                 builder.Services.AddTransient<AssetProcessIntelligenceAnalyticsService>();
             }
             if (persistence is not null && exchange is not null)
@@ -829,6 +1052,16 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                 runtime,
                 sink,
                 historicalQueries,
+                eventBus,
+                databaseHistorian,
+                secondTargetTagId,
+                contextTagId,
+                analyticsProfileId,
+                analyticsAssignmentId,
+                operatingContextProfileId,
+                targetSignalOneId.HasValue && targetSignalTwoId.HasValue
+                    ? [targetSignalOneId.Value, targetSignalTwoId.Value]
+                    : Array.Empty<Guid>(),
                 persistence,
                 exchange,
                 routes);
@@ -866,7 +1099,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             bool engineeringModifyGranted,
             Guid equipmentScopeId,
             Guid otherScopeId,
-            bool engineeringViewGranted)
+            bool engineeringViewGranted,
+            bool analyticsReadGranted)
         {
             var grants = new List<CapabilityGrantEngineeringDto>
             {
@@ -876,7 +1110,42 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             if (engineeringViewGranted) grants.Add(new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringView));
             if (engineeringModifyGranted)
                 grants.Add(new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify));
+            if (analyticsReadGranted)
+            {
+                grants.Add(new CapabilityGrantEngineeringDto(SecurityCapability.TrendUse));
+                grants.Add(new CapabilityGrantEngineeringDto(SecurityCapability.TagRead));
+            }
             return grants;
+        }
+
+        public async Task PublishSyntheticSampleAsync(Guid tagId, DateTimeOffset timestamp, object value)
+        {
+            if (_databaseHistorian is null)
+                throw new InvalidOperationException("The isolated PostgreSQL historian is not configured.");
+            if (!Workspace.Tags.TryGet(tagId, out var tag) || tag is null)
+                throw new InvalidOperationException("The synthetic TAG is not part of this test workspace.");
+            var sample = new TagValue(tagId, value, timestamp, TagQuality.Good, "intelligence-ui-853")
+            {
+                SourceTimestamp = timestamp,
+                SourceTimestampEvidenceState = TimestampEvidenceState.Synchronized
+            };
+            await _eventBus.PublishAsync(new TagValueChanged(tag, null, sample, timestamp));
+        }
+
+        public async Task WaitForSyntheticSamplesAsync(int expected)
+        {
+            if (_databaseHistorian is null)
+                throw new InvalidOperationException("The isolated PostgreSQL historian is not configured.");
+            var deadline = DateTimeOffset.UtcNow.AddSeconds(15);
+            while (_databaseHistorian.WrittenSamples < expected && DateTimeOffset.UtcNow < deadline)
+            {
+                if (_databaseHistorian.LastWriteError is { } error)
+                    throw new InvalidOperationException("Synthetic Historian writes failed.", error);
+                await Task.Delay(50);
+            }
+            Assert.Equal(expected, _databaseHistorian.WrittenSamples);
+            Assert.Equal(0, _databaseHistorian.DroppedSamples);
+            Assert.Null(_databaseHistorian.LastWriteError);
         }
 
         public async ValueTask DisposeAsync()
@@ -884,8 +1153,21 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             Client.Dispose();
             await _app.StopAsync();
             await _app.DisposeAsync();
+            if (_databaseHistorian is not null)
+                await _databaseHistorian.DisposeAsync();
             if (Runtime is IAsyncDisposable asyncDisposable)
                 await asyncDisposable.DisposeAsync();
+        }
+
+        private sealed class TimescaleHistorianV2TestAdapter(TimescaleHistoricalQueryProvider provider)
+            : IHistoricalDatasetProvider
+        {
+            public string Dataset => HistoricalDatasets.HistorianSamplesV2;
+
+            public Task<HistoricalProviderPage> QueryAsync(
+                HistoricalQueryExecution query,
+                CancellationToken cancellationToken = default) =>
+                provider.QueryVersion2Async(query, cancellationToken);
         }
 
         public sealed class RecordingHistoricalQueryService : IHistoricalQueryService
@@ -1038,19 +1320,45 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public RunEntitlementDecision EvaluateRun(int projectTagCount) => ProductEntitlementEvaluator.Evaluate(verification, projectTagCount);
     }
 
-    private sealed class TestRuntimeCoordinator(string projectKey, long revision) : IEngineeringRuntimeCoordinator
+    private sealed class TestRuntimeCoordinator : IEngineeringRuntimeCoordinator
     {
-        private RuntimeDescriptor _descriptor = new(projectKey, revision, DateTimeOffset.UtcNow, [], [], 0, 0);
+        private readonly List<TagDefinition> _tags;
+        private RuntimeDescriptor _descriptor;
+
+        public TestRuntimeCoordinator(
+            string projectKey,
+            long revision,
+            IEnumerable<TagDefinition>? tags = null)
+        {
+            _tags = tags?.ToList() ?? [];
+            _descriptor = new RuntimeDescriptor(
+                projectKey,
+                revision,
+                DateTimeOffset.UtcNow,
+                [],
+                [],
+                _tags.Count,
+                0);
+        }
+
         public int ProcessWriteCalls { get; private set; }
         public RuntimeDescriptor Describe() => _descriptor;
-        public IReadOnlyCollection<TagDefinition> Tags() => [];
+        public IReadOnlyCollection<TagDefinition> Tags() => _tags.ToArray();
         public IReadOnlyCollection<TagValue> CurrentValues() => [];
         public IReadOnlyCollection<AlarmDefinition> AlarmDefinitions() => [];
         public IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false) => [];
         public IReadOnlyCollection<CommandDefinition> Commands() => [];
         public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() => [];
-        public bool TryGetTag(Guid tagId, out TagDefinition? tag) { tag = null; return false; }
-        public bool TryGetTagByPath(string path, out TagDefinition? tag) { tag = null; return false; }
+        public bool TryGetTag(Guid tagId, out TagDefinition? tag)
+        {
+            tag = _tags.SingleOrDefault(candidate => candidate.Id == tagId);
+            return tag is not null;
+        }
+        public bool TryGetTagByPath(string path, out TagDefinition? tag)
+        {
+            tag = _tags.SingleOrDefault(candidate => string.Equals(candidate.Path, path, StringComparison.OrdinalIgnoreCase));
+            return tag is not null;
+        }
         public bool TryGetCurrent(Guid tagId, out TagValue? value) { value = null; return false; }
         public bool TryGetCommand(Guid commandId, out CommandDefinition? command) { command = null; return false; }
         public bool IsServerMemoryTag(Guid tagId) => false;
@@ -1060,8 +1368,34 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         public ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default) { ProcessWriteCalls++; return ValueTask.CompletedTask; }
         public ValueTask ResetServerMemoryRetainedValueAsync(Guid tagId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
-        public Task<RuntimeActivationResult> ActivateAsync(string projectKey, long revision, EngineeringPackage package, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<RuntimeActivationResult> ActivateAsync(string projectKey, long revision, EngineeringPackage package, Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<RuntimeActivationResult> ActivateAsync(
+            string projectKey,
+            long revision,
+            EngineeringPackage package,
+            CancellationToken cancellationToken = default) =>
+            ActivateAsync(projectKey, revision, package, (_, _) => Task.CompletedTask, cancellationToken);
+
+        public async Task<RuntimeActivationResult> ActivateAsync(
+            string projectKey,
+            long revision,
+            EngineeringPackage package,
+            Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(package);
+            ArgumentNullException.ThrowIfNull(commitAsync);
+            cancellationToken.ThrowIfCancellationRequested();
+            var activatedAtUtc = DateTimeOffset.UtcNow;
+            await commitAsync(new RuntimeActivationCommitContext(projectKey, revision, activatedAtUtc), cancellationToken);
+            _descriptor = new RuntimeDescriptor(projectKey, revision, activatedAtUtc, [], [], _tags.Count, 0);
+            return new RuntimeActivationResult(
+                projectKey,
+                revision,
+                true,
+                Array.Empty<EngineeringDriverIssue>(),
+                Array.Empty<RuntimeActivationIssue>(),
+                activatedAtUtc);
+        }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

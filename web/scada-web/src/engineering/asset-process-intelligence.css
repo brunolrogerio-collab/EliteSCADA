@@ -1,3 +1,12 @@
+.asset-process-intelligence {
+  --text: var(--eng-text);
+  --text-muted: var(--eng-muted);
+  --border: var(--eng-border);
+  --surface: var(--eng-panel);
+  --surface-subtle: var(--eng-panel-soft);
+  --accent: var(--eng-accent);
+}
+
 .asset-process-intelligence__stage > p,
 .asset-process-intelligence__scope-panel > header p {
   margin: 0.4rem 0 0;
@@ -66,6 +75,37 @@
   gap: 0.8rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border, #cbd5e1);
+}
+
+.asset-process-intelligence__dashboard-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.asset-process-intelligence__dashboard-composer { display: grid; gap: 0.75rem; min-width: 0; }
+.asset-process-intelligence__dashboard-composer h3,
+.asset-process-intelligence__dashboard-composer p { margin: 0; }
+.asset-process-intelligence__dashboard-composer > label:not(.asset-process-intelligence__checkbox) { display: grid; gap: 0.35rem; max-width: 24rem; }
+.asset-process-intelligence__dashboard-composer > button { justify-self: start; }
+
+.asset-process-intelligence__dashboard-form label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__dashboard-form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.asset-process-intelligence__dashboard-next-steps {
+  margin: 0;
+  color: var(--text-muted, #64748b);
+  line-height: 1.5;
 }
 
 .asset-process-intelligence__split {
@@ -225,6 +265,45 @@
   min-width: min(100%, 18rem);
   padding-top: 0.35rem;
 }
+
+.asset-process-intelligence__analysis {
+  padding: 1rem;
+  border: 1px solid var(--eng-border);
+  border-radius: 0.5rem;
+  background: var(--eng-panel-soft);
+  overflow-wrap: anywhere;
+}
+.asset-process-intelligence__analysis > summary { cursor: pointer; font-weight: 600; }
+.asset-process-intelligence__analysis[open] > summary { margin-bottom: 0.8rem; }
+.asset-process-intelligence__analysis p { color: var(--eng-muted); line-height: 1.5; }
+.asset-process-intelligence__analysis .asset-process-intelligence__coverage-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  align-items: end;
+}
+.asset-process-intelligence__analysis form > p,
+.asset-process-intelligence__analysis form > fieldset,
+.asset-process-intelligence__analysis form > div { grid-column: 1 / -1; }
+.asset-process-intelligence__analysis input:not([type="checkbox"]),
+.asset-process-intelligence__analysis select {
+  box-sizing: border-box; width: 100%; min-width: 0;
+  padding: 0.6rem; border: 1px solid var(--eng-border); border-radius: 0.35rem;
+  color: var(--eng-text); background: var(--eng-input-bg, var(--eng-panel)); font: inherit;
+}
+.asset-process-intelligence__analysis button {
+  justify-self: start; padding: 0.6rem 0.85rem; border: 1px solid var(--eng-border);
+  border-radius: 0.35rem; color: var(--eng-text); background: var(--eng-panel); font: inherit; cursor: pointer;
+}
+.asset-process-intelligence__analysis button:disabled { opacity: 0.55; cursor: not-allowed; }
+.asset-process-intelligence__analysis :is(input, select, button, summary):focus-visible { outline: 2px solid var(--eng-accent); outline-offset: 2px; }
+.asset-process-intelligence__analysis fieldset { min-width: 0; padding: 0.8rem; border: 1px solid var(--eng-border); border-radius: 0.35rem; }
+.asset-process-intelligence__analysis fieldset label:has(input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 0.4rem; margin-right: 1rem; }
+.asset-process-intelligence__analysis [role="alert"] { color: var(--eng-danger, #f87171); }
+.asset-process-intelligence__analysis-table { max-width: 100%; overflow-x: auto; margin-top: 1rem; }
+.asset-process-intelligence__analysis-table table { width: 100%; min-width: 36rem; border-collapse: collapse; }
+.asset-process-intelligence__analysis-table :is(th, td) { padding: 0.65rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--eng-border); }
+.asset-process-intelligence__analysis-table th { background: var(--eng-panel); }
+.asset-process-intelligence__analysis-table details { margin-top: 0.4rem; }
 
 .asset-process-intelligence__coverage-body {
   display: grid;
@@ -396,6 +475,13 @@
 }
 
 @media (max-width: 720px) {
+  .eng-body:has(.asset-process-intelligence) .eng-sidebar { min-width: 0; overflow-x: auto; }
+  .asset-process-intelligence .eng-section-header { display: grid; }
+  .asset-process-intelligence .eng-section-header > div:first-child { min-width: 0; }
+  .asset-process-intelligence .eng-section-header p { width: auto; max-width: 100%; white-space: normal; }
+  .asset-process-intelligence__row { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .asset-process-intelligence__row > * { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .asset-process-intelligence__analysis input[type="checkbox"] { width: auto; flex: 0 0 auto; }
   .asset-process-intelligence__scope-panel > header,
   .asset-process-intelligence__row,
   .asset-process-intelligence__footer,
@@ -428,6 +514,10 @@
   }
 
   .asset-process-intelligence__split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .asset-process-intelligence__dashboard-form {
     grid-template-columns: minmax(0, 1fr);
   }
 }

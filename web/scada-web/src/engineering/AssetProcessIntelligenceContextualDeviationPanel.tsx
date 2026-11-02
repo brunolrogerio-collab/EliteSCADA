@@ -10,7 +10,6 @@ import './AssetProcessIntelligenceContextualDeviationPanel.css';
 
 type ResolvedSignal = Readonly<{
   id: string;
-  key: string;
   signalRole: string;
   tag: TagEngineering & { id: string };
   canonicalUnit: string | null;
@@ -59,7 +58,6 @@ export function AssetProcessIntelligenceContextualDeviationPanel({
       ?.units.find(candidate => candidate.code === unitRef.code) : undefined;
     return [{
       id: signal.id,
-      key: signal.key,
       signalRole: signal.signalRole,
       tag,
       canonicalUnit: unit && Number.isFinite(unit.scaleToCanonical) && unit.scaleToCanonical > 0
@@ -160,7 +158,7 @@ export function AssetProcessIntelligenceContextualDeviationPanel({
           {signalOptions.map(signal => <label key={signal.id}>
             <input type="checkbox" checked={targetIds.includes(signal.id)} disabled={!canCreate || (!targetIds.includes(signal.id) && targetIds.length >= 8)}
               onChange={event => toggleTarget(signal.id, event.currentTarget.checked)}/>
-            <span>{signal.key} · {signal.signalRole}<small>{signal.tag.path}{signal.tag.engineeringUnit ? ` · ${signal.tag.engineeringUnit}` : ''}</small></span>
+            <span><strong>{signal.signalRole || signal.tag.path}</strong><small>{signal.tag.path}{signal.tag.engineeringUnit ? ` · ${signal.tag.engineeringUnit}` : ''}</small></span>
           </label>)}
           {signalOptions.length === 0 ? <span>{copy.noNumericSignals}</span> : null}
         </div>
@@ -225,7 +223,7 @@ function ContextRangeEditor({
     <legend>{label}</legend>
     <label>{chooseLabel}<select value={signalId} disabled={disabled} onChange={event => onSignalChange(event.currentTarget.value)}>
       <option value="">—</option>
-      {options.map(signal => <option key={signal.id} value={signal.id}>{signal.key} · {signal.canonicalUnit}</option>)}
+      {options.map(signal => <option key={signal.id} value={signal.id}>{signal.signalRole || signal.tag.path} · {signal.canonicalUnit}</option>)}
     </select></label>
     <label>{lowerLabel} ({selected?.canonicalUnit ?? '—'})<input type="text" inputMode="decimal" value={lower} disabled={disabled || !selected} onChange={event => onLowerChange(event.currentTarget.value)}/></label>
     <label>{upperLabel} ({selected?.canonicalUnit ?? '—'})<input type="text" inputMode="decimal" value={upper} disabled={disabled || !selected} onChange={event => onUpperChange(event.currentTarget.value)}/></label>

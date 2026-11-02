@@ -92,7 +92,12 @@ test('contextual deviation V2 is explicit, chronological, transient and validate
   expect(Date.parse(queries[0].referenceWindow.fromUtc)).toBeLessThan(Date.parse(queries[0].referenceWindow.toUtc));
   expect(Date.parse(queries[0].referenceWindow.toUtc)).toBeLessThan(Date.parse(queries[0].evaluationWindow.fromUtc));
   expect(Date.parse(queries[0].evaluationWindow.fromUtc)).toBeLessThan(Date.parse(queries[0].evaluationWindow.toUtc));
-  await expect(visual.getByRole('heading', { name: 'Motor current' })).toBeVisible();
+  await expect(visual.getByRole('heading', { name: 'Plant.Pump.Current' })).toBeVisible();
+  await expect(visual).not.toContainText('internal-signal-ref');
+  await expect(visual.getByText(/Compares readings with the same synchronized source time/i)).toBeVisible();
+  await expect(visual).not.toContainText('exact source timestamp match');
+  await expect(visual).not.toContainText('contextual-deviation-vector.v2');
+  await expect(visual).not.toContainText('unknown');
   await expect(visual.getByText('Reference median', { exact: true })).toHaveCount(2);
   await expect(visual.getByText(/No combined anomaly/)).toBeVisible();
 
@@ -122,6 +127,7 @@ test('contextual deviation V2 is explicit, chronological, transient and validate
     '2026-10-21T14:00', '2026-10-21T15:00', '2026-10-21T15:01', '2026-10-21T16:01');
   await visual.getByRole('button', { name: 'Analyze' }).click();
   await expect(visual.getByRole('alert')).toContainText('An active Intelligence execution permit is required');
+  await expect(visual.getByRole('alert')).not.toContainText('INTELLIGENCE_EXECUTION_PERMIT_REQUIRED');
   await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toHaveCount(0);
 
   await setWindow(visual, 'Reference from (local time)', 'Reference to (local time)', 'Evaluation from (local time)', 'Evaluation to (local time)',
@@ -184,15 +190,15 @@ function runtimeProjection() {
   };
 }
 
-function signal(signalId: string, signalKey: string) {
+function signal(signalId: string, measurementName: string) {
   return {
-    signalId, signalKey, tagId: `80000000-0000-0000-0000-${signalId.slice(-12)}`,
-    tagPath: `Plant.Pump.${signalKey}`, engineeringUnit: 'A', controlledUnitCode: 'unit.electric_current.ampere', canonicalUnit: 'A'
+    signalId, signalKey: `internal-signal-ref-${signalId.slice(-3)}`, tagId: `80000000-0000-0000-0000-${signalId.slice(-12)}`,
+    tagPath: `Plant.Pump.${measurementName}`, engineeringUnit: 'A', controlledUnitCode: 'unit.electric_current.ampere', canonicalUnit: 'A'
   };
 }
 
 function deviationResponse(body: Record<string, any>) {
-  const targets = body.targetSignalIds.map((id: string, index: number) => signal(id, index === 0 ? 'Motor current' : 'Motor power'));
+  const targets = body.targetSignalIds.map((id: string, index: number) => signal(id, index === 0 ? 'Current' : 'Power'));
   const firstContext = signal(body.firstContextSignalId, 'Motor speed');
   const secondContext = signal(body.secondContextSignalId, 'Discharge pressure');
   return {

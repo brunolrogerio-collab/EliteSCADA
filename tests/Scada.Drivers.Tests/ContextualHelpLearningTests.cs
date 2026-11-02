@@ -13,6 +13,24 @@ namespace Scada.Drivers.Tests;
 
 public sealed class ContextualHelpLearningTests
 {
+    [Theory]
+    [InlineData("pt-BR", "Gerar painel para o Runtime", "Gerar rascunho do painel")]
+    [InlineData("en", "Create a Runtime dashboard", "Generate dashboard draft")]
+    [InlineData("es", "Crear un panel para Runtime", "Generar borrador del panel")]
+    public void IntelligenceDashboardGuideExplainsTheVisibleGeneratorAndItsUnsavedDraft(string locale, string sectionLabel, string actionLabel)
+    {
+        var topic = ContextualHelpCatalog.Build(locale).Topics.Single(item => item.Id == "intelligence.dashboard-workflow");
+        var fullText = string.Join("\n", topic.Sections.Select(section => section.Heading + "\n" + section.Body));
+
+        Assert.Contains(sectionLabel, fullText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(actionLabel, fullText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Historian", fullText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(locale switch { "pt-BR" => "não foi salva", "en" => "has not been saved", _ => "todavía no está guardada" },
+            fullText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(locale switch { "pt-BR" => "licença", "en" => "license", _ => "licencia" },
+            fullText, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void RuntimeStationGuideExplainsCurrentWorkflowAndLimitationsInEveryLocale()
     {

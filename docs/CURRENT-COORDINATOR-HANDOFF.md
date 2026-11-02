@@ -1,5 +1,15 @@
 # Current coordinator pointer - Wave 15
 
+## Ponto de retomada atual — Intelligence #791 / #853 — 01/11/2026
+
+Frente ativa: auditoria e interface de Intelligence. PR #852 continua draft; #854 contém sua cadeia e as consultas de referência/contexto/desvio conjunto. Último CI aprovado: T1 `41315209090`, head `c9b7b31c`; HA-D2 e HA dois processos ignorados.
+
+Continuação local: a interface real, API normal e TimescaleDB isolado demonstraram as três consultas com dados sintéticos. Corrigidos textos antigos de Stage 1, motivos ausentes da referência, condições ocultas no resultado de contexto e apresentação desktop/mobile. [Roteiro, resultados e limites](WAVE15-INTELLIGENCE-853-LOCAL-UI-EVIDENCE-2026-11-01.md). Novo head/CI devem ser conferidos no registro vivo da #853; o verde anterior não se transfere ao incremento.
+
+Próximo passo: concluir o CI da candidata, revisar visualmente e integrar a cadeia somente após o aceite registrado. Preview/DEMO e Portal preservados; não iniciar HA-D2. A auditoria #791 e o KPI agregado de processo não estão encerrados.
+
+## Checkpoint anterior — histórico
+
 ## Ponto de retomada atual — #789 supressão operacional de alarmes — 01/11/2026
 
 **Base integrada:** `wave15/corrections-integration@4c8396ed8bb14c5dc5718e2394309f260d88eaf8`, merge do PR #847. A #753 está concluída e fechada após T1 `41222308442` e T2 `41251835189` verdes nos escopos registrados em #305. A sequência autorizada segue #789 → #790 → #791 → #792.

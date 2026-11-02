@@ -38,27 +38,27 @@ Para editar, su cuenta necesita los permisos `EngineeringModify` y `AssetProcess
 
 ## 2. Crear un perfil de medición y una asignación
 
-1. Abra Engineering > Inteligencia de activos y cree un Perfil de medición con un nombre/clave identificables.
-2. Añada los TAGs que describen el equipo. Marque cada señal como obligatoria u opcional y complete los calificadores semánticos solicitados; una etiqueta no sustituye la unidad ni la referencia real del TAG.
+1. Abra Engineering > Inteligencia de activos y cree un Perfil de medición. Asígnele un nombre que ayude a reconocer el conjunto, como “Bomba de transferencia”.
+2. Añada los TAGs que describen el equipo. Para cada TAG, explique qué mide, indique si el análisis lo necesita y complete los detalles de medición solicitados. Compruebe la unidad y la referencia real del TAG.
 3. Guarde la configuración en Working.
-4. En las asignaciones, elija el Equipo existente y el perfil. Una identidad de equipo puede usar varios perfiles.
+4. En las asignaciones, elija el Equipo existente y el perfil. Un equipo puede usar más de un perfil.
 5. Revise las referencias ausentes y duplicadas antes de guardar y seguir el lifecycle normal del proyecto.
 
-El perfil organiza referencias y significado de señales. No crea TAGs, no habilita por sí solo la captura de Historian ni demuestra que los instrumentos estén calibrados.
+El perfil organiza referencias y significado de señales. El sistema crea sus claves internas; no necesita inventar IDs ni códigos. El perfil no crea TAGs, no habilita por sí solo la captura de Historian ni demuestra que los instrumentos estén calibrados.
 
 ## 3. Configurar el contexto operacional
 
 Mayor corriente puede ser esperable si aumenta velocidad o carga. El contexto explicita condiciones, como bomba en marcha y velocidad dentro de un intervalo, para seleccionar evidencia comparable. No aprende automáticamente el modo ni convierte correlación en diagnóstico. Defina límites con conocimiento del equipo.
 
-Elija la asociación del equipo y dé al contexto una clave estable y un nombre que explique la condición, como Bomba encendida con caudal normal. Añada al menos un predicado obligatorio. Un predicado es una condición comprobada en un TAG del perfil asociado.
+Elija la asociación del equipo y dé al contexto un nombre que explique la condición, como “Bomba encendida con caudal normal”. Añada al menos una condición usando un TAG del perfil asociado. El sistema crea la clave interna del contexto.
 
 Para números, el intervalo incluye mínimo y máximo en la unidad actual del TAG. Para booleanos, elija True o False. Para String o Enum, use el valor exacto, incluidas mayúsculas cuando corresponda.
 
-Todas las condiciones necesitan evidencia con el mismo timestamp UTC de origen, sincronizado y exacto. Lecturas solo próximas no bastan. El servidor controla la versión del perfil; ante conflicto de edición, actualice y revise antes de guardar.
+Todas las condiciones deben coincidir con lecturas que tengan exactamente la misma hora UTC de origen. Lecturas solo próximas no bastan. Si otra edición cambia el contexto, actualice la pantalla y revise sus condiciones antes de guardar.
 
 ## 4. Organizar etapas del proceso
 
-Use **Etapas ordenadas del proceso** para montar la secuencia que desea supervisar. Cree cada etapa con una clave estable y un nombre legible; añada las asignaciones de Equipo/perfil y ajuste explícitamente el orden. La etapa organiza miembros, pero no infiere por sí sola causalidad, balance ni un KPI agregado del proceso.
+Use **Etapas ordenadas del proceso** para montar la secuencia que desea supervisar. Dé a cada etapa un nombre legible, añada las asignaciones de Equipo/perfil y ajuste el orden. El sistema crea la clave interna de cada etapa. La etapa organiza miembros, pero no infiere por sí sola causalidad, balance ni un KPI agregado del proceso.
 
 Guarde la configuración en Working. Los datos y análisis de Runtime siguen sujetos a la revisión Active y a las autorizaciones vigentes.
 
@@ -72,18 +72,58 @@ Interprete el resultado junto con cobertura, quality, timestamps y las limitacio
 
 ## 6. Generar borradores de Pantallas
 
-Elija un perfil o etapa y genere una Pantalla disponible. La generación usa metadatos de TAG para crear una Pantalla editable; no consulta valores en vivo ni Historian y no inventa KPIs. Revise el borrador en el editor, ejecute Preview y use Aplicar al Workspace. Después, guarde, publique y active mediante los pasos explícitos del lifecycle. La Pantalla generada no se activa automáticamente.
+Guarde primero los cambios pendientes de la configuración de Intelligence. En la parte superior de la página, localice **Crear un panel para Runtime** y elija un perfil de equipo o una etapa del proceso en **Contenido del panel**. La lista muestra nombres ya registrados; no es necesario escribir IDs. El generador básico necesita al menos un TAG numérico resuelto. Si no puede elegir una fuente, complete el perfil, la asignación o la etapa y compruebe la licencia y los permisos.
+
+Pulse **Generar borrador del panel**. SCADIVO abre una Pantalla normal y editable en el editor canónico, con tarjetas de valores, una tendencia y cobertura organizadas a partir de TAGs existentes. Es un borrador: no consulta valores actuales ni Historian, no inventa KPI ni publica la Pantalla.
+
+En el editor, revise nombres, unidades, dimensiones, vínculos y legibilidad. Use **Preview** y **Aplicar al Workspace**; luego guarde, publique y active la revisión del proyecto, y configure/compruebe la navegación de Runtime. Solo entonces los operadores podrán abrir la Pantalla. Las acciones guiadas especializadas aparecen junto a sus análisis y pueden pedir reglas o intervalos adicionales.
 
 ## 7. Problemas comunes
+
+### Elegir objetos y análisis del panel
+
+Después de elegir la fuente, abra cada medición en **Objetos de medición**. Elija valor numérico, dial semicircular, anillo, barra horizontal, regla vertical, intervalos o valor con meta. La presentación no cambia el TAG ni el cálculo. Los temas de objetos son claro, oscuro o alto contraste.
+
+Los objetos con escala requieren mínimo y máximo reales en la unidad del TAG. Se rellena una escala válida ya registrada; de lo contrario, indique límites reales. Los intervalos necesitan dos límites ordenados dentro de la escala y la meta debe estar dentro de sus límites. Los rangos incompletos o inválidos bloquean la generación. Use Valor numérico si no conoce una escala adecuada.
+
+En **Análisis del panel**, rendimiento y desviación contextual quedan disponibles cuando sus selecciones en la asignación estén completas. Use **Configurar análisis de la asignación** para acceder a los controles existentes. Cada análisis puede incluirse por separado. Las vistas generadas reciben botones de navegación entre Pantallas. Un análisis no disponible no bloquea las otras vistas; lea el motivo antes de cambiar el significado de las señales.
+
+Los paneles generados usan un fondo oscuro propio para conservar el contraste en ambos temas del sistema. Puede cambiarlo en Fondo, en el editor de Pantallas; compruebe también los colores de textos y valores al elegir otro fondo.
 
 - **Recurso bloqueado:** compruebe licencia, `EngineeringModify`, `AssetProcessIntelligenceManage` y scope.
 - **Perfil/asignación incompletos:** compruebe equipo, perfil, TAGs y calificadores obligatorios.
 - **Sin cobertura/historial:** confirme que el TAG recibía muestras útiles con quality y timestamps y que había captura en el período. Historian no completa datos retroactivamente.
-- **Sin coincidencia de contexto:** revise predicados, unidad, intervalo y la sincronización/igualdad temporal requerida.
+- **Sin coincidencia de contexto:** revise las condiciones, la unidad, el intervalo y si las lecturas tienen la misma hora de origen.
 - **Borrador no disponible:** complete las selecciones requeridas por ese tipo de Pantalla y refine el resultado en el editor normal.
 - **El resultado cambia tras editar:** guarde la configuración correcta, compruebe la revisión Active y solicite explícitamente una consulta nueva.
 
 **Ayuda relacionada:** `/help?topic=historian.overview`, `/help?topic=tags.quality`, `/help?topic=tags.timestamps`, `/help?topic=screens.overview`, `/help?topic=engineering.lifecycle`.
+
+## Revise los datos antes de interpretar
+
+En Ingeniería > Inteligencia de activos, localice la asignación del equipo. En Revisar datos de referencia, elija inicio y fin de un período conocido y pulse Consultar referencia. Las horas son locales y se convierten a UTC. Cada período admite hasta 31 días. Las lecturas aceptadas tienen la evidencia de origen exigida; los rechazos explican por qué se excluyeron otras lecturas. El conteo no demuestra que el equipo estuviera sano.
+
+En Revisar condiciones del contexto, seleccione un contexto guardado por su nombre y consulte el período. SCADIVO usa su versión guardada automáticamente. El resultado indica cuántas lecturas cumplen todas las condiciones en el mismo instante de origen. Cero lecturas compatibles puede indicar condiciones no cumplidas o datos insuficientes; lea la explicación. Publique los cambios y active el equipo antes de consultar.
+
+## Use la desviación conjunta experimental
+
+Abra Desviación conjunta experimental en la asignación. Elija el contexto guardado y de dos a ocho mediciones numéricas; las mediciones que definen las condiciones del contexto se excluyen de los objetivos. Indique el intervalo real de adquisición en segundos, de 1 a 86.400. No invente ese valor: describe la frecuencia esperada de las lecturas. Elija una referencia y un período posterior de evaluación sin superposición, y pulse Calcular desviación conjunta.
+
+El resultado muestra instantes evaluados y en calentamiento. La desviación combina cambios de nivel y de la relación entre señales. Expanda Contribuciones de las mediciones para investigar la participación de cada señal. Los números no tienen unidad física ni diagnostican causas, fallos o vida útil. La función es experimental, validada solo por simulación y sin umbral de alarma validado en campo.
+
+Use Cancelar consulta para interrumpir. Cambiar períodos, contexto, señales o cadencia descarta el resultado anterior; consulte de nuevo. Si no se puede ajustar la referencia, revise datos, calidad, sincronización, contexto y variación de señales antes de ampliar períodos.
+
+## Entienda los conteos y las condiciones
+
+Los análisis se consultan bajo demanda: editar perfiles o activar un alcance no inicia análisis continuo. En la referencia, lea los motivos junto a No disponible. Una señal obligatoria de texto, opción o verdadero/falso no entra en la cohorte numérica obligatoria; los conteos numéricos del perfil se muestran por separado. Un conteo cero de un tipo no consultado no demuestra ausencia de histórico.
+
+En las consultas de contexto, revise primero Condiciones del contexto: lecturas aceptadas y cuántas cumplieron cada condición. Un modo textual puede seleccionar instantes válidos de corriente o caudal. Después revise las mediciones en las condiciones seleccionadas. Estos conteos no demuestran salud ni eficiencia.
+
+## Compare dos períodos y cancele consultas
+
+En las consultas de referencia y condiciones del contexto, marque Comparar con otro período para revisar evidencia en dos ventanas. Indique inicio y fin de la comparación. Cada ventana admite hasta 31 días, y la comparación debe comenzar estrictamente después del fin de referencia: no use el mismo instante en ambos límites. La consulta permanece deshabilitada con campos vacíos, fechas invertidas o superposición.
+
+Consulte y lea los conteos de cada período. Comparar conteos no es, por sí solo, un indicador de eficiencia. Desmarcar la comparación o cambiar cualquier límite elimina el resultado anterior. Durante la lectura, use Cancelar consulta: una respuesta tardía no debe reaparecer. Para consultar de nuevo, revise los parámetros y pulse el botón de consulta.
 
 <!-- installed-system-guides -->
 
@@ -193,12 +233,11 @@ Compruebe qué configuración usa antes de copiar límites. La unidad y la inclu
 
 ### Genere pantalla y compruebe la cadena completa
 
-1. Elija la asociación del equipo o la etapa del proceso y el tipo de pantalla.
-2. Complete señales y opciones solicitadas. Si el botón está bloqueado, lea el motivo junto al campo.
-3. Genere el borrador. Organiza objetos y referencias; todavía no lee Historian ni activa la pantalla.
-4. En el editor, compruebe título, dimensiones, objetos, vínculos y apertura. Ejecute Vista previa y Aplicar para llevar la edición al proyecto.
-5. Guarde la revisión, publique y active. Abra la pantalla en Runtime mediante la navegación configurada.
-6. En el objeto de análisis, configure período y solicite la consulta. Compruebe ventana y resultado. Una pantalla de etapa reúne equipos; no crea un indicador agregado ni demuestra que un equipo causó el resultado de otro.
+1. Guarde la configuración actual. En Crear un panel para Runtime, elija un perfil de equipo o una etapa del proceso en Contenido del panel.
+2. Seleccione Generar borrador del panel. El botón queda deshabilitado si la configuración sigue sin guardar, falta licencia o permiso, o la fuente no tiene un TAG numérico válido.
+3. En el editor de Pantallas, compruebe título, dimensiones, objetos, vínculos y legibilidad. Ejecute Preview y Aplicar al Workspace para llevar la edición al proyecto.
+4. Guarde, publique y active la revisión. Configure o compruebe la navegación y abra la Pantalla en Runtime.
+5. En el objeto de análisis, configure el período y solicite la consulta. Compruebe la ventana y el resultado. Una Pantalla de etapa agrupa sus equipos; no crea un indicador agregado ni demuestra que un equipo causó el resultado de otro.
 
 ### Cómo investigar resultado vacío
 

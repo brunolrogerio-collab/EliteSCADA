@@ -10,6 +10,184 @@ const secondContextSignalId = '15000000-0000-0000-0000-000000000214';
 const firstContextTagId = '15000000-0000-0000-0000-000000000105';
 const secondContextTagId = '15000000-0000-0000-0000-000000000106';
 
+for (const mode of ['reference', 'context'] as const) {
+  test(`${mode} comparison rejects overlapping periods and ignores a cancelled late response`, async ({ page }) => {
+    await installWorkspace(page, { operatingContexts: true });
+    let calls = 0;
+    let completed = 0;
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const endpoint = mode === 'reference' ? 'reference-evidence' : 'context-eligibility';
+    await page.route(`**/api/engineering/asset-process-intelligence/analytics/${endpoint}/v1/query`, async route => {
+      calls++;
+      const request = route.request().postDataJSON();
+      const evidence = { rawObservationCount: 15, acceptedSynchronizedCount: 12, rejectedObservationCount: 3,
+        acceptedSynchronizedUniqueCount: 12, contextEligibleObservationCount: 8, status: 'context_match_available' };
+      const payload = { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: 4,
+        scopeId: equipmentId, profileId, assignmentId, measurementProfileId: profileId,
+        operatingContextProfileId: request.operatingContextProfileId, profileVersion: 3,
+        referenceWindow: request.referenceWindow, comparisonWindow: request.comparisonWindow,
+        referenceCohort: { completeRequiredNumericCohortCount: 12 },
+        comparisonCohort: request.comparisonWindow ? { completeRequiredNumericCohortCount: 12 } : null,
+        predicates: [{ tagId: speedTagId, referenceAcceptedCount: 12, referenceMatchCount: 8, comparisonAcceptedCount: 12, comparisonMatchCount: 8, status: 'context_match_available' }],
+        signals: [{ signalId: firstContextSignalId, tagId: firstContextTagId, tagPath: 'Pump.Current', unit: 'A', engineeringUnit: 'A',
+          required: true, reference: evidence, comparison: request.comparisonWindow ? evidence : null }] };
+      if (calls === 2) await gate;
+      await route.fulfill({ json: payload }).catch(() => {});
+      completed++;
+    });
+    await openIntelligence(page);
+    const panel = page.getByTestId(mode === 'reference' ? `intelligence-reference-evidence-${profileId}` : `intelligence-context-eligibility-${assignmentId}`);
+    await panel.locator('summary').click();
+    if (mode === 'context') await panel.getByLabel('Contexto salvo').selectOption({ label: 'Bomba em operação' });
+    await panel.getByLabel(mode === 'reference' ? 'Início da referência (horário local)' : 'Início do período (horário local)').fill('2026-10-20T10:00');
+    await panel.getByLabel(mode === 'reference' ? 'Fim da referência (horário local)' : 'Fim do período (horário local)').fill('2026-10-21T10:00');
+    const submit = panel.getByRole('button', { name: mode === 'reference' ? 'Consultar referência' : 'Consultar condições', exact: true });
+    await panel.getByLabel('Comparar com outro período').check();
+    await expect(submit).toBeDisabled();
+    await panel.getByLabel('Início da comparação (horário local)').fill('2026-10-21T09:00');
+    await panel.getByLabel('Fim da comparação (horário local)').fill('2026-10-22T10:00');
+    await expect(submit).toBeDisabled();
+    expect(calls).toBe(0);
+    await panel.getByLabel('Início da comparação (horário local)').fill('2026-10-21T10:00');
+    await expect(submit).toBeDisabled();
+    await panel.getByLabel('Início da comparação (horário local)').fill('2026-10-21T10:01');
+    await submit.click();
+    const result = panel.getByTestId(mode === 'reference' ? 'intelligence-reference-evidence-result' : 'intelligence-context-eligibility-result');
+    await expect(result).toContainText('Comparação');
+    await panel.getByLabel('Comparar com outro período').uncheck();
+    await expect(result).toHaveCount(0);
+    expect(calls).toBe(1);
+    await submit.click();
+    await expect.poll(() => calls).toBe(2);
+    await panel.getByRole('button', { name: 'Cancelar consulta' }).click();
+    release?.();
+    await expect.poll(() => completed).toBe(2);
+    await expect(result).toHaveCount(0);
+    await expect(submit).toBeEnabled();
+  });
+}
+
+test('joint deviation selects named signals and rejects an unexpected decision threshold', async ({ page }) => {
+  await installWorkspace(page, { jointReady: true });
+  let calls = 0;
+  let invalidThreshold = false;
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/experimental-joint-deviation/v1/query', async route => {
+    calls++;
+    const request = route.request().postDataJSON();
+    expect(request).toMatchObject({ scopeKind: 0, scopeId: equipmentId, assignmentId, expectedProfileVersion: 3, expectedCadenceSeconds: 60 });
+    expect(request.targetSignalIds).toHaveLength(2);
+    await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: 4,
+      scopeId: equipmentId, assignmentId, measurementProfileId: profileId,
+      operatingContextProfileId: request.operatingContextProfileId, operatingContextProfileVersion: 3,
+      expectedCadenceSeconds: 60, validationStatus: 'experimental_not_field_validated', classificationStatus: 'none',
+      decisionThreshold: invalidThreshold ? 1 : null, referenceWindow: request.referenceWindow, evaluationWindow: request.evaluationWindow,
+      referenceFitStatus: 'available', referenceCompleteCohortCount: 120, evaluationScoredCohortCount: 1,
+      evaluationWarmupCohortCount: 24, omittedEvaluationScores: 0,
+      targetSignals: request.targetSignalIds.map((signalId: string) => ({ signalId })),
+      scores: [{ sourceTimestampUtc: request.evaluationWindow.fromUtc, score: 2, levelComponent: 1, relationshipComponent: 1,
+        crossSignalInteraction: 0, targetContributions: request.targetSignalIds.map((signalId: string) => ({ signalId, level: 0.5, marginalVariance: 0.5 })) }] } });
+  });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-joint-deviation-${assignmentId}`);
+  await panel.getByText('Desvio conjunto experimental', { exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Calcular desvio conjunto' })).toBeDisabled();
+  await panel.getByLabel('Contexto salvo').selectOption({ label: 'Bomba em operação' });
+  await panel.getByLabel('Corrente', { exact: true }).check();
+  await panel.getByLabel('Velocidade', { exact: true }).check();
+  await panel.getByLabel('Intervalo esperado entre leituras (segundos)').fill('60');
+  await panel.getByLabel('Início da referência', { exact: true }).fill('2026-10-19T10:00');
+  await panel.getByLabel('Fim da referência', { exact: true }).fill('2026-10-20T10:00');
+  await panel.getByLabel('Início da avaliação', { exact: true }).fill('2026-10-20T10:00');
+  await panel.getByLabel('Fim da avaliação', { exact: true }).fill('2026-10-21T10:00');
+  await expect(panel.getByRole('button', { name: 'Calcular desvio conjunto' })).toBeDisabled();
+  await panel.getByLabel('Início da avaliação', { exact: true }).fill('2026-10-20T10:01');
+  expect(calls).toBe(0);
+  await panel.getByRole('button', { name: 'Calcular desvio conjunto' }).click();
+  await expect(panel.getByTestId('intelligence-joint-deviation-result')).toContainText('Referência ajustada para esta consulta');
+  await expect(panel.getByRole('table')).toContainText('Componente de relação');
+  await panel.getByLabel('Fim da avaliação', { exact: true }).fill('2026-10-21T11:00');
+  await expect(panel.getByTestId('intelligence-joint-deviation-result')).toHaveCount(0);
+  invalidThreshold = true;
+  await panel.getByRole('button', { name: 'Calcular desvio conjunto' }).click();
+  await expect(panel.getByRole('alert')).toBeVisible();
+  await expect(panel.getByTestId('intelligence-joint-deviation-result')).toHaveCount(0);
+});
+
+test('context eligibility uses the saved version, explains mismatches and discards stale responses', async ({ page }) => {
+  await installWorkspace(page, { operatingContexts: true });
+  let calls = 0;
+  let stale = false;
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/query', async route => {
+    calls++;
+    const request = route.request().postDataJSON();
+    expect(request).toMatchObject({ scopeKind: 0, scopeId: equipmentId, assignmentId,
+      operatingContextProfileId: '15000000-0000-0000-0000-000000000401', expectedProfileVersion: 3 });
+    await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: 4,
+      assignmentId, measurementProfileId: profileId, operatingContextProfileId: request.operatingContextProfileId,
+      profileVersion: stale ? 2 : 3, referenceWindow: request.referenceWindow,
+      predicates: [{ tagId: speedTagId, referenceAcceptedCount: 12, referenceMatchCount: 0, comparisonAcceptedCount: null, comparisonMatchCount: null, status: 'predicate_mismatch' }],
+      signals: [{ signalId: firstContextSignalId, tagId: firstContextTagId, tagPath: 'Planta.Bomba01.Corrente', engineeringUnit: 'A',
+        reference: { rawObservationCount: 15, acceptedSynchronizedUniqueCount: 12, contextEligibleObservationCount: 0,
+          status: 'predicate_mismatch', rejectionCounts: {} } }] } });
+  });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-context-eligibility-${assignmentId}`);
+  await panel.getByText('Conferir condições do contexto', { exact: true }).click();
+  await panel.getByLabel('Contexto salvo').selectOption({ label: 'Bomba em operação' });
+  await panel.getByLabel('Início do período (horário local)').fill('2026-10-20T10:00');
+  await panel.getByLabel('Fim do período (horário local)').fill('2026-10-21T10:00');
+  expect(calls).toBe(0);
+  await panel.getByRole('button', { name: 'Consultar condições', exact: true }).click();
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toContainText('As condições selecionadas não foram atendidas');
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toContainText('15 / 12 / 0');
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toContainText('Leituras aceitas / que atendem à condição: 12 / 0');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await panel.getByLabel('Início do período (horário local)').fill('2026-10-20T11:00');
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toHaveCount(0);
+  stale = true;
+  await panel.getByRole('button', { name: 'Consultar condições', exact: true }).click();
+  await expect(panel.getByRole('alert')).toBeVisible();
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toHaveCount(0);
+  expect(calls).toBe(2);
+});
+
+test('reference evidence queries explicitly, clears changed periods and rejects another revision', async ({ page }) => {
+  await installWorkspace(page);
+  let requests = 0;
+  let revision = 4;
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/reference-evidence/v1/query', async route => {
+    requests++;
+    const request = route.request().postDataJSON();
+    expect(request).toMatchObject({ scopeKind: 0, scopeId: equipmentId, profileId });
+    await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: revision,
+      scopeId: equipmentId, profileId, referenceWindow: request.referenceWindow,
+      referenceCohort: { completeRequiredNumericCohortCount: null, completeSelectedNumericCohortCount: 12,
+        requiredReasons: ['required_signal_unsupported_non_numeric_tag_type'] },
+      signals: [{ signalId: firstContextSignalId, tagPath: 'Pump.Current', unit: 'A', required: true,
+        reference: { rawObservationCount: 15, acceptedSynchronizedCount: 12, rejectedObservationCount: 3 } }] } });
+  });
+  await openIntelligence(page);
+  const panel = page.getByTestId(`intelligence-reference-evidence-${profileId}`);
+  await panel.getByText('Conferir dados da referência', { exact: true }).click();
+  expect(requests).toBe(0);
+  await panel.getByLabel('Início da referência (horário local)').fill('2026-10-20T10:00');
+  await panel.getByLabel('Fim da referência (horário local)').fill('2026-10-21T10:00');
+  await panel.getByRole('button', { name: 'Consultar referência', exact: true }).click();
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toContainText('15 / 12 / 3');
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toContainText('Um sinal obrigatório não é numérico');
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toContainText('Leituras simultâneas dos sinais numéricos do perfil: 12');
+  expect(requests).toBe(1);
+  await panel.getByLabel('Início da referência (horário local)').fill('2026-10-20T11:00');
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toHaveCount(0);
+  expect(requests).toBe(1);
+  revision = 5;
+  await panel.getByRole('button', { name: 'Consultar referência', exact: true }).click();
+  await expect(panel.getByRole('alert')).toBeVisible();
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toHaveCount(0);
+});
+
 test('profile coverage runs only on explicit request and renders canonical quality, alignment and provenance', async ({ page }) => {
   const fixture = await installWorkspace(page);
   await openIntelligence(page);
@@ -33,11 +211,11 @@ test('profile coverage runs only on explicit request and renders canonical quali
   expect(Date.parse(fixture.requests[0].window.toUtc) - Date.parse(fixture.requests[0].window.fromUtc)).toBe(25 * 60 * 60 * 1000);
   await expect(panel.getByText(/Sobreposição de timestamps exatos do Historian observada/)).toBeVisible();
   await expect(panel.getByRole('heading', { name: 'Corrente · obrigatório' })).toBeVisible();
-  const qualityCounts = panel.getByText('Good: 2 · Uncertain: 1');
+  const qualityCounts = panel.getByText('Boa: 2 · Incerta: 1');
   await expect(qualityCounts).toHaveCount(2);
   await expect(qualityCounts.first()).toBeVisible();
-  await expect(panel.getByText('não comprova sincronização da aquisição de origem')).toBeVisible();
-  await expect(panel.getByText('unsupported_without_a_canonical_semantic_and_unit-dimension-contract')).toBeVisible();
+  await expect(panel.getByText('não comprovam que os sensores mediram no mesmo instante')).toBeVisible();
+  await expect(panel.getByText(/não existe uma definição validada para combinar esses sinais em um KPI/)).toBeVisible();
   await expect.poll(() => fixture.dataReads).toEqual([]);
   expect(fixture.otherWrites).toEqual([]);
 
@@ -72,9 +250,9 @@ test('Performance V1B runs only on explicit request and binds its transient resu
   });
   expect(Date.parse(fixture.performanceRequests[0].window.fromUtc)).toBeLessThan(Date.parse(fixture.performanceRequests[0].window.toUtc));
   expect(Date.parse(fixture.performanceRequests[0].window.toUtc) - Date.parse(fixture.performanceRequests[0].window.fromUtc)).toBe(25 * 60 * 60 * 1000);
-  await expect(panel.getByText('equipment.active_input_power · W')).toBeVisible();
-  await expect(panel.getByText('process.net_good_production_volume_rate · m³/s')).toBeVisible();
-  await expect(panel.getByText(/não comprova eficiência em campo/)).toBeVisible();
+  await expect(panel.getByText('Potência ativa de entrada')).toBeVisible();
+  await expect(panel.getByText('Volume de produção aprovada por tempo')).toBeVisible();
+  await expect(panel.getByText(/não um diagnóstico nem uma eficiência validada em campo/)).toBeVisible();
   expect(fixture.dataReads).toEqual([]);
   expect(fixture.otherWrites).toEqual([]);
 
@@ -260,7 +438,7 @@ test('Performance V1B clears prior output and reports a bounded server-query err
   await panel.getByLabel('De (horário local)').fill('2026-10-20T10:00');
   await panel.getByLabel('Até (horário local)').fill('2026-10-21T11:00');
   await panel.getByRole('button', { name: 'Analisar desempenho' }).click();
-  await expect(panel.getByRole('alert')).toContainText('INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE');
+  await expect(panel.getByRole('alert')).toContainText('Há registros demais nesse período para uma análise. Escolha um intervalo menor.');
   await expect(panel.getByTestId('intelligence-performance-result')).toHaveCount(0);
   expect(fixture.performanceRequests).toHaveLength(1);
 });
@@ -292,7 +470,8 @@ test('profile coverage preserves unsupported and insufficient signal states with
   await expect(panel.getByText('Dados de sinais obrigatórios insuficientes')).toBeVisible();
   await expect(panel.getByText('Tipo de TAG não numérico não suportado')).toBeVisible();
   await expect(panel.getByText('Sem amostras numéricas Good')).toBeVisible();
-  await expect(panel.getByText('desconhecido', { exact: true })).toHaveCount(4);
+  await expect(panel.getByText('Não informado', { exact: true }).first()).toBeVisible();
+  await expect(panel).not.toContainText('desconhecido');
   expect(fixture.requests).toHaveLength(1);
 });
 
@@ -331,7 +510,7 @@ test('profile coverage rejects invalid window locally and presents bounded-query
   await panel.getByLabel('De (horário local)').fill('2026-10-20T10:00');
   await panel.getByLabel('Até (horário local)').fill('2026-10-21T11:00');
   await panel.getByRole('button', { name: 'Analisar cobertura' }).click();
-  await expect(panel.getByRole('alert')).toContainText('INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE');
+  await expect(panel.getByRole('alert')).toContainText('O período tem amostras demais para uma única análise. Escolha um intervalo menor.');
   expect(fixture.requests).toHaveLength(1);
   await expect(panel.getByTestId('intelligence-profile-coverage-result')).toHaveCount(0);
 });
@@ -359,6 +538,8 @@ async function installWorkspace(page: Page, options: {
   unsupportedPerformanceUnit?: boolean;
   mismatchedPumpFlowUnitPair?: boolean;
   performanceFailCode?: string;
+  operatingContexts?: boolean;
+  jointReady?: boolean;
 } = {}) {
   const requests: Array<Record<string, any>> = [];
   const performanceCatalogRequests: string[] = [];
@@ -389,7 +570,7 @@ async function installWorkspace(page: Page, options: {
     id: profileId,
     key: 'pump-drive',
     name: 'Perfil da bomba',
-    signals: performanceSignals
+    signals: [...performanceSignals, ...(options.jointReady ? [{ id: firstContextSignalId, key: 'Temperatura', signalRole: 'processo', tagId: firstContextTagId, required: true }] : [])]
   };
   const tags = [
     { id: currentTagId,
@@ -406,6 +587,7 @@ async function installWorkspace(page: Page, options: {
       controlledEngineeringUnit: options.pumpPerformanceReady
         ? { catalogVersion: 2, code: 'unit.pressure.pascal' }
         : { catalogVersion: 2, code: 'unit.volumetric_flow.cubic_metre_per_second' } },
+    ...(options.jointReady ? [{ id: firstContextTagId, name: 'Temperatura', path: 'Planta.Bomba01.Temperatura', dataType: 'Double', engineeringUnit: '°C', readOnly: true }] : []),
     ...(options.duplicatePerformanceRole ? [{ id: '15000000-0000-0000-0000-000000000103', name: 'Potência duplicada', path: 'Planta.Bomba01.Potencia2', dataType: 'Double', engineeringUnit: 'W', readOnly: true,
       controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.power.watt' } }] : []),
     ...(options.guidedDashboardReady ? [
@@ -484,7 +666,10 @@ async function installWorkspace(page: Page, options: {
       configuration: {
         version: 2,
         scopes: [{ kind: 'Equipment', scopeId: equipmentId, active: options.active !== false, executionArmed: options.armed !== false }],
-        profiles: [profile], assignments: [{ id: assignmentId, equipmentId, profileId }], processStages: [], operatingContextProfiles: []
+        profiles: [profile], assignments: [{ id: assignmentId, equipmentId, profileId }], processStages: [],
+        operatingContextProfiles: options.operatingContexts || options.jointReady ? [{ id: '15000000-0000-0000-0000-000000000401',
+          key: 'running', displayLabel: 'Bomba em operação', assignmentId, version: 3,
+          predicates: [{ tagId: options.jointReady ? firstContextTagId : speedTagId, kind: 'NumericInterval', minimum: 1000, maximum: 1800 }] }] : []
       },
       resources: [{ kind: 'Equipment', scopeId: equipmentId, path: 'Planta.Bomba01', name: 'Bomba P-101' }],
       tags, licensed: options.licensed !== false,

@@ -6,7 +6,8 @@ const assignmentId = '15000000-0000-0000-0000-000000000203';
 const tagId = '15000000-0000-0000-0000-000000000101';
 const stageId = '15000000-0000-0000-0000-000000000204';
 
-test('Intelligence opens a generated screen in the canonical editor without persisting the draft', async ({ page }) => {
+test('Intelligence generates visible equipment and process dashboards in the canonical editor without persisting drafts', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   await page.addInitScript(() => window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
   const writes: string[] = [];
   const dataReads: string[] = [];
@@ -86,18 +87,50 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   page.on('websocket', socket => {
     if (new URL(socket.url()).pathname === '/ws/tags') dataReads.push('WS /ws/tags');
   });
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+
+  const openIntelligence = async () => {
+    await page.goto('/engineering');
+    await expect(page.getByTestId('engineering-lock-management')).toBeVisible();
+    const intelligenceNavigation = page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ });
+    await expect(intelligenceNavigation).toBeEnabled();
+    const scopesResponse = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname === '/api/engineering/asset-process-intelligence/scopes' && response.request().method() === 'GET';
+    });
+    await intelligenceNavigation.click();
+    expect((await scopesResponse).status()).toBe(200);
+    await expect(page.getByTestId('intelligence-stage2-authoring')).toBeVisible();
+  };
+
+  await openIntelligence();
   const intelligence = page.getByTestId('intelligence-stage2-authoring');
-  const generate = intelligence.getByTestId(`intelligence-dashboard-assignment-${assignmentId}`);
+  const dashboardGenerator = page.getByTestId('intelligence-dashboard-generator');
+  await expect(dashboardGenerator).toBeVisible();
+  const generate = dashboardGenerator.getByTestId('intelligence-dashboard-generate');
   await expect(generate).toBeDisabled();
 
+  const profileName = intelligence.getByRole('region', { name: 'Perfis reutilizáveis' }).getByLabel('Nome de exibição');
+  await profileName.fill('Pump process profile - unsaved');
+  await expect(dashboardGenerator.getByRole('status')).toContainText('Salve a configuração atual da Intelligence');
+  await expect(generate).toBeDisabled();
+  await profileName.fill('Pump process profile');
+
   intelligenceLicensed = true;
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
-  const licensedIntelligence = page.getByTestId('intelligence-stage2-authoring');
-  const licensedGenerate = licensedIntelligence.getByTestId(`intelligence-dashboard-assignment-${assignmentId}`);
+  await openIntelligence();
+  const licensedGenerator = page.getByTestId('intelligence-dashboard-generator');
+  const licensedGenerate = licensedGenerator.getByTestId('intelligence-dashboard-generate');
+  await expect(licensedGenerate).toBeDisabled();
+  await licensedGenerator.getByTestId('intelligence-dashboard-source').selectOption({
+    label: 'Perfil de equipamento · Pump P-101 · Pump process profile'
+  });
   await expect(licensedGenerate).toBeEnabled();
+  await licensedGenerator.locator('details').filter({ hasText: 'Discharge flow' }).locator('summary').click();
+  await licensedGenerator.getByLabel('Objeto · Discharge flow', { exact: true }).selectOption('measurementDial');
+  await expect(licensedGenerate).toBeDisabled();
+  await licensedGenerator.getByLabel('Mínimo · Discharge flow', { exact: true }).fill('0');
+  await licensedGenerator.getByLabel('Máximo · Discharge flow', { exact: true }).fill('100');
+  await expect(licensedGenerate).toBeEnabled();
+  await licensedGenerator.screenshot({ path: testInfo.outputPath('intelligence-dashboard-generator.png') });
   await licensedGenerate.click();
 
   await expect(page).toHaveURL(/\/engineering\/screens$/);
@@ -108,12 +141,25 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(editor.locator('.visual-editor-header-status')).toContainText('7 objetos');
   await expect(editor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(editor.getByTestId('runtime-intelligence-profile-coverage')).toBeVisible();
+  await expect(editor.locator('[data-widget-type="core.measurementDial"]')).toBeVisible();
   await expect(editor.getByTestId('visual-editor-preview')).toBeEnabled();
   await expect(editor.getByTestId('visual-editor-apply')).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath('intelligence-equipment-dashboard-draft.png'), fullPage: true });
   expect(coverageQueries).toEqual([]);
 
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  await openIntelligence();
+  const processDashboardGenerator = page.getByTestId('intelligence-dashboard-generator');
+  await processDashboardGenerator.getByTestId('intelligence-dashboard-source').selectOption({
+    label: 'Etapa do processo · Pumping train'
+  });
+  await processDashboardGenerator.getByTestId('intelligence-dashboard-generate').click();
+  await expect(page).toHaveURL(/\/engineering\/screens$/);
+  const processDashboardEditor = page.getByTestId('visual-editor-workspace');
+  await expect(processDashboardEditor.getByLabel('Nome de exibição')).toHaveValue(/Pumping train/);
+  await expect(processDashboardEditor.getByTestId('visual-editor-generated-drafts').getByRole('button')).toHaveCount(1);
+  await expect(processDashboardEditor.getByTestId('visual-editor-apply')).toBeDisabled();
+
+  await openIntelligence();
   const coveragePanel = page.getByTestId(`intelligence-profile-coverage-${profileId}`);
   await coveragePanel.getByRole('button', { name: /Revisar cobertura histórica|Review historical coverage|Revisar cobertura histórica/ }).click();
   await coveragePanel.getByTestId(`intelligence-coverage-create-screen-${profileId}`).click();
@@ -124,8 +170,7 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(coverageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(coverageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
 
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  await openIntelligence();
   const stageCoverage = page.getByTestId(`intelligence-stage-coverage-${stageId}`);
   await expect(stageCoverage).toBeEnabled();
   await stageCoverage.click();
@@ -136,8 +181,7 @@ test('Intelligence opens a generated screen in the canonical editor without pers
   await expect(stageCoverageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(stageCoverageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
 
-  await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
+  await openIntelligence();
   const guidedStageDashboard = page.getByTestId(`intelligence-guided-stage-dashboard-${stageId}`);
   await expect(guidedStageDashboard).toBeEnabled();
   await expect(page.getByTestId(`intelligence-process-stage-insights-${stageId}`)).toBeDisabled();

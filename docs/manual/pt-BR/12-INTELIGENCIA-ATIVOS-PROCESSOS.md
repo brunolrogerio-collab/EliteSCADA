@@ -38,27 +38,27 @@ Para editar, sua conta precisa das permissões `EngineeringModify` e `AssetProce
 
 ## 2. Criar perfil de medição e associação
 
-1. Abra Engineering > Inteligência de ativos e crie um Perfil de medição com nome/chave identificáveis.
-2. Adicione os TAGs que descrevem o equipamento. Marque cada sinal como obrigatório ou opcional e complete os qualificadores semânticos pedidos; um rótulo não substitui a unidade nem a referência real do TAG.
+1. Abra Engineering > Inteligência de ativos e crie um Perfil de medição. Dê um nome que ajude a reconhecer o conjunto, como “Bomba de transferência”.
+2. Adicione os TAGs que descrevem o equipamento. Para cada TAG, escreva o que ele mede, marque se é necessário para a análise e complete os detalhes semânticos solicitados. Confira a unidade e a referência real do TAG.
 3. Salve a configuração no Working.
-4. Na seção de associações, escolha o Equipamento existente e o perfil. Uma identidade de equipamento pode usar mais de um perfil.
+4. Na seção de associações, escolha o Equipamento existente e o perfil. Um equipamento pode usar mais de um perfil.
 5. Revise referências ausentes e duplicadas antes de salvar e seguir o lifecycle normal do projeto.
 
-O perfil organiza referências e significado dos sinais. Ele não cria TAGs, não habilita captura Historian por si só e não comprova que os instrumentos estão calibrados.
+O perfil organiza referências e significado dos sinais. As chaves internas são criadas pelo sistema; você não precisa inventar IDs ou códigos. O perfil não cria TAGs, não habilita captura Historian por si só e não comprova que os instrumentos estão calibrados.
 
 ## 3. Configurar contexto operacional
 
 Corrente maior pode ser esperada se velocidade ou carga aumentou. Um contexto operacional explicita condições, como bomba ligada e velocidade em uma faixa definida, para selecionar evidências comparáveis. Ele não aprende automaticamente o modo de operação nem transforma correlação em diagnóstico. Defina limites com conhecimento do equipamento.
 
-Escolha a associação do equipamento e dê ao contexto uma chave estável e um nome que explique a condição, como Bomba ligada em vazão normal. Adicione ao menos um predicado obrigatório. Predicado é uma condição a conferir num TAG do perfil associado.
+Escolha a associação do equipamento e dê ao contexto um nome que explique a condição, como “Bomba ligada em vazão normal”. Adicione ao menos uma condição usando um TAG do perfil associado. A chave interna do contexto é criada pelo sistema.
 
 Para número, o intervalo inclui mínimo e máximo e usa a unidade atual do TAG. Para booleano, escolha True ou False. Para String ou Enum, use o valor exato, incluindo maiúsculas quando aplicável.
 
-Todas as condições precisam ser comprovadas no mesmo timestamp UTC de origem, sincronizado e exato. Leituras apenas próximas no tempo não bastam. O servidor controla a versão do perfil; em conflito de edição, atualize a configuração e revise antes de salvar.
+Todas as condições precisam corresponder a leituras com exatamente o mesmo instante UTC de origem. Leituras apenas próximas no tempo não bastam. Se outra edição alterar o contexto, atualize a tela e revise as condições antes de salvar.
 
 ## 4. Organizar etapas do processo
 
-Use **Etapas ordenadas do processo** para montar a sequência que deseja acompanhar. Crie cada etapa com uma chave estável e um nome legível; adicione as associações de equipamento/perfil e ajuste a ordem explicitamente. A etapa organiza membros, mas não infere por si só causalidade, balanço ou um KPI agregado do processo.
+Use **Etapas ordenadas do processo** para montar a sequência que deseja acompanhar. Dê a cada etapa um nome legível, adicione as associações de equipamento/perfil e ajuste a ordem. A chave interna é criada pelo sistema. A etapa organiza membros, mas não infere por si só causalidade, balanço ou um KPI agregado do processo.
 
 Salve a configuração no Working. Dados e análises de Runtime continuam sujeitos à revisão Active e às autorizações vigentes.
 
@@ -72,18 +72,58 @@ Interprete o resultado junto com a cobertura, quality, timestamps e limitações
 
 ## 6. Gerar rascunhos de telas
 
-Escolha um perfil ou uma etapa e gere a tela disponível. A geração usa metadados dos TAGs para criar uma Screen editável; não consulta valor ao vivo nem Historian e não inventa KPIs. Analise o rascunho no editor, execute Preview e use Apply ao Workspace. Depois, salve, publique e ative pelas etapas explícitas do lifecycle. A tela gerada não é ativada automaticamente.
+Salve primeiro as alterações pendentes da configuração da Intelligence. Na parte superior da página, localize **Gerar painel para o Runtime** e selecione em **Conteúdo do painel** um perfil de equipamento ou uma etapa do processo. A lista mostra os nomes cadastrados; você não precisa digitar IDs. O gerador básico precisa encontrar ao menos um TAG numérico resolvido. Se nada puder ser escolhido, complete o perfil, a associação ou a etapa e confira a licença e as permissões.
+
+Clique em **Gerar rascunho do painel**. O SCADIVO abre uma Tela comum e editável no editor canônico, com cartões de valores, tendência e cobertura construídos a partir dos TAGs existentes. Isso é um rascunho: não consulta valores atuais nem Historian, não inventa KPIs e não publica a Tela.
+
+No editor, confira nomes, unidades, dimensões, vínculos e legibilidade. Use **Pré-visualizar** e **Aplicar ao Workspace**; depois salve, publique e ative a revisão do projeto e configure/confira a navegação do Runtime. Só então a Tela poderá ser aberta pelos operadores. As ações guiadas especializadas ficam junto às análises correspondentes e podem pedir regras ou faixas adicionais.
 
 ## 7. Problemas comuns
+
+### Escolher os objetos e as análises do painel
+
+Depois de escolher a origem, abra cada medição em **Objetos de medição**. Você pode usar valor numérico, gauge semicircular, anel, barra horizontal, régua vertical, faixas ou valor com meta. A escolha visual não muda o TAG nem o cálculo. O tema dos objetos pode ser claro, escuro ou de alto contraste.
+
+Para um objeto com escala, confira mínimo e máximo na unidade do TAG. Se já houver escala válida no cadastro, ela será preenchida; caso contrário, informe os limites reais. Em Faixas, informe dois limites ordenados dentro da escala. Em Valor e meta, informe uma meta dentro dos limites. A geração fica bloqueada com intervalos incompletos ou inválidos. Você pode usar Valor numérico quando não dispõe de uma escala adequada.
+
+Em **Conteúdo analítico do painel**, desempenho e desvio contextual ficam disponíveis quando suas seleções estiverem completas na associação. Use **Configurar análises da associação** para chegar aos controles existentes. Cada análise pode ser incluída independentemente. Ao gerar mais de uma vista, as Telas recebem botões de navegação entre si. Uma análise indisponível não impede gerar as outras vistas; confira o motivo antes de alterar o significado dos sinais.
+
+Os painéis gerados usam um fundo escuro próprio para manter o contraste nos temas claro e escuro do sistema. Você pode alterá-lo em Fundo, no editor de Telas; confira também as cores dos textos e valores ao escolher outro fundo.
 
 - **Recurso bloqueado:** confira licença, `EngineeringModify`, `AssetProcessIntelligenceManage` e escopo.
 - **Perfil ou associação incompleta:** confira equipamento, perfil, TAGs e qualificadores obrigatórios.
 - **Sem cobertura/histórico:** confirme se o TAG recebia amostras com quality e timestamps úteis e se a captura existia no período. Historian não preenche dados retroativamente.
-- **Contexto sem correspondência:** revise predicados, unidade, intervalo e sincronização/igualdade temporal requerida.
+- **Contexto sem correspondência:** revise as condições, a unidade, o intervalo e se as leituras têm o mesmo horário de origem.
 - **Rascunho indisponível:** complete as seleções exigidas pelo tipo de tela e use o editor normal para corrigir o resultado.
 - **Resultado diferente após edição:** salve a configuração correta, confira a revisão Active e faça uma nova consulta explícita.
 
 **Ajuda relacionada:** `/help?topic=historian.overview`, `/help?topic=tags.quality`, `/help?topic=tags.timestamps`, `/help?topic=screens.overview`, `/help?topic=engineering.lifecycle`.
+
+## Confira os dados antes de interpretar
+
+Em Engenharia > Inteligência de ativos, localize a associação do equipamento. Em Conferir dados da referência, escolha início e fim de um período conhecido e clique em Consultar referência. Os horários são locais e convertidos para UTC. Cada período pode ter até 31 dias. Leituras aceitas têm a evidência de origem exigida; rejeições explicam por que outras leituras ficaram de fora. A contagem não comprova que o equipamento estava saudável.
+
+Em Conferir condições do contexto, selecione um contexto salvo pelo nome e consulte o período. O SCADIVO usa a versão salva automaticamente. O resultado informa quantas leituras atendem a todas as condições no mesmo instante de origem. Zero leituras compatíveis pode significar condições não atendidas ou dados insuficientes; confira a explicação apresentada. Publique as alterações e ative o equipamento antes de consultar.
+
+## Use o desvio conjunto experimental
+
+Abra Desvio conjunto experimental na associação. Escolha o contexto salvo e de duas a oito medições numéricas; medições que definem as condições do contexto ficam fora da lista de alvos. Informe o intervalo real de aquisição em segundos, de 1 a 86.400. Não invente esse valor: ele descreve a frequência esperada das leituras. Escolha uma referência e um período posterior de avaliação, sem sobreposição, e clique em Calcular desvio conjunto.
+
+O resultado mostra quantos instantes puderam ser avaliados e quantos ficaram em aquecimento. O desvio combina mudanças de nível e da relação entre sinais. Expanda Contribuições das medições para investigar a participação de cada sinal. Esses números não têm unidade física e não diagnosticam causa, falha ou vida útil. A função é experimental, validada somente por simulação e sem limiar de alarme validado em campo.
+
+Use Cancelar consulta para interromper. Mudar período, contexto, sinais ou cadência descarta o resultado anterior; é preciso consultar novamente. Se a referência não puder ser ajustada, confira dados, qualidade, sincronização, contexto e variação dos sinais antes de ampliar períodos.
+
+## Entenda as contagens e as condições
+
+As análises são consultadas sob demanda: editar perfis ou ativar um escopo não inicia análise contínua. Na referência, leia os motivos ao lado de Não disponível. Um sinal obrigatório de texto, opção ou verdadeiro/falso não entra na coorte numérica obrigatória; a contagem dos sinais numéricos do perfil continua sendo apresentada separadamente. Contagem zero de um tipo não consultado não prova ausência de histórico.
+
+Na consulta de contexto, veja primeiro Condições do contexto: leituras aceitas e quantas atenderam a cada condição. Uma condição de modo pode ser textual e ainda selecionar os instantes válidos para corrente ou vazão. Depois confira as medições nas condições selecionadas. Essas contagens não comprovam saúde ou eficiência.
+
+## Compare dois períodos e cancele consultas
+
+Nas consultas de referência e condições do contexto, marque Comparar com outro período se quiser conferir a evidência em duas janelas. Preencha o início e o fim da comparação. Cada janela pode ter até 31 dias, e o início da comparação deve ser estritamente posterior ao fim da referência: não use o mesmo instante nos dois limites. A consulta fica indisponível enquanto houver campos vazios, período invertido ou sobreposição.
+
+Consulte e leia as contagens de cada período. A comparação de contagens não é, por si só, um indicador de eficiência. Desmarcar a comparação ou alterar qualquer limite remove o resultado anterior. Durante a leitura, use Cancelar consulta: uma resposta atrasada não deve reaparecer na tela. Para consultar novamente, confira os parâmetros e clique no botão de consulta.
 
 <!-- installed-system-guides -->
 
@@ -193,12 +233,11 @@ Confira qual configuração está usando antes de copiar limites. A unidade e a 
 
 ### Gere a tela e confira a cadeia completa
 
-1. Escolha a associação do equipamento ou a etapa do processo e o tipo de tela desejado.
-2. Complete os sinais e opções pedidos. Se o botão estiver bloqueado, leia o motivo junto do campo.
-3. Gere o rascunho. Esse passo organiza objetos e referências; ainda não lê dados do Historian nem ativa a tela.
-4. No editor, confira título, dimensões, objetos, vínculos e forma de abrir a tela. Execute Pré-visualização e Aplicar para levar a edição ao projeto.
-5. Salve a revisão, publique e ative. Abra a tela no Runtime pela navegação configurada.
-6. No objeto de análise, configure o período e solicite a consulta. Confira a janela e o resultado. Uma tela de etapa reúne seus equipamentos; isso não cria um indicador agregado nem demonstra que um equipamento causou o resultado de outro.
+1. Salve a configuração atual. No bloco Gerar painel para o Runtime, escolha um perfil de equipamento ou uma etapa do processo em Conteúdo do painel.
+2. Selecione Gerar rascunho do painel. O botão fica bloqueado se a configuração ainda não foi salva, faltar licença ou permissão, ou se a origem não tiver um TAG numérico válido.
+3. No editor de Telas, confira título, dimensões, objetos, vínculos e legibilidade. Execute Pré-visualizar e Aplicar ao Workspace para levar a edição ao projeto.
+4. Salve a revisão, publique e ative. Configure ou confira a navegação e abra a Tela no Runtime.
+5. No objeto de análise, configure o período e solicite a consulta. Confira a janela e o resultado. Uma Tela de etapa reúne seus equipamentos; isso não cria um indicador agregado nem demonstra que um equipamento causou o resultado de outro.
 
 ### Roteiro para investigar resultado vazio
 

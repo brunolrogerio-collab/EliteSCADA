@@ -38,27 +38,27 @@ To edit, your account needs `EngineeringModify` and `AssetProcessIntelligenceMan
 
 ## 2. Create a measurement profile and assignment
 
-1. Open Engineering > Asset Intelligence and create a Measurement profile with an identifiable name/key.
-2. Add the TAGs that describe the Equipment. Mark each signal required or optional and complete any requested semantic qualifiers; a label does not replace the unit or actual TAG reference.
+1. Open Engineering > Asset Intelligence and create a Measurement profile. Give it a name that helps identify the group, such as “Transfer pump”.
+2. Add the TAGs that describe the Equipment. For each TAG, explain what it measures, mark whether the analysis needs it, and complete the requested measurement details. Check the unit and actual TAG reference.
 3. Save the configuration to Working.
-4. In assignments, choose the existing Equipment and profile. One Equipment identity can use more than one profile.
+4. In assignments, choose the existing Equipment and profile. One piece of Equipment can use more than one profile.
 5. Review missing and duplicate references before saving and following the normal project lifecycle.
 
-The profile organizes signal references and meaning. It does not create TAGs, enable Historian capture by itself, or prove that instruments are calibrated.
+The profile organizes signal references and their meaning. The system creates its internal keys for you; you do not need to invent IDs or codes. The profile does not create TAGs, enable Historian capture by itself, or prove that instruments are calibrated.
 
 ## 3. Configure operating context
 
 Higher current may be expected when speed or load rises. An operating context states conditions, such as pump running and speed within a defined range, to select comparable evidence. It does not automatically learn operating mode or turn correlation into diagnosis. Choose limits using Equipment knowledge.
 
-Choose the equipment assignment and give the context a stable key and a name explaining the condition, such as Pump running at normal flow. Add at least one required predicate. A predicate is a condition checked against a TAG in the assigned profile.
+Choose the equipment assignment and give the context a name explaining the condition, such as “Pump running at normal flow”. Add at least one condition using a TAG from the assigned profile. The system creates the context’s internal key.
 
 For numbers, the range includes minimum and maximum in the TAG’s current unit. For booleans, choose True or False. For String or Enum, use the exact value, including case when applicable.
 
-Every condition needs evidence at the same synchronized, exact source UTC timestamp. Readings merely close in time are not enough. The server controls profile version; on an editing conflict, refresh configuration and review before saving.
+Every condition must match readings with exactly the same source UTC time. Readings merely close in time are not enough. If another edit changes the context, refresh the screen and review its conditions before saving.
 
 ## 4. Organize process stages
 
-Use **Ordered process stages** to build the sequence you want to monitor. Create each stage with a stable key and readable name; add Equipment/profile assignments and explicitly set their order. A stage organizes members but does not itself infer causality, balance, or an aggregate process KPI.
+Use **Ordered process stages** to build the sequence you want to monitor. Give each stage a readable name, add Equipment/profile assignments and set their order. The system creates each stage’s internal key. A stage organizes members but does not itself infer causality, balance, or an aggregate process KPI.
 
 Save the configuration to Working. Runtime data and analyses remain subject to the Active revision and current authorization.
 
@@ -72,18 +72,58 @@ Interpret results together with coverage, quality, timestamps, and each signal's
 
 ## 6. Generate Screen drafts
 
-Choose a profile or stage and generate an available Screen. Generation uses TAG metadata to create an editable Screen; it does not query live values or Historian and does not invent KPIs. Review the draft in the editor, run Preview, and use Apply to Workspace. Then save, publish, and activate through the explicit lifecycle steps. The generated Screen is not activated automatically.
+Save pending Intelligence configuration changes first. At the top of the page, find **Create a Runtime dashboard** and choose an equipment profile or process stage under **Dashboard content**. The list uses names already in the project; you do not type IDs. The basic generator needs at least one resolved numeric TAG. If no source can be selected, complete the profile, assignment or stage, and check the license and permissions.
+
+Select **Generate dashboard draft**. SCADIVO opens a normal editable Screen in the canonical editor, with value cards, a trend and coverage arranged from existing TAGs. This is a draft: it does not query live values or Historian, invent KPIs or publish the Screen.
+
+In the editor, review names, units, dimensions, bindings and readability. Use **Preview** and **Apply to Workspace**; then save, publish and activate the project revision, and configure/check Runtime navigation. Only then can operators open the Screen. Specialized guided actions appear with their related analyses and may require additional rules or ranges.
 
 ## 7. Common problems
+
+### Choose dashboard objects and analyses
+
+After choosing the source, open each measurement under **Measurement objects**. Choose a numeric value, semicircular dial, ring, horizontal bar, vertical ruler, bands or value with a target. Presentation does not change the TAG or calculation. Object themes are light, dark or high contrast.
+
+Scaled objects require actual minimum and maximum limits in the TAG unit. A valid configured TAG scale is prefilled. Otherwise enter the real limits. Bands require two ordered boundaries inside the scale; a target must be within its limits. Incomplete or invalid ranges block generation. Use Numeric value when no suitable scale is known.
+
+Under **Dashboard analyses**, performance and contextual deviation become available when their assignment selections are complete. Use **Configure assignment analyses** to reach the existing controls. Each analysis can be included independently. Multiple generated views receive navigation buttons linking their Screens. An unavailable analysis does not block the other views; read its reason before changing a signal's meaning.
+
+Generated dashboards use their own dark background to retain contrast under either application theme. You can change it under Background in the Screen editor; check text and value colors when choosing another background.
 
 - **Resource blocked:** check the license, `EngineeringModify`, `AssetProcessIntelligenceManage`, and scope.
 - **Incomplete profile/assignment:** check Equipment, profile, TAGs, and required qualifiers.
 - **No coverage/history:** confirm that the TAG received useful samples with quality and timestamps and that capture existed during the period. Historian does not backfill data.
-- **No context match:** review predicates, unit, interval, and the required temporal synchronization/equality.
+- **No context match:** review the conditions, unit, range and whether readings have the same source time.
 - **Draft unavailable:** complete the selections required by that Screen type and use the normal editor to refine the result.
 - **Result differs after editing:** save the correct configuration, check the Active revision, and explicitly run a new query.
 
 **Related Help:** `/help?topic=historian.overview`, `/help?topic=tags.quality`, `/help?topic=tags.timestamps`, `/help?topic=screens.overview`, `/help?topic=engineering.lifecycle`.
+
+## Check the data before interpreting
+
+In Engineering > Asset intelligence, locate the equipment assignment. Under Check reference data, choose the start and end of a known period and select Query reference. Times are local and converted to UTC. Each period supports up to 31 days. Accepted readings have the required source evidence; rejections explain why other readings were excluded. Counts do not prove that the equipment was healthy.
+
+Under Check context conditions, select a saved context by name and query the period. SCADIVO uses its saved version automatically. Results show how many readings meet all conditions at the same source time. Zero matching readings may mean unmet conditions or insufficient data; read the explanation. Publish changes and activate the equipment before querying.
+
+## Use experimental joint deviation
+
+Open Experimental joint deviation in the assignment. Choose the saved context and two to eight numeric measurements; measurements defining context conditions are excluded from target choices. Enter the actual acquisition interval in seconds, from 1 to 86,400. Do not invent this value: it describes the expected reading frequency. Choose a reference and a later, non-overlapping evaluation period, then select Calculate joint deviation.
+
+Results show scored timestamps and warmup counts. Deviation combines changes in level and relationships between signals. Expand Measurement contributions to investigate each signal's contribution. These numbers have no physical unit and do not diagnose causes, faults or remaining life. This experimental function is validated by simulation only and has no field-validated alarm threshold.
+
+Use Cancel query to stop. Changing periods, context, signals or cadence discards previous results; query again. If the reference cannot be fitted, check data, quality, synchronization, context and signal variation before widening periods.
+
+## Understand counts and conditions
+
+Analyses are queried on demand: editing profiles or activating a scope does not start continuous analysis. In reference evidence, read the reasons beside Unavailable. A required text, enum or Boolean signal is outside the required numeric cohort; numeric profile counts are shown separately. A zero count for an unqueried type does not prove there is no history.
+
+In context queries, start with Context conditions: accepted readings and how many matched each condition. A textual operating mode can still select valid timestamps for current or flow. Then review measurements under the selected conditions. These counts do not prove health or efficiency.
+
+## Compare two periods and cancel queries
+
+In reference and context-condition queries, select Compare with another period to inspect evidence in two windows. Enter comparison start and end. Each window supports up to 31 days, and comparison must start strictly after the reference ends: do not use the same instant for both boundaries. Querying remains unavailable while fields are empty, dates are reversed or periods overlap.
+
+Query and read each period's counts. Comparing counts is not, by itself, an efficiency indicator. Disabling comparison or changing any boundary clears the previous result. During reading, use Cancel query: a delayed response must not reappear. To query again, review the parameters and select the query button.
 
 <!-- installed-system-guides -->
 
@@ -193,12 +233,11 @@ Check which configuration you are using before copying limits. Units and upper-l
 
 ### Generate the screen and check the full chain
 
-1. Choose the equipment assignment or process stage and the desired screen type.
-2. Complete the requested signals and options. If the button is blocked, read the reason beside the field.
-3. Generate the draft. This organizes objects and references; it does not yet read Historian data or activate the screen.
-4. In the editor, check title, dimensions, objects, bindings and how to open the screen. Run Preview and Apply to put the edit in the project.
-5. Save the revision, publish and activate. Open the Runtime screen through configured navigation.
-6. In the analysis object, set the period and request the query. Check window and result. A stage screen groups its equipment; that does not create an aggregate indicator or establish that one equipment caused another’s result.
+1. Save the current configuration. In Create a Runtime dashboard, choose an equipment profile or process stage under Dashboard content.
+2. Select Generate dashboard draft. The button is disabled if the configuration is unsaved, the license or permission is missing, or the source has no valid numeric TAG.
+3. In the Screen editor, check the title, dimensions, objects, bindings and readability. Run Preview and Apply to Workspace to add the edit to the project.
+4. Save, publish and activate the revision. Set up or check navigation and open the Screen in Runtime.
+5. In the analysis object, set the period and request the query. Check the window and result. A stage Screen groups its equipment; it does not create an aggregate indicator or establish that one piece of equipment caused another’s result.
 
 ### How to investigate an empty result
 

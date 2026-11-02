@@ -4,9 +4,10 @@ import type { TagEngineering } from './types';
 import type { IntelligenceDashboardAppearance, IntelligenceMeasurementDraft } from './intelligenceDashboardGenerator';
 
 type Draft = { layout: IntelligenceMeasurementDraft['layout']; minimum: string; maximum: string; target: string; first: string; second: string };
-export function IntelligenceDashboardComposer({ locale, tags, disabled, performanceAvailable, deviationAvailable, configurationHref, onGenerate }: {
+export function IntelligenceDashboardComposer({ locale, tags, disabled, performanceAvailable, deviationAvailable, deviationSignalCount, configurationHref, onGenerate }: {
   locale: EngineeringLocale; tags: readonly TagEngineering[]; disabled: boolean;
   performanceAvailable: boolean; deviationAvailable: boolean; configurationHref?: string;
+  deviationSignalCount?: number;
   onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean }) => void;
 }) {
   const copy = TEXT[locale];
@@ -54,7 +55,7 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={performance && performanceAvailable} disabled={disabled || !performanceAvailable} onChange={e => setPerformance(e.currentTarget.checked)}/>{copy.performance}</label>
     {!performanceAvailable && <p>{copy.performanceMissing}</p>}
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={deviation && deviationAvailable} disabled={disabled || !deviationAvailable} onChange={e => setDeviation(e.currentTarget.checked)}/>{copy.deviation}</label>
-    {!deviationAvailable && <p>{copy.deviationMissing}</p>}
+    {!deviationAvailable && <p>{deviationSignalCount !== undefined && deviationSignalCount < 4 ? copy.deviationNeedsSignals : copy.deviationMissing}</p>}
     {configurationHref && <a href={configurationHref}>{copy.configure}</a>}
     <p>{copy.otherAnalyses}</p>
     <button type="button" data-testid="intelligence-dashboard-generate" disabled={disabled || !rows.length || rows.some(row => !row.valid)}
@@ -64,6 +65,7 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
 
 const TEXT = {
   'pt-BR': {
+    deviationNeedsSignals: 'Este desvio precisa de pelo menos quatro medições distintas: duas para acompanhar e duas para definir as condições de comparação. As outras vistas disponíveis podem ser geradas sem ele.',
     otherAnalyses: 'As consultas de referência, condições do contexto e desvio conjunto experimental continuam na associação, em Engenharia. Elas ainda não geram uma vista própria no Runtime.',
     measurements: 'Objetos de medição', measurementsHint: 'Escolha a apresentação de cada medição. Escalas usam a unidade do TAG e podem vir do cadastro. Informe os limites reais; faixas e metas não são inferidas. Sem escala, use Valor numérico.',
     theme: 'Tema dos objetos', dark: 'Escuro', light: 'Claro', contrast: 'Alto contraste', layout: 'Objeto',
@@ -73,6 +75,7 @@ const TEXT = {
     performance: 'Desempenho', performanceMissing: 'Desempenho ainda não configurado para esta origem. Escolha uma regra elegível na associação do equipamento.', deviation: 'Desvio contextual', deviationMissing: 'Desvio contextual ainda não configurado para esta origem. Escolha os sinais e as duas faixas de contexto na associação do equipamento.', configure: 'Configurar análises da associação', generate: 'Gerar painel e vistas selecionadas'
   },
   en: {
+    deviationNeedsSignals: 'This deviation needs at least four distinct measurements: two to monitor and two to define comparison conditions. Other available views can be generated without it.',
     otherAnalyses: 'Reference, context-condition and experimental joint-deviation queries remain in the Engineering assignment. They do not yet generate their own Runtime view.',
     measurements: 'Measurement objects', measurementsHint: 'Choose how to display each measurement. Scales use the TAG unit and may come from its settings. Enter actual limits; bands and targets are not inferred. Use Numeric value without a scale.',
     theme: 'Object theme', dark: 'Dark', light: 'Light', contrast: 'High contrast', layout: 'Object',
@@ -82,6 +85,7 @@ const TEXT = {
     performance: 'Performance', performanceMissing: 'Performance is not configured for this source yet. Choose an eligible rule in the equipment assignment.', deviation: 'Contextual deviation', deviationMissing: 'Contextual deviation is not configured for this source yet. Choose signals and both context ranges in the equipment assignment.', configure: 'Configure assignment analyses', generate: 'Generate dashboard and selected views'
   },
   es: {
+    deviationNeedsSignals: 'Esta desviación necesita al menos cuatro mediciones distintas: dos para observar y dos para definir condiciones de comparación. Las otras vistas disponibles se pueden generar sin ella.',
     otherAnalyses: 'Las consultas de referencia, condiciones del contexto y desviación conjunta experimental siguen en la asignación de Ingeniería. Todavía no generan una vista propia en Runtime.',
     measurements: 'Objetos de medición', measurementsHint: 'Elija cómo mostrar cada medición. Las escalas usan la unidad del TAG y pueden venir de su configuración. Indique límites reales; no se infieren intervalos ni metas. Sin escala use Valor numérico.',
     theme: 'Tema de los objetos', dark: 'Oscuro', light: 'Claro', contrast: 'Alto contraste', layout: 'Objeto',

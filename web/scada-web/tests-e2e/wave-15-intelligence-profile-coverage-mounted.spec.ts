@@ -287,6 +287,25 @@ test('eligible Performance V1B rule creates a canonical Runtime screen draft wit
   expect(fixture.dataReads).toEqual([]);
 });
 
+test('two measurements can generate performance and coverage without contextual sensors', async ({ page }) => {
+  const fixture = await installWorkspace(page, { performanceReady: true });
+  await openIntelligence(page);
+  const performance = page.getByTestId(`intelligence-performance-${profileId}`);
+  await performance.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  await performance.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
+  const generator = page.getByTestId('intelligence-dashboard-generator');
+  await generator.getByTestId('intelligence-dashboard-source').selectOption(`equipment-profile:${assignmentId}`);
+  await expect(generator.getByRole('checkbox', { name: 'Desempenho', exact: true })).toBeChecked();
+  await expect(generator.getByRole('checkbox', { name: 'Desvio contextual', exact: true })).toBeDisabled();
+  await expect(generator.getByText(/Este desvio precisa de pelo menos quatro medições distintas/)).toBeVisible();
+  await generator.getByTestId('intelligence-dashboard-generate').click();
+  const editor = page.getByTestId('visual-editor-workspace');
+  await expect(editor.getByTestId('visual-editor-generated-drafts').getByRole('button')).toHaveCount(2);
+  expect(fixture.performanceRequests).toEqual([]);
+  expect(fixture.requests).toEqual([]);
+  expect(fixture.otherWrites).toEqual([]);
+});
+
 test('guided dashboard opens four independently editable linked drafts without querying or saving', async ({ page }) => {
   const fixture = await installWorkspace(page, { performanceReady: true, guidedDashboardReady: true });
   await openIntelligence(page);
@@ -303,12 +322,21 @@ test('guided dashboard opens four independently editable linked drafts without q
   await contextSelectors.nth(0).selectOption(firstContextSignalId);
   await contextSelectors.nth(1).selectOption(secondContextSignalId);
   const ranges = deviation.locator('.asset-process-intelligence__deviation-contexts input');
+  await expect(deviation.getByLabel('Máximo (não incluído) (kPa)', { exact: true })).toBeVisible();
   await ranges.nth(0).fill('0');
   await ranges.nth(1).fill('100');
   await ranges.nth(2).fill('0');
   await ranges.nth(3).fill('100');
 
   const guidedGenerate = page.getByTestId(`intelligence-guided-dashboard-assignment-${assignmentId}`);
+  await ranges.nth(3).fill('1e308');
+  await expect(guidedGenerate).toBeDisabled();
+  await contextSelectors.nth(1).selectOption('');
+  await expect(ranges.nth(2)).toHaveValue('');
+  await expect(ranges.nth(3)).toHaveValue('');
+  await contextSelectors.nth(1).selectOption(secondContextSignalId);
+  await ranges.nth(2).fill('0');
+  await ranges.nth(3).fill('100,5');
   await expect(guidedGenerate).toBeEnabled();
   await guidedGenerate.click();
 
@@ -340,6 +368,10 @@ test('guided dashboard opens four independently editable linked drafts without q
   await editor.getByTestId('visual-editor-preview').click();
   await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
   expect(candidate?.screens).toHaveLength(4);
+  const deviationDraft = candidate!.screens.find(screen => screen.key.includes('contextual-deviation')) as any;
+  const contextProperties = deviationDraft.elements.find((element: any) => element.properties.intelligenceSecondContextUpperExclusiveCanonical !== undefined).properties;
+  expect(contextProperties.intelligenceFirstContextUpperExclusiveCanonical).toBe(100);
+  expect(contextProperties.intelligenceSecondContextUpperExclusiveCanonical).toBe(100500);
   const keys = new Set(candidate!.screens.map(screen => screen.key));
   for (const screen of candidate!.screens) {
     for (const element of screen.elements ?? []) {

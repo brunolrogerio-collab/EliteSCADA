@@ -380,6 +380,8 @@ export function AssetProcessIntelligenceWorkspace({
   ];
   const effectiveDashboardSourceKey = dashboardSourceKey || (dashboardSourceOptions.length === 1 ? dashboardSourceOptions[0].key : '');
   const selectedDashboardSource = dashboardSourceOptions.find(option => option.key === effectiveDashboardSourceKey) ?? null;
+  const selectedDashboardTags = tags.filter(tag => tag.id && isNumericTagDataType(tag.dataType) &&
+    selectedDashboardSource?.source.assignments.some(item => item.profile.signals.some(signal => signal.tagId.toLowerCase() === tag.id!.toLowerCase())));
 
   const createProcessStageCoverageSelection = (
     stage: AssetProcessIntelligenceProcessStageEngineering
@@ -831,10 +833,11 @@ export function AssetProcessIntelligenceWorkspace({
           {!selectedDashboardSource && <button type="button" data-testid="intelligence-dashboard-generate" disabled>{copy.generateDashboard}</button>}
         </div>}
         {selectedDashboardSource && <IntelligenceDashboardComposer key={selectedDashboardSource.key} locale={locale}
-          tags={tags.filter(tag => tag.id && isNumericTagDataType(tag.dataType) && selectedDashboardSource.source.assignments.some(item => item.profile.signals.some(signal => signal.tagId.toLowerCase() === tag.id!.toLowerCase())))}
+          tags={selectedDashboardTags}
           disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !selectedDashboardSource.hasNumericSignal || dirtyConfiguration}
           performanceAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedPerformanceSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
           deviationAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedDeviationSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
+          deviationSignalCount={selectedDashboardSource.source.kind === 'equipment-profile' ? new Set(selectedDashboardTags.map(tag => tag.id!.toLowerCase())).size : undefined}
           configurationHref={selectedDashboardSource.source.kind === 'equipment-profile' ? `#intelligence-assignment-${selectedDashboardSource.source.assignments[0]?.assignmentId}` : undefined}
           onGenerate={(appearance, analyses) => generateDashboard(selectedDashboardSource.source, appearance, analyses)}/>}
         {selectedDashboardSource && !selectedDashboardSource.hasNumericSignal ? <p role="status">{copy.dashboardSourceNeedsNumeric}</p> : null}

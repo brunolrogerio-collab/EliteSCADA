@@ -133,6 +133,7 @@ public static partial class ContextualHelpCatalog
         ["core.intelligencePerformanceV1B"] = IG("Análise de desempenho", "Performance analysis", "Análisis de rendimiento"),
         ["core.intelligenceProfileCoverageV1"] = IG("Cobertura do perfil", "Profile coverage", "Cobertura del perfil"),
         ["core.intelligenceProcessStageCoverageV1"] = IG("Cobertura da etapa", "Stage coverage", "Cobertura de etapa"),
+        ["core.intelligenceProcessStageInsightsV1"] = IG("Análises por equipamento da etapa", "Stage equipment analyses", "Análisis por equipo de etapa"),
         ["core.intelligenceContextualDeviationV2"] = IG("Desvio contextual", "Contextual deviation", "Desviación contextual")
     };
 

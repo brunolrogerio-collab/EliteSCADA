@@ -2,11 +2,13 @@
 
 ## Ponto de retomada atual — Intelligence #791 / #853 / #855 — 02/11/2026
 
-Frente ativa: auditoria e composição dos dashboards de Intelligence, candidata no PR draft #854 (inclui a cadeia #852). O T1 `41382956383`, head `ca028496`, terminou reprovado somente na auditoria de dependências Z-Wave Windows/Linux; Intelligence, Web, .NET e Chromium passaram. O novo incremento precisa do CI de seu SHA exato.
+Frente ativa: auditoria e composição dos dashboards de Intelligence, candidata no PR draft #854 (inclui a cadeia #852). O T1 `41386788978`, head `d70303b0`, terminou reprovado somente na auditoria de dependências Z-Wave Windows/Linux; Intelligence, Web, .NET e Chromium passaram. Não transferir esse resultado ao novo head nem contornar o gate.
 
-API e PostgreSQL reais, em ambiente sintético isolado, comprovaram três Telas vinculadas, quatro widgets visíveis e resultados de desempenho/desvio contextual. Corrigidos descarte da unidade controlada na ativação dos TAGs, rejeição do enum numérico real pela interface, prévia incompleta do conjunto e layout comprimido do desvio. [Desenho, evidência e pendências](WAVE15-INTELLIGENCE-DASHBOARD-COMPOSITION-855.md). A autoria de contexto aceita a unidade do TAG e converte internamente; perfil parcial gerou cobertura/desempenho sem exigir os dois sensores de contexto. Não confundir HTTP 200 ou gerador existente com funcionalidade aceita.
+Implementação: servidor `0ad091c2`, interface `77bc89f5`, CI `6fde4c1f`. Local: Chromium 63/63, Core Release 105/105 no filtro CI, catálogo 3/3, Help 30/30, roteador CI 42/42, builds API/Web e alinhamento de 69 arquivos aprovados. A primeira falha de recarga teve conexões interrompidas; passou isolada e na bateria consolidada, sem mudança de parâmetros.
 
-Próximo passo: conferir testes e CI do head exato no registro vivo #855/#854, revisar visualmente e concluir a composição das etapas e as lacunas Runtime registradas. #855/#791 continuam abertas: a prova real parcial com duas medições foi concluída, incluindo reinício/reativação; faltam composição central das vistas de membros das etapas, consumidores Runtime de referência/condições/score conjunto e aceite visual. Não declarar KPI agregado entregue. Preview/DEMO e Portal preservados; HA-D2 não iniciado.
+A composição central de etapas agora gera até três Telas vinculadas, com objetos escolhidos pelo autor, cobertura e análises independentes por equipamento. A API real revelou e confirmou a correção do registro ausente de `core.intelligenceProcessStageInsightsV1` no servidor. Prova sintética publicada na revisão 29: dois equipamentos, desempenho com 120 pares em cada, cobertura com 120 amostras por sinal e desvio com 120 vetores por período no membro elegível. Após reinício, três IDs/vínculos persistiram; consultas falharam fechadas até reativação explícita. [Desenho, capturas, limites e evidência](WAVE15-INTELLIGENCE-DASHBOARD-COMPOSITION-855.md).
+
+Próximo passo: conferir testes e CI do novo head exato no registro vivo #855/#854 e continuar os consumidores Runtime de referência, condições e score conjunto, com revisão de usabilidade. #855/#791 continuam abertas; aceite visual pendente. Não declarar KPI agregado entregue. Preview/DEMO e Portal preservados; HA-D2 não iniciado. Apenas API/Web auxiliares isolados foram usados; banco sintético preservado.
 
 ## Checkpoint anterior — histórico
 

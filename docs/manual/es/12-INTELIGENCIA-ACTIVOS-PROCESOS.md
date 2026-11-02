@@ -62,6 +62,8 @@ Use **Etapas ordenadas del proceso** para montar la secuencia que desea supervis
 
 Guarde la configuración en Working. Los datos y análisis de Runtime siguen sujetos a la revisión Active y a las autorizaciones vigentes.
 
+Para una etapa, el mismo generador ofrece Cobertura por equipo y Análisis por equipo. La lista muestra qué tiene configurado cada miembro. Use Configurar este equipo para elegir reglas y señales pendientes y vuelva al generador. No necesita configurar desviación en todos para generar rendimiento en los demás. Las vistas elegidas son Pantallas vinculadas y editables. En Runtime, elija el equipo y el análisis, indique el período y consulte. Cada resultado pertenece solo al equipo elegido.
+
 ## 5. Solicitar análisis
 
 Seleccione el Equipo asignado y elija el análisis disponible, como cobertura del perfil, rendimiento o desviación contextual. Defina el período y solicite explícitamente la consulta. La desviación contextual requiere condiciones operacionales configuradas y evidencia temporal suficiente. El análisis es de solo lectura; no cambia un TAG, no controla equipos ni sustituye Alarmas.
@@ -241,6 +243,8 @@ Aunque la unidad sea la misma, compruebe la comparación: el perfil operativo in
 3. En el editor de Pantallas, compruebe título, dimensiones, objetos, vínculos y legibilidad. Para Pantallas vinculadas generadas juntas, Preview y Aplicar al Workspace incluyen el conjunto completo para conservar la navegación. Revise el conjunto antes de aplicar.
 4. Guarde, publique y active la revisión. Configure o compruebe la navegación y abra la Pantalla en Runtime.
 5. En el objeto de análisis, configure el período y solicite la consulta. Compruebe la ventana y el resultado. Una Pantalla de etapa agrupa sus equipos; no crea un indicador agregado ni demuestra que un equipo causó el resultado de otro.
+
+Para etapas, seleccione Cobertura por equipo y/o Análisis por equipo en el generador. La lista muestra qué está configurado; Configurar este equipo lleva a sus reglas y señales. En Runtime, elija el equipo antes del análisis. Las opciones no configuradas quedan inactivas y explicadas sin bloquear las otras.
 
 ### Cómo investigar resultado vacío
 

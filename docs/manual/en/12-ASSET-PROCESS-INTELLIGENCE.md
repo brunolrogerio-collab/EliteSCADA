@@ -62,6 +62,8 @@ Use **Ordered process stages** to build the sequence you want to monitor. Give e
 
 Save the configuration to Working. Runtime data and analyses remain subject to the Active revision and current authorization.
 
+For a stage, the same generator offers Member coverage and Member analyses. The list shows what is configured for each member. Use Configure this equipment to choose missing rules and signals, then return to the generator. Deviation does not need to be configured for every member to generate performance for the others. Selected views are linked, editable Screens. In Runtime, choose the equipment and analysis, set the period and query. Each result still belongs only to the selected equipment.
+
 ## 5. Request analyses
 
 Select an assigned Equipment and choose an available analysis, such as profile coverage, performance, or contextual deviation. Set the time range and explicitly request the query. Contextual deviation requires configured operating conditions and sufficient temporal evidence. Analysis is read-only; it does not change a TAG, command Equipment, or replace Alarms.
@@ -241,6 +243,8 @@ Even when the unit is the same, check the comparison: the operating profile incl
 3. In the Screen editor, check the title, dimensions, objects, bindings and readability. For linked Screens generated together, Preview and Apply to Workspace include the whole set to preserve navigation. Review the set before applying.
 4. Save, publish and activate the revision. Set up or check navigation and open the Screen in Runtime.
 5. In the analysis object, set the period and request the query. Check the window and result. A stage Screen groups its equipment; it does not create an aggregate indicator or establish that one piece of equipment caused another’s result.
+
+For stages, select Member coverage and/or Member analyses in the generator. The list shows what is configured; Configure this equipment opens that member’s rules and signals. In Runtime, choose the equipment before the analysis. Unconfigured options are disabled and explained without blocking the others.
 
 ### How to investigate an empty result
 

@@ -61,8 +61,33 @@ O T1 anterior `41382956383`, head `ca028496`, terminou reprovado na auditoria de
 | Escolha dos seis layouts, temas e limites | Seis layouts no gerador; quatro layouts no percurso real persistido; aceite visual final pendente |
 | Equipamento com somente uma análise configurada | Prova real com duas medições, consultas, persistência e reinício concluída acima; aceite visual pendente |
 | Desempenho e desvio com resultados visíveis e dados sintéticos | Consultas reais e resultados visíveis comprovados acima; falta aceite visual do proprietário |
-| Etapas do processo | Visão de TAGs/widgets disponível; composição central das vistas de membros ainda pendente. Ações especializadas existentes permanecem na seção de etapas |
+| Etapas do processo | Composição central de três vistas, com análises independentes por membro, publicada e consultada na API/PostgreSQL reais; persistência/reinício comprovados abaixo. Aceite visual final pendente |
 | Referência, condições e score conjunto no Runtime | Consumidores não entregues; consultas da Engenharia não são equivalência funcional no Runtime |
 | Aceite visual, figuras finais, integração | Pendentes; não fechar #855/#791 com este incremento |
 
 Preservar contratos congelados, campo adiado, ausência de KPI agregado, segurança/licenciamento e plataforma Windows/Linux. Não alterar Preview/DEMO nem iniciar HA-D2.
+
+## Composição central das etapas — 02/11/2026
+
+O mesmo formulário central agora oferece, para uma etapa, as vistas de medições/tendência, cobertura e análises por equipamento. O autor pode escolher as vistas e os objetos de medição; a interface informa, por equipamento, se desempenho e desvio contextual estão configurados e leva à associação correspondente. A ausência de uma análise não impede a outra nem a cobertura. O conjunto tem no máximo três Telas; todas são aplicadas juntas e recebem navegação apenas para os destinos gerados.
+
+As configurações antigas de análises de membros continuam exigindo as duas análises. O marcador interno `availabilityVersion: 2` permite omitir cada análise explicitamente, sem aceitar configurações presentes porém inválidas. Não muda os métodos, as consultas analíticas, a segurança ou o licenciamento. A seleção continua limitada a 1–32 associações, com referências únicas, ordem não ambígua e configuração de análises de no máximo 65.536 caracteres JSON.
+
+### Prova real e correção encontrada
+
+A prévia canônica identificou um defeito anterior: `core.intelligenceProcessStageInsightsV1` existia no cliente, mas faltava no catálogo/validador do servidor. A prévia recusava o conjunto com `VISUAL_BUILTIN_TYPE_UNKNOWN`. O servidor agora registra o tipo, mantém suas propriedades analíticas somente leitura/sem binding e valida as identidades, a disponibilidade declarada, os sinais distintos e os intervalos finitos. Configurações desconhecidas, nulas ou inconsistentes são rejeitadas. Não foi necessário flexibilizar a importação ou contornar autorização.
+
+No banco sintético isolado, a etapa foi associada a dois equipamentos: o primeiro com desempenho e desvio; o segundo apenas com potência/produção e desempenho. Os dois perfis usam deliberadamente a mesma série sintética: esta prova verifica roteamento, disponibilidade e apresentação por equipamento, sem alegar aquisições físicas independentes.
+
+- Três Telas geradas, prévia/aplicação canônicas e publicação/ativação na revisão 29. Nenhuma consulta analítica durante a geração.
+- Gauge selecionado no formulário aparece no Runtime. Cobertura do segundo equipamento: 120 amostras aceitas em cada um dos dois sinais.
+- Desempenho: 120 pares qualificados em cada equipamento, com `scopeId` e `assignmentId` próprios verificados. Desvio contextual do primeiro: 120 vetores de referência e 120 de avaliação. No segundo, a opção de desvio fica desabilitada e explica o que falta.
+- Trocar de equipamento desmonta o relatório e limpa o resultado anterior. Cada análise exige sua consulta explícita.
+- Após reiniciar a API, revisão, três IDs, chaves e navegação permaneceram. Ambos os escopos responderam HTTP 409 `INTELLIGENCE_EXECUTION_PERMIT_REQUIRED` antes de reativação explícita. Depois, repetiram-se cobertura, os dois desempenhos e desvio com os mesmos totais.
+- Na preparação, ativar pela primeira vez o segundo escopo publicou nova revisão e invalidou o permit anterior. O roteiro foi retomado na revisão estável, reativando explicitamente ambos os escopos; não se alterou o mecanismo de invalidação e não se duplicaram as Telas.
+
+Evidências: [resumo numérico](evidence/intelligence-855/stage-synthetic-results.json), [reinício](evidence/intelligence-855/stage-restart.json), [formulário central — recorte](evidence/intelligence-855/stage-generator.png), [cobertura](evidence/intelligence-855/stage-coverage-runtime.png), [membro com somente desempenho](evidence/intelligence-855/stage-partial-member-runtime.png) e [desvio do primeiro membro](evidence/intelligence-855/stage-deviation-runtime.png). Capturas reais do projeto sintético, sem montagem. Os relatórios têm rolagem própria; a captura da janela não substitui a leitura de todo o resultado.
+
+Commits de implementação: servidor `0ad091c2`, composição/interface `77bc89f5` e cobertura CI `6fde4c1f`. Validação local deste incremento: 32/32 testes Core de objetos Intelligence, 3/3 testes do catálogo e 30/30 testes de aprendizado/legibilidade do Help passaram. Builds API/Web e alinhamento dos 69 arquivos Help/manual passaram. A regressão final Chromium passou 63/63 em 2,4 minutos. O filtro Core usado pelo CI, em Release, passou 105/105; o roteador de perfis passou 42/42. O workflow passa a incluir `EngineeringIntelligence` nos dois jobs Windows/Linux, somando a cobertura dos objetos visuais aos testes analíticos existentes, sem reduzir nenhum gate. A primeira bateria teve 62 aprovações e uma falha de recarga do editor; o trace mostrou `ERR_CONNECTION_RESET` ao carregar dois arquivos do editor. O mesmo percurso passou isoladamente sem mudança de código/parâmetros. Essa evidência aponta interrupção de carregamento no servidor de desenvolvimento, mas não comprova sua causa. O resultado inicial foi preservado no relato, sem atribuí-lo ao produto ou apagar a ocorrência. O T1 anterior `41386788978`, head `d70303b0`, terminou reprovado somente na auditoria de dependências Z-Wave Windows/Linux; os jobs Intelligence/.NET/Web/Chromium passaram. Isso não é CI verde nem motivo para contornar o gate.
+
+A #855/#791 permanece aberta. Faltam consumidores Runtime para referência/condições/score conjunto, revisão de usabilidade e aceite visual. Não há KPI agregado de processo ou validação de campo. Preview/DEMO, Portal e HA-D2 foram preservados.

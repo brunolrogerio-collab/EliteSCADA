@@ -12,6 +12,28 @@ public sealed class EngineeringIntelligenceProcessStageInsightsVisualValidationT
     private const string Third = "10000000-0000-0000-0000-000000000003";
     private const string Fourth = "10000000-0000-0000-0000-000000000004";
 
+    [Theory]
+    [InlineData("valid")][InlineData("missing-kind")][InlineData("wrong-basis")][InlineData("duplicate-tag")][InlineData("no-version")]
+    public void CurrentFrequencyMember_IsIndependentAndValidated(string scenario)
+    {
+        var member = Member(0);
+        member.Remove("performance"); member.Remove("contextualDeviation");
+        var signals = new JsonArray(
+            new JsonObject { ["id"] = First, ["tagId"] = Third, ["label"] = "Current", ["kind"] = "current", ["basis"] = "line_rms" },
+            new JsonObject { ["id"] = Second, ["tagId"] = Fourth, ["label"] = "Measured frequency", ["kind"] = "frequency", ["basis"] = "drive_electrical" });
+        if (scenario == "missing-kind") signals[0]!.AsObject().Remove("kind");
+        if (scenario == "wrong-basis") signals[1]!["basis"] = "rpm";
+        if (scenario == "duplicate-tag") signals[1]!["tagId"] = Third;
+        if (scenario == "no-version") member.Remove("availabilityVersion");
+        member["currentFrequency"] = signals;
+        if (scenario != "valid") { AssertInvalid(Element(member)); return; }
+        Assert.DoesNotContain(Validate(Element(member)), issue => issue.IsError);
+        var normalized = VisualEngineeringPropertyMigration.NormalizeCurrentElements([Element(member)])!.Single();
+        var actual = JsonNode.Parse(normalized.Properties![VisualPropertyKeys.IntelligenceStageMembers].GetString()!)![0]!;
+        Assert.Equal("drive_electrical", actual["currentFrequency"]![1]!["basis"]!.GetValue<string>());
+        Assert.Null(actual["performance"]); Assert.Null(actual["contextualDeviation"]);
+    }
+
     [Fact]
     public void RegisteredInsightScreen_PreservesIndependentReportsThroughNormalization()
     {

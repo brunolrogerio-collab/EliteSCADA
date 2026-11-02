@@ -106,6 +106,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceReferenceEvidenceV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey, referenceEvidence: true));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceCurrentFrequencyComparisonV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceCurrentFrequencyV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceExperimentalJointDeviationV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceExperimentalJointV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceContextEligibilityV1Type, StringComparison.Ordinal))
@@ -365,6 +367,38 @@ public static class BuiltinVisualEngineeringValidation
                 $"Context conditions visual '{element.Key}' requires a Screen, stable scope/assignment/profile and a bounded versioned context reference list.", entityKind, entityKey);
     }
 
+    private static IEnumerable<ImportIssue> ValidateIntelligenceCurrentFrequencyV1(
+        VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
+    {
+        var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out var id) || id == Guid.Empty) ||
+            !ValidCurrentFrequencyCatalog(ReadString(element, VisualPropertyKeys.IntelligenceCurrentFrequencySignals)))
+            yield return Error("VISUAL_INTELLIGENCE_CURRENT_FREQUENCY_CONFIG_INVALID",
+                $"Current/frequency visual '{element.Key}' requires a Screen, stable identities and distinct qualified current and measured-frequency references.", entityKind, entityKey);
+    }
+
+    private static bool ValidCurrentFrequencyCatalog(string? json)
+    {
+        if (json is not { Length: <= 16384 }) return false;
+        JsonElement[]? signals;
+        try { signals = JsonSerializer.Deserialize<JsonElement[]>(json); }
+        catch (JsonException) { return false; }
+        if (signals is not { Length: >= 2 and <= 16 }) return false;
+        var ids = new HashSet<Guid>(); var tags = new HashSet<Guid>();
+        var hasCurrent = false; var hasFrequency = false;
+        foreach (var signal in signals)
+        {
+            if (signal.ValueKind != JsonValueKind.Object || !TryReadGuid(signal, "id", out var id) || id == Guid.Empty || !ids.Add(id) ||
+                !TryReadGuid(signal, "tagId", out var tag) || tag == Guid.Empty || !tags.Add(tag) || !TryReadBoundedString(signal, "label", 320, out _) ||
+                signal.EnumerateObject().Any(property => property.Name is not ("id" or "tagId" or "label" or "kind" or "basis")) ||
+                !TryReadBoundedString(signal, "kind", 16, out var kind) || !TryReadBoundedString(signal, "basis", 32, out var basis)) return false;
+            if (kind == "current" && basis is "line_rms" or "phase_rms" or "dc_bus") hasCurrent = true;
+            else if (kind == "frequency" && basis is "drive_electrical" or "shaft_rotational") hasFrequency = true;
+            else return false;
+        }
+        return hasCurrent && hasFrequency;
+    }
+
     private static IEnumerable<ImportIssue> ValidateIntelligenceExperimentalJointV1(
         VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
     {
@@ -499,6 +533,7 @@ public static class BuiltinVisualEngineeringValidation
         if (member.TryGetProperty("operatingContexts", out var contexts) &&
             (!partial || !ValidContextReferenceCatalog(contexts.GetRawText()))) return false;
         if (member.TryGetProperty("experimentalJoint", out var joint) && (!partial || !ValidStageJointPresentation(joint))) return false;
+        if (member.TryGetProperty("currentFrequency", out var currentFrequency) && (!partial || !ValidCurrentFrequencyCatalog(currentFrequency.GetRawText()))) return false;
         var hasPerformance = member.TryGetProperty("performance", out var performance);
         var hasDeviation = member.TryGetProperty("contextualDeviation", out var deviation);
         if (!partial && (!hasPerformance || !hasDeviation)) return false;

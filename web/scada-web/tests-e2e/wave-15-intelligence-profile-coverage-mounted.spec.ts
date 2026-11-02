@@ -746,6 +746,7 @@ async function installWorkspace(page: Page, options: {
   currentFrequencyCase?: string;
 } = {}) {
   const requests: Array<Record<string, any>> = [];
+  const currentFrequencyRequests: Array<Record<string, any>> = [];
   const performanceCatalogRequests: string[] = [];
   const performanceRequests: Array<Record<string, any>> = [];
   const dataReads: string[] = [];
@@ -825,6 +826,7 @@ async function installWorkspace(page: Page, options: {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
+    if (path === '/api/engineering/asset-process-intelligence/analytics/current-frequency-comparison/v1/query') currentFrequencyRequests.push(request.postDataJSON());
     if (path === '/api/engineering/asset-process-intelligence/analytics/performance/v1/catalog') {
       performanceCatalogRequests.push(`${request.method()} ${path}`);
       return route.fulfill({ json: performanceCatalog() });
@@ -907,7 +909,7 @@ async function installWorkspace(page: Page, options: {
   page.on('websocket', socket => {
     if (new URL(socket.url()).pathname === '/ws/tags') dataReads.push('WS /ws/tags');
   });
-  return { requests, performanceCatalogRequests, performanceRequests, dataReads, otherWrites };
+  return { requests, currentFrequencyRequests, performanceCatalogRequests, performanceRequests, dataReads, otherWrites };
 }
 
 function performanceCatalog() {
@@ -1166,4 +1168,19 @@ for (const [code,status,message] of [
   await page.route('**/analytics/current-frequency-comparison/v1/query', route => route.fulfill({ status, json: { code } }));
   await openIntelligence(page); const panel = await prepareCurrentFrequency(page); await panel.getByRole('button', { name: 'Comparar corrente', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText(message); await expect(panel.getByTestId('intelligence-current-frequency-result')).toHaveCount(0);
+});
+
+for(const stage of [false,true]) test(`current-frequency composer creates ${stage?'stage member':'profile'} view without querying or persisting`,async({page})=>{
+ const fixture=await installWorkspace(page,{currentFrequencyCase:'ready',stageReady:stage});await openIntelligence(page);
+ const generator=page.getByTestId('intelligence-dashboard-generator');
+ if(stage)await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+ await generator.getByRole('checkbox',{name:stage?'Corrente e frequência por equipamento':'Corrente em frequência semelhante',exact:true}).check();
+ await generator.getByTestId('intelligence-dashboard-generate').click();const editor=page.getByTestId('visual-editor-workspace'),drafts=editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
+ await expect(drafts).toHaveCount(stage?3:2);await drafts.last().click();
+ if(stage)await expect(editor.getByTestId('runtime-intelligence-process-stage-insights-current-frequency')).toBeEnabled();
+ else {
+ const visual=editor.getByTestId('runtime-intelligence-current-frequency');await expect(visual.getByRole('button',{name:'Comparar corrente',exact:true})).toBeDisabled();
+ await expect(visual.getByText(/No editor e na reprodução histórica/)).toBeVisible();
+ }
+ expect(fixture.requests).toEqual([]);expect(fixture.currentFrequencyRequests).toEqual([]);expect(fixture.performanceRequests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
 });

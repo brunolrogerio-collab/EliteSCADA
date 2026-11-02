@@ -1,3 +1,5 @@
+import { IntelligenceCurrentFrequencyVisualElement } from './IntelligenceCurrentFrequencyVisualElement';
+import { readCurrentFrequencySignals } from '../intelligenceCurrentFrequencySignals';
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { EngineeringLocale } from '../i18n';
@@ -13,7 +15,7 @@ import './IntelligenceProcessStageInsightsVisualElement.css';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type ReportKind = 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | null;
+type ReportKind = 'current-frequency' | 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | null;
 
 type Props = Readonly<{
   stageId: string;
@@ -34,7 +36,7 @@ export function IntelligenceProcessStageInsightsVisualElement({
   const [report, setReport] = useState<ReportKind>(null);
   const selected = members.find(member => member.assignmentId === selectedAssignmentId) ?? members[0] ?? null;
   const copy = text(locale);
-  const activeReport = report === 'performance' && selected?.performance ? report
+  const activeReport = report === 'current-frequency' && selected?.currentFrequency ? report : report === 'performance' && selected?.performance ? report
     : report === 'contextual-deviation' && selected?.contextualDeviation ? report
       : report === 'reference-evidence' && selected?.referenceEvidence ? report
         : report === 'context-eligibility' && selected?.operatingContexts ? report
@@ -95,6 +97,8 @@ export function IntelligenceProcessStageInsightsVisualElement({
         </select>
       </label>
       <div className="runtime-intelligence-process-stage-insights__actions" role="group" aria-label={copy.reports}>
+        <button type="button" data-testid="runtime-intelligence-process-stage-insights-current-frequency"
+          disabled={!selected?.currentFrequency} aria-pressed={activeReport === 'current-frequency'} onClick={()=>setReport('current-frequency')}>{copy.currentFrequency}</button>
         {selected?.referenceEvidence && <button type="button" data-testid="runtime-intelligence-process-stage-insights-reference"
           aria-pressed={activeReport === 'reference-evidence'} onClick={() => setReport('reference-evidence')}>{copy.reference}</button>}
         <button type="button" data-testid="runtime-intelligence-process-stage-insights-joint"
@@ -106,12 +110,17 @@ export function IntelligenceProcessStageInsightsVisualElement({
         <button type="button" data-testid="runtime-intelligence-process-stage-insights-deviation"
           disabled={!selected?.contextualDeviation} aria-pressed={activeReport === 'contextual-deviation'} onClick={() => setReport('contextual-deviation')}>{copy.deviation}</button>
       </div>
+      {!selected?.currentFrequency && <p>{copy.currentFrequencyMissing}</p>}
       {!selected?.experimentalJoint && <p>{copy.jointMissing}</p>}
       {!selected?.operatingContexts && <p>{copy.conditionsMissing}</p>}
       {!selected?.performance && <p>{copy.performanceMissing}</p>}
       {!selected?.contextualDeviation && <p>{copy.deviationMissing}</p>}
       {!activeReport || !selected ? <p className="runtime-intelligence-process-stage-insights__hint">{copy.chooseReport}</p>
-        : <div className="runtime-intelligence-process-stage-insights__report">{activeReport === 'experimental-joint' && selected.experimentalJoint ? <IntelligenceExperimentalJointVisualElement
+        : <div className="runtime-intelligence-process-stage-insights__report">{activeReport === 'current-frequency' && selected.currentFrequency ? <IntelligenceCurrentFrequencyVisualElement
+          key={`current-frequency:${selected.assignmentId}`} scopeId={selected.scopeId} assignmentId={selected.assignmentId} profileId={selected.profileId}
+          signalsJson={JSON.stringify(selected.currentFrequency)} style={reportStyle}
+          runtimeObjectId={runtimeObjectId ? `${runtimeObjectId}:${selected.assignmentId}:current-frequency` : undefined} locale={locale} title={selected.displayLabel}/>
+        : activeReport === 'experimental-joint' && selected.experimentalJoint ? <IntelligenceExperimentalJointVisualElement
           key={`joint:${selected.assignmentId}`} scopeId={selected.scopeId} assignmentId={selected.assignmentId} profileId={selected.profileId}
           contextsJson={JSON.stringify(selected.experimentalJoint.contexts)} signalsJson={JSON.stringify(selected.experimentalJoint.signals)} style={reportStyle}
           runtimeObjectId={runtimeObjectId ? `${runtimeObjectId}:${selected.assignmentId}:joint` : undefined} locale={locale} title={selected.displayLabel}/>
@@ -176,6 +185,7 @@ function parseMembers(value: string): Member[] {
           (member.availabilityVersion !== undefined && !partial) ||
           (member.referenceEvidence !== undefined && (!partial || member.referenceEvidence !== true)) ||
           (member.operatingContexts !== undefined && (!partial || !readIntelligenceContextReferences(JSON.stringify(member.operatingContexts)))) ||
+          (member.currentFrequency !== undefined && (!partial || !readCurrentFrequencySignals(JSON.stringify(member.currentFrequency)))) ||
           (member.experimentalJoint !== undefined && (!partial || !readIntelligenceJointPresentation(member.experimentalJoint))) ||
           ((!partial || member.performance !== undefined) && !validPerformance(member.performance)) ||
           ((!partial || member.contextualDeviation !== undefined) && !validDeviation(member.contextualDeviation))) return null;
@@ -217,6 +227,7 @@ function validRange(lower: number, upper: number): boolean {
 
 function text(locale: EngineeringLocale) {
   if (locale === 'en') return {
+    currentFrequency: 'Current at similar frequency', currentFrequencyMissing: 'Current/frequency comparison is not included for this equipment. It needs controlled current in A and measured frequency in Hz.',
     joint: 'Joint deviation (experimental)', jointMissing: 'Joint deviation is not included for this equipment. It needs a saved context and two distinct numeric measurements outside its conditions.', reference: 'Reference data', conditions: 'Operating conditions', conditionsMissing: 'This equipment has no saved context in this view. Generate and publish it again after saving a context in Engineering.',
     performanceMissing: 'Performance is not configured for this equipment. Other available analyses remain usable.',
     deviationMissing: 'Contextual deviation is not configured for this equipment. Other available analyses remain usable.',
@@ -227,6 +238,7 @@ function text(locale: EngineeringLocale) {
     invalid: 'This process-stage analysis has invalid or incomplete stable references.'
   };
   if (locale === 'es') return {
+    currentFrequency: 'Corriente a frecuencia similar', currentFrequencyMissing: 'No se incluyó comparación de corriente/frecuencia para este equipo. Necesita corriente controlada en A y frecuencia medida en Hz.',
     joint: 'Desviación conjunta (experimental)', jointMissing: 'Desviación conjunta no incluida para este equipo. Necesita contexto guardado y dos mediciones numéricas distintas fuera de sus condiciones.', reference: 'Datos de referencia', conditions: 'Condiciones de operación', conditionsMissing: 'Este equipo no tiene un contexto guardado en esta vista. Genere y publique de nuevo después de guardar un contexto en Ingeniería.',
     performanceMissing: 'Rendimiento no configurado para este equipo. Puede usar los otros análisis disponibles.',
     deviationMissing: 'Desviación contextual no configurada para este equipo. Puede usar los otros análisis disponibles.',
@@ -237,6 +249,7 @@ function text(locale: EngineeringLocale) {
     invalid: 'Este análisis de etapa contiene referencias estables no válidas o incompletas.'
   };
   return {
+    currentFrequency: 'Corrente em frequência semelhante', currentFrequencyMissing: 'Comparação corrente/frequência não incluída para este equipamento. Precisa de corrente controlada em A e frequência medida em Hz.',
     joint: 'Desvio conjunto (experimental)', jointMissing: 'Desvio conjunto não incluído para este equipamento. Precisa de contexto salvo e duas medições numéricas distintas fora de suas condições.', reference: 'Dados da referência', conditions: 'Condições de operação', conditionsMissing: 'Este equipamento não tem um contexto salvo nesta vista. Gere e publique novamente depois de salvar um contexto na Engenharia.',
     performanceMissing: 'Desempenho não configurado para este equipamento. As outras análises disponíveis continuam acessíveis.',
     deviationMissing: 'Desvio contextual não configurado para este equipamento. As outras análises disponíveis continuam acessíveis.',

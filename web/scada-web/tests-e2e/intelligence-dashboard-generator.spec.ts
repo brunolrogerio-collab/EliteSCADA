@@ -1,3 +1,4 @@
+import { currentFrequencySignals } from '../src/engineering/intelligenceCurrentFrequencySignals';
 import { expect, test } from '@playwright/test';
 import type {
   AssetProcessIntelligenceProfileEngineering,
@@ -961,4 +962,72 @@ test('context conditions persist references only and six selected views keep nav
     expect(() => generateIntelligenceContextEligibilityScreenDraft([], { ...identity, contexts: invalid as any }, 'en')).toThrow();
   }
   expect(() => generateIntelligenceDashboardCompositionDrafts([], source, tags, { contextEligibility: { ...contextSelection, assignmentId: id(99) } }, { theme: 'dark', measurements: {} }, 'en')).toThrow(/does not belong/);
+});
+
+test('current-frequency references add a seventh view and all six navigation destinations keep navigation inside the canvas', () => {
+  const id = (n: number) => `85700000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const tags = [1, 2, 3, 4].map(n => ({ ...numericTag(id(100 + n), `Pump.Signal${n}`), id: id(100 + n) }));
+  tags[0].controlledEngineeringUnit = { catalogVersion: 1, code: 'unit.electric_current.ampere' };
+  tags[1].controlledEngineeringUnit = { catalogVersion: 1, code: 'unit.frequency.hertz' };
+  const profile: AssetProcessIntelligenceProfileEngineering = { id: id(10), key: 'pump', name: 'Pump', signals: tags.map((tag, i) => ({ id: id(200 + i), key: `s${i}`, signalRole: `Signal ${i}`, tagId: tag.id, required: true })) };
+  profile.signals[0].semanticBinding = { catalogVersion: 1, roleCode: 'pump.electrical_current', currentBasis: 'line_rms' };
+  profile.signals[1].semanticBinding = { catalogVersion: 1, roleCode: 'pump.drive_frequency', signalKind: 'measured_output', frequencyReference: 'drive_electrical' };
+  const identity = { scopeId: id(20), assignmentId: id(30), profileId: profile.id, displayName: 'Pump' };
+  const contexts = [{ id: id(40), displayLabel: 'Normal operation', version: 3, predicateTagIds: [tags[2].id] }];
+  const contextSelection = { ...identity, contexts };
+  const source = { kind: 'equipment-profile' as const, stableKey: 'pump', displayName: 'Pump', assignments: [{ scopeId: identity.scopeId, assignmentId: identity.assignmentId, profile, equipmentName: 'Pump', equipmentPath: 'Pump' }] };
+  const joint = { ...contextSelection, signals: profile.signals.map((signal,i) => ({ id: signal.id, tagId: signal.tagId, label: `Measurement ${i}` })) };
+  const currentFrequency = { ...identity, signals: currentFrequencySignals(profile, tags) };
+  const selections = { currentFrequency, experimentalJoint: joint, referenceEvidence: identity, contextEligibility: contextSelection,
+    performance: { ...identity, ruleId: 'specific-active-energy-at-recorded-production-rate.v1', ruleVersion: '1.0.0', signalIds: profile.signals.slice(0, 2).map(s => s.id) },
+    contextualDeviation: { ...identity, targetSignalIds: profile.signals.slice(0, 2).map(s => s.id), firstContextSignalId: profile.signals[2].id,
+      secondContextSignalId: profile.signals[3].id, firstContextLowerInclusiveCanonical: 0, firstContextUpperExclusiveCanonical: 10,
+      secondContextLowerInclusiveCanonical: 0, secondContextUpperExclusiveCanonical: 100 } };
+  const drafts = generateIntelligenceDashboardCompositionDrafts([], source, tags, selections, { theme: 'light', measurements: {} }, 'en', ids());
+  expect(drafts).toHaveLength(7);
+  const currentWidget = drafts.find(draft => draft.metadata?.intelligenceDashboardViewRole === 'current-frequency')!.elements!.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1)!;
+  expect(JSON.parse(String(currentWidget.properties?.intelligenceCurrentFrequencySignals))).toEqual(currentFrequency.signals);
+  expect(JSON.stringify(currentWidget)).not.toMatch(/minimumFrequency|maximumFrequency|primaryWindow|comparisonWindow|metric|policy/);
+  for(const invalid of [currentFrequency.signals.slice(0,1), [...currentFrequency.signals,currentFrequency.signals[0]], currentFrequency.signals.map(signal=>({...signal,basis:'rpm'})), currentFrequency.signals.map(signal=>({...signal,label:'Wrong label'}))]) {
+    expect(()=>generateIntelligenceDashboardCompositionDrafts([],source,tags,{currentFrequency:{...currentFrequency,signals:invalid as any}},{theme:'dark',measurements:{}},'en')).toThrow();
+  }
+  const conditions = drafts.find(draft => draft.metadata?.intelligenceDashboardViewRole === 'context-eligibility')!;
+  const widget = conditions.elements!.find(e => e.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1)!;
+  expect(JSON.parse(String(widget.properties?.intelligenceOperatingContexts))).toEqual(contexts);
+  expect(widget.properties).toMatchObject({ intelligenceScopeId: identity.scopeId, intelligenceAssignmentId: identity.assignmentId, intelligenceProfileId: identity.profileId });
+  expect(widget.properties).not.toHaveProperty('referenceWindow');
+  expect(JSON.stringify(widget)).not.toMatch(/minimum|maximum|exactValue|booleanValue|referenceWindow|result/);
+  for (const draft of drafts) {
+    const navigation = draft.elements!.filter(e => e.actions?.some(a => a.kind === 'NavigateScreen'));
+    expect(navigation).toHaveLength(6);
+    for (const link of navigation) {
+      expect(Number(link.properties!.x) + Number(link.properties!.width)).toBeLessThanOrEqual(1920);
+      expect(Number(link.properties!.y) + Number(link.properties!.height)).toBeLessThanOrEqual(150);
+      expect(drafts.some(target => target.key === link.actions![0].targetKey)).toBe(true);
+    }
+  }
+  const jointWidget = drafts.find(s => s.metadata?.intelligenceDashboardViewRole === 'experimental-joint')!.elements!.find(e=>e.type===BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1)!;
+  expect(JSON.parse(String(jointWidget.properties?.intelligenceJointSignals))).toEqual(joint.signals);
+  expect(JSON.stringify(jointWidget)).not.toMatch(/minimum|maximum|referenceWindow|expectedCadence|scores/);
+  for(const signals of [joint.signals.slice(0,1), [...joint.signals,joint.signals[0]], [{...joint.signals[0],tagId:id(999)},joint.signals[1]],
+    [{...joint.signals[0],minimum:0},joint.signals[1]]]) {
+    expect(()=>generateIntelligenceDashboardCompositionDrafts([],source,tags,{experimentalJoint:{...joint,signals} as any},{theme:'dark',measurements:{}},'en')).toThrow();
+  }
+  for (const invalid of [[], [...contexts, ...contexts], [{ ...contexts[0], version: 0 }], [{ ...contexts[0], predicates: [{ minimum: 20 }] }]]) {
+    expect(() => generateIntelligenceContextEligibilityScreenDraft([], { ...identity, contexts: invalid as any }, 'en')).toThrow();
+  }
+  expect(() => generateIntelligenceDashboardCompositionDrafts([], source, tags, { contextEligibility: { ...contextSelection, assignmentId: id(99) } }, { theme: 'dark', measurements: {} }, 'en')).toThrow(/does not belong/);
+});
+
+test('stage analysis title keeps the long stage name in its own report header without clipping the navigation heading',()=>{
+ const identity=(n:number)=>`85900000-0000-0000-0000-${String(n).padStart(12,'0')}`;
+ const profile: AssetProcessIntelligenceProfileEngineering={id:identity(1),key:'motor',name:'Motor',signals:[{id:identity(2),tagId:identity(3),key:'current',signalRole:'current',required:true,semanticBinding:{catalogVersion:1,roleCode:'pump.electrical_current',currentBasis:'line_rms'}},{id:identity(4),tagId:identity(5),key:'frequency',signalRole:'frequency',required:true,semanticBinding:{catalogVersion:1,roleCode:'pump.drive_frequency',signalKind:'measured_output',frequencyReference:'drive_electrical'}}]};
+ const tags=[{...numericTag(identity(3),'Motor.I'),controlledEngineeringUnit:{catalogVersion:1,code:'unit.electric_current.ampere'}},{...numericTag(identity(5),'Motor.F'),controlledEngineeringUnit:{catalogVersion:1,code:'unit.frequency.hertz'}}];
+ const member={availabilityVersion:2 as const,assignmentId:identity(6),scopeId:identity(7),profileId:profile.id,displayLabel:'Motor',order:0,currentFrequency:currentFrequencySignals(profile,tags)};
+ const source={kind:'process-stage' as const,stableKey:'pumping',displayName:'Bombeamento — validação corrente/frequência e operação por equipamentos',assignments:[{assignmentId:member.assignmentId,scopeId:member.scopeId,equipmentName:'Motor',equipmentPath:'Motor',profile}]};
+ const coverage={stageId:identity(8),stageKey:'pumping',stageName:source.displayName,members:[member]};
+ const drafts=generateIntelligenceProcessStageCompositionDrafts([],source,coverage,coverage,tags,{theme:'dark',measurements:{}},{coverage:true,reports:true},'pt-BR',ids());
+ const report=drafts.find(screen=>screen.metadata?.intelligenceDashboardViewRole==='process-stage-insights')!;
+ expect(report.name).toContain(source.displayName);expect(report.elements!.find(element=>element.key==='intelligence-process-stage-insights-title')!.properties!.text).toBe('Análises dos membros da etapa');
+ expect(report.elements!.find(element=>element.type===BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1)!.properties!.intelligenceStageName).toBe(source.displayName);
 });

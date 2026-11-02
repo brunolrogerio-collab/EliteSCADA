@@ -4,16 +4,16 @@ import type { TagEngineering } from './types';
 import type { IntelligenceDashboardAppearance, IntelligenceMeasurementDraft } from './intelligenceDashboardGenerator';
 
 type Draft = { layout: IntelligenceMeasurementDraft['layout']; minimum: string; maximum: string; target: string; first: string; second: string };
-export function IntelligenceDashboardComposer({ locale, tags, disabled, performanceAvailable, deviationAvailable, deviationSignalCount, referenceAvailable = false, contextAvailable = false, jointAvailable = false, stage, configurationHref, onGenerate }: {
+export function IntelligenceDashboardComposer({ locale, tags, disabled, performanceAvailable, deviationAvailable, deviationSignalCount, referenceAvailable = false, contextAvailable = false, jointAvailable = false, currentFrequencyAvailable = false, stage, configurationHref, onGenerate }: {
   locale: EngineeringLocale; tags: readonly TagEngineering[]; disabled: boolean;
   performanceAvailable: boolean; deviationAvailable: boolean; configurationHref?: string;
   deviationSignalCount?: number;
-  referenceAvailable?: boolean; contextAvailable?: boolean; jointAvailable?: boolean;
+  referenceAvailable?: boolean; contextAvailable?: boolean; jointAvailable?: boolean; currentFrequencyAvailable?: boolean;
   stage?: Readonly<{ coverageAvailable: boolean; members: readonly Readonly<{
-    assignmentId: string; label: string; performance: boolean; deviation: boolean; contexts: boolean; joint: boolean; onConfigure: () => void;
+    assignmentId: string; label: string; performance: boolean; deviation: boolean; contexts: boolean; joint: boolean; currentFrequency: boolean; onConfigure: () => void;
   }>[] }>;
 
-  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean; stageCoverage: boolean; stageReports: boolean; referenceEvidence: boolean; stageReferenceEvidence: boolean; stageContextEligibility: boolean; stageExperimentalJoint: boolean; contextEligibility: boolean; experimentalJoint: boolean }) => void;
+  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean; stageCoverage: boolean; stageReports: boolean; referenceEvidence: boolean; stageReferenceEvidence: boolean; stageContextEligibility: boolean; stageExperimentalJoint: boolean; stageCurrentFrequency: boolean; currentFrequency: boolean; contextEligibility: boolean; experimentalJoint: boolean }) => void;
 }) {
   const copy = TEXT[locale];
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -22,6 +22,9 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
   const [deviation, setDeviation] = useState(true);
   const [stageCoverage, setStageCoverage] = useState(true);
   const [stageReports, setStageReports] = useState(true);
+  const [currentFrequency, setCurrentFrequency] = useState(false);
+  const [stageCurrentFrequency, setStageCurrentFrequency] = useState(false);
+  const stageCurrentFrequencyAvailable = stage?.members.some(member => member.currentFrequency) ?? false;
   const [experimentalJoint, setExperimentalJoint] = useState(false);
   const [contextEligibility, setContextEligibility] = useState(false);
   const [stageExperimentalJoint, setStageExperimentalJoint] = useState(false);
@@ -75,13 +78,15 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
       <p>{copy.stageReferenceHint}</p>
       <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageContextEligibility && stageContextsAvailable} disabled={disabled || !stageContextsAvailable} onChange={e => setStageContextEligibility(e.currentTarget.checked)}/>{copy.stageContexts}</label>
       <p>{stageContextsAvailable ? copy.stageContextsHint : copy.stageContextsMissing}</p>
+      <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageCurrentFrequency && stageCurrentFrequencyAvailable} disabled={disabled || !stageCurrentFrequencyAvailable} onChange={event=>setStageCurrentFrequency(event.currentTarget.checked)}/>{copy.stageCurrentFrequency}</label>
+      <p>{stageCurrentFrequencyAvailable ? copy.currentFrequencyHint : copy.currentFrequencyMissing}</p>
       <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageExperimentalJoint && stageJointAvailable} disabled={disabled || !stageJointAvailable} onChange={e=>setStageExperimentalJoint(e.currentTarget.checked)}/>{copy.stageJoint}</label>
       <p>{stageJointAvailable ? copy.stageJointHint : copy.stageJointMissing}</p>
       <p>{copy.stageHint}</p>
       {!stage.coverageAvailable && <p>{copy.stageCoverageMissing}</p>}
       {stage.members.map(member => <article key={member.assignmentId} className="asset-process-intelligence__row">
         <strong>{member.label}</strong>
-        <span>{copy.performance}: {member.performance ? copy.ready : copy.notConfigured} · {copy.deviation}: {member.deviation ? copy.ready : copy.notConfigured} · {copy.contextEligibility}: {member.contexts ? copy.ready : copy.notConfigured} · {copy.joint}: {member.joint ? copy.ready : copy.notConfigured}</span>
+        <span>{copy.performance}: {member.performance ? copy.ready : copy.notConfigured} · {copy.deviation}: {member.deviation ? copy.ready : copy.notConfigured} · {copy.contextEligibility}: {member.contexts ? copy.ready : copy.notConfigured} · {copy.joint}: {member.joint ? copy.ready : copy.notConfigured} · {copy.currentFrequency}: {member.currentFrequency ? copy.ready : copy.notConfigured}</span>
         <button type="button" className="secondary" disabled={disabled} onClick={member.onConfigure}>{copy.configureMember}</button>
       </article>)}
     </> : <>
@@ -89,6 +94,8 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     <p>{copy.referenceHint}</p>
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={contextEligibility && contextAvailable} disabled={disabled || !contextAvailable} onChange={e => setContextEligibility(e.currentTarget.checked)}/>{copy.contextEligibility}</label>
     <p>{contextAvailable ? copy.contextHint : copy.contextMissing}</p>
+    <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={currentFrequency && currentFrequencyAvailable} disabled={disabled || !currentFrequencyAvailable} onChange={event=>setCurrentFrequency(event.currentTarget.checked)}/>{copy.currentFrequency}</label>
+    <p>{currentFrequencyAvailable ? copy.currentFrequencyHint : copy.currentFrequencyMissing}</p>
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={experimentalJoint && jointAvailable} disabled={disabled || !jointAvailable} onChange={e => setExperimentalJoint(e.currentTarget.checked)}/>{copy.joint}</label>
     <p>{jointAvailable ? copy.jointHint : copy.jointMissing}</p>
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={performance && performanceAvailable} disabled={disabled || !performanceAvailable} onChange={e => setPerformance(e.currentTarget.checked)}/>{copy.performance}</label>
@@ -98,13 +105,14 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     {configurationHref && <a href={configurationHref}>{copy.configure}</a>}
     </>}
     <button type="button" data-testid="intelligence-dashboard-generate" disabled={disabled || !rows.length || rows.some(row => !row.valid)}
-      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable, contextEligibility: !stage && contextEligibility && contextAvailable, experimentalJoint: !stage && experimentalJoint && jointAvailable, stageReferenceEvidence: Boolean(stage && stageReferenceEvidence && stage.coverageAvailable), stageContextEligibility: Boolean(stage && stageContextEligibility && stageContextsAvailable), stageExperimentalJoint: Boolean(stage && stageExperimentalJoint && stageJointAvailable) })}>{copy.generate}</button>
+      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable, contextEligibility: !stage && contextEligibility && contextAvailable, experimentalJoint: !stage && experimentalJoint && jointAvailable, stageReferenceEvidence: Boolean(stage && stageReferenceEvidence && stage.coverageAvailable), stageContextEligibility: Boolean(stage && stageContextEligibility && stageContextsAvailable), stageExperimentalJoint: Boolean(stage && stageExperimentalJoint && stageJointAvailable), currentFrequency: !stage && currentFrequency && currentFrequencyAvailable, stageCurrentFrequency: Boolean(stage && stageCurrentFrequency && stageCurrentFrequencyAvailable) })}>{copy.generate}</button>
   </div>;
 }
 
 const TEXT = {
   'pt-BR': {
     stageJoint: 'Desvio conjunto experimental por equipamento', stageJointHint: 'Use o seletor da mesma tela de análises para calcular o desvio conjunto de um equipamento por vez. A consulta é experimental, sem diagnóstico ou limiar de alarme.', stageJointMissing: 'Ao menos um equipamento precisa de contexto salvo que deixe duas medições numéricas distintas fora de suas condições. As outras vistas continuam disponíveis.',
+    currentFrequency: 'Corrente em frequência semelhante', stageCurrentFrequency: 'Corrente e frequência por equipamento', currentFrequencyHint: 'Acrescente a comparação de corrente usando medições controladas em A e Hz. O operador escolhe períodos e faixa de frequência no Runtime, sem diagnóstico ou afirmação de eficiência.', currentFrequencyMissing: 'O perfil precisa de corrente controlada em ampere e frequência medida em hertz, com significados explícitos. As outras vistas continuam disponíveis.',
     joint: 'Desvio conjunto experimental', jointHint: 'Acrescente uma tela para comparar de duas a oito medições sob um contexto salvo. Cadência, períodos e consulta são definidos no Runtime. Validado por simulação, sem diagnóstico ou limiar de alarme.', jointMissing: 'Salve um contexto que deixe pelo menos duas medições numéricas distintas disponíveis para comparação. As outras vistas continuam disponíveis.',
     contextEligibility: 'Condições de operação', contextHint: 'Acrescente uma tela para conferir quais leituras atendem aos contextos salvos. No Runtime, escolha o contexto pelo nome e consulte um período.', contextMissing: 'Salve um contexto operacional desta associação para acrescentar a vista de condições. As outras vistas continuam disponíveis.',
     stageContexts: 'Condições de operação por equipamento', stageContextsHint: 'Use a mesma tela de análises para escolher um equipamento e consultar seus contextos salvos. Equipamentos sem contexto mantêm as outras análises disponíveis.', stageContextsMissing: 'Salve um contexto na associação de pelo menos um equipamento desta etapa para incluir as condições. As outras vistas continuam disponíveis.',
@@ -125,6 +133,7 @@ const TEXT = {
   },
   en: {
     stageJoint: 'Experimental joint deviation per equipment', stageJointHint: 'Use the same analyses screen selector to calculate joint deviation for one equipment at a time. This is experimental, without diagnosis or an alarm threshold.', stageJointMissing: 'At least one equipment needs a saved context leaving two distinct numeric measurements outside its conditions. Other views remain available.',
+    currentFrequency: 'Current at similar frequency', stageCurrentFrequency: 'Current and frequency per equipment', currentFrequencyHint: 'Add current comparison using controlled measurements in A and Hz. The operator chooses periods and frequency range in Runtime, without diagnosis or an efficiency claim.', currentFrequencyMissing: 'The profile needs controlled current in amperes and measured frequency in hertz, with explicit meanings. Other views remain available.',
     joint: 'Experimental joint deviation', jointHint: 'Add a screen to compare two to eight measurements under a saved context. Cadence, periods and query are set in Runtime. Validated by simulation, without diagnosis or an alarm threshold.', jointMissing: 'Save a context that leaves at least two distinct numeric measurements available for comparison. Other views remain available.',
     contextEligibility: 'Operating conditions', contextHint: 'Add a screen to check which readings meet saved context conditions. In Runtime, choose a context by name and query a period.', contextMissing: 'Save an operating context for this assignment to add the conditions view. Other views remain available.',
     stageContexts: 'Operating conditions per equipment', stageContextsHint: 'Use the same analyses screen to choose equipment and query its saved contexts. Equipment without a context retains its other available analyses.', stageContextsMissing: 'Save a context in at least one equipment assignment in this stage to include conditions. The other views remain available.',
@@ -145,6 +154,7 @@ const TEXT = {
   },
   es: {
     stageJoint: 'Desviación conjunta experimental por equipo', stageJointHint: 'Use el selector de la misma pantalla de análisis para calcular desviación conjunta de un equipo a la vez. Es experimental, sin diagnóstico ni umbral de alarma.', stageJointMissing: 'Al menos un equipo necesita contexto guardado que deje dos mediciones numéricas distintas fuera de sus condiciones. Las otras vistas siguen disponibles.',
+    currentFrequency: 'Corriente a frecuencia similar', stageCurrentFrequency: 'Corriente y frecuencia por equipo', currentFrequencyHint: 'Agregue la comparación de corriente con mediciones controladas en A y Hz. El operador elige períodos y rango en Runtime, sin diagnóstico ni afirmación de eficiencia.', currentFrequencyMissing: 'El perfil necesita corriente controlada en amperios y frecuencia medida en hercios, con significados explícitos. Las otras vistas siguen disponibles.',
     joint: 'Desviación conjunta experimental', jointHint: 'Agregue una pantalla para comparar de dos a ocho mediciones bajo un contexto guardado. Cadencia, períodos y consulta se definen en Runtime. Validado por simulación, sin diagnóstico ni umbral de alarma.', jointMissing: 'Guarde un contexto que deje al menos dos mediciones numéricas distintas para comparar. Las otras vistas siguen disponibles.',
     contextEligibility: 'Condiciones de operación', contextHint: 'Agregue una pantalla para revisar qué lecturas cumplen los contextos guardados. En Runtime, elija el contexto por nombre y consulte un período.', contextMissing: 'Guarde un contexto operativo de esta asignación para agregar la vista de condiciones. Las otras vistas siguen disponibles.',
     stageContexts: 'Condiciones de operación por equipo', stageContextsHint: 'Use la misma pantalla de análisis para elegir un equipo y consultar sus contextos guardados. Los equipos sin contexto conservan sus otros análisis disponibles.', stageContextsMissing: 'Guarde un contexto en al menos una asignación de equipo de esta etapa para incluir condiciones. Las otras vistas siguen disponibles.',

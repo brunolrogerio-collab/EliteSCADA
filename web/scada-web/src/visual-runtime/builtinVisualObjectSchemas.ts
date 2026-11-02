@@ -38,6 +38,7 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   intelligenceProfileCoverageV1: 'core.intelligenceProfileCoverageV1',
   intelligenceReferenceEvidenceV1: 'core.intelligenceReferenceEvidenceV1',
   intelligenceContextEligibilityV1: 'core.intelligenceContextEligibilityV1',
+  intelligenceCurrentFrequencyComparisonV1: 'core.intelligenceCurrentFrequencyComparisonV1',
   intelligenceExperimentalJointDeviationV1: 'core.intelligenceExperimentalJointDeviationV1',
   intelligenceProcessStageCoverageV1: 'core.intelligenceProcessStageCoverageV1',
   intelligenceProcessStageInsightsV1: 'core.intelligenceProcessStageInsightsV1',
@@ -363,6 +364,10 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.intelligenceAssignmentId,
     VISUAL_PROPERTY_KEYS.intelligenceProfileId,
     VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1, [
+    ...BASE, VISUAL_PROPERTY_KEYS.intelligenceScopeId, VISUAL_PROPERTY_KEYS.intelligenceAssignmentId, VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1, [
     ...BASE, VISUAL_PROPERTY_KEYS.intelligenceScopeId, VISUAL_PROPERTY_KEYS.intelligenceAssignmentId, VISUAL_PROPERTY_KEYS.intelligenceProfileId,

@@ -39,6 +39,7 @@ public static class BuiltinVisualObjectSchemas
     public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
     public const string IntelligenceProfileCoverageV1Type = "core.intelligenceProfileCoverageV1";
     public const string IntelligenceReferenceEvidenceV1Type = "core.intelligenceReferenceEvidenceV1";
+    public const string IntelligenceCurrentFrequencyComparisonV1Type = "core.intelligenceCurrentFrequencyComparisonV1";
     public const string IntelligenceExperimentalJointDeviationV1Type = "core.intelligenceExperimentalJointDeviationV1";
     public const string IntelligenceContextEligibilityV1Type = "core.intelligenceContextEligibilityV1";
     public const string IntelligenceProcessStageCoverageV1Type = "core.intelligenceProcessStageCoverageV1";
@@ -127,6 +128,7 @@ public static class BuiltinVisualObjectSchemas
         new(VisualPropertyKeys.IntelligenceStageName, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
         new(VisualPropertyKeys.IntelligenceStageMembers, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
         new(VisualPropertyKeys.IntelligenceJointSignals, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceCurrentFrequencySignals, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
         new(VisualPropertyKeys.IntelligenceOperatingContexts, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
     ];
 
@@ -520,6 +522,13 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.IntelligenceOperatingContexts
         ]));
 
+    public static VisualObjectPropertySchema IntelligenceCurrentFrequencyComparisonV1 { get; } = Create(
+        IntelligenceCurrentFrequencyComparisonV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceCurrentFrequencySignals
+        ]));
+
     public static VisualObjectPropertySchema IntelligenceExperimentalJointDeviationV1 { get; } = Create(
         IntelligenceExperimentalJointDeviationV1Type,
         Base.Concat([
@@ -586,6 +595,7 @@ public static class BuiltinVisualObjectSchemas
         IntelligenceProfileCoverageV1,
         IntelligenceReferenceEvidenceV1,
         IntelligenceContextEligibilityV1,
+        IntelligenceCurrentFrequencyComparisonV1,
         IntelligenceExperimentalJointDeviationV1,
         IntelligenceProcessStageCoverageV1,
         IntelligenceProcessStageInsightsV1,

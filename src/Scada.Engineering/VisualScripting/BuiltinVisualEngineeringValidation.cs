@@ -106,6 +106,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceReferenceEvidenceV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey, referenceEvidence: true));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceExperimentalJointDeviationV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceExperimentalJointV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceContextEligibilityV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceContextEligibilityV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageCoverageV1Type, StringComparison.Ordinal))
@@ -361,6 +363,28 @@ public static class BuiltinVisualEngineeringValidation
             !ValidContextReferenceCatalog(json))
             yield return Error("VISUAL_INTELLIGENCE_CONTEXT_ELIGIBILITY_CONFIG_INVALID",
                 $"Context conditions visual '{element.Key}' requires a Screen, stable scope/assignment/profile and a bounded versioned context reference list.", entityKind, entityKey);
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligenceExperimentalJointV1(
+        VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
+    {
+        var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
+        var json = ReadString(element, VisualPropertyKeys.IntelligenceJointSignals);
+        JsonElement[]? signals = null;
+        if (json is { Length: <= 16384 })
+        {
+            try { signals = JsonSerializer.Deserialize<JsonElement[]>(json); }
+            catch (JsonException) { }
+        }
+        var ids = new HashSet<Guid>(); var tags = new HashSet<Guid>();
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out _)) ||
+            !ValidContextReferenceCatalog(ReadString(element, VisualPropertyKeys.IntelligenceOperatingContexts)) ||
+            signals is not { Length: >= 2 and <= 16 } || signals.Any(signal =>
+                signal.ValueKind != JsonValueKind.Object || !TryReadGuid(signal, "id", out var id) || !ids.Add(id) ||
+                !TryReadGuid(signal, "tagId", out var tag) || !tags.Add(tag) || !TryReadBoundedString(signal, "label", 320, out _) ||
+                signal.EnumerateObject().Any(property => property.Name is not ("id" or "tagId" or "label"))))
+            yield return Error("VISUAL_INTELLIGENCE_JOINT_CONFIG_INVALID",
+                $"Experimental joint visual '{element.Key}' requires a Screen, stable identities, versioned context references and 2–16 distinct measurement references.", entityKind, entityKey);
     }
 
     private static bool ValidContextReferenceCatalog(string? json)

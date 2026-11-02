@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { EngineeringLocale } from './i18n';
-import type { AssetProcessIntelligenceOperatingContextProfileEngineering, AssetProcessIntelligenceProfileEngineering, TagEngineering } from './types';
+import type { IntelligenceContextEligibilityReference } from './IntelligenceContextEligibilityPanel';
+import type { IntelligenceJointSignalReference } from './intelligenceJointReferences';
 import { coverageCopy, coverageErrorText, localDateTimeInput, parseWindow } from './AssetProcessIntelligenceCoveragePanel';
-import { isNumericTagDataType } from './intelligenceDashboardGenerator';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 type Score = { sourceTimestampUtc: string; score: number | null; levelComponent: number | null; relationshipComponent: number | null;
@@ -11,13 +11,13 @@ type JointResult = { referenceFitStatus: string; referenceFitUnavailableReason: 
   referenceCompleteCohortCount: number; evaluationScoredCohortCount: number; evaluationWarmupCohortCount: number;
   omittedEvaluationScores: number; scores: Score[] };
 
-export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignmentId, profile, tags, contexts, projectKey, activeRevision, canQuery }: {
-  locale: EngineeringLocale; scopeId: string; assignmentId: string; profile: AssetProcessIntelligenceProfileEngineering;
-  tags: readonly TagEngineering[]; contexts: readonly AssetProcessIntelligenceOperatingContextProfileEngineering[];
-  projectKey: string | null; activeRevision: number | null; canQuery: boolean;
+export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignmentId, profileId, signals, contexts, projectKey, activeRevision, canQuery, runtimeView = false }: {
+  locale: EngineeringLocale; scopeId: string; assignmentId: string; profileId: string;
+  signals: readonly IntelligenceJointSignalReference[]; contexts: readonly IntelligenceContextEligibilityReference[];
+  projectKey: string | null; activeRevision: number | null; canQuery: boolean; runtimeView?: boolean;
 }) {
   const text = (pt: string, en: string, es: string) => locale === 'pt-BR' ? pt : locale === 'es' ? es : en;
-  const [contextId, setContextId] = useState('');
+  const [contextId, setContextId] = useState(() => runtimeView && contexts.length === 1 ? contexts[0].id : '');
   const context = contexts.find(item => item.id === contextId && item.assignmentId === assignmentId);
   const [targets, setTargets] = useState<string[]>([]);
   const [cadence, setCadence] = useState('');
@@ -30,12 +30,8 @@ export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignment
   const [busy, setBusy] = useState(false);
   const controller = useRef<AbortController | null>(null);
   const sequence = useRef(0);
-  const options = profile.signals.flatMap(signal => {
-    const tag = tags.find(item => item.id?.toLowerCase() === signal.tagId.toLowerCase());
-    return tag && isNumericTagDataType(tag.dataType) && !context?.predicates.some(predicate => predicate.tagId.toLowerCase() === signal.tagId.toLowerCase())
-      ? [{ id: signal.id, tagId: signal.tagId, label: tag.name || tag.path }] : [];
-  });
-  const selectionKey = JSON.stringify({ profile, contexts, tags });
+  const options = signals.filter(signal => !context?.predicates.some(predicate => predicate.tagId.toLowerCase() === signal.tagId.toLowerCase()));
+  const selectionKey = JSON.stringify({ profileId, signals, contexts });
   useEffect(() => {
     controller.current?.abort(); sequence.current++;
     setResult(null); setError(null); setBusy(false);
@@ -70,7 +66,7 @@ export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignment
       const sameWindow = (value: { fromUtc?: string; toUtc?: string } | null, expected: { fromUtc: string; toUtc: string }) =>
         Date.parse(value?.fromUtc ?? '') === Date.parse(expected.fromUtc) && Date.parse(value?.toUtc ?? '') === Date.parse(expected.toUtc);
       if (payload?.contractVersion !== 1 || payload.projectKey !== projectKey || payload.activeRevision !== activeRevision ||
-          payload.scopeId !== scopeId || payload.assignmentId !== assignmentId || payload.measurementProfileId !== profile.id ||
+          payload.scopeId !== scopeId || payload.assignmentId !== assignmentId || payload.measurementProfileId !== profileId ||
           payload.operatingContextProfileId !== context.id || payload.operatingContextProfileVersion !== context.version ||
           payload.expectedCadenceSeconds !== seconds || payload.validationStatus !== 'experimental_not_field_validated' ||
           payload.classificationStatus !== 'none' || payload.decisionThreshold !== null ||
@@ -93,7 +89,7 @@ export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignment
     } finally { if (sequence.current === request) setBusy(false); }
   }
   const number = (value: number | null) => value === null ? '—' : new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }).format(value);
-  return <details className="asset-process-intelligence__coverage asset-process-intelligence__analysis" data-testid={`intelligence-joint-deviation-${assignmentId}`}>
+  return <details open={runtimeView || undefined} className="asset-process-intelligence__coverage asset-process-intelligence__analysis" data-testid={`intelligence-joint-deviation-${assignmentId}`}>
     <summary>{text('Desvio conjunto experimental', 'Experimental joint deviation', 'Desviación conjunta experimental')}</summary>
     <p>{text('Compare de dois a oito sinais com uma referência escolhida, sob as condições do contexto salvo. O cálculo observa mudanças de nível e da relação entre sinais.',
       'Compare two to eight signals against a selected reference, under saved context conditions. The calculation observes changes in level and relationships between signals.',
@@ -101,7 +97,8 @@ export function IntelligenceExperimentalJointPanel({ locale, scopeId, assignment
     <p role="note">{text('Experimental, validado somente por simulação. O resultado não diagnostica falhas, não prevê vida útil e não tem limiar de alarme validado em campo.',
       'Experimental, validated by simulation only. Results do not diagnose faults, predict remaining life or provide a field-validated alarm threshold.',
       'Experimental, validado solo por simulación. El resultado no diagnostica fallos, no predice vida útil ni tiene umbral de alarma validado en campo.')}</p>
-    {!canQuery && <p>{text('Publique as alterações e confira a ativação e as permissões deste equipamento antes de consultar.', 'Publish changes and check equipment activation and permissions before querying.', 'Publique los cambios y revise la activación y los permisos del equipo antes de consultar.')}</p>}
+    {!canQuery && runtimeView && <p role="note">{text('Consulte no Runtime ao vivo. No editor e na reprodução histórica, este cálculo fica desabilitado.', 'Query in live Runtime. This calculation is disabled in the editor and historical playback.', 'Consulte en Runtime en vivo. Este cálculo está deshabilitado en el editor y reproducción histórica.')}</p>}
+    {!canQuery && !runtimeView && <p>{text('Publique as alterações e confira a ativação e as permissões deste equipamento antes de consultar.', 'Publish changes and check equipment activation and permissions before querying.', 'Publique los cambios y revise la activación y los permisos del equipo antes de consultar.')}</p>}
     <form onSubmit={event => void query(event)}>
       <label>{text('Contexto salvo', 'Saved context', 'Contexto guardado')}<select value={contextId} onChange={event => { setContextId(event.currentTarget.value); setTargets([]); }}>
         <option value="">{text('Escolha o contexto', 'Choose a context', 'Elija un contexto')}</option>

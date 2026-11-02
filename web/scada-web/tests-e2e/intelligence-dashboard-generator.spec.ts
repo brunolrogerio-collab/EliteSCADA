@@ -905,21 +905,22 @@ test('reference evidence is an independent canonical view with stable references
   expect(() => generateIntelligenceReferenceEvidenceScreenDraft([], { ...selection, profileId: 'invalid' }, 'en')).toThrow();
 });
 
-test('context conditions persist references only and five selected views keep navigation inside the canvas', () => {
+test('context conditions persist references only and six selected views keep navigation inside the canvas', () => {
   const id = (n: number) => `85700000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   const tags = [1, 2, 3, 4].map(n => ({ ...numericTag(id(100 + n), `Pump.Signal${n}`), id: id(100 + n) }));
   const profile = { id: id(10), key: 'pump', name: 'Pump', signals: tags.map((tag, i) => ({ id: id(200 + i), key: `s${i}`, signalRole: `Signal ${i}`, tagId: tag.id, required: true })) };
   const identity = { scopeId: id(20), assignmentId: id(30), profileId: profile.id, displayName: 'Pump' };
-  const contexts = [{ id: id(40), displayLabel: 'Normal operation', version: 3, predicateTagIds: [id(300)] }];
+  const contexts = [{ id: id(40), displayLabel: 'Normal operation', version: 3, predicateTagIds: [tags[2].id] }];
   const contextSelection = { ...identity, contexts };
   const source = { kind: 'equipment-profile' as const, stableKey: 'pump', displayName: 'Pump', assignments: [{ scopeId: identity.scopeId, assignmentId: identity.assignmentId, profile, equipmentName: 'Pump', equipmentPath: 'Pump' }] };
-  const selections = { referenceEvidence: identity, contextEligibility: contextSelection,
+  const joint = { ...contextSelection, signals: profile.signals.map((signal,i) => ({ id: signal.id, tagId: signal.tagId, label: `Measurement ${i}` })) };
+  const selections = { experimentalJoint: joint, referenceEvidence: identity, contextEligibility: contextSelection,
     performance: { ...identity, ruleId: 'specific-active-energy-at-recorded-production-rate.v1', ruleVersion: '1.0.0', signalIds: profile.signals.slice(0, 2).map(s => s.id) },
     contextualDeviation: { ...identity, targetSignalIds: profile.signals.slice(0, 2).map(s => s.id), firstContextSignalId: profile.signals[2].id,
       secondContextSignalId: profile.signals[3].id, firstContextLowerInclusiveCanonical: 0, firstContextUpperExclusiveCanonical: 10,
       secondContextLowerInclusiveCanonical: 0, secondContextUpperExclusiveCanonical: 100 } };
   const drafts = generateIntelligenceDashboardCompositionDrafts([], source, tags, selections, { theme: 'light', measurements: {} }, 'en', ids());
-  expect(drafts).toHaveLength(5);
+  expect(drafts).toHaveLength(6);
   const conditions = drafts.find(draft => draft.metadata?.intelligenceDashboardViewRole === 'context-eligibility')!;
   const widget = conditions.elements!.find(e => e.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1)!;
   expect(JSON.parse(String(widget.properties?.intelligenceOperatingContexts))).toEqual(contexts);
@@ -928,12 +929,19 @@ test('context conditions persist references only and five selected views keep na
   expect(JSON.stringify(widget)).not.toMatch(/minimum|maximum|exactValue|booleanValue|referenceWindow|result/);
   for (const draft of drafts) {
     const navigation = draft.elements!.filter(e => e.actions?.some(a => a.kind === 'NavigateScreen'));
-    expect(navigation).toHaveLength(4);
+    expect(navigation).toHaveLength(5);
     for (const link of navigation) {
       expect(Number(link.properties!.x) + Number(link.properties!.width)).toBeLessThanOrEqual(1920);
       expect(Number(link.properties!.y) + Number(link.properties!.height)).toBeLessThanOrEqual(150);
       expect(drafts.some(target => target.key === link.actions![0].targetKey)).toBe(true);
     }
+  }
+  const jointWidget = drafts.find(s => s.metadata?.intelligenceDashboardViewRole === 'experimental-joint')!.elements!.find(e=>e.type===BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1)!;
+  expect(JSON.parse(String(jointWidget.properties?.intelligenceJointSignals))).toEqual(joint.signals);
+  expect(JSON.stringify(jointWidget)).not.toMatch(/minimum|maximum|referenceWindow|expectedCadence|scores/);
+  for(const signals of [joint.signals.slice(0,1), [...joint.signals,joint.signals[0]], [{...joint.signals[0],tagId:id(999)},joint.signals[1]],
+    [{...joint.signals[0],minimum:0},joint.signals[1]]]) {
+    expect(()=>generateIntelligenceDashboardCompositionDrafts([],source,tags,{experimentalJoint:{...joint,signals} as any},{theme:'dark',measurements:{}},'en')).toThrow();
   }
   for (const invalid of [[], [...contexts, ...contexts], [{ ...contexts[0], version: 0 }], [{ ...contexts[0], predicates: [{ minimum: 20 }] }]]) {
     expect(() => generateIntelligenceContextEligibilityScreenDraft([], { ...identity, contexts: invalid as any }, 'en')).toThrow();

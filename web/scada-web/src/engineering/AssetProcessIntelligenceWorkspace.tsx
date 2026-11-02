@@ -36,6 +36,7 @@ import {
   type IntelligenceProcessStageCoverageDashboardSelection,
   type IntelligenceProcessStageReportSelection,
   type IntelligenceContextEligibilityDashboardSelection,
+  type IntelligenceExperimentalJointDashboardSelection,
   type IntelligenceProcessStageInsightsDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
@@ -488,7 +489,19 @@ export function AssetProcessIntelligenceWorkspace({
     return contexts ? { scopeId: member.scopeId, assignmentId: member.assignmentId, profileId: member.profile.id, displayName: source.displayName, contexts } : null;
   };
 
-  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean; stageContextEligibility?: boolean; contextEligibility?: boolean }) => {
+  const jointSelectionForSource = (source: IntelligenceDashboardSource): IntelligenceExperimentalJointDashboardSelection | null => {
+    const context = contextSelectionForSource(source);
+    if (!context) return null;
+    const signals = source.assignments[0].profile.signals.flatMap(signal => {
+      const tag = tags.find(item => item.id?.toLowerCase() === signal.tagId.toLowerCase());
+      return tag && isNumericTagDataType(tag.dataType) ? [{ id: signal.id, tagId: signal.tagId, label: tag.name || tag.path }] : [];
+    });
+    return signals.length >= 2 && signals.length <= 16 && new Set(signals.map(s => s.tagId.toLowerCase())).size === signals.length &&
+      context.contexts.some(c => signals.filter(signal => !c.predicateTagIds.some(id => id.toLowerCase() === signal.tagId.toLowerCase())).length >= 2)
+      ? { ...context, signals } : null;
+  };
+
+  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean; stageContextEligibility?: boolean; contextEligibility?: boolean; experimentalJoint?: boolean }) => {
     setError(null);
     setMessage(null);
     if (!snapshot?.licensed) {
@@ -534,6 +547,7 @@ export function AssetProcessIntelligenceWorkspace({
       const member = source.kind === "equipment-profile" && source.assignments.length === 1 ? source.assignments[0] : null;
       const assignmentId = source.kind === 'equipment-profile' ? source.assignments[0]?.assignmentId : undefined;
       onCreateDashboardDraft(appearance ? generateIntelligenceDashboardCompositionDrafts(screens, source, tags, {
+        experimentalJoint: analyses?.experimentalJoint ? jointSelectionForSource(source) ?? undefined : undefined,
         contextEligibility: analyses?.contextEligibility ? contextSelectionForSource(source) ?? undefined : undefined,
         referenceEvidence: analyses?.referenceEvidence && member?.scopeId ? { scopeId: member.scopeId, profileId: member.profile.id, displayName: source.displayName } : undefined,
         performance: analyses?.performance && assignmentId ? guidedPerformanceSelections[assignmentId] ?? undefined : undefined,
@@ -905,6 +919,7 @@ export function AssetProcessIntelligenceWorkspace({
         {selectedDashboardSource && <IntelligenceDashboardComposer key={selectedDashboardSource.key} locale={locale}
           tags={selectedDashboardTags}
           disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !selectedDashboardSource.hasNumericSignal || dirtyConfiguration}
+          jointAvailable={Boolean(jointSelectionForSource(selectedDashboardSource.source))}
           contextAvailable={Boolean(contextSelectionForSource(selectedDashboardSource.source))}
           referenceAvailable={selectedDashboardSource.source.kind === "equipment-profile" && selectedDashboardSource.source.assignments.length === 1 && Boolean(selectedDashboardSource.source.assignments[0].scopeId)}
           performanceAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedPerformanceSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
@@ -1120,7 +1135,11 @@ export function AssetProcessIntelligenceWorkspace({
                   canQuery={!coverageBlockedReason}
                 /> : null}
                 {equipmentResource && profile ? <IntelligenceExperimentalJointPanel
-                  locale={locale} scopeId={assignment.equipmentId} assignmentId={assignment.id} profile={profile} tags={tags}
+                  locale={locale} scopeId={assignment.equipmentId} assignmentId={assignment.id} profileId={profile.id}
+                  signals={profile.signals.flatMap(signal => {
+                    const tag = tags.find(item => item.id?.toLowerCase() === signal.tagId.toLowerCase());
+                    return tag && isNumericTagDataType(tag.dataType) ? [{ id: signal.id, tagId: signal.tagId, label: tag.name || tag.path }] : [];
+                  })}
                   contexts={initialConfig.operatingContextProfiles}
                   projectKey={snapshot.execution.projectKey} activeRevision={snapshot.execution.activeRevision}
                   canQuery={!coverageBlockedReason}

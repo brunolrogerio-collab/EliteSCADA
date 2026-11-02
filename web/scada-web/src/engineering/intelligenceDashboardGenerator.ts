@@ -1,3 +1,4 @@
+import { readIntelligenceJointSignals, type IntelligenceJointSignalReference } from './intelligenceJointReferences';
 import { readIntelligenceContextReferences, type IntelligenceContextReference } from './intelligenceContextReferences';
 import type { EngineeringLocale } from './i18n';
 import type {
@@ -67,6 +68,10 @@ export type IntelligenceProfileCoverageDashboardSelection = Readonly<{
 export type IntelligenceContextEligibilityDashboardSelection = IntelligenceProfileCoverageDashboardSelection & Readonly<{
   assignmentId: string;
   contexts: readonly IntelligenceContextReference[];
+}>;
+
+export type IntelligenceExperimentalJointDashboardSelection = IntelligenceContextEligibilityDashboardSelection & Readonly<{
+  signals: readonly IntelligenceJointSignalReference[];
 }>;
 
 export type IntelligenceContextualDeviationDashboardSelection = Readonly<{
@@ -477,12 +482,12 @@ export function generateIntelligenceGuidedDashboardDrafts(
 /** Compose only analyses explicitly configured for this equipment, independently. */
 export function generateIntelligenceDashboardCompositionDrafts(
   existingScreens: readonly ScreenEngineering[], source: IntelligenceDashboardSource, tags: readonly TagEngineering[],
-  selections: Partial<IntelligenceGuidedDashboardSelections> & { referenceEvidence?: IntelligenceProfileCoverageDashboardSelection; contextEligibility?: IntelligenceContextEligibilityDashboardSelection }, appearance: IntelligenceDashboardAppearance,
+  selections: Partial<IntelligenceGuidedDashboardSelections> & { referenceEvidence?: IntelligenceProfileCoverageDashboardSelection; contextEligibility?: IntelligenceContextEligibilityDashboardSelection; experimentalJoint?: IntelligenceExperimentalJointDashboardSelection }, appearance: IntelligenceDashboardAppearance,
   locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
 ): readonly ScreenEngineering[] {
   const allocateId = createUniqueIdAllocator(createId);
   const drafts = [generateIntelligenceDashboardDraft(existingScreens, source, tags, locale, allocateId, appearance)];
-  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility'> = ['values-trend'];
+  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint'> = ['values-trend'];
   const member = source.kind === 'equipment-profile' && source.assignments.length === 1 ? source.assignments[0] : null;
   const valid = (selection: { scopeId: string; assignmentId: string; profileId: string }, signalIds: readonly string[]) =>
     member && selection.scopeId.toLowerCase() === member.scopeId?.toLowerCase() &&
@@ -504,6 +509,17 @@ export function generateIntelligenceDashboardCompositionDrafts(
     drafts.push(generateIntelligenceContextEligibilityScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
     roles.push('context-eligibility');
   }
+  if (selections.experimentalJoint) {
+    const selection = selections.experimentalJoint;
+    if (!valid(selection, selection.signals.map(signal => signal.id)) ||
+        selection.signals.some(signal => !member?.profile.signals.some(item => item.id === signal.id && item.tagId === signal.tagId) ||
+          !tags.some(tag => tag.id === signal.tagId && isNumericTagDataType(tag.dataType))) ||
+        selection.contexts.some(context => context.predicateTagIds.some(id => !member?.profile.signals.some(signal => signal.tagId.toLowerCase() === id.toLowerCase())))) {
+      throw new Error('Joint deviation references must belong to this equipment profile and numeric TAGs.');
+    }
+    drafts.push(generateIntelligenceExperimentalJointScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
+    roles.push('experimental-joint');
+  }
   if (selections.performance) {
     if (!valid(selections.performance, selections.performance.signalIds)) throw new Error('Performance selection does not belong to this equipment profile.');
     drafts.push(generateIntelligencePerformanceScreenDraft([...existingScreens, ...drafts], selections.performance, locale, allocateId));
@@ -520,7 +536,7 @@ export function generateIntelligenceDashboardCompositionDrafts(
 
 function linkDashboardDrafts(
   drafts: readonly ScreenEngineering[],
-  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility')[],
+  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint')[],
   locale: EngineeringLocale, allocateVisualId: () => string
 ): readonly ScreenEngineering[] {
   const navigationLabels = guidedDashboardNavigationLabels(locale);
@@ -716,6 +732,34 @@ export function generateIntelligenceContextEligibilityScreenDraft(
           : 'Saved context conditions are checked. If they change, generate and publish this view again; versions are never silently substituted.' } };
       return element;
     }), metadata: { ...metadata, intelligenceDashboardGenerator: 'context-eligibility.v1', intelligenceContextEligibilityAssignmentId: selection.assignmentId }
+  };
+}
+
+export function generateIntelligenceExperimentalJointScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceExperimentalJointDashboardSelection,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const signalsJson = JSON.stringify(selection.signals);
+  if (!readIntelligenceJointSignals(signalsJson) || !selection.contexts.some(context =>
+      selection.signals.filter(signal => !context.predicateTagIds.some(id => id.toLowerCase() === signal.tagId.toLowerCase())).length >= 2)) {
+    throw new Error('Joint deviation requires at least two distinct measurements outside a saved context.');
+  }
+  const draft = generateIntelligenceContextEligibilityScreenDraft(existingScreens, selection, locale, createId);
+  const { intelligenceContextEligibilityAssignmentId: _contextAssignment, ...metadata } = draft.metadata ?? {};
+  const key = uniqueScreenKey(existingScreens, `intelligence-joint-deviation-${slug(selection.displayName)}`);
+  const title = locale === 'pt-BR' ? 'Desvio conjunto experimental' : locale === 'es' ? 'Desviación conjunta experimental' : 'Experimental joint deviation';
+  return { ...draft, key, route: uniqueScreenRoute(key, existingScreens.map(screen => screen.route)), name: `${title} · ${selection.displayName}`,
+    elements: (draft.elements ?? []).map(element => {
+      if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1) return { ...element,
+        key: 'intelligence-experimental-joint-v1', type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1,
+        properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.intelligenceJointSignals]: signalsJson } };
+      if (element.key.endsWith('-title')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: title } };
+      if (element.key.endsWith('-limits')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: locale === 'pt-BR'
+        ? 'Experimental, validado por simulação. O resultado não diagnostica defeitos, não prevê vida útil e não tem limiar de alarme validado em campo.'
+        : locale === 'es' ? 'Experimental, validado por simulación. No diagnostica fallos, no predice vida útil ni tiene umbral de alarma validado en campo.'
+          : 'Experimental, validated by simulation. Results do not diagnose faults, predict remaining life or provide a field-validated alarm threshold.' } };
+      return element;
+    }), metadata: { ...metadata, intelligenceDashboardGenerator: 'experimental-joint.v1', intelligenceExperimentalJointAssignmentId: selection.assignmentId }
   };
 }
 
@@ -1311,24 +1355,24 @@ export function isNumericTagDataType(dataType: string | null | undefined): boole
 }
 
 function guidedDashboardNavigationLabels(locale: EngineeringLocale): Readonly<Record<
-  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility', string
+  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint', string
 >> {
   if (locale === 'en') return {
-    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses', 'reference-evidence': 'Reference data', 'context-eligibility': 'Operating conditions',
+    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses', 'reference-evidence': 'Reference data', 'context-eligibility': 'Operating conditions', 'experimental-joint': 'Joint deviation (experimental)',
     'values-trend': 'Values & trend',
     'profile-coverage': 'Coverage',
     performance: 'Performance',
     'contextual-deviation': 'Contextual deviation'
   };
   if (locale === 'es') return {
-    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo', 'reference-evidence': 'Datos de referencia', 'context-eligibility': 'Condiciones de operación',
+    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo', 'reference-evidence': 'Datos de referencia', 'context-eligibility': 'Condiciones de operación', 'experimental-joint': 'Desviación conjunta (experimental)',
     'values-trend': 'Valores y tendencia',
     'profile-coverage': 'Cobertura',
     performance: 'Rendimiento',
     'contextual-deviation': 'Desviación contextual'
   };
   return {
-    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento', 'reference-evidence': 'Dados da referência', 'context-eligibility': 'Condições de operação',
+    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento', 'reference-evidence': 'Dados da referência', 'context-eligibility': 'Condições de operação', 'experimental-joint': 'Desvio conjunto (experimental)',
     'values-trend': 'Valores e tendência',
     'profile-coverage': 'Cobertura',
     performance: 'Desempenho',

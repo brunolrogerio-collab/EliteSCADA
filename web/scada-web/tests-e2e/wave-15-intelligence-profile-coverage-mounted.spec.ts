@@ -945,3 +945,16 @@ test('stage composer explains contexts absent from every member without blocking
   await expect(generator.getByText(/Salve um contexto na associação de pelo menos um/)).toBeVisible();
   await expect(generator.getByTestId('intelligence-dashboard-generate')).toBeEnabled();
 });
+
+
+test('composer generates experimental joint deviation independently with named references and no authoring query', async ({ page }) => {
+  const fixture = await installWorkspace(page, { jointReady: true }); await openIntelligence(page);
+  const generator = page.getByTestId('intelligence-dashboard-generator');
+  await generator.getByRole('checkbox', { name: 'Desvio conjunto experimental', exact: true }).check();
+  await generator.getByTestId('intelligence-dashboard-generate').click();
+  const editor = page.getByTestId('visual-editor-workspace'); const drafts = editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
+  await expect(drafts).toHaveCount(2); await drafts.last().click();
+  const report = editor.getByTestId('runtime-intelligence-joint-deviation'); await expect(report).toBeVisible();
+  await expect(report.getByRole('button', { name: 'Calcular desvio conjunto', exact: true, includeHidden: true })).toBeDisabled();
+  expect(fixture.requests).toEqual([]); expect(fixture.otherWrites).toEqual([]);
+});

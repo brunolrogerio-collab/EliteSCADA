@@ -32,3 +32,9 @@
 .runtime-intelligence-reference-evidence button:disabled { opacity: .55; }
 .runtime-intelligence-reference-evidence [data-testid="intelligence-reference-evidence-result"] { display: grid; gap: 16px; }
 .runtime-intelligence-reference-evidence [data-testid="intelligence-context-eligibility-result"] { display: grid; gap: 16px; }
+
+.runtime-intelligence-joint-deviation .asset-process-intelligence__coverage-form { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; }
+.runtime-intelligence-joint-deviation fieldset { display: flex; flex-wrap: wrap; gap: 12px; }
+.runtime-intelligence-joint-deviation .asset-process-intelligence__analysis-table { overflow: auto; max-width: 100%; }
+.runtime-intelligence-joint-deviation table { border-collapse: collapse; width: 100%; }
+.runtime-intelligence-joint-deviation :is(th, td) { padding: 8px; border: 1px solid var(--eng-border); text-align: left; vertical-align: top; }

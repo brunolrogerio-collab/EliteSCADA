@@ -1,4 +1,136 @@
 import { expect, test, type Page } from '@playwright/test';
+import { currentFrequencySignals } from '../src/engineering/intelligenceCurrentFrequencySignals';
+
+const currentFrequencyUi = {
+  'pt-BR': ['Medição de corrente', 'Medição de frequência', 'Frequência mínima (Hz)', 'Frequência máxima (Hz)', 'Início do período principal (horário local)', 'Fim do período principal (horário local)', 'Início do período de comparação (horário local)', 'Fim do período de comparação (horário local)', 'Comparar corrente', 'Comparação disponível'],
+  en: ['Current measurement', 'Frequency measurement', 'Minimum frequency (Hz)', 'Maximum frequency (Hz)', 'Primary period start (local time)', 'Primary period end (local time)', 'Comparison period start (local time)', 'Comparison period end (local time)', 'Compare current', 'Comparison available'],
+  es: ['Medición de corriente', 'Medición de frecuencia', 'Frecuencia mínima (Hz)', 'Frecuencia máxima (Hz)', 'Inicio del período principal (hora local)', 'Fin del período principal (hora local)', 'Inicio del período de comparación (hora local)', 'Fin del período de comparación (hora local)', 'Comparar corriente', 'Comparación disponible']
+};
+async function prepareCurrentFrequency(page: Page, locale: keyof typeof currentFrequencyUi = 'pt-BR') {
+  const panel = page.getByTestId(`intelligence-current-frequency-${assignmentId}`), labels = currentFrequencyUi[locale];
+  await panel.locator('summary').click();
+  await panel.getByRole('combobox', { name: labels[0], exact: true }).selectOption('15000000-0000-0000-0000-000000000211');
+  await panel.getByRole('combobox', { name: labels[1], exact: true }).selectOption('15000000-0000-0000-0000-000000000212');
+  for (const [index, value] of [[2,'49'],[3,'51'],[4,'2026-10-22T10:00'],[5,'2026-10-22T11:00'],[6,'2026-10-20T10:00'],[7,'2026-10-20T11:00']] as const) await panel.getByLabel(labels[index], { exact: true }).fill(value);
+  return panel;
+}
+function currentFrequencyResponse(body: Record<string, any>) {
+  const evidence = (window: any) => ({ window, current: { rawObservationCount: 5, acceptedSynchronizedSampleCount: 4, rejectedObservationCount: 1, rejectionCounts: { quality_not_good: 1 } },
+    frequency: { rawObservationCount: 4, acceptedSynchronizedSampleCount: 4, rejectedObservationCount: 0, rejectionCounts: {} },
+    exactSourceTimestampPairCount: 4, frequencyInRangePairCount: 3, frequencyOutOfRangePairCount: 1, selectedPairCount: 3,
+    reusedSourceTimestampPairCount: 0, unmatchedCurrentAcceptedSampleCount: 0, unmatchedFrequencyAcceptedSampleCount: 0 });
+  return { contractVersion: 1, catalogVersion: 1, ruleId: 'current-at-recorded-frequency.compare.v1', ruleVersion: '1.0.0',
+    projectKey: 'intelligence-coverage-test', activeRevision: 4, scopeKind: 'Equipment', scopeId: equipmentId, equipmentId, assignmentId, profileId,
+    currentSignal: { signalId: body.currentSignalId, tagId: currentTagId, roleCode: 'pump.electrical_current', currentBasis: 'line_rms', signalKind: null, frequencyReference: null, controlledUnitCode: 'unit.electric_current.ampere', canonicalUnit: 'A' },
+    frequencySignal: { signalId: body.frequencySignalId, tagId: speedTagId, roleCode: 'pump.drive_frequency', currentBasis: null, signalKind: 'measured_output', frequencyReference: 'drive_electrical', controlledUnitCode: 'unit.frequency.hertz', canonicalUnit: 'Hz' },
+    minimumFrequencyHz: body.minimumFrequencyHz, maximumFrequencyHz: body.maximumFrequencyHz, primary: evidence(body.primaryWindow), comparison: evidence(body.comparisonWindow), totalRawObservationCount: 18,
+    metric: { status: 'available', reasonCodes: [] as string[], primaryMeanCurrentA: 6 as number | null, comparisonMeanCurrentA: 5 as number | null, differenceA: 1 as number | null, percentChange: 20 as number | null, percentChangeStatus: 'available', percentChangeReasonCode: null as string | null },
+    provenance: { dataset: 'historian.samples.v2', datasetContractVersion: 2, physicalSimultaneity: 'unverified; exact recorded-time equality only', operatingRegimeEquivalence: 'unverified; frequency alone is insufficient', expectedCadence: 'unknown', completeness: 'unknown' } };
+}
+
+for (const locale of ['pt-BR','en','es'] as const) test(`current-frequency comparison shows named measurements, evidence and limits on mobile in ${locale}`, async ({ page }) => {
+  const fixture = await installWorkspace(page, { currentFrequencyCase: 'ready' }); let calls = 0;
+  await page.route('**/analytics/current-frequency-comparison/v1/query', async route => {
+    calls++; const body = route.request().postDataJSON();
+    expect(body).toMatchObject({ scopeKind: 0, scopeId: equipmentId, assignmentId, minimumFrequencyHz: 49, maximumFrequencyHz: 51 });
+    expect(body).not.toHaveProperty('profileId');
+    await route.fulfill({ json: currentFrequencyResponse(body) });
+  });
+  await page.setViewportSize({ width: 390, height: 844 }); await openIntelligence(page, locale);
+  expect(calls).toBe(0); const panel = await prepareCurrentFrequency(page, locale);
+  expect(calls).toBe(0); await panel.getByRole('button', { name: currentFrequencyUi[locale][8], exact: true }).click();
+  const result = panel.getByTestId('intelligence-current-frequency-result'); await expect(result).toContainText(currentFrequencyUi[locale][9]);
+  await expect(result).toContainText('6 A'); await expect(result).toContainText('5 A'); await expect(result).toContainText('1 A'); await expect(result).toContainText('20 %');
+  await expect(result).toContainText('3'); expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect(fixture.otherWrites).toEqual([]); expect(fixture.dataReads).toEqual([]); expect(calls).toBe(1);
+});
+
+for (const variant of ['setpoint','semantic-v2','unit-v2','free-text-unit','rpm','bad-qualifier','duplicate-tag','duplicate-id','ambiguous-tag','boolean']) test(`current-frequency refuses ${variant} without a historical query`, async ({ page }) => {
+  await installWorkspace(page, { currentFrequencyCase: variant }); let calls = 0;
+  await page.route('**/analytics/current-frequency-comparison/v1/query', route => { calls++; return route.fulfill({ json: {} }); });
+  await openIntelligence(page); const panel = page.getByTestId(`intelligence-current-frequency-${assignmentId}`); await panel.locator('summary').click();
+  await expect(panel.getByRole('button', { name: 'Comparar corrente', exact: true })).toBeDisabled();
+  await expect(panel.getByText(/Este perfil precisa/)).toBeVisible(); expect(calls).toBe(0);
+});
+
+test('current-frequency requires equal disjoint periods in either order, inclusive range and explicit values', async ({ page }) => {
+  await installWorkspace(page, { currentFrequencyCase: 'ready' }); let calls = 0;
+  await page.route('**/analytics/current-frequency-comparison/v1/query', route => { calls++; return route.fulfill({ json: currentFrequencyResponse(route.request().postDataJSON()) }); });
+  await openIntelligence(page); const panel = await prepareCurrentFrequency(page), labels = currentFrequencyUi['pt-BR'];
+  const submit = panel.getByRole('button', { name: 'Comparar corrente', exact: true });
+  for (const [start,end] of [['2026-10-22T11:00','2026-10-22T12:00'], ['2026-10-22T10:30','2026-10-22T11:30'], ['2026-10-20T10:00','2026-10-20T12:00'], ['2026-08-01T10:00','2026-10-20T11:00']]) {
+    await panel.getByLabel(labels[6]).fill(start); await panel.getByLabel(labels[7]).fill(end); await expect(submit).toBeDisabled();
+  }
+  expect(calls).toBe(0);
+  for (const [start,end] of [['2026-10-20T10:00','2026-10-20T11:00'], ['2026-10-24T10:00','2026-10-24T11:00']]) {
+    await panel.getByLabel(labels[6]).fill(start); await panel.getByLabel(labels[7]).fill(end); await submit.click(); await expect(panel.getByTestId('intelligence-current-frequency-result')).toBeVisible();
+  }
+  expect(calls).toBe(2); await panel.getByLabel(labels[2]).fill('52'); await expect(submit).toBeDisabled();
+  await panel.getByLabel(labels[2]).fill(''); await expect(submit).toBeDisabled();
+  await panel.getByLabel(labels[2]).fill('51'); await expect(submit).toBeEnabled();
+  await expect(panel.getByTestId('intelligence-current-frequency-result')).toHaveCount(0);
+});
+
+for (const variant of ['revision','assignment','tag','basis','unit','window','provenance','dataset','fabricated-zero']) test(`current-frequency discards mismatched ${variant} response`, async ({ page }) => {
+  await installWorkspace(page, { currentFrequencyCase: 'ready' });
+  await page.route('**/analytics/current-frequency-comparison/v1/query', route => {
+    const payload = currentFrequencyResponse(route.request().postDataJSON());
+    if (variant === 'revision') payload.activeRevision++;
+    if (variant === 'assignment') payload.assignmentId = profileId;
+    if (variant === 'tag') payload.currentSignal.tagId = speedTagId;
+    if (variant === 'basis') payload.frequencySignal.frequencyReference = 'shaft_rotational';
+    if (variant === 'unit') payload.currentSignal.canonicalUnit = 'mA';
+    if (variant === 'window') payload.primary.window = { fromUtc: '2026-01-01T00:00:00Z', toUtc: '2026-01-01T01:00:00Z' };
+    if (variant === 'provenance') payload.provenance.operatingRegimeEquivalence = 'verified';
+    if (variant === 'dataset') payload.provenance.dataset = 'historian.samples';
+    if (variant === 'fabricated-zero') { payload.metric.status = 'insufficient_data'; payload.metric.differenceA = 0; }
+    return route.fulfill({ json: payload });
+  });
+  await openIntelligence(page); const panel = await prepareCurrentFrequency(page); await panel.getByRole('button', { name: 'Comparar corrente', exact: true }).click();
+  await expect(panel.getByRole('alert')).toBeVisible(); await expect(panel.getByTestId('intelligence-current-frequency-result')).toHaveCount(0);
+});
+
+test('current-frequency preserves unavailable values and explains zero comparison mean', async ({ page }) => {
+  await installWorkspace(page, { currentFrequencyCase: 'ready' }); let calls = 0;
+  await page.route('**/analytics/current-frequency-comparison/v1/query', route => {
+    const payload = currentFrequencyResponse(route.request().postDataJSON()); calls++;
+    if (calls === 1) payload.metric = { status: 'insufficient_data', reasonCodes: ['fewer_than_two_primary_frequency_conditioned_pairs'], primaryMeanCurrentA: null, comparisonMeanCurrentA: null, differenceA: null, percentChange: null, percentChangeStatus: 'unavailable', percentChangeReasonCode: 'fewer_than_two_primary_frequency_conditioned_pairs' };
+    else payload.metric = { ...payload.metric, comparisonMeanCurrentA: 0, differenceA: 6, percentChange: null, percentChangeStatus: 'unsupported', percentChangeReasonCode: 'comparison_mean_zero_percent_change_unavailable' };
+    return route.fulfill({ json: payload });
+  });
+  await openIntelligence(page); const panel = await prepareCurrentFrequency(page), submit = panel.getByRole('button', { name: 'Comparar corrente', exact: true });
+  await submit.click(); const result = panel.getByTestId('intelligence-current-frequency-result'); await expect(result).toContainText('menos de dois pares');
+  await expect(result.locator('dd')).toHaveText(['Não disponível','Não disponível','Não disponível','Não disponível']);
+  await submit.click(); await expect(result).toContainText('percentual não pode ser calculado');
+  await expect(result.locator('dd')).toHaveText(['6 A','0 A','6 A','Não disponível']);
+});
+
+test('current-frequency ignores late responses after cancel and changed parameters, then allows retry after denial', async ({ page }) => {
+  await installWorkspace(page, { currentFrequencyCase: 'ready' }); let calls = 0, completed = 0, release: (() => void) | undefined;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/analytics/current-frequency-comparison/v1/query', async route => {
+    calls++; const body = route.request().postDataJSON();
+    if (calls <= 2) await gate;
+    if (calls === 3) await route.fulfill({ status: 403, json: { code: 'AUTHORIZATION_DENIED' } });
+    else await route.fulfill({ json: currentFrequencyResponse(body) }).catch(() => {});
+    completed++;
+  });
+  await openIntelligence(page); const panel = await prepareCurrentFrequency(page), submit = panel.getByRole('button', { name: 'Comparar corrente', exact: true });
+  await submit.click(); await expect.poll(() => calls).toBe(1); await panel.getByRole('button', { name: 'Cancelar consulta' }).click();
+  await submit.click(); await expect.poll(() => calls).toBe(2); await panel.getByLabel('Frequência máxima (Hz)').fill('52'); release?.();
+  await expect.poll(() => completed).toBe(2); await expect(panel.getByTestId('intelligence-current-frequency-result')).toHaveCount(0);
+  await submit.click(); await expect(panel.getByRole('alert')).toBeVisible(); await expect(panel.getByTestId('intelligence-current-frequency-result')).toHaveCount(0);
+  await submit.click(); await expect(panel.getByTestId('intelligence-current-frequency-result')).toBeVisible();
+});
+
+test('current-frequency eligibility distinguishes shaft frequency, current basis and units without guessing from labels', async () => {
+  const profile = { id: profileId, key: 'motor', name: 'Motor', signals: [
+    { id: currentTagId, key: 'Current', tagId: currentTagId, required: true, signalRole: 'unrelated legacy text', semanticBinding: { catalogVersion: 1, roleCode: 'pump.electrical_current', currentBasis: 'phase_rms' } },
+    { id: speedTagId, key: 'Frequency', tagId: speedTagId, required: true, signalRole: 'rpm', semanticBinding: { catalogVersion: 1, roleCode: 'pump.drive_frequency', signalKind: 'measured_output', frequencyReference: 'shaft_rotational' } }] };
+  const tags = [{ id: currentTagId, name: 'Measured current', path: 'Motor.I', dataType: 'Double', engineeringUnit: 'mA', controlledEngineeringUnit: { catalogVersion: 1, code: 'unit.electric_current.ampere' }, readOnly: true },
+    { id: speedTagId, name: 'Shaft', path: 'Motor.F', dataType: 'Double', engineeringUnit: 'rpm', controlledEngineeringUnit: { catalogVersion: 1, code: 'unit.frequency.hertz' }, readOnly: true }];
+  expect(currentFrequencySignals(profile, tags).map(signal => [signal.kind,signal.basis])).toEqual([['current','phase_rms'],['frequency','shaft_rotational']]);
+});
 
 const equipmentId = '15000000-0000-0000-0000-000000000301';
 const profileId = '15000000-0000-0000-0000-000000000201';
@@ -585,8 +717,8 @@ test('profile coverage rejects invalid window locally and presents bounded-query
   await expect(panel.getByTestId('intelligence-profile-coverage-result')).toHaveCount(0);
 });
 
-async function openIntelligence(page: Page) {
-  await page.addInitScript(() => window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+async function openIntelligence(page: Page, locale = 'pt-BR') {
+  await page.addInitScript(value => window.localStorage.setItem('elitescada.engineering.locale', value), locale);
   await page.goto('/engineering');
   await page.locator('.eng-nav').getByRole('button', { name: /Inteligência de ativos|Asset intelligence|Inteligencia de activos/ }).click();
 }
@@ -611,6 +743,7 @@ async function installWorkspace(page: Page, options: {
   performanceFailCode?: string;
   operatingContexts?: boolean;
   jointReady?: boolean;
+  currentFrequencyCase?: string;
 } = {}) {
   const requests: Array<Record<string, any>> = [];
   const performanceCatalogRequests: string[] = [];
@@ -668,6 +801,26 @@ async function installWorkspace(page: Page, options: {
         controlledEngineeringUnit: { catalogVersion: 2, code: 'unit.pressure.kilopascal' } }
     ] : [])
   ];
+  if (options.currentFrequencyCase) {
+    const signals = profile.signals as any[], sourceTags = tags as any[];
+    signals.splice(0, signals.length,
+      { id: '15000000-0000-0000-0000-000000000211', key: 'Corrente do motor', signalRole: 'elétrico', tagId: currentTagId, required: true,
+        semanticBinding: { catalogVersion: 1, roleCode: 'pump.electrical_current', currentBasis: 'line_rms' } },
+      { id: '15000000-0000-0000-0000-000000000212', key: 'Frequência do inversor', signalRole: 'elétrico', tagId: speedTagId, required: true,
+        semanticBinding: { catalogVersion: 1, roleCode: 'pump.drive_frequency', signalKind: 'measured_output', frequencyReference: options.currentFrequencyCase === 'shaft' ? 'shaft_rotational' : 'drive_electrical' } });
+    sourceTags[0] = { ...sourceTags[0], name: 'Corrente do motor', engineeringUnit: 'A', controlledEngineeringUnit: { catalogVersion: 1, code: 'unit.electric_current.ampere' } };
+    sourceTags[1] = { ...sourceTags[1], name: 'Frequência do inversor', engineeringUnit: 'Hz', controlledEngineeringUnit: { catalogVersion: 1, code: 'unit.frequency.hertz' } };
+    if (options.currentFrequencyCase === 'setpoint') signals[1].semanticBinding.signalKind = 'command_setpoint';
+    if (options.currentFrequencyCase === 'semantic-v2') signals[1].semanticBinding.catalogVersion = 2;
+    if (options.currentFrequencyCase === 'unit-v2') sourceTags[1].controlledEngineeringUnit.catalogVersion = 2;
+    if (options.currentFrequencyCase === 'free-text-unit') sourceTags[0].controlledEngineeringUnit = null;
+    if (options.currentFrequencyCase === 'rpm') sourceTags[1].controlledEngineeringUnit.code = 'unit.angular_velocity.revolutions_per_minute';
+    if (options.currentFrequencyCase === 'bad-qualifier') signals[0].semanticBinding.pressureReference = 'gauge';
+    if (options.currentFrequencyCase === 'duplicate-tag') signals[1].tagId = currentTagId;
+    if (options.currentFrequencyCase === 'duplicate-id') signals[1].id = signals[0].id;
+    if (options.currentFrequencyCase === 'ambiguous-tag') sourceTags.push({ ...sourceTags[0] });
+    if (options.currentFrequencyCase === 'boolean') sourceTags[0].dataType = 'Boolean';
+  }
   await page.route('**/api/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -991,4 +1144,26 @@ test('Intelligence readiness status wraps within a mobile viewport with enlarged
  expect(geometry.document).toBeLessThanOrEqual(geometry.viewport);
  expect(geometry.status.right).toBeLessThanOrEqual(geometry.viewport);
  await expect(page.getByTestId('intelligence-dashboard-generator')).toBeVisible();
+});
+
+for (const reason of ['license','trend','inactive','permit','dirty'] as const) test(`current-frequency does not query when blocked by ${reason}`, async ({ page }) => {
+  await installWorkspace(page, { currentFrequencyCase: 'ready', licensed: reason !== 'license', trendUse: reason !== 'trend', active: reason !== 'inactive', armed: reason !== 'permit', workspaceDirty: reason === 'dirty' });
+  let calls = 0;
+  await page.route('**/analytics/current-frequency-comparison/v1/query', route => { calls++; return route.fulfill({ json: {} }); });
+  await openIntelligence(page); const panel = page.getByTestId(`intelligence-current-frequency-${assignmentId}`); await panel.locator('summary').click();
+  await expect(panel.getByRole('button', { name: 'Comparar corrente', exact: true })).toBeDisabled();
+  await expect(panel.getByRole('combobox', { name: 'Medição de corrente', exact: true })).toBeDisabled();
+  expect(calls).toBe(0);
+});
+
+for (const [code,status,message] of [
+  ['INTELLIGENCE_CURRENT_FREQUENCY_WINDOW_TOO_DENSE',413,'50.000 leituras brutas'],
+  ['INTELLIGENCE_ANALYTICS_SOURCE_NOT_AVAILABLE',404,'fonte ativa do Runtime'],
+  ['INTELLIGENCE_CURRENT_FREQUENCY_UNITS_UNSUPPORTED',400,'unidades controladas'],
+  ['AUTHORIZATION_DENIED',403,'permissões de tendência']
+] as const) test(`current-frequency explains ${code} without displaying a result`, async ({ page }) => {
+  await installWorkspace(page, { currentFrequencyCase: 'ready' });
+  await page.route('**/analytics/current-frequency-comparison/v1/query', route => route.fulfill({ status, json: { code } }));
+  await openIntelligence(page); const panel = await prepareCurrentFrequency(page); await panel.getByRole('button', { name: 'Comparar corrente', exact: true }).click();
+  await expect(panel.getByRole('alert')).toContainText(message); await expect(panel.getByTestId('intelligence-current-frequency-result')).toHaveCount(0);
 });

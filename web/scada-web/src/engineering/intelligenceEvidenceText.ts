@@ -31,7 +31,25 @@ const reasons: Record<string, readonly [string, string, string]> = {
   insufficient_predicate_evidence: ['Faltam dados para conferir uma ou mais condições', 'Data is missing for one or more conditions', 'Faltan datos para comprobar una o más condiciones'],
   predicate_mismatch: ['As condições selecionadas não foram atendidas', 'Selected conditions were not met', 'No se cumplieron las condiciones seleccionadas'],
   no_exact_context_timestamp_match: ['Medição e condições não têm leituras no mesmo instante de origem', 'Measurement and conditions have no readings at the same source time', 'La medición y las condiciones no tienen lecturas en el mismo instante de origen'],
-  target_type_not_applicable: ['Esta análise exige uma medição numérica', 'This analysis requires a numeric measurement', 'Este análisis requiere una medición numérica']
+  target_type_not_applicable: ['Esta análise exige uma medição numérica', 'This analysis requires a numeric measurement', 'Este análisis requiere una medición numérica'],
+  fewer_than_two_primary_frequency_conditioned_pairs: ["O período principal tem menos de dois pares utilizáveis na faixa de frequência.", "The primary period has fewer than two usable pairs in the frequency range.", "El período principal tiene menos de dos pares utilizables en el rango de frecuencia."],
+  fewer_than_two_comparison_frequency_conditioned_pairs: ["O período de comparação tem menos de dois pares utilizáveis na faixa de frequência.", "The comparison period has fewer than two usable pairs in the frequency range.", "El período de comparación tiene menos de dos pares utilizables en el rango de frecuencia."],
+  source_timestamp_reused_across_comparison_windows: ["Há horários de origem reutilizados entre os períodos; a comparação foi descartada.", "Source times were reused across periods; the comparison was discarded.", "Hay horas de origen reutilizadas entre períodos; se descartó la comparación."],
+  comparison_mean_zero_percent_change_unavailable: ["A corrente média de comparação é zero. A diferença em ampere está disponível, mas o percentual não pode ser calculado.", "The comparison mean current is zero. The difference in amperes is available, but the percentage cannot be calculated.", "La corriente media de comparación es cero. La diferencia en amperios está disponible, pero no se puede calcular el porcentaje."],
+  non_finite_current_difference: ["A diferença de corrente excedeu o limite numérico; resultado indisponível.", "The current difference exceeded the numeric limit; result unavailable.", "La diferencia de corriente superó el límite numérico; resultado no disponible."],
+  non_finite_window_mean: ["A média de corrente excedeu o limite numérico; resultado indisponível.", "The mean current exceeded the numeric limit; result unavailable.", "La corriente media superó el límite numérico; resultado no disponible."],
+  non_finite_percent_change: ["A variação percentual excedeu o limite numérico. Consulte a diferença em ampere.", "The percentage change exceeded the numeric limit. Check the difference in amperes.", "La variación porcentual superó el límite numérico. Revise la diferencia en amperios."],
+  source_timestamp_evidence_unrecognized: ["Evidência de horário de origem não reconhecida", "Unrecognized source-time evidence", "Evidencia de hora de origen no reconocida"],
+  quality_missing: ["Qualidade não informada", "Quality not reported", "Calidad no informada"],
+  quality_not_good: ["Qualidade diferente de Boa", "Quality other than Good", "Calidad distinta de Buena"],
+  quality_unrecognized: ["Qualidade não reconhecida", "Unrecognized quality", "Calidad no reconocida"],
+  value_not_finite_numeric: ["Valor não numérico ou não finito", "Nonnumeric or nonfinite value", "Valor no numérico o no finito"],
+  unit_conversion_non_finite: ["Conversão de unidade excedeu o limite numérico", "Unit conversion exceeded the numeric limit", "La conversión de unidad superó el límite numérico"],
+  duplicate_current_source_timestamp: ["Correntes ambíguas no mesmo horário de origem", "Ambiguous current readings at the same source time", "Lecturas de corriente ambiguas con la misma hora de origen"],
+  duplicate_frequency_source_timestamp: ["Frequências ambíguas no mesmo horário de origem", "Ambiguous frequency readings at the same source time", "Lecturas de frecuencia ambiguas con la misma hora de origen"],
+  accepted_current_sample_unmatched: ["Corrente sem frequência no mesmo horário de origem", "Current has no frequency at the same source time", "Corriente sin frecuencia en la misma hora de origen"],
+  accepted_frequency_sample_unmatched: ["Frequência sem corrente no mesmo horário de origem", "Frequency has no current at the same source time", "Frecuencia sin corriente en la misma hora de origen"],
+  frequency_outside_requested_range: ["Frequência fora da faixa escolhida", "Frequency outside the selected range", "Frecuencia fuera del rango elegido"]
 };
 export function intelligenceEvidenceText(reason: string, locale: EngineeringLocale): string {
   const labels = reasons[reason] ?? ['Evidência indisponível para esta condição', 'Evidence unavailable for this condition', 'Evidencia no disponible para esta condición'];

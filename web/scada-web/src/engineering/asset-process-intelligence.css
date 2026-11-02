@@ -521,3 +521,15 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.asset-process-intelligence__navigation { border: 1px solid var(--eng-border); border-radius: 8px; padding: 16px; background: var(--eng-panel); }
+.asset-process-intelligence__navigation p { color: var(--eng-muted); margin: 8px 0; }
+.asset-process-intelligence__navigation ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; padding: 0; list-style: none; }
+.asset-process-intelligence__navigation a { display: block; padding: 8px; border: 1px solid var(--eng-border); border-radius: 6px; overflow-wrap: anywhere; }
+.asset-process-intelligence [id^="intelligence-"] { scroll-margin-top: 96px; }
+
+.asset-process-intelligence > .eng-section-header { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.asset-process-intelligence > .eng-section-header > div:first-child { display: block; flex: 1 1 100%; min-width: 0; }
+.asset-process-intelligence > .eng-section-header :is(h1, p) { white-space: normal; overflow: visible; text-overflow: clip; }
+.asset-process-intelligence > .eng-section-header p { margin: 8px 0; }
+.asset-process-intelligence .asset-process-intelligence__message { display: block; min-height: 0; height: auto; max-width: none; width: auto; margin: 0; padding: 12px 16px; text-align: left; }

@@ -319,22 +319,22 @@ test('eligible scope checkbox keeps the mounted Intelligence workspace interacti
   await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
   const workspace = page.getByTestId('asset-process-intelligence-workspace');
   const scopePanel = workspace.locator('.asset-process-intelligence__scope-panel');
-  await expect(scopePanel.getByRole('heading', { name: 'Escopos elegíveis' })).toBeVisible();
+  await expect(scopePanel.getByRole('heading', { name: 'Equipamentos e locais habilitados para análise' })).toBeVisible();
 
   const pump = scopePanel.getByRole('checkbox').nth(0);
   await pump.check();
   await expect(pump).toBeChecked();
-  await expect(scopePanel.getByRole('heading', { name: 'Escopos elegíveis' })).toBeVisible();
+  await expect(scopePanel.getByRole('heading', { name: 'Equipamentos e locais habilitados para análise' })).toBeVisible();
   expect(pageErrors).toEqual([]);
 
   await scopePanel.getByRole('button', { name: 'Salvar escopos elegíveis' }).click();
   await expect(workspace.getByRole('alert')).toHaveText('scope-save-unavailable');
   await expect(pump).toBeChecked();
-  await expect(scopePanel.getByRole('heading', { name: 'Escopos elegíveis' })).toBeVisible();
+  await expect(scopePanel.getByRole('heading', { name: 'Equipamentos e locais habilitados para análise' })).toBeVisible();
 
   await pump.uncheck();
   await expect(pump).not.toBeChecked();
-  await expect(scopePanel.getByRole('heading', { name: 'Escopos elegíveis' })).toBeVisible();
+  await expect(scopePanel.getByRole('heading', { name: 'Equipamentos e locais habilitados para análise' })).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
 
@@ -354,7 +354,7 @@ async function mockWorkspace(
   page: import('@playwright/test').Page,
   read: () => Record<string, any>,
   write: (configuration: Record<string, any>) => void,
-  options: { emptyResources?: boolean } = {}) {
+  options: { emptyResources?: boolean; hidePaths?: boolean } = {}) {
   await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
     authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
     authenticationEnabled: true,
@@ -369,7 +369,7 @@ async function mockWorkspace(
     ];
     await route.fulfill({ json: {
       configuration: { version: read().version, scopes: read().scopes, profiles: read().profiles, assignments: read().assignments, processStages: read().processStages },
-      resources,
+      resources: options.hidePaths ? resources.map(({ path: _path, ...resource }) => resource) : resources,
       tags: options.emptyResources ? [] : [
         { id: '15000000-0000-0000-0000-000000000101', name: 'Temperature', path: 'Plant.Pump.Temperature', dataType: 'Double', engineeringUnit: '°C' },
         { id: '15000000-0000-0000-0000-000000000102', name: 'Flow', path: 'Plant.Pump.Flow', dataType: 'Double', engineeringUnit: 'm³/h' },
@@ -426,3 +426,27 @@ const semanticCatalog = {
     ] }
   ]
 };
+
+
+for(const locale of ['pt-BR','en','es'] as const){
+ test(`Intelligence setup navigation preserves unsaved authoring without writes (${locale})`,async({page})=>{
+  await page.setViewportSize({width:390,height:844});const configuration={version:2,scopes:[],profiles:[],assignments:[],processStages:[]};
+  let writes=0;await mockWorkspace(page,()=>configuration,()=>{writes++;},{hidePaths:true});const analytics:string[]=[];
+  page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/analytics/'))analytics.push(r.url());});
+  await page.goto(`/tests-e2e/harness/authoring-preview.html?intelligence&locale=${locale}`);
+  const workspace=page.getByTestId('asset-process-intelligence-workspace');
+  const heading=workspace.getByRole('heading',{level:1});await heading.scrollIntoViewIfNeeded();
+  const headerWidth=await heading.evaluate(e=>({client:e.clientWidth,scroll:e.scrollWidth}));expect(headerWidth.scroll).toBeLessThanOrEqual(headerWidth.client);
+  const navigation=workspace.getByTestId('intelligence-setup-navigation');await expect(navigation.getByRole('link')).toHaveCount(6);
+  const authoring=page.getByTestId('intelligence-stage2-authoring');await authoring.getByRole('button',{name:locales[locale].createProfile}).click();
+  await authoring.getByLabel(locales[locale].profileName,{exact:true}).fill('My unsaved profile');
+  for(const id of ['intelligence-assignments-heading','intelligence-context-profiles-heading','intelligence-stages-heading','intelligence-dashboard-heading','intelligence-scopes-heading','intelligence-profiles-heading']){
+   await navigation.locator(`a[href="#${id}"]`).click();await expect(page.locator(`#${id}`)).toBeInViewport();
+  }
+  await expect(authoring.getByLabel(locales[locale].profileName,{exact:true})).toHaveValue('My unsaved profile');
+  expect(writes).toBe(0);expect(analytics).toEqual([]);
+  await expect(workspace).not.toContainText('AssetProcessIntelligenceManage');
+  await expect(workspace).not.toContainText('15000000-0000-0000-0000-000000000301');
+  const width=await page.evaluate(()=>({client:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));expect(width.scroll).toBeLessThanOrEqual(width.client);
+ });
+}

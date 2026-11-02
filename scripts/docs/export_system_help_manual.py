@@ -72,6 +72,15 @@ MANUAL_ILLUSTRATIONS = {
         },
     },
 }
+for locale, heading, intro, labels in [
+    ('pt-BR', 'Exemplo real: corrente e frequência', 'Interface real em português, com dados sintéticos de validação. O exemplo não representa um diagnóstico de campo.', ['Escolher as medições no celular', 'Comparar 6 A com 5 A', 'Dados insuficientes não são zero']),
+    ('en', 'Real example: current and frequency', 'Real interface in Portuguese, with synthetic validation data. This example does not represent a field diagnosis.', ['Choose measurements on mobile', 'Compare 6 A with 5 A', 'Insufficient data is not zero']),
+    ('es', 'Ejemplo real: corriente y frecuencia', 'Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no representa un diagnóstico de campo.', ['Elegir mediciones en el móvil', 'Comparar 6 A con 5 A', 'Datos insuficientes no son cero']),
+]:
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide'] = {
+        'heading': heading, 'intro': intro,
+        'images': [(label, label, '../../evidence/intelligence-857/' + filename) for label, filename in zip(labels, ['current-frequency-mobile.png', 'current-frequency-results.png', 'current-frequency-insufficient.png'])],
+    }
 for locale, (name, title) in {'pt-BR': ('30-PRIMEIRO-PROJETO.md', 'Primeiro projeto: da entrada ao Runtime'), 'en': ('30-FIRST-PROJECT.md', 'First project: from sign-in to Runtime'), 'es': ('30-PRIMER-PROYECTO.md', 'Primer proyecto: de la entrada al Runtime')}.items():
     CHAPTERS[locale].append((name, title, ['getting-started.first-project']))
 for locale, (name, title) in {'pt-BR': ('31-TROCA-DA-APLICACAO.md', 'Trocar a aplicação da instalação'), 'en': ('31-SWITCHING-APPLICATION.md', 'Switching the installation application'), 'es': ('31-CAMBIO-DE-APLICACION.md', 'Cambiar la aplicación de la instalación')}.items():

@@ -266,6 +266,33 @@ El formulario muestra horas locales; la consulta identifica también la ventana 
 
 Compruebe señales obligatorias con datos, muestras aceptadas y rechazadas, calidad y alineación horaria. Solo después interprete mínimo, máximo o media. Muchas muestras no demuestran por sí solas ausencia de huecos ni que las señales se midieron juntas.
 
+### Comparar corriente dentro de un rango de frecuencia
+
+Suponga que un motor consumía unos 5 A y ahora consume 6 A. Antes de interpretar el cambio, compruebe si esas mediciones se registraron en el rango de frecuencia que desea investigar. Esta consulta compara dos partes del histórico; no aprende un patrón ni diagnostica el motor.
+
+1. En Ingeniería > Inteligencia de activos, busque el equipo y su perfil asociado. Abra Comparar corriente a frecuencia similar.
+2. Elija corriente y frecuencia medida. Sus significados también aparecen debajo de cada selector. La frecuencia eléctrica del variador no es velocidad del eje. RMS significa valor eficaz; corriente de línea, de fase y del bus CC son mediciones distintas. Elija lo que realmente mide su instalación.
+3. Introduzca un rango en Hz, como 49 a 51. Se incluyen ambos límites y se usa el mismo rango en los dos períodos. Hz significa ciclos por segundo; no introduzca rpm como si fueran Hz.
+4. Elija los períodos principal y de comparación en hora local. Use igual duración, hasta 31 días cada uno, sin superposición ni extremos compartidos. Por ejemplo: principal de 10 a 11 del día 22 y comparación de 10 a 11 del día 20. La comparación puede ser anterior o posterior.
+5. Pulse Comparar corriente. Abrir el panel y editar campos no consulta el histórico. Cancelar consulta interrumpe la solicitud; cambiar una elección retira el resultado anterior.
+6. Lea ambas medias, la diferencia y la variación porcentual. Con principal 6 A y comparación 5 A, el ejemplo muestra +1 A y +20%. El signo viene de principal menos comparación; invertir los períodos cambia la referencia.
+7. Revise los pares utilizados, los que quedaron fuera del rango y las lecturas rechazadas. Con menos de dos pares utilizables en algún período, el resultado no está disponible. Si la media de comparación es cero, puede existir diferencia absoluta, pero el porcentaje no está disponible.
+
+Requisitos: guarde la asociación, publique/active la revisión, active el análisis del equipo y tenga licencia y permisos de tendencia/lectura de ambos TAGs. Los TAGs deben existir en la fuente activa del Runtime además de estar en el perfil. Si faltan opciones, revise significado y unidad controlados. Este método acepta catálogo semántico 1: corriente eléctrica con tipo explícito y unidad controlada amperio; frecuencia medida con referencia explícita y unidad controlada hercio, también del catálogo de unidades 1. No basta escribir A/Hz como texto libre. No se convierten por suposición consignas, rpm ni versiones de catálogo incompatibles.
+
+El servidor usa solo lecturas numéricas finitas de calidad Buena, con horas de origen sincronizadas y exactamente iguales entre corriente y frecuencia. No aproxima horas ni rellena lagunas. Son medias de muestras, no ponderadas por tiempo; el límite conjunto es 50.000 lecturas brutas. Frecuencia similar no demuestra igual carga, condiciones de proceso, eficiencia ni un fallo. No se han comprobado cadencia, integridad ni simultaneidad física. La consulta está disponible en la asociación de Ingeniería; su inclusión en el generador de pantallas Runtime sigue en revisión en #857.
+
+| Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
+| --- | --- | --- | --- |
+| Medición de corriente | Elija por nombre la corriente del perfil. Compruebe si es corriente eficaz de línea, de fase o del bus CC. La unidad de consulta es amperio. | Corriente del motor · línea RMS (A) | Catálogo 1; unidad A; tipo de corriente explícito. |
+| Medición de frecuencia | Elija frecuencia realmente medida. El panel distingue salida eléctrica del variador y giro del eje; no acepta comandos de frecuencia. | Frecuencia eléctrica medida (Hz) | Catálogo 1; salida medida; Hz; referencia explícita. |
+| Frecuencia mínima (Hz) | Menor frecuencia que se incluye en la media, en Hz. Incluye valores iguales al límite. Indíquela explícitamente; no se deduce un rango. | 49 | Finita; no mayor que la máxima. |
+| Frecuencia máxima (Hz) | Mayor frecuencia aceptada, en Hz. Debe ser mayor o igual a la mínima. Se permiten límites iguales para una frecuencia exacta registrada. | 51 | Finita; no menor que la mínima. |
+| Período principal | Inicio y fin del conjunto a evaluar. La hora local se convierte a UTC; duración positiva y no superior a 31 días. | 22/10 10:00–11:00 | Duración positiva; máximo de 31 días. |
+| Período de comparación | Inicio y fin de la base de comparación. Use igual duración que el principal, sin superposición ni extremos compartidos. Puede ser anterior o posterior. | 20/10 10:00–11:00 | Igual duración; sin contacto ni superposición. |
+| Comparar / cancelar | Comparar consulta al servidor. Cancelar descarta la solicitud en curso. Una respuesta antigua no sustituye elecciones más recientes. | Comparar corriente | Solicitud explícita; sin cálculo automático. |
+| Resultado y evidencias | Revise medias en A, diferencia principal menos comparación, porcentaje y conteos. No disponible no significa cero; lea motivos y calidad. | 6 A; 5 A; +1 A; +20% | Las métricas no disponibles no se convierten en cero. |
+
 ### Rendimiento: elija regla elegible
 
 En Rendimiento, elija la regla de cálculo del catálogo. Si una opción está deshabilitada, lea qué señal, significado o unidad falta. Elegir otra magnitud solo para obtener un número cambiaría la pregunta.
@@ -325,5 +352,21 @@ Compruebe licencia y permisos; después, selección guardada del recurso y permi
 Si son correctos, examine captura en Historian, calidad, papeles/unidades y exigencias de alineación/contexto. Corrija la condición demostrablemente ausente y consulte de nuevo.
 
 No cambie el significado de una señal ni amplíe límites solo para obtener un resultado. Los análisis ayudan a investigar. No confirman defectos ni anticipan fallos con una validez de campo aún no demostrada.
+
+#### Ejemplo real: corriente y frecuencia
+
+Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no representa un diagnóstico de campo.
+
+**Elegir mediciones en el móvil**
+
+![Elegir mediciones en el móvil](../../evidence/intelligence-857/current-frequency-mobile.png)
+
+**Comparar 6 A con 5 A**
+
+![Comparar 6 A con 5 A](../../evidence/intelligence-857/current-frequency-results.png)
+
+**Datos insuficientes no son cero**
+
+![Datos insuficientes no son cero](../../evidence/intelligence-857/current-frequency-insufficient.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

@@ -579,6 +579,68 @@
           "fields": null
         },
         {
+          "heading": "Comparar a corrente em uma faixa de frequência",
+          "body": "Imagine que o motor consumia cerca de 5 A e agora consome 6 A. Antes de interpretar essa mudança, confira se as medições foram obtidas na faixa de frequência que você quer investigar. Esta consulta compara duas partes do histórico; ela não aprende um padrão nem diagnostica o motor.\n\n1. Em Engenharia > Inteligência de ativos, encontre o equipamento e seu perfil em Associações. Abra Comparar corrente em frequência semelhante.\n2. Escolha a medição de corrente e a frequência medida. O significado fica escrito também abaixo de cada seletor. Frequência elétrica do inversor não é rotação do eixo. RMS indica o valor eficaz da corrente; linha, fase e barramento CC são medições diferentes. Escolha a que realmente existe na sua instalação.\n3. Informe uma faixa em Hz, como 49 a 51. Os limites são incluídos e a mesma faixa vale para os dois períodos. Hz significa ciclos por segundo; não digite rpm como se fosse Hz.\n4. Escolha o período principal e o período de comparação, ambos em horário local. Use a mesma duração, até 31 dias cada. Eles não podem se sobrepor nem compartilhar um extremo. Por exemplo: principal das 10h às 11h do dia 22 e comparação das 10h às 11h do dia 20. A comparação pode ser anterior ou posterior.\n5. Clique Comparar corrente. Abrir o painel e alterar campos não consulta o histórico. Cancelar consulta interrompe a solicitação; mudar uma escolha retira o resultado anterior.\n6. Leia as duas médias, a diferença e a variação percentual. Com principal de 6 A e comparação de 5 A, o exemplo mostra +1 A e +20%. O sinal vem de principal menos comparação; inverter os períodos muda a referência.\n7. Confira também os pares aproveitados, os que ficaram fora da faixa e as leituras rejeitadas. Se houver menos de dois pares utilizáveis em algum período, o resultado fica indisponível. Se a média de comparação for zero, a diferença pode existir, mas o percentual fica indisponível.\n\nPré-requisitos: salve a associação, publique/ative a revisão, ative o equipamento para análise e tenha licença e permissões de tendência/leitura dos dois TAGs. Os TAGs precisam existir na fonte ativa do Runtime, além de estarem cadastrados no perfil. Se faltarem opções, revise o significado e a unidade controlada no cadastro. Este método aceita o catálogo semântico 1: corrente elétrica com tipo explícito e unidade controlada ampere; frequência com saída medida, referência explícita e unidade controlada hertz, também do catálogo de unidades 1. Não basta escrever A/Hz no campo livre. Setpoint, rpm e versões de catálogo incompatíveis não são convertidos por suposição.\n\nO servidor usa apenas leituras numéricas de qualidade Boa, com horário de origem sincronizado e exatamente igual entre corrente e frequência. Não aproxima horários nem preenche lacunas. As médias são de amostras, não ponderadas pelo tempo; o limite conjunto é 50.000 leituras brutas. Frequência semelhante não comprova mesma carga, regime de processo, eficiência ou defeito. Cadência, completude e simultaneidade física não estão comprovadas. Esta consulta está disponível nesta associação da Engenharia; sua inclusão no gerador de telas Runtime permanece em revisão na #857.",
+          "fields": [
+            {
+              "key": "currentFrequency.currentSignalId",
+              "label": "Medição de corrente",
+              "description": "Escolha por nome a corrente do perfil. Confira se é corrente eficaz de linha, de fase ou do barramento CC. A unidade da consulta é ampere.",
+              "example": "Corrente do motor · linha RMS (A)",
+              "constraints": "Catálogo 1; unidade A; tipo de corrente explícito."
+            },
+            {
+              "key": "currentFrequency.frequencySignalId",
+              "label": "Medição de frequência",
+              "description": "Escolha a frequência realmente medida. O painel distingue saída elétrica do inversor e rotação do eixo; um comando de frequência não é aceito.",
+              "example": "Frequência elétrica medida (Hz)",
+              "constraints": "Catálogo 1; saída medida; Hz; referência explícita."
+            },
+            {
+              "key": "currentFrequency.minimumFrequencyHz",
+              "label": "Frequência mínima (Hz)",
+              "description": "Menor frequência que deve entrar na média, em Hz. Inclui valores iguais a este limite. Informe explicitamente; não há faixa inferida.",
+              "example": "49",
+              "constraints": "Finita; menor ou igual à máxima."
+            },
+            {
+              "key": "currentFrequency.maximumFrequencyHz",
+              "label": "Frequência máxima (Hz)",
+              "description": "Maior frequência aceita, em Hz. Deve ser maior ou igual à mínima. É permitido usar os dois limites iguais para uma frequência exata registrada.",
+              "example": "51",
+              "constraints": "Finita; maior ou igual à mínima."
+            },
+            {
+              "key": "currentFrequency.primaryWindow",
+              "label": "Período principal",
+              "description": "Início e fim do conjunto que você quer avaliar agora. O horário local é convertido para UTC; a duração deve ser positiva e não superar 31 dias.",
+              "example": "22/10 10:00–11:00",
+              "constraints": "Duração positiva; máximo de 31 dias."
+            },
+            {
+              "key": "currentFrequency.comparisonWindow",
+              "label": "Período de comparação",
+              "description": "Início e fim da base de comparação. Use duração igual ao principal, sem sobreposição ou extremos compartilhados. Pode vir antes ou depois.",
+              "example": "20/10 10:00–11:00",
+              "constraints": "Mesma duração; sem contato ou sobreposição."
+            },
+            {
+              "key": "currentFrequency.query",
+              "label": "Comparar / cancelar",
+              "description": "Comparar consulta o servidor. Cancelar descarta a solicitação em andamento. Uma resposta antiga não substitui escolhas mais recentes.",
+              "example": "Comparar corrente",
+              "constraints": "Solicitação explícita; sem cálculo automático."
+            },
+            {
+              "key": "currentFrequency.result",
+              "label": "Resultado e evidências",
+              "description": "Confira médias em A, diferença principal menos comparação, percentual e contagens. Não disponível não significa zero; leia os motivos e a qualidade.",
+              "example": "6 A; 5 A; +1 A; +20%",
+              "constraints": "Métricas indisponíveis não viram zero."
+            }
+          ]
+        },
+        {
           "heading": "Desempenho: escolha uma regra elegível",
           "body": "Em Desempenho, escolha a regra de cálculo do catálogo. Se uma opção estiver desabilitada, leia qual sinal, significado ou unidade está faltando. Escolher outra grandeza apenas para obter um número mudaria a pergunta.\n\nPreencha De/Até e consulte. Leia o estado, a unidade, o período efetivo e as limitações junto do resultado. Indisponível não é zero. Um indicador substituto, como uma comparação de corrente, não deve ser apresentado como eficiência física.\n\nSe mudar a associação, a revisão ou os parâmetros, faça outra consulta. O resultado anterior pertence às escolhas anteriores.",
           "fields": null
@@ -7543,6 +7605,68 @@
           "fields": null
         },
         {
+          "heading": "Compare current within a frequency range",
+          "body": "Suppose a motor used about 5 A and now uses 6 A. Before interpreting that change, check whether those measurements were recorded in the frequency range you want to investigate. This query compares two parts of the history; it does not learn a pattern or diagnose the motor.\n\n1. In Engineering > Asset intelligence, find the equipment and its assigned profile. Open Compare current at similar frequency.\n2. Choose current and measured frequency. Their meanings also appear below each selector. Drive electrical frequency is not shaft speed. RMS means effective current; line, phase and DC bus currents are different measurements. Choose what your installation actually measures.\n3. Enter a range in Hz, such as 49 to 51. Both limits are included and the same range applies to both periods. Hz means cycles per second; do not enter rpm as if it were Hz.\n4. Choose the primary and comparison periods in local time. Use equal durations, up to 31 days each, without overlap or a shared endpoint. For example: primary 10–11 am on day 22, comparison 10–11 am on day 20. Comparison can precede or follow the primary period.\n5. Click Compare current. Opening the panel and editing fields do not query history. Cancel query interrupts the request; changing a choice clears the old result.\n6. Read both means, the difference and percentage change. With primary 6 A and comparison 5 A, the example shows +1 A and +20%. The sign comes from primary minus comparison; reversing the periods changes the reference.\n7. Check used pairs, pairs outside the range and rejected readings. With fewer than two usable pairs in either period, the result is unavailable. If the comparison mean is zero, the absolute difference may remain available but the percentage is unavailable.\n\nPrerequisites: save the assignment, publish/activate the revision, activate equipment analysis and have the license plus trend and both TAG read permissions. TAGs must exist in the active Runtime source, as well as in the profile. Missing choices require checking controlled meaning and unit. This method accepts semantic catalog 1: electrical current with an explicit basis and controlled ampere unit; measured frequency with an explicit reference and controlled hertz unit, also from unit catalog 1. Free-text A/Hz is insufficient. Setpoints, rpm and incompatible catalog versions are not converted by assumption.\n\nThe server uses only Good finite numeric readings with synchronized, exactly matching source times between current and frequency. It does not approximate times or fill gaps. Means are sample means, not time-weighted; the combined limit is 50,000 raw readings. Similar frequency does not establish equal load, process conditions, efficiency or a fault. Cadence, completeness and physical simultaneity are not established. This query is available in the Engineering assignment; inclusion in the Runtime screen generator remains under review in #857.",
+          "fields": [
+            {
+              "key": "currentFrequency.currentSignalId",
+              "label": "Current measurement",
+              "description": "Choose a named profile current. Check whether it is RMS line, RMS phase or DC bus current. The query unit is ampere.",
+              "example": "Motor current · RMS line (A)",
+              "constraints": "Catalog 1; A unit; explicit current basis."
+            },
+            {
+              "key": "currentFrequency.frequencySignalId",
+              "label": "Frequency measurement",
+              "description": "Choose an actual measured frequency. The panel distinguishes electrical drive output and shaft rotation; a frequency command is not accepted.",
+              "example": "Measured electrical frequency (Hz)",
+              "constraints": "Catalog 1; measured output; Hz; explicit reference."
+            },
+            {
+              "key": "currentFrequency.minimumFrequencyHz",
+              "label": "Minimum frequency (Hz)",
+              "description": "Lowest frequency to include in the mean, in Hz. Values equal to the limit are included. Enter it explicitly; no range is inferred.",
+              "example": "49",
+              "constraints": "Finite; no greater than maximum."
+            },
+            {
+              "key": "currentFrequency.maximumFrequencyHz",
+              "label": "Maximum frequency (Hz)",
+              "description": "Highest accepted frequency, in Hz. Must be at least the minimum. Equal limits are allowed for an exact recorded frequency.",
+              "example": "51",
+              "constraints": "Finite; no less than minimum."
+            },
+            {
+              "key": "currentFrequency.primaryWindow",
+              "label": "Primary period",
+              "description": "Start and end of the set you want to assess. Local time is converted to UTC; duration must be positive and no more than 31 days.",
+              "example": "22/10 10:00–11:00",
+              "constraints": "Positive duration; at most 31 days."
+            },
+            {
+              "key": "currentFrequency.comparisonWindow",
+              "label": "Comparison period",
+              "description": "Start and end of the comparison basis. Use the same duration as primary, with no overlap or shared endpoint. May precede or follow it.",
+              "example": "20/10 10:00–11:00",
+              "constraints": "Equal duration; no touching or overlap."
+            },
+            {
+              "key": "currentFrequency.query",
+              "label": "Compare / cancel",
+              "description": "Compare queries the server. Cancel discards the in-flight request. An old response cannot replace more recent choices.",
+              "example": "Compare current",
+              "constraints": "Explicit request; no automatic calculation."
+            },
+            {
+              "key": "currentFrequency.result",
+              "label": "Result and evidence",
+              "description": "Check means in A, primary-minus-comparison difference, percentage and counts. Unavailable does not mean zero; read reasons and quality.",
+              "example": "6 A; 5 A; +1 A; +20%",
+              "constraints": "Unavailable metrics do not become zero."
+            }
+          ]
+        },
+        {
           "heading": "Performance: choose an eligible rule",
           "body": "In Performance, choose the calculation rule from the catalog. If an option is disabled, read which signal, meaning or unit is missing. Choosing another quantity merely to obtain a number would change the question.\n\nFill From/To and query. Read status, unit, actual period and limitations alongside the result. Unavailable is not zero. A substitute indicator, such as a current comparison, must not be presented as physical efficiency.\n\nIf assignment, revision or parameters change, request another query. The previous result belongs to the previous choices.",
           "fields": null
@@ -14505,6 +14629,68 @@
           "heading": "Empiece por cobertura",
           "body": "Cobertura responde la primera pregunta: ¿hay datos utilizables para este análisis? Con la asociación guardada y la ejecución autorizada, abra la consulta de cobertura del perfil. Elija inicio y fin y solicite la consulta.\n\nEl formulario muestra horas locales; la consulta identifica también la ventana UTC, referencia de tiempo común para comparar datos. El fin debe ser posterior al inicio.\n\nCompruebe señales obligatorias con datos, muestras aceptadas y rechazadas, calidad y alineación horaria. Solo después interprete mínimo, máximo o media. Muchas muestras no demuestran por sí solas ausencia de huecos ni que las señales se midieron juntas.",
           "fields": null
+        },
+        {
+          "heading": "Comparar corriente dentro de un rango de frecuencia",
+          "body": "Suponga que un motor consumía unos 5 A y ahora consume 6 A. Antes de interpretar el cambio, compruebe si esas mediciones se registraron en el rango de frecuencia que desea investigar. Esta consulta compara dos partes del histórico; no aprende un patrón ni diagnostica el motor.\n\n1. En Ingeniería > Inteligencia de activos, busque el equipo y su perfil asociado. Abra Comparar corriente a frecuencia similar.\n2. Elija corriente y frecuencia medida. Sus significados también aparecen debajo de cada selector. La frecuencia eléctrica del variador no es velocidad del eje. RMS significa valor eficaz; corriente de línea, de fase y del bus CC son mediciones distintas. Elija lo que realmente mide su instalación.\n3. Introduzca un rango en Hz, como 49 a 51. Se incluyen ambos límites y se usa el mismo rango en los dos períodos. Hz significa ciclos por segundo; no introduzca rpm como si fueran Hz.\n4. Elija los períodos principal y de comparación en hora local. Use igual duración, hasta 31 días cada uno, sin superposición ni extremos compartidos. Por ejemplo: principal de 10 a 11 del día 22 y comparación de 10 a 11 del día 20. La comparación puede ser anterior o posterior.\n5. Pulse Comparar corriente. Abrir el panel y editar campos no consulta el histórico. Cancelar consulta interrumpe la solicitud; cambiar una elección retira el resultado anterior.\n6. Lea ambas medias, la diferencia y la variación porcentual. Con principal 6 A y comparación 5 A, el ejemplo muestra +1 A y +20%. El signo viene de principal menos comparación; invertir los períodos cambia la referencia.\n7. Revise los pares utilizados, los que quedaron fuera del rango y las lecturas rechazadas. Con menos de dos pares utilizables en algún período, el resultado no está disponible. Si la media de comparación es cero, puede existir diferencia absoluta, pero el porcentaje no está disponible.\n\nRequisitos: guarde la asociación, publique/active la revisión, active el análisis del equipo y tenga licencia y permisos de tendencia/lectura de ambos TAGs. Los TAGs deben existir en la fuente activa del Runtime además de estar en el perfil. Si faltan opciones, revise significado y unidad controlados. Este método acepta catálogo semántico 1: corriente eléctrica con tipo explícito y unidad controlada amperio; frecuencia medida con referencia explícita y unidad controlada hercio, también del catálogo de unidades 1. No basta escribir A/Hz como texto libre. No se convierten por suposición consignas, rpm ni versiones de catálogo incompatibles.\n\nEl servidor usa solo lecturas numéricas finitas de calidad Buena, con horas de origen sincronizadas y exactamente iguales entre corriente y frecuencia. No aproxima horas ni rellena lagunas. Son medias de muestras, no ponderadas por tiempo; el límite conjunto es 50.000 lecturas brutas. Frecuencia similar no demuestra igual carga, condiciones de proceso, eficiencia ni un fallo. No se han comprobado cadencia, integridad ni simultaneidad física. La consulta está disponible en la asociación de Ingeniería; su inclusión en el generador de pantallas Runtime sigue en revisión en #857.",
+          "fields": [
+            {
+              "key": "currentFrequency.currentSignalId",
+              "label": "Medición de corriente",
+              "description": "Elija por nombre la corriente del perfil. Compruebe si es corriente eficaz de línea, de fase o del bus CC. La unidad de consulta es amperio.",
+              "example": "Corriente del motor · línea RMS (A)",
+              "constraints": "Catálogo 1; unidad A; tipo de corriente explícito."
+            },
+            {
+              "key": "currentFrequency.frequencySignalId",
+              "label": "Medición de frecuencia",
+              "description": "Elija frecuencia realmente medida. El panel distingue salida eléctrica del variador y giro del eje; no acepta comandos de frecuencia.",
+              "example": "Frecuencia eléctrica medida (Hz)",
+              "constraints": "Catálogo 1; salida medida; Hz; referencia explícita."
+            },
+            {
+              "key": "currentFrequency.minimumFrequencyHz",
+              "label": "Frecuencia mínima (Hz)",
+              "description": "Menor frecuencia que se incluye en la media, en Hz. Incluye valores iguales al límite. Indíquela explícitamente; no se deduce un rango.",
+              "example": "49",
+              "constraints": "Finita; no mayor que la máxima."
+            },
+            {
+              "key": "currentFrequency.maximumFrequencyHz",
+              "label": "Frecuencia máxima (Hz)",
+              "description": "Mayor frecuencia aceptada, en Hz. Debe ser mayor o igual a la mínima. Se permiten límites iguales para una frecuencia exacta registrada.",
+              "example": "51",
+              "constraints": "Finita; no menor que la mínima."
+            },
+            {
+              "key": "currentFrequency.primaryWindow",
+              "label": "Período principal",
+              "description": "Inicio y fin del conjunto a evaluar. La hora local se convierte a UTC; duración positiva y no superior a 31 días.",
+              "example": "22/10 10:00–11:00",
+              "constraints": "Duración positiva; máximo de 31 días."
+            },
+            {
+              "key": "currentFrequency.comparisonWindow",
+              "label": "Período de comparación",
+              "description": "Inicio y fin de la base de comparación. Use igual duración que el principal, sin superposición ni extremos compartidos. Puede ser anterior o posterior.",
+              "example": "20/10 10:00–11:00",
+              "constraints": "Igual duración; sin contacto ni superposición."
+            },
+            {
+              "key": "currentFrequency.query",
+              "label": "Comparar / cancelar",
+              "description": "Comparar consulta al servidor. Cancelar descarta la solicitud en curso. Una respuesta antigua no sustituye elecciones más recientes.",
+              "example": "Comparar corriente",
+              "constraints": "Solicitud explícita; sin cálculo automático."
+            },
+            {
+              "key": "currentFrequency.result",
+              "label": "Resultado y evidencias",
+              "description": "Revise medias en A, diferencia principal menos comparación, porcentaje y conteos. No disponible no significa cero; lea motivos y calidad.",
+              "example": "6 A; 5 A; +1 A; +20%",
+              "constraints": "Las métricas no disponibles no se convierten en cero."
+            }
+          ]
         },
         {
           "heading": "Rendimiento: elija regla elegible",

@@ -266,6 +266,33 @@ The form shows local times; the query also identifies its UTC window, the common
 
 Check which required signals have data, accepted and rejected sample counts, quality and time alignment. Only then interpret minimum, maximum or average. A large sample count alone does not prove gap-free data or that all signals were measured together.
 
+### Compare current within a frequency range
+
+Suppose a motor used about 5 A and now uses 6 A. Before interpreting that change, check whether those measurements were recorded in the frequency range you want to investigate. This query compares two parts of the history; it does not learn a pattern or diagnose the motor.
+
+1. In Engineering > Asset intelligence, find the equipment and its assigned profile. Open Compare current at similar frequency.
+2. Choose current and measured frequency. Their meanings also appear below each selector. Drive electrical frequency is not shaft speed. RMS means effective current; line, phase and DC bus currents are different measurements. Choose what your installation actually measures.
+3. Enter a range in Hz, such as 49 to 51. Both limits are included and the same range applies to both periods. Hz means cycles per second; do not enter rpm as if it were Hz.
+4. Choose the primary and comparison periods in local time. Use equal durations, up to 31 days each, without overlap or a shared endpoint. For example: primary 10–11 am on day 22, comparison 10–11 am on day 20. Comparison can precede or follow the primary period.
+5. Click Compare current. Opening the panel and editing fields do not query history. Cancel query interrupts the request; changing a choice clears the old result.
+6. Read both means, the difference and percentage change. With primary 6 A and comparison 5 A, the example shows +1 A and +20%. The sign comes from primary minus comparison; reversing the periods changes the reference.
+7. Check used pairs, pairs outside the range and rejected readings. With fewer than two usable pairs in either period, the result is unavailable. If the comparison mean is zero, the absolute difference may remain available but the percentage is unavailable.
+
+Prerequisites: save the assignment, publish/activate the revision, activate equipment analysis and have the license plus trend and both TAG read permissions. TAGs must exist in the active Runtime source, as well as in the profile. Missing choices require checking controlled meaning and unit. This method accepts semantic catalog 1: electrical current with an explicit basis and controlled ampere unit; measured frequency with an explicit reference and controlled hertz unit, also from unit catalog 1. Free-text A/Hz is insufficient. Setpoints, rpm and incompatible catalog versions are not converted by assumption.
+
+The server uses only Good finite numeric readings with synchronized, exactly matching source times between current and frequency. It does not approximate times or fill gaps. Means are sample means, not time-weighted; the combined limit is 50,000 raw readings. Similar frequency does not establish equal load, process conditions, efficiency or a fault. Cadence, completeness and physical simultaneity are not established. This query is available in the Engineering assignment; inclusion in the Runtime screen generator remains under review in #857.
+
+| Field | Purpose and how to fill it | Example | Bounds |
+| --- | --- | --- | --- |
+| Current measurement | Choose a named profile current. Check whether it is RMS line, RMS phase or DC bus current. The query unit is ampere. | Motor current · RMS line (A) | Catalog 1; A unit; explicit current basis. |
+| Frequency measurement | Choose an actual measured frequency. The panel distinguishes electrical drive output and shaft rotation; a frequency command is not accepted. | Measured electrical frequency (Hz) | Catalog 1; measured output; Hz; explicit reference. |
+| Minimum frequency (Hz) | Lowest frequency to include in the mean, in Hz. Values equal to the limit are included. Enter it explicitly; no range is inferred. | 49 | Finite; no greater than maximum. |
+| Maximum frequency (Hz) | Highest accepted frequency, in Hz. Must be at least the minimum. Equal limits are allowed for an exact recorded frequency. | 51 | Finite; no less than minimum. |
+| Primary period | Start and end of the set you want to assess. Local time is converted to UTC; duration must be positive and no more than 31 days. | 22/10 10:00–11:00 | Positive duration; at most 31 days. |
+| Comparison period | Start and end of the comparison basis. Use the same duration as primary, with no overlap or shared endpoint. May precede or follow it. | 20/10 10:00–11:00 | Equal duration; no touching or overlap. |
+| Compare / cancel | Compare queries the server. Cancel discards the in-flight request. An old response cannot replace more recent choices. | Compare current | Explicit request; no automatic calculation. |
+| Result and evidence | Check means in A, primary-minus-comparison difference, percentage and counts. Unavailable does not mean zero; read reasons and quality. | 6 A; 5 A; +1 A; +20% | Unavailable metrics do not become zero. |
+
 ### Performance: choose an eligible rule
 
 In Performance, choose the calculation rule from the catalog. If an option is disabled, read which signal, meaning or unit is missing. Choosing another quantity merely to obtain a number would change the question.
@@ -325,5 +352,21 @@ Check license and permissions, then the resource’s saved selection and armed e
 If those are correct, examine Historian capture, data quality, signal roles/units and alignment/context requirements. Correct the condition shown to be missing and query again.
 
 Do not change a signal’s meaning or widen limits merely to produce a result. Analyses support investigation. They do not confirm defects or predict failures with field validity that has not yet been demonstrated.
+
+#### Real example: current and frequency
+
+Real interface in Portuguese, with synthetic validation data. This example does not represent a field diagnosis.
+
+**Choose measurements on mobile**
+
+![Choose measurements on mobile](../../evidence/intelligence-857/current-frequency-mobile.png)
+
+**Compare 6 A with 5 A**
+
+![Compare 6 A with 5 A](../../evidence/intelligence-857/current-frequency-results.png)
+
+**Insufficient data is not zero**
+
+![Insufficient data is not zero](../../evidence/intelligence-857/current-frequency-insufficient.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

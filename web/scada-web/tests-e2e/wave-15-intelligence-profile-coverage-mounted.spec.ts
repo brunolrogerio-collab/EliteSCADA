@@ -332,6 +332,20 @@ test('guided dashboard opens four independently editable linked drafts without q
   expect(fixture.requests).toEqual([]);
   expect(fixture.dataReads).toEqual([]);
   expect(fixture.otherWrites).toEqual([]);
+  let candidate: { screens: Array<{ key: string; elements?: Array<{ actions?: Array<{ targetKey?: string }> }> }> } | undefined;
+  await page.route('**/api/engineering/import/json/preview', async route => {
+    candidate = route.request().postDataJSON();
+    await route.fulfill({ json: { canApply: true, createCount: 4, updateCount: 0, skipCount: 0, errorCount: 0, items: [] } });
+  });
+  await editor.getByTestId('visual-editor-preview').click();
+  await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+  expect(candidate?.screens).toHaveLength(4);
+  const keys = new Set(candidate!.screens.map(screen => screen.key));
+  for (const screen of candidate!.screens) {
+    for (const element of screen.elements ?? []) {
+      for (const action of element.actions ?? []) if (action.targetKey) expect(keys.has(action.targetKey)).toBe(true);
+    }
+  }
 });
 
 test('Performance V1B fails closed on ambiguous profile roles and unsupported semantic bindings', async ({ page }) => {

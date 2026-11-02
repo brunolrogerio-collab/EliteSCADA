@@ -261,7 +261,9 @@ export function IntelligenceContextualDeviationVisualElement({
   };
 
   const rootStyle: CSSProperties = {
-    ...style, boxSizing: 'border-box', overflow: 'auto', padding: 12,
+    ...style, display: style.display === 'none' ? 'none' : 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)', alignItems: 'stretch', justifyContent: 'stretch',
+    whiteSpace: 'normal', boxSizing: 'border-box', overflow: 'auto', padding: 12,
     border: '1px solid var(--app-border, #475569)', borderRadius: 8,
     background: 'var(--app-surface, #111827)', color: 'var(--app-text-primary, #E2E8F0)'
   };

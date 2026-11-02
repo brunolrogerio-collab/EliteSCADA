@@ -273,7 +273,18 @@ export function AssetProcessIntelligenceWorkspace({
   const selectedProfile = profiles.find(profile => profile.id === selectedProfileId) ?? null;
   const selectedStage = processStages.find(stage => stage.id === selectedStageId) ?? null;
   const selectedContextProfile = operatingContextProfiles.find(profile => profile.id === selectedContextProfileId) ?? null;
-  const tags = snapshot?.tags?.length ? snapshot.tags : packageTags;
+  const tags = useMemo(() => {
+    const packageTagsById = new Map(packageTags.filter(tag => tag.id).map(tag => [tag.id!.toLowerCase(), tag]));
+    return snapshot?.tags?.length ? snapshot.tags.map(tag => {
+      const saved = tag.id ? packageTagsById.get(tag.id.toLowerCase()) : undefined;
+      const sameMeasurement = saved && saved.path === tag.path && saved.dataType.toLowerCase() === tag.dataType.toLowerCase() &&
+        (saved.engineeringUnit ?? '') === (tag.engineeringUnit ?? '');
+      return sameMeasurement ? { ...tag,
+        scaleMinimum: tag.scaleMinimum === undefined ? saved.scaleMinimum : tag.scaleMinimum,
+        scaleMaximum: tag.scaleMaximum === undefined ? saved.scaleMaximum : tag.scaleMaximum
+      } : tag;
+    }) : packageTags;
+  }, [snapshot?.tags, packageTags]);
   const equipment = (snapshot?.resources ?? []).filter(resource => resource.kind === 'Equipment');
   const tagsById = new Map(tags.filter(tag => tag.id).map(tag => [tag.id!.toLowerCase(), tag]));
   const resourcesByKey = new Map((snapshot?.resources ?? []).map(resource => [scopeKey(resource), resource]));

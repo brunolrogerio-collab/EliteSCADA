@@ -58,7 +58,7 @@ test('Intelligence generates visible equipment and process dashboards in the can
     } });
     if (path === '/api/engineering/export/json') return route.fulfill({ json: {
       schema: 'scada.engineering', schemaVersion: 20, exportedAt: '2026-10-21T00:00:00Z',
-      tags: [tag], alarms: [], dataSources: [], templates: [],
+      tags: [{ ...tag, dataType: 'double', scaleMinimum: 0, scaleMaximum: 100 }], alarms: [], dataSources: [], templates: [],
       equipment: [{ id: equipmentId, key: 'pump-01', name: 'Pump P-101', path: 'Plant.Pump01' }],
       dynamos: [], screens: [], popups: [], securityRoles: [], gateways: [], visualAssets: []
     } });
@@ -124,8 +124,10 @@ test('Intelligence generates visible equipment and process dashboards in the can
     label: 'Perfil de equipamento · Pump P-101 · Pump process profile'
   });
   await expect(licensedGenerate).toBeEnabled();
-  await licensedGenerator.locator('details').filter({ hasText: 'Discharge flow' }).locator('summary').click();
+  await expect(licensedGenerator.getByLabel('Mínimo · Discharge flow', { exact: true })).toHaveValue('0');
+  await expect(licensedGenerator.getByLabel('Máximo · Discharge flow', { exact: true })).toHaveValue('100');
   await licensedGenerator.getByLabel('Objeto · Discharge flow', { exact: true }).selectOption('measurementDial');
+  await licensedGenerator.getByLabel('Mínimo · Discharge flow', { exact: true }).fill('');
   await expect(licensedGenerate).toBeDisabled();
   await licensedGenerator.getByLabel('Mínimo · Discharge flow', { exact: true }).fill('0');
   await licensedGenerator.getByLabel('Máximo · Discharge flow', { exact: true }).fill('100');

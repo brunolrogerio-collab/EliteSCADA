@@ -69,6 +69,8 @@ test('contextual deviation V2 is explicit, chronological, transient and validate
   await expect(runtime).toBeVisible();
   const visual = page.getByTestId('runtime-intelligence-contextual-deviation-v2');
   await expect(visual).toBeVisible();
+  await expect(visual).toHaveCSS('display', 'grid');
+  await expect(visual).toHaveCSS('align-items', 'stretch');
   const analyze = visual.getByRole('button', { name: 'Analyze' });
   await expect(analyze).toBeDisabled();
   await expect(visual.getByLabel('Reference from (local time)')).toHaveValue('');

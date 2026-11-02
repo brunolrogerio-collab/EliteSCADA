@@ -188,7 +188,7 @@ function coverageResponse(body: Record<string, any>) {
     ruleVersion: '1.0.0',
     projectKey,
     activeRevision: revision,
-    scopeKind: 'Equipment',
+    scopeKind: 0,
     scopeId: body.scopeId,
     profileId: body.profileId,
     profileKey: 'pump-profile',
@@ -201,7 +201,7 @@ function coverageResponse(body: Record<string, any>) {
       required: true,
       tagId: '50000000-0000-0000-0000-000000000005',
       tagPath: 'Plant.Pump.Current',
-      tagDataType: 'Double',
+      tagDataType: 5,
       unit: 'A',
       status: 'descriptive_trend_available',
       summary: {

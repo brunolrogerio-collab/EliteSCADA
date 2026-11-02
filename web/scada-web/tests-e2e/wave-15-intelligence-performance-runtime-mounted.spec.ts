@@ -170,7 +170,7 @@ function performanceResponse(body: Record<string, any>) {
   return {
     contractVersion: 1, catalogVersion: 1, ruleId, ruleVersion,
     projectKey, activeRevision: revision,
-    scopeKind: 'Equipment', scopeId: body.scopeId, assignmentId: body.assignmentId,
+    scopeKind: 0, scopeId: body.scopeId, assignmentId: body.assignmentId,
     equipmentId: body.scopeId, profileId: body.profileId, window: body.window,
     signals: [
       { signalId: signalIds[0], signalKey: 'internal-signal-ref-001', roleCode: 'equipment.active_input_power', canonicalUnit: 'W' },

@@ -27,7 +27,7 @@ export type ProfileCoverageResponse = {
   ruleVersion: string;
   projectKey: string;
   activeRevision: number;
-  scopeKind: string;
+  scopeKind: string | number;
   scopeId: string;
   profileId: string;
   profileKey: string;
@@ -40,7 +40,7 @@ export type ProfileCoverageResponse = {
     required: boolean;
     tagId: string;
     tagPath: string;
-    tagDataType: string;
+    tagDataType: string | number;
     unit: string | null;
     status: string;
     summary: SignalSummary | null;
@@ -216,7 +216,9 @@ export function CoverageResult({ result, locale, copy }: {
       <div className="asset-process-intelligence__coverage-signals">
         {result.signals.map(signal => <article key={signal.signalId}>
           <h5>{describeSignalName(signal.signalKey, signal.signalRoleMetadata, signal.tagPath, locale)} {signal.required ? `· ${copy.required}` : `· ${copy.optional}`}</h5>
-          <p>{signal.tagPath} · {signal.tagDataType}{signal.unit ? ` · ${signal.unit}` : ''}</p>
+          <p>{signal.tagPath} · {typeof signal.tagDataType === 'number'
+            ? ['Boolean', 'Int16', 'Int32', 'Int64', 'Float', 'Double', 'String', 'DateTime', 'Enum'][signal.tagDataType] ?? copy.unknown
+            : signal.tagDataType}{signal.unit ? ` · ${signal.unit}` : ''}</p>
           <p><strong>{copy.signalStatus}:</strong> {describeSignalStatus(signal.status, copy, locale)}</p>
           {signal.summary ? <>
             <dl className="asset-process-intelligence__coverage-facts">
@@ -475,7 +477,7 @@ export function isMatchingResponse(
   if (!value || typeof value !== 'object') return false;
   const response = value as Partial<ProfileCoverageResponse>;
   return response.projectKey === projectKey && response.activeRevision === activeRevision &&
-    response.scopeKind === 'Equipment' &&
+    (response.scopeKind === 0 || response.scopeKind === 'Equipment') &&
     typeof response.scopeId === 'string' && response.scopeId.toLowerCase() === scopeId.toLowerCase() &&
     response.profileId?.toLowerCase() === profileId.toLowerCase() &&
     Date.parse(response.window?.fromUtc ?? '') === Date.parse(window.fromUtc) &&

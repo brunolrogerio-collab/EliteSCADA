@@ -49,7 +49,7 @@ export type PerformanceResponse = {
   ruleVersion: string;
   projectKey: string;
   activeRevision: number;
-  scopeKind: string;
+  scopeKind: string | number;
   scopeId: string;
   assignmentId: string;
   equipmentId: string;
@@ -435,7 +435,7 @@ export function matchesResponse(
   return response.contractVersion === 1 && response.catalogVersion === catalogVersion &&
     response.ruleId === rule.id && response.ruleVersion === rule.version &&
     response.projectKey === projectKey && response.activeRevision === activeRevision &&
-    response.scopeKind === 'Equipment' && sameId(response.scopeId, scopeId) &&
+    (response.scopeKind === 0 || response.scopeKind === 'Equipment') && sameId(response.scopeId, scopeId) &&
     sameId(response.assignmentId, assignmentId) && sameId(response.profileId, profileId) &&
     sameId(response.equipmentId, scopeId) &&
     expectedSignals.length > 0 && expectedSignals.length === actualSignals.length &&

@@ -230,9 +230,9 @@ El contexto describe una condición de operación para comparar situaciones simi
 
 En el perfil operacional guardado, el intervalo numérico incluye ambos límites en la unidad de ingeniería actual. Las señales necesitan evidencia con el mismo timestamp UTC de origen exacto. Lecturas solo próximas en el tiempo no cumplen ese requisito.
 
-En el generador de pantalla de desviación contextual, elija de 2 a 8 señales objetivo y dos señales numéricas de contexto. Los contextos deben ser distintos entre sí y de los objetivos: hacen falta al menos cuatro señales numéricas utilizables. Los intervalos usan la unidad controlada mostrada e incluyen el límite inferior, pero excluyen el superior: inferior ≤ valor < superior.
+En el generador de pantalla de desviación contextual, elija de 2 a 8 señales objetivo y dos señales numéricas de contexto. Los contextos deben ser distintos entre sí y de los objetivos: hacen falta al menos cuatro señales numéricas utilizables. Introduzca los intervalos en la unidad indicada junto al campo. Por ejemplo, para un TAG en kPa, introduzca 0 y 500 kPa; SCADIVO convierte internamente a 0 y 500000 Pa. El mínimo se incluye y el máximo no: mínimo ≤ lectura < máximo. Al cambiar la señal de contexto, se borran sus límites para introducir el intervalo correcto. Sin cuatro mediciones distintas, esta desviación no está disponible; cobertura o rendimiento pueden generarse si cumplen sus propios requisitos.
 
-Compruebe qué configuración usa antes de copiar límites. La unidad y la inclusión del límite superior pueden ser diferentes.
+Aunque la unidad sea la misma, compruebe la comparación: el perfil operativo incluye el máximo; la pantalla de desviación contextual no. Revise esta diferencia antes de copiar un intervalo.
 
 ### Genere pantalla y compruebe la cadena completa
 

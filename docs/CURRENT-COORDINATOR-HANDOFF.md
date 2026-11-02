@@ -2,11 +2,11 @@
 
 ## Ponto de retomada atual — Intelligence #791 / #853 / #855 — 02/11/2026
 
-Frente ativa: auditoria e composição dos dashboards de Intelligence, candidata no PR draft #854 (inclui a cadeia #852). O head anterior `e85431d0` passou no T1 `41380091621`; esse verde não se transfere às correções posteriores.
+Frente ativa: auditoria e composição dos dashboards de Intelligence, candidata no PR draft #854 (inclui a cadeia #852). O T1 `41382956383`, head `ca028496`, terminou reprovado somente na auditoria de dependências Z-Wave Windows/Linux; Intelligence, Web, .NET e Chromium passaram. O novo incremento precisa do CI de seu SHA exato.
 
-API e PostgreSQL reais, em ambiente sintético isolado, comprovaram três Telas vinculadas, quatro widgets visíveis e resultados de desempenho/desvio contextual. Corrigidos descarte da unidade controlada na ativação dos TAGs, rejeição do enum numérico real pela interface, prévia incompleta do conjunto e layout comprimido do desvio. [Desenho, evidência e pendências](WAVE15-INTELLIGENCE-DASHBOARD-COMPOSITION-855.md). Não confundir HTTP 200 ou gerador existente com funcionalidade aceita.
+API e PostgreSQL reais, em ambiente sintético isolado, comprovaram três Telas vinculadas, quatro widgets visíveis e resultados de desempenho/desvio contextual. Corrigidos descarte da unidade controlada na ativação dos TAGs, rejeição do enum numérico real pela interface, prévia incompleta do conjunto e layout comprimido do desvio. [Desenho, evidência e pendências](WAVE15-INTELLIGENCE-DASHBOARD-COMPOSITION-855.md). A autoria de contexto aceita a unidade do TAG e converte internamente; perfil parcial gerou cobertura/desempenho sem exigir os dois sensores de contexto. Não confundir HTTP 200 ou gerador existente com funcionalidade aceita.
 
-Próximo passo: conferir testes e CI do head exato no registro vivo #855/#854, revisar visualmente e concluir a composição das etapas e as lacunas Runtime registradas. #855/#791 continuam abertas: falta a prova real de composição parcial sem sensor, composição central das vistas de membros das etapas, consumidores Runtime de referência/condições/score conjunto e aceite visual. Não declarar KPI agregado entregue. Preview/DEMO e Portal preservados; HA-D2 não iniciado.
+Próximo passo: conferir testes e CI do head exato no registro vivo #855/#854, revisar visualmente e concluir a composição das etapas e as lacunas Runtime registradas. #855/#791 continuam abertas: a prova real parcial com duas medições foi concluída, incluindo reinício/reativação; faltam composição central das vistas de membros das etapas, consumidores Runtime de referência/condições/score conjunto e aceite visual. Não declarar KPI agregado entregue. Preview/DEMO e Portal preservados; HA-D2 não iniciado.
 
 ## Checkpoint anterior — histórico
 

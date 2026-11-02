@@ -230,9 +230,9 @@ Contexto descreve uma condição de operação para comparar situações semelha
 
 No perfil operacional salvo, o intervalo numérico inclui os dois limites, na unidade de engenharia atual. Os sinais precisam de evidência com o mesmo timestamp UTC de origem exato. Leituras apenas próximas no tempo não atendem esse requisito.
 
-No gerador de tela de desvio contextual, escolha 2 a 8 sinais-alvo e dois sinais numéricos de contexto. Os dois contextos devem ser distintos entre si e dos alvos: são pelo menos quatro sinais numéricos utilizáveis. As faixas usam a unidade controlada mostrada e incluem o limite inferior, mas excluem o superior: limite inferior ≤ valor < limite superior.
+No gerador de tela de desvio contextual, escolha 2 a 8 sinais-alvo e dois sinais numéricos de contexto. Os dois contextos devem ser distintos entre si e dos alvos: são pelo menos quatro sinais numéricos utilizáveis. Digite as faixas na unidade indicada ao lado do campo. Por exemplo, para um TAG em kPa, informe 0 e 500 kPa; o SCADIVO converte internamente para 0 e 500000 Pa. O mínimo entra na comparação e o máximo não: mínimo ≤ leitura < máximo. Ao mudar o sinal de contexto, os limites são limpos para você informar a faixa correta. Sem quatro medições distintas, este desvio não fica disponível; isso não impede gerar cobertura ou desempenho quando seus próprios requisitos estiverem atendidos.
 
-Confira qual configuração está usando antes de copiar limites. A unidade e a inclusão do limite superior podem ser diferentes.
+Mesmo quando a unidade é a mesma, confira a comparação: o perfil operacional inclui o máximo; a tela de desvio contextual não. Não copie uma faixa sem revisar essa diferença.
 
 ### Gere a tela e confira a cadeia completa
 

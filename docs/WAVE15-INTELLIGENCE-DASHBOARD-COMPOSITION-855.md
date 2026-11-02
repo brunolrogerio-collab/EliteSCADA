@@ -38,12 +38,28 @@ Validação adicional deste reparo: 51/51 testes Chromium passaram (50 do gerado
 
 SHA e CI exatos ficam também no registro vivo da #855/#854. Este percurso não comprova a aceitação completa da #791.
 
+## Continuação — unidades familiares e perfil com duas medições
+
+A autoria do desvio contextual agora usa a unidade mostrada no TAG. O catálogo controlado continua sendo a fonte do fator de conversão; os valores persistidos na Tela e enviados à API continuam canônicos. No percurso real foram digitados 0 e 500 kPa nos dois sinais de pressão, persistidos 0 e 500000 Pa e obtidos novamente 120 vetores em cada período na revisão ativa 19. Quando o TAG não tem texto de unidade, o campo mostra a unidade canônica e recebe valores nela. Unidade controlada ausente ou fator inválido continuam impedindo a seleção do contexto.
+
+Os rótulos explicam Mínimo (incluído) e Máximo (não incluído). Trocar um sinal limpa seus limites para impedir a reutilização acidental de uma faixa em outra grandeza/unidade. A regressão montada confere vírgula decimal (100,5 kPa → 100500 Pa), fator 1, limpeza e bloqueio de overflow na conversão. O contrato `[mínimo, máximo)` e o método não mudaram.
+
+Foi criado outro perfil sintético no mesmo banco isolado, contendo somente potência e produção. Pela interface, a regra de desempenho foi selecionada e o gerador criou duas Telas vinculadas: valores/tendência/cobertura e desempenho. Desvio contextual ficou indisponível com uma explicação de que são necessárias quatro medições distintas; isso não bloqueou as duas vistas elegíveis. A geração não executou consulta analítica.
+
+As duas Telas foram aplicadas, salvas, publicadas e ativadas. A cobertura retornou 120 amostras aceitas por sinal, e o desempenho apresentou 120 pares qualificados. Depois de reiniciar a API, a revisão 23, as identidades e os vínculos das duas Telas persistiram. A consulta respondeu HTTP 409 com `INTELLIGENCE_EXECUTION_PERMIT_REQUIRED` até a reativação explícita; depois o Runtime voltou a apresentar os mesmos 120 pares. Uma primeira expectativa do roteiro usou HTTP 403; foi corrigida para o 409 do contrato, sem alterar o produto.
+
+Evidências: [resumo sem credenciais](evidence/intelligence-855/partial-and-unit-results.json), [entrada em kPa](evidence/intelligence-855/context-input-kpa.png), [gerador parcial](evidence/intelligence-855/partial-generator.png), [cobertura](evidence/intelligence-855/partial-coverage.png), [desempenho após reinício](evidence/intelligence-855/partial-after-restart.png). Não demonstra todas as regras possíveis com poucos sensores; comprova este percurso elegível, sem vibração e sem os dois sensores adicionais de contexto. Campo continua adiado.
+
+Neste incremento passaram 51/51 testes Chromium (gerador, configuração, composição parcial, conversão e Runtime de desempenho/cobertura), 30/30 testes focados de Help, build Web e alinhamento dos 69 arquivos. Os auxiliares API/Web foram encerrados depois da prova; o banco sintético permanece preservado.
+
+O T1 anterior `41382956383`, head `ca028496`, terminou reprovado na auditoria de dependências Z-Wave em Windows/Linux (11 avisos moderados na cadeia que contém ESLint/minimatch). .NET, Web, regressões de Intelligence e Chromium passaram. Não foi falha analítica deste percurso; tampouco foi corrigida ou ignorada. O novo SHA precisa de seu próprio CI e permanece sem autorização de integração baseada em verde anterior.
+
 ## Pendências de aceite da #855
 
 | Ponto | Situação |
 | --- | --- |
 | Escolha dos seis layouts, temas e limites | Seis layouts no gerador; quatro layouts no percurso real persistido; aceite visual final pendente |
-| Equipamento com somente uma análise configurada | Composição independente implementada; falta prova de consulta real pelo Runtime com essa composição |
+| Equipamento com somente uma análise configurada | Prova real com duas medições, consultas, persistência e reinício concluída acima; aceite visual pendente |
 | Desempenho e desvio com resultados visíveis e dados sintéticos | Consultas reais e resultados visíveis comprovados acima; falta aceite visual do proprietário |
 | Etapas do processo | Visão de TAGs/widgets disponível; composição central das vistas de membros ainda pendente. Ações especializadas existentes permanecem na seção de etapas |
 | Referência, condições e score conjunto no Runtime | Consumidores não entregues; consultas da Engenharia não são equivalência funcional no Runtime |

@@ -230,9 +230,9 @@ Context describes an operating condition so similar situations can be compared. 
 
 In the saved operating profile, a numeric range includes both limits in the current engineering unit. Signals need evidence at the exact same source UTC timestamp. Readings merely close in time do not meet that requirement.
 
-In the contextual-deviation screen generator, choose 2 to 8 target signals and two numeric context signals. Context signals must differ from each other and from the targets: at least four usable numeric signals are needed. Ranges use the displayed controlled unit and include the lower limit but exclude the upper: lower ≤ value < upper.
+In the contextual-deviation screen generator, choose 2 to 8 target signals and two numeric context signals. Context signals must differ from each other and from the targets: at least four usable numeric signals are needed. Enter ranges in the unit shown beside the field. For example, for a kPa TAG enter 0 and 500 kPa; SCADIVO converts internally to 0 and 500000 Pa. The minimum is included and the maximum is not: minimum ≤ reading < maximum. Changing the context signal clears its limits so you can enter the correct range. Without four distinct measurements, this deviation is unavailable; coverage or performance can still be generated when their own requirements are met.
 
-Check which configuration you are using before copying limits. Units and upper-limit inclusion can differ.
+Even when the unit is the same, check the comparison: the operating profile includes the maximum; the contextual-deviation screen does not. Review this difference before copying a range.
 
 ### Generate the screen and check the full chain
 

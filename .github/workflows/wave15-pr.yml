@@ -302,7 +302,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence'
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence|FullyQualifiedName~EngineeringIntelligence'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests&FullyQualifiedName!~Stage6BResourceCharacterization'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -372,7 +372,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence'
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence|FullyQualifiedName~EngineeringIntelligence'
           dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests&FullyQualifiedName!~Stage6BResourceCharacterization'
           dotnet test tests/Scada.Security.Tests/Scada.Security.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AuthorityPolicyContractTests'
       - name: Run real PostgreSQL revision restart evidence

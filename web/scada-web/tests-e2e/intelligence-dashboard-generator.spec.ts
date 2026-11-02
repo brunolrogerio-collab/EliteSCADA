@@ -797,6 +797,20 @@ test('stage composition preserves independent member reports, authored widgets a
     const invalid = { ...conditions, members: conditions.members.map((m, i) => i === 0 ? { ...m, operatingContexts: value } : m) };
     expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, invalid as any, tags, appearance, { coverage: true, reports: true }, 'en', ids())).toThrow();
   }
+  const joint = { contexts: [{ id: id(8), displayLabel: 'Running', version: 3, predicateTagIds: [assignments[0].profile.signals[2].tagId] }],
+    signals: assignments[0].profile.signals.slice(0,2).map((signal,i)=>({id:signal.id,tagId:signal.tagId,label:`Measurement ${i}`})) };
+  const jointReports = { ...coverage,members:coverage.members.map((member,i)=>({...member,availabilityVersion:2 as const,...(i===0?{experimentalJoint:joint}:{})})) };
+  const jointDrafts=generateIntelligenceProcessStageCompositionDrafts([],source,coverage,jointReports,tags,appearance,{coverage:true,reports:true},'en',ids());
+  expect(jointDrafts).toHaveLength(3);
+  const jointWidget=jointDrafts[2].elements!.find(e=>e.type===BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1)!;
+  const jointMembers=JSON.parse(String(jointWidget.properties?.intelligenceStageMembers));expect(jointMembers).toEqual(jointReports.members);
+  expect(jointMembers[0]).not.toHaveProperty('operatingContexts');expect(jointMembers[0]).not.toHaveProperty('performance');expect(jointMembers[1]).not.toHaveProperty('experimentalJoint');
+  for(const value of [null, {...joint,signals:[]}, {...joint,signals:[{...joint.signals[0],tagId:id(99)},joint.signals[1]]},
+    {...joint,contexts:[{...joint.contexts[0],predicateTagIds:joint.signals.map(s=>s.tagId)}]}, {...joint,extra:1}]) {
+    const invalid={...jointReports,members:jointReports.members.map((member,i)=>i===0?{...member,experimentalJoint:value}:member)};
+    expect(()=>generateIntelligenceProcessStageCompositionDrafts([],source,coverage,invalid as any,tags,appearance,{coverage:true,reports:true},'en',ids())).toThrow();
+  }
+  expect(()=>generateIntelligenceProcessStageCompositionDrafts([],source,coverage,jointReports,tags.map(tag=>({...tag,dataType:'Boolean'})),appearance,{coverage:true,reports:true},'en',ids())).toThrow(/numeric/);
   const basic = generateIntelligenceProcessStageCompositionDrafts([], source, coverage, null, tags, appearance, { coverage: false, reports: false }, 'en', ids());
   expect(basic).toHaveLength(1);
   expect(basic[0].elements!.flatMap(e => e.actions ?? []).filter(a => a.kind === 'NavigateScreen')).toEqual([]);

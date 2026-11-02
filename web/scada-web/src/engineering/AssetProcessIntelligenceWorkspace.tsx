@@ -1,3 +1,4 @@
+import { readIntelligenceJointPresentation } from './intelligenceJointReferences';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasRuntimeCapability, hasWorkspaceCapability, useEffectiveCapabilities } from '../auth/effectiveCapabilities';
 import type { EngineeringLocale } from './i18n';
@@ -456,6 +457,17 @@ export function AssetProcessIntelligenceWorkspace({
     }));
   };
 
+  const jointPresentationForAssignment = (assignmentId: string, profileId: string) => {
+    const contexts = contextReferencesForAssignment(assignmentId);
+    const profile = profiles.find(item => item.id === profileId);
+    if (!contexts || !profile) return null;
+    const signals = profile.signals.flatMap(signal => {
+      const tag = tags.find(item => item.id?.toLowerCase() === signal.tagId.toLowerCase());
+      return tag && isNumericTagDataType(tag.dataType) ? [{ id: signal.id, tagId: signal.tagId, label: tag.name || tag.path }] : [];
+    });
+    return readIntelligenceJointPresentation({ contexts, signals });
+  };
+
   const createProcessStageReportSelection = (stage: AssetProcessIntelligenceProcessStageEngineering): IntelligenceProcessStageReportSelection | null => {
     const coverage = createProcessStageCoverageSelection(stage);
     if (!coverage) return null;
@@ -463,8 +475,10 @@ export function AssetProcessIntelligenceWorkspace({
       const performance = guidedPerformanceSelections[member.assignmentId];
       const contextualDeviation = guidedDeviationSelections[member.assignmentId];
       const operatingContexts = contextReferencesForAssignment(member.assignmentId);
+      const experimentalJoint = jointPresentationForAssignment(member.assignmentId, member.profileId);
       return { ...member, availabilityVersion: 2 as const,
         ...(operatingContexts ? { operatingContexts } : {}),
+        ...(experimentalJoint ? { experimentalJoint } : {}),
         ...(performance ? { performance: { ruleId: performance.ruleId, ruleVersion: performance.ruleVersion, signalIds: performance.signalIds } } : {}),
         ...(contextualDeviation ? { contextualDeviation: {
           targetSignalIds: contextualDeviation.targetSignalIds,
@@ -492,16 +506,11 @@ export function AssetProcessIntelligenceWorkspace({
   const jointSelectionForSource = (source: IntelligenceDashboardSource): IntelligenceExperimentalJointDashboardSelection | null => {
     const context = contextSelectionForSource(source);
     if (!context) return null;
-    const signals = source.assignments[0].profile.signals.flatMap(signal => {
-      const tag = tags.find(item => item.id?.toLowerCase() === signal.tagId.toLowerCase());
-      return tag && isNumericTagDataType(tag.dataType) ? [{ id: signal.id, tagId: signal.tagId, label: tag.name || tag.path }] : [];
-    });
-    return signals.length >= 2 && signals.length <= 16 && new Set(signals.map(s => s.tagId.toLowerCase())).size === signals.length &&
-      context.contexts.some(c => signals.filter(signal => !c.predicateTagIds.some(id => id.toLowerCase() === signal.tagId.toLowerCase())).length >= 2)
-      ? { ...context, signals } : null;
+    const joint = jointPresentationForAssignment(context.assignmentId, context.profileId);
+    return joint ? { ...context, ...joint } : null;
   };
 
-  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean; stageContextEligibility?: boolean; contextEligibility?: boolean; experimentalJoint?: boolean }) => {
+  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean; stageContextEligibility?: boolean; stageExperimentalJoint?: boolean; contextEligibility?: boolean; experimentalJoint?: boolean }) => {
     setError(null);
     setMessage(null);
     if (!snapshot?.licensed) {
@@ -526,22 +535,23 @@ export function AssetProcessIntelligenceWorkspace({
         const coverage = stage ? createProcessStageCoverageSelection(stage) : null;
         if (!stage) throw new Error(copy.dashboardSourceUnavailable);
         if (!coverage) {
-          if (analyses?.stageCoverage || analyses?.stageReports || analyses?.stageReferenceEvidence || analyses?.stageContextEligibility) throw new Error(copy.dashboardSourceUnavailable);
+          if (analyses?.stageCoverage || analyses?.stageReports || analyses?.stageReferenceEvidence || analyses?.stageContextEligibility || analyses?.stageExperimentalJoint) throw new Error(copy.dashboardSourceUnavailable);
           onCreateDashboardDraft(generateIntelligenceDashboardDraft(screens, source, tags, locale, undefined, appearance));
           return;
         }
         const availableReports = createProcessStageReportSelection(stage);
         const reports = availableReports ? { ...availableReports, members: availableReports.members.map(member => {
-          const { performance, contextualDeviation, operatingContexts, ...identity } = member;
+          const { performance, contextualDeviation, operatingContexts, experimentalJoint, ...identity } = member;
           return { ...identity,
             ...(analyses?.stageReports ? { performance, contextualDeviation } : {}),
             ...(analyses?.stageReferenceEvidence ? { referenceEvidence: true as const } : {}),
-            ...(analyses?.stageContextEligibility && operatingContexts ? { operatingContexts } : {})
+            ...(analyses?.stageContextEligibility && operatingContexts ? { operatingContexts } : {}),
+            ...(analyses?.stageExperimentalJoint && experimentalJoint ? { experimentalJoint } : {})
           };
         }) } : null;
         onCreateDashboardDraft(generateIntelligenceProcessStageCompositionDrafts(screens, source, coverage,
           reports, tags, appearance,
-          { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true || analyses?.stageReferenceEvidence === true || analyses?.stageContextEligibility === true }, locale));
+          { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true || analyses?.stageReferenceEvidence === true || analyses?.stageContextEligibility === true || analyses?.stageExperimentalJoint === true }, locale));
         return;
       }
       const member = source.kind === "equipment-profile" && source.assignments.length === 1 ? source.assignments[0] : null;
@@ -929,7 +939,7 @@ export function AssetProcessIntelligenceWorkspace({
             coverageAvailable: Boolean(dashboardStageReports),
             members: (dashboardStageReports?.members ?? []).map(member => ({
               assignmentId: member.assignmentId, label: member.displayLabel,
-              performance: Boolean(member.performance), deviation: Boolean(member.contextualDeviation), contexts: Boolean(member.operatingContexts),
+              performance: Boolean(member.performance), deviation: Boolean(member.contextualDeviation), contexts: Boolean(member.operatingContexts), joint: Boolean(member.experimentalJoint),
               onConfigure: () => {
                 setSelectedProfileId(member.profileId);
                 requestAnimationFrame(() => document.getElementById(`intelligence-assignment-${member.assignmentId}`)?.scrollIntoView({ block: 'start' }));

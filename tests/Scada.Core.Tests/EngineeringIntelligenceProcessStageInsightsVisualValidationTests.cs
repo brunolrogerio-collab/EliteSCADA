@@ -151,6 +151,44 @@ public sealed class EngineeringIntelligenceProcessStageInsightsVisualValidationT
         AssertInvalid(Element(member));
     }
 
+    [Fact]
+    public void JointOnlyMember_PersistsIndependentlyFromOtherReports()
+    {
+        var member=Member(0);member.Remove("performance");member.Remove("contextualDeviation");member["experimentalJoint"]=Joint();
+        var element=Element(member,Member(1));Assert.DoesNotContain(Validate(element),i=>i.IsError);
+        var copy=VisualEngineeringPropertyMigration.NormalizeCurrentElements([element])!.Single();
+        var persisted=JsonNode.Parse(copy.Properties![VisualPropertyKeys.IntelligenceStageMembers].GetString()!)!.AsArray();
+        Assert.Equal(3,persisted[0]!["experimentalJoint"]!["contexts"]![0]!["version"]!.GetValue<int>());
+        Assert.Null(persisted[0]!["operatingContexts"]);Assert.Null(persisted[0]!["performance"]);Assert.Null(persisted[1]!["experimentalJoint"]);
+    }
+    [Theory]
+    [InlineData("legacy")][InlineData("null")][InlineData("missing-contexts")][InlineData("missing-signals")]
+    [InlineData("empty-signals")][InlineData("duplicate-tag")][InlineData("predicate-values")][InlineData("extra-field")][InlineData("no-targets")]
+    public void InvalidJointPresentation_IsRejected(string scenario)
+    {
+        var member=Member(0);var joint=Joint();member["experimentalJoint"]=joint;
+        switch(scenario)
+        {
+            case "legacy":member.Remove("availabilityVersion");break;
+            case "null":member["experimentalJoint"]=null;break;
+            case "missing-contexts":joint.Remove("contexts");break;
+            case "missing-signals":joint.Remove("signals");break;
+            case "empty-signals":joint["signals"]=new JsonArray();break;
+            case "duplicate-tag":joint["signals"]![1]!["tagId"]=Second;break;
+            case "predicate-values":joint["contexts"]![0]!["minimum"]=0;break;
+            case "extra-field":joint["cadence"]=60;break;
+            case "no-targets":joint["contexts"]![0]!["predicateTagIds"]=new JsonArray(First,Second);break;
+        }
+        AssertInvalid(Element(member));
+    }
+    private static JsonObject Joint()
+    {
+        var contexts=Contexts();contexts[0]!["predicateTagIds"]=new JsonArray(Fourth);
+        return new JsonObject { ["contexts"]=contexts,["signals"]=new JsonArray(
+            new JsonObject { ["id"]=First,["tagId"]=Second,["label"]="Current" },
+            new JsonObject { ["id"]=Third,["tagId"]=First,["label"]="Flow" }) };
+    }
+
     private static JsonArray Contexts() => new(new JsonObject { ["id"] = First, ["displayLabel"] = "Running", ["version"] = 3,
         ["predicateTagIds"] = new JsonArray(Second) });
 

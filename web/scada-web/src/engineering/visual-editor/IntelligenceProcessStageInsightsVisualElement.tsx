@@ -7,11 +7,13 @@ import { IntelligencePerformanceVisualElement } from './IntelligencePerformanceV
 import { IntelligenceReferenceEvidenceVisualElement } from './IntelligenceReferenceEvidenceVisualElement';
 import { IntelligenceContextEligibilityVisualElement } from './IntelligenceContextEligibilityVisualElement';
 import { readIntelligenceContextReferences } from '../intelligenceContextReferences';
+import { IntelligenceExperimentalJointVisualElement } from './IntelligenceExperimentalJointVisualElement';
+import { readIntelligenceJointPresentation } from '../intelligenceJointReferences';
 import './IntelligenceProcessStageInsightsVisualElement.css';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type ReportKind = 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility' | null;
+type ReportKind = 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | null;
 
 type Props = Readonly<{
   stageId: string;
@@ -35,7 +37,8 @@ export function IntelligenceProcessStageInsightsVisualElement({
   const activeReport = report === 'performance' && selected?.performance ? report
     : report === 'contextual-deviation' && selected?.contextualDeviation ? report
       : report === 'reference-evidence' && selected?.referenceEvidence ? report
-        : report === 'context-eligibility' && selected?.operatingContexts ? report : null;
+        : report === 'context-eligibility' && selected?.operatingContexts ? report
+          : report === 'experimental-joint' && selected?.experimentalJoint ? report : null;
   const configValid = UUID_PATTERN.test(stageId) && stageKey.length > 0 && stageKey === stageKey.trim() &&
     stageKey.length <= 64 && stageName.length > 0 && stageName === stageName.trim() && stageName.length <= 128 &&
     members.length > 0 && members.length <= 32;
@@ -94,6 +97,8 @@ export function IntelligenceProcessStageInsightsVisualElement({
       <div className="runtime-intelligence-process-stage-insights__actions" role="group" aria-label={copy.reports}>
         {selected?.referenceEvidence && <button type="button" data-testid="runtime-intelligence-process-stage-insights-reference"
           aria-pressed={activeReport === 'reference-evidence'} onClick={() => setReport('reference-evidence')}>{copy.reference}</button>}
+        <button type="button" data-testid="runtime-intelligence-process-stage-insights-joint"
+          disabled={!selected?.experimentalJoint} aria-pressed={activeReport === 'experimental-joint'} onClick={()=>setReport('experimental-joint')}>{copy.joint}</button>
         <button type="button" data-testid="runtime-intelligence-process-stage-insights-context"
           disabled={!selected?.operatingContexts} aria-pressed={activeReport === 'context-eligibility'} onClick={() => setReport('context-eligibility')}>{copy.conditions}</button>
         <button type="button" data-testid="runtime-intelligence-process-stage-insights-performance"
@@ -101,11 +106,16 @@ export function IntelligenceProcessStageInsightsVisualElement({
         <button type="button" data-testid="runtime-intelligence-process-stage-insights-deviation"
           disabled={!selected?.contextualDeviation} aria-pressed={activeReport === 'contextual-deviation'} onClick={() => setReport('contextual-deviation')}>{copy.deviation}</button>
       </div>
+      {!selected?.experimentalJoint && <p>{copy.jointMissing}</p>}
       {!selected?.operatingContexts && <p>{copy.conditionsMissing}</p>}
       {!selected?.performance && <p>{copy.performanceMissing}</p>}
       {!selected?.contextualDeviation && <p>{copy.deviationMissing}</p>}
       {!activeReport || !selected ? <p className="runtime-intelligence-process-stage-insights__hint">{copy.chooseReport}</p>
-        : <div className="runtime-intelligence-process-stage-insights__report">{activeReport === 'context-eligibility' && selected.operatingContexts ? <IntelligenceContextEligibilityVisualElement
+        : <div className="runtime-intelligence-process-stage-insights__report">{activeReport === 'experimental-joint' && selected.experimentalJoint ? <IntelligenceExperimentalJointVisualElement
+          key={`joint:${selected.assignmentId}`} scopeId={selected.scopeId} assignmentId={selected.assignmentId} profileId={selected.profileId}
+          contextsJson={JSON.stringify(selected.experimentalJoint.contexts)} signalsJson={JSON.stringify(selected.experimentalJoint.signals)} style={reportStyle}
+          runtimeObjectId={runtimeObjectId ? `${runtimeObjectId}:${selected.assignmentId}:joint` : undefined} locale={locale} title={selected.displayLabel}/>
+        : activeReport === 'context-eligibility' && selected.operatingContexts ? <IntelligenceContextEligibilityVisualElement
           key={`conditions:${selected.assignmentId}`} scopeId={selected.scopeId} assignmentId={selected.assignmentId} profileId={selected.profileId}
           contextsJson={JSON.stringify(selected.operatingContexts)} style={reportStyle}
           runtimeObjectId={runtimeObjectId ? `${runtimeObjectId}:${selected.assignmentId}:conditions` : undefined}
@@ -166,6 +176,7 @@ function parseMembers(value: string): Member[] {
           (member.availabilityVersion !== undefined && !partial) ||
           (member.referenceEvidence !== undefined && (!partial || member.referenceEvidence !== true)) ||
           (member.operatingContexts !== undefined && (!partial || !readIntelligenceContextReferences(JSON.stringify(member.operatingContexts)))) ||
+          (member.experimentalJoint !== undefined && (!partial || !readIntelligenceJointPresentation(member.experimentalJoint))) ||
           ((!partial || member.performance !== undefined) && !validPerformance(member.performance)) ||
           ((!partial || member.contextualDeviation !== undefined) && !validDeviation(member.contextualDeviation))) return null;
       return member as Member;
@@ -206,7 +217,7 @@ function validRange(lower: number, upper: number): boolean {
 
 function text(locale: EngineeringLocale) {
   if (locale === 'en') return {
-    reference: 'Reference data', conditions: 'Operating conditions', conditionsMissing: 'This equipment has no saved context in this view. Generate and publish it again after saving a context in Engineering.',
+    joint: 'Joint deviation (experimental)', jointMissing: 'Joint deviation is not included for this equipment. It needs a saved context and two distinct numeric measurements outside its conditions.', reference: 'Reference data', conditions: 'Operating conditions', conditionsMissing: 'This equipment has no saved context in this view. Generate and publish it again after saving a context in Engineering.',
     performanceMissing: 'Performance is not configured for this equipment. Other available analyses remain usable.',
     deviationMissing: 'Contextual deviation is not configured for this equipment. Other available analyses remain usable.',
     header: 'Process-stage member insights', description: 'Select one configured member, then explicitly open one of its independent read-only analyses.',
@@ -216,7 +227,7 @@ function text(locale: EngineeringLocale) {
     invalid: 'This process-stage analysis has invalid or incomplete stable references.'
   };
   if (locale === 'es') return {
-    reference: 'Datos de referencia', conditions: 'Condiciones de operación', conditionsMissing: 'Este equipo no tiene un contexto guardado en esta vista. Genere y publique de nuevo después de guardar un contexto en Ingeniería.',
+    joint: 'Desviación conjunta (experimental)', jointMissing: 'Desviación conjunta no incluida para este equipo. Necesita contexto guardado y dos mediciones numéricas distintas fuera de sus condiciones.', reference: 'Datos de referencia', conditions: 'Condiciones de operación', conditionsMissing: 'Este equipo no tiene un contexto guardado en esta vista. Genere y publique de nuevo después de guardar un contexto en Ingeniería.',
     performanceMissing: 'Rendimiento no configurado para este equipo. Puede usar los otros análisis disponibles.',
     deviationMissing: 'Desviación contextual no configurada para este equipo. Puede usar los otros análisis disponibles.',
     header: 'Análisis de miembros de etapa', description: 'Seleccione un miembro configurado y abra explícitamente uno de sus análisis independientes y de solo lectura.',
@@ -226,7 +237,7 @@ function text(locale: EngineeringLocale) {
     invalid: 'Este análisis de etapa contiene referencias estables no válidas o incompletas.'
   };
   return {
-    reference: 'Dados da referência', conditions: 'Condições de operação', conditionsMissing: 'Este equipamento não tem um contexto salvo nesta vista. Gere e publique novamente depois de salvar um contexto na Engenharia.',
+    joint: 'Desvio conjunto (experimental)', jointMissing: 'Desvio conjunto não incluído para este equipamento. Precisa de contexto salvo e duas medições numéricas distintas fora de suas condições.', reference: 'Dados da referência', conditions: 'Condições de operação', conditionsMissing: 'Este equipamento não tem um contexto salvo nesta vista. Gere e publique novamente depois de salvar um contexto na Engenharia.',
     performanceMissing: 'Desempenho não configurado para este equipamento. As outras análises disponíveis continuam acessíveis.',
     deviationMissing: 'Desvio contextual não configurado para este equipamento. As outras análises disponíveis continuam acessíveis.',
     header: 'Análises dos membros da etapa', description: 'Selecione um membro configurado e abra explicitamente uma análise independente e somente leitura.',

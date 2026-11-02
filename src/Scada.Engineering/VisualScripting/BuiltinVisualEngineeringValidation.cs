@@ -369,22 +369,35 @@ public static class BuiltinVisualEngineeringValidation
         VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
     {
         var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
-        var json = ReadString(element, VisualPropertyKeys.IntelligenceJointSignals);
-        JsonElement[]? signals = null;
-        if (json is { Length: <= 16384 })
-        {
-            try { signals = JsonSerializer.Deserialize<JsonElement[]>(json); }
-            catch (JsonException) { }
-        }
-        var ids = new HashSet<Guid>(); var tags = new HashSet<Guid>();
         if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out _)) ||
             !ValidContextReferenceCatalog(ReadString(element, VisualPropertyKeys.IntelligenceOperatingContexts)) ||
-            signals is not { Length: >= 2 and <= 16 } || signals.Any(signal =>
-                signal.ValueKind != JsonValueKind.Object || !TryReadGuid(signal, "id", out var id) || !ids.Add(id) ||
-                !TryReadGuid(signal, "tagId", out var tag) || !tags.Add(tag) || !TryReadBoundedString(signal, "label", 320, out _) ||
-                signal.EnumerateObject().Any(property => property.Name is not ("id" or "tagId" or "label"))))
+            !ValidJointSignalCatalog(ReadString(element, VisualPropertyKeys.IntelligenceJointSignals)))
             yield return Error("VISUAL_INTELLIGENCE_JOINT_CONFIG_INVALID",
                 $"Experimental joint visual '{element.Key}' requires a Screen, stable identities, versioned context references and 2–16 distinct measurement references.", entityKind, entityKey);
+    }
+
+    private static bool ValidJointSignalCatalog(string? json)
+    {
+        if (json is not { Length: <= 16384 }) return false;
+        JsonElement[]? signals;
+        try { signals = JsonSerializer.Deserialize<JsonElement[]>(json); }
+        catch (JsonException) { return false; }
+        var ids = new HashSet<Guid>(); var tags = new HashSet<Guid>();
+        return signals is { Length: >= 2 and <= 16 } && signals.All(signal =>
+            signal.ValueKind == JsonValueKind.Object && TryReadGuid(signal, "id", out var id) && ids.Add(id) &&
+            TryReadGuid(signal, "tagId", out var tag) && tags.Add(tag) && TryReadBoundedString(signal, "label", 320, out _) &&
+            !signal.EnumerateObject().Any(property => property.Name is not ("id" or "tagId" or "label")));
+    }
+
+    private static bool ValidStageJointPresentation(JsonElement joint)
+    {
+        if (joint.ValueKind != JsonValueKind.Object || joint.EnumerateObject().Any(p => p.Name is not ("contexts" or "signals")) ||
+            !joint.TryGetProperty("contexts", out var contexts) || !ValidContextReferenceCatalog(contexts.GetRawText()) ||
+            !joint.TryGetProperty("signals", out var signals) || !ValidJointSignalCatalog(signals.GetRawText())) return false;
+        return contexts.EnumerateArray().Any(context => {
+            var conditions = context.GetProperty("predicateTagIds").EnumerateArray().Select(tag => Guid.Parse(tag.GetString()!)).ToHashSet();
+            return signals.EnumerateArray().Count(signal => !conditions.Contains(Guid.Parse(signal.GetProperty("tagId").GetString()!))) >= 2;
+        });
     }
 
     private static bool ValidContextReferenceCatalog(string? json)
@@ -485,6 +498,7 @@ public static class BuiltinVisualEngineeringValidation
             (!partial || reference.ValueKind != JsonValueKind.True)) return false;
         if (member.TryGetProperty("operatingContexts", out var contexts) &&
             (!partial || !ValidContextReferenceCatalog(contexts.GetRawText()))) return false;
+        if (member.TryGetProperty("experimentalJoint", out var joint) && (!partial || !ValidStageJointPresentation(joint))) return false;
         var hasPerformance = member.TryGetProperty("performance", out var performance);
         var hasDeviation = member.TryGetProperty("contextualDeviation", out var deviation);
         if (!partial && (!hasPerformance || !hasDeviation)) return false;

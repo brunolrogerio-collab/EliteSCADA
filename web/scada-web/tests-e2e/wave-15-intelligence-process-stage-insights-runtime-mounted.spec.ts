@@ -450,3 +450,50 @@ for (const invalidContext of ['legacy', 'empty', 'predicate-values', 'absent']) 
     }
   });
 }
+
+
+test('stage joint analyses use member-specific contexts and signals and cancel old member responses',async({page})=>{
+ const joint=(scope:string,version:number,ids:string[])=>({contexts:[{id:scope,displayLabel:`Context ${version}`,version,predicateTagIds:[stageId]}],signals:ids.map((id,i)=>({id,tagId:id,label:`Measurement ${i}`}))});
+ const members=[memberConfig(assignmentOne,scopeOne,profileOne,'Pump one',0,signalIdsOne),memberConfig(assignmentTwo,scopeTwo,profileTwo,'Pump two',1,signalIdsTwo)]
+  .map(({performance:_p,contextualDeviation:_d,...m},i)=>({...m,availabilityVersion:2,referenceEvidence:true,experimentalJoint:joint(m.scopeId,i+1,i===0?signalIdsOne:signalIdsTwo)}));
+ await installStageFixture(page,members);const queries:any[]=[];let started!:()=>void;const pending=new Promise<void>(resolve=>{started=resolve;});let release!:()=>void;const delayed=new Promise<void>(resolve=>{release=resolve;});let completed=false;
+ await page.route('**/api/engineering/asset-process-intelligence/analytics/experimental-joint-deviation/v1/query',async route=>{
+  const body=route.request().postDataJSON();queries.push(body);
+  const response={contractVersion:1,projectKey,activeRevision:revision,scopeId:body.scopeId,assignmentId:body.assignmentId,measurementProfileId:body.scopeId===scopeOne?profileOne:profileTwo,
+   operatingContextProfileId:body.operatingContextProfileId,operatingContextProfileVersion:body.expectedProfileVersion,expectedCadenceSeconds:body.expectedCadenceSeconds,
+   validationStatus:'experimental_not_field_validated',classificationStatus:'none',decisionThreshold:null,referenceWindow:body.referenceWindow,evaluationWindow:body.evaluationWindow,
+   referenceFitStatus:'available',referenceCompleteCohortCount:120,evaluationScoredCohortCount:1,evaluationWarmupCohortCount:40,omittedEvaluationScores:0,
+   targetSignals:body.targetSignalIds.map((signalId:string)=>({signalId})),scores:[{sourceTimestampUtc:body.evaluationWindow.fromUtc,score:2,levelComponent:1,relationshipComponent:1,crossSignalInteraction:0,
+   targetContributions:body.targetSignalIds.map((signalId:string)=>({signalId,level:.5,marginalVariance:.5}))}]};
+  if(queries.length===2){started();await delayed;try{await route.fulfill({json:response});}catch{/* Old member is aborted. */}completed=true;return;}
+  await route.fulfill({json:response});
+ });
+ await page.goto('/');const visual=page.getByTestId('runtime-intelligence-process-stage-insights');const member=visual.getByTestId('runtime-intelligence-process-stage-insights-member');
+ const jointButton=visual.getByTestId('runtime-intelligence-process-stage-insights-joint');await jointButton.click();
+ const report=visual.getByTestId('runtime-intelligence-joint-deviation');const query=report.getByRole('button',{name:'Calculate joint deviation',exact:true});
+ async function configure(){for(const n of [0,1])await report.getByRole('checkbox',{name:`Measurement ${n}`,exact:true}).check();
+  await report.getByLabel('Expected interval between readings (seconds)',{exact:true}).fill('60');
+  for(const [label,value] of [['Reference start','2026-10-20T10:00'],['Reference end','2026-10-20T11:00'],['Evaluation start','2026-10-20T11:01'],['Evaluation end','2026-10-20T12:00']])await report.getByLabel(label,{exact:true}).fill(value);
+ }
+ await configure();expect(queries).toEqual([]);await query.click();await expect(report.getByTestId('intelligence-joint-deviation-result')).toBeVisible();
+ expect(queries[0]).toMatchObject({scopeId:scopeOne,assignmentId:assignmentOne,operatingContextProfileId:scopeOne,expectedProfileVersion:1,targetSignalIds:signalIdsOne});
+ await report.getByLabel('Expected interval between readings (seconds)',{exact:true}).fill('61');await query.click();await pending;
+ await member.selectOption(assignmentTwo);await expect(report).toHaveCount(0);release();await expect.poll(()=>completed).toBe(true);
+ await jointButton.click();await expect(report.getByTestId('intelligence-joint-deviation-result')).toHaveCount(0);await configure();expect(queries).toHaveLength(2);await query.click();
+ await expect(report.getByTestId('intelligence-joint-deviation-result')).toBeVisible();expect(queries[2]).toMatchObject({scopeId:scopeTwo,assignmentId:assignmentTwo,operatingContextProfileId:scopeTwo,expectedProfileVersion:2,targetSignalIds:signalIdsTwo});
+ await visual.getByTestId('runtime-intelligence-process-stage-insights-reference').click();await expect(report).toHaveCount(0);expect(queries).toHaveLength(3);
+});
+
+for(const scenario of ['legacy','null','extra','no-targets','absent']){
+ test(`stage joint member configuration handles ${scenario}`,async({page})=>{
+  const member:any=memberConfig(assignmentOne,scopeOne,profileOne,'Pump one',0,signalIdsOne);
+  member.experimentalJoint={contexts:[{id:scopeOne,displayLabel:'Running',version:1,predicateTagIds:[stageId]}],signals:signalIdsOne.map((id,i)=>({id,tagId:id,label:`Measurement ${i}`}))};
+  if(scenario!=='legacy')member.availabilityVersion=2;
+  if(scenario==='null')member.experimentalJoint=null;if(scenario==='extra')member.experimentalJoint.cadence=60;
+  if(scenario==='no-targets')member.experimentalJoint.contexts[0].predicateTagIds=signalIdsOne;
+  if(scenario==='absent')delete member.experimentalJoint;
+  await installStageFixture(page,[member]);await page.goto('/');const visual=page.getByTestId('runtime-intelligence-process-stage-insights');
+  if(scenario==='absent'){await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-joint')).toBeDisabled();await expect(visual.getByText(/Joint deviation is not included/)).toBeVisible();await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeEnabled();}
+  else{await expect(visual.getByRole('alert')).toBeVisible();await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-joint')).toHaveCount(0);}
+ });
+}

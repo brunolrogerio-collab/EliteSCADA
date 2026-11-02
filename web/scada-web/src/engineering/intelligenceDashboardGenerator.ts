@@ -1,4 +1,4 @@
-import { readIntelligenceJointSignals, type IntelligenceJointSignalReference } from './intelligenceJointReferences';
+import { readIntelligenceJointSignals, readIntelligenceJointPresentation, type IntelligenceJointPresentation, type IntelligenceJointSignalReference } from './intelligenceJointReferences';
 import { readIntelligenceContextReferences, type IntelligenceContextReference } from './intelligenceContextReferences';
 import type { EngineeringLocale } from './i18n';
 import type {
@@ -116,7 +116,7 @@ export type IntelligenceProcessStageInsightsDashboardSelection = Omit<Intelligen
 }>;
 
 export type IntelligenceProcessStageReportMember = Omit<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'> &
-  Partial<Pick<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'>> & Readonly<{ availabilityVersion?: 2; referenceEvidence?: true; operatingContexts?: readonly IntelligenceContextReference[] }>;
+  Partial<Pick<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'>> & Readonly<{ availabilityVersion?: 2; referenceEvidence?: true; operatingContexts?: readonly IntelligenceContextReference[]; experimentalJoint?: IntelligenceJointPresentation }>;
 
 export type IntelligenceProcessStageReportSelection = Omit<IntelligenceProcessStageCoverageDashboardSelection, 'members'> & Readonly<{
   members: readonly IntelligenceProcessStageReportMember[];
@@ -1103,6 +1103,7 @@ function validateProcessStageReports(
     const profileSignalIds = new Set(assignment.profile.signals.map(signal => signal.id.toLowerCase()));
     const performance = member?.performance;
     const deviation = member?.contextualDeviation;
+    const joint = member?.experimentalJoint;
     const deviationSignalIds = deviation
       ? [...deviation.targetSignalIds, deviation.firstContextSignalId, deviation.secondContextSignalId]
       : [];
@@ -1112,6 +1113,9 @@ function validateProcessStageReports(
           !readIntelligenceContextReferences(JSON.stringify(member.operatingContexts)) ||
           member.operatingContexts.some(context => context.predicateTagIds.some(id =>
             !assignment.profile.signals.some(signal => signal.tagId.toLowerCase() === id.toLowerCase()))))) ||
+        (joint !== undefined && (member.availabilityVersion !== 2 || !readIntelligenceJointPresentation(joint) ||
+          joint.signals.some(signal => !assignment.profile.signals.some(item => item.id.toLowerCase()===signal.id.toLowerCase() && item.tagId.toLowerCase()===signal.tagId.toLowerCase())) ||
+          joint.contexts.some(context=>context.predicateTagIds.some(id=>!assignment.profile.signals.some(signal=>signal.tagId.toLowerCase()===id.toLowerCase()))))) ||
         (allowPartial ? member.availabilityVersion !== 2 : !performance || !deviation) ||
         (performance !== undefined && (!performance ||
         performance.signalIds.length < 2 || performance.signalIds.length > 3 ||
@@ -1154,8 +1158,11 @@ export function generateIntelligenceProcessStageCompositionDrafts(
   if (include.coverage) { drafts.push(pair[1]); roles.push('process-stage-coverage'); }
   if (include.reports) {
     if (!reports || reports.stageId !== coverage.stageId || reports.stageKey !== coverage.stageKey || reports.stageName !== coverage.stageName ||
-        !reports.members.some(member => member.performance || member.contextualDeviation || member.referenceEvidence || member.operatingContexts)) {
+        !reports.members.some(member => member.performance || member.contextualDeviation || member.referenceEvidence || member.operatingContexts || member.experimentalJoint)) {
       throw new Error('Stage reports require matching references and at least one configured member analysis.');
+    }
+    if (reports.members.some(member=>member.experimentalJoint?.signals.some(signal=>!tags.some(tag=>tag.id?.toLowerCase()===signal.tagId.toLowerCase() && isNumericTagDataType(tag.dataType))))) {
+      throw new Error('Joint deviation members require numeric TAG references.');
     }
     const ordered = validateProcessStageReports(source, reports, true);
     drafts.push(generateIntelligenceProcessStageInsightsScreenDraft([...existingScreens, ...drafts], ordered, locale, allocateId));

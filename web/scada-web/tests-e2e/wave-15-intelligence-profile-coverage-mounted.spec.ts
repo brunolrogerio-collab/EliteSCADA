@@ -958,3 +958,24 @@ test('composer generates experimental joint deviation independently with named r
   await expect(report.getByRole('button', { name: 'Calcular desvio conjunto', exact: true, includeHidden: true })).toBeDisabled();
   expect(fixture.requests).toEqual([]); expect(fixture.otherWrites).toEqual([]);
 });
+
+
+test('stage composer generates joint-only member analyses independently of context conditions',async({page})=>{
+ const fixture=await installWorkspace(page,{stageReady:true,jointReady:true});await openIntelligence(page);
+ const generator=page.getByTestId('intelligence-dashboard-generator');await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+ await generator.getByRole('checkbox',{name:'Desvio conjunto experimental por equipamento',exact:true}).check();
+ await expect(generator.getByRole('checkbox',{name:'Condições de operação por equipamento',exact:true})).not.toBeChecked();
+ await generator.getByTestId('intelligence-dashboard-generate').click();const editor=page.getByTestId('visual-editor-workspace');
+ const drafts=editor.getByTestId('visual-editor-generated-drafts').getByRole('button');await expect(drafts).toHaveCount(3);await drafts.last().click();
+ const insights=editor.getByTestId('runtime-intelligence-process-stage-insights');await expect(insights.getByTestId('runtime-intelligence-process-stage-insights-joint')).toBeEnabled();
+ await expect(insights.getByTestId('runtime-intelligence-process-stage-insights-context')).toBeDisabled();
+ await expect(insights.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeDisabled();
+ expect(fixture.requests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
+});
+
+test('stage composer explains missing joint requirements while keeping other views available',async({page})=>{
+ await installWorkspace(page,{stageReady:true,operatingContexts:true});await openIntelligence(page);
+ const generator=page.getByTestId('intelligence-dashboard-generator');await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+ await expect(generator.getByRole('checkbox',{name:'Desvio conjunto experimental por equipamento',exact:true})).toBeDisabled();
+ await expect(generator.getByText(/Ao menos um equipamento precisa/)).toBeVisible();await expect(generator.getByTestId('intelligence-dashboard-generate')).toBeEnabled();
+});

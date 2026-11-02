@@ -1176,11 +1176,11 @@ for(const stage of [false,true]) test(`current-frequency composer creates ${stag
  if(stage)await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
  await generator.getByRole('checkbox',{name:stage?'Corrente e frequência por equipamento':'Corrente em frequência semelhante',exact:true}).check();
  await generator.getByTestId('intelligence-dashboard-generate').click();const editor=page.getByTestId('visual-editor-workspace'),drafts=editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
- await expect(drafts).toHaveCount(stage?3:2);await drafts.last().click();
+ await expect(drafts).toHaveCount(stage?3:2);if(stage)await drafts.last().click();else await drafts.filter({hasText:'Corrente em frequência semelhante'}).click();
  if(stage)await expect(editor.getByTestId('runtime-intelligence-process-stage-insights-current-frequency')).toBeEnabled();
  else {
- const visual=editor.getByTestId('runtime-intelligence-current-frequency');await expect(visual.getByRole('button',{name:'Comparar corrente',exact:true})).toBeDisabled();
- await expect(visual.getByText(/No editor e na reprodução histórica/)).toBeVisible();
+ const visual=editor.getByTestId('runtime-intelligence-current-frequency');await expect(visual.getByRole('button',{name:/^(Comparar corrente|Compare current|Comparar corriente)$/,includeHidden:true})).toBeDisabled();
+ await expect(visual.getByText(/No editor e na reprodução histórica|editor and historical playback|editor y reproducción histórica/)).toBeVisible();
  }
  expect(fixture.requests).toEqual([]);expect(fixture.currentFrequencyRequests).toEqual([]);expect(fixture.performanceRequests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
 });

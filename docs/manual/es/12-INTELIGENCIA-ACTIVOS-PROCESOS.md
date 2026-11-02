@@ -280,7 +280,7 @@ Suponga que un motor consumía unos 5 A y ahora consume 6 A. Antes de interpreta
 
 Requisitos: guarde la asociación, publique/active la revisión, active el análisis del equipo y tenga licencia y permisos de tendencia/lectura de ambos TAGs. Los TAGs deben existir en la fuente activa del Runtime además de estar en el perfil. Si faltan opciones, revise significado y unidad controlados. Este método acepta catálogo semántico 1: corriente eléctrica con tipo explícito y unidad controlada amperio; frecuencia medida con referencia explícita y unidad controlada hercio, también del catálogo de unidades 1. No basta escribir A/Hz como texto libre. No se convierten por suposición consignas, rpm ni versiones de catálogo incompatibles.
 
-El servidor usa solo lecturas numéricas finitas de calidad Buena, con horas de origen sincronizadas y exactamente iguales entre corriente y frecuencia. No aproxima horas ni rellena lagunas. Son medias de muestras, no ponderadas por tiempo; el límite conjunto es 50.000 lecturas brutas. Frecuencia similar no demuestra igual carga, condiciones de proceso, eficiencia ni un fallo. No se han comprobado cadencia, integridad ni simultaneidad física. La consulta está disponible en la asociación de Ingeniería; su inclusión en el generador de pantallas Runtime sigue en revisión en #857.
+El servidor usa solo lecturas numéricas finitas de calidad Buena, con horas de origen sincronizadas y exactamente iguales entre corriente y frecuencia. No aproxima horas ni rellena lagunas. Son medias de muestras, no ponderadas por tiempo; el límite conjunto es 50.000 lecturas brutas. Frecuencia similar no demuestra igual carga, condiciones de proceso, eficiencia ni un fallo. No se han comprobado cadencia, integridad ni simultaneidad física. Para el operador use el generador de panel: elija el perfil y marque Corriente a frecuencia similar. Para una etapa marque Corriente y frecuencia por equipo. Esta elección es independiente de desempeño, contextos y desviación conjunta; no exige sensores que no tiene. Genere borradores, revise las pantallas en el editor, valide/aplique al Working, guarde, publique y active la revisión. Generar no consulta el histórico. En Runtime en vivo abra la vista, elija mediciones, períodos y rango y solicite la consulta. En una etapa elija primero el equipo y luego Corriente a frecuencia similar; el resultado pertenece solo a ese miembro. Los miembros sin corriente/frecuencia compatibles mantienen otras vistas y muestran esta comparación deshabilitada. Cambiar miembro, período o contexto retira el resultado anterior. Editor y reproducción histórica no ejecutan esta consulta. Tras reiniciar el servidor o una revocación revise la activación y reactive explícitamente si se solicita; una pantalla guardada no reabre la autorización de ejecución.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -368,5 +368,17 @@ Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no
 **Datos insuficientes no son cero**
 
 ![Datos insuficientes no son cero](../../evidence/intelligence-857/current-frequency-insufficient.png)
+
+**Incluir la comparación en el generador de etapa**
+
+![Incluir la comparación en el generador de etapa](../../evidence/intelligence-857/runtime-stage-generator.png)
+
+**Seleccionar el miembro en Runtime**
+
+![Seleccionar el miembro en Runtime](../../evidence/intelligence-857/runtime-stage-query.png)
+
+**Resultado por equipo**
+
+![Resultado por equipo](../../evidence/intelligence-857/runtime-profile-result.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

@@ -280,7 +280,7 @@ Suppose a motor used about 5 A and now uses 6 A. Before interpreting that change
 
 Prerequisites: save the assignment, publish/activate the revision, activate equipment analysis and have the license plus trend and both TAG read permissions. TAGs must exist in the active Runtime source, as well as in the profile. Missing choices require checking controlled meaning and unit. This method accepts semantic catalog 1: electrical current with an explicit basis and controlled ampere unit; measured frequency with an explicit reference and controlled hertz unit, also from unit catalog 1. Free-text A/Hz is insufficient. Setpoints, rpm and incompatible catalog versions are not converted by assumption.
 
-The server uses only Good finite numeric readings with synchronized, exactly matching source times between current and frequency. It does not approximate times or fill gaps. Means are sample means, not time-weighted; the combined limit is 50,000 raw readings. Similar frequency does not establish equal load, process conditions, efficiency or a fault. Cadence, completeness and physical simultaneity are not established. This query is available in the Engineering assignment; inclusion in the Runtime screen generator remains under review in #857.
+The server uses only Good finite numeric readings with synchronized, exactly matching source times between current and frequency. It does not approximate times or fill gaps. Means are sample means, not time-weighted; the combined limit is 50,000 raw readings. Similar frequency does not establish equal load, process conditions, efficiency or a fault. Cadence, completeness and physical simultaneity are not established. For the operator, use the dashboard generator: choose the profile and select Current at similar frequency. For a stage, select Current and frequency per equipment. This choice is independent of performance, contexts and joint deviation; it does not require sensors you do not have. Generate drafts, review screens in the editor, validate/apply to Working, save, publish and activate the revision. Generation does not query history. In live Runtime, open the view, choose measurements, periods and range, then request the query. For a stage, first choose the equipment and then Current at similar frequency; results belong only to that selected member. Members without compatible current/frequency retain other views and show this comparison disabled. Switching member, period or context clears the old result. Editor and historical playback do not execute this query. After a server restart or revocation, check activation and explicitly reactivate if asked; a saved screen does not reopen execution authorization.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -368,5 +368,17 @@ Real interface in Portuguese, with synthetic validation data. This example does 
 **Insufficient data is not zero**
 
 ![Insufficient data is not zero](../../evidence/intelligence-857/current-frequency-insufficient.png)
+
+**Include comparison in the stage generator**
+
+![Include comparison in the stage generator](../../evidence/intelligence-857/runtime-stage-generator.png)
+
+**Select the member in Runtime**
+
+![Select the member in Runtime](../../evidence/intelligence-857/runtime-stage-query.png)
+
+**Result per equipment**
+
+![Result per equipment](../../evidence/intelligence-857/runtime-profile-result.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

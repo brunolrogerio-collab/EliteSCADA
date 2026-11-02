@@ -79,7 +79,11 @@ for locale, heading, intro, labels in [
 ]:
     MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide'] = {
         'heading': heading, 'intro': intro,
-        'images': [(label, label, '../../evidence/intelligence-857/' + filename) for label, filename in zip(labels, ['current-frequency-mobile.png', 'current-frequency-results.png', 'current-frequency-insufficient.png'])],
+        'images': [(label, label, '../../evidence/intelligence-857/' + filename) for label, filename in zip(labels, ['current-frequency-mobile.png', 'current-frequency-results.png', 'current-frequency-insufficient.png'])] + [(label, label, '../../evidence/intelligence-857/' + filename) for label, filename in zip(
+            {'pt-BR': ['Incluir a comparação no gerador da etapa', 'Selecionar o membro no Runtime', 'Resultado por equipamento'],
+             'en': ['Include comparison in the stage generator', 'Select the member in Runtime', 'Result per equipment'],
+             'es': ['Incluir la comparación en el generador de etapa', 'Seleccionar el miembro en Runtime', 'Resultado por equipo']}[locale],
+            ['runtime-stage-generator.png', 'runtime-stage-query.png', 'runtime-profile-result.png'])],
     }
 for locale, (name, title) in {'pt-BR': ('30-PRIMEIRO-PROJETO.md', 'Primeiro projeto: da entrada ao Runtime'), 'en': ('30-FIRST-PROJECT.md', 'First project: from sign-in to Runtime'), 'es': ('30-PRIMER-PROYECTO.md', 'Primer proyecto: de la entrada al Runtime')}.items():
     CHAPTERS[locale].append((name, title, ['getting-started.first-project']))

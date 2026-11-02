@@ -979,3 +979,16 @@ test('stage composer explains missing joint requirements while keeping other vie
  await expect(generator.getByRole('checkbox',{name:'Desvio conjunto experimental por equipamento',exact:true})).toBeDisabled();
  await expect(generator.getByText(/Ao menos um equipamento precisa/)).toBeVisible();await expect(generator.getByTestId('intelligence-dashboard-generate')).toBeEnabled();
 });
+
+
+test('Intelligence readiness status wraps within a mobile viewport with enlarged text',async({page})=>{
+ await installWorkspace(page,{operatingContexts:true});await openIntelligence(page);
+ await page.addStyleTag({content:'.asset-process-intelligence .eng-section-meta span { font-size:14px; }'});
+ await page.setViewportSize({width:390,height:844});
+ const geometry=await page.evaluate(()=>({viewport:document.documentElement.clientWidth,document:document.documentElement.scrollWidth,
+  status:document.querySelector('.asset-process-intelligence .eng-section-meta')!.getBoundingClientRect().toJSON()}));
+ await test.info().attach('intelligence-mobile-status-geometry',{body:JSON.stringify(geometry,null,2),contentType:'application/json'});
+ expect(geometry.document).toBeLessThanOrEqual(geometry.viewport);
+ expect(geometry.status.right).toBeLessThanOrEqual(geometry.viewport);
+ await expect(page.getByTestId('intelligence-dashboard-generator')).toBeVisible();
+});

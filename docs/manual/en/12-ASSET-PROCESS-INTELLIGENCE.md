@@ -266,6 +266,8 @@ The form shows local times; the query also identifies its UTC window, the common
 
 Check which required signals have data, accepted and rejected sample counts, quality and time alignment. Only then interpret minimum, maximum or average. A large sample count alone does not prove gap-free data or that all signals were measured together.
 
+In Group readings every, choose 15 or 30 minutes, 1 hour, 6 hours or 24 hours. The default is 15 minutes. This sets query intervals; it does not change Historian capture or fill missing readings. Changing the option clears the previous result; request coverage again explicitly.
+
 ### Compare current within a frequency range
 
 Suppose a motor used about 5 A and now uses 6 A. Before interpreting that change, check whether those measurements were recorded in the frequency range you want to investigate. This query compares two parts of the history; it does not learn a pattern or diagnose the motor.

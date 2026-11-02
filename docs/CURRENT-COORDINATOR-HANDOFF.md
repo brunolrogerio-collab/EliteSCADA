@@ -1,5 +1,11 @@
 # Current coordinator pointer - Wave 15
 
+## Retomada adicional — agrupamento estatístico #857
+
+CI c9e8c13c /41542872461 terminou FAILURE Z-Wave Windows/Linux; Intelligence UI passou, Chromium focado foi cancelado, demais jobs executados passaram. Sem bypass/merge.
+
+Incremento atual permite escolher bucket da cobertura (900/1800/3600/21600/86400 s), padrão900 preservado, sem mudar fórmula/captura/API. Troca limpa/cancela resultado e não consulta automaticamente. Teste focado1/1 passou; Help/manual pt-BR/en/es atualizados. Ainda faltam detalhes first/last/delta/buckets visíveis e comparação estatística entre janelas, taxa líquida e alvo único. Não declarar esse conjunto entregue. Preview/Portal/HA preservados. Próximo: completar os detalhes na experiência existente, com validação e CI próprios.
+
 ## Ponto de retomada atual — Intelligence #791 / #855 / #857 — 02/11/2026
 
 Frente ativa: **#857, capacidades existentes na interface Intelligence**, PR draft #854, branch work/w15-intelligence-analysis-ui-853 (inclui #852). [Contrato, arquivos, provas e limites](WAVE15-INTELLIGENCE-CURRENT-FREQUENCY-857.md); [matriz](WAVE15-INTELLIGENCE-791-ADHERENCE-MATRIX.md). A comparação corrente/frequência está implementada na Engenharia **e** no gerador/Runtime por perfil e membro de etapa na candidata atual, ainda sem integração/aceite global.

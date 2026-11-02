@@ -266,6 +266,8 @@ El formulario muestra horas locales; la consulta identifica también la ventana 
 
 Compruebe señales obligatorias con datos, muestras aceptadas y rechazadas, calidad y alineación horaria. Solo después interprete mínimo, máximo o media. Muchas muestras no demuestran por sí solas ausencia de huecos ni que las señales se midieron juntas.
 
+En Agrupar lecturas cada, elija 15 o 30 minutos, 1 hora, 6 horas o 24 horas. El valor inicial es 15 minutos. Define intervalos de consulta; no cambia la captura del Historian ni rellena lecturas ausentes. Cambiar la opción retira el resultado anterior; solicite nuevamente la cobertura.
+
 ### Comparar corriente dentro de un rango de frecuencia
 
 Suponga que un motor consumía unos 5 A y ahora consume 6 A. Antes de interpretar el cambio, compruebe si esas mediciones se registraron en el rango de frecuencia que desea investigar. Esta consulta compara dos partes del histórico; no aprende un patrón ni diagnostica el motor.

@@ -266,6 +266,8 @@ O formulário mostra horários locais; a consulta identifica também a janela UT
 
 Confira quais sinais obrigatórios têm dados, quantas amostras foram aceitas ou rejeitadas, a qualidade e o alinhamento dos horários. Só depois interprete mínimo, máximo ou média. Muitas amostras, por si só, não provam que não há lacunas nem que todos os sinais foram medidos juntos.
 
+Em Agrupar leituras a cada, escolha 15 ou 30 minutos, 1 hora, 6 horas ou 24 horas. O padrão é 15 minutos. Essa escolha define os intervalos da consulta; não muda a captura do Historian nem preenche leituras ausentes. Alterar a opção limpa o resultado anterior; clique Analisar cobertura para consultar novamente.
+
 ### Comparar a corrente em uma faixa de frequência
 
 Imagine que o motor consumia cerca de 5 A e agora consome 6 A. Antes de interpretar essa mudança, confira se as medições foram obtidas na faixa de frequência que você quer investigar. Esta consulta compara duas partes do histórico; ela não aprende um padrão nem diagnostica o motor.

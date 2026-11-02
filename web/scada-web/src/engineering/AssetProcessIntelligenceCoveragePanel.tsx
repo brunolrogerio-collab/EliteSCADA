@@ -95,6 +95,7 @@ export function AssetProcessIntelligenceCoveragePanel({
   const [expanded, setExpanded] = useState(false);
   const [fromLocal, setFromLocal] = useState(() => localDateTimeInput(new Date(Date.now() - 24 * 60 * 60 * 1000)));
   const [toLocal, setToLocal] = useState(() => localDateTimeInput(new Date()));
+  const [bucketSeconds, setBucketSeconds] = useState(DEFAULT_BUCKET_SECONDS);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ProfileCoverageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +110,7 @@ export function AssetProcessIntelligenceCoveragePanel({
     setResult(null);
     setError(null);
     return () => controller.current?.abort();
-  }, [scopeId, profileId, projectKey, activeRevision, canQuery, blockedReason, fromLocal, toLocal, expanded]);
+  }, [scopeId, profileId, projectKey, activeRevision, canQuery, blockedReason, fromLocal, toLocal, expanded, bucketSeconds]);
 
   const windowResult = useMemo(() => parseWindow(fromLocal, toLocal), [fromLocal, toLocal]);
 
@@ -134,7 +135,7 @@ export function AssetProcessIntelligenceCoveragePanel({
           scopeId,
           profileId,
           window: windowResult.window,
-          bucketSeconds: DEFAULT_BUCKET_SECONDS
+          bucketSeconds
         }),
         signal: currentController.signal
       });
@@ -175,6 +176,11 @@ export function AssetProcessIntelligenceCoveragePanel({
         <label>{copy.from}<input type="datetime-local" value={fromLocal} disabled={!canQuery || loading} onChange={event => setFromLocal(event.currentTarget.value)}/></label>
         <label>{copy.to}<input type="datetime-local" value={toLocal} disabled={!canQuery || loading} onChange={event => setToLocal(event.currentTarget.value)}/></label>
         {!windowResult.window ? <p className="asset-process-intelligence__coverage-error" role="alert">{windowResult.error === 'missing' ? copy.windowRequired : copy.windowInvalid}</p> : null}
+        <label>{locale === 'pt-BR' ? 'Agrupar leituras a cada' : locale === 'es' ? 'Agrupar lecturas cada' : 'Group readings every'}
+          <select value={bucketSeconds} disabled={!canQuery || loading} onChange={event=>setBucketSeconds(Number(event.currentTarget.value))}>
+            {[900,1800,3600,21600,86400].map(seconds=><option key={seconds} value={seconds}>{seconds < 3600 ? `${seconds/60} min` : `${seconds/3600} h`}</option>)}
+          </select>
+        </label>
         <p className="asset-process-intelligence__coverage-note">{copy.utcHint}</p>
         <button type="submit" disabled={!canQuery || !windowResult.window || loading}>
           {loading ? copy.loading : copy.analyze}

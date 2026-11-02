@@ -1184,3 +1184,11 @@ for(const stage of [false,true]) test(`current-frequency composer creates ${stag
  }
  expect(fixture.requests).toEqual([]);expect(fixture.currentFrequencyRequests).toEqual([]);expect(fixture.performanceRequests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
 });
+
+test('profile coverage groups by an explicit supported interval and clears the old result when it changes',async({page})=>{
+ const fixture=await installWorkspace(page);await openIntelligence(page);const panel=page.getByTestId(`intelligence-profile-coverage-${profileId}`);
+ await panel.getByRole('button',{name:'Revisar cobertura histórica',exact:true}).click();const interval=panel.getByRole('combobox',{name:'Agrupar leituras a cada',exact:true});
+ await interval.selectOption('3600');expect(fixture.requests).toHaveLength(0);
+ await panel.getByRole('button',{name:'Analisar cobertura',exact:true}).click();await expect.poll(()=>fixture.requests.length).toBe(1);expect(fixture.requests[0].bucketSeconds).toBe(3600);
+ await interval.selectOption('1800');expect(fixture.requests).toHaveLength(1);
+});

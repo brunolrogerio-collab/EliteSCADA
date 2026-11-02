@@ -108,6 +108,52 @@ public sealed class EngineeringIntelligenceProcessStageInsightsVisualValidationT
         AssertInvalid(Element(member));
     }
 
+    [Fact]
+    public void ContextOnlyMember_PreservesVersionedReferencesWithoutPredicateValues()
+    {
+        var member = Member(0); member.Remove("performance"); member.Remove("contextualDeviation");
+        member["operatingContexts"] = Contexts();
+        var element = Element(member, Member(1));
+        Assert.DoesNotContain(Validate(element), issue => issue.IsError);
+        var copy = VisualEngineeringPropertyMigration.NormalizeCurrentElements([element])!.Single();
+        var persisted = JsonNode.Parse(copy.Properties![VisualPropertyKeys.IntelligenceStageMembers].GetString()!)!.AsArray();
+        Assert.Equal(3, persisted[0]!["operatingContexts"]![0]!["version"]!.GetValue<int>());
+        Assert.Null(persisted[1]!["operatingContexts"]);
+        Assert.Null(persisted[0]!["operatingContexts"]![0]!["predicates"]);
+    }
+
+    [Theory]
+    [InlineData("legacy")]
+    [InlineData("null")]
+    [InlineData("empty")]
+    [InlineData("zero-version")]
+    [InlineData("duplicate-context")]
+    [InlineData("bad-tag")]
+    [InlineData("duplicate-tag")]
+    [InlineData("predicate-values")]
+    [InlineData("too-many")]
+    public void InvalidMemberContextCatalog_IsRejected(string scenario)
+    {
+        var member = Member(0); var contexts = Contexts(); member["operatingContexts"] = contexts;
+        switch (scenario)
+        {
+            case "legacy": member.Remove("availabilityVersion"); break;
+            case "null": member["operatingContexts"] = null; break;
+            case "empty": contexts.Clear(); break;
+            case "zero-version": contexts[0]!["version"] = 0; break;
+            case "duplicate-context": contexts.Add(contexts[0]!.DeepClone()); break;
+            case "bad-tag": contexts[0]!["predicateTagIds"] = new JsonArray("bad"); break;
+            case "duplicate-tag": contexts[0]!["predicateTagIds"] = new JsonArray(First, First); break;
+            case "predicate-values": contexts[0]!["minimum"] = 0; break;
+            case "too-many":
+                contexts.Clear(); for (var i = 0; i < 33; i++) { var item = Contexts()[0]!.DeepClone(); item["id"] = $"40000000-0000-0000-0000-{i:000000000000}"; contexts.Add(item); } break;
+        }
+        AssertInvalid(Element(member));
+    }
+
+    private static JsonArray Contexts() => new(new JsonObject { ["id"] = First, ["displayLabel"] = "Running", ["version"] = 3,
+        ["predicateTagIds"] = new JsonArray(Second) });
+
     private static JsonObject Member(int order) => JsonSerializer.SerializeToNode(new
     {
         assignmentId = $"20000000-0000-0000-0000-{order + 1:000000000000}",

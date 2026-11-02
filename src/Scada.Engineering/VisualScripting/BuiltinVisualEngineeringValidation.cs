@@ -357,22 +357,25 @@ public static class BuiltinVisualEngineeringValidation
     {
         var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
         var json = ReadString(element, VisualPropertyKeys.IntelligenceOperatingContexts);
-        JsonElement[]? contexts = null;
-        if (json is { Length: <= 32768 })
-        {
-            try { contexts = JsonSerializer.Deserialize<JsonElement[]>(json); }
-            catch (JsonException) { }
-        }
-        var ids = new HashSet<Guid>();
         if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out _)) ||
-            contexts is not { Length: >= 1 and <= 32 } || contexts.Any(context =>
-                context.ValueKind != JsonValueKind.Object || !TryReadGuid(context, "id", out var id) || !ids.Add(id) ||
-                context.EnumerateObject().Any(property => property.Name is not ("id" or "displayLabel" or "version" or "predicateTagIds")) ||
-                !TryReadBoundedString(context, "displayLabel", 128, out _) ||
-                !TryReadNonNegativeInt32(context, "version", out var version) || version == 0 ||
-                !ValidContextPredicateReferences(context)))
+            !ValidContextReferenceCatalog(json))
             yield return Error("VISUAL_INTELLIGENCE_CONTEXT_ELIGIBILITY_CONFIG_INVALID",
                 $"Context conditions visual '{element.Key}' requires a Screen, stable scope/assignment/profile and a bounded versioned context reference list.", entityKind, entityKey);
+    }
+
+    private static bool ValidContextReferenceCatalog(string? json)
+    {
+        if (json is not { Length: <= 32768 }) return false;
+        JsonElement[]? contexts;
+        try { contexts = JsonSerializer.Deserialize<JsonElement[]>(json); }
+        catch (JsonException) { return false; }
+        var ids = new HashSet<Guid>();
+        return contexts is { Length: >= 1 and <= 32 } && contexts.All(context =>
+            context.ValueKind == JsonValueKind.Object && TryReadGuid(context, "id", out var id) && ids.Add(id) &&
+            !context.EnumerateObject().Any(property => property.Name is not ("id" or "displayLabel" or "version" or "predicateTagIds")) &&
+            TryReadBoundedString(context, "displayLabel", 128, out _) &&
+            TryReadNonNegativeInt32(context, "version", out var version) && version > 0 &&
+            ValidContextPredicateReferences(context));
     }
 
     private static bool ValidContextPredicateReferences(JsonElement context)
@@ -456,6 +459,8 @@ public static class BuiltinVisualEngineeringValidation
             return false;
         if (member.TryGetProperty("referenceEvidence", out var reference) &&
             (!partial || reference.ValueKind != JsonValueKind.True)) return false;
+        if (member.TryGetProperty("operatingContexts", out var contexts) &&
+            (!partial || !ValidContextReferenceCatalog(contexts.GetRawText()))) return false;
         var hasPerformance = member.TryGetProperty("performance", out var performance);
         var hasDeviation = member.TryGetProperty("contextualDeviation", out var deviation);
         if (!partial && (!hasPerformance || !hasDeviation)) return false;

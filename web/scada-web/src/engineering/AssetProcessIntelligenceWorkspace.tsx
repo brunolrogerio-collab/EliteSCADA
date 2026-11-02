@@ -447,13 +447,23 @@ export function AssetProcessIntelligenceWorkspace({
     return { ...coverage, members: members as NonNullable<typeof members[number]>[] };
   };
 
+  const contextReferencesForAssignment = (assignmentId: string) => {
+    const contexts = initialConfig.operatingContextProfiles.filter(context => context.assignmentId === assignmentId);
+    return !contexts.length || contexts.length > 32 ? undefined : contexts.map(context => ({
+      id: context.id, version: context.version, displayLabel: context.displayLabel,
+      predicateTagIds: context.predicates.map(predicate => predicate.tagId)
+    }));
+  };
+
   const createProcessStageReportSelection = (stage: AssetProcessIntelligenceProcessStageEngineering): IntelligenceProcessStageReportSelection | null => {
     const coverage = createProcessStageCoverageSelection(stage);
     if (!coverage) return null;
     return { ...coverage, members: coverage.members.map(member => {
       const performance = guidedPerformanceSelections[member.assignmentId];
       const contextualDeviation = guidedDeviationSelections[member.assignmentId];
+      const operatingContexts = contextReferencesForAssignment(member.assignmentId);
       return { ...member, availabilityVersion: 2 as const,
+        ...(operatingContexts ? { operatingContexts } : {}),
         ...(performance ? { performance: { ruleId: performance.ruleId, ruleVersion: performance.ruleVersion, signalIds: performance.signalIds } } : {}),
         ...(contextualDeviation ? { contextualDeviation: {
           targetSignalIds: contextualDeviation.targetSignalIds,
@@ -474,14 +484,11 @@ export function AssetProcessIntelligenceWorkspace({
   const contextSelectionForSource = (source: IntelligenceDashboardSource): IntelligenceContextEligibilityDashboardSelection | null => {
     const member = source.kind === 'equipment-profile' && source.assignments.length === 1 ? source.assignments[0] : null;
     if (!member?.scopeId || !member.assignmentId) return null;
-    const contexts = initialConfig.operatingContextProfiles.filter(context => context.assignmentId === member.assignmentId);
-    if (!contexts.length || contexts.length > 32) return null;
-    return { scopeId: member.scopeId, assignmentId: member.assignmentId, profileId: member.profile.id, displayName: source.displayName,
-      contexts: contexts.map(context => ({ id: context.id, version: context.version, displayLabel: context.displayLabel,
-        predicateTagIds: context.predicates.map(predicate => predicate.tagId) })) };
+    const contexts = contextReferencesForAssignment(member.assignmentId);
+    return contexts ? { scopeId: member.scopeId, assignmentId: member.assignmentId, profileId: member.profile.id, displayName: source.displayName, contexts } : null;
   };
 
-  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean; contextEligibility?: boolean }) => {
+  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean; stageContextEligibility?: boolean; contextEligibility?: boolean }) => {
     setError(null);
     setMessage(null);
     if (!snapshot?.licensed) {
@@ -506,21 +513,22 @@ export function AssetProcessIntelligenceWorkspace({
         const coverage = stage ? createProcessStageCoverageSelection(stage) : null;
         if (!stage) throw new Error(copy.dashboardSourceUnavailable);
         if (!coverage) {
-          if (analyses?.stageCoverage || analyses?.stageReports || analyses?.stageReferenceEvidence) throw new Error(copy.dashboardSourceUnavailable);
+          if (analyses?.stageCoverage || analyses?.stageReports || analyses?.stageReferenceEvidence || analyses?.stageContextEligibility) throw new Error(copy.dashboardSourceUnavailable);
           onCreateDashboardDraft(generateIntelligenceDashboardDraft(screens, source, tags, locale, undefined, appearance));
           return;
         }
         const availableReports = createProcessStageReportSelection(stage);
         const reports = availableReports ? { ...availableReports, members: availableReports.members.map(member => {
-          const { performance, contextualDeviation, ...identity } = member;
+          const { performance, contextualDeviation, operatingContexts, ...identity } = member;
           return { ...identity,
             ...(analyses?.stageReports ? { performance, contextualDeviation } : {}),
-            ...(analyses?.stageReferenceEvidence ? { referenceEvidence: true as const } : {})
+            ...(analyses?.stageReferenceEvidence ? { referenceEvidence: true as const } : {}),
+            ...(analyses?.stageContextEligibility && operatingContexts ? { operatingContexts } : {})
           };
         }) } : null;
         onCreateDashboardDraft(generateIntelligenceProcessStageCompositionDrafts(screens, source, coverage,
           reports, tags, appearance,
-          { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true || analyses?.stageReferenceEvidence === true }, locale));
+          { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true || analyses?.stageReferenceEvidence === true || analyses?.stageContextEligibility === true }, locale));
         return;
       }
       const member = source.kind === "equipment-profile" && source.assignments.length === 1 ? source.assignments[0] : null;
@@ -906,7 +914,7 @@ export function AssetProcessIntelligenceWorkspace({
             coverageAvailable: Boolean(dashboardStageReports),
             members: (dashboardStageReports?.members ?? []).map(member => ({
               assignmentId: member.assignmentId, label: member.displayLabel,
-              performance: Boolean(member.performance), deviation: Boolean(member.contextualDeviation),
+              performance: Boolean(member.performance), deviation: Boolean(member.contextualDeviation), contexts: Boolean(member.operatingContexts),
               onConfigure: () => {
                 setSelectedProfileId(member.profileId);
                 requestAnimationFrame(() => document.getElementById(`intelligence-assignment-${member.assignmentId}`)?.scrollIntoView({ block: 'start' }));

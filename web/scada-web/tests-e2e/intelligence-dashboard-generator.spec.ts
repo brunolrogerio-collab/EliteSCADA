@@ -785,6 +785,18 @@ test('stage composition preserves independent member reports, authored widgets a
     const invalid = { ...references, members: references.members.map(m => ({ ...m, referenceEvidence: marker })) };
     expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, invalid as any, tags, appearance, { coverage: false, reports: true }, 'en', ids())).toThrow();
   }
+  const conditions = { ...coverage, members: coverage.members.map((member, i) => ({ ...member, availabilityVersion: 2 as const,
+    ...(i === 0 ? { operatingContexts: [{ id: id(8), displayLabel: 'Running', version: 3, predicateTagIds: [assignments[0].profile.signals[0].tagId] }] } : {}) })) };
+  const conditionDrafts = generateIntelligenceProcessStageCompositionDrafts([], source, coverage, conditions, tags, appearance, { coverage: true, reports: true }, 'en', ids());
+  expect(conditionDrafts).toHaveLength(3);
+  const conditionWidget = conditionDrafts[2].elements!.find(e => e.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1)!;
+  expect(JSON.parse(String(conditionWidget.properties?.intelligenceStageMembers))).toEqual(conditions.members);
+  for (const value of [null, [], [{ ...conditions.members[0].operatingContexts![0], version: 0 }],
+    [{ ...conditions.members[0].operatingContexts![0], predicateTagIds: [id(9)] }],
+    [{ ...conditions.members[0].operatingContexts![0], predicates: [{ minimum: 0 }] }]]) {
+    const invalid = { ...conditions, members: conditions.members.map((m, i) => i === 0 ? { ...m, operatingContexts: value } : m) };
+    expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, invalid as any, tags, appearance, { coverage: true, reports: true }, 'en', ids())).toThrow();
+  }
   const basic = generateIntelligenceProcessStageCompositionDrafts([], source, coverage, null, tags, appearance, { coverage: false, reports: false }, 'en', ids());
   expect(basic).toHaveLength(1);
   expect(basic[0].elements!.flatMap(e => e.actions ?? []).filter(a => a.kind === 'NavigateScreen')).toEqual([]);

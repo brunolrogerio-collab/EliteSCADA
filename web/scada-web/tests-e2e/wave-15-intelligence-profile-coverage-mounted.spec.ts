@@ -918,3 +918,30 @@ test('composer explains missing saved context without blocking the basic dashboa
   await expect(generator.getByText(/Salve um contexto operacional/)).toBeVisible();
   await expect(generator.getByTestId('intelligence-dashboard-generate')).toBeEnabled();
 });
+
+
+test('stage composer generates saved conditions alone without requiring other member analyses', async ({ page }) => {
+  const fixture = await installWorkspace(page, { stageReady: true, operatingContexts: true });
+  await openIntelligence(page);
+  const generator = page.getByTestId('intelligence-dashboard-generator');
+  await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+  await expect(generator.getByRole('checkbox', { name: 'Análises por equipamento', exact: true })).toBeDisabled();
+  await generator.getByRole('checkbox', { name: 'Condições de operação por equipamento', exact: true }).check();
+  await generator.getByTestId('intelligence-dashboard-generate').click();
+  const editor = page.getByTestId('visual-editor-workspace');
+  const drafts = editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
+  await expect(drafts).toHaveCount(3); await drafts.last().click();
+  const insights = editor.getByTestId('runtime-intelligence-process-stage-insights');
+  // Authoring keeps the canvas inert; inspect persisted choices without performing analytical reads.
+  await expect(insights.getByTestId('runtime-intelligence-process-stage-insights-context')).toBeEnabled();
+  expect(fixture.requests).toEqual([]); expect(fixture.otherWrites).toEqual([]);
+});
+
+test('stage composer explains contexts absent from every member without blocking other views', async ({ page }) => {
+  await installWorkspace(page, { stageReady: true }); await openIntelligence(page);
+  const generator = page.getByTestId('intelligence-dashboard-generator');
+  await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+  await expect(generator.getByRole('checkbox', { name: 'Condições de operação por equipamento', exact: true })).toBeDisabled();
+  await expect(generator.getByText(/Salve um contexto na associação de pelo menos um/)).toBeVisible();
+  await expect(generator.getByTestId('intelligence-dashboard-generate')).toBeEnabled();
+});

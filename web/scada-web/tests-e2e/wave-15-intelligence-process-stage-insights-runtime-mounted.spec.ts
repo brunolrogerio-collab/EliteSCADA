@@ -370,3 +370,83 @@ test('stage references query the selected member only and discard a cancelled re
   expect(queries[2]).toMatchObject({ scopeId: scopeTwo, profileId: profileTwo });
   await member.selectOption(assignmentOne); await expect(report).toHaveCount(0);
 });
+
+test('stage conditions query the selected member context and discard cancelled reports', async ({ page }) => {
+  const references = [
+    memberConfig(assignmentOne, scopeOne, profileOne, 'Pump one', 0, signalIdsOne),
+    memberConfig(assignmentTwo, scopeTwo, profileTwo, 'Pump two', 1, signalIdsTwo)
+  ].map(({ performance: _performance, contextualDeviation: _deviation, ...member }) => ({ ...member, availabilityVersion: 2, referenceEvidence: true, operatingContexts: [{ id: member.scopeId, displayLabel: member.displayLabel, version: member.order + 1, predicateTagIds: [member.order === 0 ? signalIdsOne[0] : signalIdsTwo[0]] }] }));
+  await installStageFixture(page, references);
+  const queries: any[] = [];
+  let started!: () => void; const pending = new Promise<void>(resolve => { started = resolve; });
+  let release!: () => void; const delayed = new Promise<void>(resolve => { release = resolve; });
+  let completed = false;
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/query', async route => {
+    const body = route.request().postDataJSON(); queries.push(body);
+    const tagId = body.scopeId === scopeOne ? signalIdsOne[0] : signalIdsTwo[0];
+    const response = { contractVersion: 1, projectKey, activeRevision: revision, assignmentId: body.assignmentId,
+      measurementProfileId: body.scopeId === scopeOne ? profileOne : profileTwo, operatingContextProfileId: body.operatingContextProfileId, profileVersion: body.expectedProfileVersion,
+      referenceWindow: body.referenceWindow,
+      predicates: [{ tagId, referenceAcceptedCount: 120, referenceMatchCount: 90, comparisonAcceptedCount: null, comparisonMatchCount: null, status: 'context_match_available' }],
+      signals: [{ signalId: tagId, tagId, tagPath: body.scopeId === scopeOne ? 'PumpOne.Current' : 'PumpTwo.Current', engineeringUnit: 'A',
+        reference: { rawObservationCount: 120, acceptedSynchronizedUniqueCount: 120, contextEligibleObservationCount: 90, status: 'context_match_available', rejectionCounts: {} } }] };
+    if (queries.length === 2) {
+      started(); await delayed;
+      try { await route.fulfill({ json: response }); } catch { /* The old member request is deliberately aborted. */ }
+      completed = true; return;
+    }
+    await route.fulfill({ json: response });
+  });
+  await page.goto('/');
+  const visual = page.getByTestId('runtime-intelligence-process-stage-insights');
+  const member = visual.getByTestId('runtime-intelligence-process-stage-insights-member');
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeDisabled();
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeDisabled();
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-context').click();
+  const report = visual.getByTestId('runtime-intelligence-context-eligibility');
+  const from = report.getByLabel('Period start (local time)', { exact: true });
+  const to = report.getByLabel('Period end (local time)', { exact: true });
+  const query = report.getByRole('button', { name: 'Query conditions', exact: true });
+  await from.fill('2026-10-20T10:00'); await to.fill('2026-10-20T11:00');
+  expect(queries).toEqual([]); await query.click();
+  await expect(report.getByTestId('intelligence-context-eligibility-result')).toBeVisible();
+  expect(queries[0]).toMatchObject({ scopeId: scopeOne, assignmentId: assignmentOne, operatingContextProfileId: scopeOne, expectedProfileVersion: 1 });
+  await expect.poll(() => report.evaluate(element => {
+    const container = element.closest('.runtime-intelligence-process-stage-insights')!;
+    const footer = container.querySelector('.runtime-intelligence-process-stage-insights__limit')!;
+    return footer.getBoundingClientRect().top >= element.getBoundingClientRect().bottom - 1;
+  })).toBe(true);
+  await from.fill('2026-10-20T10:01'); await query.click(); await pending;
+  await member.selectOption(assignmentTwo); await expect(report).toHaveCount(0);
+  release(); await expect.poll(() => completed).toBe(true);
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-context').click();
+  await expect(report.getByTestId('intelligence-context-eligibility-result')).toHaveCount(0);
+  await from.fill('2026-10-20T10:00'); await to.fill('2026-10-20T11:00');
+  expect(queries).toHaveLength(2); await query.click();
+  await expect(report.getByTestId('intelligence-context-eligibility-result')).toBeVisible();
+  expect(queries[2]).toMatchObject({ scopeId: scopeTwo, assignmentId: assignmentTwo, operatingContextProfileId: scopeTwo, expectedProfileVersion: 2 });
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-reference').click(); await expect(report).toHaveCount(0);
+  await member.selectOption(assignmentOne); await expect(report).toHaveCount(0);
+});
+
+
+for (const invalidContext of ['legacy', 'empty', 'predicate-values', 'absent']) {
+  test(`stage conditions handle member context catalog: ${invalidContext}`, async ({ page }) => {
+    const member: any = memberConfig(assignmentOne, scopeOne, profileOne, 'Pump one', 0, signalIdsOne);
+    member.operatingContexts = [{ id: scopeTwo, displayLabel: 'Running', version: 3, predicateTagIds: [signalIdsOne[0]] }];
+    if (invalidContext !== 'legacy') member.availabilityVersion = 2;
+    if (invalidContext === 'empty') member.operatingContexts = [];
+    if (invalidContext === 'predicate-values') member.operatingContexts[0].minimum = 0;
+    if (invalidContext === 'absent') delete member.operatingContexts;
+    await installStageFixture(page, [member]); await page.goto('/');
+    const visual = page.getByTestId('runtime-intelligence-process-stage-insights');
+    if (invalidContext === 'absent') {
+      await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-context')).toBeDisabled();
+      await expect(visual.getByText(/no saved context in this view/)).toBeVisible();
+      await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeEnabled();
+    } else {
+      await expect(visual.getByRole('alert')).toBeVisible();
+      await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-context')).toHaveCount(0);
+    }
+  });
+}

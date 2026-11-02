@@ -10,10 +10,10 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
   deviationSignalCount?: number;
   referenceAvailable?: boolean; contextAvailable?: boolean;
   stage?: Readonly<{ coverageAvailable: boolean; members: readonly Readonly<{
-    assignmentId: string; label: string; performance: boolean; deviation: boolean; onConfigure: () => void;
+    assignmentId: string; label: string; performance: boolean; deviation: boolean; contexts: boolean; onConfigure: () => void;
   }>[] }>;
 
-  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean; stageCoverage: boolean; stageReports: boolean; referenceEvidence: boolean; stageReferenceEvidence: boolean; contextEligibility: boolean }) => void;
+  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean; stageCoverage: boolean; stageReports: boolean; referenceEvidence: boolean; stageReferenceEvidence: boolean; stageContextEligibility: boolean; contextEligibility: boolean }) => void;
 }) {
   const copy = TEXT[locale];
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -23,6 +23,8 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
   const [stageCoverage, setStageCoverage] = useState(true);
   const [stageReports, setStageReports] = useState(true);
   const [contextEligibility, setContextEligibility] = useState(false);
+  const [stageContextEligibility, setStageContextEligibility] = useState(false);
+  const stageContextsAvailable = stage?.members.some(member => member.contexts) ?? false;
   const [stageReferenceEvidence, setStageReferenceEvidence] = useState(false);
   const [referenceEvidence, setReferenceEvidence] = useState(false);
   const stageReportsAvailable = stage?.members.some(member => member.performance || member.deviation) ?? false;
@@ -68,11 +70,13 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
       <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageReports && stageReportsAvailable} disabled={disabled || !stageReportsAvailable} onChange={e => setStageReports(e.currentTarget.checked)}/>{copy.stageReports}</label>
       <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageReferenceEvidence && stage.coverageAvailable} disabled={disabled || !stage.coverageAvailable} onChange={e => setStageReferenceEvidence(e.currentTarget.checked)}/>{copy.stageReference}</label>
       <p>{copy.stageReferenceHint}</p>
+      <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageContextEligibility && stageContextsAvailable} disabled={disabled || !stageContextsAvailable} onChange={e => setStageContextEligibility(e.currentTarget.checked)}/>{copy.stageContexts}</label>
+      <p>{stageContextsAvailable ? copy.stageContextsHint : copy.stageContextsMissing}</p>
       <p>{copy.stageHint}</p>
       {!stage.coverageAvailable && <p>{copy.stageCoverageMissing}</p>}
       {stage.members.map(member => <article key={member.assignmentId} className="asset-process-intelligence__row">
         <strong>{member.label}</strong>
-        <span>{copy.performance}: {member.performance ? copy.ready : copy.notConfigured} · {copy.deviation}: {member.deviation ? copy.ready : copy.notConfigured}</span>
+        <span>{copy.performance}: {member.performance ? copy.ready : copy.notConfigured} · {copy.deviation}: {member.deviation ? copy.ready : copy.notConfigured} · {copy.contextEligibility}: {member.contexts ? copy.ready : copy.notConfigured}</span>
         <button type="button" className="secondary" disabled={disabled} onClick={member.onConfigure}>{copy.configureMember}</button>
       </article>)}
     </> : <>
@@ -88,13 +92,14 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     </>}
     <p>{copy.otherAnalyses}</p>
     <button type="button" data-testid="intelligence-dashboard-generate" disabled={disabled || !rows.length || rows.some(row => !row.valid)}
-      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable, contextEligibility: !stage && contextEligibility && contextAvailable, stageReferenceEvidence: Boolean(stage && stageReferenceEvidence && stage.coverageAvailable) })}>{copy.generate}</button>
+      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable, contextEligibility: !stage && contextEligibility && contextAvailable, stageReferenceEvidence: Boolean(stage && stageReferenceEvidence && stage.coverageAvailable), stageContextEligibility: Boolean(stage && stageContextEligibility && stageContextsAvailable) })}>{copy.generate}</button>
   </div>;
 }
 
 const TEXT = {
   'pt-BR': {
     contextEligibility: 'Condições de operação', contextHint: 'Acrescente uma tela para conferir quais leituras atendem aos contextos salvos. No Runtime, escolha o contexto pelo nome e consulte um período.', contextMissing: 'Salve um contexto operacional desta associação para acrescentar a vista de condições. As outras vistas continuam disponíveis.',
+    stageContexts: 'Condições de operação por equipamento', stageContextsHint: 'Use a mesma tela de análises para escolher um equipamento e consultar seus contextos salvos. Equipamentos sem contexto mantêm as outras análises disponíveis.', stageContextsMissing: 'Salve um contexto na associação de pelo menos um equipamento desta etapa para incluir as condições. As outras vistas continuam disponíveis.',
     stageReference: 'Dados da referência por equipamento', stageReferenceHint: 'Acrescente a conferência da referência à tela de análises da etapa. Você escolhe um equipamento de cada vez e consulta os períodos desejados. Não exige configurar desempenho ou desvio.',
     referenceEvidence: 'Conferir dados da referência', referenceHint: 'Acrescente uma tela para escolher um período conhecido e conferir as leituras disponíveis. Isso ajuda a avaliar os dados antes de uma comparação; não confirma que o equipamento estava saudável.',
     stageBase: 'Sempre incluído: medições e tendência. Abaixo, escolha se quer acrescentar cobertura e análises dos equipamentos.',
@@ -113,6 +118,7 @@ const TEXT = {
   },
   en: {
     contextEligibility: 'Operating conditions', contextHint: 'Add a screen to check which readings meet saved context conditions. In Runtime, choose a context by name and query a period.', contextMissing: 'Save an operating context for this assignment to add the conditions view. Other views remain available.',
+    stageContexts: 'Operating conditions per equipment', stageContextsHint: 'Use the same analyses screen to choose equipment and query its saved contexts. Equipment without a context retains its other available analyses.', stageContextsMissing: 'Save a context in at least one equipment assignment in this stage to include conditions. The other views remain available.',
     stageReference: 'Reference data per equipment', stageReferenceHint: 'Add reference-data checks to the stage analyses screen. Choose one equipment at a time and query the desired periods. Performance or deviation configuration is not required.',
     referenceEvidence: 'Check reference data', referenceHint: 'Add a screen to choose a known period and check the available readings. This helps review the data before a comparison; it does not confirm the equipment was healthy.',
     stageBase: 'Always included: measurements and trend. Below, choose whether to add equipment coverage and analyses.',
@@ -131,6 +137,7 @@ const TEXT = {
   },
   es: {
     contextEligibility: 'Condiciones de operación', contextHint: 'Agregue una pantalla para revisar qué lecturas cumplen los contextos guardados. En Runtime, elija el contexto por nombre y consulte un período.', contextMissing: 'Guarde un contexto operativo de esta asignación para agregar la vista de condiciones. Las otras vistas siguen disponibles.',
+    stageContexts: 'Condiciones de operación por equipo', stageContextsHint: 'Use la misma pantalla de análisis para elegir un equipo y consultar sus contextos guardados. Los equipos sin contexto conservan sus otros análisis disponibles.', stageContextsMissing: 'Guarde un contexto en al menos una asignación de equipo de esta etapa para incluir condiciones. Las otras vistas siguen disponibles.',
     stageReference: 'Datos de referencia por equipo', stageReferenceHint: 'Agregue la revisión de referencia a la pantalla de análisis de etapa. Elija un equipo cada vez y consulte los períodos deseados. No requiere configurar rendimiento o desviación.',
     referenceEvidence: 'Revisar datos de referencia', referenceHint: 'Agregue una pantalla para elegir un período conocido y revisar las lecturas disponibles. Ayuda a evaluar los datos antes de comparar; no confirma que el equipo estuviera sano.',
     stageBase: 'Siempre incluido: mediciones y tendencia. Abajo, elija si desea agregar cobertura y análisis de los equipos.',

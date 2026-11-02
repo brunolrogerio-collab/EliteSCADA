@@ -88,9 +88,15 @@ Confira primeiro quantos instantes completos sustentam a referência, quantos ge
 
 Esta análise é experimental, validada por simulação, sem previsão de vida útil ou limiar de alarme validado.
 
-Trocar contexto, medições, cadência ou períodos limpa o resultado. Editor e reprodução histórica não calculam. Se mudar o contexto na Engenharia, gere e publique a vista novamente. A inclusão no seletor de equipamentos das etapas ainda está pendente; use a Tela do perfil.
+Trocar contexto, medições, cadência ou períodos limpa o resultado. Editor e reprodução histórica não calculam. Se mudar o contexto na Engenharia, gere e publique a vista novamente.
 
 ![Desvio conjunto no Runtime com dados sintéticos](../../evidence/intelligence-855/joint-results.png)
+
+Para incluir o score nos equipamentos de uma etapa, escolha a etapa no gerador e marque Desvio conjunto experimental por equipamento. Basta que pelo menos uma associação tenha contexto salvo que deixe duas medições numéricas distintas fora de suas condições. Não precisa marcar desempenho, referência ou condições de operação. A opção usa a mesma Tela de análises, mantendo até três Telas no conjunto. Aplique, salve, publique e ative.
+
+No Runtime, abra Análises por equipamento, escolha o equipamento e selecione Desvio conjunto (experimental). Escolha contexto e medições pelo nome; informe a cadência real e os períodos e solicite o cálculo. O resultado pertence somente ao equipamento escolhido. Se outro membro não tiver requisitos, a página explica a ausência e mantém as outras vistas disponíveis. Ao trocar equipamento ou análise, o formulário anterior é fechado, a leitura pendente é cancelada e o resultado é limpo; nada é consultado automaticamente. O score continua experimental, sem diagnóstico, vida útil ou limiar de alarme validado em campo.
+
+![Desvio conjunto do equipamento da etapa, com dados sintéticos](../../evidence/intelligence-855/stage-joint-results.png)
 
 ## 5. Consultar análises
 
@@ -290,7 +296,11 @@ Confira primeiro quantos instantes completos sustentam a referência, quantos ge
 
 Esta análise é experimental, validada por simulação, sem previsão de vida útil ou limiar de alarme validado.
 
-Trocar contexto, medições, cadência ou períodos limpa o resultado. Editor e reprodução histórica não calculam. Se mudar o contexto na Engenharia, gere e publique a vista novamente. A inclusão no seletor de equipamentos das etapas ainda está pendente; use a Tela do perfil.
+Trocar contexto, medições, cadência ou períodos limpa o resultado. Editor e reprodução histórica não calculam. Se mudar o contexto na Engenharia, gere e publique a vista novamente.
+
+Para incluir o score nos equipamentos de uma etapa, escolha a etapa no gerador e marque Desvio conjunto experimental por equipamento. Basta que pelo menos uma associação tenha contexto salvo que deixe duas medições numéricas distintas fora de suas condições. Não precisa marcar desempenho, referência ou condições de operação. A opção usa a mesma Tela de análises, mantendo até três Telas no conjunto. Aplique, salve, publique e ative.
+
+No Runtime, abra Análises por equipamento, escolha o equipamento e selecione Desvio conjunto (experimental). Escolha contexto e medições pelo nome; informe a cadência real e os períodos e solicite o cálculo. O resultado pertence somente ao equipamento escolhido. Se outro membro não tiver requisitos, a página explica a ausência e mantém as outras vistas disponíveis. Ao trocar equipamento ou análise, o formulário anterior é fechado, a leitura pendente é cancelada e o resultado é limpo; nada é consultado automaticamente. O score continua experimental, sem diagnóstico, vida útil ou limiar de alarme validado em campo.
 
 ### Roteiro para investigar resultado vazio
 

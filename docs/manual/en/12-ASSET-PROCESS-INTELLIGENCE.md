@@ -88,9 +88,15 @@ First check how many complete timestamps support the reference, how many produce
 
 This analysis is experimental, validated by simulation, without remaining-life prediction or a field-validated alarm threshold.
 
-Changing context, measurements, cadence or periods clears the result. The editor and historical playback do not calculate. If the context changes in Engineering, generate and publish the view again. Inclusion in the stage equipment selector is still pending; use the profile Screen.
+Changing context, measurements, cadence or periods clears the result. The editor and historical playback do not calculate. If the context changes in Engineering, generate and publish the view again.
 
 ![Joint deviation in Runtime with synthetic data](../../evidence/intelligence-855/joint-results.png)
+
+To include joint deviation for stage equipment, choose the stage in the generator and select Experimental joint deviation per equipment. At least one assignment must have a saved context leaving two distinct numeric measurements outside its conditions. Performance, reference and operating conditions do not need to be selected. This uses the same analyses Screen, keeping the set to at most three Screens. Apply, save, publish and activate.
+
+In Runtime, open Member analyses, choose the equipment and select Joint deviation (experimental). Choose context and measurements by name, enter the actual cadence and periods, then request the calculation. The result belongs only to the selected equipment. If another member lacks the requirements, the page explains the absence and keeps other views available. Changing equipment or analysis closes the previous form, cancels a pending read and clears the result; no query starts automatically. The score remains experimental, without diagnosis, remaining-life prediction or a field-validated alarm threshold.
+
+![Joint deviation for stage equipment, with synthetic data](../../evidence/intelligence-855/stage-joint-results.png)
 
 ## 5. Request analyses
 
@@ -290,7 +296,11 @@ First check how many complete timestamps support the reference, how many produce
 
 This analysis is experimental, validated by simulation, without remaining-life prediction or a field-validated alarm threshold.
 
-Changing context, measurements, cadence or periods clears the result. The editor and historical playback do not calculate. If the context changes in Engineering, generate and publish the view again. Inclusion in the stage equipment selector is still pending; use the profile Screen.
+Changing context, measurements, cadence or periods clears the result. The editor and historical playback do not calculate. If the context changes in Engineering, generate and publish the view again.
+
+To include joint deviation for stage equipment, choose the stage in the generator and select Experimental joint deviation per equipment. At least one assignment must have a saved context leaving two distinct numeric measurements outside its conditions. Performance, reference and operating conditions do not need to be selected. This uses the same analyses Screen, keeping the set to at most three Screens. Apply, save, publish and activate.
+
+In Runtime, open Member analyses, choose the equipment and select Joint deviation (experimental). Choose context and measurements by name, enter the actual cadence and periods, then request the calculation. The result belongs only to the selected equipment. If another member lacks the requirements, the page explains the absence and keeps other views available. Changing equipment or analysis closes the previous form, cancels a pending read and clears the result; no query starts automatically. The score remains experimental, without diagnosis, remaining-life prediction or a field-validated alarm threshold.
 
 ### How to investigate an empty result
 

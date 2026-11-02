@@ -88,9 +88,15 @@ Primero revise cuántos instantes completos sustentan la referencia, cuántos pr
 
 Es experimental, validado por simulación, sin predicción de vida útil ni umbral de alarma validado en campo.
 
-Cambiar contexto, mediciones, cadencia o períodos borra el resultado. El editor y reproducción histórica no calculan. Si cambia el contexto en Ingeniería, genere y publique de nuevo. Su inclusión en el selector de equipos de etapas sigue pendiente; use la Pantalla del perfil.
+Cambiar contexto, mediciones, cadencia o períodos borra el resultado. El editor y reproducción histórica no calculan. Si cambia el contexto en Ingeniería, genere y publique de nuevo.
 
 ![Desviación conjunta en Runtime con datos sintéticos](../../evidence/intelligence-855/joint-results.png)
+
+Para incluir desviación conjunta en los equipos de una etapa, elija la etapa en el generador y marque Desviación conjunta experimental por equipo. Al menos una asignación necesita contexto guardado que deje dos mediciones numéricas distintas fuera de sus condiciones. No requiere seleccionar rendimiento, referencia o condiciones de operación. Usa la misma Pantalla de análisis, manteniendo hasta tres Pantallas en el conjunto. Aplique, guarde, publique y active.
+
+En Runtime, abra Análisis por equipo, elija el equipo y seleccione Desviación conjunta (experimental). Elija contexto y mediciones por nombre, indique cadencia real y períodos y solicite el cálculo. El resultado pertenece solo al equipo elegido. Si otro miembro no cumple los requisitos, la página explica la ausencia y mantiene las otras vistas disponibles. Cambiar equipo o análisis cierra el formulario anterior, cancela la lectura pendiente y borra el resultado; no consulta automáticamente. El score sigue siendo experimental, sin diagnóstico, predicción de vida útil ni umbral de alarma validado en campo.
+
+![Desviación conjunta del equipo de etapa, con datos sintéticos](../../evidence/intelligence-855/stage-joint-results.png)
 
 ## 5. Solicitar análisis
 
@@ -290,7 +296,11 @@ Primero revise cuántos instantes completos sustentan la referencia, cuántos pr
 
 Es experimental, validado por simulación, sin predicción de vida útil ni umbral de alarma validado en campo.
 
-Cambiar contexto, mediciones, cadencia o períodos borra el resultado. El editor y reproducción histórica no calculan. Si cambia el contexto en Ingeniería, genere y publique de nuevo. Su inclusión en el selector de equipos de etapas sigue pendiente; use la Pantalla del perfil.
+Cambiar contexto, mediciones, cadencia o períodos borra el resultado. El editor y reproducción histórica no calculan. Si cambia el contexto en Ingeniería, genere y publique de nuevo.
+
+Para incluir desviación conjunta en los equipos de una etapa, elija la etapa en el generador y marque Desviación conjunta experimental por equipo. Al menos una asignación necesita contexto guardado que deje dos mediciones numéricas distintas fuera de sus condiciones. No requiere seleccionar rendimiento, referencia o condiciones de operación. Usa la misma Pantalla de análisis, manteniendo hasta tres Pantallas en el conjunto. Aplique, guarde, publique y active.
+
+En Runtime, abra Análisis por equipo, elija el equipo y seleccione Desviación conjunta (experimental). Elija contexto y mediciones por nombre, indique cadencia real y períodos y solicite el cálculo. El resultado pertenece solo al equipo elegido. Si otro miembro no cumple los requisitos, la página explica la ausencia y mantiene las otras vistas disponibles. Cambiar equipo o análisis cierra el formulario anterior, cancela la lectura pendiente y borra el resultado; no consulta automáticamente. El score sigue siendo experimental, sin diagnóstico, predicción de vida útil ni umbral de alarma validado en campo.
 
 ### Cómo investigar resultado vacío
 

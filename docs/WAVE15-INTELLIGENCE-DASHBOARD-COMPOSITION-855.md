@@ -65,6 +65,8 @@ O T1 anterior `41382956383`, head `ca028496`, terminou reprovado na auditoria de
 | Dados da referência no Runtime | Consumidor de perfil e seletor por membro da etapa implementados e comprovados com API/PostgreSQL reais; aceite visual final pendente |
 | Condições no Runtime | Consumidores por perfil e por membro de etapa implementados e comprovados com API/PostgreSQL reais, incluindo reinício; aceite visual final pendente |
 | Score conjunto no Runtime | Consumidores por perfil e por membro de etapa implementados e comprovados com API/PostgreSQL reais, incluindo reinício; revisão global/aceite visual pendentes |
+| Comparação corrente/frequência e consultas complementares | Backend existe, caminho de usuário ausente; #857. Não coberto pelo conjunto de consumidores acima |
+| Separação gestor/desenvolvedor sem edição geral | Ativação/pausa exigem EngineeringModify além de Manage; #858 para revisão do limite |
 | Aceite visual, figuras finais, integração | Pendentes; não fechar #855/#791 com este incremento |
 
 Preservar contratos congelados, campo adiado, ausência de KPI agregado, segurança/licenciamento e plataforma Windows/Linux. Não alterar Preview/DEMO nem iniciar HA-D2.
@@ -205,3 +207,13 @@ Evidências: [gerador](evidence/intelligence-855/stage-joint-generator.png), [Ru
 Local: focados Core etapas/joint 52/52, UI autoria/geração/membros 9/9; consolidado Chromium 150/150, Core Release do filtro CI 168/168, Help aprendizado/legibilidade 30/30, builds API/Web e alinhamento de 69 arquivos aprovados. API sem avisos/erros; aviso existente de tamanho de bundle Web preservado. A preparação do roteiro teve uma declaração local duplicada, corrigida antes de executar; nenhum defeito de produto ou parâmetro de teste foi alterado para obter esses resultados. Produto em `eb98c147`; SHA final/CI ficam no registro vivo #855/#854.
 
 T1 anterior `41474371288`, head `7a861a3e`, reprovou somente Z-Wave Windows/Linux; todos os demais jobs executados passaram. #856 segue adiada, sem bypass ou merge. Consumidores Runtime de referência, condições, desempenho, desvio contextual e desvio conjunto agora têm caminhos por perfil e membros de etapas no escopo descrito. Isso não conclui a auditoria global: próxima frente é revisão de usabilidade/aderência e aceite visual. #855/#791 abertas, sem KPI agregado ou validação de campo. Preview/DEMO, Portal, métodos analíticos, Authority/licença e HA-D2 preservados.
+
+## Auditoria global — primeira matriz e reparos de linguagem/navegação
+
+A [matriz #791](WAVE15-INTELLIGENCE-791-ADHERENCE-MATRIX.md) confronta premissas #588, contratos/APIs, controles/resultados e evidências com os três estados pedidos. Encontradas capacidades de backend sem caminho de usuário, inclusive o exemplo corrente em frequência medida semelhante (#857), e limite na separação operacional do gestor (#858). A existência dos consumidores descritos anteriormente não equivale a cobertura de todos os métodos ou aceite global.
+
+Reparos desta candidata: seis atalhos de configuração, nome legível da aplicação, estados prontos/reativação e permissões em linguagem de tarefa, tradução de Equipment/Location e remoção do UUID como fallback visível. Cabeçalho do módulo pode quebrar linha no celular e a confirmação não herda mais o cartão genérico de 260 px. Sem alteração de método, política, gate, licença, persistência ou HA.
+
+API/PostgreSQL reais: navegação sem consulta analytics/gravação de configuração; rascunho preservado; reativação explícita pelo botão; título e conteúdo com 366/366 px e mensagem de 47 px. Capturas reais e Help/manual em três idiomas, com marcadores de revisão #857/#858. Final local: UI 153/153, Help 30/30, builds API/Web e alinhamento de 69 arquivos aprovados. Backend Core não foi repetido por esta alteração de apresentação; a prova 168/168 é do incremento anterior.
+
+Próximo: #857, priorizando corrente/frequência; depois desenho de #858 preservando os contratos aceitos, pré-requisitos/atalhos especializados e provas restritas pendentes da matriz. #791/#855 abertas. T1 anterior 41480844064/aed171e0 falhou somente Z-Wave Windows/Linux; #856 adiada, sem bypass/merge. Preview/DEMO, Portal e HA-D2 preservados.

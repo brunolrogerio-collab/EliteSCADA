@@ -30,6 +30,12 @@ Siga este percurso e aprofunde cada parte nas seções abaixo:
 
 Você pode começar por um equipamento. Contextos e etapas entram quando forem úteis à pergunta. O detalhe sobre horários, papéis dos sinais e limites está adiante para consulta durante a configuração.
 
+Use Onde deseja trabalhar? para ir direto a perfis, associações, contextos, etapas, painel ou equipamentos e locais habilitados para análise. Comece pelos perfis e associações; contexto e etapa só são necessários quando sua análise os utiliza. Navegar preserva o rascunho, sem salvar ou executar análise.
+
+Pronto para consultar significa que o item foi ativado para a revisão atual. Se aparecer Reative antes de consultar, confira licença e permissões e selecione Ativar novamente. Isso pode ser necessário após reinício ou restauração da autorização. O cabeçalho mostra o nome da aplicação; a revisão ativa identifica a versão publicada em uso.
+
+![Atalhos de configuração no celular, em aplicação sintética](../../evidence/intelligence-855/usability-mobile-navigation.png)
+
 ## 1. Começar pelo equipamento e pelos TAGs
 
 Escolha o Equipamento já cadastrado e os TAGs de medições úteis, como corrente, tensão, pressão, vazão ou temperatura. Para cada TAG, confira o tipo de valor e a unidade. Qualidade informa a condição da leitura; timestamp é seu horário de origem. Historian é o histórico gravado, que precisa ter dados no período escolhido. Inclua o sinal pela pergunta que ele ajuda a responder, não apenas porque existe.
@@ -170,6 +176,8 @@ Consulte e leia as contagens de cada período. A comparação de contagens não 
 
 Escolha quais equipamentos analisar, prepare a configuração e ative o uso. Ter a licença não inicia análises automaticamente.
 
+<!-- HELP-REVIEW-AFTER-PRODUCT-858-INTELLIGENCE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/858; topic=intelligence.activation; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
+
 ### Siga a sequência completa
 
 Comece com um equipamento, como Bomba 01. Abra Engenharia > Inteligência de ativos. Você vai reunir as variáveis da bomba, dizer a qual equipamento pertencem e escolher onde usar a análise.
@@ -177,6 +185,10 @@ Comece com um equipamento, como Bomba 01. Abra Engenharia > Inteligência de ati
 O perfil é a lista de sinais e seus significados. A associação liga esse perfil ao Equipamento cadastrado. Configure contextos e etapas somente quando fizerem sentido para sua pergunta. Depois salve, publique e ative a revisão do projeto.
 
 Há ainda uma decisão separada: ativar explicitamente o recurso selecionado para permitir as análises. Criar o perfil, marcar uma caixa ou possuir a licença não faz essa ativação por você.
+
+Use Onde deseja trabalhar? para ir direto a perfis, associações, contextos, etapas, painel ou equipamentos e locais habilitados para análise. Comece pelos perfis e associações; contexto e etapa só são necessários quando sua análise os utiliza. Navegar preserva o rascunho, sem salvar ou executar análise.
+
+Pronto para consultar significa que o item foi ativado para a revisão atual. Se aparecer Reative antes de consultar, confira licença e permissões e selecione Ativar novamente. Isso pode ser necessário após reinício ou restauração da autorização. O cabeçalho mostra o nome da aplicação; a revisão ativa identifica a versão publicada em uso.
 
 ### Permissões e seleção de recursos
 
@@ -243,6 +255,8 @@ Outras regras podem usar potência elétrica de entrada, vazão e diferença de 
 ## Intelligence: consultar resultados e montar dashboards
 
 Comece conferindo os dados do período. Depois escolha um cálculo e, se precisar, gere uma tela para consultar no Runtime.
+
+<!-- HELP-REVIEW-AFTER-PRODUCT-857-INTELLIGENCE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/857; topic=intelligence.analysis-guide; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
 
 ### Comece pela cobertura
 

@@ -30,6 +30,12 @@ Follow this path and use the sections below for detail:
 
 You can start with one equipment. Contexts and stages are useful when they serve the question. Time, signal-role and limit details follow for lookup during configuration.
 
+Use Where do you want to work? to go directly to profiles, assignments, contexts, stages, dashboard or equipment and locations enabled for analysis. Start with profiles and assignments; contexts and stages are needed only when your analysis uses them. Navigation preserves the draft without saving or running an analysis.
+
+Ready to query means the item is activated for the current revision. If Reactivation required appears, check license and permissions, then select Activate again. This may be needed after a restart or restored authorization. The header shows the application name; the active revision identifies the published version in use.
+
+![Setup shortcuts on mobile, in a synthetic application](../../evidence/intelligence-855/usability-mobile-navigation.png)
+
 ## 1. Start with Equipment and TAGs
 
 Choose registered Equipment and useful measurement TAGs, such as current, voltage, pressure, flow or temperature. For each TAG, check value type and unit. Quality describes the reading’s condition; timestamp is its source time. Historian is recorded history, which needs data for the chosen period. Include a signal for the question it helps answer, not merely because it exists.
@@ -170,6 +176,8 @@ Query and read each period's counts. Comparing counts is not, by itself, an effi
 
 Choose which equipment to analyze, prepare its configuration and activate use. Having the license does not automatically start analyses.
 
+<!-- HELP-REVIEW-AFTER-PRODUCT-858-INTELLIGENCE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/858; topic=intelligence.activation; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
+
 ### Follow the full sequence
 
 Start with one piece of equipment, such as Pump 01. Open Engineering > Asset Intelligence. You will gather its variables, identify which equipment they belong to and choose where to use analysis.
@@ -177,6 +185,10 @@ Start with one piece of equipment, such as Pump 01. Open Engineering > Asset Int
 The profile lists signals and their meanings. An assignment connects that profile to registered Equipment. Configure contexts and stages only when they fit your question. Then save, publish and activate the project revision.
 
 One separate decision remains: explicitly activate the selected resource to allow analyses. Creating the profile, checking a box or having the license does not do that for you.
+
+Use Where do you want to work? to go directly to profiles, assignments, contexts, stages, dashboard or equipment and locations enabled for analysis. Start with profiles and assignments; contexts and stages are needed only when your analysis uses them. Navigation preserves the draft without saving or running an analysis.
+
+Ready to query means the item is activated for the current revision. If Reactivation required appears, check license and permissions, then select Activate again. This may be needed after a restart or restored authorization. The header shows the application name; the active revision identifies the published version in use.
 
 ### Permissions and resource selection
 
@@ -243,6 +255,8 @@ Other rules may use electrical input power, flow and pressure difference. They b
 ## Intelligence: query results and build dashboards
 
 Start by checking data for the period. Then choose a calculation and, if needed, generate a screen for Runtime queries.
+
+<!-- HELP-REVIEW-AFTER-PRODUCT-857-INTELLIGENCE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/857; topic=intelligence.analysis-guide; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
 
 ### Start with coverage
 

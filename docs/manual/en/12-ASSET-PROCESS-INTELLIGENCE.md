@@ -64,6 +64,10 @@ Save the configuration to Working. Runtime data and analyses remain subject to t
 
 For a stage, the same generator offers Member coverage and Member analyses. The list shows what is configured for each member. Use Configure this equipment to choose missing rules and signals, then return to the generator. Deviation does not need to be configured for every member to generate performance for the others. Selected views are linked, editable Screens. In Runtime, choose the equipment and analysis, set the period and query. Each result still belongs only to the selected equipment.
 
+To check a reference in Runtime, choose an equipment profile in the generator and select Check reference data. This adds a separate Screen; it does not require performance or deviation configuration. Apply the set, save, publish and activate. In live Runtime, open Reference data, choose a known period and select Query reference. You will see received, accepted and rejected readings for each signal and how many could be used together. To compare another period, select Compare with another period and enter a later, non-overlapping interval. A high count does not prove the equipment was healthy. Changing the periods clears the result. The editor and historical playback do not execute this query.
+
+![Runtime query with synthetic validation data](../../evidence/intelligence-855/reference-runtime.png)
+
 ## 5. Request analyses
 
 Select an assigned Equipment and choose an available analysis, such as profile coverage, performance, or contextual deviation. Set the time range and explicitly request the query. Contextual deviation requires configured operating conditions and sufficient temporal evidence. Analysis is read-only; it does not change a TAG, command Equipment, or replace Alarms.
@@ -245,6 +249,8 @@ Even when the unit is the same, check the comparison: the operating profile incl
 5. In the analysis object, set the period and request the query. Check the window and result. A stage Screen groups its equipment; it does not create an aggregate indicator or establish that one piece of equipment caused another’s result.
 
 For stages, select Member coverage and/or Member analyses in the generator. The list shows what is configured; Configure this equipment opens that member’s rules and signals. In Runtime, choose the equipment before the analysis. Unconfigured options are disabled and explained without blocking the others.
+
+To check a reference in Runtime, choose an equipment profile in the generator and select Check reference data. This adds a separate Screen; it does not require performance or deviation configuration. Apply the set, save, publish and activate. In live Runtime, open Reference data, choose a known period and select Query reference. You will see received, accepted and rejected readings for each signal and how many could be used together. To compare another period, select Compare with another period and enter a later, non-overlapping interval. A high count does not prove the equipment was healthy. Changing the periods clears the result. The editor and historical playback do not execute this query.
 
 ### How to investigate an empty result
 

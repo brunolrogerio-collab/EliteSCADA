@@ -1,0 +1,17 @@
+{
+  "generatedScreens": [
+    {
+      "id": "3e419e0a-eae4-465c-9321-4a70a25f2fa7",
+      "key": "intelligence-reference-evidence-bomba-com-duas-medicoes-duas-medicoes-da-segunda",
+      "role": "reference-evidence"
+    },
+    {
+      "id": "9ebe527e-8ce3-489f-be7b-0d49e967c4c2",
+      "key": "intelligence-validacao855.bomba2-segundo-equipamento-855",
+      "role": "values-trend"
+    }
+  ],
+  "syntheticOnly": true,
+  "revision": 32,
+  "visualHeaderUpdated": true
+}

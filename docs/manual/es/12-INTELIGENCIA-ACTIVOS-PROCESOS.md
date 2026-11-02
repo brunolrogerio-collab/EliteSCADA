@@ -68,6 +68,10 @@ Para revisar una referencia en Runtime, elija un perfil de equipo en el generado
 
 ![Consulta en Runtime con datos sintéticos de validación](../../evidence/intelligence-855/reference-runtime.png)
 
+Para consultar referencias de los equipos de una etapa, elija la etapa en el generador y marque Datos de referencia por equipo. No necesita configurar rendimiento o desviación. Usa la misma Pantalla de análisis de etapa; el conjunto sigue teniendo hasta tres Pantallas. En Runtime, abra Análisis por equipo, elija el equipo y seleccione Datos de referencia. Indique los períodos y consulte. Elegir otro equipo cierra el informe anterior, cancela una consulta pendiente y borra su resultado; no se consulta automáticamente el nuevo equipo.
+
+![Referencia del equipo seleccionado de etapa, con datos sintéticos](../../evidence/intelligence-855/stage-reference-results.png)
+
 ## 5. Solicitar análisis
 
 Seleccione el Equipo asignado y elija el análisis disponible, como cobertura del perfil, rendimiento o desviación contextual. Defina el período y solicite explícitamente la consulta. La desviación contextual requiere condiciones operacionales configuradas y evidencia temporal suficiente. El análisis es de solo lectura; no cambia un TAG, no controla equipos ni sustituye Alarmas.
@@ -251,6 +255,8 @@ Aunque la unidad sea la misma, compruebe la comparación: el perfil operativo in
 Para etapas, seleccione Cobertura por equipo y/o Análisis por equipo en el generador. La lista muestra qué está configurado; Configurar este equipo lleva a sus reglas y señales. En Runtime, elija el equipo antes del análisis. Las opciones no configuradas quedan inactivas y explicadas sin bloquear las otras.
 
 Para revisar una referencia en Runtime, elija un perfil de equipo en el generador y marque Revisar datos de referencia. Agrega una Pantalla propia; no requiere configurar rendimiento o desviación. Aplique el conjunto, guarde, publique y active. En Runtime en vivo, abra Datos de referencia, elija un período conocido y seleccione Consultar referencia. Verá lecturas recibidas, aceptadas y rechazadas por señal y cuántas se pudieron usar juntas. Para comparar otro período, marque Comparar con otro período e indique un intervalo posterior sin solapamiento. Un número alto no demuestra que el equipo estuviera sano. Cambiar los períodos borra el resultado. El editor y la reproducción histórica no ejecutan esta consulta.
+
+Para consultar referencias de los equipos de una etapa, elija la etapa en el generador y marque Datos de referencia por equipo. No necesita configurar rendimiento o desviación. Usa la misma Pantalla de análisis de etapa; el conjunto sigue teniendo hasta tres Pantallas. En Runtime, abra Análisis por equipo, elija el equipo y seleccione Datos de referencia. Indique los períodos y consulte. Elegir otro equipo cierra el informe anterior, cancela una consulta pendiente y borra su resultado; no se consulta automáticamente el nuevo equipo.
 
 ### Cómo investigar resultado vacío
 

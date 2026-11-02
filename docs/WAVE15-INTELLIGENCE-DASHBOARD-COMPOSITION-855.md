@@ -62,7 +62,7 @@ O T1 anterior `41382956383`, head `ca028496`, terminou reprovado na auditoria de
 | Equipamento com somente uma análise configurada | Prova real com duas medições, consultas, persistência e reinício concluída acima; aceite visual pendente |
 | Desempenho e desvio com resultados visíveis e dados sintéticos | Consultas reais e resultados visíveis comprovados acima; falta aceite visual do proprietário |
 | Etapas do processo | Composição central de três vistas, com análises independentes por membro, publicada e consultada na API/PostgreSQL reais; persistência/reinício comprovados abaixo. Aceite visual final pendente |
-| Dados da referência no Runtime | Consumidor de perfil implementado e comprovado com API/PostgreSQL reais abaixo; inclusão da referência nas vistas de membros das etapas e aceite visual permanecem pendentes |
+| Dados da referência no Runtime | Consumidor de perfil e seletor por membro da etapa implementados e comprovados com API/PostgreSQL reais; aceite visual final pendente |
 | Condições e score conjunto no Runtime | Consumidores não entregues; consultas da Engenharia não são equivalência funcional no Runtime |
 | Aceite visual, figuras finais, integração | Pendentes; não fechar #855/#791 com este incremento |
 
@@ -111,4 +111,20 @@ Evidências reais: [Runtime](evidence/intelligence-855/reference-runtime.png), [
 
 **Pendência separada:** a auditoria de dependências Z-Wave foi adiada pelo proprietário e registrada na [#856](https://github.com/brunolrogerio-collab/EliteSCADA/issues/856). O T1 `41431610382`, head `c402b4ef`, terminou reprovado somente nos jobs Z-Wave Windows/Linux; Intelligence Windows/Linux/PostgreSQL, interface, .NET, Web, Chromium e HA-D2 de banco compartilhado passaram. Adiar a investigação não declara verde nem remove gate. Não repetir o CI desse SHA sem nova evidência.
 
-Continuam pendentes: condições e score conjunto no Runtime; referência no seletor de membros das etapas; revisão global de usabilidade e aceite visual. A implementação atual de referência é por perfil de equipamento. Preview/DEMO, Portal, métodos analíticos, Authority/licença e HA-D2 foram preservados.
+Na entrega de referência por perfil, permaneciam pendentes: condições e score conjunto no Runtime; referência no seletor de membros das etapas; revisão global de usabilidade e aceite visual. O incremento abaixo fecha a referência nos membros das etapas. Preview/DEMO, Portal, métodos analíticos, Authority/licença e HA-D2 foram preservados.
+
+## Referência nos membros da etapa — 02/11/2026
+
+O gerador da etapa agora oferece **Dados da referência por equipamento**, independente de desempenho/desvio. A opção usa o objeto de análises da etapa e o componente de referência existentes; compartilha a Tela de análises e preserva o limite de três Telas do conjunto. O seletor mantém o equipamento identificado pelo nome e abre seus próprios períodos/resultados, sem pedir IDs. Configurações antigas sem a opção não ganham consultas automáticas.
+
+Dentro de `availabilityVersion=2`, o membro pode declarar `referenceEvidence=true`. O gerador, renderer e servidor recusam falso, nulo, texto e marcador em configuração antiga. Usa os escopos/perfis já persistidos, sem tipo de objeto/endpoint/formato novo ou mudança de método. Trocar membro ou análise desmonta/cancela o relatório anterior e limpa o resultado; apenas abrir a referência não consulta o Historian. Configurar somente referência funciona sem regras de desempenho ou sensores de contexto.
+
+Na prova real isolada, o formulário gerou/aplicou três Telas com cobertura e referência, sem configurar desempenho/desvio. Na revisão final 37, foram consultados dois equipamentos: perfil com quatro sinais e perfil com dois; em ambos, 120 leituras aceitas por sinal e 120 conjuntos utilizáveis em cada período. Reutilizada a série sintética anterior, compartilhada deliberadamente, sem alegar medição física independente. A geração não executou análise; a troca limpou o relatório do membro anterior.
+
+A preparação ativou os dois escopos após a publicação. A segunda transição mudou a revisão e a consulta do primeiro respondeu `INTELLIGENCE_EXECUTION_PERMIT_REQUIRED`. O roteiro retomou as três Telas existentes, sem duplicá-las, e reativou explicitamente ambos na revisão 37, estável. Não se alterou o mecanismo de invalidação. Depois do reinício, os três IDs/chaves/vínculos persistiram; ambos os escopos responderam 409 antes da reativação explícita, e repetiram os mesmos totais depois.
+
+A inspeção mostrou que o rodapé podia sobrepor o formulário alto. O relatório passou a usar sua altura natural e os itens da coluna não encolhem; a rolagem mantém cabeçalho, formulário, resultado e rodapé acessíveis, sem sobreposição. Há regressão da geometria do rodapé além da troca/cancelamento. As capturas mostram o topo e a área de resultados separadamente, sem montagem.
+
+Evidências: [gerador](evidence/intelligence-855/stage-reference-generator.png), [Runtime — equipamento e formulário](evidence/intelligence-855/stage-reference-runtime.png), [resultados](evidence/intelligence-855/stage-reference-results.png), [resumo numérico](evidence/intelligence-855/stage-reference-results.json), [IDs publicados](evidence/intelligence-855/stage-reference-published.json) e [reinício](evidence/intelligence-855/stage-reference-restart.json). Help/manual pt-BR/en/es acompanham a opção; captura real de resultados incluída nos capítulos.
+
+Regressões focadas iniciais: Chromium 18/18 e validação Core de etapas 23/23. Validação final local: Chromium 72/72, Core Release do filtro CI 114/114, Help aprendizado/legibilidade 30/30, builds API/Web e alinhamento dos 69 arquivos aprovados. CI do novo SHA registrado no PR/#855. O predecessor 0473c5ff / T1 41438446039 terminou reprovado somente na auditoria Z-Wave Windows/Linux; todos os outros jobs executados passaram, inclusive Intelligence e Chromium. Não transferir esse resultado ao novo head. Condições e score conjunto no Runtime continuam não entregues; revisão global de usabilidade/aceite visual pendente. #856 permanece adiada. Preview/DEMO, Portal, métodos, segurança/licença e HA-D2 preservados.

@@ -68,6 +68,10 @@ Para conferir uma referência no Runtime, escolha um perfil de equipamento no ge
 
 ![Consulta no Runtime com dados sintéticos de validação](../../evidence/intelligence-855/reference-runtime.png)
 
+Para consultar referências dos equipamentos de uma etapa, escolha a etapa no gerador e marque Dados da referência por equipamento. Não é necessário configurar desempenho ou desvio. A opção usa a mesma Tela de análises da etapa; o conjunto continua com até três Telas. No Runtime, abra Análises por equipamento, escolha o equipamento e selecione Dados da referência. Informe os períodos e consulte. Ao escolher outro equipamento, o relatório anterior é fechado, a consulta em andamento é cancelada e o resultado é limpo; nada é consultado automaticamente para o novo equipamento.
+
+![Referência do equipamento selecionado na etapa, com dados sintéticos](../../evidence/intelligence-855/stage-reference-results.png)
+
 ## 5. Consultar análises
 
 Selecione o equipamento associado e escolha a análise disponível — como cobertura de perfil, desempenho ou desvio contextual. Defina o período e solicite a consulta explicitamente. Desvio contextual exige condições operacionais configuradas e evidência temporal suficiente. A análise é somente leitura; não altera TAG, não comanda equipamento e não substitui Alarmes.
@@ -251,6 +255,8 @@ Mesmo quando a unidade é a mesma, confira a comparação: o perfil operacional 
 Para etapas, selecione Cobertura por equipamento e/ou Análises por equipamento no gerador. A lista indica o que está configurado; Configurar este equipamento leva às regras e sinais daquele membro. No Runtime, escolha um equipamento antes da análise. Opções não configuradas ficam indisponíveis e explicadas, sem impedir as outras.
 
 Para conferir uma referência no Runtime, escolha um perfil de equipamento no gerador e marque Conferir dados da referência. A opção acrescenta uma Tela própria; não depende de configurar desempenho ou desvio. Aplique o conjunto, salve, publique e ative. No Runtime ao vivo, abra Dados da referência, escolha um período conhecido e selecione Consultar referência. Você verá leituras recebidas, aceitas e rejeitadas por sinal e quantas puderam ser usadas juntas. Se quiser comparar outro período, marque Comparar com outro período e informe um intervalo posterior, sem sobreposição. Uma contagem alta não comprova que o equipamento estava saudável. Mudar os períodos limpa o resultado. Editor e reprodução histórica não executam esta consulta.
+
+Para consultar referências dos equipamentos de uma etapa, escolha a etapa no gerador e marque Dados da referência por equipamento. Não é necessário configurar desempenho ou desvio. A opção usa a mesma Tela de análises da etapa; o conjunto continua com até três Telas. No Runtime, abra Análises por equipamento, escolha o equipamento e selecione Dados da referência. Informe os períodos e consulte. Ao escolher outro equipamento, o relatório anterior é fechado, a consulta em andamento é cancelada e o resultado é limpo; nada é consultado automaticamente para o novo equipamento.
 
 ### Roteiro para investigar resultado vazio
 

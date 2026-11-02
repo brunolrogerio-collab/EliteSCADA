@@ -154,11 +154,15 @@ test('Intelligence generates visible equipment and process dashboards in the can
   await processDashboardGenerator.getByTestId('intelligence-dashboard-source').selectOption({
     label: 'Etapa do processo · Pumping train'
   });
+  await expect(processDashboardGenerator.getByRole('checkbox', { name: 'Cobertura por equipamento', exact: true })).toBeChecked();
+  await expect(processDashboardGenerator.getByRole('checkbox', { name: 'Análises por equipamento', exact: true })).toBeDisabled();
   await processDashboardGenerator.getByTestId('intelligence-dashboard-generate').click();
   await expect(page).toHaveURL(/\/engineering\/screens$/);
   const processDashboardEditor = page.getByTestId('visual-editor-workspace');
   await expect(processDashboardEditor.getByLabel('Nome de exibição')).toHaveValue(/Pumping train/);
-  await expect(processDashboardEditor.getByTestId('visual-editor-generated-drafts').getByRole('button')).toHaveCount(1);
+  await expect(processDashboardEditor.getByTestId('visual-editor-generated-drafts').getByRole('button')).toHaveCount(2);
+  await processDashboardEditor.getByTestId('visual-editor-generated-drafts').getByRole('button', { name: /Cobertura da etapa/ }).click();
+  await expect(processDashboardEditor.getByTestId('runtime-intelligence-process-stage-coverage')).toBeVisible();
   await expect(processDashboardEditor.getByTestId('visual-editor-apply')).toBeDisabled();
 
   await openIntelligence();

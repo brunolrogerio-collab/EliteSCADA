@@ -23,6 +23,7 @@ import {
   generateIntelligenceProcessStageCoverageScreenDraft,
   generateIntelligenceProcessStageGuidedDashboardDrafts,
   generateIntelligenceProcessStageInsightsDashboardDraft,
+  generateIntelligenceProcessStageCompositionDrafts,
   generateIntelligenceGuidedDashboardDrafts,
   isNumericTagDataType,
   type IntelligenceDashboardAssignmentSource,
@@ -33,6 +34,7 @@ import {
   type IntelligenceGuidedDashboardSelections,
   type IntelligenceProfileCoverageDashboardSelection,
   type IntelligenceProcessStageCoverageDashboardSelection,
+  type IntelligenceProcessStageReportSelection,
   type IntelligenceProcessStageInsightsDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
@@ -444,7 +446,31 @@ export function AssetProcessIntelligenceWorkspace({
     return { ...coverage, members: members as NonNullable<typeof members[number]>[] };
   };
 
-  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean }) => {
+  const createProcessStageReportSelection = (stage: AssetProcessIntelligenceProcessStageEngineering): IntelligenceProcessStageReportSelection | null => {
+    const coverage = createProcessStageCoverageSelection(stage);
+    if (!coverage) return null;
+    return { ...coverage, members: coverage.members.map(member => {
+      const performance = guidedPerformanceSelections[member.assignmentId];
+      const contextualDeviation = guidedDeviationSelections[member.assignmentId];
+      return { ...member, availabilityVersion: 2 as const,
+        ...(performance ? { performance: { ruleId: performance.ruleId, ruleVersion: performance.ruleVersion, signalIds: performance.signalIds } } : {}),
+        ...(contextualDeviation ? { contextualDeviation: {
+          targetSignalIds: contextualDeviation.targetSignalIds,
+          firstContextSignalId: contextualDeviation.firstContextSignalId,
+          firstContextLowerInclusiveCanonical: contextualDeviation.firstContextLowerInclusiveCanonical,
+          firstContextUpperExclusiveCanonical: contextualDeviation.firstContextUpperExclusiveCanonical,
+          secondContextSignalId: contextualDeviation.secondContextSignalId,
+          secondContextLowerInclusiveCanonical: contextualDeviation.secondContextLowerInclusiveCanonical,
+          secondContextUpperExclusiveCanonical: contextualDeviation.secondContextUpperExclusiveCanonical
+        } } : {})
+      };
+    }) };
+  };
+  const dashboardStage = selectedDashboardSource?.source.kind === 'process-stage'
+    ? processStages.find(stage => stage.key === selectedDashboardSource.source.stableKey) : undefined;
+  const dashboardStageReports = dashboardStage ? createProcessStageReportSelection(dashboardStage) : null;
+
+  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean }) => {
     setError(null);
     setMessage(null);
     if (!snapshot?.licensed) {
@@ -464,6 +490,20 @@ export function AssetProcessIntelligenceWorkspace({
       return;
     }
     try {
+      if (source.kind === 'process-stage' && appearance) {
+        const stage = processStages.find(item => item.key === source.stableKey);
+        const coverage = stage ? createProcessStageCoverageSelection(stage) : null;
+        if (!stage) throw new Error(copy.dashboardSourceUnavailable);
+        if (!coverage) {
+          if (analyses?.stageCoverage || analyses?.stageReports) throw new Error(copy.dashboardSourceUnavailable);
+          onCreateDashboardDraft(generateIntelligenceDashboardDraft(screens, source, tags, locale, undefined, appearance));
+          return;
+        }
+        onCreateDashboardDraft(generateIntelligenceProcessStageCompositionDrafts(screens, source, coverage,
+          createProcessStageReportSelection(stage), tags, appearance,
+          { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true }, locale));
+        return;
+      }
       const assignmentId = source.kind === 'equipment-profile' ? source.assignments[0]?.assignmentId : undefined;
       onCreateDashboardDraft(appearance ? generateIntelligenceDashboardCompositionDrafts(screens, source, tags, {
         performance: analyses?.performance && assignmentId ? guidedPerformanceSelections[assignmentId] ?? undefined : undefined,
@@ -838,6 +878,17 @@ export function AssetProcessIntelligenceWorkspace({
           performanceAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedPerformanceSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
           deviationAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedDeviationSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
           deviationSignalCount={selectedDashboardSource.source.kind === 'equipment-profile' ? new Set(selectedDashboardTags.map(tag => tag.id!.toLowerCase())).size : undefined}
+          stage={dashboardStage ? {
+            coverageAvailable: Boolean(dashboardStageReports),
+            members: (dashboardStageReports?.members ?? []).map(member => ({
+              assignmentId: member.assignmentId, label: member.displayLabel,
+              performance: Boolean(member.performance), deviation: Boolean(member.contextualDeviation),
+              onConfigure: () => {
+                setSelectedProfileId(member.profileId);
+                requestAnimationFrame(() => document.getElementById(`intelligence-assignment-${member.assignmentId}`)?.scrollIntoView({ block: 'start' }));
+              }
+            }))
+          } : undefined}
           configurationHref={selectedDashboardSource.source.kind === 'equipment-profile' ? `#intelligence-assignment-${selectedDashboardSource.source.assignments[0]?.assignmentId}` : undefined}
           onGenerate={(appearance, analyses) => generateDashboard(selectedDashboardSource.source, appearance, analyses)}/>}
         {selectedDashboardSource && !selectedDashboardSource.hasNumericSignal ? <p role="status">{copy.dashboardSourceNeedsNumeric}</p> : null}

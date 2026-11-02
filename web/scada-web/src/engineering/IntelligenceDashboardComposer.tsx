@@ -4,17 +4,24 @@ import type { TagEngineering } from './types';
 import type { IntelligenceDashboardAppearance, IntelligenceMeasurementDraft } from './intelligenceDashboardGenerator';
 
 type Draft = { layout: IntelligenceMeasurementDraft['layout']; minimum: string; maximum: string; target: string; first: string; second: string };
-export function IntelligenceDashboardComposer({ locale, tags, disabled, performanceAvailable, deviationAvailable, deviationSignalCount, configurationHref, onGenerate }: {
+export function IntelligenceDashboardComposer({ locale, tags, disabled, performanceAvailable, deviationAvailable, deviationSignalCount, stage, configurationHref, onGenerate }: {
   locale: EngineeringLocale; tags: readonly TagEngineering[]; disabled: boolean;
   performanceAvailable: boolean; deviationAvailable: boolean; configurationHref?: string;
   deviationSignalCount?: number;
-  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean }) => void;
+  stage?: Readonly<{ coverageAvailable: boolean; members: readonly Readonly<{
+    assignmentId: string; label: string; performance: boolean; deviation: boolean; onConfigure: () => void;
+  }>[] }>;
+
+  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean; stageCoverage: boolean; stageReports: boolean }) => void;
 }) {
   const copy = TEXT[locale];
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [theme, setTheme] = useState<IntelligenceDashboardAppearance['theme']>('dark');
   const [performance, setPerformance] = useState(true);
   const [deviation, setDeviation] = useState(true);
+  const [stageCoverage, setStageCoverage] = useState(true);
+  const [stageReports, setStageReports] = useState(true);
+  const stageReportsAvailable = stage?.members.some(member => member.performance || member.deviation) ?? false;
   const number = (value: string) => value.trim() && Number.isFinite(Number(value)) ? Number(value) : undefined;
   const rows = tags.filter(tag => tag.id).map(tag => {
     const validScale = Number.isFinite(tag.scaleMinimum) && Number.isFinite(tag.scaleMaximum) && tag.scaleMinimum! < tag.scaleMaximum!;
@@ -50,21 +57,38 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
       </div>
       {!valid && <p role="status">{copy.invalid}</p>}
     </details>)}
-    <h3>{copy.analyses}</h3><p>{copy.analysesHint}</p>
-    <p>{copy.base}</p>
+    <h3>{copy.analyses}</h3><p>{stage ? copy.stageAnalysesHint : copy.analysesHint}</p>
+    <p>{stage ? copy.stageBase : copy.base}</p>
+    {stage ? <>
+      <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageCoverage && stage.coverageAvailable} disabled={disabled || !stage.coverageAvailable} onChange={e => setStageCoverage(e.currentTarget.checked)}/>{copy.stageCoverage}</label>
+      <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageReports && stageReportsAvailable} disabled={disabled || !stageReportsAvailable} onChange={e => setStageReports(e.currentTarget.checked)}/>{copy.stageReports}</label>
+      <p>{copy.stageHint}</p>
+      {!stage.coverageAvailable && <p>{copy.stageCoverageMissing}</p>}
+      {stage.members.map(member => <article key={member.assignmentId} className="asset-process-intelligence__row">
+        <strong>{member.label}</strong>
+        <span>{copy.performance}: {member.performance ? copy.ready : copy.notConfigured} · {copy.deviation}: {member.deviation ? copy.ready : copy.notConfigured}</span>
+        <button type="button" className="secondary" disabled={disabled} onClick={member.onConfigure}>{copy.configureMember}</button>
+      </article>)}
+    </> : <>
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={performance && performanceAvailable} disabled={disabled || !performanceAvailable} onChange={e => setPerformance(e.currentTarget.checked)}/>{copy.performance}</label>
     {!performanceAvailable && <p>{copy.performanceMissing}</p>}
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={deviation && deviationAvailable} disabled={disabled || !deviationAvailable} onChange={e => setDeviation(e.currentTarget.checked)}/>{copy.deviation}</label>
     {!deviationAvailable && <p>{deviationSignalCount !== undefined && deviationSignalCount < 4 ? copy.deviationNeedsSignals : copy.deviationMissing}</p>}
     {configurationHref && <a href={configurationHref}>{copy.configure}</a>}
+    </>}
     <p>{copy.otherAnalyses}</p>
     <button type="button" data-testid="intelligence-dashboard-generate" disabled={disabled || !rows.length || rows.some(row => !row.valid)}
-      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: performance && performanceAvailable, deviation: deviation && deviationAvailable })}>{copy.generate}</button>
+      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable) })}>{copy.generate}</button>
   </div>;
 }
 
 const TEXT = {
   'pt-BR': {
+    stageBase: 'Sempre incluído: medições e tendência. Abaixo, escolha se quer acrescentar cobertura e análises dos equipamentos.',
+    stageAnalysesHint: 'O painel pode ter até três telas ligadas por botões: medições, cobertura e análises. Na tela de análises, escolha o equipamento e o relatório que quer consultar.',
+    stageCoverageMissing: 'As vistas por equipamento precisam de uma etapa com 1 a 32 associações completas e distintas. A visão básica de medições continua disponível.',
+    stageCoverage: 'Cobertura por equipamento', stageReports: 'Análises por equipamento', ready: 'Disponível', notConfigured: 'Não configurado', configureMember: 'Configurar este equipamento',
+    stageHint: 'Cada equipamento mantém suas próprias análises. A vista reúne as opções configuradas; uma opção ausente não bloqueia as outras nem a cobertura. Use Configurar este equipamento para escolher suas regras e sinais antes de gerar.',
     deviationNeedsSignals: 'Este desvio precisa de pelo menos quatro medições distintas: duas para acompanhar e duas para definir as condições de comparação. As outras vistas disponíveis podem ser geradas sem ele.',
     otherAnalyses: 'As consultas de referência, condições do contexto e desvio conjunto experimental continuam na associação, em Engenharia. Elas ainda não geram uma vista própria no Runtime.',
     measurements: 'Objetos de medição', measurementsHint: 'Escolha a apresentação de cada medição. Escalas usam a unidade do TAG e podem vir do cadastro. Informe os limites reais; faixas e metas não são inferidas. Sem escala, use Valor numérico.',
@@ -75,6 +99,11 @@ const TEXT = {
     performance: 'Desempenho', performanceMissing: 'Desempenho ainda não configurado para esta origem. Escolha uma regra elegível na associação do equipamento.', deviation: 'Desvio contextual', deviationMissing: 'Desvio contextual ainda não configurado para esta origem. Escolha os sinais e as duas faixas de contexto na associação do equipamento.', configure: 'Configurar análises da associação', generate: 'Gerar painel e vistas selecionadas'
   },
   en: {
+    stageBase: 'Always included: measurements and trend. Below, choose whether to add equipment coverage and analyses.',
+    stageAnalysesHint: 'The dashboard can contain up to three screens linked by buttons: measurements, coverage and analyses. On the analyses screen, choose the equipment and report to query.',
+    stageCoverageMissing: 'Member views need a stage with 1 to 32 complete, distinct assignments. The basic measurement view remains available.',
+    stageCoverage: 'Member coverage', stageReports: 'Member analyses', ready: 'Available', notConfigured: 'Not configured', configureMember: 'Configure this equipment',
+    stageHint: 'Each equipment keeps its own analyses. The view lists configured options; a missing option does not block other analyses or coverage. Use Configure this equipment to choose its rules and signals before generating.',
     deviationNeedsSignals: 'This deviation needs at least four distinct measurements: two to monitor and two to define comparison conditions. Other available views can be generated without it.',
     otherAnalyses: 'Reference, context-condition and experimental joint-deviation queries remain in the Engineering assignment. They do not yet generate their own Runtime view.',
     measurements: 'Measurement objects', measurementsHint: 'Choose how to display each measurement. Scales use the TAG unit and may come from its settings. Enter actual limits; bands and targets are not inferred. Use Numeric value without a scale.',
@@ -85,6 +114,11 @@ const TEXT = {
     performance: 'Performance', performanceMissing: 'Performance is not configured for this source yet. Choose an eligible rule in the equipment assignment.', deviation: 'Contextual deviation', deviationMissing: 'Contextual deviation is not configured for this source yet. Choose signals and both context ranges in the equipment assignment.', configure: 'Configure assignment analyses', generate: 'Generate dashboard and selected views'
   },
   es: {
+    stageBase: 'Siempre incluido: mediciones y tendencia. Abajo, elija si desea agregar cobertura y análisis de los equipos.',
+    stageAnalysesHint: 'El panel puede tener hasta tres pantallas enlazadas por botones: mediciones, cobertura y análisis. En la pantalla de análisis, elija el equipo y el informe que desea consultar.',
+    stageCoverageMissing: 'Las vistas por equipo necesitan una etapa con 1 a 32 asignaciones completas y distintas. La vista básica de mediciones sigue disponible.',
+    stageCoverage: 'Cobertura por equipo', stageReports: 'Análisis por equipo', ready: 'Disponible', notConfigured: 'No configurado', configureMember: 'Configurar este equipo',
+    stageHint: 'Cada equipo conserva sus propios análisis. La vista reúne las opciones configuradas; una opción ausente no bloquea las otras ni la cobertura. Use Configurar este equipo para elegir sus reglas y señales antes de generar.',
     deviationNeedsSignals: 'Esta desviación necesita al menos cuatro mediciones distintas: dos para observar y dos para definir condiciones de comparación. Las otras vistas disponibles se pueden generar sin ella.',
     otherAnalyses: 'Las consultas de referencia, condiciones del contexto y desviación conjunta experimental siguen en la asignación de Ingeniería. Todavía no generan una vista propia en Runtime.',
     measurements: 'Objetos de medición', measurementsHint: 'Elija cómo mostrar cada medición. Las escalas usan la unidad del TAG y pueden venir de su configuración. Indique límites reales; no se infieren intervalos ni metas. Sin escala use Valor numérico.',

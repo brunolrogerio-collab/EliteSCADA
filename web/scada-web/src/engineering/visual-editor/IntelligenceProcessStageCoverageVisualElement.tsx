@@ -49,7 +49,7 @@ export function IntelligenceProcessStageCoverageVisualElement({
   }, [membersJson, selectedAssignmentId, members]);
 
   const rootStyle: CSSProperties = {
-    ...style,
+    ...style, flexDirection: 'column', alignItems: 'stretch', whiteSpace: 'normal',
     boxSizing: 'border-box',
     overflow: 'auto',
     padding: 12,

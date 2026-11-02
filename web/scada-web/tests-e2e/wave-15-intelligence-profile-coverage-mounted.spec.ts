@@ -306,6 +306,30 @@ test('two measurements can generate performance and coverage without contextual 
   expect(fixture.otherWrites).toEqual([]);
 });
 
+test('central stage composer creates coverage and partial member analyses without configuring unavailable reports', async ({ page }) => {
+  const fixture = await installWorkspace(page, { performanceReady: true, stageReady: true });
+  await openIntelligence(page);
+  const performance = page.getByTestId(`intelligence-performance-${profileId}`);
+  await performance.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
+  await performance.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
+  const generator = page.getByTestId('intelligence-dashboard-generator');
+  await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+  await expect(generator.getByRole('checkbox', { name: 'Cobertura por equipamento', exact: true })).toBeChecked();
+  await expect(generator.getByRole('checkbox', { name: 'Análises por equipamento', exact: true })).toBeChecked();
+  await expect(generator.getByText(/Desempenho: Disponível · Desvio contextual: Não configurado/)).toBeVisible();
+  await generator.getByTestId('intelligence-dashboard-generate').click();
+  const editor = page.getByTestId('visual-editor-workspace');
+  const drafts = editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
+  await expect(drafts).toHaveCount(3);
+  await drafts.last().click();
+  const insights = editor.getByTestId('runtime-intelligence-process-stage-insights');
+  await expect(insights.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeEnabled();
+  await expect(insights.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeDisabled();
+  expect(fixture.performanceRequests).toEqual([]);
+  expect(fixture.requests).toEqual([]);
+  expect(fixture.otherWrites).toEqual([]);
+});
+
 test('guided dashboard opens four independently editable linked drafts without querying or saving', async ({ page }) => {
   const fixture = await installWorkspace(page, { performanceReady: true, guidedDashboardReady: true });
   await openIntelligence(page);
@@ -577,6 +601,7 @@ async function installWorkspace(page: Page, options: {
   workspaceDirty?: boolean;
   performanceReady?: boolean;
   guidedDashboardReady?: boolean;
+  stageReady?: boolean;
   pumpPerformanceReady?: boolean;
   duplicatePerformanceRole?: boolean;
   mismatchedPerformanceRevision?: boolean;
@@ -712,7 +737,7 @@ async function installWorkspace(page: Page, options: {
       configuration: {
         version: 2,
         scopes: [{ kind: 'Equipment', scopeId: equipmentId, active: options.active !== false, executionArmed: options.armed !== false }],
-        profiles: [profile], assignments: [{ id: assignmentId, equipmentId, profileId }], processStages: [],
+        profiles: [profile], assignments: [{ id: assignmentId, equipmentId, profileId }], processStages: options.stageReady ? [{ id: '15000000-0000-0000-0000-000000000204', key: 'stage-test', name: 'Etapa de teste', order: 0, links: [{ assignmentId, order: 0 }] }] : [],
         operatingContextProfiles: options.operatingContexts || options.jointReady ? [{ id: '15000000-0000-0000-0000-000000000401',
           key: 'running', displayLabel: 'Bomba em operação', assignmentId, version: 3,
           predicates: [{ tagId: options.jointReady ? firstContextTagId : speedTagId, kind: 'NumericInterval', minimum: 1000, maximum: 1800 }] }] : []

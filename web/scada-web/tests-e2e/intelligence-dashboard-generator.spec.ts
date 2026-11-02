@@ -13,6 +13,7 @@ import {
   generateIntelligenceProcessStageCoverageScreenDraft,
   generateIntelligenceProcessStageGuidedDashboardDrafts,
   generateIntelligenceProcessStageInsightsDashboardDraft,
+  generateIntelligenceProcessStageCompositionDrafts,
   generateIntelligencePerformanceScreenDraft,
   INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS,
   INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS,
@@ -730,6 +731,50 @@ test('process-stage member-insights screen stores stable per-member report selec
       signalIds: ['99000000-0000-0000-0000-000000000009', '98000000-0000-0000-0000-000000000009']
     } }]
   }, 'en', ids())).toThrow(/belonging to every stable member profile/);
+});
+
+test('stage composition preserves independent member reports, authored widgets and a complete bounded navigation graph', () => {
+  const id = (n: number) => `85500000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const tags: TagEngineering[] = Array.from({ length: 8 }, (_, i) => ({ id: id(100 + i), name: `Reading ${i}`, path: `Stage.Tag${i}`, dataType: 'Double', readOnly: true }));
+  const assignments = [4, 2, 2].map((count, index) => ({
+    assignmentId: id(400 + index), scopeId: id(500 + index), equipmentName: `Pump ${index}`, equipmentPath: `Stage.Pump${index}`,
+    profile: { id: id(300 + index), key: `profile-${index}`, name: `Profile ${index}`, signals: Array.from({ length: count }, (_, i) => ({
+      id: id(200 + index * 10 + i), key: `signal-${i}`, signalRole: `Reading ${i}`, tagId: tags[index === 0 ? i : index === 1 ? 4 + i : 6 + i].id!, required: true
+    })) }
+  }));
+  const source = { kind: 'process-stage' as const, stableKey: 'stage', displayName: 'Pumping', assignments };
+  const coverage = { stageId: id(1), stageKey: source.stableKey, stageName: source.displayName,
+    members: assignments.map((a, order) => ({ assignmentId: a.assignmentId, scopeId: a.scopeId, profileId: a.profile.id, order, displayLabel: a.equipmentName })) };
+  const reports = { ...coverage, members: coverage.members.map((member, index) => ({ ...member, availabilityVersion: 2 as const,
+    ...(index < 2 ? { performance: { ruleId: 'specific-active-energy-at-recorded-production-rate.v1', ruleVersion: '1.0.0', signalIds: assignments[index].profile.signals.slice(0, 2).map(s => s.id) } } : {}),
+    ...(index === 0 ? { contextualDeviation: { targetSignalIds: assignments[0].profile.signals.slice(0, 2).map(s => s.id),
+      firstContextSignalId: assignments[0].profile.signals[2].id, firstContextLowerInclusiveCanonical: 0, firstContextUpperExclusiveCanonical: 10,
+      secondContextSignalId: assignments[0].profile.signals[3].id, secondContextLowerInclusiveCanonical: 0, secondContextUpperExclusiveCanonical: 100 } } : {})
+  })) };
+  const appearance = { theme: 'light' as const, measurements: { [tags[0].id!]: { layout: 'measurementDial' as const, minimum: 0, maximum: 100 } } };
+  const drafts = generateIntelligenceProcessStageCompositionDrafts([], source, coverage, reports, tags, appearance, { coverage: true, reports: true }, 'en', ids());
+  expect(drafts.map(s => s.metadata?.intelligenceDashboardViewRole)).toEqual(['values-trend', 'process-stage-coverage', 'process-stage-insights']);
+  expect(drafts[0].elements?.some(e => e.type === BUILTIN_VISUAL_OBJECT_TYPES.measurementDial)).toBe(true);
+  const widget = drafts[2].elements!.find(e => e.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1)!;
+  const persisted = JSON.parse(String(widget.properties?.intelligenceStageMembers));
+  expect(persisted).toEqual(reports.members);
+  expect(persisted[1]).not.toHaveProperty('contextualDeviation');
+  expect(persisted[2]).not.toHaveProperty('performance');
+  expect(persisted[2]).not.toHaveProperty('contextualDeviation');
+  const keys = new Set(drafts.map(s => s.key));
+  for (const screen of drafts) {
+    const links = screen.elements!.flatMap(e => e.actions ?? []).filter(a => a.kind === 'NavigateScreen');
+    expect(links).toHaveLength(2);
+    for (const link of links) expect(keys.has(link.targetKey!)).toBe(true);
+  }
+  expect(() => generateIntelligenceProcessStageInsightsDashboardDraft([], source, reports as any, 'en', ids())).toThrow();
+  const bad = { ...reports, members: reports.members.map((m, i) => i === 1 ? { ...m, performance: { ...m.performance!, signalIds: assignments[0].profile.signals.slice(0, 2).map(s => s.id) } } : m) };
+  expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, bad, tags, appearance, { coverage: true, reports: true }, 'en', ids())).toThrow(/belonging/);
+  expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, { ...reports, stageId: id(9) }, tags, appearance, { coverage: true, reports: true }, 'en', ids())).toThrow(/matching/);
+  expect(() => generateIntelligenceProcessStageCompositionDrafts([], source, coverage, { ...reports, members: reports.members.map(m => ({ ...m, availabilityVersion: 3 })) } as any, tags, appearance, { coverage: true, reports: true }, 'en', ids())).toThrow();
+  const basic = generateIntelligenceProcessStageCompositionDrafts([], source, coverage, null, tags, appearance, { coverage: false, reports: false }, 'en', ids());
+  expect(basic).toHaveLength(1);
+  expect(basic[0].elements!.flatMap(e => e.actions ?? []).filter(a => a.kind === 'NavigateScreen')).toEqual([]);
 });
 
 test('contextual deviation V2 Screen draft stores stable identities and declared canonical ranges only', () => {

@@ -151,8 +151,88 @@ test('process-stage member insights only query explicitly and clear/abort the ol
   await expect(visual.getByText(/Each report belongs only to the selected Equipment assignment/i)).toBeVisible();
 });
 
-function runtimeProjection() {
+test('stage availability v2 keeps usable reports independent and clears results for unavailable members', async ({ page }) => {
+  const fullOne = memberConfig(assignmentOne, scopeOne, profileOne, 'Pump one', 0, signalIdsOne);
+  const fullTwo = memberConfig(assignmentTwo, scopeTwo, profileTwo, 'Pump two', 1, signalIdsTwo);
+  const thirdId = '31000000-0000-0000-0000-000000000003';
   const members = [
+    { ...fullOne, availabilityVersion: 2, contextualDeviation: undefined },
+    { ...fullTwo, availabilityVersion: 2, performance: undefined },
+    { ...fullTwo, availabilityVersion: 2, assignmentId: thirdId, profileId: '71000000-0000-0000-0000-000000000007', order: 2, performance: undefined, contextualDeviation: undefined }
+  ];
+  const queries = await installStageFixture(page, members);
+  await page.goto('/');
+  const visual = page.getByTestId('runtime-intelligence-process-stage-insights');
+  const member = visual.getByTestId('runtime-intelligence-process-stage-insights-member');
+  await expect(visual).toHaveCSS('align-items', 'stretch');
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeEnabled();
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeDisabled();
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-performance').click();
+  const performance = visual.getByTestId('runtime-intelligence-performance');
+  await performance.getByLabel('From (local time)').fill('2026-10-20T10:00');
+  await performance.getByLabel('To (local time)').fill('2026-10-21T11:00');
+  expect(queries).toEqual([]);
+  await performance.getByRole('button', { name: 'Analyze' }).click();
+  await expect(performance.getByTestId('intelligence-performance-result')).toBeVisible();
+  await member.selectOption(assignmentTwo);
+  await expect(visual.getByTestId('runtime-intelligence-performance')).toHaveCount(0);
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeDisabled();
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeEnabled();
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-deviation').click();
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-v2')).toBeVisible();
+  await member.selectOption(thirdId);
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-v2')).toHaveCount(0);
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeDisabled();
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeDisabled();
+  await expect(visual.getByText(/Performance is not configured/)).toBeVisible();
+  await expect(visual.getByText(/Contextual deviation is not configured/)).toBeVisible();
+  expect(queries).toHaveLength(1);
+  expect(queries[0]).toMatchObject({ assignmentId: assignmentOne, scopeId: scopeOne, profileId: profileOne });
+});
+
+for (const invalid of ['legacy-missing-report', 'unknown-version', 'invalid-present-report', 'invalid-range'] as const) {
+  test(`stage member configuration rejects ${invalid} without analytic reads`, async ({ page }) => {
+    const member: any = memberConfig(assignmentOne, scopeOne, profileOne, 'Pump one', 0, signalIdsOne);
+    if (invalid === 'legacy-missing-report') delete member.performance;
+    if (invalid === 'unknown-version') member.availabilityVersion = 3;
+    if (invalid === 'invalid-present-report') { member.availabilityVersion = 2; member.performance = null; }
+    if (invalid === 'invalid-range') { member.availabilityVersion = 2; member.contextualDeviation.firstContextUpperExclusiveCanonical = 0; }
+    const queries = await installStageFixture(page, [member]);
+    await page.goto('/');
+    const visual = page.getByTestId('runtime-intelligence-process-stage-insights');
+    await expect(visual.getByRole('alert')).toContainText(/invalid or incomplete/);
+    await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-member')).toHaveCount(0);
+    expect(queries).toEqual([]);
+  });
+}
+
+async function installStageFixture(page: import('@playwright/test').Page, members: unknown[]) {
+  const queries: Array<Record<string, any>> = [];
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'en'));
+  await page.routeWebSocket('**/ws/tags', () => {});
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/auth/config') return route.fulfill({ json: { authenticationEnabled: false, localLoginEnabled: false, initialAdministratorRequired: false } });
+    if (path === '/api/engineering/persistence/status') return route.fulfill({ json: { enabled: true, hasProjects: true } });
+    if (path === '/api/auth/effective-capabilities') return route.fulfill({ json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+      authenticationEnabled: false, runtime: ['View', 'TrendUse'], workspace: []
+    } });
+    if (path === '/api/runtime/application') return route.fulfill({ json: runtimeProjection(members) });
+    if (path === '/api/runtime/client-memory') return route.fulfill({ json: [] });
+    if (path === catalogPath) return route.fulfill({ json: performanceCatalog() });
+    if (path === queryPath) {
+      const body = route.request().postDataJSON(); queries.push(body);
+      return route.fulfill({ json: performanceResponse(body) });
+    }
+    if (path.includes('/analytics/')) queries.push({ unexpected: path });
+    return route.fulfill({ status: 404, json: {} });
+  });
+  return queries;
+}
+
+function runtimeProjection(membersOverride?: unknown[]) {
+  const members = membersOverride ?? [
     memberConfig(assignmentOne, scopeOne, profileOne, 'Pump P-101 · Pump profile', 0, signalIdsOne),
     memberConfig(assignmentTwo, scopeTwo, profileTwo, 'Pump P-102 · Pump profile', 1, signalIdsTwo)
   ];
@@ -213,7 +293,7 @@ function performanceCatalog() {
 function performanceResponse(body: Record<string, any>) {
   return {
     contractVersion: 1, catalogVersion: 1, ruleId, ruleVersion, projectKey, activeRevision: revision,
-    scopeKind: 'Equipment', scopeId: body.scopeId, assignmentId: body.assignmentId,
+    scopeKind: 0, scopeId: body.scopeId, assignmentId: body.assignmentId,
     equipmentId: body.scopeId, profileId: body.profileId, window: body.window,
     signals: body.signalIds.map((signalId: string, index: number) => ({
       signalId, signalKey: index === 0 ? 'Active input power' : 'Net good production rate',

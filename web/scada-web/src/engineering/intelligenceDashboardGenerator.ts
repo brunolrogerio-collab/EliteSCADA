@@ -104,6 +104,13 @@ export type IntelligenceProcessStageInsightsDashboardSelection = Omit<Intelligen
   members: readonly IntelligenceProcessStageInsightsDashboardMember[];
 }>;
 
+export type IntelligenceProcessStageReportMember = Omit<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'> &
+  Partial<Pick<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'>> & Readonly<{ availabilityVersion?: 2 }>;
+
+export type IntelligenceProcessStageReportSelection = Omit<IntelligenceProcessStageCoverageDashboardSelection, 'members'> & Readonly<{
+  members: readonly IntelligenceProcessStageReportMember[];
+}>;
+
 type ResolvedSignal = Readonly<{
   assignment: IntelligenceDashboardAssignmentSource;
   signal: AssetProcessIntelligenceSignalEngineering;
@@ -492,7 +499,7 @@ export function generateIntelligenceDashboardCompositionDrafts(
 
 function linkDashboardDrafts(
   drafts: readonly ScreenEngineering[],
-  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation')[],
+  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights')[],
   locale: EngineeringLocale, allocateVisualId: () => string
 ): readonly ScreenEngineering[] {
   const navigationLabels = guidedDashboardNavigationLabels(locale);
@@ -855,7 +862,8 @@ export function generateIntelligenceProcessStageGuidedDashboardDrafts(
   selection: IntelligenceProcessStageGuidedDashboardSelection,
   tags: readonly TagEngineering[],
   locale: EngineeringLocale,
-  createId: () => string = () => crypto.randomUUID()
+  createId: () => string = () => crypto.randomUUID(),
+  appearance?: IntelligenceDashboardAppearance
 ): readonly ScreenEngineering[] {
   const orderedMembers = validateProcessStageCoverageSelection(selection);
   if (source.kind !== 'process-stage' || source.stableKey !== selection.stageKey ||
@@ -888,7 +896,7 @@ export function generateIntelligenceProcessStageGuidedDashboardDrafts(
   };
   const drafts: ScreenEngineering[] = [];
   const existingAndDrafts = () => [...existingScreens, ...drafts];
-  drafts.push(generateDashboardDraft(existingAndDrafts(), source, tags, locale, allocateVisualId, false));
+  drafts.push(generateDashboardDraft(existingAndDrafts(), source, tags, locale, allocateVisualId, false, appearance));
   drafts.push(generateIntelligenceProcessStageCoverageScreenDraft(existingAndDrafts(), {
     stageId: selection.stageId, stageKey: selection.stageKey, stageName: selection.stageName, members: orderedMembers
   }, locale, allocateVisualId));
@@ -951,6 +959,13 @@ export function generateIntelligenceProcessStageInsightsDashboardDraft(
   locale: EngineeringLocale,
   createId: () => string = () => crypto.randomUUID()
 ): ScreenEngineering {
+  const ordered = validateProcessStageReports(source, selection, false);
+  return generateIntelligenceProcessStageInsightsScreenDraft(existingScreens, ordered, locale, createId);
+}
+
+function validateProcessStageReports(
+  source: IntelligenceDashboardSource, selection: IntelligenceProcessStageReportSelection, allowPartial: boolean
+): IntelligenceProcessStageReportSelection {
   const orderedMembers = validateProcessStageCoverageSelection(selection);
   if (source.kind !== 'process-stage' || source.stableKey !== selection.stageKey ||
       source.displayName !== selection.stageName || source.assignments.length !== orderedMembers.length ||
@@ -980,34 +995,63 @@ export function generateIntelligenceProcessStageInsightsDashboardDraft(
     const deviationSignalIds = deviation
       ? [...deviation.targetSignalIds, deviation.firstContextSignalId, deviation.secondContextSignalId]
       : [];
-    if (!member || !performance || !deviation ||
+    if (!member || (member.availabilityVersion !== undefined && member.availabilityVersion !== 2) ||
+        (allowPartial ? member.availabilityVersion !== 2 : !performance || !deviation) ||
+        (performance !== undefined && (!performance ||
         performance.signalIds.length < 2 || performance.signalIds.length > 3 ||
         !performance.ruleId || performance.ruleId !== performance.ruleId.trim() || performance.ruleId.length > 128 ||
         !performance.ruleVersion || performance.ruleVersion !== performance.ruleVersion.trim() || performance.ruleVersion.length > 32 ||
         performance.signalIds.some(id => !isCanonicalUuid(id) || !profileSignalIds.has(id.toLowerCase())) ||
-        new Set(performance.signalIds.map(id => id.toLowerCase())).size !== performance.signalIds.length ||
-        deviation.targetSignalIds.length < 2 || deviation.targetSignalIds.length > 8 ||
+        new Set(performance.signalIds.map(id => id.toLowerCase())).size !== performance.signalIds.length)) ||
+        (deviation !== undefined && (!deviation || deviation.targetSignalIds.length < 2 || deviation.targetSignalIds.length > 8 ||
         deviationSignalIds.some(id => !isCanonicalUuid(id) || !profileSignalIds.has(id.toLowerCase())) ||
         new Set(deviationSignalIds.map(id => id.toLowerCase())).size !== deviationSignalIds.length ||
         !validCanonicalRange(deviation.firstContextLowerInclusiveCanonical, deviation.firstContextUpperExclusiveCanonical) ||
-        !validCanonicalRange(deviation.secondContextLowerInclusiveCanonical, deviation.secondContextUpperExclusiveCanonical)) {
+        !validCanonicalRange(deviation.secondContextLowerInclusiveCanonical, deviation.secondContextUpperExclusiveCanonical)))) {
       throw new Error('A process-stage member-insights screen requires complete Performance and contextual-deviation selections belonging to every stable member profile.');
     }
   }
 
-  const orderedSelection: IntelligenceProcessStageInsightsDashboardSelection = {
+  const orderedSelection: IntelligenceProcessStageReportSelection = {
     ...selection,
     members: orderedMembers.map(member => membersByAssignmentId.get(member.assignmentId.toLowerCase())!)
   };
   if (JSON.stringify(orderedSelection.members).length > 65536) {
     throw new Error('The process-stage member insight configuration exceeds the supported 64 KB limit.');
   }
-  return generateIntelligenceProcessStageInsightsScreenDraft(existingScreens, orderedSelection, locale, createId);
+  return orderedSelection;
+}
+
+
+/** Composes independent stage views; availability v2 changes presentation only, never analytical contracts. */
+export function generateIntelligenceProcessStageCompositionDrafts(
+  existingScreens: readonly ScreenEngineering[], source: IntelligenceDashboardSource,
+  coverage: IntelligenceProcessStageCoverageDashboardSelection, reports: IntelligenceProcessStageReportSelection | null,
+  tags: readonly TagEngineering[], appearance: IntelligenceDashboardAppearance,
+  include: Readonly<{ coverage: boolean; reports: boolean }>, locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): readonly ScreenEngineering[] {
+  const allocateId = createUniqueIdAllocator(createId);
+  const pair = generateIntelligenceProcessStageGuidedDashboardDrafts(existingScreens, source, coverage, tags, locale, allocateId, appearance);
+  const drafts = [pair[0]];
+  const roles: Array<'values-trend' | 'process-stage-coverage' | 'process-stage-insights'> = ['values-trend'];
+  if (include.coverage) { drafts.push(pair[1]); roles.push('process-stage-coverage'); }
+  if (include.reports) {
+    if (!reports || reports.stageId !== coverage.stageId || reports.stageKey !== coverage.stageKey || reports.stageName !== coverage.stageName ||
+        !reports.members.some(member => member.performance || member.contextualDeviation)) {
+      throw new Error('Stage reports require matching references and at least one configured member analysis.');
+    }
+    const ordered = validateProcessStageReports(source, reports, true);
+    drafts.push(generateIntelligenceProcessStageInsightsScreenDraft([...existingScreens, ...drafts], ordered, locale, allocateId));
+    roles.push('process-stage-insights');
+  }
+  const unlinked = drafts.map(screen => ({ ...screen, elements: (screen.elements ?? []).filter(element => !element.key.startsWith('intelligence-stage-guided-navigation-')) }));
+  return unlinked.length === 1 ? unlinked : linkDashboardDrafts(unlinked, roles, locale, allocateId);
 }
 
 function generateIntelligenceProcessStageInsightsScreenDraft(
   existingScreens: readonly ScreenEngineering[],
-  selection: IntelligenceProcessStageInsightsDashboardSelection,
+  selection: IntelligenceProcessStageReportSelection,
   locale: EngineeringLocale,
   createId: () => string
 ): ScreenEngineering {
@@ -1195,21 +1239,24 @@ export function isNumericTagDataType(dataType: string | null | undefined): boole
 }
 
 function guidedDashboardNavigationLabels(locale: EngineeringLocale): Readonly<Record<
-  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation', string
+  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights', string
 >> {
   if (locale === 'en') return {
+    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses',
     'values-trend': 'Values & trend',
     'profile-coverage': 'Coverage',
     performance: 'Performance',
     'contextual-deviation': 'Contextual deviation'
   };
   if (locale === 'es') return {
+    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo',
     'values-trend': 'Valores y tendencia',
     'profile-coverage': 'Cobertura',
     performance: 'Rendimiento',
     'contextual-deviation': 'Desviación contextual'
   };
   return {
+    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento',
     'values-trend': 'Valores e tendência',
     'profile-coverage': 'Cobertura',
     performance: 'Desempenho',

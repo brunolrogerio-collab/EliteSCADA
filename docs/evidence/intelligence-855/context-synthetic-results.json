@@ -1,0 +1,360 @@
+{
+  "syntheticOnly": true,
+  "sharedSyntheticDataset": true,
+  "queriesDuringGeneration": 0,
+  "results": [
+    {
+      "contextId": "85700000-0000-0000-0000-000000000501",
+      "label": "Sucção entre 0 e 200 kPa",
+      "profileVersion": 1,
+      "predicates": [
+        {
+          "tagId": "85500000-0000-0000-0000-000000000103",
+          "kind": 0,
+          "referenceAcceptedCount": 120,
+          "referenceMatchCount": 120,
+          "comparisonAcceptedCount": 120,
+          "comparisonMatchCount": 120,
+          "status": "context_match_available"
+        }
+      ],
+      "signals": [
+        {
+          "signalId": "85500000-0000-0000-0000-000000000201",
+          "signalKey": "medicao-0",
+          "required": true,
+          "tagId": "85500000-0000-0000-0000-000000000101",
+          "tagPath": "Validacao855.Sinal1",
+          "tagDataType": 5,
+          "engineeringUnit": "W",
+          "reference": {
+            "window": {
+              "fromUtc": "2026-11-01T16:57:00+00:00",
+              "toUtc": "2026-11-01T18:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 120,
+            "rejectionCounts": {},
+            "status": "context_match_available"
+          },
+          "comparison": {
+            "window": {
+              "fromUtc": "2026-11-01T20:57:00+00:00",
+              "toUtc": "2026-11-01T22:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 120,
+            "rejectionCounts": {},
+            "status": "context_match_available"
+          }
+        },
+        {
+          "signalId": "85500000-0000-0000-0000-000000000202",
+          "signalKey": "medicao-1",
+          "required": true,
+          "tagId": "85500000-0000-0000-0000-000000000102",
+          "tagPath": "Validacao855.Sinal2",
+          "tagDataType": 5,
+          "engineeringUnit": "m³/s",
+          "reference": {
+            "window": {
+              "fromUtc": "2026-11-01T16:57:00+00:00",
+              "toUtc": "2026-11-01T18:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 120,
+            "rejectionCounts": {},
+            "status": "context_match_available"
+          },
+          "comparison": {
+            "window": {
+              "fromUtc": "2026-11-01T20:57:00+00:00",
+              "toUtc": "2026-11-01T22:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 120,
+            "rejectionCounts": {},
+            "status": "context_match_available"
+          }
+        },
+        {
+          "signalId": "85500000-0000-0000-0000-000000000203",
+          "signalKey": "medicao-2",
+          "required": true,
+          "tagId": "85500000-0000-0000-0000-000000000103",
+          "tagPath": "Validacao855.Sinal3",
+          "tagDataType": 5,
+          "engineeringUnit": "kPa",
+          "reference": {
+            "window": {
+              "fromUtc": "2026-11-01T16:57:00+00:00",
+              "toUtc": "2026-11-01T18:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 120,
+            "contextEligibleObservationCount": 120,
+            "rejectionCounts": {},
+            "status": "context_match_available"
+          },
+          "comparison": {
+            "window": {
+              "fromUtc": "2026-11-01T20:57:00+00:00",
+              "toUtc": "2026-11-01T22:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 120,
+            "contextEligibleObservationCount": 120,
+            "rejectionCounts": {},
+            "status": "context_match_available"
+          }
+        },
+        {
+          "signalId": "85500000-0000-0000-0000-000000000204",
+          "signalKey": "medicao-3",
+          "required": true,
+          "tagId": "85500000-0000-0000-0000-000000000104",
+          "tagPath": "Validacao855.Sinal4",
+          "tagDataType": 5,
+          "engineeringUnit": "kPa",
+          "reference": {
+            "window": {
+              "fromUtc": "2026-11-01T16:57:00+00:00",
+              "toUtc": "2026-11-01T18:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 120,
+            "rejectionCounts": {},
+            "status": "context_match_available"
+          },
+          "comparison": {
+            "window": {
+              "fromUtc": "2026-11-01T20:57:00+00:00",
+              "toUtc": "2026-11-01T22:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 120,
+            "rejectionCounts": {},
+            "status": "context_match_available"
+          }
+        }
+      ]
+    },
+    {
+      "contextId": "85700000-0000-0000-0000-000000000502",
+      "label": "Sucção entre 0 e 50 kPa",
+      "profileVersion": 1,
+      "predicates": [
+        {
+          "tagId": "85500000-0000-0000-0000-000000000103",
+          "kind": 0,
+          "referenceAcceptedCount": 120,
+          "referenceMatchCount": 0,
+          "comparisonAcceptedCount": 120,
+          "comparisonMatchCount": 0,
+          "status": "predicate_mismatch"
+        }
+      ],
+      "signals": [
+        {
+          "signalId": "85500000-0000-0000-0000-000000000201",
+          "signalKey": "medicao-0",
+          "required": true,
+          "tagId": "85500000-0000-0000-0000-000000000101",
+          "tagPath": "Validacao855.Sinal1",
+          "tagDataType": 5,
+          "engineeringUnit": "W",
+          "reference": {
+            "window": {
+              "fromUtc": "2026-11-01T16:57:00+00:00",
+              "toUtc": "2026-11-01T18:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 0,
+            "rejectionCounts": {},
+            "status": "predicate_mismatch"
+          },
+          "comparison": {
+            "window": {
+              "fromUtc": "2026-11-01T20:57:00+00:00",
+              "toUtc": "2026-11-01T22:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 0,
+            "rejectionCounts": {},
+            "status": "predicate_mismatch"
+          }
+        },
+        {
+          "signalId": "85500000-0000-0000-0000-000000000202",
+          "signalKey": "medicao-1",
+          "required": true,
+          "tagId": "85500000-0000-0000-0000-000000000102",
+          "tagPath": "Validacao855.Sinal2",
+          "tagDataType": 5,
+          "engineeringUnit": "m³/s",
+          "reference": {
+            "window": {
+              "fromUtc": "2026-11-01T16:57:00+00:00",
+              "toUtc": "2026-11-01T18:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 0,
+            "rejectionCounts": {},
+            "status": "predicate_mismatch"
+          },
+          "comparison": {
+            "window": {
+              "fromUtc": "2026-11-01T20:57:00+00:00",
+              "toUtc": "2026-11-01T22:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 0,
+            "rejectionCounts": {},
+            "status": "predicate_mismatch"
+          }
+        },
+        {
+          "signalId": "85500000-0000-0000-0000-000000000203",
+          "signalKey": "medicao-2",
+          "required": true,
+          "tagId": "85500000-0000-0000-0000-000000000103",
+          "tagPath": "Validacao855.Sinal3",
+          "tagDataType": 5,
+          "engineeringUnit": "kPa",
+          "reference": {
+            "window": {
+              "fromUtc": "2026-11-01T16:57:00+00:00",
+              "toUtc": "2026-11-01T18:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 0,
+            "rejectionCounts": {},
+            "status": "predicate_mismatch"
+          },
+          "comparison": {
+            "window": {
+              "fromUtc": "2026-11-01T20:57:00+00:00",
+              "toUtc": "2026-11-01T22:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 0,
+            "rejectionCounts": {},
+            "status": "predicate_mismatch"
+          }
+        },
+        {
+          "signalId": "85500000-0000-0000-0000-000000000204",
+          "signalKey": "medicao-3",
+          "required": true,
+          "tagId": "85500000-0000-0000-0000-000000000104",
+          "tagPath": "Validacao855.Sinal4",
+          "tagDataType": 5,
+          "engineeringUnit": "kPa",
+          "reference": {
+            "window": {
+              "fromUtc": "2026-11-01T16:57:00+00:00",
+              "toUtc": "2026-11-01T18:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 0,
+            "rejectionCounts": {},
+            "status": "predicate_mismatch"
+          },
+          "comparison": {
+            "window": {
+              "fromUtc": "2026-11-01T20:57:00+00:00",
+              "toUtc": "2026-11-01T22:56:00+00:00"
+            },
+            "rawObservationCount": 120,
+            "goodFiniteNumericCount": 120,
+            "acceptedSynchronizedUniqueCount": 120,
+            "ambiguousSourceTimestampGroupCount": 0,
+            "ambiguousSourceTimestampRowCount": 0,
+            "predicateMatchCount": 0,
+            "contextEligibleObservationCount": 0,
+            "rejectionCounts": {},
+            "status": "predicate_mismatch"
+          }
+        }
+      ]
+    }
+  ],
+  "oldResultCleared": true,
+  "staleVersion": {
+    "status": 409,
+    "code": "INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_STALE"
+  }
+}

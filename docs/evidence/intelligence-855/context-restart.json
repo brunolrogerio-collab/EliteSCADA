@@ -1,0 +1,46 @@
+{
+  "syntheticOnly": true,
+  "screens": [
+    {
+      "id": "4fd8e873-980c-4525-85c8-f0a862bc442d",
+      "key": "intelligence-context-conditions-bomba-de-validacao-local-painel-analitico-sintet",
+      "role": "context-eligibility"
+    },
+    {
+      "id": "28f1b062-43fa-4422-9fe8-882d3837d54a",
+      "key": "intelligence-planta.bomba-validacao-painel-855-3",
+      "role": "values-trend"
+    }
+  ],
+  "contexts": [
+    {
+      "id": "85700000-0000-0000-0000-000000000501",
+      "version": 1
+    },
+    {
+      "id": "85700000-0000-0000-0000-000000000502",
+      "version": 1
+    }
+  ],
+  "persistedIdentity": true,
+  "beforeRearm": {
+    "status": 409,
+    "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+  },
+  "afterExplicitRearm": [
+    {
+      "contextId": "85700000-0000-0000-0000-000000000501",
+      "version": 1,
+      "activeRevision": 41,
+      "eligiblePerSignal": 120,
+      "signalCount": 4
+    },
+    {
+      "contextId": "85700000-0000-0000-0000-000000000502",
+      "version": 1,
+      "activeRevision": 41,
+      "eligiblePerSignal": 0,
+      "signalCount": 4
+    }
+  ]
+}

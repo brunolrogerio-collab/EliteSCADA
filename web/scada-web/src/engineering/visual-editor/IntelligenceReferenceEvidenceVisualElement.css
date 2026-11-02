@@ -31,3 +31,4 @@
 .runtime-intelligence-reference-evidence button { color: var(--eng-text); background: var(--eng-panel); border: 1px solid var(--eng-border); border-radius: 4px; padding: 8px 12px; font: inherit; }
 .runtime-intelligence-reference-evidence button:disabled { opacity: .55; }
 .runtime-intelligence-reference-evidence [data-testid="intelligence-reference-evidence-result"] { display: grid; gap: 16px; }
+.runtime-intelligence-reference-evidence [data-testid="intelligence-context-eligibility-result"] { display: grid; gap: 16px; }

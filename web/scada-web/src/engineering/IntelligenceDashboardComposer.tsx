@@ -4,16 +4,16 @@ import type { TagEngineering } from './types';
 import type { IntelligenceDashboardAppearance, IntelligenceMeasurementDraft } from './intelligenceDashboardGenerator';
 
 type Draft = { layout: IntelligenceMeasurementDraft['layout']; minimum: string; maximum: string; target: string; first: string; second: string };
-export function IntelligenceDashboardComposer({ locale, tags, disabled, performanceAvailable, deviationAvailable, deviationSignalCount, referenceAvailable = false, stage, configurationHref, onGenerate }: {
+export function IntelligenceDashboardComposer({ locale, tags, disabled, performanceAvailable, deviationAvailable, deviationSignalCount, referenceAvailable = false, contextAvailable = false, stage, configurationHref, onGenerate }: {
   locale: EngineeringLocale; tags: readonly TagEngineering[]; disabled: boolean;
   performanceAvailable: boolean; deviationAvailable: boolean; configurationHref?: string;
   deviationSignalCount?: number;
-  referenceAvailable?: boolean;
+  referenceAvailable?: boolean; contextAvailable?: boolean;
   stage?: Readonly<{ coverageAvailable: boolean; members: readonly Readonly<{
     assignmentId: string; label: string; performance: boolean; deviation: boolean; onConfigure: () => void;
   }>[] }>;
 
-  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean; stageCoverage: boolean; stageReports: boolean; referenceEvidence: boolean; stageReferenceEvidence: boolean }) => void;
+  onGenerate: (appearance: IntelligenceDashboardAppearance, analyses: { performance: boolean; deviation: boolean; stageCoverage: boolean; stageReports: boolean; referenceEvidence: boolean; stageReferenceEvidence: boolean; contextEligibility: boolean }) => void;
 }) {
   const copy = TEXT[locale];
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -22,6 +22,7 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
   const [deviation, setDeviation] = useState(true);
   const [stageCoverage, setStageCoverage] = useState(true);
   const [stageReports, setStageReports] = useState(true);
+  const [contextEligibility, setContextEligibility] = useState(false);
   const [stageReferenceEvidence, setStageReferenceEvidence] = useState(false);
   const [referenceEvidence, setReferenceEvidence] = useState(false);
   const stageReportsAvailable = stage?.members.some(member => member.performance || member.deviation) ?? false;
@@ -77,6 +78,8 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     </> : <>
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={referenceEvidence && referenceAvailable} disabled={disabled || !referenceAvailable} onChange={e => setReferenceEvidence(e.currentTarget.checked)}/>{copy.referenceEvidence}</label>
     <p>{copy.referenceHint}</p>
+    <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={contextEligibility && contextAvailable} disabled={disabled || !contextAvailable} onChange={e => setContextEligibility(e.currentTarget.checked)}/>{copy.contextEligibility}</label>
+    <p>{contextAvailable ? copy.contextHint : copy.contextMissing}</p>
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={performance && performanceAvailable} disabled={disabled || !performanceAvailable} onChange={e => setPerformance(e.currentTarget.checked)}/>{copy.performance}</label>
     {!performanceAvailable && <p>{copy.performanceMissing}</p>}
     <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={deviation && deviationAvailable} disabled={disabled || !deviationAvailable} onChange={e => setDeviation(e.currentTarget.checked)}/>{copy.deviation}</label>
@@ -85,12 +88,13 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     </>}
     <p>{copy.otherAnalyses}</p>
     <button type="button" data-testid="intelligence-dashboard-generate" disabled={disabled || !rows.length || rows.some(row => !row.valid)}
-      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable, stageReferenceEvidence: Boolean(stage && stageReferenceEvidence && stage.coverageAvailable) })}>{copy.generate}</button>
+      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable, contextEligibility: !stage && contextEligibility && contextAvailable, stageReferenceEvidence: Boolean(stage && stageReferenceEvidence && stage.coverageAvailable) })}>{copy.generate}</button>
   </div>;
 }
 
 const TEXT = {
   'pt-BR': {
+    contextEligibility: 'Condições de operação', contextHint: 'Acrescente uma tela para conferir quais leituras atendem aos contextos salvos. No Runtime, escolha o contexto pelo nome e consulte um período.', contextMissing: 'Salve um contexto operacional desta associação para acrescentar a vista de condições. As outras vistas continuam disponíveis.',
     stageReference: 'Dados da referência por equipamento', stageReferenceHint: 'Acrescente a conferência da referência à tela de análises da etapa. Você escolhe um equipamento de cada vez e consulta os períodos desejados. Não exige configurar desempenho ou desvio.',
     referenceEvidence: 'Conferir dados da referência', referenceHint: 'Acrescente uma tela para escolher um período conhecido e conferir as leituras disponíveis. Isso ajuda a avaliar os dados antes de uma comparação; não confirma que o equipamento estava saudável.',
     stageBase: 'Sempre incluído: medições e tendência. Abaixo, escolha se quer acrescentar cobertura e análises dos equipamentos.',
@@ -99,7 +103,7 @@ const TEXT = {
     stageCoverage: 'Cobertura por equipamento', stageReports: 'Análises por equipamento', ready: 'Disponível', notConfigured: 'Não configurado', configureMember: 'Configurar este equipamento',
     stageHint: 'Cada equipamento mantém suas próprias análises. A vista reúne as opções configuradas; uma opção ausente não bloqueia as outras nem a cobertura. Use Configurar este equipamento para escolher suas regras e sinais antes de gerar.',
     deviationNeedsSignals: 'Este desvio precisa de pelo menos quatro medições distintas: duas para acompanhar e duas para definir as condições de comparação. As outras vistas disponíveis podem ser geradas sem ele.',
-    otherAnalyses: 'As condições do contexto e o desvio conjunto experimental continuam na associação, em Engenharia. Essas duas consultas ainda não geram uma vista própria no Runtime.',
+    otherAnalyses: 'O desvio conjunto experimental continua na associação, em Engenharia; ainda não gera uma vista própria no Runtime.',
     measurements: 'Objetos de medição', measurementsHint: 'Escolha a apresentação de cada medição. Escalas usam a unidade do TAG e podem vir do cadastro. Informe os limites reais; faixas e metas não são inferidas. Sem escala, use Valor numérico.',
     theme: 'Tema dos objetos', dark: 'Escuro', light: 'Claro', contrast: 'Alto contraste', layout: 'Objeto',
     layouts: { value: 'Valor numérico', measurementDial: 'Gauge semicircular', measurementRing: 'Anel circular', measurementBar: 'Barra horizontal', measurementThermometer: 'Régua vertical', measurementBands: 'Escala por faixas', measurementTarget: 'Valor e meta' },
@@ -108,6 +112,7 @@ const TEXT = {
     performance: 'Desempenho', performanceMissing: 'Desempenho ainda não configurado para esta origem. Escolha uma regra elegível na associação do equipamento.', deviation: 'Desvio contextual', deviationMissing: 'Desvio contextual ainda não configurado para esta origem. Escolha os sinais e as duas faixas de contexto na associação do equipamento.', configure: 'Configurar análises da associação', generate: 'Gerar painel e vistas selecionadas'
   },
   en: {
+    contextEligibility: 'Operating conditions', contextHint: 'Add a screen to check which readings meet saved context conditions. In Runtime, choose a context by name and query a period.', contextMissing: 'Save an operating context for this assignment to add the conditions view. Other views remain available.',
     stageReference: 'Reference data per equipment', stageReferenceHint: 'Add reference-data checks to the stage analyses screen. Choose one equipment at a time and query the desired periods. Performance or deviation configuration is not required.',
     referenceEvidence: 'Check reference data', referenceHint: 'Add a screen to choose a known period and check the available readings. This helps review the data before a comparison; it does not confirm the equipment was healthy.',
     stageBase: 'Always included: measurements and trend. Below, choose whether to add equipment coverage and analyses.',
@@ -116,7 +121,7 @@ const TEXT = {
     stageCoverage: 'Member coverage', stageReports: 'Member analyses', ready: 'Available', notConfigured: 'Not configured', configureMember: 'Configure this equipment',
     stageHint: 'Each equipment keeps its own analyses. The view lists configured options; a missing option does not block other analyses or coverage. Use Configure this equipment to choose its rules and signals before generating.',
     deviationNeedsSignals: 'This deviation needs at least four distinct measurements: two to monitor and two to define comparison conditions. Other available views can be generated without it.',
-    otherAnalyses: 'Context-condition and experimental joint-deviation queries remain in the Engineering assignment. These two queries do not yet generate their own Runtime view.',
+    otherAnalyses: 'Experimental joint deviation remains in the Engineering assignment; it does not yet generate its own Runtime view.',
     measurements: 'Measurement objects', measurementsHint: 'Choose how to display each measurement. Scales use the TAG unit and may come from its settings. Enter actual limits; bands and targets are not inferred. Use Numeric value without a scale.',
     theme: 'Object theme', dark: 'Dark', light: 'Light', contrast: 'High contrast', layout: 'Object',
     layouts: { value: 'Numeric value', measurementDial: 'Semicircular dial', measurementRing: 'Circular ring', measurementBar: 'Horizontal bar', measurementThermometer: 'Vertical ruler', measurementBands: 'Segmented bands', measurementTarget: 'Value and target' },
@@ -125,6 +130,7 @@ const TEXT = {
     performance: 'Performance', performanceMissing: 'Performance is not configured for this source yet. Choose an eligible rule in the equipment assignment.', deviation: 'Contextual deviation', deviationMissing: 'Contextual deviation is not configured for this source yet. Choose signals and both context ranges in the equipment assignment.', configure: 'Configure assignment analyses', generate: 'Generate dashboard and selected views'
   },
   es: {
+    contextEligibility: 'Condiciones de operación', contextHint: 'Agregue una pantalla para revisar qué lecturas cumplen los contextos guardados. En Runtime, elija el contexto por nombre y consulte un período.', contextMissing: 'Guarde un contexto operativo de esta asignación para agregar la vista de condiciones. Las otras vistas siguen disponibles.',
     stageReference: 'Datos de referencia por equipo', stageReferenceHint: 'Agregue la revisión de referencia a la pantalla de análisis de etapa. Elija un equipo cada vez y consulte los períodos deseados. No requiere configurar rendimiento o desviación.',
     referenceEvidence: 'Revisar datos de referencia', referenceHint: 'Agregue una pantalla para elegir un período conocido y revisar las lecturas disponibles. Ayuda a evaluar los datos antes de comparar; no confirma que el equipo estuviera sano.',
     stageBase: 'Siempre incluido: mediciones y tendencia. Abajo, elija si desea agregar cobertura y análisis de los equipos.',
@@ -133,7 +139,7 @@ const TEXT = {
     stageCoverage: 'Cobertura por equipo', stageReports: 'Análisis por equipo', ready: 'Disponible', notConfigured: 'No configurado', configureMember: 'Configurar este equipo',
     stageHint: 'Cada equipo conserva sus propios análisis. La vista reúne las opciones configuradas; una opción ausente no bloquea las otras ni la cobertura. Use Configurar este equipo para elegir sus reglas y señales antes de generar.',
     deviationNeedsSignals: 'Esta desviación necesita al menos cuatro mediciones distintas: dos para observar y dos para definir condiciones de comparación. Las otras vistas disponibles se pueden generar sin ella.',
-    otherAnalyses: 'Las condiciones del contexto y la desviación conjunta experimental siguen en la asignación de Ingeniería. Estas dos consultas todavía no generan una vista propia en Runtime.',
+    otherAnalyses: 'La desviación conjunta experimental sigue en la asignación de Ingeniería; todavía no genera una vista propia en Runtime.',
     measurements: 'Objetos de medición', measurementsHint: 'Elija cómo mostrar cada medición. Las escalas usan la unidad del TAG y pueden venir de su configuración. Indique límites reales; no se infieren intervalos ni metas. Sin escala use Valor numérico.',
     theme: 'Tema de los objetos', dark: 'Oscuro', light: 'Claro', contrast: 'Alto contraste', layout: 'Objeto',
     layouts: { value: 'Valor numérico', measurementDial: 'Dial semicircular', measurementRing: 'Anillo circular', measurementBar: 'Barra horizontal', measurementThermometer: 'Regla vertical', measurementBands: 'Escala por intervalos', measurementTarget: 'Valor y meta' },

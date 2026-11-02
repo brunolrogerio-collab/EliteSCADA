@@ -106,6 +106,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceReferenceEvidenceV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey, referenceEvidence: true));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceContextEligibilityV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceContextEligibilityV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageCoverageV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProcessStageCoverageV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageInsightsV1Type, StringComparison.Ordinal))
@@ -348,6 +350,39 @@ public static class BuiltinVisualEngineeringValidation
                 entityKind,
                 entityKey);
         }
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligenceContextEligibilityV1(
+        VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
+    {
+        var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
+        var json = ReadString(element, VisualPropertyKeys.IntelligenceOperatingContexts);
+        JsonElement[]? contexts = null;
+        if (json is { Length: <= 32768 })
+        {
+            try { contexts = JsonSerializer.Deserialize<JsonElement[]>(json); }
+            catch (JsonException) { }
+        }
+        var ids = new HashSet<Guid>();
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out _)) ||
+            contexts is not { Length: >= 1 and <= 32 } || contexts.Any(context =>
+                context.ValueKind != JsonValueKind.Object || !TryReadGuid(context, "id", out var id) || !ids.Add(id) ||
+                context.EnumerateObject().Any(property => property.Name is not ("id" or "displayLabel" or "version" or "predicateTagIds")) ||
+                !TryReadBoundedString(context, "displayLabel", 128, out _) ||
+                !TryReadNonNegativeInt32(context, "version", out var version) || version == 0 ||
+                !ValidContextPredicateReferences(context)))
+            yield return Error("VISUAL_INTELLIGENCE_CONTEXT_ELIGIBILITY_CONFIG_INVALID",
+                $"Context conditions visual '{element.Key}' requires a Screen, stable scope/assignment/profile and a bounded versioned context reference list.", entityKind, entityKey);
+    }
+
+    private static bool ValidContextPredicateReferences(JsonElement context)
+    {
+        if (!context.TryGetProperty("predicateTagIds", out var predicates) || predicates.ValueKind != JsonValueKind.Array ||
+            predicates.GetArrayLength() is < 1 or > 16) return false;
+        var ids = new HashSet<Guid>();
+        foreach (var tag in predicates.EnumerateArray())
+            if (tag.ValueKind != JsonValueKind.String || !Guid.TryParseExact(tag.GetString(), "D", out var id) || !ids.Add(id)) return false;
+        return true;
     }
 
     private static IEnumerable<ImportIssue> ValidateIntelligenceProcessStageCoverageV1(

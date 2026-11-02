@@ -39,6 +39,7 @@ public static class BuiltinVisualObjectSchemas
     public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
     public const string IntelligenceProfileCoverageV1Type = "core.intelligenceProfileCoverageV1";
     public const string IntelligenceReferenceEvidenceV1Type = "core.intelligenceReferenceEvidenceV1";
+    public const string IntelligenceContextEligibilityV1Type = "core.intelligenceContextEligibilityV1";
     public const string IntelligenceProcessStageCoverageV1Type = "core.intelligenceProcessStageCoverageV1";
     public const string IntelligenceProcessStageInsightsV1Type = "core.intelligenceProcessStageInsightsV1";
     public const string IntelligenceContextualDeviationV2Type = "core.intelligenceContextualDeviationV2";
@@ -123,7 +124,8 @@ public static class BuiltinVisualObjectSchemas
         new(VisualPropertyKeys.IntelligenceStageId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
         new(VisualPropertyKeys.IntelligenceStageKey, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
         new(VisualPropertyKeys.IntelligenceStageName, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
-        new(VisualPropertyKeys.IntelligenceStageMembers, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
+        new(VisualPropertyKeys.IntelligenceStageMembers, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceOperatingContexts, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
     ];
 
     private static readonly IReadOnlyDictionary<string, VisualPropertyDefinition> CommonByKey =
@@ -507,6 +509,15 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.IntelligenceProfileId
         ]));
 
+    public static VisualObjectPropertySchema IntelligenceContextEligibilityV1 { get; } = Create(
+        IntelligenceContextEligibilityV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceAssignmentId,
+            VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceOperatingContexts
+        ]));
+
     public static VisualObjectPropertySchema IntelligenceProcessStageInsightsV1 { get; } = Create(
         IntelligenceProcessStageInsightsV1Type,
         Base.Concat([
@@ -565,6 +576,7 @@ public static class BuiltinVisualObjectSchemas
         IntelligencePerformanceV1B,
         IntelligenceProfileCoverageV1,
         IntelligenceReferenceEvidenceV1,
+        IntelligenceContextEligibilityV1,
         IntelligenceProcessStageCoverageV1,
         IntelligenceProcessStageInsightsV1,
         IntelligenceContextualDeviationV2

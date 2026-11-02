@@ -895,3 +895,26 @@ test('stage composer creates reference-only member reports independently of perf
   expect(fixture.requests).toEqual([]);
   expect(fixture.otherWrites).toEqual([]);
 });
+
+test('composer offers saved context conditions independently and keeps authoring read-only', async ({ page }) => {
+  const fixture = await installWorkspace(page, { operatingContexts: true });
+  await openIntelligence(page);
+  const generator = page.getByTestId('intelligence-dashboard-generator');
+  await generator.getByRole('checkbox', { name: 'Condições de operação', exact: true }).check();
+  await generator.getByTestId('intelligence-dashboard-generate').click();
+  const editor = page.getByTestId('visual-editor-workspace');
+  const drafts = editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
+  await expect(drafts).toHaveCount(2); await drafts.last().click();
+  const report = editor.getByTestId('runtime-intelligence-context-eligibility');
+  await expect(report).toBeVisible();
+  await expect(report.getByRole('button', { name: 'Consultar condições', exact: true, includeHidden: true })).toBeDisabled();
+  expect(fixture.requests).toEqual([]); expect(fixture.otherWrites).toEqual([]);
+});
+
+test('composer explains missing saved context without blocking the basic dashboard', async ({ page }) => {
+  await installWorkspace(page); await openIntelligence(page);
+  const generator = page.getByTestId('intelligence-dashboard-generator');
+  await expect(generator.getByRole('checkbox', { name: 'Condições de operação', exact: true })).toBeDisabled();
+  await expect(generator.getByText(/Salve um contexto operacional/)).toBeVisible();
+  await expect(generator.getByTestId('intelligence-dashboard-generate')).toBeEnabled();
+});

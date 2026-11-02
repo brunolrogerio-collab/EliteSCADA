@@ -133,6 +133,7 @@ export const VISUAL_PROPERTY_KEYS = {
   intelligenceStageId: 'intelligenceStageId',
   intelligenceStageKey: 'intelligenceStageKey',
   intelligenceStageName: 'intelligenceStageName',
+  intelligenceOperatingContexts: 'intelligenceOperatingContexts',
   intelligenceStageMembers: 'intelligenceStageMembers'
 } as const;
 
@@ -509,11 +510,12 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
     VISUAL_PROPERTY_KEYS.intelligenceStageId,
     VISUAL_PROPERTY_KEYS.intelligenceStageKey,
     VISUAL_PROPERTY_KEYS.intelligenceStageName,
-    VISUAL_PROPERTY_KEYS.intelligenceStageMembers
+    VISUAL_PROPERTY_KEYS.intelligenceStageMembers,
+    VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts
   ].map(key => ({
     key,
     type: 'string' as const,
-    defaultValue: key === VISUAL_PROPERTY_KEYS.intelligenceSignalIds ? '[]' : '',
+    defaultValue: key === VISUAL_PROPERTY_KEYS.intelligenceSignalIds || key === VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts ? '[]' : '',
     engineeringEditable: false,
     runtimeReadable: true,
     runtimeWritable: false,

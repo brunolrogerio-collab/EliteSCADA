@@ -1,3 +1,4 @@
+import { readIntelligenceContextReferences, type IntelligenceContextReference } from './intelligenceContextReferences';
 import type { EngineeringLocale } from './i18n';
 import type {
   AssetProcessIntelligenceProfileEngineering,
@@ -61,6 +62,11 @@ export type IntelligenceProfileCoverageDashboardSelection = Readonly<{
   scopeId: string;
   profileId: string;
   displayName: string;
+}>;
+
+export type IntelligenceContextEligibilityDashboardSelection = IntelligenceProfileCoverageDashboardSelection & Readonly<{
+  assignmentId: string;
+  contexts: readonly IntelligenceContextReference[];
 }>;
 
 export type IntelligenceContextualDeviationDashboardSelection = Readonly<{
@@ -471,12 +477,12 @@ export function generateIntelligenceGuidedDashboardDrafts(
 /** Compose only analyses explicitly configured for this equipment, independently. */
 export function generateIntelligenceDashboardCompositionDrafts(
   existingScreens: readonly ScreenEngineering[], source: IntelligenceDashboardSource, tags: readonly TagEngineering[],
-  selections: Partial<IntelligenceGuidedDashboardSelections> & { referenceEvidence?: IntelligenceProfileCoverageDashboardSelection }, appearance: IntelligenceDashboardAppearance,
+  selections: Partial<IntelligenceGuidedDashboardSelections> & { referenceEvidence?: IntelligenceProfileCoverageDashboardSelection; contextEligibility?: IntelligenceContextEligibilityDashboardSelection }, appearance: IntelligenceDashboardAppearance,
   locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
 ): readonly ScreenEngineering[] {
   const allocateId = createUniqueIdAllocator(createId);
   const drafts = [generateIntelligenceDashboardDraft(existingScreens, source, tags, locale, allocateId, appearance)];
-  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation' | 'reference-evidence'> = ['values-trend'];
+  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility'> = ['values-trend'];
   const member = source.kind === 'equipment-profile' && source.assignments.length === 1 ? source.assignments[0] : null;
   const valid = (selection: { scopeId: string; assignmentId: string; profileId: string }, signalIds: readonly string[]) =>
     member && selection.scopeId.toLowerCase() === member.scopeId?.toLowerCase() &&
@@ -491,6 +497,12 @@ export function generateIntelligenceDashboardCompositionDrafts(
     }
     drafts.push(generateIntelligenceReferenceEvidenceScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
     roles.push('reference-evidence');
+  }
+  if (selections.contextEligibility) {
+    const selection = selections.contextEligibility;
+    if (!valid(selection, [])) throw new Error('Context conditions selection does not belong to this equipment profile.');
+    drafts.push(generateIntelligenceContextEligibilityScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
+    roles.push('context-eligibility');
   }
   if (selections.performance) {
     if (!valid(selections.performance, selections.performance.signalIds)) throw new Error('Performance selection does not belong to this equipment profile.');
@@ -508,7 +520,7 @@ export function generateIntelligenceDashboardCompositionDrafts(
 
 function linkDashboardDrafts(
   drafts: readonly ScreenEngineering[],
-  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence')[],
+  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility')[],
   locale: EngineeringLocale, allocateVisualId: () => string
 ): readonly ScreenEngineering[] {
   const navigationLabels = guidedDashboardNavigationLabels(locale);
@@ -541,7 +553,7 @@ function linkDashboardDrafts(
     }]);
     const positionedNavigation = navigation.map((element, buttonIndex) => ({
       ...element,
-      properties: { ...element.properties, x: 1304 + buttonIndex * 184 }
+      properties: { ...element.properties, x: 1304 + (buttonIndex % 3) * 184, y: 40 + Math.floor(buttonIndex / 3) * 56 }
     }));
     const titledElements = elements.map(element => {
       if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.text || element.key !== 'intelligence-dashboard-scope-note') return element;
@@ -677,6 +689,34 @@ export function generateIntelligenceReferenceEvidenceScreenDraft(
   locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
 ): ScreenEngineering {
   return generateIntelligenceProfileReportScreenDraft(existingScreens, selection, locale, createId, true);
+}
+
+export function generateIntelligenceContextEligibilityScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceContextEligibilityDashboardSelection,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const json = JSON.stringify(selection.contexts);
+  if (!isCanonicalUuid(selection.assignmentId) || !readIntelligenceContextReferences(json)) {
+    throw new Error('Context conditions require stable assignment and bounded versioned context references.');
+  }
+  const draft = generateIntelligenceReferenceEvidenceScreenDraft(existingScreens, selection, locale, createId);
+  const { intelligenceReferenceEvidenceProfileId: _referenceProfile, ...metadata } = draft.metadata ?? {};
+  const key = uniqueScreenKey(existingScreens, `intelligence-context-conditions-${slug(selection.displayName)}`);
+  const title = locale === 'pt-BR' ? 'Condições de operação' : locale === 'es' ? 'Condiciones de operación' : 'Operating conditions';
+  return { ...draft, key, route: uniqueScreenRoute(key, existingScreens.map(screen => screen.route)), name: `${title} · ${selection.displayName}`,
+    elements: (draft.elements ?? []).map(element => {
+      if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1) return { ...element,
+        key: 'intelligence-context-eligibility-v1', type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1,
+        properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.intelligenceAssignmentId]: selection.assignmentId,
+          [VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts]: json } };
+      if (element.key.endsWith('-title')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: title } };
+      if (element.key.endsWith('-limits')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: locale === 'pt-BR'
+        ? 'São verificadas as condições do contexto salvo. Se ele mudar, gere e publique novamente esta vista; as versões não são substituídas silenciosamente.'
+        : locale === 'es' ? 'Se verifican las condiciones del contexto guardado. Si cambia, genere y publique de nuevo esta vista; las versiones no se sustituyen silenciosamente.'
+          : 'Saved context conditions are checked. If they change, generate and publish this view again; versions are never silently substituted.' } };
+      return element;
+    }), metadata: { ...metadata, intelligenceDashboardGenerator: 'context-eligibility.v1', intelligenceContextEligibilityAssignmentId: selection.assignmentId }
+  };
 }
 
 function generateIntelligenceProfileReportScreenDraft(
@@ -1267,24 +1307,24 @@ export function isNumericTagDataType(dataType: string | null | undefined): boole
 }
 
 function guidedDashboardNavigationLabels(locale: EngineeringLocale): Readonly<Record<
-  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence', string
+  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility', string
 >> {
   if (locale === 'en') return {
-    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses', 'reference-evidence': 'Reference data',
+    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses', 'reference-evidence': 'Reference data', 'context-eligibility': 'Operating conditions',
     'values-trend': 'Values & trend',
     'profile-coverage': 'Coverage',
     performance: 'Performance',
     'contextual-deviation': 'Contextual deviation'
   };
   if (locale === 'es') return {
-    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo', 'reference-evidence': 'Datos de referencia',
+    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo', 'reference-evidence': 'Datos de referencia', 'context-eligibility': 'Condiciones de operación',
     'values-trend': 'Valores y tendencia',
     'profile-coverage': 'Cobertura',
     performance: 'Rendimiento',
     'contextual-deviation': 'Desviación contextual'
   };
   return {
-    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento', 'reference-evidence': 'Dados da referência',
+    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento', 'reference-evidence': 'Dados da referência', 'context-eligibility': 'Condições de operação',
     'values-trend': 'Valores e tendência',
     'profile-coverage': 'Cobertura',
     performance: 'Desempenho',

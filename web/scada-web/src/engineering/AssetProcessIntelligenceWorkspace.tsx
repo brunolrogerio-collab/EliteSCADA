@@ -35,6 +35,7 @@ import {
   type IntelligenceProfileCoverageDashboardSelection,
   type IntelligenceProcessStageCoverageDashboardSelection,
   type IntelligenceProcessStageReportSelection,
+  type IntelligenceContextEligibilityDashboardSelection,
   type IntelligenceProcessStageInsightsDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
@@ -470,7 +471,17 @@ export function AssetProcessIntelligenceWorkspace({
     ? processStages.find(stage => stage.key === selectedDashboardSource.source.stableKey) : undefined;
   const dashboardStageReports = dashboardStage ? createProcessStageReportSelection(dashboardStage) : null;
 
-  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean }) => {
+  const contextSelectionForSource = (source: IntelligenceDashboardSource): IntelligenceContextEligibilityDashboardSelection | null => {
+    const member = source.kind === 'equipment-profile' && source.assignments.length === 1 ? source.assignments[0] : null;
+    if (!member?.scopeId || !member.assignmentId) return null;
+    const contexts = initialConfig.operatingContextProfiles.filter(context => context.assignmentId === member.assignmentId);
+    if (!contexts.length || contexts.length > 32) return null;
+    return { scopeId: member.scopeId, assignmentId: member.assignmentId, profileId: member.profile.id, displayName: source.displayName,
+      contexts: contexts.map(context => ({ id: context.id, version: context.version, displayLabel: context.displayLabel,
+        predicateTagIds: context.predicates.map(predicate => predicate.tagId) })) };
+  };
+
+  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean; contextEligibility?: boolean }) => {
     setError(null);
     setMessage(null);
     if (!snapshot?.licensed) {
@@ -515,6 +526,7 @@ export function AssetProcessIntelligenceWorkspace({
       const member = source.kind === "equipment-profile" && source.assignments.length === 1 ? source.assignments[0] : null;
       const assignmentId = source.kind === 'equipment-profile' ? source.assignments[0]?.assignmentId : undefined;
       onCreateDashboardDraft(appearance ? generateIntelligenceDashboardCompositionDrafts(screens, source, tags, {
+        contextEligibility: analyses?.contextEligibility ? contextSelectionForSource(source) ?? undefined : undefined,
         referenceEvidence: analyses?.referenceEvidence && member?.scopeId ? { scopeId: member.scopeId, profileId: member.profile.id, displayName: source.displayName } : undefined,
         performance: analyses?.performance && assignmentId ? guidedPerformanceSelections[assignmentId] ?? undefined : undefined,
         contextualDeviation: analyses?.deviation && assignmentId ? guidedDeviationSelections[assignmentId] ?? undefined : undefined
@@ -885,6 +897,7 @@ export function AssetProcessIntelligenceWorkspace({
         {selectedDashboardSource && <IntelligenceDashboardComposer key={selectedDashboardSource.key} locale={locale}
           tags={selectedDashboardTags}
           disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !selectedDashboardSource.hasNumericSignal || dirtyConfiguration}
+          contextAvailable={Boolean(contextSelectionForSource(selectedDashboardSource.source))}
           referenceAvailable={selectedDashboardSource.source.kind === "equipment-profile" && selectedDashboardSource.source.assignments.length === 1 && Boolean(selectedDashboardSource.source.assignments[0].scopeId)}
           performanceAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedPerformanceSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}
           deviationAvailable={selectedDashboardSource.source.kind === 'equipment-profile' && Boolean(guidedDeviationSelections[selectedDashboardSource.source.assignments[0]?.assignmentId ?? ''])}

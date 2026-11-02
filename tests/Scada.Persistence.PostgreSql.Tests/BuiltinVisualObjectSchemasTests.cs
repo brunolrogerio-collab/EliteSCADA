@@ -41,6 +41,7 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.intelligencePerformanceV1B",
             "core.intelligenceProfileCoverageV1",
             "core.intelligenceReferenceEvidenceV1",
+            "core.intelligenceContextEligibilityV1",
             "core.intelligenceProcessStageCoverageV1",
             "core.intelligenceProcessStageInsightsV1",
             "core.intelligenceContextualDeviationV2"

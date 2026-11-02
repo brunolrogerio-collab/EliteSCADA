@@ -15,13 +15,17 @@ type ContextResult = {
   predicates: PredicateEvidence[];
   signals: Array<{ signalId: string; tagId: string; tagPath: string; engineeringUnit: string | null; reference: SignalWindow; comparison?: SignalWindow | null }>;
 };
-export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmentId, profileId, contexts, projectKey, activeRevision, canQuery }: {
+export type IntelligenceContextEligibilityReference = Pick<AssetProcessIntelligenceOperatingContextProfileEngineering,
+  'id' | 'displayLabel' | 'assignmentId' | 'version'> & Readonly<{ predicates: readonly Readonly<{ tagId: string }>[] }>;
+
+export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmentId, profileId, contexts, projectKey, activeRevision, canQuery, runtimeView = false }: {
   locale: EngineeringLocale; scopeId: string; assignmentId: string; profileId: string;
-  contexts: readonly AssetProcessIntelligenceOperatingContextProfileEngineering[];
+  contexts: readonly IntelligenceContextEligibilityReference[];
   projectKey: string | null; activeRevision: number | null; canQuery: boolean;
+  runtimeView?: boolean;
 }) {
   const text = (pt: string, en: string, es: string) => locale === 'pt-BR' ? pt : locale === 'es' ? es : en;
-  const [contextId, setContextId] = useState('');
+  const [contextId, setContextId] = useState(() => runtimeView && contexts.length === 1 ? contexts[0].id : '');
   const context = contexts.find(item => item.id === contextId && item.assignmentId === assignmentId);
   const [from, setFrom] = useState(() => localDateTimeInput(new Date(Date.now() - 86400000)));
   const [to, setTo] = useState(() => localDateTimeInput(new Date()));
@@ -85,13 +89,14 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
     } finally { if (sequence.current === request) setBusy(false); }
   }
   const options = contexts.filter(item => item.assignmentId === assignmentId);
-  return <details className="asset-process-intelligence__coverage asset-process-intelligence__analysis" data-testid={`intelligence-context-eligibility-${assignmentId}`}>
+  return <details open={runtimeView || undefined} className="asset-process-intelligence__coverage asset-process-intelligence__analysis" data-testid={`intelligence-context-eligibility-${assignmentId}`}>
     <summary>{text('Conferir condições do contexto', 'Check context conditions', 'Revisar condiciones del contexto')}</summary>
     <p>{text('Confira quantas leituras atendem a todas as condições do contexto salvo. Isso ajuda a escolher dados comparáveis pelas condições declaradas; não comprova equivalência física entre regimes.',
       'Check how many readings meet all conditions in the saved context. This helps select data matching the declared conditions; it does not prove physical equivalence between operating regimes.',
       'Revise cuántas lecturas cumplen todas las condiciones del contexto guardado. Esto ayuda a seleccionar datos compatibles con las condiciones declaradas; no demuestra equivalencia física entre regímenes.')}</p>
     {options.length === 0 && <p>{text('Crie e publique um contexto operacional para este equipamento antes de consultar.', 'Create and publish an operating context for this equipment before querying.', 'Cree y publique un contexto operativo para este equipo antes de consultar.')}</p>}
-    {!canQuery && <p role="note">{text('A consulta depende de alterações publicadas, equipamento ativo e permissões de leitura.', 'Querying requires published changes, active equipment and read permissions.', 'La consulta requiere cambios publicados, equipo activo y permisos de lectura.')}</p>}
+    {!canQuery && <p role="note">{runtimeView ? text('Consulte as condições no Runtime ao vivo. No editor e na reprodução histórica, esta consulta fica desabilitada.', 'Query conditions in live Runtime. This query is disabled in the editor and historical playback.', 'Consulte condiciones en Runtime en vivo. Esta consulta está deshabilitada en el editor y reproducción histórica.')
+      : text('A consulta depende de alterações publicadas, equipamento ativo e permissões de leitura.', 'Querying requires published changes, active equipment and read permissions.', 'La consulta requiere cambios publicados, equipo activo y permisos de lectura.')}</p>}
     <form className="asset-process-intelligence__coverage-form" onSubmit={event => void query(event)}>
       <label>{text('Contexto salvo', 'Saved context', 'Contexto guardado')}<select value={contextId} onChange={event => setContextId(event.currentTarget.value)}>
         <option value="">{text('Escolha o contexto', 'Choose a context', 'Elija un contexto')}</option>

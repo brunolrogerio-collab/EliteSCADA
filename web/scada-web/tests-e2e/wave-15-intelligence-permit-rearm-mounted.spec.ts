@@ -36,6 +36,7 @@ test(`active scope with closed permit can be rearmed after authorization recover
     scopeId,
     active: true,
     executionArmed: false,
+    canManage: true,
     permitRevision: 7,
     permitAuthorityPolicyVersion: 3,
     permitHaEpoch: 9
@@ -47,7 +48,7 @@ test(`active scope with closed permit can be rearmed after authorization recover
     authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
     authenticationEnabled: true,
     runtime: [],
-    workspace: ['EngineeringView', ...(restrictedManager ? [] : ['EngineeringModify']), 'AssetProcessIntelligenceManage']
+    workspace: restrictedManager ? ['EngineeringView'] : ['EngineeringView', 'EngineeringModify', 'AssetProcessIntelligenceManage']
   } }));
   await page.route('**/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog', route => route.fulfill({ json: {
     supportedSemanticContractVersions: [1, 2],

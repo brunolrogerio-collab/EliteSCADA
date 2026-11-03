@@ -1024,7 +1024,7 @@ export function AssetProcessIntelligenceWorkspace({
                   {!scope ? <span>{copy.notConfigured}</span> : <>
                     <span>{active ? copy.configuredActive : copy.statusPaused}</span>
                     <span>{armed ? copy.permitArmed : active ? copy.permitClosed : copy.noPermit}</span>
-                    <button type="button" className="secondary" disabled={!canManage || scope.canManage === false || (!snapshot.licensed && !canPause) || (snapshot.execution.workspaceDirty && !canPause) || transitioning !== null}
+                    <button type="button" className="secondary" disabled={!(scope.canManage ?? canManage) || (!snapshot.licensed && !canPause) || (snapshot.execution.workspaceDirty && !canPause) || transitioning !== null}
                       onClick={() => void setActivation(scope, !canPause)}>
                       {transitioning === key ? copy.working : canPause ? copy.pause : copy.activate}
                     </button>

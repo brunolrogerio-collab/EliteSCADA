@@ -1,5 +1,12 @@
 # Intelligence #791 — matriz de aderência e usabilidade
 
+## Atualização #858 — conta restrita real
+
+**Implementado aguardando CI/revisão/integração/aceite** no PR#860: gestor sem EngineeringModify opera Equipment/Location com grant específico, UI usa canManage por recurso. Revisões73–80 em API/PostgreSQL reais e login local: publicação limitada ao Active pedido, rascunho preservado, fora do alcance403, concorrência200/409, restart fechado, revogação403 e restauração/rearm200. Referência Authority só permite atualização de versão canônica; IDs/contrato continuam exatos. Relatório WAVE15-INTELLIGENCE-MANAGER-OPERATION-858.md, provas docs/evidence/intelligence-858.35/35 contratos+30/30 Help,6/6 UI e build/manual aprovados. Esta evidência supera a classificação histórica de operação restrita não entregue; não é aceite global#791 nem prova HA/campo.
+
+Acabamento#791 segue separado: conferir atalhos especializados e permissões por recurso na autoria/compositor (o controle operacional foi corrigido aqui), além da aderência final da matriz. Não confundir resolver o botão do gestor com auditar todas as superfícies de autoria.
+
+
 ## Consulta conjunta sob uma condição — candidata de 03/11/2026
 
 A auditoria confirmou que V1 não é equivalente a consultas individuais nem a V2: V1 usa 2–8 alvos e uma condição sobre a interseção completa dos horários de origem; cada consulta individual pode usar outro conjunto, e V2 exige duas condições distintas. O novo teste `VectorV1_CommonCohortIsNotEquivalentToIndependentSingleTargetQueries` demonstra medianas 2 versus 3 e diferenças 2 versus 1, sem alterar fórmulas.

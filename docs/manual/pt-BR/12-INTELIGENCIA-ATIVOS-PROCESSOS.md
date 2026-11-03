@@ -219,6 +219,14 @@ Para Bomba 01, comece com corrente e velocidade se essas medições existirem. E
 
 Deixe pausados os recursos que não pretende usar. Não invente um sinal de vibração ausente. A seleção reduz o que está autorizado a executar, mas não garante um consumo fixo de processador ou memória.
 
+#### Exemplo de operação com acesso restrito
+
+Conta gestora real: pode pausar o equipamento autorizado; outra bomba e edição da seleção ficam bloqueadas. Área exige reativação após a mudança de revisão. API e PostgreSQL reais, aplicação sintética.
+
+**Conta gestora real: pode pausar o equipamento autorizado; outra bomba e edição da seleção ficam bloqueadas. Área exige reativação após a mudança de revisão. API e PostgreSQL reais, aplicação sintética.**
+
+![Conta gestora real: pode pausar o equipamento autorizado; outra bomba e edição da seleção ficam bloqueadas. Área exige reativação após a mudança de revisão. API e PostgreSQL reais, aplicação sintética.](../../evidence/intelligence-858/manager858-real-ui.png)
+
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.activation)
 
 ## Intelligence: significado dos sinais e unidades

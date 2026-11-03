@@ -191,6 +191,25 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         Assert.Equal(1, api.Gate.ActivePermitCount);
     }
 
+    [Fact]
+    public void RestrictedManager_RefreshesOnlyCanonicalAuthorityReferenceVersion()
+    {
+        var role = Guid.NewGuid(); var scope = Guid.NewGuid();
+        var reference = new AuthorityPolicyReferenceEngineeringDto("elitescada.authority-policy", 1, 2, [role], [scope]);
+        var baseline = new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow, [], [], AuthorityPolicyReference: reference);
+        var canonical = baseline with { AuthorityPolicyReference = reference with { PolicyVersion = 4 } };
+        Assert.True(AssetProcessIntelligenceApi.MatchesOperationalBaseline(baseline, canonical, canonical));
+        Assert.False(AssetProcessIntelligenceApi.MatchesOperationalBaseline(baseline,
+            canonical with { AuthorityPolicyReference = reference with { PolicyVersion = 5 } }, canonical));
+        Assert.False(AssetProcessIntelligenceApi.MatchesOperationalBaseline(baseline,
+            canonical with { AuthorityPolicyReference = canonical.AuthorityPolicyReference! with { RoleIds = [Guid.NewGuid()] } }, canonical));
+        Assert.False(AssetProcessIntelligenceApi.MatchesOperationalBaseline(baseline,
+            canonical with { AuthorityPolicyReference = canonical.AuthorityPolicyReference! with { ScopeIds = [Guid.NewGuid()] } }, canonical));
+        Assert.False(AssetProcessIntelligenceApi.MatchesOperationalBaseline(baseline,
+            canonical with { AuthorityPolicyReference = canonical.AuthorityPolicyReference! with { ContractVersion = 2 } }, canonical));
+    }
+
     private static void SetManagerRevision(EndpointHarness api)
     {
         api.Client.DefaultRequestHeaders.Remove("X-Intelligence-Project-Key");

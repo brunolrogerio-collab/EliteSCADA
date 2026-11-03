@@ -528,6 +528,19 @@ public static class AssetProcessIntelligenceApi
             .GroupBy(item => item.Key)
             .ToDictionary(group => group.Key, group => group.First().Signal);
 
+    // Authority policy content is never published from Engineering. Only its
+    // reference version may refresh from the live canonical export; contract,
+    // role identities and scope identities must still match exactly.
+    internal static bool MatchesOperationalBaseline(
+        EngineeringPackage expected, EngineeringPackage actual, EngineeringPackage canonical)
+    {
+        expected = expected with { ExportedAt = DateTimeOffset.UnixEpoch };
+        actual = actual with { ExportedAt = DateTimeOffset.UnixEpoch };
+        if (expected.AuthorityPolicyReference is { } reference && canonical.AuthorityPolicyReference is { } live)
+            expected = expected with { AuthorityPolicyReference = reference with { PolicyVersion = live.PolicyVersion } };
+        return JsonNode.DeepEquals(JsonSerializer.SerializeToNode(expected), JsonSerializer.SerializeToNode(actual));
+    }
+
     private static async Task<IResult> SetScopeActivationAsync(
         bool active,
         string kindText,
@@ -647,7 +660,7 @@ public static class AssetProcessIntelligenceApi
             {
                 var expected = exchange.ParseJson(persistedActive!.EngineeringJson) with { ExportedAt = DateTimeOffset.UnixEpoch };
                 var current = exchange.ExportPackage() with { ExportedAt = DateTimeOffset.UnixEpoch };
-                if (!JsonNode.DeepEquals(JsonSerializer.SerializeToNode(expected), JsonSerializer.SerializeToNode(current)))
+                if (!MatchesOperationalBaseline(expected, current, current))
                     return Results.Conflict(new { error = "INTELLIGENCE_WORKSPACE_DIFFERS_FROM_ACTIVE_REVISION" });
             }
             catch
@@ -717,7 +730,7 @@ public static class AssetProcessIntelligenceApi
                 var saved = exchange.ParseJson(snapshot.EngineeringJson) with { ExportedAt = DateTimeOffset.UnixEpoch };
                 // Validate the immutable saved revision, not only the pre-save
                 // Working. Even an uncoordinated writer cannot add publication.
-                if (!JsonNode.DeepEquals(JsonSerializer.SerializeToNode(expected), JsonSerializer.SerializeToNode(saved)))
+                if (!MatchesOperationalBaseline(expected, saved, exchange.ExportPackage()))
                 {
                     intelligence.SetActive(kind, scopeId, scope.Active);
                     return Results.Conflict(new { error = "INTELLIGENCE_SCOPE_TRANSITION_HAS_UNRELATED_CHANGES" });

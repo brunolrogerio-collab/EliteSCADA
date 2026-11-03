@@ -219,6 +219,14 @@ For Pump 01, start with current and speed if those measurements exist. Choose an
 
 Keep unused resources paused. Do not invent a missing vibration signal. Selection limits what is allowed to run, but does not guarantee fixed processor or memory usage.
 
+#### Operating with restricted access
+
+Real manager account: can pause the authorized equipment; another pump and selection editing remain blocked. The area requires reactivation after a revision change. Real API and PostgreSQL, synthetic application.
+
+**Real manager account: can pause the authorized equipment; another pump and selection editing remain blocked. The area requires reactivation after a revision change. Real API and PostgreSQL, synthetic application.**
+
+![Real manager account: can pause the authorized equipment; another pump and selection editing remain blocked. The area requires reactivation after a revision change. Real API and PostgreSQL, synthetic application.](../../evidence/intelligence-858/manager858-real-ui.png)
+
 [Open this guide in installed Help](/help?topic=intelligence.activation)
 
 ## Intelligence: signal meaning and units

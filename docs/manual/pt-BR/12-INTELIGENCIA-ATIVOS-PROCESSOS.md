@@ -280,6 +280,19 @@ Confira primeira e última leitura, seus horários, os segundos entre os extremo
 
 Essa taxa descreve apenas a mudança entre os extremos. Não é uma derivada instantânea, média de taxas, diagnóstico ou prova de eficiência. Ela também não comprova que o período está completo ou que as condições de operação são equivalentes. O limite é 31 dias e 50 mil registros brutos; uma recusa não deve ser contornada ocultando dados. Cancelar consulta da taxa descarta a solicitação em andamento. Mudar o período ou agrupamento da cobertura retira o resultado. Nada é salvo no projeto. Os mesmos detalhes ficam disponíveis na cobertura do Runtime, sujeitos aos mesmos acessos e à execução autorizada.
 
+### Comparar uma medição sob uma condição
+
+Esta consulta fica na Engenharia > Inteligência de ativos, dentro da associação do equipamento com seu perfil. Abra Comparar uma medição sob uma condição. Ela atende o caso em que você quer analisar um sinal e limitar a análise por outro: por exemplo, observar corrente do motor quando a frequência medida fica entre 49 e 51 Hz. A vista vetorial do Runtime usa várias medições e condições; não é a mesma consulta.
+
+1. Escolha Medição a analisar e Condição medida pelos nomes. Ambos devem ser sinais numéricos distintos do mesmo perfil. A condição precisa de unidade controlada reconhecida. Se a lista estiver vazia, confira os TAGs associados, o tipo dos dados e a unidade controlada da condição. Texto livre da unidade não substitui essa configuração.
+2. Preencha Limite inferior incluído e Limite superior excluído na unidade indicada. Para 49 e 51 Hz, entra 49, entra 50, mas não entra 51. Não use a unidade de exibição de outro TAG: se o formulário indica Pa, 50 kPa devem ser expressos como 50000 Pa.
+3. Escolha início/fim da referência e da avaliação em horário local. Cada período pode ter até 31 dias. A avaliação precisa começar depois do fim da referência, sem sobreposição nem extremo compartilhado. As durações podem ser diferentes. Escolher uma referência não prova que o equipamento estava saudável.
+4. Clique Comparar medição. Só esse clique consulta o histórico. Para funcionar, a revisão deve estar publicada/ativa, o equipamento autorizado para análise e seu usuário deve ter licença e permissões de tendência/leitura dos dois TAGs. Alterar campos limpa o resultado; Cancelar comparação da medição descarta a solicitação em andamento.
+5. Confira Mediana da referência, o valor central das leituras selecionadas. A Dispersão da referência (MAD) é a mediana das distâncias até esse valor; não é desvio padrão. Em Ver amostras avaliadas, a diferença bruta é valor do alvo menos mediana da referência, na unidade original do alvo. O score robusto é 0,67448975 vezes essa diferença, dividida pelo MAD. Só fica disponível com pelo menos 30 pares de referência e MAD positivo. Poucos pares ou MAD zero podem deixar o score indisponível mesmo quando há uma diferença bruta. Não disponível não significa zero.
+6. Em Conferir pares, rejeições e qualidade, confira cada período e cada sinal: recebidas, Boas numéricas, sincronizadas, rejeitadas, grupos ambíguos e motivos. Os pares usam horários de origem exatamente iguais e evidência explícita de sincronização. Não há aproximação, interpolação ou preenchimento. A janela do Historian também limita a consulta; os horários de registro de cada sinal aparecem junto do horário de origem.
+
+O limite conjunto é 50 mil registros brutos dos dois sinais e períodos. São retornadas até 500 amostras de avaliação; confira a quantidade omitida. Valores fora da faixa da condição permanecem identificados e não ganham score ou diferença. Os resultados não são salvos no projeto. A consulta não diagnostica falhas, não mede eficiência nem comprova simultaneidade física, mesmo regime ou completude do histórico.
+
 ### Comparar a corrente em uma faixa de frequência
 
 Imagine que o motor consumia cerca de 5 A e agora consome 6 A. Antes de interpretar essa mudança, confira se as medições foram obtidas na faixa de frequência que você quer investigar. Esta consulta compara duas partes do histórico; ela não aprende um padrão nem diagnostica o motor.
@@ -402,5 +415,13 @@ Interface real em português, com dados sintéticos de validação. O exemplo n�
 **Taxa líquida: interface real com respostas de API simuladas, não prova API/PostgreSQL**
 
 ![Taxa líquida: interface real com respostas de API simuladas, não prova API/PostgreSQL](../../evidence/intelligence-857/net-observed-rate-browser.png)
+
+**Alvo único: formulário real com API simulada; não prova API/PostgreSQL**
+
+![Alvo único: formulário real com API simulada; não prova API/PostgreSQL](../../evidence/intelligence-857/single-target-form-browser.png)
+
+**Alvo único: resultado e evidências reais da interface com dados simulados**
+
+![Alvo único: resultado e evidências reais da interface com dados simulados](../../evidence/intelligence-857/single-target-result-browser.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.analysis-guide)

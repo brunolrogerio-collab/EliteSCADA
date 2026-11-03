@@ -100,3 +100,19 @@ CI predecessor `0b5a2165d8e37db52fe34c391c5c85ce9f581fb9`, run41555893510: Intel
 
 
 Validação local final da taxa: bateria cobertura/Runtime85/85, seguida de9/9 focados após tradução dos rótulos de qualidade (inclui cancelamento com resposta atrasada e nova consulta). Captura/qualidade1/1 e inspeção visual da imagem real com respostas simuladas, incorporada ao manual nos três idiomas. Build Web e Help30/30 passaram;69 arquivos alinhados. A primeira rodada focada teve6/7: fixture sem unidade no TAG ainda devolvia A na cobertura; corrigida a simulação, o caso sem unidade passou. Nenhum timeout/retry/gate foi relaxado. Sem prova real API/PostgreSQL deste incremento.
+
+
+## Complemento — desvio contextual de alvo único na Engenharia
+
+`IntelligenceSingleTargetDeviationPanel.tsx` e CSS próprio, montados no workspace por associação, expõem o método existente em `AssetProcessIntelligenceContextualReferenceDeviationV1.cs` e `PrepareContextualReferenceDeviationAsync` / `ValidateContextualReferenceDeviationRequest`. Um alvo numérico e uma condição distinta, sem UUID para preencher; condição depende do catálogo de unidade controlada, não texto livre. Entradas canônicas explícitas, [inferior incluído, superior excluído), até31 dias por janela, referência estritamente anterior à avaliação, durações não precisam ser iguais. Não copiar a regra de corrente/frequência ou de comparação estatística.
+
+Mostra mediana/MAD da referência, contagens, amostras com diferença bruta/score, motivo de indisponibilidade, horários de origem e de registro de ambos os sinais, qualidade/rejeições/ambiguidade e omitidas. Não transforma MAD em desvio padrão; score exige30 pares e MAD positivo, mas sua ausência não apaga diferença bruta válida. Sem fórmula local autoritativa. Tabela só renderiza ao solicitar e tem rolagem horizontal. Confere resposta por revisão/projeto/associação/perfil/equipamento/sinais/TAGs/unidades/faixa/janelas, proveniência v2, contagens e limites/valores finitos ou null. Cancelamento e alteração de contexto/sessão invalidam resposta. Help/manual pt-BR/en/es com roteiro progressivo e explicação de limites, referência, unidade, mediana/MAD/score e ausência de diagnóstico.
+
+Escopo desta candidata: **Engenharia apenas**. A integração do alvo único no gerador/Runtime segue pendente, assim como prova real API/PostgreSQL (Docker indisponível). Testes montados usam respostas simuladas. Não reclassificar #857 inteira como concluída. Nenhuma alteração de backend, métodos congelados, HA, Authority/licença, Portal ou Preview. Totais/commit/run finais no registro vivo #857/#854.
+
+CI8d56743b /41561270769: CANCELLED, Z-Wave skipped conforme autorização, dois Chromium cancelados e T1 FAILURE, demais jobs executados passaram. Sem alegar verde.
+
+
+Validação local do alvo único: primeira rodada interrompida por seletor de teste incorreto (`getByLabel` versus nome acessível do combobox); corrigido o teste. Rodada seguinte9/10 expôs overflow mobile real; corrigido o min-width do item de grid que contém a tabela, mantendo rolagem horizontal e sem relaxar a asserção. Final22/22:10 casos do alvo único e regressões corrente/frequência em3idiomas, taxa líquida e Runtime. Focado visual/tradução1/1 após rótulos explícitos para horários ambíguos. Capturas de formulário/resultado inspecionadas e adicionadas ao manual; são interface real com respostas simuladas, não prova API/PostgreSQL. Build Web passou. Resultado Help e SHA/run finais no registro #857/#854.
+
+Help final30/30 passou e69 arquivos Help/manual alinhados. Sem alteração de timeout/retry/gates; Z-Wave permanece na quarentena explicitamente autorizada #856.

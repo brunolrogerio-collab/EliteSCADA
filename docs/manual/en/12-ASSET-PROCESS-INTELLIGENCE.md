@@ -280,6 +280,19 @@ Check both readings and their timestamps, elapsed seconds, and received, accepte
 
 This rate describes only the change between endpoints. It is not an instantaneous derivative, average of rates, diagnosis or evidence of efficiency. It does not establish complete data or equivalent operating conditions. Limits are 31 days and 50,000 raw records; do not hide data to bypass a refusal. Cancel rate query discards an in-flight request. Changing the coverage period or grouping removes the result. Nothing is saved in the project. Runtime coverage offers the same details, subject to the same access and execution authorization.
 
+### Compare one measurement under a condition
+
+In Engineering > Asset intelligence, open the equipment/profile assignment and Compare one measurement under a condition. This analyzes one signal while limiting it by another, such as motor current when measured frequency lies between 49 and 51 Hz. The Runtime vector view uses multiple measurements and conditions; it is a different query.
+
+1. Choose Measurement to analyze and Measured condition by name. They must be different numeric signals in the same profile. The condition needs a supported controlled unit. If the list is empty, check assigned TAGs, data types and the controlled condition unit. Free-text units do not replace this setting.
+2. Enter Included lower bound and Excluded upper bound in the indicated unit. With 49 and 51 Hz, 49 and 50 qualify, but 51 does not. If the form indicates Pa, express 50 kPa as 50000 Pa.
+3. Choose reference and evaluation start/end in local time. Each period supports up to 31 days. Evaluation must start after reference ends, with no overlap or shared endpoint. Durations may differ. Choosing a reference does not establish healthy equipment.
+4. Click Compare measurement; opening or editing does not query history. The revision must be published/active, equipment execution authorized, and your user must have licensing and trend/read access to both TAGs. Editing removes the result; Cancel measurement comparison discards an in-flight request.
+5. Reference median is the central selected value. Reference dispersion (MAD) is the median distance from it, not standard deviation. Show evaluation samples displays raw difference: target value minus reference median, in the original target unit. Robust score is 0.67448975 times this difference divided by MAD. It requires at least 30 reference pairs and positive MAD. Too few pairs or zero MAD can leave score unavailable while raw difference remains available. Unavailable does not mean zero.
+6. Review pairs, rejections and quality shows each period and signal: received, Good numeric, synchronized, rejected, ambiguous groups and reasons. Pairs require identical source timestamps and explicit synchronization evidence; no nearest-time matching, interpolation or fill. Historian record times bound retrieval too; each signal’s record time appears alongside source time.
+
+The combined limit is 50,000 raw records across both signals and periods. Up to 500 evaluation samples are returned; check the omitted count. Samples outside the condition range remain identified and have no score or difference. Results are not saved to the project. This is not fault diagnosis, efficiency measurement or proof of physical simultaneity, equivalent conditions or complete history.
+
 ### Compare current within a frequency range
 
 Suppose a motor used about 5 A and now uses 6 A. Before interpreting that change, check whether those measurements were recorded in the frequency range you want to investigate. This query compares two parts of the history; it does not learn a pattern or diagnose the motor.
@@ -402,5 +415,13 @@ Real interface in Portuguese, with synthetic validation data. This example does 
 **Net rate: real UI with mocked API responses, not API/PostgreSQL proof**
 
 ![Net rate: real UI with mocked API responses, not API/PostgreSQL proof](../../evidence/intelligence-857/net-observed-rate-browser.png)
+
+**Single target: real form with mocked API, not API/PostgreSQL proof**
+
+![Single target: real form with mocked API, not API/PostgreSQL proof](../../evidence/intelligence-857/single-target-form-browser.png)
+
+**Single target: real result UI and evidence with simulated data**
+
+![Single target: real result UI and evidence with simulated data](../../evidence/intelligence-857/single-target-result-browser.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

@@ -1,5 +1,13 @@
 # Current coordinator pointer - Wave 15
 
+## Retomada atual — desvio de um alvo na Engenharia #857
+
+`IntelligenceSingleTargetDeviationPanel` expõe a rota existente `contextual-reference-deviation/v1/query` por associação: um alvo numérico e uma condição numérica distinta com unidade controlada resolvida pelo catálogo. Limites digitados explicitamente na unidade canônica, inferior incluído/superior excluído; referência anterior à avaliação sem extremo compartilhado, até31 dias por período, durações independentes. Sem unidades inferidas, conversão local de resultado ou nova fórmula. Exibe mediana/MAD, diferenças/scores por amostra, pares/rejeições/qualidade/ambiguidade e omitidas; score pode ficar indisponível com diferença bruta válida. Rejeita identidade/revisão/períodos/faixa/unidade/proveniência divergentes. Troca de seleção/sessão/cancelamento descarta resposta antiga.
+
+**Limites do incremento:** Engenharia somente. Integração dessa consulta no gerador/Runtime ainda pendente; a vista vetorial V2 não a substitui. Sem prova API/PostgreSQL real nova (Docker indisponível). Help/manual três idiomas atualizados; regressão focada22/22 e visual/tradução1/1 passaram, build Web aprovado. Capturas reais inspecionadas com API simulada. Help30/30 e69 arquivos alinhados. SHA/run finais em #857/#854. Não fechar #857/#855/#791, nem declarar merge/aceite. Preview/DEMO/Portal/Authority/licença/HA preservados.
+
+CI predecessor `8d56743b` /41561270769 terminou CANCELLED: Z-Wave corretamente skipped; .NET/Web/Intelligence Windows/Linux/PostgreSQL/HA/KNX/Zigbee/Matter passaram; os dois jobs Chromium foram cancelados e T1 falhou. Não é verde global. Sem repetir run idêntico ou mudar frente para driver. Quarentena #856 continua autorizada.
+
 ## Decisão do proprietário — quarentena Z-Wave #856
 
 Autorização explícita nesta retomada: suspender temporariamente o teste Z-Wave conhecido e investigar depois. O seletor de `wave15-pr.yml` mantém o risco detectado, mas publica `run_zwave_sidecar=false`, com aviso de quarentena/não validado no resumo. Jobs Node/SBOM Windows/Linux ficam skipped, fora da exigência selecionada T1. Código do driver, dependências, testes e auditoria permanecem preservados para retomada. Outros gates não foram desativados. Isso não corrige nem valida Z-Wave. Reativar removendo `quarantined = True` (ou definindo False) no seletor após correção dedicada e executar ambas as plataformas. Registro autoritativo #856; SHA/run no PR #854.

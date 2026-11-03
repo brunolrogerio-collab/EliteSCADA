@@ -745,6 +745,7 @@ async function installWorkspace(page: Page, options: {
   jointReady?: boolean;
   currentFrequencyCase?: string;
   missingDisplayUnit?: boolean;
+  singleTargetReady?: boolean;
 } = {}) {
   const requests: Array<Record<string, any>> = [];
   const currentFrequencyRequests: Array<Record<string, any>> = [];
@@ -823,6 +824,7 @@ async function installWorkspace(page: Page, options: {
     if (options.currentFrequencyCase === 'ambiguous-tag') sourceTags.push({ ...sourceTags[0] });
     if (options.currentFrequencyCase === 'boolean') sourceTags[0].dataType = 'Boolean';
   }
+  if(options.singleTargetReady){(tags[0] as any).controlledEngineeringUnit=null;tags[1].engineeringUnit='Hz';tags[1].name='Frequência medida';tags[1].controlledEngineeringUnit={catalogVersion:1,code:'unit.frequency.hertz'};}
   if(options.missingDisplayUnit)(tags[0] as any).engineeringUnit=null;
   await page.route('**/api/**', async route => {
     const request = route.request();
@@ -887,7 +889,7 @@ async function installWorkspace(page: Page, options: {
           { name: 'pressureReference', allowedValues: ['differential_outlet_minus_inlet'] }
         ] }
       ] : [] }],
-      controlledEngineeringUnitCatalogs: [{ catalogVersion: 1, units: [] }, { catalogVersion: 2, units: options.guidedDashboardReady ? [
+      controlledEngineeringUnitCatalogs: [{ catalogVersion: 1, units: options.singleTargetReady ? [{code: 'unit.frequency.hertz',dimension: 'frequency',canonicalUnit: 'Hz',scaleToCanonical:1}] : [] }, { catalogVersion: 2, units: options.guidedDashboardReady ? [
         { code: 'unit.temperature.degree_celsius', dimension: 'temperature', canonicalUnit: '°C', scaleToCanonical: 1 },
         { code: 'unit.pressure.kilopascal', dimension: 'pressure', canonicalUnit: 'Pa', scaleToCanonical: 1000 }
       ] : [] }]
@@ -1249,4 +1251,57 @@ test('net observed rate discards a late response after cancellation and allows a
  await panel.getByRole('button',{name:'Cancelar consulta da taxa',exact:true}).click();release();await expect.poll(()=>finished).toBe(true);
  await expect(panel.getByTestId('intelligence-net-observed-rate-result')).toHaveCount(0);await expect(query).toBeEnabled();
  await query.click();await expect(panel.getByTestId('intelligence-net-observed-rate-result')).toContainText('0,1 A/s');expect(calls).toBe(2);
+});
+
+
+async function prepareSingleTarget(page:Page){
+ const panel=page.getByTestId(`intelligence-single-target-${assignmentId}`);await panel.locator('summary').first().click();
+ await panel.getByRole('combobox',{name:'Medição a analisar',exact:true}).selectOption('15000000-0000-0000-0000-000000000211');
+ await panel.getByRole('combobox',{name:'Condição medida',exact:true}).selectOption('15000000-0000-0000-0000-000000000212');
+ await panel.getByLabel('Limite inferior incluído (Hz)',{exact:true}).fill('49');await panel.getByLabel('Limite superior excluído (Hz)',{exact:true}).fill('51');
+ for(const [label,value] of [['Início da referência (horário local)','2026-10-20T10:00'],['Fim da referência (horário local)','2026-10-20T11:00'],['Início da avaliação (horário local)','2026-10-21T10:00'],['Fim da avaliação (horário local)','2026-10-21T12:00']])await panel.getByLabel(label,{exact:true}).fill(value);
+ return panel;
+}
+function singleTargetResponse(body:any,mode:string){
+ const counts={rawObservationCount:35,goodFiniteNumericCount:34,acceptedSynchronizedSampleCount:32,rejectedObservationCount:3,ambiguousSourceTimestampGroupCount:1,ambiguousSourceTimestampRowCount:2,qualityCounts:{Good:34,BadCommunication:1},rejectionCounts:{quality_not_good:1,duplicate_target_source_timestamp:2}};
+ const evidence=(window:any)=>({window,target:counts,condition:{...counts,rejectionCounts:{quality_not_good:1,duplicate_condition_source_timestamp:2}},exactSourceTimestampPairCount:32,conditionInRangePairCount:30,conditionOutOfRangePairCount:2,qualifiedPairCount:30});
+ const signal=(id:string,tagId:string,condition=false)=>({signalId:id,signalKey:'medição',tagId,tagPath:'Planta.Bomba01',dataType:'Double',engineeringUnit:condition?'Hz':'A',controlledUnitCode:condition?'unit.frequency.hertz':null,canonicalUnit:condition?'Hz':null});
+ const insufficient=mode==='insufficient',zero=mode==='zero-mad';
+ return {contractVersion:1,catalogVersion:1,ruleId:'contextual-reference-deviation.v1',ruleVersion:'1.0.0',projectKey:'intelligence-coverage-test',activeRevision:mode==='stale'?5:4,scopeKind:'Equipment',scopeId:equipmentId,equipmentId,assignmentId,profileId,
+ targetSignal:signal(body.targetSignalId,currentTagId),conditionSignal:signal(body.conditionSignalId,speedTagId,true),referenceWindow:body.referenceWindow,evaluationWindow:body.evaluationWindow,
+ conditionLowerInclusiveCanonical:49,conditionUpperExclusiveCanonical:mode==='wrong-range'?52:51,conditionCanonicalUnit:mode==='wrong-unit'?'rpm':'Hz',referenceEvidence:{...evidence(body.referenceWindow),...(insufficient?{qualifiedPairCount:0,conditionInRangePairCount:0,conditionOutOfRangePairCount:32}:{})},evaluationEvidence:{...evidence(body.evaluationWindow),exactSourceTimestampPairCount:2,conditionInRangePairCount:1,conditionOutOfRangePairCount:1,qualifiedPairCount:1},referenceMedian:insufficient?null:10,referenceMedianAbsoluteDeviation:insufficient?null:zero?0:2,status:insufficient?'insufficient_data':'available',reasonCodes:insufficient?['no_qualified_reference_pairs']:zero?['reference_mad_zero']:[],totalRawObservationCount:140,returnedEvaluationSampleCount:2,omittedEvaluationSampleCount:0,
+ evaluationSamples:[{sourceTimestampUtc:body.evaluationWindow.fromUtc,targetObservedTimestampUtc:body.evaluationWindow.fromUtc,conditionObservedTimestampUtc:body.evaluationWindow.fromUtc,targetValue:14,conditionValueCanonical:50,conditionInRange:true,rawDifferenceFromReferenceMedian:insufficient?null:4,robustScore:insufficient||zero?null:1.3489795,scoreUnavailableReason:insufficient?'no_qualified_reference_pairs':zero?'reference_mad_zero':null},
+ {sourceTimestampUtc:body.evaluationWindow.toUtc,targetObservedTimestampUtc:body.evaluationWindow.toUtc,conditionObservedTimestampUtc:body.evaluationWindow.toUtc,targetValue:20,conditionValueCanonical:51,conditionInRange:false,rawDifferenceFromReferenceMedian:null,robustScore:null,scoreUnavailableReason:'condition_outside_requested_range'}],provenance:{dataset:'historian.samples.v2',datasetContractVersion:2,regimeEquivalence:'not_assessed',completeness:'unknown'}};
+}
+for(const mode of ['available','insufficient','zero-mad','stale','wrong-range','wrong-unit','forbidden','cancelled'] as const)test(`single-target comparison ${mode} preserves the canonical contract`,async({page})=>{
+ await page.setViewportSize({width:390,height:844});await installWorkspace(page,{singleTargetReady:true});let calls=0,finished=false;let release!:()=>void;const held=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/analytics/contextual-reference-deviation/v1/query',async route=>{
+ const body=route.request().postDataJSON();calls++;expect(body).toMatchObject({scopeKind:0,scopeId:equipmentId,assignmentId,targetSignalId:'15000000-0000-0000-0000-000000000211',conditionSignalId:'15000000-0000-0000-0000-000000000212',conditionLowerInclusiveCanonical:49,conditionUpperExclusiveCanonical:51});
+ if(mode==='forbidden')return route.fulfill({status:403,json:{code:'HISTORICAL_QUERY_FORBIDDEN'}});
+ if(mode==='cancelled')await held;try{await route.fulfill({json:singleTargetResponse(body,mode)});}finally{finished=true;}
+ });
+ await openIntelligence(page);const panel=await prepareSingleTarget(page),button=panel.getByRole('button',{name:'Comparar medição',exact:true}),result=panel.getByTestId('intelligence-single-target-result');
+ expect(calls).toBe(0);await button.click();await expect.poll(()=>calls).toBe(1);
+ if(mode==='cancelled'){await panel.getByRole('button',{name:'Cancelar comparação da medição',exact:true}).click();release();await expect.poll(()=>finished).toBe(true);await expect(result).toHaveCount(0);await expect(button).toBeEnabled();return;}
+ if(['stale','wrong-range','wrong-unit','forbidden'].includes(mode)){await expect(panel.getByRole('alert')).toBeVisible();await expect(result).toHaveCount(0);return;}
+ await expect(result).toBeVisible();await panel.getByRole('button',{name:'Ver amostras avaliadas',exact:true}).click();await expect(result.locator('tbody tr')).toHaveCount(2);
+ if(mode==='insufficient')await expect(result).toContainText('Não há pares utilizáveis na referência');
+ else if(mode==='zero-mad')await expect(result).toContainText('A referência não tem dispersão');
+ else{await expect(result).toContainText('1,34898');await expect(result).toContainText('140 / 2 / 0');await expect(result.locator('tbody tr').last()).toContainText('Não disponível');
+ await result.getByText('Conferir pares, rejeições e qualidade',{exact:true}).click();await expect(result).toContainText('Falha de comunicação');
+ expect(await panel.evaluate(element=>element.scrollWidth<=element.clientWidth+1)).toBe(true);await expect(result).toContainText('Horário de origem ambíguo na medição analisada');await page.setViewportSize({width:1440,height:2600});await panel.scrollIntoViewIfNeeded();await page.evaluate(()=>window.scrollBy(0,-150));await panel.locator('form').screenshot({path:test.info().outputPath('single-target-form.png')});await result.screenshot({path:test.info().outputPath('single-target-result.png')});}
+ await panel.getByLabel('Limite inferior incluído (Hz)',{exact:true}).fill('48');await expect(result).toHaveCount(0);expect(calls).toBe(1);
+});
+test('single-target comparison refuses overlapping periods, equal bounds and missing controlled condition',async({page})=>{
+ await installWorkspace(page,{singleTargetReady:true});await openIntelligence(page);const panel=await prepareSingleTarget(page),button=panel.getByRole('button',{name:'Comparar medição',exact:true});
+ await expect(button).toBeEnabled();await panel.getByLabel('Início da avaliação (horário local)',{exact:true}).fill('2026-10-20T11:00');await expect(button).toBeDisabled();
+ await panel.getByLabel('Início da avaliação (horário local)',{exact:true}).fill('2026-10-21T10:00');await panel.getByLabel('Limite superior excluído (Hz)',{exact:true}).fill('49');await expect(button).toBeDisabled();
+ await panel.getByLabel('Limite superior excluído (Hz)',{exact:true}).fill('51');await panel.getByRole('combobox',{name:'Condição medida',exact:true}).selectOption('');await expect(button).toBeDisabled();
+});
+
+test('single-target comparison requires a controlled condition and rejects ambiguous signal identity',async({page})=>{
+ await installWorkspace(page);await openIntelligence(page);const panel=page.getByTestId(`intelligence-single-target-${assignmentId}`);await panel.locator('summary').first().click();
+ await expect(panel.getByRole('combobox',{name:'Condição medida',exact:true}).locator('option')).toHaveCount(1);await expect(panel.getByRole('button',{name:'Comparar medição',exact:true})).toBeDisabled();
+ await installWorkspace(page,{singleTargetReady:true,currentFrequencyCase:'duplicate-id'});await page.reload();await panel.locator('summary').first().click();
+ await expect(panel.getByRole('combobox',{name:'Medição a analisar',exact:true}).locator('option')).toHaveCount(1);await expect(panel.getByRole('button',{name:'Comparar medição',exact:true})).toBeDisabled();
 });

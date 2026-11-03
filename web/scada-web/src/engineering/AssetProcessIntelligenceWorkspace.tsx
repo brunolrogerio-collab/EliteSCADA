@@ -42,6 +42,7 @@ import {
   type IntelligenceProcessStageInsightsDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
+import { IntelligenceSingleTargetDeviationPanel } from './IntelligenceSingleTargetDeviationPanel';
 import { IntelligenceCurrentFrequencyPanel } from './IntelligenceCurrentFrequencyPanel';
 import { currentFrequencySignals, readCurrentFrequencySignals } from './intelligenceCurrentFrequencySignals';
 import { IntelligenceReferenceEvidencePanel } from './IntelligenceReferenceEvidencePanel';
@@ -1164,6 +1165,11 @@ export function AssetProcessIntelligenceWorkspace({
                   signals={currentFrequencySignals(profile, tags)}
                   projectKey={snapshot.execution.projectKey} activeRevision={snapshot.execution.activeRevision}
                   canQuery={!coverageBlockedReason}
+                /> : null}
+                {equipmentResource && profile ? <IntelligenceSingleTargetDeviationPanel
+                  locale={locale} scopeId={assignment.equipmentId} assignmentId={assignment.id} profile={profile} tags={tags}
+                  controlledUnits={semanticCatalog?.controlledEngineeringUnitCatalogs ?? []}
+                  projectKey={snapshot.execution.projectKey} activeRevision={snapshot.execution.activeRevision} canQuery={!coverageBlockedReason}
                 /> : null}
                 {equipmentResource && profile ? <IntelligenceReferenceEvidencePanel
                   locale={locale} scopeId={assignment.equipmentId} profileId={assignment.profileId}

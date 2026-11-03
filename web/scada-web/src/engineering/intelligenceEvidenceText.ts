@@ -49,6 +49,9 @@ const reasons: Record<string, readonly [string, string, string]> = {
   duplicate_frequency_source_timestamp: ["Frequências ambíguas no mesmo horário de origem", "Ambiguous frequency readings at the same source time", "Lecturas de frecuencia ambiguas con la misma hora de origen"],
   accepted_current_sample_unmatched: ["Corrente sem frequência no mesmo horário de origem", "Current has no frequency at the same source time", "Corriente sin frecuencia en la misma hora de origen"],
   accepted_frequency_sample_unmatched: ["Frequência sem corrente no mesmo horário de origem", "Frequency has no current at the same source time", "Frecuencia sin corriente en la misma hora de origen"],
+  duplicate_target_source_timestamp: ['Horário de origem ambíguo na medição analisada', 'Ambiguous source time in the analyzed measurement', 'Hora de origen ambigua en la medición analizada'],
+  duplicate_condition_source_timestamp: ['Horário de origem ambíguo na condição', 'Ambiguous source time in the condition', 'Hora de origen ambigua en la condición'],
+  condition_unit_conversion_unavailable: ['Não foi possível converter a condição para a unidade canônica', 'The condition could not be converted to the canonical unit', 'No se pudo convertir la condición a la unidad canónica'],
   frequency_outside_requested_range: ["Frequência fora da faixa escolhida", "Frequency outside the selected range", "Frecuencia fuera del rango elegido"]
 };
 export function intelligenceEvidenceText(reason: string, locale: EngineeringLocale): string {

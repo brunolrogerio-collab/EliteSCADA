@@ -280,6 +280,19 @@ Revise ambas lecturas y sus horas, segundos entre extremos y cantidades recibida
 
 La tasa describe solo el cambio entre extremos. No es derivada instantánea, media de tasas, diagnóstico ni prueba de eficiencia. Tampoco demuestra datos completos o condiciones equivalentes. El límite es 31 días y 50 mil registros brutos; no oculte datos para evitar un rechazo. Cancelar consulta de tasa descarta la solicitud en curso. Cambiar período o agrupación de cobertura retira el resultado. Nada se guarda en el proyecto. La cobertura del Runtime ofrece los mismos detalles, con los mismos permisos y autorización de ejecución.
 
+### Comparar una medición bajo una condición
+
+En Ingeniería > Inteligencia de activos, abra la asociación equipo/perfil y Comparar una medición bajo una condición. Analiza una señal limitada por otra, como corriente del motor cuando la frecuencia medida está entre 49 y 51 Hz. La vista vectorial del Runtime usa varias mediciones y condiciones; es otra consulta.
+
+1. Elija Medición a analizar y Condición medida por nombre. Deben ser señales numéricas distintas del mismo perfil. La condición requiere unidad controlada compatible. Si la lista está vacía, revise TAGs asociados, tipos de datos y unidad controlada. La unidad de texto libre no sustituye esa configuración.
+2. Introduzca Límite inferior incluido y Límite superior excluido en la unidad indicada. Con 49 y 51 Hz entran 49 y 50, pero no 51. Si indica Pa, exprese 50 kPa como 50000 Pa.
+3. Elija inicio/fin de referencia y evaluación en hora local. Cada período admite hasta 31 días. La evaluación debe comenzar después del fin de referencia, sin superposición ni extremo compartido. Las duraciones pueden diferir. Elegir referencia no demuestra un equipo sano.
+4. Pulse Comparar medición; abrir o editar no consulta el histórico. Requiere revisión publicada/activa, ejecución autorizada del equipo, licencia y permisos de tendencia/lectura de ambos TAGs. Cambiar campos retira el resultado; Cancelar comparación de medición descarta la solicitud en curso.
+5. Mediana de referencia es el valor central seleccionado. Dispersión (MAD) es la mediana de las distancias a ese valor, no desviación estándar. Ver muestras evaluadas muestra diferencia bruta: valor objetivo menos mediana, en su unidad original. Score robusto es 0,67448975 por esa diferencia dividido por MAD. Requiere al menos 30 pares de referencia y MAD positivo. Pocos pares o MAD cero pueden dejar score no disponible aunque haya diferencia bruta. No disponible no significa cero.
+6. Revisar pares, rechazos y calidad muestra cada período/señal: recibidas, Buenas numéricas, sincronizadas, rechazadas, grupos ambiguos y motivos. Se emparejan horas de origen idénticas con evidencia explícita de sincronización; no hay aproximación, interpolación ni relleno. Las horas del Historian también limitan consulta; cada hora de registro aparece junto a la de origen.
+
+Límite conjunto: 50 mil registros brutos de ambas señales/períodos. Se devuelven hasta 500 muestras de evaluación; revise cantidad omitida. Muestras fuera del rango quedan identificadas sin diferencia ni score. No se guardan resultados en el proyecto. No es diagnóstico, medición de eficiencia ni prueba de simultaneidad física, condiciones equivalentes o integridad del histórico.
+
 ### Comparar corriente dentro de un rango de frecuencia
 
 Suponga que un motor consumía unos 5 A y ahora consume 6 A. Antes de interpretar el cambio, compruebe si esas mediciones se registraron en el rango de frecuencia que desea investigar. Esta consulta compara dos partes del histórico; no aprende un patrón ni diagnostica el motor.
@@ -402,5 +415,13 @@ Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no
 **Tasa neta: interfaz real con respuestas API simuladas, no prueba API/PostgreSQL**
 
 ![Tasa neta: interfaz real con respuestas API simuladas, no prueba API/PostgreSQL](../../evidence/intelligence-857/net-observed-rate-browser.png)
+
+**Objetivo único: formulario real con API simulada, no prueba API/PostgreSQL**
+
+![Objetivo único: formulario real con API simulada, no prueba API/PostgreSQL](../../evidence/intelligence-857/single-target-form-browser.png)
+
+**Objetivo único: resultado y evidencia reales de interfaz con datos simulados**
+
+![Objetivo único: resultado y evidencia reales de interfaz con datos simulados](../../evidence/intelligence-857/single-target-result-browser.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

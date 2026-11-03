@@ -72,3 +72,8 @@ Incremento estatístico após d47faac0: CoverageResult passa a oferecer detalhes
 ### Complemento #857 — taxa líquida observada
 
 Requisito implementado na candidata aguardando validação/aceite: consulta por TAG/período dentro dos detalhes da cobertura, compartilhada Engenharia/Runtime, com extremos/horários/contagens/qualidade, ausência de unidade e dados insuficientes explícitos, sem inferir eficiência ou defeito. API real/persistência deste incremento ainda sem nova evidência (Docker indisponível); testes montados usam respostas simuladas. Não reclassificar o desvio contextual de alvo único, ainda não entregue, nem encerrar #857. Evidências finais/SHA/CI na #857/#854.
+
+
+### Complemento #857 — alvo único
+
+Implementação candidata na Engenharia por associação: um sinal alvo e uma condição de unidade controlada, períodos/faixa explícitos, mediana/MAD/diferença bruta/score e evidências do método já existente. **Gerador/Runtime ainda não entregue para este caso**; V2 vetorial não substitui. Prova real API/PostgreSQL também pendente. Sem fechamento global/aceite. Testes/SHA/CI finais na #857/#854.

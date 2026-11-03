@@ -116,3 +116,16 @@ CI8d56743b /41561270769: CANCELLED, Z-Wave skipped conforme autorização, dois 
 Validação local do alvo único: primeira rodada interrompida por seletor de teste incorreto (`getByLabel` versus nome acessível do combobox); corrigido o teste. Rodada seguinte9/10 expôs overflow mobile real; corrigido o min-width do item de grid que contém a tabela, mantendo rolagem horizontal e sem relaxar a asserção. Final22/22:10 casos do alvo único e regressões corrente/frequência em3idiomas, taxa líquida e Runtime. Focado visual/tradução1/1 após rótulos explícitos para horários ambíguos. Capturas de formulário/resultado inspecionadas e adicionadas ao manual; são interface real com respostas simuladas, não prova API/PostgreSQL. Build Web passou. Resultado Help e SHA/run finais no registro #857/#854.
 
 Help final30/30 passou e69 arquivos Help/manual alinhados. Sem alteração de timeout/retry/gates; Z-Wave permanece na quarentena explicitamente autorizada #856.
+
+
+## Complemento — tela do alvo único por perfil e Runtime
+
+`generateIntelligenceSingleTargetScreenDraft`, callback na associação e `IntelligenceSingleTargetVisualElement` reutilizam o painel de consulta já existente. Novo objeto canônico `core.intelligenceSingleTargetDeviationV1` e propriedade `intelligenceSingleTargetSignals`, somente leitura/sem binding, 2–16 referências de identidade/nome/unidade, sem workspace/Authority/resultados/janelas no HMI. C# e TS rejeitam campos extras, duplicatas, IDs vazios e condição sem unidade controlada de apresentação. Nenhum cálculo ou endpoint foi modificado; API confere as unidades e autorizações reais.
+
+A criação gera rascunho, não salva nem consulta analytics. Após revisão/aplicação/save/publish/activate, Runtime ao vivo exige consulta explícita. Editor e reprodução histórica não consultam; chave de contexto/sessão/revisão força descarte, cancelamento e acesso/revisão incompatíveis deixam sem resultado. Testes22/22 cobrem esse percurso, geração sem leituras/gravações, referências inválidas e schemas. C# EngineeringIntelligence134/134 passou, incluindo objeto Screen-only, somente leitura, round-trip e entradas inválidas. Build Web aprovado. Primeira bateria21/22 recusou fixture Runtime sem `equipmentId`; corrigida a fixture. Nenhum teste relaxado.
+
+**Limite de composição:** entregue uma tela por perfil pelo botão da associação. Compositor central e seleção por membro de etapa ainda pendentes para este método; não afirmar paridade completa da #855/#857. Sem prova API/PostgreSQL real ou persistência integrada nova, por Docker indisponível. Captura real de Runtime com respostas simuladas, não prova de backend. Help/manual três idiomas explicam criação/limite16/consultas/histórico. Resultado Help e SHA/run finais na #857/#854.
+
+CI422f225e /41566001584 falhou .NET no `SystemProcess_ForcedCrashRestartsThroughSupervisor`, TimeoutException de graceful stop2s. Teste executado é Linux-only. Chromium cancelados e T1 FAILURE. Não houve investigação suficiente para declarar causa raiz ou correção e não foi desativado. Z-Wave corretamente skipped #856.
+
+Fechamento local: Help30/30 após acrescentar o novo objeto ao catálogo contextual (a falta inicial provocava KeyNotFoundException na construção do catálogo).69 arquivos alinhados. Não houve relaxamento de teste/gate; foi corrigida a integração do novo objeto.

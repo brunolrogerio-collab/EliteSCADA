@@ -39,6 +39,7 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   intelligenceReferenceEvidenceV1: 'core.intelligenceReferenceEvidenceV1',
   intelligenceContextEligibilityV1: 'core.intelligenceContextEligibilityV1',
   intelligenceCurrentFrequencyComparisonV1: 'core.intelligenceCurrentFrequencyComparisonV1',
+  intelligenceSingleTargetDeviationV1: 'core.intelligenceSingleTargetDeviationV1',
   intelligenceExperimentalJointDeviationV1: 'core.intelligenceExperimentalJointDeviationV1',
   intelligenceProcessStageCoverageV1: 'core.intelligenceProcessStageCoverageV1',
   intelligenceProcessStageInsightsV1: 'core.intelligenceProcessStageInsightsV1',
@@ -368,6 +369,10 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1, [
     ...BASE, VISUAL_PROPERTY_KEYS.intelligenceScopeId, VISUAL_PROPERTY_KEYS.intelligenceAssignmentId, VISUAL_PROPERTY_KEYS.intelligenceProfileId,
     VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1, [
+    ...BASE, VISUAL_PROPERTY_KEYS.intelligenceScopeId, VISUAL_PROPERTY_KEYS.intelligenceAssignmentId, VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceSingleTargetSignals
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1, [
     ...BASE, VISUAL_PROPERTY_KEYS.intelligenceScopeId, VISUAL_PROPERTY_KEYS.intelligenceAssignmentId, VISUAL_PROPERTY_KEYS.intelligenceProfileId,

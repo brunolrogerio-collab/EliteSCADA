@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readSingleTargetSignals } from '../src/engineering/intelligenceSingleTargetReferences';
 import { readCurrentFrequencySignals } from '../src/engineering/intelligenceCurrentFrequencySignals';
 const scopeId = '10000000-0000-0000-0000-000000000001';
 const profileId = '30000000-0000-0000-0000-000000000003';
@@ -47,7 +48,7 @@ for(const scenario of ['one','many','duplicate-id','duplicate-tag','empty-id','e
  if(scenario==='zero-guid')items[0].id='00000000-0000-0000-0000-000000000000';
  expect(readCurrentFrequencySignals(JSON.stringify(items))).toBeNull();
 });
-async function installRuntime(page: Page, elementScopeId = scopeId, stage = false) {
+async function installRuntime(page: Page, elementScopeId = scopeId, stage = false, single = false) {
   let start!: () => void; const started = new Promise<void>(resolve => { start = resolve; });
   let release!: () => void; const delayed = new Promise<void>(resolve => { release = resolve; });
   const fixture = { requests: [] as any[], mode: 'valid', completed: false, started: () => started, release: () => release() };
@@ -62,17 +63,17 @@ async function installRuntime(page: Page, elementScopeId = scopeId, stage = fals
     } });
     if (path === '/api/engineering/persistence/status') return route.fulfill({ json: { enabled: true, hasProjects: true } });
     if (path === '/api/product/info') return route.fulfill({ json: { productName: 'SCADIVO', channel: 'Test', version: '0.0.0', displayVersion: 'SCADIVO Test', informationalVersion: 'SCADIVO Test', buildCommit: 'reference-test' } });
-    if (path === '/api/runtime/application') return route.fulfill({ json: runtimeProjection(elementScopeId, stage) });
+    if (path === '/api/runtime/application') return route.fulfill({ json: runtimeProjection(elementScopeId, stage, single) });
     if (path === '/api/runtime/client-memory') return route.fulfill({ json: [] });
-    if (path === referencePath) {
+    if (path === (single ? '/api/engineering/asset-process-intelligence/analytics/contextual-reference-deviation/v1/query' : referencePath)) {
       const body = route.request().postDataJSON(); fixture.requests.push(body);
       if (fixture.mode === 'late') {
         start(); await delayed;
-        try { await route.fulfill({ json: response(body) }); } catch { /* A changed window aborts the request. */ }
+        try { await route.fulfill({ json: (single ? singleTargetResponse(body,fixture.mode) : response(body)) }); } catch { /* A changed window aborts the request. */ }
         fixture.completed = true; return;
       }
       if (fixture.mode === 'forbidden') return route.fulfill({ status: 403, json: { code: 'INTELLIGENCE_ENTITLEMENT_REQUIRED' } });
-      return route.fulfill({ json: { ...response(body), ...(fixture.mode === 'stale' ? { activeRevision: revision + 1 } : {}) } });
+      return route.fulfill({ json: { ...(single ? singleTargetResponse(body,fixture.mode) : response(body)), ...(fixture.mode === 'stale' ? { activeRevision: revision + 1 } : {}) } });
     }
     return route.fulfill({ status: 404, json: {} });
   });
@@ -92,7 +93,7 @@ function response(body: Record<string, any>) {
     provenance: { dataset: 'historian.samples.v2', datasetContractVersion: 2, physicalSimultaneity: 'unverified; exact recorded-time equality only', operatingRegimeEquivalence: 'unverified; frequency alone is insufficient', expectedCadence: 'unknown', completeness: 'unknown' } };
 }
 
-function runtimeProjection(elementScopeId = scopeId, stage = false) {
+function runtimeProjection(elementScopeId = scopeId, stage = false, single = false) {
   return {
     mode: 'engineering',
     projectKey,
@@ -114,7 +115,7 @@ function runtimeProjection(elementScopeId = scopeId, stage = false) {
         elements: [{
           id: '90000000-0000-0000-0000-000000000010',
           key: 'profile-coverage-v1',
-          type: stage ? 'core.intelligenceProcessStageInsightsV1' : 'core.intelligenceCurrentFrequencyComparisonV1',
+          type: single ? 'core.intelligenceSingleTargetDeviationV1' : stage ? 'core.intelligenceProcessStageInsightsV1' : 'core.intelligenceCurrentFrequencyComparisonV1',
           properties: {
             x: 50, y: 60, width: 1100, height: 720,
             ...(stage ? {
@@ -127,7 +128,8 @@ function runtimeProjection(elementScopeId = scopeId, stage = false) {
             intelligenceScopeId: elementScopeId,
             intelligenceProfileId: profileId,
             intelligenceAssignmentId: assignmentId,
-            intelligenceCurrentFrequencySignals: JSON.stringify(signals)
+            intelligenceCurrentFrequencySignals: JSON.stringify(signals),
+            intelligenceSingleTargetSignals: JSON.stringify(singleSignals)
           }
         }]
       }]
@@ -146,4 +148,38 @@ test('stage current-frequency uses the eligible member and removes stale results
  await member.selectOption(assignmentId);await queryChoice.click();await fillQuery(visual);fixture.mode='late';await visual.getByRole('button',{name:'Compare current',exact:true}).click();await fixture.started();
  await member.selectOption(profileId);fixture.release();await expect.poll(()=>fixture.completed).toBe(true);await expect(visual).toHaveCount(0);
  await member.selectOption(assignmentId);await queryChoice.click();await expect(visual.getByTestId('intelligence-current-frequency-result')).toHaveCount(0);expect(fixture.requests).toHaveLength(2);
+});
+
+const singleSignals=[{id:currentTagId,tagId:currentTagId,label:'Motor current',unit:'A',canonicalUnit:null,unitCode:null},
+ {id:speedTagId,tagId:speedTagId,label:'Measured frequency',unit:'Hz',canonicalUnit:'Hz',unitCode:'unit.frequency.hertz'}];
+function singleTargetResponse(body:any,mode:string){
+ const counts={rawObservationCount:35,goodFiniteNumericCount:34,acceptedSynchronizedSampleCount:32,rejectedObservationCount:3,ambiguousSourceTimestampGroupCount:1,ambiguousSourceTimestampRowCount:2,qualityCounts:{Good:34,BadCommunication:1},rejectionCounts:{quality_not_good:1,duplicate_target_source_timestamp:2}};
+ const evidence=(window:any)=>({window,target:counts,condition:{...counts,rejectionCounts:{quality_not_good:1,duplicate_condition_source_timestamp:2}},exactSourceTimestampPairCount:32,conditionInRangePairCount:30,conditionOutOfRangePairCount:2,qualifiedPairCount:30});
+ const signal=(id:string,tagId:string,condition=false)=>({signalId:id,signalKey:'medição',tagId,tagPath:'Planta.Bomba01',dataType:'Double',engineeringUnit:condition?'Hz':'A',controlledUnitCode:condition?'unit.frequency.hertz':null,canonicalUnit:condition?'Hz':null});
+ const insufficient=mode==='insufficient',zero=mode==='zero-mad';
+ return {contractVersion:1,catalogVersion:1,ruleId:'contextual-reference-deviation.v1',ruleVersion:'1.0.0',projectKey,activeRevision:mode==='stale'?5:4,scopeKind:'Equipment',scopeId,equipmentId:scopeId,assignmentId,profileId,
+ targetSignal:signal(body.targetSignalId,currentTagId),conditionSignal:signal(body.conditionSignalId,speedTagId,true),referenceWindow:body.referenceWindow,evaluationWindow:body.evaluationWindow,
+ conditionLowerInclusiveCanonical:49,conditionUpperExclusiveCanonical:mode==='wrong-range'?52:51,conditionCanonicalUnit:mode==='wrong-unit'?'rpm':'Hz',referenceEvidence:{...evidence(body.referenceWindow),...(insufficient?{qualifiedPairCount:0,conditionInRangePairCount:0,conditionOutOfRangePairCount:32}:{})},evaluationEvidence:{...evidence(body.evaluationWindow),exactSourceTimestampPairCount:2,conditionInRangePairCount:1,conditionOutOfRangePairCount:1,qualifiedPairCount:1},referenceMedian:insufficient?null:10,referenceMedianAbsoluteDeviation:insufficient?null:zero?0:2,status:insufficient?'insufficient_data':'available',reasonCodes:insufficient?['no_qualified_reference_pairs']:zero?['reference_mad_zero']:[],totalRawObservationCount:140,returnedEvaluationSampleCount:2,omittedEvaluationSampleCount:0,
+ evaluationSamples:[{sourceTimestampUtc:body.evaluationWindow.fromUtc,targetObservedTimestampUtc:body.evaluationWindow.fromUtc,conditionObservedTimestampUtc:body.evaluationWindow.fromUtc,targetValue:14,conditionValueCanonical:50,conditionInRange:true,rawDifferenceFromReferenceMedian:insufficient?null:4,robustScore:insufficient||zero?null:1.3489795,scoreUnavailableReason:insufficient?'no_qualified_reference_pairs':zero?'reference_mad_zero':null},
+ {sourceTimestampUtc:body.evaluationWindow.toUtc,targetObservedTimestampUtc:body.evaluationWindow.toUtc,conditionObservedTimestampUtc:body.evaluationWindow.toUtc,targetValue:20,conditionValueCanonical:51,conditionInRange:false,rawDifferenceFromReferenceMedian:null,robustScore:null,scoreUnavailableReason:'condition_outside_requested_range'}],provenance:{dataset:'historian.samples.v2',datasetContractVersion:2,regimeEquivalence:'not_assessed',completeness:'unknown'}};
+}
+
+test('single-target Runtime queries explicitly, cancels, rejects stale access and disables historical playback',async({page})=>{
+ page.on('pageerror',error=>{throw error;});const fixture=await installRuntime(page,scopeId,false,true);await page.goto('/');
+ const visual=page.getByTestId('runtime-intelligence-single-target');await visual.locator('summary').first().click();
+ await visual.getByRole('combobox',{name:'Measurement to analyze',exact:true}).selectOption(currentTagId);await visual.getByRole('combobox',{name:'Measured condition',exact:true}).selectOption(speedTagId);
+ for(const [label,value] of [['Included lower bound (Hz)','49'],['Excluded upper bound (Hz)','51'],['Reference start (local time)','2026-10-20T10:00'],['Reference end (local time)','2026-10-20T11:00'],['Evaluation start (local time)','2026-10-21T10:00'],['Evaluation end (local time)','2026-10-21T12:00']])await visual.getByLabel(label,{exact:true}).fill(value);
+ const query=visual.getByRole('button',{name:'Compare measurement',exact:true}),result=visual.getByTestId('intelligence-single-target-result');expect(fixture.requests).toEqual([]);await query.click();await expect(result).toContainText('10 A');
+ fixture.mode='late';await query.click();await fixture.started();await visual.getByRole('button',{name:'Cancel measurement comparison',exact:true}).click();fixture.release();await expect.poll(()=>fixture.completed).toBe(true);await expect(result).toHaveCount(0);
+ fixture.mode='stale';await query.click();await expect(visual.getByRole('alert')).toBeVisible();await expect(result).toHaveCount(0);
+ fixture.mode='forbidden';await query.click();await expect(result).toHaveCount(0);await expect(visual.getByRole('alert')).toBeVisible();
+ fixture.mode='valid';await query.click();await expect(result).toBeVisible();await result.scrollIntoViewIfNeeded();await visual.screenshot({path:test.info().outputPath('single-target-runtime.png')});
+ await page.getByTestId('runtime-engineering-application').getByRole('button',{name:/Historical Playback/}).click();await page.getByTestId('runtime-playback-overlay').getByRole('button',{name:/Enter Playback/}).click();
+ await expect(visual.getByRole('button',{name:'Compare measurement',exact:true,includeHidden:true})).toBeDisabled();await expect(result).toHaveCount(0);
+});
+for(const scenario of ['duplicate','extra','no-condition','partial-unit','too-many','empty-label'] as const)test(`single-target references reject ${scenario}`,()=>{
+ const items=structuredClone(singleSignals);if(scenario==='duplicate')items[1].tagId=items[0].tagId;if(scenario==='extra')Object.assign(items[0],{policy:'forbidden'});
+ if(scenario==='no-condition'){items[1].canonicalUnit=null as any;items[1].unitCode=null as any;}if(scenario==='partial-unit')items[1].unitCode=null as any;
+ if(scenario==='too-many')for(let i=0;i<15;i++)items.push({...items[1],id:crypto.randomUUID(),tagId:crypto.randomUUID()});if(scenario==='empty-label')items[0].label=' ';
+ expect(readSingleTargetSignals(JSON.stringify(items))).toBeNull();
 });

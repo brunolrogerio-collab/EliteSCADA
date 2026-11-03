@@ -11,7 +11,7 @@ import './intelligence-single-target.css';
 import { intelligenceEvidenceText } from './intelligenceEvidenceText';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
-type Signal = { id: string; tagId: string; label: string; unit: string | null; canonicalUnit: string | null; unitCode: string | null };
+export type SingleTargetSignal = { id: string; tagId: string; label: string; unit: string | null; canonicalUnit: string | null; unitCode: string | null };
 type Counts = { rawObservationCount: number; goodFiniteNumericCount: number; acceptedSynchronizedSampleCount: number;
   rejectedObservationCount: number; ambiguousSourceTimestampGroupCount: number; ambiguousSourceTimestampRowCount: number;
   qualityCounts: Record<string, number>; rejectionCounts: Record<string, number> };
@@ -37,17 +37,18 @@ function evidenceValid(value: Evidence | undefined, window: WindowValue) {
       signal.ambiguousSourceTimestampRowCount].every(count) && map(signal.qualityCounts) && map(signal.rejectionCounts));
 }
 
-export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assignmentId, profile, tags, controlledUnits, projectKey, activeRevision, canQuery }: {
-  locale: EngineeringLocale; scopeId: string; assignmentId: string; profile: AssetProcessIntelligenceProfileEngineering;
-  tags: readonly TagEngineering[]; controlledUnits: readonly VersionedControlledUnitCatalog[];
+export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assignmentId, profile, tags, controlledUnits = [], projectKey, activeRevision, canQuery, profileId, signalReferences, onCreateRuntimeScreenDraft }: {
+  locale: EngineeringLocale; scopeId: string; assignmentId: string; profile?: AssetProcessIntelligenceProfileEngineering; profileId: string; signalReferences?: readonly SingleTargetSignal[];
+  onCreateRuntimeScreenDraft?: (signals: readonly SingleTargetSignal[]) => void;
+  tags: readonly TagEngineering[]; controlledUnits?: readonly VersionedControlledUnitCatalog[];
   projectKey: string | null; activeRevision: number | null; canQuery: boolean;
 }) {
   const t = (pt: string, en: string, es: string) => locale === 'pt-BR' ? pt : locale === 'es' ? es : en;
   const { profile: session } = useAuth();
   const sessionKey = session ? JSON.stringify([session.subjectId, session.identityProvider, session.expiresAtUtc, [...session.roles].sort()]) : 'anonymous';
-  const duplicate = new Set(profile.signals.map(signal => signal.id.toLowerCase())).size !== profile.signals.length ||
-    new Set(profile.signals.map(signal => signal.tagId.toLowerCase())).size !== profile.signals.length;
-  const signals: Signal[] = duplicate ? [] : profile.signals.flatMap(signal => {
+  const duplicate = new Set((profile?.signals ?? []).map(signal => signal.id.toLowerCase())).size !== (profile?.signals ?? []).length ||
+    new Set((profile?.signals ?? []).map(signal => signal.tagId.toLowerCase())).size !== (profile?.signals ?? []).length;
+  const signals: readonly SingleTargetSignal[] = signalReferences ?? (duplicate ? [] : (profile?.signals ?? []).flatMap(signal => {
     const matches = tags.filter(tag => sameId(tag.id, signal.tagId));
     if (matches.length !== 1 || !isNumericTagDataType(matches[0].dataType)) return [];
     const tag = matches[0], ref = tag.controlledEngineeringUnit;
@@ -55,7 +56,7 @@ export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assign
     const unit = units.length === 1 && finite(units[0].scaleToCanonical) && units[0].scaleToCanonical > 0 ? units[0] : null;
     return [{ id: signal.id, tagId: signal.tagId, label: tag.name || tag.path, unit: tag.engineeringUnit ?? null,
       canonicalUnit: unit?.canonicalUnit ?? null, unitCode: unit ? ref!.code : null }];
-  });
+  }));
   const [targetId, setTargetId] = useState(''), [conditionId, setConditionId] = useState('');
   const [referenceFrom, setReferenceFrom] = useState(''), [referenceTo, setReferenceTo] = useState('');
   const [evaluationFrom, setEvaluationFrom] = useState(''), [evaluationTo, setEvaluationTo] = useState('');
@@ -71,7 +72,7 @@ export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assign
   useEffect(() => {
     abort.current?.abort(); sequence.current++; setResult(null); setError(false); setBusy(false); setShowSamples(false);
     return () => { abort.current?.abort(); sequence.current++; };
-  }, [scopeId, assignmentId, profile.id, projectKey, activeRevision, canQuery, sessionKey, signalsKey, targetId, conditionId,
+  }, [scopeId, assignmentId, profileId, projectKey, activeRevision, canQuery, sessionKey, signalsKey, targetId, conditionId,
     referenceFrom, referenceTo, evaluationFrom, evaluationTo, lower, upper]);
   async function query(event: FormEvent) {
     event.preventDefault();
@@ -85,11 +86,11 @@ export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assign
           referenceWindow: reference, evaluationWindow: evaluation, conditionLowerInclusiveCanonical: Number(lower), conditionUpperExclusiveCanonical: Number(upper) })
       });
       const data = await response.json();
-      const matchesSignal = (value: any, signal: Signal) => !!value && sameId(value.signalId, signal.id) && sameId(value.tagId, signal.tagId) &&
+      const matchesSignal = (value: any, signal: SingleTargetSignal) => !!value && sameId(value.signalId, signal.id) && sameId(value.tagId, signal.tagId) &&
         value.engineeringUnit === signal.unit && value.controlledUnitCode === signal.unitCode && value.canonicalUnit === signal.canonicalUnit;
       if (!response.ok || data.contractVersion !== 1 || data.catalogVersion !== 1 || data.ruleId !== 'contextual-reference-deviation.v1' || data.ruleVersion !== '1.0.0' ||
         data.projectKey !== projectKey || data.activeRevision !== activeRevision || ![0, 'Equipment'].includes(data.scopeKind) ||
-        !sameId(data.scopeId, scopeId) || !sameId(data.equipmentId, scopeId) || !sameId(data.assignmentId, assignmentId) || !sameId(data.profileId, profile.id) ||
+        !sameId(data.scopeId, scopeId) || !sameId(data.equipmentId, scopeId) || !sameId(data.assignmentId, assignmentId) || !sameId(data.profileId, profileId) ||
         !matchesSignal(data.targetSignal, target) || !matchesSignal(data.conditionSignal, condition) ||
         !matchesIntelligenceWindow(data.referenceWindow, reference) || !matchesIntelligenceWindow(data.evaluationWindow, evaluation) ||
         data.conditionLowerInclusiveCanonical !== Number(lower) || data.conditionUpperExclusiveCanonical !== Number(upper) || data.conditionCanonicalUnit !== condition.canonicalUnit ||
@@ -123,6 +124,8 @@ export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assign
     <summary>{t('Comparar uma medição sob uma condição', 'Compare one measurement under a condition', 'Comparar una medición bajo una condición')}</summary>
     <div className="asset-process-intelligence__deviation-body">
       <p>{t('Escolha o que analisar e a condição que limita a comparação. Exemplo: corrente do motor quando a frequência medida está em uma faixa. A referência é escolhida por você; não é um atestado de equipamento saudável.', 'Choose what to analyze and the condition limiting the comparison. Example: motor current within a measured frequency range. You choose the reference; it is not evidence of healthy equipment.', 'Elija qué analizar y la condición que limita la comparación. Ejemplo: corriente dentro de un rango de frecuencia medida. Usted elige la referencia; no demuestra un equipo sano.')}</p>
+      {onCreateRuntimeScreenDraft && <button type="button" disabled={signals.length < 2 || signals.length > 16 || !signals.some(signal => signal.canonicalUnit)} onClick={() => onCreateRuntimeScreenDraft(signals)}>{t('Criar tela desta comparação', 'Create screen for this comparison', 'Crear pantalla de esta comparación')}</button>}
+      {onCreateRuntimeScreenDraft && signals.length > 16 && <p>{t('A tela aceita até 16 medições por perfil. Separe um perfil menor para gerar esta vista.', 'This screen supports up to 16 measurements per profile. Use a smaller profile to generate this view.', 'La pantalla admite hasta 16 mediciones por perfil. Use un perfil menor para generar esta vista.')}</p>}
       <form onSubmit={event => void query(event)}>
         <label>{t('Medição a analisar', 'Measurement to analyze', 'Medición a analizar')}<select value={targetId} onChange={event => setTargetId(event.currentTarget.value)}><option value="">{t('Escolha a medição', 'Choose measurement', 'Elija medición')}</option>{signals.map(signal => <option key={signal.id} value={signal.id}>{signal.label}</option>)}</select></label>
         <label>{t('Condição medida', 'Measured condition', 'Condición medida')}<select value={conditionId} onChange={event => setConditionId(event.currentTarget.value)}><option value="">{t('Escolha a condição', 'Choose condition', 'Elija condición')}</option>{signals.filter(signal => signal.canonicalUnit && signal.id !== targetId).map(signal => <option key={signal.id} value={signal.id}>{signal.label} ({signal.canonicalUnit})</option>)}</select></label>

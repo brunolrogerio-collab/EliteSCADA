@@ -282,7 +282,7 @@ Essa taxa descreve apenas a mudança entre os extremos. Não é uma derivada ins
 
 ### Comparar uma medição sob uma condição
 
-Esta consulta fica na Engenharia > Inteligência de ativos, dentro da associação do equipamento com seu perfil. Abra Comparar uma medição sob uma condição. Ela atende o caso em que você quer analisar um sinal e limitar a análise por outro: por exemplo, observar corrente do motor quando a frequência medida fica entre 49 e 51 Hz. A vista vetorial do Runtime usa várias medições e condições; não é a mesma consulta.
+Esta consulta fica na Engenharia > Inteligência de ativos, dentro da associação do equipamento com seu perfil. Abra Comparar uma medição sob uma condição. Ela atende o caso em que você quer analisar um sinal e limitar a análise por outro: por exemplo, observar corrente do motor quando a frequência medida fica entre 49 e 51 Hz. Para levar esta consulta ao operador, clique Criar tela desta comparação na associação. A vista vetorial usa várias medições e condições; não é a mesma consulta.
 
 1. Escolha Medição a analisar e Condição medida pelos nomes. Ambos devem ser sinais numéricos distintos do mesmo perfil. A condição precisa de unidade controlada reconhecida. Se a lista estiver vazia, confira os TAGs associados, o tipo dos dados e a unidade controlada da condição. Texto livre da unidade não substitui essa configuração.
 2. Preencha Limite inferior incluído e Limite superior excluído na unidade indicada. Para 49 e 51 Hz, entra 49, entra 50, mas não entra 51. Não use a unidade de exibição de outro TAG: se o formulário indica Pa, 50 kPa devem ser expressos como 50000 Pa.
@@ -292,6 +292,8 @@ Esta consulta fica na Engenharia > Inteligência de ativos, dentro da associaç�
 6. Em Conferir pares, rejeições e qualidade, confira cada período e cada sinal: recebidas, Boas numéricas, sincronizadas, rejeitadas, grupos ambíguos e motivos. Os pares usam horários de origem exatamente iguais e evidência explícita de sincronização. Não há aproximação, interpolação ou preenchimento. A janela do Historian também limita a consulta; os horários de registro de cada sinal aparecem junto do horário de origem.
 
 O limite conjunto é 50 mil registros brutos dos dois sinais e períodos. São retornadas até 500 amostras de avaliação; confira a quantidade omitida. Valores fora da faixa da condição permanecem identificados e não ganham score ou diferença. Os resultados não são salvos no projeto. A consulta não diagnostica falhas, não mede eficiência nem comprova simultaneidade física, mesmo regime ou completude do histórico.
+
+Para usar no Runtime: Criar tela desta comparação gera um rascunho separado com até 16 referências de medições, sem resultados, períodos ou faixas pré-preenchidos. Revise a tela no editor, valide/aplique o rascunho, salve, publique e ative a revisão. Criar o rascunho não grava nem consulta o histórico. No Runtime ao vivo, abra a tela e selecione medições, faixa e períodos para consultar. Editor e reprodução histórica não executam essa análise. Trocar sessão/contexto remove resultados; voltar ao vivo não repete a consulta automaticamente. A API continua exigindo licença, revisão e autorização de execução/leitura. Esta ação cria uma tela do perfil; não compõe automaticamente os membros de uma etapa.
 
 ### Comparar a corrente em uma faixa de frequência
 
@@ -423,5 +425,9 @@ Interface real em português, com dados sintéticos de validação. O exemplo n�
 **Alvo único: resultado e evidências reais da interface com dados simulados**
 
 ![Alvo único: resultado e evidências reais da interface com dados simulados](../../evidence/intelligence-857/single-target-result-browser.png)
+
+**Alvo único no Runtime: interface real em inglês com API simulada, não prova API/PostgreSQL**
+
+![Alvo único no Runtime: interface real em inglês com API simulada, não prova API/PostgreSQL](../../evidence/intelligence-857/single-target-runtime-browser.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.analysis-guide)

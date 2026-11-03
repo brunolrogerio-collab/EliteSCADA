@@ -41,6 +41,7 @@ import { NumericInputVisualElement } from './NumericInputVisualElement';
 import { CheckBoxVisualElement, ComboBoxVisualElement } from './ControlVisualElements';
 import { MeasurementVisualElement } from './MeasurementVisualElement';
 import { IntelligencePerformanceVisualElement } from './IntelligencePerformanceVisualElement';
+import { IntelligenceSingleTargetVisualElement } from './IntelligenceSingleTargetVisualElement';
 import { IntelligenceCurrentFrequencyVisualElement } from './IntelligenceCurrentFrequencyVisualElement';
 import { IntelligenceExperimentalJointVisualElement } from './IntelligenceExperimentalJointVisualElement';
 import { IntelligenceContextEligibilityVisualElement } from './IntelligenceContextEligibilityVisualElement';
@@ -306,6 +307,12 @@ function CanonicalElement({
       return <IntelligenceCurrentFrequencyVisualElement scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
         assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])} profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
         signalsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals], '[]')}
+        style={style} runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}/>;
+    }
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1) {
+      return <IntelligenceSingleTargetVisualElement scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])} profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        signalsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceSingleTargetSignals], '[]')}
         style={style} runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}/>;
     }
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1) {

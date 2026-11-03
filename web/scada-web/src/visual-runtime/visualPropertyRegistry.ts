@@ -135,6 +135,7 @@ export const VISUAL_PROPERTY_KEYS = {
   intelligenceStageName: 'intelligenceStageName',
   intelligenceJointSignals: 'intelligenceJointSignals',
   intelligenceCurrentFrequencySignals: 'intelligenceCurrentFrequencySignals',
+  intelligenceSingleTargetSignals: 'intelligenceSingleTargetSignals',
   intelligenceOperatingContexts: 'intelligenceOperatingContexts',
   intelligenceStageMembers: 'intelligenceStageMembers'
 } as const;
@@ -515,11 +516,12 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
     VISUAL_PROPERTY_KEYS.intelligenceStageMembers,
     VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts,
     VISUAL_PROPERTY_KEYS.intelligenceJointSignals,
-    VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals
+    VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals,
+    VISUAL_PROPERTY_KEYS.intelligenceSingleTargetSignals
   ].map(key => ({
     key,
     type: 'string' as const,
-    defaultValue: key === VISUAL_PROPERTY_KEYS.intelligenceSignalIds || key === VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts || key === VISUAL_PROPERTY_KEYS.intelligenceJointSignals || key === VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals ? '[]' : '',
+    defaultValue: key === VISUAL_PROPERTY_KEYS.intelligenceSignalIds || key === VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts || key === VISUAL_PROPERTY_KEYS.intelligenceJointSignals || key === VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals || key === VISUAL_PROPERTY_KEYS.intelligenceSingleTargetSignals ? '[]' : '',
     engineeringEditable: false,
     runtimeReadable: true,
     runtimeWritable: false,

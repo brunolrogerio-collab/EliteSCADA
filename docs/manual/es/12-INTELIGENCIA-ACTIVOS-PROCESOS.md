@@ -282,7 +282,7 @@ La tasa describe solo el cambio entre extremos. No es derivada instantánea, med
 
 ### Comparar una medición bajo una condición
 
-En Ingeniería > Inteligencia de activos, abra la asociación equipo/perfil y Comparar una medición bajo una condición. Analiza una señal limitada por otra, como corriente del motor cuando la frecuencia medida está entre 49 y 51 Hz. La vista vectorial del Runtime usa varias mediciones y condiciones; es otra consulta.
+En Ingeniería > Inteligencia de activos, abra la asociación equipo/perfil y Comparar una medición bajo una condición. Analiza una señal limitada por otra, como corriente del motor cuando la frecuencia medida está entre 49 y 51 Hz. Para ofrecer esta consulta al operador, pulse Crear pantalla de esta comparación en la asociación. La vista vectorial usa varias mediciones y condiciones; es otra consulta.
 
 1. Elija Medición a analizar y Condición medida por nombre. Deben ser señales numéricas distintas del mismo perfil. La condición requiere unidad controlada compatible. Si la lista está vacía, revise TAGs asociados, tipos de datos y unidad controlada. La unidad de texto libre no sustituye esa configuración.
 2. Introduzca Límite inferior incluido y Límite superior excluido en la unidad indicada. Con 49 y 51 Hz entran 49 y 50, pero no 51. Si indica Pa, exprese 50 kPa como 50000 Pa.
@@ -292,6 +292,8 @@ En Ingeniería > Inteligencia de activos, abra la asociación equipo/perfil y Co
 6. Revisar pares, rechazos y calidad muestra cada período/señal: recibidas, Buenas numéricas, sincronizadas, rechazadas, grupos ambiguos y motivos. Se emparejan horas de origen idénticas con evidencia explícita de sincronización; no hay aproximación, interpolación ni relleno. Las horas del Historian también limitan consulta; cada hora de registro aparece junto a la de origen.
 
 Límite conjunto: 50 mil registros brutos de ambas señales/períodos. Se devuelven hasta 500 muestras de evaluación; revise cantidad omitida. Muestras fuera del rango quedan identificadas sin diferencia ni score. No se guardan resultados en el proyecto. No es diagnóstico, medición de eficiencia ni prueba de simultaneidad física, condiciones equivalentes o integridad del histórico.
+
+Para Runtime: Crear pantalla de esta comparación genera un borrador separado con hasta 16 referencias de mediciones, sin resultados, períodos ni límites predeterminados. Revise en el editor, valide/aplique, guarde, publique y active la revisión. Crear borrador no guarda el proyecto ni consulta el histórico. En Runtime en vivo, abra la pantalla y seleccione mediciones, rango y períodos para consultar. Editor y reproducción histórica no ejecutan el análisis. Cambiar sesión/contexto retira resultados; volver en vivo no consulta automáticamente. La API mantiene licencia, revisión, ejecución y lectura autorizadas. Esta acción crea una pantalla del perfil; no compone automáticamente miembros de una etapa.
 
 ### Comparar corriente dentro de un rango de frecuencia
 
@@ -423,5 +425,9 @@ Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no
 **Objetivo único: resultado y evidencia reales de interfaz con datos simulados**
 
 ![Objetivo único: resultado y evidencia reales de interfaz con datos simulados](../../evidence/intelligence-857/single-target-result-browser.png)
+
+**Objetivo único en Runtime: interfaz real en inglés con API simulada, no prueba API/PostgreSQL**
+
+![Objetivo único en Runtime: interfaz real en inglés con API simulada, no prueba API/PostgreSQL](../../evidence/intelligence-857/single-target-runtime-browser.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

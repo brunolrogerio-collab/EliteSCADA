@@ -1,5 +1,15 @@
 # Current coordinator pointer - Wave 15
 
+## Retomada atual — alvo único no gerador por perfil e Runtime #857
+
+Nova candidata acrescenta objeto Screen-only `core.intelligenceSingleTargetDeviationV1`, propriedade `intelligenceSingleTargetSignals` somente leitura (2–16 referências limitadas, sem policy, dados históricos, resultados ou períodos). C#/TS validam IDs/sinais distintos, limites e condição com unidade controlada de apresentação. A API existente continua autoritativa para unidade real, licença, leitura, revisão e permit. `Criar tela desta comparação`, dentro da associação, gera um rascunho sem consultar/gravar; editor não consulta; após salvar/publicar/ativar, Runtime usa o mesmo formulário da Engenharia, com resultados descartados por contexto/sessão/cancelamento e histórico bloqueado.
+
+Local:22/22 navegador/contratos TS/geração/referências (inclui consulta Runtime, cancelamento, revisão/acesso recusados e histórico);134/134 testes C# EngineeringIntelligence; build Web aprovado. Help/manual três idiomas atualizados. Help30/30 e69 arquivos alinhados. SHA/run finais em #857/#854. Captura Runtime real com API simulada inspecionada. Sem prova real API/PostgreSQL/persistência deste incremento (Docker indisponível).
+
+**Próximo:** integrar esta opção ao compositor central e por membro de etapa; completar provas reais, #858 gestor restrito e acabamento de apresentação antes de aceite global. A criação por perfil já funciona pela associação, mas não declarar toda #857/#855 concluída nem merge. Preview/DEMO/Portal/HA/Authority/licença preservados. Quarentena Z-Wave #856 permanece autorizada.
+
+CI predecessor422f225e /41566001584: .NET falhou em `ManagedSidecarCheckpoint3Tests.SystemProcess_ForcedCrashRestartsThroughSupervisor` no encerramento gracioso com deadline2s; ambos Chromium cancelados/T1 falhou. Não atribuir à fórmula Intelligence, não desativar esse teste nem afirmar causa corrigida sem prova Linux.
+
 ## Retomada atual — desvio de um alvo na Engenharia #857
 
 `IntelligenceSingleTargetDeviationPanel` expõe a rota existente `contextual-reference-deviation/v1/query` por associação: um alvo numérico e uma condição numérica distinta com unidade controlada resolvida pelo catálogo. Limites digitados explicitamente na unidade canônica, inferior incluído/superior excluído; referência anterior à avaliação sem extremo compartilhado, até31 dias por período, durações independentes. Sem unidades inferidas, conversão local de resultado ou nova fórmula. Exibe mediana/MAD, diferenças/scores por amostra, pares/rejeições/qualidade/ambiguidade e omitidas; score pode ficar indisponível com diferença bruta válida. Rejeita identidade/revisão/períodos/faixa/unidade/proveniência divergentes. Troca de seleção/sessão/cancelamento descarta resposta antiga.

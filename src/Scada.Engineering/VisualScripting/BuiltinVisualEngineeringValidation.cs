@@ -108,6 +108,8 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey, referenceEvidence: true));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceCurrentFrequencyComparisonV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceCurrentFrequencyV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceSingleTargetDeviationV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceSingleTargetV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceExperimentalJointDeviationV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceExperimentalJointV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceContextEligibilityV1Type, StringComparison.Ordinal))
@@ -375,6 +377,40 @@ public static class BuiltinVisualEngineeringValidation
             !ValidCurrentFrequencyCatalog(ReadString(element, VisualPropertyKeys.IntelligenceCurrentFrequencySignals)))
             yield return Error("VISUAL_INTELLIGENCE_CURRENT_FREQUENCY_CONFIG_INVALID",
                 $"Current/frequency visual '{element.Key}' requires a Screen, stable identities and distinct qualified current and measured-frequency references.", entityKind, entityKey);
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligenceSingleTargetV1(
+        VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
+    {
+        var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out var id) || id == Guid.Empty) ||
+            !ValidSingleTargetCatalog(ReadString(element, VisualPropertyKeys.IntelligenceSingleTargetSignals)))
+            yield return Error("VISUAL_INTELLIGENCE_SINGLE_TARGET_CONFIG_INVALID",
+                $"Single-target visual '{element.Key}' requires a Screen, stable distinct signal identities and a controlled condition unit.", entityKind, entityKey);
+    }
+
+    private static bool ValidSingleTargetCatalog(string? json)
+    {
+        if (json is not { Length: <= 16384 }) return false;
+        JsonElement[]? signals;
+        try { signals = JsonSerializer.Deserialize<JsonElement[]>(json); }
+        catch (JsonException) { return false; }
+        if (signals is not { Length: >= 2 and <= 16 }) return false;
+        var ids = new HashSet<Guid>(); var tags = new HashSet<Guid>(); var condition = false;
+        foreach (var signal in signals)
+        {
+            if (signal.ValueKind != JsonValueKind.Object || signal.EnumerateObject().Count() != 6 ||
+                signal.EnumerateObject().Any(property => property.Name is not ("id" or "tagId" or "label" or "unit" or "canonicalUnit" or "unitCode")) ||
+                !TryReadGuid(signal, "id", out var id) || id == Guid.Empty || !ids.Add(id) ||
+                !TryReadGuid(signal, "tagId", out var tag) || tag == Guid.Empty || !tags.Add(tag) ||
+                !TryReadBoundedString(signal, "label", 320, out _) ||
+                !signal.TryGetProperty("unit", out var unit) || !(unit.ValueKind == JsonValueKind.Null || unit.ValueKind == JsonValueKind.String && unit.GetString()!.Length <= 128) ||
+                !signal.TryGetProperty("canonicalUnit", out var canonical) || !signal.TryGetProperty("unitCode", out var code)) return false;
+            if (canonical.ValueKind == JsonValueKind.Null && code.ValueKind == JsonValueKind.Null) continue;
+            if (!TryReadBoundedString(signal, "canonicalUnit", 32, out _) || !TryReadBoundedString(signal, "unitCode", 160, out _)) return false;
+            condition = true;
+        }
+        return condition;
     }
 
     private static bool ValidCurrentFrequencyCatalog(string? json)

@@ -1305,3 +1305,13 @@ test('single-target comparison requires a controlled condition and rejects ambig
  await installWorkspace(page,{singleTargetReady:true,currentFrequencyCase:'duplicate-id'});await page.reload();await panel.locator('summary').first().click();
  await expect(panel.getByRole('combobox',{name:'Medição a analisar',exact:true}).locator('option')).toHaveCount(1);await expect(panel.getByRole('button',{name:'Comparar medição',exact:true})).toBeDisabled();
 });
+
+
+test('single-target screen draft uses Runtime references without querying or persisting',async({page})=>{
+ const fixture=await installWorkspace(page,{singleTargetReady:true});await openIntelligence(page);
+ const panel=page.getByTestId(`intelligence-single-target-${assignmentId}`);await panel.locator('summary').first().click();
+ await panel.getByRole('button',{name:'Criar tela desta comparação',exact:true}).click();
+ const editor=page.getByTestId('visual-editor-workspace'),visual=editor.getByTestId('runtime-intelligence-single-target');
+ await expect(visual).toBeVisible();await expect(visual.getByRole('button',{name:/Comparar medição|Compare measurement/,includeHidden:true})).toBeDisabled();
+ expect(fixture.otherWrites).toEqual([]);expect(fixture.requests).toEqual([]);
+});

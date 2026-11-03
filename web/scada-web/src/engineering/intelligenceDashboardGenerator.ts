@@ -1,3 +1,5 @@
+import { readSingleTargetSignals } from './intelligenceSingleTargetReferences';
+import type { SingleTargetSignal } from './IntelligenceSingleTargetDeviationPanel';
 import { currentFrequencySignals, readCurrentFrequencySignals, type IntelligenceCurrentFrequencySignal } from './intelligenceCurrentFrequencySignals';
 import { readIntelligenceJointSignals, readIntelligenceJointPresentation, type IntelligenceJointPresentation, type IntelligenceJointSignalReference } from './intelligenceJointReferences';
 import { readIntelligenceContextReferences, type IntelligenceContextReference } from './intelligenceContextReferences';
@@ -746,6 +748,24 @@ export function generateIntelligenceContextEligibilityScreenDraft(
       return element;
     }), metadata: { ...metadata, intelligenceDashboardGenerator: 'context-eligibility.v1', intelligenceContextEligibilityAssignmentId: selection.assignmentId }
   };
+}
+
+export function generateIntelligenceSingleTargetScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceProfileCoverageDashboardSelection & { assignmentId: string; signals: readonly SingleTargetSignal[] },
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const json = JSON.stringify(selection.signals);
+  if (!isCanonicalUuid(selection.assignmentId) || !readSingleTargetSignals(json)) throw new Error('Single-target comparison requires bounded distinct numeric references and a controlled condition.');
+  const draft = generateIntelligenceReferenceEvidenceScreenDraft(existingScreens, selection, locale, createId);
+  const key = uniqueScreenKey(existingScreens, `intelligence-single-target-${slug(selection.displayName)}`);
+  const title = locale === 'pt-BR' ? 'Comparar uma medição sob uma condição' : locale === 'es' ? 'Comparar una medición bajo una condición' : 'Compare one measurement under a condition';
+  return { ...draft, key, route: uniqueScreenRoute(key, existingScreens.map(screen => screen.route)), name: `${title} · ${selection.displayName}`,
+    elements: (draft.elements ?? []).map(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1
+      ? { ...element, key:'intelligence-single-target-v1', type:BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1,
+          properties:{...element.properties,[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId]:selection.assignmentId,[VISUAL_PROPERTY_KEYS.intelligenceSingleTargetSignals]:json} }
+      : element.key.endsWith('-title') ? {...element,properties:{...element.properties,[VISUAL_PROPERTY_KEYS.text]:title}}
+      : element.key.endsWith('-limits') ? {...element,properties:{...element.properties,[VISUAL_PROPERTY_KEYS.text]:locale==='pt-BR'?'A referência é escolhida pelo usuário. O desvio não diagnostica falhas nem comprova eficiência.':locale==='es'?'El usuario elige la referencia. El desvío no diagnostica fallos ni demuestra eficiencia.':'The user selects the reference. Deviation does not diagnose faults or establish efficiency.'}} : element),
+    metadata:{...draft.metadata,intelligenceDashboardGenerator:'single-target.v1'} };
 }
 
 export function generateIntelligenceCurrentFrequencyScreenDraft(

@@ -20,7 +20,7 @@ const ptBR = {
   palette: {
     checkBox: 'Caixa de seleção', comboBox: 'Lista de opções',
     arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmes', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visualizador PDF', reportLauncher: 'Abrir relatório',
-    measurementDial: 'Mostrador semicircular', measurementRing: 'Anel de medição', measurementBar: 'Barra graduada', measurementThermometer: 'Régua vertical', measurementBands: 'Faixas de intervalo', measurementTarget: 'Valor atual e meta'
+    measurementDial: 'Mostrador semicircular', measurementRing: 'Anel de medição', measurementBar: 'Barra graduada', measurementThermometer: 'Régua vertical', measurementBands: 'Faixas de intervalo', measurementTarget: 'Valor atual e meta', intelligenceSingleTargetDeviationV1: 'Comparar uma medição sob uma condição'
   },
   dynamo: {
     name: 'Dínamo', definitionNotFound: 'Definição não encontrada no snapshot canônico de Engineering.', locked: 'Bloqueado', publicSuffix: 'públicos', instance: 'Instância', noPublicParameters: 'Nenhum parâmetro público.',
@@ -56,7 +56,7 @@ const en: C07VisualEditorText = {
   palette: {
     checkBox: 'CheckBox', comboBox: 'ComboBox',
     arc: 'Arc', bezier: 'Bezier curve', alarmBrowser: 'Alarm Browser', eventBrowser: 'Event Browser', videoPlayer: 'Video', pdfViewer: 'PDF viewer', reportLauncher: 'Report launcher',
-    measurementDial: 'Semicircular dial', measurementRing: 'Measurement ring', measurementBar: 'Graduated bar', measurementThermometer: 'Vertical ruler', measurementBands: 'Range bands', measurementTarget: 'Actual vs target'
+    measurementDial: 'Semicircular dial', measurementRing: 'Measurement ring', measurementBar: 'Graduated bar', measurementThermometer: 'Vertical ruler', measurementBands: 'Range bands', measurementTarget: 'Actual vs target', intelligenceSingleTargetDeviationV1: 'Compare one measurement under a condition'
   },
   dynamo: {
     name: 'Dynamo', definitionNotFound: 'Definition not found in the canonical Engineering snapshot.', locked: 'Locked', publicSuffix: 'public', instance: 'Instance', noPublicParameters: 'No public parameters.',
@@ -89,7 +89,7 @@ const es: C07VisualEditorText = {
   palette: {
     checkBox: 'Casilla de verificación', comboBox: 'Lista de opciones',
     arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmas', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visor PDF', reportLauncher: 'Abrir informe',
-    measurementDial: 'Indicador semicircular', measurementRing: 'Anillo de medición', measurementBar: 'Barra graduada', measurementThermometer: 'Regla vertical', measurementBands: 'Bandas de rango', measurementTarget: 'Valor actual y objetivo'
+    measurementDial: 'Indicador semicircular', measurementRing: 'Anillo de medición', measurementBar: 'Barra graduada', measurementThermometer: 'Regla vertical', measurementBands: 'Bandas de rango', measurementTarget: 'Valor actual y objetivo', intelligenceSingleTargetDeviationV1: 'Comparar una medición bajo una condición'
   },
   dynamo: {
     name: 'Dínamo', definitionNotFound: 'Definición no encontrada en el snapshot canónico de Engineering.', locked: 'Bloqueado', publicSuffix: 'públicos', instance: 'Instancia', noPublicParameters: 'Sin parámetros públicos.',

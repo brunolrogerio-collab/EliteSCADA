@@ -282,7 +282,7 @@ This rate describes only the change between endpoints. It is not an instantaneou
 
 ### Compare one measurement under a condition
 
-In Engineering > Asset intelligence, open the equipment/profile assignment and Compare one measurement under a condition. This analyzes one signal while limiting it by another, such as motor current when measured frequency lies between 49 and 51 Hz. The Runtime vector view uses multiple measurements and conditions; it is a different query.
+In Engineering > Asset intelligence, open the equipment/profile assignment and Compare one measurement under a condition. This analyzes one signal while limiting it by another, such as motor current when measured frequency lies between 49 and 51 Hz. To offer this query to the operator, click Create screen for this comparison in the assignment. The vector view uses multiple measurements and conditions; it is a different query.
 
 1. Choose Measurement to analyze and Measured condition by name. They must be different numeric signals in the same profile. The condition needs a supported controlled unit. If the list is empty, check assigned TAGs, data types and the controlled condition unit. Free-text units do not replace this setting.
 2. Enter Included lower bound and Excluded upper bound in the indicated unit. With 49 and 51 Hz, 49 and 50 qualify, but 51 does not. If the form indicates Pa, express 50 kPa as 50000 Pa.
@@ -292,6 +292,8 @@ In Engineering > Asset intelligence, open the equipment/profile assignment and C
 6. Review pairs, rejections and quality shows each period and signal: received, Good numeric, synchronized, rejected, ambiguous groups and reasons. Pairs require identical source timestamps and explicit synchronization evidence; no nearest-time matching, interpolation or fill. Historian record times bound retrieval too; each signal’s record time appears alongside source time.
 
 The combined limit is 50,000 raw records across both signals and periods. Up to 500 evaluation samples are returned; check the omitted count. Samples outside the condition range remain identified and have no score or difference. Results are not saved to the project. This is not fault diagnosis, efficiency measurement or proof of physical simultaneity, equivalent conditions or complete history.
+
+To use Runtime: Create screen for this comparison produces a separate draft with up to 16 measurement references, without results, periods or preset bounds. Review in the editor, validate/apply the draft, save, publish and activate the revision. Creating a draft neither saves the project nor queries history. In live Runtime, open the screen and select measurements, range and periods before querying. Editor and historical playback do not execute this analysis. Session/context changes discard results; returning live does not query automatically. The API still enforces licensing, revision, execution and read access. This action creates a profile screen; it does not automatically compose stage members.
 
 ### Compare current within a frequency range
 
@@ -423,5 +425,9 @@ Real interface in Portuguese, with synthetic validation data. This example does 
 **Single target: real result UI and evidence with simulated data**
 
 ![Single target: real result UI and evidence with simulated data](../../evidence/intelligence-857/single-target-result-browser.png)
+
+**Single-target Runtime: real English UI with mocked API, not API/PostgreSQL proof**
+
+![Single-target Runtime: real English UI with mocked API, not API/PostgreSQL proof](../../evidence/intelligence-857/single-target-runtime-browser.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

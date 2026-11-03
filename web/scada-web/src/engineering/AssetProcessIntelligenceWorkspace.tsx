@@ -21,6 +21,7 @@ import {
   generateIntelligenceProfileCoverageScreenDraft,
   generateIntelligencePerformanceScreenDraft,
   generateIntelligenceContextualDeviationScreenDraft,
+  generateIntelligenceSingleTargetScreenDraft,
   generateIntelligenceProcessStageCoverageScreenDraft,
   generateIntelligenceProcessStageGuidedDashboardDrafts,
   generateIntelligenceProcessStageInsightsDashboardDraft,
@@ -1167,8 +1168,12 @@ export function AssetProcessIntelligenceWorkspace({
                   canQuery={!coverageBlockedReason}
                 /> : null}
                 {equipmentResource && profile ? <IntelligenceSingleTargetDeviationPanel
-                  locale={locale} scopeId={assignment.equipmentId} assignmentId={assignment.id} profile={profile} tags={tags}
+                  locale={locale} scopeId={assignment.equipmentId} assignmentId={assignment.id} profile={profile} profileId={profile.id} tags={tags}
                   controlledUnits={semanticCatalog?.controlledEngineeringUnitCatalogs ?? []}
+                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft ? signals => {
+                    try { onCreateDashboardDraft(generateIntelligenceSingleTargetScreenDraft(screens, {scopeId:assignment.equipmentId,assignmentId:assignment.id,profileId:profile.id,displayName:`${equipmentResource.name} · ${profile.name}`,signals},locale)); }
+                    catch { setError(copy.dashboardSourceUnavailable); }
+                  } : undefined}
                   projectKey={snapshot.execution.projectKey} activeRevision={snapshot.execution.activeRevision} canQuery={!coverageBlockedReason}
                 /> : null}
                 {equipmentResource && profile ? <IntelligenceReferenceEvidencePanel

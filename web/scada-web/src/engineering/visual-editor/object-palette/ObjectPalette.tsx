@@ -47,7 +47,7 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   measurementBar: 'Graduated bar',
   measurementThermometer: 'Vertical thermometer',
   measurementBands: 'Range bands',
-  intelligenceSingleTargetDeviationV1: 'Compare one measurement under a condition',
+  intelligenceSingleTargetDeviationV1: 'Measurements under one condition',
   measurementTarget: 'Actual vs target'
 });
 

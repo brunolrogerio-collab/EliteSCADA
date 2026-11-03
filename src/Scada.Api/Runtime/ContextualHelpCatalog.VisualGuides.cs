@@ -132,7 +132,7 @@ public static partial class ContextualHelpCatalog
         ["core.measurementTarget"] = MG("Medidor com alvo", "Target gauge", "Medidor con objetivo", "valor e referência alvo", "value and target reference", "valor y referencia objetivo"),
         ["core.intelligencePerformanceV1B"] = IG("Análise de desempenho", "Performance analysis", "Análisis de rendimiento"),
         ["core.intelligenceProfileCoverageV1"] = IG("Cobertura do perfil", "Profile coverage", "Cobertura del perfil"),
-        ["core.intelligenceSingleTargetDeviationV1"] = IG("Comparar uma medição sob uma condição", "Compare one measurement under a condition", "Comparar una medición bajo una condición"),
+        ["core.intelligenceSingleTargetDeviationV1"] = IG("Medições sob uma condição", "Measurements under one condition", "Mediciones bajo una condición"),
         ["core.intelligenceCurrentFrequencyComparisonV1"] = IG("Corrente em frequência semelhante", "Current at similar frequency", "Corriente a frecuencia similar"),
         ["core.intelligenceExperimentalJointDeviationV1"] = IG("Desvio conjunto experimental", "Experimental joint deviation", "Desviación conjunta experimental"),
         ["core.intelligenceContextEligibilityV1"] = IG("Condições de operação", "Operating conditions", "Condiciones de operación"),

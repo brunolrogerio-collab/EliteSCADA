@@ -1,3 +1,4 @@
+import { vectorV1Response } from './fixtures/intelligenceVectorV1';
 import { expect, test, type Page } from '@playwright/test';
 import { currentFrequencySignals } from '../src/engineering/intelligenceCurrentFrequencySignals';
 
@@ -1319,7 +1320,7 @@ test('single-target screen draft uses Runtime references without querying or per
 for(const stage of [false,true])test(`single-target central composer generates ${stage?'stage':'profile'} without querying or persisting`,async({page})=>{
  const fixture=await installWorkspace(page,{singleTargetReady:true,stageReady:stage});await openIntelligence(page);const composer=page.getByTestId('intelligence-dashboard-generator');
  if(stage)await composer.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
- await composer.getByRole('checkbox',{name:stage?'Medição sob condição por equipamento':'Comparar uma medição sob uma condição',exact:true}).check();
+ await composer.getByRole('checkbox',{name:stage?'Medição sob condição por equipamento':'Medições sob uma condição',exact:true}).check();
  if(stage){await page.setViewportSize({width:1440,height:2600});await composer.scrollIntoViewIfNeeded();await page.evaluate(()=>window.scrollBy(0,-150));await composer.screenshot({path:test.info().outputPath('single-target-stage-composer.png')});}
  await composer.getByTestId('intelligence-dashboard-generate').click();const editor=page.getByTestId('visual-editor-workspace'),drafts=editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
  await expect(drafts).toHaveCount(stage?3:2);await drafts.last().click();
@@ -1331,7 +1332,26 @@ for(const stage of [false,true])test(`single-target central composer generates $
 
 test('single-target unavailable condition does not block the central basic dashboard',async({page})=>{
  const fixture=await installWorkspace(page);await openIntelligence(page);const composer=page.getByTestId('intelligence-dashboard-generator');
- await expect(composer.getByRole('checkbox',{name:'Comparar uma medição sob uma condição',exact:true})).toBeDisabled();
+ await expect(composer.getByRole('checkbox',{name:'Medições sob uma condição',exact:true})).toBeDisabled();
  await expect(composer.getByTestId('intelligence-dashboard-generate')).toBeEnabled();await composer.getByTestId('intelligence-dashboard-generate').click();
  await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();expect(fixture.requests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
+});
+
+for(const mode of ['available','insufficient','zero-mad','stale','wrong-unit','wrong-cohort','false-score','forbidden','cancelled'] as const)test(`one-condition vector ${mode} uses a joint cohort without independent queries`,async({page})=>{
+ await installWorkspace(page,{singleTargetReady:true,jointReady:true});let calls=0,finished=false;let release!:()=>void;const held=new Promise<void>(resolve=>{release=resolve;});
+ const signals=[{id:'15000000-0000-0000-0000-000000000211',tagId:currentTagId,label:'Corrente',unit:'A',canonicalUnit:null,unitCode:null},{id:firstContextSignalId,tagId:firstContextTagId,label:'Temperatura',unit:'°C',canonicalUnit:null,unitCode:null},{id:'15000000-0000-0000-0000-000000000212',tagId:speedTagId,label:'Frequência',unit:'Hz',canonicalUnit:'Hz',unitCode:'unit.frequency.hertz'}];
+ await page.route('**/analytics/contextual-deviation-vector/v1/query',async route=>{calls++;const body=route.request().postDataJSON();expect(body.targetSignalIds).toEqual([signals[0].id,signals[1].id]);expect(body.conditionSignalId).toBe(signals[2].id);
+ if(mode==='forbidden')return route.fulfill({status:403,json:{code:'HISTORICAL_QUERY_FORBIDDEN'}});if(mode==='cancelled')await held;
+ try{await route.fulfill({json:vectorV1Response(body,{projectKey:'intelligence-coverage-test',scopeId:equipmentId,assignmentId,profileId,revision:4},signals,mode)});}finally{finished=true;}
+ });
+ await openIntelligence(page);const panel=page.getByTestId(`intelligence-vector-v1-${assignmentId}`);await panel.locator('summary').first().click();
+ await panel.getByRole('checkbox',{name:'Corrente',exact:true}).check();await panel.getByRole('checkbox',{name:'Temperatura',exact:true}).check();await panel.getByRole('combobox',{name:'Condição comum',exact:true}).selectOption(signals[2].id);
+ for(const [label,value] of [['Limite inferior incluído (Hz)','49'],['Limite superior excluído (Hz)','51'],['Início da referência (horário local)','2026-10-20T10:00'],['Fim da referência (horário local)','2026-10-20T11:00'],['Início da avaliação (horário local)','2026-10-21T10:00'],['Fim da avaliação (horário local)','2026-10-21T12:00']])await panel.getByLabel(label,{exact:true}).fill(value);
+ const button=panel.getByRole('button',{name:'Comparar conjunto de medições',exact:true}),result=panel.getByTestId('intelligence-vector-v1-result');expect(calls).toBe(0);await button.click();await expect.poll(()=>calls).toBe(1);
+ if(mode==='cancelled'){await panel.getByRole('button',{name:'Cancelar consulta do conjunto',exact:true}).click();release();await expect.poll(()=>finished).toBe(true);await expect(result).toHaveCount(0);return;}
+ if(['stale','wrong-unit','wrong-cohort','false-score','forbidden'].includes(mode)){await expect(panel.getByRole('alert')).toBeVisible();await expect(result).toHaveCount(0);return;}
+ await expect(result).toBeVisible();await panel.getByRole('button',{name:'Ver conjuntos avaliados',exact:true}).click();await expect(result.locator('tbody').last().locator('tr')).toHaveCount(4);
+ if(mode==='available'){await expect(result).toContainText('1,34898');await expect(result).toContainText('30 / 30 / 2');await page.setViewportSize({width:1440,height:2200});await result.screenshot({path:test.info().outputPath('one-condition-vector.png')});}
+ else await expect(result).toContainText(mode==='zero-mad'?'Referência sem dispersão':'Não há conjuntos completos');
+ await panel.getByLabel('Limite inferior incluído (Hz)',{exact:true}).fill('48');await expect(result).toHaveCount(0);expect(calls).toBe(1);
 });

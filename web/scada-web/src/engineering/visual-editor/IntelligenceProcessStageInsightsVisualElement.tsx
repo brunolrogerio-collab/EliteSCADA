@@ -238,7 +238,7 @@ function validRange(lower: number, upper: number): boolean {
 function text(locale: EngineeringLocale) {
   if (locale === 'en') return {
     currentFrequency: 'Current at similar frequency', currentFrequencyMissing: 'Current/frequency comparison is not included for this equipment. It needs controlled current in A and measured frequency in Hz.',
-    singleTarget: 'Compare one measurement under a condition', singleTargetMissing: 'This comparison is not included for this equipment. It needs two distinct numeric measurements and a controlled condition unit.',
+    singleTarget: 'Measurements under one condition', singleTargetMissing: 'This comparison is not included for this equipment. It needs two distinct numeric measurements and a controlled condition unit.',
     joint: 'Joint deviation (experimental)', jointMissing: 'Joint deviation is not included for this equipment. It needs a saved context and two distinct numeric measurements outside its conditions.', reference: 'Reference data', conditions: 'Operating conditions', conditionsMissing: 'This equipment has no saved context in this view. Generate and publish it again after saving a context in Engineering.',
     performanceMissing: 'Performance is not configured for this equipment. Other available analyses remain usable.',
     deviationMissing: 'Contextual deviation is not configured for this equipment. Other available analyses remain usable.',
@@ -250,7 +250,7 @@ function text(locale: EngineeringLocale) {
   };
   if (locale === 'es') return {
     currentFrequency: 'Corriente a frecuencia similar', currentFrequencyMissing: 'No se incluyó comparación de corriente/frecuencia para este equipo. Necesita corriente controlada en A y frecuencia medida en Hz.',
-    singleTarget: 'Comparar una medición bajo una condición', singleTargetMissing: 'Esta comparación no está incluida para este equipo. Requiere dos mediciones numéricas distintas y unidad controlada en la condición.',
+    singleTarget: 'Mediciones bajo una condición', singleTargetMissing: 'Esta comparación no está incluida para este equipo. Requiere dos mediciones numéricas distintas y unidad controlada en la condición.',
     joint: 'Desviación conjunta (experimental)', jointMissing: 'Desviación conjunta no incluida para este equipo. Necesita contexto guardado y dos mediciones numéricas distintas fuera de sus condiciones.', reference: 'Datos de referencia', conditions: 'Condiciones de operación', conditionsMissing: 'Este equipo no tiene un contexto guardado en esta vista. Genere y publique de nuevo después de guardar un contexto en Ingeniería.',
     performanceMissing: 'Rendimiento no configurado para este equipo. Puede usar los otros análisis disponibles.',
     deviationMissing: 'Desviación contextual no configurada para este equipo. Puede usar los otros análisis disponibles.',
@@ -262,7 +262,7 @@ function text(locale: EngineeringLocale) {
   };
   return {
     currentFrequency: 'Corrente em frequência semelhante', currentFrequencyMissing: 'Comparação corrente/frequência não incluída para este equipamento. Precisa de corrente controlada em A e frequência medida em Hz.',
-    singleTarget: 'Comparar uma medição sob uma condição', singleTargetMissing: 'Esta comparação não foi incluída para este equipamento. Precisa de duas medições numéricas distintas e unidade controlada na condição.',
+    singleTarget: 'Medições sob uma condição', singleTargetMissing: 'Esta comparação não foi incluída para este equipamento. Precisa de duas medições numéricas distintas e unidade controlada na condição.',
     joint: 'Desvio conjunto (experimental)', jointMissing: 'Desvio conjunto não incluído para este equipamento. Precisa de contexto salvo e duas medições numéricas distintas fora de suas condições.', reference: 'Dados da referência', conditions: 'Condições de operação', conditionsMissing: 'Este equipamento não tem um contexto salvo nesta vista. Gere e publique novamente depois de salvar um contexto na Engenharia.',
     performanceMissing: 'Desempenho não configurado para este equipamento. As outras análises disponíveis continuam acessíveis.',
     deviationMissing: 'Desvio contextual não configurado para este equipamento. As outras análises disponíveis continuam acessíveis.',

@@ -1,5 +1,16 @@
 # Current coordinator pointer - Wave 15
 
+## Consulta conjunta sob uma condição — candidata de 03/11/2026
+
+A auditoria confirmou que V1 não é equivalente a consultas individuais nem a V2: V1 usa 2–8 alvos e uma condição sobre a interseção completa dos horários de origem; cada consulta individual pode usar outro conjunto, e V2 exige duas condições distintas. O novo teste `VectorV1_CommonCohortIsNotEquivalentToIndependentSingleTargetQueries` demonstra medianas 2 versus 3 e diferenças 2 versus 1, sem alterar fórmulas.
+
+A interface reutiliza as referências readonly do objeto existente, com seleção explícita, janelas/faixa, evidência de qualidade, mediana/MAD e diferenças/scores por alvo. Engenharia e Runtime por perfil/etapa compartilham o painel; troca de contexto, cancelamento e resposta inválida removem resultados. Membro com apenas duas referências conserva a consulta individual, sem fabricar segunda condição. Rótulo geral: “Medições sob uma condição”.
+
+Validação local: 14/14 casos de navegador focados e 16/16 contratos analíticos. Build Web e Help 30/30 passaram; 69 arquivos do manual alinhados. Removida tradução duplicada encontrada pelo compilador. A primeira tentativa de Help encontrou a DLL bloqueada pela API auxiliar; encerrado o processo comprovado e a repetição passou. Prova real API/TimescaleDB isolada, revisão 71: cinco telas persistidas, 120 conjuntos de referência e avaliação; scores 9,131626 e 0,823393 conferidos na tela contra a API. Após reinício, telas/perfis/associações/unidades/fontes preservados e consulta recusada até reativação explícita. Faixa sem referência mantém null; alvo igual à condição retorna 400. Dados exclusivamente sintéticos, sem evidência de campo/HA. Resultados e capturas em `docs/evidence/intelligence-857/vector-*`.
+
+Continua candidata no PR #854, sem aceite global ou merge. #858 (gestor restrito), acabamento/aderência #791 e verificação CI do SHA exato permanecem pendentes. CI anterior edd606ce /41668583150 terminou CANCELLED, com T1 falho e UI cancelada; não é verde global. Preview do proprietário, Portal, Authority, licença comercial e HA não foram alterados.
+
+
 ## Retomada atual — composição central/etapa e prova real #857
 
 A candidata acrescenta alvo único ao compositor central por perfil e membro de etapa, com disponibilidade independente. Referências readonly/limitadas e API/método existentes. A etapa não agrega resultados; trocar membro/análise desmonta a resposta, sem consulta automática. Perfil completo pode ter8telas vinculadas;7 destinos de navegação ficam antes da área analítica.

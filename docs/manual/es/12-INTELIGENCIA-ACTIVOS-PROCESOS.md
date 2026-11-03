@@ -295,7 +295,23 @@ Límite conjunto: 50 mil registros brutos de ambas señales/períodos. Se devuel
 
 Para Runtime: Crear pantalla de esta comparación genera un borrador separado con hasta 16 referencias de mediciones, sin resultados, períodos ni límites predeterminados. Revise en el editor, valide/aplique, guarde, publique y active la revisión. Crear borrador no guarda el proyecto ni consulta el histórico. En Runtime en vivo, abra la pantalla y seleccione mediciones, rango y períodos para consultar. Editor y reproducción histórica no ejecutan el análisis. Cambiar sesión/contexto retira resultados; volver en vivo no consulta automáticamente. La API mantiene licencia, revisión, ejecución y lectura autorizadas. Esta acción crea una pantalla del perfil. Use el generador central para componer varias vistas o una etapa.
 
-En el generador central elija un perfil y marque Comparar una medición bajo una condición. Para una etapa marque Medición bajo condición por equipo. La opción es independiente de rendimiento, corriente/frecuencia y desvío de varias mediciones; no es necesario configurar esos análisis. Cada equipo requiere de 2 a 16 mediciones numéricas distintas, con al menos una condición de unidad controlada compatible. Si faltan requisitos se deshabilita solo esta opción; las demás vistas siguen disponibles. Revise pantallas antes de aplicar, guardar, publicar y activar. En Runtime de etapa elija equipo y Comparar una medición bajo una condición. Los resultados pertenecen al equipo seleccionado, no a toda la etapa. Cambiar equipo o análisis retira el resultado sin consulta automática. La composición completa de un perfil puede tener ocho pantallas vinculadas; use botones de navegación para alternar.
+En el generador central elija un perfil y marque Mediciones bajo una condición. Para una etapa marque Medición bajo condición por equipo. La opción es independiente de rendimiento, corriente/frecuencia y desvío de varias mediciones; no es necesario configurar esos análisis. Cada equipo requiere de 2 a 16 mediciones numéricas distintas, con al menos una condición de unidad controlada compatible. Si faltan requisitos se deshabilita solo esta opción; las demás vistas siguen disponibles. Revise pantallas antes de aplicar, guardar, publicar y activar. En Runtime de etapa elija equipo y Comparar una medición bajo una condición. Los resultados pertenecen al equipo seleccionado, no a toda la etapa. Cambiar equipo o análisis retira el resultado sin consulta automática. La composición completa de un perfil puede tener ocho pantallas vinculadas; use botones de navegación para alternar.
+
+### Varias mediciones bajo una condición: usar una referencia común
+
+Abra Comparar varias mediciones bajo una condición junto a la consulta individual, en Ingeniería o Runtime. Aparece cuando el perfil tiene al menos tres señales numéricas y una condición con unidad controlada compatible. No necesita segunda condición ni un sensor ficticio.
+
+1. En Mediciones analizadas juntas marque de dos a ocho objetivos por nombre. Elija otra señal numérica como Condición común. Una señal no puede ser objetivo y condición a la vez.
+2. Introduzca límite inferior incluido y superior excluido en la unidad indicada. De 49 a 51 Hz entran 49 y 50, pero no 51. Si indica Pa, exprese 50 kPa como 50000 Pa.
+3. Elija inicio/fin de referencia y evaluación en hora local. Hasta 31 días por período; evaluación posterior a referencia, sin extremo compartido. Las duraciones pueden diferir.
+4. Pulse Comparar conjunto de mediciones. Abrir o seleccionar no consulta el histórico. La API exige revisión activa, ejecución autorizada, licencia y permisos de tendencia/lectura de todos los TAGs. Editar o cambiar sesión/contexto retira el resultado; Cancelar consulta del conjunto descarta la solicitud en curso.
+5. Un conjunto completo tiene lecturas Buenas numéricas finitas de todos los objetivos y condición, con igual hora de origen y evidencia explícita de sincronización. No hay aproximación, interpolación ni relleno. Solo conjuntos dentro del rango aportan referencia.
+6. Revise mediana/MAD por objetivo. MAD es mediana de distancias a la mediana, no desviación estándar. Ver conjuntos evaluados muestra valores, diferencias brutas y scores individuales. Diferencia es valor evaluado menos mediana, en unidad original del objetivo. Score robusto es 0,67448975 por diferencia dividido por MAD; requiere al menos 30 conjuntos completos de referencia dentro del rango y MAD positivo. Ausencia de score puede coexistir con diferencia válida; no disponible no significa cero.
+7. Revisar lecturas y rechazos del conjunto muestra recibidas, Buenas numéricas, sincronizadas, rechazadas, grupos ambiguos, calidad y motivos por señal/período. Una señal ausente reduce el conjunto común. Se devuelven hasta 500 conjuntos evaluados, con 50 mil registros brutos totales; revise omitidos.
+
+¿Por qué no repetir consultas individuales? A tiene 1, 3 y 100, pero B no tiene lectura en el tercer instante. La referencia conjunta usa A=1 y 3, mediana 2. La consulta individual usa los tres, mediana 3. Para evaluar A=4, la diferencia es 2 conjunta y 1 individual. Son referencias distintas, no error de cálculo.
+
+Esta opción usa una condición común. El vector con dos condiciones sigue separado. Ninguno diagnostica, da score global de salud, predice fallos ni prueba eficiencia/condiciones equivalentes. La validación de campo queda para después. Genere pantalla desde la opción de mediciones bajo condición del compositor. Tres referencias permiten conjunto; dos mantienen consulta individual.
 
 ### Comparar corriente dentro de un rango de frecuencia
 
@@ -451,5 +467,9 @@ Las leyendas indican API simulada o API/PostgreSQL reales. Todos los datos son s
 **Consulta de miembro de etapa en Runtime (API/PostgreSQL reales, datos sintéticos)**
 
 ![Consulta de miembro de etapa en Runtime (API/PostgreSQL reales, datos sintéticos)](../../evidence/intelligence-857/composer-stage-single-target-runtime.png)
+
+**Consulta conjunta real: datos sintéticos en API y PostgreSQL; diferencias y puntuaciones por medición.**
+
+![Consulta conjunta real: datos sintéticos en API y PostgreSQL; diferencias y puntuaciones por medición.](../../evidence/intelligence-857/vector-profile-real-scored.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

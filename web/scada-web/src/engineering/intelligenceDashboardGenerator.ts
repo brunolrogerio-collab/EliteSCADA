@@ -763,7 +763,7 @@ export function generateIntelligenceSingleTargetScreenDraft(
   if (!isCanonicalUuid(selection.assignmentId) || !readSingleTargetSignals(json)) throw new Error('Single-target comparison requires bounded distinct numeric references and a controlled condition.');
   const draft = generateIntelligenceReferenceEvidenceScreenDraft(existingScreens, selection, locale, createId);
   const key = uniqueScreenKey(existingScreens, `intelligence-single-target-${slug(selection.displayName)}`);
-  const title = locale === 'pt-BR' ? 'Comparar uma medição sob uma condição' : locale === 'es' ? 'Comparar una medición bajo una condición' : 'Compare one measurement under a condition';
+  const title = locale === 'pt-BR' ? 'Medições sob uma condição' : locale === 'es' ? 'Mediciones bajo una condición' : 'Measurements under one condition';
   return { ...draft, key, route: uniqueScreenRoute(key, existingScreens.map(screen => screen.route)), name: `${title} · ${selection.displayName}`,
     elements: (draft.elements ?? []).map(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1
       ? { ...element, key:'intelligence-single-target-v1', type:BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1,

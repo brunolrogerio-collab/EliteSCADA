@@ -295,7 +295,23 @@ The combined limit is 50,000 raw records across both signals and periods. Up to 
 
 To use Runtime: Create screen for this comparison produces a separate draft with up to 16 measurement references, without results, periods or preset bounds. Review in the editor, validate/apply the draft, save, publish and activate the revision. Creating a draft neither saves the project nor queries history. In live Runtime, open the screen and select measurements, range and periods before querying. Editor and historical playback do not execute this analysis. Session/context changes discard results; returning live does not query automatically. The API still enforces licensing, revision, execution and read access. This action creates a profile screen. Use the central generator to compose multiple views or a stage.
 
-In the central generator, choose a profile and select Compare one measurement under a condition. For a stage, select Measurement under a condition per equipment. This choice is independent of performance, current/frequency and multi-measurement deviation; those analyses are not prerequisites. Each equipment needs 2 to 16 distinct numeric measurements, with at least one supported controlled-unit condition. Missing prerequisites disable only this option; other views remain available. Review generated screens before applying, saving, publishing and activating. In stage Runtime, select equipment and then Compare one measurement under a condition. Results belong only to the selected equipment, not the whole stage. Switching equipment or analysis removes the result without querying automatically. A full profile composition may have eight linked screens; use navigation buttons to switch between them.
+In the central generator, choose a profile and select Measurements under one condition. For a stage, select Measurement under a condition per equipment. This choice is independent of performance, current/frequency and multi-measurement deviation; those analyses are not prerequisites. Each equipment needs 2 to 16 distinct numeric measurements, with at least one supported controlled-unit condition. Missing prerequisites disable only this option; other views remain available. Review generated screens before applying, saving, publishing and activating. In stage Runtime, select equipment and then Compare one measurement under a condition. Results belong only to the selected equipment, not the whole stage. Switching equipment or analysis removes the result without querying automatically. A full profile composition may have eight linked screens; use navigation buttons to switch between them.
+
+### Several measurements under one condition: use a common reference
+
+Open Compare several measurements under one condition beside the individual query, in Engineering or Runtime. It appears when the profile has at least three numeric signals and a supported controlled-unit condition. You do not need a second condition or an invented sensor.
+
+1. Under Measurements analyzed together, select two to eight targets by name. Choose a different numeric signal as Common condition. A signal cannot be target and condition simultaneously.
+2. Enter the included lower and excluded upper bound in the indicated unit. For 49 to 51 Hz, 49 and 50 qualify; 51 does not. If the form indicates Pa, express 50 kPa as 50000 Pa.
+3. Choose reference/evaluation start and end in local time. Each period supports up to 31 days; evaluation must follow reference without a shared endpoint. Durations may differ.
+4. Click Compare measurement set. Opening or selecting never queries history. The API enforces active revision, execution authorization, license and trend/read access to every TAG. Editing or changing session/context clears the result; Cancel set query discards the in-flight request.
+5. Complete sets are instants where all targets and the condition have Good finite numeric readings with identical source time and explicit synchronization evidence. No nearest-time matching, interpolation or fill. Only sets within the condition range supply the reference.
+6. Review median/MAD per target. MAD is the median distance from the median, not standard deviation. Show evaluated sets displays values, raw differences and individual scores. Difference is evaluation value minus reference median in the original target unit. Robust score is 0.67448975 times the difference divided by MAD, only with at least 30 complete in-range reference sets and positive MAD. Missing score can coexist with a valid difference; unavailable does not mean zero.
+7. Review set readings and rejections shows received, Good numeric, synchronized, rejected, ambiguous groups, quality and reasons per signal/period. One missing signal reduces the common set. At most 500 evaluation sets are returned, with 50,000 raw records total; check omitted count.
+
+Why not repeat individual queries? A has values 1, 3 and 100 but B is missing the third instant. The joint reference uses A=1 and 3, median 2. An individual A query uses all three, median 3. Evaluation A=4 gives difference 2 jointly and 1 individually. These are different references, not a calculation error.
+
+This option has one common condition. The vector query with two conditions remains separate. Neither is diagnosis, an equipment-wide health score, failure prediction or proof of efficiency/equivalent conditions. Field validation remains future work. Generate the screen through the measurement-under-condition option in the composer. At least three references offer the set query; two still support the individual query.
 
 ### Compare current within a frequency range
 
@@ -451,5 +467,9 @@ Captions identify mocked API or real API/PostgreSQL captures. All displayed data
 **Stage member query in Runtime (real API/PostgreSQL, synthetic data)**
 
 ![Stage member query in Runtime (real API/PostgreSQL, synthetic data)](../../evidence/intelligence-857/composer-stage-single-target-runtime.png)
+
+**Real joint query: synthetic API and PostgreSQL data; differences and scores per measurement.**
+
+![Real joint query: synthetic API and PostgreSQL data; differences and scores per measurement.](../../evidence/intelligence-857/vector-profile-real-scored.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

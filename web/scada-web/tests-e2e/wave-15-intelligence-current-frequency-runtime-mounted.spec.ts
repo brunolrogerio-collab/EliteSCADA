@@ -1,3 +1,4 @@
+import { vectorV1Response } from './fixtures/intelligenceVectorV1';
 import { expect, test, type Page } from '@playwright/test';
 import { readSingleTargetSignals } from '../src/engineering/intelligenceSingleTargetReferences';
 import { readCurrentFrequencySignals } from '../src/engineering/intelligenceCurrentFrequencySignals';
@@ -48,7 +49,7 @@ for(const scenario of ['one','many','duplicate-id','duplicate-tag','empty-id','e
  if(scenario==='zero-guid')items[0].id='00000000-0000-0000-0000-000000000000';
  expect(readCurrentFrequencySignals(JSON.stringify(items))).toBeNull();
 });
-async function installRuntime(page: Page, elementScopeId = scopeId, stage = false, single = false) {
+async function installRuntime(page: Page, elementScopeId = scopeId, stage = false, single = false, vector = false) {
   let start!: () => void; const started = new Promise<void>(resolve => { start = resolve; });
   let release!: () => void; const delayed = new Promise<void>(resolve => { release = resolve; });
   const fixture = { requests: [] as any[], mode: 'valid', completed: false, started: () => started, release: () => release() };
@@ -63,17 +64,17 @@ async function installRuntime(page: Page, elementScopeId = scopeId, stage = fals
     } });
     if (path === '/api/engineering/persistence/status') return route.fulfill({ json: { enabled: true, hasProjects: true } });
     if (path === '/api/product/info') return route.fulfill({ json: { productName: 'SCADIVO', channel: 'Test', version: '0.0.0', displayVersion: 'SCADIVO Test', informationalVersion: 'SCADIVO Test', buildCommit: 'reference-test' } });
-    if (path === '/api/runtime/application') return route.fulfill({ json: runtimeProjection(elementScopeId, stage, single) });
+    if (path === '/api/runtime/application') return route.fulfill({ json: runtimeProjection(elementScopeId, stage, single, vector) });
     if (path === '/api/runtime/client-memory') return route.fulfill({ json: [] });
-    if (path === (single ? '/api/engineering/asset-process-intelligence/analytics/contextual-reference-deviation/v1/query' : referencePath)) {
+    if (path === (vector ? '/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v1/query' : single ? '/api/engineering/asset-process-intelligence/analytics/contextual-reference-deviation/v1/query' : referencePath)) {
       const body = route.request().postDataJSON(); fixture.requests.push(body);
       if (fixture.mode === 'late') {
         start(); await delayed;
-        try { await route.fulfill({ json: (single ? singleTargetResponse(body,fixture.mode) : response(body)) }); } catch { /* A changed window aborts the request. */ }
+        try { await route.fulfill({ json: (vector ? vectorV1Response(body,{projectKey,scopeId,assignmentId,profileId,revision},vectorSignals,fixture.mode) : single ? singleTargetResponse(body,fixture.mode) : response(body)) }); } catch { /* A changed window aborts the request. */ }
         fixture.completed = true; return;
       }
       if (fixture.mode === 'forbidden') return route.fulfill({ status: 403, json: { code: 'INTELLIGENCE_ENTITLEMENT_REQUIRED' } });
-      return route.fulfill({ json: { ...(single ? singleTargetResponse(body,fixture.mode) : response(body)), ...(fixture.mode === 'stale' ? { activeRevision: revision + 1 } : {}) } });
+      return route.fulfill({ json: { ...(vector ? vectorV1Response(body,{projectKey,scopeId,assignmentId,profileId,revision},vectorSignals,fixture.mode) : single ? singleTargetResponse(body,fixture.mode) : response(body)), ...(fixture.mode === 'stale' ? { activeRevision: revision + 1 } : {}) } });
     }
     return route.fulfill({ status: 404, json: {} });
   });
@@ -93,7 +94,7 @@ function response(body: Record<string, any>) {
     provenance: { dataset: 'historian.samples.v2', datasetContractVersion: 2, physicalSimultaneity: 'unverified; exact recorded-time equality only', operatingRegimeEquivalence: 'unverified; frequency alone is insufficient', expectedCadence: 'unknown', completeness: 'unknown' } };
 }
 
-function runtimeProjection(elementScopeId = scopeId, stage = false, single = false) {
+function runtimeProjection(elementScopeId = scopeId, stage = false, single = false, vector = false) {
   return {
     mode: 'engineering',
     projectKey,
@@ -121,7 +122,7 @@ function runtimeProjection(elementScopeId = scopeId, stage = false, single = fal
             ...(stage ? {
               intelligenceStageId: '90000000-0000-0000-0000-000000000123', intelligenceStageKey: 'pumping', intelligenceStageName: 'Pumping',
               intelligenceStageMembers: JSON.stringify([
-                {assignmentId,scopeId,profileId,displayLabel:'Motor with measured frequency',order:0,availabilityVersion:2,currentFrequency:signals,singleTarget:singleSignals},
+                {assignmentId,scopeId,profileId,displayLabel:'Motor with measured frequency',order:0,availabilityVersion:2,currentFrequency:signals,singleTarget:vector ? vectorSignals : singleSignals},
                 {assignmentId:profileId,scopeId:currentTagId,profileId:speedTagId,displayLabel:'Motor without measured frequency',order:1,availabilityVersion:2,referenceEvidence:true}
               ])
             } : {}),
@@ -129,7 +130,7 @@ function runtimeProjection(elementScopeId = scopeId, stage = false, single = fal
             intelligenceProfileId: profileId,
             intelligenceAssignmentId: assignmentId,
             intelligenceCurrentFrequencySignals: JSON.stringify(signals),
-            intelligenceSingleTargetSignals: JSON.stringify(singleSignals)
+            intelligenceSingleTargetSignals: JSON.stringify(vector ? vectorSignals : singleSignals)
           }
         }]
       }]
@@ -193,4 +194,17 @@ test('single-target stage retains partial members and clears result when changin
  await stage.getByTestId('runtime-intelligence-process-stage-insights-member').selectOption(profileId);await expect(visual).toHaveCount(0);await expect(choice).toBeDisabled();await expect(stage).toContainText('two distinct numeric measurements');await stage.screenshot({path:test.info().outputPath('single-target-stage-partial.png')});
  await stage.getByTestId('runtime-intelligence-process-stage-insights-reference').click();await expect(stage.getByTestId('runtime-intelligence-reference-evidence')).toBeVisible();
  await stage.getByTestId('runtime-intelligence-process-stage-insights-member').selectOption(assignmentId);await choice.click();await expect(stage.getByTestId('intelligence-single-target-result')).toHaveCount(0);expect(fixture.requests).toHaveLength(1);
+});
+
+const temperatureTagId='30000000-0000-0000-0000-000000000103';
+const vectorSignals=[...singleSignals,{id:temperatureTagId,tagId:temperatureTagId,label:'Motor temperature',unit:'°C',canonicalUnit:null,unitCode:null}];
+for(const stage of [false,true])test(`one-condition vector Runtime ${stage?'stage':'profile'} uses read-only references, clears revocation and disables historical playback`,async({page})=>{
+ page.on('pageerror',e=>{throw e;});const fixture=await installRuntime(page,scopeId,stage,true,true);await page.goto('/');if(stage)await page.getByTestId('runtime-intelligence-process-stage-insights-single-target').click();const visual=page.getByTestId('runtime-intelligence-single-target'),panel=visual.getByTestId(`intelligence-vector-v1-${assignmentId}`);
+ await panel.locator('summary').first().click();await panel.getByRole('checkbox',{name:'Motor current',exact:true}).check();await panel.getByRole('checkbox',{name:'Motor temperature',exact:true}).check();await panel.getByRole('combobox',{name:'Common condition',exact:true}).selectOption(speedTagId);
+ for(const [label,value] of [['Included lower bound (Hz)','49'],['Excluded upper bound (Hz)','51'],['Reference start (local time)','2026-10-20T10:00'],['Reference end (local time)','2026-10-20T11:00'],['Evaluation start (local time)','2026-10-21T10:00'],['Evaluation end (local time)','2026-10-21T12:00']])await panel.getByLabel(label,{exact:true}).fill(value);
+ const query=panel.getByRole('button',{name:'Compare measurement set',exact:true}),result=panel.getByTestId('intelligence-vector-v1-result');expect(fixture.requests).toEqual([]);await query.click();await expect(result).toContainText('30 / 30 / 2');
+ fixture.mode='late';await query.click();await fixture.started();await panel.getByRole('button',{name:'Cancel set query',exact:true}).click();fixture.release();await expect.poll(()=>fixture.completed).toBe(true);await expect(result).toHaveCount(0);
+ fixture.mode='stale';await query.click();await expect(panel.getByRole('alert')).toBeVisible();await expect(result).toHaveCount(0);
+ fixture.mode='forbidden';await query.click();await expect(panel.getByRole('alert')).toBeVisible();await expect(result).toHaveCount(0);
+ fixture.mode='valid';await query.click();await expect(result).toBeVisible();await page.getByTestId('runtime-engineering-application').getByRole('button',{name:/Historical Playback/}).click();await page.getByTestId('runtime-playback-overlay').getByRole('button',{name:/Enter Playback/}).click();await expect(result).toHaveCount(0);await expect(panel.getByRole('button',{name:'Compare measurement set',exact:true,includeHidden:true})).toBeDisabled();
 });

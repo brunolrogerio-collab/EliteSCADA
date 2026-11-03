@@ -1,3 +1,4 @@
+import { IntelligenceVectorV1Panel } from './IntelligenceVectorV1Panel';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthGate';
 import type { EngineeringLocale } from './i18n';
@@ -124,7 +125,7 @@ export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assign
     condition_outside_requested_range: t('Condição fora da faixa escolhida.', 'Condition outside the selected range.', 'Condición fuera del rango elegido.')
   }[code] ?? t('Há leituras rejeitadas ou limites de cálculo; confira as contagens e a qualidade dos dados.', 'Readings were rejected or calculation limits were reached; check the counts and data quality.', 'Hay lecturas rechazadas o límites de cálculo; revise cantidades y calidad de datos.'));
   const dateField = (label: string, value: string, set: (value: string) => void) => <label>{label}<input type="datetime-local" value={value} onChange={event => set(event.currentTarget.value)} /></label>;
-  return <details className="asset-process-intelligence__deviation-panel intelligence-single-target" data-testid={`intelligence-single-target-${assignmentId}`}>
+  return <><details className="asset-process-intelligence__deviation-panel intelligence-single-target" data-testid={`intelligence-single-target-${assignmentId}`}>
     <summary>{t('Comparar uma medição sob uma condição', 'Compare one measurement under a condition', 'Comparar una medición bajo una condición')}</summary>
     <div className="asset-process-intelligence__deviation-body">
       <p>{t('Escolha o que analisar e a condição que limita a comparação. Exemplo: corrente do motor quando a frequência medida está em uma faixa. A referência é escolhida por você; não é um atestado de equipamento saudável.', 'Choose what to analyze and the condition limiting the comparison. Example: motor current within a measured frequency range. You choose the reference; it is not evidence of healthy equipment.', 'Elija qué analizar y la condición que limita la comparación. Ejemplo: corriente dentro de un rango de frecuencia medida. Usted elige la referencia; no demuestra un equipo sano.')}</p>
@@ -170,5 +171,5 @@ export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assign
         <p>{t('Amostras são pareadas apenas por horários de origem idênticos com evidência explícita de sincronização. Não há aproximação, interpolação nem preenchimento. Isso não prova simultaneidade física, mesmo regime, completude, defeito ou perda de eficiência. O limite conjunto é 50 mil registros; até 500 amostras de avaliação são retornadas.', 'Samples pair only on identical source timestamps with explicit synchronization evidence. There is no nearest-time matching, interpolation or fill. This does not prove physical simultaneity, equivalent conditions, completeness, a fault or efficiency loss. The combined limit is 50,000 records; up to 500 evaluation samples are returned.', 'Las muestras se emparejan solo por horas de origen idénticas con evidencia explícita de sincronización. No hay aproximación, interpolación ni relleno. No demuestra simultaneidad física, condiciones equivalentes, integridad, fallo ni pérdida de eficiencia. Límite conjunto: 50 mil registros; hasta 500 muestras de evaluación.')}</p>
       </div>}
     </div>
-  </details>;
+  </details><IntelligenceVectorV1Panel locale={locale} scopeId={scopeId} assignmentId={assignmentId} profileId={profileId} signals={signals} projectKey={projectKey} activeRevision={activeRevision} canQuery={canQuery}/></>;
 }

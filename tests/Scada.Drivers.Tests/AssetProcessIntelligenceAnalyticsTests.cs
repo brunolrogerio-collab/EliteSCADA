@@ -32,6 +32,45 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
     private static readonly DateTimeOffset FromUtc = DateTimeOffset.Parse("2026-10-14T00:00:00Z");
 
     [Fact]
+    public void VectorV1_CommonCohortIsNotEquivalentToIndependentSingleTargetQueries()
+    {
+        var targetA = VectorSignal(Guid.NewGuid(), "a");
+        var targetB = VectorSignal(Guid.NewGuid(), "b");
+        var condition = VectorSignal(Guid.NewGuid(), "condition");
+        var reference = Window(FromUtc, FromUtc.AddHours(1));
+        var evaluation = Window(FromUtc.AddHours(2), FromUtc.AddHours(3));
+        var times = new[] { FromUtc.AddMinutes(1), FromUtc.AddMinutes(2), FromUtc.AddMinutes(3) };
+        var evaluationTime = evaluation.FromUtc.AddMinutes(1);
+        var rows = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [targetA.SignalId] = [VectorRow(times[0], 1), VectorRow(times[1], 3), VectorRow(times[2], 100)],
+            [targetB.SignalId] = [VectorRow(times[0], 10), VectorRow(times[1], 20)],
+            [condition.SignalId] = times.Select(time => VectorRow(time, 50)).ToArray()
+        };
+        var evaluated = new Dictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>>
+        {
+            [targetA.SignalId] = [VectorRow(evaluationTime, 4)],
+            [targetB.SignalId] = [VectorRow(evaluationTime, 30)],
+            [condition.SignalId] = [VectorRow(evaluationTime, 50)]
+        };
+        var vector = AssetProcessIntelligenceContextualDeviationVectorV1Calculator.Calculate(
+            [targetA,targetB],condition,reference,evaluation,rows,evaluated,
+            new ControlledEngineeringUnitDefinition("unit.frequency.hertz","frequency","Hz",1),49,51);
+        AssetProcessIntelligenceContextualReferenceRawObservation Single(AssetProcessIntelligenceContextualDeviationVectorRawObservation row) =>
+            new(row.ObservedTimestampUtc,row.Quality,row.Value,row.SourceTimestampUtc,row.SourceTimestampEvidence);
+        var individual = AssetProcessIntelligenceContextualReferenceDeviationV1Calculator.Calculate(reference,evaluation,
+            rows[targetA.SignalId].Select(Single).ToArray(),rows[condition.SignalId].Select(Single).ToArray(),
+            evaluated[targetA.SignalId].Select(Single).ToArray(),evaluated[condition.SignalId].Select(Single).ToArray(),
+            new ControlledEngineeringUnitReference(1,"unit.frequency.hertz"),49,51);
+        Assert.Equal(2,vector.CompleteReferenceVectorCount);
+        Assert.Equal(3,individual.ReferenceEvidence.QualifiedPairCount);
+        Assert.Equal(2d,vector.TargetStatistics[0].ReferenceMedian);
+        Assert.Equal(3d,individual.ReferenceMedian);
+        Assert.Equal(2d,vector.EvaluationVectors[0].Targets[0].RawDifferenceFromReferenceMedian);
+        Assert.Equal(1d,individual.EvaluationSamples[0].RawDifferenceFromReferenceMedian);
+    }
+
+    [Fact]
     public void Catalog_IsVersionedAndBackedByImmutableCollections()
     {
         Assert.Equal(1, AssetProcessIntelligenceKpiCatalogV1.CatalogVersion);

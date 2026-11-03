@@ -1,5 +1,9 @@
 # Current coordinator pointer - Wave 15
 
+## Decisão do proprietário — quarentena Z-Wave #856
+
+Autorização explícita nesta retomada: suspender temporariamente o teste Z-Wave conhecido e investigar depois. O seletor de `wave15-pr.yml` mantém o risco detectado, mas publica `run_zwave_sidecar=false`, com aviso de quarentena/não validado no resumo. Jobs Node/SBOM Windows/Linux ficam skipped, fora da exigência selecionada T1. Código do driver, dependências, testes e auditoria permanecem preservados para retomada. Outros gates não foram desativados. Isso não corrige nem valida Z-Wave. Reativar removendo `quarantined = True` (ou definindo False) no seletor após correção dedicada e executar ambas as plataformas. Registro autoritativo #856; SHA/run no PR #854.
+
 ## Retomada atual — taxa líquida observada #857
 
 PR draft #854, branch `work/w15-intelligence-analysis-ui-853`: `IntelligenceNetObservedRate` acrescenta consulta explícita do método existente nos detalhes da cobertura, em Engenharia/Runtime. Mostra taxa positiva/negativa, extremos/horários, segundos, contagens e qualidade; sem unidade ou evidência suficiente, permanece indisponível. Confere identidade/revisão/janela/unidade/proveniência; cancela e descarta resultados antigos. Sem fórmula nova/backend/Authority/licença/HA/Portal/Preview. Help/manual três idiomas atualizados. Local: cobertura/Runtime85/85, final focado9/9, captura1/1, Help30/30 e build Web aprovados;69 arquivos alinhados. Captura inspecionada no manual (API simulada). Ver SHA/run exatos na #857/#854. API simulada nos testes UI: prova real API/PostgreSQL ainda pendente por Docker indisponível. Próximo: concluir validação/publicar candidata e completar desvio contextual de alvo único. Não declarar #857 encerrada ou merge.

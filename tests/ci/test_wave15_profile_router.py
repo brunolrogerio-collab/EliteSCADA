@@ -1,4 +1,9 @@
 import importlib.util
+import os
+import subprocess
+import sys
+import tempfile
+import textwrap
 import pathlib
 import re
 import unittest
@@ -383,6 +388,28 @@ class Wave15ProfileRouterTests(unittest.TestCase):
             pattern = re.compile(pattern_match.group(1))
             self.assertFalse(pattern.fullmatch(".github/workflows/wave15-pr.yml"), scope_name)
             self.assertTrue(pattern.fullmatch(driver_path), scope_name)
+
+    def test_zwave_quarantine_skips_selected_sidecar_and_records_validation_gap(self):
+        workflow = (ROOT / ".github/workflows/wave15-pr.yml").read_text(encoding="utf-8")
+        start = workflow.index("      - id: zwave_scope")
+        block = workflow[start:workflow.index("      - id: matter_scope", start)]
+        script = textwrap.dedent(block.split("python3 - <<'PY'\n", 1)[1].rsplit("          PY", 1)[0])
+        for path, requested in [("src/Scada.DriverHost/Sidecars/ZWaveJs/src/sidecar.mjs", "True"),
+                                ("web/scada-web/src/main.tsx", "False")]:
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as directory:
+                directory = pathlib.Path(directory)
+                changed, output, summary = [directory / name for name in ("changed", "output", "summary")]
+                changed.write_text(path + "\n", encoding="utf-8")
+                result = subprocess.run([sys.executable, "-c", script], cwd=ROOT, capture_output=True, text=True,
+                                        env={**os.environ, "ZWAVE_CHANGED_FILES_PATH": str(changed),
+                                             "GITHUB_OUTPUT": str(output), "GITHUB_STEP_SUMMARY": str(summary)})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(output.read_text().strip(), "run_zwave_sidecar=false")
+                recorded = summary.read_text()
+                self.assertIn(f"requested: {requested}; selected: False", recorded)
+                self.assertIn("temporarily quarantined by owner authorization (#856); not validated", recorded)
+        self.assertIn('if [ "$NEED_ZWAVE_SIDECAR" = true ]; then test "$ZWAVE_SIDECAR" = success; fi', workflow)
+        self.assertIn("run: npm audit --omit=dev", workflow)
 
     def test_playwright_jobs_route_ubuntu_browser_libraries_over_https(self):
         workflow = (ROOT / ".github/workflows/wave15-pr.yml").read_text(encoding="utf-8")

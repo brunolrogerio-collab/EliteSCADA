@@ -65,8 +65,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
 
     [Theory]
     [InlineData(false, true)]
-    [InlineData(true, false)]
-    public async Task ActivateEndpoint_DeniesMissingResourceGrantOrEngineeringModify(
+    [InlineData(false, false)]
+    public async Task ActivateEndpoint_DeniesMissingResourceGrant(
         bool managerGrantOnTargetEquipment,
         bool engineeringModifyGranted)
     {
@@ -80,6 +80,123 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal(0, api.Gate.ActivePermitCount);
         Assert.Equal(0, api.ProcessWriteCalls);
+    }
+
+    [Fact]
+    public async Task RestrictedManager_CanActivatePauseAndRearm_ButCannotEditConfiguration()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"),
+            engineeringModifyGranted: false, includeActivationPipeline: true);
+        foreach (var active in new[] { true, false, true, true })
+        {
+            SetManagerRevision(api);
+            using var response = await api.Client.PostAsync(active ? api.ActivatePath : api.PausePath, content: null);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(active, await api.IsPersistedScopeActiveAsync());
+            Assert.Equal(active ? 1 : 0, api.Gate.ActivePermitCount);
+        }
+        using var edit = await api.Client.PutAsJsonAsync(EndpointHarness.ConfigurationPath,
+            new AssetProcessIntelligenceConfigurationRequest([], [], []));
+        Assert.Equal(HttpStatusCode.Forbidden, edit.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RestrictedManager_RefusesPendingOrUntrackedAuthorChanges(bool hideDirtyFlag)
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"),
+            engineeringModifyGranted: false, includeActivationPipeline: true);
+        var descriptor = api.Workspace.Describe();
+        api.Workspace.Assets.UpsertEquipment(new EquipmentEngineeringDto(Guid.NewGuid(), "Plant.Pending", "Author draft"));
+        if (hideDirtyFlag) api.Workspace.RestoreDescriptor(descriptor);
+        SetManagerRevision(api);
+        using var response = await api.Client.PostAsync(api.ActivatePath, content: null);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.False(await api.IsPersistedScopeActiveAsync());
+        Assert.Equal(descriptor.BaseRevision, api.Workspace.Describe().BaseRevision);
+        Assert.Contains(api.Workspace.Assets.SnapshotEquipment(), item => item.Name == "Author draft");
+        Assert.Equal(0, api.Gate.ActivePermitCount);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("999")]
+    public async Task RestrictedManager_RejectsMissingOrStaleRevision(string? revision)
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"),
+            engineeringModifyGranted: false, includeActivationPipeline: true);
+        api.Client.DefaultRequestHeaders.Add("X-Intelligence-Project-Key", EndpointHarness.ProjectKey);
+        if (revision is not null) api.Client.DefaultRequestHeaders.Add("X-Intelligence-Active-Revision", revision);
+        using var response = await api.Client.PostAsync(api.ActivatePath, content: null);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.False(await api.IsPersistedScopeActiveAsync());
+        Assert.Equal(0, api.Gate.ActivePermitCount);
+    }
+
+    [Fact]
+    public async Task RestrictedManager_ConcurrentRequestsUseOneRevisionOnly()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"),
+            engineeringModifyGranted: false, includeActivationPipeline: true);
+        SetManagerRevision(api);
+        var responses = await Task.WhenAll(api.Client.PostAsync(api.ActivatePath, null), api.Client.PostAsync(api.ActivatePath, null));
+        try
+        {
+            Assert.Single(responses, item => item.StatusCode == HttpStatusCode.OK);
+            Assert.Single(responses, item => item.StatusCode == HttpStatusCode.Conflict);
+            Assert.True(await api.IsPersistedScopeActiveAsync());
+            Assert.Equal(2, api.Workspace.Describe().BaseRevision);
+        }
+        finally { foreach (var response in responses) response.Dispose(); }
+    }
+
+    [Fact]
+    public async Task RestrictedManager_ValidatesSavedRevisionBeforePublishing()
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"),
+            engineeringModifyGranted: false, includeActivationPipeline: true, injectUnrelatedSavedChange: true);
+        SetManagerRevision(api);
+        using var response = await api.Client.PostAsync(api.ActivatePath, null);
+        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("INTELLIGENCE_SCOPE_TRANSITION_HAS_UNRELATED_CHANGES", error.GetProperty("error").GetString());
+        Assert.False(await api.IsPersistedScopeActiveAsync());
+        Assert.Equal(1, api.Workspace.Describe().BaseRevision);
+        Assert.Equal(0, api.Gate.ActivePermitCount);
+    }
+
+    [Fact]
+    public async Task RestrictedManager_RequiresViewAndExplicitRearmAfterPermitReset()
+    {
+        await using (var deniedApi = await EndpointHarness.StartAsync(CreateVerification("valid"),
+            engineeringModifyGranted: false, engineeringViewGranted: false))
+        {
+            using var denied = await deniedApi.Client.PostAsync(deniedApi.ActivatePath, null);
+            Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        }
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"),
+            engineeringModifyGranted: false, includeActivationPipeline: true);
+        SetManagerRevision(api);
+        using var initial = await api.Client.PostAsync(api.ActivatePath, null);
+        Assert.Equal(HttpStatusCode.OK, initial.StatusCode);
+        var revision = api.Workspace.Describe().BaseRevision;
+        api.Gate.InvalidateAll();
+        Assert.Equal(0, api.Gate.ActivePermitCount);
+        Assert.True(await api.IsPersistedScopeActiveAsync());
+        SetManagerRevision(api);
+        using var rearmed = await api.Client.PostAsync(api.ActivatePath, null);
+        Assert.Equal(HttpStatusCode.OK, rearmed.StatusCode);
+        Assert.Equal(revision, api.Workspace.Describe().BaseRevision);
+        Assert.Equal(1, api.Gate.ActivePermitCount);
+    }
+
+    private static void SetManagerRevision(EndpointHarness api)
+    {
+        api.Client.DefaultRequestHeaders.Remove("X-Intelligence-Project-Key");
+        api.Client.DefaultRequestHeaders.Remove("X-Intelligence-Active-Revision");
+        api.Client.DefaultRequestHeaders.Add("X-Intelligence-Project-Key", EndpointHarness.ProjectKey);
+        api.Client.DefaultRequestHeaders.Add("X-Intelligence-Active-Revision", api.Workspace.Describe().BaseRevision!.Value.ToString());
     }
 
     [Fact]
@@ -823,7 +940,8 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             bool engineeringViewGranted = true,
             bool includeAnalyticsEndpoints = false,
             bool seedAnalyticsConfiguration = false,
-            string? postgreSqlHistorianConnectionString = null)
+            string? postgreSqlHistorianConnectionString = null,
+            bool injectUnrelatedSavedChange = false)
         {
             var workspace = new EngineeringWorkspace(seedDemo: false);
             var equipmentId = Guid.NewGuid();
@@ -945,7 +1063,12 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
                     DateTimeOffset.UtcNow,
                     exchange.ExportJson(),
                     "test");
-                var projectStore = new HarnessEngineeringProjectStore(seeded);
+                var projectStore = new HarnessEngineeringProjectStore(seeded, injectUnrelatedSavedChange ? json =>
+                {
+                    var package = System.Text.Json.Nodes.JsonNode.Parse(json)!;
+                    package["equipment"]![0]!["name"] = "Unrelated writer";
+                    return package.ToJsonString();
+                } : null);
                 persistence = new EngineeringProjectPersistenceService(exchange, projectStore, workspace.VisualAssets);
                 if (!seedAnalyticsConfiguration)
                 {
@@ -1184,7 +1307,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         }
     }
 
-    private sealed class HarnessEngineeringProjectStore(EngineeringProjectSnapshot initial) : IEngineeringProjectStore
+    private sealed class HarnessEngineeringProjectStore(EngineeringProjectSnapshot initial, Func<string, string>? transformSavedJson = null) : IEngineeringProjectStore
     {
         private readonly SortedDictionary<long, EngineeringProjectSnapshot> _revisions = new()
         {
@@ -1227,6 +1350,7 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
         {
             if (!string.Equals(projectKey, initial.ProjectKey, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Unexpected project key.");
+            engineeringJson = transformSavedJson?.Invoke(engineeringJson) ?? engineeringJson;
             var revision = checked(_revisions.Keys.Max() + 1);
             var snapshot = new EngineeringProjectSnapshot(
                 revision,

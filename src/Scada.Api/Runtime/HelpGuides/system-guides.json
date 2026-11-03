@@ -451,9 +451,8 @@
           "fields": null
         },
         {
-          "heading": "Permissões e seleção de recursos",
-          "body": "Sua conta precisa de permissão para editar a Engenharia e para gerenciar Intelligence nos equipamentos ou locais escolhidos. Na tela Segurança, essas permissões aparecem como EngineeringModify e AssetProcessIntelligenceManage. A segunda precisa de uma concessão explícita, global ou com alcance no recurso. O nome do papel, como Developer ou SystemAdmin, sozinho não comprova a concessão.\n\nPara consultar resultados, também são necessários TrendUse e licença Intelligence. Se um controle estiver bloqueado, confira as capacidades efetivas da sessão nessa tela. Selecione os recursos pelos seletores; não é necessário decorar ou inventar IDs.",
-          "fields": null
+          "heading": "Quem configura e quem pode ativar ou pausar",
+          "body": "O desenvolvedor prepara perfis, associações e a seleção de equipamentos ou locais, com permissão de edição da Engenharia. O gestor pode ter acesso de leitura à Engenharia (EngineeringView) e permissão para gerenciar Intelligence somente nos recursos sob sua responsabilidade (AssetProcessIntelligenceManage), sem receber EngineeringModify.\n\nCom essa conta, abra Inteligência de ativos e use Ativar ou Pausar no recurso já selecionado pelo desenvolvedor. Alterar a seleção, perfis, TAGs ou telas continua bloqueado. A permissão é conferida no equipamento ou local; o nome do papel não substitui uma concessão. Consultar resultados exige também licença, TrendUse e leitura dos TAGs.\n\nA operação precisa encontrar a mesma revisão ativa que você abriu e uma Engenharia sem alterações pendentes. Se houver um rascunho de outro autor, peça para ele concluir ou descartar o trabalho e atualize a página. A operação pode criar uma revisão persistente contendo apenas a mudança de ativação do recurso; ela não publica alterações de outros objetos. Depois de reiniciar, use Ativar novamente para liberar consultas. Se Pausar retornar erro, não considere a pausa durável concluída: confira o estado e tente novamente após resolver o bloqueio."
         },
         {
           "heading": "Ativar apenas onde for útil",
@@ -7492,9 +7491,8 @@
           "fields": null
         },
         {
-          "heading": "Permissions and resource selection",
-          "body": "Your account needs permission to edit Engineering and manage Intelligence for the selected equipment or locations. Security shows these as EngineeringModify and AssetProcessIntelligenceManage. The latter needs an explicit grant, global or scoped to the resource. A role name such as Developer or SystemAdmin does not by itself establish that grant.\n\nQueries also require TrendUse and the Intelligence license. If a control is blocked, check the session’s effective capabilities there. Choose resources through the pickers; there is no need to memorize or invent IDs.",
-          "fields": null
+          "heading": "Who configures and who can activate or pause",
+          "body": "The developer prepares profiles, assignments and equipment or location selection with Engineering editing permission. A manager may have read access to Engineering (EngineeringView) and Intelligence management permission only for their resources (AssetProcessIntelligenceManage), without EngineeringModify.\n\nOpen Asset Intelligence and select Activate or Pause on a resource already selected by the developer. Editing the selection, profiles, TAGs or screens remains blocked. Permission is checked on the equipment or location; a role name does not replace a grant. Queries also require a license, TrendUse and TAG read access.\n\nThe operation requires the same active revision you opened and no pending Engineering edits. If another author has a draft, ask them to finish or discard it and refresh. The operation may create a persisted revision containing only the resource activation change; it does not publish changes to other objects. After a restart, select Activate again to enable queries. If Pause returns an error, do not assume durable pause completed: check the state and retry after resolving the block."
         },
         {
           "heading": "Activate only where useful",
@@ -14533,9 +14531,8 @@
           "fields": null
         },
         {
-          "heading": "Permisos y selección de recursos",
-          "body": "Su cuenta necesita permiso para editar Ingeniería y gestionar Intelligence en los equipos o lugares elegidos. En Seguridad aparecen como EngineeringModify y AssetProcessIntelligenceManage. El segundo requiere una concesión explícita, global o con alcance en el recurso. El nombre del rol, como Developer o SystemAdmin, no demuestra por sí solo la concesión.\n\nLas consultas también requieren TrendUse y licencia Intelligence. Si un control está bloqueado, compruebe las capacidades efectivas de la sesión. Elija recursos con los selectores; no necesita memorizar ni inventar IDs.",
-          "fields": null
+          "heading": "Quién configura y quién puede activar o pausar",
+          "body": "El desarrollador prepara perfiles, asociaciones y selección de equipos o lugares con permiso de edición de Ingeniería. El gestor puede tener acceso de lectura a Ingeniería (EngineeringView) y permiso para administrar Intelligence solo en sus recursos (AssetProcessIntelligenceManage), sin EngineeringModify.\n\nAbra Inteligencia de activos y use Activar o Pausar en un recurso ya seleccionado por el desarrollador. Editar selección, perfiles, TAGs o pantallas sigue bloqueado. El permiso se comprueba en el equipo o lugar; el nombre del rol no sustituye una concesión. Las consultas requieren también licencia, TrendUse y lectura de TAGs.\n\nLa operación requiere la misma revisión activa que abrió y ninguna edición pendiente. Si otro autor tiene un borrador, pídale finalizarlo o descartarlo y actualice la página. La operación puede crear una revisión persistente con solo el cambio de activación del recurso; no publica cambios de otros objetos. Tras reiniciar, vuelva a Activar para permitir consultas. Si Pausar devuelve un error, no suponga que la pausa durable terminó: compruebe el estado y reintente después de resolver el bloqueo."
         },
         {
           "heading": "Activar solo donde sea útil",

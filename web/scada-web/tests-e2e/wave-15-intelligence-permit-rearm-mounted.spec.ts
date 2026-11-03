@@ -29,8 +29,8 @@ const localized = [
   }
 ] as const;
 
-for (const copy of localized) {
-test(`active scope with closed permit can be rearmed after authorization recovery (${copy.locale})`, async ({ page }) => {
+for (const copy of localized) for (const restrictedManager of [false, true]) {
+test(`active scope with closed permit can be rearmed after authorization recovery (${copy.locale}, restricted=${restrictedManager})`, async ({ page }) => {
   const persistedScope = {
     kind: 'Equipment',
     scopeId,
@@ -47,7 +47,7 @@ test(`active scope with closed permit can be rearmed after authorization recover
     authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
     authenticationEnabled: true,
     runtime: [],
-    workspace: ['EngineeringModify', 'AssetProcessIntelligenceManage']
+    workspace: ['EngineeringView', ...(restrictedManager ? [] : ['EngineeringModify']), 'AssetProcessIntelligenceManage']
   } }));
   await page.route('**/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog', route => route.fulfill({ json: {
     supportedSemanticContractVersions: [1, 2],
@@ -71,6 +71,8 @@ test(`active scope with closed permit can be rearmed after authorization recover
   });
   await page.route(`**/api/engineering/asset-process-intelligence/scopes/equipment/${scopeId}/activate`, async route => {
     expect(route.request().method()).toBe('POST');
+    expect(route.request().headers()['x-intelligence-project-key']).toBe('test-project');
+    expect(route.request().headers()['x-intelligence-active-revision']).toBe('7');
     activationRequests++;
     persistedScope.executionArmed = true;
     await route.fulfill({ json: { activated: true } });
@@ -83,6 +85,7 @@ test(`active scope with closed permit can be rearmed after authorization recover
 
   const activate = scopeRow.getByRole('button', { name: copy.activate });
   await expect(activate).toBeEnabled();
+  if (restrictedManager) await expect(scopeRow.getByRole('checkbox')).toBeDisabled();
   await activate.click();
 
   await expect(scopeRow.getByText(copy.permitArmed, { exact: true })).toBeVisible();

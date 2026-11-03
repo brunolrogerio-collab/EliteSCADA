@@ -56,7 +56,7 @@ import './asset-process-intelligence.css';
 import { IntelligenceDashboardComposer } from './IntelligenceDashboardComposer';
 
 type ScopeKind = 'Equipment' | 'Location';
-type Scope = { kind: ScopeKind; scopeId: string; active: boolean; executionArmed?: boolean };
+type Scope = { kind: ScopeKind; scopeId: string; active: boolean; executionArmed?: boolean; canManage?: boolean };
 type Resource = { kind: ScopeKind; scopeId: string; path?: string | null; name: string };
 type Configuration = {
   version: number;
@@ -163,7 +163,7 @@ export function AssetProcessIntelligenceWorkspace({
       const [response, nextSemanticCatalog] = await Promise.all([fetch(`${API}/api/engineering/asset-process-intelligence/scopes`, {
         headers: { accept: 'application/json' }, credentials: 'include'
       }), loadEngineeringSemanticCatalog()]);
-      if (!response.ok) throw await responseError(response);
+      if (!response.ok) throw await responseError(response, locale);
       const next = await response.json() as Snapshot;
       next.configuration ??= EMPTY_CONFIGURATION;
       next.configuration.scopes ??= [];
@@ -209,7 +209,7 @@ export function AssetProcessIntelligenceWorkspace({
         headers: { 'content-type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({ scopes })
       });
-      if (!response.ok) throw await responseError(response);
+      if (!response.ok) throw await responseError(response, locale);
       setMessage(copy.saved);
       await onSaved?.();
       await load();
@@ -238,7 +238,7 @@ export function AssetProcessIntelligenceWorkspace({
           expectedOperatingContextProfileVersions: (snapshot?.configuration.operatingContextProfiles ?? []).map(({ id, version }) => ({ id, version }))
         })
       });
-      if (!response.ok) throw await responseError(response);
+      if (!response.ok) throw await responseError(response, locale);
       setMessage(copy.configurationSaved);
       await onSaved?.();
       await load(true);
@@ -257,9 +257,11 @@ export function AssetProcessIntelligenceWorkspace({
     setMessage(null);
     try {
       const response = await fetch(`${API}/api/engineering/asset-process-intelligence/scopes/${scope.kind.toLowerCase()}/${encodeURIComponent(scope.scopeId)}/${active ? 'activate' : 'pause'}`, {
-        method: 'POST', credentials: 'include', headers: { accept: 'application/json' }
+        method: 'POST', credentials: 'include', headers: { accept: 'application/json',
+          'X-Intelligence-Project-Key': snapshot?.execution.projectKey ?? '',
+          'X-Intelligence-Active-Revision': String(snapshot?.execution.activeRevision ?? '') }
       });
-      if (!response.ok) throw await responseError(response);
+      if (!response.ok) throw await responseError(response, locale);
       setMessage(active ? copy.activated : copy.paused);
       await load();
     } catch (reason) {
@@ -1022,7 +1024,7 @@ export function AssetProcessIntelligenceWorkspace({
                   {!scope ? <span>{copy.notConfigured}</span> : <>
                     <span>{active ? copy.configuredActive : copy.statusPaused}</span>
                     <span>{armed ? copy.permitArmed : active ? copy.permitClosed : copy.noPermit}</span>
-                    <button type="button" className="secondary" disabled={!canEngineer || !canManage || (!snapshot.licensed && !canPause) || (snapshot.execution.workspaceDirty && !canPause) || transitioning !== null}
+                    <button type="button" className="secondary" disabled={!canManage || scope.canManage === false || (!snapshot.licensed && !canPause) || (snapshot.execution.workspaceDirty && !canPause) || transitioning !== null}
                       onClick={() => void setActivation(scope, !canPause)}>
                       {transitioning === key ? copy.working : canPause ? copy.pause : copy.activate}
                     </button>
@@ -1513,12 +1515,17 @@ function qualifierLabel(key: SemanticQualifierKey): SemanticQualifierLabel | nul
   }
 }
 
-async function responseError(response: Response): Promise<Error> {
+async function responseError(response: Response, locale: EngineeringLocale): Promise<Error> {
   let detail = `${response.status} ${response.statusText}`;
   try {
     const payload = await response.json() as { error?: unknown };
     if (typeof payload.error === 'string') detail = payload.error;
   } catch { /* keep status text */ }
+  const boundaryErrors = ['INTELLIGENCE_WORKSPACE_DIFFERS_FROM_ACTIVE_REVISION', 'INTELLIGENCE_SCOPE_TRANSITION_HAS_UNRELATED_CHANGES'];
+  if (boundaryErrors.includes(detail)) detail = locale === 'en'
+    ? 'Engineering differs from the active application. Ask the developer to finish or discard pending edits before activating or pausing.'
+    : locale === 'es' ? 'Ingeniería difiere de la aplicación activa. Pida al desarrollador finalizar o descartar los cambios antes de activar o pausar.'
+    : 'A Engenharia difere da aplicação ativa. Peça ao desenvolvedor para concluir ou descartar as alterações antes de ativar ou pausar.';
   return new Error(detail);
 }
 
@@ -1530,7 +1537,7 @@ function text(locale: EngineeringLocale) {
     stageHint: 'Activate the equipment or area, then open an analysis under its profile assignment. Select the periods and query. Editing profiles or activating a scope does not start continuous analysis.', workingChanges: 'Working changes must be reviewed and published before activation.', openLifecycle: 'Open project lifecycle',
     entitlement: 'Intelligence license', entitled: 'Available', notEntitled: 'Required to activate', project: 'Project', revision: 'Active revision', queue: 'Queue', permits: 'items ready to query',
     currentProject: 'Current application', resourceEquipment: 'Equipment', resourceLocation: 'Location', pathUnavailable: 'No display path', setupNavigation: 'Where do you want to work?', setupHint: 'Start by defining measurements and assigning them to equipment. Add operating conditions or process stages when needed, generate the dashboard, publish and activate the selected equipment.', noProject: 'No active project', eligibleScopes: 'Equipment and locations enabled for analysis', scopeHint: 'Select the Equipment and Locations you want to analyze. Saving changes Working only; publish it before activation.',
-    noResources: 'No Equipment or Locations are available to select.', refresh: 'Refresh', notConfigured: 'Not selected', configuredActive: 'Configured active', statusPaused: 'Paused', permitArmed: 'Ready to query', permitClosed: 'Reactivation required before querying. Select Activate after a restart or restored authorization.', noPermit: 'Not activated for queries', activate: 'Activate', pause: 'Pause', working: 'Applying…', saveScopes: 'Save eligible scopes', saving: 'Saving…', saved: 'Eligible scopes saved.', activated: 'Scope activated for the current revision.', paused: 'Scope paused; pending work was cancelled.', authorizationHint: 'Your account needs permission to edit Engineering and manage Intelligence for this equipment or location.', loading: 'Loading scopes…',
+    noResources: 'No Equipment or Locations are available to select.', refresh: 'Refresh', notConfigured: 'Not selected', configuredActive: 'Configured active', statusPaused: 'Paused', permitArmed: 'Ready to query', permitClosed: 'Reactivation required before querying. Select Activate after a restart or restored authorization.', noPermit: 'Not activated for queries', activate: 'Activate', pause: 'Pause', working: 'Applying…', saveScopes: 'Save eligible scopes', saving: 'Saving…', saved: 'Eligible scopes saved.', activated: 'Scope activated for the current revision.', paused: 'Scope paused; pending work was cancelled.', authorizationHint: 'Editing the selection requires Engineering permission. Activating or pausing requires Intelligence management permission for the equipment or location.', loading: 'Loading scopes…',
     stage2Title: 'Process configuration', stage2Hint: 'Create reusable measurement profiles from existing TAGs, assign them to Equipment and arrange the process stages. These edits are saved to Working.',
     profiles: 'Reusable profiles', profilesHint: 'A profile can be reused by multiple Equipment assignments.', newProfile: 'New profile', noProfiles: 'No profiles yet. Create one to define static signal references.', defaultProfile: 'Profile', defaultSignal: 'Signal', profileName: 'Display name', signals: 'Signal references', signalsHint: 'Choose existing TAGs and describe what each measurement represents. The optional meaning selection enables analyses that support it.', noSignals: 'No signals in this profile.', signalRole: 'What does this measurement represent?', signalRolePlaceholder: 'e.g. motor current', semanticRole: 'Measurement meaning', noSemanticRole: 'Not specified', chooseQualifier: 'Choose a qualifier', currentBasisLabel: 'Current basis', signalKindLabel: 'Signal kind', frequencyReferenceLabel: 'Frequency reference', pressureReferenceLabel: 'Pressure reference', flowDirectionLabel: 'Flow direction', semanticComplete: 'Controlled annotation complete', semanticIncomplete: 'Incomplete: select every required qualifier before saving', unsupportedSemantic: 'This saved meaning is unavailable', tagReference: 'TAG reference', chooseTag: 'Choose a TAG', noTags: 'No TAGs are available', addSignal: 'Add signal', required: 'Required', optional: 'Optional', missingTag: 'Missing TAG reference', remove: 'Remove', deleteProfile: 'Delete profile and its assignments',
     assignments: 'Equipment assignments', assignmentsHint: 'Choose the Equipment and profile to link. One Equipment may use more than one profile.', equipment: 'Equipment', profile: 'Profile', chooseEquipment: 'Choose Equipment', chooseProfile: 'Choose a profile', assignProfile: 'Assign profile', noEquipment: 'No Equipment is available.', noAssignments: 'No assignments yet.', missingEquipment: 'Missing Equipment', missingProfile: 'Missing profile', referenceMissing: 'Reference is missing',
@@ -1560,7 +1567,7 @@ function text(locale: EngineeringLocale) {
     stageHint: 'Ative o equipamento ou área e abra uma análise na associação do perfil. Escolha os períodos e consulte. Editar perfis ou ativar um escopo não inicia análise contínua.', workingChanges: 'Revise e publique as alterações de Working antes de ativar.', openLifecycle: 'Abrir ciclo do projeto',
     entitlement: 'Licença Intelligence', entitled: 'Disponível', notEntitled: 'Necessária para ativar', project: 'Projeto', revision: 'Revisão ativa', queue: 'Fila', permits: 'itens prontos para consultar',
     currentProject: 'Aplicação atual', resourceEquipment: 'Equipamento', resourceLocation: 'Local', pathUnavailable: 'Sem caminho de exibição', setupNavigation: 'Onde deseja trabalhar?', setupHint: 'Comece definindo as medições e associando-as aos equipamentos. Acrescente condições de operação ou etapas quando precisar, gere o painel, publique e ative os equipamentos escolhidos.', noProject: 'Nenhum projeto ativo', eligibleScopes: 'Equipamentos e locais habilitados para análise', scopeHint: 'Selecione os equipamentos e locais que deseja analisar. Salvar altera apenas o Working; publique antes de ativar.',
-    noResources: 'Não há equipamentos ou locais disponíveis para selecionar.', refresh: 'Atualizar', notConfigured: 'Não selecionado', configuredActive: 'Ativo na configuração', statusPaused: 'Pausado', permitArmed: 'Pronto para consultar', permitClosed: 'Reative antes de consultar. Selecione Ativar após reinício ou restauração da autorização.', noPermit: 'Ainda não ativado para consultas', activate: 'Ativar', pause: 'Pausar', working: 'Aplicando…', saveScopes: 'Salvar escopos elegíveis', saving: 'Salvando…', saved: 'Escopos elegíveis salvos.', activated: 'Escopo ativado para a revisão atual.', paused: 'Escopo pausado; o trabalho pendente foi cancelado.', authorizationHint: 'Sua conta precisa de permissão para editar a Engenharia e gerenciar Intelligence neste equipamento ou local.', loading: 'Carregando escopos…',
+    noResources: 'Não há equipamentos ou locais disponíveis para selecionar.', refresh: 'Atualizar', notConfigured: 'Não selecionado', configuredActive: 'Ativo na configuração', statusPaused: 'Pausado', permitArmed: 'Pronto para consultar', permitClosed: 'Reative antes de consultar. Selecione Ativar após reinício ou restauração da autorização.', noPermit: 'Ainda não ativado para consultas', activate: 'Ativar', pause: 'Pausar', working: 'Aplicando…', saveScopes: 'Salvar escopos elegíveis', saving: 'Salvando…', saved: 'Escopos elegíveis salvos.', activated: 'Escopo ativado para a revisão atual.', paused: 'Escopo pausado; o trabalho pendente foi cancelado.', authorizationHint: 'Alterar a seleção exige permissão de Engenharia. Ativar ou pausar exige permissão para gerenciar Intelligence no equipamento ou local.', loading: 'Carregando escopos…',
     stage2Title: 'Configuração de processos', stage2Hint: 'Crie perfis reutilizáveis com TAGs já cadastrados, associe-os aos equipamentos e organize as etapas do processo. As edições são salvas no Working.',
     profiles: 'Perfis reutilizáveis', profilesHint: 'Um perfil pode ser reutilizado em várias associações de equipamentos.', newProfile: 'Novo perfil', noProfiles: 'Nenhum perfil ainda. Crie um para definir referências estáticas de sinais.', defaultProfile: 'Perfil', defaultSignal: 'Sinal', profileName: 'Nome de exibição', signals: 'Referências de sinais', signalsHint: 'Escolha TAGs existentes e descreva o que cada medição representa. O significado opcional habilita as análises compatíveis.', noSignals: 'Este perfil não possui sinais.', signalRole: 'O que esta medição representa?', signalRolePlaceholder: 'ex.: corrente elétrica do motor', semanticRole: 'Significado da medição', noSemanticRole: 'Não informado', chooseQualifier: 'Escolha um qualificador', currentBasisLabel: 'Base de corrente', signalKindLabel: 'Tipo do sinal', frequencyReferenceLabel: 'Referência de frequência', pressureReferenceLabel: 'Referência de pressão', flowDirectionLabel: 'Direção do fluxo', semanticComplete: 'Anotação controlada completa', semanticIncomplete: 'Incompleta: selecione todos os qualificadores obrigatórios antes de salvar', unsupportedSemantic: 'Este significado salvo não está disponível', tagReference: 'Referência do TAG', chooseTag: 'Escolha um TAG', noTags: 'Nenhum TAG disponível', addSignal: 'Adicionar sinal', required: 'Obrigatório', optional: 'Opcional', missingTag: 'Referência de TAG ausente', remove: 'Remover', deleteProfile: 'Excluir perfil e associações',
     assignments: 'Associações de equipamentos', assignmentsHint: 'Escolha o equipamento e o perfil que deseja associar. Um equipamento pode usar mais de um perfil.', equipment: 'Equipamento', profile: 'Perfil', chooseEquipment: 'Escolha um equipamento', chooseProfile: 'Escolha um perfil', assignProfile: 'Associar perfil', noEquipment: 'Nenhum equipamento disponível.', noAssignments: 'Nenhuma associação ainda.', missingEquipment: 'Equipamento ausente', missingProfile: 'Perfil ausente', referenceMissing: 'Referência ausente',

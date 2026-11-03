@@ -37,6 +37,20 @@ function evidenceValid(value: Evidence | undefined, window: WindowValue) {
       signal.ambiguousSourceTimestampRowCount].every(count) && map(signal.qualityCounts) && map(signal.rejectionCounts));
 }
 
+export function resolveSingleTargetSignals(profile: AssetProcessIntelligenceProfileEngineering | undefined, tags: readonly TagEngineering[], controlledUnits: readonly VersionedControlledUnitCatalog[]): readonly SingleTargetSignal[] {
+  const duplicate = new Set((profile?.signals ?? []).map(signal => signal.id.toLowerCase())).size !== (profile?.signals ?? []).length ||
+    new Set((profile?.signals ?? []).map(signal => signal.tagId.toLowerCase())).size !== (profile?.signals ?? []).length;
+  return duplicate ? [] : (profile?.signals ?? []).flatMap(signal => {
+    const matches = tags.filter(tag => sameId(tag.id, signal.tagId));
+    if (matches.length !== 1 || !isNumericTagDataType(matches[0].dataType)) return [];
+    const tag = matches[0], ref = tag.controlledEngineeringUnit;
+    const units = ref ? controlledUnits.filter(catalog => catalog.catalogVersion === ref.catalogVersion).flatMap(catalog => catalog.units.filter(unit => unit.code === ref.code)) : [];
+    const unit = units.length === 1 && finite(units[0].scaleToCanonical) && units[0].scaleToCanonical > 0 ? units[0] : null;
+    return [{ id: signal.id, tagId: signal.tagId, label: tag.name || tag.path, unit: tag.engineeringUnit ?? null,
+      canonicalUnit: unit?.canonicalUnit ?? null, unitCode: unit ? ref!.code : null }];
+  });
+}
+
 export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assignmentId, profile, tags, controlledUnits = [], projectKey, activeRevision, canQuery, profileId, signalReferences, onCreateRuntimeScreenDraft }: {
   locale: EngineeringLocale; scopeId: string; assignmentId: string; profile?: AssetProcessIntelligenceProfileEngineering; profileId: string; signalReferences?: readonly SingleTargetSignal[];
   onCreateRuntimeScreenDraft?: (signals: readonly SingleTargetSignal[]) => void;
@@ -46,17 +60,7 @@ export function IntelligenceSingleTargetDeviationPanel({ locale, scopeId, assign
   const t = (pt: string, en: string, es: string) => locale === 'pt-BR' ? pt : locale === 'es' ? es : en;
   const { profile: session } = useAuth();
   const sessionKey = session ? JSON.stringify([session.subjectId, session.identityProvider, session.expiresAtUtc, [...session.roles].sort()]) : 'anonymous';
-  const duplicate = new Set((profile?.signals ?? []).map(signal => signal.id.toLowerCase())).size !== (profile?.signals ?? []).length ||
-    new Set((profile?.signals ?? []).map(signal => signal.tagId.toLowerCase())).size !== (profile?.signals ?? []).length;
-  const signals: readonly SingleTargetSignal[] = signalReferences ?? (duplicate ? [] : (profile?.signals ?? []).flatMap(signal => {
-    const matches = tags.filter(tag => sameId(tag.id, signal.tagId));
-    if (matches.length !== 1 || !isNumericTagDataType(matches[0].dataType)) return [];
-    const tag = matches[0], ref = tag.controlledEngineeringUnit;
-    const units = ref ? controlledUnits.filter(catalog => catalog.catalogVersion === ref.catalogVersion).flatMap(catalog => catalog.units.filter(unit => unit.code === ref.code)) : [];
-    const unit = units.length === 1 && finite(units[0].scaleToCanonical) && units[0].scaleToCanonical > 0 ? units[0] : null;
-    return [{ id: signal.id, tagId: signal.tagId, label: tag.name || tag.path, unit: tag.engineeringUnit ?? null,
-      canonicalUnit: unit?.canonicalUnit ?? null, unitCode: unit ? ref!.code : null }];
-  }));
+  const signals = signalReferences ?? resolveSingleTargetSignals(profile, tags, controlledUnits);
   const [targetId, setTargetId] = useState(''), [conditionId, setConditionId] = useState('');
   const [referenceFrom, setReferenceFrom] = useState(''), [referenceTo, setReferenceTo] = useState('');
   const [evaluationFrom, setEvaluationFrom] = useState(''), [evaluationTo, setEvaluationTo] = useState('');

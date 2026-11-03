@@ -569,6 +569,7 @@ public static class BuiltinVisualEngineeringValidation
         if (member.TryGetProperty("operatingContexts", out var contexts) &&
             (!partial || !ValidContextReferenceCatalog(contexts.GetRawText()))) return false;
         if (member.TryGetProperty("experimentalJoint", out var joint) && (!partial || !ValidStageJointPresentation(joint))) return false;
+        if (member.TryGetProperty("singleTarget", out var singleTarget) && (!partial || !ValidSingleTargetCatalog(singleTarget.GetRawText()))) return false;
         if (member.TryGetProperty("currentFrequency", out var currentFrequency) && (!partial || !ValidCurrentFrequencyCatalog(currentFrequency.GetRawText()))) return false;
         var hasPerformance = member.TryGetProperty("performance", out var performance);
         var hasDeviation = member.TryGetProperty("contextualDeviation", out var deviation);

@@ -34,6 +34,28 @@ public sealed class EngineeringIntelligenceProcessStageInsightsVisualValidationT
         Assert.Null(actual["performance"]); Assert.Null(actual["contextualDeviation"]);
     }
 
+    [Theory]
+    [InlineData("valid")][InlineData("missing-unit")][InlineData("partial-unit")][InlineData("duplicate-tag")][InlineData("no-version")]
+    public void SingleTargetMember_IsIndependentAndValidated(string scenario)
+    {
+        var member = Member(0);
+        member.Remove("performance"); member.Remove("contextualDeviation");
+        var signals = new JsonArray(
+            new JsonObject { ["id"] = First, ["tagId"] = Third, ["label"] = "Current", ["unit"] = "A", ["canonicalUnit"] = null, ["unitCode"] = null },
+            new JsonObject { ["id"] = Second, ["tagId"] = Fourth, ["label"] = "Measured frequency", ["unit"] = "Hz", ["canonicalUnit"] = "Hz", ["unitCode"] = "unit.frequency.hertz" });
+        if (scenario == "missing-unit") signals[0]!.AsObject().Remove("unit");
+        if (scenario == "partial-unit") signals[1]!["unitCode"] = null;
+        if (scenario == "duplicate-tag") signals[1]!["tagId"] = Third;
+        if (scenario == "no-version") member.Remove("availabilityVersion");
+        member["singleTarget"] = signals;
+        if (scenario != "valid") { AssertInvalid(Element(member)); return; }
+        Assert.DoesNotContain(Validate(Element(member)), issue => issue.IsError);
+        var normalized = VisualEngineeringPropertyMigration.NormalizeCurrentElements([Element(member)])!.Single();
+        var actual = JsonNode.Parse(normalized.Properties![VisualPropertyKeys.IntelligenceStageMembers].GetString()!)![0]!;
+        Assert.Equal("Hz", actual["singleTarget"]![1]!["canonicalUnit"]!.GetValue<string>());
+        Assert.Null(actual["performance"]); Assert.Null(actual["contextualDeviation"]);
+    }
+
     [Fact]
     public void RegisteredInsightScreen_PreservesIndependentReportsThroughNormalization()
     {

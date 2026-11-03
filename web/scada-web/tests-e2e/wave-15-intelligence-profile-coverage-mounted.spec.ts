@@ -1315,3 +1315,23 @@ test('single-target screen draft uses Runtime references without querying or per
  await expect(visual).toBeVisible();await expect(visual.getByRole('button',{name:/Comparar medição|Compare measurement/,includeHidden:true})).toBeDisabled();
  expect(fixture.otherWrites).toEqual([]);expect(fixture.requests).toEqual([]);
 });
+
+for(const stage of [false,true])test(`single-target central composer generates ${stage?'stage':'profile'} without querying or persisting`,async({page})=>{
+ const fixture=await installWorkspace(page,{singleTargetReady:true,stageReady:stage});await openIntelligence(page);const composer=page.getByTestId('intelligence-dashboard-generator');
+ if(stage)await composer.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+ await composer.getByRole('checkbox',{name:stage?'Medição sob condição por equipamento':'Comparar uma medição sob uma condição',exact:true}).check();
+ if(stage){await page.setViewportSize({width:1440,height:2600});await composer.scrollIntoViewIfNeeded();await page.evaluate(()=>window.scrollBy(0,-150));await composer.screenshot({path:test.info().outputPath('single-target-stage-composer.png')});}
+ await composer.getByTestId('intelligence-dashboard-generate').click();const editor=page.getByTestId('visual-editor-workspace'),drafts=editor.getByTestId('visual-editor-generated-drafts').getByRole('button');
+ await expect(drafts).toHaveCount(stage?3:2);await drafts.last().click();
+ const visual=stage?editor.getByTestId('runtime-intelligence-process-stage-insights'):editor.getByTestId('runtime-intelligence-single-target');
+ if(stage)await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-single-target')).toBeEnabled();
+ else await expect(editor.getByTestId('runtime-intelligence-single-target').getByRole('button',{name:/Comparar medição|Compare measurement/,includeHidden:true})).toBeDisabled();
+ expect(fixture.requests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
+});
+
+test('single-target unavailable condition does not block the central basic dashboard',async({page})=>{
+ const fixture=await installWorkspace(page);await openIntelligence(page);const composer=page.getByTestId('intelligence-dashboard-generator');
+ await expect(composer.getByRole('checkbox',{name:'Comparar uma medição sob uma condição',exact:true})).toBeDisabled();
+ await expect(composer.getByTestId('intelligence-dashboard-generate')).toBeEnabled();await composer.getByTestId('intelligence-dashboard-generate').click();
+ await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();expect(fixture.requests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
+});

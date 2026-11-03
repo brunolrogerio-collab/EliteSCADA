@@ -293,7 +293,9 @@ En Ingeniería > Inteligencia de activos, abra la asociación equipo/perfil y Co
 
 Límite conjunto: 50 mil registros brutos de ambas señales/períodos. Se devuelven hasta 500 muestras de evaluación; revise cantidad omitida. Muestras fuera del rango quedan identificadas sin diferencia ni score. No se guardan resultados en el proyecto. No es diagnóstico, medición de eficiencia ni prueba de simultaneidad física, condiciones equivalentes o integridad del histórico.
 
-Para Runtime: Crear pantalla de esta comparación genera un borrador separado con hasta 16 referencias de mediciones, sin resultados, períodos ni límites predeterminados. Revise en el editor, valide/aplique, guarde, publique y active la revisión. Crear borrador no guarda el proyecto ni consulta el histórico. En Runtime en vivo, abra la pantalla y seleccione mediciones, rango y períodos para consultar. Editor y reproducción histórica no ejecutan el análisis. Cambiar sesión/contexto retira resultados; volver en vivo no consulta automáticamente. La API mantiene licencia, revisión, ejecución y lectura autorizadas. Esta acción crea una pantalla del perfil; no compone automáticamente miembros de una etapa.
+Para Runtime: Crear pantalla de esta comparación genera un borrador separado con hasta 16 referencias de mediciones, sin resultados, períodos ni límites predeterminados. Revise en el editor, valide/aplique, guarde, publique y active la revisión. Crear borrador no guarda el proyecto ni consulta el histórico. En Runtime en vivo, abra la pantalla y seleccione mediciones, rango y períodos para consultar. Editor y reproducción histórica no ejecutan el análisis. Cambiar sesión/contexto retira resultados; volver en vivo no consulta automáticamente. La API mantiene licencia, revisión, ejecución y lectura autorizadas. Esta acción crea una pantalla del perfil. Use el generador central para componer varias vistas o una etapa.
+
+En el generador central elija un perfil y marque Comparar una medición bajo una condición. Para una etapa marque Medición bajo condición por equipo. La opción es independiente de rendimiento, corriente/frecuencia y desvío de varias mediciones; no es necesario configurar esos análisis. Cada equipo requiere de 2 a 16 mediciones numéricas distintas, con al menos una condición de unidad controlada compatible. Si faltan requisitos se deshabilita solo esta opción; las demás vistas siguen disponibles. Revise pantallas antes de aplicar, guardar, publicar y activar. En Runtime de etapa elija equipo y Comparar una medición bajo una condición. Los resultados pertenecen al equipo seleccionado, no a toda la etapa. Cambiar equipo o análisis retira el resultado sin consulta automática. La composición completa de un perfil puede tener ocho pantallas vinculadas; use botones de navegación para alternar.
 
 ### Comparar corriente dentro de un rango de frecuencia
 
@@ -382,9 +384,9 @@ Si son correctos, examine captura en Historian, calidad, papeles/unidades y exig
 
 No cambie el significado de una señal ni amplíe límites solo para obtener un resultado. Los análisis ayudan a investigar. No confirman defectos ni anticipan fallos con una validez de campo aún no demostrada.
 
-#### Ejemplo real: corriente y frecuencia
+#### Ejemplos reales: consultas y paneles
 
-Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no representa un diagnóstico de campo.
+Las leyendas indican API simulada o API/PostgreSQL reales. Todos los datos son sintéticos, sin validación de campo.
 
 **Elegir mediciones en el móvil**
 
@@ -429,5 +431,25 @@ Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no
 **Objetivo único en Runtime: interfaz real en inglés con API simulada, no prueba API/PostgreSQL**
 
 ![Objetivo único en Runtime: interfaz real en inglés con API simulada, no prueba API/PostgreSQL](../../evidence/intelligence-857/single-target-runtime-browser.png)
+
+**Elegir medición bajo condición en el compositor de etapa (API simulada)**
+
+![Elegir medición bajo condición en el compositor de etapa (API simulada)](../../evidence/intelligence-857/single-target-stage-composer-browser.png)
+
+**Miembro sin condición compatible conserva otras vistas (API simulada)**
+
+![Miembro sin condición compatible conserva otras vistas (API simulada)](../../evidence/intelligence-857/single-target-stage-partial-browser.png)
+
+**Tasa real de 0 A/s para corriente constante de 6 A (API/PostgreSQL reales, datos sintéticos)**
+
+![Tasa real de 0 A/s para corriente constante de 6 A (API/PostgreSQL reales, datos sintéticos)](../../evidence/intelligence-857/composer-real-rate-ui.png)
+
+**Diferencia real entre medias de 6 A y 5 A (API/PostgreSQL reales, datos sintéticos)**
+
+![Diferencia real entre medias de 6 A y 5 A (API/PostgreSQL reales, datos sintéticos)](../../evidence/intelligence-857/composer-real-statistics-ui.png)
+
+**Consulta de miembro de etapa en Runtime (API/PostgreSQL reales, datos sintéticos)**
+
+![Consulta de miembro de etapa en Runtime (API/PostgreSQL reales, datos sintéticos)](../../evidence/intelligence-857/composer-stage-single-target-runtime.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

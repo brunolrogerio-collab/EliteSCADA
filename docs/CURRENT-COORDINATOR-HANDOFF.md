@@ -1,5 +1,17 @@
 # Current coordinator pointer - Wave 15
 
+## Retomada atual — composição central/etapa e prova real #857
+
+A candidata acrescenta alvo único ao compositor central por perfil e membro de etapa, com disponibilidade independente. Referências readonly/limitadas e API/método existentes. A etapa não agrega resultados; trocar membro/análise desmonta a resposta, sem consulta automática. Perfil completo pode ter8telas vinculadas;7 destinos de navegação ficam antes da área analítica.
+
+Local:23/23 focados,26/26 gerador completo,2/2 capturas,139/139 C# EngineeringIntelligence,30/30 Help, build Web e69 arquivos alinhados. Capturas inspecionadas no manual. Primeira rodada20/21 tentou clicar fora da área visível do canvas do editor; verificação da geração foi alinhada aos testes existentes, mantendo clique/consulta/troca no Runtime. Não se alterou timeout/retry/gate.
+
+**Docker voltou em03/11. Prova real concluída no laboratório isolado**: API atual/TimescaleDB, projeto sintético intelligence-browser-853, revisão final67. Cinco telas (perfil2/etapa3), mesmas identidades/propriedades após reinício, perfis/associações/unidades/fontes preservados. Estatísticas exibem diferença de médias≈1 A; taxa0 A/s para6 A constante; alvo único mediana5 A/MAD0,58pares por período, diferença1 A/score indisponível. Ausência de dados mantém null. Três rotas retornam409 após reinício até rearm explícito. Runtime perfil/etapa consultados e sem erro de página; geração fez zero consultas analíticas. Membro sem frequência possui outras medições/unidade e permanece elegível ao alvo único; caso incompatível coberto nos montados. Arquivos composer-* públicos em docs/evidence/intelligence-857.
+
+Licença sintética de2dias estava expirada e foi renovada só no laboratório, sem mudar produto/preview/Portal/chaves comerciais. Ativação canônica do escopo levou a revisão66 para67; roteiro passou a conferir a revisão efetivamente ativa, sem relaxar identidade. Não houve falha de cálculo demonstrada.
+
+Próximo: revisar resultado CI no SHA exato (#854/#857), completar auditoria de equivalência de métodos/versões e acabamento #791, desenho/operação de gestor restrito #858 e aceite/integração. Não encerrar #791/#855/#857 nem declarar merge por esta prova. Campo #701 continua futura Wave. Z-Wave #856 em quarentena autorizada. Predecessor7bcd27dd /41656505778 terminou CANCELLED, Chromium focado cancelado/T1 falhou; demais jobs executados passaram.
+
 ## Retomada atual — alvo único no gerador por perfil e Runtime #857
 
 Nova candidata acrescenta objeto Screen-only `core.intelligenceSingleTargetDeviationV1`, propriedade `intelligenceSingleTargetSignals` somente leitura (2–16 referências limitadas, sem policy, dados históricos, resultados ou períodos). C#/TS validam IDs/sinais distintos, limites e condição com unidade controlada de apresentação. A API existente continua autoritativa para unidade real, licença, leitura, revisão e permit. `Criar tela desta comparação`, dentro da associação, gera um rascunho sem consultar/gravar; editor não consulta; após salvar/publicar/ativar, Runtime usa o mesmo formulário da Engenharia, com resultados descartados por contexto/sessão/cancelamento e histórico bloqueado.

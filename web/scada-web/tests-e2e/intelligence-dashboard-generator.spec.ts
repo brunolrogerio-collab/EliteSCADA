@@ -964,7 +964,7 @@ test('context conditions persist references only and six selected views keep nav
   expect(() => generateIntelligenceDashboardCompositionDrafts([], source, tags, { contextEligibility: { ...contextSelection, assignmentId: id(99) } }, { theme: 'dark', measurements: {} }, 'en')).toThrow(/does not belong/);
 });
 
-test('current-frequency references add a seventh view and all six navigation destinations keep navigation inside the canvas', () => {
+test('current-frequency and single-target references add eight views with all navigation above the analysis area', () => {
   const id = (n: number) => `85700000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   const tags = [1, 2, 3, 4].map(n => ({ ...numericTag(id(100 + n), `Pump.Signal${n}`), id: id(100 + n) }));
   tags[0].controlledEngineeringUnit = { catalogVersion: 1, code: 'unit.electric_current.ampere' };
@@ -978,13 +978,14 @@ test('current-frequency references add a seventh view and all six navigation des
   const source = { kind: 'equipment-profile' as const, stableKey: 'pump', displayName: 'Pump', assignments: [{ scopeId: identity.scopeId, assignmentId: identity.assignmentId, profile, equipmentName: 'Pump', equipmentPath: 'Pump' }] };
   const joint = { ...contextSelection, signals: profile.signals.map((signal,i) => ({ id: signal.id, tagId: signal.tagId, label: `Measurement ${i}` })) };
   const currentFrequency = { ...identity, signals: currentFrequencySignals(profile, tags) };
-  const selections = { currentFrequency, experimentalJoint: joint, referenceEvidence: identity, contextEligibility: contextSelection,
+  const singleTarget = {...identity,signals:currentFrequency.signals.map(signal=>({id:signal.id,tagId:signal.tagId,label:signal.label,unit:signal.kind==='current'?'A':'Hz',canonicalUnit:signal.kind==='current'?'A':'Hz',unitCode:signal.kind==='current'?'unit.electric_current.ampere':'unit.frequency.hertz'}))};
+  const selections = { singleTarget, currentFrequency, experimentalJoint: joint, referenceEvidence: identity, contextEligibility: contextSelection,
     performance: { ...identity, ruleId: 'specific-active-energy-at-recorded-production-rate.v1', ruleVersion: '1.0.0', signalIds: profile.signals.slice(0, 2).map(s => s.id) },
     contextualDeviation: { ...identity, targetSignalIds: profile.signals.slice(0, 2).map(s => s.id), firstContextSignalId: profile.signals[2].id,
       secondContextSignalId: profile.signals[3].id, firstContextLowerInclusiveCanonical: 0, firstContextUpperExclusiveCanonical: 10,
       secondContextLowerInclusiveCanonical: 0, secondContextUpperExclusiveCanonical: 100 } };
   const drafts = generateIntelligenceDashboardCompositionDrafts([], source, tags, selections, { theme: 'light', measurements: {} }, 'en', ids());
-  expect(drafts).toHaveLength(7);
+  expect(drafts).toHaveLength(8);
   const currentWidget = drafts.find(draft => draft.metadata?.intelligenceDashboardViewRole === 'current-frequency')!.elements!.find(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1)!;
   expect(JSON.parse(String(currentWidget.properties?.intelligenceCurrentFrequencySignals))).toEqual(currentFrequency.signals);
   expect(JSON.stringify(currentWidget)).not.toMatch(/minimumFrequency|maximumFrequency|primaryWindow|comparisonWindow|metric|policy/);
@@ -999,10 +1000,10 @@ test('current-frequency references add a seventh view and all six navigation des
   expect(JSON.stringify(widget)).not.toMatch(/minimum|maximum|exactValue|booleanValue|referenceWindow|result/);
   for (const draft of drafts) {
     const navigation = draft.elements!.filter(e => e.actions?.some(a => a.kind === 'NavigateScreen'));
-    expect(navigation).toHaveLength(6);
+    expect(navigation).toHaveLength(7);
     for (const link of navigation) {
       expect(Number(link.properties!.x) + Number(link.properties!.width)).toBeLessThanOrEqual(1920);
-      expect(Number(link.properties!.y) + Number(link.properties!.height)).toBeLessThanOrEqual(150);
+      expect(Number(link.properties!.y) + Number(link.properties!.height)).toBeLessThanOrEqual(200);
       expect(drafts.some(target => target.key === link.actions![0].targetKey)).toBe(true);
     }
   }

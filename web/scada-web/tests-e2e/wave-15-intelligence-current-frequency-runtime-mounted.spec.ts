@@ -115,13 +115,13 @@ function runtimeProjection(elementScopeId = scopeId, stage = false, single = fal
         elements: [{
           id: '90000000-0000-0000-0000-000000000010',
           key: 'profile-coverage-v1',
-          type: single ? 'core.intelligenceSingleTargetDeviationV1' : stage ? 'core.intelligenceProcessStageInsightsV1' : 'core.intelligenceCurrentFrequencyComparisonV1',
+          type: stage ? 'core.intelligenceProcessStageInsightsV1' : single ? 'core.intelligenceSingleTargetDeviationV1' : 'core.intelligenceCurrentFrequencyComparisonV1',
           properties: {
             x: 50, y: 60, width: 1100, height: 720,
             ...(stage ? {
               intelligenceStageId: '90000000-0000-0000-0000-000000000123', intelligenceStageKey: 'pumping', intelligenceStageName: 'Pumping',
               intelligenceStageMembers: JSON.stringify([
-                {assignmentId,scopeId,profileId,displayLabel:'Motor with measured frequency',order:0,availabilityVersion:2,currentFrequency:signals},
+                {assignmentId,scopeId,profileId,displayLabel:'Motor with measured frequency',order:0,availabilityVersion:2,currentFrequency:signals,singleTarget:singleSignals},
                 {assignmentId:profileId,scopeId:currentTagId,profileId:speedTagId,displayLabel:'Motor without measured frequency',order:1,availabilityVersion:2,referenceEvidence:true}
               ])
             } : {}),
@@ -182,4 +182,15 @@ for(const scenario of ['duplicate','extra','no-condition','partial-unit','too-ma
  if(scenario==='no-condition'){items[1].canonicalUnit=null as any;items[1].unitCode=null as any;}if(scenario==='partial-unit')items[1].unitCode=null as any;
  if(scenario==='too-many')for(let i=0;i<15;i++)items.push({...items[1],id:crypto.randomUUID(),tagId:crypto.randomUUID()});if(scenario==='empty-label')items[0].label=' ';
  expect(readSingleTargetSignals(JSON.stringify(items))).toBeNull();
+});
+
+test('single-target stage retains partial members and clears result when changing equipment',async({page})=>{
+ const fixture=await installRuntime(page,scopeId,true,true);await page.goto('/');const stage=page.getByTestId('runtime-intelligence-process-stage-insights'),choice=stage.getByTestId('runtime-intelligence-process-stage-insights-single-target');
+ await choice.click();const visual=stage.getByTestId('runtime-intelligence-single-target');await visual.locator('summary').first().click();
+ await visual.getByRole('combobox',{name:'Measurement to analyze',exact:true}).selectOption(currentTagId);await visual.getByRole('combobox',{name:'Measured condition',exact:true}).selectOption(speedTagId);
+ for(const [label,value] of [['Included lower bound (Hz)','49'],['Excluded upper bound (Hz)','51'],['Reference start (local time)','2026-10-20T10:00'],['Reference end (local time)','2026-10-20T11:00'],['Evaluation start (local time)','2026-10-21T10:00'],['Evaluation end (local time)','2026-10-21T12:00']])await visual.getByLabel(label,{exact:true}).fill(value);
+ expect(fixture.requests).toEqual([]);await visual.getByRole('button',{name:'Compare measurement',exact:true}).click();await expect(visual.getByTestId('intelligence-single-target-result')).toContainText('10 A');
+ await stage.getByTestId('runtime-intelligence-process-stage-insights-member').selectOption(profileId);await expect(visual).toHaveCount(0);await expect(choice).toBeDisabled();await expect(stage).toContainText('two distinct numeric measurements');await stage.screenshot({path:test.info().outputPath('single-target-stage-partial.png')});
+ await stage.getByTestId('runtime-intelligence-process-stage-insights-reference').click();await expect(stage.getByTestId('runtime-intelligence-reference-evidence')).toBeVisible();
+ await stage.getByTestId('runtime-intelligence-process-stage-insights-member').selectOption(assignmentId);await choice.click();await expect(stage.getByTestId('intelligence-single-target-result')).toHaveCount(0);expect(fixture.requests).toHaveLength(1);
 });

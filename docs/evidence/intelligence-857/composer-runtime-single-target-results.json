@@ -1,0 +1,39 @@
+{
+  "syntheticOnly": true,
+  "activeRevision": 67,
+  "generatedScreens": [
+    {
+      "kind": "profile",
+      "count": 2,
+      "ids": [
+        "dbac5499-443a-4ed9-9157-64e6a88c5d0d",
+        "4a550b5c-24e4-409f-a9ae-5a0351bdaace"
+      ]
+    },
+    {
+      "kind": "stage",
+      "count": 3,
+      "ids": [
+        "3adf76da-5382-480f-b147-62efaf9a2f56",
+        "7fbe494d-2fea-460d-a556-2337fede6c7d",
+        "b12f46df-edad-4bca-ada5-0ce13a7bafa3"
+      ]
+    }
+  ],
+  "analyticsDuringGeneration": 0,
+  "runtimeQueries": 2,
+  "pageErrors": [],
+  "profileResult": true,
+  "stageMemberResult": true,
+  "referenceMedian": 5,
+  "referenceMad": 0,
+  "selectedPairs": [
+    58,
+    58
+  ],
+  "rawDifference": 1,
+  "score": null,
+  "partialMemberWithOtherMeasurementsAvailable": true,
+  "partialMemberQueryNotAutomatic": true,
+  "oldResultCleared": true
+}

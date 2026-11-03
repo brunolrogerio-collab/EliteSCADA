@@ -1,3 +1,4 @@
+import { readSingleTargetSignals } from './intelligenceSingleTargetReferences';
 import { readIntelligenceJointPresentation } from './intelligenceJointReferences';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasRuntimeCapability, hasWorkspaceCapability, useEffectiveCapabilities } from '../auth/effectiveCapabilities';
@@ -43,7 +44,7 @@ import {
   type IntelligenceProcessStageInsightsDashboardSelection
 } from './intelligenceDashboardGenerator';
 import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenceCoveragePanel';
-import { IntelligenceSingleTargetDeviationPanel } from './IntelligenceSingleTargetDeviationPanel';
+import { IntelligenceSingleTargetDeviationPanel, resolveSingleTargetSignals } from './IntelligenceSingleTargetDeviationPanel';
 import { IntelligenceCurrentFrequencyPanel } from './IntelligenceCurrentFrequencyPanel';
 import { currentFrequencySignals, readCurrentFrequencySignals } from './intelligenceCurrentFrequencySignals';
 import { IntelligenceReferenceEvidencePanel } from './IntelligenceReferenceEvidencePanel';
@@ -484,11 +485,13 @@ export function AssetProcessIntelligenceWorkspace({
       const operatingContexts = contextReferencesForAssignment(member.assignmentId);
       const experimentalJoint = jointPresentationForAssignment(member.assignmentId, member.profileId);
       const memberProfile = profiles.find(item => item.id === member.profileId);
+      const singleTarget = memberProfile ? readSingleTargetSignals(JSON.stringify(resolveSingleTargetSignals(memberProfile,tags,semanticCatalog?.controlledEngineeringUnitCatalogs ?? []))) : null;
       const currentFrequency = memberProfile ? readCurrentFrequencySignals(JSON.stringify(currentFrequencySignals(memberProfile, tags))) : null;
       return { ...member, availabilityVersion: 2 as const,
         ...(operatingContexts ? { operatingContexts } : {}),
         ...(experimentalJoint ? { experimentalJoint } : {}),
         ...(currentFrequency ? { currentFrequency } : {}),
+        ...(singleTarget ? { singleTarget } : {}),
         ...(performance ? { performance: { ruleId: performance.ruleId, ruleVersion: performance.ruleVersion, signalIds: performance.signalIds } } : {}),
         ...(contextualDeviation ? { contextualDeviation: {
           targetSignalIds: contextualDeviation.targetSignalIds,
@@ -527,7 +530,14 @@ export function AssetProcessIntelligenceWorkspace({
     return signals ? { scopeId: member.scopeId, assignmentId: member.assignmentId, profileId: member.profile.id, displayName: source.displayName, signals } : null;
   };
 
-  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean; stageContextEligibility?: boolean; stageExperimentalJoint?: boolean; stageCurrentFrequency?: boolean; currentFrequency?: boolean; contextEligibility?: boolean; experimentalJoint?: boolean }) => {
+  const singleTargetSelectionForSource = (source: IntelligenceDashboardSource) => {
+    const member = source.kind === 'equipment-profile' && source.assignments.length === 1 ? source.assignments[0] : null;
+    if (!member?.scopeId || !member.assignmentId) return null;
+    const signals = readSingleTargetSignals(JSON.stringify(resolveSingleTargetSignals(member.profile,tags,semanticCatalog?.controlledEngineeringUnitCatalogs ?? [])));
+    return signals ? { scopeId: member.scopeId, assignmentId: member.assignmentId, profileId: member.profile.id, displayName: source.displayName, signals } : null;
+  };
+
+  const generateDashboard = (source: IntelligenceDashboardSource | null, appearance?: IntelligenceDashboardAppearance, analyses?: { performance: boolean; deviation: boolean; stageCoverage?: boolean; stageReports?: boolean; referenceEvidence?: boolean; stageReferenceEvidence?: boolean; stageContextEligibility?: boolean; stageExperimentalJoint?: boolean; stageCurrentFrequency?: boolean; currentFrequency?: boolean; singleTarget?: boolean; stageSingleTarget?: boolean; contextEligibility?: boolean; experimentalJoint?: boolean }) => {
     setError(null);
     setMessage(null);
     if (!snapshot?.licensed) {
@@ -552,29 +562,31 @@ export function AssetProcessIntelligenceWorkspace({
         const coverage = stage ? createProcessStageCoverageSelection(stage) : null;
         if (!stage) throw new Error(copy.dashboardSourceUnavailable);
         if (!coverage) {
-          if (analyses?.stageCoverage || analyses?.stageReports || analyses?.stageReferenceEvidence || analyses?.stageContextEligibility || analyses?.stageExperimentalJoint || analyses?.stageCurrentFrequency) throw new Error(copy.dashboardSourceUnavailable);
+          if (analyses?.stageCoverage || analyses?.stageReports || analyses?.stageReferenceEvidence || analyses?.stageContextEligibility || analyses?.stageExperimentalJoint || analyses?.stageCurrentFrequency || analyses?.stageSingleTarget) throw new Error(copy.dashboardSourceUnavailable);
           onCreateDashboardDraft(generateIntelligenceDashboardDraft(screens, source, tags, locale, undefined, appearance));
           return;
         }
         const availableReports = createProcessStageReportSelection(stage);
         const reports = availableReports ? { ...availableReports, members: availableReports.members.map(member => {
-          const { performance, contextualDeviation, operatingContexts, experimentalJoint, currentFrequency, ...identity } = member;
+          const { performance, contextualDeviation, operatingContexts, experimentalJoint, currentFrequency, singleTarget, ...identity } = member;
           return { ...identity,
             ...(analyses?.stageReports ? { performance, contextualDeviation } : {}),
             ...(analyses?.stageReferenceEvidence ? { referenceEvidence: true as const } : {}),
             ...(analyses?.stageContextEligibility && operatingContexts ? { operatingContexts } : {}),
             ...(analyses?.stageExperimentalJoint && experimentalJoint ? { experimentalJoint } : {}),
+            ...(analyses?.stageSingleTarget && singleTarget ? { singleTarget } : {}),
             ...(analyses?.stageCurrentFrequency && currentFrequency ? { currentFrequency } : {})
           };
         }) } : null;
         onCreateDashboardDraft(generateIntelligenceProcessStageCompositionDrafts(screens, source, coverage,
           reports, tags, appearance,
-          { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true || analyses?.stageReferenceEvidence === true || analyses?.stageContextEligibility === true || analyses?.stageExperimentalJoint === true || analyses?.stageCurrentFrequency === true }, locale));
+          { coverage: analyses?.stageCoverage === true, reports: analyses?.stageReports === true || analyses?.stageReferenceEvidence === true || analyses?.stageContextEligibility === true || analyses?.stageExperimentalJoint === true || analyses?.stageCurrentFrequency === true || analyses?.stageSingleTarget === true }, locale));
         return;
       }
       const member = source.kind === "equipment-profile" && source.assignments.length === 1 ? source.assignments[0] : null;
       const assignmentId = source.kind === 'equipment-profile' ? source.assignments[0]?.assignmentId : undefined;
       onCreateDashboardDraft(appearance ? generateIntelligenceDashboardCompositionDrafts(screens, source, tags, {
+        singleTarget: analyses?.singleTarget ? singleTargetSelectionForSource(source) ?? undefined : undefined,
         currentFrequency: analyses?.currentFrequency ? currentFrequencySelectionForSource(source) ?? undefined : undefined,
         experimentalJoint: analyses?.experimentalJoint ? jointSelectionForSource(source) ?? undefined : undefined,
         contextEligibility: analyses?.contextEligibility ? contextSelectionForSource(source) ?? undefined : undefined,
@@ -956,6 +968,7 @@ export function AssetProcessIntelligenceWorkspace({
         {selectedDashboardSource && <IntelligenceDashboardComposer key={selectedDashboardSource.key} locale={locale}
           tags={selectedDashboardTags}
           disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !selectedDashboardSource.hasNumericSignal || dirtyConfiguration}
+          singleTargetAvailable={Boolean(singleTargetSelectionForSource(selectedDashboardSource.source))}
           currentFrequencyAvailable={Boolean(currentFrequencySelectionForSource(selectedDashboardSource.source))}
           jointAvailable={Boolean(jointSelectionForSource(selectedDashboardSource.source))}
           contextAvailable={Boolean(contextSelectionForSource(selectedDashboardSource.source))}
@@ -967,7 +980,7 @@ export function AssetProcessIntelligenceWorkspace({
             coverageAvailable: Boolean(dashboardStageReports),
             members: (dashboardStageReports?.members ?? []).map(member => ({
               assignmentId: member.assignmentId, label: member.displayLabel,
-              performance: Boolean(member.performance), deviation: Boolean(member.contextualDeviation), contexts: Boolean(member.operatingContexts), joint: Boolean(member.experimentalJoint), currentFrequency: Boolean(member.currentFrequency),
+              performance: Boolean(member.performance), deviation: Boolean(member.contextualDeviation), contexts: Boolean(member.operatingContexts), joint: Boolean(member.experimentalJoint), currentFrequency: Boolean(member.currentFrequency), singleTarget: Boolean(member.singleTarget),
               onConfigure: () => {
                 setSelectedProfileId(member.profileId);
                 requestAnimationFrame(() => document.getElementById(`intelligence-assignment-${member.assignmentId}`)?.scrollIntoView({ block: 'start' }));

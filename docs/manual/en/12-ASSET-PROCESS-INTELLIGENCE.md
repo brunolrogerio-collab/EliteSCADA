@@ -293,7 +293,9 @@ In Engineering > Asset intelligence, open the equipment/profile assignment and C
 
 The combined limit is 50,000 raw records across both signals and periods. Up to 500 evaluation samples are returned; check the omitted count. Samples outside the condition range remain identified and have no score or difference. Results are not saved to the project. This is not fault diagnosis, efficiency measurement or proof of physical simultaneity, equivalent conditions or complete history.
 
-To use Runtime: Create screen for this comparison produces a separate draft with up to 16 measurement references, without results, periods or preset bounds. Review in the editor, validate/apply the draft, save, publish and activate the revision. Creating a draft neither saves the project nor queries history. In live Runtime, open the screen and select measurements, range and periods before querying. Editor and historical playback do not execute this analysis. Session/context changes discard results; returning live does not query automatically. The API still enforces licensing, revision, execution and read access. This action creates a profile screen; it does not automatically compose stage members.
+To use Runtime: Create screen for this comparison produces a separate draft with up to 16 measurement references, without results, periods or preset bounds. Review in the editor, validate/apply the draft, save, publish and activate the revision. Creating a draft neither saves the project nor queries history. In live Runtime, open the screen and select measurements, range and periods before querying. Editor and historical playback do not execute this analysis. Session/context changes discard results; returning live does not query automatically. The API still enforces licensing, revision, execution and read access. This action creates a profile screen. Use the central generator to compose multiple views or a stage.
+
+In the central generator, choose a profile and select Compare one measurement under a condition. For a stage, select Measurement under a condition per equipment. This choice is independent of performance, current/frequency and multi-measurement deviation; those analyses are not prerequisites. Each equipment needs 2 to 16 distinct numeric measurements, with at least one supported controlled-unit condition. Missing prerequisites disable only this option; other views remain available. Review generated screens before applying, saving, publishing and activating. In stage Runtime, select equipment and then Compare one measurement under a condition. Results belong only to the selected equipment, not the whole stage. Switching equipment or analysis removes the result without querying automatically. A full profile composition may have eight linked screens; use navigation buttons to switch between them.
 
 ### Compare current within a frequency range
 
@@ -382,9 +384,9 @@ If those are correct, examine Historian capture, data quality, signal roles/unit
 
 Do not change a signal’s meaning or widen limits merely to produce a result. Analyses support investigation. They do not confirm defects or predict failures with field validity that has not yet been demonstrated.
 
-#### Real example: current and frequency
+#### Real examples: queries and dashboards
 
-Real interface in Portuguese, with synthetic validation data. This example does not represent a field diagnosis.
+Captions identify mocked API or real API/PostgreSQL captures. All displayed data is synthetic, without field validation.
 
 **Choose measurements on mobile**
 
@@ -429,5 +431,25 @@ Real interface in Portuguese, with synthetic validation data. This example does 
 **Single-target Runtime: real English UI with mocked API, not API/PostgreSQL proof**
 
 ![Single-target Runtime: real English UI with mocked API, not API/PostgreSQL proof](../../evidence/intelligence-857/single-target-runtime-browser.png)
+
+**Select measurement under a condition in the stage composer (mocked API)**
+
+![Select measurement under a condition in the stage composer (mocked API)](../../evidence/intelligence-857/single-target-stage-composer-browser.png)
+
+**Member without a compatible condition retains other views (mocked API)**
+
+![Member without a compatible condition retains other views (mocked API)](../../evidence/intelligence-857/single-target-stage-partial-browser.png)
+
+**Real 0 A/s rate for constant 6 A current (real API/PostgreSQL, synthetic data)**
+
+![Real 0 A/s rate for constant 6 A current (real API/PostgreSQL, synthetic data)](../../evidence/intelligence-857/composer-real-rate-ui.png)
+
+**Real difference between 6 A and 5 A means (real API/PostgreSQL, synthetic data)**
+
+![Real difference between 6 A and 5 A means (real API/PostgreSQL, synthetic data)](../../evidence/intelligence-857/composer-real-statistics-ui.png)
+
+**Stage member query in Runtime (real API/PostgreSQL, synthetic data)**
+
+![Stage member query in Runtime (real API/PostgreSQL, synthetic data)](../../evidence/intelligence-857/composer-stage-single-target-runtime.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

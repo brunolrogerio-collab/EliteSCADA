@@ -121,7 +121,7 @@ export type IntelligenceProcessStageInsightsDashboardSelection = Omit<Intelligen
 }>;
 
 export type IntelligenceProcessStageReportMember = Omit<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'> &
-  Partial<Pick<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'>> & Readonly<{ availabilityVersion?: 2; referenceEvidence?: true; operatingContexts?: readonly IntelligenceContextReference[]; experimentalJoint?: IntelligenceJointPresentation; currentFrequency?: readonly IntelligenceCurrentFrequencySignal[] }>;
+  Partial<Pick<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'>> & Readonly<{ availabilityVersion?: 2; referenceEvidence?: true; operatingContexts?: readonly IntelligenceContextReference[]; experimentalJoint?: IntelligenceJointPresentation; singleTarget?: readonly SingleTargetSignal[]; currentFrequency?: readonly IntelligenceCurrentFrequencySignal[] }>;
 
 export type IntelligenceProcessStageReportSelection = Omit<IntelligenceProcessStageCoverageDashboardSelection, 'members'> & Readonly<{
   members: readonly IntelligenceProcessStageReportMember[];
@@ -487,12 +487,12 @@ export function generateIntelligenceGuidedDashboardDrafts(
 /** Compose only analyses explicitly configured for this equipment, independently. */
 export function generateIntelligenceDashboardCompositionDrafts(
   existingScreens: readonly ScreenEngineering[], source: IntelligenceDashboardSource, tags: readonly TagEngineering[],
-  selections: Partial<IntelligenceGuidedDashboardSelections> & { referenceEvidence?: IntelligenceProfileCoverageDashboardSelection; contextEligibility?: IntelligenceContextEligibilityDashboardSelection; experimentalJoint?: IntelligenceExperimentalJointDashboardSelection; currentFrequency?: IntelligenceCurrentFrequencyDashboardSelection }, appearance: IntelligenceDashboardAppearance,
+  selections: Partial<IntelligenceGuidedDashboardSelections> & { referenceEvidence?: IntelligenceProfileCoverageDashboardSelection; contextEligibility?: IntelligenceContextEligibilityDashboardSelection; experimentalJoint?: IntelligenceExperimentalJointDashboardSelection; singleTarget?: IntelligenceProfileCoverageDashboardSelection & {assignmentId:string;signals:readonly SingleTargetSignal[]}; currentFrequency?: IntelligenceCurrentFrequencyDashboardSelection }, appearance: IntelligenceDashboardAppearance,
   locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
 ): readonly ScreenEngineering[] {
   const allocateId = createUniqueIdAllocator(createId);
   const drafts = [generateIntelligenceDashboardDraft(existingScreens, source, tags, locale, allocateId, appearance)];
-  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | 'current-frequency'> = ['values-trend'];
+  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | 'current-frequency' | 'single-target'> = ['values-trend'];
   const member = source.kind === 'equipment-profile' && source.assignments.length === 1 ? source.assignments[0] : null;
   const valid = (selection: { scopeId: string; assignmentId: string; profileId: string }, signalIds: readonly string[]) =>
     member && selection.scopeId.toLowerCase() === member.scopeId?.toLowerCase() &&
@@ -513,6 +513,11 @@ export function generateIntelligenceDashboardCompositionDrafts(
     if (!valid(selection, [])) throw new Error('Context conditions selection does not belong to this equipment profile.');
     drafts.push(generateIntelligenceContextEligibilityScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
     roles.push('context-eligibility');
+  }
+  if(selections.singleTarget){
+    const selection=selections.singleTarget;
+    if(!valid(selection,selection.signals.map(signal=>signal.id))||!readSingleTargetSignals(JSON.stringify(selection.signals))||selection.signals.some(signal=>!member?.profile.signals.some(item=>item.id===signal.id&&item.tagId===signal.tagId)||!tags.some(tag=>tag.id===signal.tagId&&isNumericTagDataType(tag.dataType))))throw new Error('Single-target references do not belong to this equipment profile.');
+    drafts.push(generateIntelligenceSingleTargetScreenDraft([...existingScreens,...drafts],selection,locale,allocateId));roles.push('single-target');
   }
   if (selections.currentFrequency) {
     const selection = selections.currentFrequency;
@@ -551,7 +556,7 @@ export function generateIntelligenceDashboardCompositionDrafts(
 
 function linkDashboardDrafts(
   drafts: readonly ScreenEngineering[],
-  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | 'current-frequency')[],
+  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | 'current-frequency' | 'single-target')[],
   locale: EngineeringLocale, allocateVisualId: () => string
 ): readonly ScreenEngineering[] {
   const navigationLabels = guidedDashboardNavigationLabels(locale);
@@ -1161,6 +1166,7 @@ function validateProcessStageReports(
     const performance = member?.performance;
     const deviation = member?.contextualDeviation;
     const joint = member?.experimentalJoint;
+    const singleTarget = member?.singleTarget;
     const currentFrequency = member?.currentFrequency;
     const deviationSignalIds = deviation
       ? [...deviation.targetSignalIds, deviation.firstContextSignalId, deviation.secondContextSignalId]
@@ -1171,6 +1177,7 @@ function validateProcessStageReports(
           !readIntelligenceContextReferences(JSON.stringify(member.operatingContexts)) ||
           member.operatingContexts.some(context => context.predicateTagIds.some(id =>
             !assignment.profile.signals.some(signal => signal.tagId.toLowerCase() === id.toLowerCase()))))) ||
+        (singleTarget !== undefined && (member.availabilityVersion !== 2 || !readSingleTargetSignals(JSON.stringify(singleTarget)) || singleTarget.some(signal=>!assignment.profile.signals.some(item=>item.id.toLowerCase()===signal.id.toLowerCase()&&item.tagId.toLowerCase()===signal.tagId.toLowerCase())))) ||
         (currentFrequency !== undefined && (member.availabilityVersion !== 2 || !readCurrentFrequencySignals(JSON.stringify(currentFrequency)) ||
           currentFrequency.some(signal => !assignment.profile.signals.some(item => item.id.toLowerCase() === signal.id.toLowerCase() && item.tagId.toLowerCase() === signal.tagId.toLowerCase())))) ||
         (joint !== undefined && (member.availabilityVersion !== 2 || !readIntelligenceJointPresentation(joint) ||
@@ -1218,9 +1225,10 @@ export function generateIntelligenceProcessStageCompositionDrafts(
   if (include.coverage) { drafts.push(pair[1]); roles.push('process-stage-coverage'); }
   if (include.reports) {
     if (!reports || reports.stageId !== coverage.stageId || reports.stageKey !== coverage.stageKey || reports.stageName !== coverage.stageName ||
-        !reports.members.some(member => member.performance || member.contextualDeviation || member.referenceEvidence || member.operatingContexts || member.experimentalJoint || member.currentFrequency)) {
+        !reports.members.some(member => member.performance || member.contextualDeviation || member.referenceEvidence || member.operatingContexts || member.experimentalJoint || member.currentFrequency || member.singleTarget)) {
       throw new Error('Stage reports require matching references and at least one configured member analysis.');
     }
+    if (reports.members.some(member=>member.singleTarget?.some(signal=>!tags.some(tag=>tag.id?.toLowerCase()===signal.tagId.toLowerCase()&&isNumericTagDataType(tag.dataType)))))throw new Error('Single-target stage members require numeric TAG references.');
     if (reports.members.some(member => member.currentFrequency?.some(signal => {
       const assignment = source.assignments.find(item => item.assignmentId === member.assignmentId);
       return !assignment || !currentFrequencySignals(assignment.profile, tags).some(item => item.id === signal.id && item.tagId === signal.tagId && item.kind === signal.kind && item.basis === signal.basis && item.label === signal.label);
@@ -1426,24 +1434,24 @@ export function isNumericTagDataType(dataType: string | null | undefined): boole
 }
 
 function guidedDashboardNavigationLabels(locale: EngineeringLocale): Readonly<Record<
-  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | 'current-frequency', string
+  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | 'current-frequency' | 'single-target', string
 >> {
   if (locale === 'en') return {
-    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses', 'reference-evidence': 'Reference data', 'context-eligibility': 'Operating conditions', 'experimental-joint': 'Joint deviation (experimental)', 'current-frequency': 'Current at similar frequency',
+    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses', 'reference-evidence': 'Reference data', 'context-eligibility': 'Operating conditions', 'experimental-joint': 'Joint deviation (experimental)', 'current-frequency': 'Current at similar frequency', 'single-target': 'Measurement under a condition',
     'values-trend': 'Values & trend',
     'profile-coverage': 'Coverage',
     performance: 'Performance',
     'contextual-deviation': 'Contextual deviation'
   };
   if (locale === 'es') return {
-    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo', 'reference-evidence': 'Datos de referencia', 'context-eligibility': 'Condiciones de operación', 'experimental-joint': 'Desviación conjunta (experimental)', 'current-frequency': 'Corriente a frecuencia similar',
+    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo', 'reference-evidence': 'Datos de referencia', 'context-eligibility': 'Condiciones de operación', 'experimental-joint': 'Desviación conjunta (experimental)', 'current-frequency': 'Corriente a frecuencia similar', 'single-target': 'Medición bajo condición',
     'values-trend': 'Valores y tendencia',
     'profile-coverage': 'Cobertura',
     performance: 'Rendimiento',
     'contextual-deviation': 'Desviación contextual'
   };
   return {
-    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento', 'reference-evidence': 'Dados da referência', 'context-eligibility': 'Condições de operação', 'experimental-joint': 'Desvio conjunto (experimental)', 'current-frequency': 'Corrente em frequência semelhante',
+    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento', 'reference-evidence': 'Dados da referência', 'context-eligibility': 'Condições de operação', 'experimental-joint': 'Desvio conjunto (experimental)', 'current-frequency': 'Corrente em frequência semelhante', 'single-target': 'Medição sob condição',
     'values-trend': 'Valores e tendência',
     'profile-coverage': 'Cobertura',
     performance: 'Desempenho',

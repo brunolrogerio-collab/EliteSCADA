@@ -1,0 +1,59 @@
+{
+  "syntheticOnly": true,
+  "revisionBefore": 67,
+  "revisionAfterRestart": 67,
+  "persistedScreens": [
+    {
+      "id": "3adf76da-5382-480f-b147-62efaf9a2f56",
+      "key": "intelligence-current-frequency-validation-2"
+    },
+    {
+      "id": "dbac5499-443a-4ed9-9157-64e6a88c5d0d",
+      "key": "intelligence-planta.bomba-motor-frequency-857-2"
+    },
+    {
+      "id": "7fbe494d-2fea-460d-a556-2337fede6c7d",
+      "key": "intelligence-process-stage-insights-current-frequency-validation-2"
+    },
+    {
+      "id": "4a550b5c-24e4-409f-a9ae-5a0351bdaace",
+      "key": "intelligence-single-target-bomba-de-validacao-local-motor-corrente-e-frequencia-"
+    },
+    {
+      "id": "b12f46df-edad-4bca-ada5-0ce13a7bafa3",
+      "key": "intelligence-stage-coverage-current-frequency-validation-2"
+    }
+  ],
+  "profileAssignmentUnitsAndSourcePreserved": true,
+  "readOnlyPresentationPreserved": true,
+  "closedAfterRestart": [
+    {
+      "name": "statistics",
+      "status": 409,
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    },
+    {
+      "name": "rate",
+      "status": 409,
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    },
+    {
+      "name": "single",
+      "status": 409,
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    }
+  ],
+  "explicitRearm": true,
+  "statisticsMeanDelta": 1.0000000000000018,
+  "rate": 0,
+  "singleReferenceMedian": 5,
+  "singleReferenceMad": 0,
+  "singleQualifiedPairs": 58,
+  "missingData": {
+    "statisticsMean": null,
+    "rate": null,
+    "singleMedian": null,
+    "singleMad": null,
+    "allSingleDifferencesAndScoresNull": true
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "workflowCommandChecks": [
+    {
+      "config": "default",
+      "shard": 1,
+      "argumentsVerified": true
+    },
+    {
+      "config": "default",
+      "shard": 2,
+      "argumentsVerified": true
+    },
+    {
+      "config": "default",
+      "shard": 3,
+      "argumentsVerified": true
+    },
+    {
+      "config": "playwright.intelligence-ui.config.ts",
+      "shard": 1,
+      "argumentsVerified": true
+    },
+    {
+      "config": "playwright.intelligence-ui.config.ts",
+      "shard": 2,
+      "argumentsVerified": true
+    },
+    {
+      "config": "playwright.intelligence-ui.config.ts",
+      "shard": 3,
+      "argumentsVerified": true
+    },
+    {
+      "config": "default",
+      "otherProfileCommandPreserved": true
+    },
+    {
+      "config": "playwright.online-license.config.ts",
+      "otherProfileCommandPreserved": true
+    }
+  ],
+  "passed": 8
+}

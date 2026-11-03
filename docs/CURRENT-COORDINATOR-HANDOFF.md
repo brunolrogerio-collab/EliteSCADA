@@ -1,5 +1,12 @@
 # Current coordinator pointer - Wave 15
 
+## Complemento CI — configuração padrão do Chromium, 03/11/2026
+
+Run41723750512 /9f3cd1ca: as três partes específicas de Intelligence passaram, assim como .NET/Web/Intelligence Win/Linux PostgreSQL-restart e os outros jobs executados. Chromium1/2/3 voltou a cancelar por18min: erro do workflow no ramo E2E_CONFIG vazio deixou executar a bateria inteira em cada job. Não foi falha comprovada de produto. Corrigido o mesmo argumento de shard também no ramo de configuração padrão; outros perfis preservam os comandos anteriores.
+
+Validação: comando bash extraído do workflow exercitado em8caminhos (configuração vazia/explícita, três partes e dois casos de outro perfil), todos aprovados. Inventário dos21specs reais do run:283testes Chromium distribuídos95/94/94, sem omissão/duplicação; autenticação local continua pré-requisito de cada job isolado. Roteador43/43; bateria local de produto318/318 do incremento anterior continua válida, sem nova modificação de produto. Evidência `ci-default-config-shards-results.json`. CI do novo SHA será registrado na #857/#854; nenhum verde global atribuído ao run cancelado.
+
+
 ## CI de navegador — distribuição da bateria, 03/11/2026
 
 O run `41679060055`, SHA `7954cbdcfa5261de6ea8ae712544b13843480788`, terminou CANCELLED. As annotations dos checks comprovam: `Intelligence dashboard and Runtime UI regression` excedeu15min e `Focused Chromium evidence` excedeu18min. Primeiro parou em aproximadamente195/252 testes; segundo em201/285. .NET, Web, Windows Intelligence, Linux/PostgreSQL/restart, HA compartilhado e sidecars executados passaram. T1 falhou porque faltou a conclusão dos navegadores. Não classificar como CI verde nem atribuir cancelamento a defeito de produto.

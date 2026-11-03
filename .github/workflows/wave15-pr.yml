@@ -582,7 +582,11 @@ jobs:
               npm run test:e2e -- --config="$E2E_CONFIG" "${specs[@]}"
             fi
           else
-            npm run test:e2e -- "${specs[@]}"
+            if [[ "$E2E_SHARDS" == "3" ]]; then
+              npm run test:e2e -- --fully-parallel --shard="$E2E_SHARD/$E2E_SHARDS" "${specs[@]}"
+            else
+              npm run test:e2e -- "${specs[@]}"
+            fi
           fi
       - if: always()
         uses: actions/upload-artifact@v4

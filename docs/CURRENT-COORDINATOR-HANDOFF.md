@@ -1,5 +1,12 @@
 # Current coordinator pointer - Wave 15
 
+## CI de navegador — distribuição da bateria, 03/11/2026
+
+O run `41679060055`, SHA `7954cbdcfa5261de6ea8ae712544b13843480788`, terminou CANCELLED. As annotations dos checks comprovam: `Intelligence dashboard and Runtime UI regression` excedeu15min e `Focused Chromium evidence` excedeu18min. Primeiro parou em aproximadamente195/252 testes; segundo em201/285. .NET, Web, Windows Intelligence, Linux/PostgreSQL/restart, HA compartilhado e sidecars executados passaram. T1 falhou porque faltou a conclusão dos navegadores. Não classificar como CI verde nem atribuir cancelamento a defeito de produto.
+
+Correção limitada ao workflow: três shards para Intelligence, `fail-fast: false`, mesmos specs/configs, workers1, timeouts/retries/asserts/gates preservados. `--fully-parallel` permite dividir por teste em vez de concentrar o arquivo grande numa única parte; não aumenta workers por processo. Chromium de outros perfis continua com uma parte e comandos anteriores. Artefatos têm nomes distintos. Inventário Playwright:252=84+84+84 e66=22+22+22, união completa e sem duplicações. Execução local completa:318/318 (UI84+84+84; Runtime22+22+22), sem skips/retries; tempos por parte registrados em `docs/evidence/intelligence-857/ci-shards-local-results.json`. Roteador CI43/43 aprovado. Resultado CI do novo SHA registrado na #857/#854; sem transferência de verde de predecessor.
+
+
 ## Consulta conjunta sob uma condição — candidata de 03/11/2026
 
 A auditoria confirmou que V1 não é equivalente a consultas individuais nem a V2: V1 usa 2–8 alvos e uma condição sobre a interseção completa dos horários de origem; cada consulta individual pode usar outro conjunto, e V2 exige duas condições distintas. O novo teste `VectorV1_CommonCohortIsNotEquivalentToIndependentSingleTargetQueries` demonstra medianas 2 versus 3 e diferenças 2 versus 1, sem alterar fórmulas.

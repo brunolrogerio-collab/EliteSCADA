@@ -1,0 +1,57 @@
+{
+  "sourceProductCommit": "7954cbdcfa5261de6ea8ae712544b13843480788",
+  "workersPerProcess": 1,
+  "retries": 0,
+  "fullyParallel": true,
+  "totalPassed": 318,
+  "partitionChecked": {
+    "ui": 252,
+    "runtime": 66,
+    "missing": 0,
+    "duplicates": 0
+  },
+  "results": [
+    {
+      "config": "playwright.intelligence-ui.config.ts",
+      "shard": 1,
+      "totalShards": 3,
+      "passed": 84,
+      "duration": "1.4m"
+    },
+    {
+      "config": "playwright.intelligence-runtime-local.config.ts",
+      "shard": 1,
+      "totalShards": 3,
+      "passed": 22,
+      "duration": "3.5s"
+    },
+    {
+      "config": "playwright.intelligence-ui.config.ts",
+      "shard": 2,
+      "totalShards": 3,
+      "passed": 84,
+      "duration": "4.7m"
+    },
+    {
+      "config": "playwright.intelligence-runtime-local.config.ts",
+      "shard": 2,
+      "totalShards": 3,
+      "passed": 22,
+      "duration": "32.8s"
+    },
+    {
+      "config": "playwright.intelligence-ui.config.ts",
+      "shard": 3,
+      "totalShards": 3,
+      "passed": 84,
+      "duration": "4.5m"
+    },
+    {
+      "config": "playwright.intelligence-runtime-local.config.ts",
+      "shard": 3,
+      "totalShards": 3,
+      "passed": 22,
+      "duration": "46.9s"
+    }
+  ]
+}

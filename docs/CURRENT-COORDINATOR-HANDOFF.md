@@ -1,5 +1,14 @@
 # Current coordinator pointer - Wave 15
 
+## Pós-merge #854 — contrato de catálogo visual, 03/11/2026
+
+#854 integrado em114ebaacc6471653a9666833f8cda9c13db7cb26, T1 da candidata41727162293 verde. CI pós-merge41729418662 falhou em BuiltinVisualObjectSchemasTests.BuiltinTypes_AreStableUniqueAndMatchTheGraphicalEditorFoundationSet: lista esperada do projeto PostgreSQL omitia core.intelligenceSingleTargetDeviationV1 já presente no catálogo canônico. Não foi falha de persistência/HA nem do cálculo. Correção de cobertura: incluir exatamente o tipo existente, sem relaxar igualdade/ordem/uniqueness.
+
+Local: classe original3/3 e contratos visuais/Intelligence65/65 passaram. Roteador44/44 após acrescentar seleção do projeto PostgreSQL para mudanças em VisualScripting canônico ou nos próprios testes desse projeto; os perfis exclusivamente durable/Stage6B preservam seleção anterior. Primeira tentativa de selecionar PostgreSQL para todo perfil Intelligence contrariou duas expectativas de seleção exclusiva; desenho restringido à propriedade dos arquivos e44/44 final aprovado.
+
+Correção isolada na branch work/w15-intelligence-postmerge-schema-guard, antes de alterar autorização#858. Nenhum código funcional/Authority/HA/licença/Preview alterado; Help/manual não mudam porque a correção só alinha teste e seleção CI. Próximo: integrar correção após CI exato e revalidar pós-merge; então retomar a operação restrita#858 a partir do desenho registrado.
+
+
 ## Complemento CI — configuração padrão do Chromium, 03/11/2026
 
 Run41723750512 /9f3cd1ca: as três partes específicas de Intelligence passaram, assim como .NET/Web/Intelligence Win/Linux PostgreSQL-restart e os outros jobs executados. Chromium1/2/3 voltou a cancelar por18min: erro do workflow no ramo E2E_CONFIG vazio deixou executar a bateria inteira em cada job. Não foi falha comprovada de produto. Corrigido o mesmo argumento de shard também no ramo de configuração padrão; outros perfis preservam os comandos anteriores.

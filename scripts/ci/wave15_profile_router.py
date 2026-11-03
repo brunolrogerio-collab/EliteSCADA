@@ -96,6 +96,7 @@ CORE = "tests/Scada.Core.Tests/Scada.Core.Tests.csproj"
 HISTORIAN = "tests/Scada.Historian.TimescaleDb.Tests/Scada.Historian.TimescaleDb.Tests.csproj"
 SECURITY = "tests/Scada.Security.Tests/Scada.Security.Tests.csproj"
 DRIVERS = "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj"
+PERSISTENCE = "tests/Scada.Persistence.PostgreSql.Tests/Scada.Persistence.PostgreSql.Tests.csproj"
 ONLINE_LICENSE_DOTNET_FILTER = (
     "FullyQualifiedName~OnlineLicenseDeviceProtocolTests"
     "|FullyQualifiedName~OnlineProductLicenseLifecycleTests"
@@ -322,6 +323,11 @@ def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr
         for profile in ordered
         for project in DOTNET_PROJECTS.get(profile, ())
     })
+    # The PostgreSQL test project also owns provider-independent visual catalog
+    # contracts. Run that owner when the canonical catalog or its tests change.
+    if any(path.startswith(("src/scada.engineering/visualscripting/", "tests/scada.persistence.postgresql.tests/"))
+           for path in _normalized(paths)):
+        projects = sorted(set(projects) | {PERSISTENCE})
     dotnet_test_filter = ""
     if "ONLINE_LICENSE_RECOVERY" in effective and set(projects) == {DRIVERS}:
         dotnet_test_filter = ONLINE_LICENSE_DOTNET_FILTER

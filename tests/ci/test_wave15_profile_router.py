@@ -16,6 +16,16 @@ SPEC.loader.exec_module(router)
 
 
 class Wave15ProfileRouterTests(unittest.TestCase):
+    def test_intelligence_and_renderer_select_persistence_schema_contracts(self):
+        for profile in ("INTELLIGENCE_HARDENING", "RUNTIME_RENDERER"):
+            with self.subTest(profile=profile):
+                result = self.classify(
+                    ["src/Scada.Engineering/VisualScripting/BuiltinVisualObjectSchemas.cs"],
+                    "VALIDATION_PROFILE: " + profile,
+                )
+                self.assertIn(router.PERSISTENCE, result["dotnet_projects"])
+
+
     def classify(self, paths, body="VALIDATION_PROFILE: DOCS_I18N_HELP", override="", mode="pr"):
         return router.classify(paths, body, override, mode)
 

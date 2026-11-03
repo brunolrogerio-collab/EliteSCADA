@@ -268,6 +268,10 @@ Check which required signals have data, accepted and rejected sample counts, qua
 
 In Group readings every, choose 15 or 30 minutes, 1 hour, 6 hours or 24 hours. The default is 15 minutes. This sets query intervals; it does not change Historian capture or fill missing readings. Changing the option clears the previous result; request coverage again explicitly.
 
+After querying coverage, open Measurement details and comparison inside the desired signal. First and last are accepted Good readings at Historian observation times; they do not guarantee sensor acquisition time. Period change means last minus first in the TAG unit. Under Readings by interval, inspect start/end, accepted/rejected counts, minimum, maximum and mean. Empty intervals remain unavailable; a sample mean is not time-weighted.
+
+To compare that signal, enter Statistical comparison start/end and choose grouping. Use up to 31 days and the same duration as current coverage. Comparison may precede, follow or overlap; overlapping periods reuse readings and are not independent samples. Click Compare statistics. Results show current-minus-comparison differences in sample count, minimum, maximum, mean, first, last and period change. These descriptive differences do not establish equivalent conditions, efficiency or a fault. Unavailable does not mean zero. Editing fields clears results; Cancel comparison discards the in-flight request. To change the current period, query coverage again. Comparisons are neither saved in the project nor run when details open.
+
 ### Compare current within a frequency range
 
 Suppose a motor used about 5 A and now uses 6 A. Before interpreting that change, check whether those measurements were recorded in the frequency range you want to investigate. This query compares two parts of the history; it does not learn a pattern or diagnose the motor.
@@ -382,5 +386,9 @@ Real interface in Portuguese, with synthetic validation data. This example does 
 **Result per equipment**
 
 ![Result per equipment](../../evidence/intelligence-857/runtime-profile-result.png)
+
+**Statistical details: real Portuguese interface under test, with simulated responses**
+
+![Statistical details: real Portuguese interface under test, with simulated responses](../../evidence/intelligence-857/statistical-details-browser.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

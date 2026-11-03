@@ -1,5 +1,9 @@
 # Current coordinator pointer - Wave 15
 
+## Retomada atual — detalhes/comparação estatística #857
+
+Na candidata: detalhes por sinal dentro de CoverageResult (Engenharia e Runtime), primeiro/último observado, delta e tabela de buckets com vazios indisponíveis. Comparação explícita pela rota /analytics/query, períodos iguais até31 dias em qualquer ordem/sobreposição permitida pelo contrato, sem fórmula local. Resposta confere projeto/revisão/escopo/TAG/unidade/proveniência/perfil e métricas finitas ou null; troca/cancelamento desmonta resposta antiga. Teste de detalhes, comparação sobreposta, duração inválida, null e revisão divergente passou; regressão Runtime/histórico2/2 também. Build e bateria final em conferência; sem prova nova API/PostgreSQL real neste incremento. Não declarar aceite/integração ou toda #857 concluída. Taxa líquida e alvo único continuam pendentes. Help/manual três idiomas atualizados. Próximo: validar/publicar esta candidata e então métodos complementares.
+
 ## Retomada adicional — agrupamento estatístico #857
 
 CI c9e8c13c /41542872461 terminou FAILURE Z-Wave Windows/Linux; Intelligence UI passou, Chromium focado foi cancelado, demais jobs executados passaram. Sem bypass/merge.
@@ -268,3 +272,6 @@ Historical snapshots: [previous current pointer](CURRENT-COORDINATOR-HANDOFF-ARC
 Validação UI desta rodada: consolidado208/209, com falha no teste novo do compositor por selecionar o último rascunho (a visão básica), em vez da vista de corrente/frequência. Seleção do teste corrigida para o nome da vista; dois casos focados em reexecução. Não declarar209/209 ou integração enquanto não houver resultado. Produto43716a85; resultados finais/CI pertencem à #857/#854.
 
 Fechamento focado: compositor2/2 passou. A seleção usa o nome da vista e inclui controles fora da área recortada do canvas apenas para verificar disabled; não houve mudança de produto ou remoção da asserção. Consolidado anterior208/209 continua registrado, não chamar de209/209. Core190/190, schema3/3, Help30/30, builds API/Web,69 arquivos alinhados e39 imagens verificadas. Próxima ação: CI exato desta candidata; #857 mantém os métodos complementares pendentes.
+
+
+Fechamento local do incremento estatístico: cobertura/Runtime78/78, focado final1/1 após ajuste visual, Help30/30, build Web aprovado e69 arquivos alinhados. Captura da interface real em teste com API simulada (não prova API/PostgreSQL real) adicionada ao manual. A inspeção corrigiu campos inline e quebra de datas da tabela; tabela só renderiza ao abrir, com rolagem horizontal. Não houve mudanças de backend/Authority/licença/HA. Falta validação API/PostgreSQL real desta consulta; Docker indisponível. Taxa líquida e alvo único continuam pendentes. SHA e CI exatos no registro vivo #857/#854; sem integração/aceite global.

@@ -268,6 +268,10 @@ Confira quais sinais obrigatórios têm dados, quantas amostras foram aceitas ou
 
 Em Agrupar leituras a cada, escolha 15 ou 30 minutos, 1 hora, 6 horas ou 24 horas. O padrão é 15 minutos. Essa escolha define os intervalos da consulta; não muda a captura do Historian nem preenche leituras ausentes. Alterar a opção limpa o resultado anterior; clique Analisar cobertura para consultar novamente.
 
+Depois de consultar a cobertura, abra Detalhes e comparação desta medição dentro do sinal desejado. Primeiro e último valor são leituras Boas aceitas nos horários de observação do Historian; não são uma garantia do instante de aquisição do sensor. Variação no período significa último menos primeiro, na unidade do TAG. Em Leituras por intervalo, confira início/fim, aceitas/rejeitadas, mínimo, máximo e média. Intervalos vazios ficam sem valor; média de amostras não é média ponderada pelo tempo.
+
+Para comparar esse sinal, preencha Início e Fim da comparação estatística e escolha o agrupamento. Use até 31 dias e a mesma duração da cobertura atual. A comparação pode ser anterior, posterior ou sobreposta; períodos sobrepostos reutilizam leituras e não são amostras independentes. Clique Comparar estatísticas. A resposta mostra diferenças do período atual menos o comparado: quantidade de amostras, mínimo, máximo, média, primeiro, último e variação. São diferenças descritivas; não comprovam mesmo regime, eficiência ou defeito. Não disponível não significa zero. Alterar os campos limpa o resultado; Cancelar comparação descarta a solicitação em andamento. Para mudar o período atual, consulte novamente a cobertura. Nenhuma comparação é salva no projeto nem executada ao abrir os detalhes.
+
 ### Comparar a corrente em uma faixa de frequência
 
 Imagine que o motor consumia cerca de 5 A e agora consome 6 A. Antes de interpretar essa mudança, confira se as medições foram obtidas na faixa de frequência que você quer investigar. Esta consulta compara duas partes do histórico; ela não aprende um padrão nem diagnostica o motor.
@@ -382,5 +386,9 @@ Interface real em português, com dados sintéticos de validação. O exemplo n�
 **Resultado por equipamento**
 
 ![Resultado por equipamento](../../evidence/intelligence-857/runtime-profile-result.png)
+
+**Detalhes estatísticos: interface real em teste, com respostas simuladas**
+
+![Detalhes estatísticos: interface real em teste, com respostas simuladas](../../evidence/intelligence-857/statistical-details-browser.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.analysis-guide)

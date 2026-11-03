@@ -1,3 +1,4 @@
+import { IntelligenceSignalStatistics } from './IntelligenceSignalStatistics';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { EngineeringLocale } from './i18n';
 
@@ -9,7 +10,11 @@ type CoverageBlockedReason = 'capabilities-loading' | 'authority-unavailable' | 
   'configuration-unsaved' | 'scope-selection-unsaved' | 'workspace-dirty' | 'project-unavailable';
 
 export type WindowValue = { fromUtc: string; toUtc: string };
-type SignalSummary = {
+export type SignalSummary = {
+  firstObserved?: { timestampUtc: string; value: number } | null;
+  lastObserved?: { timestampUtc: string; value: number } | null;
+  delta?: number | null;
+  trend?: Array<{ fromUtc: string; toUtc: string; rawObservationCount: number; acceptedSampleCount: number; rejectedSampleCount: number; minimum: number | null; maximum: number | null; sampleMean: number | null }>;
   rawObservationCount: number;
   acceptedSampleCount: number;
   rejectedSampleCount: number;
@@ -237,6 +242,9 @@ export function CoverageResult({ result, locale, copy }: {
               <Fact label={copy.completeness} value={describeTemporalEvidence(signal.summary.completeness, locale)}/>
               <Fact label={copy.expectedSamples} value={number(signal.summary.expectedSampleCount)}/>
             </dl>
+            <IntelligenceSignalStatistics key={JSON.stringify([result.projectKey,result.activeRevision,result.window,signal.tagId,signal.summary])} locale={locale}
+              scopeId={result.scopeId} profileId={result.profileId} tagId={signal.tagId} projectKey={result.projectKey}
+              activeRevision={result.activeRevision} window={result.window} summary={signal.summary} unit={signal.unit}/>
             <p><strong>{copy.qualityCounts}:</strong> {Object.entries(signal.summary.qualityCounts ?? {}).sort(([left], [right]) => left.localeCompare(right))
               .map(([quality, count]) => `${describeQuality(quality, locale)}: ${number(count)}`).join(' · ') || copy.none}</p>
           </> : null}

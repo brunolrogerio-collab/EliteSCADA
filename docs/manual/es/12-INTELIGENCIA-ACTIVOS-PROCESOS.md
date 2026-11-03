@@ -268,6 +268,10 @@ Compruebe señales obligatorias con datos, muestras aceptadas y rechazadas, cali
 
 En Agrupar lecturas cada, elija 15 o 30 minutos, 1 hora, 6 horas o 24 horas. El valor inicial es 15 minutos. Define intervalos de consulta; no cambia la captura del Historian ni rellena lecturas ausentes. Cambiar la opción retira el resultado anterior; solicite nuevamente la cobertura.
 
+Después de consultar cobertura, abra Detalles y comparación de esta medición dentro de la señal deseada. Primero y último son lecturas Buenas aceptadas en las horas de observación del Historian; no garantizan la hora de adquisición del sensor. Variación del período significa último menos primero en la unidad del TAG. En Lecturas por intervalo revise inicio/fin, aceptadas/rechazadas, mínimo, máximo y media. Los intervalos vacíos mantienen valores no disponibles; la media de muestras no está ponderada por tiempo.
+
+Para comparar esa señal introduzca inicio/fin de comparación estadística y elija agrupación. Use hasta 31 días y la misma duración que la cobertura actual. Puede ser anterior, posterior o superpuesta; los períodos superpuestos reutilizan lecturas y no son muestras independientes. Pulse Comparar estadísticas. Se muestran diferencias del período actual menos el comparado: cantidad, mínimo, máximo, media, primero, último y variación. Son diferencias descriptivas; no demuestran condiciones equivalentes, eficiencia ni un fallo. No disponible no significa cero. Cambiar campos retira el resultado; Cancelar comparación descarta la solicitud en curso. Para cambiar el período actual consulte de nuevo la cobertura. No se guarda la comparación en el proyecto ni se ejecuta al abrir los detalles.
+
 ### Comparar corriente dentro de un rango de frecuencia
 
 Suponga que un motor consumía unos 5 A y ahora consume 6 A. Antes de interpretar el cambio, compruebe si esas mediciones se registraron en el rango de frecuencia que desea investigar. Esta consulta compara dos partes del histórico; no aprende un patrón ni diagnostica el motor.
@@ -382,5 +386,9 @@ Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no
 **Resultado por equipo**
 
 ![Resultado por equipo](../../evidence/intelligence-857/runtime-profile-result.png)
+
+**Detalles estadísticos: interfaz real en portugués bajo prueba, con respuestas simuladas**
+
+![Detalles estadísticos: interfaz real en portugués bajo prueba, con respuestas simuladas](../../evidence/intelligence-857/statistical-details-browser.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

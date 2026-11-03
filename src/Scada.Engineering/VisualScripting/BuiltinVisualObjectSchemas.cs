@@ -38,7 +38,13 @@ public static class BuiltinVisualObjectSchemas
     public const string MeasurementTargetType = "core.measurementTarget";
     public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
     public const string IntelligenceProfileCoverageV1Type = "core.intelligenceProfileCoverageV1";
+    public const string IntelligenceReferenceEvidenceV1Type = "core.intelligenceReferenceEvidenceV1";
+    public const string IntelligenceCurrentFrequencyComparisonV1Type = "core.intelligenceCurrentFrequencyComparisonV1";
+    public const string IntelligenceSingleTargetDeviationV1Type = "core.intelligenceSingleTargetDeviationV1";
+    public const string IntelligenceExperimentalJointDeviationV1Type = "core.intelligenceExperimentalJointDeviationV1";
+    public const string IntelligenceContextEligibilityV1Type = "core.intelligenceContextEligibilityV1";
     public const string IntelligenceProcessStageCoverageV1Type = "core.intelligenceProcessStageCoverageV1";
+    public const string IntelligenceProcessStageInsightsV1Type = "core.intelligenceProcessStageInsightsV1";
     public const string IntelligenceContextualDeviationV2Type = "core.intelligenceContextualDeviationV2";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
@@ -121,7 +127,11 @@ public static class BuiltinVisualObjectSchemas
         new(VisualPropertyKeys.IntelligenceStageId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
         new(VisualPropertyKeys.IntelligenceStageKey, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
         new(VisualPropertyKeys.IntelligenceStageName, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
-        new(VisualPropertyKeys.IntelligenceStageMembers, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
+        new(VisualPropertyKeys.IntelligenceStageMembers, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceJointSignals, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceCurrentFrequencySignals, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSingleTargetSignals, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceOperatingContexts, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
     ];
 
     private static readonly IReadOnlyDictionary<string, VisualPropertyDefinition> CommonByKey =
@@ -498,6 +508,52 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.IntelligenceStageMembers
         ]));
 
+    public static VisualObjectPropertySchema IntelligenceReferenceEvidenceV1 { get; } = Create(
+        IntelligenceReferenceEvidenceV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceProfileId
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceContextEligibilityV1 { get; } = Create(
+        IntelligenceContextEligibilityV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceAssignmentId,
+            VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceOperatingContexts
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceCurrentFrequencyComparisonV1 { get; } = Create(
+        IntelligenceCurrentFrequencyComparisonV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceCurrentFrequencySignals
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceSingleTargetDeviationV1 { get; } = Create(
+        IntelligenceSingleTargetDeviationV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceSingleTargetSignals
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceExperimentalJointDeviationV1 { get; } = Create(
+        IntelligenceExperimentalJointDeviationV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceOperatingContexts, VisualPropertyKeys.IntelligenceJointSignals
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceProcessStageInsightsV1 { get; } = Create(
+        IntelligenceProcessStageInsightsV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceStageId,
+            VisualPropertyKeys.IntelligenceStageKey,
+            VisualPropertyKeys.IntelligenceStageName,
+            VisualPropertyKeys.IntelligenceStageMembers
+        ]));
+
     public static VisualObjectPropertySchema IntelligenceContextualDeviationV2 { get; } = Create(
         IntelligenceContextualDeviationV2Type,
         Base.Concat([
@@ -546,7 +602,13 @@ public static class BuiltinVisualObjectSchemas
         MeasurementTarget,
         IntelligencePerformanceV1B,
         IntelligenceProfileCoverageV1,
+        IntelligenceReferenceEvidenceV1,
+        IntelligenceContextEligibilityV1,
+        IntelligenceCurrentFrequencyComparisonV1,
+        IntelligenceSingleTargetDeviationV1,
+        IntelligenceExperimentalJointDeviationV1,
         IntelligenceProcessStageCoverageV1,
+        IntelligenceProcessStageInsightsV1,
         IntelligenceContextualDeviationV2
     ];
 

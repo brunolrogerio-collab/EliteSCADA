@@ -104,8 +104,20 @@ public static class BuiltinVisualEngineeringValidation
             issues.AddRange(ValidateIntelligencePerformanceV1B(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProfileCoverageV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceReferenceEvidenceV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceProfileCoverageV1(element, entityKind, entityKey, referenceEvidence: true));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceCurrentFrequencyComparisonV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceCurrentFrequencyV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceSingleTargetDeviationV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceSingleTargetV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceExperimentalJointDeviationV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceExperimentalJointV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceContextEligibilityV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceContextEligibilityV1(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageCoverageV1Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceProcessStageCoverageV1(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceProcessStageInsightsV1Type, StringComparison.Ordinal))
+            issues.AddRange(ValidateIntelligenceProcessStageCoverageV1(element, entityKind, entityKey, insights: true));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.IntelligenceContextualDeviationV2Type, StringComparison.Ordinal))
             issues.AddRange(ValidateIntelligenceContextualDeviationV2(element, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
@@ -328,7 +340,8 @@ public static class BuiltinVisualEngineeringValidation
     private static IEnumerable<ImportIssue> ValidateIntelligenceProfileCoverageV1(
         VisualElementEngineeringDto element,
         ImportEntityKind entityKind,
-        string entityKey)
+        string entityKey,
+        bool referenceEvidence = false)
     {
         var identifiers = new[]
         {
@@ -338,18 +351,158 @@ public static class BuiltinVisualEngineeringValidation
         if (entityKind != ImportEntityKind.Screen || identifiers.Any(value => !Guid.TryParseExact(value, "D", out _)))
         {
             yield return Error(
-                "VISUAL_INTELLIGENCE_COVERAGE_CONFIG_INVALID",
-                $"Profile coverage visual '{element.Key}' requires canonical scope/profile UUIDs on a Screen.",
+                referenceEvidence ? "VISUAL_INTELLIGENCE_REFERENCE_CONFIG_INVALID" : "VISUAL_INTELLIGENCE_COVERAGE_CONFIG_INVALID",
+                $"Intelligence profile report '{element.Key}' requires canonical scope/profile UUIDs on a Screen.",
                 entityKind,
                 entityKey);
         }
     }
 
+    private static IEnumerable<ImportIssue> ValidateIntelligenceContextEligibilityV1(
+        VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
+    {
+        var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
+        var json = ReadString(element, VisualPropertyKeys.IntelligenceOperatingContexts);
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out _)) ||
+            !ValidContextReferenceCatalog(json))
+            yield return Error("VISUAL_INTELLIGENCE_CONTEXT_ELIGIBILITY_CONFIG_INVALID",
+                $"Context conditions visual '{element.Key}' requires a Screen, stable scope/assignment/profile and a bounded versioned context reference list.", entityKind, entityKey);
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligenceCurrentFrequencyV1(
+        VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
+    {
+        var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out var id) || id == Guid.Empty) ||
+            !ValidCurrentFrequencyCatalog(ReadString(element, VisualPropertyKeys.IntelligenceCurrentFrequencySignals)))
+            yield return Error("VISUAL_INTELLIGENCE_CURRENT_FREQUENCY_CONFIG_INVALID",
+                $"Current/frequency visual '{element.Key}' requires a Screen, stable identities and distinct qualified current and measured-frequency references.", entityKind, entityKey);
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligenceSingleTargetV1(
+        VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
+    {
+        var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out var id) || id == Guid.Empty) ||
+            !ValidSingleTargetCatalog(ReadString(element, VisualPropertyKeys.IntelligenceSingleTargetSignals)))
+            yield return Error("VISUAL_INTELLIGENCE_SINGLE_TARGET_CONFIG_INVALID",
+                $"Single-target visual '{element.Key}' requires a Screen, stable distinct signal identities and a controlled condition unit.", entityKind, entityKey);
+    }
+
+    private static bool ValidSingleTargetCatalog(string? json)
+    {
+        if (json is not { Length: <= 16384 }) return false;
+        JsonElement[]? signals;
+        try { signals = JsonSerializer.Deserialize<JsonElement[]>(json); }
+        catch (JsonException) { return false; }
+        if (signals is not { Length: >= 2 and <= 16 }) return false;
+        var ids = new HashSet<Guid>(); var tags = new HashSet<Guid>(); var condition = false;
+        foreach (var signal in signals)
+        {
+            if (signal.ValueKind != JsonValueKind.Object || signal.EnumerateObject().Count() != 6 ||
+                signal.EnumerateObject().Any(property => property.Name is not ("id" or "tagId" or "label" or "unit" or "canonicalUnit" or "unitCode")) ||
+                !TryReadGuid(signal, "id", out var id) || id == Guid.Empty || !ids.Add(id) ||
+                !TryReadGuid(signal, "tagId", out var tag) || tag == Guid.Empty || !tags.Add(tag) ||
+                !TryReadBoundedString(signal, "label", 320, out _) ||
+                !signal.TryGetProperty("unit", out var unit) || !(unit.ValueKind == JsonValueKind.Null || unit.ValueKind == JsonValueKind.String && unit.GetString()!.Length <= 128) ||
+                !signal.TryGetProperty("canonicalUnit", out var canonical) || !signal.TryGetProperty("unitCode", out var code)) return false;
+            if (canonical.ValueKind == JsonValueKind.Null && code.ValueKind == JsonValueKind.Null) continue;
+            if (!TryReadBoundedString(signal, "canonicalUnit", 32, out _) || !TryReadBoundedString(signal, "unitCode", 160, out _)) return false;
+            condition = true;
+        }
+        return condition;
+    }
+
+    private static bool ValidCurrentFrequencyCatalog(string? json)
+    {
+        if (json is not { Length: <= 16384 }) return false;
+        JsonElement[]? signals;
+        try { signals = JsonSerializer.Deserialize<JsonElement[]>(json); }
+        catch (JsonException) { return false; }
+        if (signals is not { Length: >= 2 and <= 16 }) return false;
+        var ids = new HashSet<Guid>(); var tags = new HashSet<Guid>();
+        var hasCurrent = false; var hasFrequency = false;
+        foreach (var signal in signals)
+        {
+            if (signal.ValueKind != JsonValueKind.Object || !TryReadGuid(signal, "id", out var id) || id == Guid.Empty || !ids.Add(id) ||
+                !TryReadGuid(signal, "tagId", out var tag) || tag == Guid.Empty || !tags.Add(tag) || !TryReadBoundedString(signal, "label", 320, out _) ||
+                signal.EnumerateObject().Any(property => property.Name is not ("id" or "tagId" or "label" or "kind" or "basis")) ||
+                !TryReadBoundedString(signal, "kind", 16, out var kind) || !TryReadBoundedString(signal, "basis", 32, out var basis)) return false;
+            if (kind == "current" && basis is "line_rms" or "phase_rms" or "dc_bus") hasCurrent = true;
+            else if (kind == "frequency" && basis is "drive_electrical" or "shaft_rotational") hasFrequency = true;
+            else return false;
+        }
+        return hasCurrent && hasFrequency;
+    }
+
+    private static IEnumerable<ImportIssue> ValidateIntelligenceExperimentalJointV1(
+        VisualElementEngineeringDto element, ImportEntityKind entityKind, string entityKey)
+    {
+        var identifiers = new[] { VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId };
+        if (entityKind != ImportEntityKind.Screen || identifiers.Any(key => !Guid.TryParseExact(ReadString(element, key), "D", out _)) ||
+            !ValidContextReferenceCatalog(ReadString(element, VisualPropertyKeys.IntelligenceOperatingContexts)) ||
+            !ValidJointSignalCatalog(ReadString(element, VisualPropertyKeys.IntelligenceJointSignals)))
+            yield return Error("VISUAL_INTELLIGENCE_JOINT_CONFIG_INVALID",
+                $"Experimental joint visual '{element.Key}' requires a Screen, stable identities, versioned context references and 2–16 distinct measurement references.", entityKind, entityKey);
+    }
+
+    private static bool ValidJointSignalCatalog(string? json)
+    {
+        if (json is not { Length: <= 16384 }) return false;
+        JsonElement[]? signals;
+        try { signals = JsonSerializer.Deserialize<JsonElement[]>(json); }
+        catch (JsonException) { return false; }
+        var ids = new HashSet<Guid>(); var tags = new HashSet<Guid>();
+        return signals is { Length: >= 2 and <= 16 } && signals.All(signal =>
+            signal.ValueKind == JsonValueKind.Object && TryReadGuid(signal, "id", out var id) && ids.Add(id) &&
+            TryReadGuid(signal, "tagId", out var tag) && tags.Add(tag) && TryReadBoundedString(signal, "label", 320, out _) &&
+            !signal.EnumerateObject().Any(property => property.Name is not ("id" or "tagId" or "label")));
+    }
+
+    private static bool ValidStageJointPresentation(JsonElement joint)
+    {
+        if (joint.ValueKind != JsonValueKind.Object || joint.EnumerateObject().Any(p => p.Name is not ("contexts" or "signals")) ||
+            !joint.TryGetProperty("contexts", out var contexts) || !ValidContextReferenceCatalog(contexts.GetRawText()) ||
+            !joint.TryGetProperty("signals", out var signals) || !ValidJointSignalCatalog(signals.GetRawText())) return false;
+        return contexts.EnumerateArray().Any(context => {
+            var conditions = context.GetProperty("predicateTagIds").EnumerateArray().Select(tag => Guid.Parse(tag.GetString()!)).ToHashSet();
+            return signals.EnumerateArray().Count(signal => !conditions.Contains(Guid.Parse(signal.GetProperty("tagId").GetString()!))) >= 2;
+        });
+    }
+
+    private static bool ValidContextReferenceCatalog(string? json)
+    {
+        if (json is not { Length: <= 32768 }) return false;
+        JsonElement[]? contexts;
+        try { contexts = JsonSerializer.Deserialize<JsonElement[]>(json); }
+        catch (JsonException) { return false; }
+        var ids = new HashSet<Guid>();
+        return contexts is { Length: >= 1 and <= 32 } && contexts.All(context =>
+            context.ValueKind == JsonValueKind.Object && TryReadGuid(context, "id", out var id) && ids.Add(id) &&
+            !context.EnumerateObject().Any(property => property.Name is not ("id" or "displayLabel" or "version" or "predicateTagIds")) &&
+            TryReadBoundedString(context, "displayLabel", 128, out _) &&
+            TryReadNonNegativeInt32(context, "version", out var version) && version > 0 &&
+            ValidContextPredicateReferences(context));
+    }
+
+    private static bool ValidContextPredicateReferences(JsonElement context)
+    {
+        if (!context.TryGetProperty("predicateTagIds", out var predicates) || predicates.ValueKind != JsonValueKind.Array ||
+            predicates.GetArrayLength() is < 1 or > 16) return false;
+        var ids = new HashSet<Guid>();
+        foreach (var tag in predicates.EnumerateArray())
+            if (tag.ValueKind != JsonValueKind.String || !Guid.TryParseExact(tag.GetString(), "D", out var id) || !ids.Add(id)) return false;
+        return true;
+    }
+
     private static IEnumerable<ImportIssue> ValidateIntelligenceProcessStageCoverageV1(
         VisualElementEngineeringDto element,
         ImportEntityKind entityKind,
-        string entityKey)
+        string entityKey,
+        bool insights = false)
     {
+        var errorCode = insights ? "VISUAL_INTELLIGENCE_PROCESS_STAGE_INSIGHTS_CONFIG_INVALID"
+            : "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID";
         var stageId = ReadString(element, VisualPropertyKeys.IntelligenceStageId);
         var stageKey = ReadString(element, VisualPropertyKeys.IntelligenceStageKey);
         var stageName = ReadString(element, VisualPropertyKeys.IntelligenceStageName);
@@ -357,10 +510,10 @@ public static class BuiltinVisualEngineeringValidation
         if (entityKind != ImportEntityKind.Screen || !Guid.TryParseExact(stageId, "D", out _) ||
             string.IsNullOrWhiteSpace(stageKey) || stageKey != stageKey.Trim() || stageKey.Length > 64 ||
             string.IsNullOrWhiteSpace(stageName) || stageName != stageName.Trim() || stageName.Length > 128 ||
-            membersJson is not { Length: <= 32768 })
+            membersJson is null || membersJson.Length > (insights ? 65536 : 32768))
         {
             yield return Error(
-                "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID",
+                errorCode,
                 $"Process-stage coverage visual '{element.Key}' requires canonical stage identity, bounded labels and Screen scope.",
                 entityKind,
                 entityKey);
@@ -373,7 +526,7 @@ public static class BuiltinVisualEngineeringValidation
         if (members is not { Length: >= 1 and <= 32 })
         {
             yield return Error(
-                "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID",
+                errorCode,
                 $"Process-stage coverage visual '{element.Key}' requires between one and 32 stable member references.",
                 entityKind,
                 entityKey);
@@ -393,10 +546,11 @@ public static class BuiltinVisualEngineeringValidation
                 !TryReadNonNegativeInt32(member, "order", out var order) ||
                 !assignmentIds.Add(assignmentId) ||
                 !scopeProfiles.Add((scopeId, profileId)) ||
-                !orders.Add(order))
+                !orders.Add(order) ||
+                (insights && !ValidStageMemberReports(member)))
             {
                 yield return Error(
-                    "VISUAL_INTELLIGENCE_PROCESS_STAGE_COVERAGE_CONFIG_INVALID",
+                    errorCode,
                     $"Process-stage coverage visual '{element.Key}' contains an absent, ambiguous or invalid member reference.",
                     entityKind,
                     entityKey);
@@ -404,6 +558,51 @@ public static class BuiltinVisualEngineeringValidation
             }
         }
     }
+
+    private static bool ValidStageMemberReports(JsonElement member)
+    {
+        var partial = member.TryGetProperty("availabilityVersion", out var version);
+        if (partial && (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var number) || number != 2))
+            return false;
+        if (member.TryGetProperty("referenceEvidence", out var reference) &&
+            (!partial || reference.ValueKind != JsonValueKind.True)) return false;
+        if (member.TryGetProperty("operatingContexts", out var contexts) &&
+            (!partial || !ValidContextReferenceCatalog(contexts.GetRawText()))) return false;
+        if (member.TryGetProperty("experimentalJoint", out var joint) && (!partial || !ValidStageJointPresentation(joint))) return false;
+        if (member.TryGetProperty("singleTarget", out var singleTarget) && (!partial || !ValidSingleTargetCatalog(singleTarget.GetRawText()))) return false;
+        if (member.TryGetProperty("currentFrequency", out var currentFrequency) && (!partial || !ValidCurrentFrequencyCatalog(currentFrequency.GetRawText()))) return false;
+        var hasPerformance = member.TryGetProperty("performance", out var performance);
+        var hasDeviation = member.TryGetProperty("contextualDeviation", out var deviation);
+        if (!partial && (!hasPerformance || !hasDeviation)) return false;
+        if (hasPerformance && (performance.ValueKind != JsonValueKind.Object ||
+            !TryReadBoundedString(performance, "ruleId", 128, out _) ||
+            !TryReadBoundedString(performance, "ruleVersion", 32, out _) ||
+            !TryReadStageSignalIds(performance, "signalIds", 3, out _))) return false;
+        if (!hasDeviation) return true;
+        if (deviation.ValueKind != JsonValueKind.Object ||
+            !TryReadStageSignalIds(deviation, "targetSignalIds", 8, out var targetIds) ||
+            !TryReadGuid(deviation, "firstContextSignalId", out var first) ||
+            !TryReadGuid(deviation, "secondContextSignalId", out var second) ||
+            first == second || targetIds.Contains(first) || targetIds.Contains(second)) return false;
+        return ValidStageContextRange(deviation, "firstContextLowerInclusiveCanonical", "firstContextUpperExclusiveCanonical") &&
+            ValidStageContextRange(deviation, "secondContextLowerInclusiveCanonical", "secondContextUpperExclusiveCanonical");
+    }
+
+    private static bool TryReadStageSignalIds(JsonElement report, string key, int maximum, out HashSet<Guid> ids)
+    {
+        ids = [];
+        if (!report.TryGetProperty(key, out var signals) || signals.ValueKind != JsonValueKind.Array ||
+            signals.GetArrayLength() < 2 || signals.GetArrayLength() > maximum) return false;
+        foreach (var signal in signals.EnumerateArray())
+            if (signal.ValueKind != JsonValueKind.String || !Guid.TryParseExact(signal.GetString(), "D", out var id) || !ids.Add(id))
+                return false;
+        return true;
+    }
+
+    private static bool ValidStageContextRange(JsonElement report, string lowerKey, string upperKey) =>
+        report.TryGetProperty(lowerKey, out var lower) && lower.ValueKind == JsonValueKind.Number && lower.TryGetDouble(out var low) &&
+        report.TryGetProperty(upperKey, out var upper) && upper.ValueKind == JsonValueKind.Number && upper.TryGetDouble(out var high) &&
+        double.IsFinite(low) && double.IsFinite(high) && low < high;
 
     private static IEnumerable<ImportIssue> ValidateIntelligenceContextualDeviationV2(
         VisualElementEngineeringDto element,

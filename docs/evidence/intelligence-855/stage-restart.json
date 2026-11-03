@@ -1,0 +1,16 @@
+{
+  "syntheticOnly": true,
+  "revision": 29,
+  "persistedScreens": 3,
+  "identitiesPreserved": true,
+  "blockedBeforeExplicitRearm": [
+    {
+      "scopeId": "85300000-0000-0000-0000-000000000200",
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    },
+    {
+      "scopeId": "85500000-0000-0000-0000-000000000501",
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    }
+  ]
+}

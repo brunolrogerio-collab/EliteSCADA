@@ -369,7 +369,7 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
             access,
             dto.AddressSelector,
             dto.CommunicationBinding,
-            dto.DataSourceId);
+            dto.DataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static ModbusValueType? ParseValueType(

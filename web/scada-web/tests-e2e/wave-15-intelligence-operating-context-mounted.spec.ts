@@ -61,12 +61,11 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
 
   await contextEditor.getByLabel('Associação de equipamento').selectOption(assignmentId);
   await contextEditor.getByRole('button', { name: 'Novo contexto' }).click();
-  await contextEditor.getByLabel('Chave estável').fill('normal-operating');
-  await contextEditor.getByLabel('Rótulo do operador').fill('Operação normal');
-  await contextEditor.getByLabel('TAG do perfil de medição associado').selectOption(tagId);
-  await contextEditor.getByLabel('Mínimo (inclusivo)').fill('2');
-  await contextEditor.getByLabel('Máximo (inclusivo)').fill('8');
-  await contextEditor.getByRole('button', { name: 'Adicionar predicado' }).click();
+  await contextEditor.getByLabel('Nome do contexto').fill('Operação normal');
+  await contextEditor.getByLabel('Medição do perfil associado').selectOption(tagId);
+  await contextEditor.getByLabel('De (incluindo o limite)').fill('2');
+  await contextEditor.getByLabel('Até (incluindo o limite)').fill('8');
+  await contextEditor.getByRole('button', { name: 'Adicionar condição' }).click();
 
   await expect(contextEditor.getByText('Plant.Pump.Temperature')).toBeVisible();
   await workspace.locator('.asset-process-intelligence__authoring-footer')
@@ -93,7 +92,7 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
   expect(payload.expectedOperatingContextProfileVersions).toEqual([]);
   expect(payload.operatingContextProfiles).toHaveLength(1);
   expect(payload.operatingContextProfiles[0]).toMatchObject({
-    key: 'normal-operating',
+    key: expect.stringMatching(/^context-[a-f0-9]{32}$/),
     displayLabel: 'Operação normal',
     assignmentId,
     predicates: [{
@@ -107,13 +106,15 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
   });
   const contextId = payload.operatingContextProfiles[0].id;
   expect(payload.operatingContextProfiles[0]).not.toHaveProperty('version');
-  await expect(contextEditor.getByText('Versão salva pelo servidor: v1')).toBeVisible();
+  await expect(contextEditor).not.toContainText(payload.operatingContextProfiles[0].key);
+  await expect(contextEditor).not.toContainText(contextId);
+  await expect(contextEditor).not.toContainText('Versão salva pelo servidor');
   await expect(contextEditor.getByText('Operação normal')).toBeVisible();
 
   await expect(contextEditor.getByRole('status')).toContainText('Unidade salva: °C; Unidade atual: K');
-  await expect(contextEditor.getByLabel('Mínimo (inclusivo)')).toBeDisabled();
+  await expect(contextEditor.getByLabel('De (incluindo o limite)')).toBeDisabled();
   await contextEditor.getByRole('button', { name: 'Confirmar limites na unidade atual' }).click();
-  await expect(contextEditor.getByLabel('Mínimo (inclusivo)')).toBeEnabled();
+  await expect(contextEditor.getByLabel('De (incluindo o limite)')).toBeEnabled();
   await workspace.locator('.asset-process-intelligence__authoring-footer')
     .getByRole('button', { name: 'Salvar configuração de processo' }).click();
   await expect.poll(() => saved?.expectedOperatingContextProfileVersions).toEqual([
@@ -126,5 +127,5 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
     engineeringUnit: 'K',
     engineeringUnitConfirmed: true
   });
-  await expect(contextEditor.getByText('Versão salva pelo servidor: v2')).toBeVisible();
+  await expect(contextEditor).not.toContainText('Versão salva pelo servidor');
 });

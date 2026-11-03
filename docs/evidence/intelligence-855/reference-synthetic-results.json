@@ -1,0 +1,152 @@
+{
+  "syntheticOnly": true,
+  "projectKey": "intelligence-browser-853",
+  "revision": 33,
+  "scopeId": "85500000-0000-0000-0000-000000000501",
+  "profileId": "85500000-0000-0000-0000-000000000303",
+  "queriesDuringGeneration": 0,
+  "referenceCohort": {
+    "configuredRequiredSignalCount": 2,
+    "requiredNumericSignalCount": 2,
+    "requiredNumericSignalsWithAcceptedRows": 2,
+    "completeRequiredNumericCohortCount": 120,
+    "requiredCohortStatus": "required_source_synchronized_cohort_observed",
+    "requiredReasons": [],
+    "selectedNumericSignalCount": 2,
+    "selectedNumericSignalsWithAcceptedRows": 2,
+    "completeSelectedNumericCohortCount": 120,
+    "selectedCohortStatus": "selected_source_synchronized_cohort_observed",
+    "selectedReasons": []
+  },
+  "comparisonCohort": {
+    "configuredRequiredSignalCount": 2,
+    "requiredNumericSignalCount": 2,
+    "requiredNumericSignalsWithAcceptedRows": 2,
+    "completeRequiredNumericCohortCount": 120,
+    "requiredCohortStatus": "required_source_synchronized_cohort_observed",
+    "requiredReasons": [],
+    "selectedNumericSignalCount": 2,
+    "selectedNumericSignalsWithAcceptedRows": 2,
+    "completeSelectedNumericCohortCount": 120,
+    "selectedCohortStatus": "selected_source_synchronized_cohort_observed",
+    "selectedReasons": []
+  },
+  "signals": [
+    {
+      "signalId": "85500000-0000-0000-0000-000000000207",
+      "tagPath": "Validacao855.Sinal1",
+      "reference": {
+        "window": {
+          "fromUtc": "2026-11-01T16:57:00+00:00",
+          "toUtc": "2026-11-01T18:56:00+00:00"
+        },
+        "rawObservationCount": 120,
+        "goodFiniteNumericCount": 120,
+        "acceptedSynchronizedCount": 120,
+        "rejectedObservationCount": 0,
+        "ambiguousSourceTimestampGroupCount": 0,
+        "ambiguousSourceTimestampRowCount": 0,
+        "qualityCounts": {
+          "Bad": 0,
+          "BadCommunication": 0,
+          "BadConfiguration": 0,
+          "BadDevice": 0,
+          "Disabled": 0,
+          "Good": 120,
+          "Missing": 0,
+          "Stale": 0,
+          "Unavailable": 0,
+          "Uncertain": 0,
+          "Unrecognized": 0
+        },
+        "rejectionCounts": {},
+        "status": "evidence_available"
+      },
+      "comparison": {
+        "window": {
+          "fromUtc": "2026-11-01T20:57:00+00:00",
+          "toUtc": "2026-11-01T22:56:00+00:00"
+        },
+        "rawObservationCount": 120,
+        "goodFiniteNumericCount": 120,
+        "acceptedSynchronizedCount": 120,
+        "rejectedObservationCount": 0,
+        "ambiguousSourceTimestampGroupCount": 0,
+        "ambiguousSourceTimestampRowCount": 0,
+        "qualityCounts": {
+          "Bad": 0,
+          "BadCommunication": 0,
+          "BadConfiguration": 0,
+          "BadDevice": 0,
+          "Disabled": 0,
+          "Good": 120,
+          "Missing": 0,
+          "Stale": 0,
+          "Unavailable": 0,
+          "Uncertain": 0,
+          "Unrecognized": 0
+        },
+        "rejectionCounts": {},
+        "status": "evidence_available"
+      }
+    },
+    {
+      "signalId": "85500000-0000-0000-0000-000000000208",
+      "tagPath": "Validacao855.Sinal2",
+      "reference": {
+        "window": {
+          "fromUtc": "2026-11-01T16:57:00+00:00",
+          "toUtc": "2026-11-01T18:56:00+00:00"
+        },
+        "rawObservationCount": 120,
+        "goodFiniteNumericCount": 120,
+        "acceptedSynchronizedCount": 120,
+        "rejectedObservationCount": 0,
+        "ambiguousSourceTimestampGroupCount": 0,
+        "ambiguousSourceTimestampRowCount": 0,
+        "qualityCounts": {
+          "Bad": 0,
+          "BadCommunication": 0,
+          "BadConfiguration": 0,
+          "BadDevice": 0,
+          "Disabled": 0,
+          "Good": 120,
+          "Missing": 0,
+          "Stale": 0,
+          "Unavailable": 0,
+          "Uncertain": 0,
+          "Unrecognized": 0
+        },
+        "rejectionCounts": {},
+        "status": "evidence_available"
+      },
+      "comparison": {
+        "window": {
+          "fromUtc": "2026-11-01T20:57:00+00:00",
+          "toUtc": "2026-11-01T22:56:00+00:00"
+        },
+        "rawObservationCount": 120,
+        "goodFiniteNumericCount": 120,
+        "acceptedSynchronizedCount": 120,
+        "rejectedObservationCount": 0,
+        "ambiguousSourceTimestampGroupCount": 0,
+        "ambiguousSourceTimestampRowCount": 0,
+        "qualityCounts": {
+          "Bad": 0,
+          "BadCommunication": 0,
+          "BadConfiguration": 0,
+          "BadDevice": 0,
+          "Disabled": 0,
+          "Good": 120,
+          "Missing": 0,
+          "Stale": 0,
+          "Unavailable": 0,
+          "Uncertain": 0,
+          "Unrecognized": 0
+        },
+        "rejectionCounts": {},
+        "status": "evidence_available"
+      }
+    }
+  ]
+}

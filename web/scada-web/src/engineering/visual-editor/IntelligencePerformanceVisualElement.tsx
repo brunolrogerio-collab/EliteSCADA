@@ -153,6 +153,8 @@ export function IntelligencePerformanceVisualElement({
   const runtimeCopy = runtimeElementCopy(locale);
   const rootStyle: CSSProperties = {
     ...style,
+    alignItems: 'stretch',
+    whiteSpace: 'normal',
     boxSizing: 'border-box',
     overflow: 'auto',
     padding: 12,

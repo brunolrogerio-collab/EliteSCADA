@@ -170,7 +170,7 @@ public static class InternalMemoryRuntimePlanner
             dto.Description,
             dto.ReadOnly,
             metadata,
-            access);
+            access, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static void Set(Dictionary<string, string> target, string key, double? value)

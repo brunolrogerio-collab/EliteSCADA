@@ -405,6 +405,10 @@ public static class VisualPropertyKeys
     public const string IntelligenceStageKey = "intelligenceStageKey";
     public const string IntelligenceStageName = "intelligenceStageName";
     public const string IntelligenceStageMembers = "intelligenceStageMembers";
+    public const string IntelligenceJointSignals = "intelligenceJointSignals";
+    public const string IntelligenceCurrentFrequencySignals = "intelligenceCurrentFrequencySignals";
+    public const string IntelligenceSingleTargetSignals = "intelligenceSingleTargetSignals";
+    public const string IntelligenceOperatingContexts = "intelligenceOperatingContexts";
 
     // Pre-Wave-07 compatibility constant. New visual schemas use AssetRef.
     public const string ImageResourceId = "imageResourceId";

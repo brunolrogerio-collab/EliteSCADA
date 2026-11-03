@@ -6,24 +6,24 @@ const localized = [
   {
     locale: 'pt-BR',
     configuredActive: 'Ativo na configuração',
-    permitClosed: 'Ativo configurado · permissão de processo fechada; ative explicitamente após restaurar a autorização (ou após reiniciar, se aplicável)',
-    permitArmed: 'Permissão de processo armada',
+    permitClosed: 'Reative antes de consultar. Selecione Ativar após reinício ou restauração da autorização.',
+    permitArmed: 'Pronto para consultar',
     activate: 'Ativar',
     pause: 'Pausar'
   },
   {
     locale: 'en',
     configuredActive: 'Configured active',
-    permitClosed: 'Configured active · process permit closed; explicitly activate after authorization is restored (or after restart, if applicable)',
-    permitArmed: 'Process permit armed',
+    permitClosed: 'Reactivation required before querying. Select Activate after a restart or restored authorization.',
+    permitArmed: 'Ready to query',
     activate: 'Activate',
     pause: 'Pause'
   },
   {
     locale: 'es',
     configuredActive: 'Activo configurado',
-    permitClosed: 'Activo configurado · permiso de proceso cerrado; actívelo explícitamente tras restaurar la autorización (o tras reiniciar, si corresponde)',
-    permitArmed: 'Permiso de proceso habilitado',
+    permitClosed: 'Debe reactivar antes de consultar. Seleccione Activar tras reiniciar o restaurar la autorización.',
+    permitArmed: 'Listo para consultar',
     activate: 'Activar',
     pause: 'Pausar'
   }

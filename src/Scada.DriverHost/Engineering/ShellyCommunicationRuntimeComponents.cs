@@ -133,7 +133,7 @@ public sealed class ShellyCommunicationRuntimePlanner : ICommunicationDriverRunt
         return new TagDefinition(
             dto.Id ?? Guid.NewGuid(), dto.Name, dto.Path, dto.DataType, dto.Source,
             dto.EngineeringUnit, dto.Description, dto.ReadOnly, metadata, access,
-            dto.AddressSelector, dto.CommunicationBinding, dto.DataSourceId);
+            dto.AddressSelector, dto.CommunicationBinding, dto.DataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static string Require(IReadOnlyDictionary<string, string> values, string key) =>

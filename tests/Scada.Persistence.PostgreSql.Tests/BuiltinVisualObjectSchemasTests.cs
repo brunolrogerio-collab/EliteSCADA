@@ -40,7 +40,12 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.measurementTarget",
             "core.intelligencePerformanceV1B",
             "core.intelligenceProfileCoverageV1",
+            "core.intelligenceReferenceEvidenceV1",
+            "core.intelligenceContextEligibilityV1",
+            "core.intelligenceCurrentFrequencyComparisonV1",
+            "core.intelligenceExperimentalJointDeviationV1",
             "core.intelligenceProcessStageCoverageV1",
+            "core.intelligenceProcessStageInsightsV1",
             "core.intelligenceContextualDeviationV2"
         ], BuiltinVisualObjectSchemas.All.Select(schema => schema.ObjectTypeKey).ToArray());
     }
@@ -148,6 +153,14 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(stageCoverage.Declares(VisualPropertyKeys.IntelligenceStageName));
         Assert.True(stageCoverage.Declares(VisualPropertyKeys.IntelligenceStageMembers));
         Assert.All(stageCoverage.Properties.Values.Where(property => property.Key.StartsWith("intelligence", StringComparison.Ordinal)), property =>
+        {
+            Assert.False(property.EngineeringEditable);
+            Assert.False(property.RuntimeWritable);
+            Assert.False(property.SupportsBinding);
+        });
+        var stageInsights = BuiltinVisualObjectSchemas.IntelligenceProcessStageInsightsV1;
+        Assert.Equal(stageCoverage.Properties.Keys.Order(), stageInsights.Properties.Keys.Order());
+        Assert.All(stageInsights.Properties.Values.Where(property => property.Key.StartsWith("intelligence", StringComparison.Ordinal)), property =>
         {
             Assert.False(property.EngineeringEditable);
             Assert.False(property.RuntimeWritable);

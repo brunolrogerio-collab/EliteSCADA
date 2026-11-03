@@ -1,0 +1,16 @@
+{
+  "generatedScreens": [
+    {
+      "id": "4fd8e873-980c-4525-85c8-f0a862bc442d",
+      "key": "intelligence-context-conditions-bomba-de-validacao-local-painel-analitico-sintet",
+      "role": "context-eligibility"
+    },
+    {
+      "id": "28f1b062-43fa-4422-9fe8-882d3837d54a",
+      "key": "intelligence-planta.bomba-validacao-painel-855-3",
+      "role": "values-trend"
+    }
+  ],
+  "syntheticOnly": true,
+  "revision": 40
+}

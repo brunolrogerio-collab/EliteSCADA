@@ -127,7 +127,7 @@ public sealed class MatterWifiCommunicationRuntimePlanner : ICommunicationDriver
             }
             var access = dto.AccessPolicy is null ? null : new TagAccessPolicy(dto.AccessPolicy.ReadRoles?.ToArray(), dto.AccessPolicy.WriteRoles?.ToArray(), dto.AccessPolicy.ConfigureRoles?.ToArray());
             var tag = new TagDefinition(tagId, dto.Name, dto.Path, dto.DataType, dataSource.Key, dto.EngineeringUnit, dto.Description,
-                dto.ReadOnly, metadata, access, dto.AddressSelector, binding, dto.DataSourceId);
+                dto.ReadOnly, metadata, access, dto.AddressSelector, binding, dto.DataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
             points.Add(new MatterWifiPoint(tag, nodeId, pointAddress, Writable: !dto.ReadOnly));
         }
 

@@ -141,6 +141,10 @@ jobs:
           pattern = re.compile(r"^(docs/examples/home-building/ZWAVE-JS-CONTROLLER-SETUP\.md|src/Scada\.Api/(Engineering/(EngineeringDriverCatalogApi|ManagedProtocolHostConfiguration)\.cs|Scada\.Api\.csproj|Security/IntegrationProtectedMaterialReferences\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|ZWaveJsCommunicationRuntimeComponents)\.cs|Sidecars/ZWaveJs/.*)|tests/Scada\.Drivers\.Tests/(EngineeringDataSourceTypeCatalogTests|ManagedProtocolHostConfigurationTests|ZWaveJs.*)\.cs)$")
           directory = Path("src/Scada.DriverHost/Sidecars/ZWaveJs")
           selected = any(pattern.fullmatch(path) for path in changed) and (directory / "package.json").is_file()
+          # Owner-authorized temporary quarantine; restore after investigation #856.
+          requested = selected
+          quarantined = True
+          selected = requested and not quarantined
           if selected:
               required = ("package.json", "package-lock.json", "SBOM.cdx.json", "THIRD-PARTY-NOTICES.md", "src/sidecar.mjs", "test/sidecar-contract.test.mjs")
               missing = [name for name in required if not (directory / name).is_file()]
@@ -149,7 +153,9 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write(f"run_zwave_sidecar={str(selected).lower()}\n")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write(f"Z-Wave JS sidecar evidence selected: {selected}\n")
+              summary.write(f"Z-Wave JS sidecar evidence requested: {requested}; selected: {selected}\n")
+              if quarantined:
+                  summary.write("Z-Wave JS Windows/Linux evidence temporarily quarantined by owner authorization (#856); not validated. Restore selection after the dedicated correction.\n")
           PY
       - id: matter_scope
         name: Select isolated Matter Wi-Fi preview evidence
@@ -302,7 +308,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence'
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence|FullyQualifiedName~EngineeringIntelligence'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests&FullyQualifiedName!~Stage6BResourceCharacterization'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -372,7 +378,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence'
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence|FullyQualifiedName~EngineeringIntelligence'
           dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests&FullyQualifiedName!~Stage6BResourceCharacterization'
           dotnet test tests/Scada.Security.Tests/Scada.Security.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AuthorityPolicyContractTests'
       - name: Run real PostgreSQL revision restart evidence
@@ -441,9 +447,13 @@ jobs:
           if-no-files-found: warn
 
   intelligence-ui-regression:
-    name: Intelligence dashboard and Runtime UI regression
+    name: Intelligence dashboard and Runtime UI regression (${{ matrix.shard }}/3)
     needs: classify
     if: needs.classify.outputs.run_intelligence_ui == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -478,11 +488,15 @@ jobs:
         run: npx playwright install chromium
       - name: Run the same focused Intelligence UI configs used locally
         working-directory: web/scada-web
-        run: npm run test:e2e:intelligence-ui
+        env:
+          PLAYWRIGHT_SHARD: ${{ matrix.shard }}/3
+        run: |
+          npx playwright test --config=playwright.intelligence-ui.config.ts --fully-parallel --shard="$PLAYWRIGHT_SHARD"
+          npx playwright test --config=playwright.intelligence-runtime-local.config.ts --fully-parallel --shard="$PLAYWRIGHT_SHARD"
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: intelligence-ui-playwright-evidence
+          name: intelligence-ui-playwright-evidence-${{ matrix.shard }}
           path: |
             web/scada-web/test-results
             web/scada-web/playwright-report
@@ -490,9 +504,13 @@ jobs:
           retention-days: 7
 
   chromium-focused:
-    name: Focused Chromium evidence
+    name: Focused Chromium evidence (${{ matrix.shard }})
     needs: classify
     if: needs.classify.outputs.run_e2e == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.classify.outputs.run_intelligence_ui == 'true' && '[1,2,3]' || '[1]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 18
     services:
@@ -547,6 +565,8 @@ jobs:
         env:
           E2E_SPECS: ${{ needs.classify.outputs.e2e_specs }}
           E2E_CONFIG: ${{ needs.classify.outputs.e2e_config }}
+          E2E_SHARD: ${{ matrix.shard }}
+          E2E_SHARDS: ${{ needs.classify.outputs.run_intelligence_ui == 'true' && '3' || '1' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -556,14 +576,22 @@ jobs:
           PY
           mapfile -t specs < /tmp/e2e-specs.txt
           if [[ -n "$E2E_CONFIG" ]]; then
-            npm run test:e2e -- --config="$E2E_CONFIG" "${specs[@]}"
+            if [[ "$E2E_SHARDS" == "3" ]]; then
+              npm run test:e2e -- --config="$E2E_CONFIG" --fully-parallel --shard="$E2E_SHARD/$E2E_SHARDS" "${specs[@]}"
+            else
+              npm run test:e2e -- --config="$E2E_CONFIG" "${specs[@]}"
+            fi
           else
-            npm run test:e2e -- "${specs[@]}"
+            if [[ "$E2E_SHARDS" == "3" ]]; then
+              npm run test:e2e -- --fully-parallel --shard="$E2E_SHARD/$E2E_SHARDS" "${specs[@]}"
+            else
+              npm run test:e2e -- "${specs[@]}"
+            fi
           fi
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: wave15-focused-playwright-report
+          name: wave15-focused-playwright-report-${{ matrix.shard }}
           path: web/scada-web/playwright-report
           if-no-files-found: ignore
           retention-days: 7
@@ -1050,6 +1078,7 @@ jobs:
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
             echo "Web: $WEB; .NET: $DOTNET; Intelligence Windows: $INTELLIGENCE_WINDOWS; Intelligence PostgreSQL restart: $INTELLIGENCE_POSTGRES; Intelligence UI regressions: $INTELLIGENCE_UI; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 process acceptance: $HA_D2; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR; Stable Docker Linux: $INSTALLATION_LINUX";
+            echo 'Z-Wave JS Windows/Linux: temporarily quarantined by owner authorization (#856); not validated.';
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
           } >> "$GITHUB_STEP_SUMMARY"

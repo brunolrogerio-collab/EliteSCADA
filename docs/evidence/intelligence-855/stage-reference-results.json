@@ -1,0 +1,25 @@
+{
+  "syntheticOnly": true,
+  "sharedSyntheticDataset": true,
+  "queriesDuringGeneration": 0,
+  "memberResults": [
+    {
+      "scopeId": "85300000-0000-0000-0000-000000000200",
+      "profileId": "85500000-0000-0000-0000-000000000301",
+      "revision": 37,
+      "signalCount": 4,
+      "referenceCount": 120,
+      "comparisonCount": 120
+    },
+    {
+      "scopeId": "85500000-0000-0000-0000-000000000501",
+      "profileId": "85500000-0000-0000-0000-000000000303",
+      "revision": 37,
+      "signalCount": 2,
+      "referenceCount": 120,
+      "comparisonCount": 120
+    }
+  ],
+  "oldResultCleared": true,
+  "referenceOnly": true
+}

@@ -1,0 +1,57 @@
+{
+  "syntheticOnly": true,
+  "screens": [
+    {
+      "id": "b1a58d41-fcac-439f-9992-a3bb8fdbc5e5",
+      "key": "intelligence-bombeamento-855-4",
+      "role": "values-trend"
+    },
+    {
+      "id": "b69d3e64-7ab8-477f-adff-829da5017e90",
+      "key": "intelligence-process-stage-insights-bombeamento-855-4",
+      "role": "process-stage-insights"
+    },
+    {
+      "id": "386d1d1a-a7f3-400c-aede-9b6aa4fd17d2",
+      "key": "intelligence-stage-coverage-bombeamento-855-4",
+      "role": "process-stage-coverage"
+    }
+  ],
+  "contexts": [
+    {
+      "id": "85700000-0000-0000-0000-000000000501",
+      "version": 1
+    },
+    {
+      "id": "85700000-0000-0000-0000-000000000502",
+      "version": 1
+    }
+  ],
+  "persistedIdentity": true,
+  "memberPresentationPreserved": true,
+  "conditionsNotImplicitlyEnabled": true,
+  "beforeRearm": {
+    "status": 409,
+    "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+  },
+  "afterExplicitRearm": [
+    {
+      "contextId": "85700000-0000-0000-0000-000000000501",
+      "version": 1,
+      "activeRevision": 53,
+      "referenceFitStatus": "available",
+      "referenceCount": 120,
+      "scoredCount": 80,
+      "warmupCount": 40
+    },
+    {
+      "contextId": "85700000-0000-0000-0000-000000000502",
+      "version": 1,
+      "activeRevision": 53,
+      "referenceFitStatus": "insufficient_data",
+      "referenceCount": 0,
+      "scoredCount": 0,
+      "warmupCount": 0
+    }
+  ]
+}

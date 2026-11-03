@@ -179,7 +179,7 @@ public sealed class MitsubishiMelsecCommunicationRuntimePlanner : ICommunication
             dto.AccessPolicy is null ? null : new TagAccessPolicy(dto.AccessPolicy.ReadRoles?.ToArray(), dto.AccessPolicy.WriteRoles?.ToArray(), dto.AccessPolicy.ConfigureRoles?.ToArray()),
             dto.AddressSelector,
             binding,
-            dto.DataSourceId);
+            dto.DataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
         return new MitsubishiMelsecPoint(tag, address, physicalType, configuredWritable, transform);
     }
 

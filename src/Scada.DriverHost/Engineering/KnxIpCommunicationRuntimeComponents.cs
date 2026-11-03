@@ -243,7 +243,7 @@ public sealed class KnxIpCommunicationRuntimePlanner : ICommunicationDriverRunti
         }
         var access = dto.AccessPolicy is null ? null : new TagAccessPolicy(dto.AccessPolicy.ReadRoles?.ToArray(), dto.AccessPolicy.WriteRoles?.ToArray(), dto.AccessPolicy.ConfigureRoles?.ToArray());
         return new TagDefinition(dto.Id!.Value, dto.Name, dto.Path, dto.DataType, sourceKey, dto.EngineeringUnit, dto.Description,
-            dto.ReadOnly, metadata, access, dto.AddressSelector, dto.CommunicationBinding, dto.DataSourceId);
+            dto.ReadOnly, metadata, access, dto.AddressSelector, dto.CommunicationBinding, dto.DataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static EngineeringDriverIssue Error(string code, string message, string sourceKey, string? tagPath = null) => new(code, message, sourceKey, tagPath);

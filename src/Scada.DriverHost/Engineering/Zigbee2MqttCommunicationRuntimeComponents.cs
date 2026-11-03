@@ -229,7 +229,7 @@ public sealed class Zigbee2MqttCommunicationRuntimePlanner : ICommunicationDrive
             : new TagAccessPolicy(dto.AccessPolicy.ReadRoles?.ToArray(), dto.AccessPolicy.WriteRoles?.ToArray(), dto.AccessPolicy.ConfigureRoles?.ToArray());
         return new TagDefinition(
             dto.Id ?? Guid.NewGuid(), dto.Name, dto.Path, dto.DataType, dto.Source, dto.EngineeringUnit,
-            dto.Description, dto.ReadOnly, metadata, access, dto.AddressSelector, dto.CommunicationBinding, dataSourceId);
+            dto.Description, dto.ReadOnly, metadata, access, dto.AddressSelector, dto.CommunicationBinding, dataSourceId, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static CommunicationDriverRuntimePlanningResult Failure(string code, string message, string dataSourceKey) =>

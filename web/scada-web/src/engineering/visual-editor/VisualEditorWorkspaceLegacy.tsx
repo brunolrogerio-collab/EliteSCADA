@@ -503,12 +503,20 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     setPreview(null);
     setCandidate(null);
     try {
-      const nextPackage = definitionKind === 'template'
+      let nextPackage = definitionKind === 'template'
         ? replaceTemplateInPackage(snapshot.package, selectedTemplate, draft)
         : definitionKind === 'dynamo'
           ? replaceDynamoInPackage(snapshot.package, selectedDynamo, draft, dynamoParameters)
           : replaceScreenInPackage(snapshot.package, selected, draft);
       const before = await loadEngineeringWorkspace();
+      if (selectedGeneratedDraft && definitionKind === 'screen') {
+        if (before.changeVersion !== snapshot.workspace.changeVersion) throw new Error(text.workspaceChanged);
+        const pending = generatedDrafts.map(screen => screen.key === selectedGeneratedDraft.key ? draft : screen);
+        if (pending.some(screen => (snapshot.package.screens ?? []).some(existing =>
+          existing.key.toLowerCase() === screen.key.toLowerCase() || screen.id && existing.id === screen.id ||
+          screen.route && existing.route?.toLowerCase() === screen.route.toLowerCase()))) throw new Error(text.workspaceChanged);
+        nextPackage = { ...cloneEngineeringValue(snapshot.package), screens: [...(snapshot.package.screens ?? []), ...pending.map(cloneEngineeringValue)] };
+      }
       const nextPreview = await previewEngineeringPackage(nextPackage);
       const after = await loadEngineeringWorkspace();
       if (before.changeVersion !== after.changeVersion) throw new Error(text.workspaceChanged);
@@ -533,8 +541,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
       setSelectedIdentity(`key:${appliedKey}`);
       replaceSession(createVisualEditorSession(draft));
       if (selectedGeneratedDraft) {
-        setGeneratedDrafts(current => current.filter(screen => screen.key !== appliedKey));
-        onInitialScreenDraftConsumed?.(appliedKey);
+        const appliedKeys = generatedDrafts.map(screen => screen.key);
+        setGeneratedDrafts([]);
+        appliedKeys.forEach(key => onInitialScreenDraftConsumed?.(key));
       }
       setPolygonToolActive(false);
       setBezierToolActive(false);
@@ -635,6 +644,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
         </div>}
         {definitionKind === 'screen' && generatedDrafts.length > 0 ? <div className="visual-editor-generated-drafts" data-testid="visual-editor-generated-drafts">
           <strong>{text.generatedDashboardDrafts}</strong>
+          <p>{locale === 'en' ? 'Preview and Apply include all generated Screens together. Review this set before applying.' : locale === 'es' ? 'Preview y Aplicar incluyen juntas todas las Pantallas generadas. Revise el conjunto antes de aplicar.' : 'Pré-visualizar e Aplicar incluem todas as Telas geradas em conjunto. Revise o conjunto antes de aplicar.'}</p>
           {generatedDrafts.map(generated => {
             const identity = generatedDraftIdentity(generated.key);
             return <button type="button" className={selectedIdentity === identity ? 'selected' : ''} key={identity}
@@ -648,7 +658,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
       <section className="visual-editor-main">
         <div className="visual-editor-screen-form">
           <label><span>{text.name}</span><input aria-description={text.nameHint} value={draft.name} onChange={event => updateDraft(current => ({ ...current, name: event.target.value }))} /><small aria-hidden="true">{text.nameHint}</small></label>
-          <label><span>{text.key}</span><input aria-description={text.keyHint} className="mono" value={draft.key} readOnly={(definitionKind === 'dynamo' && !isNew) || draft.metadata?.intelligenceDashboardSetVersion === 'stage5b.9'} onChange={event => updateDraft(current => ({ ...current, key: event.target.value }))} /><small aria-hidden="true">{text.keyHint}</small></label>
+          <label><span>{text.key}</span><input aria-description={text.keyHint} className="mono" value={draft.key} readOnly={(definitionKind === 'dynamo' && !isNew) || Boolean(draft.metadata?.intelligenceDashboardSetVersion)} onChange={event => updateDraft(current => ({ ...current, key: event.target.value }))} /><small aria-hidden="true">{text.keyHint}</small></label>
           {definitionKind === 'screen' ? <label><span>{text.route}</span><input aria-description={text.routeHint} className="mono" value={draft.route ?? ''} placeholder="/overview" onChange={event => updateDraft(current => ({ ...current, route: emptyToNull(event.target.value) }))} /><small aria-hidden="true">{text.routeHint}</small></label> : <div className="visual-editor-draft-state"><span>{text.route}</span><strong>{draft.key}</strong><small>{text.routeHint}</small></div>}
           <div className="visual-editor-draft-state"><span>{text.draft}</span><strong>{isNew ? text.newDraft : changed ? text.changed : text.unchanged}</strong><small>{objectCount} {text.objects}</small></div>
         </div>

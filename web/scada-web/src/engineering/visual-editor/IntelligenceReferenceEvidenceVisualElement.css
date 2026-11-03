@@ -1,0 +1,40 @@
+.runtime-intelligence-reference-evidence {
+  --eng-panel: var(--app-surface, #111820);
+  --eng-panel-soft: var(--app-surface-elevated, #17212b);
+  --eng-input-bg: var(--app-surface, #111820);
+  --eng-text: var(--app-text-primary, #e2e8f0);
+  --eng-muted: var(--app-text-secondary, #94a3b8);
+  --eng-border: var(--app-border, #475569);
+  --eng-accent: var(--app-accent, #2dd4bf);
+  --surface: var(--app-surface, #111820);
+  --border: var(--app-border, #475569);
+}
+.runtime-intelligence-reference-evidence :is(summary, label, legend, h4, h5) {
+  color: var(--app-text-primary, #e2e8f0);
+}
+.runtime-intelligence-reference-evidence details {
+  border: 1px solid var(--eng-border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--eng-panel-soft);
+}
+.runtime-intelligence-reference-evidence summary { font-weight: 600; margin-bottom: 12px; }
+.runtime-intelligence-reference-evidence form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.runtime-intelligence-reference-evidence form > :is(p, fieldset) { flex: 1 0 100%; box-sizing: border-box; }
+.runtime-intelligence-reference-evidence label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.runtime-intelligence-reference-evidence fieldset { min-width: 0; }
+.runtime-intelligence-reference-evidence fieldset label:has(input[type="checkbox"]) { flex-direction: row; }
+.runtime-intelligence-reference-evidence input:not([type="checkbox"]) {
+  max-width: 100%; box-sizing: border-box; color: var(--eng-text); background: var(--eng-input-bg);
+  border: 1px solid var(--eng-border); border-radius: 4px; padding: 8px; font: inherit;
+}
+.runtime-intelligence-reference-evidence button { color: var(--eng-text); background: var(--eng-panel); border: 1px solid var(--eng-border); border-radius: 4px; padding: 8px 12px; font: inherit; }
+.runtime-intelligence-reference-evidence button:disabled { opacity: .55; }
+.runtime-intelligence-reference-evidence [data-testid="intelligence-reference-evidence-result"] { display: grid; gap: 16px; }
+.runtime-intelligence-reference-evidence [data-testid="intelligence-context-eligibility-result"] { display: grid; gap: 16px; }
+
+.runtime-intelligence-joint-deviation .asset-process-intelligence__coverage-form { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; }
+.runtime-intelligence-joint-deviation fieldset { display: flex; flex-wrap: wrap; gap: 12px; }
+.runtime-intelligence-joint-deviation .asset-process-intelligence__analysis-table { overflow: auto; max-width: 100%; }
+.runtime-intelligence-joint-deviation table { border-collapse: collapse; width: 100%; }
+.runtime-intelligence-joint-deviation :is(th, td) { padding: 8px; border: 1px solid var(--eng-border); text-align: left; vertical-align: top; }

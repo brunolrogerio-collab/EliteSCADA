@@ -151,8 +151,91 @@ test('process-stage member insights only query explicitly and clear/abort the ol
   await expect(visual.getByText(/Each report belongs only to the selected Equipment assignment/i)).toBeVisible();
 });
 
-function runtimeProjection() {
+test('stage availability v2 keeps usable reports independent and clears results for unavailable members', async ({ page }) => {
+  const fullOne = memberConfig(assignmentOne, scopeOne, profileOne, 'Pump one', 0, signalIdsOne);
+  const fullTwo = memberConfig(assignmentTwo, scopeTwo, profileTwo, 'Pump two', 1, signalIdsTwo);
+  const thirdId = '31000000-0000-0000-0000-000000000003';
   const members = [
+    { ...fullOne, availabilityVersion: 2, contextualDeviation: undefined },
+    { ...fullTwo, availabilityVersion: 2, performance: undefined },
+    { ...fullTwo, availabilityVersion: 2, assignmentId: thirdId, profileId: '71000000-0000-0000-0000-000000000007', order: 2, performance: undefined, contextualDeviation: undefined }
+  ];
+  const queries = await installStageFixture(page, members);
+  await page.goto('/');
+  const visual = page.getByTestId('runtime-intelligence-process-stage-insights');
+  const member = visual.getByTestId('runtime-intelligence-process-stage-insights-member');
+  await expect(visual).toHaveCSS('align-items', 'stretch');
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeEnabled();
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeDisabled();
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-performance').click();
+  const performance = visual.getByTestId('runtime-intelligence-performance');
+  await performance.getByLabel('From (local time)').fill('2026-10-20T10:00');
+  await performance.getByLabel('To (local time)').fill('2026-10-21T11:00');
+  expect(queries).toEqual([]);
+  await performance.getByRole('button', { name: 'Analyze' }).click();
+  await expect(performance.getByTestId('intelligence-performance-result')).toBeVisible();
+  await member.selectOption(assignmentTwo);
+  await expect(visual.getByTestId('runtime-intelligence-performance')).toHaveCount(0);
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeDisabled();
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeEnabled();
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-deviation').click();
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-v2')).toBeVisible();
+  await member.selectOption(thirdId);
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-v2')).toHaveCount(0);
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeDisabled();
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeDisabled();
+  await expect(visual.getByText(/Performance is not configured/)).toBeVisible();
+  await expect(visual.getByText(/Contextual deviation is not configured/)).toBeVisible();
+  expect(queries).toHaveLength(1);
+  expect(queries[0]).toMatchObject({ assignmentId: assignmentOne, scopeId: scopeOne, profileId: profileOne });
+});
+
+for (const invalid of ['legacy-missing-report', 'unknown-version', 'invalid-present-report', 'invalid-range', 'false-reference', 'null-reference', 'legacy-reference'] as const) {
+  test(`stage member configuration rejects ${invalid} without analytic reads`, async ({ page }) => {
+    const member: any = memberConfig(assignmentOne, scopeOne, profileOne, 'Pump one', 0, signalIdsOne);
+    if (invalid === 'legacy-missing-report') delete member.performance;
+    if (invalid === 'unknown-version') member.availabilityVersion = 3;
+    if (invalid === 'invalid-present-report') { member.availabilityVersion = 2; member.performance = null; }
+    if (invalid === 'false-reference') member.referenceEvidence = false;
+    if (invalid === 'null-reference') member.referenceEvidence = null;
+    if (invalid === 'legacy-reference') { delete member.availabilityVersion; member.referenceEvidence = true; }
+    if (invalid === 'invalid-range') { member.availabilityVersion = 2; member.contextualDeviation.firstContextUpperExclusiveCanonical = 0; }
+    const queries = await installStageFixture(page, [member]);
+    await page.goto('/');
+    const visual = page.getByTestId('runtime-intelligence-process-stage-insights');
+    await expect(visual.getByRole('alert')).toContainText(/invalid or incomplete/);
+    await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-member')).toHaveCount(0);
+    expect(queries).toEqual([]);
+  });
+}
+
+async function installStageFixture(page: import('@playwright/test').Page, members: unknown[]) {
+  const queries: Array<Record<string, any>> = [];
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'en'));
+  await page.routeWebSocket('**/ws/tags', () => {});
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/auth/config') return route.fulfill({ json: { authenticationEnabled: false, localLoginEnabled: false, initialAdministratorRequired: false } });
+    if (path === '/api/engineering/persistence/status') return route.fulfill({ json: { enabled: true, hasProjects: true } });
+    if (path === '/api/auth/effective-capabilities') return route.fulfill({ json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+      authenticationEnabled: false, runtime: ['View', 'TrendUse'], workspace: []
+    } });
+    if (path === '/api/runtime/application') return route.fulfill({ json: runtimeProjection(members) });
+    if (path === '/api/runtime/client-memory') return route.fulfill({ json: [] });
+    if (path === catalogPath) return route.fulfill({ json: performanceCatalog() });
+    if (path === queryPath) {
+      const body = route.request().postDataJSON(); queries.push(body);
+      return route.fulfill({ json: performanceResponse(body) });
+    }
+    if (path.includes('/analytics/')) queries.push({ unexpected: path });
+    return route.fulfill({ status: 404, json: {} });
+  });
+  return queries;
+}
+
+function runtimeProjection(membersOverride?: unknown[]) {
+  const members = membersOverride ?? [
     memberConfig(assignmentOne, scopeOne, profileOne, 'Pump P-101 · Pump profile', 0, signalIdsOne),
     memberConfig(assignmentTwo, scopeTwo, profileTwo, 'Pump P-102 · Pump profile', 1, signalIdsTwo)
   ];
@@ -213,7 +296,7 @@ function performanceCatalog() {
 function performanceResponse(body: Record<string, any>) {
   return {
     contractVersion: 1, catalogVersion: 1, ruleId, ruleVersion, projectKey, activeRevision: revision,
-    scopeKind: 'Equipment', scopeId: body.scopeId, assignmentId: body.assignmentId,
+    scopeKind: 0, scopeId: body.scopeId, assignmentId: body.assignmentId,
     equipmentId: body.scopeId, profileId: body.profileId, window: body.window,
     signals: body.signalIds.map((signalId: string, index: number) => ({
       signalId, signalKey: index === 0 ? 'Active input power' : 'Net good production rate',
@@ -232,4 +315,185 @@ function performanceResponse(body: Record<string, any>) {
       operatingRegimeEquivalence: 'unverified', expectedCadence: 'unknown', completeness: 'unknown',
       measurementInterpretation: 'recorded evidence only' }
   };
+}
+
+test('stage references query the selected member only and discard a cancelled response on member change', async ({ page }) => {
+  const references = [
+    memberConfig(assignmentOne, scopeOne, profileOne, 'Pump one', 0, signalIdsOne),
+    memberConfig(assignmentTwo, scopeTwo, profileTwo, 'Pump two', 1, signalIdsTwo)
+  ].map(({ performance: _performance, contextualDeviation: _deviation, ...member }) => ({ ...member, availabilityVersion: 2, referenceEvidence: true }));
+  await installStageFixture(page, references);
+  const queries: any[] = [];
+  let started!: () => void; const pending = new Promise<void>(resolve => { started = resolve; });
+  let release!: () => void; const delayed = new Promise<void>(resolve => { release = resolve; });
+  let completed = false;
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/reference-evidence/v1/query', async route => {
+    const body = route.request().postDataJSON(); queries.push(body);
+    const response = { contractVersion: 1, projectKey, activeRevision: revision, scopeId: body.scopeId, profileId: body.profileId,
+      referenceWindow: body.referenceWindow, referenceCohort: { completeRequiredNumericCohortCount: 120 },
+      signals: [{ signalId: body.profileId === profileOne ? signalIdsOne[0] : signalIdsTwo[0], tagPath: 'Pump.Current', unit: 'A', required: true,
+        reference: { rawObservationCount: 120, acceptedSynchronizedCount: 120, rejectedObservationCount: 0 } }] };
+    if (queries.length === 2) {
+      started(); await delayed;
+      try { await route.fulfill({ json: response }); } catch { /* The old member request is deliberately aborted. */ }
+      completed = true; return;
+    }
+    await route.fulfill({ json: response });
+  });
+  await page.goto('/');
+  const visual = page.getByTestId('runtime-intelligence-process-stage-insights');
+  const member = visual.getByTestId('runtime-intelligence-process-stage-insights-member');
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeDisabled();
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeDisabled();
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-reference').click();
+  const report = visual.getByTestId('runtime-intelligence-reference-evidence');
+  const from = report.getByLabel('Reference start (local time)', { exact: true });
+  const to = report.getByLabel('Reference end (local time)', { exact: true });
+  const query = report.getByRole('button', { name: 'Query reference', exact: true });
+  await from.fill('2026-10-20T10:00'); await to.fill('2026-10-20T11:00');
+  expect(queries).toEqual([]); await query.click();
+  await expect(report.getByTestId('intelligence-reference-evidence-result')).toBeVisible();
+  expect(queries[0]).toMatchObject({ scopeId: scopeOne, profileId: profileOne });
+  await expect.poll(() => report.evaluate(element => {
+    const container = element.closest('.runtime-intelligence-process-stage-insights')!;
+    const footer = container.querySelector('.runtime-intelligence-process-stage-insights__limit')!;
+    return footer.getBoundingClientRect().top >= element.getBoundingClientRect().bottom - 1;
+  })).toBe(true);
+  await from.fill('2026-10-20T10:01'); await query.click(); await pending;
+  await member.selectOption(assignmentTwo); await expect(report).toHaveCount(0);
+  release(); await expect.poll(() => completed).toBe(true);
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-reference').click();
+  await expect(report.getByTestId('intelligence-reference-evidence-result')).toHaveCount(0);
+  await from.fill('2026-10-20T10:00'); await to.fill('2026-10-20T11:00');
+  expect(queries).toHaveLength(2); await query.click();
+  await expect(report.getByTestId('intelligence-reference-evidence-result')).toBeVisible();
+  expect(queries[2]).toMatchObject({ scopeId: scopeTwo, profileId: profileTwo });
+  await member.selectOption(assignmentOne); await expect(report).toHaveCount(0);
+});
+
+test('stage conditions query the selected member context and discard cancelled reports', async ({ page }) => {
+  const references = [
+    memberConfig(assignmentOne, scopeOne, profileOne, 'Pump one', 0, signalIdsOne),
+    memberConfig(assignmentTwo, scopeTwo, profileTwo, 'Pump two', 1, signalIdsTwo)
+  ].map(({ performance: _performance, contextualDeviation: _deviation, ...member }) => ({ ...member, availabilityVersion: 2, referenceEvidence: true, operatingContexts: [{ id: member.scopeId, displayLabel: member.displayLabel, version: member.order + 1, predicateTagIds: [member.order === 0 ? signalIdsOne[0] : signalIdsTwo[0]] }] }));
+  await installStageFixture(page, references);
+  const queries: any[] = [];
+  let started!: () => void; const pending = new Promise<void>(resolve => { started = resolve; });
+  let release!: () => void; const delayed = new Promise<void>(resolve => { release = resolve; });
+  let completed = false;
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/query', async route => {
+    const body = route.request().postDataJSON(); queries.push(body);
+    const tagId = body.scopeId === scopeOne ? signalIdsOne[0] : signalIdsTwo[0];
+    const response = { contractVersion: 1, projectKey, activeRevision: revision, assignmentId: body.assignmentId,
+      measurementProfileId: body.scopeId === scopeOne ? profileOne : profileTwo, operatingContextProfileId: body.operatingContextProfileId, profileVersion: body.expectedProfileVersion,
+      referenceWindow: body.referenceWindow,
+      predicates: [{ tagId, referenceAcceptedCount: 120, referenceMatchCount: 90, comparisonAcceptedCount: null, comparisonMatchCount: null, status: 'context_match_available' }],
+      signals: [{ signalId: tagId, tagId, tagPath: body.scopeId === scopeOne ? 'PumpOne.Current' : 'PumpTwo.Current', engineeringUnit: 'A',
+        reference: { rawObservationCount: 120, acceptedSynchronizedUniqueCount: 120, contextEligibleObservationCount: 90, status: 'context_match_available', rejectionCounts: {} } }] };
+    if (queries.length === 2) {
+      started(); await delayed;
+      try { await route.fulfill({ json: response }); } catch { /* The old member request is deliberately aborted. */ }
+      completed = true; return;
+    }
+    await route.fulfill({ json: response });
+  });
+  await page.goto('/');
+  const visual = page.getByTestId('runtime-intelligence-process-stage-insights');
+  const member = visual.getByTestId('runtime-intelligence-process-stage-insights-member');
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeDisabled();
+  await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-deviation')).toBeDisabled();
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-context').click();
+  const report = visual.getByTestId('runtime-intelligence-context-eligibility');
+  const from = report.getByLabel('Period start (local time)', { exact: true });
+  const to = report.getByLabel('Period end (local time)', { exact: true });
+  const query = report.getByRole('button', { name: 'Query conditions', exact: true });
+  await from.fill('2026-10-20T10:00'); await to.fill('2026-10-20T11:00');
+  expect(queries).toEqual([]); await query.click();
+  await expect(report.getByTestId('intelligence-context-eligibility-result')).toBeVisible();
+  expect(queries[0]).toMatchObject({ scopeId: scopeOne, assignmentId: assignmentOne, operatingContextProfileId: scopeOne, expectedProfileVersion: 1 });
+  await expect.poll(() => report.evaluate(element => {
+    const container = element.closest('.runtime-intelligence-process-stage-insights')!;
+    const footer = container.querySelector('.runtime-intelligence-process-stage-insights__limit')!;
+    return footer.getBoundingClientRect().top >= element.getBoundingClientRect().bottom - 1;
+  })).toBe(true);
+  await from.fill('2026-10-20T10:01'); await query.click(); await pending;
+  await member.selectOption(assignmentTwo); await expect(report).toHaveCount(0);
+  release(); await expect.poll(() => completed).toBe(true);
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-context').click();
+  await expect(report.getByTestId('intelligence-context-eligibility-result')).toHaveCount(0);
+  await from.fill('2026-10-20T10:00'); await to.fill('2026-10-20T11:00');
+  expect(queries).toHaveLength(2); await query.click();
+  await expect(report.getByTestId('intelligence-context-eligibility-result')).toBeVisible();
+  expect(queries[2]).toMatchObject({ scopeId: scopeTwo, assignmentId: assignmentTwo, operatingContextProfileId: scopeTwo, expectedProfileVersion: 2 });
+  await visual.getByTestId('runtime-intelligence-process-stage-insights-reference').click(); await expect(report).toHaveCount(0);
+  await member.selectOption(assignmentOne); await expect(report).toHaveCount(0);
+});
+
+
+for (const invalidContext of ['legacy', 'empty', 'predicate-values', 'absent']) {
+  test(`stage conditions handle member context catalog: ${invalidContext}`, async ({ page }) => {
+    const member: any = memberConfig(assignmentOne, scopeOne, profileOne, 'Pump one', 0, signalIdsOne);
+    member.operatingContexts = [{ id: scopeTwo, displayLabel: 'Running', version: 3, predicateTagIds: [signalIdsOne[0]] }];
+    if (invalidContext !== 'legacy') member.availabilityVersion = 2;
+    if (invalidContext === 'empty') member.operatingContexts = [];
+    if (invalidContext === 'predicate-values') member.operatingContexts[0].minimum = 0;
+    if (invalidContext === 'absent') delete member.operatingContexts;
+    await installStageFixture(page, [member]); await page.goto('/');
+    const visual = page.getByTestId('runtime-intelligence-process-stage-insights');
+    if (invalidContext === 'absent') {
+      await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-context')).toBeDisabled();
+      await expect(visual.getByText(/no saved context in this view/)).toBeVisible();
+      await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeEnabled();
+    } else {
+      await expect(visual.getByRole('alert')).toBeVisible();
+      await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-context')).toHaveCount(0);
+    }
+  });
+}
+
+
+test('stage joint analyses use member-specific contexts and signals and cancel old member responses',async({page})=>{
+ const joint=(scope:string,version:number,ids:string[])=>({contexts:[{id:scope,displayLabel:`Context ${version}`,version,predicateTagIds:[stageId]}],signals:ids.map((id,i)=>({id,tagId:id,label:`Measurement ${i}`}))});
+ const members=[memberConfig(assignmentOne,scopeOne,profileOne,'Pump one',0,signalIdsOne),memberConfig(assignmentTwo,scopeTwo,profileTwo,'Pump two',1,signalIdsTwo)]
+  .map(({performance:_p,contextualDeviation:_d,...m},i)=>({...m,availabilityVersion:2,referenceEvidence:true,experimentalJoint:joint(m.scopeId,i+1,i===0?signalIdsOne:signalIdsTwo)}));
+ await installStageFixture(page,members);const queries:any[]=[];let started!:()=>void;const pending=new Promise<void>(resolve=>{started=resolve;});let release!:()=>void;const delayed=new Promise<void>(resolve=>{release=resolve;});let completed=false;
+ await page.route('**/api/engineering/asset-process-intelligence/analytics/experimental-joint-deviation/v1/query',async route=>{
+  const body=route.request().postDataJSON();queries.push(body);
+  const response={contractVersion:1,projectKey,activeRevision:revision,scopeId:body.scopeId,assignmentId:body.assignmentId,measurementProfileId:body.scopeId===scopeOne?profileOne:profileTwo,
+   operatingContextProfileId:body.operatingContextProfileId,operatingContextProfileVersion:body.expectedProfileVersion,expectedCadenceSeconds:body.expectedCadenceSeconds,
+   validationStatus:'experimental_not_field_validated',classificationStatus:'none',decisionThreshold:null,referenceWindow:body.referenceWindow,evaluationWindow:body.evaluationWindow,
+   referenceFitStatus:'available',referenceCompleteCohortCount:120,evaluationScoredCohortCount:1,evaluationWarmupCohortCount:40,omittedEvaluationScores:0,
+   targetSignals:body.targetSignalIds.map((signalId:string)=>({signalId})),scores:[{sourceTimestampUtc:body.evaluationWindow.fromUtc,score:2,levelComponent:1,relationshipComponent:1,crossSignalInteraction:0,
+   targetContributions:body.targetSignalIds.map((signalId:string)=>({signalId,level:.5,marginalVariance:.5}))}]};
+  if(queries.length===2){started();await delayed;try{await route.fulfill({json:response});}catch{/* Old member is aborted. */}completed=true;return;}
+  await route.fulfill({json:response});
+ });
+ await page.goto('/');const visual=page.getByTestId('runtime-intelligence-process-stage-insights');const member=visual.getByTestId('runtime-intelligence-process-stage-insights-member');
+ const jointButton=visual.getByTestId('runtime-intelligence-process-stage-insights-joint');await jointButton.click();
+ const report=visual.getByTestId('runtime-intelligence-joint-deviation');const query=report.getByRole('button',{name:'Calculate joint deviation',exact:true});
+ async function configure(){for(const n of [0,1])await report.getByRole('checkbox',{name:`Measurement ${n}`,exact:true}).check();
+  await report.getByLabel('Expected interval between readings (seconds)',{exact:true}).fill('60');
+  for(const [label,value] of [['Reference start','2026-10-20T10:00'],['Reference end','2026-10-20T11:00'],['Evaluation start','2026-10-20T11:01'],['Evaluation end','2026-10-20T12:00']])await report.getByLabel(label,{exact:true}).fill(value);
+ }
+ await configure();expect(queries).toEqual([]);await query.click();await expect(report.getByTestId('intelligence-joint-deviation-result')).toBeVisible();
+ expect(queries[0]).toMatchObject({scopeId:scopeOne,assignmentId:assignmentOne,operatingContextProfileId:scopeOne,expectedProfileVersion:1,targetSignalIds:signalIdsOne});
+ await report.getByLabel('Expected interval between readings (seconds)',{exact:true}).fill('61');await query.click();await pending;
+ await member.selectOption(assignmentTwo);await expect(report).toHaveCount(0);release();await expect.poll(()=>completed).toBe(true);
+ await jointButton.click();await expect(report.getByTestId('intelligence-joint-deviation-result')).toHaveCount(0);await configure();expect(queries).toHaveLength(2);await query.click();
+ await expect(report.getByTestId('intelligence-joint-deviation-result')).toBeVisible();expect(queries[2]).toMatchObject({scopeId:scopeTwo,assignmentId:assignmentTwo,operatingContextProfileId:scopeTwo,expectedProfileVersion:2,targetSignalIds:signalIdsTwo});
+ await visual.getByTestId('runtime-intelligence-process-stage-insights-reference').click();await expect(report).toHaveCount(0);expect(queries).toHaveLength(3);
+});
+
+for(const scenario of ['legacy','null','extra','no-targets','absent']){
+ test(`stage joint member configuration handles ${scenario}`,async({page})=>{
+  const member:any=memberConfig(assignmentOne,scopeOne,profileOne,'Pump one',0,signalIdsOne);
+  member.experimentalJoint={contexts:[{id:scopeOne,displayLabel:'Running',version:1,predicateTagIds:[stageId]}],signals:signalIdsOne.map((id,i)=>({id,tagId:id,label:`Measurement ${i}`}))};
+  if(scenario!=='legacy')member.availabilityVersion=2;
+  if(scenario==='null')member.experimentalJoint=null;if(scenario==='extra')member.experimentalJoint.cadence=60;
+  if(scenario==='no-targets')member.experimentalJoint.contexts[0].predicateTagIds=signalIdsOne;
+  if(scenario==='absent')delete member.experimentalJoint;
+  await installStageFixture(page,[member]);await page.goto('/');const visual=page.getByTestId('runtime-intelligence-process-stage-insights');
+  if(scenario==='absent'){await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-joint')).toBeDisabled();await expect(visual.getByText(/Joint deviation is not included/)).toBeVisible();await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-performance')).toBeEnabled();}
+  else{await expect(visual.getByRole('alert')).toBeVisible();await expect(visual.getByTestId('runtime-intelligence-process-stage-insights-joint')).toHaveCount(0);}
+ });
 }

@@ -30,6 +30,12 @@ Siga este percurso e aprofunde cada parte nas seções abaixo:
 
 Você pode começar por um equipamento. Contextos e etapas entram quando forem úteis à pergunta. O detalhe sobre horários, papéis dos sinais e limites está adiante para consulta durante a configuração.
 
+Use Onde deseja trabalhar? para ir direto a perfis, associações, contextos, etapas, painel ou equipamentos e locais habilitados para análise. Comece pelos perfis e associações; contexto e etapa só são necessários quando sua análise os utiliza. Navegar preserva o rascunho, sem salvar ou executar análise.
+
+Pronto para consultar significa que o item foi ativado para a revisão atual. Se aparecer Reative antes de consultar, confira licença e permissões e selecione Ativar novamente. Isso pode ser necessário após reinício ou restauração da autorização. O cabeçalho mostra o nome da aplicação; a revisão ativa identifica a versão publicada em uso.
+
+![Atalhos de configuração no celular, em aplicação sintética](../../evidence/intelligence-855/usability-mobile-navigation.png)
+
 ## 1. Começar pelo equipamento e pelos TAGs
 
 Escolha o Equipamento já cadastrado e os TAGs de medições úteis, como corrente, tensão, pressão, vazão ou temperatura. Para cada TAG, confira o tipo de valor e a unidade. Qualidade informa a condição da leitura; timestamp é seu horário de origem. Historian é o histórico gravado, que precisa ter dados no período escolhido. Inclua o sinal pela pergunta que ele ajuda a responder, não apenas porque existe.
@@ -38,29 +44,65 @@ Para editar, sua conta precisa das permissões `EngineeringModify` e `AssetProce
 
 ## 2. Criar perfil de medição e associação
 
-1. Abra Engineering > Inteligência de ativos e crie um Perfil de medição com nome/chave identificáveis.
-2. Adicione os TAGs que descrevem o equipamento. Marque cada sinal como obrigatório ou opcional e complete os qualificadores semânticos pedidos; um rótulo não substitui a unidade nem a referência real do TAG.
+1. Abra Engineering > Inteligência de ativos e crie um Perfil de medição. Dê um nome que ajude a reconhecer o conjunto, como “Bomba de transferência”.
+2. Adicione os TAGs que descrevem o equipamento. Para cada TAG, escreva o que ele mede, marque se é necessário para a análise e complete os detalhes semânticos solicitados. Confira a unidade e a referência real do TAG.
 3. Salve a configuração no Working.
-4. Na seção de associações, escolha o Equipamento existente e o perfil. Uma identidade de equipamento pode usar mais de um perfil.
+4. Na seção de associações, escolha o Equipamento existente e o perfil. Um equipamento pode usar mais de um perfil.
 5. Revise referências ausentes e duplicadas antes de salvar e seguir o lifecycle normal do projeto.
 
-O perfil organiza referências e significado dos sinais. Ele não cria TAGs, não habilita captura Historian por si só e não comprova que os instrumentos estão calibrados.
+O perfil organiza referências e significado dos sinais. As chaves internas são criadas pelo sistema; você não precisa inventar IDs ou códigos. O perfil não cria TAGs, não habilita captura Historian por si só e não comprova que os instrumentos estão calibrados.
 
 ## 3. Configurar contexto operacional
 
 Corrente maior pode ser esperada se velocidade ou carga aumentou. Um contexto operacional explicita condições, como bomba ligada e velocidade em uma faixa definida, para selecionar evidências comparáveis. Ele não aprende automaticamente o modo de operação nem transforma correlação em diagnóstico. Defina limites com conhecimento do equipamento.
 
-Escolha a associação do equipamento e dê ao contexto uma chave estável e um nome que explique a condição, como Bomba ligada em vazão normal. Adicione ao menos um predicado obrigatório. Predicado é uma condição a conferir num TAG do perfil associado.
+Escolha a associação do equipamento e dê ao contexto um nome que explique a condição, como “Bomba ligada em vazão normal”. Adicione ao menos uma condição usando um TAG do perfil associado. A chave interna do contexto é criada pelo sistema.
 
 Para número, o intervalo inclui mínimo e máximo e usa a unidade atual do TAG. Para booleano, escolha True ou False. Para String ou Enum, use o valor exato, incluindo maiúsculas quando aplicável.
 
-Todas as condições precisam ser comprovadas no mesmo timestamp UTC de origem, sincronizado e exato. Leituras apenas próximas no tempo não bastam. O servidor controla a versão do perfil; em conflito de edição, atualize a configuração e revise antes de salvar.
+Todas as condições precisam corresponder a leituras com exatamente o mesmo instante UTC de origem. Leituras apenas próximas no tempo não bastam. Se outra edição alterar o contexto, atualize a tela e revise as condições antes de salvar.
 
 ## 4. Organizar etapas do processo
 
-Use **Etapas ordenadas do processo** para montar a sequência que deseja acompanhar. Crie cada etapa com uma chave estável e um nome legível; adicione as associações de equipamento/perfil e ajuste a ordem explicitamente. A etapa organiza membros, mas não infere por si só causalidade, balanço ou um KPI agregado do processo.
+Use **Etapas ordenadas do processo** para montar a sequência que deseja acompanhar. Dê a cada etapa um nome legível, adicione as associações de equipamento/perfil e ajuste a ordem. A chave interna é criada pelo sistema. A etapa organiza membros, mas não infere por si só causalidade, balanço ou um KPI agregado do processo.
 
 Salve a configuração no Working. Dados e análises de Runtime continuam sujeitos à revisão Active e às autorizações vigentes.
+
+Para uma etapa, o mesmo gerador oferece Cobertura por equipamento e Análises por equipamento. A lista mostra o que já está configurado em cada membro. Use Configurar este equipamento para escolher as regras e sinais que faltam; depois volte ao gerador. Não é necessário configurar desvio em todos para gerar desempenho nos demais. As vistas selecionadas são Telas vinculadas e editáveis. No Runtime, escolha o equipamento e a análise, informe o período e consulte. Cada resultado continua pertencendo somente ao equipamento escolhido.
+
+Para conferir uma referência no Runtime, escolha um perfil de equipamento no gerador e marque Conferir dados da referência. A opção acrescenta uma Tela própria; não depende de configurar desempenho ou desvio. Aplique o conjunto, salve, publique e ative. No Runtime ao vivo, abra Dados da referência, escolha um período conhecido e selecione Consultar referência. Você verá leituras recebidas, aceitas e rejeitadas por sinal e quantas puderam ser usadas juntas. Se quiser comparar outro período, marque Comparar com outro período e informe um intervalo posterior, sem sobreposição. Uma contagem alta não comprova que o equipamento estava saudável. Mudar os períodos limpa o resultado. Editor e reprodução histórica não executam esta consulta.
+
+![Consulta no Runtime com dados sintéticos de validação](../../evidence/intelligence-855/reference-runtime.png)
+
+Para consultar referências dos equipamentos de uma etapa, escolha a etapa no gerador e marque Dados da referência por equipamento. Não é necessário configurar desempenho ou desvio. A opção usa a mesma Tela de análises da etapa; o conjunto continua com até três Telas. No Runtime, abra Análises por equipamento, escolha o equipamento e selecione Dados da referência. Informe os períodos e consulte. Ao escolher outro equipamento, o relatório anterior é fechado, a consulta em andamento é cancelada e o resultado é limpo; nada é consultado automaticamente para o novo equipamento.
+
+![Referência do equipamento selecionado na etapa, com dados sintéticos](../../evidence/intelligence-855/stage-reference-results.png)
+
+Para levar as condições de operação ao Runtime, primeiro salve um contexto na associação do equipamento. No gerador, escolha esse perfil e marque Condições de operação. A opção acrescenta uma Tela própria e funciona sem desempenho ou desvio configurados. Aplique o conjunto, salve, publique e ative. No Runtime ao vivo, abra Condições de operação, escolha Contexto salvo pelo nome, informe o início e o fim do período e clique em Consultar condições. Para comparar, use outro período posterior, sem sobreposição. O resultado mostra quantas leituras atendem a cada condição e quantas atendem a todas ao mesmo tempo. Por exemplo, uma condição de pressão entre 0 e 200 kPa pode selecionar leituras que uma faixa de 0 a 50 kPa exclui. Zero leituras compatíveis não significa equipamento saudável: significa que o período não fornece dados nas condições escolhidas. Trocar o contexto ou os períodos limpa o resultado anterior. Se o contexto mudar na Engenharia, gere e publique novamente a vista; ela não assume silenciosamente uma nova versão. Editor e reprodução histórica não executam a consulta.
+
+![Condições de operação no Runtime, com dados sintéticos de validação](../../evidence/intelligence-855/context-runtime.png)
+
+Para consultar condições nos equipamentos de uma etapa, escolha a etapa no gerador e marque Condições de operação por equipamento. Basta ter um contexto salvo em pelo menos uma associação da etapa; não é necessário configurar desempenho ou desvio. As condições usam a mesma Tela de análises, mantendo o conjunto com até três Telas. No Runtime, abra Análises por equipamento, escolha o equipamento, clique em Condições de operação e escolha Contexto salvo pelo nome. Informe os períodos e consulte. Somente os contextos daquele equipamento aparecem. Se ele não tiver contexto incluído, a página explica o que falta e mantém suas outras análises disponíveis. Ao trocar de equipamento ou análise, o relatório anterior é fechado, a leitura pendente é cancelada e o resultado é limpo. Nenhuma consulta começa automaticamente. Se alterar um contexto na Engenharia, gere e publique novamente a vista para usar a nova versão.
+
+![Condições do equipamento selecionado na etapa, com dados sintéticos](../../evidence/intelligence-855/stage-context-second-results.png)
+
+Para acompanhar o desvio conjunto no Runtime, escolha um perfil de equipamento no gerador e marque Desvio conjunto experimental. É preciso ter contexto salvo e pelo menos duas medições numéricas distintas fora das condições desse contexto. A opção acrescenta uma Tela própria, sem exigir desempenho ou desvio contextual. Aplique o conjunto, salve, publique e ative.
+
+No Runtime ao vivo, abra Desvio conjunto (experimental), escolha Contexto salvo e marque de duas a oito medições pelo nome. Informe o intervalo real entre leituras em segundos: por exemplo, 60 para uma leitura por minuto. Escolha referência e avaliação, sem sobreposição, e clique em Calcular desvio conjunto. A consulta não começa ao abrir a Tela.
+
+Confira primeiro quantos instantes completos sustentam a referência, quantos geraram score e quantos ficaram em aquecimento. Dados insuficientes não significam funcionamento normal: revise contexto, períodos e leituras. Nos resultados, abra Contribuições das medições para investigar quais variaram. O score descreve afastamento da referência, sem unidade física; um número maior não confirma defeito.
+
+Esta análise é experimental, validada por simulação, sem previsão de vida útil ou limiar de alarme validado.
+
+Trocar contexto, medições, cadência ou períodos limpa o resultado. Editor e reprodução histórica não calculam. Se mudar o contexto na Engenharia, gere e publique a vista novamente.
+
+![Desvio conjunto no Runtime com dados sintéticos](../../evidence/intelligence-855/joint-results.png)
+
+Para incluir o score nos equipamentos de uma etapa, escolha a etapa no gerador e marque Desvio conjunto experimental por equipamento. Basta que pelo menos uma associação tenha contexto salvo que deixe duas medições numéricas distintas fora de suas condições. Não precisa marcar desempenho, referência ou condições de operação. A opção usa a mesma Tela de análises, mantendo até três Telas no conjunto. Aplique, salve, publique e ative.
+
+No Runtime, abra Análises por equipamento, escolha o equipamento e selecione Desvio conjunto (experimental). Escolha contexto e medições pelo nome; informe a cadência real e os períodos e solicite o cálculo. O resultado pertence somente ao equipamento escolhido. Se outro membro não tiver requisitos, a página explica a ausência e mantém as outras vistas disponíveis. Ao trocar equipamento ou análise, o formulário anterior é fechado, a leitura pendente é cancelada e o resultado é limpo; nada é consultado automaticamente. O score continua experimental, sem diagnóstico, vida útil ou limiar de alarme validado em campo.
+
+![Desvio conjunto do equipamento da etapa, com dados sintéticos](../../evidence/intelligence-855/stage-joint-results.png)
 
 ## 5. Consultar análises
 
@@ -72,24 +114,69 @@ Interprete o resultado junto com a cobertura, quality, timestamps e limitações
 
 ## 6. Gerar rascunhos de telas
 
-Escolha um perfil ou uma etapa e gere a tela disponível. A geração usa metadados dos TAGs para criar uma Screen editável; não consulta valor ao vivo nem Historian e não inventa KPIs. Analise o rascunho no editor, execute Preview e use Apply ao Workspace. Depois, salve, publique e ative pelas etapas explícitas do lifecycle. A tela gerada não é ativada automaticamente.
+Salve primeiro as alterações pendentes da configuração da Intelligence. Na parte superior da página, localize **Gerar painel para o Runtime** e selecione em **Conteúdo do painel** um perfil de equipamento ou uma etapa do processo. A lista mostra os nomes cadastrados; você não precisa digitar IDs. O gerador básico precisa encontrar ao menos um TAG numérico resolvido. Se nada puder ser escolhido, complete o perfil, a associação ou a etapa e confira a licença e as permissões.
+
+Clique em **Gerar rascunho do painel**. O SCADIVO abre uma Tela comum e editável no editor canônico, com cartões de valores, tendência e cobertura construídos a partir dos TAGs existentes. Isso é um rascunho: não consulta valores atuais nem Historian, não inventa KPIs e não publica a Tela.
+
+No editor, confira nomes, unidades, dimensões, vínculos e legibilidade. Use **Pré-visualizar** e **Aplicar ao Workspace**; depois salve, publique e ative a revisão do projeto e configure/confira a navegação do Runtime. Só então a Tela poderá ser aberta pelos operadores. As ações guiadas especializadas ficam junto às análises correspondentes e podem pedir regras ou faixas adicionais.
+
+Se o gerador criar Telas vinculadas, Pré-visualizar e Aplicar ao Workspace incluem todo o conjunto para preservar os destinos da navegação. Revise o conjunto antes de aplicar.
 
 ## 7. Problemas comuns
+
+
+### Escolher os objetos e as análises do painel
+
+Depois de escolher a origem, abra cada medição em **Objetos de medição**. Você pode usar valor numérico, gauge semicircular, anel, barra horizontal, régua vertical, faixas ou valor com meta. A escolha visual não muda o TAG nem o cálculo. O tema dos objetos pode ser claro, escuro ou de alto contraste.
+
+Para um objeto com escala, confira mínimo e máximo na unidade do TAG. Se já houver escala válida no cadastro, ela será preenchida; caso contrário, informe os limites reais. Em Faixas, informe dois limites ordenados dentro da escala. Em Valor e meta, informe uma meta dentro dos limites. A geração fica bloqueada com intervalos incompletos ou inválidos. Você pode usar Valor numérico quando não dispõe de uma escala adequada.
+
+Em **Conteúdo analítico do painel**, desempenho e desvio contextual ficam disponíveis quando suas seleções estiverem completas na associação. Use **Configurar análises da associação** para chegar aos controles existentes. Cada análise pode ser incluída independentemente. Ao gerar mais de uma vista, as Telas recebem botões de navegação entre si. Uma análise indisponível não impede gerar as outras vistas; confira o motivo antes de alterar o significado dos sinais.
+
+Os painéis gerados usam um fundo escuro próprio para manter o contraste nos temas claro e escuro do sistema. Você pode alterá-lo em Fundo, no editor de Telas; confira também as cores dos textos e valores ao escolher outro fundo.
 
 - **Recurso bloqueado:** confira licença, `EngineeringModify`, `AssetProcessIntelligenceManage` e escopo.
 - **Perfil ou associação incompleta:** confira equipamento, perfil, TAGs e qualificadores obrigatórios.
 - **Sem cobertura/histórico:** confirme se o TAG recebia amostras com quality e timestamps úteis e se a captura existia no período. Historian não preenche dados retroativamente.
-- **Contexto sem correspondência:** revise predicados, unidade, intervalo e sincronização/igualdade temporal requerida.
+- **Contexto sem correspondência:** revise as condições, a unidade, o intervalo e se as leituras têm o mesmo horário de origem.
 - **Rascunho indisponível:** complete as seleções exigidas pelo tipo de tela e use o editor normal para corrigir o resultado.
 - **Resultado diferente após edição:** salve a configuração correta, confira a revisão Active e faça uma nova consulta explícita.
 
 **Ajuda relacionada:** `/help?topic=historian.overview`, `/help?topic=tags.quality`, `/help?topic=tags.timestamps`, `/help?topic=screens.overview`, `/help?topic=engineering.lifecycle`.
+
+## Confira os dados antes de interpretar
+
+Em Engenharia > Inteligência de ativos, localize a associação do equipamento. Em Conferir dados da referência, escolha início e fim de um período conhecido e clique em Consultar referência. Os horários são locais e convertidos para UTC. Cada período pode ter até 31 dias. Leituras aceitas têm a evidência de origem exigida; rejeições explicam por que outras leituras ficaram de fora. A contagem não comprova que o equipamento estava saudável.
+
+Em Conferir condições do contexto, selecione um contexto salvo pelo nome e consulte o período. O SCADIVO usa a versão salva automaticamente. O resultado informa quantas leituras atendem a todas as condições no mesmo instante de origem. Zero leituras compatíveis pode significar condições não atendidas ou dados insuficientes; confira a explicação apresentada. Publique as alterações e ative o equipamento antes de consultar.
+
+## Use o desvio conjunto experimental
+
+Abra Desvio conjunto experimental na associação. Escolha o contexto salvo e de duas a oito medições numéricas; medições que definem as condições do contexto ficam fora da lista de alvos. Informe o intervalo real de aquisição em segundos, de 1 a 86.400. Não invente esse valor: ele descreve a frequência esperada das leituras. Escolha uma referência e um período posterior de avaliação, sem sobreposição, e clique em Calcular desvio conjunto.
+
+O resultado mostra quantos instantes puderam ser avaliados e quantos ficaram em aquecimento. O desvio combina mudanças de nível e da relação entre sinais. Expanda Contribuições das medições para investigar a participação de cada sinal. Esses números não têm unidade física e não diagnosticam causa, falha ou vida útil. A função é experimental, validada somente por simulação e sem limiar de alarme validado em campo.
+
+Use Cancelar consulta para interromper. Mudar período, contexto, sinais ou cadência descarta o resultado anterior; é preciso consultar novamente. Se a referência não puder ser ajustada, confira dados, qualidade, sincronização, contexto e variação dos sinais antes de ampliar períodos.
+
+## Entenda as contagens e as condições
+
+As análises são consultadas sob demanda: editar perfis ou ativar um escopo não inicia análise contínua. Na referência, leia os motivos ao lado de Não disponível. Um sinal obrigatório de texto, opção ou verdadeiro/falso não entra na coorte numérica obrigatória; a contagem dos sinais numéricos do perfil continua sendo apresentada separadamente. Contagem zero de um tipo não consultado não prova ausência de histórico.
+
+Na consulta de contexto, veja primeiro Condições do contexto: leituras aceitas e quantas atenderam a cada condição. Uma condição de modo pode ser textual e ainda selecionar os instantes válidos para corrente ou vazão. Depois confira as medições nas condições selecionadas. Essas contagens não comprovam saúde ou eficiência.
+
+## Compare dois períodos e cancele consultas
+
+Nas consultas de referência e condições do contexto, marque Comparar com outro período se quiser conferir a evidência em duas janelas. Preencha o início e o fim da comparação. Cada janela pode ter até 31 dias, e o início da comparação deve ser estritamente posterior ao fim da referência: não use o mesmo instante nos dois limites. A consulta fica indisponível enquanto houver campos vazios, período invertido ou sobreposição.
+
+Consulte e leia as contagens de cada período. A comparação de contagens não é, por si só, um indicador de eficiência. Desmarcar a comparação ou alterar qualquer limite remove o resultado anterior. Durante a leitura, use Cancelar consulta: uma resposta atrasada não deve reaparecer na tela. Para consultar novamente, confira os parâmetros e clique no botão de consulta.
 
 <!-- installed-system-guides -->
 
 ## Intelligence: habilitar, pausar e resolver bloqueios
 
 Escolha quais equipamentos analisar, prepare a configuração e ative o uso. Ter a licença não inicia análises automaticamente.
+
+<!-- HELP-REVIEW-AFTER-PRODUCT-858-INTELLIGENCE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/858; topic=intelligence.activation; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
 
 ### Siga a sequência completa
 
@@ -98,6 +185,10 @@ Comece com um equipamento, como Bomba 01. Abra Engenharia > Inteligência de ati
 O perfil é a lista de sinais e seus significados. A associação liga esse perfil ao Equipamento cadastrado. Configure contextos e etapas somente quando fizerem sentido para sua pergunta. Depois salve, publique e ative a revisão do projeto.
 
 Há ainda uma decisão separada: ativar explicitamente o recurso selecionado para permitir as análises. Criar o perfil, marcar uma caixa ou possuir a licença não faz essa ativação por você.
+
+Use Onde deseja trabalhar? para ir direto a perfis, associações, contextos, etapas, painel ou equipamentos e locais habilitados para análise. Comece pelos perfis e associações; contexto e etapa só são necessários quando sua análise os utiliza. Navegar preserva o rascunho, sem salvar ou executar análise.
+
+Pronto para consultar significa que o item foi ativado para a revisão atual. Se aparecer Reative antes de consultar, confira licença e permissões e selecione Ativar novamente. Isso pode ser necessário após reinício ou restauração da autorização. O cabeçalho mostra o nome da aplicação; a revisão ativa identifica a versão publicada em uso.
 
 ### Permissões e seleção de recursos
 
@@ -165,6 +256,8 @@ Outras regras podem usar potência elétrica de entrada, vazão e diferença de 
 
 Comece conferindo os dados do período. Depois escolha um cálculo e, se precisar, gere uma tela para consultar no Runtime.
 
+<!-- HELP-REVIEW-AFTER-PRODUCT-857-INTELLIGENCE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/857; topic=intelligence.analysis-guide; fields=; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
+
 ### Comece pela cobertura
 
 Cobertura responde à primeira pergunta: há dados utilizáveis para esta análise? Com a associação salva e a execução autorizada, abra a consulta de cobertura do perfil. Escolha início e fim e solicite a consulta.
@@ -172,6 +265,80 @@ Cobertura responde à primeira pergunta: há dados utilizáveis para esta análi
 O formulário mostra horários locais; a consulta identifica também a janela UTC, a referência de tempo comum usada para comparar os dados. O fim deve ser posterior ao início.
 
 Confira quais sinais obrigatórios têm dados, quantas amostras foram aceitas ou rejeitadas, a qualidade e o alinhamento dos horários. Só depois interprete mínimo, máximo ou média. Muitas amostras, por si só, não provam que não há lacunas nem que todos os sinais foram medidos juntos.
+
+Em Agrupar leituras a cada, escolha 15 ou 30 minutos, 1 hora, 6 horas ou 24 horas. O padrão é 15 minutos. Essa escolha define os intervalos da consulta; não muda a captura do Historian nem preenche leituras ausentes. Alterar a opção limpa o resultado anterior; clique Analisar cobertura para consultar novamente.
+
+Depois de consultar a cobertura, abra Detalhes e comparação desta medição dentro do sinal desejado. Primeiro e último valor são leituras Boas aceitas nos horários de observação do Historian; não são uma garantia do instante de aquisição do sensor. Variação no período significa último menos primeiro, na unidade do TAG. Em Leituras por intervalo, confira início/fim, aceitas/rejeitadas, mínimo, máximo e média. Intervalos vazios ficam sem valor; média de amostras não é média ponderada pelo tempo.
+
+Para comparar esse sinal, preencha Início e Fim da comparação estatística e escolha o agrupamento. Use até 31 dias e a mesma duração da cobertura atual. A comparação pode ser anterior, posterior ou sobreposta; períodos sobrepostos reutilizam leituras e não são amostras independentes. Clique Comparar estatísticas. A resposta mostra diferenças do período atual menos o comparado: quantidade de amostras, mínimo, máximo, média, primeiro, último e variação. São diferenças descritivas; não comprovam mesmo regime, eficiência ou defeito. Não disponível não significa zero. Alterar os campos limpa o resultado; Cancelar comparação descarta a solicitação em andamento. Para mudar o período atual, consulte novamente a cobertura. Nenhuma comparação é salva no projeto nem executada ao abrir os detalhes.
+
+### Consultar a taxa líquida de uma medição
+
+Depois de consultar a cobertura, abra os detalhes do sinal e Taxa líquida observada. Clique Consultar taxa líquida. A consulta usa o mesmo período da cobertura; não começa automaticamente ao abrir o painel. Exemplo: a primeira leitura aceita é 2 A e a última é 8 A, separadas por 60 segundos no Historian. A taxa é (8 − 2) / 60 = 0,1 A/s. Se o valor cai, a taxa é negativa.
+
+Confira primeira e última leitura, seus horários, os segundos entre os extremos e as quantidades recebidas, aceitas e rejeitadas. Só leituras Boas, numéricas e finitas são aceitas. A unidade é a do TAG por segundo, sem conversão. Menos de duas leituras aceitas, horários sem intervalo positivo, unidade ausente ou limite numérico deixam a taxa indisponível. Não disponível não significa zero; não invente uma unidade para habilitar a consulta.
+
+Essa taxa descreve apenas a mudança entre os extremos. Não é uma derivada instantânea, média de taxas, diagnóstico ou prova de eficiência. Ela também não comprova que o período está completo ou que as condições de operação são equivalentes. O limite é 31 dias e 50 mil registros brutos; uma recusa não deve ser contornada ocultando dados. Cancelar consulta da taxa descarta a solicitação em andamento. Mudar o período ou agrupamento da cobertura retira o resultado. Nada é salvo no projeto. Os mesmos detalhes ficam disponíveis na cobertura do Runtime, sujeitos aos mesmos acessos e à execução autorizada.
+
+### Comparar uma medição sob uma condição
+
+Esta consulta fica na Engenharia > Inteligência de ativos, dentro da associação do equipamento com seu perfil. Abra Comparar uma medição sob uma condição. Ela atende o caso em que você quer analisar um sinal e limitar a análise por outro: por exemplo, observar corrente do motor quando a frequência medida fica entre 49 e 51 Hz. Para levar esta consulta ao operador, clique Criar tela desta comparação na associação. A vista vetorial usa várias medições e condições; não é a mesma consulta.
+
+1. Escolha Medição a analisar e Condição medida pelos nomes. Ambos devem ser sinais numéricos distintos do mesmo perfil. A condição precisa de unidade controlada reconhecida. Se a lista estiver vazia, confira os TAGs associados, o tipo dos dados e a unidade controlada da condição. Texto livre da unidade não substitui essa configuração.
+2. Preencha Limite inferior incluído e Limite superior excluído na unidade indicada. Para 49 e 51 Hz, entra 49, entra 50, mas não entra 51. Não use a unidade de exibição de outro TAG: se o formulário indica Pa, 50 kPa devem ser expressos como 50000 Pa.
+3. Escolha início/fim da referência e da avaliação em horário local. Cada período pode ter até 31 dias. A avaliação precisa começar depois do fim da referência, sem sobreposição nem extremo compartilhado. As durações podem ser diferentes. Escolher uma referência não prova que o equipamento estava saudável.
+4. Clique Comparar medição. Só esse clique consulta o histórico. Para funcionar, a revisão deve estar publicada/ativa, o equipamento autorizado para análise e seu usuário deve ter licença e permissões de tendência/leitura dos dois TAGs. Alterar campos limpa o resultado; Cancelar comparação da medição descarta a solicitação em andamento.
+5. Confira Mediana da referência, o valor central das leituras selecionadas. A Dispersão da referência (MAD) é a mediana das distâncias até esse valor; não é desvio padrão. Em Ver amostras avaliadas, a diferença bruta é valor do alvo menos mediana da referência, na unidade original do alvo. O score robusto é 0,67448975 vezes essa diferença, dividida pelo MAD. Só fica disponível com pelo menos 30 pares de referência e MAD positivo. Poucos pares ou MAD zero podem deixar o score indisponível mesmo quando há uma diferença bruta. Não disponível não significa zero.
+6. Em Conferir pares, rejeições e qualidade, confira cada período e cada sinal: recebidas, Boas numéricas, sincronizadas, rejeitadas, grupos ambíguos e motivos. Os pares usam horários de origem exatamente iguais e evidência explícita de sincronização. Não há aproximação, interpolação ou preenchimento. A janela do Historian também limita a consulta; os horários de registro de cada sinal aparecem junto do horário de origem.
+
+O limite conjunto é 50 mil registros brutos dos dois sinais e períodos. São retornadas até 500 amostras de avaliação; confira a quantidade omitida. Valores fora da faixa da condição permanecem identificados e não ganham score ou diferença. Os resultados não são salvos no projeto. A consulta não diagnostica falhas, não mede eficiência nem comprova simultaneidade física, mesmo regime ou completude do histórico.
+
+Para usar no Runtime: Criar tela desta comparação gera um rascunho separado com até 16 referências de medições, sem resultados, períodos ou faixas pré-preenchidos. Revise a tela no editor, valide/aplique o rascunho, salve, publique e ative a revisão. Criar o rascunho não grava nem consulta o histórico. No Runtime ao vivo, abra a tela e selecione medições, faixa e períodos para consultar. Editor e reprodução histórica não executam essa análise. Trocar sessão/contexto remove resultados; voltar ao vivo não repete a consulta automaticamente. A API continua exigindo licença, revisão e autorização de execução/leitura. Esta ação cria uma tela do perfil. Para compor várias vistas ou uma etapa, use o gerador central.
+
+No gerador central, escolha um perfil e marque Medições sob uma condição. Para uma etapa, marque Medição sob condição por equipamento. A opção é independente de desempenho, corrente/frequência e desvio de várias medições: não é preciso configurar essas análises para usar esta. Cada equipamento precisa de 2 a 16 medições numéricas distintas, com ao menos uma condição de unidade controlada reconhecida. A falta de requisitos desabilita somente esta opção; as demais vistas continuam disponíveis. Revise as telas geradas antes de aplicar, salvar, publicar e ativar. No Runtime da etapa, escolha o equipamento e depois Comparar uma medição sob uma condição. Os resultados pertencem apenas ao equipamento selecionado, não à etapa inteira. Trocar equipamento ou análise retira o resultado, sem nova consulta automática. O conjunto completo pode ter oito telas vinculadas por perfil; use os botões de navegação para alternar entre elas.
+
+### Várias medições sob uma condição: usar a mesma referência
+
+Quando quiser analisar várias medições juntas, abra Comparar várias medições na mesma condição. Essa opção aparece junto da consulta individual na mesma tela, na Engenharia e no Runtime, quando o perfil oferece pelo menos três sinais numéricos e uma condição de unidade controlada. Não é preciso cadastrar uma segunda condição nem adicionar um sensor fictício.
+
+1. Em Medições analisadas juntas, marque de dois a oito alvos pelos nomes. Escolha em Condição comum outro sinal numérico, com unidade controlada reconhecida. Um sinal não pode ser alvo e condição ao mesmo tempo.
+2. Digite Limite inferior incluído e Limite superior excluído na unidade indicada. Por exemplo, com 49 e 51 Hz entram 49 e 50, mas não 51. Se a unidade indicada for Pa, expresse 50 kPa como 50000 Pa; não use a unidade de exibição de outro TAG.
+3. Escolha início/fim da referência e da avaliação em horário local. Use até 31 dias por período. A avaliação deve começar depois do fim da referência, sem extremo compartilhado; as durações não precisam ser iguais.
+4. Clique Comparar conjunto de medições. Abrir o painel ou marcar alvos não consulta o histórico. O servidor exige revisão ativa, execução autorizada, licença e tendência/leitura de todos os TAGs. Alterar campos, sessão ou contexto remove o resultado anterior; Cancelar consulta do conjunto descarta a solicitação em andamento.
+5. Confira os conjuntos completos: são os instantes em que todos os alvos e a condição têm leituras Boas, numéricas, finitas, com horário de origem exatamente igual e evidência explícita de sincronização. Não há aproximação, interpolação nem preenchimento de faltantes. Para calcular a referência, o servidor usa apenas os conjuntos em que a condição está dentro da faixa escolhida.
+6. Leia a mediana e a dispersão (MAD) de cada alvo. MAD é a mediana das distâncias até a mediana, não desvio padrão. Em Ver conjuntos avaliados, veja valores, diferenças brutas e scores por alvo. Diferença é valor avaliado menos mediana da referência, na unidade original do alvo. Score robusto é 0,67448975 vezes essa diferença dividido pelo MAD; só existe com pelo menos 30 conjuntos completos de referência dentro da faixa e MAD positivo. MAD zero ou poucos conjuntos podem deixar score indisponível mesmo com diferença bruta válida. Não disponível não significa zero.
+7. Em Conferir leituras e rejeições do conjunto, confira recebidas, Boas numéricas, sincronizadas, rejeitadas, grupos ambíguos, qualidade e motivos por sinal/período. Um único sinal ausente reduz o conjunto comum. São retornados até 500 conjuntos de avaliação, com limite total de 50 mil registros brutos; confira omitidos.
+
+Por que não repetir consultas individuais? Imagine que A tem valores 1, 3 e 100, mas B não tem leitura no terceiro instante. A consulta conjunta usa A=1 e 3, com mediana 2. A consulta individual de A usa os três valores, com mediana 3. Se a avaliação de A for 4, a diferença é 2 na conjunta e 1 na individual. São referências diferentes, sem erro de cálculo.
+
+Essa opção usa uma condição comum. O desvio vetorial com duas condições continua separado. Nenhum deles produz diagnóstico, score global de saúde, previsão de falha ou prova de eficiência/regime equivalente. Dados de campo continuam necessários para validações futuras. Para gerar a tela, use a opção de medições sob condição no compositor; o perfil precisa de pelo menos três referências para oferecer o conjunto, enquanto dois sinais continuam permitindo a consulta individual.
+
+### Comparar a corrente em uma faixa de frequência
+
+Imagine que o motor consumia cerca de 5 A e agora consome 6 A. Antes de interpretar essa mudança, confira se as medições foram obtidas na faixa de frequência que você quer investigar. Esta consulta compara duas partes do histórico; ela não aprende um padrão nem diagnostica o motor.
+
+1. Em Engenharia > Inteligência de ativos, encontre o equipamento e seu perfil em Associações. Abra Comparar corrente em frequência semelhante.
+2. Escolha a medição de corrente e a frequência medida. O significado fica escrito também abaixo de cada seletor. Frequência elétrica do inversor não é rotação do eixo. RMS indica o valor eficaz da corrente; linha, fase e barramento CC são medições diferentes. Escolha a que realmente existe na sua instalação.
+3. Informe uma faixa em Hz, como 49 a 51. Os limites são incluídos e a mesma faixa vale para os dois períodos. Hz significa ciclos por segundo; não digite rpm como se fosse Hz.
+4. Escolha o período principal e o período de comparação, ambos em horário local. Use a mesma duração, até 31 dias cada. Eles não podem se sobrepor nem compartilhar um extremo. Por exemplo: principal das 10h às 11h do dia 22 e comparação das 10h às 11h do dia 20. A comparação pode ser anterior ou posterior.
+5. Clique Comparar corrente. Abrir o painel e alterar campos não consulta o histórico. Cancelar consulta interrompe a solicitação; mudar uma escolha retira o resultado anterior.
+6. Leia as duas médias, a diferença e a variação percentual. Com principal de 6 A e comparação de 5 A, o exemplo mostra +1 A e +20%. O sinal vem de principal menos comparação; inverter os períodos muda a referência.
+7. Confira também os pares aproveitados, os que ficaram fora da faixa e as leituras rejeitadas. Se houver menos de dois pares utilizáveis em algum período, o resultado fica indisponível. Se a média de comparação for zero, a diferença pode existir, mas o percentual fica indisponível.
+
+Pré-requisitos: salve a associação, publique/ative a revisão, ative o equipamento para análise e tenha licença e permissões de tendência/leitura dos dois TAGs. Os TAGs precisam existir na fonte ativa do Runtime, além de estarem cadastrados no perfil. Se faltarem opções, revise o significado e a unidade controlada no cadastro. Este método aceita o catálogo semântico 1: corrente elétrica com tipo explícito e unidade controlada ampere; frequência com saída medida, referência explícita e unidade controlada hertz, também do catálogo de unidades 1. Não basta escrever A/Hz no campo livre. Setpoint, rpm e versões de catálogo incompatíveis não são convertidos por suposição.
+
+O servidor usa apenas leituras numéricas de qualidade Boa, com horário de origem sincronizado e exatamente igual entre corrente e frequência. Não aproxima horários nem preenche lacunas. As médias são de amostras, não ponderadas pelo tempo; o limite conjunto é 50.000 leituras brutas. Frequência semelhante não comprova mesma carga, regime de processo, eficiência ou defeito. Cadência, completude e simultaneidade física não estão comprovadas. Para o operador, use o gerador de painel: selecione o perfil e marque Corrente em frequência semelhante. Para uma etapa, marque Corrente e frequência por equipamento. Essa escolha é independente de desempenho, contexto e desvio conjunto; não exige sensores que você não tem. Gere os rascunhos, confira as telas no editor, valide/aplique ao Working, salve, publique e ative a revisão. Gerar não consulta o histórico. No Runtime ao vivo, abra a vista, escolha as medições, períodos e faixa e solicite a consulta. Na etapa, escolha primeiro o equipamento e depois Corrente em frequência semelhante; o resultado pertence apenas ao membro selecionado. Membros sem corrente/frequência compatíveis mantêm as outras vistas e mostram essa comparação desabilitada. Trocar membro, período ou contexto remove o resultado anterior. Editor e reprodução histórica não executam essa consulta. Após reiniciar o servidor ou uma revogação, confira a ativação e reative explicitamente se solicitado; a tela salva não reabre a autorização de execução.
+
+| Campo | Para que serve e como preencher | Exemplo | Limites |
+| --- | --- | --- | --- |
+| Medição de corrente | Escolha por nome a corrente do perfil. Confira se é corrente eficaz de linha, de fase ou do barramento CC. A unidade da consulta é ampere. | Corrente do motor · linha RMS (A) | Catálogo 1; unidade A; tipo de corrente explícito. |
+| Medição de frequência | Escolha a frequência realmente medida. O painel distingue saída elétrica do inversor e rotação do eixo; um comando de frequência não é aceito. | Frequência elétrica medida (Hz) | Catálogo 1; saída medida; Hz; referência explícita. |
+| Frequência mínima (Hz) | Menor frequência que deve entrar na média, em Hz. Inclui valores iguais a este limite. Informe explicitamente; não há faixa inferida. | 49 | Finita; menor ou igual à máxima. |
+| Frequência máxima (Hz) | Maior frequência aceita, em Hz. Deve ser maior ou igual à mínima. É permitido usar os dois limites iguais para uma frequência exata registrada. | 51 | Finita; maior ou igual à mínima. |
+| Período principal | Início e fim do conjunto que você quer avaliar agora. O horário local é convertido para UTC; a duração deve ser positiva e não superar 31 dias. | 22/10 10:00–11:00 | Duração positiva; máximo de 31 dias. |
+| Período de comparação | Início e fim da base de comparação. Use duração igual ao principal, sem sobreposição ou extremos compartilhados. Pode vir antes ou depois. | 20/10 10:00–11:00 | Mesma duração; sem contato ou sobreposição. |
+| Comparar / cancelar | Comparar consulta o servidor. Cancelar descarta a solicitação em andamento. Uma resposta antiga não substitui escolhas mais recentes. | Comparar corrente | Solicitação explícita; sem cálculo automático. |
+| Resultado e evidências | Confira médias em A, diferença principal menos comparação, percentual e contagens. Não disponível não significa zero; leia os motivos e a qualidade. | 6 A; 5 A; +1 A; +20% | Métricas indisponíveis não viram zero. |
 
 ### Desempenho: escolha uma regra elegível
 
@@ -187,18 +354,41 @@ Contexto descreve uma condição de operação para comparar situações semelha
 
 No perfil operacional salvo, o intervalo numérico inclui os dois limites, na unidade de engenharia atual. Os sinais precisam de evidência com o mesmo timestamp UTC de origem exato. Leituras apenas próximas no tempo não atendem esse requisito.
 
-No gerador de tela de desvio contextual, escolha 2 a 8 sinais-alvo e dois sinais numéricos de contexto. Os dois contextos devem ser distintos entre si e dos alvos: são pelo menos quatro sinais numéricos utilizáveis. As faixas usam a unidade controlada mostrada e incluem o limite inferior, mas excluem o superior: limite inferior ≤ valor < limite superior.
+No gerador de tela de desvio contextual, escolha 2 a 8 sinais-alvo e dois sinais numéricos de contexto. Os dois contextos devem ser distintos entre si e dos alvos: são pelo menos quatro sinais numéricos utilizáveis. Digite as faixas na unidade indicada ao lado do campo. Por exemplo, para um TAG em kPa, informe 0 e 500 kPa; o SCADIVO converte internamente para 0 e 500000 Pa. O mínimo entra na comparação e o máximo não: mínimo ≤ leitura < máximo. Ao mudar o sinal de contexto, os limites são limpos para você informar a faixa correta. Sem quatro medições distintas, este desvio não fica disponível; isso não impede gerar cobertura ou desempenho quando seus próprios requisitos estiverem atendidos.
 
-Confira qual configuração está usando antes de copiar limites. A unidade e a inclusão do limite superior podem ser diferentes.
+Mesmo quando a unidade é a mesma, confira a comparação: o perfil operacional inclui o máximo; a tela de desvio contextual não. Não copie uma faixa sem revisar essa diferença.
 
 ### Gere a tela e confira a cadeia completa
 
-1. Escolha a associação do equipamento ou a etapa do processo e o tipo de tela desejado.
-2. Complete os sinais e opções pedidos. Se o botão estiver bloqueado, leia o motivo junto do campo.
-3. Gere o rascunho. Esse passo organiza objetos e referências; ainda não lê dados do Historian nem ativa a tela.
-4. No editor, confira título, dimensões, objetos, vínculos e forma de abrir a tela. Execute Pré-visualização e Aplicar para levar a edição ao projeto.
-5. Salve a revisão, publique e ative. Abra a tela no Runtime pela navegação configurada.
-6. No objeto de análise, configure o período e solicite a consulta. Confira a janela e o resultado. Uma tela de etapa reúne seus equipamentos; isso não cria um indicador agregado nem demonstra que um equipamento causou o resultado de outro.
+1. Salve a configuração atual. No bloco Gerar painel para o Runtime, escolha um perfil de equipamento ou uma etapa do processo em Conteúdo do painel.
+2. Selecione Gerar rascunho do painel. O botão fica bloqueado se a configuração ainda não foi salva, faltar licença ou permissão, ou se a origem não tiver um TAG numérico válido.
+3. No editor de Telas, confira título, dimensões, objetos, vínculos e legibilidade. Quando houver Telas vinculadas geradas juntas, Pré-visualizar e Aplicar ao Workspace incluem todas elas para preservar a navegação. Revise o conjunto antes de aplicar.
+4. Salve a revisão, publique e ative. Configure ou confira a navegação e abra a Tela no Runtime.
+5. No objeto de análise, configure o período e solicite a consulta. Confira a janela e o resultado. Uma Tela de etapa reúne seus equipamentos; isso não cria um indicador agregado nem demonstra que um equipamento causou o resultado de outro.
+
+Para etapas, selecione Cobertura por equipamento e/ou Análises por equipamento no gerador. A lista indica o que está configurado; Configurar este equipamento leva às regras e sinais daquele membro. No Runtime, escolha um equipamento antes da análise. Opções não configuradas ficam indisponíveis e explicadas, sem impedir as outras.
+
+Para conferir uma referência no Runtime, escolha um perfil de equipamento no gerador e marque Conferir dados da referência. A opção acrescenta uma Tela própria; não depende de configurar desempenho ou desvio. Aplique o conjunto, salve, publique e ative. No Runtime ao vivo, abra Dados da referência, escolha um período conhecido e selecione Consultar referência. Você verá leituras recebidas, aceitas e rejeitadas por sinal e quantas puderam ser usadas juntas. Se quiser comparar outro período, marque Comparar com outro período e informe um intervalo posterior, sem sobreposição. Uma contagem alta não comprova que o equipamento estava saudável. Mudar os períodos limpa o resultado. Editor e reprodução histórica não executam esta consulta.
+
+Para consultar referências dos equipamentos de uma etapa, escolha a etapa no gerador e marque Dados da referência por equipamento. Não é necessário configurar desempenho ou desvio. A opção usa a mesma Tela de análises da etapa; o conjunto continua com até três Telas. No Runtime, abra Análises por equipamento, escolha o equipamento e selecione Dados da referência. Informe os períodos e consulte. Ao escolher outro equipamento, o relatório anterior é fechado, a consulta em andamento é cancelada e o resultado é limpo; nada é consultado automaticamente para o novo equipamento.
+
+Para levar as condições de operação ao Runtime, primeiro salve um contexto na associação do equipamento. No gerador, escolha esse perfil e marque Condições de operação. A opção acrescenta uma Tela própria e funciona sem desempenho ou desvio configurados. Aplique o conjunto, salve, publique e ative. No Runtime ao vivo, abra Condições de operação, escolha Contexto salvo pelo nome, informe o início e o fim do período e clique em Consultar condições. Para comparar, use outro período posterior, sem sobreposição. O resultado mostra quantas leituras atendem a cada condição e quantas atendem a todas ao mesmo tempo. Por exemplo, uma condição de pressão entre 0 e 200 kPa pode selecionar leituras que uma faixa de 0 a 50 kPa exclui. Zero leituras compatíveis não significa equipamento saudável: significa que o período não fornece dados nas condições escolhidas. Trocar o contexto ou os períodos limpa o resultado anterior. Se o contexto mudar na Engenharia, gere e publique novamente a vista; ela não assume silenciosamente uma nova versão. Editor e reprodução histórica não executam a consulta.
+
+Para consultar condições nos equipamentos de uma etapa, escolha a etapa no gerador e marque Condições de operação por equipamento. Basta ter um contexto salvo em pelo menos uma associação da etapa; não é necessário configurar desempenho ou desvio. As condições usam a mesma Tela de análises, mantendo o conjunto com até três Telas. No Runtime, abra Análises por equipamento, escolha o equipamento, clique em Condições de operação e escolha Contexto salvo pelo nome. Informe os períodos e consulte. Somente os contextos daquele equipamento aparecem. Se ele não tiver contexto incluído, a página explica o que falta e mantém suas outras análises disponíveis. Ao trocar de equipamento ou análise, o relatório anterior é fechado, a leitura pendente é cancelada e o resultado é limpo. Nenhuma consulta começa automaticamente. Se alterar um contexto na Engenharia, gere e publique novamente a vista para usar a nova versão.
+
+Para acompanhar o desvio conjunto no Runtime, escolha um perfil de equipamento no gerador e marque Desvio conjunto experimental. É preciso ter contexto salvo e pelo menos duas medições numéricas distintas fora das condições desse contexto. A opção acrescenta uma Tela própria, sem exigir desempenho ou desvio contextual. Aplique o conjunto, salve, publique e ative.
+
+No Runtime ao vivo, abra Desvio conjunto (experimental), escolha Contexto salvo e marque de duas a oito medições pelo nome. Informe o intervalo real entre leituras em segundos: por exemplo, 60 para uma leitura por minuto. Escolha referência e avaliação, sem sobreposição, e clique em Calcular desvio conjunto. A consulta não começa ao abrir a Tela.
+
+Confira primeiro quantos instantes completos sustentam a referência, quantos geraram score e quantos ficaram em aquecimento. Dados insuficientes não significam funcionamento normal: revise contexto, períodos e leituras. Nos resultados, abra Contribuições das medições para investigar quais variaram. O score descreve afastamento da referência, sem unidade física; um número maior não confirma defeito.
+
+Esta análise é experimental, validada por simulação, sem previsão de vida útil ou limiar de alarme validado.
+
+Trocar contexto, medições, cadência ou períodos limpa o resultado. Editor e reprodução histórica não calculam. Se mudar o contexto na Engenharia, gere e publique a vista novamente.
+
+Para incluir o score nos equipamentos de uma etapa, escolha a etapa no gerador e marque Desvio conjunto experimental por equipamento. Basta que pelo menos uma associação tenha contexto salvo que deixe duas medições numéricas distintas fora de suas condições. Não precisa marcar desempenho, referência ou condições de operação. A opção usa a mesma Tela de análises, mantendo até três Telas no conjunto. Aplique, salve, publique e ative.
+
+No Runtime, abra Análises por equipamento, escolha o equipamento e selecione Desvio conjunto (experimental). Escolha contexto e medições pelo nome; informe a cadência real e os períodos e solicite o cálculo. O resultado pertence somente ao equipamento escolhido. Se outro membro não tiver requisitos, a página explica a ausência e mantém as outras vistas disponíveis. Ao trocar equipamento ou análise, o formulário anterior é fechado, a leitura pendente é cancelada e o resultado é limpo; nada é consultado automaticamente. O score continua experimental, sem diagnóstico, vida útil ou limiar de alarme validado em campo.
 
 ### Roteiro para investigar resultado vazio
 
@@ -209,5 +399,77 @@ Confira licença e permissões; depois, a seleção salva do recurso e a permiss
 Se esses itens estão corretos, examine a captura no Historian, a qualidade dos dados, os papéis e unidades dos sinais e as exigências de alinhamento e contexto. Corrija a condição comprovadamente ausente e consulte de novo.
 
 Não mude o significado de um sinal nem amplie limites só para fazer aparecer um resultado. As análises ajudam a investigar. Elas não confirmam defeito nem antecipam falhas com validade de campo ainda não demonstrada.
+
+#### Exemplos reais: consultas e dashboards
+
+As legendas indicam se a captura usa API simulada ou API/PostgreSQL reais. Todos os dados apresentados são sintéticos, sem validação de campo.
+
+**Escolher as medições no celular**
+
+![Escolher as medições no celular](../../evidence/intelligence-857/current-frequency-mobile.png)
+
+**Comparar 6 A com 5 A**
+
+![Comparar 6 A com 5 A](../../evidence/intelligence-857/current-frequency-results.png)
+
+**Dados insuficientes não são zero**
+
+![Dados insuficientes não são zero](../../evidence/intelligence-857/current-frequency-insufficient.png)
+
+**Incluir a comparação no gerador da etapa**
+
+![Incluir a comparação no gerador da etapa](../../evidence/intelligence-857/runtime-stage-generator.png)
+
+**Selecionar o membro no Runtime**
+
+![Selecionar o membro no Runtime](../../evidence/intelligence-857/runtime-stage-query.png)
+
+**Resultado por equipamento**
+
+![Resultado por equipamento](../../evidence/intelligence-857/runtime-profile-result.png)
+
+**Detalhes estatísticos: interface real em teste, com respostas simuladas**
+
+![Detalhes estatísticos: interface real em teste, com respostas simuladas](../../evidence/intelligence-857/statistical-details-browser.png)
+
+**Taxa líquida: interface real com respostas de API simuladas, não prova API/PostgreSQL**
+
+![Taxa líquida: interface real com respostas de API simuladas, não prova API/PostgreSQL](../../evidence/intelligence-857/net-observed-rate-browser.png)
+
+**Alvo único: formulário real com API simulada; não prova API/PostgreSQL**
+
+![Alvo único: formulário real com API simulada; não prova API/PostgreSQL](../../evidence/intelligence-857/single-target-form-browser.png)
+
+**Alvo único: resultado e evidências reais da interface com dados simulados**
+
+![Alvo único: resultado e evidências reais da interface com dados simulados](../../evidence/intelligence-857/single-target-result-browser.png)
+
+**Alvo único no Runtime: interface real em inglês com API simulada, não prova API/PostgreSQL**
+
+![Alvo único no Runtime: interface real em inglês com API simulada, não prova API/PostgreSQL](../../evidence/intelligence-857/single-target-runtime-browser.png)
+
+**Escolher a medição sob condição no compositor de etapa (API simulada)**
+
+![Escolher a medição sob condição no compositor de etapa (API simulada)](../../evidence/intelligence-857/single-target-stage-composer-browser.png)
+
+**Membro sem condição compatível mantém as outras vistas (API simulada)**
+
+![Membro sem condição compatível mantém as outras vistas (API simulada)](../../evidence/intelligence-857/single-target-stage-partial-browser.png)
+
+**Taxa real de 0 A/s para corrente constante de 6 A (API/PostgreSQL reais, dados sintéticos)**
+
+![Taxa real de 0 A/s para corrente constante de 6 A (API/PostgreSQL reais, dados sintéticos)](../../evidence/intelligence-857/composer-real-rate-ui.png)
+
+**Diferença real entre médias de 6 A e 5 A (API/PostgreSQL reais, dados sintéticos)**
+
+![Diferença real entre médias de 6 A e 5 A (API/PostgreSQL reais, dados sintéticos)](../../evidence/intelligence-857/composer-real-statistics-ui.png)
+
+**Consulta por membro de etapa no Runtime (API/PostgreSQL reais, dados sintéticos)**
+
+![Consulta por membro de etapa no Runtime (API/PostgreSQL reais, dados sintéticos)](../../evidence/intelligence-857/composer-stage-single-target-runtime.png)
+
+**Consulta conjunta real: dados sintéticos na API e PostgreSQL; diferenças e scores por medição.**
+
+![Consulta conjunta real: dados sintéticos na API e PostgreSQL; diferenças e scores por medição.](../../evidence/intelligence-857/vector-profile-real-scored.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.analysis-guide)

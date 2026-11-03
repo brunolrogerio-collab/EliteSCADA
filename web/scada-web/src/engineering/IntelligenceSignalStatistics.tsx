@@ -1,3 +1,4 @@
+import { IntelligenceNetObservedRate } from './IntelligenceNetObservedRate';
 import './intelligence-signal-statistics.css';
 import { useEffect, useRef, useState } from 'react';
 import { parseWindow, type SignalSummary, type WindowValue } from './AssetProcessIntelligenceCoveragePanel';
@@ -47,6 +48,7 @@ export function IntelligenceSignalStatistics({ locale, scopeId, profileId, tagId
       {showBuckets&&<div style={{maxWidth:'100%',overflowX:'auto'}}><table><thead><tr>{[t('Início','Start','Inicio'),t('Fim','End','Fin'),t('Aceitas / rejeitadas','Accepted / rejected','Aceptadas / rechazadas'),t('Mínimo','Minimum','Mínimo'),t('Máximo','Maximum','Máximo'),t('Média','Mean','Media')].map(label=><th key={label}>{label}</th>)}</tr></thead>
         <tbody>{(Array.isArray(summary.trend)?summary.trend:[]).filter(row=>row&&typeof row==='object').slice(0,3000).map((row,index)=><tr key={index}><td>{time(row.fromUtc)}</td><td>{time(row.toUtc)}</td><td>{n(row.acceptedSampleCount)} / {n(row.rejectedSampleCount)}</td><td>{n(row.minimum)}</td><td>{n(row.maximum)}</td><td>{n(row.sampleMean)}</td></tr>)}</tbody></table></div>}
     </details>
+    <IntelligenceNetObservedRate locale={locale} scopeId={scopeId} tagId={tagId} projectKey={projectKey} activeRevision={activeRevision} window={window} unit={unit}/>
     <p>{t('Para comparar, escolha outro período de mesma duração (até 31 dias). Pode vir antes, depois ou se sobrepor ao atual. Sobreposição reutiliza dados e não representa uma comparação independente.','To compare, choose another equal-duration period (up to 31 days). It may precede, follow or overlap the current period. Overlap reuses data and is not an independent comparison.','Para comparar elija otro período de igual duración (hasta 31 días). Puede ser anterior, posterior o superponerse al actual. La superposición reutiliza datos y no representa comparación independiente.')}</p>
     <label>{t('Início da comparação estatística','Statistical comparison start','Inicio de comparación estadística')}<input type="datetime-local" value={from} onChange={event=>setFrom(event.currentTarget.value)}/></label>
     <label>{t('Fim da comparação estatística','Statistical comparison end','Fin de comparación estadística')}<input type="datetime-local" value={to} onChange={event=>setTo(event.currentTarget.value)}/></label>

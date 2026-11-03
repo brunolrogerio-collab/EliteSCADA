@@ -8,6 +8,7 @@ const coveragePath = '/api/engineering/asset-process-intelligence/analytics/prof
 
 test('profile coverage is Runtime-only, explicitly queried and transient on input change or authorization failure', async ({ page }) => {
   const queries: Array<Record<string, any>> = [];
+  const rateQueries: Array<Record<string,any>> = [];
   let resolveSecondQueryStarted!: () => void;
   const secondQueryStarted = new Promise<void>(resolve => { resolveSecondQueryStarted = resolve; });
   let releaseSecondQuery!: () => void;
@@ -41,6 +42,10 @@ test('profile coverage is Runtime-only, explicitly queried and transient on inpu
     } });
     if (path === '/api/runtime/application') return route.fulfill({ json: runtimeProjection() });
     if (path === '/api/runtime/client-memory') return route.fulfill({ json: [] });
+    if(path.endsWith('/net-observed-rate/v1/query')) {
+      const body=request.postDataJSON();rateQueries.push(body);
+      return route.fulfill({json:{contractVersion:1,catalogVersion:1,ruleId:'net-observed-rate.v1',ruleVersion:'1.0.0',projectKey,activeRevision:revision,scopeKind:'Equipment',scopeId,tagId:body.tagId,window:body.window,metric:{status:'available',reasonCodes:[],value:0.1,unit:'A/s',elapsedSeconds:60,rawObservationCount:3,acceptedSampleCount:2,rejectedSampleCount:1,qualityCounts:{Good:2,BadCommunication:1},firstAccepted:{timestampUtc:body.window.fromUtc,value:2},lastAccepted:{timestampUtc:new Date(Date.parse(body.window.fromUtc)+60000).toISOString(),value:8}},provenance:{dataset:'historian.samples',datasetContractVersion:1}}});
+    }
     if (path === coveragePath) {
       const body = request.postDataJSON() as Record<string, any>;
       queries.push(body);
@@ -90,7 +95,12 @@ test('profile coverage is Runtime-only, explicitly queried and transient on inpu
   await expect(visual).not.toContainText('unknown');
   await expect(visual).not.toContainText('unsupported_without_a_canonical_semantic');
 
+  const detail=visual.getByTestId('intelligence-signal-statistics-50000000-0000-0000-0000-000000000005');await detail.locator('summary').first().click();
+  const rate=detail.getByTestId('intelligence-net-observed-rate-50000000-0000-0000-0000-000000000005');await rate.locator('summary').first().click();expect(rateQueries).toHaveLength(0);
+  await rate.getByRole('button',{name:'Query net rate',exact:true}).click();await expect(rate.getByTestId('intelligence-net-observed-rate-result')).toContainText('0.1 A/s');expect(rateQueries).toHaveLength(1);
   await visual.getByLabel('From (local time)').fill('2026-10-20T12:00');
+  await expect(rate).toHaveCount(0);expect(rateQueries).toHaveLength(1);
+
   await visual.getByLabel('To (local time)').fill('2026-10-20T13:00');
   await visual.getByRole('button', { name: 'Analyze coverage' }).click();
   await secondQueryStarted;

@@ -272,6 +272,14 @@ Depois de consultar a cobertura, abra Detalhes e comparação desta medição de
 
 Para comparar esse sinal, preencha Início e Fim da comparação estatística e escolha o agrupamento. Use até 31 dias e a mesma duração da cobertura atual. A comparação pode ser anterior, posterior ou sobreposta; períodos sobrepostos reutilizam leituras e não são amostras independentes. Clique Comparar estatísticas. A resposta mostra diferenças do período atual menos o comparado: quantidade de amostras, mínimo, máximo, média, primeiro, último e variação. São diferenças descritivas; não comprovam mesmo regime, eficiência ou defeito. Não disponível não significa zero. Alterar os campos limpa o resultado; Cancelar comparação descarta a solicitação em andamento. Para mudar o período atual, consulte novamente a cobertura. Nenhuma comparação é salva no projeto nem executada ao abrir os detalhes.
 
+### Consultar a taxa líquida de uma medição
+
+Depois de consultar a cobertura, abra os detalhes do sinal e Taxa líquida observada. Clique Consultar taxa líquida. A consulta usa o mesmo período da cobertura; não começa automaticamente ao abrir o painel. Exemplo: a primeira leitura aceita é 2 A e a última é 8 A, separadas por 60 segundos no Historian. A taxa é (8 − 2) / 60 = 0,1 A/s. Se o valor cai, a taxa é negativa.
+
+Confira primeira e última leitura, seus horários, os segundos entre os extremos e as quantidades recebidas, aceitas e rejeitadas. Só leituras Boas, numéricas e finitas são aceitas. A unidade é a do TAG por segundo, sem conversão. Menos de duas leituras aceitas, horários sem intervalo positivo, unidade ausente ou limite numérico deixam a taxa indisponível. Não disponível não significa zero; não invente uma unidade para habilitar a consulta.
+
+Essa taxa descreve apenas a mudança entre os extremos. Não é uma derivada instantânea, média de taxas, diagnóstico ou prova de eficiência. Ela também não comprova que o período está completo ou que as condições de operação são equivalentes. O limite é 31 dias e 50 mil registros brutos; uma recusa não deve ser contornada ocultando dados. Cancelar consulta da taxa descarta a solicitação em andamento. Mudar o período ou agrupamento da cobertura retira o resultado. Nada é salvo no projeto. Os mesmos detalhes ficam disponíveis na cobertura do Runtime, sujeitos aos mesmos acessos e à execução autorizada.
+
 ### Comparar a corrente em uma faixa de frequência
 
 Imagine que o motor consumia cerca de 5 A e agora consome 6 A. Antes de interpretar essa mudança, confira se as medições foram obtidas na faixa de frequência que você quer investigar. Esta consulta compara duas partes do histórico; ela não aprende um padrão nem diagnostica o motor.
@@ -390,5 +398,9 @@ Interface real em português, com dados sintéticos de validação. O exemplo n�
 **Detalhes estatísticos: interface real em teste, com respostas simuladas**
 
 ![Detalhes estatísticos: interface real em teste, com respostas simuladas](../../evidence/intelligence-857/statistical-details-browser.png)
+
+**Taxa líquida: interface real com respostas de API simuladas, não prova API/PostgreSQL**
+
+![Taxa líquida: interface real com respostas de API simuladas, não prova API/PostgreSQL](../../evidence/intelligence-857/net-observed-rate-browser.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.analysis-guide)

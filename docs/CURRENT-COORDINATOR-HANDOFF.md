@@ -1,5 +1,11 @@
 # Current coordinator pointer - Wave 15
 
+## Retomada atual — taxa líquida observada #857
+
+PR draft #854, branch `work/w15-intelligence-analysis-ui-853`: `IntelligenceNetObservedRate` acrescenta consulta explícita do método existente nos detalhes da cobertura, em Engenharia/Runtime. Mostra taxa positiva/negativa, extremos/horários, segundos, contagens e qualidade; sem unidade ou evidência suficiente, permanece indisponível. Confere identidade/revisão/janela/unidade/proveniência; cancela e descarta resultados antigos. Sem fórmula nova/backend/Authority/licença/HA/Portal/Preview. Help/manual três idiomas atualizados. Local: cobertura/Runtime85/85, final focado9/9, captura1/1, Help30/30 e build Web aprovados;69 arquivos alinhados. Captura inspecionada no manual (API simulada). Ver SHA/run exatos na #857/#854. API simulada nos testes UI: prova real API/PostgreSQL ainda pendente por Docker indisponível. Próximo: concluir validação/publicar candidata e completar desvio contextual de alvo único. Não declarar #857 encerrada ou merge.
+
+CI predecessor0b5a2165 /41555893510: Intelligence UI passou; global FAILURE Z-Wave Windows/Linux/T1, Chromium focado cancelado. #856 adiada, sem bypass.
+
 ## Retomada atual — detalhes/comparação estatística #857
 
 Na candidata: detalhes por sinal dentro de CoverageResult (Engenharia e Runtime), primeiro/último observado, delta e tabela de buckets com vazios indisponíveis. Comparação explícita pela rota /analytics/query, períodos iguais até31 dias em qualquer ordem/sobreposição permitida pelo contrato, sem fórmula local. Resposta confere projeto/revisão/escopo/TAG/unidade/proveniência/perfil e métricas finitas ou null; troca/cancelamento desmonta resposta antiga. Teste de detalhes, comparação sobreposta, duração inválida, null e revisão divergente passou; regressão Runtime/histórico2/2 também. Build e bateria final em conferência; sem prova nova API/PostgreSQL real neste incremento. Não declarar aceite/integração ou toda #857 concluída. Taxa líquida e alvo único continuam pendentes. Help/manual três idiomas atualizados. Próximo: validar/publicar esta candidata e então métodos complementares.

@@ -744,6 +744,7 @@ async function installWorkspace(page: Page, options: {
   operatingContexts?: boolean;
   jointReady?: boolean;
   currentFrequencyCase?: string;
+  missingDisplayUnit?: boolean;
 } = {}) {
   const requests: Array<Record<string, any>> = [];
   const currentFrequencyRequests: Array<Record<string, any>> = [];
@@ -822,6 +823,7 @@ async function installWorkspace(page: Page, options: {
     if (options.currentFrequencyCase === 'ambiguous-tag') sourceTags.push({ ...sourceTags[0] });
     if (options.currentFrequencyCase === 'boolean') sourceTags[0].dataType = 'Boolean';
   }
+  if(options.missingDisplayUnit)(tags[0] as any).engineeringUnit=null;
   await page.route('**/api/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -841,7 +843,9 @@ async function installWorkspace(page: Page, options: {
       const body = request.postDataJSON() as Record<string, any>;
       requests.push(body);
       if (options.failCode) return route.fulfill({ status: 413, json: { code: options.failCode, error: 'window too dense' } });
-      return route.fulfill({ json: coverageResponse(body, options.insufficient === true) });
+      const response = coverageResponse(body, options.insufficient === true);
+      if(options.missingDisplayUnit)(response.signals[0] as any).unit=null;
+      return route.fulfill({ json: response });
     }
     if (path === '/api/tags' || path === '/api/historical/data-query') dataReads.push(`${request.method()} ${path}`);
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method())) otherWrites.push(`${request.method()} ${path}`);
@@ -1206,4 +1210,43 @@ test('measurement statistics compare equal-duration windows explicitly and rejec
  await detail.getByLabel('Início da comparação estatística').fill('2026-10-20T10:30');await detail.getByLabel('Fim da comparação estatística').fill('2026-10-20T12:00');const button=detail.getByRole('button',{name:'Comparar estatísticas',exact:true});await expect(button).toBeDisabled();
  await detail.getByLabel('Fim da comparação estatística').fill('2026-10-20T11:30');await button.click();const result=detail.getByTestId('intelligence-statistical-comparison-result');await expect(result).toContainText('1,5');await expect(result).toContainText('13,5');await detail.screenshot({path:test.info().outputPath('statistics-detail.png')});expect(calls).toBe(1);
  await detail.getByLabel('Início da comparação estatística').fill('2026-10-22T10:00');await detail.getByLabel('Fim da comparação estatística').fill('2026-10-22T11:00');await expect(result).toHaveCount(0);stale=true;await button.click();await expect(detail.getByRole('alert')).toBeVisible();await expect(result).toHaveCount(0);
+});
+
+for(const mode of ['positive','negative','insufficient','missing-unit','stale','wrong-unit','forbidden'] as const)test(`net observed rate ${mode} uses an explicit request and preserves result meaning`,async({page})=>{
+ await installWorkspace(page,{missingDisplayUnit:mode==='missing-unit'});let calls=0;
+ await page.route('**/analytics/net-observed-rate/v1/query',async route=>{
+ calls++;const body=route.request().postDataJSON();expect(body).toMatchObject({scopeKind:0,scopeId:equipmentId,tagId:currentTagId});
+ if(mode==='forbidden')return route.fulfill({status:403,json:{code:'HISTORICAL_QUERY_FORBIDDEN'}});
+ const missing=mode==='insufficient',unitMissing=mode==='missing-unit';await route.fulfill({json:{contractVersion:1,catalogVersion:1,ruleId:'net-observed-rate.v1',ruleVersion:'1.0.0',projectKey:'intelligence-coverage-test',activeRevision:mode==='stale'?5:4,scopeKind:'Equipment',scopeId:equipmentId,tagId:currentTagId,window:body.window,
+ metric:{status:unitMissing?'unsupported':missing?'insufficient_data':'available',reasonCodes:unitMissing?['engineering_unit_missing']:missing?['fewer_than_two_accepted_good_finite_samples']:[],value:missing||unitMissing?null:mode==='negative'?-0.1:0.1,unit:unitMissing?null:mode==='wrong-unit'?'kW/s':'A/s',elapsedSeconds:missing?null:60,rawObservationCount:3,acceptedSampleCount:missing?1:2,rejectedSampleCount:missing?2:1,qualityCounts:{Good:missing?1:2,BadCommunication:missing?2:1},firstAccepted:{timestampUtc:body.window.fromUtc,value:mode==='negative'?8:2},lastAccepted:missing?null:{timestampUtc:new Date(Date.parse(body.window.fromUtc)+60000).toISOString(),value:mode==='negative'?2:8}},
+ provenance:{dataset:'historian.samples',datasetContractVersion:1,timestampBasis:'persisted Historian observation/publication timestamp',qualityAcceptance:'Good finite numeric'}}});
+ });
+ await openIntelligence(page);const coverage=page.getByTestId(`intelligence-profile-coverage-${profileId}`);await coverage.getByRole('button',{name:'Revisar cobertura histórica',exact:true}).click();await coverage.getByRole('button',{name:'Analisar cobertura',exact:true}).click();
+ const stats=coverage.getByTestId(`intelligence-signal-statistics-${currentTagId}`);await stats.locator('summary').first().click();const panel=stats.getByTestId(`intelligence-net-observed-rate-${currentTagId}`);await panel.locator('summary').first().click();expect(calls).toBe(0);
+ await panel.getByRole('button',{name:'Consultar taxa líquida',exact:true}).click();const result=panel.getByTestId('intelligence-net-observed-rate-result');
+ if(['stale','wrong-unit','forbidden'].includes(mode)){await expect(panel.getByRole('alert')).toBeVisible();await expect(result).toHaveCount(0);}
+ else if(mode==='insufficient'||mode==='missing-unit'){await expect(result.locator('dd').first()).toHaveText('Não disponível');await expect(result).toContainText(mode==='missing-unit'?'não tem unidade informada':'menos de duas leituras');}
+ else{await expect(result.locator('dd').first()).toHaveText(mode==='negative'?'-0,1 A/s':'0,1 A/s');await expect(result).toContainText('3 / 2 / 1');}
+ if(mode==='positive'){await panel.getByText('Qualidade das leituras',{exact:true}).click();await expect(result).toContainText('Falha de comunicação: 1');await panel.screenshot({path:test.info().outputPath('net-observed-rate.png')});}
+ expect(calls).toBe(1);await coverage.getByRole('combobox',{name:'Agrupar leituras a cada',exact:true}).selectOption('3600');await expect(panel).toHaveCount(0);expect(calls).toBe(1);
+});
+
+
+test('net observed rate discards a late response after cancellation and allows a new query',async({page})=>{
+ await installWorkspace(page);let calls=0,finished=false;let release!:()=>void;
+ const held=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/analytics/net-observed-rate/v1/query',async route=>{
+  const body=route.request().postDataJSON();const call=++calls;if(call===1)await held;
+  try{await route.fulfill({json:{contractVersion:1,catalogVersion:1,ruleId:'net-observed-rate.v1',ruleVersion:'1.0.0',projectKey:'intelligence-coverage-test',activeRevision:4,scopeKind:0,scopeId:equipmentId,tagId:currentTagId,window:body.window,
+   metric:{status:'available',reasonCodes:[],value:0.1,unit:'A/s',elapsedSeconds:60,rawObservationCount:2,acceptedSampleCount:2,rejectedSampleCount:0,qualityCounts:{Good:2},firstAccepted:{timestampUtc:body.window.fromUtc,value:2},lastAccepted:{timestampUtc:new Date(Date.parse(body.window.fromUtc)+60000).toISOString(),value:8}},provenance:{dataset:'historian.samples',datasetContractVersion:1}}});}
+  finally{if(call===1)finished=true;}
+ });
+ await openIntelligence(page);const coverage=page.getByTestId(`intelligence-profile-coverage-${profileId}`);
+ await coverage.getByRole('button',{name:'Revisar cobertura histórica',exact:true}).click();await coverage.getByRole('button',{name:'Analisar cobertura',exact:true}).click();
+ const detail=coverage.getByTestId(`intelligence-signal-statistics-${currentTagId}`);await detail.locator('summary').first().click();
+ const panel=detail.getByTestId(`intelligence-net-observed-rate-${currentTagId}`);await panel.locator('summary').first().click();
+ const query=panel.getByRole('button',{name:'Consultar taxa líquida',exact:true});await query.click();await expect.poll(()=>calls).toBe(1);
+ await panel.getByRole('button',{name:'Cancelar consulta da taxa',exact:true}).click();release();await expect.poll(()=>finished).toBe(true);
+ await expect(panel.getByTestId('intelligence-net-observed-rate-result')).toHaveCount(0);await expect(query).toBeEnabled();
+ await query.click();await expect(panel.getByTestId('intelligence-net-observed-rate-result')).toContainText('0,1 A/s');expect(calls).toBe(2);
 });

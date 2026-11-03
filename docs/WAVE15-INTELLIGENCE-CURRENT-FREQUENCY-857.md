@@ -88,3 +88,15 @@ Predecessor d47faac0 /41549182591 terminou FAILURE: Z-Wave Windows/Linux, ambos 
 
 
 Fechamento local do incremento estatístico: cobertura/Runtime78/78, focado final1/1 após ajuste visual, Help30/30, build Web aprovado e69 arquivos alinhados. Captura da interface real em teste com API simulada (não prova API/PostgreSQL real) adicionada ao manual. A inspeção corrigiu campos inline e quebra de datas da tabela; tabela só renderiza ao abrir, com rolagem horizontal. Não houve mudanças de backend/Authority/licença/HA. Falta validação API/PostgreSQL real desta consulta; Docker indisponível. Taxa líquida e alvo único continuam pendentes. SHA e CI exatos no registro vivo #857/#854; sem integração/aceite global.
+
+
+## Complemento — taxa líquida observada na cobertura
+
+`IntelligenceNetObservedRate.tsx`, montado dentro de `IntelligenceSignalStatistics`, expõe em Engenharia e Runtime o método existente `AssetProcessIntelligenceNetObservedRateV1` por `/analytics/net-observed-rate/v1/query`. Consulta explícita por TAG/período da cobertura, sem cálculo analítico local, sem novo objeto de tela nem mudanças de backend. Mostra taxa com unidade por segundo, extremos e horários observados no Historian, segundos, contagens e qualidade. Trata taxa negativa, amostra insuficiente, unidade ausente, resposta de outra revisão/unidade e acesso recusado. Cancelamento e troca de contexto descartam respostas; alteração da cobertura remove o painel. Não é derivada instantânea, média das taxas, eficiência, diagnóstico ou prova de completude/regime.
+
+Os testes montados usam API simulada; não equivalem a prova API/PostgreSQL real. Docker segue indisponível nesta rodada. Help/manual em pt-BR/en/es explicam procedimento, exemplo 2→8 A em60 s =0,1 A/s e limites31 dias/50 mil registros. Totais, commit e CI exatos são publicados em #857/#854 após conclusão. O desvio contextual de alvo único ainda não está entregue; #857 permanece aberta.
+
+CI predecessor `0b5a2165d8e37db52fe34c391c5c85ce9f581fb9`, run41555893510: Intelligence UI passou; resultado global FAILURE por Z-Wave Windows/Linux e gate T1, Chromium focado cancelado. Demais jobs executados passaram. #856 permanece adiada pelo proprietário, sem bypass ou merge.
+
+
+Validação local final da taxa: bateria cobertura/Runtime85/85, seguida de9/9 focados após tradução dos rótulos de qualidade (inclui cancelamento com resposta atrasada e nova consulta). Captura/qualidade1/1 e inspeção visual da imagem real com respostas simuladas, incorporada ao manual nos três idiomas. Build Web e Help30/30 passaram;69 arquivos alinhados. A primeira rodada focada teve6/7: fixture sem unidade no TAG ainda devolvia A na cobertura; corrigida a simulação, o caso sem unidade passou. Nenhum timeout/retry/gate foi relaxado. Sem prova real API/PostgreSQL deste incremento.

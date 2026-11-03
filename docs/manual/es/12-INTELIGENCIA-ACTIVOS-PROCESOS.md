@@ -272,6 +272,14 @@ Después de consultar cobertura, abra Detalles y comparación de esta medición 
 
 Para comparar esa señal introduzca inicio/fin de comparación estadística y elija agrupación. Use hasta 31 días y la misma duración que la cobertura actual. Puede ser anterior, posterior o superpuesta; los períodos superpuestos reutilizan lecturas y no son muestras independientes. Pulse Comparar estadísticas. Se muestran diferencias del período actual menos el comparado: cantidad, mínimo, máximo, media, primero, último y variación. Son diferencias descriptivas; no demuestran condiciones equivalentes, eficiencia ni un fallo. No disponible no significa cero. Cambiar campos retira el resultado; Cancelar comparación descarta la solicitud en curso. Para cambiar el período actual consulte de nuevo la cobertura. No se guarda la comparación en el proyecto ni se ejecuta al abrir los detalles.
 
+### Consultar la tasa neta observada de una medición
+
+Después de consultar cobertura, abra los detalles de una señal y Tasa neta observada. Pulse Consultar tasa neta. Se usa el período de cobertura; abrir el panel no ejecuta la consulta. Ejemplo: la primera lectura aceptada es 2 A y la última 8 A, separadas por 60 segundos en el Historian. La tasa es (8 − 2) / 60 = 0,1 A/s. Si el valor disminuye, la tasa es negativa.
+
+Revise ambas lecturas y sus horas, segundos entre extremos y cantidades recibidas, aceptadas y rechazadas. Solo se aceptan lecturas Buenas numéricas finitas. La unidad es la del TAG por segundo, sin conversión. Menos de dos lecturas aceptadas, tiempo no positivo, unidad ausente o límite numérico dejan la tasa no disponible. No disponible no significa cero; no invente una unidad para habilitarla.
+
+La tasa describe solo el cambio entre extremos. No es derivada instantánea, media de tasas, diagnóstico ni prueba de eficiencia. Tampoco demuestra datos completos o condiciones equivalentes. El límite es 31 días y 50 mil registros brutos; no oculte datos para evitar un rechazo. Cancelar consulta de tasa descarta la solicitud en curso. Cambiar período o agrupación de cobertura retira el resultado. Nada se guarda en el proyecto. La cobertura del Runtime ofrece los mismos detalles, con los mismos permisos y autorización de ejecución.
+
 ### Comparar corriente dentro de un rango de frecuencia
 
 Suponga que un motor consumía unos 5 A y ahora consume 6 A. Antes de interpretar el cambio, compruebe si esas mediciones se registraron en el rango de frecuencia que desea investigar. Esta consulta compara dos partes del histórico; no aprende un patrón ni diagnostica el motor.
@@ -390,5 +398,9 @@ Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no
 **Detalles estadísticos: interfaz real en portugués bajo prueba, con respuestas simuladas**
 
 ![Detalles estadísticos: interfaz real en portugués bajo prueba, con respuestas simuladas](../../evidence/intelligence-857/statistical-details-browser.png)
+
+**Tasa neta: interfaz real con respuestas API simuladas, no prueba API/PostgreSQL**
+
+![Tasa neta: interfaz real con respuestas API simuladas, no prueba API/PostgreSQL](../../evidence/intelligence-857/net-observed-rate-browser.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

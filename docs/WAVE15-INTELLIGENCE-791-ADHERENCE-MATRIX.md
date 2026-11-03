@@ -67,3 +67,8 @@ Atualização Runtime corrente/frequência: composição por perfil e membro de 
 
 
 Incremento estatístico após d47faac0: CoverageResult passa a oferecer detalhes do sinal, primeiro/último observado, delta e tabela de buckets, renderizada apenas ao abrir, mais comparação explícita de estatísticas pela rota existente. Mesmo componente nas consultas de Engenharia/Runtime, sem criar uma Screen ou fórmula adicional. Períodos de igual duração em qualquer ordem/sobreposição conforme contrato; aviso de não independência e regime não avaliado. Provas locais sintéticas de navegador em andamento; sem API/PostgreSQL real novo devido Docker indisponível. Portanto é implementação candidata aguardando validação/aceite, não fechamento da #857. Taxa líquida e desvio de alvo único continuam ausentes. CI predecessor d47faac0/41549182591 falhou Z-Wave e cancelou ambos os Chromium; não reutilizar verde.
+
+
+### Complemento #857 — taxa líquida observada
+
+Requisito implementado na candidata aguardando validação/aceite: consulta por TAG/período dentro dos detalhes da cobertura, compartilhada Engenharia/Runtime, com extremos/horários/contagens/qualidade, ausência de unidade e dados insuficientes explícitos, sem inferir eficiência ou defeito. API real/persistência deste incremento ainda sem nova evidência (Docker indisponível); testes montados usam respostas simuladas. Não reclassificar o desvio contextual de alvo único, ainda não entregue, nem encerrar #857. Evidências finais/SHA/CI na #857/#854.

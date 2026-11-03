@@ -87,6 +87,8 @@ for locale, heading, intro, labels in [
     }
 for locale, caption in [('pt-BR', 'Detalhes estatísticos: interface real em teste, com respostas simuladas'), ('en', 'Statistical details: real Portuguese interface under test, with simulated responses'), ('es', 'Detalles estadísticos: interfaz real en portugués bajo prueba, con respuestas simuladas')]:
     MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-857/statistical-details-browser.png'))
+for locale, caption in [('pt-BR', 'Taxa líquida: interface real com respostas de API simuladas, não prova API/PostgreSQL'), ('en', 'Net rate: real UI with mocked API responses, not API/PostgreSQL proof'), ('es', 'Tasa neta: interfaz real con respuestas API simuladas, no prueba API/PostgreSQL')]:
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-857/net-observed-rate-browser.png'))
 for locale, (name, title) in {'pt-BR': ('30-PRIMEIRO-PROJETO.md', 'Primeiro projeto: da entrada ao Runtime'), 'en': ('30-FIRST-PROJECT.md', 'First project: from sign-in to Runtime'), 'es': ('30-PRIMER-PROYECTO.md', 'Primer proyecto: de la entrada al Runtime')}.items():
     CHAPTERS[locale].append((name, title, ['getting-started.first-project']))
 for locale, (name, title) in {'pt-BR': ('31-TROCA-DA-APLICACAO.md', 'Trocar a aplicação da instalação'), 'en': ('31-SWITCHING-APPLICATION.md', 'Switching the installation application'), 'es': ('31-CAMBIO-DE-APLICACION.md', 'Cambiar la aplicación de la instalación')}.items():

@@ -272,6 +272,14 @@ After querying coverage, open Measurement details and comparison inside the desi
 
 To compare that signal, enter Statistical comparison start/end and choose grouping. Use up to 31 days and the same duration as current coverage. Comparison may precede, follow or overlap; overlapping periods reuse readings and are not independent samples. Click Compare statistics. Results show current-minus-comparison differences in sample count, minimum, maximum, mean, first, last and period change. These descriptive differences do not establish equivalent conditions, efficiency or a fault. Unavailable does not mean zero. Editing fields clears results; Cancel comparison discards the in-flight request. To change the current period, query coverage again. Comparisons are neither saved in the project nor run when details open.
 
+### Query the net observed rate of a measurement
+
+After querying coverage, open a signal’s details and Net observed rate. Click Query net rate. This uses the coverage period and does not run automatically when opened. Example: the first accepted reading is 2 A and the last is 8 A, recorded 60 seconds apart in the Historian. The rate is (8 − 2) / 60 = 0.1 A/s. A falling value gives a negative rate.
+
+Check both readings and their timestamps, elapsed seconds, and received, accepted and rejected counts. Only Good finite numeric readings are accepted. The unit is the TAG unit per second, without conversion. Fewer than two accepted readings, non-positive elapsed time, a missing unit or a numeric limit leaves the rate unavailable. Unavailable does not mean zero; do not invent a unit to enable the query.
+
+This rate describes only the change between endpoints. It is not an instantaneous derivative, average of rates, diagnosis or evidence of efficiency. It does not establish complete data or equivalent operating conditions. Limits are 31 days and 50,000 raw records; do not hide data to bypass a refusal. Cancel rate query discards an in-flight request. Changing the coverage period or grouping removes the result. Nothing is saved in the project. Runtime coverage offers the same details, subject to the same access and execution authorization.
+
 ### Compare current within a frequency range
 
 Suppose a motor used about 5 A and now uses 6 A. Before interpreting that change, check whether those measurements were recorded in the frequency range you want to investigate. This query compares two parts of the history; it does not learn a pattern or diagnose the motor.
@@ -390,5 +398,9 @@ Real interface in Portuguese, with synthetic validation data. This example does 
 **Statistical details: real Portuguese interface under test, with simulated responses**
 
 ![Statistical details: real Portuguese interface under test, with simulated responses](../../evidence/intelligence-857/statistical-details-browser.png)
+
+**Net rate: real UI with mocked API responses, not API/PostgreSQL proof**
+
+![Net rate: real UI with mocked API responses, not API/PostgreSQL proof](../../evidence/intelligence-857/net-observed-rate-browser.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

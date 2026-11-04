@@ -156,7 +156,7 @@ export function AssetProcessIntelligenceWorkspace({
   const stageCoverageCopy = useMemo(() => processStageCoverageText(locale), [locale]);
   const guidedStageDashboardCopy = useMemo(() => guidedProcessStageDashboardText(locale), [locale]);
   const unitCopy = useMemo(() => contextUnitText(locale), [locale]);
-  const load = useCallback(async (adoptConfiguration = false) => {
+  const load = useCallback(async (adoptConfiguration = false, adoptScopes = true) => {
     setLoading(true);
     setError(null);
     try {
@@ -174,7 +174,7 @@ export function AssetProcessIntelligenceWorkspace({
       next.tags ??= [];
       setSnapshot(next);
       setSemanticCatalog(nextSemanticCatalog);
-      setSelected(new Set(next.configuration.scopes.map(scopeKey)));
+      if (adoptScopes) setSelected(new Set(next.configuration.scopes.map(scopeKey)));
       if (adoptConfiguration) {
         setProfiles(next.configuration.profiles);
         setSemanticContractVersion(next.configuration.profiles.flatMap(profile => profile.signals)
@@ -241,7 +241,7 @@ export function AssetProcessIntelligenceWorkspace({
       if (!response.ok) throw await responseError(response, locale);
       setMessage(copy.configurationSaved);
       await onSaved?.();
-      await load(true);
+      await load(true, false);
     } catch (reason) {
       const detail = reason instanceof Error ? reason.message : String(reason);
       setError(detail === 'INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_CONFLICT' ? copy.contextVersionConflict : detail);
@@ -281,6 +281,16 @@ export function AssetProcessIntelligenceWorkspace({
     profiles: initialConfig.profiles, assignments: initialConfig.assignments, processStages: initialConfig.processStages,
     operatingContextProfiles: initialConfig.operatingContextProfiles
   });
+  useEffect(() => {
+    if (!dirtyConfiguration && !dirtySelection) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [dirtyConfiguration, dirtySelection]);
+
   const semanticAnnotationsComplete = profiles.every(profile => profile.signals.every(signal =>
     !signal.semanticBinding || isSemanticBindingComplete(signal.semanticBinding, semanticCatalog?.semanticCatalogs ?? [])));
   const semanticRoles = (semanticCatalog?.semanticCatalogs ?? []).flatMap(catalog =>
@@ -1525,8 +1535,16 @@ function qualifierLabel(key: SemanticQualifierKey): SemanticQualifierLabel | nul
 async function responseError(response: Response, locale: EngineeringLocale): Promise<Error> {
   let detail = `${response.status} ${response.statusText}`;
   try {
-    const payload = await response.json() as { error?: unknown };
+    const payload = await response.json() as { error?: unknown; issues?: { code?: string }[] };
     if (typeof payload.error === 'string') detail = payload.error;
+    if (detail === 'INTELLIGENCE_CONFIGURATION_INVALID') {
+      const missingUnit = payload.issues?.some(issue => issue.code === 'ENGINEERING_UNIT_REFERENCE_REQUIRED');
+      detail = locale === 'en'
+        ? missingUnit ? 'Not saved: a measurement has no controlled unit. Open TAGs and choose its unit from the catalog; typing A or Hz in a text field is not enough. Your edits remain on this page.' : 'The configuration was not saved. Review the measurements, qualifiers and equipment references. Your edits remain on this page.'
+        : locale === 'es'
+          ? missingUnit ? 'No se guardó: una medición no tiene unidad del catálogo. Abra TAGs y seleccione su unidad; escribir A o Hz como texto no basta. Sus cambios siguen en esta página.' : 'La configuración no se guardó. Revise mediciones, calificadores y referencias de equipos. Sus cambios siguen en esta página.'
+          : missingUnit ? 'Não foi salvo: uma medição está sem unidade do catálogo. Abra TAGs e selecione a unidade; escrever A ou Hz como texto não basta. Suas alterações continuam nesta página.' : 'A configuração não foi salva. Revise medições, qualificadores e referências de equipamentos. Suas alterações continuam nesta página.';
+    }
   } catch { /* keep status text */ }
   const boundaryErrors = ['INTELLIGENCE_WORKSPACE_DIFFERS_FROM_ACTIVE_REVISION', 'INTELLIGENCE_SCOPE_TRANSITION_HAS_UNRELATED_CHANGES'];
   if (boundaryErrors.includes(detail)) detail = locale === 'en'

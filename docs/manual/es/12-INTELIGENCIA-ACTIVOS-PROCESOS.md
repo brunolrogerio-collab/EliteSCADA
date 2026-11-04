@@ -282,6 +282,8 @@ Después de consultar cobertura, abra Detalles y comparación de esta medición 
 
 Para comparar esa señal introduzca inicio/fin de comparación estadística y elija agrupación. Use hasta 31 días y la misma duración que la cobertura actual. Puede ser anterior, posterior o superpuesta; los períodos superpuestos reutilizan lecturas y no son muestras independientes. Pulse Comparar estadísticas. Se muestran diferencias del período actual menos el comparado: cantidad, mínimo, máximo, media, primero, último y variación. Son diferencias descriptivas; no demuestran condiciones equivalentes, eficiencia ni un fallo. No disponible no significa cero. Cambiar campos retira el resultado; Cancelar comparación descarta la solicitud en curso. Para cambiar el período actual consulte de nuevo la cobertura. No se guarda la comparación en el proyecto ni se ejecuta al abrir los detalles.
 
+Antes de salir de esta página, use Guardar configuración para guardar perfiles, mediciones y asignaciones en Working. Guardar alcances elegibles solo guarda la selección de equipos y lugares; no guarda un perfil en edición. Después guarde la revisión en Vista general, publique y active en Runtime. Si aparece un error al guardar, el perfil no se ha guardado: corrija la causa y reintente antes de navegar. Un significado de medición requiere una unidad del catálogo en el TAG; el texto libre A o Hz no sustituye esa unidad.
+
 ### Si su acceso cubre solo parte de la planta
 
 Crear un panel o editar un contexto requiere editar Ingeniería y administrar Intelligence en los equipos involucrados. No necesita administrar toda la planta. En Contenido del panel, elija un perfil de equipo autorizado.

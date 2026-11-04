@@ -450,3 +450,36 @@ for(const locale of ['pt-BR','en','es'] as const){
   const width=await page.evaluate(()=>({client:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));expect(width.scroll).toBeLessThanOrEqual(width.client);
  });
 }
+
+
+test('saving a profile preserves a separately edited scope selection and reloads persisted profiles', async ({ page }) => {
+  let configuration: Record<string, any> = { version: 2, scopes: [], profiles: [], assignments: [], processStages: [] };
+  await mockWorkspace(page, () => configuration, next => { configuration = { ...configuration, ...next }; });
+  await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
+  await page.getByRole('checkbox', { name: /Pump P02/ }).check();
+  await page.getByRole('button', { name: 'Novo perfil', exact: true }).click();
+  await page.getByLabel('Nome de exibição', { exact: true }).fill('Saved pump profile');
+  await page.getByRole('button', { name: 'Salvar configuração de processo', exact: true }).first().click();
+  await expect(page.getByRole('button', { name: 'Salvar configuração de processo', exact: true }).first()).toBeDisabled();
+  await expect(page.getByRole('checkbox', { name: /Pump P02/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Salvar escopos elegíveis', exact: true })).toBeEnabled();
+  await page.getByRole('checkbox', { name: /Pump P02/ }).uncheck();
+  await page.reload();
+  await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Saved pump profile');
+});
+
+
+test('rejected semantic save explains missing controlled units and preserves the profile draft', async ({ page }) => {
+  await mockWorkspace(page, () => ({ version: 2, scopes: [], profiles: [], assignments: [], processStages: [] }), () => {});
+  await page.route('**/api/engineering/asset-process-intelligence/configuration', route => route.fulfill({ status: 400, json: {
+    error: 'INTELLIGENCE_CONFIGURATION_INVALID', issues: [{ code: 'ENGINEERING_UNIT_REFERENCE_REQUIRED' }]
+  } }));
+  await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
+  await page.getByRole('button', { name: 'Novo perfil', exact: true }).click();
+  await page.getByLabel('Nome de exibição', { exact: true }).fill('Keep this pump');
+  await page.getByRole('button', { name: 'Salvar configuração de processo', exact: true }).first().click();
+  await expect(page.getByRole('alert')).toContainText('Abra TAGs e selecione a unidade');
+  await expect(page.getByRole('alert')).toContainText('Não foi salvo');
+  await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Keep this pump');
+  await expect(page.getByRole('button', { name: 'Salvar configuração de processo', exact: true }).first()).toBeEnabled();
+});

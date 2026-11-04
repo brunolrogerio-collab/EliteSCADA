@@ -282,6 +282,8 @@ Depois de consultar a cobertura, abra Detalhes e comparação desta medição de
 
 Para comparar esse sinal, preencha Início e Fim da comparação estatística e escolha o agrupamento. Use até 31 dias e a mesma duração da cobertura atual. A comparação pode ser anterior, posterior ou sobreposta; períodos sobrepostos reutilizam leituras e não são amostras independentes. Clique Comparar estatísticas. A resposta mostra diferenças do período atual menos o comparado: quantidade de amostras, mínimo, máximo, média, primeiro, último e variação. São diferenças descritivas; não comprovam mesmo regime, eficiência ou defeito. Não disponível não significa zero. Alterar os campos limpa o resultado; Cancelar comparação descarta a solicitação em andamento. Para mudar o período atual, consulte novamente a cobertura. Nenhuma comparação é salva no projeto nem executada ao abrir os detalhes.
 
+Antes de sair desta tela, clique em Salvar configuração de processo para guardar perfis, medições e associações no Working. Salvar escopos elegíveis guarda apenas a seleção dos equipamentos e locais; não salva um perfil em edição. Depois, na Visão geral, salve a revisão, publique e ative no Runtime. Se o salvamento mostrar erro, o perfil ainda não foi guardado: corrija a causa e tente novamente antes de navegar. Um significado de medição exige a unidade do catálogo no cadastro do TAG; o texto livre A ou Hz, sozinho, não substitui essa unidade.
+
 ### Se você tem acesso somente a parte da planta
 
 Para criar um painel ou editar um contexto, você precisa editar a Engenharia e gerenciar Intelligence nos equipamentos envolvidos. Não é necessário receber gestão de toda a planta. Em Conteúdo do painel, escolha o perfil de um equipamento autorizado.

@@ -1,3 +1,19 @@
+# Current coordinator handoff
+
+## Current task — #864 / PR #865 — 04/11/2026
+
+Owner requested fixing disappearing Intelligence profiles and enabling the two-pump preview. Baseline d48febfc: #862 post-merge41760450804 SUCCESS; #791 software audit closed, without field/global visual acceptance. The owner's subsequent preview report is tracked as a concrete new correction in #864, not ignored because of that closure.
+
+Signed ESLIC3 test licence installed through UI with existing signing infrastructure; both independent pump profiles saved/published/activated on revision43 and explicitly rearmed. Real integrated-browser five-minute queries succeeded: Pump01 current195/frequency190 Good samples; Pump02 current191/frequency190. No synchronized timestamps or predictive results claimed. Current/frequency captured; voltage excluded from these test profiles because capture is disabled. Application, Authority and existing online binding preserved; future renewal may replace test entitlement and requires explicit attention.
+
+PR#865 initially e697683e preserves local authoring during scope saves and scope selection during configuration saves; explains unit rejection and updates Help/manual. UI15/15 + rejection1/1, TypeScript passed. First CI41853262709 failed only missing VALIDATION_PROFILE declaration; declaration repaired, dispatch41889873840 on that SHA is historical and does not validate later code.
+
+Additional confirmed cursor defect: shrinking page size near the shared50,000-row budget breaks signed cursor fingerprints. Real HistoricalQueryService/codec regression failed2/3 before repair and passes after constant per-signal page size. Full analytics229/229 passed. Limits, authorization and no-partial-report guards unchanged. Detailed report: WAVE15-INTELLIGENCE-PREVIEW-PROFILE-PERSISTENCE-864.md.
+
+Next: record new head and exact CI; review/integrate only after success; update API/Web preview with backups/volumes intact, then verify long-window error and both pump queries in integrated browser. Browser control was temporarily disabled, then restored by owner; use existing tab/session, not Firefox. Product remains at integrated d48 until a verified update. No HA/Portal changes. Contrast repairs remain#863. Do not advance to HA or DEMO polish while this concrete correction remains active.
+
+## Historical notes below — candidate/pending statements may be superseded above
+
 # Current coordinator pointer - Wave 15
 
 ## #862 — expectativa de mensagem de bloqueio

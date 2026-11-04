@@ -3440,7 +3440,9 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             var remainingRows = maximumRows - observations.Count;
             if (remainingRows <= 0)
                 return ObservationReadResult.Fail(remainingLimitError ?? WindowTooDense(densityErrorCode));
-            var pageSize = Math.Min(AssetProcessIntelligenceKpiCatalogV1.QueryPageSize, remainingRows);
+            // The page size is part of the signed cursor fingerprint. Keep it
+            // stable for this signal and reject overflow before retaining rows.
+            var pageSize = Math.Min(AssetProcessIntelligenceKpiCatalogV1.QueryPageSize, maximumRows);
 
             var request = new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamples,

@@ -363,6 +363,13 @@ async function mockWorkspace(
   } }));
   await page.route('**/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog', route => route.fulfill({ json: semanticCatalog }));
   await page.route('**/api/engineering/asset-process-intelligence/scopes', async route => {
+    if (route.request().method() === 'PUT') {
+      write({ scopes: route.request().postDataJSON().scopes.map((scope: { kind: number; scopeId: string }) => ({
+        ...scope, kind: scope.kind === 0 ? 'Equipment' : 'Location', active: false
+      })) });
+      await route.fulfill({ json: { configuration: read(), workspace: {} } });
+      return;
+    }
     const resources = options.emptyResources ? [] : [
       { kind: 'Equipment', scopeId: '15000000-0000-0000-0000-000000000301', path: 'Plant.Pump01', name: 'Pump P01' },
       { kind: 'Equipment', scopeId: '15000000-0000-0000-0000-000000000302', path: 'Plant.Pump02', name: 'Pump P02' }
@@ -482,4 +489,41 @@ test('rejected semantic save explains missing controlled units and preserves the
   await expect(page.getByRole('alert')).toContainText('Não foi salvo');
   await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Keep this pump');
   await expect(page.getByRole('button', { name: 'Salvar configuração de processo', exact: true }).first()).toBeEnabled();
+});
+
+
+async function mockEngineeringShell(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/**', route => route.fulfill({ status: 403, json: { error: 'not part of this fixture' } }));
+  let configuration: Record<string, any> = { version: 2, scopes: [], profiles: [], assignments: [], processStages: [] };
+  await mockWorkspace(page, () => configuration, next => { configuration = { ...configuration, ...next }; });
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: {
+    projectKey: 'test', projectName: 'Pump fixture', baseRevision: 1, changeVersion: 1, isDirty: false
+  } }));
+  await page.route('**/api/engineering/export/json', route => route.fulfill({ json: { tags: [], equipment: [], screens: [] } }));
+  await page.goto('/tests-e2e/harness/engineering-shell.html');
+  await page.getByRole('button', { name: 'Novo perfil', exact: true }).click();
+  await page.getByLabel('Nome de exibição', { exact: true }).fill('Keep my pump draft');
+}
+
+test('Engineering shell scope save does not unmount an unsaved profile', async ({ page }) => {
+  await mockEngineeringShell(page);
+  await page.getByRole('checkbox', { name: /Pump P02/ }).check();
+  await page.getByRole('button', { name: 'Salvar escopos elegíveis', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Salvar escopos elegíveis', exact: true })).toBeDisabled();
+  await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Keep my pump draft');
+  await expect(page.getByRole('button', { name: 'Salvar configuração de processo', exact: true }).first()).toBeEnabled();
+});
+
+test('Engineering section navigation lets the user cancel discarding unsaved Intelligence edits', async ({ page }) => {
+  await mockEngineeringShell(page);
+  const confirmation = page.waitForEvent('dialog');
+  const navigation = page.getByRole('button', { name: 'Informações •', exact: true }).click();
+  const dialog = await confirmation;
+  expect(dialog.type()).toBe('confirm');
+  expect(dialog.message()).toContain('não salvas');
+  await dialog.dismiss();
+  await navigation;
+  await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Keep my pump draft');
+  await expect(page.getByRole('heading', { name: 'Inteligência de Ativos e Processos', exact: true })).toBeVisible();
 });

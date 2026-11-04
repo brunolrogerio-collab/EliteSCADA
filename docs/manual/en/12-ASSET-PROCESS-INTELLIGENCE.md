@@ -284,6 +284,8 @@ To compare that signal, enter Statistical comparison start/end and choose groupi
 
 Before leaving this page, use Save process configuration to store profiles, measurements and assignments in Working. Save eligible scopes stores only the equipment and location selection; it does not save a profile being edited. Then save the revision in Overview, publish and activate in Runtime. If saving shows an error, the profile has not been stored: fix the cause and retry before navigating. A measurement meaning requires a catalog unit on the TAG; free text A or Hz alone does not replace that unit.
 
+If you change sections with unsaved edits, the system asks for confirmation. Cancel to return and save; confirming departure discards those local edits. This warning does not replace saving the project revision.
+
 ### If your access covers only part of the plant
 
 Creating a dashboard or editing a context requires Engineering editing permission and Intelligence management permission for the equipment involved. Plant-wide management is not required. Under Dashboard content, select an authorized equipment profile.

@@ -284,6 +284,8 @@ Para comparar esse sinal, preencha Início e Fim da comparação estatística e 
 
 Antes de sair desta tela, clique em Salvar configuração de processo para guardar perfis, medições e associações no Working. Salvar escopos elegíveis guarda apenas a seleção dos equipamentos e locais; não salva um perfil em edição. Depois, na Visão geral, salve a revisão, publique e ative no Runtime. Se o salvamento mostrar erro, o perfil ainda não foi guardado: corrija a causa e tente novamente antes de navegar. Um significado de medição exige a unidade do catálogo no cadastro do TAG; o texto livre A ou Hz, sozinho, não substitui essa unidade.
 
+Se tentar mudar de seção com edições ainda não salvas, o sistema pede confirmação. Cancele para voltar e salvar; confirmar a saída descarta apenas essas edições locais. Esse aviso não substitui salvar a revisão do projeto.
+
 ### Se você tem acesso somente a parte da planta
 
 Para criar um painel ou editar um contexto, você precisa editar a Engenharia e gerenciar Intelligence nos equipamentos envolvidos. Não é necessário receber gestão de toda a planta. Em Conteúdo do painel, escolha o perfil de um equipamento autorizado.

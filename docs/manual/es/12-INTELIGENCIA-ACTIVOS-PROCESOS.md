@@ -284,6 +284,8 @@ Para comparar esa señal introduzca inicio/fin de comparación estadística y el
 
 Antes de salir de esta página, use Guardar configuración para guardar perfiles, mediciones y asignaciones en Working. Guardar alcances elegibles solo guarda la selección de equipos y lugares; no guarda un perfil en edición. Después guarde la revisión en Vista general, publique y active en Runtime. Si aparece un error al guardar, el perfil no se ha guardado: corrija la causa y reintente antes de navegar. Un significado de medición requiere una unidad del catálogo en el TAG; el texto libre A o Hz no sustituye esa unidad.
 
+Si cambia de sección con ediciones sin guardar, el sistema pide confirmación. Cancele para volver y guardar; confirmar la salida descarta esas ediciones locales. Este aviso no sustituye guardar la revisión del proyecto.
+
 ### Si su acceso cubre solo parte de la planta
 
 Crear un panel o editar un contexto requiere editar Ingeniería y administrar Intelligence en los equipos involucrados. No necesita administrar toda la planta. En Contenido del panel, elija un perfil de equipo autorizado.

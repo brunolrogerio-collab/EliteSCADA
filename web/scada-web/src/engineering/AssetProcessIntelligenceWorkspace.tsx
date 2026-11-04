@@ -98,6 +98,7 @@ export function AssetProcessIntelligenceWorkspace({
   tags: packageTags,
   screens = [],
   onSaved,
+  onPendingChangesChanged,
   onCreateDashboardDraft
 }: {
   locale: EngineeringLocale;
@@ -105,6 +106,7 @@ export function AssetProcessIntelligenceWorkspace({
   tags: TagEngineering[];
   screens?: readonly ScreenEngineering[];
   onSaved?: () => Promise<void>;
+  onPendingChangesChanged?: (pending: boolean) => void;
   onCreateDashboardDraft?: (draft: ScreenEngineering | readonly ScreenEngineering[]) => void;
 }) {
   const { capabilities, loading: capabilitiesLoading, error: capabilitiesError } = useEffectiveCapabilities();
@@ -281,6 +283,11 @@ export function AssetProcessIntelligenceWorkspace({
     profiles: initialConfig.profiles, assignments: initialConfig.assignments, processStages: initialConfig.processStages,
     operatingContextProfiles: initialConfig.operatingContextProfiles
   });
+  useEffect(() => {
+    onPendingChangesChanged?.(dirtyConfiguration || dirtySelection);
+  }, [dirtyConfiguration, dirtySelection, onPendingChangesChanged]);
+  useEffect(() => () => onPendingChangesChanged?.(false), [onPendingChangesChanged]);
+
   useEffect(() => {
     if (!dirtyConfiguration && !dirtySelection) return;
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {

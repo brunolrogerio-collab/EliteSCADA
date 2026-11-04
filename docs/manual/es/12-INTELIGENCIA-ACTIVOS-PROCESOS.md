@@ -374,6 +374,12 @@ En el generador de pantalla de desviación contextual, elija de 2 a 8 señales o
 
 Aunque la unidad sea la misma, compruebe la comparación: el perfil operativo incluye el máximo; la pantalla de desviación contextual no. Revise esta diferencia antes de copiar un intervalo.
 
+### Elija el compositor o un atajo específico
+
+Use Generar panel para Runtime para elegir las vistas de forma independiente. Es el camino recomendado al montar la aplicación o cuando faltan sensores. Las opciones no disponibles explican qué datos necesitan; puede generar las demás vistas.
+
+Crear conjunto de rendimiento y desviación es un atajo que crea cuatro pantallas enlazadas y requiere configurar ambos análisis. No sustituye al compositor principal. Para una etapa, Crear mediciones y cobertura de etapa crea el conjunto básico; Crear rendimiento y desviación por equipo requiere los análisis de cada miembro. Use Elegir vistas en el compositor principal para volver al flujo flexible. Los atajos preparan borradores del editor: revíselos, aplíquelos, guarde, publique y active antes de usar Runtime.
+
 ### Genere pantalla y compruebe la cadena completa
 
 1. Guarde la configuración actual. En Crear un panel para Runtime, elija un perfil de equipo o una etapa del proceso en Contenido del panel.
@@ -491,5 +497,13 @@ Las leyendas indican API simulada o API/PostgreSQL reales. Todos los datos son s
 **Autor con edición de Ingeniería y gestión de un equipo, sin gestión global: compositor real en portugués, API/PostgreSQL y aplicación sintética.**
 
 ![Autor con edición de Ingeniería y gestión de un equipo, sin gestión global: compositor real en portugués, API/PostgreSQL y aplicación sintética.](../../evidence/intelligence-791-final/author791-scoped-composer.png)
+
+**Consulta de rendimiento bloqueada: próximos pasos en la interfaz real en portugués, sesión local y datos sintéticos.**
+
+![Consulta de rendimiento bloqueada: próximos pasos en la interfaz real en portugués, sesión local y datos sintéticos.](../../evidence/intelligence-791-final/language791-performance-blocked.png)
+
+**Atajo del conjunto fijo y regreso al compositor principal en la interfaz real en portugués.**
+
+![Atajo del conjunto fijo y regreso al compositor principal en la interfaz real en portugués.](../../evidence/intelligence-791-final/language791-fixed-shortcut.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

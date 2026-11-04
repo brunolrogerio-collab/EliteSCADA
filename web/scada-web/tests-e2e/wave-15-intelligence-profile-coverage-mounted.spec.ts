@@ -600,7 +600,7 @@ for (const scenario of [
     await openIntelligence(page);
     const panel = page.getByTestId(`intelligence-performance-${profileId}`);
     await panel.getByRole('button', { name: 'Analisar desempenho registrado' }).click();
-    await expect(panel.getByText('A análise exige licença válida', { exact: false })).toBeVisible();
+    await expect(panel.getByText('Para consultar, você precisa de licença Intelligence válida e acesso ao histórico.', { exact: false })).toBeVisible();
     await expect(panel.getByLabel('Regra de desempenho')).toBeDisabled();
     await expect(panel.getByRole('button', { name: 'Analisar desempenho' })).toBeDisabled();
     expect(fixture.performanceRequests).toEqual([]);

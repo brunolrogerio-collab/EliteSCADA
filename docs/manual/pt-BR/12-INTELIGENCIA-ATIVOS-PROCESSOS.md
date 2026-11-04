@@ -374,6 +374,12 @@ No gerador de tela de desvio contextual, escolha 2 a 8 sinais-alvo e dois sinais
 
 Mesmo quando a unidade é a mesma, confira a comparação: o perfil operacional inclui o máximo; a tela de desvio contextual não. Não copie uma faixa sem revisar essa diferença.
 
+### Escolha o compositor ou um atalho específico
+
+Use Gerar painel para o Runtime para escolher as vistas de forma independente. Esse é o caminho recomendado quando você ainda está montando a aplicação ou não dispõe de todos os sensores. As opções indisponíveis explicam quais dados faltam; você pode gerar as outras.
+
+O atalho Gerar conjunto de desempenho e desvio cria quatro telas vinculadas e só fica disponível depois de configurar os dois tipos de análise. Ele não substitui o compositor principal. Na etapa, Gerar medições e cobertura da etapa cria o conjunto básico; Gerar desempenho e desvio por equipamento exige as análises de cada membro. Use o link Escolher vistas no compositor principal para voltar ao fluxo flexível. Esses atalhos apenas preparam rascunhos no editor: revise, aplique, salve, publique e ative antes de usar no Runtime.
+
 ### Gere a tela e confira a cadeia completa
 
 1. Salve a configuração atual. No bloco Gerar painel para o Runtime, escolha um perfil de equipamento ou uma etapa do processo em Conteúdo do painel.
@@ -491,5 +497,13 @@ As legendas indicam se a captura usa API simulada ou API/PostgreSQL reais. Todos
 **Autor com edição de Engenharia e gestão de um equipamento, sem gestão global: compositor real em português, API/PostgreSQL e aplicação sintética.**
 
 ![Autor com edição de Engenharia e gestão de um equipamento, sem gestão global: compositor real em português, API/PostgreSQL e aplicação sintética.](../../evidence/intelligence-791-final/author791-scoped-composer.png)
+
+**Desempenho bloqueado: próximos passos na interface real, com sessão local e dados sintéticos.**
+
+![Desempenho bloqueado: próximos passos na interface real, com sessão local e dados sintéticos.](../../evidence/intelligence-791-final/language791-performance-blocked.png)
+
+**Atalho do conjunto fixo e retorno ao compositor principal, na interface real.**
+
+![Atalho do conjunto fixo e retorno ao compositor principal, na interface real.](../../evidence/intelligence-791-final/language791-fixed-shortcut.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.analysis-guide)

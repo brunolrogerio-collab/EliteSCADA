@@ -1,0 +1,10 @@
+{
+  "syntheticOnly": true,
+  "realLocalSession": true,
+  "performanceBlockExplainsNextSteps": true,
+  "fixedBundleLabelAndHint": true,
+  "mainComposerLinkWorks": true,
+  "engineeringWrites": [],
+  "analyticsQueries": 0,
+  "pageErrors": []
+}

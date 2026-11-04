@@ -1,5 +1,15 @@
 # Current coordinator pointer - Wave 15
 
+## #862 — expectativa de mensagem de bloqueio
+
+CI#862 run41755906396 /8222d434 falhou em cinco cenários Performance V1B remains blocked: o teste ainda buscava a frase antiga “A análise exige licença válida”, removida pelo acabamento de linguagem. Falhas localizadas na mesma asserção de mensagem; controles desabilitados e zero requests continuam verificados, sem relaxar gate/retry/timeout. Expectativa atualizada para a frase explicativa nova e cinco cenários repetidos localmente; resultado/novo SHA na #862/#791. Não é prova de falha no cálculo ou de permissão concedida.
+
+
+## #791 — último acabamento de linguagem
+
+#861 integradaf6d2265b, pós-merge41754074650 SUCCESS. #855/#857 fechadas com estado atual reconciliado; #858 também concluída. Candidata na branch work/w15-intelligence-final-language-791: bloqueio de desempenho/cobertura em linguagem comum, atalhos fixos nomeados pelo conteúdo e link ao compositor independente; sem mudança de geração/guardas.19/19 navegador,30/30 Help, build Web/manual69 alinhados. Matriz atualizada para superar pendências históricas já resolvidas. Relatório WAVE15-INTELLIGENCE-FINAL-INTERFACE-791.md. Próximo: CI exato/integração/pós-merge desta candidata e preview; #791 permanece aberta até reconciliação final. A preparação de captura detectou role de teste adicional sem referência publicada; fixture restaurada via stores canônicos somente no laboratório, removendo papel adicional e desabilitando/desassociando somente a conta de teste; sem desativar validações ou alterar projeto/Authority do proprietário. API iniciou normalmente depois. Capturas de linguagem conferidas com sessão local remanescente, sem writes/analytics/pageerrors.
+
+
 ## #791 — autoria por recurso após integrar #858
 
 #860 integrada2a9c6dcb, pós-merge41749116899 SUCCESS. Operação do gestor resolvida no escopo comprovado. Novo reparo de interface na branch work/w15-intelligence-final-interface-791: compositor/atalhos/contextos respeitam canManage por equipamento; etapa exige todos os membros, perfil autorizado permanece utilizável. API projeta permissões também nos recursos ainda não elegíveis.37/37 contratos+30/30 Help,19/19 UI, build Web e prova API/PostgreSQL/login local/revisão80 sem gravação/analytics. Relatório WAVE15-INTELLIGENCE-FINAL-INTERFACE-791.md e evidências intelligence-791-final. Próximo: CI exato/integração/pós-merge deste reparo, reconciliação final das issues e preview. Não presumir fechado por verde de predecessor.

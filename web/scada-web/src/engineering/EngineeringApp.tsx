@@ -127,6 +127,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
   const [error, setError] = useState<string | null>(null);
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [productIdentity, setProductIdentity] = useState<ProductIdentityView | null>(null);
+  const [intelligencePendingChanges, setIntelligencePendingChanges] = useState(false);
   const [intelligenceDashboardDrafts, setIntelligenceDashboardDrafts] = useState<readonly ScreenEngineering[]>([]);
   const t = useMemo(() => translator(locale), [locale]);
   const { capabilities } = useEffectiveCapabilities();
@@ -173,6 +174,14 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
   };
 
   const selectSection = (next: SectionId) => {
+    if (section === 'intelligence' && next !== section && intelligencePendingChanges) {
+      const warning = locale === 'en'
+        ? 'There are unsaved Intelligence changes. Cancel to save the process configuration and eligible scopes before saving the project revision. Leave and discard these edits?'
+        : locale === 'es'
+          ? 'Hay cambios de Intelligence sin guardar. Cancele para guardar configuración y alcances antes de guardar la revisión. ¿Salir y descartar estos cambios?'
+          : 'Há alterações da Intelligence não salvas. Cancele para salvar a configuração de processo e os escopos antes de salvar a revisão. Sair e descartar estas edições?';
+      if (!window.confirm(warning)) return;
+    }
     setSection(next);
     const nextPath = engineeringSectionPath(next);
     if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
@@ -279,7 +288,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
         >
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
           {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
-          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} isSystemAdmin={canAdministerDatabase} onReload={load} onSnapshotRefreshed={refreshSnapshotInPlace} onCreateIntelligenceDashboard={openIntelligenceDashboardDraft} initialIntelligenceDashboardDrafts={intelligenceDashboardDrafts} onIntelligenceDashboardDraftConsumed={consumeIntelligenceDashboardDraft}/>}
+          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} isSystemAdmin={canAdministerDatabase} onReload={load} onSnapshotRefreshed={refreshSnapshotInPlace} onIntelligencePendingChangesChanged={setIntelligencePendingChanges} onCreateIntelligenceDashboard={openIntelligenceDashboardDraft} initialIntelligenceDashboardDrafts={intelligenceDashboardDrafts} onIntelligenceDashboardDraftConsumed={consumeIntelligenceDashboardDraft}/>}
         </section>
       </div>
     </main>
@@ -292,7 +301,7 @@ function editorNavigationLabel(locale: EngineeringLocale, collapsed: boolean): s
   return collapsed ? 'Mostrar navegação do Engineering' : 'Ocultar navegação do Engineering';
 }
 
-function EngineeringSection({ section, snapshot, productIdentity, t, locale, isSystemAdmin, onReload, onSnapshotRefreshed, onCreateIntelligenceDashboard, initialIntelligenceDashboardDrafts, onIntelligenceDashboardDraftConsumed }: {
+function EngineeringSection({ section, snapshot, productIdentity, t, locale, isSystemAdmin, onReload, onSnapshotRefreshed, onIntelligencePendingChangesChanged, onCreateIntelligenceDashboard, initialIntelligenceDashboardDrafts, onIntelligenceDashboardDraftConsumed }: {
   section: SectionId;
   snapshot: EngineeringSnapshot;
   productIdentity: ProductIdentityView | null;
@@ -301,6 +310,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, isS
   isSystemAdmin: boolean;
   onReload: () => Promise<void>;
   onSnapshotRefreshed: () => Promise<void>;
+  onIntelligencePendingChangesChanged: (pending: boolean) => void;
   onCreateIntelligenceDashboard: (draft: ScreenEngineering | readonly ScreenEngineering[]) => void;
   initialIntelligenceDashboardDrafts: readonly ScreenEngineering[];
   onIntelligenceDashboardDraftConsumed: (key: string) => void;
@@ -325,7 +335,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, isS
   if (section === 'historian') return <HistorianSection model={model} t={t}/>;
   if (section === 'reports') return <ReportDesignerWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale}/>;
-  if (section === 'intelligence') return <AssetProcessIntelligenceWorkspace projectName={snapshot.workspace.projectName ?? undefined} locale={locale} tags={model.tags} screens={model.screens ?? []} onCreateDashboardDraft={onCreateIntelligenceDashboard} onSaved={onReload}/>;
+  if (section === 'intelligence') return <AssetProcessIntelligenceWorkspace projectName={snapshot.workspace.projectName ?? undefined} locale={locale} tags={model.tags} screens={model.screens ?? []} onCreateDashboardDraft={onCreateIntelligenceDashboard} onSaved={onSnapshotRefreshed} onPendingChangesChanged={onIntelligencePendingChangesChanged}/>;
   if (section === 'highAvailability') return <HighAvailabilityAdminWorkspace locale={locale}/>;
   if (section === 'monitor') return <DevelopmentMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'tagMonitor') return <EngineeringTagMonitorWorkspace snapshot={snapshot} locale={locale}/>;

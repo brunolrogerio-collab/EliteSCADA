@@ -1363,6 +1363,56 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
     }
 
+    [Theory]
+    [InlineData(49_800, StatusCodes.Status200OK)]
+    [InlineData(49_801, StatusCodes.Status200OK)]
+    [InlineData(49_802, StatusCodes.Status413PayloadTooLarge)]
+    public async Task ProfileCoverageKeepsSignedCursorFingerprintAtNonPageAlignedTotalBudget(int secondCount, int expectedStatus)
+    {
+        using var fixture = Fixture.Create();
+        var second = fixture.AddProfileSignal("zz-frequency", "drive-frequency", TagDataType.Double, "Hz");
+        var queries = new HistoricalQueryService(
+            [new BudgetCursorProvider(second.Id, 199, secondCount)],
+            new BudgetCursorAuthorizer(), new HistoricalQueryCursorCodec(new byte[32]),
+            () => FromUtc.AddDays(1));
+        fixture.Historian.RespondAsync = queries.QueryAsync;
+
+        var result = await fixture.ExecuteProfileCoverageAsync();
+
+        AssertStatus(expectedStatus, result);
+        if (expectedStatus == StatusCodes.Status413PayloadTooLarge)
+            Assert.Equal("INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE", Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(
+                Assert.IsAssignableFrom<IValueHttpResult>(result).Value).Code);
+        else
+            Assert.IsType<AssetProcessIntelligenceProfileCoverageResponse>(Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.All(fixture.Historian.Requests.Where(request => request.Page?.Cursor is not null),
+            request => Assert.Equal(200, request.Page!.Size));
+    }
+
+    private sealed class BudgetCursorAuthorizer : IHistoricalQueryAuthorizer
+    {
+        public ValueTask<HistoricalAuthorizationDecision> AuthorizeAsync(string dataset, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(HistoricalAuthorizationDecision.Allow());
+    }
+
+    private sealed class BudgetCursorProvider(Guid secondTagId, int firstCount, int secondCount) : IHistoricalDatasetProvider
+    {
+        public string Dataset => HistoricalDatasets.HistorianSamples;
+        public Task<HistoricalProviderPage> QueryAsync(HistoricalQueryExecution query, CancellationToken cancellationToken = default)
+        {
+            var tagId = Assert.Single(Assert.Single(query.Filters).Values).AsGuid();
+            var total = tagId == secondTagId ? secondCount : firstCount;
+            var offset = query.After is null ? 0 : int.Parse(query.After.TieBreaker, System.Globalization.CultureInfo.InvariantCulture);
+            var count = Math.Min(query.PageSize, total - offset);
+            var timestamp = FromUtc.AddMinutes(1);
+            var rows = Enumerable.Range(0, count).Select(_ => Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(5))).ToArray();
+            HistoricalQueryPosition? next = offset + count < total
+                ? new(HistoricalQueryValue.FromDateTime(timestamp), timestamp, (offset + count).ToString(System.Globalization.CultureInfo.InvariantCulture))
+                : null;
+            return Task.FromResult(new HistoricalProviderPage(rows, next));
+        }
+    }
+
     [Fact]
     public async Task ProfileCoverageStopsBeforeHistorianWhenTrendUseIsMissing()
     {

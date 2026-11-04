@@ -282,6 +282,10 @@ After querying coverage, open Measurement details and comparison inside the desi
 
 To compare that signal, enter Statistical comparison start/end and choose grouping. Use up to 31 days and the same duration as current coverage. Comparison may precede, follow or overlap; overlapping periods reuse readings and are not independent samples. Click Compare statistics. Results show current-minus-comparison differences in sample count, minimum, maximum, mean, first, last and period change. These descriptive differences do not establish equivalent conditions, efficiency or a fault. Unavailable does not mean zero. Editing fields clears results; Cancel comparison discards the in-flight request. To change the current period, query coverage again. Comparisons are neither saved in the project nor run when details open.
 
+Before leaving this page, use Save process configuration to store profiles, measurements and assignments in Working. Save eligible scopes stores only the equipment and location selection; it does not save a profile being edited. Then save the revision in Overview, publish and activate in Runtime. If saving shows an error, the profile has not been stored: fix the cause and retry before navigating. A measurement meaning requires a catalog unit on the TAG; free text A or Hz alone does not replace that unit.
+
+If you change sections with unsaved edits, the system asks for confirmation. Cancel to return and save; confirming departure discards those local edits. This warning does not replace saving the project revision.
+
 ### If your access covers only part of the plant
 
 Creating a dashboard or editing a context requires Engineering editing permission and Intelligence management permission for the equipment involved. Plant-wide management is not required. Under Dashboard content, select an authorized equipment profile.

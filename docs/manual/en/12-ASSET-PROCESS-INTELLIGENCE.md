@@ -374,6 +374,12 @@ In the contextual-deviation screen generator, choose 2 to 8 target signals and t
 
 Even when the unit is the same, check the comparison: the operating profile includes the maximum; the contextual-deviation screen does not. Review this difference before copying a range.
 
+### Choose the composer or a specific shortcut
+
+Use Generate dashboard for Runtime to choose views independently. This is the recommended path when building the application or when some sensors are missing. Unavailable options explain what data is needed; you can generate the other views.
+
+Create performance and deviation set is a shortcut that creates four linked screens and becomes available after both analyses are configured. It does not replace the main composer. For a stage, Create stage measurements and coverage creates the basic set; Create performance and deviation per equipment requires each member analysis. Follow Choose views in the main composer to return to the flexible workflow. These shortcuts prepare editor drafts: review, apply, save, publish and activate them before using Runtime.
+
 ### Generate the screen and check the full chain
 
 1. Save the current configuration. In Create a Runtime dashboard, choose an equipment profile or process stage under Dashboard content.
@@ -491,5 +497,13 @@ Captions identify mocked API or real API/PostgreSQL captures. All displayed data
 **Author with Engineering editing and management of one equipment item, without global management: real Portuguese composer, API/PostgreSQL and synthetic application.**
 
 ![Author with Engineering editing and management of one equipment item, without global management: real Portuguese composer, API/PostgreSQL and synthetic application.](../../evidence/intelligence-791-final/author791-scoped-composer.png)
+
+**Blocked performance query: next steps in the real Portuguese UI, local session and synthetic data.**
+
+![Blocked performance query: next steps in the real Portuguese UI, local session and synthetic data.](../../evidence/intelligence-791-final/language791-performance-blocked.png)
+
+**Fixed-set shortcut and return to the main composer in the real Portuguese UI.**
+
+![Fixed-set shortcut and return to the main composer in the real Portuguese UI.](../../evidence/intelligence-791-final/language791-fixed-shortcut.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

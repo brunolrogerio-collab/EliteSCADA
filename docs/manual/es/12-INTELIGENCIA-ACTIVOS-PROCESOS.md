@@ -190,11 +190,13 @@ Use ¿Dónde desea trabajar? para ir directamente a perfiles, asignaciones, cont
 
 Listo para consultar significa que el elemento está activado para la revisión actual. Si aparece Debe reactivar antes de consultar, revise licencia y permisos y seleccione Activar de nuevo. Puede ser necesario tras reiniciar o restaurar la autorización. El encabezado muestra el nombre de la aplicación; la revisión activa identifica la versión publicada en uso.
 
-### Permisos y selección de recursos
+### Quién configura y quién puede activar o pausar
 
-Su cuenta necesita permiso para editar Ingeniería y gestionar Intelligence en los equipos o lugares elegidos. En Seguridad aparecen como EngineeringModify y AssetProcessIntelligenceManage. El segundo requiere una concesión explícita, global o con alcance en el recurso. El nombre del rol, como Developer o SystemAdmin, no demuestra por sí solo la concesión.
+El desarrollador prepara perfiles, asociaciones y selección de equipos o lugares con permiso de edición de Ingeniería. El gestor puede tener acceso de lectura a Ingeniería (EngineeringView) y permiso para administrar Intelligence solo en sus recursos (AssetProcessIntelligenceManage), sin EngineeringModify.
 
-Las consultas también requieren TrendUse y licencia Intelligence. Si un control está bloqueado, compruebe las capacidades efectivas de la sesión. Elija recursos con los selectores; no necesita memorizar ni inventar IDs.
+Abra Inteligencia de activos y use Activar o Pausar en un recurso ya seleccionado por el desarrollador. Editar selección, perfiles, TAGs o pantallas sigue bloqueado. El permiso se comprueba en el equipo o lugar; el nombre del rol no sustituye una concesión. Las consultas requieren también licencia, TrendUse y lectura de TAGs.
+
+La operación requiere la misma revisión activa que abrió y ninguna edición pendiente. Si otro autor tiene un borrador, pídale finalizarlo o descartarlo y actualice la página. La operación puede crear una revisión persistente con solo el cambio de activación del recurso; no publica cambios de otros objetos. Tras reiniciar, vuelva a Activar para permitir consultas. Si Pausar devuelve un error, no suponga que la pausa durable terminó: compruebe el estado y reintente después de resolver el bloqueo.
 
 ### Activar solo donde sea útil
 
@@ -216,6 +218,14 @@ Restaurar la concesión no reinicia el trabajo silenciosamente. Compruebe el est
 Para Bomba 01, empiece con corriente y velocidad si existen esas mediciones. Elija análisis que las acepten. Con nuevas mediciones podrá ampliar el perfil y usar otros análisis compatibles.
 
 Mantenga pausados los recursos que no usará. No invente una señal de vibración ausente. La selección limita lo autorizado a ejecutar, pero no garantiza un consumo fijo de procesador o memoria.
+
+#### Operación con acceso restringido
+
+Cuenta gestora real: puede pausar el equipo autorizado; otra bomba y edición de selección siguen bloqueadas. El área requiere reactivación tras cambiar la revisión. API y PostgreSQL reales, aplicación sintética.
+
+**Cuenta gestora real: puede pausar el equipo autorizado; otra bomba y edición de selección siguen bloqueadas. El área requiere reactivación tras cambiar la revisión. API y PostgreSQL reales, aplicación sintética.**
+
+![Cuenta gestora real: puede pausar el equipo autorizado; otra bomba y edición de selección siguen bloqueadas. El área requiere reactivación tras cambiar la revisión. API y PostgreSQL reales, aplicación sintética.](../../evidence/intelligence-858/manager858-real-ui.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.activation)
 

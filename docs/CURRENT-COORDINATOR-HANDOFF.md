@@ -1,5 +1,17 @@
 # Current coordinator pointer - Wave 15
 
+## #858 — prova PostgreSQL e correções de conta restrita
+
+PR#860, baseline85475028. Prova real completa nas revisões73–80: conta local/cookie, Equipment/Location, edição/save/outro recurso403, rascunho preservado409, concorrência200/409, pacote persistido e permits fechados após restart, revogação403 e restauração/rearm200. Duas lacunas descobertas e corrigidas: referência da versão Authority tratada como edição de projeto; botão dependia de grant global. Agora só versão canônica da referência pode atualizar (IDs/contrato exatos) e UI usa canManage por recurso.35/35 contratos+30/30 Help,6/6 UI, build Web/manual alinhados. Captura real e resultados em docs/evidence/intelligence-858; relatório WAVE15-INTELLIGENCE-MANAGER-OPERATION-858.md. Próximo: CI exato, revisão/integração/pós-merge e acabamento#791; não declarar fechado por CI do predecessor ae316074.
+
+
+## Retomada #858 — primeira candidata funcional
+
+#859 integrada em854750285c25efd9665b39f8b20a016237626ff3, T1 da candidata41736304340 verde; pós-merge41737562558 registrado separadamente, sem assumir resultado. Branch work/w15-intelligence-manager-operation-858 contém transição restrita: gestor com View+Manage no recurso pode ativar/pausar sem Modify, sob lock/revisão e equivalência integral antes e depois do salvamento. Configuração continua bloqueada. Teste de rascunho/dirty oculto/concorrência e alteração injetada na revisão salva; UI6/6, build Web/manual alinhados. Não muda Authority/HA/licença.
+
+Contrato e limites: WAVE15-INTELLIGENCE-MANAGER-OPERATION-858.md. Próximo: provas PostgreSQL/identidade restrita e área, revisão de revogação/restart, CI exato. Não fechar#858/#791 por testes montados. Preview/DEMO/Portal preservados.
+
+
 ## Pós-merge #854 — contrato de catálogo visual, 03/11/2026
 
 #854 integrado em114ebaacc6471653a9666833f8cda9c13db7cb26, T1 da candidata41727162293 verde. CI pós-merge41729418662 falhou em BuiltinVisualObjectSchemasTests.BuiltinTypes_AreStableUniqueAndMatchTheGraphicalEditorFoundationSet: lista esperada do projeto PostgreSQL omitia core.intelligenceSingleTargetDeviationV1 já presente no catálogo canônico. Não foi falha de persistência/HA nem do cálculo. Correção de cobertura: incluir exatamente o tipo existente, sem relaxar igualdade/ordem/uniqueness.

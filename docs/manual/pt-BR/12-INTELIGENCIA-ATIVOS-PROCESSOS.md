@@ -190,11 +190,13 @@ Use Onde deseja trabalhar? para ir direto a perfis, associações, contextos, et
 
 Pronto para consultar significa que o item foi ativado para a revisão atual. Se aparecer Reative antes de consultar, confira licença e permissões e selecione Ativar novamente. Isso pode ser necessário após reinício ou restauração da autorização. O cabeçalho mostra o nome da aplicação; a revisão ativa identifica a versão publicada em uso.
 
-### Permissões e seleção de recursos
+### Quem configura e quem pode ativar ou pausar
 
-Sua conta precisa de permissão para editar a Engenharia e para gerenciar Intelligence nos equipamentos ou locais escolhidos. Na tela Segurança, essas permissões aparecem como EngineeringModify e AssetProcessIntelligenceManage. A segunda precisa de uma concessão explícita, global ou com alcance no recurso. O nome do papel, como Developer ou SystemAdmin, sozinho não comprova a concessão.
+O desenvolvedor prepara perfis, associações e a seleção de equipamentos ou locais, com permissão de edição da Engenharia. O gestor pode ter acesso de leitura à Engenharia (EngineeringView) e permissão para gerenciar Intelligence somente nos recursos sob sua responsabilidade (AssetProcessIntelligenceManage), sem receber EngineeringModify.
 
-Para consultar resultados, também são necessários TrendUse e licença Intelligence. Se um controle estiver bloqueado, confira as capacidades efetivas da sessão nessa tela. Selecione os recursos pelos seletores; não é necessário decorar ou inventar IDs.
+Com essa conta, abra Inteligência de ativos e use Ativar ou Pausar no recurso já selecionado pelo desenvolvedor. Alterar a seleção, perfis, TAGs ou telas continua bloqueado. A permissão é conferida no equipamento ou local; o nome do papel não substitui uma concessão. Consultar resultados exige também licença, TrendUse e leitura dos TAGs.
+
+A operação precisa encontrar a mesma revisão ativa que você abriu e uma Engenharia sem alterações pendentes. Se houver um rascunho de outro autor, peça para ele concluir ou descartar o trabalho e atualize a página. A operação pode criar uma revisão persistente contendo apenas a mudança de ativação do recurso; ela não publica alterações de outros objetos. Depois de reiniciar, use Ativar novamente para liberar consultas. Se Pausar retornar erro, não considere a pausa durável concluída: confira o estado e tente novamente após resolver o bloqueio.
 
 ### Ativar apenas onde for útil
 
@@ -216,6 +218,14 @@ Restaurar a concessão não reinicia o trabalho silenciosamente. Confira o estad
 Para Bomba 01, comece com corrente e velocidade se essas medições existirem. Escolha análises que aceitem esses sinais. Quando houver novas medições, você poderá ampliar o perfil e usar outras análises compatíveis.
 
 Deixe pausados os recursos que não pretende usar. Não invente um sinal de vibração ausente. A seleção reduz o que está autorizado a executar, mas não garante um consumo fixo de processador ou memória.
+
+#### Exemplo de operação com acesso restrito
+
+Conta gestora real: pode pausar o equipamento autorizado; outra bomba e edição da seleção ficam bloqueadas. Área exige reativação após a mudança de revisão. API e PostgreSQL reais, aplicação sintética.
+
+**Conta gestora real: pode pausar o equipamento autorizado; outra bomba e edição da seleção ficam bloqueadas. Área exige reativação após a mudança de revisão. API e PostgreSQL reais, aplicação sintética.**
+
+![Conta gestora real: pode pausar o equipamento autorizado; outra bomba e edição da seleção ficam bloqueadas. Área exige reativação após a mudança de revisão. API e PostgreSQL reais, aplicação sintética.](../../evidence/intelligence-858/manager858-real-ui.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.activation)
 

@@ -190,11 +190,13 @@ Use Where do you want to work? to go directly to profiles, assignments, contexts
 
 Ready to query means the item is activated for the current revision. If Reactivation required appears, check license and permissions, then select Activate again. This may be needed after a restart or restored authorization. The header shows the application name; the active revision identifies the published version in use.
 
-### Permissions and resource selection
+### Who configures and who can activate or pause
 
-Your account needs permission to edit Engineering and manage Intelligence for the selected equipment or locations. Security shows these as EngineeringModify and AssetProcessIntelligenceManage. The latter needs an explicit grant, global or scoped to the resource. A role name such as Developer or SystemAdmin does not by itself establish that grant.
+The developer prepares profiles, assignments and equipment or location selection with Engineering editing permission. A manager may have read access to Engineering (EngineeringView) and Intelligence management permission only for their resources (AssetProcessIntelligenceManage), without EngineeringModify.
 
-Queries also require TrendUse and the Intelligence license. If a control is blocked, check the session’s effective capabilities there. Choose resources through the pickers; there is no need to memorize or invent IDs.
+Open Asset Intelligence and select Activate or Pause on a resource already selected by the developer. Editing the selection, profiles, TAGs or screens remains blocked. Permission is checked on the equipment or location; a role name does not replace a grant. Queries also require a license, TrendUse and TAG read access.
+
+The operation requires the same active revision you opened and no pending Engineering edits. If another author has a draft, ask them to finish or discard it and refresh. The operation may create a persisted revision containing only the resource activation change; it does not publish changes to other objects. After a restart, select Activate again to enable queries. If Pause returns an error, do not assume durable pause completed: check the state and retry after resolving the block.
 
 ### Activate only where useful
 
@@ -216,6 +218,14 @@ Restoring the grant does not silently restart work. Check status and use Activat
 For Pump 01, start with current and speed if those measurements exist. Choose analyses that accept them. When more measurements become available, you can expand the profile and use other compatible analyses.
 
 Keep unused resources paused. Do not invent a missing vibration signal. Selection limits what is allowed to run, but does not guarantee fixed processor or memory usage.
+
+#### Operating with restricted access
+
+Real manager account: can pause the authorized equipment; another pump and selection editing remain blocked. The area requires reactivation after a revision change. Real API and PostgreSQL, synthetic application.
+
+**Real manager account: can pause the authorized equipment; another pump and selection editing remain blocked. The area requires reactivation after a revision change. Real API and PostgreSQL, synthetic application.**
+
+![Real manager account: can pause the authorized equipment; another pump and selection editing remain blocked. The area requires reactivation after a revision change. Real API and PostgreSQL, synthetic application.](../../evidence/intelligence-858/manager858-real-ui.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.activation)
 

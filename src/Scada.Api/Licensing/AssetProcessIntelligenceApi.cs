@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
@@ -114,6 +116,9 @@ public static class AssetProcessIntelligenceApi
                         kind = scope.Kind.ToString(),
                         scopeId = scope.ScopeId,
                         scope.Active,
+                        canManage = security.CheckWorkspace(context, SecurityCapability.AssetProcessIntelligenceManage,
+                            new AuthorizationResource(ResourceKind: scope.Kind == AssetProcessIntelligenceScopeKind.Equipment
+                                ? AuthorizationResourceKind.Equipment : AuthorizationResourceKind.Location, ResourceId: scope.ScopeId)).Allowed,
                         executionArmed = fenceAllowed && workspaceDescriptor.ProjectKey is not null &&
                             workspaceDescriptor.BaseRevision.HasValue &&
                             executionGate.TryGetToken(
@@ -523,6 +528,19 @@ public static class AssetProcessIntelligenceApi
             .GroupBy(item => item.Key)
             .ToDictionary(group => group.Key, group => group.First().Signal);
 
+    // Authority policy content is never published from Engineering. Only its
+    // reference version may refresh from the live canonical export; contract,
+    // role identities and scope identities must still match exactly.
+    internal static bool MatchesOperationalBaseline(
+        EngineeringPackage expected, EngineeringPackage actual, EngineeringPackage canonical)
+    {
+        expected = expected with { ExportedAt = DateTimeOffset.UnixEpoch };
+        actual = actual with { ExportedAt = DateTimeOffset.UnixEpoch };
+        if (expected.AuthorityPolicyReference is { } reference && canonical.AuthorityPolicyReference is { } live)
+            expected = expected with { AuthorityPolicyReference = reference with { PolicyVersion = live.PolicyVersion } };
+        return JsonNode.DeepEquals(JsonSerializer.SerializeToNode(expected), JsonSerializer.SerializeToNode(actual));
+    }
+
     private static async Task<IResult> SetScopeActivationAsync(
         bool active,
         string kindText,
@@ -562,9 +580,10 @@ public static class AssetProcessIntelligenceApi
             SecurityCapability.AssetProcessIntelligenceManage,
             new AuthorizationResource(ResourceKind: resourceKind, ResourceId: scopeId));
         var engineering = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
-        if (!manager.Allowed || !engineering.Allowed)
+        var viewer = security.CheckWorkspace(context, SecurityCapability.EngineeringView);
+        if (!manager.Allowed || (!engineering.Allowed && !viewer.Allowed))
         {
-            var denial = !manager.Allowed ? manager : engineering;
+            var denial = !manager.Allowed ? manager : viewer;
             await audit.RecordAuthorizationDeniedAsync(
                 context,
                 denial,
@@ -585,11 +604,19 @@ public static class AssetProcessIntelligenceApi
         if (active && !licensing.CurrentVerification.HasAssetProcessIntelligence)
             return Results.Json(new { error = "INTELLIGENCE_ENTITLEMENT_REQUIRED" }, statusCode: StatusCodes.Status403Forbidden);
 
+        // Serialize the entire transition, including the clean/active checks. A
+        // restricted manager must never publish a concurrent author's Working.
+        await using var mutation = await workspace.AcquireMutationAsync(cancellationToken: context.RequestAborted);
         var scope = (intelligence.Snapshot().Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
             .FirstOrDefault(candidate => candidate.Kind == kind && candidate.ScopeId == scopeId);
         if (scope is null) return Results.NotFound();
 
         var descriptor = workspace.Describe();
+        if (!engineering.Allowed &&
+            (!string.Equals(context.Request.Headers["X-Intelligence-Project-Key"], descriptor.ProjectKey, StringComparison.Ordinal) ||
+             !long.TryParse(context.Request.Headers["X-Intelligence-Active-Revision"], out var expectedRevision) ||
+             expectedRevision != descriptor.BaseRevision))
+            return Results.Conflict(new { error = "INTELLIGENCE_ACTIVE_REVISION_CHANGED" });
         // A pause is fail-safe even when the project cannot currently publish a
         // canonical revision: cancel local pending work before the lifecycle checks.
         if (!active && !string.IsNullOrWhiteSpace(descriptor.ProjectKey))
@@ -625,6 +652,23 @@ public static class AssetProcessIntelligenceApi
         if (persistedActive?.Revision != descriptor.BaseRevision)
             return Results.Conflict(new { error = "INTELLIGENCE_PERSISTED_ACTIVE_REVISION_MISMATCH" });
 
+        if (!engineering.Allowed)
+        {
+            var exchange = context.RequestServices.GetService<IEngineeringExchangeService>();
+            if (exchange is null) return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+            try
+            {
+                var expected = exchange.ParseJson(persistedActive!.EngineeringJson) with { ExportedAt = DateTimeOffset.UnixEpoch };
+                var current = exchange.ExportPackage() with { ExportedAt = DateTimeOffset.UnixEpoch };
+                if (!MatchesOperationalBaseline(expected, current, current))
+                    return Results.Conflict(new { error = "INTELLIGENCE_WORKSPACE_DIFFERS_FROM_ACTIVE_REVISION" });
+            }
+            catch
+            {
+                return Results.Conflict(new { error = "INTELLIGENCE_WORKSPACE_DIFFERS_FROM_ACTIVE_REVISION" });
+            }
+        }
+
         if (scope.Active == active)
         {
             if (active)
@@ -650,7 +694,6 @@ public static class AssetProcessIntelligenceApi
             });
         }
 
-        await using var mutation = await workspace.AcquireMutationAsync(cancellationToken: context.RequestAborted);
         var latest = workspace.Describe();
         if (!string.Equals(latest.ProjectKey, descriptor.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
             latest.BaseRevision != descriptor.BaseRevision)
@@ -671,6 +714,28 @@ public static class AssetProcessIntelligenceApi
                 descriptor.BaseRevision,
                 manager.Principal.SubjectId,
                 context.RequestAborted);
+            if (!engineering.Allowed)
+            {
+                var exchange = context.RequestServices.GetRequiredService<IEngineeringExchangeService>();
+                var original = exchange.ParseJson(persistedActive!.EngineeringJson);
+                var expected = original with
+                {
+                    ExportedAt = DateTimeOffset.UnixEpoch,
+                    AssetProcessIntelligence = original.AssetProcessIntelligence! with
+                    {
+                        Scopes = original.AssetProcessIntelligence.Scopes!.Select(item =>
+                            item.Kind == kind && item.ScopeId == scopeId ? item with { Active = active } : item).ToArray()
+                    }
+                };
+                var saved = exchange.ParseJson(snapshot.EngineeringJson) with { ExportedAt = DateTimeOffset.UnixEpoch };
+                // Validate the immutable saved revision, not only the pre-save
+                // Working. Even an uncoordinated writer cannot add publication.
+                if (!MatchesOperationalBaseline(expected, saved, exchange.ExportPackage()))
+                {
+                    intelligence.SetActive(kind, scopeId, scope.Active);
+                    return Results.Conflict(new { error = "INTELLIGENCE_SCOPE_TRANSITION_HAS_UNRELATED_CHANGES" });
+                }
+            }
             var publication = await persistence.PublishRevisionAsync(
                 snapshot.ProjectKey,
                 snapshot.Revision,

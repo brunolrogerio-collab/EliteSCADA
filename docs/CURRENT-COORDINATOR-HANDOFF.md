@@ -1,5 +1,10 @@
 # Current coordinator pointer - Wave 15
 
+## #791 — autoria por recurso após integrar #858
+
+#860 integrada2a9c6dcb, pós-merge41749116899 SUCCESS. Operação do gestor resolvida no escopo comprovado. Novo reparo de interface na branch work/w15-intelligence-final-interface-791: compositor/atalhos/contextos respeitam canManage por equipamento; etapa exige todos os membros, perfil autorizado permanece utilizável. API projeta permissões também nos recursos ainda não elegíveis.37/37 contratos+30/30 Help,19/19 UI, build Web e prova API/PostgreSQL/login local/revisão80 sem gravação/analytics. Relatório WAVE15-INTELLIGENCE-FINAL-INTERFACE-791.md e evidências intelligence-791-final. Próximo: CI exato/integração/pós-merge deste reparo, reconciliação final das issues e preview. Não presumir fechado por verde de predecessor.
+
+
 ## #858 — prova PostgreSQL e correções de conta restrita
 
 PR#860, baseline85475028. Prova real completa nas revisões73–80: conta local/cookie, Equipment/Location, edição/save/outro recurso403, rascunho preservado409, concorrência200/409, pacote persistido e permits fechados após restart, revogação403 e restauração/rearm200. Duas lacunas descobertas e corrigidas: referência da versão Authority tratada como edição de projeto; botão dependia de grant global. Agora só versão canônica da referência pode atualizar (IDs/contrato exatos) e UI usa canManage por recurso.35/35 contratos+30/30 Help,6/6 UI, build Web/manual alinhados. Captura real e resultados em docs/evidence/intelligence-858; relatório WAVE15-INTELLIGENCE-MANAGER-OPERATION-858.md. Próximo: CI exato, revisão/integração/pós-merge e acabamento#791; não declarar fechado por CI do predecessor ae316074.

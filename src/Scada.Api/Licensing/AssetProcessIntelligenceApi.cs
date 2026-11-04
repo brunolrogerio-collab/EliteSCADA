@@ -135,9 +135,9 @@ public static class AssetProcessIntelligenceApi
                     };
                 }).ToArray();
             var equipment = assets.SnapshotEquipment().Where(item => item.Id is { } id && id != Guid.Empty)
-                .Select(item => new { kind = nameof(AssetProcessIntelligenceScopeKind.Equipment), scopeId = item.Id, item.Path, item.Name });
+                .Select(item => new { kind = nameof(AssetProcessIntelligenceScopeKind.Equipment), scopeId = item.Id, item.Path, item.Name, canManage = security.CheckWorkspace(context, SecurityCapability.AssetProcessIntelligenceManage, new AuthorizationResource(ResourceKind: AuthorizationResourceKind.Equipment, ResourceId: item.Id)).Allowed });
             var locations = assets.SnapshotLocations().Where(item => item.Id is { } id && id != Guid.Empty)
-                .Select(item => new { kind = nameof(AssetProcessIntelligenceScopeKind.Location), scopeId = item.Id, path = (string?)null, item.Name });
+                .Select(item => new { kind = nameof(AssetProcessIntelligenceScopeKind.Location), scopeId = item.Id, path = (string?)null, item.Name, canManage = security.CheckWorkspace(context, SecurityCapability.AssetProcessIntelligenceManage, new AuthorizationResource(ResourceKind: AuthorizationResourceKind.Location, ResourceId: item.Id)).Allowed });
             var tags = exchange.ExportPackage().Tags.Where(item => item.Id is { } id && id != Guid.Empty)
                 .Select(item => new
                 {

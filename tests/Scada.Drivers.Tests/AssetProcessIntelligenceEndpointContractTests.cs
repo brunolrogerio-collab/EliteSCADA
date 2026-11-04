@@ -210,6 +210,24 @@ public sealed class AssetProcessIntelligenceEndpointContractTests
             canonical with { AuthorityPolicyReference = canonical.AuthorityPolicyReference! with { ContractVersion = 2 } }, canonical));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResourceProjectionReportsScopedManagementBeforeEligibility(bool allowed)
+    {
+        await using var api = await EndpointHarness.StartAsync(CreateVerification("valid"),
+            managerGrantOnTargetEquipment: allowed);
+        using var response = await api.Client.GetAsync(EndpointHarness.ScopesPath);
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var resource = payload.GetProperty("resources").EnumerateArray()
+            .Single(item => item.GetProperty("scopeId").GetGuid() == api.EquipmentId);
+        Assert.Equal(allowed, resource.GetProperty("canManage").GetBoolean());
+        var outside = payload.GetProperty("resources").EnumerateArray()
+            .Single(item => item.GetProperty("scopeId").GetGuid() != api.EquipmentId);
+        Assert.Equal(!allowed, outside.GetProperty("canManage").GetBoolean());
+    }
+
     private static void SetManagerRevision(EndpointHarness api)
     {
         api.Client.DefaultRequestHeaders.Remove("X-Intelligence-Project-Key");

@@ -1,5 +1,10 @@
 # Intelligence #791 — matriz de aderência e usabilidade
 
+## #791 — autoria por recurso após integrar #858
+
+#860 integrada2a9c6dcb, pós-merge41749116899 SUCCESS. Operação do gestor resolvida no escopo comprovado. Novo reparo de interface na branch work/w15-intelligence-final-interface-791: compositor/atalhos/contextos respeitam canManage por equipamento; etapa exige todos os membros, perfil autorizado permanece utilizável. API projeta permissões também nos recursos ainda não elegíveis.37/37 contratos+30/30 Help,19/19 UI, build Web e prova API/PostgreSQL/login local/revisão80 sem gravação/analytics. Relatório WAVE15-INTELLIGENCE-FINAL-INTERFACE-791.md e evidências intelligence-791-final. Próximo: CI exato/integração/pós-merge deste reparo, reconciliação final das issues e preview. Não presumir fechado por verde de predecessor.
+
+
 ## Atualização #858 — conta restrita real
 
 **Implementado aguardando CI/revisão/integração/aceite** no PR#860: gestor sem EngineeringModify opera Equipment/Location com grant específico, UI usa canManage por recurso. Revisões73–80 em API/PostgreSQL reais e login local: publicação limitada ao Active pedido, rascunho preservado, fora do alcance403, concorrência200/409, restart fechado, revogação403 e restauração/rearm200. Referência Authority só permite atualização de versão canônica; IDs/contrato continuam exatos. Relatório WAVE15-INTELLIGENCE-MANAGER-OPERATION-858.md, provas docs/evidence/intelligence-858.35/35 contratos+30/30 Help,6/6 UI e build/manual aprovados. Esta evidência supera a classificação histórica de operação restrita não entregue; não é aceite global#791 nem prova HA/campo.

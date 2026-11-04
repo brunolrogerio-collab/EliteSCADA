@@ -282,6 +282,12 @@ Después de consultar cobertura, abra Detalles y comparación de esta medición 
 
 Para comparar esa señal introduzca inicio/fin de comparación estadística y elija agrupación. Use hasta 31 días y la misma duración que la cobertura actual. Puede ser anterior, posterior o superpuesta; los períodos superpuestos reutilizan lecturas y no son muestras independientes. Pulse Comparar estadísticas. Se muestran diferencias del período actual menos el comparado: cantidad, mínimo, máximo, media, primero, último y variación. Son diferencias descriptivas; no demuestran condiciones equivalentes, eficiencia ni un fallo. No disponible no significa cero. Cambiar campos retira el resultado; Cancelar comparación descarta la solicitud en curso. Para cambiar el período actual consulte de nuevo la cobertura. No se guarda la comparación en el proyecto ni se ejecuta al abrir los detalles.
 
+### Si su acceso cubre solo parte de la planta
+
+Crear un panel o editar un contexto requiere editar Ingeniería y administrar Intelligence en los equipos involucrados. No necesita administrar toda la planta. En Contenido del panel, elija un perfil de equipo autorizado.
+
+Una etapa puede incluir varios equipos. Si alguno está fuera de su alcance de gestión, la generación de esa etapa queda bloqueada y la pantalla explica el motivo. Elija un perfil autorizado o pida al administrador revisar su acceso. Las demás vistas disponibles siguen utilizables. Generar un borrador no guarda la aplicación, activa análisis ni consulta el histórico; revíselo en el editor antes de aplicar y publicar.
+
 ### Consultar la tasa neta observada de una medición
 
 Después de consultar cobertura, abra los detalles de una señal y Tasa neta observada. Pulse Consultar tasa neta. Se usa el período de cobertura; abrir el panel no ejecuta la consulta. Ejemplo: la primera lectura aceptada es 2 A y la última 8 A, separadas por 60 segundos en el Historian. La tasa es (8 − 2) / 60 = 0,1 A/s. Si el valor disminuye, la tasa es negativa.
@@ -481,5 +487,9 @@ Las leyendas indican API simulada o API/PostgreSQL reales. Todos los datos son s
 **Consulta conjunta real: datos sintéticos en API y PostgreSQL; diferencias y puntuaciones por medición.**
 
 ![Consulta conjunta real: datos sintéticos en API y PostgreSQL; diferencias y puntuaciones por medición.](../../evidence/intelligence-857/vector-profile-real-scored.png)
+
+**Autor con edición de Ingeniería y gestión de un equipo, sin gestión global: compositor real en portugués, API/PostgreSQL y aplicación sintética.**
+
+![Autor con edición de Ingeniería y gestión de un equipo, sin gestión global: compositor real en portugués, API/PostgreSQL y aplicación sintética.](../../evidence/intelligence-791-final/author791-scoped-composer.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)

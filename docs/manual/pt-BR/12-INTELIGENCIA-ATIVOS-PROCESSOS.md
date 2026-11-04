@@ -282,6 +282,12 @@ Depois de consultar a cobertura, abra Detalhes e comparação desta medição de
 
 Para comparar esse sinal, preencha Início e Fim da comparação estatística e escolha o agrupamento. Use até 31 dias e a mesma duração da cobertura atual. A comparação pode ser anterior, posterior ou sobreposta; períodos sobrepostos reutilizam leituras e não são amostras independentes. Clique Comparar estatísticas. A resposta mostra diferenças do período atual menos o comparado: quantidade de amostras, mínimo, máximo, média, primeiro, último e variação. São diferenças descritivas; não comprovam mesmo regime, eficiência ou defeito. Não disponível não significa zero. Alterar os campos limpa o resultado; Cancelar comparação descarta a solicitação em andamento. Para mudar o período atual, consulte novamente a cobertura. Nenhuma comparação é salva no projeto nem executada ao abrir os detalhes.
 
+### Se você tem acesso somente a parte da planta
+
+Para criar um painel ou editar um contexto, você precisa editar a Engenharia e gerenciar Intelligence nos equipamentos envolvidos. Não é necessário receber gestão de toda a planta. Em Conteúdo do painel, escolha o perfil de um equipamento autorizado.
+
+Uma etapa pode reunir vários equipamentos. Se algum estiver fora do seu alcance de gestão, a geração dessa etapa fica bloqueada e a tela explica o motivo. Escolha um perfil autorizado ou peça ao administrador para revisar seu acesso. As outras vistas disponíveis continuam utilizáveis. Gerar um rascunho não grava a aplicação, não ativa análise e não consulta o histórico; revise o resultado no editor antes de aplicar e publicar.
+
 ### Consultar a taxa líquida de uma medição
 
 Depois de consultar a cobertura, abra os detalhes do sinal e Taxa líquida observada. Clique Consultar taxa líquida. A consulta usa o mesmo período da cobertura; não começa automaticamente ao abrir o painel. Exemplo: a primeira leitura aceita é 2 A e a última é 8 A, separadas por 60 segundos no Historian. A taxa é (8 − 2) / 60 = 0,1 A/s. Se o valor cai, a taxa é negativa.
@@ -481,5 +487,9 @@ As legendas indicam se a captura usa API simulada ou API/PostgreSQL reais. Todos
 **Consulta conjunta real: dados sintéticos na API e PostgreSQL; diferenças e scores por medição.**
 
 ![Consulta conjunta real: dados sintéticos na API e PostgreSQL; diferenças e scores por medição.](../../evidence/intelligence-857/vector-profile-real-scored.png)
+
+**Autor com edição de Engenharia e gestão de um equipamento, sem gestão global: compositor real em português, API/PostgreSQL e aplicação sintética.**
+
+![Autor com edição de Engenharia e gestão de um equipamento, sem gestão global: compositor real em português, API/PostgreSQL e aplicação sintética.](../../evidence/intelligence-791-final/author791-scoped-composer.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.analysis-guide)

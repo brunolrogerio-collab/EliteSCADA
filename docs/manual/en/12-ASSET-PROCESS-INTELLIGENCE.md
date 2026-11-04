@@ -282,6 +282,12 @@ After querying coverage, open Measurement details and comparison inside the desi
 
 To compare that signal, enter Statistical comparison start/end and choose grouping. Use up to 31 days and the same duration as current coverage. Comparison may precede, follow or overlap; overlapping periods reuse readings and are not independent samples. Click Compare statistics. Results show current-minus-comparison differences in sample count, minimum, maximum, mean, first, last and period change. These descriptive differences do not establish equivalent conditions, efficiency or a fault. Unavailable does not mean zero. Editing fields clears results; Cancel comparison discards the in-flight request. To change the current period, query coverage again. Comparisons are neither saved in the project nor run when details open.
 
+### If your access covers only part of the plant
+
+Creating a dashboard or editing a context requires Engineering editing permission and Intelligence management permission for the equipment involved. Plant-wide management is not required. Under Dashboard content, select an authorized equipment profile.
+
+A stage may include several equipment items. If any is outside your management scope, generation for that stage is blocked and the screen explains why. Choose an authorized profile or ask the administrator to review your access. Other available views remain usable. Generating a draft does not save the application, activate analysis or query history; review it in the editor before applying and publishing.
+
 ### Query the net observed rate of a measurement
 
 After querying coverage, open a signal’s details and Net observed rate. Click Query net rate. This uses the coverage period and does not run automatically when opened. Example: the first accepted reading is 2 A and the last is 8 A, recorded 60 seconds apart in the Historian. The rate is (8 − 2) / 60 = 0.1 A/s. A falling value gives a negative rate.
@@ -481,5 +487,9 @@ Captions identify mocked API or real API/PostgreSQL captures. All displayed data
 **Real joint query: synthetic API and PostgreSQL data; differences and scores per measurement.**
 
 ![Real joint query: synthetic API and PostgreSQL data; differences and scores per measurement.](../../evidence/intelligence-857/vector-profile-real-scored.png)
+
+**Author with Engineering editing and management of one equipment item, without global management: real Portuguese composer, API/PostgreSQL and synthetic application.**
+
+![Author with Engineering editing and management of one equipment item, without global management: real Portuguese composer, API/PostgreSQL and synthetic application.](../../evidence/intelligence-791-final/author791-scoped-composer.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)

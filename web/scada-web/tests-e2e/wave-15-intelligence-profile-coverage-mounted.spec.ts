@@ -725,6 +725,8 @@ async function openIntelligence(page: Page, locale = 'pt-BR') {
 }
 
 async function installWorkspace(page: Page, options: {
+  stageHasUnmanagedMember?: boolean;
+  scopedAuthoring?: boolean;
   licensed?: boolean;
   trendUse?: boolean;
   active?: boolean;
@@ -856,7 +858,7 @@ async function installWorkspace(page: Page, options: {
       authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
       authenticationEnabled: false,
       runtime: options.trendUse === false ? ['View'] : ['View', 'TrendUse'],
-      workspace: ['EngineeringView', 'EngineeringModify', 'AssetProcessIntelligenceManage']
+      workspace: ['EngineeringView', 'EngineeringModify', ...(options.scopedAuthoring === undefined ? ['AssetProcessIntelligenceManage'] : [])]
     } });
     if (path === '/api/auth/config') return route.fulfill({ json: {
       authenticationEnabled: false, localLoginEnabled: false,
@@ -899,12 +901,12 @@ async function installWorkspace(page: Page, options: {
       configuration: {
         version: 2,
         scopes: [{ kind: 'Equipment', scopeId: equipmentId, active: options.active !== false, executionArmed: options.armed !== false }],
-        profiles: [profile], assignments: [{ id: assignmentId, equipmentId, profileId }], processStages: options.stageReady ? [{ id: '15000000-0000-0000-0000-000000000204', key: 'stage-test', name: 'Etapa de teste', order: 0, links: [{ assignmentId, order: 0 }] }] : [],
+        profiles: [profile], assignments: [{ id: assignmentId, equipmentId, profileId }, ...(options.stageHasUnmanagedMember ? [{ id:'79100000-0000-0000-0000-000000000402',equipmentId:'79100000-0000-0000-0000-000000000502',profileId }] : [])], processStages: options.stageReady ? [{ id: '15000000-0000-0000-0000-000000000204', key: 'stage-test', name: 'Etapa de teste', order: 0, links: [{ assignmentId, order: 0 }, ...(options.stageHasUnmanagedMember ? [{assignmentId:'79100000-0000-0000-0000-000000000402',order:1}] : [])] }] : [],
         operatingContextProfiles: options.operatingContexts || options.jointReady ? [{ id: '15000000-0000-0000-0000-000000000401',
           key: 'running', displayLabel: 'Bomba em operação', assignmentId, version: 3,
           predicates: [{ tagId: options.jointReady ? firstContextTagId : speedTagId, kind: 'NumericInterval', minimum: 1000, maximum: 1800 }] }] : []
       },
-      resources: [{ kind: 'Equipment', scopeId: equipmentId, path: 'Planta.Bomba01', name: 'Bomba P-101' }],
+      resources: [{ kind: 'Equipment', scopeId: equipmentId, path: 'Planta.Bomba01', name: 'Bomba P-101', ...(options.scopedAuthoring === undefined ? {} : {canManage:options.scopedAuthoring}) }, ...(options.stageHasUnmanagedMember ? [{kind:'Equipment',scopeId:'79100000-0000-0000-0000-000000000502',path:'Planta.Fora',name:'Fora do alcance',canManage:false}] : [])],
       tags, licensed: options.licensed !== false,
       execution: { stage: 'Stage3B', workerRegistered: true, queueDepth: 0, activePermitCount: 1,
         projectKey: 'intelligence-coverage-test', activeRevision: 4, workspaceDirty: options.workspaceDirty === true }
@@ -1354,4 +1356,30 @@ for(const mode of ['available','insufficient','zero-mad','stale','wrong-unit','w
  if(mode==='available'){await expect(result).toContainText('1,34898');await expect(result).toContainText('30 / 30 / 2');await page.setViewportSize({width:1440,height:2200});await result.screenshot({path:test.info().outputPath('one-condition-vector.png')});}
  else await expect(result).toContainText(mode==='zero-mad'?'Referência sem dispersão':'Não há conjuntos completos');
  await panel.getByLabel('Limite inferior incluído (Hz)',{exact:true}).fill('48');await expect(result).toHaveCount(0);expect(calls).toBe(1);
+});
+
+for(const stage of [false,true])for(const allowed of [false,true])test(`scoped author ${stage?'stage':'profile'} composer ${allowed?'allows':'denies'} without a global manager grant`,async({page})=>{
+ const fixture=await installWorkspace(page,{singleTargetReady:true,stageReady:stage,scopedAuthoring:allowed});await openIntelligence(page);
+ const composer=page.getByTestId('intelligence-dashboard-generator');
+ if(!allowed){await expect(composer.getByTestId('intelligence-dashboard-generate')).toBeDisabled();expect(fixture.requests).toEqual([]);expect(fixture.otherWrites).toEqual([]);return;}
+ if(stage)await composer.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+ await composer.getByRole('checkbox',{name:stage?'Medição sob condição por equipamento':'Medições sob uma condição',exact:true}).check();
+ await expect(composer.getByTestId('intelligence-dashboard-generate')).toBeEnabled();await composer.getByTestId('intelligence-dashboard-generate').click();
+ const editor=page.getByTestId('visual-editor-workspace');await expect(editor).toBeVisible();await expect(editor.getByTestId('visual-editor-generated-drafts').getByRole('button')).toHaveCount(stage?3:2);
+ expect(fixture.requests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
+});
+
+for(const allowed of [false,true])test(`scoped author context editing ${allowed?'allows':'denies'} the linked resource without global management`,async({page})=>{
+ const fixture=await installWorkspace(page,{operatingContexts:true,scopedAuthoring:allowed});await openIntelligence(page);
+ const input=page.getByLabel('Nome do contexto',{exact:true});
+ if(allowed){await expect(input).toBeEnabled();await input.fill('Contexto editado em rascunho');await expect(input).toHaveValue('Contexto editado em rascunho');}
+ else await expect(input).toBeDisabled();
+ expect(fixture.requests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
+});
+
+test('scoped author mixed stage stays blocked while the authorized equipment remains available',async({page})=>{
+ const fixture=await installWorkspace(page,{singleTargetReady:true,stageReady:true,scopedAuthoring:true,stageHasUnmanagedMember:true});await openIntelligence(page);const composer=page.getByTestId('intelligence-dashboard-generator');const source=composer.getByTestId('intelligence-dashboard-source');
+ await source.selectOption('process-stage:15000000-0000-0000-0000-000000000204');await expect(composer.getByTestId('intelligence-dashboard-generate')).toBeDisabled();
+ await expect(composer.getByText('Para gerar um painel, você precisa editar a Engenharia e gerenciar todos os equipamentos incluídos.',{exact:false})).toBeVisible();
+ await source.selectOption('equipment-profile:'+assignmentId);await expect(composer.getByTestId('intelligence-dashboard-generate')).toBeEnabled();expect(fixture.requests).toEqual([]);expect(fixture.otherWrites).toEqual([]);
 });

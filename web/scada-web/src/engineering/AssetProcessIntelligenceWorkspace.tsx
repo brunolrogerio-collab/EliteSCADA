@@ -57,7 +57,7 @@ import { IntelligenceDashboardComposer } from './IntelligenceDashboardComposer';
 
 type ScopeKind = 'Equipment' | 'Location';
 type Scope = { kind: ScopeKind; scopeId: string; active: boolean; executionArmed?: boolean; canManage?: boolean };
-type Resource = { kind: ScopeKind; scopeId: string; path?: string | null; name: string };
+type Resource = { kind: ScopeKind; scopeId: string; path?: string | null; name: string; canManage?: boolean };
 type Configuration = {
   version: number;
   scopes: Scope[];
@@ -305,6 +305,13 @@ export function AssetProcessIntelligenceWorkspace({
   const resourcesByKey = new Map((snapshot?.resources ?? []).map(resource => [scopeKey(resource), resource]));
   const profileById = new Map(profiles.map(profile => [profile.id, profile]));
   const assignmentById = new Map(assignments.map(assignment => [assignment.id, assignment]));
+  const canManageEquipment = (id?: string) => Boolean(id &&
+    (resourcesByKey.get(`Equipment:${id.toLowerCase()}`)?.canManage ??
+      snapshot?.configuration.scopes.find(scope => scope.kind === 'Equipment' && scope.scopeId.toLowerCase() === id.toLowerCase())?.canManage ?? canManage));
+  const canManageAssignment = (id: string) => canManageEquipment(assignmentById.get(id)?.equipmentId);
+  const canManageSource = (source: IntelligenceDashboardSource | null) => Boolean(source && source.assignments.length > 0 &&
+    source.assignments.every(member => canManageEquipment(member.scopeId)));
+  const canManageAnyEquipment = equipment.some(resource => canManageEquipment(resource.scopeId));
   const selectedContextAssignment = selectedContextProfile ? assignmentById.get(selectedContextProfile.assignmentId) ?? null : null;
   const selectedContextMeasurementProfile = selectedContextAssignment ? profileById.get(selectedContextAssignment.profileId) ?? null : null;
   const contextSignalTags = (selectedContextMeasurementProfile?.signals ?? [])
@@ -546,7 +553,7 @@ export function AssetProcessIntelligenceWorkspace({
       setError(copy.dashboardLicenseRequired);
       return;
     }
-    if (!canEngineer || !canManage) {
+    if (!canEngineer || !canManageSource(source)) {
       setError(copy.dashboardAuthorizationHint);
       return;
     }
@@ -604,7 +611,7 @@ export function AssetProcessIntelligenceWorkspace({
   const generateGuidedDashboard = (assignmentId: string) => {
     setError(null);
     setMessage(null);
-    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+    if (!snapshot?.licensed || !canEngineer || !canManageAssignment(assignmentId) || !onCreateDashboardDraft) {
       setError(copy.dashboardAuthorizationHint);
       return;
     }
@@ -629,7 +636,7 @@ export function AssetProcessIntelligenceWorkspace({
   const generateProcessStageCoverageScreen = (stage: AssetProcessIntelligenceProcessStageEngineering) => {
     setError(null);
     setMessage(null);
-    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+    if (!snapshot?.licensed || !canEngineer || !canManageSource(createDashboardSourceForStage(stage)) || !onCreateDashboardDraft) {
       setError(copy.dashboardAuthorizationHint);
       return;
     }
@@ -648,7 +655,7 @@ export function AssetProcessIntelligenceWorkspace({
   const generateGuidedProcessStageDashboard = (stage: AssetProcessIntelligenceProcessStageEngineering) => {
     setError(null);
     setMessage(null);
-    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+    if (!snapshot?.licensed || !canEngineer || !canManageSource(createDashboardSourceForStage(stage)) || !onCreateDashboardDraft) {
       setError(copy.dashboardAuthorizationHint);
       return;
     }
@@ -670,7 +677,7 @@ export function AssetProcessIntelligenceWorkspace({
   const generateProcessStageInsightsScreen = (stage: AssetProcessIntelligenceProcessStageEngineering) => {
     setError(null);
     setMessage(null);
-    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+    if (!snapshot?.licensed || !canEngineer || !canManageSource(createDashboardSourceForStage(stage)) || !onCreateDashboardDraft) {
       setError(copy.dashboardAuthorizationHint);
       return;
     }
@@ -695,7 +702,7 @@ export function AssetProcessIntelligenceWorkspace({
   ) => {
     setError(null);
     setMessage(null);
-    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+    if (!snapshot?.licensed || !canEngineer || !canManageEquipment(assignment.equipmentId) || !onCreateDashboardDraft) {
       setError(copy.dashboardAuthorizationHint);
       return;
     }
@@ -718,7 +725,7 @@ export function AssetProcessIntelligenceWorkspace({
   const generateCoverageScreen = (selection: IntelligenceProfileCoverageDashboardSelection) => {
     setError(null);
     setMessage(null);
-    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+    if (!snapshot?.licensed || !canEngineer || !canManageEquipment(selection.scopeId) || !onCreateDashboardDraft) {
       setError(copy.dashboardAuthorizationHint);
       return;
     }
@@ -737,7 +744,7 @@ export function AssetProcessIntelligenceWorkspace({
   ) => {
     setError(null);
     setMessage(null);
-    if (!snapshot?.licensed || !canEngineer || !canManage || !onCreateDashboardDraft) {
+    if (!snapshot?.licensed || !canEngineer || !canManageEquipment(assignment.equipmentId) || !onCreateDashboardDraft) {
       setError(copy.dashboardAuthorizationHint);
       return;
     }
@@ -958,9 +965,9 @@ export function AssetProcessIntelligenceWorkspace({
     {!loading && snapshot && <>
       <section className="eng-panel asset-process-intelligence__authoring-section" aria-labelledby="intelligence-dashboard-heading" data-testid="intelligence-dashboard-generator">
         <div className="asset-process-intelligence__section-heading"><div><h2 id="intelligence-dashboard-heading">{copy.dashboardTitle}</h2><p>{copy.dashboardHint}</p></div></div>
-        {!snapshot.licensed ? <p role="note">{copy.dashboardLicenseRequired}</p> : !canEngineer || !canManage ? <p role="note">{copy.dashboardAuthorizationHint}</p> : null}
+        {!snapshot.licensed ? <p role="note">{copy.dashboardLicenseRequired}</p> : !canEngineer || !canManageAnyEquipment || (selectedDashboardSource && !canManageSource(selectedDashboardSource.source)) ? <p role="note">{copy.dashboardAuthorizationHint}</p> : null}
         {dashboardSourceOptions.length === 0 ? <div className="eng-empty"><strong>{copy.dashboardNoSources}</strong></div> : <div className="asset-process-intelligence__dashboard-form">
-          <label>{copy.dashboardSourceLabel}<select value={effectiveDashboardSourceKey} disabled={!canEngineer || !canManage}
+          <label>{copy.dashboardSourceLabel}<select value={effectiveDashboardSourceKey} disabled={!canEngineer || !canManageAnyEquipment}
             data-testid="intelligence-dashboard-source" onChange={event => setDashboardSourceKey(event.currentTarget.value)}>
             <option value="">{copy.chooseDashboardSource}</option>
             {dashboardSourceOptions.map(option => <option key={option.key} value={option.key} disabled={!option.hasNumericSignal}>{option.label}</option>)}
@@ -969,7 +976,7 @@ export function AssetProcessIntelligenceWorkspace({
         </div>}
         {selectedDashboardSource && <IntelligenceDashboardComposer key={selectedDashboardSource.key} locale={locale}
           tags={selectedDashboardTags}
-          disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !selectedDashboardSource.hasNumericSignal || dirtyConfiguration}
+          disabled={!snapshot.licensed || !canEngineer || !canManageSource(selectedDashboardSource.source) || !onCreateDashboardDraft || !selectedDashboardSource.hasNumericSignal || dirtyConfiguration}
           singleTargetAvailable={Boolean(singleTargetSelectionForSource(selectedDashboardSource.source))}
           currentFrequencyAvailable={Boolean(currentFrequencySelectionForSource(selectedDashboardSource.source))}
           jointAvailable={Boolean(jointSelectionForSource(selectedDashboardSource.source))}
@@ -1156,7 +1163,7 @@ export function AssetProcessIntelligenceWorkspace({
                 <span><strong>{equipmentResource?.name ?? copy.missingEquipment} · {profile?.name ?? copy.missingProfile}</strong>{equipmentResource ? <small>{equipmentResource.path ?? equipmentResource.name}</small> : null}</span>
                 {(!equipmentResource || !profile) ? <span className="asset-process-intelligence__missing">{copy.referenceMissing}</span> : null}
                 <button type="button" className="secondary" data-testid={`intelligence-guided-dashboard-assignment-${assignment.id}`}
-                  disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !createDashboardSourceForAssignment(assignment.id) ||
+                  disabled={!snapshot.licensed || !canEngineer || !canManageEquipment(assignment.equipmentId) || !onCreateDashboardDraft || !createDashboardSourceForAssignment(assignment.id) ||
                     !guidedPerformanceSelections[assignment.id] || !guidedDeviationSelections[assignment.id]}
                   onClick={() => generateGuidedDashboard(assignment.id)}>{copy.generateGuidedDashboard}</button>
                 <small className="asset-process-intelligence__guided-dashboard-hint">{copy.guidedDashboardHint}</small>
@@ -1168,7 +1175,7 @@ export function AssetProcessIntelligenceWorkspace({
                   activeRevision={snapshot.execution.activeRevision}
                   canQuery={!coverageBlockedReason}
                   blockedReason={coverageBlockedReason}
-                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft
+                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManageEquipment(assignment.equipmentId) && onCreateDashboardDraft
                     ? () => generateCoverageScreen({
                         scopeId: assignment.equipmentId,
                         profileId: profile.id,
@@ -1185,7 +1192,7 @@ export function AssetProcessIntelligenceWorkspace({
                 {equipmentResource && profile ? <IntelligenceSingleTargetDeviationPanel
                   locale={locale} scopeId={assignment.equipmentId} assignmentId={assignment.id} profile={profile} profileId={profile.id} tags={tags}
                   controlledUnits={semanticCatalog?.controlledEngineeringUnitCatalogs ?? []}
-                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft ? signals => {
+                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManageEquipment(assignment.equipmentId) && onCreateDashboardDraft ? signals => {
                     try { onCreateDashboardDraft(generateIntelligenceSingleTargetScreenDraft(screens, {scopeId:assignment.equipmentId,assignmentId:assignment.id,profileId:profile.id,displayName:`${equipmentResource.name} · ${profile.name}`,signals},locale)); }
                     catch { setError(copy.dashboardSourceUnavailable); }
                   } : undefined}
@@ -1223,7 +1230,7 @@ export function AssetProcessIntelligenceWorkspace({
                   activeRevision={snapshot.execution.activeRevision}
                   canQuery={!coverageBlockedReason}
                   onGuidedSelectionChange={updateGuidedPerformanceSelection}
-                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft
+                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManageEquipment(assignment.equipmentId) && onCreateDashboardDraft
                     ? selection => generatePerformanceScreen(assignment, profile, equipmentResource.name, selection)
                     : undefined}
                 /> : null}
@@ -1235,9 +1242,9 @@ export function AssetProcessIntelligenceWorkspace({
                   tags={tags}
                   controlledUnits={semanticCatalog?.controlledEngineeringUnitCatalogs ?? []}
                   displayName={`${equipmentResource.name} · ${profile.name}`}
-                  canCreate={Boolean(snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft)}
+                  canCreate={Boolean(snapshot.licensed && canEngineer && canManageEquipment(assignment.equipmentId) && onCreateDashboardDraft)}
                   onGuidedSelectionChange={updateGuidedDeviationSelection}
-                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManage && onCreateDashboardDraft
+                  onCreateRuntimeScreenDraft={snapshot.licensed && canEngineer && canManageEquipment(assignment.equipmentId) && onCreateDashboardDraft
                     ? selection => generateContextualDeviationScreen(assignment, profile, equipmentResource.name, selection)
                     : undefined}
                 /> : null}
@@ -1250,7 +1257,7 @@ export function AssetProcessIntelligenceWorkspace({
         <section className="asset-process-intelligence__authoring-section" aria-labelledby="intelligence-context-profiles-heading" data-testid="intelligence-context-profiles">
           <div className="asset-process-intelligence__section-heading"><div><h3 id="intelligence-context-profiles-heading">{copy.contextProfiles}</h3><p>{copy.contextProfilesHint}</p></div></div>
           {assignments.length === 0 ? <div className="eng-empty"><strong>{copy.noAssignments}</strong></div> : <div className="asset-process-intelligence__assignment-form">
-            <label>{copy.selectedAssignment}<select value={contextAssignmentId} disabled={!canEngineer || !canManage} onChange={event => setContextAssignmentId(event.currentTarget.value)}>
+            <label>{copy.selectedAssignment}<select value={contextAssignmentId} disabled={!canEngineer || !canManageAnyEquipment} onChange={event => setContextAssignmentId(event.currentTarget.value)}>
               <option value="">{copy.chooseAssignment}</option>
               {assignments.map(assignment => {
                 const equip = resourcesByKey.get(`Equipment:${assignment.equipmentId.toLowerCase()}`);
@@ -1258,9 +1265,9 @@ export function AssetProcessIntelligenceWorkspace({
                 return <option key={assignment.id} value={assignment.id}>{equip?.name ?? copy.missingEquipment} · {profile?.name ?? copy.missingProfile}</option>;
               })}
             </select></label>
-            <button type="button" className="secondary" disabled={!canEngineer || !canManage || !contextAssignmentId} onClick={createContextProfile}>{copy.newContextProfile}</button>
+            <button type="button" className="secondary" disabled={!canEngineer || !canManageAssignment(contextAssignmentId) || !contextAssignmentId} onClick={createContextProfile}>{copy.newContextProfile}</button>
           </div>}
-          {!canManage ? <p role="note">{copy.contextAuthorizationHint}</p> : null}
+          {!canEngineer || !canManageAnyEquipment || (selectedContextProfile && !canManageAssignment(selectedContextProfile.assignmentId)) ? <p role="note">{copy.contextAuthorizationHint}</p> : null}
           {operatingContextProfiles.length === 0 ? <div className="eng-empty"><strong>{copy.noContextProfiles}</strong></div> : <div className="asset-process-intelligence__split">
             <div className="asset-process-intelligence__choice-list" role="listbox" aria-label={copy.contextProfiles}>
               {operatingContextProfiles.map(profile => {
@@ -1272,7 +1279,7 @@ export function AssetProcessIntelligenceWorkspace({
               })}
             </div>
             {selectedContextProfile ? <div className="asset-process-intelligence__editor">
-              <label>{copy.contextLabel}<input value={selectedContextProfile.displayLabel} disabled={!canEngineer || !canManage} onChange={event => updateContextProfile({ displayLabel: event.currentTarget.value })}/></label>
+              <label>{copy.contextLabel}<input value={selectedContextProfile.displayLabel} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => updateContextProfile({ displayLabel: event.currentTarget.value })}/></label>
               <div className="asset-process-intelligence__section-heading"><div><h4>{copy.contextPredicates}</h4><p>{copy.contextPredicatesHint}</p><p>{unitCopy.policy}</p></div></div>
               {selectedContextProfile.predicates.length === 0 ? <div className="eng-empty"><strong>{copy.noContextPredicates}</strong></div> : <div className="asset-process-intelligence__list">
                 {selectedContextProfile.predicates.map(predicate => {
@@ -1283,24 +1290,24 @@ export function AssetProcessIntelligenceWorkspace({
                   return <article className="asset-process-intelligence__row" key={predicate.tagId}>
                     <span><strong>{tag?.path ?? copy.missingTag}</strong>{tag ? <small>{tag.dataType}{tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}</small> : null}</span>
                     {predicate.kind === 'NumericInterval' ? <div className="asset-process-intelligence__field-grid">
-                      <label>{copy.minimumInclusive}<input type="number" value={predicate.minimum ?? ''} disabled={!canEngineer || !canManage || !numericUnitConfirmed} onChange={event => updateContextPredicate(predicate.tagId, { minimum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
-                      <label>{copy.maximumInclusive}<input type="number" value={predicate.maximum ?? ''} disabled={!canEngineer || !canManage || !numericUnitConfirmed} onChange={event => updateContextPredicate(predicate.tagId, { maximum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
-                    </div> : predicate.kind === 'BooleanEquals' ? <label>{copy.predicateValue}<select value={String(predicate.booleanValue ?? true)} disabled={!canEngineer || !canManage} onChange={event => updateContextPredicate(predicate.tagId, { booleanValue: event.currentTarget.value === 'true' })}><option value="true">{copy.matchTrue}</option><option value="false">{copy.matchFalse}</option></select></label> : <label>{copy.exactValue}<input value={predicate.exactValue ?? ''} disabled={!canEngineer || !canManage} onChange={event => updateContextPredicate(predicate.tagId, { exactValue: event.currentTarget.value })}/></label>}
+                      <label>{copy.minimumInclusive}<input type="number" value={predicate.minimum ?? ''} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '') || !numericUnitConfirmed} onChange={event => updateContextPredicate(predicate.tagId, { minimum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
+                      <label>{copy.maximumInclusive}<input type="number" value={predicate.maximum ?? ''} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '') || !numericUnitConfirmed} onChange={event => updateContextPredicate(predicate.tagId, { maximum: event.currentTarget.value === '' ? null : Number(event.currentTarget.value) })}/></label>
+                    </div> : predicate.kind === 'BooleanEquals' ? <label>{copy.predicateValue}<select value={String(predicate.booleanValue ?? true)} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => updateContextPredicate(predicate.tagId, { booleanValue: event.currentTarget.value === 'true' })}><option value="true">{copy.matchTrue}</option><option value="false">{copy.matchFalse}</option></select></label> : <label>{copy.exactValue}<input value={predicate.exactValue ?? ''} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => updateContextPredicate(predicate.tagId, { exactValue: event.currentTarget.value })}/></label>}
                     {predicate.kind === 'NumericInterval' ? <>
                       <small role="status">{numericUnitConfirmed
                         ? `${unitCopy.confirmed}: ${predicate.engineeringUnit ?? unitCopy.unitless}`
                         : `${unitCopy.unconfirmed}: ${unitCopy.storedUnit} ${predicate.engineeringUnit ?? unitCopy.unitless}; ${unitCopy.currentUnit} ${tag?.engineeringUnit ?? unitCopy.unitless}`}</small>
-                      {!numericUnitConfirmed ? <button type="button" className="secondary" disabled={!canEngineer || !canManage || !tag} onClick={() => tag && updateContextPredicate(predicate.tagId, {
+                      {!numericUnitConfirmed ? <button type="button" className="secondary" disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '') || !tag} onClick={() => tag && updateContextPredicate(predicate.tagId, {
                         engineeringUnit: tag.engineeringUnit ?? null,
                         engineeringUnitConfirmed: true
                       })}>{unitCopy.confirm}</button> : null}
                     </> : null}
-                    <button type="button" className="secondary" disabled={!canEngineer || !canManage} onClick={() => removeContextPredicate(predicate.tagId)}>{copy.remove}</button>
+                    <button type="button" className="secondary" disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onClick={() => removeContextPredicate(predicate.tagId)}>{copy.remove}</button>
                   </article>;
                 })}
               </div>}
               <div className="asset-process-intelligence__assignment-form">
-                <label>{copy.predicateTag}<select value={contextPredicateTagId} disabled={!canEngineer || !canManage || !selectedContextMeasurementProfile || selectedContextProfile.predicates.length >= 16} onChange={event => {
+                <label>{copy.predicateTag}<select value={contextPredicateTagId} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '') || !selectedContextMeasurementProfile || selectedContextProfile.predicates.length >= 16} onChange={event => {
                   const nextId = event.currentTarget.value;
                   const nextTag = tagsById.get(nextId.toLowerCase());
                   const nextKinds = contextPredicateKinds(nextTag?.dataType);
@@ -1311,17 +1318,17 @@ export function AssetProcessIntelligenceWorkspace({
                   {contextSignalTags.filter(tag => !selectedContextProfile.predicates.some(predicate => predicate.tagId.toLowerCase() === tag.id?.toLowerCase()) && contextPredicateKinds(tag.dataType).length > 0).map(tag => <option key={tag.id} value={tag.id}>{tag.path} · {tag.dataType}{tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}</option>)}
                 </select></label>
                 {selectedPredicateTag ? <>
-                  <label>{copy.predicateKind}<select value={contextPredicateKind} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateKind(event.currentTarget.value as AssetProcessIntelligenceOperatingContextPredicateKind)}>
+                  <label>{copy.predicateKind}<select value={contextPredicateKind} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => setContextPredicateKind(event.currentTarget.value as AssetProcessIntelligenceOperatingContextPredicateKind)}>
                     {availablePredicateKinds.map(kind => <option key={kind} value={kind}>{copy[kind]}</option>)}
                   </select></label>
                   {contextPredicateKind === 'NumericInterval' ? <>
-                    <label>{copy.minimumInclusive}<input type="number" value={contextPredicateMinimum} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateMinimum(event.currentTarget.value)}/></label>
-                    <label>{copy.maximumInclusive}<input type="number" value={contextPredicateMaximum} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateMaximum(event.currentTarget.value)}/></label>
-                  </> : contextPredicateKind === 'BooleanEquals' ? <label>{copy.predicateValue}<select value={contextPredicateBoolean} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateBoolean(event.currentTarget.value)}><option value="true">{copy.matchTrue}</option><option value="false">{copy.matchFalse}</option></select></label> : <label>{copy.exactValue}<input value={contextPredicateExact} disabled={!canEngineer || !canManage} onChange={event => setContextPredicateExact(event.currentTarget.value)}/></label>}
+                    <label>{copy.minimumInclusive}<input type="number" value={contextPredicateMinimum} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => setContextPredicateMinimum(event.currentTarget.value)}/></label>
+                    <label>{copy.maximumInclusive}<input type="number" value={contextPredicateMaximum} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => setContextPredicateMaximum(event.currentTarget.value)}/></label>
+                  </> : contextPredicateKind === 'BooleanEquals' ? <label>{copy.predicateValue}<select value={contextPredicateBoolean} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => setContextPredicateBoolean(event.currentTarget.value)}><option value="true">{copy.matchTrue}</option><option value="false">{copy.matchFalse}</option></select></label> : <label>{copy.exactValue}<input value={contextPredicateExact} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => setContextPredicateExact(event.currentTarget.value)}/></label>}
                 </> : null}
-                <button type="button" className="secondary" disabled={!canEngineer || !canManage || !selectedPredicateTag || selectedContextProfile.predicates.length >= 16} onClick={addContextPredicate}>{copy.addPredicate}</button>
+                <button type="button" className="secondary" disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '') || !selectedPredicateTag || selectedContextProfile.predicates.length >= 16} onClick={addContextPredicate}>{copy.addPredicate}</button>
               </div>
-              <button type="button" className="secondary asset-process-intelligence__danger" disabled={!canEngineer || !canManage} onClick={removeContextProfile}>{copy.deleteContextProfile}</button>
+              <button type="button" className="secondary asset-process-intelligence__danger" disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onClick={removeContextProfile}>{copy.deleteContextProfile}</button>
             </div> : null}
           </div>}
         </section>
@@ -1340,16 +1347,16 @@ export function AssetProcessIntelligenceWorkspace({
             {selectedStage ? <div className="asset-process-intelligence__editor">
               <label>{copy.stageName}<input value={selectedStage.name} disabled={!canEngineer} onChange={event => updateStage({ name: event.currentTarget.value })}/></label>
               <button type="button" className="secondary" data-testid={`intelligence-guided-stage-dashboard-${selectedStage.id}`}
-                disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft ||
+                disabled={!snapshot.licensed || !canEngineer || !canManageSource(createDashboardSourceForStage(selectedStage)) || !onCreateDashboardDraft ||
                   !createDashboardSourceForStage(selectedStage) || !createProcessStageCoverageSelection(selectedStage)}
                 onClick={() => generateGuidedProcessStageDashboard(selectedStage)}>{guidedStageDashboardCopy.generate}</button>
               <button type="button" className="secondary" data-testid={`intelligence-process-stage-insights-${selectedStage.id}`}
-                disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft ||
+                disabled={!snapshot.licensed || !canEngineer || !canManageSource(createDashboardSourceForStage(selectedStage)) || !onCreateDashboardDraft ||
                   !createDashboardSourceForStage(selectedStage) || !createProcessStageInsightsSelection(selectedStage)}
                 onClick={() => generateProcessStageInsightsScreen(selectedStage)}>{guidedStageDashboardCopy.generateInsights}</button>
               <small>{guidedStageDashboardCopy.hint}</small>
               <button type="button" className="secondary" data-testid={`intelligence-stage-coverage-${selectedStage.id}`}
-                disabled={!snapshot.licensed || !canEngineer || !canManage || !onCreateDashboardDraft || !createProcessStageCoverageSelection(selectedStage)}
+                disabled={!snapshot.licensed || !canEngineer || !canManageSource(createDashboardSourceForStage(selectedStage)) || !onCreateDashboardDraft || !createProcessStageCoverageSelection(selectedStage)}
                 onClick={() => generateProcessStageCoverageScreen(selectedStage)}>{stageCoverageCopy.generate}</button>
               {selectedStage.links.length === 0 ? <div className="eng-empty"><strong>{copy.noStageAssignments}</strong></div> : <div className="asset-process-intelligence__list">
                 {[...selectedStage.links].sort((a, b) => a.order - b.order).map((link, index) => {
@@ -1542,8 +1549,8 @@ function text(locale: EngineeringLocale) {
     profiles: 'Reusable profiles', profilesHint: 'A profile can be reused by multiple Equipment assignments.', newProfile: 'New profile', noProfiles: 'No profiles yet. Create one to define static signal references.', defaultProfile: 'Profile', defaultSignal: 'Signal', profileName: 'Display name', signals: 'Signal references', signalsHint: 'Choose existing TAGs and describe what each measurement represents. The optional meaning selection enables analyses that support it.', noSignals: 'No signals in this profile.', signalRole: 'What does this measurement represent?', signalRolePlaceholder: 'e.g. motor current', semanticRole: 'Measurement meaning', noSemanticRole: 'Not specified', chooseQualifier: 'Choose a qualifier', currentBasisLabel: 'Current basis', signalKindLabel: 'Signal kind', frequencyReferenceLabel: 'Frequency reference', pressureReferenceLabel: 'Pressure reference', flowDirectionLabel: 'Flow direction', semanticComplete: 'Controlled annotation complete', semanticIncomplete: 'Incomplete: select every required qualifier before saving', unsupportedSemantic: 'This saved meaning is unavailable', tagReference: 'TAG reference', chooseTag: 'Choose a TAG', noTags: 'No TAGs are available', addSignal: 'Add signal', required: 'Required', optional: 'Optional', missingTag: 'Missing TAG reference', remove: 'Remove', deleteProfile: 'Delete profile and its assignments',
     assignments: 'Equipment assignments', assignmentsHint: 'Choose the Equipment and profile to link. One Equipment may use more than one profile.', equipment: 'Equipment', profile: 'Profile', chooseEquipment: 'Choose Equipment', chooseProfile: 'Choose a profile', assignProfile: 'Assign profile', noEquipment: 'No Equipment is available.', noAssignments: 'No assignments yet.', missingEquipment: 'Missing Equipment', missingProfile: 'Missing profile', referenceMissing: 'Reference is missing',
     processStages: 'Ordered process stages', processStagesHint: 'Group Equipment assignments into process stages and set the order you want to monitor.', newStage: 'New stage', noStages: 'No process stages yet.', defaultStage: 'Stage', stageName: 'Display name', noStageAssignments: 'No assignments in this stage.', stageAssignment: 'Assignment', chooseAssignment: 'Choose an assignment', addToStage: 'Add to stage', moveUp: 'Move up', moveDown: 'Move down', staticOnly: 'Editing this configuration does not start queries. Use the analysis panels in each assignment to read history when needed.', saveConfiguration: 'Save process configuration', configurationSaved: 'Process configuration saved to Working.',
-    dashboardTitle: 'Create a Runtime dashboard', dashboardHint: 'Create a normal editable Screen from existing TAGs. The basic draft adds value cards, a trend and coverage; it does not read live or historical data or invent KPIs.', dashboardSourceLabel: 'Dashboard content', chooseDashboardSource: 'Select an equipment profile or process stage', dashboardEquipmentSource: 'Equipment profile', dashboardStageSource: 'Process stage', dashboardNoSources: 'Create a profile with at least one numeric TAG, assign it to equipment, or add that assignment to a process stage.', dashboardSourceNeedsNumeric: 'This source has no numeric TAG yet. Add a numeric measurement to its profile.', dashboardConfigurationNeedsSaving: 'Save the current Intelligence configuration before generating the dashboard.', dashboardNextSteps: 'After generation: review the Screen, use Preview and Apply, then publish and activate the project revision for Runtime.', generateDashboard: 'Generate dashboard draft', generateGuidedDashboard: 'Create guided dashboard views', guidedDashboardHint: 'Choose a valid Performance rule and complete the two contextual signal ranges first. Each view remains a separate editable Screen.', guidedDashboardSelectionsRequired: 'Choose one valid Performance rule and complete the contextual-deviation signal/range selection before generating the four-screen set.', dashboardLicenseRequired: 'The Asset & Process Intelligence license is required to generate this screen.', dashboardAuthorizationHint: 'EngineeringModify and an explicit AssetProcessIntelligenceManage grant, global or scoped to this resource, are required to generate a screen from these profiles.', dashboardSourceUnavailable: 'Choose a complete profile or process stage with at least one resolvable numeric TAG.',
-    contextProfiles: 'Operating-context profiles', contextProfilesHint: 'Link each context to an Equipment assignment. Matching checks are separate, read-only and use the saved measurement profile.', newContextProfile: 'New context', noContextProfiles: 'No operating contexts yet.', defaultContext: 'Context', contextLabel: 'Context name', selectedAssignment: 'Equipment assignment', contextAuthorizationHint: 'EngineeringModify and an explicit AssetProcessIntelligenceManage grant, global or scoped to this resource, are required to edit contexts.', contextPredicates: 'Conditions to check', contextPredicatesHint: 'All conditions must match readings from the same source time. Number ranges use the TAG’s current Engineering unit.', noContextPredicates: 'Add at least one condition to describe this operating context.', predicateTag: 'Measurement from the assigned profile', choosePredicateTag: 'Choose a measurement', predicateKind: 'Condition type', NumericInterval: 'Number range, including both limits', BooleanEquals: 'True or false', StringEquals: 'Exact text', EnumEquals: 'Exact choice', minimumInclusive: 'From (inclusive)', maximumInclusive: 'To (inclusive)', predicateValue: 'Value to match', exactValue: 'Exact value', matchTrue: 'True', matchFalse: 'False', addPredicate: 'Add condition', deleteContextProfile: 'Delete context profile', contextVersionConflict: 'This context changed elsewhere. Refresh and review its conditions before saving.'
+    dashboardTitle: 'Create a Runtime dashboard', dashboardHint: 'Create a normal editable Screen from existing TAGs. The basic draft adds value cards, a trend and coverage; it does not read live or historical data or invent KPIs.', dashboardSourceLabel: 'Dashboard content', chooseDashboardSource: 'Select an equipment profile or process stage', dashboardEquipmentSource: 'Equipment profile', dashboardStageSource: 'Process stage', dashboardNoSources: 'Create a profile with at least one numeric TAG, assign it to equipment, or add that assignment to a process stage.', dashboardSourceNeedsNumeric: 'This source has no numeric TAG yet. Add a numeric measurement to its profile.', dashboardConfigurationNeedsSaving: 'Save the current Intelligence configuration before generating the dashboard.', dashboardNextSteps: 'After generation: review the Screen, use Preview and Apply, then publish and activate the project revision for Runtime.', generateDashboard: 'Generate dashboard draft', generateGuidedDashboard: 'Create guided dashboard views', guidedDashboardHint: 'Choose a valid Performance rule and complete the two contextual signal ranges first. Each view remains a separate editable Screen.', guidedDashboardSelectionsRequired: 'Choose one valid Performance rule and complete the contextual-deviation signal/range selection before generating the four-screen set.', dashboardLicenseRequired: 'The Asset & Process Intelligence license is required to generate this screen.', dashboardAuthorizationHint: 'To generate a dashboard, you need permission to edit Engineering and manage every included equipment item. For a stage with partial access, choose an authorized equipment profile.', dashboardSourceUnavailable: 'Choose a complete profile or process stage with at least one resolvable numeric TAG.',
+    contextProfiles: 'Operating-context profiles', contextProfilesHint: 'Link each context to an Equipment assignment. Matching checks are separate, read-only and use the saved measurement profile.', newContextProfile: 'New context', noContextProfiles: 'No operating contexts yet.', defaultContext: 'Context', contextLabel: 'Context name', selectedAssignment: 'Equipment assignment', contextAuthorizationHint: 'To edit an operating context, you need Engineering editing permission and Intelligence management permission for the linked equipment.', contextPredicates: 'Conditions to check', contextPredicatesHint: 'All conditions must match readings from the same source time. Number ranges use the TAG’s current Engineering unit.', noContextPredicates: 'Add at least one condition to describe this operating context.', predicateTag: 'Measurement from the assigned profile', choosePredicateTag: 'Choose a measurement', predicateKind: 'Condition type', NumericInterval: 'Number range, including both limits', BooleanEquals: 'True or false', StringEquals: 'Exact text', EnumEquals: 'Exact choice', minimumInclusive: 'From (inclusive)', maximumInclusive: 'To (inclusive)', predicateValue: 'Value to match', exactValue: 'Exact value', matchTrue: 'True', matchFalse: 'False', addPredicate: 'Add condition', deleteContextProfile: 'Delete context profile', contextVersionConflict: 'This context changed elsewhere. Refresh and review its conditions before saving.'
   } as const;
   if (locale === 'es') return {
     eyebrow: 'Ingeniería · Configuración de análisis', title: 'Inteligencia de Activos y Procesos', queryMode: 'Consultas bajo demanda',
@@ -1557,8 +1564,8 @@ function text(locale: EngineeringLocale) {
     profiles: 'Perfiles reutilizables', profilesHint: 'Un perfil puede reutilizarse en varias asignaciones de equipos.', newProfile: 'Nuevo perfil', noProfiles: 'Aún no hay perfiles. Cree uno para definir referencias estáticas.', defaultProfile: 'Perfil', defaultSignal: 'Señal', profileName: 'Nombre', signals: 'Referencias de señales', signalsHint: 'Elija TAGs existentes y describa qué representa cada medición. El significado opcional habilita los análisis compatibles.', noSignals: 'Este perfil no tiene señales.', signalRole: '¿Qué representa esta medición?', signalRolePlaceholder: 'p. ej. corriente del motor', semanticRole: 'Significado de la medición', noSemanticRole: 'Sin especificar', chooseQualifier: 'Elija un calificador', currentBasisLabel: 'Base de corriente', signalKindLabel: 'Tipo de señal', frequencyReferenceLabel: 'Referencia de frecuencia', pressureReferenceLabel: 'Referencia de presión', flowDirectionLabel: 'Dirección del flujo', semanticComplete: 'Anotación controlada completa', semanticIncomplete: 'Incompleta: seleccione todos los calificadores requeridos antes de guardar', unsupportedSemantic: 'Este significado guardado no está disponible', tagReference: 'Referencia TAG', chooseTag: 'Elija un TAG', noTags: 'No hay TAGs disponibles', addSignal: 'Añadir señal', required: 'Obligatoria', optional: 'Opcional', missingTag: 'Falta la referencia TAG', remove: 'Eliminar', deleteProfile: 'Eliminar perfil y sus asignaciones',
     assignments: 'Asignaciones de equipo', assignmentsHint: 'Elija el equipo y el perfil que desea asociar. Un equipo puede usar más de un perfil.', equipment: 'Equipo', profile: 'Perfil', chooseEquipment: 'Elija un equipo', chooseProfile: 'Elija un perfil', assignProfile: 'Asignar perfil', noEquipment: 'No hay equipos disponibles.', noAssignments: 'Aún no hay asignaciones.', missingEquipment: 'Equipo inexistente', missingProfile: 'Perfil inexistente', referenceMissing: 'Falta la referencia',
     processStages: 'Etapas ordenadas', processStagesHint: 'Agrupe las asignaciones de equipos en etapas del proceso y ajuste el orden que desea supervisar.', newStage: 'Nueva etapa', noStages: 'Aún no hay etapas.', defaultStage: 'Etapa', stageName: 'Nombre', noStageAssignments: 'No hay asignaciones en esta etapa.', stageAssignment: 'Asignación', chooseAssignment: 'Elija una asignación', addToStage: 'Añadir a etapa', moveUp: 'Mover arriba', moveDown: 'Mover abajo', staticOnly: 'Editar esta configuración no inicia consultas. Use los paneles de cada asignación para consultar el histórico cuando lo necesite.', saveConfiguration: 'Guardar configuración', configurationSaved: 'Configuración guardada en Working.',
-    dashboardTitle: 'Crear un panel para Runtime', dashboardHint: 'Cree una Pantalla editable normal con TAGs existentes. El borrador básico incluye tarjetas de valores, una tendencia y cobertura; no consulta valores actuales ni Historian ni inventa KPI.', dashboardSourceLabel: 'Contenido del panel', chooseDashboardSource: 'Elija un perfil de equipo o una etapa del proceso', dashboardEquipmentSource: 'Perfil de equipo', dashboardStageSource: 'Etapa del proceso', dashboardNoSources: 'Cree un perfil con al menos un TAG numérico, asígnelo a un equipo o añada esa asociación a una etapa del proceso.', dashboardSourceNeedsNumeric: 'Esta fuente aún no tiene un TAG numérico. Añada una medición numérica al perfil.', dashboardConfigurationNeedsSaving: 'Guarde la configuración actual de Intelligence antes de generar el panel.', dashboardNextSteps: 'Después de generar: revise la Pantalla, use Preview y Aplicar, y luego publique y active la revisión del proyecto para Runtime.', generateDashboard: 'Generar borrador del panel', generateGuidedDashboard: 'Crear vistas guiadas del panel', guidedDashboardHint: 'Primero elija una regla de rendimiento válida y complete los dos rangos de señales contextuales. Cada vista sigue siendo una Pantalla editable independiente.', guidedDashboardSelectionsRequired: 'Elija una regla de rendimiento válida y complete la selección de señales y rangos contextuales antes de generar las cuatro pantallas.', dashboardLicenseRequired: 'Se requiere la licencia de Inteligencia de Activos y Procesos para generar esta pantalla.', dashboardAuthorizationHint: 'Se requieren EngineeringModify y un permiso explícito AssetProcessIntelligenceManage, global o para ese recurso, para generar pantallas desde estos perfiles.', dashboardSourceUnavailable: 'Elija un perfil o etapa completa con al menos un TAG numérico resoluble.',
-    contextProfiles: 'Perfiles de contexto operativo', contextProfilesHint: 'Vincule cada contexto a una asignación de equipo. Las comprobaciones son independientes, de solo lectura y usan el perfil de medición guardado.', newContextProfile: 'Nuevo contexto', noContextProfiles: 'Aún no hay contextos operativos.', defaultContext: 'Contexto', contextLabel: 'Nombre del contexto', selectedAssignment: 'Asignación de equipo', contextAuthorizationHint: 'Se requieren EngineeringModify y un permiso explícito AssetProcessIntelligenceManage, global o para ese recurso, para editar contextos.', contextPredicates: 'Condiciones a verificar', contextPredicatesHint: 'Todas las condiciones deben coincidir con lecturas del mismo instante de origen. Los intervalos numéricos usan la unidad actual del TAG.', noContextPredicates: 'Añada al menos una condición para describir este contexto operacional.', predicateTag: 'Medición del perfil asignado', choosePredicateTag: 'Elija una medición', predicateKind: 'Tipo de condición', NumericInterval: 'Intervalo numérico, incluidos ambos límites', BooleanEquals: 'Verdadero o falso', StringEquals: 'Texto exacto', EnumEquals: 'Opción exacta', minimumInclusive: 'Desde (incluido)', maximumInclusive: 'Hasta (incluido)', predicateValue: 'Valor que debe coincidir', exactValue: 'Valor exacto', matchTrue: 'Verdadero', matchFalse: 'Falso', addPredicate: 'Añadir condición', deleteContextProfile: 'Eliminar perfil de contexto', contextVersionConflict: 'Este contexto cambió en otra edición. Actualice la pantalla y revise sus condiciones antes de guardar.'
+    dashboardTitle: 'Crear un panel para Runtime', dashboardHint: 'Cree una Pantalla editable normal con TAGs existentes. El borrador básico incluye tarjetas de valores, una tendencia y cobertura; no consulta valores actuales ni Historian ni inventa KPI.', dashboardSourceLabel: 'Contenido del panel', chooseDashboardSource: 'Elija un perfil de equipo o una etapa del proceso', dashboardEquipmentSource: 'Perfil de equipo', dashboardStageSource: 'Etapa del proceso', dashboardNoSources: 'Cree un perfil con al menos un TAG numérico, asígnelo a un equipo o añada esa asociación a una etapa del proceso.', dashboardSourceNeedsNumeric: 'Esta fuente aún no tiene un TAG numérico. Añada una medición numérica al perfil.', dashboardConfigurationNeedsSaving: 'Guarde la configuración actual de Intelligence antes de generar el panel.', dashboardNextSteps: 'Después de generar: revise la Pantalla, use Preview y Aplicar, y luego publique y active la revisión del proyecto para Runtime.', generateDashboard: 'Generar borrador del panel', generateGuidedDashboard: 'Crear vistas guiadas del panel', guidedDashboardHint: 'Primero elija una regla de rendimiento válida y complete los dos rangos de señales contextuales. Cada vista sigue siendo una Pantalla editable independiente.', guidedDashboardSelectionsRequired: 'Elija una regla de rendimiento válida y complete la selección de señales y rangos contextuales antes de generar las cuatro pantallas.', dashboardLicenseRequired: 'Se requiere la licencia de Inteligencia de Activos y Procesos para generar esta pantalla.', dashboardAuthorizationHint: 'Para generar un panel necesita editar Ingeniería y gestionar cada equipo incluido. Si tiene acceso parcial a una etapa, elija un perfil de equipo autorizado.', dashboardSourceUnavailable: 'Elija un perfil o etapa completa con al menos un TAG numérico resoluble.',
+    contextProfiles: 'Perfiles de contexto operativo', contextProfilesHint: 'Vincule cada contexto a una asignación de equipo. Las comprobaciones son independientes, de solo lectura y usan el perfil de medición guardado.', newContextProfile: 'Nuevo contexto', noContextProfiles: 'Aún no hay contextos operativos.', defaultContext: 'Contexto', contextLabel: 'Nombre del contexto', selectedAssignment: 'Asignación de equipo', contextAuthorizationHint: 'Para editar un contexto de operación necesita editar Ingeniería y administrar Intelligence en el equipo asociado.', contextPredicates: 'Condiciones a verificar', contextPredicatesHint: 'Todas las condiciones deben coincidir con lecturas del mismo instante de origen. Los intervalos numéricos usan la unidad actual del TAG.', noContextPredicates: 'Añada al menos una condición para describir este contexto operacional.', predicateTag: 'Medición del perfil asignado', choosePredicateTag: 'Elija una medición', predicateKind: 'Tipo de condición', NumericInterval: 'Intervalo numérico, incluidos ambos límites', BooleanEquals: 'Verdadero o falso', StringEquals: 'Texto exacto', EnumEquals: 'Opción exacta', minimumInclusive: 'Desde (incluido)', maximumInclusive: 'Hasta (incluido)', predicateValue: 'Valor que debe coincidir', exactValue: 'Valor exacto', matchTrue: 'Verdadero', matchFalse: 'Falso', addPredicate: 'Añadir condición', deleteContextProfile: 'Eliminar perfil de contexto', contextVersionConflict: 'Este contexto cambió en otra edición. Actualice la pantalla y revise sus condiciones antes de guardar.'
   } as const;
   return {
     eyebrow: 'Engenharia · Configuração das análises', title: 'Inteligência de Ativos e Processos', queryMode: 'Consultas sob demanda',
@@ -1572,8 +1579,8 @@ function text(locale: EngineeringLocale) {
     profiles: 'Perfis reutilizáveis', profilesHint: 'Um perfil pode ser reutilizado em várias associações de equipamentos.', newProfile: 'Novo perfil', noProfiles: 'Nenhum perfil ainda. Crie um para definir referências estáticas de sinais.', defaultProfile: 'Perfil', defaultSignal: 'Sinal', profileName: 'Nome de exibição', signals: 'Referências de sinais', signalsHint: 'Escolha TAGs existentes e descreva o que cada medição representa. O significado opcional habilita as análises compatíveis.', noSignals: 'Este perfil não possui sinais.', signalRole: 'O que esta medição representa?', signalRolePlaceholder: 'ex.: corrente elétrica do motor', semanticRole: 'Significado da medição', noSemanticRole: 'Não informado', chooseQualifier: 'Escolha um qualificador', currentBasisLabel: 'Base de corrente', signalKindLabel: 'Tipo do sinal', frequencyReferenceLabel: 'Referência de frequência', pressureReferenceLabel: 'Referência de pressão', flowDirectionLabel: 'Direção do fluxo', semanticComplete: 'Anotação controlada completa', semanticIncomplete: 'Incompleta: selecione todos os qualificadores obrigatórios antes de salvar', unsupportedSemantic: 'Este significado salvo não está disponível', tagReference: 'Referência do TAG', chooseTag: 'Escolha um TAG', noTags: 'Nenhum TAG disponível', addSignal: 'Adicionar sinal', required: 'Obrigatório', optional: 'Opcional', missingTag: 'Referência de TAG ausente', remove: 'Remover', deleteProfile: 'Excluir perfil e associações',
     assignments: 'Associações de equipamentos', assignmentsHint: 'Escolha o equipamento e o perfil que deseja associar. Um equipamento pode usar mais de um perfil.', equipment: 'Equipamento', profile: 'Perfil', chooseEquipment: 'Escolha um equipamento', chooseProfile: 'Escolha um perfil', assignProfile: 'Associar perfil', noEquipment: 'Nenhum equipamento disponível.', noAssignments: 'Nenhuma associação ainda.', missingEquipment: 'Equipamento ausente', missingProfile: 'Perfil ausente', referenceMissing: 'Referência ausente',
     processStages: 'Etapas ordenadas do processo', processStagesHint: 'Agrupe as associações de equipamentos em etapas do processo e ajuste a ordem que deseja acompanhar.', newStage: 'Nova etapa', noStages: 'Nenhuma etapa de processo ainda.', defaultStage: 'Etapa', stageName: 'Nome de exibição', noStageAssignments: 'Nenhuma associação nesta etapa.', stageAssignment: 'Associação', chooseAssignment: 'Escolha uma associação', addToStage: 'Adicionar à etapa', moveUp: 'Mover para cima', moveDown: 'Mover para baixo', staticOnly: 'Editar esta configuração não inicia consultas. Use os painéis de análise de cada associação quando quiser consultar o histórico.', saveConfiguration: 'Salvar configuração de processo', configurationSaved: 'Configuração de processo salva no Working.',
-    dashboardTitle: 'Gerar painel para o Runtime', dashboardHint: 'Gere uma Tela normal e editável a partir de TAGs existentes. O rascunho básico inclui cartões de valores, tendência e cobertura; não consulta valores atuais nem Historian e não inventa KPIs.', dashboardSourceLabel: 'Conteúdo do painel', chooseDashboardSource: 'Selecione um perfil de equipamento ou uma etapa do processo', dashboardEquipmentSource: 'Perfil de equipamento', dashboardStageSource: 'Etapa do processo', dashboardNoSources: 'Crie um perfil com ao menos um TAG numérico, associe-o a um equipamento ou inclua essa associação numa etapa do processo.', dashboardSourceNeedsNumeric: 'Esta origem ainda não tem TAG numérico. Adicione uma medição numérica ao perfil.', dashboardConfigurationNeedsSaving: 'Salve a configuração atual da Intelligence antes de gerar o painel.', dashboardNextSteps: 'Depois de gerar: revise a Tela, use Pré-visualizar e Aplicar e, em seguida, publique e ative a revisão do projeto para vê-la no Runtime.', generateDashboard: 'Gerar rascunho do painel', generateGuidedDashboard: 'Criar telas do painel guiado', guidedDashboardHint: 'Escolha uma regra de desempenho válida e complete os dois intervalos dos sinais de contexto. Cada visualização continua sendo uma Tela separada e editável.', guidedDashboardSelectionsRequired: 'Escolha uma regra de desempenho válida e complete a seleção dos sinais e intervalos contextuais antes de gerar o conjunto de quatro telas.', dashboardLicenseRequired: 'A licença de Inteligência de Ativos e Processos é necessária para gerar esta tela.', dashboardAuthorizationHint: 'EngineeringModify e uma permissão explícita AssetProcessIntelligenceManage, global ou para este recurso, são necessários para gerar telas a partir destes perfis.', dashboardSourceUnavailable: 'Escolha um perfil ou etapa completa com pelo menos um TAG numérico resolvível.',
-    contextProfiles: 'Perfis de contexto operacional', contextProfilesHint: 'Vincule cada contexto a uma associação de equipamento. As verificações são separadas, somente leitura e usam o perfil de medição salvo.', newContextProfile: 'Novo contexto', noContextProfiles: 'Nenhum contexto operacional ainda.', defaultContext: 'Contexto', contextLabel: 'Nome do contexto', selectedAssignment: 'Associação de equipamento', contextAuthorizationHint: 'São necessários EngineeringModify e uma permissão explícita AssetProcessIntelligenceManage, global ou para este recurso, para editar contextos.', contextPredicates: 'Condições a conferir', contextPredicatesHint: 'Todas as condições precisam corresponder a leituras do mesmo instante de origem. Os intervalos numéricos usam a unidade atual do TAG.', noContextPredicates: 'Adicione ao menos uma condição para descrever este contexto operacional.', predicateTag: 'Medição do perfil associado', choosePredicateTag: 'Escolha uma medição', predicateKind: 'Tipo de condição', NumericInterval: 'Intervalo numérico, incluindo os dois limites', BooleanEquals: 'Verdadeiro ou falso', StringEquals: 'Texto exato', EnumEquals: 'Opção exata', minimumInclusive: 'De (incluindo o limite)', maximumInclusive: 'Até (incluindo o limite)', predicateValue: 'Valor que deve corresponder', exactValue: 'Valor exato', matchTrue: 'Verdadeiro', matchFalse: 'Falso', addPredicate: 'Adicionar condição', deleteContextProfile: 'Excluir perfil de contexto', contextVersionConflict: 'Este contexto foi alterado em outra edição. Atualize a tela e confira as condições antes de salvar.'
+    dashboardTitle: 'Gerar painel para o Runtime', dashboardHint: 'Gere uma Tela normal e editável a partir de TAGs existentes. O rascunho básico inclui cartões de valores, tendência e cobertura; não consulta valores atuais nem Historian e não inventa KPIs.', dashboardSourceLabel: 'Conteúdo do painel', chooseDashboardSource: 'Selecione um perfil de equipamento ou uma etapa do processo', dashboardEquipmentSource: 'Perfil de equipamento', dashboardStageSource: 'Etapa do processo', dashboardNoSources: 'Crie um perfil com ao menos um TAG numérico, associe-o a um equipamento ou inclua essa associação numa etapa do processo.', dashboardSourceNeedsNumeric: 'Esta origem ainda não tem TAG numérico. Adicione uma medição numérica ao perfil.', dashboardConfigurationNeedsSaving: 'Salve a configuração atual da Intelligence antes de gerar o painel.', dashboardNextSteps: 'Depois de gerar: revise a Tela, use Pré-visualizar e Aplicar e, em seguida, publique e ative a revisão do projeto para vê-la no Runtime.', generateDashboard: 'Gerar rascunho do painel', generateGuidedDashboard: 'Criar telas do painel guiado', guidedDashboardHint: 'Escolha uma regra de desempenho válida e complete os dois intervalos dos sinais de contexto. Cada visualização continua sendo uma Tela separada e editável.', guidedDashboardSelectionsRequired: 'Escolha uma regra de desempenho válida e complete a seleção dos sinais e intervalos contextuais antes de gerar o conjunto de quatro telas.', dashboardLicenseRequired: 'A licença de Inteligência de Ativos e Processos é necessária para gerar esta tela.', dashboardAuthorizationHint: 'Para gerar um painel, você precisa editar a Engenharia e gerenciar todos os equipamentos incluídos. Em uma etapa com acesso parcial, escolha o perfil de um equipamento autorizado.', dashboardSourceUnavailable: 'Escolha um perfil ou etapa completa com pelo menos um TAG numérico resolvível.',
+    contextProfiles: 'Perfis de contexto operacional', contextProfilesHint: 'Vincule cada contexto a uma associação de equipamento. As verificações são separadas, somente leitura e usam o perfil de medição salvo.', newContextProfile: 'Novo contexto', noContextProfiles: 'Nenhum contexto operacional ainda.', defaultContext: 'Contexto', contextLabel: 'Nome do contexto', selectedAssignment: 'Associação de equipamento', contextAuthorizationHint: 'Para editar um contexto de operação, você precisa editar a Engenharia e gerenciar Intelligence no equipamento associado.', contextPredicates: 'Condições a conferir', contextPredicatesHint: 'Todas as condições precisam corresponder a leituras do mesmo instante de origem. Os intervalos numéricos usam a unidade atual do TAG.', noContextPredicates: 'Adicione ao menos uma condição para descrever este contexto operacional.', predicateTag: 'Medição do perfil associado', choosePredicateTag: 'Escolha uma medição', predicateKind: 'Tipo de condição', NumericInterval: 'Intervalo numérico, incluindo os dois limites', BooleanEquals: 'Verdadeiro ou falso', StringEquals: 'Texto exato', EnumEquals: 'Opção exata', minimumInclusive: 'De (incluindo o limite)', maximumInclusive: 'Até (incluindo o limite)', predicateValue: 'Valor que deve corresponder', exactValue: 'Valor exato', matchTrue: 'Verdadeiro', matchFalse: 'Falso', addPredicate: 'Adicionar condição', deleteContextProfile: 'Excluir perfil de contexto', contextVersionConflict: 'Este contexto foi alterado em outra edição. Atualize a tela e confira as condições antes de salvar.'
   } as const;
 }
 

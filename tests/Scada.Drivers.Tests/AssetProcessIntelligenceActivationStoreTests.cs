@@ -76,4 +76,3 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => anotherProcess.ActivateAsync(evidence));
     }
 }
-

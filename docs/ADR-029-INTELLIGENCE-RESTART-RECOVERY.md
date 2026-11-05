@@ -27,4 +27,3 @@ For shared databases, all nodes read the same receipt and serialize closure/reco
 
 ## Acceptance evidence
 Use real API processes and disposable PostgreSQL databases. Cover restart without another click; durable pause; revoke/restore while offline; Authority switch; revision changes; partition/reconnect; HA shared/isolated topology; concurrent pause/recovery; crash before/after receipt commit; invalidation before result return. Demonstrate that a recovered token cannot survive a later receipt generation or canonical fence change. Run focused local tests before CI and deploy the accepted merge to the preserved-data EEE preview.
-

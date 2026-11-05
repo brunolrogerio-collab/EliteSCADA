@@ -30,4 +30,3 @@ public sealed record AssetProcessIntelligenceActivationEvidence(
         string.Equals(PolicyDigest, policyDigest, StringComparison.Ordinal) &&
         HaEpoch >= 0 && HaEpoch == haEpoch && Generation > 0 && Generation == generation;
 }
-

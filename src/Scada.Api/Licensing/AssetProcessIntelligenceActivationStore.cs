@@ -221,4 +221,3 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
 
     public ValueTask DisposeAsync() => _dataSource.DisposeAsync();
 }
-

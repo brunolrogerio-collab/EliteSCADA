@@ -10,6 +10,7 @@ using Scada.Engineering.Intelligence;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Security.Audit;
+using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Licensing;
@@ -601,6 +602,19 @@ public static class AssetProcessIntelligenceApi
                 return Results.Conflict(new { error = activationFence.ReasonCode.ToUpperInvariant().Replace('-', '_') });
         }
 
+        var activationStore = context.RequestServices.GetService<AssetProcessIntelligenceActivationStore>();
+        async Task PersistActivationAsync(string projectKey, long revision)
+        {
+            if (activationStore is null) return;
+            var lifecycle = context.RequestServices.GetRequiredService<IAuthorityLifecycleStore>();
+            var authority = await lifecycle.GetAsync(context.RequestAborted);
+            if (!authority.AllowsAuthorization || activationFence is not { Allowed: true, PolicyDigest: not null })
+                throw new InvalidOperationException("Intelligence activation requires a verifiable Authority fence.");
+            await activationStore.ActivateAsync(new AssetProcessIntelligenceActivationEvidence(
+                authority.Epoch, projectKey, revision, kind, scopeId,
+                activationFence.PolicyVersion, activationFence.PolicyDigest, activationFence.HaEpoch, 1, true),
+                context.RequestAborted);
+        }
         if (active && !licensing.CurrentVerification.HasAssetProcessIntelligence)
             return Results.Json(new { error = "INTELLIGENCE_ENTITLEMENT_REQUIRED" }, statusCode: StatusCodes.Status403Forbidden);
 
@@ -622,6 +636,8 @@ public static class AssetProcessIntelligenceApi
         if (!active && !string.IsNullOrWhiteSpace(descriptor.ProjectKey))
             executionGate.Pause(descriptor.ProjectKey, kind, scopeId);
 
+        if (!active && activationStore is not null && !string.IsNullOrWhiteSpace(descriptor.ProjectKey))
+            await activationStore.PauseAsync(descriptor.ProjectKey, kind, scopeId, context.RequestAborted);
         var runtimeDescriptor = runtime.Describe();
         if (string.IsNullOrWhiteSpace(descriptor.ProjectKey) || !descriptor.BaseRevision.HasValue ||
             !string.Equals(descriptor.ProjectKey, runtimeDescriptor.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
@@ -672,6 +688,8 @@ public static class AssetProcessIntelligenceApi
         if (scope.Active == active)
         {
             if (active)
+            {
+                await PersistActivationAsync(descriptor.ProjectKey, descriptor.BaseRevision.Value);
                 executionGate.Activate(
                     descriptor.ProjectKey,
                     descriptor.BaseRevision.Value,
@@ -679,6 +697,7 @@ public static class AssetProcessIntelligenceApi
                     scopeId,
                     activationFence?.PolicyVersion ?? 0,
                     activationFence?.HaEpoch ?? 0);
+            }
             else
                 executionGate.Pause(descriptor.ProjectKey, kind, scopeId);
             await RecordScopeTransitionAsync(context, active, manager.Principal,
@@ -776,6 +795,7 @@ public static class AssetProcessIntelligenceApi
                     executionGate.Pause(snapshot.ProjectKey, kind, scopeId);
                     return Results.Conflict(new { error = activationFence.ReasonCode.ToUpperInvariant().Replace('-', '_') });
                 }
+                await PersistActivationAsync(snapshot.ProjectKey, snapshot.Revision);
                 executionGate.Activate(
                     snapshot.ProjectKey,
                     snapshot.Revision,

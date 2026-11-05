@@ -83,6 +83,7 @@ test('contextual deviation V2 is explicit, chronological, transient and validate
   await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toBeVisible();
   expect(queries).toHaveLength(1);
   expect(queries[0]).toMatchObject({
+    temporalToleranceSeconds: 10,
     scopeKind: 0, scopeId, assignmentId, targetSignalIds: targetIds,
     firstContextSignalId: firstContextId,
     firstContextLowerInclusiveCanonical: 5,
@@ -102,6 +103,9 @@ test('contextual deviation V2 is explicit, chronological, transient and validate
   await expect(visual).not.toContainText('unknown');
   await expect(visual.getByText('Reference median', { exact: true })).toHaveCount(2);
   await expect(visual.getByText(/No combined anomaly/)).toBeVisible();
+  await visual.getByLabel('Time matching tolerance').selectOption('30');
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toHaveCount(0);
+  await visual.getByLabel('Time matching tolerance').selectOption('10');
 
   await visual.getByLabel('Evaluation from (local time)').fill('2026-10-20T12:00');
   await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toHaveCount(0);
@@ -205,6 +209,7 @@ function deviationResponse(body: Record<string, any>) {
   const secondContext = signal(body.secondContextSignalId, 'Discharge pressure');
   return {
     contractVersion: 2, catalogVersion: 2, ruleId: 'contextual-deviation-vector.v2', ruleVersion: '2.0.0',
+    temporalToleranceSeconds: body.temporalToleranceSeconds,
     projectKey, activeRevision: revision, scopeKind: 0, scopeId: body.scopeId, assignmentId: body.assignmentId,
     equipmentId: body.scopeId, profileId,
     targetSignals: targets,

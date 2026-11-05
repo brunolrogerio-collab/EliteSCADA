@@ -5762,6 +5762,68 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
     private static AssetProcessIntelligenceContextualDeviationVectorV1Signal VectorSignal(Guid signalId, string key) =>
         new(signalId, key, Guid.NewGuid(), $"Plant.Pump.{key}", null, null, null);
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(10, 2)]
+    [InlineData(30, 2)]
+    [InlineData(60, 2)]
+    public void ContextualDeviationVectorV2_ToleranceMatchesOffsetReadingsWithoutReuse(int tolerance, int expected)
+    {
+        var signals = Enumerable.Range(0, 4).Select(i => VectorSignalV2(Guid.NewGuid(), $"signal-{i}")).ToArray();
+        var window = Window(FromUtc, FromUtc.AddHours(1));
+        var rows = signals.Select((signal, index) => (signal.SignalId, Rows:
+            (IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>)
+                new[] { VectorRow(FromUtc.AddMinutes(1).AddMilliseconds(index * 100), 10),
+                    VectorRow(FromUtc.AddMinutes(2).AddMilliseconds(index * 100), 11) }))
+            .ToDictionary(item => item.SignalId, item => item.Rows);
+        var unit = new ControlledEngineeringUnitDefinition("unit.frequency.hertz", "frequency", "Hz", 1d);
+        var result = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            signals[..2], signals[2..], window, window, rows, rows, [unit, unit], [(0d, 20d), (0d, 20d)], tolerance);
+        Assert.Equal(expected, result.CompleteReferenceVectorCount);
+        Assert.Equal(expected, result.CompleteEvaluationVectorCount);
+    }
+
+    [Theory]
+    [InlineData(11, 0)] // outside the 10 second full-vector span
+    [InlineData(10, 1)] // inclusive tolerance boundary
+    public void ContextualDeviationVectorV2_ToleranceRejectsDistantRowsAndNeverReusesContext(int offset, int expected)
+    {
+        var signals = Enumerable.Range(0, 4).Select(i => VectorSignalV2(Guid.NewGuid(), $"signal-{i}")).ToArray();
+        var window = Window(FromUtc, FromUtc.AddHours(1));
+        var anchor = FromUtc.AddMinutes(1);
+        var rows = signals.Select((signal, index) => (signal.SignalId, Rows:
+            (IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>)(index < 2
+                ? new[] { VectorRow(anchor, 10), VectorRow(anchor.AddSeconds(1), 11) }
+                : new[] { VectorRow(anchor.AddSeconds(-offset), 10) })))
+            .ToDictionary(item => item.SignalId, item => item.Rows);
+        var unit = new ControlledEngineeringUnitDefinition("unit.frequency.hertz", "frequency", "Hz", 1d);
+        var result = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            signals[..2], signals[2..], window, window, rows, rows, [unit, unit], [(0d, 20d), (0d, 20d)], 10);
+        Assert.Equal(expected, result.CompleteReferenceVectorCount);
+    }
+
+    [Fact]
+    public void ContextualDeviationVectorV2_ToleranceRejectsEquidistantMatchesAndExcessiveWholeVectorSpan()
+    {
+        var signals = Enumerable.Range(0, 4).Select(i => VectorSignalV2(Guid.NewGuid(), $"signal-{i}")).ToArray();
+        var window = Window(FromUtc, FromUtc.AddHours(1));
+        var anchor = FromUtc.AddMinutes(1);
+        var rows = signals.ToDictionary(signal => signal.SignalId,
+            _ => (IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>)new[] { VectorRow(anchor, 10) });
+        var unit = new ControlledEngineeringUnitDefinition("unit.frequency.hertz", "frequency", "Hz", 1d);
+        rows[signals[1].SignalId] = [VectorRow(anchor.AddSeconds(-1), 10), VectorRow(anchor.AddSeconds(1), 10)];
+        var tied = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            signals[..2], signals[2..], window, window, rows, rows, [unit, unit], [(0d, 20d), (0d, 20d)], 10);
+        Assert.Equal(0, tied.CompleteReferenceVectorCount);
+        rows[signals[1].SignalId] = [VectorRow(anchor.AddSeconds(-6), 10)];
+        rows[signals[2].SignalId] = [VectorRow(anchor.AddSeconds(6), 10)];
+        var wide = AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            signals[..2], signals[2..], window, window, rows, rows, [unit, unit], [(0d, 20d), (0d, 20d)], 10);
+        Assert.Equal(0, wide.CompleteReferenceVectorCount);
+        Assert.Throws<ArgumentOutOfRangeException>(() => AssetProcessIntelligenceContextualDeviationVectorV2Calculator.Calculate(
+            signals[..2], signals[2..], window, window, rows, rows, [unit, unit], [(0d, 20d), (0d, 20d)], 61));
+    }
+
     private static AssetProcessIntelligenceContextualDeviationVectorV2Signal VectorSignalV2(Guid signalId, string key) =>
         new(signalId, key, Guid.NewGuid(), $"Plant.Pump.{key}", null, null, null);
 

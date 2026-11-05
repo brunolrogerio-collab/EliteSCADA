@@ -3,6 +3,7 @@ using Scada.Api.Security;
 using Scada.Core.Product.Licensing;
 using Scada.Engineering.Intelligence;
 using Scada.Engineering.Security;
+using Scada.Engineering.Contracts;
 using Scada.Security.Authentication;
 
 namespace Scada.Api.Licensing;
@@ -33,6 +34,13 @@ public sealed class AssetProcessIntelligenceStartupRecovery(
             var fence = await authority.CheckAsync(cancellationToken);
             var lifecycleState = await lifecycle.GetAsync(cancellationToken);
             if (!fence.Allowed || fence.PolicyDigest is null || !lifecycleState.AllowsAuthorization) return 0;
+            await using var mutation = await workspace.AcquireMutationAsync(cancellationToken: cancellationToken);
+            var currentDescriptor = workspace.Describe();
+            var currentRuntime = runtime.Describe();
+            if (!string.Equals(descriptor.ProjectKey, currentDescriptor.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
+                descriptor.BaseRevision != currentDescriptor.BaseRevision ||
+                !string.Equals(descriptor.ProjectKey, currentRuntime.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
+                descriptor.BaseRevision != currentRuntime.Revision) return 0;
             foreach (var scope in workspace.AssetProcessIntelligence.Snapshot().Scopes ?? [])
             {
                 if (!scope.Active) continue;
@@ -43,6 +51,16 @@ public sealed class AssetProcessIntelligenceStartupRecovery(
                     scope.Kind, scope.ScopeId, fence.PolicyVersion, fence.PolicyDigest, fence.HaEpoch,
                     evidence.Generation), cancellationToken);
                 if (accepted) recovered++;
+            }
+            var finalFence = await authority.CheckAsync(cancellationToken);
+            var finalLifecycle = await lifecycle.GetAsync(cancellationToken);
+            if (!finalFence.Allowed || finalFence.PolicyVersion != fence.PolicyVersion ||
+                finalFence.PolicyDigest != fence.PolicyDigest || finalFence.HaEpoch != fence.HaEpoch ||
+                finalLifecycle != lifecycleState || !licensing.CurrentVerification.HasAssetProcessIntelligence ||
+                !highAvailability.CanOwnIndustrialEffects())
+            {
+                gate.InvalidateAll();
+                return 0;
             }
             return recovered;
         }

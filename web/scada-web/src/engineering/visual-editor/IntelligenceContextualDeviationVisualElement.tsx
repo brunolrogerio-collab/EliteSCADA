@@ -7,9 +7,14 @@ import { useIntelligencePerformanceRuntimeContext } from '../../visual-runtime';
 import './IntelligenceContextualDeviationVisualElement.css';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
-const ROOT = '/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v2';
+const SOURCE_ROOT = '/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v2';
+const OBSERVED_ROOT = '/api/engineering/asset-process-intelligence/analytics/contextual-deviation-observed/v3';
 const RULE_ID = 'contextual-deviation-vector.v2';
 const RULE_VERSION = '2.0.0';
+const OBSERVED_RULE_ID = 'contextual-deviation-observed.v3';
+const OBSERVED_RULE_VERSION = '3.0.0';
+const OBSERVED_TIMESTAMP_BASIS = 'historian_observed';
+type TimestampBasis = 'synchronized_source' | 'historian_observed';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_VISIBLE_VECTORS = 30;
 
@@ -18,6 +23,7 @@ type Catalog = Readonly<{
   catalogVersion: number;
   ruleId: string;
   ruleVersion: string;
+  timestampBasis?: string;
   maximumWindowDays: number;
   minimumTargetSignals: number;
   maximumTargetSignals: number;
@@ -66,7 +72,9 @@ type DeviationValue = Readonly<{
 }>;
 
 type EvaluationVector = Readonly<{
-  sourceTimestampUtc: string;
+  sourceTimestampUtc?: string;
+  anchorObservedTimestampUtc?: string;
+  matchedObservedTimestampsUtc?: Readonly<Record<string, string>>;
   firstContextObservedTimestampUtc: string;
   firstContextValueCanonical: number;
   firstContextInRange: boolean;
@@ -82,7 +90,8 @@ type Provenance = Readonly<{
   datasetContractVersion: number;
   queryWindowTimestampBasis: string;
   vectorTimestampBasis: string;
-  sourceTimestampEvidenceRequirement: string;
+  sourceTimestampEvidenceRequirement?: string;
+  timestampEvidenceRequirement?: string;
   contextQualification: string;
   regimeEquivalence: string;
   completeness: string;
@@ -97,6 +106,7 @@ type Response = Readonly<{
   catalogVersion: number;
   ruleId: string;
   ruleVersion: string;
+  timestampBasis?: string;
   projectKey: string;
   activeRevision: number;
   scopeKind: number;
@@ -172,6 +182,7 @@ export function IntelligenceContextualDeviationVisualElement({
   const [evaluationFromLocal, setEvaluationFromLocal] = useState('');
   const [evaluationToLocal, setEvaluationToLocal] = useState('');
   const [temporalToleranceSeconds, setTemporalToleranceSeconds] = useState(10);
+  const [timestampBasis, setTimestampBasis] = useState<TimestampBasis>('synchronized_source');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Response | null>(null);
@@ -214,12 +225,13 @@ export function IntelligenceContextualDeviationVisualElement({
     setError(null);
     setLoading(true);
     try {
-      const catalogResponse = await fetch(`${API}${ROOT}/catalog`, {
+      const contract = contractForTimestampBasis(timestampBasis);
+      const catalogResponse = await fetch(`${API}${contract.root}/catalog`, {
         credentials: 'include', headers: { accept: 'application/json' }, signal: requestController.signal
       });
       if (!catalogResponse.ok) throw new DeviationVisualError(`HTTP_${catalogResponse.status}`);
       const catalog = await catalogResponse.json() as Catalog;
-      if (!isValidCatalog(catalog)) throw new DeviationVisualError('INVALID_CATALOG');
+      if (!isValidCatalog(catalog, timestampBasis)) throw new DeviationVisualError('INVALID_CATALOG');
       const request = {
         scopeKind: 0,
         scopeId,
@@ -233,9 +245,10 @@ export function IntelligenceContextualDeviationVisualElement({
         secondContextUpperExclusiveCanonical,
         referenceWindow: referenceWindowResult.window,
         evaluationWindow: evaluationWindowResult.window,
-        temporalToleranceSeconds
+        temporalToleranceSeconds,
+        ...(timestampBasis === 'historian_observed' ? { timestampBasis: OBSERVED_TIMESTAMP_BASIS } : {})
       } as const;
-      const response = await fetch(`${API}${ROOT}/query`, {
+      const response = await fetch(`${API}${contract.root}/query`, {
         method: 'POST', credentials: 'include',
         headers: { 'content-type': 'application/json', accept: 'application/json' },
         body: JSON.stringify(request), signal: requestController.signal
@@ -251,7 +264,7 @@ export function IntelligenceContextualDeviationVisualElement({
         targetSignalIds, firstContextSignalId, firstContextLowerInclusiveCanonical, firstContextUpperExclusiveCanonical,
         secondContextSignalId, secondContextLowerInclusiveCanonical, secondContextUpperExclusiveCanonical,
         referenceWindow: referenceWindowResult.window, evaluationWindow: evaluationWindowResult.window,
-        catalogVersion: catalog.catalogVersion, temporalToleranceSeconds
+        catalogVersion: catalog.catalogVersion, temporalToleranceSeconds, timestampBasis
       })) throw new DeviationVisualError('INVALID_RESPONSE');
       if (requestVersion.current === version && !requestController.signal.aborted) setResult(payload);
     } catch (reason) {
@@ -304,6 +317,13 @@ export function IntelligenceContextualDeviationVisualElement({
                 <label>{copy.evaluationFrom}<input type="datetime-local" value={evaluationFromLocal} disabled={loading} onChange={event => { invalidate(); setEvaluationFromLocal(event.currentTarget.value); }}/></label>
                 <label>{copy.evaluationTo}<input type="datetime-local" value={evaluationToLocal} disabled={loading} onChange={event => { invalidate(); setEvaluationToLocal(event.currentTarget.value); }}/></label>
               </fieldset>
+              <label>{basisCopy(locale).label}<select aria-label={basisCopy(locale).label} value={timestampBasis} disabled={loading} onChange={event => {
+                invalidate(); setTimestampBasis(event.currentTarget.value as TimestampBasis);
+              }}>
+                <option value="synchronized_source">{basisCopy(locale).source}</option>
+                <option value="historian_observed">{basisCopy(locale).observed}</option>
+              </select></label>
+              <p>{timestampBasis === 'historian_observed' ? basisCopy(locale).observedHint : basisCopy(locale).sourceHint}</p>
               <label>{temporalCopy(locale).label}<select value={temporalToleranceSeconds} disabled={loading} onChange={event => { invalidate(); setTemporalToleranceSeconds(Number(event.currentTarget.value)); }}>
                 <option value={0}>{temporalCopy(locale).exact}</option>
                 {[10, 30, 60].map(seconds => <option key={seconds} value={seconds}>{seconds} s</option>)}
@@ -332,6 +352,7 @@ function DeviationResult({ result, locale, copy }: { result: Response; locale: E
     <section>
       <h3>{copy.summary}</h3>
       <dl>
+        <Fact label={basisCopy(locale).label} value={result.timestampBasis === OBSERVED_TIMESTAMP_BASIS ? basisCopy(locale).observed : basisCopy(locale).source}/>
         <Fact label={temporalCopy(locale).label} value={`${result.temporalToleranceSeconds ?? 0} s`}/>
         <Fact label={temporalCopy(locale).unmatchedReference} value={formatCount(result.unmatchedReferenceAnchorCount ?? 0, locale)}/>
         <Fact label={temporalCopy(locale).unmatchedEvaluation} value={formatCount(result.unmatchedEvaluationAnchorCount ?? 0, locale)}/>
@@ -362,8 +383,8 @@ function DeviationResult({ result, locale, copy }: { result: Response; locale: E
       <h3>{copy.evaluationEvidence}</h3>
       <p>{copy.showingVectors(visibleVectors.length, result.returnedEvaluationVectorCount, result.omittedEvaluationVectorCount)}</p>
       <div className="runtime-intelligence-contextual-deviation__vectors">
-        {visibleVectors.map(vector => <article key={vector.sourceTimestampUtc}>
-          <h4>{formatTimestamp(vector.sourceTimestampUtc, locale)}</h4>
+        {visibleVectors.map(vector => <article key={vectorTime(vector)}>
+          <h4>{formatTimestamp(vectorTime(vector), locale)}</h4>
           <p>{copy.contextValues}: {formatNumber(vector.firstContextValueCanonical, formatter)} · {formatNumber(vector.secondContextValueCanonical, formatter)} · {vector.inJointContext ? copy.inJointContextLabel : copy.outsideJointContext}</p>
           <ul>{vector.targets.map(value => <li key={value.targetSignalId}>
             <strong>{targets.get(value.targetSignalId) ?? value.targetSignalId}</strong>: {formatNumber(value.value, formatter)}
@@ -395,9 +416,17 @@ function validRange(lower: number, upper: number): boolean {
   return Number.isFinite(lower) && Number.isFinite(upper) && lower < upper;
 }
 
-function isValidCatalog(value: Catalog): boolean {
-  return Boolean(value && value.contractVersion === 2 && value.catalogVersion === 2 && value.ruleId === RULE_ID &&
-    value.ruleVersion === RULE_VERSION && Number.isInteger(value.maximumWindowDays) && value.maximumWindowDays > 0 &&
+function contractForTimestampBasis(timestampBasis: TimestampBasis) {
+  return timestampBasis === 'historian_observed'
+    ? { root: OBSERVED_ROOT, contractVersion: 3, ruleId: OBSERVED_RULE_ID, ruleVersion: OBSERVED_RULE_VERSION }
+    : { root: SOURCE_ROOT, contractVersion: 2, ruleId: RULE_ID, ruleVersion: RULE_VERSION };
+}
+
+function isValidCatalog(value: Catalog, timestampBasis: TimestampBasis): boolean {
+  const contract = contractForTimestampBasis(timestampBasis);
+  return Boolean(value && value.contractVersion === contract.contractVersion && value.catalogVersion === contract.contractVersion && value.ruleId === contract.ruleId &&
+    value.ruleVersion === contract.ruleVersion && (timestampBasis !== 'historian_observed' || value.timestampBasis === OBSERVED_TIMESTAMP_BASIS) &&
+    Number.isInteger(value.maximumWindowDays) && value.maximumWindowDays > 0 &&
     value.maximumWindowDays <= 31 && value.minimumTargetSignals === 2 && value.maximumTargetSignals === 8 && value.contextSignalCount === 2);
 }
 
@@ -405,12 +434,15 @@ function matchesResponse(value: unknown, expected: {
   scopeId: string; assignmentId: string; profileId: string; projectKey: string; activeRevision: number;
   targetSignalIds: readonly string[]; firstContextSignalId: string; firstContextLowerInclusiveCanonical: number;
   firstContextUpperExclusiveCanonical: number; secondContextSignalId: string; secondContextLowerInclusiveCanonical: number;
-  secondContextUpperExclusiveCanonical: number; referenceWindow: WindowValue; evaluationWindow: WindowValue; catalogVersion: number; temporalToleranceSeconds: number;
+  secondContextUpperExclusiveCanonical: number; referenceWindow: WindowValue; evaluationWindow: WindowValue; catalogVersion: number; temporalToleranceSeconds: number; timestampBasis: TimestampBasis;
 }): value is Response {
   if (!isResponse(value)) return false;
   if ((value.temporalToleranceSeconds ?? 0) !== expected.temporalToleranceSeconds) return false;
-  if (value.contractVersion !== 2 || value.catalogVersion !== expected.catalogVersion ||
-      value.ruleId !== RULE_ID || value.ruleVersion !== RULE_VERSION || value.projectKey !== expected.projectKey ||
+  const contract = contractForTimestampBasis(expected.timestampBasis);
+  if (value.contractVersion !== contract.contractVersion || value.catalogVersion !== expected.catalogVersion ||
+      value.ruleId !== contract.ruleId || value.ruleVersion !== contract.ruleVersion ||
+      (expected.timestampBasis === 'historian_observed' ? value.timestampBasis !== OBSERVED_TIMESTAMP_BASIS : value.timestampBasis !== undefined) ||
+      value.projectKey !== expected.projectKey ||
       value.activeRevision !== expected.activeRevision || !sameId(value.scopeId, expected.scopeId) ||
       value.scopeKind !== 0 ||
       !sameId(value.equipmentId, expected.scopeId) || !sameId(value.assignmentId, expected.assignmentId) ||
@@ -430,7 +462,10 @@ function matchesResponse(value: unknown, expected: {
       second.lowerInclusiveCanonical !== expected.secondContextLowerInclusiveCanonical ||
       second.upperExclusiveCanonical !== expected.secondContextUpperExclusiveCanonical) return false;
   const vectors = value.evaluationVectors as readonly EvaluationVector[];
-  return vectors.every(vector => vector.targets.length === expected.targetSignalIds.length &&
+  return vectors.every(vector => (expected.timestampBasis === 'historian_observed'
+      ? typeof vector.anchorObservedTimestampUtc === 'string' && vector.sourceTimestampUtc === undefined && vector.matchedObservedTimestampsUtc !== undefined
+      : typeof vector.sourceTimestampUtc === 'string' && vector.anchorObservedTimestampUtc === undefined && vector.matchedObservedTimestampsUtc === undefined) &&
+    vector.targets.length === expected.targetSignalIds.length &&
     vector.targets.every((target: DeviationValue, index: number) => sameId(target.targetSignalId, expected.targetSignalIds[index])));
 }
 
@@ -457,7 +492,7 @@ function isResponse(value: unknown): value is Response {
 function isProvenance(value: unknown): value is Provenance {
   return isRecord(value) && typeof value.dataset === 'string' && isNonNegativeInteger(value.datasetContractVersion) &&
     typeof value.queryWindowTimestampBasis === 'string' && typeof value.vectorTimestampBasis === 'string' &&
-    typeof value.sourceTimestampEvidenceRequirement === 'string' && typeof value.contextQualification === 'string' &&
+    (typeof value.sourceTimestampEvidenceRequirement === 'string' || typeof value.timestampEvidenceRequirement === 'string') && typeof value.contextQualification === 'string' &&
     typeof value.regimeEquivalence === 'string' && typeof value.completeness === 'string' && typeof value.interpretation === 'string';
 }
 function isSignal(value: unknown): value is Signal {
@@ -489,7 +524,7 @@ function isDeviationValue(value: unknown): value is DeviationValue {
     (typeof value.scoreUnavailableReason === 'string' || value.scoreUnavailableReason === null);
 }
 function isEvaluationVector(value: unknown): value is EvaluationVector {
-  return isRecord(value) && typeof value.sourceTimestampUtc === 'string' &&
+  return isRecord(value) && (typeof value.sourceTimestampUtc === 'string' || typeof value.anchorObservedTimestampUtc === 'string') &&
     typeof value.firstContextObservedTimestampUtc === 'string' && isFiniteNumber(value.firstContextValueCanonical) &&
     typeof value.firstContextInRange === 'boolean' && typeof value.secondContextObservedTimestampUtc === 'string' &&
     isFiniteNumber(value.secondContextValueCanonical) && typeof value.secondContextInRange === 'boolean' &&
@@ -508,6 +543,7 @@ function formatTimestamp(value: string, locale: EngineeringLocale): string {
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) ? new Intl.DateTimeFormat(locale === 'pt-BR' ? 'pt-BR' : locale, { dateStyle: 'short', timeStyle: 'medium', timeZone: 'UTC' }).format(parsed) : value;
 }
+function vectorTime(vector: EvaluationVector): string { return vector.anchorObservedTimestampUtc ?? vector.sourceTimestampUtc ?? ''; }
 function formatNumber(value: number, formatter: Intl.NumberFormat): string { return Number.isFinite(value) ? formatter.format(value) : '—'; }
 function formatOptional(value: number | null, formatter: Intl.NumberFormat): string { return value === null ? '—' : formatNumber(value, formatter); }
 function unavailableReason(reason: string | null, copy: ReturnType<typeof visualCopy>): string {
@@ -524,10 +560,10 @@ function describeVectorTimestampBasis(value: string, locale: EngineeringLocale):
         ? 'Compara lecturas con la misma hora de origen sincronizada en ambas condiciones y en todas las señales. Esto no demuestra que los sensores midieran al mismo instante.'
         : 'Compares readings with the same synchronized source time across both conditions and all signals. This does not prove the sensors measured at the same instant.';
   }
-  if (text.includes('historian observation timestamp')) {
-    return locale === 'pt-BR' ? 'Horário em que a leitura foi registrada pelo Historian.'
-      : locale === 'es' ? 'Hora en que Historian registró la lectura.'
-        : 'Time when Historian recorded the reading.';
+  if (text.includes('historian observation')) {
+    return locale === 'pt-BR' ? 'Horário em que o SCADIVO registrou a leitura no Historian; pode haver atraso em relação à medição do equipamento.'
+      : locale === 'es' ? 'Hora en que SCADIVO registró la lectura en Historian; puede haber retraso respecto de la medición del equipo.'
+        : 'Time when SCADIVO recorded the reading in Historian; it may lag behind the equipment measurement.';
   }
   return locale === 'pt-BR' ? 'Base de horário definida pelo relatório.' : locale === 'es' ? 'Base temporal definida por el informe.' : 'Time basis defined by the report.';
 }
@@ -547,6 +583,24 @@ function temporalCopy(locale: EngineeringLocale) {
     label: 'Time matching tolerance', exact: 'Same timestamp (0 s)',
     unmatchedReference: 'Target readings without a complete reference set', unmatchedEvaluation: 'Target readings without a complete evaluation set',
     hint: 'Matches the nearest valid readings to the first target signal. The full time span must fit the tolerance. Readings are not reused or imputed; ties and incomplete sets are discarded. Choose a window suited to the process speed.'
+  };
+}
+
+function basisCopy(locale: EngineeringLocale) {
+  if (locale === 'pt-BR') return {
+    label: 'Base de horário', source: 'Horário de origem sincronizado', observed: 'Horário de registro no SCADIVO',
+    sourceHint: 'Use esta opção quando as leituras tiverem horário de origem com evidência explícita de sincronização. Sem essa evidência, elas não formam conjuntos neste modo.',
+    observedHint: 'Usa o horário em que cada leitura foi registrada pelo SCADIVO. Esse horário pode incluir atraso de comunicação ou processamento e não representa o instante exato da medição no equipamento.'
+  };
+  if (locale === 'es') return {
+    label: 'Base horaria', source: 'Hora de origen sincronizada', observed: 'Hora de registro en SCADIVO',
+    sourceHint: 'Use esta opción cuando las lecturas tengan una hora de origen con evidencia explícita de sincronización. Sin esa evidencia, no se forman conjuntos en este modo.',
+    observedHint: 'Usa la hora en que SCADIVO registró cada lectura. Puede incluir retrasos de comunicación o procesamiento y no representa el instante exacto de medición del equipo.'
+  };
+  return {
+    label: 'Timestamp basis', source: 'Synchronized source time', observed: 'SCADIVO recorded time',
+    sourceHint: 'Use this when readings have source times with explicit synchronization evidence. Without that evidence, this mode cannot form complete sets.',
+    observedHint: 'Uses the time when SCADIVO recorded each reading. It may include communication or processing delay and does not represent the exact time the equipment measured it.'
   };
 }
 

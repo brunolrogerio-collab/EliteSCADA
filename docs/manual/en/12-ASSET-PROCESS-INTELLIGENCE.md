@@ -514,8 +514,8 @@ Captions identify mocked API or real API/PostgreSQL captures. All displayed data
 
 ## Time tolerance in contextual deviation
 
-TAGs collected every second can have different milliseconds. On the contextual deviation Runtime screen choose **Time matching tolerance**: 10 seconds (initial), 30, 60 or Same timestamp (0 s).
+TAGs collected every second can have different milliseconds. On the contextual deviation Runtime screen, choose **Timestamp basis** first and then **Time matching tolerance**: 10 seconds (initial), 30, 60 or Same timestamp (0 s).
 
-The nearest valid readings to the first selected target are matched only when the full time span fits the tolerance. Readings are never reused across sets; ties and incomplete sets are discarded. There is no interpolation or filling of missing values. Quality and synchronized source timestamp evidence remain required.
+**Synchronized source time** uses the time supplied by the source and requires explicit synchronization evidence. **SCADIVO recorded time** uses when Historian received each reading. This option can analyze TAGs without a reliable device timestamp, but arrival time may include communication or processing delay; it does not show the exact time the equipment was measured. SCADIVO never switches bases silently, relabels recorded time as source time, or changes stored history.
 
-Choose the smallest window suited to acquisition and process speed: a minute can hide rapid pump changes. Results show tolerance, complete sets and first-target readings without a complete set. **Zero complete sets means insufficient data, not absence of deviation.** Changing tolerance clears results; select Analyze again. The setting applies to the current query and never changes stored history.
+For either basis, SCADIVO matches valid readings near the first selected target. The full time span must fit the tolerance. Readings are not reused; ties and incomplete sets are discarded. There is no interpolation or filling of missing values. Choose the smallest tolerance suited to collection and process speed: a minute can hide rapid pump changes. **Zero complete sets means insufficient data, not absence of deviation.** Changing the basis or tolerance clears the result; select Analyze again. The choice applies only to this query and never changes stored history.

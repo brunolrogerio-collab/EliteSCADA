@@ -74,6 +74,9 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             await node.LoginAsync();
             var paused = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
             Assert.False(paused["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() ?? true, paused.ToJsonString());
+            if (twoScopes)
+                Assert.True(paused["configuration"]!["scopes"]![1]!["executionArmed"]!.GetValue<bool>(),
+                    "Pausing first scope must preserve the second scope: " + paused.ToJsonString());
             await node.SendAsync(HttpMethod.Post,
                 "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000201/activate", new JsonObject());
             await node.DisposeAsync();

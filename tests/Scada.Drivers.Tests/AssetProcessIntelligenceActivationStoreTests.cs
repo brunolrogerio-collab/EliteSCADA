@@ -56,11 +56,19 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
         }
         await using var restarted = new AssetProcessIntelligenceActivationStore(connection);
         Assert.Equal(committed, await restarted.ReadAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId));
+        var recoveryCalls = 0;
+        Assert.True(await restarted.TryRecoverAsync(committed, _ => { recoveryCalls++; return true; }));
         await restarted.PauseAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId);
+        Assert.False(await restarted.TryRecoverAsync(committed, _ => { recoveryCalls++; return true; }));
+        Assert.Equal(1, recoveryCalls);
         await using var anotherProcess = new AssetProcessIntelligenceActivationStore(connection);
         Assert.Null(await anotherProcess.ReadAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId));
         var reactivated = await anotherProcess.ActivateAsync(evidence);
         Assert.True(reactivated.Generation > committed.Generation);
+        Assert.False(await restarted.TryRecoverAsync(committed, _ => throw new InvalidOperationException("Stale generation recovered")));
+        await restarted.InvalidateAllAsync();
+        Assert.Null(await anotherProcess.ReadAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId));
+        Assert.False(await anotherProcess.TryRecoverAsync(reactivated, _ => throw new InvalidOperationException("Invalidated receipt recovered")));
         await policy.TryReplaceAsync(snapshot.Version, [], []);
         await Assert.ThrowsAsync<InvalidOperationException>(() => anotherProcess.ActivateAsync(evidence));
         await lifecycle.BeginDetachAsync();

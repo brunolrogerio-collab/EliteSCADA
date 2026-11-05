@@ -117,6 +117,68 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
             ? JsonSerializer.Deserialize<AssetProcessIntelligenceActivationEvidence>(json) : null;
     }
 
+    /// <summary>Durably closes all receipts; a later restart cannot recover them.</summary>
+    public async Task InvalidateAllAsync(CancellationToken cancellationToken = default)
+    {
+        await using var admission = await _writeAdmission.AcquireOptionalAsync("intelligence-invalidation", cancellationToken);
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await LockAsync(connection, transaction, cancellationToken);
+        await using var command = new NpgsqlCommand("""
+            UPDATE elitescada.intelligence_activation_receipts
+            SET generation = generation + 1, evidence = NULL, updated_at_utc = clock_timestamp()
+            WHERE evidence IS NOT NULL;
+            """, connection, transaction);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs local recovery while the durable receipt is locked against pause/replacement.
+    /// The caller must retain query-time canonical fence checks after this returns.
+    /// </summary>
+    public async Task<bool> TryRecoverAsync(AssetProcessIntelligenceActivationEvidence expected,
+        Func<AssetProcessIntelligenceActivationEvidence, bool> recover,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+        ArgumentNullException.ThrowIfNull(recover);
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await LockAsync(connection, transaction, cancellationToken);
+        await using var command = KeyCommand("""
+            SELECT evidence::text FROM elitescada.intelligence_activation_receipts
+            WHERE project_key = @project AND scope_kind = @kind AND scope_id = @scope
+              AND generation = @generation;
+            """, connection, transaction, expected.ProjectKey, expected.ScopeKind, expected.ScopeId);
+        command.Parameters.AddWithValue("generation", expected.Generation);
+        var json = await command.ExecuteScalarAsync(cancellationToken) as string;
+        var current = json is null ? null : JsonSerializer.Deserialize<AssetProcessIntelligenceActivationEvidence>(json);
+        if (current is null || current != expected || !current.Active)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return false;
+        }
+        await using var fence = new NpgsqlCommand("""
+            SELECT EXISTS (
+                SELECT 1 FROM elitescada.authority_lifecycle_state lifecycle,
+                              elitescada.authority_policy_state policy
+                WHERE lifecycle.state_key = 'authority-lifecycle-v1'
+                  AND lifecycle.state = 'AuthorityPresent' AND lifecycle.epoch = @epoch
+                  AND policy.state_key = 'canonical-policy-v1' AND policy.version = @version);
+            """, connection, transaction);
+        fence.Parameters.AddWithValue("epoch", expected.AuthorityEpoch);
+        fence.Parameters.AddWithValue("version", expected.PolicyVersion);
+        if (await fence.ExecuteScalarAsync(cancellationToken) is not true)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return false;
+        }
+        // Finish the read transaction before returning; callback only modifies the local gate.
+        var recovered = recover(current);
+        await transaction.CommitAsync(cancellationToken);
+        return recovered;
+    }
     private static async Task LockAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, CancellationToken ct)
     {
         await using var command = new NpgsqlCommand("SELECT pg_advisory_xact_lock(4993446713136202564);", connection, transaction);

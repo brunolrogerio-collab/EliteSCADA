@@ -3,6 +3,7 @@ using Npgsql;
 using Scada.Core.Persistence;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Security;
+using Scada.Persistence.PostgreSql;
 
 namespace Scada.Api.Licensing;
 
@@ -22,6 +23,7 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
         await using var admission = await _writeAdmission.AcquireOptionalAsync("intelligence-activation-schema", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await PostgreSqlSharedSchemaInitialization.AcquireLockAsync(connection, transaction, cancellationToken);
         // Share the canonical policy mutation lock with activation and pause.
         await LockAsync(connection, transaction, cancellationToken);
         await using var command = new NpgsqlCommand("""

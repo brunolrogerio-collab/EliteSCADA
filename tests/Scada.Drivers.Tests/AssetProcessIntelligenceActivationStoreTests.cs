@@ -51,7 +51,8 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
         AssetProcessIntelligenceActivationEvidence committed;
         await using (var firstProcess = new AssetProcessIntelligenceActivationStore(connection))
         {
-            await firstProcess.InitializeAsync();
+            await using var parallelInitializer = new AssetProcessIntelligenceActivationStore(connection);
+            await Task.WhenAll(firstProcess.InitializeAsync(), parallelInitializer.InitializeAsync());
             await Assert.ThrowsAsync<InvalidOperationException>(() => firstProcess.ActivateAsync(evidence with { PolicyDigest = "invalid-digest" }));
             committed = await firstProcess.ActivateAsync(evidence);
         }

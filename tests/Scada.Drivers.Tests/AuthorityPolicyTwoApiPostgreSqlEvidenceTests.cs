@@ -66,6 +66,31 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             await node.LoginAsync();
             var paused = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
             Assert.False(paused["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() ?? true, paused.ToJsonString());
+            await node.SendAsync(HttpMethod.Post,
+                "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000201/activate", new JsonObject());
+            await node.DisposeAsync();
+            node = null;
+            await using (var policy = new Scada.Persistence.PostgreSql.PostgreSqlAuthorityPolicyStore(connection.ConnectionString))
+            {
+                await policy.InitializeAsync();
+                var original = policy.Snapshot();
+                var revokedRoles = original.Roles.Select(role => role with
+                {
+                    Grants = (role.Grants ?? []).Where(grant =>
+                        grant.Capability != Scada.Security.Authorization.SecurityCapability.SystemAdmin &&
+                        grant.Capability != Scada.Security.Authorization.SecurityCapability.AssetProcessIntelligenceManage).ToArray()
+                }).ToArray();
+                var revoked = await policy.TryReplaceAsync(original.Version, revokedRoles, original.Scopes);
+                Assert.True(revoked.Applied, revoked.Error);
+                var restored = await policy.TryReplaceAsync(revoked.Snapshot.Version, original.Roles, original.Scopes);
+                Assert.True(restored.Applied, restored.Error);
+            }
+            node = Start();
+            await node.WaitForHealthAsync();
+            await node.LoginAsync();
+            var restoredStatus = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.False(restoredStatus["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() ?? true,
+                restoredStatus.ToJsonString());
         }
         finally
         {

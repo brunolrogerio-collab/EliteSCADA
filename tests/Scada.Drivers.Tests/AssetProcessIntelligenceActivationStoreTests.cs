@@ -84,6 +84,15 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
         Assert.Equal(secondScope, await restarted.ReadAsync(secondScope.ProjectKey, secondScope.ScopeKind, secondScope.ScopeId));
         Assert.False(await restarted.TryRecoverAsync(committed, _ => throw new InvalidOperationException("Paused receipt resurrected")));
         committed = await restarted.ActivateAsync(evidence);
+        var previousRevisionReceipt = committed;
+        committed = await restarted.ActivateAsync(committed with { Revision = committed.Revision + 1 },
+            expectedPrevious: committed);
+        Assert.True(committed.Generation > previousRevisionReceipt.Generation);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => restarted.ActivateAsync(
+            previousRevisionReceipt with { Revision = committed.Revision + 1 }, expectedPrevious: previousRevisionReceipt));
+        await restarted.PauseAsync(secondScope.ProjectKey, secondScope.ScopeKind, secondScope.ScopeId);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => restarted.ActivateAsync(
+            secondScope with { Revision = secondScope.Revision + 1 }, expectedPrevious: secondScope));
         var recoveryCalls = 0;
         Assert.True(await restarted.TryRecoverAsync(committed, _ => { recoveryCalls++; return true; }));
         await restarted.PauseAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId);

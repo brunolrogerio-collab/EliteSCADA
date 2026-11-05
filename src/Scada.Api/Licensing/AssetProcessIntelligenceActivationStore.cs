@@ -42,7 +42,8 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
     }
 
     public async Task<AssetProcessIntelligenceActivationEvidence> ActivateAsync(
-        AssetProcessIntelligenceActivationEvidence evidence, CancellationToken cancellationToken = default)
+        AssetProcessIntelligenceActivationEvidence evidence, CancellationToken cancellationToken = default,
+        AssetProcessIntelligenceActivationEvidence? expectedPrevious = null)
     {
         ArgumentNullException.ThrowIfNull(evidence);
         if (!evidence.Active || evidence.AuthorityEpoch <= 0 || evidence.Revision <= 0 ||
@@ -54,6 +55,24 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await LockAsync(connection, transaction, cancellationToken);
+        if (expectedPrevious is not null)
+        {
+            if (expectedPrevious.ProjectKey != evidence.ProjectKey || expectedPrevious.ScopeKind != evidence.ScopeKind ||
+                expectedPrevious.ScopeId != evidence.ScopeId || !expectedPrevious.Active ||
+                evidence.Revision <= expectedPrevious.Revision ||
+                evidence.AuthorityEpoch != expectedPrevious.AuthorityEpoch ||
+                evidence.PolicyVersion != expectedPrevious.PolicyVersion || evidence.PolicyDigest != expectedPrevious.PolicyDigest ||
+                evidence.HaEpoch != expectedPrevious.HaEpoch)
+                throw new InvalidOperationException("Only an unchanged activation fence may advance its revision.");
+            await using var previous = KeyCommand("""
+                SELECT evidence::text FROM elitescada.intelligence_activation_receipts
+                WHERE project_key = @project AND scope_kind = @kind AND scope_id = @scope;
+                """, connection, transaction, evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId);
+            var json = await previous.ExecuteScalarAsync(cancellationToken) as string;
+            var committed = json is null ? null : JsonSerializer.Deserialize<AssetProcessIntelligenceActivationEvidence>(json);
+            if (committed != expectedPrevious)
+                throw new InvalidOperationException("Activation changed or was paused during the revision transition.");
+        }
         await using (var fence = new NpgsqlCommand("""
             SELECT EXISTS (
                 SELECT 1 FROM elitescada.authority_lifecycle_state lifecycle,

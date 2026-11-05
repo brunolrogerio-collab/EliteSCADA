@@ -18,6 +18,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
     private readonly object _sync = new();
     private readonly Dictionary<ScopeKey, Permit> _permits = new();
     private bool _startupRecoveryClosed;
+    private Action? _persistInvalidation;
 
     /// <summary>
     /// Startup-only recovery after the caller atomically verifies the durable receipt.
@@ -42,6 +43,17 @@ public sealed class AssetProcessIntelligenceExecutionGate
         }
     }
 
+    /// <summary>Install once after durable storage initialization, before accepting requests.</summary>
+    public void ConfigureDurableInvalidation(Action persistInvalidation)
+    {
+        ArgumentNullException.ThrowIfNull(persistInvalidation);
+        lock (_sync)
+        {
+            if (_persistInvalidation is not null)
+                throw new InvalidOperationException("Durable Intelligence invalidation is already configured.");
+            _persistInvalidation = persistInvalidation;
+        }
+    }
     public void CompleteStartupRecovery()
     {
         lock (_sync) _startupRecoveryClosed = true;
@@ -146,12 +158,17 @@ public sealed class AssetProcessIntelligenceExecutionGate
 
     public void InvalidateAll()
     {
+        Action? persist;
         lock (_sync)
         {
             _startupRecoveryClosed = true;
             foreach (var key in _permits.Keys.ToArray())
                 RemoveAndCancel(key);
+            persist = _persistInvalidation;
         }
+        // Local tokens close before durable I/O; a write failure must propagate.
+        // Do not hold the gate lock while acquiring the canonical DB lock.
+        persist?.Invoke();
     }
     private void RemoveAndCancel(ScopeKey key)
     {

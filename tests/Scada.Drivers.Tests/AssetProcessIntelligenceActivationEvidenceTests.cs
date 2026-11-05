@@ -53,4 +53,20 @@ public sealed class AssetProcessIntelligenceActivationEvidenceTests
         completed.CompleteStartupRecovery();
         Assert.False(Recover(completed));
         Assert.True(Recover(new AssetProcessIntelligenceExecutionGate()));
+    }    [Fact]
+    public void DurableInvalidationFailureClosesTokensAndCannotBeReportedAsSuccess()
+    {
+        var gate = new AssetProcessIntelligenceExecutionGate();
+        var scope = Guid.NewGuid();
+        gate.Activate("plant", 8, AssetProcessIntelligenceScopeKind.Equipment, scope, 12);
+        Assert.True(gate.TryGetToken("plant", 8, AssetProcessIntelligenceScopeKind.Equipment, scope, out var token, 12));
+        gate.ConfigureDurableInvalidation(() =>
+        {
+            Assert.True(token.IsCancellationRequested);
+            throw new IOException("Test durable store unavailable");
+        });
+        Assert.Throws<IOException>(() => gate.InvalidateAll());
+        Assert.Equal(0, gate.ActivePermitCount);
+        Assert.False(gate.TryGetToken("plant", 8, AssetProcessIntelligenceScopeKind.Equipment, scope, out _, 12));
+        Assert.Throws<InvalidOperationException>(() => gate.ConfigureDurableInvalidation(() => { }));
     }}

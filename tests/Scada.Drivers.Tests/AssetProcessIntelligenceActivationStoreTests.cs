@@ -58,6 +58,32 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
         }
         await using var restarted = new AssetProcessIntelligenceActivationStore(connection);
         Assert.Equal(committed, await restarted.ReadAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId));
+        var secondScope = await restarted.ActivateAsync(evidence with { ScopeId = Guid.NewGuid() });
+        var pauseStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseRecovery = new ManualResetEventSlim();
+        var recoveryTask = Task.Run(() => restarted.TryRecoverAsync(committed, _ =>
+        {
+            callbackEntered.TrySetResult();
+            if (!releaseRecovery.Wait(TimeSpan.FromSeconds(15)))
+                throw new TimeoutException("Recovery barrier not released.");
+            return true;
+        }));
+        await callbackEntered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        await using var pausingNode = new AssetProcessIntelligenceActivationStore(connection);
+        var pauseTask = Task.Run(async () =>
+        {
+            pauseStarted.TrySetResult();
+            await pausingNode.PauseAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId);
+        });
+        try { await pauseStarted.Task.WaitAsync(TimeSpan.FromSeconds(15)); }
+        finally { releaseRecovery.Set(); }
+        Assert.True(await recoveryTask.WaitAsync(TimeSpan.FromSeconds(15)));
+        await pauseTask.WaitAsync(TimeSpan.FromSeconds(15));
+        Assert.Null(await restarted.ReadAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId));
+        Assert.Equal(secondScope, await restarted.ReadAsync(secondScope.ProjectKey, secondScope.ScopeKind, secondScope.ScopeId));
+        Assert.False(await restarted.TryRecoverAsync(committed, _ => throw new InvalidOperationException("Paused receipt resurrected")));
+        committed = await restarted.ActivateAsync(evidence);
         var recoveryCalls = 0;
         Assert.True(await restarted.TryRecoverAsync(committed, _ => { recoveryCalls++; return true; }));
         await restarted.PauseAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId);

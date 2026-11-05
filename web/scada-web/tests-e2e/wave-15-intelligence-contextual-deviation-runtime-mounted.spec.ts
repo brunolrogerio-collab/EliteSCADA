@@ -144,6 +144,77 @@ test('contextual deviation V2 is explicit, chronological, transient and validate
   expect(queries).toHaveLength(4);
 });
 
+test('contextual deviation V3 explicitly selects Historian recorded time and keeps it distinct from source time', async ({ page }) => {
+  const sourceQueries: Array<Record<string, any>> = [];
+  const observedQueries: Array<Record<string, any>> = [];
+  await page.addInitScript(() => window.localStorage.setItem('elitescada.engineering.locale', 'en'));
+  await page.routeWebSocket('**/ws/tags', () => {});
+  await page.route('**/api/**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/auth/config') return route.fulfill({ json: {
+      authenticationEnabled: false, localLoginEnabled: false,
+      initialAdministratorRequired: false, initialAdministratorSetupAvailable: false,
+      passwordPolicy: { minimumLength: 8, maximumLength: 1024 }
+    } });
+    if (path === '/api/engineering/persistence/status') return route.fulfill({ json: { enabled: true, hasProjects: true } });
+    if (path === '/api/auth/effective-capabilities') return route.fulfill({ json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+      authenticationEnabled: false, runtime: ['View', 'TrendUse'], workspace: []
+    } });
+    if (path === '/api/product/info') return route.fulfill({ json: {
+      productName: 'EliteSCADA', channel: 'Test', version: '0.0.0', displayVersion: 'EliteSCADA Test',
+      informationalVersion: 'EliteSCADA Test+contextual-deviation-runtime-test', buildCommit: 'contextual-deviation-runtime-test'
+    } });
+    if (path === '/api/runtime/application') return route.fulfill({ json: runtimeProjection() });
+    if (path === '/api/runtime/client-memory') return route.fulfill({ json: [] });
+    if (path === `${apiRoot}/catalog`) return route.fulfill({ json: {
+      contractVersion: 2, catalogVersion: 2, ruleId: 'contextual-deviation-vector.v2', ruleVersion: '2.0.0',
+      maximumWindowDays: 31, minimumTargetSignals: 2, maximumTargetSignals: 8, contextSignalCount: 2
+    } });
+    if (path === `${apiRoot}/query`) {
+      const body = request.postDataJSON() as Record<string, any>;
+      sourceQueries.push(body);
+      return route.fulfill({ json: deviationResponse(body) });
+    }
+    if (path === '/api/engineering/asset-process-intelligence/analytics/contextual-deviation-observed/v3/catalog') return route.fulfill({ json: {
+      contractVersion: 3, catalogVersion: 3, ruleId: 'contextual-deviation-observed.v3', ruleVersion: '3.0.0',
+      timestampBasis: 'historian_observed', maximumWindowDays: 31, minimumTargetSignals: 2, maximumTargetSignals: 8, contextSignalCount: 2
+    } });
+    if (path === '/api/engineering/asset-process-intelligence/analytics/contextual-deviation-observed/v3/query') {
+      const body = request.postDataJSON() as Record<string, any>;
+      observedQueries.push(body);
+      return route.fulfill({ json: observedDeviationResponse(body) });
+    }
+    return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+  });
+
+  await page.goto('/');
+  const visual = page.getByTestId('runtime-intelligence-contextual-deviation-v2');
+  await expect(visual).toBeVisible();
+  await expect(visual.getByLabel('Timestamp basis')).toHaveValue('synchronized_source');
+  await expect(visual.getByText(/source times with explicit synchronization evidence/i)).toBeVisible();
+  await setWindow(visual, 'Reference from (local time)', 'Reference to (local time)', 'Evaluation from (local time)', 'Evaluation to (local time)',
+    '2026-10-20T10:00', '2026-10-20T11:00', '2026-10-20T11:01', '2026-10-20T12:01');
+  await visual.getByRole('button', { name: 'Analyze' }).click();
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toBeVisible();
+  expect(sourceQueries).toHaveLength(1);
+  expect(observedQueries).toHaveLength(0);
+
+  await visual.getByLabel('Timestamp basis').selectOption('historian_observed');
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toHaveCount(0);
+  await expect(visual.getByText(/may include communication or processing delay/i)).toBeVisible();
+  await visual.getByRole('button', { name: 'Analyze' }).click();
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toBeVisible();
+  expect(observedQueries).toHaveLength(1);
+  expect(observedQueries[0]).toMatchObject({ timestampBasis: 'historian_observed', temporalToleranceSeconds: 10 });
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result').getByText('SCADIVO recorded time', { exact: true })).toBeVisible();
+  const result = visual.getByTestId('runtime-intelligence-contextual-deviation-result');
+  await expect(result).toContainText(/SCADIVO recorded the reading in Historian; it may lag behind the equipment measurement/i);
+  await expect(result).not.toContainText('sourceTimestampUtc');
+  await expect(result).not.toContainText('Synchronized source time');
+});
+
 async function setWindow(
   visual: Locator,
   referenceFromLabel: string,
@@ -241,6 +312,25 @@ function deviationResponse(body: Record<string, any>) {
       sourceTimestampEvidenceRequirement: 'Good finite synchronized', contextQualification: 'Two declared canonical ranges',
       regimeEquivalence: 'not_assessed', completeness: 'unknown',
       interpretation: 'Independent descriptive target statistics; no diagnosis.'
+    }
+  };
+}
+
+function observedDeviationResponse(body: Record<string, any>) {
+  const source = deviationResponse(body);
+  const { sourceTimestampUtc, ...sample } = source.evaluationVectors[0];
+  const { sourceTimestampEvidenceRequirement: _sourceEvidence, ...provenance } = source.provenance;
+  return {
+    ...source,
+    contractVersion: 3, catalogVersion: 3, ruleId: 'contextual-deviation-observed.v3', ruleVersion: '3.0.0',
+    timestampBasis: 'historian_observed',
+    evaluationVectors: [{ ...sample, anchorObservedTimestampUtc: sourceTimestampUtc,
+      matchedObservedTimestampsUtc: Object.fromEntries([...targetIds, firstContextId, secondContextId].map(id => [id, sourceTimestampUtc])) }],
+    provenance: {
+      ...provenance,
+      queryWindowTimestampBasis: 'Historian observation timestamp',
+      vectorTimestampBasis: 'Historian observation time; no device acquisition-time or synchronization claim.',
+      timestampEvidenceRequirement: 'Good finite numeric observations with valid UTC observation times.'
     }
   };
 }

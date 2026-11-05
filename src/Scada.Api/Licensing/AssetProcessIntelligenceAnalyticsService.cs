@@ -739,10 +739,28 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         }
     }
 
-    public async Task<IResult> ExecuteContextualDeviationVectorV2Async(
+    public Task<IResult> ExecuteContextualDeviationVectorV2Async(
         HttpContext context,
         AssetProcessIntelligenceContextualDeviationVectorV2QueryRequest request,
+        CancellationToken cancellationToken = default) =>
+        ExecuteContextualDeviationVectorAsync(context, request, false, cancellationToken);
+
+    public Task<IResult> ExecuteContextualDeviationObservedV3Async(
+        HttpContext context,
+        AssetProcessIntelligenceContextualDeviationObservedV3QueryRequest request,
         CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (!string.Equals(request.TimestampBasis, AssetProcessIntelligenceObservedTimeV3.TimestampBasis, StringComparison.Ordinal))
+            return Task.FromResult<IResult>(BadRequest("INTELLIGENCE_TIMESTAMP_BASIS_INVALID"));
+        return ExecuteContextualDeviationVectorAsync(context, request.ToV2Request(), true, cancellationToken);
+    }
+
+    private async Task<IResult> ExecuteContextualDeviationVectorAsync(
+        HttpContext context,
+        AssetProcessIntelligenceContextualDeviationVectorV2QueryRequest request,
+        bool useObservedTimestamp,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(request);
@@ -793,13 +811,13 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                 referenceRows,
                 evaluationRows,
                 plan.Contexts.Select(signal => signal.Unit!).ToArray(),
-                plan.ContextRanges, request.TemporalToleranceSeconds);
+                plan.ContextRanges, request.TemporalToleranceSeconds, useObservedTimestamp);
 
             await using var finalMutation = await workspace.AcquireMutationAsync(plan.ChangeVersion, linkedCancellation.Token);
             var finalCheck = await RevalidateContextualReferencePlansAsync(context, allPlans, linkedCancellation.Token);
             if (finalCheck is not null) return finalCheck;
 
-            return Results.Ok(new AssetProcessIntelligenceContextualDeviationVectorV2Response(
+            var report = new AssetProcessIntelligenceContextualDeviationVectorV2Response(
                 AssetProcessIntelligenceContextualDeviationVectorV2Catalog.ContractVersion,
                 AssetProcessIntelligenceContextualDeviationVectorV2Catalog.CatalogVersion,
                 AssetProcessIntelligenceContextualDeviationVectorV2Catalog.RuleId,
@@ -840,7 +858,10 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                     "Each target is summarized independently against the same complete joint-context reference cohort; no combined anomaly classification, diagnosis, fault, or RUL is produced."),
                 request.TemporalToleranceSeconds,
                 calculation.ReferenceEvidence[0].AcceptedSynchronizedCount - calculation.CompleteReferenceVectorCount,
-                calculation.EvaluationEvidence[0].AcceptedSynchronizedCount - calculation.CompleteEvaluationVectorCount));
+                calculation.EvaluationEvidence[0].AcceptedSynchronizedCount - calculation.CompleteEvaluationVectorCount);
+            return useObservedTimestamp
+                ? Results.Ok(AssetProcessIntelligenceObservedTimeV3.Project(report))
+                : Results.Ok(report);
         }
         catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
         {

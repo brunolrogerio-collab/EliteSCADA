@@ -204,6 +204,21 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public void ContextualDeviationObservedV3Catalog_DeclaresRecordedTimeAsANonSynchronizedBasis()
+    {
+        var catalog = JsonSerializer.SerializeToElement(AssetProcessIntelligenceObservedTimeV3.Catalog());
+
+        Assert.Equal(3, catalog.GetProperty("contractVersion").GetInt32());
+        Assert.Equal(3, catalog.GetProperty("catalogVersion").GetInt32());
+        Assert.Equal("contextual-deviation-observed.v3", catalog.GetProperty("ruleId").GetString());
+        Assert.Equal("historian_observed", catalog.GetProperty("timestampBasis").GetString());
+        Assert.Contains("Historian observation timestamp", catalog.GetProperty("vectorTimestamp").GetString(), StringComparison.Ordinal);
+        Assert.Contains("Historian observation timestamps", catalog.GetProperty("alignment").GetString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("synchronized", catalog.GetProperty("alignment").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("synchronized source", catalog.GetProperty("evidence").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ContextualDeviationVectorV2_UsesOneExactJointContextCohortAndInclusiveExclusiveRanges()
     {
         var targetA = VectorSignalV2(Guid.NewGuid(), "target-a");
@@ -1784,6 +1799,8 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
                 "/api/engineering/asset-process-intelligence/analytics/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/query",
+                "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-observed/v3/catalog",
+                "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-observed/v3/query",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v1/catalog",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v1/query",
                 "/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v2/catalog",
@@ -3045,6 +3062,96 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
         Assert.Equal("not_assessed", payload.Provenance.RegimeEquivalence);
         Assert.Equal("unknown", payload.Provenance.Completeness);
         Assert.Contains("no combined", payload.Provenance.Interpretation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ContextualDeviationObservedV3_UsesHistorianObservationTimeWithoutClaimingSourceSynchronization()
+    {
+        using var fixture = Fixture.Create();
+        var (sourceRequest, targetA, targetB, firstContext, secondContext) = fixture.AddContextualDeviationVectorV2Signals();
+        var request = new AssetProcessIntelligenceContextualDeviationObservedV3QueryRequest(
+            sourceRequest.ScopeKind,
+            sourceRequest.ScopeId,
+            sourceRequest.AssignmentId,
+            sourceRequest.TargetSignalIds,
+            sourceRequest.FirstContextSignalId,
+            sourceRequest.FirstContextLowerInclusiveCanonical,
+            sourceRequest.FirstContextUpperExclusiveCanonical,
+            sourceRequest.SecondContextSignalId,
+            sourceRequest.SecondContextLowerInclusiveCanonical,
+            sourceRequest.SecondContextUpperExclusiveCanonical,
+            sourceRequest.ReferenceWindow,
+            sourceRequest.EvaluationWindow,
+            AssetProcessIntelligenceObservedTimeV3.TimestampBasis,
+            10);
+        fixture.Historian.Respond = query =>
+        {
+            var tagId = query.Filters!.Single().Values.Single().AsGuid();
+            var isReference = query.Range.FromUtc == request.ReferenceWindow!.FromUtc;
+            var count = isReference ? 32 : 2;
+            var offsetMilliseconds = tagId == targetA.Id ? 0
+                : tagId == targetB.Id ? 100
+                : tagId == firstContext.Id ? 200 : 300;
+            var rows = Enumerable.Range(0, count).Select(index =>
+            {
+                var observed = query.Range.FromUtc!.Value.AddSeconds(index * 10).AddMilliseconds(offsetMilliseconds);
+                var value = tagId == firstContext.Id ? 50d
+                    : tagId == secondContext.Id ? 20d
+                    : tagId == targetA.Id ? index + 1d : index + 101d;
+                return V2Row(tagId, observed, "Good", HistoricalQueryValue.FromDouble(value), null, "NotProvided");
+            }).ToList();
+            if (!isReference && tagId == targetA.Id)
+                rows.Add(V2Row(tagId, query.Range.FromUtc!.Value, "Good", HistoricalQueryValue.FromDouble(999), null, "NotProvided"));
+            return ResponseV2(query, rows);
+        };
+
+        var result = await fixture.ExecuteContextualDeviationObservedV3Async(request);
+
+        AssertStatus(StatusCodes.Status200OK, result);
+        var json = JsonSerializer.SerializeToElement(Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(3, json.GetProperty("contractVersion").GetInt32());
+        Assert.Equal("historian_observed", json.GetProperty("timestampBasis").GetString());
+        Assert.Equal("contextual-deviation-observed.v3", json.GetProperty("ruleId").GetString());
+        Assert.Equal(32, json.GetProperty("completeReferenceVectorCount").GetInt32());
+        Assert.Equal(1, json.GetProperty("completeEvaluationVectorCount").GetInt32());
+        var evaluation = Assert.Single(json.GetProperty("evaluationVectors").EnumerateArray());
+        Assert.True(evaluation.TryGetProperty("anchorObservedTimestampUtc", out _));
+        Assert.False(evaluation.TryGetProperty("sourceTimestampUtc", out _));
+        Assert.True(evaluation.TryGetProperty("matchedObservedTimestampsUtc", out _));
+        Assert.False(evaluation.TryGetProperty("matchedSourceTimestampsUtc", out _));
+        var evidence = Assert.Single(json.GetProperty("evaluationSignalEvidence").EnumerateArray(),
+            item => item.GetProperty("signalId").GetGuid() == request.TargetSignalIds![0]);
+        Assert.Equal(1, evidence.GetProperty("ambiguousObservedTimestampGroupCount").GetInt32());
+        Assert.Equal(2, evidence.GetProperty("rejectionCounts").GetProperty("duplicate_observed_timestamp").GetInt32());
+        Assert.False(evidence.TryGetProperty("acceptedSynchronizedCount", out _));
+        Assert.True(evidence.TryGetProperty("acceptedObservationCount", out _));
+        Assert.False(json.GetProperty("provenance").TryGetProperty("sourceTimestampEvidenceRequirement", out _));
+        Assert.Contains("no device acquisition-time", json.GetProperty("provenance").GetProperty("vectorTimestampBasis").GetString(), StringComparison.Ordinal);
+
+        var sourceResult = await fixture.ExecuteContextualDeviationVectorV2Async(sourceRequest with { TemporalToleranceSeconds = 10 });
+        AssertStatus(StatusCodes.Status200OK, sourceResult);
+        var sourcePayload = Assert.IsType<AssetProcessIntelligenceContextualDeviationVectorV2Response>(
+            Assert.IsAssignableFrom<IValueHttpResult>(sourceResult).Value);
+        Assert.Equal(0, sourcePayload.CompleteReferenceVectorCount);
+        Assert.All(sourcePayload.ReferenceSignalEvidence, item => Assert.Equal(0, item.AcceptedSynchronizedCount));
+    }
+
+    [Fact]
+    public async Task ContextualDeviationObservedV3_RejectsAnUnrecognizedTimestampBasisBeforeHistorianRead()
+    {
+        using var fixture = Fixture.Create();
+        var (sourceRequest, _, _, _, _) = fixture.AddContextualDeviationVectorV2Signals();
+        var request = new AssetProcessIntelligenceContextualDeviationObservedV3QueryRequest(
+            sourceRequest.ScopeKind, sourceRequest.ScopeId, sourceRequest.AssignmentId, sourceRequest.TargetSignalIds,
+            sourceRequest.FirstContextSignalId, sourceRequest.FirstContextLowerInclusiveCanonical,
+            sourceRequest.FirstContextUpperExclusiveCanonical, sourceRequest.SecondContextSignalId,
+            sourceRequest.SecondContextLowerInclusiveCanonical, sourceRequest.SecondContextUpperExclusiveCanonical,
+            sourceRequest.ReferenceWindow, sourceRequest.EvaluationWindow, "device_synchronized", 10);
+
+        var result = await fixture.ExecuteContextualDeviationObservedV3Async(request);
+
+        AssertStatus(StatusCodes.Status400BadRequest, result);
+        Assert.Equal(0, fixture.Historian.Calls);
     }
 
     [Fact]
@@ -6052,6 +6159,14 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
         {
             var context = CreateContext();
             return Analytics.ExecuteContextualDeviationVectorV2Async(context, request, cancellationToken);
+        }
+
+        public Task<IResult> ExecuteContextualDeviationObservedV3Async(
+            AssetProcessIntelligenceContextualDeviationObservedV3QueryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var context = CreateContext();
+            return Analytics.ExecuteContextualDeviationObservedV3Async(context, request, cancellationToken);
         }
 
         public Task<IResult> ExecuteReferenceEvidenceV1Async(

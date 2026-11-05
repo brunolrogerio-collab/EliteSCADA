@@ -24,6 +24,8 @@ public sealed class AssetProcessIntelligenceStartupRecovery(
         var recovered = 0;
         try
         {
+            // Peer receipt replication is not implemented yet: retain explicit activation in HA.
+            if (highAvailability.Enabled) return 0;
             if (!licensing.CurrentVerification.HasAssetProcessIntelligence ||
                 !highAvailability.CanOwnIndustrialEffects()) return 0;
             var descriptor = workspace.Describe();

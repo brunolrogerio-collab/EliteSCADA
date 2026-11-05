@@ -142,7 +142,8 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
     }
 
     /// <summary>Durably closes all receipts; a later restart cannot recover them.</summary>
-    public async Task InvalidateAllAsync(CancellationToken cancellationToken = default)
+    public async Task InvalidateAllAsync(CancellationToken cancellationToken = default,
+        string? retainedProject = null, long? retainedRevision = null)
     {
         await using var admission = await _writeAdmission.AcquireOptionalAsync("intelligence-invalidation", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -151,8 +152,11 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
         await using var command = new NpgsqlCommand("""
             UPDATE elitescada.intelligence_activation_receipts
             SET generation = generation + 1, evidence = NULL, updated_at_utc = clock_timestamp()
-            WHERE evidence IS NOT NULL;
+            WHERE evidence IS NOT NULL AND NOT (
+                @project IS NOT NULL AND project_key = @project AND (evidence->>'Revision')::bigint = @revision);
             """, connection, transaction);
+        command.Parameters.AddWithValue("project", NpgsqlTypes.NpgsqlDbType.Text, (object?)retainedProject?.Trim().ToUpperInvariant() ?? DBNull.Value);
+        command.Parameters.AddWithValue("revision", NpgsqlTypes.NpgsqlDbType.Bigint, (object?)retainedRevision ?? DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }

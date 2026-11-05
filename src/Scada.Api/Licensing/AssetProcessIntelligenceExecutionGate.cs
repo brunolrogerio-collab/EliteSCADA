@@ -19,6 +19,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
     private readonly Dictionary<ScopeKey, Permit> _permits = new();
     private bool _startupRecoveryClosed;
     private Action? _persistInvalidation;
+    private Action<string, long>? _persistRevisionInvalidation;
 
     /// <summary>
     /// Startup-only recovery after the caller atomically verifies the durable receipt.
@@ -44,7 +45,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
     }
 
     /// <summary>Install once after durable storage initialization, before accepting requests.</summary>
-    public void ConfigureDurableInvalidation(Action persistInvalidation)
+    public void ConfigureDurableInvalidation(Action persistInvalidation, Action<string, long>? persistRevisionInvalidation = null)
     {
         ArgumentNullException.ThrowIfNull(persistInvalidation);
         lock (_sync)
@@ -52,6 +53,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
             if (_persistInvalidation is not null)
                 throw new InvalidOperationException("Durable Intelligence invalidation is already configured.");
             _persistInvalidation = persistInvalidation;
+            _persistRevisionInvalidation = persistRevisionInvalidation;
         }
     }
     public void CompleteStartupRecovery()
@@ -156,6 +158,20 @@ public sealed class AssetProcessIntelligenceExecutionGate
         }
     }
 
+    public void InvalidateForRevision(string projectKey, long revision)
+    {
+        Action<string, long>? revisionInvalidation;
+        Action? allInvalidation;
+        lock (_sync)
+        {
+            _startupRecoveryClosed = true;
+            foreach (var key in _permits.Keys.ToArray()) RemoveAndCancel(key);
+            revisionInvalidation = _persistRevisionInvalidation;
+            allInvalidation = _persistInvalidation;
+        }
+        if (revisionInvalidation is not null) revisionInvalidation(projectKey, revision);
+        else allInvalidation?.Invoke();
+    }
     public void InvalidateAll()
     {
         Action? persist;

@@ -717,6 +717,23 @@ public static class AssetProcessIntelligenceApi
         if (!string.Equals(latest.ProjectKey, descriptor.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
             latest.BaseRevision != descriptor.BaseRevision)
             return Results.Conflict(new { error = "INTELLIGENCE_ACTIVE_REVISION_CHANGED" });
+        var carried = new List<AssetProcessIntelligenceActivationEvidence>();
+        if (activationStore is not null && authorityHa is not null)
+        {
+            var exchange = context.RequestServices.GetRequiredService<IEngineeringExchangeService>();
+            var baseline = exchange.ParseJson(persistedActive!.EngineeringJson);
+            var carryBaselineMatches = MatchesOperationalBaseline(baseline, exchange.ExportPackage(), exchange.ExportPackage());
+            var preserveFence = await authorityHa.CheckAsync(context.RequestAborted);
+            foreach (var other in intelligence.Snapshot().Scopes ?? [])
+            {
+                if (!carryBaselineMatches || !preserveFence.Allowed) break;
+                if (!other.Active || (other.Kind == kind && other.ScopeId == scopeId)) continue;
+                if (!executionGate.TryGetToken(descriptor.ProjectKey, descriptor.BaseRevision.Value,
+                    other.Kind, other.ScopeId, out _, preserveFence.PolicyVersion, preserveFence.HaEpoch)) continue;
+                var receipt = await activationStore.ReadAsync(descriptor.ProjectKey, other.Kind, other.ScopeId, context.RequestAborted);
+                if (receipt is not null && receipt.Revision == descriptor.BaseRevision.Value) carried.Add(receipt);
+            }
+        }
         var beforeConfiguration = intelligence.Snapshot();
         var action = active ? AuditActions.AssetProcessIntelligenceActivate : AuditActions.AssetProcessIntelligencePause;
         if (!intelligence.SetActive(kind, scopeId, active)) return Results.NotFound();
@@ -767,6 +784,13 @@ public static class AssetProcessIntelligenceApi
                 return Results.Conflict(new { error = "INTELLIGENCE_SCOPE_REVISION_NOT_PUBLISHABLE", revision = snapshot.Revision, preview = publication?.Preview });
             }
 
+            if (activationStore is not null)
+            {
+                for (var index = 0; index < carried.Count; index++)
+                    carried[index] = await activationStore.ActivateAsync(
+                        carried[index] with { Revision = snapshot.Revision }, context.RequestAborted,
+                        expectedPrevious: carried[index]);
+            }
             var outcome = await activation.ActivateRevisionAsync(
                 snapshot.ProjectKey,
                 snapshot.Revision,
@@ -807,6 +831,22 @@ public static class AssetProcessIntelligenceApi
             else
                 executionGate.Pause(snapshot.ProjectKey, kind, scopeId);
 
+            if (activationStore is not null && authorityHa is not null && carried.Count > 0)
+            {
+                var carryFence = await authorityHa.CheckAsync(context.RequestAborted);
+                if (carryFence.Allowed)
+                    foreach (var receipt in carried)
+                    {
+                        if (receipt.PolicyVersion != carryFence.PolicyVersion || receipt.PolicyDigest != carryFence.PolicyDigest ||
+                            receipt.HaEpoch != carryFence.HaEpoch) continue;
+                        await activationStore.TryRecoverAsync(receipt, current =>
+                        {
+                            executionGate.Activate(current.ProjectKey, current.Revision, current.ScopeKind, current.ScopeId,
+                                current.PolicyVersion, current.HaEpoch);
+                            return true;
+                        }, context.RequestAborted);
+                    }
+            }
             await RecordScopeTransitionAsync(context, active, manager.Principal,
                 snapshot.ProjectKey, snapshot.Revision, kind, scopeId, audit, "saved-published-activated");
             return Results.Ok(new

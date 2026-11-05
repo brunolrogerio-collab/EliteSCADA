@@ -343,7 +343,7 @@ public sealed class PublishedRuntimeActivationService(
             EngineeringLockAccess.Replace(exchange, package.EngineeringLock);
             // A canonical activation replaces the process's only effective project
             // revision. Fence permits from the previous project as well as old revisions.
-            intelligenceGate?.InvalidateAll();
+            intelligenceGate?.InvalidateForRevision(snapshot.ProjectKey, snapshot.Revision);
         }
 
         var lifecycle = await persistence.GetLifecycleAsync(

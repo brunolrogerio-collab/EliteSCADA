@@ -240,7 +240,10 @@ if (app.Services.GetService<AssetProcessIntelligenceActivationStore>() is { } in
     await intelligenceActivationStore.InitializeAsync();
     await app.Services.GetRequiredService<AssetProcessIntelligenceStartupRecovery>().RecoverAsync();
     app.Services.GetRequiredService<AssetProcessIntelligenceExecutionGate>()
-        .ConfigureDurableInvalidation(() => intelligenceActivationStore.InvalidateAllAsync().GetAwaiter().GetResult());
+        .ConfigureDurableInvalidation(
+            () => intelligenceActivationStore.InvalidateAllAsync().GetAwaiter().GetResult(),
+            (project, revision) => intelligenceActivationStore.InvalidateAllAsync(
+                retainedProject: project, retainedRevision: revision).GetAwaiter().GetResult());
 }
 
 app.UseMiddleware<TimingCorrelationMiddleware>();

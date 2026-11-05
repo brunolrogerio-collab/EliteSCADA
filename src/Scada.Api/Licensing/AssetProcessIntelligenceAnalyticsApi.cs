@@ -65,6 +65,13 @@ public static class AssetProcessIntelligenceAnalyticsApi
             AssetProcessIntelligenceAnalyticsService service,
             CancellationToken cancellationToken) =>
             service.ExecuteContextualDeviationVectorV2Async(context, request, cancellationToken));
+        group.MapGet("/contextual-deviation-observed/v3/catalog", () => Results.Ok(AssetProcessIntelligenceObservedTimeV3.Catalog()));
+        group.MapPost("/contextual-deviation-observed/v3/query", (
+            HttpContext context,
+            AssetProcessIntelligenceContextualDeviationObservedV3QueryRequest request,
+            AssetProcessIntelligenceAnalyticsService service,
+            CancellationToken cancellationToken) =>
+            service.ExecuteContextualDeviationObservedV3Async(context, request, cancellationToken));
         group.MapPost("/performance/v1/query", (
             HttpContext context,
             AssetProcessIntelligencePerformanceV1BQueryRequest request,

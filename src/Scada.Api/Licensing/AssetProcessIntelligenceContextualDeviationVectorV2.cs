@@ -199,7 +199,8 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
         IReadOnlyDictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>> evaluationRows,
         IReadOnlyList<ControlledEngineeringUnitDefinition> contextUnits,
         IReadOnlyList<(double LowerInclusive, double UpperExclusive)> contextRanges,
-        int temporalToleranceSeconds = 0)
+        int temporalToleranceSeconds = 0,
+        bool useObservedTimestamp = false)
     {
         ArgumentNullException.ThrowIfNull(targets);
         ArgumentNullException.ThrowIfNull(contexts);
@@ -233,9 +234,9 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
         }
 
         var reference = allSignals.ToDictionary(signal => signal.SignalId, signal => Evaluate(
-            referenceRows[signal.SignalId], referenceWindow, UnitFor(signal.SignalId)));
+            referenceRows[signal.SignalId], referenceWindow, UnitFor(signal.SignalId), useObservedTimestamp));
         var evaluation = allSignals.ToDictionary(signal => signal.SignalId, signal => Evaluate(
-            evaluationRows[signal.SignalId], evaluationWindow, UnitFor(signal.SignalId)));
+            evaluationRows[signal.SignalId], evaluationWindow, UnitFor(signal.SignalId), useObservedTimestamp));
 
         var referenceEvidence = allSignals.Select(signal => ToEvidence(signal.SignalId, reference[signal.SignalId])).ToArray();
         var evaluationEvidence = allSignals.Select(signal => ToEvidence(signal.SignalId, evaluation[signal.SignalId])).ToArray();
@@ -421,7 +422,8 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
     private static SignalEvaluation Evaluate(
         IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation> rows,
         AssetProcessIntelligenceAnalyticsWindow window,
-        ControlledEngineeringUnitDefinition? canonicalUnit)
+        ControlledEngineeringUnitDefinition? canonicalUnit,
+        bool useObservedTimestamp)
     {
         var qualities = Enum.GetValues<TagQuality>().ToDictionary(value => value.ToString(), _ => 0, StringComparer.Ordinal);
         qualities.Add("Missing", 0);
@@ -440,15 +442,18 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
             if (quality == "Unrecognized") { Increment(rejected, "quality_unrecognized"); continue; }
             if (quality != TagQuality.Good.ToString()) { Increment(rejected, "quality_not_good"); continue; }
             if (!numeric) { Increment(rejected, "value_not_finite_numeric"); continue; }
-            if (!row.SourceTimestampUtc.HasValue) { Increment(rejected, MissingTimestamp); continue; }
-            if (!Enum.TryParse<TimestampEvidenceState>(row.SourceTimestampEvidence, true, out var evidence) ||
-                !Enum.IsDefined(evidence) ||
-                !string.Equals(row.SourceTimestampEvidence, evidence.ToString(), StringComparison.OrdinalIgnoreCase))
-            { Increment(rejected, "source_timestamp_evidence_unrecognized"); continue; }
-            if (evidence != TimestampEvidenceState.Synchronized) { Increment(rejected, Unsynchronized); continue; }
-            var timestamp = row.SourceTimestampUtc.Value;
+            if (!useObservedTimestamp)
+            {
+                if (!row.SourceTimestampUtc.HasValue) { Increment(rejected, MissingTimestamp); continue; }
+                if (!Enum.TryParse<TimestampEvidenceState>(row.SourceTimestampEvidence, true, out var evidence) ||
+                    !Enum.IsDefined(evidence) ||
+                    !string.Equals(row.SourceTimestampEvidence, evidence.ToString(), StringComparison.OrdinalIgnoreCase))
+                { Increment(rejected, "source_timestamp_evidence_unrecognized"); continue; }
+                if (evidence != TimestampEvidenceState.Synchronized) { Increment(rejected, Unsynchronized); continue; }
+            }
+            var timestamp = useObservedTimestamp ? row.ObservedTimestampUtc : row.SourceTimestampUtc!.Value;
             if (timestamp.Offset != TimeSpan.Zero || timestamp < window.FromUtc || timestamp > window.ToUtc)
-            { Increment(rejected, OutsideWindow); continue; }
+            { Increment(rejected, useObservedTimestamp ? "observed_timestamp_outside_requested_window" : OutsideWindow); continue; }
             if (canonicalUnit is not null)
             {
                 value *= canonicalUnit.ScaleToCanonical;
@@ -458,11 +463,13 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
             candidates.Add(new(row.ObservedTimestampUtc, timestamp, value));
         }
 
-        var duplicateGroups = rows.Where(row => row.SourceTimestampUtc is { } timestamp && timestamp.Offset == TimeSpan.Zero &&
+        var duplicateGroups = rows.Select(row => useObservedTimestamp ? (DateTimeOffset?)row.ObservedTimestampUtc : row.SourceTimestampUtc)
+            .Where(time => time is { } timestamp && timestamp.Offset == TimeSpan.Zero &&
                 timestamp >= window.FromUtc && timestamp <= window.ToUtc)
-            .GroupBy(row => row.SourceTimestampUtc!.Value)
+            .GroupBy(time => time!.Value)
             .Where(group => group.Count() > 1).ToArray();
-        foreach (var duplicate in duplicateGroups) Increment(rejected, DuplicateTimestamp, duplicate.Count());
+        var duplicateTimestampCode = useObservedTimestamp ? "duplicate_observed_timestamp" : DuplicateTimestamp;
+        foreach (var duplicate in duplicateGroups) Increment(rejected, duplicateTimestampCode, duplicate.Count());
         var duplicateTimes = duplicateGroups.Select(group => group.Key).ToHashSet();
         var accepted = candidates.Where(sample => !duplicateTimes.Contains(sample.SourceTimestampUtc))
             .ToDictionary(sample => sample.SourceTimestampUtc);

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Npgsql;
 using Scada.Core.Persistence;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Security;
 
 namespace Scada.Api.Licensing;
 
@@ -65,6 +66,8 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
             if (await fence.ExecuteScalarAsync(cancellationToken) is not true)
                 throw new InvalidOperationException("Intelligence activation Authority fence changed.");
         }
+        if (!await MatchesPolicyDigestAsync(connection, transaction, evidence, cancellationToken))
+            throw new InvalidOperationException("Intelligence activation policy digest changed.");
         var next = evidence with { ProjectKey = evidence.ProjectKey.Trim().ToUpperInvariant() };
         await using var command = KeyCommand("""
             INSERT INTO elitescada.intelligence_activation_receipts
@@ -174,10 +177,29 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
             await transaction.CommitAsync(cancellationToken);
             return false;
         }
-        // Finish the read transaction before returning; callback only modifies the local gate.
+        if (!await MatchesPolicyDigestAsync(connection, transaction, expected, cancellationToken))
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return false;
+        }
+        // Callback only modifies the local gate; the caller cancels on transaction failure.
         var recovered = recover(current);
         await transaction.CommitAsync(cancellationToken);
         return recovered;
+    }
+    private static async Task<bool> MatchesPolicyDigestAsync(NpgsqlConnection connection,
+        NpgsqlTransaction transaction, AssetProcessIntelligenceActivationEvidence expected, CancellationToken ct)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT jsonb_build_object('Version', version, 'Roles', roles, 'Scopes', scopes,
+                'PublicRuntime', public_runtime)::text
+            FROM elitescada.authority_policy_state WHERE state_key = 'canonical-policy-v1';
+            """, connection, transaction);
+        var json = await command.ExecuteScalarAsync(ct) as string;
+        var snapshot = json is null ? null : JsonSerializer.Deserialize<AuthorityPolicySnapshot>(json,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        return snapshot is not null && snapshot.Version == expected.PolicyVersion &&
+            string.Equals(AuthorityPolicySnapshotDigest.Compute(snapshot), expected.PolicyDigest, StringComparison.Ordinal);
     }
     private static async Task LockAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, CancellationToken ct)
     {

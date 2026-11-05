@@ -52,6 +52,7 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
         await using (var firstProcess = new AssetProcessIntelligenceActivationStore(connection))
         {
             await firstProcess.InitializeAsync();
+            await Assert.ThrowsAsync<InvalidOperationException>(() => firstProcess.ActivateAsync(evidence with { PolicyDigest = "invalid-digest" }));
             committed = await firstProcess.ActivateAsync(evidence);
         }
         await using var restarted = new AssetProcessIntelligenceActivationStore(connection);

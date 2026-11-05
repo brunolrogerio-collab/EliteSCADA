@@ -31,5 +31,26 @@ public sealed class AssetProcessIntelligenceActivationEvidenceTests
         Assert.False(Matches(evidence with { Generation = 0 }));
         Assert.False(Matches(evidence with { PolicyDigest = "" }));
     }
-}
-
+    [Fact]
+    public void StartupRecoveryCannotResurrectAfterPauseInvalidationOrStartupCompletion()
+    {
+        var authority = new AuthorityLifecycleSnapshot(AuthorityLifecycleState.AuthorityPresent, 7);
+        var scope = Guid.NewGuid();
+        var receipt = new AssetProcessIntelligenceActivationEvidence(7, "plant", 8,
+            AssetProcessIntelligenceScopeKind.Equipment, scope, 12, "digest", 0, 5, true);
+        bool Recover(AssetProcessIntelligenceExecutionGate gate) => gate.TryRecoverAtStartup(
+            receipt, authority, "plant", 8, receipt.ScopeKind, scope, 12, "digest", 0, 5);
+        var fresh = new AssetProcessIntelligenceExecutionGate();
+        Assert.True(Recover(fresh));
+        Assert.True(fresh.TryGetToken("plant", 8, receipt.ScopeKind, scope, out var token, 12, 0));
+        fresh.Pause("plant", receipt.ScopeKind, scope);
+        Assert.True(token.IsCancellationRequested);
+        Assert.False(Recover(fresh));
+        var invalidated = new AssetProcessIntelligenceExecutionGate();
+        invalidated.InvalidateAll();
+        Assert.False(Recover(invalidated));
+        var completed = new AssetProcessIntelligenceExecutionGate();
+        completed.CompleteStartupRecovery();
+        Assert.False(Recover(completed));
+        Assert.True(Recover(new AssetProcessIntelligenceExecutionGate()));
+    }}

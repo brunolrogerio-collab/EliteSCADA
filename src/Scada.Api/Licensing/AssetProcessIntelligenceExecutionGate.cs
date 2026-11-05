@@ -1,4 +1,5 @@
 using Scada.Engineering.Contracts;
+using Scada.Security.Authentication;
 
 namespace Scada.Api.Licensing;
 
@@ -16,7 +17,35 @@ public sealed class AssetProcessIntelligenceExecutionGate
 {
     private readonly object _sync = new();
     private readonly Dictionary<ScopeKey, Permit> _permits = new();
+    private bool _startupRecoveryClosed;
 
+    /// <summary>
+    /// Startup-only recovery after the caller atomically verifies the durable receipt.
+    /// Any local invalidation or explicit transition closes recovery for this process.
+    /// </summary>
+    public bool TryRecoverAtStartup(
+        AssetProcessIntelligenceActivationEvidence evidence,
+        AuthorityLifecycleSnapshot authority,
+        string projectKey, long revision, AssetProcessIntelligenceScopeKind kind, Guid scopeId,
+        long policyVersion, string policyDigest, long haEpoch, long generation)
+    {
+        ArgumentNullException.ThrowIfNull(evidence);
+        ArgumentNullException.ThrowIfNull(authority);
+        if (!evidence.Matches(authority, projectKey, revision, kind, scopeId,
+                policyVersion, policyDigest, haEpoch, generation)) return false;
+        var key = ValidateKey(projectKey, revision, kind, scopeId);
+        lock (_sync)
+        {
+            if (_startupRecoveryClosed || _permits.ContainsKey(key)) return false;
+            _permits[key] = new Permit(revision, policyVersion, haEpoch, new CancellationTokenSource());
+            return true;
+        }
+    }
+
+    public void CompleteStartupRecovery()
+    {
+        lock (_sync) _startupRecoveryClosed = true;
+    }
     public int ActivePermitCount
     {
         get { lock (_sync) return _permits.Count; }
@@ -54,6 +83,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         var key = ValidateKey(projectKey, activeRevision, kind, scopeId);
         lock (_sync)
         {
+            _startupRecoveryClosed = true;
             RemoveAndCancel(key);
             _permits[key] = new Permit(activeRevision, authorityPolicyVersion, haEpoch, new CancellationTokenSource());
         }
@@ -96,7 +126,10 @@ public sealed class AssetProcessIntelligenceExecutionGate
         if (string.IsNullOrWhiteSpace(projectKey) || scopeId == Guid.Empty || !Enum.IsDefined(kind))
             return;
         lock (_sync)
+        {
+            _startupRecoveryClosed = true;
             RemoveAndCancel(new ScopeKey(projectKey.Trim().ToUpperInvariant(), kind, scopeId));
+        }
     }
 
     public void InvalidateProject(string projectKey)
@@ -104,6 +137,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         if (string.IsNullOrWhiteSpace(projectKey)) return;
         lock (_sync)
         {
+            _startupRecoveryClosed = true;
             foreach (var key in _permits.Keys.Where(key =>
                          key.ProjectKey.Equals(projectKey.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray())
                 RemoveAndCancel(key);
@@ -113,10 +147,12 @@ public sealed class AssetProcessIntelligenceExecutionGate
     public void InvalidateAll()
     {
         lock (_sync)
+        {
+            _startupRecoveryClosed = true;
             foreach (var key in _permits.Keys.ToArray())
                 RemoveAndCancel(key);
+        }
     }
-
     private void RemoveAndCancel(ScopeKey key)
     {
         if (!_permits.Remove(key, out var permit)) return;

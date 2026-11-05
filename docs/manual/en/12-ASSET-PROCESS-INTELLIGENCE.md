@@ -511,3 +511,11 @@ Captions identify mocked API or real API/PostgreSQL captures. All displayed data
 ![Fixed-set shortcut and return to the main composer in the real Portuguese UI.](../../evidence/intelligence-791-final/language791-fixed-shortcut.png)
 
 [Open this guide in installed Help](/help?topic=intelligence.analysis-guide)
+
+## Time tolerance in contextual deviation
+
+TAGs collected every second can have different milliseconds. On the contextual deviation Runtime screen choose **Time matching tolerance**: 10 seconds (initial), 30, 60 or Same timestamp (0 s).
+
+The nearest valid readings to the first selected target are matched only when the full time span fits the tolerance. Readings are never reused across sets; ties and incomplete sets are discarded. There is no interpolation or filling of missing values. Quality and synchronized source timestamp evidence remain required.
+
+Choose the smallest window suited to acquisition and process speed: a minute can hide rapid pump changes. Results show tolerance, complete sets and first-target readings without a complete set. **Zero complete sets means insufficient data, not absence of deviation.** Changing tolerance clears results; select Analyze again. The setting applies to the current query and never changes stored history.

@@ -511,3 +511,11 @@ Las leyendas indican API simulada o API/PostgreSQL reales. Todos los datos son s
 ![Atajo del conjunto fijo y regreso al compositor principal en la interfaz real en portugués.](../../evidence/intelligence-791-final/language791-fixed-shortcut.png)
 
 [Abrir esta guía en Ayuda instalada](/help?topic=intelligence.analysis-guide)
+
+## Tolerancia temporal en desviación contextual
+
+TAGs recogidos cada segundo pueden tener milisegundos diferentes. En la pantalla Runtime elija **Tolerancia entre horarios**: 10 segundos (inicial), 30, 60 o Mismo horario (0 s).
+
+Se asocian las lecturas válidas más próximas a la primera señal objetivo, siempre que la separación total quepa en la tolerancia. No se reutilizan lecturas; se descartan empates y conjuntos incompletos. No hay interpolación ni relleno. La calidad y la evidencia de hora sincronizada siguen siendo obligatorias.
+
+Use la menor ventana adecuada al proceso. Un minuto puede ocultar cambios rápidos. El resumen muestra tolerancia, conjuntos completos y lecturas del primer objetivo sin conjunto completo. **Cero conjuntos significa datos insuficientes, no ausencia de desviación.** Cambiar la tolerancia borra resultados; pulse Analizar de nuevo. El ajuste afecta solo a la consulta actual y no modifica el historial.

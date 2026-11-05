@@ -90,6 +90,9 @@ type Provenance = Readonly<{
 }>;
 
 type Response = Readonly<{
+  temporalToleranceSeconds?: number;
+  unmatchedReferenceAnchorCount?: number;
+  unmatchedEvaluationAnchorCount?: number;
   contractVersion: number;
   catalogVersion: number;
   ruleId: string;
@@ -168,6 +171,7 @@ export function IntelligenceContextualDeviationVisualElement({
   const [referenceToLocal, setReferenceToLocal] = useState('');
   const [evaluationFromLocal, setEvaluationFromLocal] = useState('');
   const [evaluationToLocal, setEvaluationToLocal] = useState('');
+  const [temporalToleranceSeconds, setTemporalToleranceSeconds] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Response | null>(null);
@@ -194,7 +198,7 @@ export function IntelligenceContextualDeviationVisualElement({
   }, [contextKey, scopeId, assignmentId, profileId, targetSignalIdsJson, firstContextSignalId,
     firstContextLowerInclusiveCanonical, firstContextUpperExclusiveCanonical, secondContextSignalId,
     secondContextLowerInclusiveCanonical, secondContextUpperExclusiveCanonical,
-    referenceFromLocal, referenceToLocal, evaluationFromLocal, evaluationToLocal]);
+    referenceFromLocal, referenceToLocal, evaluationFromLocal, evaluationToLocal, temporalToleranceSeconds]);
 
   const analyze = async () => {
     if (!runtime?.enabled || !runtime.projectKey || runtime.activeRevision === null || !configValid ||
@@ -228,7 +232,8 @@ export function IntelligenceContextualDeviationVisualElement({
         secondContextLowerInclusiveCanonical,
         secondContextUpperExclusiveCanonical,
         referenceWindow: referenceWindowResult.window,
-        evaluationWindow: evaluationWindowResult.window
+        evaluationWindow: evaluationWindowResult.window,
+        temporalToleranceSeconds
       } as const;
       const response = await fetch(`${API}${ROOT}/query`, {
         method: 'POST', credentials: 'include',
@@ -246,7 +251,7 @@ export function IntelligenceContextualDeviationVisualElement({
         targetSignalIds, firstContextSignalId, firstContextLowerInclusiveCanonical, firstContextUpperExclusiveCanonical,
         secondContextSignalId, secondContextLowerInclusiveCanonical, secondContextUpperExclusiveCanonical,
         referenceWindow: referenceWindowResult.window, evaluationWindow: evaluationWindowResult.window,
-        catalogVersion: catalog.catalogVersion
+        catalogVersion: catalog.catalogVersion, temporalToleranceSeconds
       })) throw new DeviationVisualError('INVALID_RESPONSE');
       if (requestVersion.current === version && !requestController.signal.aborted) setResult(payload);
     } catch (reason) {
@@ -299,6 +304,11 @@ export function IntelligenceContextualDeviationVisualElement({
                 <label>{copy.evaluationFrom}<input type="datetime-local" value={evaluationFromLocal} disabled={loading} onChange={event => { invalidate(); setEvaluationFromLocal(event.currentTarget.value); }}/></label>
                 <label>{copy.evaluationTo}<input type="datetime-local" value={evaluationToLocal} disabled={loading} onChange={event => { invalidate(); setEvaluationToLocal(event.currentTarget.value); }}/></label>
               </fieldset>
+              <label>{temporalCopy(locale).label}<select value={temporalToleranceSeconds} disabled={loading} onChange={event => { invalidate(); setTemporalToleranceSeconds(Number(event.currentTarget.value)); }}>
+                <option value={0}>{temporalCopy(locale).exact}</option>
+                {[10, 30, 60].map(seconds => <option key={seconds} value={seconds}>{seconds} s</option>)}
+              </select></label>
+              <p>{temporalCopy(locale).hint}</p>
               <button type="submit" disabled={loading || !configValid || !windowsValid}>
                 {loading ? copy.loading : copy.analyze}
               </button>
@@ -322,6 +332,9 @@ function DeviationResult({ result, locale, copy }: { result: Response; locale: E
     <section>
       <h3>{copy.summary}</h3>
       <dl>
+        <Fact label={temporalCopy(locale).label} value={`${result.temporalToleranceSeconds ?? 0} s`}/>
+        <Fact label={temporalCopy(locale).unmatchedReference} value={formatCount(result.unmatchedReferenceAnchorCount ?? 0, locale)}/>
+        <Fact label={temporalCopy(locale).unmatchedEvaluation} value={formatCount(result.unmatchedEvaluationAnchorCount ?? 0, locale)}/>
         <Fact label={copy.referenceVectors} value={formatCount(result.jointContextReferenceVectorCount, locale)}/>
         <Fact label={copy.evaluationVectors} value={formatCount(result.completeEvaluationVectorCount, locale)}/>
         <Fact label={copy.inJointContext} value={formatCount(result.jointContextEvaluationVectorCount, locale)}/>
@@ -392,9 +405,10 @@ function matchesResponse(value: unknown, expected: {
   scopeId: string; assignmentId: string; profileId: string; projectKey: string; activeRevision: number;
   targetSignalIds: readonly string[]; firstContextSignalId: string; firstContextLowerInclusiveCanonical: number;
   firstContextUpperExclusiveCanonical: number; secondContextSignalId: string; secondContextLowerInclusiveCanonical: number;
-  secondContextUpperExclusiveCanonical: number; referenceWindow: WindowValue; evaluationWindow: WindowValue; catalogVersion: number;
+  secondContextUpperExclusiveCanonical: number; referenceWindow: WindowValue; evaluationWindow: WindowValue; catalogVersion: number; temporalToleranceSeconds: number;
 }): value is Response {
   if (!isResponse(value)) return false;
+  if ((value.temporalToleranceSeconds ?? 0) !== expected.temporalToleranceSeconds) return false;
   if (value.contractVersion !== 2 || value.catalogVersion !== expected.catalogVersion ||
       value.ruleId !== RULE_ID || value.ruleVersion !== RULE_VERSION || value.projectKey !== expected.projectKey ||
       value.activeRevision !== expected.activeRevision || !sameId(value.scopeId, expected.scopeId) ||
@@ -502,6 +516,7 @@ function unavailableReason(reason: string | null, copy: ReturnType<typeof visual
 
 function describeVectorTimestampBasis(value: string, locale: EngineeringLocale): string {
   const text = value.toLowerCase();
+  if (text.includes('nearest unused synchronized')) return temporalCopy(locale).hint;
   if (text.includes('source timestamp match') || text.includes('exact equality of non-null utc source.timestamp')) {
     return locale === 'pt-BR'
       ? 'Compara leituras com o mesmo horário de origem sincronizado nas duas condições e em todos os sinais. Isso não comprova que os sensores mediram no mesmo instante.'
@@ -515,6 +530,24 @@ function describeVectorTimestampBasis(value: string, locale: EngineeringLocale):
         : 'Time when Historian recorded the reading.';
   }
   return locale === 'pt-BR' ? 'Base de horário definida pelo relatório.' : locale === 'es' ? 'Base temporal definida por el informe.' : 'Time basis defined by the report.';
+}
+
+function temporalCopy(locale: EngineeringLocale) {
+  if (locale === 'pt-BR') return {
+    label: 'Tolerância entre horários', exact: 'Mesmo horário (0 s)',
+    unmatchedReference: 'Leituras-alvo sem conjunto completo na referência', unmatchedEvaluation: 'Leituras-alvo sem conjunto completo na avaliação',
+    hint: 'Associa as leituras válidas mais próximas do primeiro sinal-alvo. A diferença entre o primeiro e o último horário do conjunto não pode superar a tolerância. Não reutiliza leituras nem preenche valores ausentes; empates e conjuntos incompletos são descartados. Escolha uma janela compatível com a velocidade do processo.'
+  };
+  if (locale === 'es') return {
+    label: 'Tolerancia entre horarios', exact: 'Mismo horario (0 s)',
+    unmatchedReference: 'Lecturas objetivo sin conjunto completo en referencia', unmatchedEvaluation: 'Lecturas objetivo sin conjunto completo en evaluación',
+    hint: 'Asocia las lecturas válidas más cercanas a la primera señal objetivo. La separación total no puede superar la tolerancia. No reutiliza lecturas ni rellena valores; descarta empates y conjuntos incompletos. Elija una ventana adecuada a la velocidad del proceso.'
+  };
+  return {
+    label: 'Time matching tolerance', exact: 'Same timestamp (0 s)',
+    unmatchedReference: 'Target readings without a complete reference set', unmatchedEvaluation: 'Target readings without a complete evaluation set',
+    hint: 'Matches the nearest valid readings to the first target signal. The full time span must fit the tolerance. Readings are not reused or imputed; ties and incomplete sets are discarded. Choose a window suited to the process speed.'
+  };
 }
 
 function visualCopy(locale: EngineeringLocale) {

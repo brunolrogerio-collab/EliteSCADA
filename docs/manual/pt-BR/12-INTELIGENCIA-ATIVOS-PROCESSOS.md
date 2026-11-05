@@ -511,3 +511,11 @@ As legendas indicam se a captura usa API simulada ou API/PostgreSQL reais. Todos
 ![Atalho do conjunto fixo e retorno ao compositor principal, na interface real.](../../evidence/intelligence-791-final/language791-fixed-shortcut.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.analysis-guide)
+
+## Tolerância entre horários no desvio contextual
+
+TAGs coletados a cada segundo podem ter horários com milissegundos diferentes. Na tela Runtime de desvio contextual, escolha **Tolerância entre horários**: 10 segundos (inicial), 30, 60 ou Mesmo horário (0 s).
+
+O SCADIVO procura leituras válidas próximas à primeira medição selecionada. A diferença entre o primeiro e o último horário do conjunto deve caber na tolerância. Uma leitura não é reutilizada em vários conjuntos; empates e conjuntos incompletos são descartados. Não há interpolação nem preenchimento de valores ausentes. Qualidade e evidência de horário sincronizado continuam obrigatórias.
+
+Comece pela menor janela adequada à aquisição e ao processo. Um minuto pode esconder mudanças rápidas de uma bomba. O resultado mostra a tolerância usada, conjuntos completos e leituras do primeiro alvo sem conjunto completo. **Zero conjuntos significa dados insuficientes, não ausência de desvio.** Mudar a tolerância limpa o resultado anterior; clique em Analisar novamente. O ajuste vale para a consulta atual e não modifica o histórico.

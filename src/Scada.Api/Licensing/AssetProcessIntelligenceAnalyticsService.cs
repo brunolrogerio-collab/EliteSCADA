@@ -793,7 +793,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                 referenceRows,
                 evaluationRows,
                 plan.Contexts.Select(signal => signal.Unit!).ToArray(),
-                plan.ContextRanges);
+                plan.ContextRanges, request.TemporalToleranceSeconds);
 
             await using var finalMutation = await workspace.AcquireMutationAsync(plan.ChangeVersion, linkedCancellation.Token);
             var finalCheck = await RevalidateContextualReferencePlansAsync(context, allPlans, linkedCancellation.Token);
@@ -830,12 +830,17 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                     HistoricalDatasets.HistorianSamplesV2,
                     2,
                     "Historian observation timestamps bound each query and page; source timestamps are independently checked against the selected window.",
-                    "exact equality of non-null UTC source.timestamp across every selected target and both context TAGs; no nearest join, hold, interpolation, or imputation.",
+                    request.TemporalToleranceSeconds == 0
+                        ? "exact equality of non-null UTC source.timestamp across every selected target and both context TAGs; no nearest join, hold, interpolation, or imputation."
+                        : $"Nearest unused synchronized source timestamp to the first selected target; whole-vector span <= {request.TemporalToleranceSeconds} seconds; ties rejected; no interpolation or imputation.",
                     "Every selected row requires Good finite numeric value and explicit Synchronized source timestamp evidence; this does not prove physical simultaneity or clock accuracy.",
                     "Both caller-declared canonical context intervals must match for reference-cohort membership and evaluation deviation values.",
                     "not_assessed",
                     "unknown",
-                    "Each target is summarized independently against the same complete joint-context reference cohort; no combined anomaly classification, diagnosis, fault, or RUL is produced.")));
+                    "Each target is summarized independently against the same complete joint-context reference cohort; no combined anomaly classification, diagnosis, fault, or RUL is produced."),
+                request.TemporalToleranceSeconds,
+                calculation.ReferenceEvidence[0].AcceptedSynchronizedCount - calculation.CompleteReferenceVectorCount,
+                calculation.EvaluationEvidence[0].AcceptedSynchronizedCount - calculation.CompleteEvaluationVectorCount));
         }
         catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
         {
@@ -3828,6 +3833,8 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
     private static IResult? ValidateContextualDeviationVectorV2Request(
         AssetProcessIntelligenceContextualDeviationVectorV2QueryRequest request)
     {
+        if (request.TemporalToleranceSeconds is < 0 or > 60)
+            return BadRequest("INTELLIGENCE_TEMPORAL_TOLERANCE_INVALID");
         if (!Enum.IsDefined(request.ScopeKind) || request.ScopeId == Guid.Empty || request.AssignmentId == Guid.Empty ||
             request.FirstContextSignalId == Guid.Empty || request.SecondContextSignalId == Guid.Empty)
             return BadRequest("INTELLIGENCE_CONTEXTUAL_DEVIATION_VECTOR_V2_IDENTITY_INVALID");

@@ -18,7 +18,8 @@ public sealed record AssetProcessIntelligenceContextualDeviationVectorV2QueryReq
     double SecondContextLowerInclusiveCanonical,
     double SecondContextUpperExclusiveCanonical,
     AssetProcessIntelligenceAnalyticsWindow? ReferenceWindow,
-    AssetProcessIntelligenceAnalyticsWindow? EvaluationWindow);
+    AssetProcessIntelligenceAnalyticsWindow? EvaluationWindow,
+    int TemporalToleranceSeconds = 0);
 
 public sealed record AssetProcessIntelligenceContextualDeviationVectorV2Signal(
     Guid SignalId,
@@ -77,7 +78,8 @@ public sealed record AssetProcessIntelligenceContextualDeviationVectorV2Sample(
     double SecondContextValueCanonical,
     bool SecondContextInRange,
     bool InJointContext,
-    IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorV2Value> Targets);
+    IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorV2Value> Targets,
+    IReadOnlyDictionary<Guid, DateTimeOffset>? MatchedSourceTimestampsUtc = null);
 
 public sealed record AssetProcessIntelligenceContextualDeviationVectorV2Response(
     int ContractVersion,
@@ -106,7 +108,10 @@ public sealed record AssetProcessIntelligenceContextualDeviationVectorV2Response
     IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorV2TargetStatistics> TargetStatistics,
     IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorV2Sample> EvaluationVectors,
     int TotalRawObservationCount,
-    AssetProcessIntelligenceContextualDeviationVectorV2Provenance Provenance);
+    AssetProcessIntelligenceContextualDeviationVectorV2Provenance Provenance,
+    int TemporalToleranceSeconds = 0,
+    int UnmatchedReferenceAnchorCount = 0,
+    int UnmatchedEvaluationAnchorCount = 0);
 
 public sealed record AssetProcessIntelligenceContextualDeviationVectorV2Provenance(
     string Dataset,
@@ -151,6 +156,9 @@ public static class AssetProcessIntelligenceContextualDeviationVectorV2Catalog
         pageSize = QueryPageSize,
         maximumReturnedEvaluationVectors = MaximumReturnedEvaluationVectors,
         minimumCompleteJointReferenceVectorsForRobustScore = MinimumReferenceVectorsForRobustScore,
+        maximumTemporalToleranceSeconds = 60,
+        defaultTemporalToleranceSeconds = 0,
+        optionalTemporalAlignment = "temporalToleranceSeconds 1..60: nearest unused synchronized source readings to first target, reject ties and whole-vector spans above tolerance; no cross-window matching or interpolation",
         contextInterval = "each lowerInclusive <= canonical context value < upperExclusive; both must match for joint context",
         vectorTimestamp = "exact common non-null UTC source.timestamp across every selected target and both context TAGs",
         ordering = "targets and contexts follow caller selection order; evaluation vectors use source timestamp ascending",
@@ -190,7 +198,8 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
         IReadOnlyDictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>> referenceRows,
         IReadOnlyDictionary<Guid, IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorRawObservation>> evaluationRows,
         IReadOnlyList<ControlledEngineeringUnitDefinition> contextUnits,
-        IReadOnlyList<(double LowerInclusive, double UpperExclusive)> contextRanges)
+        IReadOnlyList<(double LowerInclusive, double UpperExclusive)> contextRanges,
+        int temporalToleranceSeconds = 0)
     {
         ArgumentNullException.ThrowIfNull(targets);
         ArgumentNullException.ThrowIfNull(contexts);
@@ -198,6 +207,8 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
         ArgumentNullException.ThrowIfNull(evaluationWindow);
         ArgumentNullException.ThrowIfNull(referenceRows);
         ArgumentNullException.ThrowIfNull(evaluationRows);
+        if (temporalToleranceSeconds is < 0 or > 60)
+            throw new ArgumentOutOfRangeException(nameof(temporalToleranceSeconds));
         if (targets.Count is < AssetProcessIntelligenceContextualDeviationVectorV2Catalog.MinimumTargetSignals or
                 > AssetProcessIntelligenceContextualDeviationVectorV2Catalog.MaximumTargetSignals ||
             contexts.Count != AssetProcessIntelligenceContextualDeviationVectorV2Catalog.ContextSignalCount ||
@@ -228,8 +239,8 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
 
         var referenceEvidence = allSignals.Select(signal => ToEvidence(signal.SignalId, reference[signal.SignalId])).ToArray();
         var evaluationEvidence = allSignals.Select(signal => ToEvidence(signal.SignalId, evaluation[signal.SignalId])).ToArray();
-        var completeReference = BuildVectors(orderedTargets, orderedContexts, reference);
-        var completeEvaluation = BuildVectors(orderedTargets, orderedContexts, evaluation);
+        var completeReference = BuildVectors(orderedTargets, orderedContexts, reference, temporalToleranceSeconds);
+        var completeEvaluation = BuildVectors(orderedTargets, orderedContexts, evaluation, temporalToleranceSeconds);
         var jointReference = completeReference.Where(vector => InRange(vector.Contexts[0].Value, contextRanges[0]) &&
             InRange(vector.Contexts[1].Value, contextRanges[1])).ToArray();
         var inContextEvaluation = completeEvaluation.Where(vector => InRange(vector.Contexts[0].Value, contextRanges[0]) &&
@@ -313,7 +324,11 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
                 vector.Contexts[1].Value,
                 secondInRange,
                 inJointContext,
-                Array.AsReadOnly(values));
+                Array.AsReadOnly(values),
+                allSignals.ToDictionary(signal => signal.SignalId, signal =>
+                    ContextIndex(signal.SignalId, orderedContexts) is var index && index >= 0
+                        ? vector.Contexts[index].SourceTimestampUtc
+                        : vector.Targets[signal.SignalId].SourceTimestampUtc));
         }).ToArray();
 
         return new(completeReference.Length, jointReference.Length, completeEvaluation.Length, inContextEvaluation.Length,
@@ -334,9 +349,61 @@ internal static class AssetProcessIntelligenceContextualDeviationVectorV2Calcula
     private static Vector[] BuildVectors(
         IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorV2Signal> targets,
         IReadOnlyList<AssetProcessIntelligenceContextualDeviationVectorV2Signal> contexts,
-        IReadOnlyDictionary<Guid, SignalEvaluation> evaluations)
+        IReadOnlyDictionary<Guid, SignalEvaluation> evaluations,
+        int toleranceSeconds)
     {
         var signals = targets.Concat(contexts).ToArray();
+        if (toleranceSeconds > 0)
+        {
+            // First selected target anchors the comparison; never reuse a reading or cross windows.
+            var series = signals.Select(signal => evaluations[signal.SignalId].Accepted.Values
+                .OrderBy(row => row.SourceTimestampUtc).ToArray()).ToArray();
+            var used = series.Select(_ => new HashSet<DateTimeOffset>()).ToArray();
+            var vectors = new List<Vector>();
+            var tolerance = TimeSpan.FromSeconds(toleranceSeconds);
+            foreach (var anchor in series[0])
+            {
+                var selected = new Accepted[signals.Length];
+                selected[0] = anchor;
+                var valid = true;
+                for (var index = 1; index < series.Length; index++)
+                {
+                    // Binary search bounds the candidate scan to the declared tolerance.
+                    var rows = series[index];
+                    var low = 0;
+                    var high = rows.Length;
+                    var start = anchor.SourceTimestampUtc - tolerance;
+                    while (low < high)
+                    {
+                        var middle = low + (high - low) / 2;
+                        if (rows[middle].SourceTimestampUtc < start) low = middle + 1;
+                        else high = middle;
+                    }
+                    Accepted? nearest = null;
+                    var distance = TimeSpan.MaxValue;
+                    var tied = false;
+                    for (var candidate = low; candidate < rows.Length &&
+                        rows[candidate].SourceTimestampUtc <= anchor.SourceTimestampUtc + tolerance; candidate++)
+                    {
+                        var row = rows[candidate];
+                        if (used[index].Contains(row.SourceTimestampUtc)) continue;
+                        var delta = (row.SourceTimestampUtc - anchor.SourceTimestampUtc).Duration();
+                        if (delta < distance) { nearest = row; distance = delta; tied = false; }
+                        else if (delta == distance) tied = true;
+                    }
+                    if (nearest is null || tied) { valid = false; break; }
+                    selected[index] = nearest;
+                }
+                if (!valid || selected.Max(row => row.SourceTimestampUtc) -
+                    selected.Min(row => row.SourceTimestampUtc) > tolerance) continue;
+                for (var index = 1; index < selected.Length; index++)
+                    used[index].Add(selected[index].SourceTimestampUtc);
+                vectors.Add(new(anchor.SourceTimestampUtc, selected.Skip(targets.Count).ToArray(),
+                    targets.Select((target, index) => (target.SignalId, Row: selected[index]))
+                        .ToDictionary(item => item.SignalId, item => item.Row)));
+            }
+            return vectors.ToArray();
+        }
         HashSet<DateTimeOffset>? common = null;
         foreach (var signal in signals)
         {

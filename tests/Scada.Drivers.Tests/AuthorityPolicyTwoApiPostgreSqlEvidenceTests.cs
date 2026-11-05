@@ -23,8 +23,10 @@ namespace Scada.Drivers.Tests;
 [Collection(Wave15PostgreSqlHaEvidenceCollection.Name)]
 public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 {
-    [Fact]
-    public async Task StandaloneRealApiRestartRecoversExplicitlyActivatedScope()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StandaloneRealApiRestartRecoversExplicitlyActivatedScope(bool twoScopes)
     {
         var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(seed)) return;
@@ -48,8 +50,11 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             node = Start();
             await node.WaitForHealthAsync();
             await node.BootstrapAsync();
-            await PrepareProjectAsync(node, activate: true);
-            await ConfigureAndActivateIntelligenceAsync(node);
+            await PrepareProjectAsync(node, activate: true, twoScopes);
+            await ConfigureAndActivateIntelligenceAsync(node, twoScopes);
+            if (twoScopes)
+                await node.SendAsync(HttpMethod.Post,
+                    "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000211/activate", new JsonObject());
             await node.DisposeAsync();
             node = null;
             node = Start();
@@ -57,6 +62,9 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             await node.LoginAsync();
             var status = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
             Assert.True(status["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(), status.ToJsonString());
+            if (twoScopes)
+                Assert.All(status["configuration"]!["scopes"]!.AsArray(), item =>
+                    Assert.True(item!["executionArmed"]!.GetValue<bool>(), status.ToJsonString()));
             await node.SendAsync(HttpMethod.Post,
                 "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000201/pause", new JsonObject());
             await node.DisposeAsync();
@@ -730,7 +738,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         return new LicenseFiles(licensePath, publicKeyPath, keyId);
     }
 
-    private static async Task PrepareProjectAsync(ApiProcess node, bool activate)
+    private static async Task PrepareProjectAsync(ApiProcess node, bool activate, bool twoScopes = false)
     {
         var first = await node.SendAsync(
             HttpMethod.Post,
@@ -771,6 +779,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             ["path"] = "Plant.Pump",
             ["name"] = "Evidence Pump"
         });
+        if (twoScopes)
+            package["equipment"]!.AsArray().Add(new JsonObject
+            {
+                ["id"] = "b3100000-0000-0000-0000-000000000211",
+                ["path"] = "Plant.Pump02", ["name"] = "Second evidence pump"
+            });
         await node.SendAsync(
             HttpMethod.Post,
             "/api/engineering/import/json/apply",
@@ -805,7 +819,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         }
     }
 
-    private static async Task ConfigureAndActivateIntelligenceAsync(ApiProcess node)
+    private static async Task ConfigureAndActivateIntelligenceAsync(ApiProcess node, bool twoScopes = false)
     {
         var tagId = Guid.Parse("b3100000-0000-0000-0000-000000000202");
         var equipmentId = Guid.Parse("b3100000-0000-0000-0000-000000000201");
@@ -819,7 +833,10 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             "/api/engineering/asset-process-intelligence/scopes",
             new JsonObject
             {
-                ["scopes"] = new JsonArray(new JsonObject { ["kind"] = 0, ["scopeId"] = scopeId.ToString("D") })
+                ["scopes"] = twoScopes
+                    ? new JsonArray(new JsonObject { ["kind"] = 0, ["scopeId"] = scopeId.ToString("D") },
+                        new JsonObject { ["kind"] = 0, ["scopeId"] = "b3100000-0000-0000-0000-000000000211" })
+                    : new JsonArray(new JsonObject { ["kind"] = 0, ["scopeId"] = scopeId.ToString("D") })
             });
         await node.SendAsync(
             HttpMethod.Put,

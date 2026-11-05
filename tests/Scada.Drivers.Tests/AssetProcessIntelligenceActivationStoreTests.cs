@@ -1,3 +1,4 @@
+using Npgsql;
 using Scada.Api.Licensing;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Security;
@@ -17,6 +18,25 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
                 throw new InvalidOperationException("Recovery PostgreSQL test connection required.");
             return;
         }
+        var database = $"intelligence_recovery_{Guid.NewGuid():N}";
+        await using var admin = new NpgsqlConnection(connection);
+        await admin.OpenAsync();
+        await using (var create = new NpgsqlCommand($"CREATE DATABASE \"{database}\";", admin))
+            await create.ExecuteNonQueryAsync();
+        try
+        {
+            var isolated = new NpgsqlConnectionStringBuilder(connection) { Database = database };
+            await VerifyReceiptLifecycleAsync(isolated.ConnectionString);
+        }
+        finally
+        {
+            await using var drop = new NpgsqlCommand($"DROP DATABASE \"{database}\" WITH (FORCE);", admin);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static async Task VerifyReceiptLifecycleAsync(string connection)
+    {
         await using var lifecycle = new PostgreSqlAuthorityLifecycleStore(connection);
         await lifecycle.InitializeAsync();
         var authority = await lifecycle.MarkAuthorityPresentAsync();
@@ -47,3 +67,4 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => anotherProcess.ActivateAsync(evidence));
     }
 }
+

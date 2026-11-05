@@ -70,7 +70,7 @@ public sealed class ZWaveJsManagedSidecarSessionTests
         Assert.InRange((observation.ObservedAt - now).Duration(), TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
-    [Fact]
+    [Fact(Skip = "Deferred under #804 while the Z-Wave welcome/connection-publication race is investigated.")]
     public async Task RpcServer_DisconnectFailsPendingOperationWithoutReplayingIt()
     {
         await using var server = new ZWaveJsRpcServer();

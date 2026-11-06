@@ -271,6 +271,9 @@ class DockerHostAdapter:
         _atomic(self.journal, (json.dumps(body, separators=(",", ":")) + "\n").encode())
 
     def preflight(self, desired: dict) -> None:
+        pending = self._load_journal()
+        if pending and pending["phase"] == "pending":
+            raise AdapterError("Previous Docker operation requires recovery")
         self._plan(desired)
 
     def apply(self, desired: dict) -> None:
@@ -336,7 +339,7 @@ class DockerHostAdapter:
     def recover(self) -> None:
         self._integrity()
         record = self._load_journal()
-        if not record or record["phase"] not in ("pending", "recovered"):
+        if not record or record["phase"] not in ("pending", "applied", "recovered"):
             raise AdapterError("No interrupted Docker operation can be recovered")
         if record["phase"] == "recovered":
             if self.current() != record["before"]:

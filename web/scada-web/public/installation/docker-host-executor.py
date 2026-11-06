@@ -112,6 +112,34 @@ class DockerExecutor(native.Executor):
             status["modules"] = ["access", "database", "media"]
         return status
 
+    def _recover_worker(self, record: dict):
+        try:
+            adapter = self._adapter()
+            journal = adapter._load_journal()
+            observed = self._current()
+            already_before = all(observed.get(key) == value for key, value in record["before"].items())
+            if journal and journal["phase"] == "pending" or not already_before:
+                self.runner(self._command(record["module"], {}, "recover"))
+            else:
+                # An adapter may fail before mutation and have no recovery journal.
+                # Require both a host preflight and real Docker health at old ports.
+                adapter.preflight(observed)
+                adapter.healthy(observed)
+            actual = self._current()
+            if any(actual.get(k) != v for k, v in record["before"].items()):
+                raise native.ContractError("Recovered Docker ports differ from the saved profile")
+            record["state"] = "recovered"
+            record["detail"] = "Registered Docker host profile recovered and health checked"
+        except Exception:
+            record["state"] = "recovery_required"
+            record["detail"] = "Registered Docker host recovery incomplete; protected journal retained"
+        finally:
+            record["finishedAt"] = int(self.now())
+            with self.guard:
+                self._save(self.state_file, record)
+                self._audit("recovered" if record["state"] == "recovered" else "recovery-required",
+                            record["module"], record["id"])
+
     def _command(self, module: str, ports: dict, mode: str):
         # Ports from the API are constrained to one typed module; combine with
         # the other effective host values, never accept executable or path.

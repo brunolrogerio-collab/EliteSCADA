@@ -141,7 +141,7 @@ export function VisualEditorCanvas({
     || polygonToolActive || bezierToolActive;
   const selectedProjection = selection.length === 1 ? findProjection(projectedElements, selection[0]) : null;
   const modelViewEditing = Boolean(modelViewObjectId && selectedProjection?.objectId === modelViewObjectId &&
-    selectedProjection.element.type === BUILTIN_VISUAL_OBJECT_TYPES.model3d && !selectionAuthoringLocked && !polygonToolActive && !bezierToolActive);
+    selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.model3d && !selectionAuthoringLocked && !polygonToolActive && !bezierToolActive);
   useEffect(() => { setModelViewObjectId(null); }, [selection.join('|'), screen.id, screen.key]);
   const selectedPolygonPoints = selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon
     ? readPolygonPoints(selectedProjection.element)

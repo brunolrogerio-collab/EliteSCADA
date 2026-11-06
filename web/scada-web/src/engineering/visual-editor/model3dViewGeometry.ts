@@ -59,5 +59,6 @@ export function frameModel3dCamera(
   camera.near = Math.max(0.001, distance - radius * 1.6);
   camera.far = distance + radius * 1.6;
   camera.lookAt(center);
+  camera.updateMatrixWorld();
   camera.updateProjectionMatrix();
 }

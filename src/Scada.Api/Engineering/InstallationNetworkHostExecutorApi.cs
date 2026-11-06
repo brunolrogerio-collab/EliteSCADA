@@ -114,7 +114,7 @@ internal static class HostExecutorClient
         var socketPath = configuration["InstallationNetwork:HostExecutorSocket"];
         var token = configuration["InstallationNetwork:HostExecutorToken"];
         // A missing, incompatible or non-local executor always fails closed.
-        if (!OperatingSystem.IsLinux() || !Path.IsPathFullyQualified(socketPath) ||
+        if (!OperatingSystem.IsLinux() || string.IsNullOrWhiteSpace(socketPath) || !Path.IsPathFullyQualified(socketPath) ||
             string.IsNullOrWhiteSpace(token) || Encoding.UTF8.GetByteCount(token) is < 32 or > 256 ||
             !File.Exists(socketPath))
             return Results.Json(new

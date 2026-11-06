@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import * as THREE from 'three';
+import { randomUUID } from 'node:crypto';
 import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
 import {
   clampModel3dPitch, DEFAULT_MODEL3D_PITCH_DEG, DEFAULT_MODEL3D_YAW_DEG,
@@ -186,7 +187,7 @@ test('DEV-873 persisted 3D orientation and Runtime permission follow Working / S
     ?? originalPackage.screens?.[0];
   expect(firstScreen).toBeTruthy();
 
-  const modelId = 'model3d-873-' + Date.now();
+  const modelId = randomUUID();
   const edited = JSON.parse(JSON.stringify(originalPackage)) as typeof originalPackage;
   const targetScreen = edited.screens!.find(screen => screen.id === firstScreen!.id || screen.key === firstScreen!.key)!;
   const object = { id: modelId, key: modelId, type: 'core.model3d', properties: {
@@ -209,7 +210,8 @@ test('DEV-873 persisted 3D orientation and Runtime permission follow Working / S
     applied = true;
     const workingRead = await request.get('/api/engineering/export/json');
     expect(workingRead.ok()).toBeTruthy();
-    expect(assetIn(await workingRead.json() as typeof originalPackage)?.properties).toMatchObject({
+    const persistedWorking = await workingRead.json() as typeof originalPackage;
+    expect(assetIn(persistedWorking)?.properties).toMatchObject({
       rotation: 35, viewYawDeg: -135, viewPitchDeg: 64, runtimeViewInteractionEnabled: true
     });
 
@@ -250,7 +252,7 @@ test('DEV-873 persisted 3D orientation and Runtime permission follow Working / S
     });
 
     // An unpublished change is Working-only, never an implicit Runtime reconfiguration.
-    const changedWorking = await workingRead.json() as typeof originalPackage;
+    const changedWorking = JSON.parse(JSON.stringify(persistedWorking)) as typeof originalPackage;
     const unpublished = assetIn(changedWorking)!;
     unpublished.properties = { ...unpublished.properties, viewYawDeg: 77, viewPitchDeg: -20, runtimeViewInteractionEnabled: false };
     const workingApply = await request.post('/api/engineering/import/json/apply', {

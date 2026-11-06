@@ -188,6 +188,7 @@ if (localIdentityEnabled && !string.IsNullOrWhiteSpace(authorityConnectionString
     builder.Services.AddSingleton(sp => new AssetProcessIntelligenceActivationStore(
         authorityConnectionString, sp.GetService<IDurableWriteAdmission>()));
     builder.Services.AddSingleton<AssetProcessIntelligenceStartupRecovery>();
+    builder.Services.AddHostedService<AssetProcessIntelligenceStartupRecoveryHostedService>();
 }
 builder.AddHostProtectedMaterialAuthority();
 builder.AddConfiguredOnlineLicenseDevice();
@@ -238,8 +239,9 @@ await app.InitializeInstallationFoundationAsync();
 if (app.Services.GetService<AssetProcessIntelligenceActivationStore>() is { } intelligenceActivationStore)
 {
     await intelligenceActivationStore.InitializeAsync();
-    await app.Services.GetRequiredService<AssetProcessIntelligenceStartupRecovery>().RecoverAsync();
-    app.Services.GetRequiredService<AssetProcessIntelligenceExecutionGate>()
+    var intelligenceExecutionGate = app.Services.GetRequiredService<AssetProcessIntelligenceExecutionGate>();
+    intelligenceExecutionGate.BeginStartupRecovery();
+    intelligenceExecutionGate
         .ConfigureDurableInvalidation(
             () => intelligenceActivationStore.InvalidateOwnedAsync().GetAwaiter().GetResult(),
             (project, revision) => intelligenceActivationStore.InvalidateOwnedAsync(

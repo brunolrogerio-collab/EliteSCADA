@@ -11,14 +11,15 @@ public sealed record AssetProcessIntelligenceExecutionPermitSnapshot(
 
 /// <summary>
 /// Process-local, fail-closed permits for future Intelligence workers. No worker is
-/// registered in Stage 1. Persisted Engineering activation alone never recreates a
-/// permit after restart; a manager must explicitly activate it against the live revision.
+/// registered in Stage 1. An Engineering active flag alone never creates a permit;
+/// restart recovery requires an exact durable Authority receipt and current fences.
 /// </summary>
 public sealed class AssetProcessIntelligenceExecutionGate
 {
     private readonly object _sync = new();
     private readonly Dictionary<ScopeKey, Permit> _permits = new();
     private bool _startupRecoveryClosed;
+    private bool _startupRecoveryPending;
     private Action? _persistInvalidation;
     private Action<string, long>? _persistRevisionInvalidation;
 
@@ -59,7 +60,55 @@ public sealed class AssetProcessIntelligenceExecutionGate
     }
     public void CompleteStartupRecovery()
     {
-        lock (_sync) _startupRecoveryClosed = true;
+        lock (_sync)
+        {
+            _startupRecoveryClosed = true;
+            _startupRecoveryPending = false;
+        }
+    }
+
+    public void BeginStartupRecovery()
+    {
+        lock (_sync)
+        {
+            if (!_startupRecoveryClosed)
+                _startupRecoveryPending = true;
+        }
+    }
+
+    public bool StartupRecoveryPending
+    {
+        get { lock (_sync) return _startupRecoveryPending && !_startupRecoveryClosed; }
+    }
+
+    /// <summary>
+    /// Closes current permits when Authority/HA readiness is temporarily unknown.
+    /// During initial host startup there are no local permits to revoke, so keep
+    /// the durable activation receipt available for the first exact, fenced
+    /// recovery attempt. Once a permit exists, loss of readiness is a durable
+    /// invalidation and cannot be undone by a later reconnect.
+    /// </summary>
+    public void InvalidateForAuthorityReadinessFailure()
+    {
+        Action? persist = null;
+        lock (_sync)
+        {
+            var hadPermits = _permits.Count > 0;
+            foreach (var key in _permits.Keys.ToArray())
+                RemoveAndCancel(key);
+            if (hadPermits)
+            {
+                _startupRecoveryClosed = true;
+                _startupRecoveryPending = false;
+                persist = _persistInvalidation;
+            }
+        }
+
+        // Local tokens close before durable I/O. Before this process has ever
+        // armed a permit, a readiness miss is only a startup ordering condition;
+        // the recovery routine still requires the exact persisted Authority,
+        // policy, revision and HA fence before it can create a new permit.
+        persist?.Invoke();
     }
     public int ActivePermitCount
     {
@@ -99,6 +148,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         lock (_sync)
         {
             _startupRecoveryClosed = true;
+            _startupRecoveryPending = false;
             RemoveAndCancel(key);
             _permits[key] = new Permit(activeRevision, authorityPolicyVersion, haEpoch, new CancellationTokenSource(), generation);
         }
@@ -143,6 +193,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         lock (_sync)
         {
             _startupRecoveryClosed = true;
+            _startupRecoveryPending = false;
             RemoveAndCancel(new ScopeKey(projectKey.Trim().ToUpperInvariant(), kind, scopeId));
         }
     }
@@ -153,6 +204,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         lock (_sync)
         {
             _startupRecoveryClosed = true;
+            _startupRecoveryPending = false;
             foreach (var key in _permits.Keys.Where(key =>
                          key.ProjectKey.Equals(projectKey.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray())
                 RemoveAndCancel(key);
@@ -166,6 +218,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         lock (_sync)
         {
             _startupRecoveryClosed = true;
+            _startupRecoveryPending = false;
             foreach (var key in _permits.Keys.ToArray()) RemoveAndCancel(key);
             revisionInvalidation = _persistRevisionInvalidation;
             allInvalidation = _persistInvalidation;
@@ -179,6 +232,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         lock (_sync)
         {
             _startupRecoveryClosed = true;
+            _startupRecoveryPending = false;
             foreach (var key in _permits.Keys.ToArray())
                 RemoveAndCancel(key);
             persist = _persistInvalidation;

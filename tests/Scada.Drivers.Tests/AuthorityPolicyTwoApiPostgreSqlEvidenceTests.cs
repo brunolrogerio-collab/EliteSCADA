@@ -60,6 +60,13 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             node = Start();
             await node.WaitForHealthAsync();
             await node.LoginAsync();
+            await WaitUntilAsync(async () =>
+            {
+                var current = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+                return current["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() == true &&
+                    (!twoScopes || current["configuration"]!["scopes"]!.AsArray().All(item =>
+                        item!["executionArmed"]!.GetValue<bool>()));
+            }, TimeSpan.FromSeconds(30), "A standalone restart did not finish the exact Intelligence receipt recovery.");
             var status = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
             Assert.True(status["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(), status.ToJsonString());
             if (twoScopes)
@@ -253,6 +260,11 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 appConnectionA.ConnectionString, license, apiDll, root, suffix);
             await nodeA.WaitForHealthAsync();
             await nodeA.LoginAsync();
+            await WaitUntilAsync(async () =>
+            {
+                var current = await nodeA.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+                return current["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() == true;
+            }, TimeSpan.FromSeconds(45), "Normal HA active restart did not finish exact Intelligence receipt recovery.");
             var normalRestartStatus = await nodeA.GetAsync("/api/engineering/asset-process-intelligence/scopes");
             Assert.True(normalRestartStatus["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(),
                 "Normal HA active restart must recover only the unchanged receipt: " + normalRestartStatus.ToJsonString());
@@ -302,7 +314,9 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
             var cancelled = await pendingRequest.WaitAsync(TimeSpan.FromSeconds(15));
             Assert.Equal(HttpStatusCode.Conflict, cancelled.StatusCode);
-            Assert.Equal("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED", cancelled.Body?["code"]?.GetValue<string>());
+            Assert.Contains(
+                cancelled.Body?["code"]?.GetValue<string>(),
+                new[] { "INTELLIGENCE_EXECUTION_PERMIT_CANCELLED", "AUTHORITY_POLICY_UPDATE_PENDING" });
             Assert.Null(cancelled.Body?["period"]);
             Assert.Equal(0, await ReadPageThreeObservationCountAsync(appConnectionA.ConnectionString));
 

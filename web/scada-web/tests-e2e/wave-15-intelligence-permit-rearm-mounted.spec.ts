@@ -6,7 +6,8 @@ const localized = [
   {
     locale: 'pt-BR',
     configuredActive: 'Ativo na configuração',
-    permitClosed: 'Reative antes de consultar. Selecione Ativar após reinício ou restauração da autorização.',
+    recoveryPending: 'Conferindo a ativação salva com a licença, Authority, revisão e HA atuais. Aguarde ou atualize a tela; ainda não é preciso ativar de novo.',
+    permitClosed: 'A ativação salva não pôde ser recuperada. Confira a licença, a revisão ativa e o estado da Authority/HA. Se estiver tudo correto e quiser executar, selecione Ativar.',
     permitArmed: 'Pronto para consultar',
     activate: 'Ativar',
     pause: 'Pausar'
@@ -14,7 +15,8 @@ const localized = [
   {
     locale: 'en',
     configuredActive: 'Configured active',
-    permitClosed: 'Reactivation required before querying. Select Activate after a restart or restored authorization.',
+    recoveryPending: 'Checking the saved activation against the current license, Authority, revision and HA state. Wait or refresh; no action is needed yet.',
+    permitClosed: 'The saved activation could not be recovered. Check the license, active revision and Authority/HA state. If they are correct and you want to run it, select Activate.',
     permitArmed: 'Ready to query',
     activate: 'Activate',
     pause: 'Pause'
@@ -22,7 +24,8 @@ const localized = [
   {
     locale: 'es',
     configuredActive: 'Activo configurado',
-    permitClosed: 'Debe reactivar antes de consultar. Seleccione Activar tras reiniciar o restaurar la autorización.',
+    recoveryPending: 'Comprobando la activación guardada con la licencia, Authority, revisión y HA actuales. Espere o actualice la pantalla; todavía no necesita activarla de nuevo.',
+    permitClosed: 'No se pudo recuperar la activación guardada. Revise la licencia, la revisión activa y el estado de Authority/HA. Si todo está correcto y quiere ejecutarla, seleccione Activar.',
     permitArmed: 'Listo para consultar',
     activate: 'Activar',
     pause: 'Pausar'
@@ -43,6 +46,7 @@ test(`active scope with closed permit can be rearmed after authorization recover
   };
   let activationRequests = 0;
   let attemptedConfigurationWrites = 0;
+  let startupRecoveryPending = true;
 
   await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
     authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
@@ -66,6 +70,7 @@ test(`active scope with closed permit can be rearmed after authorization recover
       resources: [{ kind: 'Equipment', scopeId, path: 'Plant.Pump01', name: 'Pump P01' }],
       tags: [],
       licensed: true,
+      startupRecoveryPending,
       authorityFence: { allowed: true, reasonCode: 'ready', policyVersion: 3, haEpoch: 9 },
       execution: { stage: 'Stage1', workerRegistered: false, queueDepth: 0, activePermitCount: persistedScope.executionArmed ? 1 : 0, projectKey: 'test-project', activeRevision: 7, workspaceDirty: false }
     } });
@@ -82,6 +87,11 @@ test(`active scope with closed permit can be rearmed after authorization recover
   await page.goto(`/tests-e2e/harness/authoring-preview.html?intelligence&locale=${copy.locale}`);
   const scopeRow = page.getByTestId('asset-process-intelligence-workspace').locator('.asset-process-intelligence__scope-panel .asset-process-intelligence__row').first();
   await expect(scopeRow.getByText(copy.configuredActive, { exact: true })).toBeVisible();
+  await expect(scopeRow.getByText(copy.recoveryPending, { exact: true })).toBeVisible();
+  await expect(scopeRow.getByRole('button', { name: copy.activate })).toBeDisabled();
+
+  startupRecoveryPending = false;
+  await page.reload();
   await expect(scopeRow.getByText(copy.permitClosed, { exact: true })).toBeVisible();
 
   const activate = scopeRow.getByRole('button', { name: copy.activate });

@@ -53,7 +53,41 @@ public sealed class AssetProcessIntelligenceActivationEvidenceTests
         completed.CompleteStartupRecovery();
         Assert.False(Recover(completed));
         Assert.True(Recover(new AssetProcessIntelligenceExecutionGate()));
-    }    [Fact]
+    }
+
+    [Fact]
+    public void StartupReadinessMissCanRetryButRuntimeReadinessLossDurablyClosesRecovery()
+    {
+        var authority = new AuthorityLifecycleSnapshot(AuthorityLifecycleState.AuthorityPresent, 7);
+        var scope = Guid.NewGuid();
+        var receipt = new AssetProcessIntelligenceActivationEvidence(7, "plant", 8,
+            AssetProcessIntelligenceScopeKind.Equipment, scope, 12, "digest", 0, 5, true);
+        bool Recover(AssetProcessIntelligenceExecutionGate gate) => gate.TryRecoverAtStartup(
+            receipt, authority, "plant", 8, receipt.ScopeKind, scope, 12, "digest", 0, 5);
+
+        var starting = new AssetProcessIntelligenceExecutionGate();
+        starting.BeginStartupRecovery();
+        Assert.True(starting.StartupRecoveryPending);
+        starting.InvalidateForAuthorityReadinessFailure();
+        Assert.True(starting.StartupRecoveryPending);
+        Assert.True(Recover(starting));
+        starting.CompleteStartupRecovery();
+        Assert.False(starting.StartupRecoveryPending);
+
+        var running = new AssetProcessIntelligenceExecutionGate();
+        var persistedInvalidations = 0;
+        running.ConfigureDurableInvalidation(() => persistedInvalidations++);
+        Assert.True(Recover(running));
+        Assert.True(running.TryGetToken("plant", 8, receipt.ScopeKind, scope, out var token, 12, 0));
+
+        running.InvalidateForAuthorityReadinessFailure();
+
+        Assert.True(token.IsCancellationRequested);
+        Assert.Equal(1, persistedInvalidations);
+        Assert.False(Recover(running));
+    }
+
+    [Fact]
     public void DurableInvalidationFailureClosesTokensAndCannotBeReportedAsSuccess()
     {
         var gate = new AssetProcessIntelligenceExecutionGate();
@@ -69,7 +103,9 @@ public sealed class AssetProcessIntelligenceActivationEvidenceTests
         Assert.Equal(0, gate.ActivePermitCount);
         Assert.False(gate.TryGetToken("plant", 8, AssetProcessIntelligenceScopeKind.Equipment, scope, out _, 12));
         Assert.Throws<InvalidOperationException>(() => gate.ConfigureDurableInvalidation(() => { }));
-    }    [Fact]
+    }
+
+    [Fact]
     public void BaselineNormalizationRemovesOnlyHistorianMetadataThatMatchesTypedConfiguration()
     {
         var tag = new TagEngineeringDto(Guid.NewGuid(), "Pressure", "Plant.Pressure",

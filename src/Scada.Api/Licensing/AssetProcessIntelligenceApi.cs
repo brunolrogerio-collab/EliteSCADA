@@ -164,6 +164,7 @@ public static class AssetProcessIntelligenceApi
                 resources = equipment.Cast<object>().Concat(locations).ToArray(),
                 tags,
                 licensed = licensing.CurrentVerification.HasAssetProcessIntelligence,
+                startupRecoveryPending = executionGate.StartupRecoveryPending,
                 authorityFence = new
                 {
                     allowed = fenceAllowed,

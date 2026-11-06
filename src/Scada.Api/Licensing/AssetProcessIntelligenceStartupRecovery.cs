@@ -8,7 +8,7 @@ using Scada.Security.Authentication;
 
 namespace Scada.Api.Licensing;
 
-/// <summary>One-shot recovery. Configuration alone never arms execution.</summary>
+/// <summary>Recovers only an exact durable activation after host and HA readiness.</summary>
 public sealed class AssetProcessIntelligenceStartupRecovery(
     AssetProcessIntelligenceActivationStore store,
     AssetProcessIntelligenceExecutionGate gate,
@@ -19,30 +19,62 @@ public sealed class AssetProcessIntelligenceStartupRecovery(
     IProductLicenseService licensing,
     RuntimeHighAvailabilityService highAvailability)
 {
-    public async Task<int> RecoverAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Returns null while startup prerequisites are still converging. A non-null
+    /// result means the startup decision is complete, including the case where
+    /// no exact receipt exists and no scope was recovered.
+    /// </summary>
+    public async Task<int?> RecoverAsync(CancellationToken cancellationToken = default)
     {
         var recovered = 0;
         try
         {
-            // Peer receipt replication is not implemented yet: retain explicit activation in HA.
-            if (highAvailability.Enabled) return 0;
-            if (!licensing.CurrentVerification.HasAssetProcessIntelligence ||
-                !highAvailability.CanOwnIndustrialEffects()) return 0;
+            if (!licensing.CurrentVerification.HasAssetProcessIntelligence)
+            {
+                gate.CompleteStartupRecovery();
+                return 0;
+            }
+
+            // HA readiness becomes observable only after the hosted protection
+            // and Authority synchronization services have started. Do not spend
+            // the one startup-recovery opportunity while that fence is pending.
+            if (!highAvailability.CanOwnIndustrialEffects())
+            {
+                gate.InvalidateForAuthorityReadinessFailure();
+                return null;
+            }
             var descriptor = workspace.Describe();
             var live = runtime.Describe();
             if (string.IsNullOrWhiteSpace(descriptor.ProjectKey) || !descriptor.BaseRevision.HasValue ||
                 !string.Equals(descriptor.ProjectKey, live.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
-                descriptor.BaseRevision != live.Revision) return 0;
+                descriptor.BaseRevision != live.Revision)
+            {
+                gate.CompleteStartupRecovery();
+                return 0;
+            }
             var fence = await authority.CheckAsync(cancellationToken);
+            if (!fence.Allowed)
+            {
+                gate.InvalidateForAuthorityReadinessFailure();
+                return null;
+            }
             var lifecycleState = await lifecycle.GetAsync(cancellationToken);
-            if (!fence.Allowed || fence.PolicyDigest is null || !lifecycleState.AllowsAuthorization) return 0;
+            if (fence.PolicyDigest is null || !lifecycleState.AllowsAuthorization)
+            {
+                gate.CompleteStartupRecovery();
+                return 0;
+            }
             await using var mutation = await workspace.AcquireMutationAsync(cancellationToken: cancellationToken);
             var currentDescriptor = workspace.Describe();
             var currentRuntime = runtime.Describe();
             if (!string.Equals(descriptor.ProjectKey, currentDescriptor.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
                 descriptor.BaseRevision != currentDescriptor.BaseRevision ||
                 !string.Equals(descriptor.ProjectKey, currentRuntime.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
-                descriptor.BaseRevision != currentRuntime.Revision) return 0;
+                descriptor.BaseRevision != currentRuntime.Revision)
+            {
+                gate.CompleteStartupRecovery();
+                return 0;
+            }
             foreach (var scope in workspace.AssetProcessIntelligence.Snapshot().Scopes ?? [])
             {
                 if (!scope.Active) continue;
@@ -64,16 +96,18 @@ public sealed class AssetProcessIntelligenceStartupRecovery(
                 gate.InvalidateAll();
                 return 0;
             }
+            gate.CompleteStartupRecovery();
             return recovered;
         }
         catch
         {
-            gate.InvalidateAll();
+            // If anything failed after at least one local permit was rebuilt,
+            // immediately cancel it and durably revoke the owned receipts. A
+            // database/startup error before any permit can be retried while all
+            // Intelligence execution remains closed.
+            if (gate.ActivePermitCount > 0)
+                gate.InvalidateAll();
             throw;
-        }
-        finally
-        {
-            gate.CompleteStartupRecovery();
         }
     }
 }

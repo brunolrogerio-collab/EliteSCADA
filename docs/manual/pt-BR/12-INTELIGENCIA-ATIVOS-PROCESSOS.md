@@ -32,7 +32,7 @@ Você pode começar por um equipamento. Contextos e etapas entram quando forem �
 
 Use Onde deseja trabalhar? para ir direto a perfis, associações, contextos, etapas, painel ou equipamentos e locais habilitados para análise. Comece pelos perfis e associações; contexto e etapa só são necessários quando sua análise os utiliza. Navegar preserva o rascunho, sem salvar ou executar análise.
 
-Pronto para consultar significa que o item foi ativado para a revisão atual. Se aparecer Reative antes de consultar, confira licença e permissões e selecione Ativar novamente. Isso pode ser necessário após reinício ou restauração da autorização. O cabeçalho mostra o nome da aplicação; a revisão ativa identifica a versão publicada em uso.
+Pronto para consultar significa que o item foi ativado para a revisão atual. Após um reinício normal da API, o SCADIVO tenta recuperar a ativação salva se a licença, a Authority, a política, a revisão e a proteção HA continuarem iguais. Enquanto confere, a tela informa que está verificando; aguarde ou atualize a tela. Se aparecer Reative antes de consultar, a ativação anterior não pôde ser confirmada: confira a licença, a revisão e as permissões e, se estiver tudo correto, selecione Ativar. Um reinício normal, sozinho, não exige nova ativação. O cabeçalho mostra o nome da aplicação; a revisão ativa identifica a versão publicada em uso.
 
 ![Atalhos de configuração no celular, em aplicação sintética](../../evidence/intelligence-855/usability-mobile-navigation.png)
 
@@ -188,7 +188,7 @@ Há ainda uma decisão separada: ativar explicitamente o recurso selecionado par
 
 Use Onde deseja trabalhar? para ir direto a perfis, associações, contextos, etapas, painel ou equipamentos e locais habilitados para análise. Comece pelos perfis e associações; contexto e etapa só são necessários quando sua análise os utiliza. Navegar preserva o rascunho, sem salvar ou executar análise.
 
-Pronto para consultar significa que o item foi ativado para a revisão atual. Se aparecer Reative antes de consultar, confira licença e permissões e selecione Ativar novamente. Isso pode ser necessário após reinício ou restauração da autorização. O cabeçalho mostra o nome da aplicação; a revisão ativa identifica a versão publicada em uso.
+Pronto para consultar significa que o item foi ativado para a revisão atual. Após um reinício normal da API, o SCADIVO tenta recuperar a ativação salva se a licença, a Authority, a política, a revisão e a proteção HA continuarem iguais. Enquanto confere, a tela informa que está verificando; aguarde ou atualize a tela. Se aparecer Reative antes de consultar, a ativação anterior não pôde ser confirmada: confira a licença, a revisão e as permissões e, se estiver tudo correto, selecione Ativar. Um reinício normal, sozinho, não exige nova ativação. O cabeçalho mostra o nome da aplicação; a revisão ativa identifica a versão publicada em uso.
 
 ### Quem configura e quem pode ativar ou pausar
 
@@ -196,7 +196,7 @@ O desenvolvedor prepara perfis, associações e a seleção de equipamentos ou l
 
 Com essa conta, abra Inteligência de ativos e use Ativar ou Pausar no recurso já selecionado pelo desenvolvedor. Alterar a seleção, perfis, TAGs ou telas continua bloqueado. A permissão é conferida no equipamento ou local; o nome do papel não substitui uma concessão. Consultar resultados exige também licença, TrendUse e leitura dos TAGs.
 
-A operação precisa encontrar a mesma revisão ativa que você abriu e uma Engenharia sem alterações pendentes. Se houver um rascunho de outro autor, peça para ele concluir ou descartar o trabalho e atualize a página. A operação pode criar uma revisão persistente contendo apenas a mudança de ativação do recurso; ela não publica alterações de outros objetos. Depois de reiniciar, use Ativar novamente para liberar consultas. Se Pausar retornar erro, não considere a pausa durável concluída: confira o estado e tente novamente após resolver o bloqueio.
+A operação precisa encontrar a mesma revisão ativa que você abriu e uma Engenharia sem alterações pendentes. Se houver um rascunho de outro autor, peça para ele concluir ou descartar o trabalho e atualize a página. A operação pode criar uma revisão persistente contendo apenas a mudança de ativação do recurso; ela não publica alterações de outros objetos. Após um reinício normal, a ativação pode ser recuperada automaticamente quando licença, Authority, política, revisão e proteção HA continuam iguais. Aguarde a verificação; use Ativar novamente somente se a tela indicar que a ativação não pôde ser recuperada e você confirmar que deseja liberar as consultas. Se Pausar retornar erro, não considere a pausa durável concluída: confira o estado e tente novamente após resolver o bloqueio.
 
 ### Ativar apenas onde for útil
 
@@ -211,7 +211,7 @@ A operação precisa encontrar a mesma revisão ativa que você abriu e uma Enge
 
 Se uma permissão foi revogada, o recurso pode continuar marcado como Ativo na configuração e, mesmo assim, estar impedido de executar. São duas informações diferentes: o que foi configurado e o que está autorizado agora.
 
-Restaurar a concessão não reinicia o trabalho silenciosamente. Confira o estado e use Ativar novamente, inclusive após reinício quando a tela pedir. Isso exige uma decisão explícita do responsável. Verifique essa condição antes de investigar falta de dados no histórico gravado, chamado Historian.
+Se uma concessão foi revogada, restaurá-la não reaproveita a ativação anterior: confira a política e selecione Ativar novamente quando o acesso estiver válido. Isso exige uma decisão explícita do responsável. Um reinício normal da API é diferente: a ativação salva pode ser recuperada sem novo clique quando todos os dados de Authority, licença, revisão e HA continuam exatamente válidos. Se a proteção foi perdida enquanto o servidor estava em operação, a execução é bloqueada e não é rearmada apenas porque a conexão voltou. Verifique esses estados antes de investigar falta de dados no histórico gravado, chamado Historian.
 
 ### Exemplo de implantação pequena
 

@@ -367,6 +367,77 @@ public sealed class EngineeringProjectPersistenceServiceTests
     }
 
     [Fact]
+    public async Task StationProfiles_PersistThroughSaveAndPublishButRuntimeActiveSwitchesOnlyAfterActivation()
+    {
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms);
+        var store = new FakeEngineeringProjectStore();
+        var persistence = new EngineeringProjectPersistenceService(exchange, store);
+        var screens = new[]
+        {
+            new ScreenEngineeringDto(Guid.NewGuid(), "overview", "Overview"),
+            new ScreenEngineeringDto(Guid.NewGuid(), "pumps", "Pumps")
+        };
+        var original = exchange.ExportPackage() with
+        {
+            Screens = screens,
+            RuntimePresentation = new RuntimePresentationEngineeringDto(MobileOrientation: "portrait")
+        };
+        Assert.True(exchange.Preview(original, ImportMode.CreateAndUpdate).CanApply);
+        Assert.Empty(exchange.Apply(original, ImportMode.CreateAndUpdate).Issues);
+
+        var revision1 = await persistence.SaveCurrentAsync("station-plant", "Station Plant", "engineer");
+        var published1 = await persistence.PublishRevisionAsync("station-plant", revision1.Revision, "supervisor");
+        Assert.True(published1!.Published);
+        Assert.NotNull(await persistence.RecordActivationAsync("station-plant", revision1.Revision, "operator"));
+        Assert.Null(exchange.ParseJson((await persistence.LoadActiveAsync("station-plant"))!.EngineeringJson)
+            .RuntimePresentation!.StationProfiles);
+
+        var station = new RuntimeStationProfileEngineeringDto(
+            "console-one", "Control Room",
+            [
+                new RuntimeStationWindowEngineeringDto("overview", "navigation"),
+                new RuntimeStationWindowEngineeringDto("pumps", "fixed")
+            ]);
+        var changed = exchange.ExportPackage() with
+        {
+            RuntimePresentation = exchange.ExportPackage().RuntimePresentation! with
+            {
+                StationProfiles = [station]
+            }
+        };
+        Assert.True(exchange.Preview(changed, ImportMode.CreateAndUpdate).CanApply);
+        Assert.Empty(exchange.Apply(changed, ImportMode.CreateAndUpdate).Issues);
+        Assert.Equal(2, Assert.Single(exchange.ExportPackage().RuntimePresentation!.StationProfiles!).Windows.Count);
+
+        var revision2 = await persistence.SaveCurrentAsync("station-plant", "Station Plant", "engineer");
+        Assert.True(revision2.Revision > revision1.Revision);
+        var workingParsed = exchange.ParseJson(revision2.EngineeringJson);
+        Assert.Equal("Control Room", Assert.Single(workingParsed.RuntimePresentation!.StationProfiles!).Name);
+        var published2 = await persistence.PublishRevisionAsync("station-plant", revision2.Revision, "supervisor");
+        Assert.True(published2!.Published);
+        Assert.Equal(revision2.Revision, (await persistence.LoadPublishedAsync("station-plant"))!.Revision);
+
+        // RuntimeEngineeringPackageApi reads LoadActiveAsync, not Working or Published.
+        var stillActive = (await persistence.LoadActiveAsync("station-plant"))!;
+        Assert.Equal(revision1.Revision, stillActive.Revision);
+        Assert.Null(exchange.ParseJson(stillActive.EngineeringJson).RuntimePresentation!.StationProfiles);
+        var beforeActivation = await persistence.GetLifecycleAsync("station-plant");
+        Assert.Equal(revision1.Revision, beforeActivation.ActiveRevision);
+        Assert.Equal(revision2.Revision, beforeActivation.PublishedRevision);
+
+        Assert.NotNull(await persistence.RecordActivationAsync("station-plant", revision2.Revision, "operator"));
+        var active = (await persistence.LoadActiveAsync("station-plant"))!;
+        Assert.Equal(revision2.Revision, active.Revision);
+        var activeProfile = Assert.Single(exchange.ParseJson(active.EngineeringJson).RuntimePresentation!.StationProfiles!);
+        Assert.Equal(station.Id, activeProfile.Id);
+        Assert.Equal(station.Name, activeProfile.Name);
+        Assert.Collection(activeProfile.Windows,
+            window => { Assert.Equal("overview", window.ScreenKey); Assert.Equal("navigation", window.Mode); },
+            window => { Assert.Equal("pumps", window.ScreenKey); Assert.Equal("fixed", window.Mode); });
+    }
+
+    [Fact]
     public async Task RecordActivation_RejectsRevisionThatIsNotCurrentlyPublished()
     {
         var tags = new InMemoryTagRegistry();

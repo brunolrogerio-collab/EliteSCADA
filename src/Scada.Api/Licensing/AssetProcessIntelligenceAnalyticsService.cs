@@ -19,8 +19,28 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
     AssetProcessIntelligenceExecutionGate executionGate,
     ApiAuthorizationService security,
     IHistoricalQueryService historicalQueries,
-    AuthorityPolicyHaCoordinator? authorityPolicyHa = null)
+    AuthorityPolicyHaCoordinator? authorityPolicyHa = null,
+    AssetProcessIntelligenceActivationStore? activationStore = null)
 {
+    private async Task<bool> DurablePermitMatchesAsync(string projectKey, long revision,
+        AssetProcessIntelligenceScopeKind kind, Guid scopeId, long policyVersion, long haEpoch, CancellationToken ct)
+    {
+        if (activationStore is null) return true;
+        try
+        {
+            var local = executionGate.Describe(projectKey, kind, scopeId);
+            var receipt = await activationStore.ReadAsync(projectKey, kind, scopeId, ct);
+            if (local is not null && receipt is not null && receipt.Active &&
+                local.Generation > 0 && local.Generation == receipt.Generation &&
+                local.Revision == revision && receipt.Revision == revision &&
+                receipt.PolicyVersion == policyVersion && receipt.HaEpoch == haEpoch &&
+                await activationStore.TryRecoverAsync(receipt, _ => true, ct)) return true;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception) { }
+        executionGate.Pause(projectKey, kind, scopeId);
+        return false;
+    }
     public const int MaximumProfileSignals = AssetProcessIntelligenceProfileCoverageCatalogV1.MaximumSignals;
     public const int MaximumProfileRowsPerWindow = AssetProcessIntelligenceProfileCoverageCatalogV1.MaximumRowsPerWindow;
 
@@ -1897,7 +1917,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             .ToArray();
         if (scopeMatches.Length != 1 || !scopeMatches[0].Active)
             return PreparedProfileCoverageResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
-        if (!executionGate.TryGetToken(
+        if (!await DurablePermitMatchesAsync(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId, policyVersion, haEpoch, context.RequestAborted) || !executionGate.TryGetToken(
                 descriptor.ProjectKey!,
                 descriptor.BaseRevision!.Value,
                 request.ScopeKind,
@@ -2025,7 +2045,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             .ToArray();
         if (scopeMatches.Length != 1 || !scopeMatches[0].Active)
             return PreparedCurrentFrequencyComparisonResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
-        if (!executionGate.TryGetToken(
+        if (!await DurablePermitMatchesAsync(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId, policyVersion, haEpoch, context.RequestAborted) || !executionGate.TryGetToken(
                 descriptor.ProjectKey!,
                 descriptor.BaseRevision!.Value,
                 request.ScopeKind,
@@ -2182,7 +2202,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId).Take(2).ToArray();
         if (scopes.Length != 1 || !scopes[0].Active)
             return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
-        if (!executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
+        if (!await DurablePermitMatchesAsync(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId, policyVersion, haEpoch, context.RequestAborted) || !executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
                 request.ScopeKind, request.ScopeId, out var permitToken, policyVersion, haEpoch))
             return PreparedExperimentalJointDeviationV1PlanResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
 
@@ -2346,7 +2366,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId).Take(2).ToArray();
         if (scopes.Length != 1 || !scopes[0].Active)
             return PreparedContextualDeviationVectorV2PlanResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
-        if (!executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
+        if (!await DurablePermitMatchesAsync(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId, policyVersion, haEpoch, context.RequestAborted) || !executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
                 request.ScopeKind, request.ScopeId, out var permitToken, policyVersion, haEpoch))
             return PreparedContextualDeviationVectorV2PlanResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
 
@@ -2470,7 +2490,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId).Take(2).ToArray();
         if (scopes.Length != 1 || !scopes[0].Active)
             return PreparedContextualDeviationVectorPlanResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
-        if (!executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
+        if (!await DurablePermitMatchesAsync(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId, policyVersion, haEpoch, context.RequestAborted) || !executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
                 request.ScopeKind, request.ScopeId, out var permitToken, policyVersion, haEpoch))
             return PreparedContextualDeviationVectorPlanResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
 
@@ -2784,7 +2804,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             .Where(scope => scope.Kind == request.ScopeKind && scope.ScopeId == request.ScopeId).Take(2).ToArray();
         if (scopes.Length != 1 || !scopes[0].Active)
             return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
-        if (!executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
+        if (!await DurablePermitMatchesAsync(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId, policyVersion, haEpoch, context.RequestAborted) || !executionGate.TryGetToken(descriptor.ProjectKey!, descriptor.BaseRevision!.Value,
                 request.ScopeKind, request.ScopeId, out var permitToken, policyVersion, haEpoch))
             return PreparedContextualReferencePlanResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
 
@@ -3063,7 +3083,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             .ToArray();
         if (scopeMatches.Length != 1 || !scopeMatches[0].Active)
             return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS"));
-        if (!executionGate.TryGetToken(
+        if (!await DurablePermitMatchesAsync(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId, policyVersion, haEpoch, context.RequestAborted) || !executionGate.TryGetToken(
                 descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId,
                 out var permitToken, policyVersion, haEpoch))
             return PreparedPerformanceV1BResult.Fail(Conflict("INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"));
@@ -3358,7 +3378,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
         if (activeScope is null || !activeScope.Active)
             return PreparedPlanResult.Fail(Conflict("INTELLIGENCE_SCOPE_NOT_ACTIVE"));
 
-        if (!executionGate.TryGetToken(
+        if (!await DurablePermitMatchesAsync(descriptor.ProjectKey!, descriptor.BaseRevision!.Value, request.ScopeKind, request.ScopeId, policyVersion, haEpoch, context.RequestAborted) || !executionGate.TryGetToken(
                 descriptor.ProjectKey!,
                 descriptor.BaseRevision!.Value,
                 request.ScopeKind,
@@ -3539,7 +3559,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
                     ? authorityFence.ReasonCode.ToUpperInvariant().Replace('-', '_')
                     : "INTELLIGENCE_AUTHORITY_POLICY_CHANGED");
         }
-        if (!executionGate.TryGetToken(
+        if (!await DurablePermitMatchesAsync(plan.ProjectKey, plan.Revision, plan.ScopeKind, plan.ScopeId, plan.AuthorityPolicyVersion, plan.HaEpoch, context.RequestAborted) || !executionGate.TryGetToken(
                 plan.ProjectKey,
                 plan.Revision,
                 plan.ScopeKind,

@@ -6,7 +6,8 @@ namespace Scada.Api.Licensing;
 public sealed record AssetProcessIntelligenceExecutionPermitSnapshot(
     long Revision,
     long AuthorityPolicyVersion,
-    long HaEpoch);
+    long HaEpoch,
+    long Generation = 0);
 
 /// <summary>
 /// Process-local, fail-closed permits for future Intelligence workers. No worker is
@@ -39,7 +40,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         lock (_sync)
         {
             if (_startupRecoveryClosed || _permits.ContainsKey(key)) return false;
-            _permits[key] = new Permit(revision, policyVersion, haEpoch, new CancellationTokenSource());
+            _permits[key] = new Permit(revision, policyVersion, haEpoch, new CancellationTokenSource(), generation);
             return true;
         }
     }
@@ -81,7 +82,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
             return new AssetProcessIntelligenceExecutionPermitSnapshot(
                 permit.Revision,
                 permit.AuthorityPolicyVersion,
-                permit.HaEpoch);
+                permit.HaEpoch, permit.Generation);
         }
     }
 
@@ -91,7 +92,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         AssetProcessIntelligenceScopeKind kind,
         Guid scopeId,
         long authorityPolicyVersion = 0,
-        long haEpoch = 0)
+        long haEpoch = 0, long generation = 0)
     {
         ValidateFence(authorityPolicyVersion, haEpoch);
         var key = ValidateKey(projectKey, activeRevision, kind, scopeId);
@@ -99,7 +100,7 @@ public sealed class AssetProcessIntelligenceExecutionGate
         {
             _startupRecoveryClosed = true;
             RemoveAndCancel(key);
-            _permits[key] = new Permit(activeRevision, authorityPolicyVersion, haEpoch, new CancellationTokenSource());
+            _permits[key] = new Permit(activeRevision, authorityPolicyVersion, haEpoch, new CancellationTokenSource(), generation);
         }
     }
 
@@ -229,5 +230,6 @@ public sealed class AssetProcessIntelligenceExecutionGate
         long Revision,
         long AuthorityPolicyVersion,
         long HaEpoch,
-        CancellationTokenSource Cancellation);
+        CancellationTokenSource Cancellation,
+        long Generation = 0);
 }

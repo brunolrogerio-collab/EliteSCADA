@@ -614,6 +614,7 @@ public static class AssetProcessIntelligenceApi
         }
 
         var activationStore = context.RequestServices.GetService<AssetProcessIntelligenceActivationStore>();
+        var durableGeneration = 0L;
         async Task PersistActivationAsync(string projectKey, long revision)
         {
             if (activationStore is null) return;
@@ -621,10 +622,11 @@ public static class AssetProcessIntelligenceApi
             var authority = await lifecycle.GetAsync(context.RequestAborted);
             if (!authority.AllowsAuthorization || activationFence is not { Allowed: true, PolicyDigest: not null })
                 throw new InvalidOperationException("Intelligence activation requires a verifiable Authority fence.");
-            await activationStore.ActivateAsync(new AssetProcessIntelligenceActivationEvidence(
+            var committedReceipt = await activationStore.ActivateAsync(new AssetProcessIntelligenceActivationEvidence(
                 authority.Epoch, projectKey, revision, kind, scopeId,
                 activationFence.PolicyVersion, activationFence.PolicyDigest, activationFence.HaEpoch, 1, true),
                 context.RequestAborted);
+            durableGeneration = committedReceipt.Generation;
         }
         if (active && !licensing.CurrentVerification.HasAssetProcessIntelligence)
             return Results.Json(new { error = "INTELLIGENCE_ENTITLEMENT_REQUIRED" }, statusCode: StatusCodes.Status403Forbidden);
@@ -707,7 +709,7 @@ public static class AssetProcessIntelligenceApi
                     kind,
                     scopeId,
                     activationFence?.PolicyVersion ?? 0,
-                    activationFence?.HaEpoch ?? 0);
+                    activationFence?.HaEpoch ?? 0, durableGeneration);
             }
             else
                 executionGate.Pause(descriptor.ProjectKey, kind, scopeId);
@@ -837,7 +839,7 @@ public static class AssetProcessIntelligenceApi
                     kind,
                     scopeId,
                     activationFence?.PolicyVersion ?? 0,
-                    activationFence?.HaEpoch ?? 0);
+                    activationFence?.HaEpoch ?? 0, durableGeneration);
             }
             else
                 executionGate.Pause(snapshot.ProjectKey, kind, scopeId);
@@ -853,7 +855,7 @@ public static class AssetProcessIntelligenceApi
                         await activationStore.TryRecoverAsync(receipt, current =>
                         {
                             executionGate.Activate(current.ProjectKey, current.Revision, current.ScopeKind, current.ScopeId,
-                                current.PolicyVersion, current.HaEpoch);
+                                current.PolicyVersion, current.HaEpoch, current.Generation);
                             return true;
                         }, context.RequestAborted);
                     }

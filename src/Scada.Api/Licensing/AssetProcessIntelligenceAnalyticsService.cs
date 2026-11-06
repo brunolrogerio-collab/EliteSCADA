@@ -22,8 +22,14 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
     AuthorityPolicyHaCoordinator? authorityPolicyHa = null,
     AssetProcessIntelligenceActivationStore? activationStore = null)
 {
-    private async Task<bool> DurablePermitMatchesAsync(string projectKey, long revision,
-        AssetProcessIntelligenceScopeKind kind, Guid scopeId, long policyVersion, long haEpoch, CancellationToken ct)
+    private Task<bool> DurablePermitMatchesAsync(string projectKey, long revision,
+        AssetProcessIntelligenceScopeKind kind, Guid scopeId, long policyVersion, long haEpoch, CancellationToken ct) =>
+        ValidateDurablePermitAsync(activationStore, executionGate, projectKey, revision, kind, scopeId, policyVersion, haEpoch, ct);
+
+    internal static async Task<bool> ValidateDurablePermitAsync(
+        AssetProcessIntelligenceActivationStore? activationStore, AssetProcessIntelligenceExecutionGate executionGate,
+        string projectKey, long revision, AssetProcessIntelligenceScopeKind kind, Guid scopeId,
+        long policyVersion, long haEpoch, CancellationToken ct)
     {
         if (activationStore is null) return true;
         try

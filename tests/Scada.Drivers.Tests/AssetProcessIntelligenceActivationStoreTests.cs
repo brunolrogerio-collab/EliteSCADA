@@ -58,6 +58,27 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
         }
         await using var restarted = new AssetProcessIntelligenceActivationStore(connection);
         Assert.Equal(committed, await restarted.ReadAsync(evidence.ProjectKey, evidence.ScopeKind, evidence.ScopeId));
+        var localGate = new AssetProcessIntelligenceExecutionGate();
+        localGate.Activate(committed.ProjectKey, committed.Revision, committed.ScopeKind, committed.ScopeId,
+            committed.PolicyVersion, committed.HaEpoch, committed.Generation);
+        Assert.True(localGate.TryGetToken(committed.ProjectKey, committed.Revision, committed.ScopeKind,
+            committed.ScopeId, out var oldToken, committed.PolicyVersion, committed.HaEpoch));
+        async Task<bool> ValidateLocalAsync() => await AssetProcessIntelligenceAnalyticsService.ValidateDurablePermitAsync(
+            restarted, localGate, committed.ProjectKey, committed.Revision, committed.ScopeKind, committed.ScopeId,
+            committed.PolicyVersion, committed.HaEpoch, CancellationToken.None);
+        Assert.True(await ValidateLocalAsync());
+        await using (var remoteNode = new AssetProcessIntelligenceActivationStore(connection))
+        {
+            await remoteNode.PauseAsync(committed.ProjectKey, committed.ScopeKind, committed.ScopeId);
+            Assert.False(await ValidateLocalAsync());
+            Assert.True(oldToken.IsCancellationRequested);
+            var replacement = await remoteNode.ActivateAsync(evidence);
+            localGate.Activate(committed.ProjectKey, committed.Revision, committed.ScopeKind, committed.ScopeId,
+                committed.PolicyVersion, committed.HaEpoch, committed.Generation);
+            Assert.False(await ValidateLocalAsync());
+            Assert.Equal(0, localGate.ActivePermitCount);
+            committed = replacement;
+        }
         var secondScope = await restarted.ActivateAsync(evidence with { ScopeId = Guid.NewGuid() });
         var pauseStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var callbackEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

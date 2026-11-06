@@ -123,6 +123,7 @@ class Executor:
         self.guard = threading.Lock()
         self.state_file = self.state_dir / "network-operation.json"
         self.plan_file = self.state_dir / "network-plan.json"
+        self.audit_file = self.state_dir / "network-audit.jsonl"
         self._lock_fd = os.open(self.state_dir / "network-executor.lock", os.O_CREAT | os.O_RDWR, 0o600)
         try:
             fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -212,12 +213,29 @@ class Executor:
             if temporary.exists():
                 temporary.unlink()
 
+    def _audit(self, event: str, module: str, operation_id: str = "") -> None:
+        # Append-only installation-scoped evidence; never include paths, tokens,
+        # raw responses, configuration, credentials or user-controlled strings.
+        if event not in ("preflight", "apply-started", "applied", "recovery-required", "recovery-started", "recovered"):
+            raise ContractError("Unsupported audit event")
+        if module not in PORT_FIELDS or (operation_id and not re.fullmatch(r"[0-9a-f]{32}", operation_id)):
+            raise ContractError("Invalid audit operation")
+        line = json.dumps({"at": int(self.now()), "instanceId": self.instance_id,
+                           "event": event, "module": module, "operationId": operation_id}) + "
+"
+        descriptor = os.open(self.audit_file, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, "a", encoding="utf-8") as output:
+            output.write(line)
+            output.flush()
+            os.fsync(output.fileno())
+
     def _repair_interrupted(self) -> None:
         record = self._load(self.state_file)
         if record and record.get("state") == "applying":
             record["state"] = "recovery_required"
             record["detail"] = "Executor was interrupted; perform local recovery"
             self._save(self.state_file, record)
+            self._audit("recovery-required", record["module"], record["id"])
 
     def snapshot(self) -> dict:
         with self.guard:
@@ -288,6 +306,7 @@ class Executor:
                 "before": {key: current[key] for key in ports}
             }
             self._save(self.plan_file, plan)
+            self._audit("preflight", module)
             return {"planId": plan["id"], "module": module, "ports": ports, "before": plan["before"],
                     "expiresAt": plan["expiresAt"], "requiresRestart": ports != plan["before"],
                     "verified": "host-preflight-only"}
@@ -313,6 +332,7 @@ class Executor:
                 "detail": "Host operation accepted; restart and verification pending"
             }
             self._save(self.state_file, operation)
+            self._audit("apply-started", operation["module"], operation["id"])
             self.plan_file.unlink(missing_ok=True)
             threading.Thread(target=self._worker, args=(operation,), daemon=True).start()
             return {"operationId": operation["id"], "state": operation["state"]}
@@ -335,6 +355,8 @@ class Executor:
         finally:
             with self.guard:
                 self._save(self.state_file, operation)
+                self._audit("applied" if operation["state"] == "applied" else "recovery-required",
+                            operation["module"], operation["id"])
 
     def recover(self, body: object) -> dict:
         if not isinstance(body, dict) or set(body) != {"schema", "confirm"} or body["schema"] != PLAN_SCHEMA or body["confirm"] is not True:
@@ -346,6 +368,7 @@ class Executor:
             record["state"] = "applying"
             record["detail"] = "Restoring registered prior state"
             self._save(self.state_file, record)
+            self._audit("recovery-started", record["module"], record["id"])
             threading.Thread(target=self._recover_worker, args=(record,), daemon=True).start()
             return {"operationId": record["id"], "state": "applying"}
 
@@ -364,6 +387,8 @@ class Executor:
             record["finishedAt"] = int(self.now())
             with self.guard:
                 self._save(self.state_file, record)
+                self._audit("recovered" if record["state"] == "recovered" else "recovery-required",
+                            record["module"], record["id"])
 
 
 class Server(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):

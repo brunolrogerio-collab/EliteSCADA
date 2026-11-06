@@ -408,7 +408,9 @@ public static class RuntimeEngineeringPackageApi
             throw new InvalidDataException($"Stored Engineering schema version {snapshot.EngineeringSchemaVersion} does not match payload version {schemaVersion}.");
     }
 
-    private static object ProjectHmiPackage(JsonElement root) => new
+    // Active-only authenticated HMI projection. Kept internal for regression
+    // tests: the endpoint caller must obtain the persisted Active revision first.
+    internal static object ProjectHmiPackage(JsonElement root) => new
     {
         schema = RequiredString(root, "schema"),
         schemaVersion = RequiredInt32(root, "schemaVersion"),

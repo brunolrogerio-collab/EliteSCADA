@@ -356,6 +356,9 @@ public static class VisualPropertyKeys
     public const string HorizontalAlignment = "horizontalAlignment";
     public const string VerticalAlignment = "verticalAlignment";
     public const string AssetRef = "assetRef";
+    public const string ViewYawDeg = "viewYawDeg";
+    public const string ViewPitchDeg = "viewPitchDeg";
+    public const string RuntimeViewInteractionEnabled = "runtimeViewInteractionEnabled";
     public const string ImageFit = "imageFit";
     public const string ImagePositionX = "imagePositionX";
     public const string ImagePositionY = "imagePositionY";
@@ -525,6 +528,18 @@ public static class CommonVisualPropertyDefinitions
         Number(VisualPropertyKeys.ImagePositionX, 0, minimum: 0, maximum: 1, animatable: true),
         Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true),
         Number(VisualPropertyKeys.ImageZoom, 1, minimum: 1, maximum: 8, animatable: true)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Model3dView { get; } =
+    [
+        new(VisualPropertyKeys.ViewYawDeg, new VisualNumberValue(40.1),
+            runtimeWritable: false, supportsBinding: false,
+            constraints: new VisualPropertyConstraints { Minimum = -180, Maximum = 180 }, unit: "deg"),
+        new(VisualPropertyKeys.ViewPitchDeg, new VisualNumberValue(25.8),
+            runtimeWritable: false, supportsBinding: false,
+            constraints: new VisualPropertyConstraints { Minimum = -85, Maximum = 85 }, unit: "deg"),
+        new(VisualPropertyKeys.RuntimeViewInteractionEnabled, new VisualBooleanValue(false),
+            runtimeWritable: false, supportsBinding: false)
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Media { get; } =

@@ -209,7 +209,10 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.model3d, schema(BUILTIN_VISUAL_OBJECT_TYPES.model3d, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.assetRef
+    VISUAL_PROPERTY_KEYS.assetRef,
+    VISUAL_PROPERTY_KEYS.viewYawDeg,
+    VISUAL_PROPERTY_KEYS.viewPitchDeg,
+    VISUAL_PROPERTY_KEYS.runtimeViewInteractionEnabled
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, schema(BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, [
     ...BASE,

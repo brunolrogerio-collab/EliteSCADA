@@ -1297,5 +1297,10 @@ test('a two-screen station launches only the Active revision after save, publish
     expect(query.get('stationMode')).toBe(slot === '0' ? 'navigation' : 'fixed');
   }
   await expect.poll(() => admissions.length).toBe(admissionsBeforeStationLaunch + 2);
-  expect(new Set(admissions.map(admission => admission.clientInstanceId)).size).toBe(admissions.length);
+  // The launcher itself can re-admit on page reload. Check only newly opened
+  // station slots, not all historic parent admissions from the lifecycle test.
+  const stationAdmissions = admissions.slice(admissionsBeforeStationLaunch);
+  expect(new Set(stationAdmissions.map(admission => new URL(admission.url).searchParams.get('slot'))))
+    .toEqual(new Set(['0', '1']));
+  expect(new Set(stationAdmissions.map(admission => admission.clientInstanceId)).size).toBe(2);
 });

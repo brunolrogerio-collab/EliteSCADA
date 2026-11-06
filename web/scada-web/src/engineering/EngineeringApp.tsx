@@ -337,7 +337,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, isS
   if (section === 'installation') return <><InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/><InstallationNetworkWorkspace locale={locale} isSystemAdmin={isSystemAdmin}/></>;
   if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'mobile') return <MobileRuntimeEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
-  if (section === 'stations') return <RuntimeStationEngineeringWorkspace snapshot={snapshot} onApplied={onReload} onPendingChangesChange={onStationPendingChangesChanged} locale={locale}/>;
+  if (section === 'stations') return <RuntimeStationEngineeringWorkspace snapshot={snapshot} onApplied={onSnapshotRefreshed} onPendingChangesChange={onStationPendingChangesChanged} locale={locale}/>;
   if (section === 'mediaSources') return <MediaSourceEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'visualAssets') return <VisualAssetManagementWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;

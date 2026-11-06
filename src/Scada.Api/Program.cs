@@ -241,8 +241,8 @@ if (app.Services.GetService<AssetProcessIntelligenceActivationStore>() is { } in
     await app.Services.GetRequiredService<AssetProcessIntelligenceStartupRecovery>().RecoverAsync();
     app.Services.GetRequiredService<AssetProcessIntelligenceExecutionGate>()
         .ConfigureDurableInvalidation(
-            () => intelligenceActivationStore.InvalidateAllAsync().GetAwaiter().GetResult(),
-            (project, revision) => intelligenceActivationStore.InvalidateAllAsync(
+            () => intelligenceActivationStore.InvalidateOwnedAsync().GetAwaiter().GetResult(),
+            (project, revision) => intelligenceActivationStore.InvalidateOwnedAsync(
                 retainedProject: project, retainedRevision: revision).GetAwaiter().GetResult());
 }
 

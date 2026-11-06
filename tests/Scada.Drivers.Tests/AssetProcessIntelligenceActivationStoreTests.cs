@@ -69,10 +69,14 @@ public sealed class AssetProcessIntelligenceActivationStoreTests
         Assert.True(await ValidateLocalAsync());
         await using (var remoteNode = new AssetProcessIntelligenceActivationStore(connection))
         {
+            await remoteNode.InvalidateOwnedAsync();
+            Assert.True(await ValidateLocalAsync());
             await remoteNode.PauseAsync(committed.ProjectKey, committed.ScopeKind, committed.ScopeId);
             Assert.False(await ValidateLocalAsync());
             Assert.True(oldToken.IsCancellationRequested);
             var replacement = await remoteNode.ActivateAsync(evidence);
+            await restarted.InvalidateOwnedAsync();
+            Assert.Equal(replacement, await remoteNode.ReadAsync(replacement.ProjectKey, replacement.ScopeKind, replacement.ScopeId));
             localGate.Activate(committed.ProjectKey, committed.Revision, committed.ScopeKind, committed.ScopeId,
                 committed.PolicyVersion, committed.HaEpoch, committed.Generation);
             Assert.False(await ValidateLocalAsync());

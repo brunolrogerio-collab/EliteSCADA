@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Npgsql;
 using Scada.Core.Persistence;
@@ -11,6 +12,7 @@ namespace Scada.Api.Licensing;
 public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
 {
     private readonly NpgsqlDataSource _dataSource;
+    private readonly ConcurrentDictionary<(string, AssetProcessIntelligenceScopeKind, Guid), AssetProcessIntelligenceActivationEvidence> _owned = new();
     private readonly IDurableWriteAdmission? _writeAdmission;
     public AssetProcessIntelligenceActivationStore(string connectionString, IDurableWriteAdmission? writeAdmission = null)
     {
@@ -107,6 +109,7 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
         save.Parameters.AddWithValue("evidence", JsonSerializer.Serialize(next));
         await save.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        _owned[(next.ProjectKey, next.ScopeKind, next.ScopeId)] = next;
         return next;
     }
 
@@ -210,7 +213,32 @@ public sealed class AssetProcessIntelligenceActivationStore : IAsyncDisposable
         // Callback only modifies the local gate; the caller cancels on transaction failure.
         var recovered = recover(current);
         await transaction.CommitAsync(cancellationToken);
+        if (recovered) _owned[(current.ProjectKey, current.ScopeKind, current.ScopeId)] = current;
         return recovered;
+    }
+    public async Task InvalidateOwnedAsync(string? retainedProject = null, long? retainedRevision = null,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in _owned.ToArray())
+        {
+            var receipt = entry.Value;
+            if (string.Equals(receipt.ProjectKey, retainedProject, StringComparison.OrdinalIgnoreCase) &&
+                receipt.Revision == retainedRevision) continue;
+            await using var admission = await _writeAdmission.AcquireOptionalAsync("intelligence-owned-invalidation", cancellationToken);
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await LockAsync(connection, transaction, cancellationToken);
+            await using var command = KeyCommand("""
+                UPDATE elitescada.intelligence_activation_receipts
+                SET generation = generation + 1, evidence = NULL, updated_at_utc = clock_timestamp()
+                WHERE project_key = @project AND scope_kind = @kind AND scope_id = @scope
+                  AND generation = @generation;
+                """, connection, transaction, receipt.ProjectKey, receipt.ScopeKind, receipt.ScopeId);
+            command.Parameters.AddWithValue("generation", receipt.Generation);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            _owned.TryRemove(entry.Key, out _);
+        }
     }
     private static async Task<bool> MatchesPolicyDigestAsync(NpgsqlConnection connection,
         NpgsqlTransaction transaction, AssetProcessIntelligenceActivationEvidence expected, CancellationToken ct)

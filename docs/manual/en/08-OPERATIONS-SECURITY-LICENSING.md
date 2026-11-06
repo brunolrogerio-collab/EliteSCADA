@@ -210,6 +210,15 @@ Full commands and prerequisites are in `installation/NATIVE-PORTS.md` in the adm
 
 When the profile registers locally managed PostgreSQL and/or media, **Local database and media** also shows their configured ports. Edit the fields and review each separate service plan. Invalid or duplicate ports block the plans. Without valid registration these controls are hidden; the screen does not assume unknown service ports. Run one procedure at a time and reload the page after a change.
 
+### Applying ports from the UI on registered native Linux hosts
+
+**Installation > Network and services > Installation host administration** is available to `SystemAdmin`. It can apply changes only when a separate Linux host executor is provisioned and registered for that installation through a protected local Unix socket and installation secret. If absent, the operation is unavailable; the browser/API never gets host shell, Docker privileges or arbitrary commands.
+
+Choose registered Web/API, local PostgreSQL or media services. **Validate host changes** performs a non-mutating preflight. Review the proposed ports, interruption and new Web URL, then explicitly confirm application. `applying` means accepted, **not completed**. Only `applied` means the host adapter checked service health and the registered port values were reread. If the old Web address disappears, reopen at the new address or consult status through the protected host executor CLI. `recovery_required` blocks further changes until the administrator verifies recovery.
+
+See [installation host executor provisioning and recovery](../../INSTALLATION-HOST-EXECUTOR.md). **Windows and Docker continue to use the existing explicit host scripts**, because their UI-triggered host executors are not implemented or qualified. Driver/protocol/multicast ports, firewall, TLS, and HA are not affected.
+
+
 ## License Generator
 
 The License Generator is an offline/controlled licensing-authority tool. The signing private key must never be placed in GitHub, normal CI, a client installer, or Runtime.

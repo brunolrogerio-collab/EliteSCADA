@@ -221,8 +221,7 @@ class Executor:
         if module not in PORT_FIELDS or (operation_id and not re.fullmatch(r"[0-9a-f]{32}", operation_id)):
             raise ContractError("Invalid audit operation")
         line = json.dumps({"at": int(self.now()), "instanceId": self.instance_id,
-                           "event": event, "module": module, "operationId": operation_id}) + "
-"
+                           "event": event, "module": module, "operationId": operation_id}) + "\n"
         descriptor = os.open(self.audit_file, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
         with os.fdopen(descriptor, "a", encoding="utf-8") as output:
             output.write(line)

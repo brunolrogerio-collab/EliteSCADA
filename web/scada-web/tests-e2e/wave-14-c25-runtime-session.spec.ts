@@ -1273,6 +1273,7 @@ test('a two-screen station launches only the Active revision after save, publish
   await expect(page.getByTestId('runtime-engineering-application')).toHaveAttribute('data-runtime-fullscreen', 'true');
   await expect(launcher).toBeVisible();
 
+  const admissionsBeforeStationLaunch = admissions.length;
   const stationWindows: Page[] = [];
   const opened = new Promise<void>(resolve => {
     const onPage = (child: Page) => {
@@ -1295,6 +1296,6 @@ test('a two-screen station launches only the Active revision after save, publish
     expect(query.get('screen')).toBe(slot === '0' ? 'home' : 'pumps');
     expect(query.get('stationMode')).toBe(slot === '0' ? 'navigation' : 'fixed');
   }
-  await expect.poll(() => admissions.length).toBe(3);
-  expect(new Set(admissions.map(admission => admission.clientInstanceId)).size).toBe(3);
+  await expect.poll(() => admissions.length).toBe(admissionsBeforeStationLaunch + 2);
+  expect(new Set(admissions.map(admission => admission.clientInstanceId)).size).toBe(admissions.length);
 });

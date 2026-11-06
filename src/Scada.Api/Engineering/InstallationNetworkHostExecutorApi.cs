@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
+using System.IO.Pipes;
+using System.Text.RegularExpressions;
 using System.Text;
 using System.Text.Json;
 using Scada.Api.Runtime;
@@ -112,14 +114,31 @@ internal static class HostExecutorClient
         object? request, CancellationToken cancellationToken)
     {
         var socketPath = configuration["InstallationNetwork:HostExecutorSocket"];
+        var pipeName = configuration["InstallationNetwork:HostExecutorPipe"];
         var token = configuration["InstallationNetwork:HostExecutorToken"];
-        // A missing, incompatible or non-local executor always fails closed.
-        if (!OperatingSystem.IsLinux() || string.IsNullOrWhiteSpace(socketPath) || !Path.IsPathFullyQualified(socketPath) ||
-            string.IsNullOrWhiteSpace(token) || Encoding.UTF8.GetByteCount(token) is < 32 or > 256 ||
-            !File.Exists(socketPath))
+        var tokenFile = configuration["InstallationNetwork:HostExecutorTokenFile"];
+        if (!string.IsNullOrWhiteSpace(tokenFile))
+        {
+            // Host-owned token file can be mounted read-only into the API container.
+            // Never expose the file or token through an API response.
+            if (!Path.IsPathFullyQualified(tokenFile))
+                return Results.Json(new { error = "Invalid installation executor credential configuration." }, statusCode: 503);
+            try { token = (await File.ReadAllTextAsync(tokenFile, cancellationToken)).Trim(); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                return Results.Json(new { error = "Protected installation executor credential is unavailable." }, statusCode: 503);
+            }
+        }
+
+        var linuxSocket = OperatingSystem.IsLinux() && !string.IsNullOrWhiteSpace(socketPath) &&
+                          Path.IsPathFullyQualified(socketPath) && File.Exists(socketPath);
+        var windowsPipe = OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(pipeName) &&
+                          Regex.IsMatch(pipeName, @"\A[a-zA-Z0-9_-]{1,128}\z");
+        if ((!linuxSocket && !windowsPipe) || string.IsNullOrWhiteSpace(token) ||
+            Encoding.UTF8.GetByteCount(token) is < 32 or > 256)
             return Results.Json(new
             {
-                error = "No registered compatible Linux host executor is available. Use the protected host administrator procedure."
+                error = "No registered compatible host executor is available for this installation. Use the protected host administrator procedure."
             }, statusCode: 503);
 
         try
@@ -129,17 +148,23 @@ internal static class HostExecutorClient
                 UseProxy = false,
                 ConnectCallback = async (_, ct) =>
                 {
+                    if (windowsPipe)
+                    {
+                        var pipe = new NamedPipeClientStream(".", pipeName!, PipeDirection.InOut, PipeOptions.Asynchronous);
+                        try
+                        {
+                            await pipe.ConnectAsync(5000, ct);
+                            return pipe;
+                        }
+                        catch { await pipe.DisposeAsync(); throw; }
+                    }
                     var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
                     try
                     {
-                        await socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), ct);
+                        await socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath!), ct);
                         return new NetworkStream(socket, ownsSocket: true);
                     }
-                    catch
-                    {
-                        socket.Dispose();
-                        throw;
-                    }
+                    catch { socket.Dispose(); throw; }
                 }
             };
             using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(120) };
@@ -171,7 +196,7 @@ internal static class HostExecutorClient
             throw;
         }
         catch (Exception error) when (error is HttpRequestException or IOException or SocketException or
-                                     TaskCanceledException or JsonException or ArgumentException or UnauthorizedAccessException)
+                                     TaskCanceledException or JsonException or ArgumentException or UnauthorizedAccessException or TimeoutException)
         {
             return Results.Json(new
             {

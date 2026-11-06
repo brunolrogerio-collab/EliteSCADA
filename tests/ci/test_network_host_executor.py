@@ -113,6 +113,18 @@ class HostExecutorTests(unittest.TestCase):
                 self.executor.preflight(attempt)
         self.assertEqual([], self.calls)
 
+    def test_preflight_rejects_conflicts_across_registered_host_services(self):
+        registered = json.loads(self.profile.read_text())
+        registered["database"] = {"currentPort": 15432, "configurationFile": str(self.root / "pg.conf"),
+                                  "serviceName": "pg-fixture"}
+        self._file(self.root / "pg.conf", "port = 15432\n")
+        self._file(self.profile, json.dumps(registered))
+        with self.assertRaisesRegex(agent.ContractError, "conflict"):
+            self.executor.preflight(self.body(web=15432, api=25120))
+        with self.assertRaisesRegex(agent.ContractError, "conflict"):
+            self.executor.preflight(self.body(web=28080, api=15432))
+        self.assertEqual([], self.calls)
+
     def test_preflight_is_nonmutating_plan_expires_and_stale_config_rejected(self):
         before = self.config.read_bytes()
         planned = self.executor.preflight(self.body())

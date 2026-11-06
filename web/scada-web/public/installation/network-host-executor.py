@@ -140,6 +140,9 @@ class Executor:
         path = Path(registered["configurationFile"])
         if not path.is_absolute() or path.is_symlink() or not path.is_file():
             raise ContractError("Native effective configuration is missing")
+        status = path.stat()
+        if status.st_uid not in (0, os.geteuid()) or status.st_mode & 0o022:
+            raise ContractError("Effective configuration is not protected by host ACL")
         return registered
 
     def _config_path(self) -> Path:
@@ -152,6 +155,9 @@ class Executor:
         database = profile.get("database")
         if isinstance(database, dict):
             port = app.get("DatabaseTopology", {}).get("LocalManagedPort")
+            if port is None:
+                # The registered default belongs to the installer, not the UI.
+                port = database.get("currentPort")
             if type(port) is int and 1 <= port <= 65535:
                 current["databasePort"] = port
         media = profile.get("media")
@@ -241,7 +247,7 @@ class Executor:
             "media": ("native_media_ports.py", [("--control-port", "mediaControlPort"), ("--hls-port", "mediaPlaybackPort")]),
         }[module]
         script = script_dir / selected[0]
-        if script.is_symlink() or not script.is_file() or script.stat().st_mode & 0o022:
+        if script.is_symlink() or not script.is_file() or script.stat().st_mode & 0o022 or script.stat().st_uid not in (0, os.geteuid()):
             raise ContractError("Administrator-owned execution adapter is unavailable")
         args = ["python3", str(script), "--profile", str(self.profile_path)]
         if mode != "recover":
@@ -271,6 +277,9 @@ class Executor:
             current = self._current()
             if any(field not in current for field in ports):
                 raise ContractError("Service is not registered as locally managed")
+            proposed = {**current, **ports}
+            if len(set(proposed.values())) != len(proposed):
+                raise ContractError("Requested ports conflict with another registered local service")
             self._command(module, ports, "preflight")
             self.runner(self._command(module, ports, "preflight"))
             plan = {

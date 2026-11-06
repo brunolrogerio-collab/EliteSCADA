@@ -996,6 +996,9 @@ jobs:
       - name: Test installation-scoped host executor, IPC and recovery contract
         shell: bash
         run: python3 -m unittest tests.ci.test_network_host_executor -v
+      - name: Test registered Docker-host executor with isolated typed IPC fixtures
+        shell: bash
+        run: python3 -m unittest tests.ci.test_docker_host_executor -v
       - name: Exercise native adapters with an isolated transient systemd service
         shell: bash
         run: sudo python3 scripts/ci/test_native_linux_systemd.py
@@ -1025,6 +1028,20 @@ jobs:
           # simulated Get-Service/Restart-Service functions in their own scope.
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_native_windows_service.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Real SCM fixture evidence failed.' }
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Build the independent Windows ACL Named Pipe host executor
+        shell: powershell
+        run: |
+          dotnet build tools/Scadivo.InstallationExecutor.Windows/Scadivo.InstallationExecutor.Windows.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Windows host executor failed to compile.' }
+      - name: Prove Named Pipe preflight, SCM apply, collision rejection and recovery
+        shell: powershell
+        run: |
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_windows_host_executor.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows host executor SCM/IPC integration failed.' }
 
   t1-gate:
     name: Wave 15 T1 gate

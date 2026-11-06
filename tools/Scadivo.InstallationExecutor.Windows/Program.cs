@@ -101,7 +101,7 @@ internal sealed class WindowsExecutor : IDisposable
         CheckProtected(_registration.TokenFile, directory: false);
         CheckProtected(_registration.NativeProfilePath, directory: false);
         CheckAdminWritableDirectory(_registration.AdapterDirectory);
-        _token = File.ReadAllBytes(_registration.TokenFile).AsSpan().TrimAsciiWhitespace().ToArray();
+        _token = Encoding.UTF8.GetBytes(File.ReadAllText(_registration.TokenFile).Trim());
         if (_token.Length is < 32 or > 256)
             throw new InvalidOperationException("Missing protected executor token");
         using var profile = JsonDocument.Parse(File.ReadAllText(_registration.NativeProfilePath));
@@ -274,7 +274,7 @@ internal sealed class WindowsExecutor : IDisposable
     private T? Load<T>(string path)
     {
         if (!File.Exists(path)) return default;
-        CheckProtected(path, directory: false);
+        CheckAdminWritableFile(path);
         return JsonSerializer.Deserialize<T>(File.ReadAllText(path), JsonOptions);
     }
 
@@ -370,17 +370,20 @@ internal sealed class WindowsExecutor : IDisposable
             start.ArgumentList.Add(_registration.PythonExecutable);
         }
         if (action != "recover")
-            foreach (var (key, flag) in module switch
+        {
+            (string key, string flag)[] portFlags = module switch
             {
                 "access" => new[] { ("webPort", "-WebPort"), ("apiPort", "-ApiPort") },
                 "database" => [("databasePort", "-DatabasePort")],
                 "media" => [("mediaControlPort", "-ControlPort"), ("mediaPlaybackPort", "-HlsPort")],
                 _ => throw new InvalidOperationException("Invalid module")
-            })
+            };
+            foreach (var (key, flag) in portFlags)
             {
                 start.ArgumentList.Add(flag);
                 start.ArgumentList.Add(ports[key].ToString(System.Globalization.CultureInfo.InvariantCulture));
             }
+        }
         if (action == "apply") start.ArgumentList.Add("-Apply");
         if (action == "recover") start.ArgumentList.Add("-Recover");
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Registered adapter could not start");
@@ -554,13 +557,11 @@ internal sealed class WindowsExecutor : IDisposable
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(130));
         var head = new List<byte>();
-        var last = 0;
         while (head.Count < 8192)
         {
             var byteBuffer = new byte[1];
             var size = await pipe.ReadAsync(byteBuffer, timeout.Token);
             if (size == 0) return;
-            last = ((last << 8) | byteBuffer[0]) & 0xFFFFFFFF;
             head.Add(byteBuffer[0]);
             if (head.Count >= 4 && head[^4] == 13 && head[^3] == 10 &&
                 head[^2] == 13 && head[^1] == 10) break;

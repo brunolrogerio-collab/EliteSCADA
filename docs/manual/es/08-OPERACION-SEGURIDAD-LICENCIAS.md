@@ -217,3 +217,12 @@ License Generator es una herramienta offline/controlada de la autoridad de licen
 Los usuarios finales de EliteSCADA usan request/install; solo el personal autorizado de emisión debe operar el entorno de firma.
 
 **Ayuda relacionada:** `/help?topic=licensing.overview`.
+
+### Aplicación desde la interfaz en Linux nativo registrado
+
+En **Instalación > Red y servicios > Administración del host**, un usuario con `SystemAdmin` puede solicitar el cambio solo cuando la instalación tiene un ejecutor Linux separado, provisionado y registrado con socket Unix protegido y secreto local. Si falta, la operación no está disponible: ni el navegador ni la API reciben shell, Docker ni privilegios generales del host.
+
+Seleccione Web/API, PostgreSQL local o multimedia si están registrados. **Validar cambios en el host** comprueba el plan sin reiniciar. Revise los puertos, el nuevo enlace y la interrupción, y confirme expresamente. `applying` significa solicitud recibida, **no terminada**. Solo `applied` confirma las comprobaciones de salud del adaptador y la relectura de los puertos registrados. Si la dirección anterior deja de responder, abra la nueva dirección o consulte el estado con la CLI protegida del ejecutor. `recovery_required` impide cambios hasta recuperar el estado anterior.
+
+Consulte [provisión y recuperación del ejecutor](../../INSTALLATION-HOST-EXECUTOR.md). **Windows y Docker siguen usando los scripts administrativos externos**, hasta disponer de sus propios ejecutores homologados. No se cambian los puertos de Drivers, protocolos, multicast, firewall, TLS o HA.
+

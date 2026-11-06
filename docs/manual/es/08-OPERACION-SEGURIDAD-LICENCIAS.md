@@ -225,4 +225,3 @@ En **Instalación > Red y servicios > Administración del host**, un usuario con
 Seleccione Web/API, PostgreSQL local o multimedia si están registrados. **Validar cambios en el host** comprueba el plan sin reiniciar. Revise los puertos, el nuevo enlace y la interrupción, y confirme expresamente. `applying` significa solicitud recibida, **no terminada**. Solo `applied` confirma las comprobaciones de salud del adaptador y la relectura de los puertos registrados. Si la dirección anterior deja de responder, abra la nueva dirección o consulte el estado con la CLI protegida del ejecutor. `recovery_required` impide cambios hasta recuperar el estado anterior.
 
 Consulte [provisión y recuperación del ejecutor](../../INSTALLATION-HOST-EXECUTOR.md). **Windows y Docker siguen usando los scripts administrativos externos**, hasta disponer de sus propios ejecutores homologados. No se cambian los puertos de Drivers, protocolos, multicast, firewall, TLS o HA.
-

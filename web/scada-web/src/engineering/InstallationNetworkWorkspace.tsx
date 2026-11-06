@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
 import './installation-network.css';
+import { InstallationNetworkHostPanel } from './InstallationNetworkHostPanel';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 type EndpointProfile = { transport: string; bindAddress: string; publishedPort: number; internalPort: number; publishedToHost: boolean };
@@ -151,6 +152,7 @@ export function InstallationNetworkWorkspace({ locale, isSystemAdmin }: { locale
     <header className="installation-network__header"><div><span>{locale === 'pt-BR' ? 'INSTALAÇÃO' : locale === 'es' ? 'INSTALACIÓN' : 'INSTALLATION'}</span><h2>{t.title}</h2><p>{t.intro}</p></div><button type="button" className="secondary" onClick={() => void loadProfile()}>{t.retry}</button></header>
     <ServiceEndpointInventory locale={locale}/>
     <DatabaseReadinessCheck locale={locale}/>
+    <InstallationNetworkHostPanel locale={locale}/>
     <NativeAccessPortPreparation locale={locale}/>
     {failure === 'unsupported' && <p className="installation-network__notice" role="status">{t.unavailable}</p>}
     {failure === 'failed' && <p className="installation-network__error" role="alert">{t.error} <button type="button" className="secondary" onClick={() => void loadProfile()}>{t.retry}</button></p>}

@@ -1,5 +1,7 @@
 # Portas em uma instalação nativa
 
+**Executor administrativo Linux opcional:** um serviço de host separado pode oferecer prévia, aplicação e recuperação pela interface tipada quando provisionado com ACL/socket e perfil nativo real. Sem o executor, os comandos abaixo permanecem externos e não se declara aplicação via Web. Windows e Docker não possuem ainda este executor. O registro, limite e recuperação estão em `docs/INSTALLATION-HOST-EXECUTOR.md` no repositório; não executar o agente como parte do processo Web/API.
+
 Estes comandos são destinados ao administrador do computador. Execute-os na pasta administrativa fornecida pela instalação, com o perfil protegido `native-network-profile.json`. O perfil identifica os serviços e arquivos efetivamente usados; não use nomes de serviço copiados de outra instalação. Os geradores de perfil Web/API existem neste candidato; sua ligação ao executor e o instalador completo ainda estão pendentes.
 
 ## Preparação pelo executor da instalação

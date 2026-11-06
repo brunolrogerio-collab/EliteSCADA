@@ -45,7 +45,10 @@ public sealed class PublicRuntimePackageProjectionTests
                 "historicalPlaybackEnabled": true,
                 "mobileOrientation": "landscape",
                 "mobileScreens": { "mobile": "public-main", "admin": "private-admin" },
-                "stationProfiles": [{ "name": "private station" }],
+                "stationProfiles": [
+                  { "id": "public-station", "name": "Public console", "windows": [{ "screenKey": "public-main", "mode": "navigation" }] },
+                  { "id": "private-station", "name": "Private console", "windows": [{ "screenKey": "private-admin", "mode": "fixed" }] }
+                ],
                 "header": {
                   "enabled": true,
                   "historyVisible": true,

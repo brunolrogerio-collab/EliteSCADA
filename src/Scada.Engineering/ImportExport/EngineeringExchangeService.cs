@@ -590,6 +590,54 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         if (invalidHeader || invalidMobile)
             items.Add(new ImportPreviewItem(ImportEntityKind.RuntimePresentation, "runtime-presentation", ImportOperation.Error,
                 [new ImportIssue("RUNTIME_PRESENTATION_REFERENCE_INVALID", "Header settings or mobile screen references are invalid.", ImportEntityKind.RuntimePresentation, "runtime-presentation", true)]));
+        // The canonical codec must retain stationProfiles from Working through saved
+        // revisions. Reject malformed profiles during preview rather than accepting
+        // a value that Runtime cannot launch or silently pruning its windows.
+        if (package.RuntimePresentation?.StationProfiles is { } stationProfiles)
+        {
+            var stationIssues = new List<ImportIssue>();
+            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var profileIndex = 0; profileIndex < stationProfiles.Count; profileIndex++)
+            {
+                var profile = stationProfiles[profileIndex];
+                var key = $"runtime-presentation.stationProfiles[{profileIndex}]";
+                void Report(string reason) => stationIssues.Add(new ImportIssue(
+                    "RUNTIME_STATION_PROFILE_INVALID", reason, ImportEntityKind.RuntimePresentation, key, true));
+                if (profile is null)
+                {
+                    Report("Station profile cannot be null.");
+                    continue;
+                }
+                if (string.IsNullOrWhiteSpace(profile.Id) || profile.Id.Length > 128)
+                    Report("Station profile id must contain 1–128 non-whitespace characters.");
+                else if (!seenIds.Add(profile.Id))
+                    Report($"Duplicate station profile id '{profile.Id}'.");
+                if (string.IsNullOrWhiteSpace(profile.Name) || profile.Name.Length > 128)
+                    Report("Station name must contain 1–128 non-whitespace characters.");
+                if (profile.Windows is null || profile.Windows.Count is < 1 or > 4)
+                {
+                    Report("Station must contain between 1 and 4 windows.");
+                    continue;
+                }
+                for (var windowIndex = 0; windowIndex < profile.Windows.Count; windowIndex++)
+                {
+                    var window = profile.Windows[windowIndex];
+                    if (window is null)
+                    {
+                        Report($"Window {windowIndex + 1} cannot be null.");
+                        continue;
+                    }
+                    if (string.IsNullOrWhiteSpace(window.ScreenKey) || !runtimeScreenKeys.Contains(window.ScreenKey))
+                        Report($"Window {windowIndex + 1} references an unknown screen key '{window.ScreenKey}'.");
+                    if (window.Mode is not ("navigation" or "fixed"))
+                        Report($"Window {windowIndex + 1} mode must be 'navigation' or 'fixed'; received '{window.Mode}'.");
+                }
+            }
+            if (stationIssues.Count > 0)
+                items.Add(new ImportPreviewItem(
+                    ImportEntityKind.RuntimePresentation, "runtime-presentation", ImportOperation.Error, stationIssues));
+        }
+
         if (package.RuntimePresentation is not null && requestedRuntimePresentation.MobileOrientation is not ("landscape" or "portrait"))
             items.Add(new ImportPreviewItem(
                 ImportEntityKind.RuntimePresentation,

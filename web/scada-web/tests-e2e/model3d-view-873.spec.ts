@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import * as THREE from 'three';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
 import {
   clampModel3dPitch, DEFAULT_MODEL3D_PITCH_DEG, DEFAULT_MODEL3D_YAW_DEG,
   frameModel3dCamera, normalizeModel3d, wrapModel3dYaw
@@ -161,4 +162,138 @@ test('DEV-873 Runtime orbit is temporary, gated and resets to the published angl
   await page.mouse.move(pbox!.x + 160, pbox!.y + 50);
   await page.mouse.up();
   await expect(passive).toHaveAttribute('data-model3d-view-yaw', '40.1');
+});
+
+
+test('DEV-873 persisted 3D orientation and Runtime permission follow Working / Save / Publish / Activate boundaries', async ({ request }) => {
+  test.setTimeout(120_000);
+  const original = await request.get('/api/engineering/export/json');
+  expect(original.ok()).toBeTruthy();
+  const originalPackage = await original.json() as {
+    startupScreenId?: string | null;
+    screens?: Array<{ id?: string | null; key: string; elements?: Array<{
+      id?: string | null; key: string; type: string;
+      properties?: Record<string, unknown> | null
+    }> | null }>;
+    [key: string]: unknown;
+  };
+  const workspaceResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceResponse.ok()).toBeTruthy();
+  const workspace = await workspaceResponse.json() as { projectKey?: string | null; projectName?: string | null };
+  const projectKey = workspace.projectKey;
+  expect(projectKey, 'fixture must expose an Engineering project for canonical publish/activate').toBeTruthy();
+  const firstScreen = originalPackage.screens?.find(screen => screen.id === originalPackage.startupScreenId)
+    ?? originalPackage.screens?.[0];
+  expect(firstScreen).toBeTruthy();
+
+  const modelId = 'model3d-873-' + Date.now();
+  const edited = JSON.parse(JSON.stringify(originalPackage)) as typeof originalPackage;
+  const targetScreen = edited.screens!.find(screen => screen.id === firstScreen!.id || screen.key === firstScreen!.key)!;
+  const object = { id: modelId, key: modelId, type: 'core.model3d', properties: {
+    x: 20, y: 30, width: 260, height: 200, rotation: 35,
+    viewYawDeg: -135, viewPitchDeg: 64, runtimeViewInteractionEnabled: true
+  } };
+  targetScreen.elements = [...(targetScreen.elements ?? []), object];
+
+  let applied = false;
+  let activated = false;
+  let runtimeHeaders: Record<string, string> | undefined;
+  const assetIn = (pkg: typeof originalPackage | null | undefined) =>
+    pkg?.screens?.flatMap(screen => screen.elements ?? []).find(element => element.id === modelId);
+  try {
+    const apply = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: edited
+    });
+    expect(apply.ok(), 'canonical Working Apply must accept 3D view property values').toBeTruthy();
+    applied = true;
+    const workingRead = await request.get('/api/engineering/export/json');
+    expect(workingRead.ok()).toBeTruthy();
+    expect(assetIn(await workingRead.json() as typeof originalPackage)?.properties).toMatchObject({
+      rotation: 35, viewYawDeg: -135, viewPitchDeg: 64, runtimeViewInteractionEnabled: true
+    });
+
+    async function publishCurrentWorking(actor: string) {
+      const save = await request.post(
+        `/api/engineering/persistence/${encodeURIComponent(projectKey!)}/save`,
+        { data: { projectName: workspace.projectName ?? projectKey, savedBy: actor } }
+      );
+      expect(save.ok(), 'Saving canonical Working must succeed').toBeTruthy();
+      const saved = await save.json() as { revision: number };
+      expect(Number.isInteger(saved.revision)).toBeTruthy();
+      const publish = await request.post(
+        `/api/engineering/persistence/${encodeURIComponent(projectKey!)}/revisions/${saved.revision}/publish`,
+        { data: { publishedBy: actor } }
+      );
+      expect(publish.ok(), 'Publishing the saved revision must succeed').toBeTruthy();
+      const activate = await request.post(
+        `/api/engineering/persistence/${encodeURIComponent(projectKey!)}/published/activate`,
+        { data: { activatedBy: actor } }
+      );
+      expect(activate.ok(), 'Activating the published revision must succeed').toBeTruthy();
+      return saved.revision;
+    }
+
+    activated = true; // Cleanup restores the Active revision if any subsequent operation fails.
+    const publishedRevision = await publishCurrentWorking('dev-873-view-e2e');
+    runtimeHeaders = await admitInteractiveRuntimeSession(request);
+    const projection = await request.get('/api/runtime/application', { headers: runtimeHeaders });
+    expect(projection.ok(), 'Runtime must expose its authenticated Active revision').toBeTruthy();
+    const published = await projection.json() as {
+      mode: string; revision?: number | null;
+      package?: typeof originalPackage | null
+    };
+    expect(published.mode).toBe('engineering');
+    expect(published.revision).toBe(publishedRevision);
+    expect(assetIn(published.package)?.properties).toMatchObject({
+      rotation: 35, viewYawDeg: -135, viewPitchDeg: 64, runtimeViewInteractionEnabled: true
+    });
+
+    // An unpublished change is Working-only, never an implicit Runtime reconfiguration.
+    const changedWorking = await workingRead.json() as typeof originalPackage;
+    const unpublished = assetIn(changedWorking)!;
+    unpublished.properties = { ...unpublished.properties, viewYawDeg: 77, viewPitchDeg: -20, runtimeViewInteractionEnabled: false };
+    const workingApply = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' }, data: changedWorking
+    });
+    expect(workingApply.ok()).toBeTruthy();
+    const activeResponse = await request.get('/api/runtime/application', { headers: runtimeHeaders });
+    expect(activeResponse.ok()).toBeTruthy();
+    const active = await activeResponse.json() as { revision?: number | null; package?: typeof originalPackage | null };
+    expect(active.revision).toBe(publishedRevision);
+    expect(assetIn(active.package)?.properties).toMatchObject({
+      rotation: 35, viewYawDeg: -135, viewPitchDeg: 64, runtimeViewInteractionEnabled: true
+    });
+    const afterWorking = await request.get('/api/engineering/export/json');
+    expect(afterWorking.ok()).toBeTruthy();
+    expect(assetIn(await afterWorking.json() as typeof originalPackage)?.properties).toMatchObject({
+      viewYawDeg: 77, viewPitchDeg: -20, runtimeViewInteractionEnabled: false
+    });
+  } finally {
+    if (runtimeHeaders) await terminateRuntimeSession(request, runtimeHeaders);
+    if (applied) {
+      const restore = await request.post('/api/engineering/import/json/apply', {
+        headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+      });
+      expect(restore.ok(), 'must restore the baseline Working after the lifecycle test').toBeTruthy();
+    }
+    if (activated) {
+      const save = await request.post(
+        `/api/engineering/persistence/${encodeURIComponent(projectKey!)}/save`,
+        { data: { projectName: workspace.projectName ?? projectKey, savedBy: 'dev-873-view-e2e-restore' } }
+      );
+      expect(save.ok()).toBeTruthy();
+      const { revision } = await save.json() as { revision: number };
+      const publish = await request.post(
+        `/api/engineering/persistence/${encodeURIComponent(projectKey!)}/revisions/${revision}/publish`,
+        { data: { publishedBy: 'dev-873-view-e2e-restore' } }
+      );
+      expect(publish.ok()).toBeTruthy();
+      const activate = await request.post(
+        `/api/engineering/persistence/${encodeURIComponent(projectKey!)}/published/activate`,
+        { data: { activatedBy: 'dev-873-view-e2e-restore' } }
+      );
+      expect(activate.ok()).toBeTruthy();
+    }
+  }
 });

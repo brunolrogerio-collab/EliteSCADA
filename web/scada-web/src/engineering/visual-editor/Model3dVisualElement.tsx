@@ -60,6 +60,10 @@ export function Model3dVisualElement({
       const width = Math.max(1, element.clientWidth);
       const height = Math.max(1, element.clientHeight);
       renderer.setSize(width, height, false);
+      element.dataset.model3dFrameWidth = String(width);
+      element.dataset.model3dFrameHeight = String(height);
+      element.dataset.model3dViewYaw = String(view.current.yaw);
+      element.dataset.model3dViewPitch = String(view.current.pitch);
       frameModel3dCamera(camera, bounds, width, height, view.current.yaw, view.current.pitch);
       renderer.render(scene, camera);
     };
@@ -74,6 +78,7 @@ export function Model3dVisualElement({
       model = normalized.object;
       bounds = normalized.bounds;
       scene.add(model);
+      element.dataset.model3dReady = 'true';
       resize();
     }, undefined, () => { if (!disposed) setFailed(true); });
 

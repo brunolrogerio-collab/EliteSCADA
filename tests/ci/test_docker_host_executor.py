@@ -145,8 +145,8 @@ ELITESCADA_DB_PASSWORD=never-log-this
 
     def test_actual_dedicated_unix_ipc_plan_apply_and_recovery(self):
         def executor_runner(cmd):
-            flags = dict(zip(cmd[5::2], cmd[6::2]))
-            mode = cmd[4]
+            flags = dict(zip(cmd[6::2], cmd[7::2]))
+            mode = cmd[5]
             adapter = self.adapter()
             if mode == "recover":
                 adapter.recover()

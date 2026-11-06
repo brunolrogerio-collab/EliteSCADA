@@ -247,6 +247,15 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 sharedDatabase ? null : TimeSpan.FromSeconds(90));
             var grantedPolicy = await GrantIntelligenceManageAsync(nodeA, nodeB);
             await ConfigureAndActivateIntelligenceAsync(nodeA);
+            await nodeA.DisposeAsync();
+            nodeA = null;
+            nodeA = ApiProcess.Start("node-a", urlA, urlB, ProjectKey, referencePath, directory,
+                appConnectionA.ConnectionString, license, apiDll, root, suffix);
+            await nodeA.WaitForHealthAsync();
+            await nodeA.LoginAsync();
+            var normalRestartStatus = await nodeA.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.True(normalRestartStatus["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(),
+                "Normal HA active restart must recover only the unchanged receipt: " + normalRestartStatus.ToJsonString());
             if (!sharedDatabase)
                 await MirrorProjectToStandbyAsync(nodeA, nodeB);
             await SeedSlowHistorianAsync(appConnectionA.ConnectionString);

@@ -29,8 +29,23 @@ function StationSnapshotHarness() {
       }
     }));
   };
+  const remoteStationChange = () => {
+    setSnapshot(current => ({
+      ...current,
+      workspace: { ...current.workspace, changeVersion: current.workspace.changeVersion + 1 },
+      package: {
+        ...current.package,
+        runtimePresentation: {
+          version: 1,
+          historicalPlaybackEnabled: false,
+          stationProfiles: [{ id: 'remote-profile', name: 'Estação alterada por outro editor', windows: [{ screenKey: 'home', mode: 'navigation' }] }]
+        }
+      }
+    }));
+  };
   return <main>
     <button data-testid="simulate-station-snapshot-refresh" onClick={refresh}>Simular atualização do snapshot</button>
+    <button data-testid="simulate-station-remote-change" onClick={remoteStationChange}>Simular mudança remota</button>
     <RuntimeStationEngineeringWorkspace snapshot={snapshot} onApplied={async () => {}} locale="pt-BR" />
   </main>;
 }

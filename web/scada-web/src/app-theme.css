@@ -112,9 +112,11 @@ body { background: var(--app-bg); color: var(--app-text-primary); }
 .licensing-page,
 .runtime-history-page { background: var(--app-bg); color: var(--app-text-primary); }
 
-/* Engineering legacy selectors consume the application semantic palette. This deliberately
-   stops at Engineering chrome; runtime visual/HMI selectors are not included. */
-.eng-shell {
+/* Share semantic Engineering chrome tokens with its locked route, which renders
+   outside .eng-shell. Authored HMI/Runtime visuals are intentionally excluded. */
+.eng-shell,
+.eng-lock-restricted,
+.eng-lock-state {
   --eng-bg: var(--app-bg);
   --eng-panel: var(--app-surface);
   --eng-panel-soft: var(--app-surface-elevated);

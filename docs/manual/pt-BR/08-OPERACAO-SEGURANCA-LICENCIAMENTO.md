@@ -218,3 +218,12 @@ O License Generator é uma ferramenta offline/controlada de autoridade de licenc
 Operadores finais do EliteSCADA usam request/install; somente pessoal autorizado de emissão deve operar o ambiente de assinatura.
 
 **Ajuda relacionada:** `/help?topic=licensing.overview`.
+
+### Aplicação pela interface em Linux nativo, com executor registrado
+
+O novo painel **Aplicação administrativa da instalação** aparece em **Instalação > Rede e serviços** para usuários com `SystemAdmin`. Ele funciona **somente** quando um executor administrativo Linux foi provisionado no host e vinculado àquela instalação por socket local protegido, token e perfil nativo válido. Sem executor, a API retorna indisponibilidade e **nenhuma alteração é executada**. A interface não ganha direitos de sistema, shell arbitrário nem acesso ao Docker.
+
+Selecione Web/API, banco local ou mídia quando registrados. Os campos vêm da configuração informada pelo executor; use **Validar alteração no host** para consultar conflitos sem reiniciar. Revise a comparação de portas e o novo endereço, confirme a interrupção e então peça a aplicação. O estado `applying` significa somente que o executor recebeu a solicitação. Apenas `applied` confirma que o adaptador concluiu seus testes de saúde e releu as portas registradas. A página pode cair enquanto Web/API reiniciam; reabra pelo novo endereço e consulte o estado. Uma operação `recovery_required` exige recuperação protegida antes de outro plano.
+
+Se não for possível acessar a interface, o administrador pode consultar a operação diretamente pelo executor no host, ou recuperar os backups e journals pelos adaptadores existentes. Consulte [executor administrativo e recuperação](../../INSTALLATION-HOST-EXECUTOR.md). **Windows e Docker ainda usam seus procedimentos administrativos externos** até existirem e serem homologados executores específicos. Portas de Drivers, descoberta, multicast, firewall, TLS e HA permanecem fora deste fluxo.
+

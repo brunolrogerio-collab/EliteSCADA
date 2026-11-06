@@ -20,6 +20,12 @@ A station groups one to four independent windows of the same Runtime application
 6. When the configuration is valid, choose Apply to Working.
 7. Save and publish the revision, then activate it through the project lifecycle. The station appears in active Runtime only after activation.
 
+### Before leaving Engineering and setting up physical displays
+
+Working contains the editable draft. When edits have not yet been applied, Engineering asks for confirmation before navigating away or leaving the page. To keep the configuration, select Validate, then Apply to Working. Return to Engineering Overview, save a revision, publish and activate it. Returning to Runtime before activation still shows the previous Active revision; it does not erase the profile applied to Working.
+
+On Windows, open Settings > System > Display and select Extend these displays. On Linux, use GNOME, KDE or your desktop's Display settings to extend rather than mirror. Verify the extra display in the OS first. In Runtime, choose Check windows to match Window 1, Window 2 and their assigned screens. Select Start station, drag each window to the desired display, and enter fullscreen separately when supported. Window numbers never select physical monitors automatically. Popup blockers and browser restrictions can prevent automated opening and positioning. To recover, use the Reopen screen N link in the launcher or restart the station and arrange windows manually. Each window has a separately admitted Runtime connection.
+
 ### Understand the fields
 
 The window number follows the order in which the windows open. It is not a monitor number. The selectors use screens already in the project; creating a station does not create or publish those screens.
@@ -33,7 +39,7 @@ The window number follows the order in which the windows open. It is not a monit
 
 ### Start and arrange the windows
 
-Open Runtime in a normal window with its header visible. If it is in full screen, exit full screen first. In the header, choose the station and select Start station. The browser may block new windows; if so, Runtime shows links to open them one at a time. Drag each window to the monitor you want. Resize it and, if useful, put each window in full screen. The product does not automatically detect or restore physical monitor position, orientation or scale.
+Open Runtime with its header visible. On desktop, the station launcher is also available in fullscreen. Select the station, choose Check windows to review screen names, window roles and the Active revision, then select Start station. The browser may block new windows; if so, Runtime shows links to open them one at a time. Drag each window to the monitor you want. Resize it and, if useful, put each window in full screen. The product does not automatically detect or restore physical monitor position, orientation or scale.
 
 After starting, check the Runtime session status by screen list in the launcher window. Each row reports whether the server admitted that window and which class it granted, or whether there was no available seat. A window rejected for license capacity was not admitted; check the connections in use and explicitly end any you no longer need from that window's account menu before trying again. Starting a station does not increase the license limit, and a rejected window also shows its own message. If a row remains unconfirmed, open the corresponding window and read its Runtime message: could not confirm does not mean the session was admitted. If the installation does not use authenticated session admission, the list says so; that message does not confirm an authenticated/licensed session.
 
@@ -47,7 +53,7 @@ To end a session and free a license seat immediately, open the account menu in e
 
 If a station window closes while its launcher remains open, the row changes to “window closed” and a “Reopen screen N” link appears. Use it to open only that screen again. The new window requests its own Runtime session; check the admission result and license capacity before using it. The physical monitor position is not restored. If you also closed or reloaded the launcher window, open Runtime, start the station again and arrange the windows manually. If there is no available seat, end sessions you are not using or wait for the previous session to expire.
 
-If the station selector is missing, check that the header is enabled, Runtime is not in full screen and the revision in use includes the profile. If a window opens on the wrong screen, check the screen selected on that row and activate the updated revision. A fixed window that cannot change screens is working as configured. If Interactive access is limited or denied, check how many licensed connections are in use and the account permissions.
+If the station selector is missing, check that the header is enabled, the Runtime header is visible and the revision in use includes the profile. If a window opens on the wrong screen, check the screen selected on that row and activate the updated revision. A fixed window that cannot change screens is working as configured. If Interactive access is limited or denied, check how many licensed connections are in use and the account permissions.
 
 #### Visual example
 

@@ -28,7 +28,7 @@ public sealed class EngineeringRuntimeStationProfileTests
         Assert.Equal("pumps", windows[1].GetProperty("screenKey").GetString());
         Assert.Equal("fixed", windows[1].GetProperty("mode").GetString());
         Assert.Equal("portrait", presentationJson.GetProperty("mobileOrientation").GetString());
-        Assert.Equal("overview", presentationJson.GetProperty("mobileScreens").GetProperty("phone").GetString());
+        Assert.Equal("pumps", presentationJson.GetProperty("mobileScreens").GetProperty("overview").GetString());
         Assert.Equal(64, presentationJson.GetProperty("header").GetProperty("height").GetInt32());
 
         using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
@@ -44,7 +44,7 @@ public sealed class EngineeringRuntimeStationProfileTests
             first => { Assert.Equal("overview", first.ScreenKey); Assert.Equal("navigation", first.Mode); },
             second => { Assert.Equal("pumps", second.ScreenKey); Assert.Equal("fixed", second.Mode); });
         Assert.Equal("portrait", roundTrip.MobileOrientation);
-        Assert.Equal("overview", roundTrip.MobileScreens!["phone"]);
+        Assert.Equal("pumps", roundTrip.MobileScreens!["overview"]);
         Assert.Equal(64, roundTrip.Header!.Height);
     }
 
@@ -133,7 +133,7 @@ public sealed class EngineeringRuntimeStationProfileTests
                 HistoricalPlaybackEnabled: true,
                 MobileOrientation: "portrait",
                 Header: new RuntimeHeaderEngineeringDto(Height: 64),
-                MobileScreens: new Dictionary<string, string> { ["phone"] = "overview" },
+                MobileScreens: new Dictionary<string, string> { ["overview"] = "pumps" },
                 StationProfiles:
                 [
                     new RuntimeStationProfileEngineeringDto(

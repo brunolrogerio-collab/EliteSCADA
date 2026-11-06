@@ -32,7 +32,7 @@ Puede empezar por un equipo. Contextos y etapas se añaden cuando sirven a la pr
 
 Use ¿Dónde desea trabajar? para ir directamente a perfiles, asignaciones, contextos, etapas, panel o equipos y ubicaciones habilitados para análisis. Empiece por perfiles y asignaciones; contextos y etapas solo son necesarios cuando su análisis los utiliza. Navegar conserva el borrador sin guardar ni ejecutar análisis.
 
-Listo para consultar significa que el elemento está activado para la revisión actual. Si aparece Debe reactivar antes de consultar, revise licencia y permisos y seleccione Activar de nuevo. Puede ser necesario tras reiniciar o restaurar la autorización. El encabezado muestra el nombre de la aplicación; la revisión activa identifica la versión publicada en uso.
+Listo para consultar significa que el elemento está activado para la revisión actual. Tras un reinicio normal de la API, SCADIVO comprueba si puede recuperar la activación guardada con la misma licencia, Authority, política, revisión y protección HA. Mientras comprueba, la pantalla indica que está verificando; espere o actualice la pantalla. Si aparece Debe reactivar antes de consultar, no se pudo confirmar la activación anterior: revise la licencia, la revisión y los permisos y seleccione Activar si todo es correcto. Un reinicio normal, por sí solo, no requiere otra activación. El encabezado muestra el nombre de la aplicación; la revisión activa identifica la versión publicada en uso.
 
 ![Accesos de configuración en móvil, en aplicación sintética](../../evidence/intelligence-855/usability-mobile-navigation.png)
 
@@ -188,7 +188,7 @@ Queda una decisión separada: activar explícitamente el recurso elegido para pe
 
 Use ¿Dónde desea trabajar? para ir directamente a perfiles, asignaciones, contextos, etapas, panel o equipos y ubicaciones habilitados para análisis. Empiece por perfiles y asignaciones; contextos y etapas solo son necesarios cuando su análisis los utiliza. Navegar conserva el borrador sin guardar ni ejecutar análisis.
 
-Listo para consultar significa que el elemento está activado para la revisión actual. Si aparece Debe reactivar antes de consultar, revise licencia y permisos y seleccione Activar de nuevo. Puede ser necesario tras reiniciar o restaurar la autorización. El encabezado muestra el nombre de la aplicación; la revisión activa identifica la versión publicada en uso.
+Listo para consultar significa que el elemento está activado para la revisión actual. Tras un reinicio normal de la API, SCADIVO comprueba si puede recuperar la activación guardada con la misma licencia, Authority, política, revisión y protección HA. Mientras comprueba, la pantalla indica que está verificando; espere o actualice la pantalla. Si aparece Debe reactivar antes de consultar, no se pudo confirmar la activación anterior: revise la licencia, la revisión y los permisos y seleccione Activar si todo es correcto. Un reinicio normal, por sí solo, no requiere otra activación. El encabezado muestra el nombre de la aplicación; la revisión activa identifica la versión publicada en uso.
 
 ### Quién configura y quién puede activar o pausar
 
@@ -196,7 +196,7 @@ El desarrollador prepara perfiles, asociaciones y selección de equipos o lugare
 
 Abra Inteligencia de activos y use Activar o Pausar en un recurso ya seleccionado por el desarrollador. Editar selección, perfiles, TAGs o pantallas sigue bloqueado. El permiso se comprueba en el equipo o lugar; el nombre del rol no sustituye una concesión. Las consultas requieren también licencia, TrendUse y lectura de TAGs.
 
-La operación requiere la misma revisión activa que abrió y ninguna edición pendiente. Si otro autor tiene un borrador, pídale finalizarlo o descartarlo y actualice la página. La operación puede crear una revisión persistente con solo el cambio de activación del recurso; no publica cambios de otros objetos. Tras reiniciar, vuelva a Activar para permitir consultas. Si Pausar devuelve un error, no suponga que la pausa durable terminó: compruebe el estado y reintente después de resolver el bloqueo.
+La operación requiere la misma revisión activa que abrió y ninguna edición pendiente. Si otro autor tiene un borrador, pídale finalizarlo o descartarlo y actualice la página. La operación puede crear una revisión persistente con solo el cambio de activación del recurso; no publica cambios de otros objetos. Tras un reinicio normal, la activación puede recuperarse automáticamente si siguen iguales la licencia, Authority, política, revisión y protección HA. Espere la comprobación; vuelva a Activar solo si la pantalla indica que no se pudo recuperar y usted confirma que desea habilitar las consultas. Si Pausar devuelve un error, no suponga que la pausa durable terminó: compruebe el estado y reintente después de resolver el bloqueo.
 
 ### Activar solo donde sea útil
 
@@ -211,7 +211,7 @@ La operación requiere la misma revisión activa que abrió y ninguna edición p
 
 Si se revocó un permiso, el recurso puede seguir marcado Activo en la configuración y tener la ejecución bloqueada. Son datos distintos: lo configurado y lo autorizado ahora.
 
-Restaurar la concesión no reinicia el trabajo silenciosamente. Compruebe el estado y use Activar de nuevo, incluso tras reiniciar cuando lo pida la pantalla. Requiere una decisión explícita del responsable. Compruebe esto antes de investigar datos ausentes en el histórico guardado, llamado Historian.
+Restaurar un permiso revocado no reutiliza la activación anterior: revise la política y seleccione Activar de nuevo cuando el acceso sea válido. Requiere una decisión explícita del responsable. Un reinicio normal de la API es diferente: la activación guardada puede recuperarse sin otro clic solo si Authority, licencia, revisión y HA siguen coincidiendo exactamente. Si el servidor perdió la protección verificable mientras funcionaba, la ejecución permanece bloqueada aunque vuelva la conexión. Revise estos estados antes de investigar datos ausentes en el histórico guardado, llamado Historian.
 
 ### Ejemplo: empezar pequeño
 

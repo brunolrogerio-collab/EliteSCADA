@@ -32,7 +32,7 @@ You can start with one equipment. Contexts and stages are useful when they serve
 
 Use Where do you want to work? to go directly to profiles, assignments, contexts, stages, dashboard or equipment and locations enabled for analysis. Start with profiles and assignments; contexts and stages are needed only when your analysis uses them. Navigation preserves the draft without saving or running an analysis.
 
-Ready to query means the item is activated for the current revision. If Reactivation required appears, check license and permissions, then select Activate again. This may be needed after a restart or restored authorization. The header shows the application name; the active revision identifies the published version in use.
+Ready to query means the item is activated for the current revision. After a normal API restart, SCADIVO checks whether it can recover the saved activation with the same license, Authority, policy, revision and HA fence. While it checks, the screen says it is verifying; wait or refresh. If Reactivation required appears, the previous activation could not be confirmed: check the license, revision and permissions, then select Activate if everything is correct. A normal restart alone does not require activation again. The header shows the application name; the active revision identifies the published version in use.
 
 ![Setup shortcuts on mobile, in a synthetic application](../../evidence/intelligence-855/usability-mobile-navigation.png)
 
@@ -188,7 +188,7 @@ One separate decision remains: explicitly activate the selected resource to allo
 
 Use Where do you want to work? to go directly to profiles, assignments, contexts, stages, dashboard or equipment and locations enabled for analysis. Start with profiles and assignments; contexts and stages are needed only when your analysis uses them. Navigation preserves the draft without saving or running an analysis.
 
-Ready to query means the item is activated for the current revision. If Reactivation required appears, check license and permissions, then select Activate again. This may be needed after a restart or restored authorization. The header shows the application name; the active revision identifies the published version in use.
+Ready to query means the item is activated for the current revision. After a normal API restart, SCADIVO checks whether it can recover the saved activation with the same license, Authority, policy, revision and HA fence. While it checks, the screen says it is verifying; wait or refresh. If Reactivation required appears, the previous activation could not be confirmed: check the license, revision and permissions, then select Activate if everything is correct. A normal restart alone does not require activation again. The header shows the application name; the active revision identifies the published version in use.
 
 ### Who configures and who can activate or pause
 
@@ -196,7 +196,7 @@ The developer prepares profiles, assignments and equipment or location selection
 
 Open Asset Intelligence and select Activate or Pause on a resource already selected by the developer. Editing the selection, profiles, TAGs or screens remains blocked. Permission is checked on the equipment or location; a role name does not replace a grant. Queries also require a license, TrendUse and TAG read access.
 
-The operation requires the same active revision you opened and no pending Engineering edits. If another author has a draft, ask them to finish or discard it and refresh. The operation may create a persisted revision containing only the resource activation change; it does not publish changes to other objects. After a restart, select Activate again to enable queries. If Pause returns an error, do not assume durable pause completed: check the state and retry after resolving the block.
+The operation requires the same active revision you opened and no pending Engineering edits. If another author has a draft, ask them to finish or discard it and refresh. The operation may create a persisted revision containing only the resource activation change; it does not publish changes to other objects. After a normal restart, activation can recover automatically when the license, Authority, policy, revision and HA protection are unchanged. Wait for the check; select Activate again only if the screen says recovery was not possible and you confirm that queries should be enabled. If Pause returns an error, do not assume durable pause completed: check the state and retry after resolving the block.
 
 ### Activate only where useful
 
@@ -211,7 +211,7 @@ The operation requires the same active revision you opened and no pending Engine
 
 If a permission was revoked, a resource can remain marked Active in configuration while execution is blocked. These are different facts: what was configured and what is authorized now.
 
-Restoring the grant does not silently restart work. Check status and use Activate again, including after restart when requested by the screen. This requires an explicit decision by the responsible person. Check this condition before investigating missing data in the recorded history, called Historian.
+Restoring a revoked grant does not reuse the previous activation: check the policy and select Activate again once access is valid. This requires an explicit decision by the responsible person. A normal API restart is different: the saved activation can be recovered without another click only when Authority, license, revision and HA state still match exactly. If the server lost its verifiable protection while running, execution stays blocked after the connection returns. Check these states before investigating missing data in the recorded history, called Historian.
 
 ### Example: start small
 

@@ -496,6 +496,10 @@ public sealed class DatabaseTopologyCoreTests
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
+        // Prepare the compatible schema explicitly; other test classes may be
+        // initializing tables in the shared test DB, so execution order is not setup.
+        await using (var schema = new PostgreSqlAuthorityPolicyStore(connectionString))
+            await schema.InitializeAsync();
         var baseOptions = new DatabaseTopologyOptions("unused", "unused", 18, 18, 2, 300);
         var operations = new PostgreSqlDatabaseTopologyOperations(baseOptions);
         var valid = await operations.TestAsync(connectionString, requireTimescale: true);

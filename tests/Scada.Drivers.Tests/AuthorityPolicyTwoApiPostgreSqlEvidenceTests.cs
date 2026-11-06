@@ -23,6 +23,99 @@ namespace Scada.Drivers.Tests;
 [Collection(Wave15PostgreSqlHaEvidenceCollection.Name)]
 public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StandaloneRealApiRestartRecoversExplicitlyActivatedScope(bool twoScopes)
+    {
+        var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(seed)) return;
+        var root = FindRepositoryRoot();
+        var apiDll = Path.Combine(AppContext.BaseDirectory, "Scada.Api.dll");
+        var suffix = Guid.NewGuid().ToString("N")[..10];
+        var database = "w15_recovery_" + suffix;
+        var admin = new NpgsqlConnectionStringBuilder(seed) { Database = "postgres", Pooling = false };
+        var connection = new NpgsqlConnectionStringBuilder(seed) { Database = database };
+        var directory = Path.Combine(Path.GetTempPath(), "scadivo-recovery-" + suffix);
+        Directory.CreateDirectory(directory);
+        ApiProcess? node = null;
+        await CreateDatabaseAsync(admin.ConnectionString, database, connection.Username!);
+        try
+        {
+            var license = CreateLicense(directory);
+            var url = $"http://127.0.0.1:{ReserveLoopbackPort()}";
+            var reference = Path.Combine(directory, "unused-reference.json");
+            ApiProcess Start() => ApiProcess.Start("node-a", url, url, ProjectKey, reference,
+                directory, connection.ConnectionString, license, apiDll, root, suffix, standalone: true);
+            node = Start();
+            await node.WaitForHealthAsync();
+            await node.BootstrapAsync();
+            await PrepareProjectAsync(node, activate: true, twoScopes);
+            await ConfigureAndActivateIntelligenceAsync(node, twoScopes);
+            if (twoScopes)
+                await node.SendAsync(HttpMethod.Post,
+                    "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000211/activate", new JsonObject());
+            await node.DisposeAsync();
+            node = null;
+            node = Start();
+            await node.WaitForHealthAsync();
+            await node.LoginAsync();
+            await WaitUntilAsync(async () =>
+            {
+                var current = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+                return current["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() == true &&
+                    (!twoScopes || current["configuration"]!["scopes"]!.AsArray().All(item =>
+                        item!["executionArmed"]!.GetValue<bool>()));
+            }, TimeSpan.FromSeconds(30), "A standalone restart did not finish the exact Intelligence receipt recovery.");
+            var status = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.True(status["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(), status.ToJsonString());
+            if (twoScopes)
+                Assert.All(status["configuration"]!["scopes"]!.AsArray(), item =>
+                    Assert.True(item!["executionArmed"]!.GetValue<bool>(), status.ToJsonString()));
+            await node.SendAsync(HttpMethod.Post,
+                "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000201/pause", new JsonObject());
+            await node.DisposeAsync();
+            node = null;
+            node = Start();
+            await node.WaitForHealthAsync();
+            await node.LoginAsync();
+            var paused = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.False(paused["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() ?? true, paused.ToJsonString());
+            if (twoScopes)
+                Assert.True(paused["configuration"]!["scopes"]![1]!["executionArmed"]!.GetValue<bool>(),
+                    "Pausing first scope must preserve the second scope: " + paused.ToJsonString());
+            await node.SendAsync(HttpMethod.Post,
+                "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000201/activate", new JsonObject());
+            await node.DisposeAsync();
+            node = null;
+            await using (var policy = new Scada.Persistence.PostgreSql.PostgreSqlAuthorityPolicyStore(connection.ConnectionString))
+            {
+                await policy.InitializeAsync();
+                var original = policy.Snapshot();
+                var revokedRoles = original.Roles.Select(role => role with
+                {
+                    Grants = (role.Grants ?? []).Where(grant =>
+                        grant.Capability != Scada.Security.Authorization.SecurityCapability.SystemAdmin &&
+                        grant.Capability != Scada.Security.Authorization.SecurityCapability.AssetProcessIntelligenceManage).ToArray()
+                }).ToArray();
+                var revoked = await policy.TryReplaceAsync(original.Version, revokedRoles, original.Scopes);
+                Assert.True(revoked.Applied, revoked.Error);
+                var restored = await policy.TryReplaceAsync(revoked.Snapshot.Version, original.Roles, original.Scopes);
+                Assert.True(restored.Applied, restored.Error);
+            }
+            node = Start();
+            await node.WaitForHealthAsync();
+            await node.LoginAsync();
+            var restoredStatus = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.False(restoredStatus["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() ?? true,
+                restoredStatus.ToJsonString());
+        }
+        finally
+        {
+            if (node is not null) await node.DisposeAsync();
+            await DropDatabaseAsync(admin.ConnectionString, database);
+        }
+    }
     private const string AdminUsername = "w15-stage1-admin";
     private const string AdminPassword = "w15-stage1-disposable-admin-password";
     private const string ProjectKey = "w15-stage1-process-evidence";
@@ -33,7 +126,16 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(bool sharedDatabase)
+    public Task RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(bool sharedDatabase) =>
+        RunRealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(sharedDatabase, stopAfterNormalRestart: false);
+
+    [Fact]
+    public Task RealApiProcesses_HaNormalRestartRecoversIntelligenceReceipt() =>
+        RunRealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(sharedDatabase: true, stopAfterNormalRestart: true);
+
+    private async Task RunRealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(
+        bool sharedDatabase,
+        bool stopAfterNormalRestart)
     {
         var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(seed)) return;
@@ -161,6 +263,21 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 sharedDatabase ? null : TimeSpan.FromSeconds(90));
             var grantedPolicy = await GrantIntelligenceManageAsync(nodeA, nodeB);
             await ConfigureAndActivateIntelligenceAsync(nodeA);
+            await nodeA.DisposeAsync();
+            nodeA = null;
+            nodeA = ApiProcess.Start("node-a", urlA, urlB, ProjectKey, referencePath, directory,
+                appConnectionA.ConnectionString, license, apiDll, root, suffix);
+            await nodeA.WaitForHealthAsync();
+            await nodeA.LoginAsync();
+            await WaitUntilAsync(async () =>
+            {
+                var current = await nodeA.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+                return current["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() == true;
+            }, TimeSpan.FromSeconds(45), "Normal HA active restart did not finish exact Intelligence receipt recovery.");
+            var normalRestartStatus = await nodeA.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.True(normalRestartStatus["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(),
+                "Normal HA active restart must recover only the unchanged receipt: " + normalRestartStatus.ToJsonString());
+            if (stopAfterNormalRestart) return;
             if (!sharedDatabase)
                 await MirrorProjectToStandbyAsync(nodeA, nodeB);
             await SeedSlowHistorianAsync(appConnectionA.ConnectionString);
@@ -207,7 +324,9 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
             var cancelled = await pendingRequest.WaitAsync(TimeSpan.FromSeconds(15));
             Assert.Equal(HttpStatusCode.Conflict, cancelled.StatusCode);
-            Assert.Equal("INTELLIGENCE_EXECUTION_PERMIT_CANCELLED", cancelled.Body?["code"]?.GetValue<string>());
+            Assert.Contains(
+                cancelled.Body?["code"]?.GetValue<string>(),
+                new[] { "INTELLIGENCE_EXECUTION_PERMIT_CANCELLED", "AUTHORITY_POLICY_UPDATE_PENDING" });
             Assert.Null(cancelled.Body?["period"]);
             Assert.Equal(0, await ReadPageThreeObservationCountAsync(appConnectionA.ConnectionString));
 
@@ -655,7 +774,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         return new LicenseFiles(licensePath, publicKeyPath, keyId);
     }
 
-    private static async Task PrepareProjectAsync(ApiProcess node, bool activate)
+    private static async Task PrepareProjectAsync(ApiProcess node, bool activate, bool twoScopes = false)
     {
         var first = await node.SendAsync(
             HttpMethod.Post,
@@ -696,6 +815,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             ["path"] = "Plant.Pump",
             ["name"] = "Evidence Pump"
         });
+        if (twoScopes)
+            package["equipment"]!.AsArray().Add(new JsonObject
+            {
+                ["id"] = "b3100000-0000-0000-0000-000000000211",
+                ["path"] = "Plant.Pump02", ["name"] = "Second evidence pump"
+            });
         await node.SendAsync(
             HttpMethod.Post,
             "/api/engineering/import/json/apply",
@@ -730,7 +855,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         }
     }
 
-    private static async Task ConfigureAndActivateIntelligenceAsync(ApiProcess node)
+    private static async Task ConfigureAndActivateIntelligenceAsync(ApiProcess node, bool twoScopes = false)
     {
         var tagId = Guid.Parse("b3100000-0000-0000-0000-000000000202");
         var equipmentId = Guid.Parse("b3100000-0000-0000-0000-000000000201");
@@ -744,7 +869,10 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             "/api/engineering/asset-process-intelligence/scopes",
             new JsonObject
             {
-                ["scopes"] = new JsonArray(new JsonObject { ["kind"] = 0, ["scopeId"] = scopeId.ToString("D") })
+                ["scopes"] = twoScopes
+                    ? new JsonArray(new JsonObject { ["kind"] = 0, ["scopeId"] = scopeId.ToString("D") },
+                        new JsonObject { ["kind"] = 0, ["scopeId"] = "b3100000-0000-0000-0000-000000000211" })
+                    : new JsonArray(new JsonObject { ["kind"] = 0, ["scopeId"] = scopeId.ToString("D") })
             });
         await node.SendAsync(
             HttpMethod.Put,
@@ -1230,7 +1358,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             LicenseFiles license,
             string apiDll,
             string repositoryRoot,
-            string suffix)
+            string suffix, bool standalone = false)
         {
             var port = new Uri(url).Port;
             var statePath = Path.Combine(directory, nodeId + "-peer-state.json");
@@ -1296,6 +1424,13 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             Set("HighAvailability__Protection__ReadyWitnessMaximumAgeSeconds", "60");
             Set("HighAvailability__Protection__OperationHistoryPath", Path.Combine(nodeDirectory, "operations.json"));
             Set("HighAvailability__Administration__ConfigurationPath", Path.Combine(nodeDirectory, "host-configuration.json"));
+            if (standalone)
+            {
+                Set("HighAvailability__Enabled", "false");
+                Set("HighAvailability__Protection__Enabled", "false");
+                Set("Historian__Provider", "memory");
+                Set("HistoricalQuery__Enabled", "false");
+            }
             Set("Logging__LogLevel__Default", "Warning");
 
             var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start Scada.Api process " + nodeId);

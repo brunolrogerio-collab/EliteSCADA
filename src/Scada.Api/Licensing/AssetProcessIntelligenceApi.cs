@@ -10,6 +10,7 @@ using Scada.Engineering.Intelligence;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Security.Audit;
+using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Licensing;
@@ -163,6 +164,7 @@ public static class AssetProcessIntelligenceApi
                 resources = equipment.Cast<object>().Concat(locations).ToArray(),
                 tags,
                 licensed = licensing.CurrentVerification.HasAssetProcessIntelligence,
+                startupRecoveryPending = executionGate.StartupRecoveryPending,
                 authorityFence = new
                 {
                     allowed = fenceAllowed,
@@ -534,13 +536,24 @@ public static class AssetProcessIntelligenceApi
     internal static bool MatchesOperationalBaseline(
         EngineeringPackage expected, EngineeringPackage actual, EngineeringPackage canonical)
     {
-        expected = expected with { ExportedAt = DateTimeOffset.UnixEpoch };
-        actual = actual with { ExportedAt = DateTimeOffset.UnixEpoch };
+        expected = expected with { ExportedAt = DateTimeOffset.UnixEpoch, Tags = expected.Tags.Select(NormalizeHistorianMetadata).ToArray() };
+        actual = actual with { ExportedAt = DateTimeOffset.UnixEpoch, Tags = actual.Tags.Select(NormalizeHistorianMetadata).ToArray() };
         if (expected.AuthorityPolicyReference is { } reference && canonical.AuthorityPolicyReference is { } live)
             expected = expected with { AuthorityPolicyReference = reference with { PolicyVersion = live.PolicyVersion } };
         return JsonNode.DeepEquals(JsonSerializer.SerializeToNode(expected), JsonSerializer.SerializeToNode(actual));
     }
 
+    internal static TagEngineeringDto NormalizeHistorianMetadata(TagEngineeringDto tag)
+    {
+        if (tag.Metadata is null || tag.Historian is null) return tag;
+        var metadata = new Dictionary<string, string>(tag.Metadata);
+        if (metadata.TryGetValue("historian.enabled", out var enabled) &&
+            bool.TryParse(enabled, out var parsed) && parsed == tag.Historian.Enabled)
+            metadata.Remove("historian.enabled");
+        if (metadata.TryGetValue("historian.strategy", out var strategy) && strategy == tag.Historian.Strategy)
+            metadata.Remove("historian.strategy");
+        return tag with { Metadata = metadata.Count == 0 ? null : metadata };
+    }
     private static async Task<IResult> SetScopeActivationAsync(
         bool active,
         string kindText,
@@ -601,6 +614,21 @@ public static class AssetProcessIntelligenceApi
                 return Results.Conflict(new { error = activationFence.ReasonCode.ToUpperInvariant().Replace('-', '_') });
         }
 
+        var activationStore = context.RequestServices.GetService<AssetProcessIntelligenceActivationStore>();
+        var durableGeneration = 0L;
+        async Task PersistActivationAsync(string projectKey, long revision)
+        {
+            if (activationStore is null) return;
+            var lifecycle = context.RequestServices.GetRequiredService<IAuthorityLifecycleStore>();
+            var authority = await lifecycle.GetAsync(context.RequestAborted);
+            if (!authority.AllowsAuthorization || activationFence is not { Allowed: true, PolicyDigest: not null })
+                throw new InvalidOperationException("Intelligence activation requires a verifiable Authority fence.");
+            var committedReceipt = await activationStore.ActivateAsync(new AssetProcessIntelligenceActivationEvidence(
+                authority.Epoch, projectKey, revision, kind, scopeId,
+                activationFence.PolicyVersion, activationFence.PolicyDigest, activationFence.HaEpoch, 1, true),
+                context.RequestAborted);
+            durableGeneration = committedReceipt.Generation;
+        }
         if (active && !licensing.CurrentVerification.HasAssetProcessIntelligence)
             return Results.Json(new { error = "INTELLIGENCE_ENTITLEMENT_REQUIRED" }, statusCode: StatusCodes.Status403Forbidden);
 
@@ -622,6 +650,8 @@ public static class AssetProcessIntelligenceApi
         if (!active && !string.IsNullOrWhiteSpace(descriptor.ProjectKey))
             executionGate.Pause(descriptor.ProjectKey, kind, scopeId);
 
+        if (!active && activationStore is not null && !string.IsNullOrWhiteSpace(descriptor.ProjectKey))
+            await activationStore.PauseAsync(descriptor.ProjectKey, kind, scopeId, context.RequestAborted);
         var runtimeDescriptor = runtime.Describe();
         if (string.IsNullOrWhiteSpace(descriptor.ProjectKey) || !descriptor.BaseRevision.HasValue ||
             !string.Equals(descriptor.ProjectKey, runtimeDescriptor.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
@@ -672,13 +702,16 @@ public static class AssetProcessIntelligenceApi
         if (scope.Active == active)
         {
             if (active)
+            {
+                await PersistActivationAsync(descriptor.ProjectKey, descriptor.BaseRevision.Value);
                 executionGate.Activate(
                     descriptor.ProjectKey,
                     descriptor.BaseRevision.Value,
                     kind,
                     scopeId,
                     activationFence?.PolicyVersion ?? 0,
-                    activationFence?.HaEpoch ?? 0);
+                    activationFence?.HaEpoch ?? 0, durableGeneration);
+            }
             else
                 executionGate.Pause(descriptor.ProjectKey, kind, scopeId);
             await RecordScopeTransitionAsync(context, active, manager.Principal,
@@ -698,6 +731,23 @@ public static class AssetProcessIntelligenceApi
         if (!string.Equals(latest.ProjectKey, descriptor.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
             latest.BaseRevision != descriptor.BaseRevision)
             return Results.Conflict(new { error = "INTELLIGENCE_ACTIVE_REVISION_CHANGED" });
+        var carried = new List<AssetProcessIntelligenceActivationEvidence>();
+        if (activationStore is not null && authorityHa is not null)
+        {
+            var exchange = context.RequestServices.GetRequiredService<IEngineeringExchangeService>();
+            var baseline = exchange.ParseJson(persistedActive!.EngineeringJson);
+            var carryBaselineMatches = MatchesOperationalBaseline(baseline, exchange.ExportPackage(), exchange.ExportPackage());
+            var preserveFence = await authorityHa.CheckAsync(context.RequestAborted);
+            foreach (var other in intelligence.Snapshot().Scopes ?? [])
+            {
+                if (!carryBaselineMatches || !preserveFence.Allowed) break;
+                if (!other.Active || (other.Kind == kind && other.ScopeId == scopeId)) continue;
+                if (!executionGate.TryGetToken(descriptor.ProjectKey, descriptor.BaseRevision.Value,
+                    other.Kind, other.ScopeId, out _, preserveFence.PolicyVersion, preserveFence.HaEpoch)) continue;
+                var receipt = await activationStore.ReadAsync(descriptor.ProjectKey, other.Kind, other.ScopeId, context.RequestAborted);
+                if (receipt is not null && receipt.Revision == descriptor.BaseRevision.Value) carried.Add(receipt);
+            }
+        }
         var beforeConfiguration = intelligence.Snapshot();
         var action = active ? AuditActions.AssetProcessIntelligenceActivate : AuditActions.AssetProcessIntelligencePause;
         if (!intelligence.SetActive(kind, scopeId, active)) return Results.NotFound();
@@ -748,6 +798,13 @@ public static class AssetProcessIntelligenceApi
                 return Results.Conflict(new { error = "INTELLIGENCE_SCOPE_REVISION_NOT_PUBLISHABLE", revision = snapshot.Revision, preview = publication?.Preview });
             }
 
+            if (activationStore is not null)
+            {
+                for (var index = 0; index < carried.Count; index++)
+                    carried[index] = await activationStore.ActivateAsync(
+                        carried[index] with { Revision = snapshot.Revision }, context.RequestAborted,
+                        expectedPrevious: carried[index]);
+            }
             var outcome = await activation.ActivateRevisionAsync(
                 snapshot.ProjectKey,
                 snapshot.Revision,
@@ -776,17 +833,34 @@ public static class AssetProcessIntelligenceApi
                     executionGate.Pause(snapshot.ProjectKey, kind, scopeId);
                     return Results.Conflict(new { error = activationFence.ReasonCode.ToUpperInvariant().Replace('-', '_') });
                 }
+                await PersistActivationAsync(snapshot.ProjectKey, snapshot.Revision);
                 executionGate.Activate(
                     snapshot.ProjectKey,
                     snapshot.Revision,
                     kind,
                     scopeId,
                     activationFence?.PolicyVersion ?? 0,
-                    activationFence?.HaEpoch ?? 0);
+                    activationFence?.HaEpoch ?? 0, durableGeneration);
             }
             else
                 executionGate.Pause(snapshot.ProjectKey, kind, scopeId);
 
+            if (activationStore is not null && authorityHa is not null && carried.Count > 0)
+            {
+                var carryFence = await authorityHa.CheckAsync(context.RequestAborted);
+                if (carryFence.Allowed)
+                    foreach (var receipt in carried)
+                    {
+                        if (receipt.PolicyVersion != carryFence.PolicyVersion || receipt.PolicyDigest != carryFence.PolicyDigest ||
+                            receipt.HaEpoch != carryFence.HaEpoch) continue;
+                        await activationStore.TryRecoverAsync(receipt, current =>
+                        {
+                            executionGate.Activate(current.ProjectKey, current.Revision, current.ScopeKind, current.ScopeId,
+                                current.PolicyVersion, current.HaEpoch, current.Generation);
+                            return true;
+                        }, context.RequestAborted);
+                    }
+            }
             await RecordScopeTransitionAsync(context, active, manager.Principal,
                 snapshot.ProjectKey, snapshot.Revision, kind, scopeId, audit, "saved-published-activated");
             return Results.Ok(new

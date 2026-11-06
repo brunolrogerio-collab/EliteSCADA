@@ -2,7 +2,7 @@ using Npgsql;
 
 namespace Scada.Persistence.PostgreSql;
 
-internal static class PostgreSqlSharedSchemaInitialization
+public static class PostgreSqlSharedSchemaInitialization
 {
     private const string AdvisoryLockSql = "SELECT pg_advisory_xact_lock(4993446713136202561);";
 

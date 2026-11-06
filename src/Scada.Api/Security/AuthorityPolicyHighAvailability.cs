@@ -141,7 +141,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _executionGate.InvalidateAll();
+            _executionGate.InvalidateForAuthorityReadinessFailure();
             _logger.LogWarning(exception, "Stage 1 Intelligence Authority HA fence could not be read; permits remain closed.");
             return new(false, "authority-policy-reference-unavailable", _policyStore.Snapshot().Version, null, 0);
         }
@@ -295,7 +295,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
             var reference = await _referenceStore.ReadAsync(cancellationToken);
             if (reference is null)
             {
-                _executionGate.InvalidateAll();
+                _executionGate.InvalidateForAuthorityReadinessFailure();
                 return;
             }
 
@@ -304,7 +304,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
             var localNodeId = _highAvailability.LocalNodeId;
             if (string.IsNullOrWhiteSpace(localNodeId))
             {
-                _executionGate.InvalidateAll();
+                _executionGate.InvalidateForAuthorityReadinessFailure();
                 return;
             }
 
@@ -317,7 +317,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
             {
                 if (!IsCurrentEffectiveActive(reference))
                 {
-                    _executionGate.InvalidateAll();
+                    _executionGate.InvalidateForAuthorityReadinessFailure();
                     return;
                 }
 
@@ -332,7 +332,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
                     cancellationToken);
                 if (!begun.Accepted || begun.Authority is null)
                 {
-                    _executionGate.InvalidateAll();
+                    _executionGate.InvalidateForAuthorityReadinessFailure();
                     return;
                 }
                 reference = begun.Authority;
@@ -341,7 +341,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
 
             if (fence?.PendingVersion is { } pendingVersion)
             {
-                _executionGate.InvalidateAll();
+                _executionGate.InvalidateForAuthorityReadinessFailure();
                 if (!IsCurrentEffectiveActive(reference) ||
                     !string.Equals(fence.PendingNodeId, localNodeId, StringComparison.OrdinalIgnoreCase) ||
                     fence.PendingEpoch != reference.Epoch ||
@@ -395,7 +395,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
                 snapshot.Version != fence.CommittedVersion ||
                 !DigestEquals(digest, fence.CommittedDigest))
             {
-                _executionGate.InvalidateAll();
+                _executionGate.InvalidateForAuthorityReadinessFailure();
                 return;
             }
 
@@ -403,7 +403,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
             // not a policy write: the receiver accepts only this fenced digest.
             await SendSnapshotToPeerAsync(reference, snapshot, digest, cancellationToken);
             var readiness = await CheckAsync(cancellationToken);
-            if (!readiness.Allowed) _executionGate.InvalidateAll();
+            if (!readiness.Allowed) _executionGate.InvalidateForAuthorityReadinessFailure();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -411,7 +411,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _executionGate.InvalidateAll();
+            _executionGate.InvalidateForAuthorityReadinessFailure();
             _logger.LogWarning(exception, "Stage 1 Authority HA synchronization failed closed.");
         }
     }
@@ -476,7 +476,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
         try { reference = await _referenceStore.ReadAsync(cancellationToken); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            _executionGate.InvalidateAll();
+            _executionGate.InvalidateForAuthorityReadinessFailure();
             return Results.Json(new { error = "AUTHORITY_POLICY_HA_REFERENCE_UNAVAILABLE" }, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         if (reference?.AuthorityPolicy is not { } fence)
@@ -504,7 +504,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _executionGate.InvalidateAll();
+            _executionGate.InvalidateForAuthorityReadinessFailure();
             _logger.LogWarning(exception, "Peer Authority policy snapshot could not be durably applied.");
             return Results.Json(new { error = "AUTHORITY_POLICY_REPLICA_STORE_UNAVAILABLE" }, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
@@ -522,7 +522,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
                 cancellationToken);
             if (!acknowledgement.Accepted)
             {
-                _executionGate.InvalidateAll();
+                _executionGate.InvalidateForAuthorityReadinessFailure();
                 return Results.Conflict(new { error = acknowledgement.ReasonCode });
             }
         }
@@ -643,7 +643,7 @@ public sealed class AuthorityPolicyHaCoordinator : IDisposable
 
     private AuthorityPolicyHaReadiness Deny(string reason, AuthorityPolicySnapshot snapshot, long epoch = 0)
     {
-        _executionGate.InvalidateAll();
+        _executionGate.InvalidateForAuthorityReadinessFailure();
         return new(false, reason, snapshot.Version, null, epoch);
     }
 

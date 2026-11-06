@@ -183,6 +183,13 @@ builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
         sp.GetRequiredService<IRuntimeSessionLeaseStore>()));
 builder.AddOptionalEngineeringPersistence(databaseConnections);
 var localIdentityEnabled = builder.AddConfiguredAudit(databaseConnections);
+if (localIdentityEnabled && !string.IsNullOrWhiteSpace(authorityConnectionString))
+{
+    builder.Services.AddSingleton(sp => new AssetProcessIntelligenceActivationStore(
+        authorityConnectionString, sp.GetService<IDurableWriteAdmission>()));
+    builder.Services.AddSingleton<AssetProcessIntelligenceStartupRecovery>();
+    builder.Services.AddHostedService<AssetProcessIntelligenceStartupRecoveryHostedService>();
+}
 builder.AddHostProtectedMaterialAuthority();
 builder.AddConfiguredOnlineLicenseDevice();
 if (localIdentityEnabled)
@@ -229,6 +236,17 @@ await app.Services.GetRequiredService<ProductLicenseLifecycleCoordinator>().Reco
 // Durable Engineering storage, Authority hydration, installation-journal recovery and
 // persisted Working checkout use one tested startup ordering boundary.
 await app.InitializeInstallationFoundationAsync();
+if (app.Services.GetService<AssetProcessIntelligenceActivationStore>() is { } intelligenceActivationStore)
+{
+    await intelligenceActivationStore.InitializeAsync();
+    var intelligenceExecutionGate = app.Services.GetRequiredService<AssetProcessIntelligenceExecutionGate>();
+    intelligenceExecutionGate.BeginStartupRecovery();
+    intelligenceExecutionGate
+        .ConfigureDurableInvalidation(
+            () => intelligenceActivationStore.InvalidateOwnedAsync().GetAwaiter().GetResult(),
+            (project, revision) => intelligenceActivationStore.InvalidateOwnedAsync(
+                retainedProject: project, retainedRevision: revision).GetAwaiter().GetResult());
+}
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseMiddleware<DatabaseMaintenanceMiddleware>();

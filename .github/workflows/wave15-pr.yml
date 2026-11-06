@@ -643,9 +643,11 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres -d elitescada_ha_d2_seed"
           --health-interval 5s --health-timeout 5s --health-retries 10
+          --cpus=1 --memory=3g --memory-swap=3g
     env:
       ELITESCADA_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=postgres;Pooling=false
       ELITESCADA_REQUIRE_HA_D2_POSTGRES: 'true'
+      DOTNET_PROCESSOR_COUNT: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -657,14 +659,17 @@ jobs:
         run: dotnet build src/Scada.Api/Scada.Api.csproj --no-restore --configuration Release
       - name: Restore HA acceptance test project
         run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
-      - name: Run shared-database HA-D2 and session-lease evidence
+      - name: Run serial HA-D2, Intelligence restart, and session-lease evidence
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/ha-d2-results"
-          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+          allowed_cpus="$(awk '/Cpus_allowed_list/ {print $2}' /proc/self/status)"
+          cpu="${allowed_cpus%%[-,]*}"
+          echo "Serial HA-D2 test CPU: $cpu (allowed set: $allowed_cpus)"
+          taskset --cpu-list "$cpu" env DOTNET_PROCESSOR_COUNT=1 dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
             --no-restore --configuration Release --verbosity minimal \
-            --filter 'FullyQualifiedName~RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack|FullyQualifiedName~RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission|FullyQualifiedName~SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState' \
+            --filter 'FullyQualifiedName~RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack|FullyQualifiedName~RealApiProcesses_HaNormalRestartRecoversIntelligenceReceipt|FullyQualifiedName~StandaloneRealApiRestartRecoversExplicitlyActivatedScope|FullyQualifiedName~RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission|FullyQualifiedName~SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState' \
             --logger 'trx;LogFileName=ha-d2-acceptance.trx' \
             --results-directory "$RUNNER_TEMP/ha-d2-results"
       - name: Require selected shared-database/session cases to pass (no empty or skipped evidence)
@@ -678,6 +683,8 @@ jobs:
 
           expected = {
               "RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack",
+              "RealApiProcesses_HaNormalRestartRecoversIntelligenceReceipt",
+              "StandaloneRealApiRestartRecoversExplicitlyActivatedScope",
               "RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission",
               "SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState",
           }
@@ -695,7 +702,7 @@ jobs:
           missing = sorted(expected - passed)
           if missing:
               raise SystemExit("HA-D2 acceptance did not pass every required case: " + ", ".join(missing))
-          print("Passed shared-database HA-D2 authority lifecycle plus both runtime session lease continuity cases.")
+          print("Passed shared-database HA-D2, HA and standalone Intelligence normal-restart recovery, and both runtime session lease cases.")
           PY
       - name: Preserve HA-D2 test results
         if: always()
@@ -708,9 +715,10 @@ jobs:
       - name: Record D2 scope and database limitation
         run: |
           {
-            echo '## HA D2 process-level acceptance'
+            echo '## Serial HA-D2, Intelligence restart and session process-level acceptance'
             echo "Tested checkout: $(git rev-parse HEAD)"
-            echo 'Evidence: two real API child processes; automatic Ready-standby promotion; same-NodeId restart reconciliation; authenticated, V3-HaRuntime-licensed explicit failback in the shared database-name topology.'
+            echo 'Evidence: two real API child processes; automatic Ready-standby promotion; same-NodeId restart reconciliation; authenticated, V3-HaRuntime-licensed explicit failback in the shared database-name topology; standalone API restart recovery from the exact durable Intelligence receipt.'
+            echo 'Execution profile: the selected .NET test/API process is pinned to one logical CPU and reports one processor to .NET; the disposable Timescale service is limited to one CPU and 3 GiB RAM with swap disabled. HA-D2 remains enabled and executes in this serial profile.'
             echo 'Separate-database HA-D2 acceptance is temporarily quarantined for the known intermittent issue; the test remains in the suite source for a later dedicated correction.'
             echo 'Runtime session lease continuity/no-double-seat: exact in-process takeover and stale/resurrection rejection tests also passed in this gate; this is not a client-session reconnection E2E test.'
             echo 'Database scope: this run covers the shared-name topology on one configured disposable PostgreSQL server; it makes no separate-name or independent PostgreSQL server-failure/durability claim.'

@@ -467,13 +467,62 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._handle()
 
 
+def administrative_rpc(registration: Path, route: str, body=None):
+    """Local administrator recovery/status when the Web URL is unavailable."""
+    import http.client
+    protected_file(registration)
+    config = json.loads(registration.read_text())
+    if config.get("schema") != SCHEMA or config.get("profile") != "native-linux":
+        raise ContractError("No supported registered host executor")
+    token_file = Path(config["tokenFile"])
+    protected_file(token_file)
+    sock_path = Path(config["socketPath"])
+    if not sock_path.is_absolute():
+        raise ContractError("Invalid executor socket")
+    token = token_file.read_text().strip()
+    conn = http.client.HTTPConnection("localhost", timeout=15)
+    conn.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        conn.sock.connect(str(sock_path))
+        conn.request("POST" if body is not None else "GET", route,
+                     body=json.dumps(body) if body is not None else None,
+                     headers={"X-Scadivo-Installation-Token": token,
+                              "Content-Type": "application/json", "Connection": "close"})
+        response = conn.getresponse()
+        message = json.loads(response.read(65536))
+        if response.status >= 300:
+            raise ContractError(message.get("error", "Executor rejected protected operation"))
+        return message
+    finally:
+        conn.close()
+
+
 def main():
     if os.name != "posix" or not hasattr(socket, "AF_UNIX"):
         raise SystemExit("This executor is Linux-only. Windows requires its registered ACL-protected named-pipe service.")
     parser = argparse.ArgumentParser(description="Installation-scoped Linux host executor")
     parser.add_argument("--registration", required=True)
+    commands = parser.add_mutually_exclusive_group()
+    commands.add_argument("--status", action="store_true")
+    commands.add_argument("--recover", action="store_true")
+    parser.add_argument("--confirm-recovery", action="store_true")
     args = parser.parse_args()
-    executor = Executor(Path(args.registration).resolve())
+    registration = Path(args.registration).resolve()
+    if args.recover:
+        if not args.confirm_recovery:
+            raise SystemExit("Recovery requires --confirm-recovery.")
+        result = administrative_rpc(registration, "/v1/recover",
+                                    {"schema": PLAN_SCHEMA, "confirm": True})
+        print(json.dumps(result))
+        return
+    if args.status:
+        if args.confirm_recovery:
+            raise SystemExit("--confirm-recovery requires --recover.")
+        print(json.dumps(administrative_rpc(registration, "/v1/status")))
+        return
+    if args.confirm_recovery:
+        raise SystemExit("--confirm-recovery requires --recover.")
+    executor = Executor(registration)
     with Server(executor) as server:
         server.serve_forever(poll_interval=0.5)
 

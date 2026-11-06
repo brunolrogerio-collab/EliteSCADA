@@ -40,7 +40,7 @@ Evidência da correção de Drivers: testes focados 4/4 passaram (perfil API, po
 - O projeto Compose e os volumes têm nomes fixos (`elitescada-stable*`), portanto mudar só as portas não isola os dados de duas instâncias.
 - `docker/stable/nginx.conf` usa o listener interno `api:5080`. MediaMTX usa controle `9997/TCP` e HLS `8888/TCP` por padrão, somente na rede Docker; Runtime entrega vídeo pelo relay da API com tíquetes temporários.
 - Portas de equipamento/protocolo são configuradas nos Data Sources. Drivers e suas portas não fazem parte da publicação de portas do host desta tarefa.
-- O processo da UI/API não tem host agent privilegiado. O pacote `docker-compose.stable.yml` é o único mecanismo atual confirmado para uma distribuição Docker estável; instalação nativa via serviço Windows/systemd não é controlada por este Compose (`docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`).
+- O processo da UI/API não possui privilégios de host. O pacote `docker-compose.stable.yml` permanece o mecanismo Docker estável; instalação nativa via serviço Windows/systemd não é controlada por esse Compose (`docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`). O candidato DEV-780 usa um **executor Linux separado**, registrado por instalação, com IPC Unix protegido e operações versionadas; não acrescenta privilégios ao processo Web/API nem habilita o executor Docker/Windows. Consulte `docs/INSTALLATION-HOST-EXECUTOR.md`.
 
 ## Decisão
 

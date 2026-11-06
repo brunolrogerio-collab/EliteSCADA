@@ -60,6 +60,14 @@ Installed Help provides an individual reference for each object type, including 
 
 Check color and transparency against the actual screen background. In an eight-digit color such as `#00000066`, the last two digits indicate transparency, also called alpha. This adjustment changes appearance only. Property options and limits are in the object-type reference in Help.
 
+### Adjust a 3D model view
+
+Assign a GLB/GLTF visual asset to a **3D model** object, select it and click **Adjust 3D view** on the canvas toolbar. Drag with the left mouse button to orbit the horizontal and vertical angles. Click again or press **Escape** to leave view mode. Otherwise dragging moves the object and resize handles still resize it. The object's 2D Rotation is separate.
+
+In **Properties**, the horizontal angle accepts -180° to 180° and vertical -85° to 85°. **Restore original 3D view** resets the initial direction. Camera fitting responds to loading and resizing, including aspect-ratio changes.
+
+**Allow operator to orbit 3D view** defaults to disabled. When enabled, the operator can orbit temporarily without issuing commands or changing project configuration. Reopening the screen restores the published orientation. To author a new initial view, follow **Preview change → Apply to Workspace → save/publish/activate** and verify the Active revision.
+
 ## 5. Choose an object by purpose
 
 | Need | Object and configuration to inspect |

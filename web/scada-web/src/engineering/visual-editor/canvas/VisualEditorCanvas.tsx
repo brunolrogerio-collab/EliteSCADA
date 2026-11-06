@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
@@ -10,6 +10,7 @@ import type { EngineeringLocale } from '../../i18n';
 import type { DynamoEngineering, EquipmentEngineering, TemplateEngineering } from '../../types';
 import { visualAssetContentUrl } from '../../visualAssetContentUrl';
 import { CanonicalVisualRenderer } from '../CanonicalVisualRenderer';
+import { clampModel3dPitch, DEFAULT_MODEL3D_PITCH_DEG, DEFAULT_MODEL3D_YAW_DEG, wrapModel3dYaw } from '../model3dViewGeometry';
 import { resolveVisualDefinitionSurfaceStyle } from '../visualDefinitionSurfaceModel';
 import { updateCanonicalPolygonPoints } from '../polygonCanonicalMutations';
 import { applyVisualEditorMutationIntent } from '../visualEditorCanonicalModel';
@@ -55,6 +56,7 @@ type ResizeInteraction = Readonly<{
 type RotateInteraction = Readonly<{
   kind: 'rotate'; pointerId: number; startClient: VisualEditorPoint; centerClient: VisualEditorPoint; objectIds: readonly string[]; deltaDegrees: number;
 }>;
+type ModelViewInteraction = Readonly<{ kind: 'model-view'; pointerId: number; objectId: string; startClient: VisualEditorPoint; startYaw: number; startPitch: number; yaw: number; pitch: number; }>;
 type PanInteraction = Readonly<{
   kind: 'pan'; pointerId: number; startClient: VisualEditorPoint; startViewport: VisualEditorViewport; viewport: VisualEditorViewport;
 }>;
@@ -73,7 +75,7 @@ type BezierPointInteraction = Readonly<{
   kind: 'bezier-point'; pointerId: number; startClient: VisualEditorPoint; objectId: string;
   pointIndex: number; startPoint: VisualEditorPoint; point: VisualEditorPoint; startPath: string;
 }>;
-type CanvasInteraction = MoveInteraction | ResizeInteraction | RotateInteraction | PanInteraction | PolygonVertexInteraction | BezierPointInteraction | null;
+type CanvasInteraction = MoveInteraction | ResizeInteraction | RotateInteraction | ModelViewInteraction | PanInteraction | PolygonVertexInteraction | BezierPointInteraction | null;
 
 const CANVAS_CONTENT_WIDTH = 6000;
 const CANVAS_CONTENT_HEIGHT = 4000;
@@ -113,6 +115,7 @@ export function VisualEditorCanvas({
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
   const [interaction, setInteraction] = useState<CanvasInteraction>(null);
+  const [modelViewObjectId, setModelViewObjectId] = useState<string | null>(null);
   const [polygonDraftPoints, setPolygonDraftPoints] = useState<readonly VisualEditorPoint[]>(Object.freeze([]));
   const [polygonHoverPoint, setPolygonHoverPoint] = useState<VisualEditorPoint | null>(null);
   const [bezierDraftPoints, setBezierDraftPoints] = useState<readonly VisualEditorPoint[]>(Object.freeze([]));
@@ -137,6 +140,9 @@ export function VisualEditorCanvas({
     || selectionAuthoringLocked
     || polygonToolActive || bezierToolActive;
   const selectedProjection = selection.length === 1 ? findProjection(projectedElements, selection[0]) : null;
+  const modelViewEditing = Boolean(modelViewObjectId && selectedProjection?.objectId === modelViewObjectId &&
+    selectedProjection.element.type === BUILTIN_VISUAL_OBJECT_TYPES.model3d && !selectionAuthoringLocked && !polygonToolActive && !bezierToolActive);
+  useEffect(() => { setModelViewObjectId(null); }, [selection.join('|'), screen.id, screen.key]);
   const selectedPolygonPoints = selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon
     ? readPolygonPoints(selectedProjection.element)
     : Object.freeze([]);
@@ -220,6 +226,17 @@ export function VisualEditorCanvas({
     if (polygonToolActive || bezierToolActive || event.button !== 0 || projection.objectId === null) return;
     if (isVisualElementEffectivelyAuthoringLocked(screen, projection.objectId)) return;
     event.stopPropagation();
+    if (modelViewEditing && projection.objectId === modelViewObjectId) {
+      const properties = projection.element.properties ?? {};
+      const startYaw = typeof properties[VISUAL_PROPERTY_KEYS.viewYawDeg] === 'number'
+        ? properties[VISUAL_PROPERTY_KEYS.viewYawDeg] as number : DEFAULT_MODEL3D_YAW_DEG;
+      const startPitch = typeof properties[VISUAL_PROPERTY_KEYS.viewPitchDeg] === 'number'
+        ? properties[VISUAL_PROPERTY_KEYS.viewPitchDeg] as number : DEFAULT_MODEL3D_PITCH_DEG;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setInteraction({ kind: 'model-view', pointerId: event.pointerId, objectId: projection.objectId,
+        startClient: pointFromPointer(event), startYaw, startPitch, yaw: startYaw, pitch: startPitch });
+      return;
+    }
     const mode = selectionModeFromModifiers(event);
     const preserveExistingSelection = mode === 'replace' && selectionSet.has(projection.objectId);
     const requestedSelection = preserveExistingSelection ? selection : nextSelection(selection, projection.objectId, mode);
@@ -325,6 +342,12 @@ export function VisualEditorCanvas({
       setInteraction({ ...interaction, viewport: panViewport(interaction.startViewport, subtractPoints(current, interaction.startClient)) });
       return;
     }
+    if (interaction.kind === 'model-view') {
+      setInteraction({ ...interaction,
+        yaw: wrapModel3dYaw(interaction.startYaw + (current.x - interaction.startClient.x) * 0.45),
+        pitch: clampModel3dPitch(interaction.startPitch - (current.y - interaction.startClient.y) * 0.45) });
+      return;
+    }
     if (interaction.kind === 'rotate') {
       let deltaDegrees = rotationDeltaDegrees(interaction.centerClient, interaction.startClient, current);
       if (event.shiftKey) deltaDegrees = snapScalar(deltaDegrees, 15);
@@ -372,6 +395,10 @@ export function VisualEditorCanvas({
       case 'rotate':
         if (interaction.objectIds.length > 0 && Math.abs(interaction.deltaDegrees) > Number.EPSILON) onMutationIntent({ kind: 'object.rotate', objectIds: interaction.objectIds, deltaDegrees: interaction.deltaDegrees });
         break;
+      case 'model-view':
+        if (interaction.yaw !== interaction.startYaw) onMutationIntent({ kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.viewYawDeg, value: interaction.yaw });
+        if (interaction.pitch !== interaction.startPitch) onMutationIntent({ kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.viewPitchDeg, value: interaction.pitch });
+        break;
       case 'pan':
         if (!sameViewport(interaction.startViewport, interaction.viewport)) onUiIntent({ kind: 'viewport.change', viewport: interaction.viewport });
         break;
@@ -402,6 +429,7 @@ export function VisualEditorCanvas({
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Escape') {
       setInteraction(null);
+      if (modelViewEditing) { setModelViewObjectId(null); return; }
       if (polygonToolActive) cancelPolygon();
       else if (bezierToolActive) cancelBezier();
       else emitSelection([], 'replace');
@@ -489,6 +517,7 @@ export function VisualEditorCanvas({
     const objectId = projection.objectId;
     const authoringLocked = objectId !== null && isVisualElementEffectivelyAuthoringLocked(screen, objectId);
     const selected = objectId !== null && selectionSet.has(objectId);
+    const modelViewOnThisObject = modelViewEditing && objectId === modelViewObjectId;
     const hovered = objectId !== null && hoveredObjectId === objectId;
     const moveTargeted = interaction?.kind === 'move' && objectId !== null && interaction.objectIds.includes(objectId);
     const applyMovePreview = moveTargeted && !ancestorMovesWithSelection;
@@ -519,7 +548,7 @@ export function VisualEditorCanvas({
 
     return <div
       key={objectId ?? `${projection.element.type}:${projection.element.key}`}
-      className={`visual-editor-canvas__object${selected ? ' is-selected' : ''}${hovered ? ' is-hovered' : ''}${authoringLocked ? ' is-authoring-locked' : ''}${projection.identityIssue ? ' has-identity-issue' : ''}`}
+      className={`visual-editor-canvas__object${selected ? ' is-selected' : ''}${hovered ? ' is-hovered' : ''}${modelViewOnThisObject ? ' is-model-view-editing' : ''}${authoringLocked ? ' is-authoring-locked' : ''}${projection.identityIssue ? ' has-identity-issue' : ''}`}
       style={style}
       data-canvas-object-id={objectId ?? undefined}
       data-canvas-object-key={projection.element.key}
@@ -565,7 +594,7 @@ export function VisualEditorCanvas({
     : bezierDraftPoints;
   const bezierDraft = bezierPreviewPoints.length >= 3 ? createClosedBezierGeometry(bezierPreviewPoints) : null;
 
-  return <section className={`visual-editor-canvas${polygonToolActive ? ' is-polygon-tool' : ''}${bezierToolActive ? ' is-bezier-tool' : ''}`} data-testid="visual-editor-canvas" data-renderer="canonical-single-surface" data-identities-visible={identitiesVisible}>
+  return <section className={`visual-editor-canvas${polygonToolActive ? ' is-polygon-tool' : ''}${bezierToolActive ? ' is-bezier-tool' : ''}`} data-testid="visual-editor-canvas" data-renderer="canonical-single-surface" data-identities-visible={identitiesVisible} data-model3d-view-editing={modelViewEditing}>
     <div className="visual-editor-canvas__toolbar" role="toolbar" aria-label={canvasText.controls}>
       <button type="button" title={canvasText.zoomOut} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1 / 1.2) })} aria-label={canvasText.zoomOut}>−</button>
       <button type="button" title={canvasText.resetViewport} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: { zoom: 1, panX: 0, panY: 0 } })} aria-label={canvasText.resetViewport}>1:1</button>
@@ -573,6 +602,13 @@ export function VisualEditorCanvas({
       <button type="button" title={canvasText.zoomIn} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1.2) })} aria-label={canvasText.zoomIn}>+</button>
       <button type="button" title={canvasText.grid} aria-label={canvasText.grid} aria-pressed={gridEnabled} onClick={() => setGridEnabled(value => !value)} data-testid="canvas-grid-toggle">#</button>
       <button type="button" title={canvasText.snap} aria-label={canvasText.snap} aria-pressed={snapEnabled} onClick={() => setSnapEnabled(value => !value)} data-testid="canvas-snap-toggle">⊙</button>
+      {!polygonToolActive && !bezierToolActive && selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.model3d && !selectionAuthoringLocked ? <>
+        <button type="button" title={canvasText.modelViewHint} aria-label={canvasText.modelViewToggle}
+          aria-pressed={modelViewEditing} data-testid="canvas-model3d-view-toggle"
+          onClick={() => { setInteraction(null); setModelViewObjectId(modelViewEditing ? null : selectedProjection.objectId); }}
+        >{canvasText.modelViewToggle}</button>
+        {modelViewEditing ? <span className="visual-editor-canvas__model-view-help" data-testid="canvas-model3d-view-status">{canvasText.modelViewHint}</span> : null}
+      </> : null}
       {polygonToolActive ? <>
         <span className="visual-editor-canvas__polygon-status">{canvasText.polygon} · {polygonDraftPoints.length}</span>
         <button type="button" title={canvasText.finishPolygon} aria-label={canvasText.finishPolygon} disabled={polygonDraftPoints.length < 3} onClick={finishPolygon} data-testid="polygon-finish">✓</button>
@@ -679,6 +715,16 @@ function projectTransientInteraction(
           objectIds: interaction.objectIds,
           deltaDegrees: interaction.deltaDegrees
         });
+      case 'model-view': {
+        let draft = screen;
+        if (interaction.yaw !== interaction.startYaw) draft = applyVisualEditorMutationIntent(draft, {
+          kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.viewYawDeg, value: interaction.yaw
+        });
+        if (interaction.pitch !== interaction.startPitch) draft = applyVisualEditorMutationIntent(draft, {
+          kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.viewPitchDeg, value: interaction.pitch
+        });
+        return draft;
+      }
       case 'polygon-vertex':
         if (pointsEqual(interaction.startPoints, interaction.points)) return screen;
         return updateCanonicalPolygonPoints(screen, interaction.objectId, interaction.points);
@@ -699,7 +745,7 @@ function projectTransientInteraction(
 function canvasControlText(locale: EngineeringLocale) {
   if (locale === 'en') return {
     controls: 'Canvas controls', zoomOut: 'Zoom out', resetViewport: 'Reset viewport', fitScreen: 'Fit screen to visible area', zoomIn: 'Zoom in', identities: 'Show object identities',
-    grid: 'Grid', snap: 'Snap', polygon: 'Polygon points', finishPolygon: 'Finish polygon', cancelPolygon: 'Cancel polygon',
+    grid: 'Grid', snap: 'Snap', modelViewToggle: 'Adjust 3D view', modelViewHint: 'Drag with the left mouse button to orbit; press Escape or the button to leave view mode.', polygon: 'Polygon points', finishPolygon: 'Finish polygon', cancelPolygon: 'Cancel polygon',
     bezier: 'Bezier anchors', finishBezier: 'Close and finish Bezier curve', cancelBezier: 'Cancel Bezier curve', cancelShort: '×',
     addVertex: 'Add polygon vertex', removeVertex: 'Remove polygon vertex', duplicate: 'Duplicate selection',
     addBezierAnchor: 'Split the segment after the selected Bezier anchor', removeBezierAnchor: 'Remove the selected Bezier anchor',
@@ -709,7 +755,7 @@ function canvasControlText(locale: EngineeringLocale) {
   };
   if (locale === 'es') return {
     controls: 'Controles del canvas', zoomOut: 'Alejar', resetViewport: 'Restablecer vista', fitScreen: 'Ajustar pantalla al área visible', zoomIn: 'Acercar', identities: 'Mostrar identidades de objetos',
-    grid: 'Cuadrícula', snap: 'Ajuste', polygon: 'Puntos del polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
+    grid: 'Cuadrícula', snap: 'Ajuste', modelViewToggle: 'Ajustar vista 3D', modelViewHint: 'Arrastre con el botón izquierdo para girar; Escape o el botón sale del modo.', polygon: 'Puntos del polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
     bezier: 'Puntos Bézier', finishBezier: 'Cerrar y finalizar curva Bézier', cancelBezier: 'Cancelar curva Bézier', cancelShort: '×',
     addVertex: 'Agregar vértice', removeVertex: 'Eliminar vértice', duplicate: 'Duplicar selección',
     addBezierAnchor: 'Dividir el segmento después del punto Bézier seleccionado', removeBezierAnchor: 'Eliminar el punto Bézier seleccionado',
@@ -719,7 +765,7 @@ function canvasControlText(locale: EngineeringLocale) {
   };
   return {
     controls: 'Controles do canvas', zoomOut: 'Reduzir zoom', resetViewport: 'Restaurar visualização', fitScreen: 'Ajustar tela à área visível', zoomIn: 'Aumentar zoom', identities: 'Mostrar identificadores dos objetos',
-    grid: 'Grade', snap: 'Ajuste à grade', polygon: 'Pontos do polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
+    grid: 'Grade', snap: 'Ajuste à grade', modelViewToggle: 'Ajustar vista 3D', modelViewHint: 'Arraste com o botão esquerdo para girar; Escape ou o botão sai do modo.', polygon: 'Pontos do polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
     bezier: 'Pontos da Bézier', finishBezier: 'Fechar e finalizar curva Bézier', cancelBezier: 'Cancelar curva Bézier', cancelShort: '×',
     addVertex: 'Adicionar vértice', removeVertex: 'Remover vértice', duplicate: 'Duplicar seleção',
     addBezierAnchor: 'Dividir o segmento após o ponto Bézier selecionado', removeBezierAnchor: 'Remover o ponto Bézier selecionado',

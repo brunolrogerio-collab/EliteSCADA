@@ -208,6 +208,8 @@ export function PropertyInspector({
   const selectedComboBox = selectedElements.length === 1 && selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.comboBox
     ? selectedElements[0]
     : null;
+  const selectedModel3d = selectedElements.length === 1 && selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.model3d
+    ? selectedElements[0] : null;
 
   return (
     <aside className="property-inspector" data-testid="visual-property-inspector">
@@ -225,6 +227,13 @@ export function PropertyInspector({
       /> : null}
 
       {selectedTrend ? <TrendPenEditor element={selectedTrend} onMutationIntent={onMutationIntent} /> : null}
+      {selectedModel3d?.id ? <div className="property-inspector__field-hint" data-testid="model3d-view-property-hint">
+        <p>{locale === 'en' ? 'Select Adjust 3D view on the canvas toolbar and drag with the left button. The 2D Rotation property is independent.' : locale === 'es' ? 'Active Ajustar vista 3D en el lienzo y arrastre con el botón izquierdo. La Rotación 2D es independiente.' : 'Ative Ajustar vista 3D na barra do canvas e arraste com o botão esquerdo. A Rotação 2D é independente.'}</p>
+        <button type="button" data-testid="model3d-reset-view" onClick={() => {
+          onMutationIntent({ kind: 'property.remove', objectIds: [selectedModel3d.id!], propertyKey: VISUAL_PROPERTY_KEYS.viewYawDeg });
+          onMutationIntent({ kind: 'property.remove', objectIds: [selectedModel3d.id!], propertyKey: VISUAL_PROPERTY_KEYS.viewPitchDeg });
+        }}>{locale === 'en' ? 'Restore original 3D view' : locale === 'es' ? 'Restaurar vista 3D original' : 'Restaurar vista 3D original'}</button>
+      </div> : null}
 
       <label className="property-inspector__filter">
         <span>{text.filterLabel}</span>
@@ -487,6 +496,12 @@ function visualPropertyLabel(propertyKey: string, text: PropertyInspectorCopy, o
   switch (propertyKey) {
     case VISUAL_PROPERTY_KEYS.reportKey:
       return locale === 'en' ? 'Report reference' : locale === 'es' ? 'Referencia del informe' : 'Referência do relatório';
+    case VISUAL_PROPERTY_KEYS.viewYawDeg:
+      return locale === 'en' ? '3D view: horizontal angle' : locale === 'es' ? 'Vista 3D: ángulo horizontal' : 'Vista 3D: ângulo horizontal';
+    case VISUAL_PROPERTY_KEYS.viewPitchDeg:
+      return locale === 'en' ? '3D view: vertical angle' : locale === 'es' ? 'Vista 3D: ángulo vertical' : 'Vista 3D: ângulo vertical';
+    case VISUAL_PROPERTY_KEYS.runtimeViewInteractionEnabled:
+      return locale === 'en' ? 'Allow operator to orbit 3D view' : locale === 'es' ? 'Permitir girar la vista 3D en Runtime' : 'Permitir girar a vista 3D no Runtime';
     case VISUAL_PROPERTY_KEYS.arcStyle:
       return locale === 'en' ? 'Arc style' : locale === 'es' ? 'Estilo del arco' : 'Estilo do arco';
     case VISUAL_PROPERTY_KEYS.arcStartAngle:

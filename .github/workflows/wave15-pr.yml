@@ -669,7 +669,7 @@ jobs:
           echo "Serial HA-D2 test CPU: $cpu (allowed set: $allowed_cpus)"
           taskset --cpu-list "$cpu" env DOTNET_PROCESSOR_COUNT=1 dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
             --no-restore --configuration Release --verbosity minimal \
-            --filter 'FullyQualifiedName~RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack|FullyQualifiedName~StandaloneRealApiRestartRecoversExplicitlyActivatedScope|FullyQualifiedName~RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission|FullyQualifiedName~SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState' \
+            --filter 'FullyQualifiedName~RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack|FullyQualifiedName~RealApiProcesses_HaNormalRestartRecoversIntelligenceReceipt|FullyQualifiedName~StandaloneRealApiRestartRecoversExplicitlyActivatedScope|FullyQualifiedName~RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission|FullyQualifiedName~SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState' \
             --logger 'trx;LogFileName=ha-d2-acceptance.trx' \
             --results-directory "$RUNNER_TEMP/ha-d2-results"
       - name: Require selected shared-database/session cases to pass (no empty or skipped evidence)
@@ -683,6 +683,7 @@ jobs:
 
           expected = {
               "RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack",
+              "RealApiProcesses_HaNormalRestartRecoversIntelligenceReceipt",
               "StandaloneRealApiRestartRecoversExplicitlyActivatedScope",
               "RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission",
               "SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState",
@@ -701,7 +702,7 @@ jobs:
           missing = sorted(expected - passed)
           if missing:
               raise SystemExit("HA-D2 acceptance did not pass every required case: " + ", ".join(missing))
-          print("Passed shared-database HA-D2, Intelligence normal-restart recovery, and both runtime session lease cases.")
+          print("Passed shared-database HA-D2, HA and standalone Intelligence normal-restart recovery, and both runtime session lease cases.")
           PY
       - name: Preserve HA-D2 test results
         if: always()

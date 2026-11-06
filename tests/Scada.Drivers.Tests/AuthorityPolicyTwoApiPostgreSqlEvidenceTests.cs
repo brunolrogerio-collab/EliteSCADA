@@ -126,7 +126,16 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(bool sharedDatabase)
+    public Task RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(bool sharedDatabase) =>
+        RunRealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(sharedDatabase, stopAfterNormalRestart: false);
+
+    [Fact]
+    public Task RealApiProcesses_HaNormalRestartRecoversIntelligenceReceipt() =>
+        RunRealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(sharedDatabase: true, stopAfterNormalRestart: true);
+
+    private async Task RunRealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(
+        bool sharedDatabase,
+        bool stopAfterNormalRestart)
     {
         var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(seed)) return;
@@ -268,6 +277,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             var normalRestartStatus = await nodeA.GetAsync("/api/engineering/asset-process-intelligence/scopes");
             Assert.True(normalRestartStatus["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(),
                 "Normal HA active restart must recover only the unchanged receipt: " + normalRestartStatus.ToJsonString());
+            if (stopAfterNormalRestart) return;
             if (!sharedDatabase)
                 await MirrorProjectToStandbyAsync(nodeA, nodeB);
             await SeedSlowHistorianAsync(appConnectionA.ConnectionString);

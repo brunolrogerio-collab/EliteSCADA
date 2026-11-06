@@ -1,6 +1,6 @@
 # ADR-025 — Configuração de portas por instalação
 
-**Status:** perfil Docker estável em desenvolvimento no PR draft #828; escopo corrigido em 29/10/2026.
+**Status:** perfil Docker anteriormente integrado pelo PR #828; DEV-780 (06/11/2026) acrescenta candidato Linux nativo com executor de host separado, sujeito a testes/qualificação. Windows e Docker continuam sem executor UI validado.
 **Data:** 2026-10-29
 **Issue:** [#780 — Configurar portas TCP/UDP e serviços pela interface](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780)
 

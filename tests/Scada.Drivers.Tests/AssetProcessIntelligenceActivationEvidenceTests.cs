@@ -69,4 +69,20 @@ public sealed class AssetProcessIntelligenceActivationEvidenceTests
         Assert.Equal(0, gate.ActivePermitCount);
         Assert.False(gate.TryGetToken("plant", 8, AssetProcessIntelligenceScopeKind.Equipment, scope, out _, 12));
         Assert.Throws<InvalidOperationException>(() => gate.ConfigureDurableInvalidation(() => { }));
+    }    [Fact]
+    public void BaselineNormalizationRemovesOnlyHistorianMetadataThatMatchesTypedConfiguration()
+    {
+        var tag = new TagEngineeringDto(Guid.NewGuid(), "Pressure", "Plant.Pressure",
+            Scada.Core.Tags.TagDataType.Double, Historian: new HistorianSettingsDto(true, "periodic"),
+            Metadata: new() { ["historian.enabled"] = "True", ["historian.strategy"] = "periodic" });
+        Assert.Null(AssetProcessIntelligenceApi.NormalizeHistorianMetadata(tag).Metadata);
+        var conflicting = tag with { Metadata = new() { ["historian.enabled"] = "False", ["historian.strategy"] = "other", ["custom"] = "keep" } };
+        var normalized = AssetProcessIntelligenceApi.NormalizeHistorianMetadata(conflicting);
+        Assert.Equal(3, normalized.Metadata!.Count);
+        Assert.Equal("False", normalized.Metadata["historian.enabled"]);
+        Assert.Equal("other", normalized.Metadata["historian.strategy"]);
+        Assert.Equal("keep", normalized.Metadata["custom"]);
+        Assert.Equal(2, tag.Metadata!.Count);
+        var untyped = tag with { Historian = null };
+        Assert.Same(untyped, AssetProcessIntelligenceApi.NormalizeHistorianMetadata(untyped));
     }}

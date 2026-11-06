@@ -535,13 +535,24 @@ public static class AssetProcessIntelligenceApi
     internal static bool MatchesOperationalBaseline(
         EngineeringPackage expected, EngineeringPackage actual, EngineeringPackage canonical)
     {
-        expected = expected with { ExportedAt = DateTimeOffset.UnixEpoch };
-        actual = actual with { ExportedAt = DateTimeOffset.UnixEpoch };
+        expected = expected with { ExportedAt = DateTimeOffset.UnixEpoch, Tags = expected.Tags.Select(NormalizeHistorianMetadata).ToArray() };
+        actual = actual with { ExportedAt = DateTimeOffset.UnixEpoch, Tags = actual.Tags.Select(NormalizeHistorianMetadata).ToArray() };
         if (expected.AuthorityPolicyReference is { } reference && canonical.AuthorityPolicyReference is { } live)
             expected = expected with { AuthorityPolicyReference = reference with { PolicyVersion = live.PolicyVersion } };
         return JsonNode.DeepEquals(JsonSerializer.SerializeToNode(expected), JsonSerializer.SerializeToNode(actual));
     }
 
+    internal static TagEngineeringDto NormalizeHistorianMetadata(TagEngineeringDto tag)
+    {
+        if (tag.Metadata is null || tag.Historian is null) return tag;
+        var metadata = new Dictionary<string, string>(tag.Metadata);
+        if (metadata.TryGetValue("historian.enabled", out var enabled) &&
+            bool.TryParse(enabled, out var parsed) && parsed == tag.Historian.Enabled)
+            metadata.Remove("historian.enabled");
+        if (metadata.TryGetValue("historian.strategy", out var strategy) && strategy == tag.Historian.Strategy)
+            metadata.Remove("historian.strategy");
+        return tag with { Metadata = metadata.Count == 0 ? null : metadata };
+    }
     private static async Task<IResult> SetScopeActivationAsync(
         bool active,
         string kindText,

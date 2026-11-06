@@ -197,4 +197,8 @@ wait "$listener_pid" 2>/dev/null || true
 assert_healthy "$install_a" "$project_a" "$a_web_new" "$a_api_new" 19997 18888
 assert_healthy "$install_b" "$project_b" "$b_web" "$b_api" 9997 8888
 
+echo 'Testing registered Docker host executor against both live isolated Compose projects.'
+python3 scripts/ci/test_docker_host_executor_integration.py \
+  --installation "$install_a" --instance "$project_a" \
+  --other-web "$b_web" --other-api "$b_api" --other-database "$b_db"
 echo 'PASS: Linux-host stable Docker profile supports two isolated installations, port changes and fail-safe collision rejection.'

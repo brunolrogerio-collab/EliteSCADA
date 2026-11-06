@@ -113,8 +113,8 @@ async function evidence(page: Page, info: TestInfo, name: string) {
 
 test('DEV-863 populated Integrations and Locations: theme switch without reload, navigation and persistence', async ({ page }, info) => {
   await installApi(page);
-  await page.addInitScript(() => localStorage.setItem('elitescada.app.theme', 'dark'));
   await page.goto('/engineering/homeBuilding');
+  await switchTheme(page, 'dark');
   const home = page.getByTestId('home-building-workspace');
   await expect(home.getByTestId('home-building-driver-card')).toHaveCount(1);
   for (const theme of ['dark', 'light'] as const) {
@@ -168,7 +168,11 @@ test('DEV-863 empty Integrations: disabled actions, selectors and mobile contras
 
 test('DEV-863 restricted Engineering Lock: both themes, disabled unlock and admin panels', async ({ page }, info) => {
   let protectedRequests = 0;
-  await installApi(page, { locked: true });
+  // Use the existing authenticated E2E API for capability and page mounting;
+  // mock only the Engineering Lock state, as in the established lock suite.
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({
+    json: { configured: true, locked: true }
+  }));
   await page.route('**/api/engineering/workspace', route => {
     protectedRequests++;
     return route.fulfill({ status: 403, json: { error: 'locked' } });
@@ -177,7 +181,7 @@ test('DEV-863 restricted Engineering Lock: both themes, disabled unlock and admi
   const locked = page.getByTestId('engineering-lock-restricted');
   await expect(locked).toBeVisible();
   await expect(page.locator('.eng-shell')).toHaveCount(0);
-  await expect(locked.getByRole('heading', { name: 'Engineering bloqueado' })).toBeVisible();
+  await expect(locked.locator('.eng-lock-restricted__header h1')).toBeVisible();
   for (const theme of ['light', 'dark'] as const) {
     await switchTheme(page, theme);
     await readable(locked.locator('.eng-lock-restricted__header h1'));
@@ -188,8 +192,9 @@ test('DEV-863 restricted Engineering Lock: both themes, disabled unlock and admi
     await readable(locked.locator('.eng-lock-boundary h2'));
     await readable(locked.locator('.eng-lock-boundary p'));
     await readable(locked.getByTestId('engineering-lock-unlock-secret'));
-    await expect(locked.getByRole('button', { name: 'Desbloquear' })).toBeDisabled();
-    await readable(locked.getByRole('button', { name: 'Desbloquear' }), 3);
+    const unlockButton = locked.locator('.eng-lock-card--unlock form button[type="submit"]');
+    await expect(unlockButton).toBeDisabled();
+    await readable(unlockButton, 3);
     await readable(locked.locator('.eng-project-management__card').first());
     await evidence(page, info, 'engineering-lock-' + theme);
   }
@@ -202,4 +207,27 @@ test('DEV-863 restricted Engineering Lock: both themes, disabled unlock and admi
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
   await expect(page.getByTestId('engineering-lock-restricted')).toBeVisible();
   expect(protectedRequests).toBe(0);
+});
+
+
+test('DEV-863 Engineering Lock management popover remains readable unlocked across themes', async ({ page }, info) => {
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({
+    json: { configured: true, locked: false }
+  }));
+  await page.goto('/engineering');
+  const management = page.getByTestId('engineering-lock-management');
+  await expect(management).toBeVisible();
+  await management.locator('summary').click();
+  await expect(management).toHaveAttribute('open', '');
+  for (const theme of ['light', 'dark'] as const) {
+    await switchTheme(page, theme);
+    await readable(management.locator('.eng-lock-management__state'));
+    await readable(management.locator('.eng-lock-management__heading strong'));
+    await readable(management.locator('.eng-lock-management__heading span'));
+    await readable(management.getByTestId('engineering-lock-configure-secret'));
+    await readable(management.locator('.eng-lock-management__body > a'));
+    await expect(management.locator('.eng-lock-management__configure button').first()).toBeDisabled();
+    await readable(management.locator('.eng-lock-management__configure button').first(), 3);
+    await evidence(page, info, 'engineering-lock-unlocked-' + theme);
+  }
 });

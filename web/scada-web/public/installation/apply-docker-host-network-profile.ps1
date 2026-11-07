@@ -207,7 +207,9 @@ try {
     $record=@{schema='scadivo-docker-windows-recovery-v1';instanceId=$id;phase='pending';backup=$backup;sha256=(Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash;before=$old;desired=$desired}
     Write-Journal $record
     try {
-      Move-Item -LiteralPath $candidate -Destination $envFile -Force
+      # ReplaceFile preserves the destination's protected security descriptor.
+      # Move-Item can re-enable ACL inheritance when replacing an existing file.
+      [IO.File]::Replace($candidate,$envFile,$null)
       [void](Compose -Arguments @('up','-d'))
       Health $desired
       $effective=Get-Ports (Read-Env)

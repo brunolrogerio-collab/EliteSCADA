@@ -1042,6 +1042,11 @@ jobs:
         run: |
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_windows_host_executor.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Windows host executor SCM/IPC integration failed.' }
+      - name: Prove API-to-host Windows Named Pipe transport
+        shell: powershell
+        run: |
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --configuration Release --verbosity minimal --filter 'FullyQualifiedName~InstallationHostNetworkIpcTests'
+          if ($LASTEXITCODE -ne 0) { throw 'API to Windows host IPC integration failed.' }
 
   t1-gate:
     name: Wave 15 T1 gate

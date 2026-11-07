@@ -47,7 +47,7 @@ def protected_file(path: Path) -> None:
     if not path.is_absolute() or path.is_symlink() or not path.is_file():
         raise ContractError("Protected registration file is missing or is a link")
     status = path.stat()
-    if status.st_uid not in (0, os.geteuid()) or status.st_mode & 0o027:
+    if status.st_uid not in (0, os.geteuid()) or status.st_mode & 0o077:
         raise ContractError("Registration must be owner controlled and not readable by others")
 
 

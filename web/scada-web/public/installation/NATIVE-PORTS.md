@@ -60,4 +60,6 @@ Abra a interface no novo endereço e verifique o banco em **Instalação > Rede 
 
 ## Executores separados (opcionais, não instalados automaticamente)
 
+No Docker em host Linux, use o override protegido `docker/stable/compose-host-executor.override.yml` **junto** do Compose base para conservar socket, grupo e arquivo de token montados somente para a API após recriações. Registre também o SHA-256 do override no perfil administrativo, conforme `docs/INSTALLATION-HOST-EXECUTOR.md`.
+
 A aplicação acionada pela interface é distinta dos adaptadores manuais. Consulte o contrato, registros JSON, ACLs, token, status durável e recuperação em `docs/INSTALLATION-HOST-EXECUTOR.md`. No Windows native, execute o binário publicado de `tools/Scadivo.InstallationExecutor.Windows` no host sob conta com poderes apenas para os serviços registrados; a API recebe somente o Nome de Pipe e token por configuração protegida. No Docker em Linux, execute `docker-host-executor.py` **no host**, disponibilize apenas o socket Unix dedicado e token protegido à API, e registre o `docker-compose.stable.yml` por SHA-256. Não monte Docker socket no Web/API. Uma instalação sem executor registrado deve usar os scripts PowerShell/Bash anteriores, nunca simular aplicação no navegador. Os testes de CI não substituem a qualificação do instalador e da identidade efetiva no host.

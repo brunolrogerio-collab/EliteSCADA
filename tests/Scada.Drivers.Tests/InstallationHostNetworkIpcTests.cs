@@ -1,0 +1,110 @@
+using System.IO.Pipes;
+using System.Net.Sockets;
+using System.Text;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Scada.Api.Engineering;
+using Xunit;
+
+namespace Scada.Drivers.Tests;
+
+// Exercises the real API transport, rather than a host-script or browser mock.
+// Host services remain disposable, isolated and unprivileged in this test.
+public sealed class InstallationHostNetworkIpcTests
+{
+    [Fact]
+    public async Task HostApiIpcRoundTripsThroughTheLocalRegisteredTransport()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsWindows()) return;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        const string token = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        var settings = new Dictionary<string, string?>
+        {
+            ["InstallationNetwork:HostExecutorToken"] = token
+        };
+        if (OperatingSystem.IsLinux())
+        {
+            var socketPath = Path.Combine(Path.GetTempPath(), "scadivo-udstest-" + Guid.NewGuid().ToString("N") + ".sock");
+            using var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            try
+            {
+                listener.Bind(new UnixDomainSocketEndPoint(socketPath));
+                listener.Listen(1);
+                settings["InstallationNetwork:HostExecutorSocket"] = socketPath;
+                var server = Task.Run(async () =>
+                {
+                    using var accepted = await listener.AcceptAsync(timeout.Token);
+                    await using var stream = new NetworkStream(accepted, ownsSocket: false);
+                    await ReplyAsync(stream, token, timeout.Token);
+                }, timeout.Token);
+                await VerifyAsync(settings, server, timeout.Token);
+            }
+            finally { if (File.Exists(socketPath)) File.Delete(socketPath); }
+        }
+        else
+        {
+            var pipeName = "scadivo-ipctest-" + Guid.NewGuid().ToString("N");
+            using var listener = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1,
+                PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+            settings["InstallationNetwork:HostExecutorPipe"] = pipeName;
+            var server = Task.Run(async () =>
+            {
+                await listener.WaitForConnectionAsync(timeout.Token);
+                await ReplyAsync(listener, token, timeout.Token);
+            }, timeout.Token);
+            await VerifyAsync(settings, server, timeout.Token);
+        }
+    }
+
+    private static async Task ReplyAsync(Stream stream, string token, CancellationToken cancellationToken)
+    {
+        var bytes = new List<byte>();
+        var buffer = new byte[1];
+        while (bytes.Count < 8192)
+        {
+            if (await stream.ReadAsync(buffer.AsMemory(), cancellationToken) == 0)
+                throw new IOException("IPC peer closed before request headers");
+            bytes.Add(buffer[0]);
+            if (bytes.Count >= 4 && bytes[^4] == 13 && bytes[^3] == 10 &&
+                bytes[^2] == 13 && bytes[^1] == 10) break;
+        }
+        var headers = Encoding.ASCII.GetString(bytes.ToArray());
+        Assert.StartsWith("GET /v1/status HTTP/1.1", headers);
+        Assert.Contains("X-Scadivo-Installation-Token: " + token, headers);
+        const string json = "{\"schema\":\"scadivo-network-host-executor-v1\",\"available\":true,\"instanceId\":\"isolated-api-transport\"}";
+        var response = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
+            Encoding.UTF8.GetByteCount(json) + "\r\nConnection: close\r\n\r\n" + json);
+        await stream.WriteAsync(response.AsMemory(), cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+    }
+
+    private static async Task VerifyAsync(
+        Dictionary<string, string?> settings, Task server, CancellationToken cancellationToken)
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+        var response = await HostExecutorClient.SendAsync(
+            config, "GET", "/v1/status", null, cancellationToken);
+        await server;
+        using var services = new ServiceCollection().AddLogging().AddOptions().BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        await using var output = new MemoryStream();
+        context.Response.Body = output;
+        await response.ExecuteAsync(context);
+        Assert.Equal(200, context.Response.StatusCode);
+        Assert.Contains("isolated-api-transport", Encoding.UTF8.GetString(output.ToArray()));
+    }
+
+    [Fact]
+    public async Task UnregisteredHostExecutorIsNotTreatedAsApplied()
+    {
+        var response = await HostExecutorClient.SendAsync(
+            new ConfigurationBuilder().Build(), "GET", "/v1/status", null,
+            CancellationToken.None);
+        using var services = new ServiceCollection().AddLogging().AddOptions().BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Response.Body = new MemoryStream();
+        await response.ExecuteAsync(context);
+        Assert.Equal(503, context.Response.StatusCode);
+    }
+}

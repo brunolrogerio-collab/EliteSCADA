@@ -77,6 +77,27 @@ O registro administrativo de execução usa `schema: "scadivo-network-host-execu
 }
 ```
 
+Para manter o IPC ativo após `docker compose up -d`, use também o override versionado
+`docker/stable/compose-host-executor.override.yml`. O registro do adaptador deve incluir
+`composeOverrideSha256` com o SHA-256 real desse arquivo, além do digest do Compose base.
+O executor sempre invoca o **mesmo par** de arquivos na prévia, na aplicação e na recuperação,
+impedindo que a troca de portas remova o volume do socket e a credencial da API.
+
+Antes de subir o Compose, o instalador do host deve criar um diretório dedicado ao socket
+(sem escrita para outros, grupo autorizado da API), um diretório separado de segredos e um
+arquivo `token` 0640 lido somente pelo usuário executor e grupo da API. Registrar as variáveis
+`SCADIVO_NETWORK_SOCKET_DIRECTORY`,
+`SCADIVO_NETWORK_API_SECRET_DIRECTORY` e
+`SCADIVO_NETWORK_API_GROUP_GID` no `.env` de **uma única instalação**.
+O arquivo de token do executor no host permanece 0600; a cópia de leitura da API pode
+ter 0640 e **não** deve ser a mesma cópia escrita/alterada pela API.
+O socket exclusivo da instalação usa modo 0660 e o GID informado. A API opera como
+usuário sem privilégio no contêiner, recebe acesso apenas ao socket e token por bind
+read-only, e nunca recebe `/var/run/docker.sock`.
+Para ativar o perfil, o administrador usa `docker compose -f docker-compose.stable.yml
+-f docker/stable/compose-host-executor.override.yml up -d` na instalação registrada.
+Não aplique esse override sem provisionar os diretórios e revisar seus ACLs/permissões.
+
 O digest acima é **marcador**, não um valor executável. O administrador deve usar o SHA-256 real do `docker-compose.stable.yml` revisado. O executor exige `.env` com acesso 0600, diretório de instalação protegido, ID de projeto idêntico ao registro, imagem/serviços limitados aos quatro serviços reconhecidos pelo Compose, correspondência dos rótulos de ownership dos containers e inexistência de conflitos de portas publicadas. Não permite troca de ID, nomes de container, volumes, diretório, Compose ou bind a partir da API. O preflight gera configuração Compose candidata temporária e chama `docker compose config` **antes** de qualquer `up`; a aplicação mantém backup `.env` no estado protegido do executor e journal durável para recuperação. O health check consulta Web/API no host, PostgreSQL e listeners privados de mídia na rede da instalação. Isso **não comprova** reprodução real de vídeo. Uma segunda instalação mantém seu próprio socket/token/diretório, volumes e ID exclusivos.
 
 Recuperação local:

@@ -106,7 +106,63 @@ python3 docker-host-executor.py --registration /caminho/registro-protegido.json 
 python3 docker-host-executor.py --registration /caminho/registro-protegido.json --recover --confirm-recovery
 ```
 
-Um host Docker Desktop **Windows** continua usando o script administrativo PowerShell externo, pois este executor Docker é exclusivamente Linux. Executar o executor em um contêiner junto da API, ou montar `/var/run/docker.sock` nele, não é suportado.
+## Docker Desktop no host Windows (executor opt-in, qualificação pendente)
+
+O executor de **host Windows** `tools/Scadivo.InstallationExecutor.Windows` também aceita
+`profile: "stable-docker-windows"` e utiliza um serviço administrativo separado,
+**não** um processo privilegiado no Web/API. Como o contêiner API do Docker Desktop é
+Linux, ele não acessa o Named Pipe Win32 do host. O acesso é por HTTPS na interface
+**IPv4 explícita** do Windows destinada ao Docker Desktop, com o certificado de
+servidor SHA-256 fixado pela API e um token privado por instalação. O host rejeita
+`0.0.0.0`; o administrador escolhe uma interface alcançável por
+`host.docker.internal`. O firewall não é alterado automaticamente e **deve
+restringir a origem exclusivamente à rede do Docker Desktop**. Sem conectividade,
+certificado correto e credencial, a UI retorna indisponível, nunca sucesso simulado.
+
+O registro ACL-protegido da conta executora Windows tem:
+`schema: "scadivo-network-host-executor-v1"`, `profile: "stable-docker-windows"`,
+`instanceId`, `pipeName` e `apiSid` (somente para administração local),
+`stateDirectory`, `nativeProfilePath` (neste perfil aponta para o perfil Docker),
+`tokenFile`, `adapterDirectory`, `httpsListenAddress`, `httpsListenPort`,
+`httpsCertificatePfx` e `httpsCertificatePasswordFile`. Os arquivos de registro,
+estado, token, certificado/PFX e senha têm ACL exclusiva do executor, Administradores
+e SYSTEM, sem herança não confiável. O diretório dos adaptadores contém a cópia
+protegida de `apply-docker-host-network-profile.ps1`. A conta usada deve ter
+acesso ao CLI `docker.exe --context desktop-linux` e ao projeto registrado.
+
+O perfil Docker é o mesmo `scadivo-docker-host-network-v1`: contém
+`instanceId`, `installationDirectory`, `dockerExecutable` (caminho absoluto
+aprovado), `composeSha256` e `composeOverrideSha256` opcionais com hashes reais,
+calculados sobre `docker-compose.stable.yml` e
+`docker/stable/compose-host-executor.windows.override.yml`. A instalação Windows
+deve ser provisionada com `.env` sob ACL restrita. No `.env` da instância, definir
+`SCADIVO_HOST_EXECUTOR_HTTPS_PORT`,
+`SCADIVO_HOST_EXECUTOR_CERT_SHA256` (SHA-256 do DER do certificado de servidor,
+não o thumbprint SHA-1), e
+`SCADIVO_HOST_EXECUTOR_API_SECRET_DIRECTORY` com a cópia de token `token`
+legível pelo compartilhamento Docker Desktop. Essa pasta é montada **somente
+read-only no contêiner API** pelo override Windows, nunca no Web; não colocar o
+token em variáveis de ambiente ou imagens.
+
+O serviço deve ser iniciado no Windows antes do Compose usando a conta de serviço
+autorizada. Para ativação do perfil opt-in, usar ambos os arquivos:
+`docker compose -f docker-compose.stable.yml -f
+docker/stable/compose-host-executor.windows.override.yml up -d`. O executor usa
+a mesma composição para preflight, Apply e recovery; verifica digest, ID e labels
+do projeto, portas TCP ocupadas e `docker compose config` antes de aplicar.
+Mantém cópia protegida da `.env`, journal por instância, health Web/API/banco/mídia
+e recuperação local confirmada. Para status/recuperação administrativa, executar
+o binário Windows com `--registration ARQUIVO --status` ou
+`--registration ARQUIVO --recover --confirm-recovery`.
+
+**Limite da prova:** o CI Windows cobre compilação e um host descartável com
+HTTPS/certificado/credencial, CLI Docker simulado e prévia não mutante.
+**Não** demonstra ainda Docker Desktop real em host Windows, mudança publicada
+seguida de restart e rollback de contêineres reais. Portanto este perfil é
+**candidato**, depende de homologação em host Docker Desktop com interface/firewall
+configurados e não autoriza fechar a #780. O script PowerShell externo tradicional
+continua disponível para administradores até a qualificação final.
+Não montar `docker.sock` ou `\\.\\pipe\\docker_engine` nos contêineres Web/API.
 
 ## Fluxo de aplicação e recuperação
 

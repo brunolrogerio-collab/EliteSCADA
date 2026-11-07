@@ -2,6 +2,9 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Security;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
 using System.Security.Principal;
@@ -48,7 +51,9 @@ internal static class Program
 internal sealed record Registration(
     string Schema, string Profile, string InstanceId, string PipeName, string ApiSid,
     string StateDirectory, string NativeProfilePath, string TokenFile,
-    string AdapterDirectory, string? PythonExecutable);
+    string AdapterDirectory, string? PythonExecutable,
+    string? HttpsListenAddress = null, int? HttpsListenPort = null,
+    string? HttpsCertificatePfx = null, string? HttpsCertificatePasswordFile = null);
 
 internal sealed record PortPlan(
     string Id, string Module, Dictionary<string, int> Ports, Dictionary<string, int> Before,
@@ -75,6 +80,9 @@ internal sealed class WindowsExecutor : IDisposable
     private readonly PipeSecurity _pipeAcl;
     private readonly string _nativeConfiguration;
     private readonly string _serviceName;
+    private readonly bool _dockerDesktop;
+    private readonly string? _dockerCompose;
+    private readonly string? _dockerOverride;
     private readonly string _statePath;
     private readonly string _planPath;
     private readonly string _auditPath;
@@ -86,7 +94,8 @@ internal sealed class WindowsExecutor : IDisposable
         CheckProtected(registrationPath, directory: false);
         _registration = JsonSerializer.Deserialize<Registration>(File.ReadAllText(registrationPath), JsonOptions)
             ?? throw new InvalidOperationException("Missing host registration");
-        if (_registration.Schema != Schema || _registration.Profile != "native-windows" ||
+        _dockerDesktop = _registration.Profile == "stable-docker-windows";
+        if (_registration.Schema != Schema || (_registration.Profile != "native-windows" && !_dockerDesktop) ||
             !Regex.IsMatch(_registration.InstanceId ?? "", @"\A[a-z0-9][a-z0-9-]{0,47}\z") ||
             !Regex.IsMatch(_registration.PipeName ?? "", @"\A[a-zA-Z0-9_-]{1,128}\z"))
             throw new InvalidOperationException("Invalid Windows installation registration");
@@ -106,16 +115,49 @@ internal sealed class WindowsExecutor : IDisposable
             throw new InvalidOperationException("Missing protected executor token");
         using var profile = JsonDocument.Parse(File.ReadAllText(_registration.NativeProfilePath));
         var root = profile.RootElement;
-        if (root.GetProperty("schema").GetString() != "scadivo-native-network-v1" ||
-            root.GetProperty("platform").GetString() != "windows" ||
-            root.GetProperty("endpointName").GetString() != "Web" ||
-            root.GetProperty("apiEndpointName").GetString() != "Api")
-            throw new InvalidOperationException("Native Windows profile must own distinct Web/API listeners");
-        _serviceName = root.GetProperty("serviceName").GetString() ?? "";
-        if (!Regex.IsMatch(_serviceName, @"\A[A-Za-z0-9_.-]{1,128}\z"))
-            throw new InvalidOperationException("Invalid registered Windows service");
-        _nativeConfiguration = Path.GetFullPath(root.GetProperty("configurationFile").GetString() ?? "");
-        CheckAdminWritableFile(_nativeConfiguration);
+        if (_dockerDesktop)
+        {
+            if (root.GetProperty("schema").GetString() != "scadivo-docker-host-network-v1")
+                throw new InvalidOperationException("Incorrect registered Docker Desktop host profile");
+            var registeredRoot = Path.GetFullPath(root.GetProperty("installationDirectory").GetString() ?? "");
+            CheckAdminWritableDirectory(registeredRoot);
+            _dockerCompose = Path.Combine(registeredRoot, "docker-compose.stable.yml");
+            _dockerOverride = root.TryGetProperty("composeOverrideSha256", out _) ?
+                Path.Combine(registeredRoot, "docker", "stable", "compose-host-executor.windows.override.yml") : null;
+            _nativeConfiguration = Path.Combine(registeredRoot, ".env");
+            _serviceName = string.Empty;
+            CheckProtected(_nativeConfiguration, directory: false);
+            VerifyDockerProfile();
+            if (string.IsNullOrWhiteSpace(_registration.HttpsListenAddress) ||
+                !IPAddress.TryParse(_registration.HttpsListenAddress, out var address) ||
+                address.AddressFamily != AddressFamily.InterNetwork || address.Equals(IPAddress.Any) ||
+                _registration.HttpsListenPort is null or < 1024 or > 65535 ||
+                string.IsNullOrWhiteSpace(_registration.HttpsCertificatePfx) ||
+                string.IsNullOrWhiteSpace(_registration.HttpsCertificatePasswordFile))
+                throw new InvalidOperationException("Registered Windows Docker HTTPS listener is not constrained");
+            CheckProtected(_registration.HttpsCertificatePfx, directory: false);
+            CheckProtected(_registration.HttpsCertificatePasswordFile, directory: false);
+            using var certificate = X509CertificateLoader.LoadPkcs12FromFile(
+                _registration.HttpsCertificatePfx, File.ReadAllText(_registration.HttpsCertificatePasswordFile).Trim());
+            if (!certificate.HasPrivateKey || DateTime.UtcNow < certificate.NotBefore.ToUniversalTime() ||
+                DateTime.UtcNow > certificate.NotAfter.ToUniversalTime())
+                throw new InvalidOperationException("Registered Windows Docker TLS certificate unavailable");
+        }
+        else
+        {
+            if (root.GetProperty("schema").GetString() != "scadivo-native-network-v1" ||
+                root.GetProperty("platform").GetString() != "windows" ||
+                root.GetProperty("endpointName").GetString() != "Web" ||
+                root.GetProperty("apiEndpointName").GetString() != "Api")
+                throw new InvalidOperationException("Native Windows profile must own distinct Web/API listeners");
+            _serviceName = root.GetProperty("serviceName").GetString() ?? "";
+            if (!Regex.IsMatch(_serviceName, @"\A[A-Za-z0-9_.-]{1,128}\z"))
+                throw new InvalidOperationException("Invalid registered Windows service");
+            _nativeConfiguration = Path.GetFullPath(root.GetProperty("configurationFile").GetString() ?? "");
+            CheckAdminWritableFile(_nativeConfiguration);
+            _dockerCompose = null;
+            _dockerOverride = null;
+        }
         // Do not infer service control or file paths from any HTTP payload.
         _statePath = Path.Combine(_registration.StateDirectory, "network-operation.json");
         _planPath = Path.Combine(_registration.StateDirectory, "network-plan.json");
@@ -199,9 +241,83 @@ internal sealed class WindowsExecutor : IDisposable
                 throw new InvalidOperationException("Untrusted principal may alter registered host resources");
     }
 
+
+    private void VerifyDockerProfile()
+    {
+        if (!_dockerDesktop || _dockerCompose is null) return;
+        using var profile = JsonDocument.Parse(File.ReadAllText(_registration.NativeProfilePath));
+        var root = profile.RootElement;
+        var fields = root.EnumerateObject().Select(p => p.Name).ToHashSet();
+        var required = new HashSet<string>
+        {
+            "schema", "instanceId", "installationDirectory", "composeSha256", "dockerExecutable"
+        };
+        if (!fields.SetEquals(required) && !fields.SetEquals(required.Append("composeOverrideSha256")))
+            throw new InvalidOperationException("Registered Docker Desktop profile authority changed");
+        if (root.GetProperty("schema").GetString() != "scadivo-docker-host-network-v1" ||
+            root.GetProperty("instanceId").GetString() != _registration.InstanceId)
+            throw new InvalidOperationException("Registered Docker Desktop identity changed");
+        CheckAdminWritableFile(_dockerCompose);
+        CheckProtected(_nativeConfiguration, directory: false);
+        var dockerExecutable = root.GetProperty("dockerExecutable").GetString() ?? "";
+        CheckAdminWritableFile(dockerExecutable);
+        if (!dockerExecutable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Registered Windows Docker executable invalid");
+        var actual = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(_dockerCompose))).ToLowerInvariant();
+        if (!string.Equals(actual, root.GetProperty("composeSha256").GetString(), StringComparison.Ordinal))
+            throw new InvalidOperationException("Registered Windows Docker Compose content changed");
+        if (_dockerOverride is not null)
+        {
+            CheckAdminWritableFile(_dockerOverride);
+            var overrideHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(_dockerOverride))).ToLowerInvariant();
+            if (!string.Equals(overrideHash,
+                root.GetProperty("composeOverrideSha256").GetString(), StringComparison.Ordinal))
+                throw new InvalidOperationException("Registered Windows Docker IPC overlay changed");
+        }
+    }
+
+    private Dictionary<string, int> DockerCurrent()
+    {
+        VerifyDockerProfile();
+        var env = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var line in File.ReadAllLines(_nativeConfiguration))
+        {
+            var match = Regex.Match(line, @"^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$");
+            if (!match.Success) continue;
+            var key = match.Groups[1].Value;
+            if (!env.TryAdd(key, match.Groups[2].Value.Trim().Trim('"', '\'')))
+                throw new InvalidOperationException("Duplicate registered Docker environment key");
+        }
+        if (env.GetValueOrDefault("SCADIVO_INSTALLATION_ID", "elitescada-stable") != _registration.InstanceId)
+            throw new InvalidOperationException("Registered Docker installation identity diverged");
+        foreach (var key in new[] { "SCADIVO_WEB_BIND", "SCADIVO_API_BIND" })
+            if (env.TryGetValue(key, out var address) && address is not ("127.0.0.1" or "0.0.0.0"))
+                throw new InvalidOperationException("Unsupported Docker published bind address");
+        var result = new Dictionary<string, int>();
+        foreach (var (field, key, fallback) in new[]
+        {
+            ("webPort", "ELITESCADA_WEB_PORT", "18080"),
+            ("apiPort", "ELITESCADA_API_PORT", "15120"),
+            ("databasePort", "ELITESCADA_DB_PORT", "15432"),
+            ("mediaControlPort", "SCADIVO_MEDIA_CONTROL_PORT", "9997"),
+            ("mediaPlaybackPort", "SCADIVO_MEDIA_PLAYBACK_PORT", "8888")
+        })
+        {
+            var raw = env.GetValueOrDefault(key, fallback);
+            if (!Regex.IsMatch(raw, @"\A[0-9]{1,5}\z") ||
+                !int.TryParse(raw, out var port) || port is < 1 or > 65535)
+                throw new InvalidOperationException("Registered Docker port is invalid");
+            result[field] = port;
+        }
+        if (new[] { result["webPort"], result["apiPort"], result["databasePort"] }.Distinct().Count() != 3 ||
+            result["mediaControlPort"] == result["mediaPlaybackPort"])
+            throw new InvalidOperationException("Registered Docker host port collision");
+        return result;
+    }
+
     private string AdapterScript(string module)
     {
-        var name = module switch
+        var name = _dockerDesktop ? "apply-docker-host-network-profile.ps1" : module switch
         {
             "access" => "apply-native-network-profile.ps1",
             "database" => "apply-native-database-port.ps1",
@@ -215,6 +331,7 @@ internal sealed class WindowsExecutor : IDisposable
 
     private Dictionary<string, int> Current()
     {
+        if (_dockerDesktop) return DockerCurrent();
         using var app = JsonDocument.Parse(File.ReadAllText(_nativeConfiguration));
         using var profile = JsonDocument.Parse(File.ReadAllText(_registration.NativeProfilePath));
         var endpoints = app.RootElement.GetProperty("Kestrel").GetProperty("Endpoints");
@@ -250,7 +367,13 @@ internal sealed class WindowsExecutor : IDisposable
         using var mac = new HMACSHA256(_token);
         using var profile = JsonDocument.Parse(File.ReadAllText(_registration.NativeProfilePath));
         var files = new List<string> { _registration.NativeProfilePath, _nativeConfiguration };
-        foreach (var field in new[] { "database", "media" })
+        if (_dockerDesktop)
+        {
+            VerifyDockerProfile();
+            files.Add(_dockerCompose!);
+            if (_dockerOverride is not null) files.Add(_dockerOverride);
+        }
+        foreach (var field in _dockerDesktop ? Array.Empty<string>() : new[] { "database", "media" })
             if (profile.RootElement.TryGetProperty(field, out var entry) &&
                 entry.ValueKind == JsonValueKind.Object &&
                 entry.TryGetProperty("configurationFile", out var file))
@@ -361,6 +484,30 @@ internal sealed class WindowsExecutor : IDisposable
         foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                                   "-File", script, "-ProfilePath", _registration.NativeProfilePath })
             start.ArgumentList.Add(arg);
+        if (_dockerDesktop)
+        {
+            if (action is not ("preflight" or "apply" or "recover" or "verify"))
+                throw new InvalidOperationException("Unsupported registered Docker host action");
+            if (action is "preflight" or "apply")
+            {
+                var target = Current();
+                foreach (var pair in ports) target[pair.Key] = pair.Value;
+                foreach (var (key, flag) in new[]
+                {
+                    ("webPort", "-WebPort"), ("apiPort", "-ApiPort"), ("databasePort", "-DatabasePort"),
+                    ("mediaControlPort", "-MediaControlPort"), ("mediaPlaybackPort", "-MediaPlaybackPort")
+                })
+                {
+                    start.ArgumentList.Add(flag);
+                    start.ArgumentList.Add(target[key].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+            if (action == "apply") start.ArgumentList.Add("-Apply");
+            if (action == "recover") start.ArgumentList.Add("-Recover");
+            if (action == "verify") start.ArgumentList.Add("-Verify");
+        }
+        else
+        {
         if (module != "access")
         {
             if (string.IsNullOrEmpty(_registration.PythonExecutable))
@@ -386,6 +533,7 @@ internal sealed class WindowsExecutor : IDisposable
         }
         if (action == "apply") start.ArgumentList.Add("-Apply");
         if (action == "recover") start.ArgumentList.Add("-Recover");
+        }
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Registered adapter could not start");
         // Discard output from protected scripts; it may contain paths or credentials.
         var stdout = process.StandardOutput.ReadToEndAsync();
@@ -507,7 +655,8 @@ internal sealed class WindowsExecutor : IDisposable
                     var observed = Current();
                     if (operation.Before.Any(pair => !observed.TryGetValue(pair.Key, out var p) || p != pair.Value))
                         throw;
-                    await RunAdapterAsync(operation.Module, operation.Before, "preflight");
+                    await RunAdapterAsync(operation.Module, operation.Before,
+                        _dockerDesktop ? "verify" : "preflight");
                 }
             }
             else
@@ -535,6 +684,56 @@ internal sealed class WindowsExecutor : IDisposable
     }
 
     public async Task ServeAsync(CancellationToken cancellationToken)
+    {
+        if (_dockerDesktop)
+        {
+            await Task.WhenAll(ServePipeAsync(cancellationToken), ServeHttpsAsync(cancellationToken));
+        }
+        else await ServePipeAsync(cancellationToken);
+    }
+
+    private async Task ServeHttpsAsync(CancellationToken cancellationToken)
+    {
+        using var certificate = X509CertificateLoader.LoadPkcs12FromFile(
+            _registration.HttpsCertificatePfx!,
+            File.ReadAllText(_registration.HttpsCertificatePasswordFile!).Trim());
+        var address = IPAddress.Parse(_registration.HttpsListenAddress!);
+        var listener = new TcpListener(address, _registration.HttpsListenPort!.Value);
+        listener.Start(16);
+        using var slots = new SemaphoreSlim(16, 16);
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await slots.WaitAsync(cancellationToken);
+                TcpClient peer;
+                try { peer = await listener.AcceptTcpClientAsync(cancellationToken); }
+                catch { slots.Release(); throw; }
+                _ = Task.Run(async () =>
+                {
+                    using (peer)
+                    {
+                        try
+                        {
+                            await using var tls = new SslStream(peer.GetStream(), leaveInnerStreamOpen: false);
+                            using var handshakeLimit = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                            await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
+                            {
+                                ServerCertificate = certificate,
+                                EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                            }, handshakeLimit.Token);
+                            await ServeClientAsync(tls);
+                        }
+                        catch (Exception) { /* Never expose protected host request or credentials. */ }
+                        finally { slots.Release(); }
+                    }
+                }, cancellationToken);
+            }
+        }
+        finally { listener.Stop(); }
+    }
+
+    private async Task ServePipeAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {

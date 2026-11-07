@@ -144,9 +144,10 @@ internal static class HostExecutorClient
         // Native Win32 pipes cannot be bind-mounted into Linux containers.
         var httpsRequested = !string.IsNullOrEmpty(httpsHost) || !string.IsNullOrEmpty(httpsPortText) ||
                              !string.IsNullOrEmpty(certHash);
+        var parsedPort = 0;
         var httpsValid = httpsRequested && OperatingSystem.IsLinux() &&
                          (httpsHost == "host.docker.internal" || httpsHost == "127.0.0.1") &&
-                         int.TryParse(httpsPortText, out int parsedPort) && parsedPort is >= 1024 and <= 65535 &&
+                         int.TryParse(httpsPortText, out parsedPort) && parsedPort is >= 1024 and <= 65535 &&
                          certHash is not null && Regex.IsMatch(certHash, @"\A[0-9A-Fa-f]{64}\z");
         if ((httpsRequested && (!httpsValid || linuxSocket || windowsPipe ||
                                  !string.IsNullOrWhiteSpace(socketPath) || !string.IsNullOrWhiteSpace(pipeName))) ||

@@ -183,7 +183,7 @@ test('host executor missing does not provide a fake apply action', async ({ page
   await expect(panel.getByRole('button', { name: 'Solicitar aplicação' })).toHaveCount(0);
 });
 
-for (const hostProfile of ['native-windows', 'stable-docker-linux'] as const) {
+for (const hostProfile of ['native-windows', 'stable-docker-linux', 'stable-docker-windows'] as const) {
   test(`registered ${hostProfile} host follows UI preflight, explicit apply and durable status`, async ({ page }) => {
     let applied = false;
     let mutations = 0;

@@ -263,6 +263,7 @@ function EngineeringRuntimeApplicationContent({
   const mobile = useMobileRuntime();
   const [requestedScreen, setRequestedScreen] = useState<string | null>(null);
   const [stationProfileId, setStationProfileId] = useState('');
+  const [showStationPlan, setShowStationPlan] = useState(false);
   const [stationLaunchMessage, setStationLaunchMessage] = useState('');
   const [stationRecoveryLinks, setStationRecoveryLinks] = useState<RuntimeStationRecoveryLink[]>([]);
   const [stationAdmissionReports, setStationAdmissionReports] = useState<RuntimeStationWindowReport[]>([]);
@@ -294,7 +295,14 @@ function EngineeringRuntimeApplicationContent({
   const activeScreenKey = requestedScreen ?? linkedScreen ?? startup.screenKey;
   const stationProfiles = engineeringPackage.runtimePresentation?.stationProfiles ?? [];
   const selectedStation = stationProfiles.find(profile => profile.id === stationProfileId) ?? stationProfiles[0];
-  const stationFixed = new URLSearchParams(window.location.search).get('stationMode') === 'fixed';
+  const stationQuery = new URLSearchParams(window.location.search);
+  const stationFixed = stationQuery.get('stationMode') === 'fixed';
+  const isStationChild = stationQuery.has('stationRun');
+  const stationLabels = locale === 'en'
+    ? { inspect: 'Check windows', window: 'Window', navigation: 'Navigation', fixed: 'Fixed screen', active: 'Active revision', instruction: 'Open the windows, then move each to a physical monitor. Automatic positioning and fullscreen are not guaranteed by the browser.' }
+    : locale === 'es'
+      ? { inspect: 'Revisar ventanas', window: 'Ventana', navigation: 'Navegación', fixed: 'Pantalla fija', active: 'Revisión Active', instruction: 'Abra las ventanas y mueva cada una al monitor físico deseado. El navegador no garantiza posición ni pantalla completa automáticas.' }
+      : { inspect: 'Conferir janelas', window: 'Janela', navigation: 'Navegação', fixed: 'Tela fixa', active: 'Revisão Active', instruction: 'Abra as janelas e arraste cada uma para o monitor físico desejado. O navegador não garante posicionamento nem tela cheia automáticos.' };
   const activeScreen = (engineeringPackage.screens ?? []).find(screen =>
     screen.key.toLocaleLowerCase() === activeScreenKey?.toLocaleLowerCase()
   );
@@ -408,6 +416,7 @@ function EngineeringRuntimeApplicationContent({
 
   const startStation = () => {
     if (!selectedStation) return;
+    setShowStationPlan(false);
     const runId = createRuntimeStationRunId();
     stationAdmissionChannelRef.current?.close();
     if (stationAdmissionTimeoutRef.current !== null) window.clearTimeout(stationAdmissionTimeoutRef.current);
@@ -574,11 +583,13 @@ function EngineeringRuntimeApplicationContent({
         </> : null}
       </div>
       <div className="runtime-operator-side runtime-operator-side--right">
-        {!compact && stationProfiles.length ? <div className="runtime-operator-station-controls">
-          <select aria-label={locale === 'pt-BR' ? 'Estação do Runtime' : locale === 'es' ? 'Estación Runtime' : 'Runtime station'} value={selectedStation?.id ?? ''} onChange={event => setStationProfileId(event.currentTarget.value)}>
-            {stationProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+        {!mobile && !isStationChild && stationProfiles.length ? <div className="runtime-operator-station-controls" data-testid="runtime-station-launcher">
+          <select aria-label={locale === 'pt-BR' ? 'Estação do Runtime' : locale === 'es' ? 'Estación Runtime' : 'Runtime station'} value={selectedStation?.id ?? ''} onChange={event => { setStationProfileId(event.currentTarget.value); setShowStationPlan(false); }}>
+            {stationProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name} ({profile.windows.length})</option>)}
           </select>
+          <button type="button" aria-expanded={showStationPlan} onClick={() => setShowStationPlan(value => !value)}>{stationLabels.inspect}</button>
           <button type="button" onClick={startStation}>{locale === 'pt-BR' ? 'Iniciar estação' : locale === 'es' ? 'Iniciar estación' : 'Start station'}</button>
+          <span className="runtime-station-active-revision">{stationLabels.active} {projection.revision}</span>
         </div> : null}
         {!compact ? <a className="runtime-operator-tool" href={`/?screen=${encodeURIComponent(activeScreenKey ?? '')}`}
           target="_blank" rel="noopener noreferrer"
@@ -592,6 +603,13 @@ function EngineeringRuntimeApplicationContent({
             runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
         </div> : null}
       </div>
+      {showStationPlan && selectedStation && !isStationChild ? <div className="runtime-station-launch-status" data-testid="runtime-station-plan">
+        <strong>{selectedStation.name} · {selectedStation.windows.length} {locale === 'en' ? 'windows' : locale === 'es' ? 'ventanas' : 'janelas'}</strong>
+        <ol>{selectedStation.windows.map((slot, index) => <li key={index}>
+          {stationLabels.window} {index + 1}: {(engineeringPackage.screens ?? []).find(screen => screen.key === slot.screenKey)?.name || slot.screenKey} · {slot.mode === 'fixed' ? stationLabels.fixed : stationLabels.navigation}
+        </li>)}</ol>
+        <p>{stationLabels.instruction}</p>
+      </div> : null}
       {stationLaunchMessage ? <div role="status" className="runtime-station-launch-status">
         <span>{stationLaunchMessage}</span>
         {stationAdmissionReports.length ? <ul aria-label={runtimeStationAdmissionListLabel(locale)} data-testid="runtime-station-admission-results">

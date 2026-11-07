@@ -128,6 +128,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [productIdentity, setProductIdentity] = useState<ProductIdentityView | null>(null);
   const [intelligencePendingChanges, setIntelligencePendingChanges] = useState(false);
+  const [stationPendingChanges, setStationPendingChanges] = useState(false);
   const [intelligenceDashboardDrafts, setIntelligenceDashboardDrafts] = useState<readonly ScreenEngineering[]>([]);
   const t = useMemo(() => translator(locale), [locale]);
   const { capabilities } = useEffectiveCapabilities();
@@ -174,6 +175,14 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
   };
 
   const selectSection = (next: SectionId) => {
+    if (section === 'stations' && next !== section && stationPendingChanges) {
+      const warning = locale === 'en'
+        ? 'Station edits have not been applied to Working. Leave and discard these changes?'
+        : locale === 'es'
+          ? 'Los cambios de estación no se han aplicado a Working. ¿Salir y descartarlos?'
+          : 'As alterações da estação não foram aplicadas ao Working. Sair e descartá-las?';
+      if (!window.confirm(warning)) return;
+    }
     if (section === 'intelligence' && next !== section && intelligencePendingChanges) {
       const warning = locale === 'en'
         ? 'There are unsaved Intelligence changes. Cancel to save the process configuration and eligible scopes before saving the project revision. Leave and discard these edits?'
@@ -288,7 +297,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
         >
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
           {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
-          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} isSystemAdmin={canAdministerDatabase} onReload={load} onSnapshotRefreshed={refreshSnapshotInPlace} onIntelligencePendingChangesChanged={setIntelligencePendingChanges} onCreateIntelligenceDashboard={openIntelligenceDashboardDraft} initialIntelligenceDashboardDrafts={intelligenceDashboardDrafts} onIntelligenceDashboardDraftConsumed={consumeIntelligenceDashboardDraft}/>}
+          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} isSystemAdmin={canAdministerDatabase} onReload={load} onSnapshotRefreshed={refreshSnapshotInPlace} onIntelligencePendingChangesChanged={setIntelligencePendingChanges} onStationPendingChangesChanged={setStationPendingChanges} onCreateIntelligenceDashboard={openIntelligenceDashboardDraft} initialIntelligenceDashboardDrafts={intelligenceDashboardDrafts} onIntelligenceDashboardDraftConsumed={consumeIntelligenceDashboardDraft}/>}
         </section>
       </div>
     </main>
@@ -301,7 +310,7 @@ function editorNavigationLabel(locale: EngineeringLocale, collapsed: boolean): s
   return collapsed ? 'Mostrar navegação do Engineering' : 'Ocultar navegação do Engineering';
 }
 
-function EngineeringSection({ section, snapshot, productIdentity, t, locale, isSystemAdmin, onReload, onSnapshotRefreshed, onIntelligencePendingChangesChanged, onCreateIntelligenceDashboard, initialIntelligenceDashboardDrafts, onIntelligenceDashboardDraftConsumed }: {
+function EngineeringSection({ section, snapshot, productIdentity, t, locale, isSystemAdmin, onReload, onSnapshotRefreshed, onIntelligencePendingChangesChanged, onStationPendingChangesChanged, onCreateIntelligenceDashboard, initialIntelligenceDashboardDrafts, onIntelligenceDashboardDraftConsumed }: {
   section: SectionId;
   snapshot: EngineeringSnapshot;
   productIdentity: ProductIdentityView | null;
@@ -311,6 +320,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, isS
   onReload: () => Promise<void>;
   onSnapshotRefreshed: () => Promise<void>;
   onIntelligencePendingChangesChanged: (pending: boolean) => void;
+  onStationPendingChangesChanged: (pending: boolean) => void;
   onCreateIntelligenceDashboard: (draft: ScreenEngineering | readonly ScreenEngineering[]) => void;
   initialIntelligenceDashboardDrafts: readonly ScreenEngineering[];
   onIntelligenceDashboardDraftConsumed: (key: string) => void;
@@ -327,7 +337,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, isS
   if (section === 'installation') return <><InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/><InstallationNetworkWorkspace locale={locale} isSystemAdmin={isSystemAdmin}/></>;
   if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'mobile') return <MobileRuntimeEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
-  if (section === 'stations') return <RuntimeStationEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
+  if (section === 'stations') return <RuntimeStationEngineeringWorkspace snapshot={snapshot} onApplied={onSnapshotRefreshed} onPendingChangesChange={onStationPendingChangesChanged} locale={locale}/>;
   if (section === 'mediaSources') return <MediaSourceEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'visualAssets') return <VisualAssetManagementWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;

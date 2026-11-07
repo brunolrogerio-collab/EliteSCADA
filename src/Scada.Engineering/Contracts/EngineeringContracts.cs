@@ -532,7 +532,21 @@ public sealed record RuntimePresentationEngineeringDto(
     string MobileOrientation = "landscape",
     int Version = 1,
     RuntimeHeaderEngineeringDto? Header = null,
-    IReadOnlyDictionary<string, string>? MobileScreens = null);
+    IReadOnlyDictionary<string, string>? MobileScreens = null,
+    IReadOnlyList<RuntimeStationProfileEngineeringDto>? StationProfiles = null);
+
+/// <summary>
+/// One authored Runtime station. Its windows are independent Runtime clients;
+/// slot order is presentation order, never a physical monitor coordinate.
+/// </summary>
+public sealed record RuntimeStationProfileEngineeringDto(
+    string Id,
+    string Name,
+    IReadOnlyList<RuntimeStationWindowEngineeringDto> Windows);
+
+public sealed record RuntimeStationWindowEngineeringDto(
+    string ScreenKey,
+    string Mode);
 
 public sealed record RuntimeHeaderEngineeringDto(
     bool Enabled = true,

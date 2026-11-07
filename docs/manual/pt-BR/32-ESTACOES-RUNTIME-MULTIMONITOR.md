@@ -20,6 +20,12 @@ Uma estação reúne de uma a quatro janelas independentes da mesma aplicação 
 6. Quando a configuração estiver válida, escolha Aplicar ao Working.
 7. Salve e publique a revisão e ative-a pelo ciclo do projeto. Só depois a estação aparecerá na aplicação Runtime ativa.
 
+### Antes de sair da Engenharia e configurar os monitores físicos
+
+Working guarda o rascunho de edição. Se houver alterações ainda não aplicadas, a Engenharia solicita confirmação antes de trocar de seção ou sair da página. Para preservar a configuração, clique Validar, depois Aplicar ao Working. Volte à Visão geral da Engenharia, salve uma nova revisão, publique e ative. Visitar o Runtime antes disso continua exibindo a revisão Active anterior, sem apagar o que foi aplicado no Working.
+
+No Windows, abra Configurações > Sistema > Tela e escolha Estender estas telas. No Linux, abra Configurações > Monitores/Telas do GNOME, KDE ou do seu ambiente e escolha o modo estendido, não espelhado. Verifique no sistema operacional se o segundo monitor está ativo. No Runtime, use Conferir janelas para identificar Janela 1, Janela 2 etc. Clique Iniciar estação e arraste cada janela para o monitor desejado; use tela cheia em cada uma, se o navegador permitir. O número da janela não designa automaticamente um monitor físico. O navegador pode bloquear pop-ups e não garante posicionar ou restaurar janelas em monitores distintos. Se uma janela fechar, use Reabrir tela N a partir da janela de origem; se a origem não existir, reinicie a estação e reorganize as janelas manualmente. Cada janela tem sua própria admissão e quota.
+
 ### Entender os campos
 
 O número da janela acompanha a ordem em que ela será aberta. Não é o número de um monitor. Os seletores usam as telas existentes no projeto; criar uma estação não cria nem publica as telas.
@@ -33,7 +39,7 @@ O número da janela acompanha a ordem em que ela será aberta. Não é o número
 
 ### Iniciar e distribuir as janelas
 
-Abra o Runtime em uma janela normal, com o cabeçalho visível. Se estiver em tela cheia, saia dela primeiro. No cabeçalho, escolha a estação e clique Iniciar estação. O navegador pode bloquear novas janelas; nesse caso o Runtime mostra links para abri-las uma a uma. Coloque cada janela no monitor desejado arrastando-a. Ajuste o tamanho e, se for útil, coloque cada uma em tela cheia. O produto não detecta nem restaura automaticamente a posição física, a orientação ou a escala dos monitores.
+Abra o Runtime com o cabeçalho visível. No desktop, o iniciador da estação também aparece em tela cheia. No cabeçalho, escolha a estação, clique Conferir janelas para revisar os nomes das telas, a função de cada janela e a revisão Active, e depois clique Iniciar estação. O navegador pode bloquear novas janelas; nesse caso o Runtime mostra links para abri-las uma a uma. Coloque cada janela no monitor desejado arrastando-a. Ajuste o tamanho e, se for útil, coloque cada uma em tela cheia. O produto não detecta nem restaura automaticamente a posição física, a orientação ou a escala dos monitores.
 
 Depois de iniciar, consulte na janela de origem a lista Situação das sessões por tela. Cada linha informa se o servidor admitiu aquela janela e qual classe concedeu, ou se houve recusa por falta de vaga. Se uma janela não tiver vaga de licença, ela não foi admitida; confira as conexões em uso e encerre explicitamente as que não precisa pelo menu da conta antes de tentar novamente. Iniciar uma estação não aumenta o limite da licença, e a janela recusada também mostra um aviso próprio. Se a linha ficar sem confirmação, abra a janela correspondente e confira o aviso do Runtime: não foi possível confirmar não significa que a sessão foi admitida. Quando a instalação não usa admissão autenticada, a lista informa isso; essa mensagem não confirma uma sessão autenticada/licenciada.
 
@@ -47,7 +53,7 @@ Para encerrar a sessão e liberar uma vaga imediatamente, abra o menu da conta e
 
 Se uma janela da estação fechar enquanto a janela de origem continua aberta, a linha correspondente muda para “janela fechada” e aparece o link “Reabrir tela N”. Clique nele para abrir apenas aquela tela novamente. A nova janela solicita uma sessão Runtime própria; confira o resultado de admissão e a vaga na licença antes de usá-la. A posição física do monitor não é recuperada. Se também fechou ou recarregou a janela de origem, entre no Runtime, inicie a estação outra vez e distribua as janelas manualmente. Se não houver vaga, encerre sessões que não estiver usando ou aguarde a sessão anterior expirar.
 
-Se o seletor de estação não aparecer, confira se o cabeçalho está habilitado, se o Runtime não está em tela cheia e se a revisão em uso contém o perfil. Se uma janela abrir na tela errada, confira a tela selecionada naquela linha e ative a revisão atualizada. Se uma janela fixa não mudar de tela, ela está funcionando como foi configurada. Se o acesso interativo for limitado ou recusado, confira quantas conexões da licença estão em uso e as permissões da conta.
+Se o seletor de estação não aparecer, confira se o cabeçalho está habilitado, se o cabeçalho do Runtime está visível e se a revisão em uso contém o perfil. Se uma janela abrir na tela errada, confira a tela selecionada naquela linha e ative a revisão atualizada. Se uma janela fixa não mudar de tela, ela está funcionando como foi configurada. Se o acesso interativo for limitado ou recusado, confira quantas conexões da licença estão em uso e as permissões da conta.
 
 #### Exemplo visual
 

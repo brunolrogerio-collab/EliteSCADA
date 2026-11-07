@@ -396,6 +396,14 @@
 .runtime-operator-context__screen { color:color-mix(in srgb,var(--runtime-header-foreground,var(--app-text-primary)) 76%,transparent); line-height:1.2; }
 .runtime-operator-context__revision { color:color-mix(in srgb,var(--runtime-header-foreground,var(--app-text-primary)) 68%,transparent); font-size:10px; }
 .runtime-operator-context > .runtime-playback-badge,.runtime-operator-context > .runtime-playback-live-shortcut { justify-self:center; }
+.runtime-operator-station-controls {
+  display:flex; align-items:center; gap:4px; flex-wrap:wrap; max-width:100%; min-width:0;
+}
+.runtime-operator-station-controls select { min-width:80px; max-width:160px; }
+.runtime-operator-station-controls button { white-space:nowrap; }
+.runtime-station-active-revision { font-size:10px; opacity:.78; white-space:nowrap; }
+.runtime-station-launch-status ol { display:grid; gap:4px; margin:0; padding-left:18px; }
+.runtime-station-launch-status p { margin:0; }
 .runtime-station-launch-status {
   position:absolute; top:calc(100% + 4px); right:8px; z-index:40; display:flex; flex-direction:column; align-items:flex-start; gap:7px;
   max-width:min(420px,calc(100vw - 16px)); padding:10px 12px; border:1px solid var(--app-border); border-radius:8px;

@@ -1178,3 +1178,129 @@ test('successful sign-out removes the current client authority only after server
   await expect(page.locator('input[name="username"]')).toBeVisible();
   expect(contract.logoutRequests).toBe(1);
 });
+
+
+test('a two-screen station launches only the Active revision after save, publish and activation', async ({ page }) => {
+  test.setTimeout(120_000);
+  const admissions: RuntimeSessionObservation[] = [];
+  await installSessionContract(page, administrator, 'success', true, admission => admissions.push(admission));
+
+  const profile = {
+    id: 'dual-monitor-station',
+    name: 'Centro de operações',
+    windows: [
+      { screenKey: 'home', mode: 'navigation' },
+      { screenKey: 'pumps', mode: 'fixed' }
+    ]
+  };
+  let lifecycleStage = 0;
+  const screens = [
+    { id: 'screen-home-id', key: 'home', name: 'Visão geral', elements: [] },
+    { id: 'screen-pumps-id', key: 'pumps', name: 'Bombas da estação', elements: [] }
+  ];
+  await page.context().route('**/api/runtime/application', route => route.fulfill({ json: {
+    mode: 'engineering',
+    projectKey: 'launch-demo', projectName: 'Launch Demo',
+    revision: lifecycleStage === 3 ? 9 : 8,
+    activatedAtUtc: '2026-11-06T12:00:00Z',
+    package: {
+      schema: 'elitescada.hmi', schemaVersion: 1,
+      startupScreenId: screens[0].id,
+      screens, popups: [], dynamos: [], scripts: [],
+      scriptVisualEventReferences: [], visualAssets: [],
+      runtimePresentation: {
+        version: 1, historicalPlaybackEnabled: false,
+        stationProfiles: lifecycleStage === 3 ? [profile] : []
+      }
+    }
+  }}));
+  await page.context().route('**/api/engineering/persistence/launch-demo/save', route => {
+    lifecycleStage = 1;
+    return route.fulfill({ json: { revision: 9 } });
+  });
+  await page.context().route('**/api/engineering/persistence/launch-demo/revisions/9/publish', route => {
+    if (lifecycleStage !== 1) return route.fulfill({ status: 409, json: { error: 'Save first' } });
+    lifecycleStage = 2;
+    return route.fulfill({ json: { revision: 9 } });
+  });
+  await page.context().route('**/api/engineering/persistence/launch-demo/published/activate', route => {
+    if (lifecycleStage !== 2) return route.fulfill({ status: 409, json: { error: 'Publish first' } });
+    lifecycleStage = 3;
+    return route.fulfill({ json: { revision: 9 } });
+  });
+  const lifecycleAction = async (path: string) => {
+    await page.evaluate(async endpoint => {
+      const response = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirmed: true }) });
+      if (!response.ok) throw new Error(`Lifecycle mock returned ${response.status}`);
+    }, path);
+  };
+
+  await page.setViewportSize({ width: 1600, height: 950 });
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveAttribute('data-runtime-revision', '8');
+  await expect(page.getByTestId('runtime-station-launcher')).toHaveCount(0);
+
+  await lifecycleAction('/api/engineering/persistence/launch-demo/save');
+  await page.reload();
+  await expect(page.getByTestId('runtime-station-launcher')).toHaveCount(0);
+  await lifecycleAction('/api/engineering/persistence/launch-demo/revisions/9/publish');
+  await page.reload();
+  await expect(page.getByTestId('runtime-station-launcher')).toHaveCount(0);
+
+  await lifecycleAction('/api/engineering/persistence/launch-demo/published/activate');
+  await page.reload();
+  const launcher = page.getByTestId('runtime-station-launcher');
+  await expect(launcher).toBeVisible();
+  await expect(launcher).toContainText('Revisão Active 9');
+  await launcher.getByRole('button', { name: 'Conferir janelas' }).click();
+  const plan = page.getByTestId('runtime-station-plan');
+  await expect(plan).toContainText('Janela 1: Visão geral · Navegação');
+  await expect(plan).toContainText('Janela 2: Bombas da estação · Tela fixa');
+  await expect(plan).toContainText('arraste cada uma para o monitor físico');
+
+  // Fullscreen is entered by a genuine user click; the station launcher must
+  // remain usable in desktop fullscreen, without adding OS-specific APIs.
+  await page.evaluate(() => {
+    const control = document.createElement('button');
+    control.textContent = 'Ativar tela cheia para teste';
+    control.onclick = () => {
+      const root = document.querySelector('[data-testid="runtime-engineering-application"]') as HTMLElement | null;
+      void root?.requestFullscreen();
+    };
+    document.body.append(control);
+  });
+  await page.getByRole('button', { name: 'Ativar tela cheia para teste' }).click();
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveAttribute('data-runtime-fullscreen', 'true');
+  await expect(launcher).toBeVisible();
+
+  const admissionsBeforeStationLaunch = admissions.length;
+  const stationWindows: Page[] = [];
+  const opened = new Promise<void>(resolve => {
+    const onPage = (child: Page) => {
+      stationWindows.push(child);
+      if (stationWindows.length === 2) {
+        page.context().off('page', onPage);
+        resolve();
+      }
+    };
+    page.context().on('page', onPage);
+  });
+  await launcher.getByRole('button', { name: 'Iniciar estação' }).click();
+  await opened;
+  expect(stationWindows).toHaveLength(2);
+  for (const child of stationWindows) {
+    await expect(child.getByTestId('runtime-engineering-application')).toHaveAttribute('data-runtime-revision', '9');
+    const slot = new URL(child.url()).searchParams.get('slot');
+    const query = new URL(child.url()).searchParams;
+    expect(query.get('station')).toBe('dual-monitor-station');
+    expect(query.get('screen')).toBe(slot === '0' ? 'home' : 'pumps');
+    expect(query.get('stationMode')).toBe(slot === '0' ? 'navigation' : 'fixed');
+  }
+  await expect.poll(() => admissions.length).toBe(admissionsBeforeStationLaunch + 2);
+  // The launcher itself can re-admit on page reload. Check only newly opened
+  // station slots, not all historic parent admissions from the lifecycle test.
+  const stationAdmissions = admissions.slice(admissionsBeforeStationLaunch);
+  expect(new Set(stationAdmissions.map(admission => new URL(admission.url).searchParams.get('slot'))))
+    .toEqual(new Set(['0', '1']));
+  expect(new Set(stationAdmissions.map(admission => admission.clientInstanceId)).size).toBe(2);
+});

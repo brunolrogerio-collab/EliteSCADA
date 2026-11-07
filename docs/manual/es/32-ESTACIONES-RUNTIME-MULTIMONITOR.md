@@ -20,6 +20,12 @@ Una estación agrupa de una a cuatro ventanas independientes de la misma aplicac
 6. Cuando la configuración sea válida, elija Aplicar a Working.
 7. Guarde y publique la revisión y actívela mediante el ciclo del proyecto. La estación aparecerá en Runtime activo después de activarla.
 
+### Antes de salir de Ingeniería y preparar los monitores físicos
+
+Working contiene el borrador editable. Si hay cambios aún sin aplicar, Ingeniería pide confirmación antes de cambiar de sección o abandonar la página. Para conservar la configuración, pulse Validar y Aplicar a Working. Vuelva al Resumen de Ingeniería, guarde una nueva revisión, publíquela y actívela. Volver a Runtime antes de activarla seguirá mostrando la revisión Active anterior, sin eliminar lo aplicado en Working.
+
+En Windows abra Configuración > Sistema > Pantalla y seleccione Extender estas pantallas. En Linux use la configuración de Pantallas de GNOME, KDE u otro escritorio para extender, no duplicar. Compruebe primero que el sistema detecta el monitor adicional. En Runtime, pulse Revisar ventanas para identificar Ventana 1, Ventana 2 y sus pantallas. Inicie la estación, arrastre cada ventana a su monitor y use pantalla completa por ventana si está disponible. El número de ventana no selecciona automáticamente un monitor físico. Las restricciones de ventanas emergentes y del navegador pueden impedir la apertura o el posicionamiento automáticos. Para recuperar, use el enlace Volver a abrir pantalla N o vuelva a iniciar la estación y organice las ventanas manualmente. Cada ventana utiliza una conexión Runtime independiente.
+
 ### Entender los campos
 
 El número de ventana indica el orden en que se abrirá. No es el número del monitor. Los selectores usan pantallas ya existentes en el proyecto; crear una estación no crea ni publica pantallas.
@@ -33,7 +39,7 @@ El número de ventana indica el orden en que se abrirá. No es el número del mo
 
 ### Iniciar y distribuir las ventanas
 
-Abra Runtime en una ventana normal, con el encabezado visible. Si está a pantalla completa, salga primero. En el encabezado, seleccione la estación y pulse Iniciar estación. El navegador puede bloquear ventanas nuevas; en ese caso Runtime muestra enlaces para abrirlas una por una. Arrastre cada ventana al monitor deseado. Ajuste su tamaño y, si resulta útil, ponga cada una a pantalla completa. El producto no detecta ni restaura automáticamente la posición física, la orientación o la escala de los monitores.
+Abra Runtime con el encabezado visible. En el escritorio, el iniciador también está disponible a pantalla completa. Seleccione la estación, pulse Revisar ventanas para confirmar nombres, funciones y revisión Active, y después Iniciar estación. El navegador puede bloquear ventanas nuevas; en ese caso Runtime muestra enlaces para abrirlas una por una. Arrastre cada ventana al monitor deseado. Ajuste su tamaño y, si resulta útil, ponga cada una a pantalla completa. El producto no detecta ni restaura automáticamente la posición física, la orientación o la escala de los monitores.
 
 Después de iniciar, consulte la lista Estado de las sesiones por pantalla en la ventana de origen. Cada fila indica si el servidor admitió esa ventana y qué clase concedió, o si no había una plaza disponible. Una ventana rechazada por el límite de licencia no fue admitida; revise las conexiones en uso y finalice explícitamente las que ya no necesita desde el menú de cuenta de cada ventana antes de volver a intentarlo. Iniciar una estación no aumenta el límite de licencia, y la ventana rechazada también muestra su propio aviso. Si una fila sigue sin confirmación, abra la ventana correspondiente y lea el mensaje de Runtime: no se pudo confirmar no significa que la sesión haya sido admitida. Si la instalación no usa admisión autenticada, la lista lo indica; ese mensaje no confirma una sesión autenticada/con licencia.
 
@@ -47,7 +53,7 @@ Para finalizar una sesión y liberar una conexión de licencia de inmediato, abr
 
 Si se cierra una ventana de la estación mientras la ventana de origen sigue abierta, la fila cambia a “ventana cerrada” y aparece el enlace “Volver a abrir pantalla N”. Úselo para abrir solo esa pantalla otra vez. La nueva ventana solicita su propia sesión Runtime; confirme el resultado de admisión y que haya una conexión disponible en la licencia antes de usarla. No se restaura la posición física en el monitor. Si también cerró o recargó la ventana de origen, abra Runtime, inicie la estación otra vez y distribuya las ventanas manualmente. Si no hay una conexión disponible, finalice sesiones que no use o espere a que expire la sesión anterior.
 
-Si no aparece el selector de estación, compruebe que el encabezado esté habilitado, que Runtime no esté a pantalla completa y que la revisión en uso incluya el perfil. Si una ventana aparece en la pantalla equivocada, revise la pantalla seleccionada en esa fila y active la revisión actualizada. Si una ventana fija no cambia de pantalla, funciona según la configuración. Si el acceso Interactivo se limita o se rechaza, compruebe cuántas conexiones de licencia están en uso y los permisos de la cuenta.
+Si no aparece el selector de estación, compruebe que el encabezado esté habilitado, que el encabezado del Runtime sea visible y que la revisión en uso incluya el perfil. Si una ventana aparece en la pantalla equivocada, revise la pantalla seleccionada en esa fila y active la revisión actualizada. Si una ventana fija no cambia de pantalla, funciona según la configuración. Si el acceso Interactivo se limita o se rechaza, compruebe cuántas conexiones de licencia están en uso y los permisos de la cuenta.
 
 #### Ejemplo visual
 

@@ -105,7 +105,7 @@ public sealed class InstallationHostNetworkIpcTests
     public async Task DockerDesktopWindowsTlsBridgeUsesPinnedCertificateAndInstallationToken()
     {
         if (!OperatingSystem.IsLinux()) return;
-        const string token = "9".PadRight(64, '9');
+        var token = new string('9', 64);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         using var rsa = RSA.Create(2048);
         var request = new CertificateRequest("CN=scadivo-ci-docker-host", rsa,
@@ -113,7 +113,7 @@ public sealed class InstallationHostNetworkIpcTests
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
         using var certificate = request.CreateSelfSigned(
             DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         var settings = new Dictionary<string, string?>
@@ -151,7 +151,7 @@ public sealed class InstallationHostNetworkIpcTests
                     EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
                 }, timeout.Token);
                 var buffer = new byte[1];
-                await tls.ReadAsync(buffer, timeout.Token);
+                await tls.ReadExactlyAsync(buffer, timeout.Token);
             }
             catch (IOException) { /* Invalid client pin terminates the TLS session. */ }
             catch (AuthenticationException) { }

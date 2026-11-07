@@ -197,6 +197,9 @@ try {
   $candidate=Join-Path $root ('.scadivo-network-preflight-'+[Guid]::NewGuid().ToString('N'))
   try {
     [IO.File]::WriteAllLines($candidate,$lines,$utf8)
+    # Preserve the original non-inheriting DACL across the atomic .env swap.
+    # The host daemon refuses an inherited/untrusted effective config after Apply.
+    [IO.File]::SetAccessControl($candidate,[IO.File]::GetAccessControl($envFile))
     Compose-Check $candidate
     if(-not $Apply){return}
     $backup=Join-Path $state ('docker-env-'+[Guid]::NewGuid().ToString('N')+'.backup')

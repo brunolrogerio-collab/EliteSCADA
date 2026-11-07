@@ -92,7 +92,7 @@ internal sealed class WindowsExecutor : IDisposable
             throw new InvalidOperationException("Invalid Windows installation registration");
         if (!Regex.IsMatch(_registration.ApiSid ?? "", @"\AS-1-[0-9]+(-[0-9]+)+\z"))
             throw new InvalidOperationException("Invalid registered API service SID");
-        var apiSid = new SecurityIdentifier(_registration.ApiSid);
+        var apiSid = new SecurityIdentifier(_registration.ApiSid ?? throw new InvalidOperationException("Missing dedicated API SID"));
         var broad = new HashSet<string> { "S-1-1-0", "S-1-5-11", "S-1-5-32-545", "S-1-5-32-544",
                                           "S-1-5-7", "S-1-5-2", "S-1-5-4" };
         if (broad.Contains(apiSid.Value))

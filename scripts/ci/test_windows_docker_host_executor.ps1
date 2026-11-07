@@ -69,9 +69,17 @@ function Await-Operation([string]$wanted,[string]$credential){
   $phase='none'
   $journalPath=Join-Path $state 'docker-network-win-docker-ci.journal.json'
   if(Test-Path -LiteralPath $journalPath){$phase=(Get-Content -LiteralPath $journalPath -Raw | ConvertFrom-Json).phase}
+  $envDiagnostic='unavailable'
+  try {
+    $envAcl=Get-Acl -LiteralPath $envFile
+    $unexpected=@($envAcl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) |
+      Where-Object { $_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Value -notin $trusted })
+    $envLines=[IO.File]::ReadAllLines($envFile)
+    $envDiagnostic='protected='+$envAcl.AreAccessRulesProtected+', unexpectedGrants='+$unexpected.Count+', readableLines='+$envLines.Length
+  }catch{ $envDiagnostic='inspection failed: '+$_.Exception.GetType().Name }
   throw ('Windows Docker host operation did not reach '+$wanted+
     '; state='+$status.Body.operation.state+', available='+$status.Body.available+
-    ', journal='+$phase+', web='+$status.Body.configuredPorts.webPort)
+    ', journal='+$phase+', web='+$status.Body.configuredPorts.webPort+', env='+$envDiagnostic)
 }
 function Tls-Rpc([string]$method,[string]$route,[string]$token,$body=$null){
   $client=New-Object Net.Sockets.TcpClient

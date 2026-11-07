@@ -1,6 +1,6 @@
 # Executor administrativo de rede por instalação (DEV-780)
 
-**Estado: candidato Linux nativo opt-in, pendente de qualificação real do host.** Não substitui o instalador Windows/OCI. Referências: [#780](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780), [ADR-025](ADR-025-NETWORK-PORT-CONFIGURATION.md), [adaptadores nativos](../web/scada-web/public/installation/NATIVE-PORTS.md).
+**Estado: candidatos opt-in Linux nativo, Windows nativo e Docker em host Linux, pendentes de CI e homologação do instalador/host.** O executor não se instala automaticamente, não substitui a distribuição Windows/OCI e não comprova por si só todo o Runtime. Referências: [#780](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780), [ADR-025](ADR-025-NETWORK-PORT-CONFIGURATION.md), [adaptadores nativos](../web/scada-web/public/installation/NATIVE-PORTS.md).
 
 ## Autoridade e limites de confiança
 
@@ -8,7 +8,7 @@ O **administrador do host**, não o navegador, provisiona um executor separado p
 
 O registro vincula o executor a um perfil `scadivo-native-network-v1` já instalado. Scripts fixos `apply-native-network-profile.py`, `native_database_port.py` e `native_media_ports.py` ficam ao lado do `network-host-executor.py`, em diretório protegido; a requisição HTTP não determina scripts, paths, serviços, comandos, instância ou argumentos arbitrários. Os adaptadores nativos continuam responsáveis por preflight, lock compartilhado, backup/journal, restart, saúde e rollback. O executor verifica revisão da configuração com HMAC, acompanha a operação e só confirma após os adaptadores retornarem e as portas configuradas serem relidas.
 
-**Cobertura inicial do executor:** Linux nativo com systemd, Web e API Kestrel independentes, PostgreSQL LocalManaged e MediaMTX locais quando registrados. **Windows SCM/pipe ACL e Docker host Compose ainda não têm este executor**. Use os scripts externos aprovados para esses perfis. Sem provisionamento, a API retorna HTTP 503 e não tenta aplicar nada.
+**Cobertura proposta nesta continuação:** Linux nativo com systemd; Windows nativo com executor .NET separado, Named Pipe e ACL restrita ao SID da API; e Docker estável com executor no host **Linux**, socket Unix e Compose associado ao diretório/ID/digest registrados. Somente módulos registrados são expostos. **Docker Desktop com host Windows não dispõe do executor Docker nesta versão**; use scripts PowerShell do host. A ausência de provisionamento/token/IPC retorna HTTP 503, nunca aplicação presumida. Cobertura de CI e homologação real ainda precisam ser verificadas.
 
 ## Provisionamento Linux, somente pelo administrador
 
@@ -36,6 +36,57 @@ O registro vincula o executor a um perfil `scadivo-native-network-v1` já instal
 
 O provisionamento deve assegurar o funcionamento dos adaptadores nativos sobre a identidade de serviços registrada. Cópias de JSON e scripts **não** equivalem a um serviço instalado, associado à configuração efetiva ou homologado.
 
+## Provisionamento Windows nativo (administrador do host)
+
+O binário independente fica em `tools/Scadivo.InstallationExecutor.Windows` (publicar `net10.0-windows` fora da pasta Web/API). O administrador registra o perfil `scadivo-native-network-v1` com `platform: "windows"` e serviços SCM realmente instalados, além dos scripts administrativos PowerShell fixos, protegidos contra escrita de usuários comuns. O executor exige configuração Kestrel com listeners independentes Web/API. Para banco/mídia, exige a indicação adicional do Python provisionado na instalação, e só oferece módulos registrados/observados.
+
+Exemplo de registro **ilustrativo** com arquivo JSON e ACL sem herança, acessível apenas ao proprietário administrativo, SYSTEM e Administradores:
+
+```json
+{
+  "schema": "scadivo-network-host-executor-v1",
+  "profile": "native-windows",
+  "instanceId": "scadivo-instance-a",
+  "pipeName": "scadivo-net-instance-a",
+  "apiSid": "S-1-5-80-000000000-000000000-000000000-000000000-000000000",
+  "stateDirectory": "C:\\ProgramData\\SCADIVO\\instance-a\\network-state",
+  "nativeProfilePath": "C:\\ProgramData\\SCADIVO\\instance-a\\native-network-profile.json",
+  "tokenFile": "C:\\ProgramData\\SCADIVO\\instance-a\\network-executor.token",
+  "adapterDirectory": "C:\\ProgramData\\SCADIVO\\instance-a\\adapters",
+  "pythonExecutable": "C:\\Program Files\\SCADIVO\\Python\\python.exe"
+}
+```
+
+O SID acima é **fictício** e deve ser substituído pelo SID específico da conta/serviço da API; o executor recusa identidades genéricas como Everyone/Users/Administrators. Configure a API com `InstallationNetwork__HostExecutorPipe` e `InstallationNetwork__HostExecutorToken` (token exclusivo, secreto, imprevisível e com pelo menos 32 bytes). O Named Pipe é restrito por DACL à identidade executora, SYSTEM, administradores e SID específico da API. O serviço do executor é provisionado no host, com conta dotada somente dos direitos necessários para os SCM/arquivos **da instalação registrada**; não tornar a própria API administradora. Diretórios, arquivos de registro, token e configuração devem permanecer sob ACLs Windows protegidas; herança/permissões amplas causam falha fechada.
+
+O administrador pode usar `dotnet Scadivo.InstallationExecutor.Windows.dll --registration <registro> --status` ou `--recover --confirm-recovery` localmente quando a Web cair. Isso não cria nem registra o serviço SCM; o instalador/administrador deve fazê-lo e homologar os acessos de cada serviço.
+
+## Provisionamento Docker no host Linux (não no contêiner)
+
+Para o pacote Docker estável, execute `docker-host-executor.py` **no host Linux**, em uma conta administrativa do host autorizada a operar Docker. Não dê acesso ao Docker socket, shell ou privilégios do host à API/Web. O executor disponibiliza **somente** seu próprio socket Unix de instalação à API, com token específico, modos `0600` ou `0660` com grupo administrativo da API e diretórios sob controle do host. No Compose, o instalador deve adicionar à API um bind mount **somente do socket dedicado** e disponibilizar o token por mecanismo de segredo, sem publicar o token no navegador nem no contêiner Web. O API usa `InstallationNetwork__HostExecutorSocket` e o token (ou `InstallationNetwork__HostExecutorTokenFile` em mount read-only).
+
+O registro administrativo de execução usa `schema: "scadivo-network-host-executor-v1"`, `profile: "stable-docker-linux"`, `instanceId`, `socketPath`, `stateDirectory`, `dockerProfilePath`, `tokenFile`, `socketMode` e `socketGroup`. O `dockerProfilePath` aponta para arquivo privado:
+
+```json
+{
+  "schema": "scadivo-docker-host-network-v1",
+  "instanceId": "scadivo-instance-a",
+  "installationDirectory": "/opt/scadivo/instance-a",
+  "composeSha256": "DIGEST_SHA256_REAL_DE_64_HEX_DO_COMPOSE",
+  "dockerExecutable": "/usr/bin/docker"
+}
+```
+
+O digest acima é **marcador**, não um valor executável. O administrador deve usar o SHA-256 real do `docker-compose.stable.yml` revisado. O executor exige `.env` com acesso 0600, diretório de instalação protegido, ID de projeto idêntico ao registro, imagem/serviços limitados aos quatro serviços reconhecidos pelo Compose, correspondência dos rótulos de ownership dos containers e inexistência de conflitos de portas publicadas. Não permite troca de ID, nomes de container, volumes, diretório, Compose ou bind a partir da API. O preflight gera configuração Compose candidata temporária e chama `docker compose config` **antes** de qualquer `up`; a aplicação mantém backup `.env` no estado protegido do executor e journal durável para recuperação. O health check consulta Web/API no host, PostgreSQL e listeners privados de mídia na rede da instalação. Isso **não comprova** reprodução real de vídeo. Uma segunda instalação mantém seu próprio socket/token/diretório, volumes e ID exclusivos.
+
+Recuperação local:
+```bash
+python3 docker-host-executor.py --registration /caminho/registro-protegido.json --status
+python3 docker-host-executor.py --registration /caminho/registro-protegido.json --recover --confirm-recovery
+```
+
+Um host Docker Desktop **Windows** continua usando o script administrativo PowerShell externo, pois este executor Docker é exclusivamente Linux. Executar o executor em um contêiner junto da API, ou montar `/var/run/docker.sock` nele, não é suportado.
+
 ## Fluxo de aplicação e recuperação
 
 No menu **Engineering > Instalação > Rede e serviços > Aplicação administrativa da instalação**, a interface:
@@ -57,6 +108,6 @@ A recuperação exige pendência registrada. Se executor/socket estiverem indisp
 
 ## Limites conhecidos / próximos contratos
 
-- **Windows nativo:** requer executor próprio com named pipe local e ACL, mais validação real do SCM. Até lá usar PowerShell administrativo do host (`-Apply` e `-Recover`), com perfil protegido. A API Unix atual rejeita esse perfil.
-- **Docker:** os helpers Bash/PowerShell permanecem externos ao Web/API e devem rodar no host, em pasta/perfil Compose registrado. Nenhum executor host Docker foi instalado nem socket criado nesta entrega. Web interno `80` publicado inicialmente em `18080`; API interno `5080` publicado em `15120`; PostgreSQL interno `5432` publicado em `15432`; MediaMTX permanece privado. A UI não afirma a publicação do host sem evidência.
+- **Windows nativo:** candidato executor .NET separado com Named Pipe DACL/SID, serviço SCM e recuperação local. Requer CI do host Windows, provisionamento e homologação do serviço real; sem registro usa PowerShell externo (`-Apply`/`-Recover`).
+- **Docker:** candidato de executor host **Linux** ligado ao Compose registrado. Continua opt-in e não é automaticamente instalado; Docker Desktop em Windows continua com PowerShell externo. Os helpers Bash/PowerShell ainda são alternativa administrativa no host. Web interno `80` publicado inicialmente em `18080`; API interno `5080` publicado em `15120`; PostgreSQL interno `5432` publicado em `15432`; MediaMTX permanece privado. A UI não afirma a publicação do host sem evidência.
 - **Sem alteração** de portas de Drivers/datasources, protocolos industriais, descoberta multicast, firewall, TLS ou HA. A validação do CI é sintética/isolada; aceite da aplicação real exige provisionamento e verificação do coordenador no host, incluindo mídia/Runtime.

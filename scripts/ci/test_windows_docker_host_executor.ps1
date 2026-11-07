@@ -7,6 +7,7 @@ $root=Join-Path ([IO.Path]::GetTempPath()) ('scadivo-docker-win-executor-'+$nonc
 $subject=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $trusted=@($subject,'S-1-5-18','S-1-5-32-544')
 $process=$null
+$serviceProcess=$null
 $cert=$null
 
 function Lock-Directory([string]$path){
@@ -38,6 +39,25 @@ function Lock-File([string]$path){
 function Free-Port{
   $listener=New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback,0)
   try{$listener.Start();return [int]$listener.LocalEndpoint.Port}finally{$listener.Stop()}
+}
+
+function Wait-HttpHealth([int]$listenerPort){
+  for($i=0;$i -lt 60;$i++){
+    try {
+      $result=Invoke-WebRequest -Uri "http://127.0.0.1:$listenerPort/health" -TimeoutSec 1 -UseBasicParsing
+      if($result.StatusCode -eq 200){return}
+    }catch{}
+    Start-Sleep -Milliseconds 200
+  }
+  throw 'Simulated Windows Docker host HTTP endpoint did not pass health.'
+}
+function Await-Operation([string]$wanted,[string]$credential){
+  for($i=0;$i -lt 160;$i++){
+    $status=Tls-Rpc GET /v1/status $credential
+    if($status.Status -eq 200 -and $status.Body.operation.state -eq $wanted){return $status.Body}
+    Start-Sleep -Milliseconds 200
+  }
+  throw ('Windows Docker Desktop host operation did not reach '+$wanted)
 }
 function Tls-Rpc([string]$method,[string]$route,[string]$token,$body=$null){
   $client=New-Object Net.Sockets.TcpClient
@@ -92,7 +112,7 @@ try{
   $overlay=Join-Path $nestedStable 'compose-host-executor.windows.override.yml'
   $envFile=Join-Path $install '.env'
   $ports=@()
-  while($ports.Count -lt 7){$p=Free-Port;if($p -notin $ports){$ports+= $p}}
+  while($ports.Count -lt 11){$p=Free-Port;if($p -notin $ports){$ports+= $p}}
   $port=[int]$ports[6]
   [IO.File]::WriteAllText($compose,"services:\n  web: {}\n  api: {}\n  database: {}\n  media-gateway: {}\n")
   [IO.File]::WriteAllText($overlay,"services:\n  api: {}\n")
@@ -107,6 +127,7 @@ try{
   $mock=@'
 using System;
 using System.Linq;
+using System.IO;
 public static class DockerProbe {
   public static int Main(string[] args) {
     if (args.Length < 3 || args[0] != "--context" || args[1] != "desktop-linux") return 10;
@@ -114,13 +135,25 @@ public static class DockerProbe {
       Console.WriteLine("web");Console.WriteLine("api");
       Console.WriteLine("database");Console.WriteLine("media-gateway");return 0;
     }
-    if (args.Contains("config") || args.Contains("ps") || args.Contains("up") || args.Contains("exec")) return 0;
+    if (args.Contains("up")) {
+      var at = Array.IndexOf(args, "-f");
+      if (at < 0 || at + 1 >= args.Length) return 13;
+      var marker = Path.Combine(Path.GetDirectoryName(args[at + 1]), "docker-probe-fail-next-up");
+      if (File.Exists(marker)) { File.Delete(marker); return 77; }
+      return 0;
+    }
+    if (args.Contains("config") || args.Contains("ps") || args.Contains("exec")) return 0;
     return 12;
   }
 }
 '@
   Add-Type -TypeDefinition $mock -OutputAssembly $docker -OutputType ConsoleApplication
   Lock-File $docker
+  $serviceExe=Join-Path $root 'DockerNetworkProofService.exe'
+  Add-Type -Path (Join-Path $PSScriptRoot 'DockerWindowsNetworkProofService.cs') -OutputAssembly $serviceExe -OutputType ConsoleApplication
+  Lock-File $serviceExe
+  $serviceProcess=Start-Process -FilePath $serviceExe -ArgumentList @([char]34+$envFile+[char]34) -PassThru -WindowStyle Hidden
+  Wait-HttpHealth $ports[0];Wait-HttpHealth $ports[1]
   $profile=Join-Path $state 'docker-profile.json'
   $registration=Join-Path $state 'docker-executor-registration.json'
   $tokenFile=Join-Path $state 'token'
@@ -178,21 +211,95 @@ public static class DockerProbe {
   if([Convert]::ToBase64String($before) -cne [Convert]::ToBase64String([IO.File]::ReadAllBytes($envFile))) {
     throw 'Registered Docker Desktop preflight modified .env.'
   }
-  $busy=New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback,[int]$ports[5])
+  # Simulate Compose publication while the API/host remains a real separate process.
+  $planned=Tls-Rpc POST /v1/preflight $token @{
+    schema='scadivo-network-port-plan-v1';module='access';
+    ports=@{webPort=[int]$ports[7];apiPort=[int]$ports[8]}
+  }
+  if($planned.Status -ne 200){throw 'Host preflight for a second port pair failed.'}
+  $apply=Tls-Rpc POST /v1/apply $token @{
+    schema='scadivo-network-port-plan-v1';planId=$planned.Body.planId;confirm=$true
+  }
+  if($apply.Status -ne 202){throw 'Explicit Windows Docker Desktop apply was not accepted.'}
+  $applied=Await-Operation applied $token
+  if($applied.configuredPorts.webPort -ne $ports[7] -or $applied.configuredPorts.apiPort -ne $ports[8]){
+    throw 'Simulated Compose publication does not match applied ports.'
+  }
+  Wait-HttpHealth $ports[7];Wait-HttpHealth $ports[8]
+  $recordFile=Join-Path $state 'docker-network-win-docker-ci.journal.json'
+  if((Get-Content -LiteralPath $recordFile -Raw|ConvertFrom-Json).phase -ne 'applied'){
+    throw 'Host Docker adapter did not persist the applied operation.'
+  }
+    $busy=New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback,[int]$ports[5])
   $busy.Start()
   try{
     $conflict=Tls-Rpc POST /v1/preflight $token @{
       schema='scadivo-network-port-plan-v1';module='access';
-      ports=@{webPort=[int]$ports[5];apiPort=[int]$ports[1]}
+      ports=@{webPort=[int]$ports[5];apiPort=[int]$ports[8]}
     }
     if($conflict.Status -eq 200){throw 'Busy Docker Desktop published port accepted.'}
   }finally{$busy.Stop()}
+  # Race after preflight: no new .env journal exists. Recovery must verify
+  # the latest successful profile, not replay an unrelated prior backup.
+  $pending=Tls-Rpc POST /v1/preflight $token @{
+    schema='scadivo-network-port-plan-v1';module='access';
+    ports=@{webPort=[int]$ports[9];apiPort=[int]$ports[10]}
+  }
+  if($pending.Status -ne 200){throw 'Race-before-apply preflight rejected unexpectedly.'}
+  $race=New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback,[int]$ports[9])
+  $race.Start()
+  try{
+    $raced=Tls-Rpc POST /v1/apply $token @{
+      schema='scadivo-network-port-plan-v1';planId=$pending.Body.planId;confirm=$true
+    }
+    if($raced.Status -ne 202){throw 'Racing apply did not enter durable host state.'}
+    [void](Await-Operation recovery_required $token)
+  }finally{$race.Stop()}
+  $recovered=Tls-Rpc POST /v1/recover $token @{
+    schema='scadivo-network-port-plan-v1';confirm=$true
+  }
+  if($recovered.Status -ne 202){throw 'Confirmed Windows Docker host recovery was rejected.'}
+  $verified=Await-Operation recovered $token
+  if($verified.configuredPorts.webPort -ne $ports[7] -or $verified.configuredPorts.apiPort -ne $ports[8]){
+    throw 'Recovery replayed an outdated successful Docker profile.'
+  }
+  Wait-HttpHealth $ports[7];Wait-HttpHealth $ports[8]
+
+  # Simulate Compose failure AFTER .env has changed, then verify actual rollback.
+  $rollbackPlan=Tls-Rpc POST /v1/preflight $token @{
+    schema='scadivo-network-port-plan-v1';module='access';
+    ports=@{webPort=[int]$ports[0];apiPort=[int]$ports[1]}
+  }
+  if($rollbackPlan.Status -ne 200){throw 'Rollback fixture preflight rejected.'}
+  [IO.File]::WriteAllText((Join-Path $install 'docker-probe-fail-next-up'),'fail-once')
+  $broken=Tls-Rpc POST /v1/apply $token @{
+    schema='scadivo-network-port-plan-v1';planId=$rollbackPlan.Body.planId;confirm=$true
+  }
+  if($broken.Status -ne 202){throw 'Failed Docker change did not persist an operation ID.'}
+  [void](Await-Operation recovery_required $token)
+  $afterFailure=Tls-Rpc GET /v1/status $token
+  if($afterFailure.Body.configuredPorts.webPort -ne $ports[7]){
+    throw 'Simulated Docker Compose failure did not roll back to previous host ports.'
+  }
+  if((Get-Content -LiteralPath $recordFile -Raw|ConvertFrom-Json).phase -ne 'recovered'){
+    throw 'Adapter did not retain the verified durable Docker rollback.'
+  }
+  $recovery=Tls-Rpc POST /v1/recover $token @{
+    schema='scadivo-network-port-plan-v1';confirm=$true
+  }
+  if($recovery.Status -ne 202){throw 'Confirmed rollback recovery was refused.'}
+  [void](Await-Operation recovered $token)
+  Wait-HttpHealth $ports[7];Wait-HttpHealth $ports[8]
+
   [IO.File]::WriteAllText($overlay,"services:\n  api:\n    privileged: true\n")
   Lock-File $overlay
   $tampered=Tls-Rpc GET /v1/status $token
   if($tampered.Status -ne 200 -or $tampered.Body.available){throw 'Modified Compose overlay did not fail closed.'}
-  Write-Host 'PASS: Windows Docker Desktop host pinned TLS, token, registered Compose digest, non-mutating preflight, busy port rejection.'
+  Write-Host 'PASS: Windows Docker Desktop host TLS/token, non-mutating preflight, occupied port, simulated apply and durable rollback/recovery.'
 }finally{
+  if($null -ne $serviceProcess){
+    try{if(-not $serviceProcess.HasExited){Stop-Process -Id $serviceProcess.Id -Force -ErrorAction SilentlyContinue}}catch{}
+  }
   if($null -ne $process){
     try{if(-not $process.HasExited){Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue}}catch{}
   }

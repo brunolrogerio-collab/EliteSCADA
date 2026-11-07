@@ -647,16 +647,25 @@ internal sealed class WindowsExecutor : IDisposable
         {
             if (recover)
             {
-                try { await RunAdapterAsync(operation.Module, operation.Before, "recover"); }
-                catch
+                if (_dockerDesktop)
                 {
-                    // Native adapter may already have rolled back and cleared
-                    // its journal. In that case verify service/health, not a guess.
-                    var observed = Current();
-                    if (operation.Before.Any(pair => !observed.TryGetValue(pair.Key, out var p) || p != pair.Value))
-                        throw;
-                    await RunAdapterAsync(operation.Module, operation.Before,
-                        _dockerDesktop ? "verify" : "preflight");
+                    // The previous successful apply may have an "applied" journal,
+                    // while a later attempt failed before writing a new journal.
+                    // Verify the exact previous live ports first; do not roll back
+                    // an unrelated earlier successful operation.
+                    try { await RunAdapterAsync(operation.Module, operation.Before, "verify"); }
+                    catch { await RunAdapterAsync(operation.Module, operation.Before, "recover"); }
+                }
+                else
+                {
+                    try { await RunAdapterAsync(operation.Module, operation.Before, "recover"); }
+                    catch
+                    {
+                        var observed = Current();
+                        if (operation.Before.Any(pair => !observed.TryGetValue(pair.Key, out var p) || p != pair.Value))
+                            throw;
+                        await RunAdapterAsync(operation.Module, operation.Before, "preflight");
+                    }
                 }
             }
             else

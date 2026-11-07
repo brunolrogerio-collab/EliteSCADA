@@ -72,6 +72,28 @@ def assert_host_mapping(installation, instance, expected):
             raise AssertionError("Registered host publication does not match " + service)
 
 
+def assert_container_host_ipc(installation, instance):
+    """Prove the actual non-root API container can use only the dedicated IPC."""
+    compose = installation / "docker-compose.stable.yml"
+    overlay = installation / "docker/stable/compose-host-executor.override.yml"
+    probe = """import http.client,socket,pathlib,json
+secret=pathlib.Path('/run/scadivo-network-secrets/token').read_text().strip()
+sock=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
+sock.connect('/run/scadivo-network/network.sock')
+client=http.client.HTTPConnection('localhost',timeout=10)
+client.sock=sock
+client.request('GET','/v1/status',headers={'X-Scadivo-Installation-Token':secret})
+response=client.getresponse()
+status=json.loads(response.read())
+assert response.status==200 and status.get('available') and status.get('profile')=='stable-docker-linux'
+"""
+    subprocess.run(["docker", "compose", "--project-name", instance,
+                    "-f", str(compose), "-f", str(overlay),
+                    "exec", "-T", "api", "python3", "-c", probe],
+                   check=True, timeout=30, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--installation", type=Path, required=True)
@@ -98,7 +120,11 @@ def main():
         profile = root / "docker-host-profile.json"
         registration = root / "registration.json"
         token = root / "token"
-        sock = root / "network.sock"
+        socket_dir = root / "socket"
+        socket_dir.mkdir(mode=0o750)
+        api_secret_dir = root / "api-secret"
+        api_secret_dir.mkdir(mode=0o750)
+        sock = socket_dir / "network.sock"
         original = {}
         # Parse only the known non-secret port keys; never print the .env.
         env = {}
@@ -116,18 +142,30 @@ def main():
         }
         allowed.update(original.values())
         compose = installation / "docker-compose.stable.yml"
+        overlay = installation / "docker/stable/compose-host-executor.override.yml"
+        # Dedicated IPC Unix group, never the Docker socket.
+        with (installation / ".env").open("a", encoding="utf-8") as env_file:
+            env_file.write(
+                "\nSCADIVO_NETWORK_API_GROUP_GID=" + str(os.getgid()) +
+                "\nSCADIVO_NETWORK_SOCKET_DIRECTORY=" + str(socket_dir) +
+                "\nSCADIVO_NETWORK_API_SECRET_DIRECTORY=" + str(api_secret_dir) + "\n")
+        secret = secrets.token_hex(32)
+        secret_file(token, secret)
+        api_copy = api_secret_dir / "token"
+        secret_file(api_copy, secret)
+        api_copy.chmod(0o640)
         secret_file(profile, json.dumps({
             "schema": "scadivo-docker-host-network-v1", "instanceId": args.instance,
             "installationDirectory": str(installation),
             "composeSha256": hashlib.sha256(compose.read_bytes()).hexdigest(),
+            "composeOverrideSha256": hashlib.sha256(overlay.read_bytes()).hexdigest(),
             "dockerExecutable": str(docker_exec)
         }))
-        secret_file(token, secrets.token_hex(32))
         secret_file(registration, json.dumps({
             "schema": "scadivo-network-host-executor-v1", "profile": "stable-docker-linux",
             "instanceId": args.instance, "socketPath": str(sock),
             "stateDirectory": str(state), "dockerProfilePath": str(profile),
-            "tokenFile": str(token), "socketMode": "0600", "socketGroup": None
+            "tokenFile": str(token), "socketMode": "0660", "socketGroup": os.getgid()
         }))
         process = subprocess.Popen([sys.executable, str(script), "--registration", str(registration)],
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -146,6 +184,11 @@ def main():
                 raise AssertionError("Registered Docker host socket not available")
             if initial["instanceId"] != args.instance or initial["profile"] != "stable-docker-linux":
                 raise AssertionError("Host executor registration identity mismatched")
+            subprocess.run([str(docker_exec), "compose", "--project-name", args.instance,
+                            "-f", str(compose), "-f", str(overlay), "up", "-d"],
+                           check=True, timeout=180, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+            assert_container_host_ipc(installation, args.instance)
             planned = {"webPort": choose_port(allowed), "apiPort": choose_port(allowed)}
             old_env = (installation / ".env").read_bytes()
             plan = request(host, registration, "/v1/preflight", {
@@ -159,7 +202,7 @@ def main():
             await_state(host, registration, "applied")
             expected = {**original, **planned}
             assert_host_mapping(installation, args.instance, expected)
-            assert_host_mapping(installation, args.instance, expected)
+            assert_container_host_ipc(installation, args.instance)
             print("PASS: registered Docker host executor applied Web/API publication and health through protected IPC.")
 
             # With the new first installation running, reject a second proposal
@@ -195,6 +238,7 @@ def main():
                 "schema": host.native.PLAN_SCHEMA, "confirm": True})
             await_state(host, registration, "recovered")
             assert_host_mapping(installation, args.instance, expected)
+            assert_container_host_ipc(installation, args.instance)
             print("PASS: occupied preflight, race-before-apply, durable failure and verified Docker recovery.")
         finally:
             process.terminate()

@@ -143,6 +143,20 @@ ELITESCADA_DB_PASSWORD=never-log-this
         with self.assertRaisesRegex(docker.AdapterError, "Duplicate"):
             self.adapter().preflight(self.desired())
 
+    def test_optional_compose_override_is_pinned_and_preserved_during_apply(self):
+        overlay = self.install / "docker/stable/compose-host-executor.override.yml"
+        overlay.parent.mkdir(parents=True)
+        self.write(overlay, "services:\n  api:\n    environment:\n      InstallationNetwork__HostExecutorSocket: /run/network.sock\n", 0o600)
+        profile = json.loads(self.profile.read_text())
+        profile["composeOverrideSha256"] = hashlib.sha256(overlay.read_bytes()).hexdigest()
+        self.write(self.profile, json.dumps(profile), 0o600)
+        self.adapter().preflight(self.desired())
+        self.adapter().apply(self.desired())
+        self.assertTrue(any(str(overlay) in command for command in self.commands))
+        self.write(overlay, "services:\n  api:\n    privileged: true\n", 0o600)
+        with self.assertRaisesRegex(docker.AdapterError, "override differs"):
+            self.adapter().preflight(self.desired())
+
     def test_actual_dedicated_unix_ipc_plan_apply_and_recovery(self):
         def executor_runner(cmd):
             flags = dict(zip(cmd[6::2], cmd[7::2]))
@@ -150,6 +164,9 @@ ELITESCADA_DB_PASSWORD=never-log-this
             adapter = self.adapter()
             if mode == "recover":
                 adapter.recover()
+                return
+            if mode == "verify":
+                adapter.verify()
                 return
             requested = {"webPort": int(flags["--web-port"]), "apiPort": int(flags["--api-port"]),
                          "databasePort": int(flags["--database-port"]),

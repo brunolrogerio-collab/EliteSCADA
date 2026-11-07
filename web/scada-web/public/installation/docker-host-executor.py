@@ -102,7 +102,10 @@ class DockerExecutor(native.Executor):
     def _revision(self):
         selected = self._adapter()
         digest = hmac.new(self.token, digestmod=hashlib.sha256)
-        for item in (self.profile_path, selected.env_path, selected.compose):
+        files = [self.profile_path, selected.env_path, selected.compose]
+        if selected.override is not None:
+            files.append(selected.override)
+        for item in files:
             digest.update(item.read_bytes())
         return digest.hexdigest()
 
@@ -118,13 +121,12 @@ class DockerExecutor(native.Executor):
             journal = adapter._load_journal()
             observed = self._current()
             already_before = all(observed.get(key) == value for key, value in record["before"].items())
-            if journal and journal["phase"] == "pending" or not already_before:
+            if (journal and journal["phase"] == "pending") or not already_before:
                 self.runner(self._command(record["module"], {}, "recover"))
             else:
                 # An adapter may fail before mutation and have no recovery journal.
                 # Require both a host preflight and real Docker health at old ports.
-                adapter.preflight(observed)
-                adapter.healthy(observed)
+                self.runner(self._command(record["module"], {}, "verify"))
             actual = self._current()
             if any(actual.get(k) != v for k, v in record["before"].items()):
                 raise native.ContractError("Recovered Docker ports differ from the saved profile")
@@ -145,7 +147,7 @@ class DockerExecutor(native.Executor):
         # the other effective host values, never accept executable or path.
         args = [sys.executable, str(HERE / "docker-host-adapter.py"),
                 "--registration", str(self.profile_path), "--mode", mode]
-        if mode != "recover":
+        if mode not in ("recover", "verify"):
             target = {**self._current(), **ports}
             for key, flag in (
                 ("webPort", "--web-port"), ("apiPort", "--api-port"),

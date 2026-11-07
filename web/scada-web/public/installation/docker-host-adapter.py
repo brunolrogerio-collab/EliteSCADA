@@ -108,7 +108,8 @@ class DockerHostAdapter:
     def __init__(self, registration: Path, *, runner=None, healthy=None, check_bind=None):
         secure_file(registration, secret=True)
         profile = json.loads(registration.read_text(encoding="utf-8"))
-        if set(profile) != {"schema", "instanceId", "installationDirectory", "composeSha256", "dockerExecutable"} or profile["schema"] != SCHEMA:
+        required = {"schema", "instanceId", "installationDirectory", "composeSha256", "dockerExecutable"}
+        if set(profile) not in (required, required | {"composeOverrideSha256"}) or profile["schema"] != SCHEMA:
             raise AdapterError("Invalid registered Docker host profile")
         if not isinstance(profile["instanceId"], str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,47}", profile["instanceId"]):
             raise AdapterError("Invalid registered Compose project")
@@ -122,6 +123,15 @@ class DockerHostAdapter:
         if not isinstance(profile["composeSha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", profile["composeSha256"]):
             raise AdapterError("Missing pinned Compose digest")
         self.compose_sha256 = profile["composeSha256"]
+        self.override = None
+        self.override_sha256 = None
+        if "composeOverrideSha256" in profile:
+            override_digest = profile["composeOverrideSha256"]
+            if not isinstance(override_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", override_digest):
+                raise AdapterError("Invalid pinned host executor Compose override digest")
+            self.override = self.root / "docker/stable/compose-host-executor.override.yml"
+            self.override_sha256 = override_digest
+            secure_file(self.override)
         exe = Path(profile["dockerExecutable"])
         secure_file(exe)
         if not os.access(exe, os.X_OK):
@@ -156,6 +166,10 @@ class DockerHostAdapter:
         secure_file(self.env_path, secret=True)
         if hashlib.sha256(self.compose.read_bytes()).hexdigest() != self.compose_sha256:
             raise AdapterError("Registered Compose file differs from administrator-approved digest")
+        if self.override is not None:
+            secure_file(self.override)
+            if hashlib.sha256(self.override.read_bytes()).hexdigest() != self.override_sha256:
+                raise AdapterError("Registered host executor Compose override differs from approved digest")
         env = parse_env(self.env_path)
         if env.get("SCADIVO_INSTALLATION_ID", "elitescada-stable") != self.instance_id:
             raise AdapterError("Registered installation ID and effective Compose project differ")
@@ -172,6 +186,8 @@ class DockerHostAdapter:
 
     def _compose(self, *args: str, env_file: Path | None = None) -> str:
         arguments = ["compose", "--project-name", self.instance_id, "-f", str(self.compose)]
+        if self.override is not None:
+            arguments.extend(["-f", str(self.override)])
         if env_file is not None:
             arguments.extend(["--env-file", str(env_file)])
         return self._docker(*arguments, *args)
@@ -336,6 +352,13 @@ class DockerHostAdapter:
         record["phase"] = "recovered"
         self._write_journal(record)
 
+    def verify(self) -> None:
+        # Idempotent contract for a failed apply before any mutation:
+        # real Compose identity check + active host/DB/media health.
+        observed = self.current()
+        self.preflight(observed)
+        self.healthy(observed)
+
     def recover(self) -> None:
         self._integrity()
         record = self._load_journal()
@@ -351,7 +374,7 @@ class DockerHostAdapter:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Registered Docker host network adapter")
     parser.add_argument("--registration", required=True)
-    parser.add_argument("--mode", required=True, choices=["preflight", "apply", "recover"])
+    parser.add_argument("--mode", required=True, choices=["preflight", "apply", "recover", "verify"])
     for key in ENV_PORTS:
         parser.add_argument("--" + re.sub(r"([A-Z])", r"-\1", key).lower(), type=int)
     args = parser.parse_args()
@@ -362,6 +385,8 @@ def main() -> None:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         if args.mode == "recover":
             adapter.recover()
+        elif args.mode == "verify":
+            adapter.verify()
         else:
             desired = {key: getattr(args, re.sub(r"([A-Z])", r"_\1", key).lower()) for key in ENV_PORTS}
             if args.mode == "preflight":

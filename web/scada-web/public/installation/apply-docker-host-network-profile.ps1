@@ -47,6 +47,9 @@ $lockFile=Join-Path $root '.scadivo-host-network.lock'
 $utf8=[Text.UTF8Encoding]::new($false)
 $lock=[IO.File]::Open($lockFile,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
 function Invoke-Docker([string[]]$Arguments) {
+  # Windows PowerShell 5.1 treats native stderr as an error record even when
+  # Compose exits successfully. Compose writes normal progress there.
+  $ErrorActionPreference='Continue'
   $output=@(& $docker @Arguments 2>$null)
   if ($LASTEXITCODE -ne 0) { throw 'Registered Docker Desktop command rejected; review protected host diagnostics.' }
   return $output

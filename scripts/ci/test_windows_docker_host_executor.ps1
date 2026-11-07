@@ -162,6 +162,7 @@ public static class DockerProbe {
       if (at < 0 || at + 1 >= args.Length) return 13;
       var marker = Path.Combine(Path.GetDirectoryName(args[at + 1]), "docker-probe-fail-next-up");
       if (File.Exists(marker)) { File.Delete(marker); return 77; }
+      Console.Error.WriteLine("Compose progress on stderr");
       return 0;
     }
     if (args.Contains("config") || args.Contains("ps") || args.Contains("exec")) return 0;

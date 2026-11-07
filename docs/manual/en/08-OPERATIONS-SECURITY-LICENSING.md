@@ -210,13 +210,13 @@ Full commands and prerequisites are in `installation/NATIVE-PORTS.md` in the adm
 
 When the profile registers locally managed PostgreSQL and/or media, **Local database and media** also shows their configured ports. Edit the fields and review each separate service plan. Invalid or duplicate ports block the plans. Without valid registration these controls are hidden; the screen does not assume unknown service ports. Run one procedure at a time and reload the page after a change.
 
-### Applying ports from the UI on registered native Linux hosts
+### Applying ports from the UI with a registered host executor
 
-**Installation > Network and services > Installation host administration** is available to `SystemAdmin`. It can apply changes only when a separate Linux host executor is provisioned and registered for that installation through a protected local Unix socket and installation secret. If absent, the operation is unavailable; the browser/API never gets host shell, Docker privileges or arbitrary commands.
+**Installation > Network and services > Installation host administration** is available to `SystemAdmin`. It can apply changes only with an independently provisioned installation-scoped host executor: native Linux uses a Unix socket, native Windows uses a SID-restricted ACL-protected Named Pipe, and stable Docker on a Linux host uses a separate Unix socket tied to the registered Compose directory/project/digest. Docker Desktop on Windows still requires an external host PowerShell procedure. No host executor is automatically provisioned, and each profile still needs actual host qualification. If absent, the operation is unavailable; the browser/API never gets host shell, Docker privileges or arbitrary commands.
 
 Choose registered Web/API, local PostgreSQL or media services. **Validate host changes** performs a non-mutating preflight. Review the proposed ports, interruption and new Web URL, then explicitly confirm application. `applying` means accepted, **not completed**. Only `applied` means the host adapter checked service health and the registered port values were reread. If the old Web address disappears, reopen at the new address or consult status through the protected host executor CLI. `recovery_required` blocks further changes until the administrator verifies recovery.
 
-See [installation host executor provisioning and recovery](../../INSTALLATION-HOST-EXECUTOR.md). **Windows and Docker continue to use the existing explicit host scripts**, because their UI-triggered host executors are not implemented or qualified. Driver/protocol/multicast ports, firewall, TLS, and HA are not affected.
+See [installation host executor provisioning and recovery](../../INSTALLATION-HOST-EXECUTOR.md). **Without a compatible registered executor, Windows, Linux and Docker use the existing explicit host scripts** and the API returns HTTP 503. The Docker executor is Linux-host-only and does not enable Docker Desktop on Windows. Driver/protocol/multicast ports, firewall, TLS, and HA are not affected.
 
 
 ## License Generator

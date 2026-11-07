@@ -55,9 +55,23 @@ function Await-Operation([string]$wanted,[string]$credential){
   for($i=0;$i -lt 160;$i++){
     $status=Tls-Rpc GET /v1/status $credential
     if($status.Status -eq 200 -and $status.Body.operation.state -eq $wanted){return $status.Body}
+    if($status.Body.operation.state -eq 'recovery_required' -and $wanted -eq 'applied'){
+      $phase='none'
+      $journalPath=Join-Path $state 'docker-network-win-docker-ci.journal.json'
+      if(Test-Path -LiteralPath $journalPath){$phase=(Get-Content -LiteralPath $journalPath -Raw | ConvertFrom-Json).phase}
+      throw ('Windows Docker apply rejected: journal='+$phase+
+        ', web='+$status.Body.configuredPorts.webPort+
+        ', api='+$status.Body.configuredPorts.apiPort+
+        ', detail='+$status.Body.operation.detail)
+    }
     Start-Sleep -Milliseconds 200
   }
-  throw ('Windows Docker Desktop host operation did not reach '+$wanted)
+  $phase='none'
+  $journalPath=Join-Path $state 'docker-network-win-docker-ci.journal.json'
+  if(Test-Path -LiteralPath $journalPath){$phase=(Get-Content -LiteralPath $journalPath -Raw | ConvertFrom-Json).phase}
+  throw ('Windows Docker host operation did not reach '+$wanted+
+    '; state='+$status.Body.operation.state+', available='+$status.Body.available+
+    ', journal='+$phase+', web='+$status.Body.configuredPorts.webPort)
 }
 function Tls-Rpc([string]$method,[string]$route,[string]$token,$body=$null){
   $client=New-Object Net.Sockets.TcpClient

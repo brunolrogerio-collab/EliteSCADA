@@ -1,6 +1,6 @@
 # Executor administrativo de rede por instalação (DEV-780)
 
-**Estado: candidatos opt-in Linux nativo, Windows nativo e Docker em host Linux, pendentes de CI e homologação do instalador/host.** O executor não se instala automaticamente, não substitui a distribuição Windows/OCI e não comprova por si só todo o Runtime. Referências: [#780](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780), [ADR-025](ADR-025-NETWORK-PORT-CONFIGURATION.md), [adaptadores nativos](../web/scada-web/public/installation/NATIVE-PORTS.md).
+**Estado: candidatos opt-in Linux nativo, Windows nativo e Docker em hosts Linux e Windows.** O CI exercitou os adaptadores e a operação simulada no Windows; o provisionamento e a operação com Docker Desktop real ainda precisam de homologação. O executor não é instalado automaticamente. Referências: [#780](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780), [ADR-025](ADR-025-NETWORK-PORT-CONFIGURATION.md), [adaptadores nativos](../web/scada-web/public/installation/NATIVE-PORTS.md).
 
 ## Autoridade e limites de confiança
 
@@ -8,7 +8,7 @@ O **administrador do host**, não o navegador, provisiona um executor separado p
 
 O registro vincula o executor a um perfil `scadivo-native-network-v1` já instalado. Scripts fixos `apply-native-network-profile.py`, `native_database_port.py` e `native_media_ports.py` ficam ao lado do `network-host-executor.py`, em diretório protegido; a requisição HTTP não determina scripts, paths, serviços, comandos, instância ou argumentos arbitrários. Os adaptadores nativos continuam responsáveis por preflight, lock compartilhado, backup/journal, restart, saúde e rollback. O executor verifica revisão da configuração com HMAC, acompanha a operação e só confirma após os adaptadores retornarem e as portas configuradas serem relidas.
 
-**Cobertura proposta nesta continuação:** Linux nativo com systemd; Windows nativo com executor .NET separado, Named Pipe e ACL restrita ao SID da API; e Docker estável com executor no host **Linux**, socket Unix e Compose associado ao diretório/ID/digest registrados. Somente módulos registrados são expostos. **Docker Desktop com host Windows não dispõe do executor Docker nesta versão**; use scripts PowerShell do host. A ausência de provisionamento/token/IPC retorna HTTP 503, nunca aplicação presumida. Cobertura de CI e homologação real ainda precisam ser verificadas.
+**Cobertura candidata:** Linux nativo com systemd; Windows nativo com Named Pipe e ACL restrita; Docker em host Linux com socket Unix; e Docker Desktop em host Windows com HTTPS e certificado fixado. Os perfis Docker são associados à instalação e ao Compose registrados. Somente módulos registrados são expostos. Sem provisionamento e credenciais, a API retorna HTTP 503. A operação no Docker Desktop real ainda precisa de homologação.
 
 ## Provisionamento Linux, somente pelo administrador
 
@@ -186,5 +186,5 @@ A recuperação exige pendência registrada. Se executor/socket estiverem indisp
 ## Limites conhecidos / próximos contratos
 
 - **Windows nativo:** candidato executor .NET separado com Named Pipe DACL/SID, serviço SCM e recuperação local. Requer CI do host Windows, provisionamento e homologação do serviço real; sem registro usa PowerShell externo (`-Apply`/`-Recover`).
-- **Docker:** candidato de executor host **Linux** ligado ao Compose registrado. Continua opt-in e não é automaticamente instalado; Docker Desktop em Windows continua com PowerShell externo. Os helpers Bash/PowerShell ainda são alternativa administrativa no host. Web interno `80` publicado inicialmente em `18080`; API interno `5080` publicado em `15120`; PostgreSQL interno `5432` publicado em `15432`; MediaMTX permanece privado. A UI não afirma a publicação do host sem evidência.
+- **Docker:** executores candidatos para host Linux e Docker Desktop em Windows, ligados ao Compose registrado. O provisionamento é opt-in e a homologação no Docker Desktop real permanece pendente. Os helpers Bash/PowerShell continuam disponíveis como procedimento administrativo. Web interno `80` é publicado inicialmente em `18080`; API interno `5080` em `15120`; PostgreSQL interno `5432` em `15432`; MediaMTX permanece privado.
 - **Sem alteração** de portas de Drivers/datasources, protocolos industriais, descoberta multicast, firewall, TLS ou HA. A validação do CI é sintética/isolada; aceite da aplicação real exige provisionamento e verificação do coordenador no host, incluindo mídia/Runtime.

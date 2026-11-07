@@ -1,4 +1,9 @@
 using System.IO.Pipes;
+using System.Net;
+using System.Net.Security;
+using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Net.Sockets;
 using System.Text;
 using Microsoft.AspNetCore.Http;
@@ -93,6 +98,75 @@ public sealed class InstallationHostNetworkIpcTests
         await response.ExecuteAsync(context);
         Assert.Equal(200, context.Response.StatusCode);
         Assert.Contains("isolated-api-transport", Encoding.UTF8.GetString(output.ToArray()));
+    }
+
+
+    [Fact]
+    public async Task DockerDesktopWindowsTlsBridgeUsesPinnedCertificateAndInstallationToken()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        const string token = "9".PadRight(64, '9');
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        using var rsa = RSA.Create(2048);
+        var request = new CertificateRequest("CN=scadivo-ci-docker-host", rsa,
+            HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
+        using var certificate = request.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var settings = new Dictionary<string, string?>
+        {
+            ["InstallationNetwork:HostExecutorHttpsHost"] = "127.0.0.1",
+            ["InstallationNetwork:HostExecutorHttpsPort"] = port.ToString(),
+            ["InstallationNetwork:HostExecutorServerCertificateSha256"] =
+                Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256)),
+            ["InstallationNetwork:HostExecutorToken"] = token
+        };
+        var server = Task.Run(async () =>
+        {
+            using var peer = await listener.AcceptTcpClientAsync(timeout.Token);
+            await using var tls = new SslStream(peer.GetStream(), leaveInnerStreamOpen: false);
+            await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
+            {
+                ServerCertificate = certificate,
+                EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+            }, timeout.Token);
+            await ReplyAsync(tls, token, timeout.Token);
+        }, timeout.Token);
+        await VerifyAsync(settings, server, timeout.Token);
+
+        // A different hash is never silently accepted as a trusted Windows host.
+        settings["InstallationNetwork:HostExecutorServerCertificateSha256"] = new string('0', 64);
+        var rejected = await HostExecutorClient.SendAsync(
+            new ConfigurationBuilder().AddInMemoryCollection(settings).Build(),
+            "GET", "/v1/status", null, timeout.Token);
+        Assert.Equal(503, await ResultStatusAsync(rejected));
+
+        // Missing pin, arbitrary host, or conflicting local socket fail closed.
+        foreach (var invalid in new[]
+        {
+            new Dictionary<string, string?> { ["InstallationNetwork:HostExecutorServerCertificateSha256"] = null },
+            new Dictionary<string, string?> { ["InstallationNetwork:HostExecutorHttpsHost"] = "untrusted.example" },
+            new Dictionary<string, string?> { ["InstallationNetwork:HostExecutorSocket"] = "/tmp/untrusted.sock" }
+        })
+        {
+            var values = new Dictionary<string, string?>(settings);
+            foreach (var pair in invalid) values[pair.Key] = pair.Value;
+            Assert.Equal(503, await ResultStatusAsync(await HostExecutorClient.SendAsync(
+                new ConfigurationBuilder().AddInMemoryCollection(values).Build(),
+                "GET", "/v1/status", null, CancellationToken.None)));
+        }
+    }
+
+    private static async Task<int> ResultStatusAsync(IResult response)
+    {
+        using var services = new ServiceCollection().AddLogging().AddOptions().BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Response.Body = new MemoryStream();
+        await response.ExecuteAsync(context);
+        return context.Response.StatusCode;
     }
 
     [Fact]

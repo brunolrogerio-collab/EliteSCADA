@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Sockets;
 using System.IO.Pipes;
+using System.Net.Security;
+using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Text;
 using System.Text.Json;
@@ -115,6 +118,9 @@ internal static class HostExecutorClient
     {
         var socketPath = configuration["InstallationNetwork:HostExecutorSocket"];
         var pipeName = configuration["InstallationNetwork:HostExecutorPipe"];
+        var httpsHost = configuration["InstallationNetwork:HostExecutorHttpsHost"];
+        var httpsPortText = configuration["InstallationNetwork:HostExecutorHttpsPort"];
+        var certHash = configuration["InstallationNetwork:HostExecutorServerCertificateSha256"];
         var token = configuration["InstallationNetwork:HostExecutorToken"];
         var tokenFile = configuration["InstallationNetwork:HostExecutorTokenFile"];
         if (!string.IsNullOrWhiteSpace(tokenFile))
@@ -134,8 +140,18 @@ internal static class HostExecutorClient
                           Path.IsPathFullyQualified(socketPath) && File.Exists(socketPath);
         var windowsPipe = OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(pipeName) &&
                           Regex.IsMatch(pipeName, @"\A[a-zA-Z0-9_-]{1,128}\z");
-        if ((!linuxSocket && !windowsPipe) || string.IsNullOrWhiteSpace(token) ||
-            Encoding.UTF8.GetByteCount(token) is < 32 or > 256)
+        // Docker Desktop hosts are reached ONLY through a pinned TLS peer.
+        // Native Win32 pipes cannot be bind-mounted into Linux containers.
+        var httpsRequested = !string.IsNullOrEmpty(httpsHost) || !string.IsNullOrEmpty(httpsPortText) ||
+                             !string.IsNullOrEmpty(certHash);
+        var httpsValid = httpsRequested && OperatingSystem.IsLinux() &&
+                         (httpsHost == "host.docker.internal" || httpsHost == "127.0.0.1") &&
+                         int.TryParse(httpsPortText, out int parsedPort) && parsedPort is >= 1024 and <= 65535 &&
+                         certHash is not null && Regex.IsMatch(certHash, @"\A[0-9A-Fa-f]{64}\z");
+        if ((httpsRequested && (!httpsValid || linuxSocket || windowsPipe ||
+                                 !string.IsNullOrWhiteSpace(socketPath) || !string.IsNullOrWhiteSpace(pipeName))) ||
+            (!httpsValid && !linuxSocket && !windowsPipe) ||
+            string.IsNullOrWhiteSpace(token) || Encoding.UTF8.GetByteCount(token) is < 32 or > 256)
             return Results.Json(new
             {
                 error = "No registered compatible host executor is available for this installation. Use the protected host administrator procedure."
@@ -143,10 +159,19 @@ internal static class HostExecutorClient
 
         try
         {
+            var certificateDigest = httpsValid ? Convert.FromHexString(certHash!) : null;
             using var handler = new SocketsHttpHandler
             {
                 UseProxy = false,
-                ConnectCallback = async (_, ct) =>
+                AllowAutoRedirect = false,
+                SslOptions = httpsValid ? new SslClientAuthenticationOptions
+                {
+                    RemoteCertificateValidationCallback = (_, certificate, _, _) =>
+                        certificate is not null &&
+                        CryptographicOperations.FixedTimeEquals(
+                            certificate.GetCertHash(HashAlgorithmName.SHA256), certificateDigest!)
+                } : new SslClientAuthenticationOptions(),
+                ConnectCallback = httpsValid ? null : async (_, ct) =>
                 {
                     if (windowsPipe)
                     {
@@ -168,7 +193,8 @@ internal static class HostExecutorClient
                 }
             };
             using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(120) };
-            using var message = new HttpRequestMessage(new HttpMethod(method), "http://localhost" + route);
+            var origin = httpsValid ? $"https://{httpsHost}:{parsedPort}" : "http://localhost";
+            using var message = new HttpRequestMessage(new HttpMethod(method), origin + route);
             message.Headers.TryAddWithoutValidation("X-Scadivo-Installation-Token", token);
             if (request is not null)
                 message.Content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
@@ -196,7 +222,8 @@ internal static class HostExecutorClient
             throw;
         }
         catch (Exception error) when (error is HttpRequestException or IOException or SocketException or
-                                     TaskCanceledException or JsonException or ArgumentException or UnauthorizedAccessException or TimeoutException)
+                                     TaskCanceledException or JsonException or ArgumentException or UnauthorizedAccessException or
+                                     AuthenticationException or CryptographicException or TimeoutException)
         {
             return Results.Json(new
             {

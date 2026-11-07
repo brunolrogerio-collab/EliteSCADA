@@ -60,6 +60,14 @@ La Ayuda instalada ofrece una referencia individual por tipo, con campos admitid
 
 Compruebe color y transparencia con el fondo real de la pantalla. En un color de ocho dígitos, como `#00000066`, los dos últimos indican transparencia, también llamada alfa. Ajustarlo solo cambia apariencia. Opciones y límites están en la referencia del tipo de objeto en Ayuda.
 
+### Ajustar la vista de un modelo 3D
+
+Inserte un asset GLB/GLTF en un **Modelo 3D**, selecciónelo y pulse **Ajustar vista 3D** en la barra del lienzo. Arrastre con el botón izquierdo para girar la vista horizontal y vertical. Pulse nuevamente o **Escape** para salir; fuera de ese modo, arrastrar mueve el objeto y las asas lo redimensionan. La Rotación 2D no afecta la vista 3D.
+
+En **Propiedades**, el ángulo horizontal admite -180° a 180° y el vertical -85° a 85°. **Restaurar vista 3D original** recupera la dirección inicial. La cámara encuadra automáticamente el modelo al cargar y redimensionar, incluso si cambia la proporción.
+
+**Permitir girar la vista 3D en Runtime** está desactivado inicialmente. Si se habilita, el operador gira la vista temporalmente sin enviar comandos ni cambiar el proyecto. Al reabrir la pantalla vuelve la orientación publicada. Para guardar una nueva vista inicial, siga **Preview del cambio → Aplicar al Workspace → guardar/publicar/activar** y verifique la revisión activa.
+
 ## 5. Elija el objeto por su función
 
 | Necesidad | Objeto y configuración que revisar |

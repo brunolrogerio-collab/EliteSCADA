@@ -60,6 +60,14 @@ A Ajuda instalada oferece a referência individual de cada tipo de objeto, com o
 
 Para conferir cor e transparência, teste primeiro com o fundo real da tela. Em uma cor escrita com oito dígitos, como `#00000066`, os dois últimos indicam a transparência, também chamada alfa. Ajustar esse efeito muda só a aparência. As opções e os limites da propriedade estão na referência do tipo de objeto na Ajuda.
 
+### Ajustar a vista de um modelo 3D
+
+Depois de inserir um asset GLB/GLTF no objeto **Modelo 3D**, selecione-o e clique em **Ajustar vista 3D** na barra do canvas. Arraste com o botão esquerdo para alterar os ângulos horizontal e vertical. Clique no mesmo botão ou pressione **Escape** para sair do modo. Fora dele, arrastar move o objeto e as alças continuam redimensionando. A rotação 2D do objeto é independente da vista 3D.
+
+Em **Propriedades**, o ângulo horizontal aceita -180° a 180° e o vertical -85° a 85°. **Restaurar vista 3D original** recupera a direção padrão. O enquadramento automático acompanha o carregamento e o redimensionamento, inclusive quando as proporções mudam.
+
+**Permitir girar a vista 3D no Runtime** começa desativado. Quando habilitado, o operador altera somente a vista temporária, sem enviar comandos ou modificar o projeto. Reabrir a tela restaura a vista publicada. Para alterar a vista inicial permanente, siga **Preview da alteração → Aplicar ao Workspace → salvar/publicar/ativar** e confira a revisão ativa.
+
 ## 5. Escolha o objeto pela função
 
 | Necessidade | Objeto e configuração que merece atenção |

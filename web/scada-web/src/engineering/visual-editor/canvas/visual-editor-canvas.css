@@ -354,3 +354,8 @@
   inset: -7px;
 }
 .visual-editor-context-menu button:disabled{opacity:.4;cursor:default}
+
+/* Explicit view edit mode is scoped to the selected 3D object. */
+.visual-editor-canvas__object.is-model-view-editing { cursor: grab; touch-action: none; outline: 2px solid var(--app-focus, #2563eb); }
+.visual-editor-canvas__object.is-model-view-editing:active { cursor: grabbing; }
+.visual-editor-canvas__model-view-help { max-width: 340px; font-size: 11px; line-height: 1.25; align-self: center; }

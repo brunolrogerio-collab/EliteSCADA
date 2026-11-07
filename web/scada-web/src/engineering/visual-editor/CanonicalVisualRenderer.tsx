@@ -450,7 +450,10 @@ function CanonicalElement({
       return <div className="visual-editor-object" style={style}
         data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
         data-enabled={enabled} title={elementTitle} data-dynamic-state={diagnosticState}>
-        {assetId ? <Model3dVisualElement src={visualAssetUrl(assetId)} label={element.key || '3D model'} />
+        {assetId ? <Model3dVisualElement src={visualAssetUrl(assetId)} label={element.key || '3D model'}
+          viewYawDeg={numberValue(values[VISUAL_PROPERTY_KEYS.viewYawDeg], 40.1)}
+          viewPitchDeg={numberValue(values[VISUAL_PROPERTY_KEYS.viewPitchDeg], 25.8)}
+          runtimeInteractionEnabled={operatorTimeRangeControls && enabled && values[VISUAL_PROPERTY_KEYS.runtimeViewInteractionEnabled] === true} />
           : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
       </div>;
     }

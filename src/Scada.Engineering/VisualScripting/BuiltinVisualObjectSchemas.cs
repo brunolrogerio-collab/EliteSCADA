@@ -144,6 +144,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Text)
             .Concat(CommonVisualPropertyDefinitions.CheckBox)
             .Concat(CommonVisualPropertyDefinitions.Image)
+            .Concat(CommonVisualPropertyDefinitions.Model3dView)
             .Concat(CommonVisualPropertyDefinitions.Media)
             .Concat(CommonVisualPropertyDefinitions.ReportLauncher)
             .Concat(CommonVisualPropertyDefinitions.Slider)
@@ -284,7 +285,12 @@ public static class BuiltinVisualObjectSchemas
 
     public static VisualObjectPropertySchema Model3d { get; } = Create(
         Model3dType,
-        Base.Concat([VisualPropertyKeys.AssetRef]));
+        Base.Concat([
+            VisualPropertyKeys.AssetRef,
+            VisualPropertyKeys.ViewYawDeg,
+            VisualPropertyKeys.ViewPitchDeg,
+            VisualPropertyKeys.RuntimeViewInteractionEnabled
+        ]));
 
     public static VisualObjectPropertySchema VideoPlayer { get; } = Create(
         VideoPlayerType,

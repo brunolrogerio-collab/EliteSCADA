@@ -1,6 +1,6 @@
 # ADR-025 — Configuração de portas por instalação
 
-**Status:** perfil Docker anteriormente integrado pelo PR #828; DEV-780 (06/11/2026) acrescenta candidato Linux nativo com executor de host separado, sujeito a testes/qualificação. Windows e Docker continuam sem executor UI validado.
+**Status:** perfil Docker anteriormente integrado pelo PR #828; DEV-780 (06/11/2026) acrescenta candidatos de executor externo para Linux nativo, Windows nativo (Named Pipe/DACL/SCM) e Docker estável em host Linux (socket Unix/Compose registrado). CI e qualificação de instalação continuam obrigatórios. Docker Desktop em host Windows ainda não tem executor UI suportado.
 **Data:** 2026-10-29
 **Issue:** [#780 — Configurar portas TCP/UDP e serviços pela interface](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780)
 
@@ -237,3 +237,9 @@ A preparação de comando nativo exige serviço com identificador válido, camin
 ### Coordenação com manutenção de topologia local
 
 A troca de porta PostgreSQL relê a topologia persistida depois de parar o serviço API registrado. Se o documento mudou durante preflight/backups, aborta sem escrever configurações ou reiniciar PostgreSQL, preserva a operação de migração e reinicia a API. Recuperação também recusa restaurar arquivos se a topologia mudar entre leitura e parada, mantendo journal. Isso depende de o perfil identificar o serviço proprietário das operações locais; não é exclusão distribuída para APIs externas ou nós HA. Testes simulam migração surgindo durante a parada nas duas plataformas; 6/6 locais e 11/11 no laboratório Linux com PostgreSQL real passaram.
+
+## Continuação DEV-780: IPC e host (06/11/2026)
+
+PR #877 permanece **draft**, sem autorização para merge. Para Linux nativo permanece o executor Unix previamente introduzido; Windows nativo ganha binário .NET independente com Named Pipe restrito ao SID específico da API e à identidade executora, PowerShell/SCM com serviços registrados, journal e recuperação. Docker em **host Linux** ganha outro executor independente ligado a `installationDirectory`, `instanceId`, digest SHA-256 do Compose e Docker CLI absoluto sob controle do administrador; a API enxerga apenas um socket Unix local dedicado. Não existe função de executor Docker em host Windows nesta continuação: nesse perfil permanece o script PowerShell executado pelo administrador.
+
+O contrato comum admite somente `access`, `database` e `media`, portas inteiras e validação da versão, preflight não mutante, plano expirável preso à revisão da configuração, confirmação explícita, operação durável, auditoria sem segredos e recuperação local. O Docker preserva binds previamente registrados, publicação host Web/API/PostgreSQL e listeners privados de mídia; não modifica projeto Compose, volumes, Drivers, firewall, HA ou imagem por solicitações da UI. O executor não é instalado automaticamente. Testes do executor devem ser distintos dos testes preexistentes dos adaptadores e provam host/IPCs separadamente; aceitação real ainda depende da instalação provisionada, API autenticada, vídeo e Runtime verificados em host de homologação. Consulte [instruções do executor](INSTALLATION-HOST-EXECUTOR.md).

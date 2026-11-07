@@ -75,6 +75,11 @@ PATH_RULES = (
         "projectpackages", "systemrecovery", "persistedruntime",
         "web/scada-web/src/engineering/installationswitchingworkspace",
         "src/scada.api/installation/",
+        "src/scada.api/engineering/installationnetwork",
+        "web/scada-web/src/engineering/installationnetwork",
+        "web/scada-web/public/installation/",
+        "tests/ci/test_network_host_executor.py",
+        "tests/scada.drivers.tests/installationhostnetworkapitests.cs",
     )),
     ("HA_DISTRIBUTED", (
         "highavailability", "high-availability", "/ha/", "distributedruntimefoundation",

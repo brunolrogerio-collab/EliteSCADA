@@ -139,10 +139,28 @@ public sealed class InstallationHostNetworkIpcTests
 
         // A different hash is never silently accepted as a trusted Windows host.
         settings["InstallationNetwork:HostExecutorServerCertificateSha256"] = new string('0', 64);
+        var badServer = Task.Run(async () =>
+        {
+            using var peer = await listener.AcceptTcpClientAsync(timeout.Token);
+            await using var tls = new SslStream(peer.GetStream(), leaveInnerStreamOpen: false);
+            try
+            {
+                await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
+                {
+                    ServerCertificate = certificate,
+                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                }, timeout.Token);
+                var buffer = new byte[1];
+                await tls.ReadAsync(buffer, timeout.Token);
+            }
+            catch (IOException) { /* Invalid client pin terminates the TLS session. */ }
+            catch (AuthenticationException) { }
+        }, timeout.Token);
         var rejected = await HostExecutorClient.SendAsync(
             new ConfigurationBuilder().AddInMemoryCollection(settings).Build(),
             "GET", "/v1/status", null, timeout.Token);
         Assert.Equal(503, await ResultStatusAsync(rejected));
+        await badServer;
 
         // Missing pin, arbitrary host, or conflicting local socket fail closed.
         foreach (var invalid in new[]

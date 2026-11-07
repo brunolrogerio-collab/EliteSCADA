@@ -209,7 +209,12 @@ try {
     try {
       # ReplaceFile preserves the destination's protected security descriptor.
       # Move-Item can re-enable ACL inheritance when replacing an existing file.
-      [IO.File]::Replace($candidate,$envFile,$null)
+      # PowerShell converts a null string argument to an empty path. Keep the
+      # replacement backup inside the protected state directory and remove it
+      # after the existing recovery backup and journal have been committed.
+      $swapBackup=Join-Path $state ('docker-env-swap-'+[Guid]::NewGuid().ToString('N')+'.backup')
+      try { [IO.File]::Replace($candidate,$envFile,$swapBackup) }
+      finally { [IO.File]::Delete($swapBackup) }
       [void](Compose -Arguments @('up','-d'))
       Health $desired
       $effective=Get-Ports (Read-Env)

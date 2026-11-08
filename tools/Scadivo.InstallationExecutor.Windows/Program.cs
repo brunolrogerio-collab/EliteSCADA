@@ -481,6 +481,9 @@ internal sealed class WindowsExecutor : IDisposable
             UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
             RedirectStandardError = true
         };
+        // Let Windows PowerShell resolve its own modules. A host started from
+        // PowerShell 7 can inherit a PSModulePath that omits the 5.1 modules.
+        start.Environment.Remove("PSModulePath");
         foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                                   "-File", script, "-ProfilePath", _registration.NativeProfilePath })
             start.ArgumentList.Add(arg);

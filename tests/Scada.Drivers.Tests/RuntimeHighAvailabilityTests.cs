@@ -1310,6 +1310,110 @@ public sealed class RuntimeHighAvailabilityTests
         Assert.Equal(1, externalCount);
     }
 
+    [Fact]
+    public async Task RealHaReferenceFence_OnlyEffectiveActiveForwardsRuntimeEventsAcrossTakeover()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        string? referenceActiveNodeId = "node-a";
+        var referenceEpoch = 1L;
+        bool ReferenceAllows(RuntimeHaTopologySnapshot snapshot) =>
+            referenceActiveNodeId is not null &&
+            referenceActiveNodeId.Equals(snapshot.LocalNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceActiveNodeId.Equals(snapshot.EffectiveActiveNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceEpoch == snapshot.AuthorityEpoch &&
+            !snapshot.AmbiguousAuthority &&
+            snapshot.PendingTransfer is null;
+
+        var serviceA = CreateNodeService("node-a");
+        var serviceB = CreateNodeService("node-b");
+        serviceA.AttachExternalIndustrialFence(ReferenceAllows);
+        serviceB.AttachExternalIndustrialFence(ReferenceAllows);
+
+        var external = new InMemoryScadaEventBus();
+        var gateA = new RuntimeEventGate(
+            external,
+            forwardingEnabled: true,
+            effectAuthority: serviceA.CanOwnIndustrialEffects);
+        var gateB = new RuntimeEventGate(
+            external,
+            forwardingEnabled: true,
+            effectAuthority: serviceB.CanOwnIndustrialEffects);
+        var forwardedBy = new List<string>();
+        var localA = 0;
+        var localB = 0;
+        using var remoteSubscription = external.Subscribe<TestEvent>(value =>
+        {
+            forwardedBy.Add(value.SourceNode);
+            return ValueTask.CompletedTask;
+        });
+        using var localSubscriptionA = gateA.Subscribe<TestEvent>(_ =>
+        {
+            localA++;
+            return ValueTask.CompletedTask;
+        });
+        using var localSubscriptionB = gateB.Subscribe<TestEvent>(_ =>
+        {
+            localB++;
+            return ValueTask.CompletedTask;
+        });
+
+        Assert.True(serviceA.CanOwnIndustrialEffects());
+        Assert.False(serviceB.CanOwnIndustrialEffects());
+        var standbyWitness = serviceB.Authority.CaptureStandbyPromotionWitness("node-b");
+        Assert.NotNull(standbyWitness);
+
+        await gateA.PublishAsync(new TestEvent(now, "node-a"));
+        await gateB.PublishAsync(new TestEvent(now, "node-b"));
+        Assert.Equal(new[] { "node-a" }, forwardedBy);
+        Assert.Equal(1, localA);
+        Assert.Equal(0, localB);
+
+        // The reference relinquishes A before B is promoted. Both processes fail closed here.
+        referenceActiveNodeId = null;
+        referenceEpoch = 2;
+        serviceA.Authority.ReportNodeUnavailable("node-a");
+        var afterLossB = serviceB.Authority.ReportNodeUnavailable("node-a");
+        await gateA.PublishAsync(new TestEvent(now, "node-a"));
+        await gateB.PublishAsync(new TestEvent(now, "node-b"));
+        Assert.Equal(new[] { "node-a" }, forwardedBy);
+        Assert.Equal(1, localA);
+        Assert.Equal(0, localB);
+
+        var promoted = serviceB.Authority.ApplyReferencedAuthority(
+            "node-b",
+            afterLossB.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            standbyWitness: standbyWitness);
+        Assert.True(promoted.Accepted, promoted.ReasonCode);
+        referenceActiveNodeId = "node-b";
+        referenceEpoch = promoted.Snapshot.AuthorityEpoch;
+
+        Assert.False(serviceA.CanOwnIndustrialEffects());
+        Assert.True(serviceB.CanOwnIndustrialEffects());
+        await gateA.PublishAsync(new TestEvent(now, "node-a"));
+        await gateB.PublishAsync(new TestEvent(now, "node-b"));
+
+        Assert.Equal(new[] { "node-a", "node-b" }, forwardedBy);
+        Assert.Equal(1, localA);
+        Assert.Equal(1, localB);
+
+        RuntimeHighAvailabilityService CreateNodeService(string nodeId)
+        {
+            var service = new RuntimeHighAvailabilityService(
+                CreateTopology(nodeId),
+                () => now,
+                Guid.NewGuid(),
+                externalIndustrialFenceRequired: true);
+            service.Authority.UpdateNodeReadiness(
+                "node-a",
+                Evidence(now, haEntitled: true, revision: 7, synchronized: true));
+            service.Authority.UpdateNodeReadiness(
+                "node-b",
+                Evidence(now, haEntitled: true, revision: 7, synchronized: true));
+            return service;
+        }
+    }
+
     private static RuntimeHaAuthorityCoordinator CreateReadyPair(out MutableClock clock)
     {
         var coordinator = CreateCoordinator(out clock);
@@ -1463,7 +1567,7 @@ public sealed class RuntimeHighAvailabilityTests
             Generation: 1,
             AuthorityRevision: 1);
 
-    private sealed record TestEvent(DateTimeOffset OccurredAt) : IScadaEvent;
+    private sealed record TestEvent(DateTimeOffset OccurredAt, string SourceNode = "test") : IScadaEvent;
 
     private sealed class MutableClock(DateTimeOffset utcNow)
     {

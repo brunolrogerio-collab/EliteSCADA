@@ -284,6 +284,161 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     }
 
     [Fact]
+    public async Task HaReferenceFence_OnlyActiveNodeExecutesServerScriptForTransientEventsAcrossTakeover()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        string? referenceActiveNodeId = "node-a";
+        var referenceEpoch = 1L;
+        bool ReferenceAllows(RuntimeHaTopologySnapshot snapshot) =>
+            referenceActiveNodeId is not null &&
+            referenceActiveNodeId.Equals(snapshot.LocalNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceActiveNodeId.Equals(snapshot.EffectiveActiveNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceEpoch == snapshot.AuthorityEpoch &&
+            !snapshot.AmbiguousAuthority &&
+            snapshot.PendingTransfer is null;
+
+        RuntimeHighAvailabilityService CreateNodeService(string nodeId)
+        {
+            var service = new RuntimeHighAvailabilityService(
+                CreateTopology(nodeId),
+                () => now,
+                Guid.NewGuid(),
+                externalIndustrialFenceRequired: true);
+            var readiness = new RuntimeHaNodeReadinessEvidence(
+                Healthy: true,
+                SynchronizationComplete: true,
+                HaLicenseEntitled: true,
+                Runtime: new RuntimeHaRuntimeIdentity("engineering", "ha-server-script", 1),
+                ObservedAtUtc: now);
+            service.Authority.UpdateNodeReadiness("node-a", readiness);
+            service.Authority.UpdateNodeReadiness("node-b", readiness);
+            service.AttachExternalIndustrialFence(ReferenceAllows);
+            return service;
+        }
+
+        static RuntimeHaTopologyDefinition CreateTopology(string localNodeId) => new(
+            Enabled: true,
+            ClusterId: "cluster-a",
+            LocalNodeId: localNodeId,
+            InitialActiveNodeId: "node-a",
+            TopologyVersion: 3,
+            FreshnessWindow: TimeSpan.FromSeconds(15),
+            Nodes: new[]
+            {
+                new RuntimeHaNodeDefinition(
+                    "node-a",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.1:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://a.example.test", 1)
+                    }),
+                new RuntimeHaNodeDefinition(
+                    "node-b",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.2:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://b.example.test", 1)
+                    })
+            });
+
+        var serviceA = CreateNodeService("node-a");
+        var serviceB = CreateNodeService("node-b");
+        var stateId = Guid.NewGuid();
+        var definitionId = Guid.NewGuid();
+        var package = TransientEventScriptPackage(stateId, definitionId);
+        var interactionsA = new ActiveDriverInteractionRuntimeCatalog();
+        var interactionsB = new ActiveDriverInteractionRuntimeCatalog();
+        var eventBusA = new RuntimeEventGate(
+            new InMemoryScadaEventBus(),
+            forwardingEnabled: true,
+            effectAuthority: serviceA.CanOwnIndustrialEffects);
+        var eventBusB = new RuntimeEventGate(
+            new InMemoryScadaEventBus(),
+            forwardingEnabled: true,
+            effectAuthority: serviceB.CanOwnIndustrialEffects);
+        await using var runtimeA = CreateRuntime(eventBusA, serviceA.CanOwnIndustrialEffects);
+        await using var runtimeB = CreateRuntime(eventBusB, serviceB.CanOwnIndustrialEffects);
+        var managerA = ServerScriptRuntimeManager.GetShared(runtimeA, eventBusA, Configuration(), interactionsA);
+        var managerB = ServerScriptRuntimeManager.GetShared(runtimeB, eventBusB, Configuration(), interactionsB);
+        await using var dispatcherA = new TransientEventRuntimeDispatcher(interactionsA, eventBusA);
+        await using var dispatcherB = new TransientEventRuntimeDispatcher(interactionsB, eventBusB);
+
+        foreach (var (manager, interactions) in new[]
+                 {
+                     (managerA, interactionsA),
+                     (managerB, interactionsB)
+                 })
+        {
+            var prepared = interactions.Prepare(package);
+            var activation = await manager.ActivateRuntimeAsync(
+                "ha-server-script",
+                1,
+                package,
+                (_, _) =>
+                {
+                    interactions.Commit(prepared);
+                    return Task.CompletedTask;
+                });
+            Assert.True(activation.Activated);
+        }
+
+        var initialOccurrence = TransientOccurrence(definitionId, 3);
+        await dispatcherA.DispatchAsync(initialOccurrence);
+        await dispatcherB.DispatchAsync(initialOccurrence);
+        await WaitUntilAsync(
+            () => runtimeA.TryGetCurrent(stateId, out var valueA) &&
+                  Convert.ToInt32(valueA!.Value) == 3 &&
+                  managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1,
+            TimeSpan.FromSeconds(5));
+        Assert.True(runtimeB.TryGetCurrent(stateId, out var standbyState));
+        Assert.Equal(0, Convert.ToInt32(standbyState!.Value));
+        Assert.Equal(0, managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+
+        var standbyWitness = Assert.IsType<RuntimeHaStandbyPromotionWitness>(
+            serviceB.Authority.CaptureStandbyPromotionWitness("node-b"));
+        referenceActiveNodeId = null;
+        referenceEpoch = 2;
+        serviceA.Authority.ReportNodeUnavailable("node-a");
+        var afterLossB = serviceB.Authority.ReportNodeUnavailable("node-a");
+
+        var fencedOccurrence = TransientOccurrence(definitionId, 5);
+        await dispatcherA.DispatchAsync(fencedOccurrence);
+        await dispatcherB.DispatchAsync(fencedOccurrence);
+        await Task.Delay(100);
+        Assert.True(runtimeA.TryGetCurrent(stateId, out var fencedA));
+        Assert.Equal(3, Convert.ToInt32(fencedA!.Value));
+        Assert.True(runtimeB.TryGetCurrent(stateId, out var fencedB));
+        Assert.Equal(0, Convert.ToInt32(fencedB!.Value));
+        Assert.Equal(1, managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(0, managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+
+        var promoted = serviceB.Authority.ApplyReferencedAuthority(
+            "node-b",
+            afterLossB.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            standbyWitness: standbyWitness);
+        Assert.True(promoted.Accepted, promoted.ReasonCode);
+        referenceActiveNodeId = "node-b";
+        referenceEpoch = promoted.Snapshot.AuthorityEpoch;
+
+        var postTakeoverOccurrence = TransientOccurrence(definitionId, 7);
+        await dispatcherA.DispatchAsync(postTakeoverOccurrence);
+        await dispatcherB.DispatchAsync(postTakeoverOccurrence);
+        await WaitUntilAsync(
+            () => runtimeB.TryGetCurrent(stateId, out var valueB) &&
+                  Convert.ToInt32(valueB!.Value) == 7 &&
+                  managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1,
+            TimeSpan.FromSeconds(5));
+        Assert.True(runtimeA.TryGetCurrent(stateId, out var formerActiveState));
+        Assert.Equal(3, Convert.ToInt32(formerActiveState!.Value));
+        Assert.Equal(1, managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(1, managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+
+        await managerA.DisposeAsync();
+        await managerB.DisposeAsync();
+    }
+
+    [Fact]
     public async Task ServerScript_CanonicalTransientEventReferenceWithoutActiveCapabilityReference_FailsClosed()
     {
         var eventBus = new InMemoryScadaEventBus();
@@ -422,12 +577,15 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         Assert.False(string.IsNullOrWhiteSpace(result.Execution.SanitizedError));
     }
 
-    private static EngineeringRuntimeCoordinator CreateRuntime(InMemoryScadaEventBus eventBus) =>
+    private static EngineeringRuntimeCoordinator CreateRuntime(
+        IScadaEventBus eventBus,
+        Func<bool>? industrialEffectAuthority = null) =>
         new(
             eventBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2),
-            new InMemoryServerMemoryRetentionStore());
+            new InMemoryServerMemoryRetentionStore(),
+            industrialEffectAuthority: industrialEffectAuthority);
 
     private static IConfiguration Configuration() =>
         new ConfigurationBuilder()

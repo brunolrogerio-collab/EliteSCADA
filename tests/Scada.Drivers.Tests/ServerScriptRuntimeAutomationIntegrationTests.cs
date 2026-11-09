@@ -345,17 +345,22 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         var serviceB = CreateNodeService("node-b");
         var stateId = Guid.NewGuid();
         var definitionId = Guid.NewGuid();
-        var package = TransientEventScriptPackage(stateId, definitionId);
+        var package = TransientEventScriptPackage(
+            stateId,
+            definitionId,
+            includeHistorianAndAlarm: true);
         var interactionsA = new ActiveDriverInteractionRuntimeCatalog();
         var interactionsB = new ActiveDriverInteractionRuntimeCatalog();
+        var canonicalEventBus = new InMemoryScadaEventBus();
         var eventBusA = new RuntimeEventGate(
-            new InMemoryScadaEventBus(),
+            canonicalEventBus,
             forwardingEnabled: true,
             effectAuthority: serviceA.CanOwnIndustrialEffects);
         var eventBusB = new RuntimeEventGate(
-            new InMemoryScadaEventBus(),
+            canonicalEventBus,
             forwardingEnabled: true,
             effectAuthority: serviceB.CanOwnIndustrialEffects);
+        await using var historian = new BufferedInMemoryHistorian(canonicalEventBus);
         await using var runtimeA = CreateRuntime(eventBusA, serviceA.CanOwnIndustrialEffects);
         await using var runtimeB = CreateRuntime(eventBusB, serviceB.CanOwnIndustrialEffects);
         var managerA = ServerScriptRuntimeManager.GetShared(runtimeA, eventBusA, Configuration(), interactionsA);
@@ -382,17 +387,32 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
             Assert.True(activation.Activated);
         }
 
+        await WaitUntilAsync(() => historian.PendingSamples == 0, TimeSpan.FromSeconds(2));
+        var historianBaseline = historian.WrittenSamples;
+        var activeAlarmTransitions = 0;
+        using var alarmSubscription = canonicalEventBus.Subscribe<AlarmStateChanged>(stateChange =>
+        {
+            if (stateChange.Current.State == AlarmState.Active)
+                Interlocked.Increment(ref activeAlarmTransitions);
+            return ValueTask.CompletedTask;
+        });
+
         var initialOccurrence = TransientOccurrence(definitionId, 3);
         await dispatcherA.DispatchAsync(initialOccurrence);
         await dispatcherB.DispatchAsync(initialOccurrence);
         await WaitUntilAsync(
             () => runtimeA.TryGetCurrent(stateId, out var valueA) &&
                   Convert.ToInt32(valueA!.Value) == 3 &&
-                  managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1,
+                  managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1 &&
+                  historian.WrittenSamples >= historianBaseline + 1,
             TimeSpan.FromSeconds(5));
         Assert.True(runtimeB.TryGetCurrent(stateId, out var standbyState));
         Assert.Equal(0, Convert.ToInt32(standbyState!.Value));
         Assert.Equal(0, managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(historianBaseline + 1, historian.WrittenSamples);
+        Assert.Empty(runtimeA.Alarms(activeOnly: true));
+        Assert.Empty(runtimeB.Alarms(activeOnly: true));
+        Assert.Equal(0, Volatile.Read(ref activeAlarmTransitions));
 
         var standbyWitness = Assert.IsType<RuntimeHaStandbyPromotionWitness>(
             serviceB.Authority.CaptureStandbyPromotionWitness("node-b"));
@@ -411,6 +431,10 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         Assert.Equal(0, Convert.ToInt32(fencedB!.Value));
         Assert.Equal(1, managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
         Assert.Equal(0, managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(historianBaseline + 1, historian.WrittenSamples);
+        Assert.Empty(runtimeA.Alarms(activeOnly: true));
+        Assert.Empty(runtimeB.Alarms(activeOnly: true));
+        Assert.Equal(0, Volatile.Read(ref activeAlarmTransitions));
 
         var promoted = serviceB.Authority.ApplyReferencedAuthority(
             "node-b",
@@ -427,12 +451,30 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         await WaitUntilAsync(
             () => runtimeB.TryGetCurrent(stateId, out var valueB) &&
                   Convert.ToInt32(valueB!.Value) == 7 &&
-                  managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1,
+                  managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1 &&
+                  historian.WrittenSamples >= historianBaseline + 2 &&
+                  Volatile.Read(ref activeAlarmTransitions) == 1,
             TimeSpan.FromSeconds(5));
         Assert.True(runtimeA.TryGetCurrent(stateId, out var formerActiveState));
         Assert.Equal(3, Convert.ToInt32(formerActiveState!.Value));
         Assert.Equal(1, managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
         Assert.Equal(1, managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(historianBaseline + 2, historian.WrittenSamples);
+        Assert.DoesNotContain(runtimeA.Alarms(activeOnly: true), alarm => alarm.Type == AlarmType.High);
+        Assert.Contains(runtimeB.Alarms(activeOnly: true), alarm =>
+            alarm.Type == AlarmType.High && alarm.State == AlarmState.Active);
+        Assert.Equal(1, Volatile.Read(ref activeAlarmTransitions));
+
+        var recordedValues = historian.Query(
+                stateId,
+                DateTimeOffset.UtcNow.AddMinutes(-1),
+                DateTimeOffset.UtcNow.AddMinutes(1))
+            .Select(sample => Convert.ToInt32(sample.Value))
+            .ToArray();
+        Assert.Equal(2, recordedValues.Length);
+        Assert.Contains(3, recordedValues);
+        Assert.Contains(7, recordedValues);
+        Assert.DoesNotContain(5, recordedValues);
 
         await managerA.DisposeAsync();
         await managerB.DisposeAsync();
@@ -809,7 +851,8 @@ def pulse(event):
     private static EngineeringPackage TransientEventScriptPackage(
         Guid stateId,
         Guid eventDefinitionId,
-        bool includeCapabilityEventReference = true)
+        bool includeCapabilityEventReference = true,
+        bool includeHistorianAndAlarm = false)
     {
         var stateReference = stateId.ToString("D");
         var equipmentId = Guid.Parse("d4b42000-0000-0000-0000-000000000002");
@@ -846,8 +889,23 @@ def on_event(event):
             EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion,
             DateTimeOffset.UtcNow,
-            [ServerMemoryTag(stateId, "EventState", "Simulation.EventState", 0, historian: false)],
-            Array.Empty<AlarmEngineeringDto>(),
+            [ServerMemoryTag(
+                stateId,
+                "EventState",
+                "Simulation.EventState",
+                0,
+                historian: includeHistorianAndAlarm)],
+            includeHistorianAndAlarm
+                ?
+                [new AlarmEngineeringDto(
+                    Guid.NewGuid(),
+                    "Event state high",
+                    stateId,
+                    "Simulation.EventState",
+                    AlarmType.High,
+                    AlarmPriority.High,
+                    Setpoint: 4)]
+                : Array.Empty<AlarmEngineeringDto>(),
             DataSources: ServerMemoryDataSource()
                 .Append(new DataSourceEngineeringDto(dataSourceId, "test.events", "Test Events", "test.driver", Enabled: false))
                 .ToArray(),

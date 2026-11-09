@@ -1,6 +1,6 @@
 # ADR-025 — Configuração de portas por instalação
 
-**Status:** perfil Docker anteriormente integrado pelo PR #828; DEV-780 acrescenta candidatos de executor externo para Linux nativo, Windows nativo e Docker em hosts Linux e Windows. O CI validou o cenário simulado no Windows; a qualificação em Docker Desktop real continua pendente.
+**Status:** perfil Docker anteriormente integrado pelo PR #828; DEV-780 acrescenta candidatos de executor externo para Linux nativo, Windows nativo e Docker em hosts Linux e Windows. O cenário Windows passou no CI e em laboratório com Docker Desktop real.
 **Data:** 2026-10-29
 **Issue:** [#780 — Configurar portas TCP/UDP e serviços pela interface](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780)
 
@@ -240,6 +240,6 @@ A troca de porta PostgreSQL relê a topologia persistida depois de parar o servi
 
 ## Continuação DEV-780: IPC e host (06/11/2026)
 
-PR #877 permanece **draft**, aguardando revisão. Linux nativo usa o executor Unix; Windows nativo usa binário .NET independente com Named Pipe restrito. Docker em host Linux usa executor ligado à instalação e ao Compose registrados. O candidato para Docker Desktop em Windows usa executor de host e HTTPS com certificado fixado; Apply e rollback simulados passaram no CI, e a homologação real permanece pendente.
+PR #877 permanece **draft**, aguardando revisão. Linux nativo usa o executor Unix; Windows nativo usa binário .NET independente com Named Pipe restrito. Docker em host Linux usa executor ligado à instalação e ao Compose registrados. O candidato para Docker Desktop em Windows usa executor de host e HTTPS com certificado fixado; A API autenticada aplicou a troca e recuperou uma colisão em Docker Desktop real. A interface confirmou a aplicação no novo endereço.
 
 O contrato comum admite somente `access`, `database` e `media`, portas inteiras e validação da versão, preflight não mutante, plano expirável preso à revisão da configuração, confirmação explícita, operação durável, auditoria sem segredos e recuperação local. O Docker preserva binds previamente registrados, publicação host Web/API/PostgreSQL e listeners privados de mídia; não modifica projeto Compose, volumes, Drivers, firewall, HA ou imagem por solicitações da UI. O executor não é instalado automaticamente. Testes do executor devem ser distintos dos testes preexistentes dos adaptadores e provam host/IPCs separadamente; aceitação real ainda depende da instalação provisionada, API autenticada, vídeo e Runtime verificados em host de homologação. Consulte [instruções do executor](INSTALLATION-HOST-EXECUTOR.md).

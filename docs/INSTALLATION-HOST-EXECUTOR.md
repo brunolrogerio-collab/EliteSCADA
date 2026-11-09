@@ -1,6 +1,6 @@
 # Executor administrativo de rede por instalação (DEV-780)
 
-**Estado: candidatos opt-in Linux nativo, Windows nativo e Docker em hosts Linux e Windows.** O CI exercitou os adaptadores e a operação simulada no Windows; o provisionamento e a operação com Docker Desktop real ainda precisam de homologação. O executor não é instalado automaticamente. Referências: [#780](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780), [ADR-025](ADR-025-NETWORK-PORT-CONFIGURATION.md), [adaptadores nativos](../web/scada-web/public/installation/NATIVE-PORTS.md).
+**Estado: candidatos opt-in Linux nativo, Windows nativo e Docker em hosts Linux e Windows.** O CI exercitou os adaptadores. A aplicação e a recuperação pela API também passaram em laboratório com Docker Desktop real no Windows. O executor não é instalado automaticamente. Referências: [#780](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780), [ADR-025](ADR-025-NETWORK-PORT-CONFIGURATION.md), [adaptadores nativos](../web/scada-web/public/installation/NATIVE-PORTS.md).
 
 ## Autoridade e limites de confiança
 
@@ -8,7 +8,7 @@ O **administrador do host**, não o navegador, provisiona um executor separado p
 
 O registro vincula o executor a um perfil `scadivo-native-network-v1` já instalado. Scripts fixos `apply-native-network-profile.py`, `native_database_port.py` e `native_media_ports.py` ficam ao lado do `network-host-executor.py`, em diretório protegido; a requisição HTTP não determina scripts, paths, serviços, comandos, instância ou argumentos arbitrários. Os adaptadores nativos continuam responsáveis por preflight, lock compartilhado, backup/journal, restart, saúde e rollback. O executor verifica revisão da configuração com HMAC, acompanha a operação e só confirma após os adaptadores retornarem e as portas configuradas serem relidas.
 
-**Cobertura candidata:** Linux nativo com systemd; Windows nativo com Named Pipe e ACL restrita; Docker em host Linux com socket Unix; e Docker Desktop em host Windows com HTTPS e certificado fixado. Os perfis Docker são associados à instalação e ao Compose registrados. Somente módulos registrados são expostos. Sem provisionamento e credenciais, a API retorna HTTP 503. A operação no Docker Desktop real ainda precisa de homologação.
+**Cobertura candidata:** Linux nativo com systemd; Windows nativo com Named Pipe e ACL restrita; Docker em host Linux com socket Unix; e Docker Desktop em host Windows com HTTPS e certificado fixado. Os perfis Docker são associados à instalação e ao Compose registrados. Somente módulos registrados são expostos. Sem provisionamento e credenciais, a API retorna HTTP 503. A configuração de rede precisa ser verificada em cada instalação.
 
 ## Provisionamento Linux, somente pelo administrador
 
@@ -106,7 +106,7 @@ python3 docker-host-executor.py --registration /caminho/registro-protegido.json 
 python3 docker-host-executor.py --registration /caminho/registro-protegido.json --recover --confirm-recovery
 ```
 
-## Docker Desktop no host Windows (executor opt-in, qualificação pendente)
+## Docker Desktop no host Windows (executor opt-in)
 
 O executor de **host Windows** `tools/Scadivo.InstallationExecutor.Windows` também aceita
 `profile: "stable-docker-windows"` e utiliza um serviço administrativo separado,
@@ -155,13 +155,13 @@ e recuperação local confirmada. Para status/recuperação administrativa, exec
 o binário Windows com `--registration ARQUIVO --status` ou
 `--registration ARQUIVO --recover --confirm-recovery`.
 
-**Limite da prova:** o CI Windows cobre compilação e um host descartável com
-HTTPS/certificado/credencial, CLI Docker simulado e prévia não mutante.
-**Não** demonstra ainda Docker Desktop real em host Windows, mudança publicada
-seguida de restart e rollback de contêineres reais. Portanto este perfil é
-**candidato**, depende de homologação em host Docker Desktop com interface/firewall
-configurados e não autoriza fechar a #780. O script PowerShell externo tradicional
-continua disponível para administradores até a qualificação final.
+**Validação:** o CI Windows cobre o executor HTTPS e o Apply/Recover com CLI
+Docker simulado. Em um laboratório descartável no Docker Desktop real, a API
+autenticada fez a prévia, aplicou as portas Web/API e recuperou uma colisão
+introduzida após a prévia. A interface exigiu confirmação e exibiu a operação
+aplicada após reabrir no novo endereço. Cada instalação ainda exige
+provisionamento administrativo e verificação da interface de rede e do
+firewall. O script PowerShell externo continua disponível para administradores.
 Não montar `docker.sock` ou `\\.\\pipe\\docker_engine` nos contêineres Web/API.
 
 ## Fluxo de aplicação e recuperação
@@ -186,5 +186,5 @@ A recuperação exige pendência registrada. Se executor/socket estiverem indisp
 ## Limites conhecidos / próximos contratos
 
 - **Windows nativo:** candidato executor .NET separado com Named Pipe DACL/SID, serviço SCM e recuperação local. Requer CI do host Windows, provisionamento e homologação do serviço real; sem registro usa PowerShell externo (`-Apply`/`-Recover`).
-- **Docker:** executores candidatos para host Linux e Docker Desktop em Windows, ligados ao Compose registrado. O provisionamento é opt-in e a homologação no Docker Desktop real permanece pendente. Os helpers Bash/PowerShell continuam disponíveis como procedimento administrativo. Web interno `80` é publicado inicialmente em `18080`; API interno `5080` em `15120`; PostgreSQL interno `5432` em `15432`; MediaMTX permanece privado.
+- **Docker:** executores candidatos para host Linux e Docker Desktop em Windows, ligados ao Compose registrado. O provisionamento é opt-in e requer verificação no host de destino. Os helpers Bash/PowerShell continuam disponíveis como procedimento administrativo. Web interno `80` é publicado inicialmente em `18080`; API interno `5080` em `15120`; PostgreSQL interno `5432` em `15432`; MediaMTX permanece privado.
 - **Sem alteração** de portas de Drivers/datasources, protocolos industriais, descoberta multicast, firewall, TLS ou HA. A validação do CI é sintética/isolada; aceite da aplicação real exige provisionamento e verificação do coordenador no host, incluindo mídia/Runtime.

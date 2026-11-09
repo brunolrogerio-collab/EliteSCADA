@@ -114,12 +114,17 @@ async function installSessionContract(
   await page.context().route('**/api/auth/login', async route => {
     loginRequests++;
     const request = route.request().postDataJSON() as { username?: string; password?: string };
-    if (request.username !== runtimeOperator.username || request.password !== 'RuntimePass8') {
+    const signedInProfile = request.username === runtimeOperator.username && request.password === 'RuntimePass8'
+      ? runtimeOperator
+      : request.username === administrator.username && request.password === 'AdminPass8'
+        ? administrator
+        : null;
+    if (!signedInProfile) {
       return route.fulfill({ status: 401, body: '' });
     }
 
-    currentProfile = runtimeOperator;
-    return route.fulfill({ json: runtimeOperator });
+    currentProfile = signedInProfile;
+    return route.fulfill({ json: signedInProfile });
   });
   await page.context().route('**/api/runtime/sessions', route => {
     if (route.request().method() !== 'POST') return route.continue();
@@ -909,6 +914,37 @@ test('Runtime does not reacquire automatically after its authenticated lease is 
   await expect(page.getByTestId('runtime-engineering-application')).toHaveCount(0);
   await page.clock.fastForward(60_000);
   expect(admissions).toBe(1);
+  expect(heartbeatRequests).toBe(1);
+});
+
+test('Runtime asks for sign-in after HA rejects the old Authority session and resumes the same window seat', async ({ page }) => {
+  await page.clock.install();
+  const admissions: RuntimeSessionObservation[] = [];
+  const contract = await installSessionContract(page, administrator, 'success', true, admission => admissions.push(admission));
+  await installEngineeringRuntimeProjection(page);
+  let heartbeatRequests = 0;
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    return route.fulfill({ status: 401, json: { error: 'local-identity-token-not-current' } });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => contract.runtimeSessionAdmissions).toBe(1);
+  await page.clock.fastForward(20_000);
+  await expect.poll(() => heartbeatRequests).toBe(1);
+  await expect(page.getByTestId('runtime-session-reauthentication-required')).toBeVisible();
+  await expect(page.locator('input[name="username"]')).toBeVisible();
+  expect(contract.runtimeSessionAdmissions).toBe(1);
+
+  await page.locator('input[name="username"]').fill(administrator.username);
+  await page.locator('input[name="password"]').fill('AdminPass8');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => contract.runtimeSessionAdmissions).toBe(2);
+  await expect(page.getByTestId('runtime-session-reauthentication-required')).toHaveCount(0);
+  expect(admissions).toHaveLength(2);
+  expect(admissions[1].clientInstanceId).toBe(admissions[0].clientInstanceId);
   expect(heartbeatRequests).toBe(1);
 });
 

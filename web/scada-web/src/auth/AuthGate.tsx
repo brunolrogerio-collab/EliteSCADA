@@ -46,6 +46,7 @@ type AuthContextValue = {
   canSwitchUser: boolean;
   switchUser: () => Promise<void>;
   logout: () => Promise<void>;
+  requireSignIn: () => void;
 };
 
 type RecoveryMode = 'bootstrap' | 'application' | null;
@@ -56,7 +57,8 @@ const AuthContext = createContext<AuthContextValue>({
   publicRuntimeActive: false,
   canSwitchUser: false,
   switchUser: async () => undefined,
-  logout: async () => undefined
+  logout: async () => undefined,
+  requireSignIn: () => undefined
 });
 
 const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
@@ -115,6 +117,7 @@ const messages = {
     importApplication: 'Importar aplicação',
     recoverySignInRequired: 'Authority restaurada. Entre com um Administrador restaurado para continuar a recuperação da aplicação.',
     switchUserSignInRequired: 'Sessão anterior encerrada. Entre com o próximo usuário para continuar.',
+    runtimeSessionReauthenticationRequired: 'A sessão não é mais válida neste servidor. Entre novamente para continuar; o Runtime tentará retomar a vaga desta janela.',
     createAdministrator: 'Criar Administrador',
     creatingAdministrator: 'Criando Administrador…',
     bootstrapClosed: 'O Administrador inicial já foi criado ou o bootstrap seguro não está mais disponível.',
@@ -152,6 +155,7 @@ const messages = {
     importApplication: 'Import application',
     recoverySignInRequired: 'Authority restored. Sign in with a restored Administrator to continue application recovery.',
     switchUserSignInRequired: 'The previous session has ended. Sign in as the next user to continue.',
+    runtimeSessionReauthenticationRequired: 'This server no longer accepts the current session. Sign in again to continue; Runtime will try to resume this window’s seat.',
     createAdministrator: 'Create Administrator',
     creatingAdministrator: 'Creating Administrator…',
     bootstrapClosed: 'The initial Administrator already exists or secure bootstrap is no longer available.',
@@ -189,6 +193,7 @@ const messages = {
     importApplication: 'Importar aplicación',
     recoverySignInRequired: 'Authority restaurada. Ingrese con un Administrador restaurado para continuar la recuperación de la aplicación.',
     switchUserSignInRequired: 'La sesión anterior terminó. Ingrese con el próximo usuario para continuar.',
+    runtimeSessionReauthenticationRequired: 'Este servidor ya no acepta la sesión actual. Ingrese nuevamente para continuar; Runtime intentará retomar la plaza de esta ventana.',
     createAdministrator: 'Crear Administrador',
     creatingAdministrator: 'Creando Administrador…',
     bootstrapClosed: 'El Administrador inicial ya existe o el bootstrap seguro ya no está disponible.',
@@ -296,6 +301,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [recoveryContinuation, setRecoveryContinuation] = useState<RecoveryContinuation | null>(() => readRecoveryContinuation());
   const [recoverySignInRequired, setRecoverySignInRequired] = useState(() => recoveryContinuation !== null);
   const [switchUserSignInRequired, setSwitchUserSignInRequired] = useState(false);
+  const [runtimeSessionReauthenticationRequired, setRuntimeSessionReauthenticationRequired] = useState(false);
 
   const acceptAuthenticatedProfile = useCallback(async (nextProfile: AuthProfile | null) => {
     setProfile(nextProfile);
@@ -445,6 +451,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       setPassword('');
       setPublicRuntimeActive(false);
       setActiveRuntimeSession(null);
+      setRuntimeSessionReauthenticationRequired(false);
       await acceptAuthenticatedProfile(await response.json() as AuthProfile);
       setSwitchUserSignInRequired(false);
       if (recoverySelection || recoveryContinuation) {
@@ -540,12 +547,27 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   }, []);
 
+  const requireSignIn = useCallback(() => {
+    setActiveRuntimeSession(null);
+    setPublicRuntimeActive(false);
+    setProfile(null);
+    setProjectSetupRequired(false);
+    setRecoverySignInRequired(false);
+    setSwitchUserSignInRequired(false);
+    setRuntimeSessionReauthenticationRequired(true);
+    setUsername('');
+    setPassword('');
+    setInvalid(false);
+    setUnavailable(false);
+  }, []);
+
   const logout = useCallback(async () => {
     await invalidateServerSession();
     setProfile(null);
     setProjectSetupRequired(false);
     setRecoverySignInRequired(false);
     setSwitchUserSignInRequired(false);
+    setRuntimeSessionReauthenticationRequired(false);
     setUsername('');
     setPassword('');
     setInvalid(false);
@@ -561,6 +583,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setProjectSetupRequired(false);
     setRecoverySignInRequired(false);
     setSwitchUserSignInRequired(true);
+    setRuntimeSessionReauthenticationRequired(false);
     setUsername('');
     setPassword('');
     setInvalid(false);
@@ -574,8 +597,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     publicRuntimeActive,
     canSwitchUser,
     switchUser,
-    logout
-  }), [canSwitchUser, configuration?.authenticationEnabled, logout, profile, publicRuntimeActive, switchUser]);
+    logout,
+    requireSignIn
+  }), [canSwitchUser, configuration?.authenticationEnabled, logout, profile, publicRuntimeActive, requireSignIn, switchUser]);
 
   if (checking || checkingProject) {
     return <div className="auth-page"><div className="auth-card auth-loading"><img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO"/><strong>{t.title}</strong></div></div>;
@@ -781,6 +805,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         {publicRuntimeMessage && <div className="auth-status" role="status">{publicRuntimeMessage}</div>}
         {recoverySignInRequired && <div className="auth-status" role="status">{t.recoverySignInRequired}</div>}
         {switchUserSignInRequired && <div className="auth-status" role="status">{t.switchUserSignInRequired}</div>}
+        {runtimeSessionReauthenticationRequired && <div className="auth-status" role="status" data-testid="runtime-session-reauthentication-required">{t.runtimeSessionReauthenticationRequired}</div>}
         <label>
           <span>{t.username}</span>
           <input

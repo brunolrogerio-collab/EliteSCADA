@@ -635,6 +635,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             RuntimeSessionLeaseEvidence? standbySession = null;
             RuntimeSessionLeaseEvidence? promotedSession = null;
             RuntimeSessionLeaseEvidence? failedBackSession = null;
+            ApiProcess? originalSessionNode = null;
+            var reauthenticationRequiredAfterPromotion = false;
             if (verifyRuntimeSessionContinuity)
             {
                 // Independent databases need the same canonical local identity on both
@@ -701,6 +703,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
             // OS-process loss: the standby must use the fresh pre-failure witness and
             // reference fence to claim a strictly newer authority epoch.
+            if (verifyRuntimeSessionContinuity)
+                originalSessionNode = nodeA;
             await nodeA.DisposeAsync();
             nodeA = null;
             var promoted = await WaitForHaTopologyAsync(
@@ -714,9 +718,23 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
             if (verifyRuntimeSessionContinuity)
             {
-                // Sign in on the promoted node after its Authority was provisioned from
-                // the canonical backup. Re-admission of the same subject/client must
-                // recover the replicated logical lease rather than reserve another seat.
+                // Simulate the stable same-origin proxy forwarding the existing
+                // browser cookie to the promoted node. If the independently restored
+                // Authority has a different current lifecycle epoch, the old token
+                // must be rejected and the browser must explicitly sign in again.
+                nodeB.ForwardAuthenticationCookiesFrom(originalSessionNode!);
+                var staleAdmission = await nodeB.PostRawAsync(
+                    "/api/runtime/sessions",
+                    new JsonObject
+                    {
+                        ["clientInstanceId"] = runtimeSessionClientInstanceId,
+                        ["connectionClass"] = "interactive"
+                    });
+                Assert.Equal(HttpStatusCode.Unauthorized, staleAdmission.StatusCode);
+                reauthenticationRequiredAfterPromotion = true;
+
+                // Reauthentication on the promoted node must then recover the same
+                // logical seat without a second active lease.
                 await nodeB.LoginAsync();
                 var activeProfile = await nodeB.GetAsync("/api/auth/local-session");
                 Assert.True(activeProfile["authenticated"]!.GetValue<bool>(), activeProfile.ToJsonString());
@@ -838,6 +856,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     ? new
                     {
                         sessionIdAfterFailback = runtimeSessionId,
+                        reauthenticationRequiredAfterPromotion,
                         sessionIdAtStandby = standbySession?.SessionId,
                         sessionIdAfterPromotion = promotedSession?.SessionId,
                         sessionIdRotatedDuringFailover = standbySession?.SessionId != promotedSession?.SessionId,
@@ -922,11 +941,17 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     ?? throw new InvalidOperationException("Runtime session admission returned an empty response.");
 
             lastResponse = response.Body;
-            if (response.StatusCode != HttpStatusCode.Conflict ||
-                !string.Equals(
+            var authorityTransitionPending = response.StatusCode == HttpStatusCode.Conflict &&
+                string.Equals(
+                    response.Body?["capacityReasonCode"]?.GetValue<string>(),
+                    "AuthorityTransitionPending",
+                    StringComparison.Ordinal);
+            var activeAuthorityNotReady = response.StatusCode == HttpStatusCode.Conflict &&
+                string.Equals(
                     response.Body?["code"]?.GetValue<string>(),
                     "ha-effective-active-required",
-                    StringComparison.Ordinal))
+                    StringComparison.Ordinal);
+            if (!authorityTransitionPending && !activeAuthorityNotReady)
             {
                 throw new InvalidOperationException(
                     $"Runtime session admission after HA activation returned unexpected " +
@@ -934,7 +959,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             }
 
             var effectiveActiveNode = response.Body?["effectiveActiveNodeId"]?.GetValue<string>();
-            if (!string.Equals(effectiveActiveNode, expectedActiveNode, StringComparison.OrdinalIgnoreCase))
+            if (activeAuthorityNotReady &&
+                !string.Equals(effectiveActiveNode, expectedActiveNode, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
                     $"Runtime session admission stayed fenced because effective Active is " +
@@ -1675,14 +1701,18 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
     {
         private readonly Process _process;
         private readonly HttpClient _client;
+        private readonly CookieContainer _cookies;
         private readonly ConcurrentQueue<string> _output = new();
         private readonly string _logPath;
 
-        private ApiProcess(string nodeId, Process process, HttpClient client, string logPath)
+        private ApiProcess(string nodeId, Process process, HttpClient client, CookieContainer cookies, string logPath)
         {
             NodeId = nodeId;
             _process = process;
             _client = client;
+            _cookies = cookies;
+            BaseAddress = client.BaseAddress
+                ?? throw new InvalidOperationException("API process requires a base address.");
             _logPath = logPath;
             _process.OutputDataReceived += (_, eventArgs) => { if (eventArgs.Data is not null) _output.Enqueue(eventArgs.Data); };
             _process.ErrorDataReceived += (_, eventArgs) => { if (eventArgs.Data is not null) _output.Enqueue(eventArgs.Data); };
@@ -1691,6 +1721,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         }
 
         public string NodeId { get; }
+
+        private Uri BaseAddress { get; }
 
         public string LastOutput() => string.Join(Environment.NewLine, _output.TakeLast(30));
 
@@ -1781,16 +1813,17 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             Set("Logging__LogLevel__Default", "Warning");
 
             var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start Scada.Api process " + nodeId);
+            var cookies = new CookieContainer();
             var client = new HttpClient(new HttpClientHandler
             {
-                CookieContainer = new CookieContainer(),
+                CookieContainer = cookies,
                 UseCookies = true
             })
             {
                 BaseAddress = new Uri(url),
                 Timeout = TimeSpan.FromSeconds(60)
             };
-            return new ApiProcess(nodeId, process, client, Path.Combine(directory, nodeId + ".log"));
+            return new ApiProcess(nodeId, process, client, cookies, Path.Combine(directory, nodeId + ".log"));
 
             void Set(string name, string value) => start.Environment[name] = value;
         }
@@ -1827,6 +1860,38 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 ["username"] = AdminUsername,
                 ["password"] = AdminPassword
             });
+
+        public void ForwardAuthenticationCookiesFrom(ApiProcess source)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            var sourceUri = source.BaseAddress;
+            var targetUri = BaseAddress;
+            var sourceCookies = source._cookies.GetCookies(sourceUri).Cast<Cookie>().ToArray();
+            if (sourceCookies.Length == 0)
+                throw new InvalidOperationException("The source browser session has no authentication cookie to forward.");
+
+            // The target API's own login cookie must not make this proof pass. Replace
+            // its same-name cookies with the one captured from the original browser.
+            foreach (Cookie cookie in _cookies.GetCookies(targetUri))
+            {
+                _cookies.Add(targetUri, new Cookie(cookie.Name, string.Empty, cookie.Path, targetUri.Host)
+                {
+                    Expires = DateTime.UtcNow.AddDays(-1)
+                });
+            }
+
+            foreach (var cookie in sourceCookies)
+            {
+                var forwarded = new Cookie(cookie.Name, cookie.Value, cookie.Path, targetUri.Host)
+                {
+                    HttpOnly = cookie.HttpOnly,
+                    Secure = cookie.Secure,
+                    Expires = cookie.Expires,
+                    Discard = cookie.Discard
+                };
+                _cookies.Add(targetUri, forwarded);
+            }
+        }
 
         public async Task<JsonNode> GetAsync(string path) =>
             await SendAsync(HttpMethod.Get, path, null);

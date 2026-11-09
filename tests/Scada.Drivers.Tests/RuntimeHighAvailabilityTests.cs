@@ -1,7 +1,10 @@
 using Scada.Api.Runtime;
 using Scada.Core.Abstractions;
+using Scada.Core.Alarms;
+using Scada.Core.Commands;
 using Scada.Core.Events;
 using Scada.Core.Product.Licensing;
+using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Security.Authorization;
@@ -1414,6 +1417,99 @@ public sealed class RuntimeHighAvailabilityTests
         }
     }
 
+    [Fact]
+    public async Task ScadaRuntimeFacade_FencesWritesAndCommandsToReferencedActiveAcrossTakeover()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        string? referenceActiveNodeId = "node-a";
+        var referenceEpoch = 1L;
+        bool ReferenceAllows(RuntimeHaTopologySnapshot snapshot) =>
+            referenceActiveNodeId is not null &&
+            referenceActiveNodeId.Equals(snapshot.LocalNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceActiveNodeId.Equals(snapshot.EffectiveActiveNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceEpoch == snapshot.AuthorityEpoch &&
+            !snapshot.AmbiguousAuthority &&
+            snapshot.PendingTransfer is null;
+
+        RuntimeHighAvailabilityService CreateNodeService(string nodeId)
+        {
+            var service = new RuntimeHighAvailabilityService(
+                CreateTopology(nodeId),
+                () => now,
+                Guid.NewGuid(),
+                externalIndustrialFenceRequired: true);
+            service.Authority.UpdateNodeReadiness(
+                "node-a",
+                Evidence(now, haEntitled: true, revision: 7, synchronized: true));
+            service.Authority.UpdateNodeReadiness(
+                "node-b",
+                Evidence(now, haEntitled: true, revision: 7, synchronized: true));
+            service.AttachExternalIndustrialFence(ReferenceAllows);
+            return service;
+        }
+
+        var serviceA = CreateNodeService("node-a");
+        var serviceB = CreateNodeService("node-b");
+        var innerA = new RecordingEngineeringRuntime(now);
+        var innerB = new RecordingEngineeringRuntime(now);
+        var runtimeA = new ScadaRuntimeFacade(innerA, highAvailability: serviceA);
+        var runtimeB = new ScadaRuntimeFacade(innerB, highAvailability: serviceB);
+        var tagId = Guid.NewGuid();
+        var commandId = Guid.NewGuid();
+
+        await runtimeA.WriteAsync(tagId, 42);
+        await runtimeA.ExecuteCommandAsync(commandId);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeB.WriteAsync(tagId, 42));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeB.ExecuteCommandAsync(commandId));
+        Assert.Equal(1, innerA.WriteCalls);
+        Assert.Equal(1, innerA.CommandCalls);
+        Assert.Equal(0, innerB.WriteCalls);
+        Assert.Equal(0, innerB.CommandCalls);
+        var standbyWitness = Assert.IsType<RuntimeHaStandbyPromotionWitness>(
+            serviceB.Authority.CaptureStandbyPromotionWitness("node-b"));
+
+        // Remove the referenced owner first; neither API may delegate industrial effects.
+        referenceActiveNodeId = null;
+        referenceEpoch = 2;
+        serviceA.Authority.ReportNodeUnavailable("node-a");
+        var afterLossB = serviceB.Authority.ReportNodeUnavailable("node-a");
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeA.WriteAsync(tagId, 43));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeA.ExecuteCommandAsync(commandId));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeB.WriteAsync(tagId, 43));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeB.ExecuteCommandAsync(commandId));
+        Assert.Equal(1, innerA.WriteCalls);
+        Assert.Equal(1, innerA.CommandCalls);
+        Assert.Equal(0, innerB.WriteCalls);
+        Assert.Equal(0, innerB.CommandCalls);
+
+        var promoted = serviceB.Authority.ApplyReferencedAuthority(
+            "node-b",
+            afterLossB.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            standbyWitness: standbyWitness);
+        Assert.True(promoted.Accepted, promoted.ReasonCode);
+        referenceActiveNodeId = "node-b";
+        referenceEpoch = promoted.Snapshot.AuthorityEpoch;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeA.WriteAsync(tagId, 44));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeA.ExecuteCommandAsync(commandId));
+        await runtimeB.WriteAsync(tagId, 44);
+        await runtimeB.ExecuteCommandAsync(commandId);
+
+        Assert.Equal(1, innerA.WriteCalls);
+        Assert.Equal(1, innerA.CommandCalls);
+        Assert.Equal(1, innerB.WriteCalls);
+        Assert.Equal(1, innerB.CommandCalls);
+    }
+
     private static RuntimeHaAuthorityCoordinator CreateReadyPair(out MutableClock clock)
     {
         var coordinator = CreateCoordinator(out clock);
@@ -1568,6 +1664,50 @@ public sealed class RuntimeHighAvailabilityTests
             AuthorityRevision: 1);
 
     private sealed record TestEvent(DateTimeOffset OccurredAt, string SourceNode = "test") : IScadaEvent;
+
+    private sealed class RecordingEngineeringRuntime(DateTimeOffset now) : IEngineeringRuntimeCoordinator
+    {
+        public int WriteCalls { get; private set; }
+        public int CommandCalls { get; private set; }
+
+        public RuntimeDescriptor Describe() => new(
+            "project-a",
+            7,
+            now,
+            Array.Empty<Scada.Drivers.Abstractions.DriverStatus>(),
+            Array.Empty<Scada.Drivers.Abstractions.CommunicationDriverDiagnosticSnapshot>(),
+            0,
+            0);
+
+        public IReadOnlyCollection<TagDefinition> Tags() => Array.Empty<TagDefinition>();
+        public IReadOnlyCollection<TagValue> CurrentValues() => Array.Empty<TagValue>();
+        public IReadOnlyCollection<AlarmDefinition> AlarmDefinitions() => Array.Empty<AlarmDefinition>();
+        public IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false) => Array.Empty<AlarmInstance>();
+        public IReadOnlyCollection<CommandDefinition> Commands() => Array.Empty<CommandDefinition>();
+        public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() => Array.Empty<ClientMemoryRuntimeSource>();
+        public bool TryGetTag(Guid tagId, out TagDefinition? tag) { tag = null; return false; }
+        public bool TryGetTagByPath(string path, out TagDefinition? tag) { tag = null; return false; }
+        public bool TryGetCurrent(Guid tagId, out TagValue? value) { value = null; return false; }
+        public bool TryGetCommand(Guid commandId, out CommandDefinition? command) { command = null; return false; }
+        public bool IsServerMemoryTag(Guid tagId) => false;
+        public ValueTask<bool> AcknowledgeAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
+        public ValueTask<bool> ShelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
+        public ValueTask<bool> UnshelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
+        public ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default)
+        {
+            WriteCalls++;
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask ResetServerMemoryRetainedValueAsync(Guid tagId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default)
+        {
+            CommandCalls++;
+            return ValueTask.CompletedTask;
+        }
+        public Task<RuntimeActivationResult> ActivateAsync(string projectKey, long revision, EngineeringPackage package, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<RuntimeActivationResult> ActivateAsync(string projectKey, long revision, EngineeringPackage package, Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
 
     private sealed class MutableClock(DateTimeOffset utcNow)
     {

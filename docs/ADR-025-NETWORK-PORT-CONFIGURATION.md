@@ -1,6 +1,6 @@
 # ADR-025 — Configuração de portas por instalação
 
-**Status:** perfil Docker estável em desenvolvimento no PR draft #828; escopo corrigido em 29/10/2026.
+**Status:** perfil Docker anteriormente integrado pelo PR #828; DEV-780 acrescenta candidatos de executor externo para Linux nativo, Windows nativo e Docker em hosts Linux e Windows. O cenário Windows passou no CI e em laboratório com Docker Desktop real.
 **Data:** 2026-10-29
 **Issue:** [#780 — Configurar portas TCP/UDP e serviços pela interface](https://github.com/brunolrogerio-collab/EliteSCADA/issues/780)
 
@@ -40,7 +40,7 @@ Evidência da correção de Drivers: testes focados 4/4 passaram (perfil API, po
 - O projeto Compose e os volumes têm nomes fixos (`elitescada-stable*`), portanto mudar só as portas não isola os dados de duas instâncias.
 - `docker/stable/nginx.conf` usa o listener interno `api:5080`. MediaMTX usa controle `9997/TCP` e HLS `8888/TCP` por padrão, somente na rede Docker; Runtime entrega vídeo pelo relay da API com tíquetes temporários.
 - Portas de equipamento/protocolo são configuradas nos Data Sources. Drivers e suas portas não fazem parte da publicação de portas do host desta tarefa.
-- O processo da UI/API não tem host agent privilegiado. O pacote `docker-compose.stable.yml` é o único mecanismo atual confirmado para uma distribuição Docker estável; instalação nativa via serviço Windows/systemd não é controlada por este Compose (`docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`).
+- O processo da UI/API não possui privilégios de host. O pacote `docker-compose.stable.yml` permanece o mecanismo Docker estável; instalação nativa via serviço Windows/systemd não é controlada por esse Compose (`docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`). Os executores DEV-780 são processos separados, registrados por instalação e com operações versionadas. Consulte `docs/INSTALLATION-HOST-EXECUTOR.md`.
 
 ## Decisão
 
@@ -237,3 +237,9 @@ A preparação de comando nativo exige serviço com identificador válido, camin
 ### Coordenação com manutenção de topologia local
 
 A troca de porta PostgreSQL relê a topologia persistida depois de parar o serviço API registrado. Se o documento mudou durante preflight/backups, aborta sem escrever configurações ou reiniciar PostgreSQL, preserva a operação de migração e reinicia a API. Recuperação também recusa restaurar arquivos se a topologia mudar entre leitura e parada, mantendo journal. Isso depende de o perfil identificar o serviço proprietário das operações locais; não é exclusão distribuída para APIs externas ou nós HA. Testes simulam migração surgindo durante a parada nas duas plataformas; 6/6 locais e 11/11 no laboratório Linux com PostgreSQL real passaram.
+
+## Continuação DEV-780: IPC e host (06/11/2026)
+
+PR #877 permanece **draft**, aguardando revisão. Linux nativo usa o executor Unix; Windows nativo usa binário .NET independente com Named Pipe restrito. Docker em host Linux usa executor ligado à instalação e ao Compose registrados. O candidato para Docker Desktop em Windows usa executor de host e HTTPS com certificado fixado; A API autenticada aplicou a troca e recuperou uma colisão em Docker Desktop real. A interface confirmou a aplicação no novo endereço.
+
+O contrato comum admite somente `access`, `database` e `media`, portas inteiras e validação da versão, preflight não mutante, plano expirável preso à revisão da configuração, confirmação explícita, operação durável, auditoria sem segredos e recuperação local. O Docker preserva binds previamente registrados, publicação host Web/API/PostgreSQL e listeners privados de mídia; não modifica projeto Compose, volumes, Drivers, firewall, HA ou imagem por solicitações da UI. O executor não é instalado automaticamente. Testes do executor devem ser distintos dos testes preexistentes dos adaptadores e provam host/IPCs separadamente; aceitação real ainda depende da instalação provisionada, API autenticada, vídeo e Runtime verificados em host de homologação. Consulte [instruções do executor](INSTALLATION-HOST-EXECUTOR.md).

@@ -993,6 +993,12 @@ jobs:
       - name: Exercise two isolated installations, port change and collision preflight
         shell: bash
         run: bash scripts/ci/test_stable_installation_linux.sh
+      - name: Test installation-scoped host executor, IPC and recovery contract
+        shell: bash
+        run: python3 -m unittest tests.ci.test_network_host_executor -v
+      - name: Test registered Docker-host executor with isolated typed IPC fixtures
+        shell: bash
+        run: python3 -m unittest tests.ci.test_docker_host_executor -v
       - name: Exercise native adapters with an isolated transient systemd service
         shell: bash
         run: sudo python3 scripts/ci/test_native_linux_systemd.py
@@ -1022,6 +1028,37 @@ jobs:
           # simulated Get-Service/Restart-Service functions in their own scope.
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_native_windows_service.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Real SCM fixture evidence failed.' }
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Build the independent Windows ACL Named Pipe host executor
+        shell: powershell
+        run: |
+          dotnet build tools/Scadivo.InstallationExecutor.Windows/Scadivo.InstallationExecutor.Windows.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Windows host executor failed to compile.' }
+      - name: Prove Named Pipe preflight, SCM apply, collision rejection and recovery
+        shell: powershell
+        run: |
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_windows_host_executor.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows host executor SCM/IPC integration failed.' }
+      - name: Prove API-to-host Windows Named Pipe transport
+        shell: powershell
+        run: |
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --configuration Release --verbosity minimal --filter 'FullyQualifiedName~InstallationHostNetworkIpcTests'
+          if ($LASTEXITCODE -ne 0) { throw 'API to Windows host IPC integration failed.' }
+      - name: Prove Docker Desktop Windows protected host HTTPS and preflight (mock Docker CLI)
+        shell: powershell
+        run: |
+          $files=@('web/scada-web/public/installation/apply-docker-host-network-profile.ps1',
+                   'scripts/ci/test_windows_docker_host_executor.ps1')
+          foreach($file in $files) {
+            $tokens=$null; $errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file).Path,[ref]$tokens,[ref]$errors)
+            if($errors.Count -gt 0) { throw "Windows Docker host PowerShell syntax failure: $file" }
+          }
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_windows_docker_host_executor.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows Docker Desktop host TLS/preflight fixture failed.' }
 
   t1-gate:
     name: Wave 15 T1 gate

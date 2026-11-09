@@ -1,5 +1,7 @@
 # Portas em uma instalação nativa
 
+**Executores administrativos opcionais por instalação:** Linux nativo usa socket Unix e perfil systemd; Windows nativo usa executor .NET separado com Named Pipe/DACL e perfil SCM; Docker estável com host Linux usa executor no host e socket Unix exclusivo, preso a Compose/ID/diretório/digest registrados. Todos exigem provisionamento administrativo, permissões e homologação de host; **Docker Desktop Windows continua sem executor de aplicação pela UI** e usa procedimento PowerShell externo. Sem executor compatível o painel informa indisponibilidade (HTTP 503) e nenhum serviço é alterado. O registro, limite e recuperação estão em `docs/INSTALLATION-HOST-EXECUTOR.md` no repositório; não executar o agente como parte do processo Web/API.
+
 Estes comandos são destinados ao administrador do computador. Execute-os na pasta administrativa fornecida pela instalação, com o perfil protegido `native-network-profile.json`. O perfil identifica os serviços e arquivos efetivamente usados; não use nomes de serviço copiados de outra instalação. Os geradores de perfil Web/API existem neste candidato; sua ligação ao executor e o instalador completo ainda estão pendentes.
 
 ## Preparação pelo executor da instalação
@@ -55,3 +57,17 @@ O componente aceita somente origem local, ignora proxies, não segue redireciona
 Nos adaptadores Web/API, banco e mídia, use explicitamente `--verify-authenticated` (Linux) ou `-VerifyAuthenticated` (Windows), com a sessão temporária já fornecida pelo executor. A opção funciona na aplicação e na recuperação. Sem sessão, falha antes de parar serviços. Após iniciar a API, verifica a prontidão antes de remover o registro de recuperação; se falhar durante a troca, tenta restaurar as configurações e verificar novamente. Se a própria recuperação não puder ser confirmada, mantém o registro. Sem essa opção, permanecem as verificações SQL/listeners e a conferência autenticada deve ser feita pela interface. A prontidão autenticada do banco não comprova reprodução de vídeo. No Web/API Windows, forneça também `-PythonExecutable` com o interpretador registrado pela instalação. O endpoint API independente precisa existir. Essa verificação continua opcional e exige sessão válida; não equivale à homologação do produto completo.
 
 Abra a interface no novo endereço e verifique o banco em **Instalação > Rede e serviços > Verificar banco**. Confira também o Runtime e a reprodução de mídia usados pela aplicação. Um serviço reiniciado, uma resposta `/health` ou o listener HLS aberto não comprovam todo esse funcionamento. Os adaptadores ainda não integram automaticamente essa conferência autenticada completa.
+
+## Executores separados (opcionais, não instalados automaticamente)
+
+No Docker Desktop com host Windows, existe um perfil **candidato opt-in**
+`stable-docker-windows` acessível por HTTPS `host.docker.internal` com certificado
+SHA-256 fixado e token montado apenas na API. O host usa
+`compose-host-executor.windows.override.yml` e um executor Windows externo.
+O CI não homologa Docker Desktop real; consulte
+`docs/INSTALLATION-HOST-EXECUTOR.md` e mantenha o procedimento administrativo
+PowerShell externo até a qualificação.
+
+No Docker em host Linux, use o override protegido `docker/stable/compose-host-executor.override.yml` **junto** do Compose base para conservar socket, grupo e arquivo de token montados somente para a API após recriações. Registre também o SHA-256 do override no perfil administrativo, conforme `docs/INSTALLATION-HOST-EXECUTOR.md`.
+
+A aplicação acionada pela interface é distinta dos adaptadores manuais. Consulte o contrato, registros JSON, ACLs, token, status durável e recuperação em `docs/INSTALLATION-HOST-EXECUTOR.md`. No Windows native, execute o binário publicado de `tools/Scadivo.InstallationExecutor.Windows` no host sob conta com poderes apenas para os serviços registrados; a API recebe somente o Nome de Pipe e token por configuração protegida. No Docker em Linux, execute `docker-host-executor.py` **no host**, disponibilize apenas o socket Unix dedicado e token protegido à API, e registre o `docker-compose.stable.yml` por SHA-256. Não monte Docker socket no Web/API. Uma instalação sem executor registrado deve usar os scripts PowerShell/Bash anteriores, nunca simular aplicação no navegador. Os testes de CI não substituem a qualificação do instalador e da identidade efetiva no host.

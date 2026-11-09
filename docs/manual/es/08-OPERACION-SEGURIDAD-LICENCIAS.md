@@ -217,3 +217,11 @@ License Generator es una herramienta offline/controlada de la autoridad de licen
 Los usuarios finales de EliteSCADA usan request/install; solo el personal autorizado de emisión debe operar el entorno de firma.
 
 **Ayuda relacionada:** `/help?topic=licensing.overview`.
+
+### Aplicación desde la interfaz con ejecutor de host registrado
+
+En **Instalación > Red y servicios > Administración del host**, un usuario con `SystemAdmin` puede solicitar el cambio solo cuando la instalación tiene un ejecutor de host separado, provisionado y registrado: Linux nativo usa socket Unix, Windows nativo usa Named Pipe con ACL y SID específico de API, y Docker estable en host Linux usa socket Unix exclusivo vinculado a Compose registrado. El ejecutor de Docker Desktop en Windows usa HTTPS con un certificado fijado. El ejecutor requiere provisión y homologación en el host; no se instala automáticamente. Si falta, la operación no está disponible: ni el navegador ni la API reciben shell, Docker ni privilegios generales del host.
+
+Seleccione Web/API, PostgreSQL local o multimedia si están registrados. **Validar cambios en el host** comprueba el plan sin reiniciar. Revise los puertos, el nuevo enlace y la interrupción, y confirme expresamente. `applying` significa solicitud recibida, **no terminada**. Solo `applied` confirma las comprobaciones de salud del adaptador y la relectura de los puertos registrados. Si la dirección anterior deja de responder, abra la nueva dirección o consulte el estado con la CLI protegida del ejecutor. `recovery_required` impide cambios hasta recuperar el estado anterior.
+
+Consulte [provisión y recuperación del ejecutor](../../INSTALLATION-HOST-EXECUTOR.md). **Sin un ejecutor compatible registrado, Windows, Linux y Docker siguen con scripts administrativos externos** y la API devuelve HTTP 503. Los ejecutores Docker para Linux y Windows son independientes; cada instalación requiere verificación en el host. No se cambian los puertos de Drivers, protocolos, multicast, firewall, TLS o HA.

@@ -131,3 +131,105 @@ test('native local database and media prepare distinct plans only when reported'
   await expect(panel.getByLabel('Plano do banco local',{exact:true})).toHaveValue('');
   await expect(panel.getByLabel('Plano da mídia local',{exact:true})).toHaveValue('');
 });
+
+
+test('host executor requires preflight and explicit confirmation before application', async ({ page }) => {
+  await page.route('**/api/installation/network-profile', route => route.fulfill({ status: 404, body: '{}' }));
+  let applies = 0;
+  let preflights = 0;
+  let applied = false;
+  const state = {
+    available: true, schema: 'scadivo-network-host-executor-v1', profile: 'native-linux', instanceId: 'scadivo-a',
+    configuredPorts: { webPort: 18080, apiPort: 15120 }, modules: ['access'],
+    get operation() { return applied ? { id: 'b'.repeat(32), module: 'access', state: 'applied', detail: 'Verified',
+      before: { webPort: 18080, apiPort: 15120 }, desired: { webPort: 28080, apiPort: 15120 } } : null; }
+  };
+  await page.route('**/api/installation/host-network/status', route => route.fulfill({ json: state }));
+  await page.route('**/api/installation/host-network/preflight', route => {
+    preflights++;
+    const body = route.request().postDataJSON();
+    expect(body).toEqual({ schema: 'scadivo-network-port-plan-v1', module: 'access', ports: { webPort: 28080, apiPort: 15120 } });
+    return route.fulfill({ json: { planId: 'a'.repeat(32), module: 'access', ports: body.ports,
+      before: { webPort: 18080, apiPort: 15120 }, expiresAt: 2000000000, requiresRestart: true } });
+  });
+  await page.route('**/api/installation/host-network/apply', route => {
+    applies++;
+    expect(route.request().postDataJSON()).toEqual({ schema: 'scadivo-network-port-plan-v1', planId: 'a'.repeat(32), confirm: true });
+    applied = true;
+    return route.fulfill({ status: 202, json: { operationId: 'b'.repeat(32), state: 'applying' } });
+  });
+  await page.goto(harnessPath + '?locale=pt-BR');
+  const panel = page.getByTestId('installation-host-executor');
+  await expect(panel.getByText('scadivo-a')).toBeVisible();
+  await panel.getByLabel('Web TCP').fill('28080');
+  await expect(panel.getByText(/Novo endereço Web esperado/)).toContainText(':28080/');
+  expect(applies).toBe(0);
+  await panel.getByRole('button', { name: 'Validar alteração no host' }).click();
+  await expect(panel.getByText(/Nenhum serviço foi alterado/)).toBeVisible();
+  expect(preflights).toBe(1);
+  await expect(panel.getByRole('button', { name: 'Solicitar aplicação' })).toBeDisabled();
+  await panel.getByLabel(/Confirmo a interrupção/).check();
+  await panel.getByRole('button', { name: 'Solicitar aplicação' }).click();
+  await expect(panel.getByText(/Aplicação confirmada pelo executor/)).toBeVisible();
+  expect(applies).toBe(1);
+});
+
+test('host executor missing does not provide a fake apply action', async ({ page }) => {
+  await page.route('**/api/installation/network-profile', route => route.fulfill({ status: 404, body: '{}' }));
+  await page.route('**/api/installation/host-network/status', route => route.fulfill({ status: 503, json: { error: 'Host executor unavailable' } }));
+  await page.goto(harnessPath + '?locale=pt-BR');
+  const panel = page.getByTestId('installation-host-executor');
+  await expect(panel.getByRole('status')).toContainText('Executor administrativo não registrado');
+  await expect(panel.getByRole('button', { name: 'Solicitar aplicação' })).toHaveCount(0);
+});
+
+for (const hostProfile of ['native-windows', 'stable-docker-linux', 'stable-docker-windows'] as const) {
+  test(`registered ${hostProfile} host follows UI preflight, explicit apply and durable status`, async ({ page }) => {
+    let applied = false;
+    let mutations = 0;
+    await page.route('**/api/installation/network-profile', route =>
+      route.fulfill({ status: 404, json: {} }));
+    await page.route('**/api/installation/host-network/status', route =>
+      route.fulfill({ json: {
+        schema: 'scadivo-network-host-executor-v1', available: true, profile: hostProfile,
+        instanceId: 'ci-host-profile', modules: ['access', 'database', 'media'],
+        configuredPorts: { webPort: applied ? 28080 : 18080, apiPort: 15120,
+          databasePort: 15432, mediaControlPort: 9997, mediaPlaybackPort: 8888 },
+        operation: applied ? { id: 'b'.repeat(32), module: 'access', state: 'applied',
+          before: { webPort: 18080, apiPort: 15120 },
+          desired: { webPort: 28080, apiPort: 15120 }, detail: 'Verified on host' } : null
+      } }));
+    await page.route('**/api/installation/host-network/preflight', route => {
+      expect(route.request().postDataJSON()).toEqual({
+        schema: 'scadivo-network-port-plan-v1', module: 'access',
+        ports: { webPort: 28080, apiPort: 15120 }
+      });
+      return route.fulfill({ json: {
+        planId: 'a'.repeat(32), module: 'access', before: { webPort: 18080, apiPort: 15120 },
+        ports: { webPort: 28080, apiPort: 15120 }, expiresAt: 2000000000,
+        requiresRestart: true
+      } });
+    });
+    await page.route('**/api/installation/host-network/apply', route => {
+      mutations += 1;
+      expect(route.request().postDataJSON()).toEqual({
+        schema: 'scadivo-network-port-plan-v1', planId: 'a'.repeat(32), confirm: true
+      });
+      applied = true;
+      return route.fulfill({ status: 202, json: {
+        operationId: 'b'.repeat(32), state: 'applying'
+      } });
+    });
+    await page.goto(harnessPath + '?locale=pt-BR');
+    const panel = page.getByTestId('installation-host-executor');
+    await expect(panel).toContainText(hostProfile);
+    await panel.getByLabel('Web TCP').fill('28080');
+    await panel.getByRole('button', { name: 'Validar alteração no host' }).click();
+    await expect(panel.getByText(/Nenhum serviço foi alterado/)).toBeVisible();
+    expect(mutations).toBe(0);
+    await panel.getByLabel(/Confirmo a interrupção/).check();
+    await panel.getByRole('button', { name: 'Solicitar aplicação' }).click();
+    await expect(panel.getByText(/Aplicação confirmada pelo executor/)).toBeVisible();
+    expect(mutations).toBe(1);
+  });
+}

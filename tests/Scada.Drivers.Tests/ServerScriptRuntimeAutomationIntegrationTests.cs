@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Scada.Api.Runtime;
@@ -345,13 +346,21 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         var serviceB = CreateNodeService("node-b");
         var stateId = Guid.NewGuid();
         var definitionId = Guid.NewGuid();
+        var packageOperationalEventId = Guid.NewGuid();
         var package = TransientEventScriptPackage(
             stateId,
             definitionId,
-            includeHistorianAndAlarm: true);
+            includeHistorianAndAlarm: true,
+            operationalEventId: packageOperationalEventId);
         var interactionsA = new ActiveDriverInteractionRuntimeCatalog();
         var interactionsB = new ActiveDriverInteractionRuntimeCatalog();
         var canonicalEventBus = new InMemoryScadaEventBus();
+        var operationalOccurrences = new ConcurrentQueue<OperationalEventOccurred>();
+        using var operationalSubscription = canonicalEventBus.Subscribe<OperationalEventOccurred>(occurrence =>
+        {
+            operationalOccurrences.Enqueue(occurrence);
+            return ValueTask.CompletedTask;
+        });
         var eventBusA = new RuntimeEventGate(
             canonicalEventBus,
             forwardingEnabled: true,
@@ -361,10 +370,16 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
             forwardingEnabled: true,
             effectAuthority: serviceB.CanOwnIndustrialEffects);
         await using var historian = new BufferedInMemoryHistorian(canonicalEventBus);
-        await using var runtimeA = CreateRuntime(eventBusA, serviceA.CanOwnIndustrialEffects);
-        await using var runtimeB = CreateRuntime(eventBusB, serviceB.CanOwnIndustrialEffects);
+        await using var runtimeA = new GatewayEngineeringRuntimeCoordinator(
+            CreateRuntime(eventBusA, serviceA.CanOwnIndustrialEffects),
+            eventBusA);
+        await using var runtimeB = new GatewayEngineeringRuntimeCoordinator(
+            CreateRuntime(eventBusB, serviceB.CanOwnIndustrialEffects),
+            eventBusB);
         var managerA = ServerScriptRuntimeManager.GetShared(runtimeA, eventBusA, Configuration(), interactionsA);
         var managerB = ServerScriptRuntimeManager.GetShared(runtimeB, eventBusB, Configuration(), interactionsB);
+        ServerScriptOperationalEventBridge.Bind(managerA, runtimeA, serviceA.CanOwnIndustrialEffects);
+        ServerScriptOperationalEventBridge.Bind(managerB, runtimeB, serviceB.CanOwnIndustrialEffects);
         await using var dispatcherA = new TransientEventRuntimeDispatcher(interactionsA, eventBusA);
         await using var dispatcherB = new TransientEventRuntimeDispatcher(interactionsB, eventBusB);
 
@@ -404,7 +419,8 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
             () => runtimeA.TryGetCurrent(stateId, out var valueA) &&
                   Convert.ToInt32(valueA!.Value) == 3 &&
                   managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1 &&
-                  historian.WrittenSamples >= historianBaseline + 1,
+                  historian.WrittenSamples >= historianBaseline + 1 &&
+                  operationalOccurrences.Count == 1,
             TimeSpan.FromSeconds(5));
         Assert.True(runtimeB.TryGetCurrent(stateId, out var standbyState));
         Assert.Equal(0, Convert.ToInt32(standbyState!.Value));
@@ -413,6 +429,9 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         Assert.Empty(runtimeA.Alarms(activeOnly: true));
         Assert.Empty(runtimeB.Alarms(activeOnly: true));
         Assert.Equal(0, Volatile.Read(ref activeAlarmTransitions));
+        var firstOperationalOccurrence = Assert.Single(operationalOccurrences);
+        Assert.Equal(packageOperationalEventId, firstOperationalOccurrence.DefinitionId);
+        Assert.Equal("HA transient state 3", firstOperationalOccurrence.Message);
 
         var standbyWitness = Assert.IsType<RuntimeHaStandbyPromotionWitness>(
             serviceB.Authority.CaptureStandbyPromotionWitness("node-b"));
@@ -435,6 +454,7 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         Assert.Empty(runtimeA.Alarms(activeOnly: true));
         Assert.Empty(runtimeB.Alarms(activeOnly: true));
         Assert.Equal(0, Volatile.Read(ref activeAlarmTransitions));
+        Assert.Single(operationalOccurrences);
 
         var promoted = serviceB.Authority.ApplyReferencedAuthority(
             "node-b",
@@ -453,7 +473,8 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
                   Convert.ToInt32(valueB!.Value) == 7 &&
                   managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1 &&
                   historian.WrittenSamples >= historianBaseline + 2 &&
-                  Volatile.Read(ref activeAlarmTransitions) == 1,
+                  Volatile.Read(ref activeAlarmTransitions) == 1 &&
+                  operationalOccurrences.Count == 2,
             TimeSpan.FromSeconds(5));
         Assert.True(runtimeA.TryGetCurrent(stateId, out var formerActiveState));
         Assert.Equal(3, Convert.ToInt32(formerActiveState!.Value));
@@ -464,6 +485,10 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         Assert.Contains(runtimeB.Alarms(activeOnly: true), alarm =>
             alarm.Type == AlarmType.High && alarm.State == AlarmState.Active);
         Assert.Equal(1, Volatile.Read(ref activeAlarmTransitions));
+        Assert.Collection(
+            operationalOccurrences,
+            occurrence => Assert.Equal("HA transient state 3", occurrence.Message),
+            occurrence => Assert.Equal("HA transient state 7", occurrence.Message));
 
         var recordedValues = historian.Query(
                 stateId,
@@ -852,13 +877,18 @@ def pulse(event):
         Guid stateId,
         Guid eventDefinitionId,
         bool includeCapabilityEventReference = true,
-        bool includeHistorianAndAlarm = false)
+        bool includeHistorianAndAlarm = false,
+        Guid? operationalEventId = null)
     {
         var stateReference = stateId.ToString("D");
+        var eventReference = operationalEventId?.ToString("D") ?? Guid.NewGuid().ToString("D");
         var equipmentId = Guid.Parse("d4b42000-0000-0000-0000-000000000002");
         var dataSourceId = Guid.Parse("d4b42000-0000-0000-0000-000000000001");
         const string capabilityId = "input.main";
         const string semanticKey = "sensor.changed";
+        var operationalEventEmission = operationalEventId.HasValue
+            ? $"    emit_operational_event(\"{eventReference}\", \"HA transient state \" + str(next_value))"
+            : string.Empty;
         var script = new ScriptEngineeringDefinition(
             Guid.NewGuid(),
             "Scripts.TransientEvents",
@@ -869,7 +899,9 @@ def on_event(event):
     canonical = event["canonicalEvent"]
     if canonical["semanticKey"] == "{semanticKey}" and canonical["source"]["stableDeviceIdentity"] == "device-1":
         current = read_server_memory("{stateReference}")
-        write_server_memory("{stateReference}", current + canonical["payload"]["value"])
+        next_value = current + canonical["payload"]["value"]
+        write_server_memory("{stateReference}", next_value)
+{operationalEventEmission}
 """,
             entryPoints:
             [
@@ -947,7 +979,17 @@ def on_event(event):
                         semanticKey)
                 }
                 : Array.Empty<CapabilityEventReferenceEngineeringDto>(),
-            Scripts: [script]);
+            Scripts: [script],
+            OperationalEvents: operationalEventId.HasValue
+                ?
+                [new OperationalEventEngineeringDto(
+                    operationalEventId,
+                    "ha.transient.state",
+                    "HA transient state",
+                    "state-change",
+                    "process",
+                    "runtime.server-script")]
+                : Array.Empty<OperationalEventEngineeringDto>());
     }
 
     private static TransientEventOccurrence TransientOccurrence(

@@ -419,11 +419,15 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
     [Fact]
     public Task RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack()
-        => RunHaD2AuthorityLifecycleAsync(sharedDatabase: false, independentPostgreSqlServers: true);
+        => RunHaD2AuthorityLifecycleAsync(
+            sharedDatabase: false,
+            independentPostgreSqlServers: true,
+            verifyRuntimeSessionContinuity: true);
 
     private async Task RunHaD2AuthorityLifecycleAsync(
         bool sharedDatabase,
-        bool independentPostgreSqlServers = false)
+        bool independentPostgreSqlServers = false,
+        bool verifyRuntimeSessionContinuity = false)
     {
         var seedA = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(seedA))
@@ -625,6 +629,76 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             AssertOneActive(initialB, "node-a");
             var initialEpoch = initialA["authorityEpoch"]!.GetValue<long>();
 
+            Guid? runtimeSessionId = null;
+            string? runtimeSessionClientInstanceId = null;
+            string? runtimeSessionSubjectId = null;
+            RuntimeSessionLeaseEvidence? standbySession = null;
+            RuntimeSessionLeaseEvidence? promotedSession = null;
+            RuntimeSessionLeaseEvidence? failedBackSession = null;
+            if (verifyRuntimeSessionContinuity)
+            {
+                // Independent databases need the same canonical local identity on both
+                // APIs before a browser session can be resumed with the same subject.
+                // Use the supported encrypted Authority backup contract; never fabricate
+                // matching user IDs inside the test database.
+                var authorityBackup = await nodeA.SendAsync(
+                    HttpMethod.Post,
+                    "/api/auth/authority-backup/export",
+                    new JsonObject { ["password"] = AdminPassword });
+                var backupPayload = authorityBackup["backup"]?.GetValue<string>();
+                Assert.False(string.IsNullOrWhiteSpace(backupPayload));
+
+                var backupRequest = new JsonObject
+                {
+                    ["backup"] = backupPayload,
+                    ["password"] = AdminPassword
+                };
+                var backupPreview = await nodeB!.SendAsync(
+                    HttpMethod.Post,
+                    "/api/auth/authority-backup/preview",
+                    backupRequest);
+                Assert.Equal(1, backupPreview["userCount"]!.GetValue<int>());
+                Assert.True(backupPreview["policyIncluded"]!.GetValue<bool>());
+
+                var openedBackup = new Scada.Security.Authentication.AuthorityBackupService()
+                    .Open(backupPayload!, AdminPassword);
+                _ = Scada.Api.Security.AuthoritySwitchService.PrepareTarget(
+                    openedBackup,
+                    Array.Empty<Scada.Security.Authentication.LocalUserAccount>());
+
+                var backupApplied = await nodeB.SendAsync(
+                    HttpMethod.Post,
+                    "/api/auth/authority-backup/apply",
+                    backupRequest);
+                Assert.True(backupApplied["applied"]!.GetValue<bool>());
+                await nodeB.LoginAsync();
+
+                runtimeSessionClientInstanceId = "w15-ha-d2-client-" + suffix;
+                var admitted = await nodeA.SendAsync(
+                    HttpMethod.Post,
+                    "/api/runtime/sessions",
+                    new JsonObject
+                    {
+                        ["clientInstanceId"] = runtimeSessionClientInstanceId,
+                        ["connectionClass"] = "interactive"
+                    },
+                    expectedStatus: HttpStatusCode.Created);
+                runtimeSessionId = admitted["sessionId"]!.GetValue<Guid>();
+                runtimeSessionSubjectId = admitted["userId"]!.GetValue<string>();
+                Assert.Equal(runtimeSessionClientInstanceId, admitted["clientInstanceId"]!.GetValue<string>());
+                Assert.Equal("interactive", admitted["grantedClass"]!.GetValue<string>());
+
+                standbySession = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString,
+                    runtimeSessionId.Value,
+                    runtimeSessionSubjectId,
+                    runtimeSessionClientInstanceId,
+                    expectedServerNode: "node-a",
+                    minimumGeneration: 1,
+                    TimeSpan.FromSeconds(30));
+                Assert.Equal(1, standbySession.ActiveLogicalLeaseCount);
+            }
+
             // OS-process loss: the standby must use the fresh pre-failure witness and
             // reference fence to claim a strictly newer authority epoch.
             await nodeA.DisposeAsync();
@@ -637,6 +711,39 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 "a Ready standby did not automatically claim authority after active-process loss");
             AssertOneActive(promoted, "node-b");
             var promotedEpoch = promoted["authorityEpoch"]!.GetValue<long>();
+
+            if (verifyRuntimeSessionContinuity)
+            {
+                // Sign in on the promoted node after its Authority was provisioned from
+                // the canonical backup. Re-admission of the same subject/client must
+                // recover the replicated logical lease rather than reserve another seat.
+                await nodeB.LoginAsync();
+                var activeProfile = await nodeB.GetAsync("/api/auth/local-session");
+                Assert.True(activeProfile["authenticated"]!.GetValue<bool>(), activeProfile.ToJsonString());
+                await WaitForRuntimeViewCapabilityAsync(nodeB, TimeSpan.FromSeconds(20));
+                var resumed = await nodeB.SendAsync(
+                    HttpMethod.Post,
+                    "/api/runtime/sessions",
+                    new JsonObject
+                    {
+                        ["clientInstanceId"] = runtimeSessionClientInstanceId,
+                        ["connectionClass"] = "interactive"
+                    },
+                    expectedStatus: HttpStatusCode.Created);
+                Assert.Equal(runtimeSessionSubjectId, resumed["userId"]!.GetValue<string>());
+                Assert.Equal(runtimeSessionClientInstanceId, resumed["clientInstanceId"]!.GetValue<string>());
+                var promotedSessionId = resumed["sessionId"]!.GetValue<Guid>();
+                promotedSession = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString,
+                    promotedSessionId,
+                    runtimeSessionSubjectId!,
+                    runtimeSessionClientInstanceId!,
+                    expectedServerNode: "node-b",
+                    minimumGeneration: 1,
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(1, promotedSession.ActiveLogicalLeaseCount);
+                runtimeSessionId = promotedSessionId;
+            }
 
             // Rejoin the old node with the same NodeId. It must reconcile the newer
             // persisted epoch as Standby; restart alone must not restore its authority.
@@ -688,6 +795,30 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             AssertOneActive(failedBackA, "node-a");
             AssertOneActive(failedBackB, "node-a");
 
+            if (verifyRuntimeSessionContinuity)
+            {
+                await nodeA.LoginAsync();
+                await WaitForRuntimeViewCapabilityAsync(nodeA, TimeSpan.FromSeconds(20));
+                var resumedAfterFailback = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    nodeA,
+                    runtimeSessionClientInstanceId!,
+                    expectedActiveNode: "node-a",
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(runtimeSessionSubjectId, resumedAfterFailback["userId"]!.GetValue<string>());
+                Assert.Equal(runtimeSessionClientInstanceId, resumedAfterFailback["clientInstanceId"]!.GetValue<string>());
+                var failedBackSessionId = resumedAfterFailback["sessionId"]!.GetValue<Guid>();
+                failedBackSession = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString,
+                    failedBackSessionId,
+                    runtimeSessionSubjectId!,
+                    runtimeSessionClientInstanceId!,
+                    expectedServerNode: "node-a",
+                    minimumGeneration: 1,
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(1, failedBackSession.ActiveLogicalLeaseCount);
+                runtimeSessionId = failedBackSessionId;
+            }
+
             Console.WriteLine(JsonSerializer.Serialize(new
             {
                 evidence = "HA-D2 two-process authority lifecycle",
@@ -703,6 +834,24 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                         ? "both API processes used one disposable shared database name"
                         : "each API process used its own disposable database name on the same PostgreSQL server",
                 restartRecovery = "same-NodeId rejoined Ready Standby at the newer persisted epoch",
+                runtimeSessionContinuity = verifyRuntimeSessionContinuity
+                    ? new
+                    {
+                        sessionIdAfterFailback = runtimeSessionId,
+                        sessionIdAtStandby = standbySession?.SessionId,
+                        sessionIdAfterPromotion = promotedSession?.SessionId,
+                        sessionIdRotatedDuringFailover = standbySession?.SessionId != promotedSession?.SessionId,
+                        sessionIdRotatedDuringFailback = promotedSession?.SessionId != failedBackSession?.SessionId,
+                        subjectId = runtimeSessionSubjectId,
+                        clientInstanceId = runtimeSessionClientInstanceId,
+                        activeLeaseCountAtStandby = standbySession?.ActiveLogicalLeaseCount,
+                        nodeAtStandby = standbySession?.ServerNode,
+                        nodeAfterPromotion = promotedSession?.ServerNode,
+                        activeLeaseCountAfterPromotion = promotedSession?.ActiveLogicalLeaseCount,
+                        nodeAfterFailback = failedBackSession?.ServerNode,
+                        activeLeaseCountAfterFailback = failedBackSession?.ActiveLogicalLeaseCount
+                    }
+                    : null,
                 runtimeSessionLeaseEvidence = new[]
                 {
                     "RuntimeHighAvailabilityTests.RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission",
@@ -750,6 +899,143 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             $"{failure}. Last topology: {last?.ToJsonString() ?? "<unavailable>"}. " +
             $"Last error: {lastException?.Message ?? "<none>"}");
     }
+
+    private static async Task<JsonObject> AdmitRuntimeSessionAfterHaActivationAsync(
+        ApiProcess node,
+        string clientInstanceId,
+        string expectedActiveNode,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonNode? lastResponse = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var response = await node.PostRawAsync(
+                "/api/runtime/sessions",
+                new JsonObject
+                {
+                    ["clientInstanceId"] = clientInstanceId,
+                    ["connectionClass"] = "interactive"
+                });
+            if (response.StatusCode == HttpStatusCode.Created)
+                return response.Body as JsonObject
+                    ?? throw new InvalidOperationException("Runtime session admission returned an empty response.");
+
+            lastResponse = response.Body;
+            if (response.StatusCode != HttpStatusCode.Conflict ||
+                !string.Equals(
+                    response.Body?["code"]?.GetValue<string>(),
+                    "ha-effective-active-required",
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Runtime session admission after HA activation returned unexpected " +
+                    $"HTTP {(int)response.StatusCode}: {response.RawBody}");
+            }
+
+            var effectiveActiveNode = response.Body?["effectiveActiveNodeId"]?.GetValue<string>();
+            if (!string.Equals(effectiveActiveNode, expectedActiveNode, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Runtime session admission stayed fenced because effective Active is " +
+                    $"'{effectiveActiveNode ?? "<none>"}', expected '{expectedActiveNode}'.");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(200));
+        }
+
+        throw new TimeoutException(
+            $"Runtime session admission did not open on {expectedActiveNode} after HA activation. " +
+            $"Last response: {lastResponse?.ToJsonString() ?? "<none>"}.");
+    }
+
+    private static async Task WaitForRuntimeViewCapabilityAsync(ApiProcess node, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonObject? lastCapabilities = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastCapabilities = await node.GetAsync("/api/auth/effective-capabilities") as JsonObject;
+            if (lastCapabilities?["runtime"] is JsonArray runtimeCapabilities &&
+                runtimeCapabilities.Any(value => string.Equals(
+                    value?.GetValue<string>(),
+                    "View",
+                    StringComparison.Ordinal)))
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        throw new TimeoutException(
+            $"Runtime View capability did not become resolvable on {node.NodeId} after HA activation. " +
+            $"Last effective-capabilities response: {lastCapabilities?.ToJsonString() ?? "<unavailable>"}.");
+    }
+
+    private static async Task<RuntimeSessionLeaseEvidence> WaitForRuntimeSessionLeaseAsync(
+        string connectionString,
+        Guid sessionId,
+        string subjectId,
+        string clientInstanceId,
+        string expectedServerNode,
+        long minimumGeneration,
+        TimeSpan timeout)
+    {
+        const string sql = """
+            SELECT
+                count(*) FILTER (
+                    WHERE is_active AND expires_at_utc > clock_timestamp())::int,
+                max(session_id::text) FILTER (
+                    WHERE is_active AND expires_at_utc > clock_timestamp()),
+                max(server_node) FILTER (
+                    WHERE is_active AND expires_at_utc > clock_timestamp()),
+                max(generation) FILTER (
+                    WHERE is_active AND expires_at_utc > clock_timestamp())
+            FROM elitescada.runtime_session_leases
+            WHERE subject_id = @subject_id
+              AND client_instance_id = @client_instance_id;
+            """;
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("subject_id", subjectId);
+            command.Parameters.AddWithValue("client_instance_id", clientInstanceId);
+            await using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                var activeCount = reader.GetInt32(0);
+                var activeSessionId = reader.IsDBNull(1) ? (Guid?)null : Guid.Parse(reader.GetString(1));
+                var activeServerNode = reader.IsDBNull(2) ? null : reader.GetString(2);
+                var activeGeneration = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
+                if (activeCount == 1 && activeSessionId == sessionId &&
+                    string.Equals(activeServerNode, expectedServerNode, StringComparison.OrdinalIgnoreCase) &&
+                    activeGeneration >= minimumGeneration)
+                {
+                    return new RuntimeSessionLeaseEvidence(
+                        activeSessionId.Value,
+                        activeCount,
+                        activeServerNode,
+                        activeGeneration);
+                }
+            }
+            await reader.DisposeAsync();
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        throw new TimeoutException(
+            $"Runtime session lease {sessionId:D} for the logical client was not observed as one active row " +
+            $"on {expectedServerNode} at generation >= {minimumGeneration} within {timeout}.");
+    }
+
+    private sealed record RuntimeSessionLeaseEvidence(
+        Guid SessionId,
+        int ActiveLogicalLeaseCount,
+        string? ServerNode,
+        long Generation);
 
     private static bool IsEffectiveActive(JsonObject topology, string nodeId) =>
         string.Equals(topology["effectiveActiveNodeId"]?.GetValue<string>(), nodeId, StringComparison.OrdinalIgnoreCase);

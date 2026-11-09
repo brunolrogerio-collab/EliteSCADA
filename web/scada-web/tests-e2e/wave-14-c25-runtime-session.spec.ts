@@ -792,13 +792,21 @@ test('Runtime renews each window lease and binds its application projection to t
 test('Runtime closes the projection after lease renewal fails and can reacquire a seat', async ({ page }) => {
   await page.clock.install();
   await installSessionContract(page, administrator);
-  await installEngineeringRuntimeProjection(page);
+  const projectionSessionIds: string[] = [];
+  await installEngineeringRuntimeProjection(page, undefined, [], undefined, headers => {
+    const sessionId = headers['x-elitescada-runtime-session'];
+    if (sessionId) projectionSessionIds.push(sessionId);
+  });
   let admissions = 0;
   let heartbeatRequests = 0;
+  const admissionClientInstanceIds: string[] = [];
+  const sessionIds: string[] = [];
   await page.route('**/api/runtime/sessions', route => {
     const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
     admissions++;
     const sessionId = `00000000-0000-0000-0000-${String(780 + admissions).padStart(12, '0')}`;
+    admissionClientInstanceIds.push(request.clientInstanceId);
+    sessionIds.push(sessionId);
     return route.fulfill({ status: 201, json: {
       sessionId,
       clientInstanceId: request.clientInstanceId,
@@ -817,12 +825,91 @@ test('Runtime closes the projection after lease renewal fails and can reacquire 
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
   await page.clock.fastForward(20_000);
   await expect.poll(() => heartbeatRequests).toBe(1);
+  await expect.poll(() => admissions).toBe(2);
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => projectionSessionIds).toContain(sessionIds[1]);
+  await expect(page.getByTestId('runtime-session-required')).toHaveCount(0);
+  expect(sessionIds[0]).not.toBe(sessionIds[1]);
+  expect(admissionClientInstanceIds[1]).toBe(admissionClientInstanceIds[0]);
+  expect(projectionSessionIds).toContain(sessionIds[0]);
+});
+
+test('Runtime stays closed and stops reacquiring when failover admission is denied by seat capacity', async ({ page }) => {
+  await page.clock.install();
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  let admissions = 0;
+  let heartbeatRequests = 0;
+  const clientInstanceIds: string[] = [];
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    admissions++;
+    clientInstanceIds.push(request.clientInstanceId);
+    if (admissions > 1) {
+      return route.fulfill({ status: 409, json: {
+        error: 'Runtime session capacity is unavailable.',
+        capacityReasonCode: 'EligiblePoolsExhausted'
+      }});
+    }
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000781',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    return route.fulfill({ status: 410, json: { error: 'Runtime session lease expired.' } });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.clock.fastForward(20_000);
+  await expect.poll(() => heartbeatRequests).toBe(1);
+  await expect.poll(() => admissions).toBe(2);
   await expect(page.getByTestId('runtime-session-required')).toBeVisible();
   await expect(page.getByTestId('runtime-engineering-application')).toHaveCount(0);
-
-  await page.getByRole('button', { name: 'Abrir sessão Runtime' }).click();
-  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.clock.fastForward(60_000);
   expect(admissions).toBe(2);
+  expect(heartbeatRequests).toBe(1);
+  expect(clientInstanceIds[1]).toBe(clientInstanceIds[0]);
+});
+
+test('Runtime does not reacquire automatically after its authenticated lease is forbidden', async ({ page }) => {
+  await page.clock.install();
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  let admissions = 0;
+  let heartbeatRequests = 0;
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    admissions++;
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000782',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    return route.fulfill({ status: 403, json: { error: 'Runtime session authorization was revoked.' } });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.clock.fastForward(20_000);
+  await expect.poll(() => heartbeatRequests).toBe(1);
+  await expect(page.getByTestId('runtime-session-required')).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveCount(0);
+  await page.clock.fastForward(60_000);
+  expect(admissions).toBe(1);
+  expect(heartbeatRequests).toBe(1);
 });
 
 test('failed Runtime class replacement clears the terminated old session before showing the admission error', async ({ page }) => {

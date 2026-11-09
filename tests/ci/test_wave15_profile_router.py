@@ -444,7 +444,24 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         selected_tests = next(line.strip() for line in ha_d2_job.splitlines() if "--filter '" in line)
         self.assertIn("FullyQualifiedName~RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack", selected_tests)
         self.assertNotIn("FullyQualifiedName~RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack", selected_tests)
-        self.assertIn("Separate-database HA-D2 acceptance is temporarily quarantined", ha_d2_job)
+        self.assertIn("same-server, separate-database variant remains quarantined", ha_d2_job)
+
+        independent_job = wave15_workflow.split(
+            "  ha-d2-independent-database:", 1
+        )[1].split("  native-zigbee-sidecar:", 1)[0]
+        self.assertIn("needs: [classify, ha-d2-acceptance]", independent_job)
+        self.assertIn("ELITESCADA_REQUIRE_HA_D2_INDEPENDENT_POSTGRES: 'true'", independent_job)
+        self.assertIn("taskset --cpu-list", independent_job)
+        self.assertIn(
+            "FullyQualifiedName~RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack",
+            independent_job,
+        )
+        self.assertIn("system identifiers must differ", independent_job)
+
+        t1_gate = wave15_workflow.split("  t1-gate:", 1)[1]
+        self.assertIn("ha-d2-independent-database", t1_gate)
+        self.assertIn("HA_D2_INDEPENDENT: ${{ needs.ha-d2-independent-database.result }}", t1_gate)
+        self.assertIn('if [ "$NEED_HA_D2" = true ]; then test "$HA_D2_INDEPENDENT" = success; fi', t1_gate)
 
         l3_workflow = (ROOT / ".github/workflows/l3-seven-driver-lab.yml").read_text(encoding="utf-8")
         self.assertIn(

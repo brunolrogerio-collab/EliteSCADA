@@ -719,10 +719,109 @@ jobs:
             echo "Tested checkout: $(git rev-parse HEAD)"
             echo 'Evidence: two real API child processes; automatic Ready-standby promotion; same-NodeId restart reconciliation; authenticated, V3-HaRuntime-licensed explicit failback in the shared database-name topology; standalone API restart recovery from the exact durable Intelligence receipt.'
             echo 'Execution profile: the selected .NET test/API process is pinned to one logical CPU and reports one processor to .NET; the disposable Timescale service is limited to one CPU and 3 GiB RAM with swap disabled. HA-D2 remains enabled and executes in this serial profile.'
-            echo 'Separate-database HA-D2 acceptance is temporarily quarantined for the known intermittent issue; the test remains in the suite source for a later dedicated correction.'
+            echo 'The same-server, separate-database variant remains quarantined as a timing-sensitive synthetic case. A second serialized job exercises independent PostgreSQL servers; it does not model API hosts on separate machines.'
             echo 'Runtime session lease continuity/no-double-seat: exact in-process takeover and stale/resurrection rejection tests also passed in this gate; this is not a client-session reconnection E2E test.'
             echo 'Database scope: this run covers the shared-name topology on one configured disposable PostgreSQL server; it makes no separate-name or independent PostgreSQL server-failure/durability claim.'
             echo 'D1 protocol evidence remains a separate job and is not relabeled as D2.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ha-d2-independent-database:
+    name: HA D2 independent PostgreSQL servers (serialized)
+    needs: [classify, ha-d2-acceptance]
+    if: needs.classify.outputs.run_ha_d2_acceptance == 'true' && needs.ha-d2-acceptance.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres_primary:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_ha_d2_seed
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_ha_d2_seed"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+          --cpus=1 --memory=3g --memory-swap=3g
+      postgres_secondary:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_ha_d2_seed
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_ha_d2_seed"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+          --cpus=1 --memory=3g --memory-swap=3g
+    env:
+      ELITESCADA_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=postgres;Pooling=false
+      ELITESCADA_TEST_POSTGRES_B: Host=127.0.0.1;Port=5433;Database=postgres;Username=postgres;Password=postgres;Pooling=false
+      ELITESCADA_REQUIRE_HA_D2_POSTGRES: 'true'
+      ELITESCADA_REQUIRE_HA_D2_INDEPENDENT_POSTGRES: 'true'
+      DOTNET_PROCESSOR_COUNT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore API used by the child processes
+        run: dotnet restore src/Scada.Api/Scada.Api.csproj
+      - name: Build API used by the child processes
+        run: dotnet build src/Scada.Api/Scada.Api.csproj --no-restore --configuration Release
+      - name: Restore HA acceptance test project
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+      - name: Run independent-server HA-D2 evidence after the shared-database gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ha-d2-independent-results"
+          allowed_cpus="$(awk '/Cpus_allowed_list/ {print $2}' /proc/self/status)"
+          cpu="${allowed_cpus%%[-,]*}"
+          echo "Serial independent-server HA-D2 test CPU: $cpu (allowed set: $allowed_cpus)"
+          taskset --cpu-list "$cpu" env DOTNET_PROCESSOR_COUNT=1 dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --no-restore --configuration Release --verbosity minimal \
+            --filter 'FullyQualifiedName~RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack' \
+            --logger 'trx;LogFileName=ha-d2-independent-postgres.trx' \
+            --results-directory "$RUNNER_TEMP/ha-d2-independent-results"
+      - name: Require distinct PostgreSQL server evidence (no empty or skipped test)
+        env:
+          HA_D2_INDEPENDENT_RESULTS: ${{ runner.temp }}/ha-d2-independent-results
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          expected = "RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack"
+          results = []
+          for path in Path(os.environ["HA_D2_INDEPENDENT_RESULTS"]).glob("*.trx"):
+              root = ET.parse(path).getroot()
+              results.extend(element for element in root.iter() if element.tag.endswith("UnitTestResult"))
+          passed = [
+              result for result in results
+              if expected in result.attrib.get("testName", "") and result.attrib.get("outcome") == "Passed"
+          ]
+          if len(passed) != 1:
+              raise SystemExit(f"Expected one passing independent PostgreSQL server case, found {len(passed)}")
+          print("Passed HA-D2 automatic promotion and explicit failback using distinct PostgreSQL system identifiers.")
+          PY
+      - name: Preserve independent-server HA-D2 test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave15-ha-d2-independent-postgres-trx
+          path: ${{ runner.temp }}/ha-d2-independent-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Record independent PostgreSQL scope
+        run: |
+          {
+            echo '## Serialized HA-D2 independent PostgreSQL server evidence'
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo 'Evidence: two API child processes each use a disposable TimescaleDB service; pg_control_system system identifiers must differ before the lifecycle runs.'
+            echo 'Execution: this job starts only after the shared-database HA-D2 job succeeds. The test/API process uses one logical CPU; each disposable database service is limited to one CPU and 3 GiB RAM.'
+            echo 'Limit: both API processes and database services run on one GitHub-hosted runner. This validates independent PostgreSQL servers, not cross-machine API transport, WAN behavior, host failure, or durable production storage.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   native-zigbee-sidecar:
@@ -1062,7 +1161,7 @@ jobs:
 
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, intelligence-ui-regression, chromium-focused, ha-two-process, ha-d2-acceptance, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar, installation-linux, installation-windows]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, intelligence-ui-regression, chromium-focused, ha-two-process, ha-d2-acceptance, ha-d2-independent-database, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar, installation-linux, installation-windows]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -1077,6 +1176,7 @@ jobs:
       E2E: ${{ needs.chromium-focused.result }}
       HA_TWO_PROCESS: ${{ needs.ha-two-process.result }}
       HA_D2: ${{ needs.ha-d2-acceptance.result }}
+      HA_D2_INDEPENDENT: ${{ needs.ha-d2-independent-database.result }}
       NATIVE_ZIGBEE: ${{ needs.native-zigbee-sidecar.result }}
       KNX_SIDECAR: ${{ needs.knx-ip-sidecar.result }}
       ZWAVE_SIDECAR: ${{ needs.zwave-js-sidecar.result }}
@@ -1113,6 +1213,7 @@ jobs:
           if [ "$NEED_E2E" = true ]; then test "$E2E" = success; fi
           if [ "$NEED_HA_TWO_PROCESS" = true ]; then test "$HA_TWO_PROCESS" = success; fi
           if [ "$NEED_HA_D2" = true ]; then test "$HA_D2" = success; fi
+          if [ "$NEED_HA_D2" = true ]; then test "$HA_D2_INDEPENDENT" = success; fi
           if [ "$NEED_NATIVE_ZIGBEE" = true ]; then test "$NATIVE_ZIGBEE" = success; fi
           if [ "$NEED_KNX_SIDECAR" = true ]; then test "$KNX_SIDECAR" = success; fi
           if [ "$NEED_ZWAVE_SIDECAR" = true ]; then test "$ZWAVE_SIDECAR" = success; fi
@@ -1122,7 +1223,7 @@ jobs:
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
-            echo "Web: $WEB; .NET: $DOTNET; Intelligence Windows: $INTELLIGENCE_WINDOWS; Intelligence PostgreSQL restart: $INTELLIGENCE_POSTGRES; Intelligence UI regressions: $INTELLIGENCE_UI; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 process acceptance: $HA_D2; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR; Stable Docker Linux: $INSTALLATION_LINUX";
+            echo "Web: $WEB; .NET: $DOTNET; Intelligence Windows: $INTELLIGENCE_WINDOWS; Intelligence PostgreSQL restart: $INTELLIGENCE_POSTGRES; Intelligence UI regressions: $INTELLIGENCE_UI; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 shared-database acceptance: $HA_D2; HA D2 independent PostgreSQL servers: $HA_D2_INDEPENDENT; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR; Stable Docker Linux: $INSTALLATION_LINUX";
             echo 'Z-Wave JS Windows/Linux: temporarily quarantined by owner authorization (#856); not validated.';
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';

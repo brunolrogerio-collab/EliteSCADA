@@ -369,7 +369,9 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
 
         await dispatcher.DispatchAsync(TransientOccurrence(secondDefinitionId, 7));
         await WaitUntilAsync(
-            () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) == 10,
+            () => runtime.TryGetCurrent(stateId, out var state) &&
+                  Convert.ToInt32(state!.Value) == 10 &&
+                  manager.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1,
             TimeSpan.FromSeconds(5));
         Assert.Equal(1, manager.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
         await Task.Delay(150);

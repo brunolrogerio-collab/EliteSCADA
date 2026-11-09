@@ -66,10 +66,12 @@ public sealed class AuthoritySwitchService(
                 ?? throw new InvalidDataException("Authority backup policy roles are missing.");
             scopes = JsonSerializer.Deserialize<SecurityScopeEngineeringDto[]>(policy.ScopesJson)
                 ?? throw new InvalidDataException("Authority backup policy scopes are missing.");
+            // The backup stores this optional policy as JSON text. System.Text.Json serializes
+            // an absent policy as the literal "null", which is a valid representation of no
+            // public Runtime policy and must remain restorable on another Authority.
             publicRuntime = string.IsNullOrWhiteSpace(policy.PublicRuntimeJson)
                 ? null
-                : JsonSerializer.Deserialize<Scada.Security.Authorization.RuntimePublicAccessPolicy>(policy.PublicRuntimeJson)
-                    ?? throw new InvalidDataException("Authority backup public Runtime policy is invalid.");
+                : JsonSerializer.Deserialize<Scada.Security.Authorization.RuntimePublicAccessPolicy>(policy.PublicRuntimeJson);
         }
         catch (JsonException exception)
         {

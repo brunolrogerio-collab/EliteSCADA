@@ -27,6 +27,8 @@ type Copy = {
   fallback: string;
   viewOnlyGranted: string;
   rejected: string;
+  reconnecting: string;
+  reconnected: string;
 };
 
 const copy: Record<EngineeringLocale, Copy> = {
@@ -44,7 +46,9 @@ const copy: Record<EngineeringLocale, Copy> = {
     ending: 'Encerrando…',
     fallback: 'As vagas interativas estão indisponíveis; o servidor abriu esta sessão em Somente visualização.',
     viewOnlyGranted: 'Sessão aberta em Somente visualização conforme solicitado.',
-    rejected: 'A sessão Runtime não pôde ser admitida.'
+    rejected: 'A sessão Runtime não pôde ser admitida.',
+    reconnecting: 'Reconectando a sessão Runtime…',
+    reconnected: 'Conexão restabelecida; sessão Runtime renovada.'
   },
   en: {
     title: 'Runtime session class',
@@ -60,7 +64,9 @@ const copy: Record<EngineeringLocale, Copy> = {
     ending: 'Ending…',
     fallback: 'Interactive capacity is unavailable; the server opened this session as View Only.',
     viewOnlyGranted: 'Session opened as View Only as requested.',
-    rejected: 'The Runtime session could not be admitted.'
+    rejected: 'The Runtime session could not be admitted.',
+    reconnecting: 'Reconnecting the Runtime session…',
+    reconnected: 'Connection restored; the Runtime session was renewed.'
   },
   es: {
     title: 'Clase de sesión Runtime',
@@ -76,7 +82,9 @@ const copy: Record<EngineeringLocale, Copy> = {
     ending: 'Finalizando…',
     fallback: 'La capacidad interactiva no está disponible; el servidor abrió esta sesión como Solo visualización.',
     viewOnlyGranted: 'Sesión abierta como Solo visualización según lo solicitado.',
-    rejected: 'No fue posible admitir la sesión Runtime.'
+    rejected: 'No fue posible admitir la sesión Runtime.',
+    reconnecting: 'Reconectando la sesión Runtime…',
+    reconnected: 'Conexión restablecida; sesión Runtime renovada.'
   }
 };
 
@@ -95,6 +103,36 @@ type RuntimeSessionContextValue = {
 
 const RuntimeSessionContext = createContext<RuntimeSessionContextValue | null>(null);
 const SESSION_HEARTBEAT_INTERVAL_MS = 20_000;
+const SESSION_REACQUISITION_RETRY_DELAYS_MS = [0, 250, 750, 1_750, 3_750, 7_750, 15_750, 25_750] as const;
+
+function isTransientSessionFailure(reason: unknown): boolean {
+  if (!(reason instanceof RuntimeSessionAdmissionError)) return false;
+  if (reason.capacityReasonCode) return false;
+  return reason.status === undefined || [404, 409, 410, 500, 502, 503, 504].includes(reason.status);
+}
+
+function isHeartbeatRecoveryCandidate(reason: unknown): boolean {
+  return isTransientSessionFailure(reason);
+}
+
+async function reacquireRuntimeSessionAfterHeartbeatFailure(
+  current: RuntimeSessionAdmissionOutcome
+): Promise<RuntimeSessionAdmissionOutcome> {
+  const requestedClass = current.requestedClass ?? current.grantedClass ?? 'viewOnly';
+  let lastFailure: unknown;
+  for (const delay of SESSION_REACQUISITION_RETRY_DELAYS_MS) {
+    if (delay > 0) await new Promise(resolve => window.setTimeout(resolve, delay));
+    try {
+      return await admitRuntimeSession(requestedClass, fetch, current.clientInstanceId);
+    } catch (reason) {
+      lastFailure = reason;
+      if (!isTransientSessionFailure(reason)) throw reason;
+    }
+  }
+  throw lastFailure instanceof Error
+    ? lastFailure
+    : new RuntimeSessionAdmissionError('Runtime session could not be reacquired after the connection changed.');
+}
 
 export function RuntimeSessionClassProvider({ children, authenticationEnabled }: { children: ReactNode; authenticationEnabled: boolean }) {
   const initialSession = getActiveRuntimeSession();
@@ -130,13 +168,41 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
         setOutcome(renewed);
         setCapacityReasonCode(null);
         setActiveRuntimeSession(renewed);
-      }).catch(reason => {
+      }).catch(async reason => {
+        if (disposed || lease.current?.sessionId !== current.sessionId) return;
+        const text = copy[currentLocale.current];
+        if (!current.publicRuntime && isHeartbeatRecoveryCandidate(reason)) {
+          setBusy(current.requestedClass ?? current.grantedClass ?? 'viewOnly');
+          setError(null);
+          setNotice(text.reconnecting);
+          setActiveRuntimeSession(null);
+          try {
+            const recovered = await reacquireRuntimeSessionAfterHeartbeatFailure(current);
+            if (disposed || lease.current?.sessionId !== current.sessionId) {
+              // A navigation or a manual class change may finish while reacquisition is
+              // in flight. Do not leave its newly admitted logical seat orphaned.
+              void releaseRuntimeSession(recovered).catch(() => undefined);
+              return;
+            }
+            lease.current = recovered;
+            setOutcome(recovered);
+            setCapacityReasonCode(null);
+            setActiveRuntimeSession(recovered);
+            setNotice(recovered.requestedClass === 'interactive' && recovered.grantedClass === 'viewOnly'
+              ? text.fallback
+              : text.reconnected);
+            return;
+          } catch (recoveryFailure) {
+            reason = recoveryFailure;
+          } finally {
+            if (!disposed) setBusy(null);
+          }
+        }
         if (disposed || lease.current?.sessionId !== current.sessionId) return;
         lease.current = null;
         setOutcome(null);
         setActiveRuntimeSession(null);
         setCapacityReasonCode(reason instanceof RuntimeSessionAdmissionError ? reason.capacityReasonCode ?? null : null);
-        const text = copy[currentLocale.current];
         const detail = reason instanceof Error ? reason.message : String(reason);
         setError([text.rejected, detail].filter(Boolean).join(' '));
         setNotice(null);

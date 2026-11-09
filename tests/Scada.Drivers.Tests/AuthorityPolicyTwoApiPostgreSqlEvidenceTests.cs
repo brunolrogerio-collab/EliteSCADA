@@ -417,10 +417,16 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
     public Task RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack()
         => RunHaD2AuthorityLifecycleAsync(sharedDatabase: false);
 
-    private async Task RunHaD2AuthorityLifecycleAsync(bool sharedDatabase)
+    [Fact]
+    public Task RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack()
+        => RunHaD2AuthorityLifecycleAsync(sharedDatabase: false, independentPostgreSqlServers: true);
+
+    private async Task RunHaD2AuthorityLifecycleAsync(
+        bool sharedDatabase,
+        bool independentPostgreSqlServers = false)
     {
-        var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
-        if (string.IsNullOrWhiteSpace(seed))
+        var seedA = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(seedA))
         {
             if (string.Equals(
                     Environment.GetEnvironmentVariable("ELITESCADA_REQUIRE_HA_D2_POSTGRES"),
@@ -434,26 +440,48 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             return;
         }
 
+        var seedB = independentPostgreSqlServers
+            ? Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES_B")
+            : seedA;
+        if (independentPostgreSqlServers && string.IsNullOrWhiteSpace(seedB))
+        {
+            if (string.Equals(
+                    Environment.GetEnvironmentVariable("ELITESCADA_REQUIRE_HA_D2_INDEPENDENT_POSTGRES"),
+                    "true",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Independent HA-D2 acceptance requires ELITESCADA_TEST_POSTGRES_B; the evidence test must not silently pass without a second PostgreSQL server.");
+            }
+
+            return;
+        }
+
         var root = FindRepositoryRoot();
         var apiDll = Path.Combine(AppContext.BaseDirectory, "Scada.Api.dll");
         if (!File.Exists(apiDll))
             apiDll = Path.Combine(root, "src", "Scada.Api", "bin", "Release", "net10.0", "Scada.Api.dll");
         Assert.True(File.Exists(apiDll), $"Scada.Api child process binary was not found: {apiDll}");
 
-        // These authority-lifecycle variants use either one shared disposable database
-        // name or two separate disposable names on the same PostgreSQL server. They do
-        // not simulate independent PostgreSQL server failure or prove database durability.
+        // These variants distinguish a shared database, separate database names on one
+        // PostgreSQL server, and independent PostgreSQL servers. They do not simulate
+        // network-separated API hosts or prove database durability.
         var suffix = Guid.NewGuid().ToString("N")[..10];
         var databaseA = "w15_ha_d2_a_" + suffix;
         var databaseB = sharedDatabase ? databaseA : "w15_ha_d2_b_" + suffix;
         var role = "w15_ha_d2_" + suffix;
         var password = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
-        var adminConnection = new NpgsqlConnectionStringBuilder(seed)
+        var adminConnectionA = new NpgsqlConnectionStringBuilder(seedA)
         {
             Database = "postgres",
             Pooling = false
         };
-        var appConnectionA = new NpgsqlConnectionStringBuilder(seed)
+        var adminConnectionB = new NpgsqlConnectionStringBuilder(seedB!)
+        {
+            Database = "postgres",
+            Pooling = false
+        };
+        var appConnectionA = new NpgsqlConnectionStringBuilder(seedA)
         {
             Database = databaseA,
             Username = role,
@@ -462,7 +490,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             ApplicationName = "w15-ha-d2-node-a-" + suffix,
             MaxPoolSize = 32
         };
-        var appConnectionB = new NpgsqlConnectionStringBuilder(seed)
+        var appConnectionB = new NpgsqlConnectionStringBuilder(seedB!)
         {
             Database = databaseB,
             Username = role,
@@ -476,17 +504,37 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
         ApiProcess? nodeA = null;
         ApiProcess? nodeB = null;
-        var databasesCreated = new List<string>();
-        var roleCreated = false;
+        var databasesCreated = new List<(string AdminConnectionString, string Name)>();
+        var rolesCreated = new List<(string AdminConnectionString, string Name)>();
         try
         {
-            await CreateRoleAsync(adminConnection.ConnectionString, role, password);
-            roleCreated = true;
-            foreach (var database in new[] { databaseA, databaseB }.Distinct(StringComparer.Ordinal))
+            if (independentPostgreSqlServers)
             {
-                await CreateDatabaseAsync(adminConnection.ConnectionString, database, role);
+                var serverA = await GetPostgreSqlSystemIdentifierAsync(adminConnectionA.ConnectionString);
+                var serverB = await GetPostgreSqlSystemIdentifierAsync(adminConnectionB.ConnectionString);
+                Assert.NotEqual(serverA, serverB);
+            }
+
+            await CreateRoleAsync(adminConnectionA.ConnectionString, role, password);
+            rolesCreated.Add((adminConnectionA.ConnectionString, role));
+            if (independentPostgreSqlServers)
+            {
+                await CreateRoleAsync(adminConnectionB.ConnectionString, role, password);
+                rolesCreated.Add((adminConnectionB.ConnectionString, role));
+            }
+
+            var databases = new List<(string AdminConnectionString, string Name)>
+            {
+                (adminConnectionA.ConnectionString, databaseA)
+            };
+            if (!sharedDatabase)
+                databases.Add((adminConnectionB.ConnectionString, databaseB));
+
+            foreach (var database in databases)
+            {
+                await CreateDatabaseAsync(database.AdminConnectionString, database.Name, role);
                 databasesCreated.Add(database);
-                await InstallTimescaleExtensionAsync(adminConnection.ConnectionString, database);
+                await InstallTimescaleExtensionAsync(database.AdminConnectionString, database.Name);
             }
 
             var license = CreateLicense(directory);
@@ -649,9 +697,11 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 initialEpoch,
                 promotedEpoch,
                 failedBackEpoch = failedBackA["authorityEpoch"]!.GetValue<long>(),
-                databaseTopology = sharedDatabase
-                    ? "both API processes used one disposable shared database name"
-                    : "each API process used its own disposable database name on the same PostgreSQL server",
+                databaseTopology = independentPostgreSqlServers
+                    ? "each API process used its own disposable database on a distinct PostgreSQL system identifier"
+                    : sharedDatabase
+                        ? "both API processes used one disposable shared database name"
+                        : "each API process used its own disposable database name on the same PostgreSQL server",
                 restartRecovery = "same-NodeId rejoined Ready Standby at the newer persisted epoch",
                 runtimeSessionLeaseEvidence = new[]
                 {
@@ -665,9 +715,9 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             if (nodeB is not null) await nodeB.DisposeAsync();
             if (nodeA is not null) await nodeA.DisposeAsync();
             foreach (var database in databasesCreated.AsEnumerable().Reverse())
-                await DropDatabaseAsync(adminConnection.ConnectionString, database);
-            if (roleCreated)
-                await DropRoleAsync(adminConnection.ConnectionString, role);
+                await DropDatabaseAsync(database.AdminConnectionString, database.Name);
+            foreach (var createdRole in rolesCreated.AsEnumerable().Reverse())
+                await DropRoleAsync(createdRole.AdminConnectionString, createdRole.Name);
             if (Directory.Exists(directory))
                 Directory.Delete(directory, recursive: true);
         }
@@ -1250,6 +1300,17 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             await Task.Delay(150);
         }
         throw new TimeoutException(message);
+    }
+
+    private static async Task<string> GetPostgreSqlSystemIdentifierAsync(string connectionString)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "SELECT system_identifier::text FROM pg_control_system()",
+            connection);
+        return await command.ExecuteScalarAsync() as string ??
+            throw new InvalidOperationException("PostgreSQL did not return its system identifier.");
     }
 
     private static async Task CreateRoleAsync(string connectionString, string role, string password)

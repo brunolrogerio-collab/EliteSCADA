@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useAuth } from '../../auth/AuthGate';
 import {
   admitRuntimeSession,
   getActiveRuntimeSession,
@@ -135,6 +136,7 @@ async function reacquireRuntimeSessionAfterHeartbeatFailure(
 }
 
 export function RuntimeSessionClassProvider({ children, authenticationEnabled }: { children: ReactNode; authenticationEnabled: boolean }) {
+  const { requireSignIn } = useAuth();
   const initialSession = getActiveRuntimeSession();
   const lease = useRef<RuntimeSessionAdmissionOutcome | null>(initialSession);
   const ensureInFlight = useRef<Promise<void> | null>(null);
@@ -199,6 +201,19 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
           }
         }
         if (disposed || lease.current?.sessionId !== current.sessionId) return;
+        if (!current.publicRuntime &&
+            reason instanceof RuntimeSessionAdmissionError &&
+            reason.status === 401) {
+          lease.current = null;
+          setOutcome(null);
+          setCapacityReasonCode(null);
+          setActiveRuntimeSession(null);
+          setError(null);
+          setNotice(null);
+          setBusy(null);
+          requireSignIn();
+          return;
+        }
         lease.current = null;
         setOutcome(null);
         setActiveRuntimeSession(null);
@@ -212,7 +227,7 @@ export function RuntimeSessionClassProvider({ children, authenticationEnabled }:
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [outcome?.sessionId]);
+  }, [outcome?.sessionId, requireSignIn]);
 
   const request = useCallback(async (requestedClass: RuntimeSessionConnectionClass, locale: EngineeringLocale) => {
     if (!authenticationEnabled) return;
